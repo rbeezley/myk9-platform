@@ -12,11 +12,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import {
-  Calendar,
+  CalendarClock,
   CalendarDays,
+  CalendarPlus,
   ListOrdered,
   Eye,
   Edit,
@@ -37,6 +37,7 @@ import { formatTrialLabel } from './myEntriesUtils';
 import { formatMonthDay, formatShortDate } from '@/lib/format/dates';
 import { toDogEntryView } from './myEntryDogView';
 import { isClassCheckInEligible } from './entryNextAction';
+import { getSharedClassFacts } from './classGroupFacts';
 
 interface MyEntryCardDetailsProps {
   entry: MyEntry;
@@ -55,6 +56,8 @@ interface MyEntryCardDetailsProps {
   onEditClick: (entry: MyEntry) => void;
   onReceiptClick: (entry: MyEntry) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
+  /** Opens the card's calendar dialog; the control lives here, the dialog on the card. */
+  onAddToCalendarClick: () => void;
 }
 
 export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
@@ -72,6 +75,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
   onEditClick,
   onReceiptClick,
   onResultRevealClick,
+  onAddToCalendarClick,
 }) => {
   // Edit/Receipt dialogs still expect a single `dogName` paired with `classes`
   // — but a multi-dog order's `classes` spans every dog. Passing the raw
@@ -82,6 +86,23 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
     entry.dogs.length > 1
       ? { ...entry, dogName: entry.dogs.map(dog => dog.dogName).join(' & '), armband: undefined }
       : entry;
+
+  // Facts common to every class row on this order, hoisted so they are stated
+  // once rather than repeated per row. A three-class order used to print the
+  // trial date three times below the show date, the trial number three times,
+  // and the handler three times.
+  const sharedFacts = getSharedClassFacts(entry.classes);
+  const sharedFactsLine: { key: string; label: string }[] = [
+    ...(sharedFacts.trialNumber
+      ? [{ key: 'trial', label: formatTrialLabel(sharedFacts.trialNumber) }]
+      : []),
+    ...(sharedFacts.trialDate
+      ? [{ key: 'date', label: formatMonthDay(sharedFacts.trialDate) }]
+      : []),
+    ...(sharedFacts.handler
+      ? [{ key: 'handler', label: `Handled by ${sharedFacts.handler}` }]
+      : []),
+  ];
 
   return (
     <div id={detailsId} className="myk9-entries-details-panel">
@@ -97,7 +118,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           the summary band (task 3.3). */}
       {!canEdit && entry.entryCloseDate && (
         <div className="myk9-entries-detail-item">
-          <Calendar className="h-4 w-4" />
+          <CalendarClock className="h-4 w-4" />
           <span>
             <span className="text-sm text-muted-foreground">Entries close </span>
             {formatShortDate(entry.entryCloseDate)}
@@ -105,38 +126,47 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
         </div>
       )}
 
-      <div className="myk9-entries-detail-item">
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded bg-primary/10 px-1 text-sm font-bold text-primary">
-          {entry.classes.length}
-        </span>
-        <span>
-          {entry.classes.length === 1
-            ? '1 class entered'
-            : `${entry.classes.length} classes entered`}
-        </span>
-      </div>
+      {/* Classes. The separate "N classes entered" counter that used to sit
+          here is gone: the toggle above now reads "Entered Classes (N)", so
+          the count was stated twice and then demonstrated by the list itself.
+          The visible "Classes Entered:" heading went with it for the same
+          reason — the control that opened this panel already says it — but the
+          h4 stays, screen-reader-only, so the h3 → h4 structure is intact.
 
-      {/* Classes — a single-dog order renders a flat list (unchanged markup);
-          an order spanning several dogs (D1/D2) groups classes under each
-          dog's name in a wrapping grid capped at 5 columns, never
-          overflow-x. Each dog's check-in click is scoped via `toDogEntryView`
-          so the dialog shows that dog's identity, not the order's lead dog. */}
+          A single-dog order renders a flat list; an order spanning several
+          dogs groups classes under each dog's name. Each dog's check-in click
+          is scoped via `toDogEntryView` so the dialog shows that dog's
+          identity, not the order's lead dog. */}
       <div className="myk9-entries-classes-section">
-        {/* h4, following the card title h3 — this was an h5 jumping straight from h1. */}
-        <h4 className="myk9-entries-classes-title">Classes Entered:</h4>
+        <h4 className="sr-only">Entered classes</h4>
+
+        {/* Facts every row agrees on, stated once. A row prints its own trial
+            date, trial number or handler only when it differs from the group
+            — see `getSharedClassFacts`. */}
+        {sharedFactsLine.length > 0 && (
+          <p className="myk9-entries-shared-facts">
+            {sharedFactsLine.map((fact, index) => (
+              <React.Fragment key={fact.key}>
+                {index > 0 && <span aria-hidden="true">·</span>}
+                <span>{fact.label}</span>
+              </React.Fragment>
+            ))}
+          </p>
+        )}
+
         {entry.dogs.length > 1 ? (
-          <div className="myk9-entries-dogs-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          // Two columns at most, and only from `lg`. The old
+          // `xl:grid-cols-5` was keyed to the viewport while the column is
+          // narrowed by a 288px sidebar, leaving ~171px per dog group and
+          // ellipsing class names like "Novice Container A #12 (16in)" down
+          // to a few characters.
+          <div className="myk9-entries-dogs-grid grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
             {entry.dogs.map(dog => (
-              <div
-                key={dog.dogId}
-                className="myk9-entries-dog-group rounded-lg border border-border p-3"
-              >
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                  {dog.armband && (
-                    <ArmbandBadge armband={dog.armband} className="h-6 min-w-6 rounded text-xs" />
-                  )}
-                  <span>{dog.dogName}</span>
-                </div>
+              <div key={dog.dogId} className="myk9-entries-dog-group">
+                {/* Name only. The armband is on the always-visible band above,
+                    which is what gets read at the gate; repeating it here made
+                    every dog's identity appear twice on one card. */}
+                <div className="myk9-entries-dog-group-name">{dog.dogName}</div>
                 <div className="myk9-entries-classes-list">
                   {dog.classes.map(cls => renderClassRow(cls, toDogEntryView(entry, dog)))}
                 </div>
@@ -204,6 +234,17 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
             </Button>
           )}
 
+          {/* Moved off the summary band, where it was a second outline button
+              competing with the single next action. */}
+          <Button
+            variant="outline"
+            onClick={onAddToCalendarClick}
+            className="min-h-[44px] hover:bg-muted transition-all duration-state"
+          >
+            <CalendarPlus className="h-5 w-5 mr-1.5" />
+            Add to Calendar
+          </Button>
+
           {canShowReceipt && (
             <Button
               variant="outline"
@@ -249,22 +290,26 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
               {cls.number ? ` #${cls.number}` : ''}
               {cls.jumpHeight && ` (${cls.jumpHeight})`}
             </span>
-            {(cls.trialDate || cls.trialNumber) && (
+            {/* Only what makes THIS row different from the hoisted line above.
+                When every row shares a trial date / number / handler the
+                shared line carries it and these render nothing. */}
+            {((cls.trialDate && !sharedFacts.trialDate) ||
+              (cls.trialNumber && !sharedFacts.trialNumber)) && (
               <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                {cls.trialDate && (
+                {cls.trialDate && !sharedFacts.trialDate && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 font-medium">
                     <CalendarDays className="h-3 w-3" />
                     {formatMonthDay(cls.trialDate)}
                   </span>
                 )}
-                {cls.trialNumber && (
+                {cls.trialNumber && !sharedFacts.trialNumber && (
                   <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 font-semibold text-primary">
                     {formatTrialLabel(cls.trialNumber)}
                   </span>
                 )}
               </span>
             )}
-            {cls.handler && (
+            {cls.handler && !sharedFacts.handler && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                 <User className="h-3 w-3 flex-shrink-0" />
                 {cls.handler}
@@ -331,13 +376,16 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
                 />
               </button>
             ) : (
+              // The reason is rendered as text, not a `title=` tooltip. This
+              // audience is on a phone, outdoors — a hover-only explanation is
+              // unreachable for them (PRODUCT.md bans hover-only affordances).
+              // `opacity-60` is gone too: it pushed this text to ~2.5:1.
+              // The aria-label stays: it is the accessible name for the whole
+              // non-interactive cluster, and a test asserts its ABSENCE when
+              // check-in IS available — dropping it would make that assertion
+              // pass vacuously.
               <span
-                className="cursor-not-allowed opacity-60"
-                title={
-                  cls.unresolved
-                    ? 'This class is still syncing — check-in will be available shortly.'
-                    : "Self check-in isn't available for this class right now."
-                }
+                className="flex flex-col items-end gap-1 text-right"
                 aria-label="Self check-in not available"
               >
                 <CheckInStatusIndicator
@@ -346,6 +394,9 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
                   showLabel={true}
                   showTooltip={false}
                 />
+                <span className="text-xs text-muted-foreground">
+                  {cls.unresolved ? 'Still syncing' : 'Check-in not open'}
+                </span>
               </span>
             ))}
         </div>

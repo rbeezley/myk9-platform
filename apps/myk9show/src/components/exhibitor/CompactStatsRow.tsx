@@ -11,7 +11,7 @@
  * Desktop is unchanged: the grid always shows and the summary toggle is hidden.
  */
 
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { FileText, Calendar, DollarSign, History, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
@@ -109,8 +109,11 @@ export function CompactStatsRow({
       ...(paidInFull
         ? { quietValue: 'Paid in full' }
         : {
-            displayValue: `$${currentFees.toLocaleString()}`,
-            detail: `Amount due $${amountDue.toLocaleString()}`,
+            // formatCurrency, not toLocaleString: a plain number drops the
+            // cents, so a $1,234.50 balance printed as "$1,234.5" on the
+            // exhibitor's money surface.
+            displayValue: formatCurrency(currentFees),
+            detail: `Amount due ${formatCurrency(amountDue)}`,
             detailClassName: 'text-warning',
           }),
       href: feeHref,
@@ -153,7 +156,7 @@ export function CompactStatsRow({
           </span>
           {amountDue > 0 ? (
             <span className="font-semibold text-warning tabular-nums">
-              ${amountDue.toLocaleString()} due
+              {formatCurrency(amountDue)} due
             </span>
           ) : (
             <span className="text-muted-foreground tabular-nums">Paid in full</span>

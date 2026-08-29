@@ -76,7 +76,7 @@ describe('MyEntryCard — entry close date label', () => {
     );
 
     expect(screen.queryByText('Entries close')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /show details/i }));
+    await user.click(screen.getByRole('button', { name: /entered classes/i }));
     expect(screen.getByText('Entries close')).toBeInTheDocument();
   });
 

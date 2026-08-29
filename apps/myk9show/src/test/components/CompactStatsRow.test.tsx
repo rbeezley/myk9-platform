@@ -37,9 +37,9 @@ describe('CompactStatsRow', () => {
     expect(grid.getByText('1')).toBeInTheDocument();
     expect(grid.getByText('Completed Show')).toBeInTheDocument();
     expect(grid.getAllByText('entered')).toHaveLength(2);
-    expect(grid.getByText('$150')).toBeInTheDocument();
+    expect(grid.getByText('$150.00')).toBeInTheDocument();
     expect(grid.getByText('Current Fees')).toBeInTheDocument();
-    expect(grid.getByText('Amount due $75')).toHaveClass('text-warning');
+    expect(grid.getByText('Amount due $75.00')).toHaveClass('text-warning');
   });
 
   it('shows paid in full when there is no amount due, without a dollar total on the fees card', () => {
@@ -118,7 +118,7 @@ describe('CompactStatsRow', () => {
     expect(feeIcon).toHaveClass('text-warning');
     expect(feeIcon).toHaveClass('bg-warning/10');
     expect(feeIcon).toHaveClass('border-warning/30');
-    expect(screen.getByText('Amount due $75')).toHaveClass('text-warning');
+    expect(screen.getByText('Amount due $75.00')).toHaveClass('text-warning');
   });
 
   it('uses a calmer paid-in-full fee icon when no balance is due', () => {
@@ -301,7 +301,7 @@ describe('CompactStatsRow', () => {
     it('surfaces the amount due in the collapsed summary', () => {
       render(<CompactStatsRow {...defaultProps} amountDue={75} />);
 
-      const due = screen.getByText('$75 due');
+      const due = screen.getByText('$75.00 due');
       expect(due).toHaveClass('text-warning');
       // The toggle recaps entry and show counts without expanding.
       const toggle = screen.getByRole('button', { expanded: false });

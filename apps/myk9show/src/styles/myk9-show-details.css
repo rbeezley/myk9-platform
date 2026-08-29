@@ -664,40 +664,6 @@
     transform: none;
   }
 
-  /* My Entries cards: tighten and stack for phone widths so the action bar
-     never overflows and the title/badge row doesn't compete for space. */
-  .myk9-entries-card {
-    padding: 16px;
-  }
-
-  .myk9-entries-card:hover {
-    transform: none;
-  }
-
-  .myk9-entries-card-header {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .myk9-entries-badges {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
-  .myk9-entries-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  /* .myk9-entries-action-buttons wraps unconditionally in its base rule
-     (MYK9-124) — no breakpoint override needed. */
-
-  .myk9-entries-class-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
 }
 
 /* Smooth animations */
@@ -812,7 +778,9 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px;
-  margin-bottom: 16px;
+  /* No margin-bottom: the entries list is a <ul class="space-y-4">, which owns
+     the gap between cards. Both owners together left a stray 16px tail below
+     the last card. */
   transition:
     box-shadow 150ms ease,
     border-color 150ms ease;
@@ -838,8 +806,13 @@
 }
 
 .myk9-entries-card-title {
-  font-size: 20px;
-  font-weight: 650;
+  /* rem, not px: --font-scale rescales the html rem baseline, so a px size
+     here ignores the user's font-size preference entirely — the whole card
+     stayed put while the rest of the app grew (DESIGN.md, The Font Scale
+     Rule). 600 not 650: Montserrat ships 400/500/600/700 and 650 rounds
+     unpredictably. */
+  font-size: 1.25rem;
+  font-weight: 600;
   line-height: 1.3;
   color: var(--foreground);
   display: flex;
@@ -848,11 +821,6 @@
   margin-bottom: 6px;
 }
 
-.myk9-entries-card-subtitle {
-  font-size: 14px;
-  color: var(--muted-foreground);
-  font-weight: 500;
-}
 
 .myk9-entries-badges {
   display: flex;
@@ -863,34 +831,6 @@
   justify-content: flex-end;
 }
 
-.myk9-entries-progress-section {
-  margin: 20px 0;
-  padding: 16px;
-  background: color-mix(in srgb, var(--primary) 4%, transparent);
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--primary) 10%, transparent);
-}
-
-.myk9-entries-progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.myk9-entries-progress-label {
-  font-size: 14px;
-  font-weight: 590;
-  color: var(--muted-foreground);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.myk9-entries-progress-value {
-  font-size: 15px;
-  font-weight: 650;
-  color: var(--foreground);
-}
 
 .myk9-entries-details-grid {
   display: grid;
@@ -898,7 +838,13 @@
   gap: 10px 14px;
   margin: 14px 0;
   padding: 12px;
-  background: color-mix(in srgb, var(--muted) 20%, transparent);
+  /* Was color-mix(var(--muted) 20%, transparent). In dark mode --muted and
+     --card are the SAME hex (#1e1c19), so that composite was byte-identical
+     to the card beneath it: measured delta 0.00, and with no border the
+     container had zero visual presence. A flat token plus a border paints in
+     both themes. */
+  background: var(--muted);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
@@ -906,7 +852,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted-foreground);
 }
 
@@ -918,17 +864,18 @@
   margin: 14px 0;
 }
 
-.myk9-entries-classes-title {
-  font-size: 16px;
-  font-weight: 650;
-  color: var(--foreground);
-  margin-bottom: 12px;
-}
 
 .myk9-entries-classes-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+}
+
+/* Rows are separated by a rule, not boxed. A bordered row inside a tinted
+   panel inside the card was three containers deep — DESIGN.md §5: "Never
+   nested. A card inside a card means the structure is wrong." The old tint
+   was also a 0.00 delta in dark mode (see .myk9-entries-details-grid). */
+.myk9-entries-classes-list > .myk9-entries-class-row + .myk9-entries-class-row {
+  border-top: 1px solid var(--border);
 }
 
 .myk9-entries-class-row {
@@ -938,26 +885,21 @@
   align-items: center;
   min-width: 0;
   min-height: 52px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--muted) 14%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 12px 0;
 }
 
 .myk9-entries-class-name {
-  font-size: 14px;
-  font-weight: 590;
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Wraps. It used to be nowrap + ellipsis, so a long name like "Novice
+     Container A #12 (16in)" truncated and its full text was reachable only
+     through a `title=` tooltip — unavailable on the phone this audience uses
+     at a venue (PRODUCT.md bans hover-only affordances). */
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
-.myk9-entries-class-fee {
-  font-size: 14px;
-  font-weight: 650;
-  color: var(--foreground);
-}
 
 /* Wrapping is UNCONDITIONAL, not breakpoint-gated (MYK9-124). Browser zoom
    shrinks the CSS-pixel viewport continuously — 1440px at 125% is 1152 CSS px —
@@ -978,7 +920,7 @@
 }
 
 .myk9-entries-last-updated {
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--muted-foreground);
   font-weight: 500;
 }
@@ -987,6 +929,125 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ---- Classes that were used in JSX but had NO rule anywhere in the repo.
+   The expanded panel in particular opened flush against the bottom of its
+   toggle with no padding, separation or containment; the Tailwind utilities
+   on its children were carrying the whole thing. ---- */
+
+.myk9-entries-details-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.myk9-entries-pending-reassurance {
+  margin: 12px 0 0;
+}
+
+.myk9-entries-dog-group-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+/* Facts every class row agrees on, stated once above the list. */
+.myk9-entries-shared-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+/* ---- Per-dog band on the always-visible summary: which classes each dog is
+   entered in, with check-in state before the run and results after it. ---- */
+
+.myk9-entries-dog-face {
+  display: flex;
+  flex-direction: column;
+  margin: 14px 0;
+  padding: 12px 14px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.myk9-entries-dog-face-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.myk9-entries-dog-face-row--divided {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 6px;
+}
+
+.myk9-entries-dog-face-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.myk9-entries-dog-face-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.myk9-entries-dog-face-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.myk9-entries-dog-face-classes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.myk9-entries-dog-face-class {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.myk9-entries-dog-face-checked {
+  display: inline-flex;
+  align-items: center;
+  color: var(--success);
+}
+
+.myk9-entries-dog-face-tally {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 768px) {
+  .myk9-entries-dog-face-row {
+    flex-direction: column;
+    gap: 6px;
+  }
 }
 
 /* My Entries cards: tighten and stack for phone widths so the action bar never

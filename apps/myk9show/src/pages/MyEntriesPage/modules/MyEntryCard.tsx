@@ -8,10 +8,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PaymentStatus } from '@/types/show-registration-types';
-import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import {
   Calendar,
-  CalendarPlus,
+  CalendarClock,
   ChevronDown,
   MapPin,
   Eye,
@@ -21,7 +20,13 @@ import {
 } from 'lucide-react';
 import { type ResultCardModel } from '@/features/result-card';
 import type { MyEntry, EntryClass } from './my-entries-types';
-import { getEntryStatusBadge, getPaymentStatusBadge, getStatusIcon } from './myEntriesUtils';
+import {
+  getEntryStatusBadge,
+  getPaymentStatusBadge,
+  isStatusMessageRedundant,
+} from './myEntriesUtils';
+import { MyEntryDogFace } from './MyEntryDogFace';
+import { dogGroupsForFace } from './dogFaceSummary';
 import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import { MyEntryCardDetails } from './MyEntryCardDetails';
@@ -81,7 +86,6 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
     nextAction,
     nextActionClass,
     nextActionDog,
-    isMultiDogOrder,
     onlinePrompt,
     payAtShowPrompt,
     mapAddress,
@@ -99,6 +103,21 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
   const summaryStatus = partiallyScored?.entryStatus ?? entry.entryStatus;
   const summaryStatusKind =
     partiallyScored?.entryStatusKind ?? (settledWithoutScore ? 'absent' : entry.entryStatusKind);
+  const statusBadgeOptions = {
+    isPastShow,
+    isShowCancelled: entry.isShowCancelled,
+    statusKind: summaryStatusKind,
+    partiallyScored: Boolean(partiallyScored),
+  };
+  const statusMessageRestatesBadge = isStatusMessageRedundant(
+    statusMessage.message,
+    summaryStatus,
+    statusBadgeOptions
+  );
+  // One band per dog. A single-dog order still renders through the same
+  // component, so both shapes share one code path.
+  const faceDogs = React.useMemo(() => dogGroupsForFace(entry), [entry]);
+  const totalClassCount = entry.classes.length;
   // Build a "Get directions" link from the full venue address (venue, city,
   // state) while the card still displays the shorter "city, state" label.
   // Falls back to a non-interactive row when no address parts are available.
@@ -118,40 +137,14 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-card-header">
         <div>
           {/* h3: each entry card sits under the "All entries" h2. Was a <div>,
-            so the entry list had no navigable structure at all. */}
-          <h3 className="myk9-entries-card-title">
-            {getStatusIcon(summaryStatus, entry.paymentStatus, summaryStatusKind)}
-            {entry.showName}
-          </h3>
-          <div className="myk9-entries-card-subtitle flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            {isMultiDogOrder ? (
-              // Every dog's identity stays visible on the always-shown summary
-              // band (exhibitor-my-shows-legibility) — wraps, never scrolls.
-              entry.dogs.map(dog => (
-                <span key={dog.dogId} className="inline-flex items-center gap-1.5">
-                  {dog.armband && (
-                    <ArmbandBadge armband={dog.armband} className="h-8 min-w-8 rounded-lg text-xs" />
-                  )}
-                  <span>{dog.dogName}</span>
-                </span>
-              ))
-            ) : (
-              <>
-                {entry.armband && (
-                  <ArmbandBadge armband={entry.armband} className="h-8 min-w-8 rounded-lg text-xs" />
-                )}
-                <span>{entry.dogName}</span>
-              </>
-            )}
-          </div>
+            so the entry list had no navigable structure at all.
+            The status icon that used to prefix this title is gone: the badge
+            to the right renders the same StatusIcon for the same status, so
+            the card stated its status twice, ~200px apart. */}
+          <h3 className="myk9-entries-card-title">{entry.showName}</h3>
         </div>
         <div className="myk9-entries-badges">
-          {getEntryStatusBadge(summaryStatus, {
-            isPastShow,
-            isShowCancelled: entry.isShowCancelled,
-            statusKind: summaryStatusKind,
-            partiallyScored: Boolean(partiallyScored),
-          })}
+          {getEntryStatusBadge(summaryStatus, statusBadgeOptions)}
           {/* Cash/check "pay at show" entries carry their own calm status line
               below — the red "Payment Due" debt chip would contradict it (4.C).
               A raw PENDING paymentStatus with no actionable online balance
@@ -183,10 +176,13 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
 
         {/* "Entries close" only while editing is still possible (same
             predicate gating Edit Entry, task 3.3) — once the deadline has
-            passed it moves into details alongside the rest of the history. */}
+            passed it moves into details alongside the rest of the history.
+            CalendarClock, not Calendar: this sat beside the show date wearing
+            the identical glyph at the identical size, so the icon told the
+            exhibitor nothing about which date they were reading. */}
         {canEdit && entry.entryCloseDate && (
           <div className="myk9-entries-detail-item">
-            <Calendar className="h-4 w-4" />
+            <CalendarClock className="h-4 w-4" />
             <span>
               <span className="text-sm text-muted-foreground">Entries close </span>
               {formatShortDate(entry.entryCloseDate)}
@@ -209,9 +205,19 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         )}
       </div>
 
-      <div className="myk9-entries-last-updated">
-        <span className={statusMessage.className}>{statusMessage.message}</span>
-      </div>
+      {/* Per-dog band: which classes each dog is in, with its check-in state
+          before the run and its result once scored. Read-only — see the INTENT
+          note in MyEntryDogFace. */}
+      <MyEntryDogFace dogs={faceDogs} />
+
+      {/* The status sentence is dropped when it would only restate the badge
+          above it ("Scored" / "Scored", "Absent" / "Absent"). It survives
+          whenever it adds a count, a date or a duration the chip cannot carry. */}
+      {!statusMessageRestatesBadge && (
+        <div className="myk9-entries-last-updated">
+          <span className={statusMessage.className}>{statusMessage.message}</span>
+        </div>
+      )}
 
       {payAtShowPrompt.kind === 'pay-at-show' && (
         <p className="flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground">
@@ -276,16 +282,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           </Button>
         )}
 
-        {entry.showId && (
-          <Button
-            variant="outline"
-            onClick={() => setCalendarOpen(true)}
-            className="min-h-[44px] transition-all duration-state"
-          >
-            <CalendarPlus className="h-5 w-5 mr-1.5" />
-            Add to Calendar
-          </Button>
-        )}
+        {/* "Add to Calendar" moved into the secondary actions inside the panel.
+            Beside the next action it was a second outline button of equal
+            weight, so the card's "single next action" INTENT had no visual
+            expression — three same-weight bordered rectangles competed. */}
       </div>
 
       {calendarOpen && (
@@ -297,8 +297,10 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         />
       )}
 
-      {/* Details toggle — full-width, labeled, collapsed by default on every
-          viewport (task 3.1). */}
+      {/* Details toggle — full-width, collapsed by default on every viewport
+          (task 3.1). Named for its contents and carrying their count: "Show
+          details" advertised nothing, and the count in the label is what let
+          the separate "N classes entered" counter inside the panel go. */}
       <button
         type="button"
         onClick={() => setDetailsOpen(open => !open)}
@@ -306,7 +308,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         aria-controls={detailsId}
         className="flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors duration-micro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
-        {detailsOpen ? 'Hide details' : 'Show details'}
+        {detailsOpen ? 'Hide classes' : `Entered Classes (${totalClassCount})`}
         <ChevronDown
           className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`}
           aria-hidden="true"
@@ -329,6 +331,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
           onEditClick={onEditClick}
           onReceiptClick={onReceiptClick}
           onResultRevealClick={onResultRevealClick}
+          onAddToCalendarClick={() => setCalendarOpen(true)}
         />
       )}
     </div>

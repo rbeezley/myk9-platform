@@ -278,7 +278,7 @@ const buildSelfCheckinEntryRow = () => ({
 const submitSelfCheckin = async (user: ReturnType<typeof userEvent.setup>) => {
   await screen.findByText('Spring Trial');
   // Per-class check-in controls live behind the collapsed details panel.
-  await user.click(screen.getByRole('button', { name: /show details/i }));
+  await user.click(screen.getByRole('button', { name: /entered classes/i }));
   await user.click(screen.getByRole('button', { name: /update check-in for koda in novice a/i }));
   const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
   const checkedInOption = statusOptions.find(
@@ -691,7 +691,7 @@ describe('MyEntriesPage UI Improvements', () => {
       renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
 
       // Result buttons render inside the collapsed details panel.
-      await user.click(await screen.findByRole('button', { name: /show details/i }));
+      await user.click(await screen.findByRole('button', { name: /entered classes/i }));
       await user.click(await screen.findByRole('button', { name: /New result/i }));
 
       expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();

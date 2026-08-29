@@ -97,7 +97,11 @@ describe('submitOfflineLateEntry', () => {
     const result = await submitOfflineLateEntry({
       showId: 'show-1',
       paymentMethod: 'cash',
-      paymentDetails: { paymentNotes: 'Paid at desk' },
+      paymentDetails: {
+        paymentNotes: 'Paid at desk',
+        paymentReference: 'CHK-1042',
+        paymentDate: '2026-08-28',
+      },
       showFeeInfo: {
         preEntryFee: '25',
         dayOfShowFee: '35',
@@ -144,7 +148,14 @@ describe('submitOfflineLateEntry', () => {
         entryFee: 35,
         armband: '100',
         jumpHeight: '16',
-        specialRequests: 'Paid at desk',
+        // Payment bookkeeping lands in its own columns, NOT in the
+        // exhibitor-facing special_requests field it used to overwrite.
+        paymentNotes: 'Paid at desk',
+        payment_notes: 'Paid at desk',
+        paymentReference: 'CHK-1042',
+        payment_reference: 'CHK-1042',
+        paymentReceivedOn: '2026-08-28',
+        payment_received_on: '2026-08-28',
       }),
       ['dog-mutation-1', 'registration-mutation-1', 'armband-mutation-1']
     );

@@ -1,5 +1,8 @@
 import { createDatabaseError, logQuery, supabase } from '../supabaseClient';
-import { isPullRefundSchemaUnavailable } from '@/features/payments/pullRefundSchemaCompatibility';
+import {
+  isPullRefundSchemaUnavailable,
+  isSecretaryPaymentSchemaUnavailable,
+} from '@/features/payments/pullRefundSchemaCompatibility';
 import type { SecretaryEntry } from './secretaryTypes';
 
 export interface SecretaryPullMetadata {
@@ -38,7 +41,6 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         scoring_completed_at,
         check_in_status,
         withdrawal_reason,
-        withdrawn_at,
         payment_method,
         refund_amount,
         refunded_at,
@@ -86,25 +88,44 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         )
       `;
 
-const SECRETARY_ENTRIES_SELECT = `${SECRETARY_ENTRIES_BASE_SELECT},
-        refund_decision,
-        refund_decided_at`;
+/**
+ * Secretary payment bookkeeping (20260828200000). Selected separately so a
+ * database without that migration still returns entries -- see
+ * `isSecretaryPaymentSchemaUnavailable`.
+ */
+const SECRETARY_ENTRIES_SELECT_WITH_PAYMENT = `${SECRETARY_ENTRIES_BASE_SELECT},
+        payment_reference,
+        payment_received_on,
+        payment_notes`;
 
 export async function postgrestGetSecretaryEntriesForShow(
   showId: string,
   startTime: number,
   operation: string
 ): Promise<{ data: SecretaryEntry[]; error: null }> {
-  const runSelect = (includeRefundDecision: boolean) =>
+  // Reads the gated result view, NOT `public.entries`. 20260620001929 revoked the
+  // scored columns (result_status, search_time_seconds, total_faults,
+  // final_placement, judge_notes, disqualification_reason) from `authenticated`
+  // and re-exposed them through this owner-run view, whose row gate includes
+  // `access.can_manage`. Selecting them off `entries` fails the WHOLE request with
+  // 42501, which is what made this cold-store fallback -- the path that runs on a
+  // brand-new show or a fresh device -- render "Couldn't load entries".
+  // This is also the relation `ReplicatedEntriesTable` pulls, so both secretary
+  // read paths now agree on columns as well as rows.
+  const runSelect = (includePaymentBookkeeping: boolean) =>
     supabase
-      .from('entries')
-      .select(includeRefundDecision ? SECRETARY_ENTRIES_SELECT : SECRETARY_ENTRIES_BASE_SELECT)
+      .from('view_authenticated_entry_results')
+      .select(
+        includePaymentBookkeeping
+          ? SECRETARY_ENTRIES_SELECT_WITH_PAYMENT
+          : SECRETARY_ENTRIES_BASE_SELECT
+      )
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
   let response = await runSelect(true);
-  if (isPullRefundSchemaUnavailable(response.error)) {
+  if (isSecretaryPaymentSchemaUnavailable(response.error)) {
     response = await runSelect(false);
   }
   const { data, error } = response;
@@ -116,7 +137,28 @@ export async function postgrestGetSecretaryEntriesForShow(
     throw createDatabaseError(error, 'entries', operation);
   }
 
-  return { data: (data ?? []) as unknown as SecretaryEntry[], error: null };
+  const entries = (data ?? []) as unknown as SecretaryEntry[];
+
+  // The view carries the scored columns but NOT the pull/refund bookkeeping
+  // (`withdrawn_at`, `refund_decision`, `refund_decided_at`), which live only on
+  // `entries` -- where they are allowlisted for `authenticated`, so reading them
+  // separately is legal. This mirrors what the replicated path does; without it
+  // the cold-store fallback would render every scratched entry as "no saved
+  // decision" and invite a second refund.
+  const pullMetadata = await postgrestGetSecretaryPullMetadataMap(showId).catch(
+    // Reconciliation is online-only and must not fail the whole read.
+    () => new Map<string, SecretaryPullMetadata>()
+  );
+
+  for (const entry of entries) {
+    const meta = pullMetadata.get(entry.id);
+    if (!meta) continue;
+    entry.withdrawn_at = meta.withdrawn_at;
+    entry.refund_decision = meta.refund_decision;
+    entry.refund_decided_at = meta.refund_decided_at;
+  }
+
+  return { data: entries, error: null };
 }
 
 /** Online-only reconciliation metadata layered over the offline entry replica. */

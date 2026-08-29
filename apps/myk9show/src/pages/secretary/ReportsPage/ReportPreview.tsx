@@ -9,6 +9,7 @@ import type { Show } from '@/types/show-types';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
+import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
 
@@ -154,7 +155,16 @@ export function ReportPreview({
   // (new trial/class/sort selection) doesn't leak a blob.
   useEffect(() => {
     const iframe = iframeRef.current;
-    if (!iframe || !pdfResult?.bytes) return;
+    if (!iframe) return;
+    if (!pdfResult?.bytes) {
+      // No PDF for this selection. If a blob from the PREVIOUS report is still
+      // loaded, the frame keeps displaying it -- and `handlePrint` prints this
+      // same frame, so the secretary would print the wrong document. The markup
+      // effect below reclaims the frame for markup reports; this branch covers
+      // the case it returns early on: a `buildPdf` report that produced no pages.
+      if (report?.buildPdf) releasePdfFrame(iframe);
+      return;
+    }
     // `Uint8Array.buffer` types as `ArrayBufferLike` (it could back onto a
     // `SharedArrayBuffer`), which `BlobPart` rejects — copy into a
     // known-plain `ArrayBuffer` first, same pattern as
@@ -165,7 +175,7 @@ export function ReportPreview({
     const url = URL.createObjectURL(blob);
     iframe.src = url;
     return () => URL.revokeObjectURL(url);
-  }, [pdfResult, iframeRef]);
+  }, [pdfResult, report, iframeRef]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -291,17 +301,11 @@ export function ReportPreview({
 
     const html = renderReportToHtml(combinedMarkup);
 
-    iframe.contentDocument?.open();
-    iframe.contentDocument?.write(html);
-    iframe.contentDocument?.close();
-
-    const timerId = setTimeout(() => {
+    return writeMarkupIntoFrame(iframe, html, () => {
       if (iframe.contentDocument?.body) {
         iframe.style.height = iframe.contentDocument.body.scrollHeight + 'px';
       }
-    }, 100);
-
-    return () => clearTimeout(timerId);
+    });
   }, [
     reportType,
     report,

@@ -247,6 +247,13 @@ function toSecretaryEntry(
     comped_reason: stringFrom(replicatedField(entry, 'compedReason', 'comped_reason')),
     refund_decision: pullMetadata?.refund_decision ?? null,
     refund_decided_at: pullMetadata?.refund_decided_at ?? null,
+    // Secretary payment bookkeeping (20260828200000). Carried here so the warm
+    // replicated read and the cold PostgREST fallback expose the same fields.
+    payment_reference: stringFrom(replicatedField(entry, 'paymentReference', 'payment_reference')),
+    payment_received_on: stringFrom(
+      replicatedField(entry, 'paymentReceivedOn', 'payment_received_on')
+    ),
+    payment_notes: stringFrom(replicatedField(entry, 'paymentNotes', 'payment_notes')),
     registration_id: entry.registrationId ?? null,
     registration: enrollment
       ? {

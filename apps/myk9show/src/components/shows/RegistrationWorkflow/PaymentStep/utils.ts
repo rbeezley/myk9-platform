@@ -68,7 +68,14 @@ export function getShowEntryFee(
 
     if (now >= showStart && show.dayOfShowFee) {
       const dayFee = parseFloat(show.dayOfShowFee.replace(/[$,]/g, ''));
-      if (!isNaN(dayFee) && dayFee >= 0) return dayFee;
+      // Zero means "no day-of tier", NOT "free". Leaving Day-of-Show Fee blank in
+      // the creation wizard persists "0.00" rather than NULL, so there is nothing
+      // else to distinguish "unset" from "deliberately free" -- and a day-of tier
+      // exists to charge more, never less than nothing. Accepting 0 here overrode
+      // the pre-entry fee for every entry taken from the show's start date onward
+      // and stored it `payment_status: paid`, so no downstream check ever flagged
+      // the missing money. Any positive amount still wins, even below pre-entry.
+      if (!isNaN(dayFee) && dayFee > 0) return dayFee;
     }
 
     const preFee = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));

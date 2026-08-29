@@ -4,6 +4,17 @@ import type { Database } from '@/types/supabase';
 /**
  * Database row type from Supabase schema.
  */
+
+/**
+ * Reads a column that may not exist on the generated row type yet (a migration
+ * that has not been applied, or types not regenerated since). Returns undefined
+ * rather than throwing so a pre-migration database still maps cleanly.
+ */
+function optionalColumn(row: unknown, column: string): string | undefined {
+  const value = (row as Record<string, unknown>)[column];
+  return typeof value === 'string' ? value : undefined;
+}
+
 export type EntryRow = Database['public']['Tables']['entries']['Row'];
 
 /**
@@ -41,6 +52,13 @@ export interface ReplicatedEntry {
   preferredJudge?: string | undefined;
   specialRequests?: string | null | undefined;
   special_requests?: string | null | undefined;
+  /** Secretary payment bookkeeping (20260828200000). */
+  paymentReference?: string | null | undefined;
+  payment_reference?: string | null | undefined;
+  paymentReceivedOn?: string | null | undefined;
+  payment_received_on?: string | null | undefined;
+  paymentNotes?: string | null | undefined;
+  payment_notes?: string | null | undefined;
   withdrawalReason?: string | null | undefined;
   withdrawal_reason?: string | null | undefined;
   submittedAt?: string | undefined;
@@ -168,7 +186,11 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
         : entry.special_requests !== undefined
           ? entry.special_requests
           : null,
-    withdrawal_reason:
+    payment_reference:
+      entry.paymentReference !== undefined ? entry.paymentReference : entry.payment_reference,
+    payment_received_on:
+      entry.paymentReceivedOn !== undefined ? entry.paymentReceivedOn : entry.payment_received_on,
+    payment_notes: entry.paymentNotes !== undefined ? entry.paymentNotes : entry.payment_notes,    withdrawal_reason:
       entry.withdrawalReason !== undefined
         ? entry.withdrawalReason
         : entry.withdrawal_reason !== undefined
@@ -277,6 +299,12 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     move_up_requested: row.move_up_requested ?? undefined,
     preferredJudge: row.preferred_judge ?? undefined,
     specialRequests: row.special_requests ?? undefined,
+    // Generated Database types will carry these once migration 20260828200000 is
+    // applied and `generate_typescript_types` is re-run; until then the row type
+    // cannot know them, so read them defensively rather than assert the shape.
+    paymentReference: optionalColumn(row, 'payment_reference'),
+    paymentReceivedOn: optionalColumn(row, 'payment_received_on'),
+    paymentNotes: optionalColumn(row, 'payment_notes'),
     special_requests: row.special_requests ?? undefined,
     withdrawalReason: row.withdrawal_reason ?? undefined,
     withdrawal_reason: row.withdrawal_reason ?? undefined,

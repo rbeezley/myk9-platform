@@ -922,7 +922,7 @@ lower-level targets. Confirmed live: an Interior Novice entry offered exactly on
 target (Interior Advanced), and a show with only Container Novice A + Interior Novice A
 correctly offered none.
 
-### F34 — P1 — NEW, systemic — Every id-keyed dropdown in the app displays a raw UUID
+### F34 — P1 — FIXED — Every id-keyed dropdown in the app displayed a raw UUID
 
 Found while fixing F28, which turned out to be one instance of a general defect rather
 than a one-page bug.
@@ -965,18 +965,28 @@ where value != label — **43 option sites across 34 files** keyed by an id:
 | Club pickers | `ShowEditBasicInfoTab`, `ManageUserRolesDialog`, `BulkRoleDialog` |
 | …plus 20 more | see the scan in the Phase 1 commit |
 
-**Fixed here:** only F28 (`ClassManagementRow`), because that is the one the walk
-observed and the one on the page whose purpose is assigning judges. The pattern is
-`items={Record<value, label>}` on the root, including an entry for a value that is
-assigned but missing from the options list — otherwise it falls straight back to the raw
-id.
+**Fixed (2026-08-29) in the WRAPPER, not at the call sites.** The first pass patched
+`ClassManagementRow` alone and filed the other 33 files as a sweep. That framing was
+wrong: 43 hand-written `items` props would fix 43 sites and leave the 44th to
+reintroduce the bug — the "fix the class, not the instance" case.
 
-**Not fixed:** the other 33 files. That is a 34-file sweep touching admin, reports,
-waitlist, volunteers and ringside, and it needs its own PR and its own verification pass;
-batching it into the secretary walk would make this change unreviewable. Two things worth
-deciding with it: whether the shared `Select` wrapper should fail loudly (or warn in dev)
-when given a `value` with no `items`, so the next one cannot ship silently; and whether
-a lint rule can catch it. Filed as Phase 3.
+The shared `Select` wrapper now derives `items` by walking the `SelectItem` children it
+is already handed (through arrays, fragments and `SelectGroup`, since call sites nest
+them in `.map()` and conditionals). All 179 sites are fixed with no call-site change,
+and a new dropdown is correct by default.
+
+Two deliberate limits:
+
+- **An explicit `items` always wins.** A caller whose options are rendered by a nested
+  component is invisible to the walk and must pass them; `ClassManagementRow` also keeps
+  its override for a better label ("Assigned judge (unavailable)").
+- **A UUID-shaped value with no matching option is masked** as "Unavailable" rather than
+  printed. A selected row can legitimately be absent from the options — a judge filtered
+  out of a qualified list, or a list that has not loaded. Non-id values are left alone,
+  because there the value IS the label ("Novice", "Withdrawn").
+
+The "should the wrapper fail loudly when given a value with no items" question is now
+moot: it supplies the items itself.
 
 
 ### F35 — P3 — NEW — A local time that is exactly UTC midnight resolves one day late

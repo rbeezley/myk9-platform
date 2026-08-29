@@ -16,7 +16,7 @@ const baseEntry = {
 
 describe('CheckInManagementOverlay', () => {
   it('renders a known status without throwing', () => {
-    const { getByText } = render(
+    const { getAllByText, queryByText } = render(
       <CheckInManagementOverlay
         open
         onOpenChange={noop}
@@ -25,10 +25,16 @@ describe('CheckInManagementOverlay', () => {
       />
     );
 
-    const badge = getByText('Checked-in').parentElement;
-    const icon = badge?.querySelector('[data-family="entry"]');
+    // Query the status icon directly. 'Checked-in' now appears TWICE -- on the badge
+    // and on the Select trigger, which since F34 renders the item's label instead of
+    // the raw `checked-in` enum -- so getByText on the label is ambiguous. The
+    // assertions here were always about the icon.
+    const icon = document.querySelector('[data-family="entry"]');
     expect(icon).toHaveAttribute('data-shape', 'in-progress');
     expect(icon?.className).toContain('text-info');
+    // The human label is what the trigger shows; the raw enum must not leak.
+    expect(getAllByText('Checked-in').length).toBeGreaterThan(0);
+    expect(queryByText('checked-in')).toBeNull();
   });
 
   it('renders an unexpected status without throwing (shared fallback)', () => {

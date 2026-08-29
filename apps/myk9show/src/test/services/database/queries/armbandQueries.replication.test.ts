@@ -25,7 +25,6 @@ const { mockArmbandsTable, mockDogsTable, mockEntriesTable, mockClassesTable } =
   },
   mockEntriesTable: {
     getAll: vi.fn(),
-    getEntriesByShow: vi.fn(),
     getEntryById: vi.fn(),
     updateArmbandForDogInShow: vi.fn(),
   },
@@ -69,7 +68,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
 // Now import the functions under test
 import {
   claimNextArmband,
-  autoAssignArmbands,
   getEntryArmbandById,
   getArmbandCountForShow,
   getNextArmbandForShow,
@@ -255,87 +253,6 @@ describe('armbandQueries (replication)', () => {
 
       expect(mockArmbandsTable.getByShow).toHaveBeenCalledWith('show-1');
       expect(mockSupabase.from).not.toHaveBeenCalledWith('armbands');
-    });
-  });
-
-  describe('autoAssignArmbands', () => {
-    it('assigns accepted and confirmed replicated entries without direct armband or entry writes', async () => {
-      mockEntriesTable.getEntriesByShow.mockResolvedValue([
-        makeEntry({ id: 'entry-1', dogId: 'dog-1', entryStatus: 'accepted', armband: undefined }),
-        makeEntry({ id: 'entry-2', dogId: 'dog-2', entryStatus: 'confirmed', armband: undefined }),
-        makeEntry({ id: 'entry-3', dogId: 'dog-3', entryStatus: 'submitted', armband: undefined }),
-        makeEntry({ id: 'entry-4', dogId: 'dog-4', entryStatus: 'accepted', armband: '099' }),
-      ]);
-      mockArmbandsTable.getByShow.mockResolvedValue([]);
-      mockArmbandsTable.upsertAssignedArmband.mockResolvedValue('armband-mutation');
-      mockEntriesTable.updateArmbandForDogInShow.mockResolvedValue({
-        updated: 1,
-        mutationIds: ['entry-mutation'],
-      });
-
-      const result = await autoAssignArmbands('show-1', 200);
-
-      expect(result).toEqual({
-        data: { assigned: 2, skipped: 0, startedAt: 200 },
-        error: null,
-      });
-      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenNthCalledWith(1, {
-        showId: 'show-1',
-        dogId: 'dog-1',
-        armbandNumber: '200',
-      });
-      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenNthCalledWith(2, {
-        showId: 'show-1',
-        dogId: 'dog-2',
-        armbandNumber: '201',
-      });
-      expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenNthCalledWith(
-        1,
-        'show-1',
-        'dog-1',
-        '200'
-      );
-      expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenNthCalledWith(
-        2,
-        'show-1',
-        'dog-2',
-        '201'
-      );
-      expect(mockSupabase.from).not.toHaveBeenCalledWith('entries');
-      expect(mockSupabase.from).not.toHaveBeenCalledWith('armbands');
-    });
-
-    it('does not overwrite dogs already assigned in the replicated armband table', async () => {
-      mockEntriesTable.getEntriesByShow.mockResolvedValue([
-        makeEntry({ id: 'entry-1', dogId: 'dog-1', entryStatus: 'accepted', armband: undefined }),
-        makeEntry({ id: 'entry-2', dogId: 'dog-2', entryStatus: 'confirmed', armband: undefined }),
-      ]);
-      mockArmbandsTable.getByShow.mockResolvedValue([
-        makeArmband({ id: 'a1', dogId: 'dog-1', armbandNumber: '212', isAvailable: false }),
-      ]);
-      mockArmbandsTable.upsertAssignedArmband.mockResolvedValue('armband-mutation');
-      mockEntriesTable.updateArmbandForDogInShow.mockResolvedValue({
-        updated: 1,
-        mutationIds: ['entry-mutation'],
-      });
-
-      const result = await autoAssignArmbands('show-1', 200);
-
-      expect(result).toEqual({
-        data: { assigned: 1, skipped: 0, startedAt: 213 },
-        error: null,
-      });
-      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenCalledTimes(1);
-      expect(mockArmbandsTable.upsertAssignedArmband).toHaveBeenCalledWith({
-        showId: 'show-1',
-        dogId: 'dog-2',
-        armbandNumber: '213',
-      });
-      expect(mockEntriesTable.updateArmbandForDogInShow).toHaveBeenCalledWith(
-        'show-1',
-        'dog-2',
-        '213'
-      );
     });
   });
 

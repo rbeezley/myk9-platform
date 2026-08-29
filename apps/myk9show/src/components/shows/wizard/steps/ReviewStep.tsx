@@ -41,6 +41,14 @@ interface ReviewStepProps {
   submitLabel?: string;
   /** Override for the publish button label. Defaults to "Create & Publish Show". */
   publishLabel?: string;
+  /**
+   * True when the show's existing officials could not be READ. The wizard draft
+   * starts with empty officials arrays, so without this an unreadable list is
+   * indistinguishable from an empty one -- and the blocking errors below would
+   * demand a chairman and secretary the show may already have, with no way for
+   * the secretary to see them.
+   */
+  officialsUnknown?: boolean | undefined;
 }
 
 export const ReviewStep: React.FC<ReviewStepProps> = ({
@@ -52,6 +60,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   onBack,
   submitLabel = 'Create Show (Unpublished)',
   publishLabel = 'Create & Publish Show',
+  officialsUnknown = false,
 }) => {
   const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
   const { clubs } = useClubStore();
@@ -59,15 +68,75 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const navigate = useNavigate();
   const clubAccountQuery = useClubStripeAccount(show.clubId || undefined);
 
+  // Blocking issues are already listed in the error card above; this names them
+  // at the moment of action so the refusal is explained rather than silent.
+
+  // Calculate summary stats
+  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
+  const totalJudges = show.judgeIds.length;
+
+  // Derive validation errors from current state (no useState needed)
+  const errors = useMemo(() => {
+    const result: string[] = [];
+
+    if (!show.name.trim()) result.push('Show name is required');
+    if (!show.startDate || !show.endDate) result.push('Show dates are required');
+    if (!show.location?.trim()) result.push('Location is required');
+    if (!show.clubId) result.push('Club selection is required');
+    // Unknown is not absent: when the officials read failed, these arrays prove
+    // nothing, so they must not block the save.
+    if (!officialsUnknown) {
+      if (show.officials.chairman.length === 0) result.push('Show chairman is required');
+      if (show.officials.secretary.length === 0) result.push('Show secretary is required');
+    }
+    if (trials.length === 0) result.push('At least one trial is required');
+    if (totalClasses === 0) result.push('At least one class must be configured');
+
+    return result;
+  }, [
+    show.name,
+    show.startDate,
+    show.endDate,
+    show.location,
+    show.clubId,
+    show.officials,
+    trials,
+    totalClasses,
+    officialsUnknown,
+  ]);
+
+  const reportBlockingErrors = () => {
+    const [first] = errors;
+    toast.error(
+      errors.length === 1
+        ? `${first} — fix that before creating this show.`
+        : `${errors.length} things still need attention, starting with: ${first}.`
+    );
+  };
+
+  const handleCreateShowGuarded = () => {
+    if (errors.length > 0) {
+      reportBlockingErrors();
+      return;
+    }
+    onCreateShow?.();
+  };
+
   // Publish gate (same rule as ShowStatusPill): the wizard is the primary way
-  // shows get published, and a show created already-published would
-  // permanently escape the transition-surface gates — onlineEntryGate
-  // deliberately never un-publishes. Fail closed here too, INCLUDING on a
-  // missing club (round-11 review: the pill fails closed clubless; the wizard
-  // inverting that was a gap reachable via stale drafts/back-nav).
+  // shows get published, and a show created already-published would permanently
+  // escape the transition-surface gates — onlineEntryGate deliberately never
+  // un-publishes. Fail closed here too, INCLUDING on a missing club (round-11
+  // review: the pill fails closed clubless; the wizard inverting that was a gap
+  // reachable via stale drafts/back-nav).
   const handleCreateAndPublish = () => {
+    // Club stays FIRST: it has the money-aware message, and 'Club selection is
+    // required' is also in `errors`, so a generic report would bury it.
     if (!show.clubId) {
       toast.error('Select a club before publishing. Entry fees are paid out to the club.');
+      return;
+    }
+    if (errors.length > 0) {
+      reportBlockingErrors();
       return;
     }
     if (clubAccountQuery.isLoading) {
@@ -89,35 +158,6 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     }
     onCreateAndPublish?.();
   };
-
-  // Calculate summary stats
-  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
-  const totalJudges = show.judgeIds.length;
-
-  // Derive validation errors from current state (no useState needed)
-  const errors = useMemo(() => {
-    const result: string[] = [];
-
-    if (!show.name.trim()) result.push('Show name is required');
-    if (!show.startDate || !show.endDate) result.push('Show dates are required');
-    if (!show.location?.trim()) result.push('Location is required');
-    if (!show.clubId) result.push('Club selection is required');
-    if (show.officials.chairman.length === 0) result.push('Show chairman is required');
-    if (show.officials.secretary.length === 0) result.push('Show secretary is required');
-    if (trials.length === 0) result.push('At least one trial is required');
-    if (totalClasses === 0) result.push('At least one class must be configured');
-
-    return result;
-  }, [
-    show.name,
-    show.startDate,
-    show.endDate,
-    show.location,
-    show.clubId,
-    show.officials,
-    trials,
-    totalClasses,
-  ]);
 
   // Mark step complete when valid
   useEffect(() => {
@@ -480,12 +520,6 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                           </div>
                           <div className="text-xs text-muted-foreground">Assigned</div>
                         </div>
-                        <div title="Estimated at ~15 min per class">
-                          <div className="text-lg font-semibold text-purple-600 dark:text-purple-400">
-                            ~{trial.classes.length * 15}
-                          </div>
-                          <div className="text-xs text-muted-foreground">Est. Minutes</div>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -498,20 +532,24 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
           <div className="space-y-4">
             {/* Consolidated Status Messages */}
             <div className="space-y-2">
-              {/* Success Status */}
-              <div className="bg-success/10 border border-success/30 rounded-lg p-3">
+              {/* Success Status — only when there is actually nothing blocking.
+                  This used to render unconditionally, directly beneath the card
+                  listing the blocking errors. */}
+              {errors.length === 0 && (
+                <div className="bg-success/10 border border-success/30 rounded-lg p-3">
                 <div className="flex items-start gap-2">
                   <CheckCircle className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
                     <div className="font-medium text-success text-sm">
                       Show Configuration Complete
                     </div>
-                    <p className="text-xs text-success mt-0.5">
-                      "{show.name}" ready with {trials.length} trials and {totalClasses} classes
-                    </p>
+                      <p className="text-xs text-success mt-0.5">
+                        "{show.name}" ready with {trials.length} trials and {totalClasses} classes
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Warning if judges not fully assigned */}
               {totalJudges > 0 && classesWithJudges < totalClasses && (
@@ -559,7 +597,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
                 <Button
                   variant="secondary"
-                  onClick={onCreateShow}
+                  onClick={handleCreateShowGuarded}
                   disabled={isLoading}
                   className="flex-1"
                 >
@@ -571,7 +609,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   {isLoading ? 'Saving...' : submitLabel}
                 </Button>
 
-                <Button onClick={handleCreateAndPublish} disabled={isLoading} className="flex-1">
+                <Button
+                  onClick={handleCreateAndPublish}
+                  disabled={isLoading}
+                  className="flex-1"
+                >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (

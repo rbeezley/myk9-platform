@@ -69,7 +69,11 @@ export function BulkOperationsBar({
   function handleBulkPreset(preset: VisibilityPreset) {
     const cfg = PRESET_CONFIGS[preset];
     const classIds = getValidClassIds(selectedClasses, allClassIds);
-    if (classIds.length === 0) return;
+    if (classIds.length === 0) {
+      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
+      onClearSelection();
+      return;
+    }
     bulkUpdate.mutate(
       {
         classIds,
@@ -94,7 +98,11 @@ export function BulkOperationsBar({
 
   function handleBulkCheckin(enabled: boolean) {
     const classIds = getValidClassIds(selectedClasses, allClassIds);
-    if (classIds.length === 0) return;
+    if (classIds.length === 0) {
+      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
+      onClearSelection();
+      return;
+    }
     bulkUpdate.mutate(
       { classIds, showId, selfCheckinEnabled: enabled },
       {
@@ -111,7 +119,11 @@ export function BulkOperationsBar({
 
   function handleReleaseResults() {
     const classIds = getValidClassIds(selectedClasses, allClassIds);
-    if (classIds.length === 0) return;
+    if (classIds.length === 0) {
+      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
+      onClearSelection();
+      return;
+    }
     releaseResults.mutate(
       { classIds, showId },
       {
@@ -119,7 +131,13 @@ export function BulkOperationsBar({
         // succeeded so only the failed ones stay selected, making retry re-release just
         // those (no re-stamping resultsReleasedAt on already-released classes). Total
         // failure → keep the whole selection (every class is a failed class).
-        // Every branch toasts so the bulk action never resolves silently.
+        // Every branch toasts so the bulk action never resolves silently. This
+        // is the ONLY layer that toasts: `useReleaseResults` used to toast as
+        // well, so one release produced two differently-worded messages
+        // ("Results released for 3 classes" and "Released results for 3
+        // classes") and read as two separate operations. The message belongs
+        // here because it describes the selection outcome, which only this
+        // layer knows.
         onSuccess: ({ released, failed }) => {
           if (failed.length === 0) {
             toast.success(
@@ -142,7 +160,11 @@ export function BulkOperationsBar({
 
   function handleUnreleaseResults() {
     const classIds = getValidClassIds(selectedClasses, allClassIds);
-    if (classIds.length === 0) return;
+    if (classIds.length === 0) {
+      toast.warning('Those classes are no longer in this show. The selection has been cleared.');
+      onClearSelection();
+      return;
+    }
     unreleaseResults.mutate(
       { classIds, showId },
       {

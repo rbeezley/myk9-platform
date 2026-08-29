@@ -118,11 +118,6 @@ export interface ArmbandDialogState {
   error?: string | null;
 }
 
-export interface AutoArmbandDialogState {
-  open: boolean;
-  startNumber: string;
-}
-
 export interface BulkActionDialogState {
   open: boolean;
   action: string | null;

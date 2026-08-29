@@ -27,7 +27,13 @@ export interface WizardStep {
   description: string;
 }
 
-export type EditModeType = 'add-trials' | 'add-classes' | 'edit-show';
+/**
+ * The wizard's edit modes. `edit-show` was removed: nothing in the app ever
+ * linked to it, its labels fell through to "Create Show (Unpublished)", and
+ * its save wrote `status` from the button -- so a hand-entered URL could
+ * unpublish a live show. Real show editing lives in ShowEditPanel.
+ */
+export type EditModeType = 'add-trials' | 'add-classes';
 
 export interface EditMode {
   showId: string;

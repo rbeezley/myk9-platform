@@ -5,8 +5,8 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { notifications } from '@/lib/notifications';
 import { settingsQueryKeys } from '../queries/useShowSettingsDatabase';
+import { dispatchBulk } from '@/hooks/bulkDispatch';
 import { replicatedClassesTable } from '@/services/replication';
 
 interface UnreleaseResultsInput {
@@ -21,7 +21,6 @@ export interface UnreleaseResultsResult {
   failed: string[];
 }
 
-const plural = (n: number) => (n === 1 ? '' : 'es');
 
 export function useUnreleaseResults() {
   const queryClient = useQueryClient();
@@ -32,26 +31,27 @@ export function useUnreleaseResults() {
       // INTENT: Same Promise.allSettled shape as useReleaseResults — one queued
       // replicated update per class, settled independently so a partial local
       // failure surfaces exactly which classes still need retrying.
-      const outcomes = await Promise.allSettled(
-        classIds.map(classId =>
-          replicatedClassesTable.updateClass(classId, {
-            resultsReleasedAt: null,
-            results_released_at: null,
-            resultsReleasedBy: null,
-            results_released_by: null,
-          })
-        )
-      );
-
-      const unreleased: string[] = [];
-      const failed: string[] = [];
-      outcomes.forEach((outcome, i) => {
-        if (outcome.status === 'fulfilled') unreleased.push(classIds[i]);
-        else failed.push(classIds[i]);
+      // Bounded, not `Promise.allSettled(map(...))`. Select All on a large show
+      // fired one replicated write per class with no cap -- hundreds of
+      // simultaneous updates and optimistic patches, the shape `bulkDispatch`
+      // documents as the `ringside_update_entry` 40001 storm that pushed
+      // staging past 80% CPU.
+      //
+      // The INTENT contract above is preserved exactly: `dispatchBulk` settles
+      // every item and folds the outcome BY INDEX, so a partial failure still
+      // reports precisely which classes failed and the secretary can reselect
+      // and retry just those.
+      const outcome = await dispatchBulk(classIds, async classId => {
+        await replicatedClassesTable.updateClass(classId, {
+          resultsReleasedAt: null,
+          results_released_at: null,
+          resultsReleasedBy: null,
+          results_released_by: null,
+        });
       });
-      return { unreleased, failed };
+      return { unreleased: outcome.succeeded, failed: outcome.failed.map(entry => entry.item) };
     },
-    onSuccess: ({ unreleased, failed }, variables) => {
+    onSuccess: ({ unreleased }, variables) => {
       if (unreleased.length > 0) {
         queryClient.invalidateQueries({
           queryKey: settingsQueryKeys.classOverrides(variables.showId),
@@ -59,23 +59,11 @@ export function useUnreleaseResults() {
         queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
       }
 
-      if (failed.length === 0) {
-        notifications.success(
-          `Results hidden for ${unreleased.length} class${plural(unreleased.length)}`
-        );
-      } else if (unreleased.length === 0) {
-        notifications.error(
-          `Failed to hide ${failed.length} class${plural(failed.length)}. Reselect and try again.`
-        );
-      } else {
-        notifications.warning(
-          `Hid ${unreleased.length} of ${unreleased.length + failed.length} classes. ` +
-            `${failed.length} failed — the failed classes stay selected so you can retry.`
-        );
-      }
-    },
-    onError: () => {
-      notifications.error('Failed to hide results');
+      // NO toast here. `BulkOperationsBar` is the only layer that toasts these
+      // results: it owns the selection outcome the message describes ("the
+      // failed classes stayed selected so you can retry"), which this hook
+      // cannot see. Both layers used to toast, so one release produced two
+      // differently-worded messages and read as two separate operations.
     },
   });
 }

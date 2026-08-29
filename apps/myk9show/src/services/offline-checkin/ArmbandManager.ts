@@ -21,7 +21,6 @@ import type {
 import { generateId } from '@/utils/idUtils';
 
 const DEFAULT_CONFIG: ArmbandManagerConfig = {
-  autoAssignArmbands: true,
   allowDuplicates: false,
   conflictResolutionStrategy: 'reassign',
   armbandRanges: [{ start: 1, end: 999 }],
@@ -365,35 +364,6 @@ export class ArmbandManager extends EventEmitter {
     }
 
     return available;
-  }
-
-  // Bulk operations
-  async bulkAssignArmbands(
-    entries: { entryId: string; classId: string; showId: string; preferredArmband?: string }[],
-    assignedBy: string
-  ): Promise<{ successful: ArmbandAssignment[]; failed: { entryId: string; error: string }[] }> {
-    const successful: ArmbandAssignment[] = [];
-    const failed: { entryId: string; error: string }[] = [];
-
-    for (const entry of entries) {
-      try {
-        const assignment = await this.assignArmband(
-          entry.entryId,
-          entry.classId,
-          entry.showId,
-          entry.preferredArmband,
-          assignedBy
-        );
-        successful.push(assignment);
-      } catch (error) {
-        failed.push({
-          entryId: entry.entryId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return { successful, failed };
   }
 
   async validateArmbandSequence(classId: string): Promise<{

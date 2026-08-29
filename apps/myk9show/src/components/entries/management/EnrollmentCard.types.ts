@@ -24,7 +24,6 @@ export interface EnrollmentCardProps {
   /** Child Entries that matched the active whole-show search. */
   matchingEntryIds?: ReadonlySet<string> | undefined;
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
-  onBulkCheckIn: (entryIds: string[]) => void;
   onPaymentStatusChange: (
     enrollmentId: string,
     status: PaymentStatus,

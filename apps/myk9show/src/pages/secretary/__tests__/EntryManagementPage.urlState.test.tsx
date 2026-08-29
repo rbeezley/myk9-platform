@@ -65,7 +65,6 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     handleAssignArmband: vi.fn(),
     handleNextArmband: vi.fn(),
     handleEnrollmentBulkStatusChange: vi.fn(),
-    handleEnrollmentBulkCheckIn: vi.fn(),
     handleEnrollmentPaymentChange: vi.fn(),
     handleCheckInStatusChange: vi.fn(),
     handleExportCSV: vi.fn(),

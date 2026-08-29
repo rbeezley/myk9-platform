@@ -20,11 +20,7 @@ import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { useEntryStatusUndo } from '@/hooks/useEntryStatusUndo';
 import { showUndoToast } from '@/lib/undoToast';
 import { CLOSED_STATUSES } from '@/components/entries/management/bulkActionEligibility';
-import {
-  autoAssignArmbands,
-  getNextArmbandForShow,
-  setEntryArmband,
-} from '@/services/database/armbands';
+import { getNextArmbandForShow, setEntryArmband } from '@/services/database/armbands';
 
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveSecretaryCc } from '@/services/notifications/ccSecretary';
@@ -36,7 +32,6 @@ import type {
   EntryManagementEntry,
   EntryClass,
   ArmbandDialogState,
-  AutoArmbandDialogState,
 } from '@/types/entry-management-types';
 
 interface UseEntryManagementActionsProps {
@@ -44,7 +39,6 @@ interface UseEntryManagementActionsProps {
   setEntries: React.Dispatch<React.SetStateAction<EntryManagementEntry[]>>;
   selectedShowId: string;
   selectedShow: { name?: string | null; start_date?: string | null } | null;
-  loadEntries: (showId: string) => Promise<void>;
   setError: (error: string | null) => void;
   user: { id?: string; email?: string } | null;
 }
@@ -56,8 +50,6 @@ interface UseEntryManagementActionsReturn {
   // Dialog states
   armbandDialog: ArmbandDialogState;
   setArmbandDialog: React.Dispatch<React.SetStateAction<ArmbandDialogState>>;
-  autoArmbandDialog: AutoArmbandDialogState;
-  setAutoArmbandDialog: React.Dispatch<React.SetStateAction<AutoArmbandDialogState>>;
 
   // Actions
   handleStatusChange: (
@@ -67,14 +59,12 @@ interface UseEntryManagementActionsReturn {
   ) => Promise<boolean>;
   handleAssignArmband: () => Promise<void>;
   handleNextArmband: () => Promise<void>;
-  handleAutoAssignArmbands: () => Promise<void>;
   handleCheckInStatusChange: (
     entry: EntryManagementEntry,
     cls: EntryClass,
     status: CheckInStatus
   ) => Promise<void>;
   handleEnrollmentBulkStatusChange: (entryIds: string[], status: EntryStatus) => Promise<boolean>;
-  handleEnrollmentBulkCheckIn: (entryIds: string[]) => Promise<boolean>;
   handleEnrollmentPaymentChange: (
     enrollmentId: string,
     status: PaymentStatus,
@@ -122,7 +112,6 @@ export function useEntryManagementActions({
   setEntries,
   selectedShowId,
   selectedShow,
-  loadEntries,
   setError,
   user,
 }: UseEntryManagementActionsProps): UseEntryManagementActionsReturn {
@@ -133,15 +122,13 @@ export function useEntryManagementActions({
     entriesRef.current = entries;
   }, [entries]);
 
-  // Dialog states
+  // INTENT: Entry Management supports explicit per-entry armband corrections only.
+  // Bulk automatic assignment was retired in MYK9-256 because no live workflow owned it;
+  // do not restore a bulk dialog here without a product decision about its single owner.
   const [armbandDialog, setArmbandDialog] = useState<ArmbandDialogState>({
     open: false,
     entry: null,
     value: '',
-  });
-  const [autoArmbandDialog, setAutoArmbandDialog] = useState<AutoArmbandDialogState>({
-    open: false,
-    startNumber: '1',
   });
 
   const { runSingleUndo, runBulkUndo } = useEntryStatusUndo({
@@ -153,19 +140,6 @@ export function useEntryManagementActions({
   const bulkStatusDispatch = useBulkDispatch<EntryManagementEntry>({
     getLabel: entry => `${entry.dogName} (#${entry.entryNumber})`,
     applicableWhen: entry => !CLOSED_STATUSES.has(entry.entryStatus),
-  });
-  // Dispatched over raw entry ids (not entry objects) — check-in has always accepted
-  // any id it's given, independent of whether the id is present in the currently
-  // loaded local entries snapshot; mirrors the pre-allSettled Promise.all behavior.
-  const bulkCheckInDispatch = useBulkDispatch<string>({
-    getLabel: entryId => {
-      const entry = entriesRef.current.find(e => e.id === entryId);
-      return entry ? `${entry.dogName} (#${entry.entryNumber})` : entryId;
-    },
-    applicableWhen: entryId => {
-      const entry = entriesRef.current.find(e => e.id === entryId);
-      return !entry || (entry.entryStatus === EntryStatus.ACCEPTED && entry.classes.length > 0);
-    },
   });
 
   const handleStatusChange = useCallback(
@@ -251,41 +225,6 @@ export function useEntryManagementActions({
     }
   }, [armbandDialog.entry]);
 
-  // Handle auto-assign armbands
-  const handleAutoAssignArmbands = useCallback(async () => {
-    if (!selectedShowId) return;
-
-    setIsProcessing(true);
-    try {
-      const startNum = parseInt(autoArmbandDialog.startNumber, 10) || 1;
-      const { data, error: dbError } = await autoAssignArmbands(selectedShowId, startNum);
-
-      if (dbError) {
-        setError('Failed to auto-assign armbands');
-        return;
-      }
-
-      await loadEntries(selectedShowId);
-      setAutoArmbandDialog({ open: false, startNumber: '1' });
-
-      const skipped = data?.skipped ?? 0;
-      if (skipped > 0) {
-        setError(
-          `Assigned ${data?.assigned} armbands — ${skipped} dog(s) skipped due to conflicts`
-        );
-      }
-      logger.info(
-        `Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}; skipped ${skipped}`,
-        'secretary'
-      );
-    } catch (err) {
-      setError('Failed to auto-assign armbands');
-      logger.error('Error auto-assigning armbands:', 'secretary', {}, err as Error);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [selectedShowId, autoArmbandDialog, loadEntries, setError]);
-
   // Handle enrollment-level bulk status change. Each entry is dispatched through
   // executeStatusChange (the same optimistic-update-with-rollback path the single-entry
   // handler uses) via useBulkDispatch's Promise.allSettled fold, so one entry's failure
@@ -350,51 +289,6 @@ export function useEntryManagementActions({
       }
     },
     [bulkStatusDispatch, setEntries, setError, user, runBulkUndo]
-  );
-
-  // Handle enrollment-level bulk check-in. Only entries that actually succeed get their
-  // local check-in state patched — a partial failure leaves failed entries' local state
-  // untouched (and the selection, owned by the caller, stays intact for retry).
-  const handleEnrollmentBulkCheckIn = useCallback(
-    async (entryIds: string[], onFullSuccess?: () => void) => {
-      if (entryIds.length === 0) return false;
-      setIsProcessing(true);
-      try {
-        const outcome = await bulkCheckInDispatch.run(
-          entryIds,
-          async entryId => {
-            await updateReplicatedCheckInStatus(entryId, 'checked-in');
-          },
-          { onFullSuccess }
-        );
-        // null = latched no-op — nothing dispatched, keep selection intact.
-        if (outcome === null) return false;
-        if (outcome.succeeded.length > 0) {
-          const succeededIds = new Set(outcome.succeeded);
-          setEntries(prev =>
-            prev.map(e =>
-              succeededIds.has(e.id)
-                ? {
-                    ...e,
-                    classes: e.classes.map(cls => ({
-                      ...cls,
-                      checkInStatus: 'checked-in' as const,
-                    })),
-                  }
-                : e
-            )
-          );
-        }
-        return outcome.failed.length === 0;
-      } catch (err) {
-        setError('Failed to check in entries');
-        logger.error('Error bulk checking in entries:', 'secretary', {}, err as Error);
-        return false;
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [bulkCheckInDispatch, setEntries, setError]
   );
 
   const handleEnrollmentPaymentChange = useCallback(
@@ -784,15 +678,11 @@ export function useEntryManagementActions({
     isProcessing,
     armbandDialog,
     setArmbandDialog,
-    autoArmbandDialog,
-    setAutoArmbandDialog,
     handleStatusChange,
     handleAssignArmband,
     handleNextArmband,
-    handleAutoAssignArmbands,
     handleCheckInStatusChange,
     handleEnrollmentBulkStatusChange,
-    handleEnrollmentBulkCheckIn,
     handleEnrollmentPaymentChange,
     handleExportCSV,
     handleCompEntry,

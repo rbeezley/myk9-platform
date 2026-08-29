@@ -1,5 +1,5 @@
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import { computeArmbandAssignments, resolveStartNumber } from '@/utils/armbandUtils';
+import { resolveStartNumber } from '@/utils/armbandUtils';
 import {
   replicatedArmbandsTable,
   type ReplicatedArmband,
@@ -114,75 +114,6 @@ export const setEntryArmband = async (entryId: string, armband: string) => {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'assign_armband');
     logQuery('entries', 'assign_armband', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-export const autoAssignArmbands = async (showId: string, startNumber?: number) => {
-  const startTime = Date.now();
-
-  try {
-    const configuredStartNumber = startNumber ?? (await fetchStartingArmbandForShow(showId));
-    const [showEntries, assignedArmbands] = await Promise.all([
-      replicatedEntriesTable.getEntriesByShow(showId),
-      replicatedArmbandsTable.getByShow(showId),
-    ]);
-    const assignedDogIds = new Set(
-      assignedArmbands
-        .filter(armband => !armband.isAvailable && armband.dogId)
-        .map(armband => armband.dogId as string)
-    );
-    const unassigned = showEntries.filter(
-      entry =>
-        !entry.deletedAt &&
-        !entry.deleted_at &&
-        !entry.armband &&
-        entry.dogId &&
-        !assignedDogIds.has(entry.dogId) &&
-        (entry.entryStatus === 'accepted' ||
-          entry.entry_status === 'accepted' ||
-          entry.entryStatus === 'confirmed' ||
-          entry.entry_status === 'confirmed')
-    );
-
-    const dogIds = [...new Set(unassigned.map(e => e.dogId).filter(Boolean) as string[])];
-
-    if (dogIds.length === 0) {
-      return { data: { assigned: 0, startedAt: configuredStartNumber }, error: null };
-    }
-
-    const maxArmband = getMaxArmbandNumber(assignedArmbands);
-    const nextNumber = resolveStartNumber(maxArmband, configuredStartNumber);
-    const assignments = computeArmbandAssignments(dogIds, nextNumber);
-
-    let assignedCount = 0;
-    let skippedCount = 0;
-    for (const { dogId, armband } of assignments) {
-      try {
-        await replicatedArmbandsTable.upsertAssignedArmband({
-          showId,
-          dogId,
-          armbandNumber: armband,
-        });
-        await replicatedEntriesTable.updateArmbandForDogInShow(showId, dogId, armband);
-        assignedCount++;
-      } catch (error) {
-        skippedCount++;
-        const message = error instanceof Error ? error.message : String(error);
-        logQuery('armbands', 'auto_assign_upsert_skip', Date.now() - startTime, message);
-      }
-    }
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'auto_assign_armbands', duration);
-    return {
-      data: { assigned: assignedCount, skipped: skippedCount, startedAt: nextNumber },
-      error: null,
-    };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'auto_assign_armbands');
-    logQuery('entries', 'auto_assign_armbands', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };

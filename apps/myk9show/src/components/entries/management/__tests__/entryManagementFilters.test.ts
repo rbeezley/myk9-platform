@@ -182,7 +182,7 @@ describe('entryManagementFilters', () => {
   // Task 2.2 — normalized URL round-trip + invalid-parameter coverage across
   // every field the normalizer owns (show is a route param, not a query
   // param, so its "round trip" is trial/class/roster clearing on show change,
-  // covered by useEntryManagementFilters.test.ts).
+  // covered by the cockpit URL-state tests).
   describe('mode round-trip and invalid values', () => {
     it('preserves a supported ?mode=day-of', () => {
       const result = normalizeEntryManagementSearchParams(new URLSearchParams('mode=day-of'));

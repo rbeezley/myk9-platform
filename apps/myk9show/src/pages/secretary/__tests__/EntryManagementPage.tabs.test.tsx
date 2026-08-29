@@ -38,33 +38,6 @@ vi.mock('@/hooks/useEntryManagementData', () => ({
   }),
 }));
 
-vi.mock('@/hooks/useEntryManagementFilters', () => ({
-  useEntryManagementFilters: () => ({
-    searchTerm: '',
-    setSearchTerm: vi.fn(),
-    paymentFilter: 'all',
-    setPaymentFilter: vi.fn(),
-    selectedTab: 'all',
-    setSelectedTab: vi.fn(),
-    attentionFilter: 'all',
-    setAttentionFilter: vi.fn(),
-    workMode: 'review',
-    setWorkMode: vi.fn(),
-    entryViewMode: 'table',
-    setEntryViewMode: vi.fn(),
-    trialFilter: null,
-    setTrialFilter: vi.fn(),
-    classFilter: null,
-    setClassFilter: vi.fn(),
-    viewMode: 'registration',
-    selectedEntries: new Set<string>(),
-    setSelectedEntries: vi.fn(),
-    handleSelectEntry: vi.fn(),
-    handleSelectAll: vi.fn(),
-    filteredEntries: [],
-  }),
-}));
-
 vi.mock('@/hooks/useEntryManagementActions', () => ({
   useEntryManagementActions: () => ({
     isProcessing: false,
@@ -72,13 +45,10 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
     setCheckInDialog: vi.fn(),
     armbandDialog: { open: false, entry: null, value: '' },
     setArmbandDialog: vi.fn(),
-    autoArmbandDialog: { open: false, startNumber: '1' },
-    setAutoArmbandDialog: vi.fn(),
     bulkActionDialog: { open: false, action: null },
     setBulkActionDialog: vi.fn(),
     handleStatusChange: vi.fn(),
     handleAssignArmband: vi.fn(),
-    handleAutoAssignArmbands: vi.fn(),
     handleBulkCheckIn: vi.fn(),
     handleCheckInStatusUpdate: vi.fn(),
     handleBulkAction: vi.fn(),

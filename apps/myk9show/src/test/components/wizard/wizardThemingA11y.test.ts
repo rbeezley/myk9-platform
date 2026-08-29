@@ -83,7 +83,12 @@ describe('Show creation wizard — dark-mode theming guards', () => {
     expect(reviewStep).toContain('text-destructive');
     expect(reviewStep).toContain('text-info');
     expect(reviewStep).toContain('text-success');
-    expect(reviewStep).toContain('dark:text-purple-400');
+    // This used to assert `dark:text-purple-400` was PRESENT -- directly
+    // contradicting the test's own name, and pinning the file's one raw-palette
+    // colour in place. It belonged to an invented "~15 min per class" estimate,
+    // now deleted. Assert the absence the title always claimed.
+    expect(reviewStep).not.toContain('text-purple-600');
+    expect(reviewStep).not.toContain('dark:text-purple-400');
   });
 
   it('ReviewStep no longer uses non-adapting gray text utilities', () => {

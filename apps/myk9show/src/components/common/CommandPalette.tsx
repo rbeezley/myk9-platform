@@ -1,7 +1,7 @@
 import { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Search, Dog, Users, Calendar, Building, Plus, Clock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Search, Dog, Users, Calendar, Building, Plus, Clock, ArrowRight } from 'lucide-react';
 import { Kbd } from '@/components/ui/kbd';
 import { useNavigate } from 'react-router-dom';
 import { useDogStore } from '@/store/dogStore';
@@ -59,7 +59,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   const { userWithRoles, hasPermission } = useAuthContext();
 
   const { addSearch, getSuggestions } = useRecentSearches({ context: 'command-palette' });
-  const { navigationCommands: contextualNavCommands, checkInCommand } = useCommandMenuCommands();
+  const { navigationCommands: contextualNavCommands } = useCommandMenuCommands();
 
   const dogs = useDogStore(state => state.dogs);
   const people = useUserStore(state => state.people);
@@ -278,20 +278,8 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
       });
     }
 
-    if (checkInCommand) {
-      commands.push(
-        adaptCommandMenuCommand(
-          checkInCommand,
-          navigate,
-          onOpenChange,
-          <CheckCircle2 className="h-4 w-4" />,
-          'actions'
-        )
-      );
-    }
-
     return commands;
-  }, [canCreateShows, canManageUsers, checkInCommand, navigate, onOpenChange]);
+  }, [canCreateShows, canManageUsers, navigate, onOpenChange]);
 
   // Contextual "current show" navigation (task 2.1/2.3) — only present when an
   // owner surface has registered a command-menu context (commandMenuContextStore).

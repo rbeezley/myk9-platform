@@ -14,10 +14,6 @@ interface EntryRegistrationSelectionToolbarProps {
     status: EntryStatus,
     onFullSuccess?: () => void
   ) => BulkActionResult | Promise<BulkActionResult>;
-  onBulkCheckIn: (
-    entryIds: string[],
-    onFullSuccess?: () => void
-  ) => BulkActionResult | Promise<BulkActionResult>;
   onClear: () => void;
   busy?: boolean;
 }
@@ -26,7 +22,6 @@ export function EntryRegistrationSelectionToolbar({
   registrations,
   selectedEntries,
   onBulkStatusChange,
-  onBulkCheckIn,
   onClear,
   busy = false,
 }: EntryRegistrationSelectionToolbarProps) {
@@ -36,7 +31,7 @@ export function EntryRegistrationSelectionToolbar({
 
   if (registrations === 0) return null;
 
-  const actions = getEntryBulkActions(selectedEntries, onBulkStatusChange, onBulkCheckIn, onClear);
+  const actions = getEntryBulkActions(selectedEntries, onBulkStatusChange, onClear);
   const primaryAction = actions.find(
     action => !action.disabled && action.variant !== 'destructive'
   );
@@ -68,7 +63,6 @@ export function EntryRegistrationSelectionToolbar({
         <EntryBulkActionMenu
           selectedEntries={selectedEntries}
           onBulkStatusChange={onBulkStatusChange}
-          onBulkCheckIn={onBulkCheckIn}
           onClear={onClear}
           disabled={busy}
           actions={overflowActions}

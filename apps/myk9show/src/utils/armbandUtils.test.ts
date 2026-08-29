@@ -1,29 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  computeArmbandAssignments,
-  formatArmbandDisplay,
-  resolveStartNumber,
-} from './armbandUtils';
-
-describe('computeArmbandAssignments', () => {
-  it('assigns sequential numbers starting from startNumber', () => {
-    const result = computeArmbandAssignments(['dog-1', 'dog-2', 'dog-3'], 5);
-    expect(result).toEqual([
-      { dogId: 'dog-1', armband: '5' },
-      { dogId: 'dog-2', armband: '6' },
-      { dogId: 'dog-3', armband: '7' },
-    ]);
-  });
-
-  it('returns empty array for no dogs', () => {
-    expect(computeArmbandAssignments([], 1)).toEqual([]);
-  });
-
-  it('starts at 1 by default', () => {
-    const result = computeArmbandAssignments(['dog-a'], 1);
-    expect(result[0].armband).toBe('1');
-  });
-});
+import { formatArmbandDisplay, resolveStartNumber } from './armbandUtils';
 
 describe('resolveStartNumber', () => {
   it('returns startNumber when no existing armbands', () => {

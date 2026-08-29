@@ -1,18 +1,7 @@
 /**
- * AtShowClassListPage — Phase 1h at-show class picker (mobile cards).
- *
- * The navigation entry into the at-show flow: a judge taps a class card instead
- * of typing IDs. Classes are grouped by trial; Novice Section A/B pairs are
- * collapsed into one "A & B" card (via ringside `groupSectionedClasses`) that
- * routes to the combined EntryList; everything else routes to the single-class
- * EntryList. Mounted at `/at-show/:showId` (any account admitted by
- * `AtShowAccessGate` — staff or passcode). An exhibitor-only account with
- * owned entries at this show instead lands on `AtShowMyEntriesToday` by
- * default (see `isExhibitorOnlyForAtShow`); staff always see this class-first
- * view.
- *
- * Card styling is host-side (Tailwind) under `.ringside-root`; matching myK9Q's
- * exact class-card look is part of the visual-polish pass.
+ * At-show class picker: trial-grouped staff navigation, assignment-first judge
+ * navigation, and owned-entry-first exhibitor navigation. Novice A/B sections
+ * share one card and route to the combined entry list.
  */
 
 import { useCallback, useMemo, useState } from 'react';
@@ -76,8 +65,17 @@ function AtShowOfflineReadySlot({
 export const AtShowClassListPage: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
   const navigate = useNavigate();
-  const { groups, nextUpByClassId, organization, showName, clubId, isLoading, error, refresh } =
-    useAtShowClassList(showId);
+  const {
+    groups,
+    nextUpByClassId,
+    organization,
+    showName,
+    clubId,
+    isLoading,
+    error,
+    classDataHydration,
+    refresh,
+  } = useAtShowClassList(showId);
   const { status: syncStatus } = useReplicationSync();
   const { hasRole, user } = useAuthContext();
   const {
@@ -239,13 +237,15 @@ export const AtShowClassListPage: React.FC = () => {
     groups.length === 0 &&
     isOnline &&
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
+  const hasClasses = groupedByTrial.some(group => group.classes.length > 0);
+  const isCheckingOfflineEmptyScope = !isOnline && !hasClasses && classDataHydration === 'checking';
 
   // An empty picker is only a statement about the SHOW when a read actually
-  // reached the device. There are TWO ways it did not, and gating on
-  // connectivity alone catches only one:
+  // reached the device. There are TWO ways that cannot be proven:
   //
-  //  - offline, nothing cached: every table sits at 'idle', because the sync
-  //    provider returns early while offline.
+  //  - offline, persisted per-scope metadata does not prove that every remote
+  //    trial/class row is present. Process-local table status is deliberately
+  //    ignored because it resets to 'idle' on every cold boot.
   //  - ONLINE, but the first sync errored -- venue wifi that associates but
   //    does not carry. `areReplicationTablesPendingFirstSync` counts only
   //    'idle'/'syncing', so 'error' reads as settled; and `getAll()` catches
@@ -257,10 +257,9 @@ export const AtShowClassListPage: React.FC = () => {
     table => syncStatus.tablesStatus[table] === 'error'
   );
   const classDataNeverReachedDevice =
-    classSyncFailed ||
-    (!isOnline && areReplicationTablesPendingFirstSync(syncStatus, CLASS_DATA_TABLES));
+    classSyncFailed || (!isOnline && classDataHydration !== 'hydrated');
 
-  if (isLoading || isClassDataStillSyncing || assignmentsLoading) {
+  if (isLoading || isClassDataStillSyncing || isCheckingOfflineEmptyScope || assignmentsLoading) {
     return (
       <>
         <div className={`ringside-root ${WIDE_COLUMN} px-4 pt-4`}>
@@ -330,7 +329,6 @@ export const AtShowClassListPage: React.FC = () => {
     );
   }
 
-  const hasClasses = groupedByTrial.some(g => g.classes.length > 0);
   if (!hasClasses) {
     return (
       <main className="ringside-root flex min-h-96 flex-col items-center justify-center gap-3 px-4 text-center">
@@ -431,58 +429,63 @@ export const AtShowClassListPage: React.FC = () => {
         </section>
       )}
 
-      {groupedByTrial.map(({ trial, classes }) => {
-        if (classes.length === 0) return null;
-        const trialNumber = trial.trialNumber ?? trial.trial_number;
-        const trialDate = trial.date ?? trial.trial_date;
-        const isOpen = !collapsedTrialIds.has(trial.id);
-        const trialDateLabel = trialDate ? formatTrialDate(trialDate) : '';
-        const trialTimeZone = getTrialTimezone(trial);
-        const trialLabel = `${trialNumber ? `Trial ${trialNumber}` : 'Trial'}${
-          trialDateLabel ? ` · ${trialDateLabel}` : ''
-        }`;
-        return (
-          <Collapsible
-            key={trial.id}
-            open={isOpen}
-            onOpenChange={open => toggleTrial(trial.id, open)}
-            className="mb-6"
-            data-testid={`at-show-trial-${trial.id}`}
-          >
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex min-h-11 w-full items-center gap-2 px-1 text-left text-sm font-medium text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${trialLabel}`}
-              >
-                <ChevronRight
-                  size={16}
-                  className={cn('shrink-0 transition-transform', { 'rotate-90': isOpen })}
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 flex-1 truncate">{trialLabel}</span>
-                <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
-                  {classes.length}
-                </span>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ul className="mt-2 space-y-2">
-                {classes.map(entry => (
-                  <AtShowClassRow
-                    key={entry.id}
-                    entry={entry}
-                    isExhibitorOnly={isExhibitorOnly}
-                    onClick={handleClassClick}
-                    trialTimeZone={trialTimeZone}
-                    nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
+      {/* INTENT: For a judge-only account with known assignments, Your ring
+          IS the picker. Rendering the same rows again by trial doubles the
+          scroll without adding a navigation option. Broader staff and the
+          assignment-unknown fail-open retain the show-wide trial list. */}
+      {!scopeToAssignedClasses &&
+        groupedByTrial.map(({ trial, classes }) => {
+          if (classes.length === 0) return null;
+          const trialNumber = trial.trialNumber ?? trial.trial_number;
+          const trialDate = trial.date ?? trial.trial_date;
+          const isOpen = !collapsedTrialIds.has(trial.id);
+          const trialDateLabel = trialDate ? formatTrialDate(trialDate) : '';
+          const trialTimeZone = getTrialTimezone(trial);
+          const trialLabel = `${trialNumber ? `Trial ${trialNumber}` : 'Trial'}${
+            trialDateLabel ? ` · ${trialDateLabel}` : ''
+          }`;
+          return (
+            <Collapsible
+              key={trial.id}
+              open={isOpen}
+              onOpenChange={open => toggleTrial(trial.id, open)}
+              className="mb-6"
+              data-testid={`at-show-trial-${trial.id}`}
+            >
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-h-11 w-full items-center gap-2 px-1 text-left text-sm font-medium text-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${trialLabel}`}
+                >
+                  <ChevronRight
+                    size={16}
+                    className={cn('shrink-0 transition-transform', { 'rotate-90': isOpen })}
+                    aria-hidden="true"
                   />
-                ))}
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
-        );
-      })}
+                  <span className="min-w-0 flex-1 truncate">{trialLabel}</span>
+                  <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
+                    {classes.length}
+                  </span>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="mt-2 space-y-2">
+                  {classes.map(entry => (
+                    <AtShowClassRow
+                      key={entry.id}
+                      entry={entry}
+                      isExhibitorOnly={isExhibitorOnly}
+                      onClick={handleClassClick}
+                      trialTimeZone={trialTimeZone}
+                      nextUp={selectNextUpForCard(getClassIds(entry), nextUpByClassId)}
+                    />
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })}
     </main>
   );
 };

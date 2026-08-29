@@ -4,14 +4,13 @@ import { useEntryManagementActions } from '../useEntryManagementActions';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { setEntryArmband } from '@/services/database/armbands';
-import { bulkCheckIn, deleteEntry, updateCheckInStatus } from '@/services/database/entries';
+import { deleteEntry, updateCheckInStatus } from '@/services/database/entries';
 import { updateEnrollmentPaymentStatus } from '@/services/database/show-registrations';
 import { updateReplicatedCheckInStatus } from '@/services/show-day/checkInStatus';
 import { fromAny } from '@total-typescript/shoehorn';
 
 const mocks = vi.hoisted(() => ({
   setEntryArmband: vi.fn(),
-  autoAssignArmbands: vi.fn(),
   getEntryArmbandById: vi.fn(),
   getNextArmbandForShow: vi.fn(),
   changeSecretaryEntryStatus: vi.fn(),
@@ -20,7 +19,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/database/armbands', () => ({
   setEntryArmband: mocks.setEntryArmband,
-  autoAssignArmbands: mocks.autoAssignArmbands,
   getEntryArmbandById: mocks.getEntryArmbandById,
   getNextArmbandForShow: mocks.getNextArmbandForShow,
 }));
@@ -31,7 +29,6 @@ vi.mock('@/services/database/entries', async importOriginal => {
     ...actual, // real implementations for executeStatusChange, executeBulkStatusChange, executeRemoveEntry
     updateEntryStatus: vi.fn(),
     updateCheckInStatus: vi.fn(),
-    bulkCheckIn: vi.fn(),
     bulkUpdateEntryStatus: vi.fn(),
     getEntriesForExport: vi.fn(),
     compEntry: vi.fn(),
@@ -126,7 +123,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -155,7 +151,6 @@ describe('useEntryManagementActions', () => {
         setEntries: vi.fn(),
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -184,7 +179,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError: vi.fn(),
         user: { id: 'secretary-1' },
       })
@@ -212,7 +206,6 @@ describe('useEntryManagementActions', () => {
           setEntries,
           selectedShowId: 'show-1',
           selectedShow: null,
-          loadEntries: vi.fn(),
           setError: vi.fn(),
           user: { id: 'secretary-1' },
         })
@@ -242,7 +235,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -286,7 +278,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -302,34 +293,6 @@ describe('useEntryManagementActions', () => {
     const updater = setEntries.mock.calls[0]?.[0];
     expect(typeof updater).toBe('function');
     expect(updater([entry])).toEqual([]);
-  });
-
-  it('bulk checks in selected entries through the replicated check-in writer', async () => {
-    vi.mocked(bulkCheckIn).mockResolvedValue({ data: [], error: null });
-    const entry = makeEntry();
-    const setEntries = vi.fn();
-    const setError = vi.fn();
-
-    const { result } = renderHook(() =>
-      useEntryManagementActions({
-        entries: [entry],
-        setEntries,
-        selectedShowId: 'show-1',
-        selectedShow: null,
-        loadEntries: vi.fn(),
-        setError,
-        user: { id: 'secretary-1', email: 'secretary@example.test' },
-      })
-    );
-
-    await act(async () => {
-      await result.current.handleEnrollmentBulkCheckIn(['entry-1', 'entry-2']);
-    });
-
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-1', 'checked-in');
-    expect(updateReplicatedCheckInStatus).toHaveBeenCalledWith('entry-2', 'checked-in');
-    expect(bulkCheckIn).not.toHaveBeenCalled();
-    expect(setError).not.toHaveBeenCalled();
   });
 
   it('marks matching enrollment entries paid locally when the enrollment payment changes', async () => {
@@ -358,7 +321,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -418,7 +380,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -473,7 +434,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })
@@ -521,7 +481,6 @@ describe('useEntryManagementActions', () => {
         setEntries,
         selectedShowId: 'show-1',
         selectedShow: null,
-        loadEntries: vi.fn(),
         setError,
         user: { id: 'secretary-1', email: 'secretary@example.test' },
       })

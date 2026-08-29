@@ -334,6 +334,10 @@ export function OverrideTree({
               <CollapsibleContent className="space-y-1 border-t px-3 pb-2 pt-1">
                 <div className="flex items-center gap-2 px-3 py-1">
                   <Checkbox
+                    // 16px intrinsic. The pseudo-element extends the hit area to
+                    // the 44px floor without changing the visual size, matching
+                    // the treatment the Switch beside it already had.
+                    className="relative before:absolute before:-inset-3.5 before:content-['']"
                     checked={allSelected}
                     onCheckedChange={() => onToggleAllInTrial(trial.id, trialClassIds)}
                     aria-label={`Select all classes in ${trial.name}`}
@@ -353,6 +357,7 @@ export function OverrideTree({
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
                         <Checkbox
+                          className="relative before:absolute before:-inset-3.5 before:content-['']"
                           checked={selectedClasses.has(cls.id)}
                           onCheckedChange={() => onToggleClass(cls.id)}
                           aria-label={`Select ${className}`}

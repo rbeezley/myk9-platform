@@ -41,7 +41,6 @@ describe('EntryRowActionMenu', () => {
       <EntryRowActionMenu
         entry={makeEntry({ entryStatus: EntryStatus.ACCEPTED })}
         onStatusChange={vi.fn()}
-        onCheckInEntry={vi.fn()}
         onOpenArmbandDialog={vi.fn()}
         onOpenCompDialog={vi.fn()}
         onUncompEntry={vi.fn()}
@@ -54,7 +53,9 @@ describe('EntryRowActionMenu', () => {
 
     expect(screen.queryByRole('menuitem', { name: /^accept$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /move to waitlist/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /check in all classes/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitem', { name: /check in all classes/i })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /^reject$/i })).toBeInTheDocument();
   });
 
@@ -97,7 +98,6 @@ describe('EntryRowActionMenu', () => {
           paymentStatus: PaymentStatus.PENDING,
         })}
         onStatusChange={vi.fn()}
-        onCheckInEntry={vi.fn()}
         onOpenArmbandDialog={vi.fn()}
         onOpenCompDialog={vi.fn()}
         onRemoveEntry={vi.fn()}

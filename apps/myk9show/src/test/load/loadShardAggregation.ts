@@ -280,3 +280,37 @@ function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: Lo
 function sum<T>(values: readonly T[], select: (value: T) => number): number {
   return values.reduce((total, value) => total + select(value), 0);
 }
+
+/**
+ * Shards whose measurement windows differ structurally cannot be aggregated.
+ *
+ * `aggregateShards` divides throughput by `Math.max(elapsedMs)` and merges every
+ * shard's samples into one percentile. Both assume the shards measured the same
+ * window. On 2026-08-28 they did not — five ran the scenario's full 600 s while
+ * eleven exited between 85 s and 158 s, because a shard stopped as soon as its
+ * browser sessions settled rather than at the scenario boundary. The aggregate
+ * reported a single p95 over windows differing by 7x and nothing flagged it.
+ *
+ * The runner no longer ends early, so this is the guard that keeps the claim
+ * honest if it ever regresses: it fails the evidence rather than averaging it.
+ *
+ * Tolerance is proportional, not absolute: shards never stop on the same
+ * millisecond, and a fixed millisecond bar would either flag ordinary jitter on a
+ * short scenario or miss a real split on a long one.
+ */
+const SHARD_WINDOW_TOLERANCE = 0.1;
+
+export function shardWindowDivergence(elapsedMsPerShard: readonly number[]): string | undefined {
+  const windows = elapsedMsPerShard.filter(value => Number.isFinite(value) && value > 0);
+  if (windows.length < 2) return undefined;
+
+  const longest = Math.max(...windows);
+  const shortest = Math.min(...windows);
+  if (longest - shortest <= longest * SHARD_WINDOW_TOLERANCE) return undefined;
+
+  return (
+    `Shard measurement windows diverged: shortest ${shortest} ms, longest ${longest} ms ` +
+    `(tolerance ${SHARD_WINDOW_TOLERANCE * 100}%). Percentiles and throughput aggregated ` +
+    `across unequal windows do not describe one load.`
+  );
+}

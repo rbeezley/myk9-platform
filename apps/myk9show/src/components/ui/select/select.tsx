@@ -16,15 +16,74 @@ interface SelectProps<T extends string = string> extends Omit<
   defaultValue?: T | undefined;
 }
 
+/**
+ * Walk the children for `SelectItem`s and build Base UI's `items` map.
+ *
+ * F34: Base UI resolves `<Select.Value>` to an item's label ONLY when the root is
+ * given `items` -- "When specified, <Select.Value> renders the label of the selected
+ * item instead of the raw value" (@base-ui/react 1.7.0, SelectRoot.d.ts). The
+ * `SelectItem`s cannot supply it themselves: they are unmounted while the select is
+ * closed, which is exactly when the trigger renders. Without it the trigger prints
+ * the value, so 43 option sites keyed by an id displayed a raw UUID -- and the fix
+ * belonged here rather than at 43 call sites, where the 44th would reintroduce it.
+ *
+ * Recurses through arrays, fragments and groups because call sites nest items inside
+ * `.map()`, `<SelectGroup>` and conditionals. Items rendered by a NESTED COMPONENT
+ * (rather than as children) are invisible to this walk -- such a caller must pass
+ * `items` explicitly, which is why an explicit prop always wins.
+ */
+function collectItemLabels(
+  node: React.ReactNode,
+  out: Record<string, React.ReactNode>
+): Record<string, React.ReactNode> {
+  React.Children.forEach(node, child => {
+    if (!React.isValidElement(child)) return;
+    const props = child.props as { value?: unknown; children?: React.ReactNode };
+    if (child.type === SelectItem) {
+      if (typeof props.value === 'string') out[props.value] = props.children;
+      return;
+    }
+    if (props.children !== undefined) collectItemLabels(props.children, out);
+  });
+  return out;
+}
+
+/**
+ * Opaque identifiers that must never reach a user's screen. A value that is not in
+ * `items` falls back to rendering the value itself, which is correct when the value
+ * IS the label ("Novice") and wrong when it is a database id -- the selected row can
+ * legitimately be absent from the options (a judge filtered out of a qualified list,
+ * a list that has not loaded). Callers wanting specific wording pass `items`
+ * explicitly, which always wins.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UNRESOLVED_ID_LABEL = 'Unavailable';
+
 function Select<T extends string = string>({
   onValueChange,
   value,
   defaultValue,
+  items,
+  children,
   ...props
 }: SelectProps<T>) {
   const handleValueChange = onValueChange
     ? (newValue: unknown) => onValueChange((newValue ?? '') as T)
     : undefined;
+
+  // An explicit `items` always wins: a caller whose options come from a nested
+  // component knows them, and this walk cannot see them.
+  const derivedItems = React.useMemo(() => {
+    if (items) return items;
+    const collected = collectItemLabels(children, {});
+    // A UUID-shaped selection with no matching option would otherwise print the id.
+    for (const selected of [value, defaultValue]) {
+      if (typeof selected === 'string' && UUID_RE.test(selected) && !(selected in collected)) {
+        collected[selected] = UNRESOLVED_ID_LABEL;
+      }
+    }
+    return collected;
+  }, [items, children, value, defaultValue]);
 
   // Always pass value when caller provides it (even empty string) to maintain
   // consistent controlled state. Omitting value on empty strings caused React
@@ -37,8 +96,11 @@ function Select<T extends string = string>({
       {...(handleValueChange !== undefined && { onValueChange: handleValueChange })}
       {...(isControlled && { value })}
       {...(normalizedDefaultValue !== undefined && { defaultValue: normalizedDefaultValue })}
+      items={derivedItems}
       {...props}
-    />
+    >
+      {children}
+    </SelectPrimitive.Root>
   );
 }
 Select.displayName = 'Select';

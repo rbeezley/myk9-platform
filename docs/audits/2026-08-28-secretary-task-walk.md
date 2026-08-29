@@ -113,7 +113,7 @@ any `.from('entries')` select in that module requests a revoked scored column, o
 if the fallback stops reading the view. Confirmed non-vacuous — all three
 assertions fail when the fix is reverted.
 
-### F2 — P2 — `.env.local` points secretary e2e runs at a deleted account
+### F2 — P2 — FIXED (#1858) — `.env.local` points secretary e2e runs at a deleted account
 
 `E2E_SECRETARY_EMAIL=e2e-secretary@test.myk9.com` has **no `auth.users` row**, so
 every local secretary sign-in fails with `Invalid login credentials`. The code
@@ -147,14 +147,14 @@ With a judge added, it works well — Step 3 auto-assigned the single judge to b
 secretary to "assign a judge to each class" on Step 3 without mentioning the Step 1
 prerequisite, so following the guide literally produces a show with no judges.
 
-### F5 — P2 — "Judges Assigned n/n" counts the wrong thing
+### F5 — P2 — FIXED (#1858) — "Judges Assigned n/n" counts the wrong thing
 
 The Review summary tile counts **judges used / judges added**, not classes covered.
 Two classes both assigned to one judge reads `1/1`; zero judges added with two
 unassigned classes reads `0/0` — which looks complete. The adjacent line
 ("2 Classes 0 Assigned") is correct, so the page contradicts itself.
 
-### F6 — P2 — Entry-close default time makes same-day close always invalid
+### F6 — P2 — FIXED (#1858) — Entry-close default time makes same-day close always invalid
 
 The wizard enforces *"Entry close date must be on or before the show start date."*
 The entry-period picker defaults the close time to **11:59 PM** while the show start
@@ -193,17 +193,17 @@ admins — with no club-member grouping. A search box exists. The judge picker d
 this better: it splits "Qualified Judges: Credentials on File" from
 "All People: No Credentials Yet" with a *Tap to add credentials* affordance.
 
-### F9 — P3 — "1 classes"
+### F9 — P3 — FIXED (#1858) — "1 classes"
 
 Step 3, Detective element. Missing singular form.
 
-### F10 — P3 — Playwright failure artifacts capture the password in plaintext
+### F10 — P3 — FIXED (#1858) — Playwright failure artifacts capture the password in plaintext
 
 `test-results/**/error-context.md` records the accessibility snapshot including the
 filled password field's value. These artifacts persist locally and are uploaded by
 CI on failure.
 
-### F11 — P3 — Root `playwright.config.ts` cannot load from a worktree
+### F11 — P3 — FIXED (#1858) — Root `playwright.config.ts` cannot load from a worktree
 
 The root config imports `@playwright/test`, which the root workspace does not
 declare; it resolves in the main checkout only by hoisting accident. In a fresh
@@ -218,7 +218,7 @@ no way forward from the dialog they are standing in. The judge must first be add
 via **More show actions → Edit → Judges tab**, after which the dropdown offers them.
 Both halves work; nothing in the class dialog points at the other half.
 
-### F13 — P3 — Judge option label renders empty placeholders
+### F13 — P3 — FIXED (#1858) — Judge option label renders empty placeholders
 
 The class Edit dropdown lists the judge as `Test Judge( - )` — a template emitting
 its separator and parentheses with no values to put in them.
@@ -427,7 +427,7 @@ machine does not have, so CI is their first real run. It is registered in both
 `scripts/qa/run-behavioral-sql-tests.sh` and `run-behavioral-sql-tests.test.ts`;
 that registration is checked and passing, which proves only that it is on the list.
 
-### F17 — P3 — Secretary entry wizard links to the exhibitor guide
+### F17 — P3 — FIXED (#1858) — Secretary entry wizard links to the exhibitor guide
 
 The **Help** link on `/secretary/register/:showId` points at
 `help.myk9show.com/guides/exhibitor-guide` even in the secretary's mail-in and
@@ -455,7 +455,7 @@ A secretary reconciling mail-in checks against the Stripe payout therefore canno
 tell the two apart on the list, and the row asserts a payment channel that did not
 happen. The truth is on `entries.payment_method`, which the label never consults.
 
-### F19 — P3 — Filter chips do not expose their selected state (several pages)
+### F19 — P3 — FIXED (#1858) — Filter chips do not expose their selected state (several pages)
 
 `Needs review` / `Missing information` / `Payment due` / `All registrations` carry no
 `aria-pressed` or `aria-selected`, so assistive tech cannot tell which queue is
@@ -474,7 +474,7 @@ and only clicking `Completed` revealed that the default `Active` filter was hidi
 Manage Classes gets it right (`2 Total Classes [pressed]`), so the app is
 inconsistent with itself in three places.
 
-### F20 — P3 — Waitlist capacity cards are headed by the judge's name
+### F20 — P3 — FIXED (#1858) — Waitlist capacity cards are headed by the judge's name
 
 Waitlist Management lists capacity cards titled "Richard Beezley" and "Test Judge"
 with a date and "1 / 125 entries". This is the judge-day capacity model working as
@@ -606,7 +606,7 @@ computes — verified during the walk. So this is one missing report, not two.
 
 Planned as Phase 2B in `plan-secretary-walk-remediation.md`.
 
-### F27 — P2 — A cold replication store reports "Class not found" for a class that exists
+### F27 — P2 — FIXED (#1858) — A cold replication store reports "Class not found" for a class that exists
 
 Navigating directly to `/scoring/classes/:classId/entries` immediately after sign-in
 renders **"Class not found"** with a Go Back button. The class exists, renders on its
@@ -621,7 +621,7 @@ but here it states the absence as a fact rather than an error. It matters becaus
 class detail page's readiness rows deep-link straight to this URL, so a bookmark, a
 shared link, or a fresh device lands on a flat denial that the class is real.
 
-### F28 — P2 — Manage Classes shows the judge's UUID instead of their name
+### F28 — P2 — FIXED (#1858) — Manage Classes shows the judge's UUID instead of their name
 
 On `/shows/:showId/classes/:trialId` ("Manage Classes"), the per-class judge selector
 renders the judge's raw id as its visible text:
@@ -762,7 +762,7 @@ shows it does not own.
 entry on the demo show (`7ae6ac8b-…`, Interior Advanced) whose id falls outside the
 seed's fixture ranges, so a reseed will not remove it.
 
-### F31 — P3 — CORRECTED — A denied entry update is diagnosed internally as a deletion
+### F31 — P3 — CORRECTED, diagnosis FIXED (#1858) — CORRECTED — A denied entry update is diagnosed internally as a deletion
 
 **This finding was first written as a P1 silent-data-loss bug. That was wrong, and the
 correction is the substantive part.** The app *does* tell the secretary. On the failed
@@ -797,7 +797,7 @@ reading the log to work out *why* is pointed at the wrong cause.
 The optimistic list also shows the change as applied ("Needs review 1") until the
 failure lands — correct for offline-first, worth knowing when reading a screenshot.
 
-### F32 — P3 — The Volunteers page tells you to use a sidebar picker that does not exist
+### F32 — P3 — FIXED (#1858) — The Volunteers page tells you to use a sidebar picker that does not exist
 
 `/secretary/volunteers` without a `showId` renders **"Select a Show — Choose a show
 from the sidebar to manage volunteers."** The sidebar has no show picker; it has a
@@ -922,7 +922,7 @@ lower-level targets. Confirmed live: an Interior Novice entry offered exactly on
 target (Interior Advanced), and a show with only Container Novice A + Interior Novice A
 correctly offered none.
 
-### F34 — P1 — NEW, systemic — Every id-keyed dropdown in the app displays a raw UUID
+### F34 — P1 — FIXED — Every id-keyed dropdown in the app displayed a raw UUID
 
 Found while fixing F28, which turned out to be one instance of a general defect rather
 than a one-page bug.
@@ -965,18 +965,28 @@ where value != label — **43 option sites across 34 files** keyed by an id:
 | Club pickers | `ShowEditBasicInfoTab`, `ManageUserRolesDialog`, `BulkRoleDialog` |
 | …plus 20 more | see the scan in the Phase 1 commit |
 
-**Fixed here:** only F28 (`ClassManagementRow`), because that is the one the walk
-observed and the one on the page whose purpose is assigning judges. The pattern is
-`items={Record<value, label>}` on the root, including an entry for a value that is
-assigned but missing from the options list — otherwise it falls straight back to the raw
-id.
+**Fixed (2026-08-29) in the WRAPPER, not at the call sites.** The first pass patched
+`ClassManagementRow` alone and filed the other 33 files as a sweep. That framing was
+wrong: 43 hand-written `items` props would fix 43 sites and leave the 44th to
+reintroduce the bug — the "fix the class, not the instance" case.
 
-**Not fixed:** the other 33 files. That is a 34-file sweep touching admin, reports,
-waitlist, volunteers and ringside, and it needs its own PR and its own verification pass;
-batching it into the secretary walk would make this change unreviewable. Two things worth
-deciding with it: whether the shared `Select` wrapper should fail loudly (or warn in dev)
-when given a `value` with no `items`, so the next one cannot ship silently; and whether
-a lint rule can catch it. Filed as Phase 3.
+The shared `Select` wrapper now derives `items` by walking the `SelectItem` children it
+is already handed (through arrays, fragments and `SelectGroup`, since call sites nest
+them in `.map()` and conditionals). All 179 sites are fixed with no call-site change,
+and a new dropdown is correct by default.
+
+Two deliberate limits:
+
+- **An explicit `items` always wins.** A caller whose options are rendered by a nested
+  component is invisible to the walk and must pass them; `ClassManagementRow` also keeps
+  its override for a better label ("Assigned judge (unavailable)").
+- **A UUID-shaped value with no matching option is masked** as "Unavailable" rather than
+  printed. A selected row can legitimately be absent from the options — a judge filtered
+  out of a qualified list, or a list that has not loaded. Non-id values are left alone,
+  because there the value IS the label ("Novice", "Withdrawn").
+
+The "should the wrapper fail loudly when given a value with no items" question is now
+moot: it supplies the items itself.
 
 
 ### F35 — P3 — NEW — A local time that is exactly UTC midnight resolves one day late

@@ -61,6 +61,7 @@ function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
     paidAmount: 50,
     paymentReference: null,
   paymentMethod: null,
+  rawPaymentStatus: null,
     refundAmount: null,
     refundNotes: null,
     refundedAt: null,

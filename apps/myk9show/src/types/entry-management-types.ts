@@ -46,6 +46,13 @@ export interface EntryManagementEntry {
    * `deriveEntryPresentation` for the owner-approved review-lane overrides
    * (`paid`/`promotion-expired`) that the UI enum folds away. */
   rawEntryStatus?: string | null;
+  /**
+   * Raw DB `payment_status` before UI-enum projection, for the same reason
+   * `rawEntryStatus` exists: `mapPaymentStatus` folds the generic `'paid'` onto
+   * `PAID_ONLINE`, so by the time the UI sees the enum it can no longer tell a Stripe
+   * payment from one whose channel was never recorded (F18).
+   */
+  rawPaymentStatus?: string | null;
   /** Scoring facts (entries.is_scored / entries.result_status) — a scored
    * entry can carry these while entryStatus is still ACCEPTED (scoring
    * doesn't always flip lifecycle status to COMPLETED), so guards that only

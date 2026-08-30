@@ -84,7 +84,10 @@ function paymentLabel(group: ShowRegistrationGroup): string {
   return entryManagementPaymentLabel(
     resolvePaymentChannel({
       paymentMethod: group.paymentMethod,
-      paymentStatus: group.paymentStatus,
+      // RAW status, not `group.paymentStatus`: the latter has already been through
+      // `mapPaymentStatus`, which turns 'paid' into PAID_ONLINE and would make the
+      // unknown-channel case unreachable — the fix would look right and do nothing.
+      paymentStatus: group.rawPaymentStatus ?? group.paymentStatus,
     })
   );
 }

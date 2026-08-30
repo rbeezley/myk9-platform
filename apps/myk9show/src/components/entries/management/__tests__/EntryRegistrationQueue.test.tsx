@@ -307,3 +307,81 @@ describe('EntryRegistrationQueue', () => {
     });
   });
 });
+
+/**
+ * F18, and the wiring half of it.
+ *
+ * The channel rules are pinned in `features/payments/__tests__/paymentChannel.test.ts`,
+ * which calls the resolver directly. That could not catch what Codex did: by the time a
+ * group reaches this component, `payment_status` has already been through
+ * `mapPaymentStatus`, which turns the generic `'paid'` into `PAID_ONLINE`. The resolver
+ * was therefore never shown a raw `'paid'` in production and the fix was inert on the
+ * exact screen the finding was about.
+ *
+ * These assert the RENDERED label from the real prop shape, so a projection that drops
+ * `rawPaymentStatus` or `paymentMethod` fails here rather than looking correct.
+ */
+function paidEntry(
+  overrides: Partial<EntryManagementEntry> & Pick<EntryManagementEntry, 'id'>
+): EntryManagementEntry {
+  return {
+    ...entry(overrides.id, `registration-${overrides.id}`, 'Alice Martin'),
+    paidAmount: 25,
+    paymentStatus: PaymentStatus.PAID_ONLINE,
+    ...overrides,
+  };
+}
+
+function renderGroupsFor(e: EntryManagementEntry) {
+  stubMatchMedia(true);
+  return render(
+    <EntryRegistrationQueue
+      groups={groupEntriesByShowRegistration([e])}
+      focusedKey={null}
+      selectedKeys={new Set()}
+      allSelected={false}
+      partiallySelected={false}
+      onFocus={vi.fn()}
+      onToggle={vi.fn()}
+      onToggleAll={vi.fn()}
+      rangeStart={1}
+      rangeEnd={1}
+      total={1}
+      pageIndex={0}
+      pageCount={1}
+      onPageChange={vi.fn()}
+    />
+  );
+}
+
+describe('EntryRegistrationQueue payment channel', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not claim "Paid online" when no method was recorded', () => {
+    // 1,228 staging rows look exactly like this: status 'paid', method null.
+    renderGroupsFor(
+      paidEntry({ id: 'entry-unknown', rawPaymentStatus: 'paid', paymentMethod: null })
+    );
+
+    expect(screen.getByText('Paid')).toBeInTheDocument();
+    expect(screen.queryByText('Paid online')).toBeNull();
+  });
+
+  it('names the cheque a secretary actually recorded', () => {
+    renderGroupsFor(
+      paidEntry({ id: 'entry-check', rawPaymentStatus: 'paid', paymentMethod: 'check' })
+    );
+
+    expect(screen.getByText('Paid by check')).toBeInTheDocument();
+  });
+
+  it('still says "Paid online" for a genuine card payment', () => {
+    renderGroupsFor(
+      paidEntry({ id: 'entry-card', rawPaymentStatus: 'paid', paymentMethod: 'credit_card' })
+    );
+
+    expect(screen.getByText('Paid online')).toBeInTheDocument();
+  });
+});

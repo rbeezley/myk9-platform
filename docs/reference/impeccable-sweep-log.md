@@ -15,6 +15,12 @@ swept?" was to reconstruct it from merged PR titles. It previously lived at
 so it was never shared, never reviewed, and drifted unnoticed — which is exactly
 how it went two months stale. Update the table in the same PR as the page's fix.
 
+**That old file still exists in the primary checkout, frozen at 2026-06-28.** It
+is an orphan of this migration, it is invisible from every worktree, and its
+"Remaining queue" section lists pages 4–19 as outstanding when the table directly
+above it marks them done. It has already caused one duplicate reconciliation
+(2026-08-30). Delete it — this file is the record.
+
 Canonical queue: `docs/playbook-impeccable-page-improvements.md`
 § Suggested page queue. Structural decisions: `docs/reference/impeccable-structural-decisions.md`.
 
@@ -64,7 +70,7 @@ there is no single base or stack. Each row is the last impeccable pass merged to
 | 6   | Show creation wizard              | /secretary/create-show/wizard   | 2026-08-28     | #1845                                                                                      |
 | 7   | Public show landing               | /shows/:id                      | 2026-08-29     | #1851                                                                                      |
 | 8   | At-Show — class picker            | /at-show/:showId                | 2026-08-27     | #1827                                                                                      |
-| 8b  | At-Show — entry list + scoresheet | /at-show/:showId/class/:classId | 2026-08-29     | #1863                                                                                      |
+| 8b  | At-Show — entry list + scoresheet | /at-show/:showId/class/:classId | 2026-08-29     | #1863 — structural cause since closed, see below                                           |
 | 9   | Admin Dashboard                   | /admin/dashboard                | 2026-08-19     | #1694                                                                                      |
 | 10  | User Management                   | /admin/users                    | 2026-08-19     | #1682, #1695                                                                               |
 | 11  | Payout Ledger                     | /admin/payouts                  | 2026-08-21     | #1692, #1731, #1740, #1789                                                                 |
@@ -76,6 +82,26 @@ there is no single base or stack. Each row is the last impeccable pass merged to
 | 17  | Cart                              | /cart                           | 2026-08-20     | #1700                                                                                      |
 | 18  | Club Members                      | /club-admin/members             | 2026-08-20     | #1708                                                                                      |
 | 19  | Club Payments                     | /club-admin/payments            | 2026-08-21     | #1711, #1721, #1723, #1725                                                                 |
+
+### Structural outcomes
+
+When a page's findings turn out to share a cause, the cause gets its own issue
+rather than another page pass. Record them here so a later run does not re-file
+the same thing, and knows the page's mechanical row is not the whole story.
+
+| Page | Issue | Finding | Closed by |
+| --- | --- | --- | --- |
+| 8b — At-Show entry list | [MYK9-260](https://linear.app/myk9-platform/issue/MYK9-260) | The combined Novice A/B list was a SECOND implementation of the single-class one. Every difference between them was a divergence, not a design choice — endless skeleton on an empty class, empty ring shown as settled truth during first sync, syncs dropped mid-drag, no containment banner, `window.alert()`, a dead tap on a scored dog. Fixing them one at a time only reset the clock. | #1875 (collapse, −539 lines), #1878 (500-line ceiling follow-up) |
+
+Worth expecting more of this shape: a page that keeps yielding mechanical
+defects is often being read one level too low. Four of the six MYK9-260 defects
+above had already been fixed individually on the single-class route and left
+unfixed on the combined one — the duplication was the actual finding.
+
+Also from that collapse, and applying beyond it: the run-order success banner
+and the optimistic check-in both existed on only ONE of the two routes, so a bug
+reproducing on both went unnoticed on one. When two surfaces do the same job,
+check which behaviours only one of them has before assuming the other is fine.
 
 ### Swept in round 2 but NOT queue pages
 

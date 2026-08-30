@@ -402,14 +402,10 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
 
         const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0);
 
-        const discounts = [];
-        if (registration.entries.length >= 3) {
-          discounts.push({
-            type: 'multi-dog',
-            amount: subtotal * 0.1,
-            description: '10% multi-dog discount',
-          });
-        }
+        // Deliberately empty — the multi-dog discount this used to add was
+        // never applied by the cart or any server path, so it quoted a total
+        // lower than the exhibitor was charged. See MYK9-265.
+        const discounts: { type: string; amount: number; description: string }[] = [];
 
         const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
         const taxes = 0;

@@ -176,4 +176,25 @@ describe('calculateTotalFees — multi-dog discount', () => {
     expect(result.discounts).toEqual([]);
     expect(result.total).toBe(25);
   });
+
+  // The wizard used to subtract 10% here for 3+ entered dogs. Nothing on the
+  // money path honoured it — the cart bills every line at full entry fee — so
+  // the quoted total was lower than the charge. Quoting a discount the product
+  // cannot apply is the defect; re-adding it needs a server-side discount
+  // first (MYK9-265).
+  it('quotes no discount for three entered dogs, because nothing applies one', () => {
+    const dogs = [dog, { id: 'dog-2', name: 'Breeze' }, { id: 'dog-3', name: 'Comet' }];
+    const selections = dogs.map(d => ({ ...selection, dogId: d.id }));
+
+    const result = calculateTotalFees(
+      dogs.map(d => d.id),
+      selections,
+      dogs,
+      [classObj]
+    );
+
+    expect(result.subtotal).toBe(75);
+    expect(result.discounts).toEqual([]);
+    expect(result.total).toBe(75);
+  });
 });

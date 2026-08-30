@@ -87,12 +87,6 @@ export function getShowEntryFee(
   return classEntryFee ?? DEFAULT_ENTRY_FEE;
 }
 
-/** Multi-dog discount threshold (number of dogs). */
-const MULTI_DOG_THRESHOLD = 3;
-
-/** Multi-dog discount rate. */
-const MULTI_DOG_DISCOUNT_RATE = 0.1;
-
 /**
  * Calculate the total fees, discounts, and per-dog breakdown for a registration.
  * When show info is provided, uses show-level fee tiers (pre-entry vs day-of-show)
@@ -137,17 +131,13 @@ export function calculateTotalFees(
     }
   });
 
-  // Calculate discounts
+  // No discount is applied here. A 10% multi-dog discount used to be added at
+  // this point, but nothing on the money path has ever honoured it: the cart,
+  // registrationCartCheckout and every edge function charge the full entry fee
+  // per line. Showing it made the wizard quote a total lower than it charged.
+  // The array stays so a real, server-honoured discount can populate it without
+  // a shape change — see MYK9-265.
   const discounts: FeeCalculationResult['discounts'] = [];
-  const enteredDogCount = breakdown.filter(item => item.classes.some(cls => cls.fee > 0)).length;
-
-  if (enteredDogCount >= MULTI_DOG_THRESHOLD) {
-    discounts.push({
-      type: 'multi-dog',
-      amount: subtotal * MULTI_DOG_DISCOUNT_RATE,
-      description: '10% multi-dog discount (3+ dogs)',
-    });
-  }
 
   const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
   const total = subtotal - discountTotal;

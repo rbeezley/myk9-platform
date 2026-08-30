@@ -11,7 +11,7 @@ export interface SuccessToastProps {
 
 /**
  * Success toast notification for entry list actions.
- * Shared between EntryList and CombinedEntryList.
+ * Used by both entry-list modes (single class and combined A/B).
  *
  * Ringside authors styling as Tailwind utilities on the markup — the host app's
  * Tailwind build scans packages/ringside/src and generates these classes (see

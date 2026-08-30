@@ -3,7 +3,7 @@ import type { Entry } from '../../../stores/entryStore';
 import { gateRank } from '../quickAdvanceCandidates';
 
 /**
- * Shared filter/sort/search hook for EntryList and CombinedEntryList views.
+ * Filter/sort/search hook for both entry-list modes (single class, combined A/B).
  *
  * Pure client-side reducer over an in-memory entries array — no data
  * fetching, no app services. Moved into @myk9/ringside in PR E2a; the host
@@ -12,7 +12,21 @@ import { gateRank } from '../quickAdvanceCandidates';
  */
 
 export type TabType = 'pending' | 'completed';
-export type SortType = 'armband' | 'name' | 'handler' | 'breed' | 'manual' | 'run' | 'placement';
+/**
+ * `'section-armband'` groups a combined Novice A/B list by section before
+ * armband. It is meaningless on a single-class list, which has one section --
+ * it is in the union because both modes share one page (MYK9-260), and it
+ * degrades to plain armband order when no entry carries a section.
+ */
+export type SortType =
+  | 'armband'
+  | 'name'
+  | 'handler'
+  | 'breed'
+  | 'manual'
+  | 'run'
+  | 'placement'
+  | 'section-armband';
 export type SectionFilter = 'all' | 'A' | 'B';
 
 // =============================================================================
@@ -43,6 +57,13 @@ const sortComparators: Record<SortType, SortComparator> = {
     return (a.exhibitorOrder || 0) - (b.exhibitorOrder || 0);
   },
 
+  'section-armband': (a, b) => {
+    if (a.section && b.section && a.section !== b.section) {
+      return a.section.localeCompare(b.section);
+    }
+    return a.armband - b.armband;
+  },
+
   run: (a, b) => {
     // Run order uses exhibitorOrder, fallback to armband
     const aOrder = a.exhibitorOrder || a.armband;
@@ -51,7 +72,16 @@ const sortComparators: Record<SortType, SortComparator> = {
   },
 
   placement: (a, b) => {
-    // Sort by placement, entries without placement go last
+    // Section FIRST. A combined Novice A/B list is two competitions that ran
+    // together, and A/B exists precisely so each section is PLACED separately
+    // -- so there are two 1sts, two 2nds, and so on. Ordering by number alone
+    // interleaves them and presents the pair as one ranking that nobody
+    // actually competed in. Single-class lists carry one section (or none), so
+    // this falls through to the placement compare unchanged.
+    if (a.section && b.section && a.section !== b.section) {
+      return a.section.localeCompare(b.section);
+    }
+    // Entries without a placement go last.
     const aPlacement = a.placement || 999;
     const bPlacement = b.placement || 999;
     if (aPlacement !== bPlacement) {
@@ -152,7 +182,7 @@ interface UseEntryListFiltersOptions {
  *
  * @example
  * ```tsx
- * // Basic usage (CombinedEntryList)
+ * // Combined A/B usage
  * const { filteredEntries, searchTerm, setSearchTerm } = useEntryListFilters({
  *   entries: localEntries,
  *   supportSectionFilter: true

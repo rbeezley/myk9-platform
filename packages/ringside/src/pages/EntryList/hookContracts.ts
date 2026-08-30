@@ -56,7 +56,7 @@
 
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from 'react';
 import type { Entry } from '../../stores/entryStore';
-import type { RunOrderPreset } from './dialogSlots';
+import type { RunOrderPreset, RunOrderScope, RenumberMode } from './dialogSlots';
 
 // =============================================================================
 // Supporting types — co-located so the contract file is self-contained.
@@ -105,12 +105,7 @@ export type EntryStatusChange =
  * of the unified status-change path).
  */
 export type EntryStatusCheckIn =
-  | 'no-status'
-  | 'checked-in'
-  | 'conflict'
-  | 'pulled'
-  | 'at-gate'
-  | 'come-to-gate';
+  'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate' | 'come-to-gate';
 
 /**
  * Long-press gesture handler bag. Mirrors `LongPressHandlers` from
@@ -214,8 +209,26 @@ export interface EntryListHandlers {
    * Service-coupled — calls `applyRunOrderPreset` from runOrderService
    * which may mutate the DB. The `'manual'` preset is special: it
    * opens drag-to-reorder mode instead of applying a numeric preset.
+   *
+   * `scope` and `renumberMode` are meaningful only for a combined A/B list,
+   * where the steward can renumber one section without disturbing the other;
+   * the single-class implementation ignores them.
+   *
+   * RETURNS whether a new order was actually PERSISTED. The outcome is a return
+   * value rather than a thrown error because the RunOrderDialog invokes this
+   * fire-and-forget (`void onApplyOrder(...)`), so a rejection would surface as
+   * an unhandled rejection rather than reaching a caller. A host that swallows
+   * its own failure and returns normally is indistinguishable from success --
+   * which is how the page came to show "Run order updated successfully" over a
+   * write that never landed, and switch the steward's view to an order that
+   * existed only on their phone. `false` for both a failed write and `'manual'`,
+   * which opens drag mode and persists nothing.
    */
-  handleApplyRunOrder: (preset: RunOrderPreset) => Promise<void>;
+  handleApplyRunOrder: (
+    preset: RunOrderPreset,
+    scope?: RunOrderScope,
+    renumberMode?: RenumberMode
+  ) => Promise<boolean>;
   /** Switch the entry list into drag-to-reorder mode. UI-only. */
   handleOpenDragMode: () => void;
 
@@ -337,10 +350,7 @@ export interface EntryListActions {
    * Batch status update for future bulk-action flows. Not currently
    * surfaced in the page UI but the host exports it.
    */
-  handleBatchStatusUpdate: (
-    entryIds: string[],
-    newStatus: EntryStatusCheckIn,
-  ) => Promise<void>;
+  handleBatchStatusUpdate: (entryIds: string[], newStatus: EntryStatusCheckIn) => Promise<void>;
 
   // ── Sync state flags (derived from useOptimisticUpdate internals) ─
   /** True while at least one optimistic mutation is in flight. */

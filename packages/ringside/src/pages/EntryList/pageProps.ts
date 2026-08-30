@@ -1,5 +1,5 @@
 /**
- * EntryListPageProps & CombinedEntryListPageProps — controlled-render
+ * EntryListPageProps — controlled-render
  * page contracts for the EntryList page tree in @myk9/ringside.
  *
  * Status: PR E2d-1 (interfaces only)
@@ -9,7 +9,7 @@
  * shipped before the page). E2d-2 will:
  *  - Add `EntryListLayoutSlots` with the host-UI primitives currently
  *    sketched below as TODO markers.
- *  - Move the page tree (EntryList.tsx, CombinedEntryList.tsx, the
+ *  - Move the page tree (EntryList.tsx, the
  *    components/ subtree, SortableEntryCard*, helpers, print
  *    dispatcher) into `packages/ringside/src/pages/EntryList/`.
  *  - Refactor each moved component to consume from these props bags
@@ -58,7 +58,7 @@ import type {
   SetStateAction,
 } from 'react';
 import type { Entry } from '../../stores/entryStore';
-import type { EntryListData, ClassInfo, SortOrder, PrintDialogState } from './types';
+import type { EntryListData, ClassInfo } from './types';
 import type { EntryListDialogSlots } from './dialogSlots';
 import type { EntryListHandlers, EntryListActions } from './hookContracts';
 import type { TabType, SortType } from './hooks/useEntryListFilters';
@@ -355,12 +355,16 @@ export interface EntryListLayoutSlots {
  * in `apps/myk9q/src/pages/EntryList/EntryList.tsx` lines 70-107
  * today, so reviewers can compare side-by-side during the move.
  *
- * Not all 19 slots are used by both pages — `CombinedEntryList`
- * doesn't surface `ClassOptionsDialog`, `MaxTimeDialog`, etc., so its
- * own props bag (`CombinedEntryListPageProps` below) takes a subset.
- * Keeping a single union here would force the combined page to accept
- * always-false flags, which fights the type checker more than it
- * helps; the two pages get their own UI state shapes instead.
+ * Not all 19 slots are used by both MODES: combined A/B doesn't surface
+ * `ClassOptionsDialog`, `MaxTimeDialog` or the class-settings and
+ * recalculate-placements menu items, because each of those acts on ONE class
+ * and a combined list has two.
+ *
+ * This was once the argument for a separate `CombinedEntryListPageProps` — a
+ * shared bag would force the combined page to accept always-false flags. It
+ * bought a second page that then drifted (MYK9-260), which cost far more than
+ * the flags would have. The bag is shared now; the combined mode simply leaves
+ * those slots closed.
  */
 export interface EntryListUiState {
   // Entry data (mirrored from useEntryListData → setLocalEntries
@@ -573,6 +577,19 @@ import type { EntryListOwnership as EntryListOwnershipBag } from './dogsAheadInL
  *     context={{ classId, role, ... }}
  *   />
  */
+/**
+ * The genuine differences between a combined A/B list and a single-class one.
+ * Everything NOT named here must behave identically in both modes -- that is
+ * what `entryListParity.test.tsx` pins.
+ */
+export interface EntryListCombinedMode {
+  /** The two classes running together, in section order. */
+  classIds: { a: string; b: string };
+  /** Which section the list is scoped to. */
+  sectionFilter: 'all' | 'A' | 'B';
+  setSectionFilter: (value: 'all' | 'A' | 'B') => void;
+}
+
 export interface EntryListPageProps {
   /** Route param: classId from `/class/:classId/entries`. */
   classId: string | undefined;
@@ -621,6 +638,19 @@ export interface EntryListPageProps {
   layout: EntryListLayoutSlots;
 
   /**
+   * Present ONLY when this list is a combined Novice A/B pair running together
+   * (MYK9-260). Absent means the ordinary single-class list.
+   *
+   * This used to be a second page component, `CombinedEntryListPage`. Every
+   * difference between the two turned out to be a divergence rather than a
+   * design choice -- an endless skeleton on an empty class, an empty ring
+   * presented as settled truth during first sync, no containment banner,
+   * `window.alert()`, a dead tap on a scored dog -- so the two collapsed into
+   * this one page with the genuine mode differences named here.
+   */
+  combined?: EntryListCombinedMode;
+
+  /**
    * Permission + context helpers the page reads. The shim builds this
    * from its auth context — ringside doesn't reach for `useAuth` /
    * `usePermission` directly.
@@ -656,258 +686,6 @@ export interface EntryListPageProps {
      */
     hidePrintOptions?: boolean;
   };
-}
-
-// =============================================================================
-// CombinedEntryListPageProps — combined A/B page
-// =============================================================================
-
-/**
- * Props for the combined-class view at
- * `/class/:classIdA/:classIdB/entries/combined`.
- *
- * Why a separate bag rather than reusing `EntryListPageProps`?
- * ------------------------------------------------------------
- * The combined page has a meaningfully different shape from the
- * single-class page:
- *  - Different sort modes (adds `'section-armband'` to the union)
- *  - Different print dialog state (per-section variants:
- *    `'check-in' | 'results-a' | 'results-b' | 'scoresheet-a' | 'scoresheet-b'`)
- *  - No class-options menu, no max-time/requirements/settings/status
- *    dialogs, no area count, no max-time warning, no recalc-placements
- *  - Adds section filter (`'all' | 'A' | 'B'`)
- *  - Uses a different "handlers" shape that comes from
- *    `useEntryHandlers` in CombinedEntryList.helpers.ts rather than
- *    `useEntryListHandlers`
- *
- * Unifying them would force `EntryListPageProps` to have ~20 optional
- * fields and the page itself to conditionally branch on view mode,
- * which is worse than two focused interfaces. Both interfaces share
- * `EntryListActions`, the layout slot bag, and a subset of dialog
- * slots — that's where the reuse lives.
- *
- * E2d-2 will refine this further as the combined-page move details
- * come into focus.
- */
-/**
- * Host-injected user notifier. `@myk9/ringside` is a shared package and must not
- * depend on the host's toast library, so the combined page took the only
- * dependency-free option available to it: `window.alert`. On a phone mid-class
- * that is a blocking native modal stamped with the domain name — and the
- * single-class page already routes the identical cases through a toast.
- */
-export type EntryListNotify = (message: string, tone: 'error' | 'info') => void;
-
-export interface CombinedEntryListPageProps {
-  /**
-   * Notifies the user. Optional so existing consumers keep compiling; when it is
-   * absent the page falls back to `window.alert` rather than going silent —
-   * a blocking dialog is bad, but silence on a failed score reset is worse.
-   */
-  onNotify?: EntryListNotify;
-
-  /** Route params: classIdA + classIdB from the combined route. */
-  classIds: { a: string | undefined; b: string | undefined };
-
-  /** Data + class info from `useEntryListData` (combined-class variant). */
-  data: EntryListData;
-
-  /** Loading/error flags + refresh function. */
-  dataStatus: {
-    isRefreshing: boolean;
-    fetchError: Error | null;
-    refresh: (forceSync?: boolean) => Promise<void>;
-  };
-
-  /** Mutation bag from host's `useEntryListActions` (same as single-class). */
-  actions: EntryListActions;
-
-  /**
-   * Combined-page handlers from the host's `useEntryHandlers`
-   * (defined in CombinedEntryList.helpers.ts). Smaller than
-   * `EntryListHandlers` — just status / reset / menu — because the
-   * combined page doesn't surface class-level options or print
-   * orchestration through the same hook. Print is dispatched via
-   * `dispatchPrintAction` and `applyRunOrderPresetScoped` is called
-   * inline in CombinedEntryList.tsx today.
-   *
-   * Empirically typed below; E2d-2 will move the helper into ringside
-   * and may tighten or restructure this.
-   */
-  combinedHandlers: CombinedEntryHandlers;
-
-  /** Page-local UI state (snapshot). Shim owns the useState. */
-  uiState: CombinedEntryListUiState;
-  /** Setters paired with `uiState`. */
-  uiActions: CombinedEntryListUiActions;
-
-  /**
-   * Derived data + filter state from the shim's `useEntryListFilters`
-   * call (combined-view variant — includes section filter).
-   */
-  derived: CombinedEntryListDerived;
-
-  /** Optional exhibitor dog-favorite state for notification fanout. */
-  favorites?: EntryListFavorites;
-
-  /** Optional ownership annotations — same contract as the single-class page. */
-  ownership?: EntryListOwnershipBag;
-
-  /** Drag-and-drop state from the shim's `useDragAndDropEntries` call. */
-  drag: EntryListDrag;
-
-  /**
-   * Subset of dialog slots actually rendered by the combined page.
-   * Forces the type-checker to point out if a future change tries to
-   * render a dialog the combined page doesn't take.
-   */
-  dialogs: Pick<
-    EntryListDialogSlots,
-    'CheckinStatusDialog' | 'RunOrderDialog' | 'ScoresheetPrintDialog'
-  >;
-
-  /** Host-injected UI primitives — same TODO as the single-class page. */
-  layout: EntryListLayoutSlots;
-
-  /** Permission + context helpers (same shape as single-class). */
-  context: EntryListPageProps['context'];
-
-  /**
-   * Combined-view print dispatcher. Wraps the host's
-   * `dispatchPrintAction(type, sortOrder, classInfo, orgString, entries)`
-   * so the ringside page can call it without knowing about
-   * reportService. The shim binds the host fn and partials in
-   * `classInfo` and `orgString` from its own props.
-   */
-  onPrintSortOrder: (
-    type: 'check-in' | 'results-a' | 'results-b' | 'scoresheet-a' | 'scoresheet-b' | null,
-    sortOrder: 'run-order' | 'armband' | 'placement'
-  ) => void;
-
-  /**
-   * Combined-view run-order applier. Wraps the host's
-   * `applyRunOrderPresetScoped(localEntries, preset, scope, renumberMode)`
-   * so ringside doesn't import runOrderService.
-   */
-  onApplyRunOrder: (
-    preset: import('./dialogSlots').RunOrderPreset,
-    scope?: import('./dialogSlots').RunOrderScope,
-    renumberMode?: import('./dialogSlots').RenumberMode
-  ) => Promise<void>;
-
-  /**
-   * Combined-view scoresheet navigation. Wraps the host's
-   * `getScoresheetNavigationRoute(orgString, entry)`. Returns the
-   * route string the page should push, or null when no route applies.
-   */
-  getScoresheetNavigationRoute: (entry: Entry) => string | null;
-
-  /**
-   * Per-entry scoresheet prefetch. Wraps the host's
-   * `usePrefetch().prefetch(...)` + `preloadScoresheetByType(...)` +
-   * `getScoresheetRoute(...)` for a single entry. The page calls this
-   * once for the focused entry and then again for the next 1-2
-   * pending entries (lookahead loop runs in the page).
-   *
-   * No-ops when the entry is scored, has no route, or the host's
-   * scoresheet router declines.
-   */
-  onPrefetchScoresheet: (entry: Entry) => void;
-}
-
-/**
- * Handler bag returned by the host's `useEntryHandlers` (from
- * `CombinedEntryList.helpers.ts`). Smaller than `EntryListHandlers`
- * because the combined view's interactions are narrower.
- */
-export interface CombinedEntryHandlers {
-  activeStatusPopup: string | null;
-  setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
-
-  handleStatusClick: (e: import('react').MouseEvent, entryId: string) => void;
-  handleStatusChange: (
-    entryId: string,
-    newStatus:
-      | 'no-status'
-      | 'checked-in'
-      | 'conflict'
-      | 'pulled'
-      | 'at-gate'
-      | 'come-to-gate'
-      | 'in-ring'
-      | 'completed'
-  ) => Promise<void>;
-
-  activeResetMenu: string | null;
-  resetMenuPosition: { top: number; left: number } | null;
-  handleResetMenuClick: (e: import('react').MouseEvent, entryId: string) => void;
-  handleResetScore: (entry: Entry) => void;
-
-  resetConfirmDialog: { show: boolean; entry: Entry | null };
-  confirmResetScore: () => Promise<void>;
-  cancelResetScore: () => void;
-  closeResetMenu: () => void;
-}
-
-/**
- * Combined-page UI state (subset / variant of `EntryListUiState`).
- * Different sort union, different print dialog state, no class-options
- * cascade.
- */
-export interface CombinedEntryListUiState {
-  localEntries: Entry[];
-  sortOrder: SortOrder; // includes 'section-armband'
-  isLoaded: boolean;
-  isFilterPanelOpen: boolean;
-  runOrderDialogOpen: boolean;
-  showSuccessMessage: boolean;
-  isDragMode: boolean;
-  selfCheckinDisabledDialog: boolean;
-  /** Per-section print dialog state (`'results-a'`, `'scoresheet-b'`, etc.). */
-  printDialogState: PrintDialogState;
-}
-
-export interface CombinedEntryListUiActions {
-  setLocalEntries: Dispatch<SetStateAction<Entry[]>>;
-  setManualOrder: Dispatch<SetStateAction<Entry[]>>;
-  setSortOrder: Dispatch<SetStateAction<SortOrder>>;
-  setIsLoaded: Dispatch<SetStateAction<boolean>>;
-  setIsFilterPanelOpen: Dispatch<SetStateAction<boolean>>;
-  setRunOrderDialogOpen: Dispatch<SetStateAction<boolean>>;
-  setShowSuccessMessage: Dispatch<SetStateAction<boolean>>;
-  setIsDragMode: Dispatch<SetStateAction<boolean>>;
-  setSelfCheckinDisabledDialog: Dispatch<SetStateAction<boolean>>;
-  setPrintDialogState: Dispatch<SetStateAction<PrintDialogState>>;
-
-  setActiveTab: (tab: 'pending' | 'completed') => void;
-  setSearchTerm: (term: string) => void;
-  setSectionFilter: (filter: 'all' | 'A' | 'B') => void;
-}
-
-/**
- * Combined-page derived data. Wider than `EntryListDerived` —
- * includes the section filter (`'all' | 'A' | 'B'`) and the
- * per-section tab counts. `sortedEntries` is exposed because the
- * combined page applies its own custom comparator
- * (`compareEntries(a, b, sortOrder)`) downstream of the filter hook;
- * the shim computes this once and threads it in.
- */
-export interface CombinedEntryListDerived {
-  activeTab: 'pending' | 'completed';
-  searchTerm: string;
-  sectionFilter: 'all' | 'A' | 'B';
-  /** Entries after search + section filter, before custom sort. */
-  filteredEntries: Entry[];
-  /** `filteredEntries` after `compareEntries(a, b, sortOrder)`. */
-  sortedEntries: Entry[];
-  /** Sorted entries with `isScored === false`. */
-  pendingEntries: Entry[];
-  /** Sorted entries with `isScored === true`. */
-  completedEntries: Entry[];
-  /** Pending or completed depending on `activeTab`. */
-  currentEntries: Entry[];
-  /** Counts derived from `localEntries`. */
-  entryCounts: { pending: number; completed: number };
 }
 
 // Re-export ClassInfo for downstream consumers building these bags

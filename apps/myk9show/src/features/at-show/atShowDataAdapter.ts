@@ -317,12 +317,29 @@ export function createAtShowDataDependencies(): Pick<
       const b = await fetchClassData(classIdB);
       const entries = [...a.entries, ...b.entries];
       // Combined view uses class A as the header source (mirrors myK9Q).
+      //
+      // COMPLETION is the exception, and it has to be, because this one
+      // `classInfo` now feeds a completion view that renders over BOTH
+      // sections (MYK9-260). Section A finishing first is the normal case --
+      // A and B run together but are scored and released separately -- so
+      // carrying A's flags through would celebrate the combined ring, and
+      // publish a combined podium, while B was still in the ring. Both
+      // sections must be finalized and released; the released-at stamp is the
+      // LATER of the two, i.e. the moment the pair actually became complete.
+      const bothFinalized = Boolean(a.cls?.isScoringFinalized && b.cls?.isScoringFinalized);
+      const releasedA = a.cls?.resultsReleasedAt ?? a.cls?.results_released_at ?? null;
+      const releasedB = b.cls?.resultsReleasedAt ?? b.cls?.results_released_at ?? null;
+      const bothReleasedAt =
+        releasedA && releasedB ? (releasedA > releasedB ? releasedA : releasedB) : null;
+
       const classInfo = a.cls
         ? {
             ...buildClassInfo(a.cls, a.trial, entries),
             actualClassIdA: classIdA,
             actualClassIdB: classIdB,
             judgeNameB: b.cls?.judgeName ?? 'No Judge Assigned',
+            isScoringFinalized: bothFinalized,
+            resultsReleasedAt: bothReleasedAt,
           }
         : null;
       return { entries, classInfo };

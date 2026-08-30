@@ -316,3 +316,87 @@ describe('ClassCompletionPresentation', () => {
     expect(screen.queryByText('No Qualifier')).toBeNull();
   });
 });
+
+
+/**
+ * A combined Novice A/B pair is TWO competitions that ran together. The sections
+ * exist precisely so each is placed independently, so the merged entry set holds
+ * two 1sts, two 2nds and so on.
+ *
+ * The MYK9-260 collapse first passed those merged entries to a single podium,
+ * which would have rendered duplicate places as one ranking nobody competed in.
+ * Codex caught it on the PR.
+ */
+describe('ClassCompletionPresentation - combined A/B podiums', () => {
+  const combinedEntries: Entry[] = [
+    {
+      id: 'a-1',
+      classId: 'class-a',
+      armband: 10,
+      callName: 'Ace',
+      breed: 'Border Collie',
+      handler: 'Jane Handler',
+      isScored: true,
+      status: 'completed',
+      resultText: 'qualified',
+      placement: 1,
+      section: 'A',
+      className: 'Container Novice A',
+    },
+    {
+      id: 'b-1',
+      classId: 'class-b',
+      armband: 20,
+      callName: 'Bolt',
+      breed: 'Australian Shepherd',
+      handler: 'Sam Handler',
+      isScored: true,
+      status: 'completed',
+      resultText: 'qualified',
+      placement: 1,
+      section: 'B',
+      className: 'Container Novice B',
+    },
+  ];
+
+  beforeEach(() => {
+    __resetClassCompletionMemoForTests();
+  });
+
+  it('renders one podium per section, each holding only that section winner', () => {
+    render(
+      <ClassCompletionPresentation
+        classId="class-a+class-b"
+        podiumSections={['A', 'B']}
+        classInfo={releasedClass}
+        entries={combinedEntries}
+        activeTab="completed"
+        onSelectCompleted={vi.fn()}
+      />
+    );
+
+    const podiumA = screen.getByRole('region', { name: /section a podium/i });
+    const podiumB = screen.getByRole('region', { name: /section b podium/i });
+
+    // Each section's own winner, and NOT the other section's.
+    expect(podiumA.textContent).toContain('Ace');
+    expect(podiumA.textContent).not.toContain('Bolt');
+    expect(podiumB.textContent).toContain('Bolt');
+    expect(podiumB.textContent).not.toContain('Ace');
+  });
+
+  it('renders a single unlabelled podium for a single class', () => {
+    render(
+      <ClassCompletionPresentation
+        classId="class-1"
+        classInfo={releasedClass}
+        entries={entries}
+        activeTab="completed"
+        onSelectCompleted={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('region', { name: /class podium/i })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: /section a podium/i })).toBeNull();
+  });
+});

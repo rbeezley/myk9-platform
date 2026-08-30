@@ -22,11 +22,11 @@
  * PR E2d-1 — `EntryListHandlers` + `EntryListActions` contracts
  * (return shapes of the host's `useEntryListHandlers` and
  * `useEntryListActions` hooks) plus the `EntryListPageProps` and
- * `CombinedEntryListPageProps` controlled-render bags. E2d-2 will
+ * controlled-render bags. E2d-2 will
  * fill in `EntryListLayoutSlots` and move the actual page tree.
  */
 
-// ── Types (moved from CombinedEntryList.types.ts) ────────────────────────
+// ── Types ───────────────────────────────────────────────────────────────
 export type {
   SortOrder,
   PrintDialogType,
@@ -138,9 +138,9 @@ export type {
 } from './hookContracts';
 
 // ── Page-level controlled-render props (PR E2d-1 / E2d-2a) ──────────────
-// `EntryListPageProps` and `CombinedEntryListPageProps` are the wide
-// bags the host shim hands to ringside's pages in E2d-2b. The pages
-// own no state and call no hooks — they render from these props.
+// `EntryListPageProps` is the wide bag the host shim hands to ringside's
+// page. The page owns no state and calls no hooks — it renders from these
+// props, in either single-class or combined A/B mode.
 //
 // `EntryListLayoutSlots` is the concrete UI-primitive slot bag (PR
 // E2d-2a) — 10 host-supplied components covering header chrome, the
@@ -151,15 +151,10 @@ export type {
 // peer packages.
 export type {
   EntryListPageProps,
-  CombinedEntryListPageProps,
   EntryListUiState,
   EntryListUiActions,
   EntryListDerived,
   EntryListDrag,
-  CombinedEntryListUiState,
-  CombinedEntryListUiActions,
-  CombinedEntryListDerived,
-  CombinedEntryHandlers,
   EntryListLayoutSlots,
   // Per-primitive Props interfaces (PR E2d-2a)
   HamburgerMenuProps,
@@ -182,19 +177,14 @@ export type {
   ClassDetailsData,
 } from './pageProps';
 
-// ── Combined-page pure helpers (PR E2d-2a) ──────────────────────────────
-// Moved from apps/myk9q/.../CombinedEntryList.helpers.ts. The
-// supabase-coupled `fetchClassRequirements` stays host-side; everything
-// else (org parsing, sort comparator, scoresheet routing, the
-// useEntryHandlers hook for status/reset) moves here.
+// ── Pure helpers ────────────────────────────────────────────────────────
+// What survived the MYK9-260 collapse: org parsing and time-limit parsing,
+// both shared by the single-class and combined A/B modes. The sort comparator
+// moved into `useEntryListFilters`; the rest went with the page it served.
 export {
   parseOrganizationData,
-  compareEntries,
   parseTimeLimit,
-  getScoresheetNavigationRoute,
-  PRINT_DIALOG_TITLES,
-  useEntryHandlers,
-} from './combinedEntryListHelpers';
+} from './entryListHelpers';
 
 // ── Permissions (PR E2d-2b) ─────────────────────────────────────────────
 // Narrow permission union the EntryList page tree consumes. The host's
@@ -209,20 +199,11 @@ export type { EntryListPermission } from './permissions';
 export { SortableEntryCard } from './SortableEntryCard';
 export type { SortableEntryCardProps } from './SortableEntryCard';
 
-// ── CombinedEntryListDialogs (PR E2d-2b) ────────────────────────────────
-// Moved from apps/myk9q. Four dialog/panel components are required
-// slot props (CheckinStatusDialog, RunOrderDialog,
-// ScoresheetPrintDialog, FilterPanel). Leaf components imported
-// directly from siblings.
-export { CombinedEntryListDialogs } from './CombinedEntryListDialogs';
-export type { CombinedEntryListDialogsProps } from './CombinedEntryListDialogs';
-
-// ── Page orchestrators (PR E2d-2b) ──────────────────────────────────────
-// Pure controlled-render pages — own no useState, call no host-coupled
-// hooks. The shim at apps/myk9q/src/pages/EntryList/{EntryList,
-// CombinedEntryList}.tsx assembles all bags and renders these.
+// ── Page orchestrator ───────────────────────────────────────────────────
+// One pure controlled-render page covering BOTH the single-class list and the
+// combined Novice A/B pair (`combined` prop). Owns no useState and calls no
+// host-coupled hooks; the at-show shims assemble every bag.
 export { EntryListPage } from './EntryListPage';
-export { CombinedEntryListPage } from './CombinedEntryListPage';
 
 // ── Component sub-tree (PR E2d-2a) ──────────────────────────────────────
 // Leaf components moved from apps/myk9q. Pure-presentational React

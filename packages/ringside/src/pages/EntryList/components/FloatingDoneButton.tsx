@@ -11,7 +11,7 @@ export interface FloatingDoneButtonProps {
 
 /**
  * Floating done button for exiting drag mode.
- * Shared between EntryList and CombinedEntryList.
+ * Used by both entry-list modes (single class and combined A/B).
  */
 export const FloatingDoneButton: React.FC<FloatingDoneButtonProps> = ({
   isVisible,

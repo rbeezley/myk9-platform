@@ -18,7 +18,7 @@ export interface ResetMenuPopupProps {
 /**
  * Reset menu popup that appears when clicking the 3-dot menu on scored entries.
  * Uses portal to render at document body level to avoid CSS transform issues.
- * Shared between EntryList and CombinedEntryList.
+ * Used by both entry-list modes (single class and combined A/B).
  *
  * Its `reset-menu` / `reset-menu-content` / `reset-option` classes were authored
  * against `ringside.css`, which #436 deleted without migrating this component —

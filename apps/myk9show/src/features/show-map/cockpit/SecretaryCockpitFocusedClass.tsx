@@ -3,7 +3,9 @@ import { AlertTriangle, CheckCircle2, Clock3, Printer, RefreshCw } from 'lucide-
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { ShowMapRunOrderMenu } from '../ShowMapRunOrderMenu';
 import { formatTime } from '@/lib/format/dates';
+import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { replicatedPaperworkPrintsTable } from '@/services/replication';
@@ -175,6 +177,7 @@ export function SecretaryCockpitFocusedClass({
   timeZone,
   canManageShow,
   onCommand,
+  runOrder,
 }: {
   focused: FocusedClassModel | null;
   sourceClass: SecretaryCockpitClass | null;
@@ -183,6 +186,8 @@ export function SecretaryCockpitFocusedClass({
   timeZone: string;
   canManageShow: boolean;
   onCommand: (commandId: string) => void;
+  /** Run-order auto-sort for the focused class (F29b phase 2a). */
+  runOrder?: SecretaryCockpitRunOrderControls | undefined;
 }) {
   if (!focused || !sourceClass || !trial) {
     return (
@@ -305,6 +310,30 @@ export function SecretaryCockpitFocusedClass({
             ))}
           </div>
         </section>
+
+        {/* F29b phase 2a: run order had a three-hop dead end -- the run sheet sends you
+            to Show Desk, Show Desk's "Run order and class setup" link lands on Manage
+            Classes, and Manage Classes has no run-order control. This is that control.
+            It sits OUTSIDE the Entries section on purpose: that section is gated on
+            `entryRows`, which is filtered by STRANDED_ENTRY_ACTION_IDS, and auto-sort
+            availability has nothing to do with which actions are stranded. Nesting it
+            there meant a class could have entries to sort and no menu to sort them.
+            The menu hides itself below 2 entries. Manual drag reorder (2b) is still
+            outstanding; see docs/plan-f29b-operational-actions-home.md. */}
+        {canManageShow && runOrder && (
+          <section className="flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Run order
+            </h3>
+            <ShowMapRunOrderMenu
+              classId={focused.id}
+              classLabel={focused.name}
+              entryCount={sourceClass.entryCount ?? focused.entryRows.length}
+              onAutoSort={runOrder.onAutoSort}
+              isAutoSorting={runOrder.isAutoSorting}
+            />
+          </section>
+        )}
 
         {canManageShow && focused.entryRows.length > 0 && (
           <section>

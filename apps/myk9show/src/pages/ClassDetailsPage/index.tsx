@@ -361,6 +361,7 @@ const ClassDetailsPage: React.FC = () => {
             dogs={dogs}
             organization={parentShow?.organization ?? null}
             parentShowId={parentShow?.id ?? null}
+            classDay={parentTrial?.trialDate ?? null}
           />
         ) : !isStaff ? (
           <ClassDetailsMain

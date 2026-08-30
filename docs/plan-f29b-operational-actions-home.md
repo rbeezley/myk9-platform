@@ -129,9 +129,26 @@ A phase is not complete until these pass.
   way only a browser exposed: a claim that an action is reachable must be demonstrated
   by reaching it, not by finding it in the action catalog.
 
-## Open question for the PO
+## Decision (2026-08-30): Show Desk
 
-Phase 2 needs one decision: should run-order editing live on **Show Desk** (operational,
-consistent with B7's intent) or on **Manage Classes** (where the existing deep link
-already points, and where the boundary table files "run order metadata")? Phase 1 does
-not depend on the answer.
+Run-order editing lives on **Show Desk**, not Manage Classes.
+
+Reasons, strongest first: phase 1 already built the entry-row substrate there and Manage
+Classes has none; B7 designed run order as a class-row action on the operational
+surface, so this completes B7 rather than reversing it; and `SecretaryRunSheet` already
+tells users reorder lives on Show Desk, so one existing link becomes true instead of two
+needing changes.
+
+### Phase 2 splits again
+
+**2a — auto-sort presets (Armband ↑ / ↓ / Random).** Pure wiring: `ShowMapRunOrderMenu`
+is self-contained, and `useShowMapWorkbenchState` already exposes `runOrderAutoSort`.
+This covers the common case — a run order is usually armband-ascending, or random for
+fairness.
+
+**2b — manual drag reorder.** Needs a sortable entry list on the cockpit panel
+(`ShowMapSortableEntryRow` + dnd-kit currently live inside `ShowMapStructureTable`,
+which only the read-only Show Map renders). Larger, and deliberately separate.
+
+Task 5 ("set run order") becomes possible with 2a; 2b remains a gap for the exception
+case where a secretary hand-orders a class.

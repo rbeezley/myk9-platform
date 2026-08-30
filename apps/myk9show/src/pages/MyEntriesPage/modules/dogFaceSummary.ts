@@ -67,6 +67,8 @@ export interface DogFaceClassView {
   resultStatus?: ResultStatus | undefined;
   /** Official ribbon placement, only ever alongside a qualifying result. */
   finalPlacement?: number | undefined;
+  /** Result release marker; absent means the result is preliminary. */
+  resultsReleasedAt?: string | undefined;
   /** Search time in seconds, shown beside the result. */
   searchTimeSeconds?: number | undefined;
   /** Fault count, shown beside the result only when non-zero. */
@@ -159,7 +161,13 @@ export function buildDogFaceSummary(classes: EntryClass[]): DogFaceSummary {
         id: cls.id,
         name,
         ...(scored ? { resultStatus: cls.resultStatus } : {}),
-        ...(scored && cls.resultStatus === 'qualified' && (cls.finalPlacement ?? 0) >= 1
+        ...(scored && cls.resultsReleasedAt
+          ? { resultsReleasedAt: cls.resultsReleasedAt }
+          : {}),
+        ...(scored &&
+        cls.resultsReleasedAt &&
+        cls.resultStatus === 'qualified' &&
+        (cls.finalPlacement ?? 0) >= 1
           ? { finalPlacement: cls.finalPlacement }
           : {}),
         // Time and faults belong to the result, so they ride with it onto the

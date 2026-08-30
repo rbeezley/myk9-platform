@@ -61,8 +61,14 @@ const mockEntries: StatsEntry[] = [
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
-const mockUseMyLifetimeStats =
-  vi.fn<() => { data: StatsEntry[] | undefined; isLoading: boolean }>();
+const mockUseMyLifetimeStats = vi.fn<
+  () => {
+    data: StatsEntry[] | undefined;
+    isLoading: boolean;
+    isError?: boolean;
+    refetch?: () => Promise<unknown>;
+  }
+>();
 
 vi.mock('@/hooks/queries/useMyLifetimeStats', () => ({
   useMyLifetimeStats: () => mockUseMyLifetimeStats(),
@@ -140,6 +146,24 @@ describe('AnalyticsPage', () => {
     expect(
       screen.getByText('Enter shows and get scored to see your performance analytics here.')
     ).toBeInTheDocument();
+  });
+
+  it('shows a retryable error instead of treating a failed lifetime read as no results', async () => {
+    const refetch = vi.fn().mockResolvedValue(undefined);
+    mockUseMyLifetimeStats.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+
+    const { user } = render(<AnalyticsPage />, { initialRoute: '/analytics' });
+
+    expect(screen.getByText("We couldn't load your analytics.")).toBeInTheDocument();
+    expect(screen.queryByText('No Analytics Yet')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+    expect(refetch).toHaveBeenCalledOnce();
   });
 
   it('renders summary cards and charts when data is available', () => {

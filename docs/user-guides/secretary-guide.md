@@ -2,8 +2,13 @@
 
 **Status:** `qa-draft`
 **Audience:** Trial secretaries
-**Last verified:** 2026-08-30 — every card below was walked in a browser against staging
+**Last verified:** 2026-08-30 — walked in a browser against staging (`a50596ad6`)
 **Verified by:** the secretary task walk (`docs/audits/2026-08-28-secretary-task-walk.md`) and its 2026-08-29 verification pass
+
+> **What "verified" covers here.** Each card's path was opened on staging and its controls
+> confirmed present. Two flows could not be exercised end to end on the demo data and are
+> described from their surfaces only: promoting someone off the wait list (nobody is
+> waitlisted there) and submitting results to a registry (that is a real submission).
 
 > **Screenshots are pending.** The previous guide embedded shots captured 2026-06-25,
 > before the workbench was collapsed into Show Desk. They show screens that no longer
@@ -70,13 +75,19 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 > **A dog needs a registration number** for the trial's registry before it can be entered. This is enforced: an entry without one is refused rather than accepted and fixed later.
 
+> **Keep your own record of cheque numbers.** The reference and payment date you enter are saved, but they are not shown back to you anywhere in Entry Management yet — so you cannot look a cheque number up in the app.
+
 ## 5 · Take a late or walk-in entry on show day
 
 **Show Desk → Tools → Late entry.** Same flow as a mail-in entry.
 
 ## 6 · Manage the wait list
 
-**Entry Management → Exceptions → Waitlist.** Shows each judge-day's capacity — the judge's name, the date, and how full it is — with **View Wait List** per judge-day.
+**Entry Management → Exceptions → Waitlist.**
+
+1. Each judge-day shows as a card — the judge's name, the date, and how full it is.
+2. **View Wait List** on a card opens that judge-day's queue, filtered to the class.
+3. When a spot opens, offer it from that queue in the order people joined.
 
 > Capacity is displayed, not enforced. A judge-day can read over its limit (e.g. "130 / 125 entries"); the number is telling you the truth, not warning you of a bug.
 
@@ -84,7 +95,19 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 **Entry Management → Exceptions → Pulls / scratches.** Pending and pulled queues in one place, with the refund decision recorded against each.
 
-## 8 · Payments and refunds
+## 8 · Email your exhibitors
+
+**Message Center** — the button in the header, not the Messages page.
+
+1. Open **Message Center**.
+2. Compose the message and choose who it goes to — the whole show, or a class.
+3. Send.
+
+> **The Messages page is history only.** It shows what has been sent; you cannot start a message from it. Composing happens in the header panel.
+
+> **Check the show before you send.** The composer does not pick up the show you were looking at, so confirm the recipients are the ones you meant.
+
+## 9 · Payments and refunds
 
 Payment status shows on every registration row in **Entry Management**, and refunds are reconciled in the **Pulls / scratches** queue.
 
@@ -94,7 +117,7 @@ Payment status shows on every registration row in **Entry Management**, and refu
 
 # Getting ready for show day
 
-## 9 · Set the run order
+## 10 · Set the run order
 
 **Show Desk → click the class → Run order.**
 
@@ -104,19 +127,19 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 > **Known limitation:** there's no drag-and-drop yet, so you can't hand-place one dog into a specific slot. The three presets above are all that's available.
 
-## 10 · Print check-in sheets
+## 11 · Print check-in sheets
 
 **Reports → Check-in Sheet.** Scope it to a trial or a single class, then print. Columns are Gate Order, Armband, Call Name, Breed, and Handler.
 
-## 11 · Print scoresheets
+## 12 · Print scoresheets
 
 **Reports → Scoresheet.** One page per dog, with the registry's own fault and scoring layout.
 
-## 12 · Ringside access codes
+## 13 · Ringside access codes
 
 **Show Desk → Tools → access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or regenerate if a code gets out.
 
-## 13 · Volunteer scheduling
+## 14 · Volunteer scheduling
 
 **Show Desk → Tools → Volunteers.** Add volunteers and assign them to per-class slots grouped by trial.
 
@@ -124,7 +147,7 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 # Show day
 
-## 14 · Move a dog up
+## 15 · Move a dog up
 
 **Show Desk → click the class → Entries → Move up** on that dog's row.
 
@@ -134,11 +157,11 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 > An exhibitor can also _request_ a move-up before the show. Those arrive in **Entry Management → Exceptions → Move-ups** for you to approve, deny, or waitlist.
 
-## 15 · Check dogs in
+## 16 · Check dogs in
 
 **Show Desk → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
 
-## 16 · Enter results from paper scoresheets
+## 17 · Enter results from paper scoresheets
 
 Same run sheet: **Show Desk → click the class → Enter paper scores.**
 
@@ -146,7 +169,7 @@ Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time 
 
 > Placements are calculated for you once every dog in the class is scored. You don't enter them.
 
-## 17 · Print preliminary results
+## 18 · Print preliminary results
 
 **Reports → Preliminary Results.** Element, level, trial, date, and judge, with each dog's result and placement.
 
@@ -154,21 +177,44 @@ Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time 
 
 # After the show
 
-## 18 · Registry reports
+## 19 · Release results to exhibitors
+
+**Show Desk → Results** (the show's Results control).
+
+Each class can release its results **Immediately**, **After Class**, **After Review**, or **Inherit** the show's setting. Set the show-level default, then override any class that needs it.
+
+> This is what decides whether an exhibitor can see a score yet. If results are not appearing for exhibitors, this is the first place to look — a class set to _After Review_ stays hidden until you review it.
+
+> Closeout expects results to be released, so set this before card 22.
+
+## 20 · Submit results to the registry
+
+**Show Desk → Submit Results.**
+
+1. Check **Closeout guidance** for anything outstanding.
+2. **Download XML** — the submission file for the registry.
+3. Send it to the registry the way they require (for AKC, by email — the app does not transmit it for you).
+4. **Mark as submitted** once it is sent, so the show's record matches reality.
+
+**AKC Downloadable Forms** on the same screen links the registry's own paperwork.
+
+> Marking as submitted records _your_ action; it does not confirm the registry received anything. Keep the registry's acknowledgement as your proof.
+
+## 21 · Registry reports
 
 **Reports → Trial Secretary Report** and **AKC Judge's Report**. Both render the registry's own instructions and layout for submission.
 
-## 19 · Close out the show
+## 22 · Close out the show
 
 **Show Desk → Closeout.** Reconciles attendance and fees — entries, day-of entries, collected at the show, waived, and pulled or no-show — so the totals you submit match what you took.
 
-## 20 · High in Trial
+## 23 · High in Trial
 
 > **Not available yet.** There is no High in Trial report in the app. Calculate it by hand from your class results for now.
 >
 > For AKC Scent Work, High in Trial applies when a club runs more than one element at a difficulty level. A team qualifies if it entered _every_ element offered at that level and qualified in each; Handler Discrimination is excluded. Rank by fewest total faults, then fastest total time, then a coin flip.
 >
-> Per-class placements (1–4) _are_ calculated automatically — see card 16.
+> Per-class placements (1–4) _are_ calculated automatically — see card 17.
 
 ---
 
@@ -178,9 +224,9 @@ Honest list, so nothing surprises you mid-show.
 
 | What                                     | Status                                                                                                                                         |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| High in Trial report                     | Not built — calculate by hand (card 20)                                                                                                        |
-| Hand-placing a dog in the run order      | Not built — presets only (card 9)                                                                                                              |
-| "Paid online" on cheque and cash entries | Label only; amounts are correct (card 8)                                                                                                       |
+| High in Trial report                     | Not built — calculate by hand (card 23)                                                                                                        |
+| Hand-placing a dog in the run order      | Not built — presets only (card 10)                                                                                                             |
+| "Paid online" on cheque and cash entries | Label only; amounts are correct (card 9)                                                                                                       |
 | Emailing exhibitors                      | Works, but the composer is in the **Message Center panel in the header**, not the Messages page, and it doesn't pick up the show you came from |
 | Wait-list capacity                       | Displayed, not enforced (card 6)                                                                                                               |
 

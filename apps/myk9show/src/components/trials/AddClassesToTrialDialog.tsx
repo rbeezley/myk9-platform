@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialClass } from '@/components/trials/types/trial.types';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import {
   Dialog,
   DialogContent,
@@ -485,6 +486,12 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
   };
 
   return (
+    <>
+      {/* See AddClassesToTrialPanel: the class selection is lost on any route change. */}
+      <UnsavedChangesRouteGuard
+        isDirty={open && selectedClasses.length > 0}
+        subject="the classes you selected"
+      />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl">
         <DialogHeader>
@@ -534,6 +541,7 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 };
 

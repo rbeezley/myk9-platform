@@ -198,6 +198,18 @@ DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000057','dededede-0000-0000-0000-000000000058',
   'dededede-0000-0000-0000-000000000059','dededede-0000-0000-0000-000000000060'
 );
+-- The multi-dog enrollment (section 6b) is referenced by the entries above via
+-- entries.registration_id, whose FK is NO ACTION — so it can only be deleted
+-- once those entries are gone. Hence its position here, not with the shows.
+-- Delete by the (show, handler) PAIR as well as by id: that pair is uniquely
+-- indexed, so a stray enrollment created by a real Stripe checkout against the
+-- demo show would otherwise survive, absorb the insert below through ON
+-- CONFLICT, and leave section 6b's UPDATE pointing at an id that does not
+-- exist. Clearing both makes the insert unconditional and any collision loud.
+DELETE FROM public.enrollments
+WHERE id = 'dededede-0000-0000-0000-000000000070'
+   OR (show_id = 'dededede-0000-0000-0000-000000000010'
+       AND handler_id = (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'));
 DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
   'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
@@ -666,6 +678,60 @@ VALUES
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Test Secretary',
    'confirmed', 'paid', 30.00, 105, 3, false, 1);
+
+-- ---------------------------------------------------------------------------
+-- 6b. MULTI-DOG ORDER FIXTURE — the shape production actually produces.
+--
+-- `groupEntriesByOrder` builds ONE card per online order, keyed on
+-- entries.registration_id, and falls back to show+dog only when that is null.
+-- Nothing in the app writes registration_id: it is set by a DB trigger
+-- (migration 132) when a Stripe order flips to 'succeeded', which upserts an
+-- enrollment keyed (show_id, handler_id) and links every entry in that
+-- checkout. So a real handler paying for several dogs at one show in one
+-- checkout gets ONE card carrying all of them.
+--
+-- Every other seeded entry is inserted directly, never through Stripe, so its
+-- registration_id stays null and it renders as one card per dog per show. That
+-- meant the multi-dog card — the per-dog band, the dog-group grid, the
+-- per-dog check-in scoping, the joined name on Edit/Receipt — could not be
+-- reached on staging at all, and any visual check of this page was silently
+-- looking at the fallback layout instead of the shipped one.
+--
+-- This fixture links the exhibitor's PAID entries at the demo show, matching
+-- what the trigger would have done. The pending entries (053/054/057) stay
+-- unlinked, exactly as the trigger would leave them, so the page shows both
+-- shapes side by side: one multi-dog paid order plus separate pending cards.
+--
+-- confirmation_number is omitted deliberately: the BEFORE INSERT trigger
+-- `set_confirmation_number` generates it. paid_amount is left at its default
+-- so `trg_restrict_enrollment_money_columns_insert` does not fire. The insert
+-- carries no ON CONFLICT on purpose — section 0 clears the (show, handler)
+-- pair, so a conflict here means an assumption broke and should be seen.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.enrollments (
+  id, show_id, handler_id, payment_status, payment_reference, payment_method, total_amount
+)
+VALUES (
+  'dededede-0000-0000-0000-000000000070',
+  'dededede-0000-0000-0000-000000000010',
+  (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'),
+  'paid',
+  'pi_seeddemo_multidog_order',
+  'online',
+  12000  -- cents: 4 paid entries x $30.00
+);
+
+-- Willow (051/052, Saturday trial) and Scout (055 Saturday + 056 Sunday) — two
+-- dogs, four classes, across two trials. Scout's 056 is the move-up-requested
+-- row, which was paid and so belongs to the same order.
+UPDATE public.entries
+SET registration_id = 'dededede-0000-0000-0000-000000000070'
+WHERE id IN (
+  'dededede-0000-0000-0000-000000000051',
+  'dededede-0000-0000-0000-000000000052',
+  'dededede-0000-0000-0000-000000000055',
+  'dededede-0000-0000-0000-000000000056'
+);
 
 -- ---------------------------------------------------------------------------
 -- 7. Armbands (one per dog, per show) -- the allocator/lookup treats the
@@ -1810,7 +1876,8 @@ VALUES (
 --   * registration_confirmation rows use related_id IS NULL on purpose — that
 --     is the branch of the RPC's per-type CASE that admits a row with no
 --     surviving enrollment, and it keeps the fixture independent of
---     public.enrollments, which the reseed empties.
+--     public.enrollments, whose only seeded row (section 6b) is scoped to the
+--     demo show and handler.
 INSERT INTO public.email_log (
   id, recipient_email, email_type, related_id, resend_message_id,
   status, status_updated_at, show_id, created_at

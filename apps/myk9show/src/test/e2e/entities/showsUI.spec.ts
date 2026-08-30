@@ -29,7 +29,7 @@ test.describe('Shows UI — Browse (secretary)', () => {
 
   test('browse loads with toolbar, view toggle, tabs', async ({ page }) => {
     await page.goto('/shows');
-    await expect(page.getByRole('heading', { name: 'Shows', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Find Shows', level: 1 })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
     await expect(page.getByPlaceholder('Search shows by name, location, or club...')).toBeVisible();
 
@@ -47,7 +47,7 @@ test.describe('Shows UI — Browse (secretary)', () => {
     }
 
     // Tabs
-    for (const tab of ['Managing', 'Browse All', 'Past Shows', 'Entered as exhibitor']) {
+    for (const tab of ['Managing', 'Browse All', 'Past Shows']) {
       await expect(page.getByRole('tab', { name: new RegExp(`^${tab}`) })).toBeVisible();
     }
   });

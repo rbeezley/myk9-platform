@@ -47,36 +47,38 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     }
   });
 
-  test('should display the current stat-card contract', async ({ page }, testInfo) => {
-    if (testInfo.project.name === 'mobile-chrome') {
-      await expect(page.getByRole('button', { name: /\d+ entries? .*\d+ upcoming/ })).toBeVisible();
-      return;
-    }
-
+  test('shows the entry-fee strip, and only that', async ({ page }) => {
+    // The four-card grid is gone. Current entries / Upcoming shows / Completed
+    // shows were deleted: two deep-linked to filters rendered a few hundred
+    // pixels below them, and "Completed Shows" counted SHOWS beside a filter
+    // counting entries. Only the fee balance is left, because it is the one
+    // fact here that lives off this page and can be acted on.
     await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
-    // The current card names its scope explicitly so its count is not confused
-    // with the all-time "All entries" list below it.
-    await expect(page.getByRole('button', { name: /^Current entries:/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Upcoming Shows?:/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Completed Shows?:/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Current Fees:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Entry fees:/ })).toBeVisible();
 
-    const currentEntriesCard = page.getByRole('button', { name: /^Current entries:/ });
-    await expect(currentEntriesCard).toHaveAccessibleName(/Upcoming \+ in review/);
+    for (const retired of [/^Current entries:/, /^Upcoming Shows?:/, /^Completed Shows?:/]) {
+      await expect(page.getByRole('button', { name: retired })).toHaveCount(0);
+    }
   });
 
-  test('should show real contextual information in stat cards', async ({ page }) => {
+  test('keeps the fee balance visible on a phone, with no disclosure to open', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-chrome', 'mobile projects only');
+
+    // The old mobile summary line existed to collapse a four-card grid while
+    // still surfacing this balance. With one strip there is nothing to hide,
+    // so the balance is simply present — and there must be no toggle.
+    await expect(page.getByRole('button', { name: /^Entry fees:/ })).toBeVisible();
+    await expect(page.locator('[aria-controls="exhibitor-stat-cards"]')).toHaveCount(0);
+  });
+
+  test('states the fee balance in words, not just a figure', async ({ page }) => {
     await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
-    // Check for meaningful context (e.g., "X upcoming", "X paid", etc.)
-    const pageContent = await page.content();
-    const hasContextualInfo =
-      pageContent.includes('upcoming') ||
-      pageContent.includes('accepted') ||
-      pageContent.includes('entered') ||
-      pageContent.includes('Amount due');
-    expect(hasContextualInfo).toBe(true);
+    const feeStrip = page.getByRole('button', { name: /^Entry fees:/ });
+    await expect(feeStrip).toHaveAccessibleName(/paid in full|due of/i);
   });
 });
 

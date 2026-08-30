@@ -4,7 +4,7 @@
  * @module MyEntriesPage/hooks
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { isPendingEntry, isWaitlistEntry } from '@/utils/entryPredicates';
@@ -147,48 +147,79 @@ export function useMyEntriesFilters({
   );
   const scopedEntries = scopeMatch.entries;
 
+  // React Router's functional `setSearchParams` is NOT an atomic
+  // read-modify-write, despite looking exactly like setState's functional form.
+  // It calls the updater with the params memoized from the LAST RENDER
+  // (react-router 7.18.2, `useSearchParams`: `nextInit(new
+  // URLSearchParams(searchParams))`, where `searchParams` is a useMemo on
+  // `location.search`). Two updates in the same tick therefore BOTH start from
+  // the same stale value, and the second silently discards the first.
+  //
+  // This page has two filter axes side by side, so that is a real gesture: an
+  // exhibitor clicking a status chip and a time chip in quick succession lost
+  // the first one, and the URL came back with only the second param. Verified
+  // in a real browser, and pinned by "keeps both filters when they are set in
+  // the same tick".
+  //
+  // So updates compose within a tick, each write remembers the committed value
+  // it was derived FROM. A second write in the same tick sees that its base is
+  // still current and builds on the pending value; once a render commits,
+  // `searchParams` changes, the stamp no longer matches, and the pending value
+  // is correctly discarded — which is what keeps back/forward honest.
+  //
+  // Not `window.location.search`, which is invisible to the MemoryRouter these
+  // hooks are tested under. The ref is only ever touched inside the callback,
+  // never during render.
+  const pendingParamsRef = useRef<{ from: string; params: URLSearchParams } | null>(null);
+
+  const updateSearchParams = useCallback(
+    (update: (previous: URLSearchParams) => URLSearchParams) => {
+      const committed = searchParams.toString();
+      const pending = pendingParamsRef.current;
+      const base = pending && pending.from === committed ? pending.params : searchParams;
+      const next = update(new URLSearchParams(base));
+      pendingParamsRef.current = { from: committed, params: next };
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
   const clearScope = useCallback(() => {
-    setSearchParams(previous => clearEntryScopeParams(previous), { replace: true });
-  }, [setSearchParams]);
+    updateSearchParams(previous => clearEntryScopeParams(previous));
+  }, [updateSearchParams]);
 
   // Each setter writes only its OWN param, so the axes compose: changing the
   // tab keeps the status filter and vice versa. Defaults ('all' / 'any') are
   // deleted rather than written, keeping the canonical URL clean.
   const setSelectedTab = useCallback(
     (tab: EntryTabFilter) => {
-      setSearchParams(
-        previous => {
-          const next = new URLSearchParams(previous);
-          if (tab === 'all') next.delete('tab');
-          else next.set('tab', tab);
-          // A legacy `?tab=accepted` link arrives meaning a STATUS. Once the
-          // user touches the tab strip, persist that status explicitly or it
-          // would vanish with the param it rode in on.
-          if (legacyStatusTab) next.set('status', legacyStatusTab);
-          return next;
-        },
-        { replace: true }
-      );
+      updateSearchParams(previous => {
+        const next = new URLSearchParams(previous);
+        if (tab === 'all') next.delete('tab');
+        else next.set('tab', tab);
+        // A legacy `?tab=accepted` link arrives meaning a STATUS. Once the
+        // user touches the time filter, persist that status explicitly or it
+        // would vanish with the param it rode in on.
+        if (legacyStatusTab) next.set('status', legacyStatusTab);
+        return next;
+      });
     },
-    [setSearchParams, legacyStatusTab]
+    [updateSearchParams, legacyStatusTab]
   );
 
   const setSelectedStatus = useCallback(
     (status: EntryStatusFilter) => {
-      setSearchParams(
-        previous => {
-          const next = new URLSearchParams(previous);
-          if (status === 'any') next.delete('status');
-          else next.set('status', status);
-          // Same migration concern in reverse: drop the legacy status-as-tab so
-          // it cannot override the status the user just picked.
-          if (legacyStatusTab) next.delete('tab');
-          return next;
-        },
-        { replace: true }
-      );
+      updateSearchParams(previous => {
+        const next = new URLSearchParams(previous);
+        if (status === 'any') next.delete('status');
+        else next.set('status', status);
+        // Same migration concern in reverse: drop the legacy status-as-tab so
+        // it cannot override the status the user just picked.
+        if (legacyStatusTab) next.delete('tab');
+        return next;
+      });
     },
-    [setSearchParams, legacyStatusTab]
+    [updateSearchParams, legacyStatusTab]
   );
   // Derive filtered and sorted entries from current tab and entries
   const filteredEntries = useMemo(() => {

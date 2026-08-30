@@ -17,6 +17,7 @@ import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
+import { isQualifiedForOrganization, judgeDisplayName } from '@/features/judges/qualifiedJudges';
 import { ShowOfficialsEditor } from './ShowOfficialsEditor';
 import { toLocalDateOnly } from '@/utils/date-format';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -118,22 +119,21 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
     return Array.from(showTypesSet).sort();
   }, [templates]);
 
-  // Filter judges who have active qualifications for this show's organization
+  // Judges qualified for this show's organization. The RULE is shared with Manage
+  // Classes (`isQualifiedForOrganization`) rather than restated here -- the two had
+  // already drifted once, and Manage Classes lost the organization test entirely. The
+  // projection differs (this tab also renders each judge's qualification detail), so
+  // only the predicate is shared.
   const availableJudges = useMemo(() => {
     if (!data.organization) return [];
 
-    const filtered = judges.filter(judge => {
-      return judge.judgeQualifications?.some(
-        qualification =>
-          qualification.status === 'Active' && qualification.organization === data.organization
-      );
-    });
-
-    return filtered.map(judge => ({
-      id: judge.id,
-      name: `${judge.firstName} ${judge.lastName}`,
-      qualifications: judge.judgeQualifications || [],
-    }));
+    return judges
+      .filter(judge => isQualifiedForOrganization(judge, data.organization))
+      .map(judge => ({
+        id: judge.id,
+        name: judgeDisplayName(judge),
+        qualifications: judge.judgeQualifications || [],
+      }));
   }, [judges, data.organization]);
 
   // Handle judge assignment toggle

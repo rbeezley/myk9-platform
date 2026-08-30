@@ -26,7 +26,7 @@ export {
 } from './myEntriesUtils';
 
 // Constants & copy
-export { EntryStatusFilterChips } from './EntryStatusFilterChips';
+export { EntryFilterStrip } from './EntryFilterStrip';
 export {
   ENTRY_STATUS_FILTER_DEFS,
   ENTRY_TAB_DEFS,
@@ -41,6 +41,7 @@ export { MyEntryCard } from './MyEntryCard';
 export { EntriesEmptyState } from './EntriesEmptyState';
 export { EntryScopeBanner } from './EntryScopeBanner';
 export { EntriesLoadErrorCard } from './EntriesLoadErrorCard';
+export { EntriesIdentityPendingCard } from './EntriesIdentityPendingCard';
 export {
   CheckInDialog,
   EditEntryDialog,

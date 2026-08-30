@@ -17,7 +17,7 @@ This plan addresses the structure. It does **not** revisit the entry-status surf
 Every phase must hold these:
 
 - **No new pages.** The current phase is consolidation (`CLAUDE.md`). Every phase here merges, links, or deletes.
-- **Deep links keep working.** `?tab=` is live (#1696) and the summary stat cards navigate through it; `?entryIds=` deep links arrive from My Payments. Any tab change must keep or redirect these.
+- **Deep links keep working.** `?tab=` and `?status=` are live and remain the URL contract for the filter strip; `?entryIds=` deep links arrive from My Payments. Any change must keep or redirect these. (The summary stat cards that used to navigate through `?tab=` were deleted: two of them deep-linked to filters rendered ~200px below them, and one counted SHOWS beside a filter counting entries. The URL contract outlived them.)
 - **Counts stay honest.** Whatever the tabs become, each entry is counted once and the parts sum to the whole. That is the defect this whole thread started with.
 - **Reuse the canonical rules.** Completion/"outstanding work" questions go through `features/_shared/entryAccounting.ts`, never a local variant (MYK9-118, and again in MYK9-208).
 
@@ -25,9 +25,22 @@ Every phase must hold these:
 
 ## Phase A — One axis for My Shows
 
+> **Status: SHIPPED.** The axis decision was made (**A1 — time leads**) and built.
+> The exit criterion is met and pinned: `upcoming + completed === all` is asserted
+> in `useMyEntriesFilters.test.ts` ("partitions All into Upcoming + Completed")
+> and again in the E2E strip spec, and status composes with time rather than
+> replacing it.
+>
+> A later pass changed how the time axis is *expressed* — from a `PrimaryTabs`
+> tablist to a labelled chip `radiogroup`, matching the status axis — on the
+> grounds that both narrow the same list of the same cards, so neither is a tab.
+> The axis decision, the partition, the counts and the `?tab=` contract are
+> unchanged by that. Phases B, C and D remain open, which is why this plan is
+> still `Active`.
+
 **Addresses:** F1 (Critical)
-**Entry trigger:** product decision on the primary axis (below). **This phase cannot start without it.**
-**Exit criterion:** the tab strip is a single partition — every entry in exactly one tab, counts summing to the total — and status + time are combinable rather than mutually overwriting.
+**Entry trigger:** ~~product decision on the primary axis (below)~~ — made: **A1**.
+**Exit criterion:** the tab strip is a single partition — every entry in exactly one tab, counts summing to the total — and status + time are combinable rather than mutually overwriting. **Met.**
 
 ### The decision this needs
 
@@ -40,6 +53,8 @@ Three defensible shapes. Each keeps one axis as tabs and demotes the other:
 | **A3 — no tabs** | one list ranked by what needs attention | filters for everything | "Just tell me what to do next" |
 
 INTENT names *checking schedule* ("I know where to be") before *entry status*, which leans A1. `CLAUDE.md`'s "deletions are a feature" leans A3. **Not decidable from the code — this is the product owner's call.**
+
+**Decided: A1 — time leads.** Kept as the record of why; do not re-open it without a product decision. Time is the first axis and is labelled as such; status is the composable second axis.
 
 ### Work
 

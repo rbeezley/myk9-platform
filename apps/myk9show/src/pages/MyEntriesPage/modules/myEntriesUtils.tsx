@@ -70,12 +70,19 @@ function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind):
 }
 
 /**
- * Returns a styled badge for entry status
+ * The explicit label this badge will render, or `undefined` when the badge
+ * falls back to `StatusBadge`'s own derived label.
+ *
+ * Extracted so the card can tell whether its status *sentence* would merely
+ * restate the badge beside it (COMPLETED, absent, unknown, in_ring and
+ * scratched all produced literal duplicates like "Scored" / "Scored"). An
+ * `undefined` return means the label is not known here, so the caller must
+ * assume the sentence adds something and keep it — the conservative direction.
  */
-export function getEntryStatusBadge(
+export function getEntryStatusBadgeLabel(
   status: EntryStatus,
   options: StatusBadgeOptions = {}
-): React.ReactNode {
+): string | undefined {
   const statusKind = options.statusKind ?? (status === EntryStatus.PENDING ? 'pending' : undefined);
   let contextualLabel: string | undefined;
   if (options.isShowCancelled) contextualLabel = 'Cancelled';
@@ -105,12 +112,40 @@ export function getEntryStatusBadge(
   // recorded — the contradiction that had a card reading "Scored" while runs
   // were outstanding, just inverted.
   if (options.partiallyScored && !options.isShowCancelled) contextualLabel = 'Partially scored';
+  return contextualLabel;
+}
+
+/**
+ * Whether the card's status sentence would only repeat the badge beside it.
+ *
+ * Compares the two rendered strings rather than re-deriving the cases from
+ * status kinds: the sentence for a terminal status can still add a fact
+ * ("Withdrawn - refunded"), and only a literal match is safe to drop.
+ */
+export function isStatusMessageRedundant(
+  message: string,
+  status: EntryStatus,
+  options: StatusBadgeOptions = {}
+): boolean {
+  const label = getEntryStatusBadgeLabel(status, options);
+  if (!label) return false;
+  return label.trim().toLowerCase() === message.trim().toLowerCase();
+}
+
+/**
+ * Returns a styled badge for entry status
+ */
+export function getEntryStatusBadge(
+  status: EntryStatus,
+  options: StatusBadgeOptions = {}
+): React.ReactNode {
+  const statusKind = options.statusKind ?? (status === EntryStatus.PENDING ? 'pending' : undefined);
   return (
     <StatusBadge
       family="entry"
       status={getStatusBadgeValue(status, statusKind)}
       variant="outline"
-      label={contextualLabel}
+      label={getEntryStatusBadgeLabel(status, options)}
     />
   );
 }

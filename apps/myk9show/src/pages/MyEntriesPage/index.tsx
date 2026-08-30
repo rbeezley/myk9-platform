@@ -7,8 +7,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { TabsContent } from '@/components/ui/tabs';
-import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
@@ -38,14 +36,13 @@ import {
   MyEntryCard,
   EntriesEmptyState,
   EntriesLoadErrorCard,
+  EntriesIdentityPendingCard,
   EntryScopeBanner,
   MyEntriesDialogGroup,
   WaitListSection,
-  ENTRY_TAB_DEFS,
-  EntryStatusFilterChips,
+  EntryFilterStrip,
   ALL_ENTRIES_LABEL,
   ALL_ENTRIES_SCOPE_NOTE,
-  type EntryTabFilter,
 } from './modules';
 
 const MyEntriesPage: React.FC = () => {
@@ -57,6 +54,7 @@ const MyEntriesPage: React.FC = () => {
   const {
     entries,
     balanceSummary,
+    identityState,
     isLoading,
     isError,
     refreshing,
@@ -124,15 +122,6 @@ const MyEntriesPage: React.FC = () => {
   // `undefined` is deliberately distinct from `false` so FirstRunZeroState never
   // commits to the no-dogs branch before ownership is known.
   const hasDogs: boolean | undefined = !ownerId ? false : dogsLoading ? undefined : dogs.length > 0;
-
-  const entryTabs = useMemo<PrimaryTabDef[]>(
-    () =>
-      ENTRY_TAB_DEFS.map(tab => ({
-        ...tab,
-        count: tabCounts[tab.id],
-      })),
-    [tabCounts]
-  );
 
   const upcomingClassCountByDog = useMemo(() => countUpcomingClassesByDog(entries), [entries]);
 
@@ -266,15 +255,17 @@ const MyEntriesPage: React.FC = () => {
               whole stack and present one calm, adaptive call-to-action instead.
               INTENT: Exhibitor first run must feel frictionless ("respects my
               time"), never like a form to fill. */}
-            {entries.length === 0 ? (
+            {identityState !== 'resolved' ? (
+              /* We do not know whose entries these are yet, so the empty list
+                 below proves nothing. Rendering FirstRunZeroState here told an
+                 exhibitor on a cold offline boot that they had never entered a
+                 show, with their entries sitting in IndexedDB. */
+              <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
+            ) : entries.length === 0 ? (
               <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
             ) : (
               <>
                 <CompactStatsRow
-                  acceptedEntries={entryStats.currentAcceptedEntries}
-                  pendingEntries={entryStats.currentPendingEntries}
-                  upcomingShows={entryStats.upcomingShows}
-                  completedShows={entryStats.completedShows}
                   currentFees={entryStats.currentFees}
                   amountDue={entryStats.currentAmountDue}
                   currentFeesHref={currentFeesHref}
@@ -317,48 +308,51 @@ const MyEntriesPage: React.FC = () => {
                     landmark (the h1) for the whole surface. Styling unchanged. */}
                   <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex flex-wrap items-center gap-2">
                     {ALL_ENTRIES_LABEL}
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-medium w-5 h-5"
-                    >
-                      {entries.length}
-                    </span>
+                    {/* The count badge that used to sit here is gone. The
+                      "All" chip immediately below carries it — and carries it
+                      SCOPED to the active status filter, so the two disagreed
+                      on sight: this badge read 190 while the chip read 187.
+                      What survives is the part the chips cannot say: the unit
+                      these numbers count, and that past shows are included. */}
                     <span className="normal-case tracking-normal font-normal text-muted-foreground">
                       {ALL_ENTRIES_SCOPE_NOTE}
                     </span>
                   </h2>
 
                   {/* Inbound scope from My Payments' Receipt link. Sits above
-                    the tabs, not inside a tab panel: it describes the whole
-                    list the tabs are filtering, and it must stay on screen
-                    when the exhibitor switches tabs. */}
+                    the filters, not inside the list: it describes the whole
+                    set the filters are narrowing, and it must stay on screen
+                    when the exhibitor changes a filter. */}
                   <EntryScopeBanner
                     scopeMatch={scopeMatch}
                     totalCount={entries.length}
                     onClearScope={clearScope}
                   />
 
-                  {/* Entries List */}
-                  <PrimaryTabs
-                    tabs={entryTabs}
-                    value={selectedTab}
-                    onValueChange={value => setSelectedTab(value as EntryTabFilter)}
-                    className="space-y-6"
-                  >
-                    <EntryStatusFilterChips
-                      selectedStatus={selectedStatus}
-                      onSelectStatus={setSelectedStatus}
-                      statusCounts={statusCounts}
-                    />
-                    <TabsContent value={selectedTab} className="space-y-4">
-                      {/* Switching tabs changes the list silently for a screen
-                        reader — the visible count sits up in the tab strip that
-                        was just left. Announce what the new filter produced. */}
-                      <p className="sr-only" role="status" aria-live="polite">
-                        {filteredEntries.length === 1
-                          ? '1 entry'
-                          : `${filteredEntries.length} entries`}
-                      </p>
+                  {/* Two composable filter axes, one visual language. Time was
+                    a tablist and status a radiogroup; both narrow the same
+                    list of the same cards, so both are filters now — and both
+                    are named, which neither was. The "All entries · includes
+                    past shows" heading above declares the unit they count. */}
+                  <EntryFilterStrip
+                    selectedTab={selectedTab}
+                    onSelectTab={setSelectedTab}
+                    tabCounts={tabCounts}
+                    selectedStatus={selectedStatus}
+                    onSelectStatus={setSelectedStatus}
+                    statusCounts={statusCounts}
+                  />
+
+                  <div className="space-y-4">
+                    {/* Changing a filter changes the list silently for a
+                      screen reader — the visible count sits up in the strip
+                      that was just left. Announce what the new filter
+                      produced. */}
+                    <p className="sr-only" role="status" aria-live="polite">
+                      {filteredEntries.length === 1
+                        ? '1 entry'
+                        : `${filteredEntries.length} entries`}
+                    </p>
                       {filteredEntries.length === 0 ? (
                         <EntriesEmptyState
                           selectedTab={selectedTab}
@@ -368,7 +362,7 @@ const MyEntriesPage: React.FC = () => {
                       ) : (
                         // A real list, so assistive tech announces "list, N
                         // items" and offers list navigation. This was a bare
-                        // stack of divs. `space-y-4` stays on the TabsContent,
+                        // stack of divs. `space-y-4` stays on the wrapper,
                         // so spacing is unchanged.
                         <ul className="space-y-4">
                           {filteredEntries.map(entry => (
@@ -386,8 +380,7 @@ const MyEntriesPage: React.FC = () => {
                           ))}
                         </ul>
                       )}
-                    </TabsContent>
-                  </PrimaryTabs>
+                  </div>
                 </div>
               </>
             )}

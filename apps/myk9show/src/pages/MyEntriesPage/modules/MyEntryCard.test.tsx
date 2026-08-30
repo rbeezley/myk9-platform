@@ -6,9 +6,9 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { MyEntry, MyEntryDogGroup, EntryClass } from './my-entries-types';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 
-/** Expand the collapsed "Show details" panel so its contents are queryable. */
+/** Expand the collapsed "Entered Classes (N)" panel so its contents are queryable. */
 function openDetails() {
-  fireEvent.click(screen.getByRole('button', { name: /show details/i }));
+  fireEvent.click(screen.getByRole('button', { name: /entered classes/i }));
 }
 
 /**
@@ -398,8 +398,8 @@ describe('MyEntryCard placement — edge cases (beyond the #775 "scored result d
     );
     openDetails();
 
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.getByText('5th')).toBeInTheDocument();
+    expect(screen.getAllByText('Q').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('5th').length).toBeGreaterThan(0);
   });
 
   it('omits placement for the 0 default (un-ranked row) rather than rendering "0th"', () => {
@@ -410,7 +410,7 @@ describe('MyEntryCard placement — edge cases (beyond the #775 "scored result d
     );
     openDetails();
 
-    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getAllByText('Q').length).toBeGreaterThan(0);
     expect(screen.queryByText('0th')).not.toBeInTheDocument();
   });
 });
@@ -551,9 +551,10 @@ describe('MyEntryCard scored result display', () => {
     );
     openDetails();
 
-    expect(screen.getByText('Q')).toBeInTheDocument();
-    expect(screen.getByText('2nd')).toBeInTheDocument();
-    expect(screen.getByText('42.5s')).toBeInTheDocument();
+    expect(screen.getAllByText('Q').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2nd').length).toBeGreaterThan(0);
+    // Time now reads on the always-visible band as well as in the detail row.
+    expect(screen.getAllByText('42.5s').length).toBeGreaterThan(0);
   });
 
   it('does not show a placement pill for an NQ entry even if a placement value leaks through', () => {
@@ -571,7 +572,7 @@ describe('MyEntryCard scored result display', () => {
     );
     openDetails();
 
-    expect(screen.getByText('NQ')).toBeInTheDocument();
+    expect(screen.getAllByText('NQ').length).toBeGreaterThan(0);
     expect(screen.queryByText('2nd')).not.toBeInTheDocument();
   });
 
@@ -590,7 +591,7 @@ describe('MyEntryCard scored result display', () => {
     );
     openDetails();
 
-    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getAllByText('Q').length).toBeGreaterThan(0);
     expect(screen.queryByText(/\d(st|nd|rd|th)$/)).not.toBeInTheDocument();
   });
 });
@@ -718,7 +719,7 @@ describe('MyEntryCard handler display', () => {
     });
     renderCard(entry);
     openDetails();
-    expect(screen.getByText('Sarah M.')).toBeInTheDocument();
+    expect(screen.getByText('Handled by Sarah M.')).toBeInTheDocument();
   });
 
   it('shows no handler line when handler is not set', () => {
@@ -739,8 +740,10 @@ describe('MyEntryCard handler display', () => {
     });
     renderCard(entry);
     openDetails();
+    // Handlers disagree, so nothing hoists: each row prints its own.
     expect(screen.getByText('R. Beezley')).toBeInTheDocument();
     expect(screen.getByText('Sarah M.')).toBeInTheDocument();
+    expect(screen.queryByText(/^Handled by/)).not.toBeInTheDocument();
   });
 });
 
@@ -777,7 +780,10 @@ describe('MyEntryCard class detail display', () => {
   it('shows the dog armband before the dog name', () => {
     const { container } = renderCard(makeEntry({ armband: '142' }));
 
-    const subtitle = container.querySelector('.myk9-entries-card-subtitle');
+    // The dog identity moved from the old `.myk9-entries-card-subtitle` line
+    // to the per-dog band, which also names that dog's classes. Same
+    // always-visible summary, same armband-before-name order.
+    const subtitle = container.querySelector('.myk9-entries-dog-face');
     expect(subtitle).not.toBeNull();
     expect(subtitle).toHaveTextContent('142');
     expect(subtitle).toHaveTextContent('Rex');
@@ -1065,7 +1071,7 @@ describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-reme
       })
     );
 
-    const toggle = screen.getByRole('button', { name: /show details/i });
+    const toggle = screen.getByRole('button', { name: /entered classes/i });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('Container Search #101')).not.toBeInTheDocument();
     expect(screen.queryByText(/Confirmation # MK9-99999/)).not.toBeInTheDocument();
@@ -1079,7 +1085,7 @@ describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-reme
       })
     );
 
-    const toggle = screen.getByRole('button', { name: /show details/i });
+    const toggle = screen.getByRole('button', { name: /entered classes/i });
     fireEvent.click(toggle);
 
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -1087,7 +1093,7 @@ describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-reme
     expect(screen.getByText(/Confirmation # MK9-99999/)).toBeInTheDocument();
 
     // Toggling again collapses it — details drop back out of the document.
-    fireEvent.click(screen.getByRole('button', { name: /hide details/i }));
+    fireEvent.click(screen.getByRole('button', { name: /hide classes/i }));
     expect(screen.queryByText('Container Search #101')).not.toBeInTheDocument();
   });
 
@@ -1172,7 +1178,7 @@ describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-reme
     );
 
     expect(screen.getByText('Entries close')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /show details/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /entered classes/i })).toBeInTheDocument();
   });
 
   it('moves "Entries close" into details once editing is no longer possible', () => {
@@ -1250,18 +1256,36 @@ describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online 
 
   it('shows every dog identity (armband + name) on the summary band without expanding details', () => {
     const { container } = renderCard(makeTwoDogEntry());
-    const subtitle = container.querySelector('.myk9-entries-card-subtitle');
-    expect(subtitle).toHaveTextContent('101');
-    expect(subtitle).toHaveTextContent('Rex');
-    expect(subtitle).toHaveTextContent('102');
-    expect(subtitle).toHaveTextContent('Ziva');
+    // The identity list became the per-dog band, which also names each dog's
+    // classes. Same guarantee: every dog is on the always-visible summary.
+    const band = container.querySelector('.myk9-entries-dog-face');
+    expect(band).toHaveTextContent('101');
+    expect(band).toHaveTextContent('Rex');
+    expect(band).toHaveTextContent('102');
+    expect(band).toHaveTextContent('Ziva');
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Ziva')).toBeInTheDocument();
     // Details are still collapsed — the identities came from the summary band.
-    expect(screen.getByRole('button', { name: /show details/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /entered classes/i })).toHaveAttribute(
       'aria-expanded',
       'false'
     );
+  });
+
+  it('offers Add to Calendar in the details panel when the show id is known', () => {
+    renderCard(makeEntry({ classes: [makeClass()] }));
+    openDetails();
+    expect(screen.getByRole('button', { name: /add to calendar/i })).toBeInTheDocument();
+  });
+
+  it('withholds Add to Calendar while the show id is still replicating', () => {
+    // An empty showId is the partial-replication window. AddToCalendarDialog
+    // issues a subscription for the id the moment it opens, so an unguarded
+    // button fires issue('') and offers a control that cannot work. The guard
+    // moved with the button when it left the summary band.
+    renderCard(makeEntry({ showId: '', classes: [makeClass()] }));
+    openDetails();
+    expect(screen.queryByRole('button', { name: /add to calendar/i })).not.toBeInTheDocument();
   });
 
   it('single-dog orders never render the dogs grid — flat class list only', () => {
@@ -1271,21 +1295,30 @@ describe('MyEntryCard grouped-order dogs grid (task 8.2 — one card per online 
     expect(container.querySelectorAll('.myk9-entries-class-row')).toHaveLength(1);
   });
 
-  it('renders each dog with its own nested classes in a wrapping grid capped at 5 columns', () => {
+  it('renders each dog with its own classes, at most two columns wide', () => {
     const { container } = renderCard(makeTwoDogEntry());
     openDetails();
 
     const grid = container.querySelector('.myk9-entries-dogs-grid');
-    expect(grid).toHaveClass('xl:grid-cols-5');
+    // Two columns, from `lg`. The previous `xl:grid-cols-5` was keyed to the
+    // VIEWPORT while this grid sits inside a column the 288px sidebar has
+    // already narrowed: at exactly 1280px that left ~171px per dog group, so
+    // a name like "Novice Container A #12 (16in)" ellipsed to a few
+    // characters. The per-dog grouping #1423 introduced is unchanged; only
+    // the column count it was measured against is.
+    expect(grid).toHaveClass('lg:grid-cols-2');
+    expect(grid).not.toHaveClass('xl:grid-cols-5');
     expect(container.querySelectorAll('.myk9-entries-dog-group')).toHaveLength(2);
-    // Each name also appears once already in the summary-band identity list
-    // (task 8.2 fix 4) — assert two occurrences (summary + this dog's group).
+    // Each name appears once on the always-visible per-dog band and once as
+    // its group heading here.
     expect(screen.getAllByText('Rex')).toHaveLength(2);
     expect(screen.getAllByText('Ziva')).toHaveLength(2);
     expect(screen.getByText('Container Search #101')).toBeInTheDocument();
     expect(screen.getByText('Exterior Search #101')).toBeInTheDocument();
-    // Class count is conserved — the union of both dogs' classes.
-    expect(screen.getByText('2 classes entered')).toBeInTheDocument();
+    // The count is carried by the toggle label now, not a separate counter
+    // line inside the panel.
+    expect(screen.queryByText('2 classes entered')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide classes' })).toBeInTheDocument();
   });
 
   it('scopes a per-dog check-in click to that dog, not the order lead dog', () => {

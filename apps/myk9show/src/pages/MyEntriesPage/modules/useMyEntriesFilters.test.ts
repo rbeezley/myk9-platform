@@ -599,6 +599,36 @@ describe('My Shows filters on one axis (time) with status composed', () => {
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['up-accepted']);
   });
 
+  // Regression: react-router's functional `setSearchParams` is NOT an atomic
+  // read-modify-write. It passes the params memoized from the LAST RENDER
+  // (react-router 7.18.2, useSearchParams ~line 736), so two updates in the
+  // same tick both start from the same stale value and the second silently
+  // discards the first. An exhibitor clicking two filter chips quickly lost
+  // the first one — reproduced in a real browser before this guard existed.
+  it('keeps both filters when they are set in the same tick', () => {
+    const { result } = renderFilters({ entries: mixed });
+
+    act(() => {
+      result.current.setSelectedStatus('accepted');
+      result.current.setSelectedTab('upcoming');
+    });
+
+    expect(result.current.selectedStatus).toBe('accepted');
+    expect(result.current.selectedTab).toBe('upcoming');
+  });
+
+  it('keeps both filters when set in the same tick in the other order', () => {
+    const { result } = renderFilters({ entries: mixed });
+
+    act(() => {
+      result.current.setSelectedTab('completed');
+      result.current.setSelectedStatus('pending');
+    });
+
+    expect(result.current.selectedTab).toBe('completed');
+    expect(result.current.selectedStatus).toBe('pending');
+  });
+
   it('changing the tab preserves the status filter', () => {
     const { result } = renderFilters({ entries: mixed }, '/exhibitor/entries?status=pending');
     act(() => result.current.setSelectedTab('completed'));

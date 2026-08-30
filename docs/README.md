@@ -68,7 +68,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                                                 | Active    | Architecture Deepening Plan                                                  |
 | [plan-ia-admin-person-detail.md](plan-ia-admin-person-detail.md)                                                 | Active    | Admin Person Detail + Soft-Delete Lifecycle Consolidation (4 phases)         |
-| [plan-ia-exhibitor-surface.md](plan-ia-exhibitor-surface.md)                                                     | Active    | Exhibitor Surface IA Remediation (4 phases)                                  |
+| [plan-ia-exhibitor-surface.md](plan-ia-exhibitor-surface.md)                                                     | Active    | Exhibitor Surface IA Remediation (4 phases; Phase A shipped, B–D open)       |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                                                     | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                                                     | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                                             | Active    | Data Access Module Drift Plan                                                |

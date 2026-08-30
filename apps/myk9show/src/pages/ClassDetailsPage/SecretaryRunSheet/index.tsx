@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { RunSheetRow } from './RunSheetRow';
 import { useRunSheetState } from './useRunSheetState';
 import { getShowDeskHref } from '@/features/show-map/cockpit/cockpitRoutes';
+import { toLocalDateOnly } from '@/utils/date-format';
 
 interface SecretaryRunSheetProps {
   currentClass: ClassData;
@@ -47,6 +48,12 @@ export function SecretaryRunSheet({
   parentShowId,
   classDay,
 }: SecretaryRunSheetProps) {
+  // `normalizeCockpitUrlState` accepts `day` only as YYYY-MM-DD and SILENTLY drops
+  // anything else -- which lands back on the bug this parameter exists to prevent:
+  // Show Desk picks its default day and focuses a different class. trials.date is a
+  // DATE column today so the value is already date-only, but the failure is silent
+  // and the write it guards is destructive, so normalize rather than assume.
+  const runOrderDay = classDay ? toLocalDateOnly(classDay) : null;
   const navigate = useNavigate();
   const { sortedEntries, onCheckInStatus } = useRunSheetState({
     rawEntries: dbRawEntries,
@@ -71,7 +78,7 @@ export function SecretaryRunSheet({
               state: {
                 filter: 'all',
                 focusedClassId: currentClass.id,
-                ...(classDay ? { selectedDay: classDay } : {}),
+                ...(runOrderDay ? { selectedDay: runOrderDay } : {}),
               },
             })}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

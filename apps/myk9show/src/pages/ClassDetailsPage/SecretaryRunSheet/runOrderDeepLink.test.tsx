@@ -64,4 +64,15 @@ describe('run-order deep link', () => {
     expect(href).toContain('focus=class-1');
     expect(href).not.toContain('day=');
   });
+
+  it('normalizes a datetime trial date to the day Show Desk accepts', () => {
+    // normalizeCockpitUrlState matches ^\d{4}-\d{2}-\d{2}$ and silently drops
+    // anything else, which would put us back on the wrong class. trials.date is a
+    // DATE column today, so this is defence against a future shape change rather
+    // than a live defect.
+    const href = renderSheet('2026-08-02T00:00:00.000Z').getAttribute('href') ?? '';
+
+    expect(href).toContain('day=2026-08-02');
+    expect(href).not.toContain('T00');
+  });
 });

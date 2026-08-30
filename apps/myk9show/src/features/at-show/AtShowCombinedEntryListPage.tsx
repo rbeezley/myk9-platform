@@ -1,62 +1,59 @@
 /**
- * AtShowCombinedEntryListPage — Phase 1h host shim for the COMBINED Novice
- * Section A/B entry list (AKC Scent Work Novice runs A + B together, places
- * them separately). Mounts `@myk9/ringside`'s `CombinedEntryListPage`.
+ * AtShowCombinedEntryListPage — host shim for the COMBINED Novice Section A/B
+ * entry list (AKC Scent Work Novice runs A + B together, places them
+ * separately). Mounts `@myk9/ringside`'s `EntryListPage` in combined mode.
  *
- * Mirrors `AtShowEntryListPage` (single class) but for the combined view:
+ * It used to mount a second page, `CombinedEntryListPage`. MYK9-260 collapsed
+ * the two: every difference between them was a divergence rather than a design
+ * choice, and each one was invisible to typecheck, lint and the whole test
+ * suite. This shim now builds the SAME bags the single-class shim builds --
+ * `useAtShowEntryListUiState` and `useAtShowEntryListHandlers` -- so a
+ * behaviour can no longer exist on one route and not the other.
+ *
+ * What genuinely differs, and is therefore all this file still owns:
  *  - `useEntryListData({ classIdA, classIdB })` → fetchCombinedClasses
  *  - `useEntryListFilters({ supportSectionFilter: true })` → the
- *    All / Section A / Section B tabs + counts
- *  - ringside `useEntryHandlers` → the combined `combinedHandlers` bag
- *  - custom `compareEntries` sort (adds 'section-armband')
+ *    All / Section A / Section B tabs + counts, sorted 'section-armband'
+ *  - `handleApplyRunOrder` → `applyCombinedRunOrder`, the one handler that
+ *    honours the A/B `scope` + `renumberMode` contract
+ *  - `buildScoreSheetState` → carries the PAIRED classId to the scoresheet
  *
  * Run order persists offline-first through the replication layer (same RLS /
- * `ringside_update_entry` routing as the single-class AtShowEntryListPage), for
- * BOTH paths: drag-to-reorder via `persistEntryRunOrder`, and the section-aware
- * PRESET dialog via `applyCombinedRunOrder` (which respects the combined `scope`
- * A/B + `renumberMode` contract). Remaining out-of-scope service callbacks are
- * deliberate stubs: print and scoresheet prefetch are no-ops. Scoresheet
- * navigation points at the at-show scoresheet route (built in a later slice).
+ * `ringside_update_entry` routing as the single-class shim) on both paths:
+ * drag-to-reorder via `persistEntryRunOrder`, and the section-aware PRESET
+ * dialog via `applyCombinedRunOrder`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   RingsideProvider,
-  CombinedEntryListPage,
+  EntryListPage,
   useEntryListData,
   useEntryListFilters,
   useDragAndDropEntries,
-  useEntryHandlers,
-  compareEntries,
   buildEntryListOwnership,
   type Entry,
   type EntryListDataDependencies,
   type RingsideShowContext,
-  type CombinedEntryListUiState,
   type RunOrderPreset,
   type RunOrderScope,
   type RenumberMode,
 } from '@myk9/ringside';
 
-// Derive these from the page's own UI-state type — the barrel also exports
-// ClassList's `SortOrder`/`PrintDialogState` under the same names, so importing
-// them directly resolves to the wrong (ClassList) variants.
-type SortOrder = CombinedEntryListUiState['sortOrder'];
-type PrintDialogState = CombinedEntryListUiState['printDialogState'];
 import { replicatedShowsTable } from '@/services/replication';
-import { logger } from '@/utils/logger';
 import { applyCombinedRunOrder } from './applyCombinedRunOrder';
-import { toast } from 'sonner';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { areReplicationTablesPendingFirstSync } from '@/utils/replicationSyncEmptyState';
 import { notifyRunOrderPersistError } from './runOrderErrorToast';
 import { persistEntryRunOrder } from './persistEntryRunOrder';
-import { buildRingsideContextValue } from './ringsideCapabilities';
+import { buildRingsideContextValue, buildRingsideReplication } from './ringsideCapabilities';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
+import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
+import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
@@ -76,6 +73,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // Account RBAC → primary ShowRole → ringside's 4-role enum, with a Phase 1c
   // show-scoped passcode grant overriding the mapping. Shared with the
   // single-class and scoresheet shims via `useRingsideEffectiveRole`.
+  const navigate = useNavigate();
   const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
   // Device-local favorites, mirrored to `dog_favorites` when signed in so the
   // notification monitor can watch them for "your turn" push (MYK9-79).
@@ -147,70 +145,90 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // ── Shim-owned state (mirrors CombinedEntryListUiState) ────────────────
   const { status: syncStatus } = useReplicationSync();
   const [localEntries, setLocalEntries] = useState<Entry[]>([]);
-  const [, setManualOrder] = useState<Entry[]>([]);
-  const [sortOrder, setSortOrder] = useState<SortOrder>('section-armband');
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [manualOrder, setManualOrder] = useState<Entry[]>([]);
   // Mirrors AtShowEntryListPage. Without this the combined route presented an
   // empty ring as settled truth while the FIRST replication sync was still
   // running -- `isRefreshing` alone only covers a refetch, not the cold boot.
   const isInitialEntryDataSyncing =
     entries.length === 0 &&
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [runOrderDialogOpen, setRunOrderDialogOpen] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [isDragMode, setIsDragMode] = useState(false);
-  const [selfCheckinDisabledDialog, setSelfCheckinDisabledDialog] = useState(false);
-  const [printDialogState, setPrintDialogState] = useState<PrintDialogState>({ type: null });
 
   // ── Filters (section filter ON → All / Section A / Section B tabs) ─────
   const {
     activeTab,
     setActiveTab,
+    sortBy: sortOrder,
+    setSortBy: setSortOrder,
     searchTerm,
     setSearchTerm,
     sectionFilter,
     setSectionFilter,
     filteredEntries,
+    pendingEntries,
+    completedEntries,
     entryCounts,
   } = useEntryListFilters({
     entries: localEntries,
-    supportManualSort: false,
     supportSectionFilter: true,
+    // The combined route used to sort itself with `compareEntries`, which only
+    // floated in-ring dogs. Sharing the single-class route's options is the
+    // point of the collapse, and it brings three orderings the combined ring
+    // never had: pulled dogs last, at-gate dogs bubbled above plain pending,
+    // and a manual order that survives a drag.
+    prioritizeInRing: true,
+    deprioritizePulled: true,
+    manualOrder,
+    defaultSort: 'section-armband',
   });
 
-  // Combined custom sort (adds 'section-armband') over the section-filtered set.
-  const sortedEntries = useMemo(
-    () => [...filteredEntries].sort((a, b) => compareEntries(a, b, sortOrder)),
-    [filteredEntries, sortOrder]
-  );
-  const pendingEntries = useMemo(() => sortedEntries.filter(e => !e.isScored), [sortedEntries]);
-  const completedEntries = useMemo(() => sortedEntries.filter(e => e.isScored), [sortedEntries]);
   const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
 
-  // ── Combined handlers bag (ringside hook) ──────────────────────────────
-  // ringside can't depend on sonner, so both of its alert() call sites took
-  // window.alert -- a blocking native dialog mid-class, where the single-class
-  // page uses a toast for the identical cases. Inject the real thing.
-  const notifyRingside = useCallback((message: string, tone: 'error' | 'info') => {
-    if (tone === 'error') {
-      toast.error(message);
-      return;
-    }
-    toast.info(message);
-  }, []);
-
-  const combinedHandlers = useEntryHandlers({
+  // ── UI state + handlers: the SAME bags the single-class route builds ────
+  // Sharing them is the point of the MYK9-260 collapse -- the combined route
+  // previously carried its own smaller hand-rolled bag, which is how the two
+  // surfaces drifted apart in the first place.
+  const { uiState, uiActions } = useAtShowEntryListUiState({
     localEntries,
     setLocalEntries,
-    entries,
-    notify: notifyRingside,
-    handleMarkInRing: actions.handleMarkInRing,
-    handleMarkCompleted: actions.handleMarkCompleted,
-    handleStatusChangeHook: actions.handleStatusChange,
-    handleResetScoreHook: actions.handleResetScore,
-    refresh,
+    manualOrder,
+    setManualOrder,
     setActiveTab,
+    setSortOrder,
+    setSearchTerm,
+  });
+
+  const replication = useMemo(() => buildRingsideReplication(), []);
+  const buildScoreSheetRoute = useCallback(
+    (entry: Entry) => `/at-show/${showId}/class/${entry.classId}/score/${entry.id}`,
+    [showId]
+  );
+  // The scoresheet needs to know the OTHER section is running alongside this
+  // one; a single-class list has no pair, so it passes no state at all.
+  const buildScoreSheetState = useCallback(
+    (entry: Entry) => ({ pairedClassId: entry.classId === classIdA ? classIdB : classIdA }),
+    [classIdA, classIdB]
+  );
+
+  const baseHandlers = useAtShowEntryListHandlers({
+    actions,
+    replication,
+    // No single class to act on: recalculate-placements and class settings are
+    // hidden in combined mode for exactly that reason (see EntryListPage).
+    classId: undefined,
+    localEntries,
+    hasPermission,
+    navigate,
+    buildScoreSheetRoute,
+    buildScoreSheetState,
+    refresh,
+    setActiveStatusPopup: uiActions.setActiveStatusPopup,
+    setActiveResetMenu: uiActions.setActiveResetMenu,
+    setResetMenuPosition: uiActions.setResetMenuPosition,
+    setResetConfirmDialog: uiActions.setResetConfirmDialog,
+    setIsDragMode: uiActions.setIsDragMode,
+    setIsManualRefreshing: uiActions.setIsManualRefreshing,
+    setActiveTab,
+    setLocalEntries,
   });
 
   // ── Drag (run-order persist) ───────────────────────────────────────────
@@ -256,41 +274,39 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalEntries(entries);
   }, [entries, isDragging]);
+  const { hasCompletedInitialLoad } = uiState;
+  const { setHasCompletedInitialLoad, setIsLoaded } = uiActions;
   useEffect(() => {
-    if (!isRefreshing && !isInitialEntryDataSyncing && !isLoaded) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!isRefreshing && !isInitialEntryDataSyncing && !hasCompletedInitialLoad) {
+      setHasCompletedInitialLoad(true);
       setIsLoaded(true);
     }
-  }, [isRefreshing, isInitialEntryDataSyncing, isLoaded]);
+  }, [
+    isRefreshing,
+    isInitialEntryDataSyncing,
+    hasCompletedInitialLoad,
+    setHasCompletedInitialLoad,
+    setIsLoaded,
+  ]);
 
-  // ── Scoresheet route (built in a later slice; may 404 until then) ──────
-  const getScoresheetNavigationRoute = useCallback(
-    (entry: Entry) => `/at-show/${showId}/class/${entry.classId}/score/${entry.id}`,
-    [showId]
-  );
-
-  // ── Service callbacks (print/prefetch still stubbed; run-order is real) ──
-  const onPrintSortOrder = useCallback(() => {
-    logger.warn('[at-show] combined print is not available in the spike', 'at-show');
-  }, []);
   // Apply a run-order PRESET (by-armband / random / section-scoped). Mirrors the
   // single-class preset path but section-aware: `scope` (A/B/all) + `renumberMode`
   // route through `applyCombinedRunOrder`, which persists each entry's run_order
   // offline-first via the replication layer. `manual` opens drag mode instead.
-  const onApplyRunOrder = useCallback<
+  const handleApplyRunOrder = useCallback<
     (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => Promise<void>
   >(
     async (preset, scope, renumberMode) => {
       if (preset === 'manual') {
-        setIsDragMode(true);
+        uiActions.setIsDragMode(true);
         return;
       }
       try {
         await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
       } catch (error) {
-        // Surface the failure, then re-throw: the ringside CombinedEntryListPage
-        // wrapper catches it to close the dialog WITHOUT flashing the success
-        // banner. Swallowing here would let that banner show on a failed write.
+        // Surface the failure, then re-throw: EntryListPage catches it to close
+        // the dialog WITHOUT flashing the success banner. Swallowing here would
+        // let that banner show on a failed write.
         notifyRunOrderPersistError(error);
         throw error;
       }
@@ -299,9 +315,16 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
       // suppressed success banner). The persist outcome alone decides success.
       await refresh();
     },
-    [localEntries, refresh]
+    [localEntries, refresh, uiActions]
   );
-  const onPrefetchScoresheet = useCallback(() => {}, []);
+
+  // Section-aware run order is the ONE handler the combined route cannot take
+  // from the shared bag: `applyCombinedRunOrder` honours the A/B `scope` and
+  // `renumberMode` contract that a single-class renumber has no notion of.
+  const handlers = useMemo(
+    () => ({ ...baseHandlers, handleApplyRunOrder }),
+    [baseHandlers, handleApplyRunOrder]
+  );
 
   // ── Ownership annotations (own-dog highlight + dogs-ahead pills) ────────
   // Combined A/B run together, so the queue is computed over the merged
@@ -330,45 +353,24 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             onDismiss={dismissNudge}
           />
         )}
-        <CombinedEntryListPage
-          onNotify={notifyRingside}
-          classIds={{ a: classIdA, b: classIdB }}
-          data={{ entries, classInfo }}
-          dataStatus={{ isRefreshing, fetchError, refresh }}
-          actions={actions}
-          combinedHandlers={combinedHandlers}
-          uiState={{
-            localEntries,
-            sortOrder,
-            isLoaded,
-            isFilterPanelOpen,
-            runOrderDialogOpen,
-            showSuccessMessage,
-            isDragMode,
-            selfCheckinDisabledDialog,
-            printDialogState,
-          }}
-          uiActions={{
-            setLocalEntries,
-            setManualOrder,
-            setSortOrder,
-            setIsLoaded,
-            setIsFilterPanelOpen,
-            setRunOrderDialogOpen,
-            setShowSuccessMessage,
-            setIsDragMode,
-            setSelfCheckinDisabledDialog,
-            setPrintDialogState,
-            setActiveTab,
-            setSearchTerm,
+        <EntryListPage
+          classId={classIdA}
+          combined={{
+            classIds: { a: classIdA as string, b: classIdB as string },
+            sectionFilter,
             setSectionFilter,
           }}
+          data={{ entries, classInfo }}
+          dataStatus={{ isRefreshing, fetchError, refresh }}
+          handlers={handlers}
+          actions={actions}
+          uiState={uiState}
+          uiActions={uiActions}
           derived={{
             activeTab,
+            sortOrder,
             searchTerm,
-            sectionFilter,
             filteredEntries,
-            sortedEntries,
             pendingEntries,
             completedEntries,
             currentEntries,
@@ -377,11 +379,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
           favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}
           {...(ownership ? { ownership } : {})}
           drag={{ sensors, handleDragStart, handleDragEnd, isDraggingRef }}
-          dialogs={{
-            CheckinStatusDialog: atShowDialogSlots.CheckinStatusDialog,
-            RunOrderDialog: atShowDialogSlots.RunOrderDialog,
-            ScoresheetPrintDialog: atShowDialogSlots.ScoresheetPrintDialog,
-          }}
+          dialogs={atShowDialogSlots}
           layout={atShowLayoutSlots}
           context={{
             role: ringsideRole,
@@ -392,10 +390,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
           }}
-          onPrintSortOrder={onPrintSortOrder}
-          onApplyRunOrder={onApplyRunOrder}
-          getScoresheetNavigationRoute={getScoresheetNavigationRoute}
-          onPrefetchScoresheet={onPrefetchScoresheet}
         />
       </div>
     </RingsideProvider>

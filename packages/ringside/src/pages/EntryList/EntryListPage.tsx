@@ -22,59 +22,28 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StatusIcon, TabBar, type Tab } from '@myk9/ui';
-import { Trophy, ArrowUpDown, Users, ArrowLeft } from 'lucide-react';
-import type { EntryListPageProps, FilterPanelSortOption } from './pageProps';
+import { TabBar } from '@myk9/ui';
+import type { EntryListPageProps } from './pageProps';
+import type { EntryListHandlers } from './hookContracts';
+import { useAutoDismiss } from './hooks/useAutoDismiss';
 import type { PrintSortOrder } from './dialogSlots';
 import type { TabType } from './hooks/useEntryListFilters';
+import {
+  buildSectionTabs,
+  buildSortOptions,
+  buildStatusTabs,
+  defaultSortOrder,
+} from './entryListTabs';
 import {
   EntryListHeader,
   EntryListContent,
   ClassCompletionPresentation,
   EntryListDialogs,
+  EntryListEmptyState,
+  EntryListSkeleton,
   SuccessToast,
   FloatingDoneButton,
 } from './components';
-
-function EntryListSkeleton() {
-  return (
-    <div role="status" aria-label="Loading entries" className="space-y-4 p-3">
-      <div className="rounded-xl border bg-card p-3 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-2">
-            <div className="h-5 w-44 animate-pulse rounded-md bg-muted" />
-            <div className="h-4 w-28 animate-pulse rounded-md bg-muted" />
-          </div>
-          <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {Array.from({ length: 2 }).map((_, index) => (
-          <div key={index} className="h-10 animate-pulse rounded-lg bg-muted" />
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {Array.from({ length: 2 }).map((_, index) => (
-          <div key={index} className="h-10 animate-pulse rounded-lg bg-muted" />
-        ))}
-      </div>
-      <div className="space-y-2">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <div key={index} className="rounded-xl border bg-card p-4 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-12 animate-pulse rounded-lg bg-muted" />
-              <div className="min-w-0 flex-1 space-y-2">
-                <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
-                <div className="h-3 w-1/2 animate-pulse rounded-md bg-muted" />
-              </div>
-              <div className="h-7 w-16 animate-pulse rounded-full bg-muted" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export const EntryListPage: React.FC<EntryListPageProps> = ({
   classId,
@@ -90,9 +59,11 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   drag,
   dialogs,
   layout,
+  combined,
   context,
 }) => {
   const navigate = useNavigate();
+  const isCombined = Boolean(combined);
   const { entries, classInfo } = data;
   const { isRefreshing, fetchError, refresh } = dataStatus;
   const { showContext, hasPermission, role } = context;
@@ -168,46 +139,67 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     [printDialogType, handlers, setPrintDialogType]
   );
 
-  // Tab configuration.
-  // NOTE: Use entryCounts (from full entries array) instead of
-  // pendingEntries.length/completedEntries.length because those are
-  // derived from filteredEntries which is already tab-filtered,
-  // causing inactive tab to show 0.
-  const statusTabs: Tab[] = useMemo(
-    () => [
-      {
-        id: 'pending',
-        label: 'Pending',
-        icon: <StatusIcon family="entry" status="pending" size="sm" decorative />,
-        count: entryCounts.pending,
-      },
-      {
-        id: 'completed',
-        label: 'Completed',
-        icon: <StatusIcon family="entry" status="completed" size="sm" decorative />,
-        count: entryCounts.completed,
-      },
-    ],
+  // Applying a run-order preset: close the dialog, confirm, and drop back to
+  // run-order sort so the steward SEES the order they just applied.
+  //
+  // This lived inside the combined page, which meant the single-class route --
+  // where `showSuccessMessage` had no writer at all -- renumbered the whole ring
+  // and said nothing. A steward who taps "Apply" and sees no acknowledgement has
+  // no way to tell a completed renumber from one that never fired, and the
+  // natural response is to apply it again.
+  const showSuccess = useAutoDismiss(uiActions.setShowSuccessMessage, 2000);
+  const handleApplyRunOrder = useCallback<EntryListHandlers['handleApplyRunOrder']>(
+    async (preset, scope, renumberMode) => {
+      try {
+        await handlers.handleApplyRunOrder(preset, scope, renumberMode);
+      } catch {
+        // The handler already surfaced the failure. Close the dialog WITHOUT
+        // the success banner -- claiming success over a failed write is how a
+        // steward ends up running the ring from an order that was never saved.
+        setRunOrderDialogOpen(false);
+        return;
+      }
+      setRunOrderDialogOpen(false);
+      // 'manual' applies no order -- it opens drag mode, and the order is not
+      // updated until the steward finishes dragging.
+      if (preset === 'manual') return;
+      showSuccess();
+      setSortOrder('run');
+    },
+    [handlers, setRunOrderDialogOpen, showSuccess, setSortOrder]
+  );
+
+  const statusTabs = useMemo(
+    () => buildStatusTabs({ pending: entryCounts.pending, completed: entryCounts.completed }),
     [entryCounts.pending, entryCounts.completed]
   );
 
-  // Sort options
-  const sortOptions: FilterPanelSortOption[] = useMemo(() => {
-    const options: FilterPanelSortOption[] = [
-      { value: 'run', label: 'Run Order', icon: <ArrowUpDown size={16} /> },
-      { value: 'armband', label: 'Armband', icon: <ArrowUpDown size={16} /> },
-    ];
-    if (activeTab === 'completed') {
-      options.push({ value: 'placement', label: 'Placement', icon: <Trophy size={16} /> });
-    }
-    return options;
-  }, [activeTab]);
+  const sectionTabs = useMemo(
+    () => (isCombined ? buildSectionTabs(entries) : []),
+    [isCombined, entries]
+  );
 
-  const hasActiveFilters = searchTerm.length > 0 || sortOrder !== 'run';
+  const sortOptions = useMemo(
+    () => buildSortOptions(activeTab, isCombined),
+    [activeTab, isCombined]
+  );
 
-  // Loading state
+  const hasActiveFilters = searchTerm.length > 0 || sortOrder !== defaultSortOrder(isCombined);
+
+  const completionKey = combined ? `${combined.classIds.a}+${combined.classIds.b}` : classId;
+
+  // Loading state.
+  // Gate on LOAD COMPLETION, not emptiness. `!entries.length` -- the test the
+  // combined page used -- meant a class that genuinely has no entries shimmered
+  // forever, and a partially-arrived list read as complete the moment one entry
+  // landed.
   if (!hasCompletedInitialLoad && !fetchError) {
-    return <EntryListSkeleton />;
+    return (
+      <EntryListSkeleton
+        showSectionTabs={isCombined}
+        {...(isCombined ? { label: 'Loading combined entries' } : {})}
+      />
+    );
   }
 
   // Error state
@@ -223,30 +215,18 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     );
   }
 
-  // Empty state - class exists but has no entries
+  // Empty state - the class(es) exist but have no entries
   if (hasCompletedInitialLoad && entries.length === 0) {
     return (
-      <div className="p-3">
-        <div className="flex flex-col items-center justify-center gap-2 px-3 py-8 text-center text-muted-foreground">
-          {/* These used semantic class names (`empty-state-icon`, `btn
-              btn-secondary`, ...) that have had NO CSS since the Tailwind
-              migration deleted ringside.css -- so "Go Back" rendered as an
-              unstyled browser default with no 44px target. */}
-          <Users size={48} aria-hidden="true" />
-          <h2 className="m-0 text-lg font-semibold text-foreground">No Entries Yet</h2>
-          {classInfo?.className && <p className="text-sm font-medium">{classInfo.className}</p>}
-          <p className="max-w-sm text-sm">
-            This class doesn't have any entries yet. Entries will appear once they are registered.
-          </p>
-          <button
-            className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft size={16} aria-hidden="true" />
-            Go Back
-          </button>
-        </div>
-      </div>
+      <EntryListEmptyState
+        className={classInfo?.className}
+        description={
+          isCombined
+            ? 'Neither section has entries yet. They will appear here once they are registered.'
+            : "This class doesn't have any entries yet. Entries will appear once they are registered."
+        }
+        onGoBack={() => navigate(-1)}
+      />
     );
   }
 
@@ -262,10 +242,14 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         onFilterClick={() => setIsFilterPanelOpen(true)}
         onRefresh={handlers.handleManualRefresh}
         refreshLongPressHandlers={handlers.refreshLongPressHandlers}
+        showSectionsBadge={isCombined}
         actionsMenu={{
           showRunOrder: hasPermission('canChangeRunOrder'),
-          showRecalculatePlacements: hasPermission('canManageClasses'),
-          showClassSettings: hasPermission('canManageClasses'),
+          // Both act on ONE class. A combined A/B view has two, so there is no
+          // unambiguous target -- offering them would make the steward guess
+          // which section they were about to renumber or reconfigure.
+          showRecalculatePlacements: !isCombined && hasPermission('canManageClasses'),
+          showClassSettings: !isCombined && hasPermission('canManageClasses'),
           showPrintOptions: Boolean(role && role !== 'exhibitor') && !context.hidePrintOptions,
           isRecalculatingPlacements,
           onRunOrderClick: () => setRunOrderDialogOpen(true),
@@ -298,6 +282,15 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         ClassDetailsPopover={layout.ClassDetailsPopover}
       />
 
+      {combined && (
+        <TabBar
+          tabs={sectionTabs}
+          activeTab={combined.sectionFilter}
+          onTabChange={tabId => combined.setSectionFilter(tabId as 'all' | 'A' | 'B')}
+          className="full-width"
+        />
+      )}
+
       <TabBar
         tabs={statusTabs}
         activeTab={activeTab}
@@ -307,9 +300,15 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       <layout.PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
         <div className="isolate">
           <div className="pb-8 pt-2">
+            {/* `classId` here is only the celebration CLAIM KEY -- readiness
+                comes from `classInfo` plus `entries`. A combined A/B pair
+                therefore gets one composite key and one celebration, fired
+                only once BOTH sections are finalized and released, because
+                `localEntries` holds both. The combined route had no
+                completion view at all before the MYK9-260 collapse. */}
             <ClassCompletionPresentation
-              key={classId}
-              classId={classId}
+              key={completionKey}
+              classId={completionKey}
               classInfo={classInfo}
               entries={localEntries}
               activeTab={activeTab}
@@ -327,6 +326,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               onResetMenuClick={handlers.handleResetMenuClick}
               onSelfCheckinDisabled={() => setSelfCheckinDisabledDialog(true)}
               onPrefetch={handlers.handleEntryPrefetch}
+              showSectionBadges={isCombined}
               sensors={sensors}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
@@ -371,7 +371,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         handleStatusChange={handlers.handleStatusChange}
         runOrderDialogOpen={runOrderDialogOpen}
         setRunOrderDialogOpen={setRunOrderDialogOpen}
-        handleApplyRunOrder={handlers.handleApplyRunOrder}
+        handleApplyRunOrder={handleApplyRunOrder}
         handleOpenDragMode={handlers.handleOpenDragMode}
         classOptionsDialogOpen={classOptionsDialogOpen}
         setClassOptionsDialogOpen={setClassOptionsDialogOpen}

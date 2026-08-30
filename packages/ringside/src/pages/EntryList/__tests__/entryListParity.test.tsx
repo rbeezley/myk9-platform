@@ -1,38 +1,34 @@
 /**
- * PARITY suite — one behaviour checklist, run against BOTH entry-list pages.
+ * PARITY suite — one behaviour checklist, run against BOTH entry-list modes.
  *
- * `EntryListPage` and `CombinedEntryListPage` are two implementations of the
- * same surface (MYK9-260). Every difference the page-8b audit found between
- * them was a divergence rather than a design choice, and each one was invisible
- * to typecheck, lint and 18,000 passing tests: an endless skeleton on an empty
- * class, an empty ring presented as settled truth during first sync, syncs
- * dropped mid-drag, no containment banner, `window.alert()`, and a silent dead
- * tap on a scored dog.
+ * The combined Novice A/B view used to be a SECOND page (MYK9-260). Every
+ * difference the page-8b audit found between the two was a divergence rather
+ * than a design choice, and each one was invisible to typecheck, lint and
+ * 18,000 passing tests: an endless skeleton on an empty class, an empty ring
+ * presented as settled truth during first sync, syncs dropped mid-drag, no
+ * containment banner, `window.alert()`, and a silent dead tap on a scored dog.
  *
- * The point of running ONE list against BOTH pages is that a behaviour only one
- * of them satisfies fails here, whichever one it is — so the next divergence
- * cannot land quietly, and the eventual collapse of the two pages has an
- * explicit contract to merge against.
+ * That page is gone; `EntryListPage` now renders both modes. This suite was
+ * written against the two implementations and is kept pointed at the two MODES,
+ * because `combined` still branches the page in six places — the section tabs,
+ * the section badges, the sort options and default sort, the two class-scoped
+ * menu items, and the completion claim key. A branch is where the next
+ * divergence would start.
  *
- * Legitimate differences (the section filter, section badges, the combined sort)
- * are asserted in each page's own suite, not here. This file is only for
- * behaviour they must SHARE.
+ * The checklist below is only for behaviour the two modes must SHARE. The
+ * legitimate differences are asserted separately at the bottom of this file.
  *
- * LAYER ASYMMETRY, found while writing this and relevant to the collapse: the
- * two pages place the same behaviour at different levels. The dead-tap
- * explanation for an already-scored dog lives in the HOST handler for the
- * single-class route (`useAtShowEntryListHandlers.handleEntryClick`, tested
- * there) but INSIDE the page for the combined route (`handleScoreClick` →
- * injected `onNotify`, tested in `combinedEntryListLoadStates`). A page-level
- * parity suite therefore cannot compare it, which is why no case for it appears
- * below. The merge will have to pick one layer — the host handler is the better
- * home, since it already owns permission checks and navigation.
+ * LAYER ASYMMETRY, resolved by the collapse: the two pages used to place the
+ * same behaviour at different levels. The dead-tap explanation for an
+ * already-scored dog lived in the HOST handler for the single-class route but
+ * INSIDE the page for the combined route, so a page-level parity suite could
+ * not compare it and no case for it appears below. Both routes now share
+ * `useAtShowEntryListHandlers.handleEntryClick`, which is tested there.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryListPage } from '../EntryListPage';
-import { CombinedEntryListPage } from '../CombinedEntryListPage';
 import {
   contentSpy,
   makeCombinedProps,
@@ -52,8 +48,8 @@ vi.mock('../components/EntryListContent', () => ({
   },
 }));
 
-// The single-class page mounts this; the combined page does not (yet). It is
-// stubbed so the parity cases below exercise the same render path on both.
+// Stubbed in both modes: the completion view has its own suite, and mounting it
+// here would drag the celebration-claim storage into every parity case.
 vi.mock('../components/ClassCompletionPresentation', () => ({
   ClassCompletionPresentation: () => <div data-testid="class-completion" />,
 }));
@@ -74,11 +70,11 @@ const PAGES: PageUnderTest[] = [
       ),
   },
   {
-    name: 'CombinedEntryListPage (Section A/B)',
+    name: 'EntryListPage (combined Section A/B)',
     render: (cse = {}) =>
       void render(
         <MemoryRouter>
-          <CombinedEntryListPage {...makeCombinedProps(cse)} />
+          <EntryListPage {...makeCombinedProps(cse)} />
         </MemoryRouter>
       ),
   },
@@ -148,5 +144,36 @@ describe.each(PAGES)('entry-list parity — $name', page => {
 
       expect(screen.getByTestId('pull-to-refresh')).not.toBeNull();
     });
+  });
+});
+
+/**
+ * The mode differences, asserted so that "shared" above stays meaningful: a
+ * collapse that quietly dropped the section filter would pass every parity case
+ * while leaving a steward no way to work one section of a combined ring.
+ */
+describe('combined mode renders what single-class mode must not', () => {
+  const entries = [{ id: 'e1', classId: 'class-a' }];
+
+  it('offers the section filter only in combined mode', () => {
+    render(
+      <MemoryRouter>
+        <EntryListPage {...makeCombinedProps({ entries, loaded: true })} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: /all sections/i })).not.toBeNull();
+    expect(screen.getByRole('button', { name: /section a/i })).not.toBeNull();
+    expect(screen.getByRole('button', { name: /section b/i })).not.toBeNull();
+  });
+
+  it('shows no section filter on a single class', () => {
+    render(
+      <MemoryRouter>
+        <EntryListPage {...makeSingleClassProps({ entries, loaded: true })} />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('button', { name: /all sections/i })).toBeNull();
   });
 });

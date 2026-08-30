@@ -27,7 +27,7 @@ import {
   getStatusBadge,
   type ActionsMenuConfig,
 } from './entryListHeaderHelpers';
-import { parseTimeLimit } from '../combinedEntryListHelpers';
+import { parseTimeLimit } from '../entryListHelpers';
 import type {
   HamburgerMenuProps,
   CompactOfflineIndicatorProps,
@@ -84,7 +84,7 @@ export interface EntryListHeaderProps {
 }
 
 /**
- * Shared header component for EntryListPage and CombinedEntryListPage.
+ * Header for EntryListPage, in both its single-class and combined A/B modes.
  * Displays class information, status indicators, and action menus.
  */
 export const EntryListHeader: React.FC<EntryListHeaderProps> = ({

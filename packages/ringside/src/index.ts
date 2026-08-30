@@ -156,10 +156,7 @@ export { EntryListHeader } from './pages/EntryList';
 export type { EntryListHeaderProps } from './pages/EntryList';
 export { EntryListDialogs } from './pages/EntryList';
 export type { EntryListDialogsProps } from './pages/EntryList';
-export { CombinedEntryListDialogs } from './pages/EntryList';
-export type { CombinedEntryListDialogsProps } from './pages/EntryList';
 export { EntryListPage } from './pages/EntryList';
-export { CombinedEntryListPage } from './pages/EntryList';
 
 // Phase 1h-0 — ringside DogCard primitive (myK9Q-faithful). Hosts inject it
 // as the EntryList `layout.DogCard` slot; styled via `@myk9/ringside/styles`
@@ -192,13 +189,9 @@ export {
   ClassStatusBadge,
   SectionsBadge,
   getStatusBadge,
-  // Combined-page pure helpers
+  // Entry-list pure helpers
   parseOrganizationData,
-  compareEntries,
   parseTimeLimit,
-  getScoresheetNavigationRoute,
-  PRINT_DIALOG_TITLES,
-  useEntryHandlers,
 } from './pages/EntryList';
 export type {
   FloatingDoneButtonProps,
@@ -294,7 +287,7 @@ export type {
 // and `EntryListActions` so the host shim's wiring fails at compile
 // time if the hook drifts from the contract.
 //
-// `EntryListPageProps` and `CombinedEntryListPageProps` are the wide
+// `EntryListPageProps` is the wide
 // bags ringside's page (PR E2d-2b) will consume from the host shim.
 //
 // PR E2d-2a — `EntryListLayoutSlots` resolved from TODO placeholder
@@ -311,15 +304,10 @@ export type {
   EntryStatusCheckIn,
   LongPressHandlers,
   EntryListPageProps,
-  CombinedEntryListPageProps,
   EntryListUiState,
   EntryListUiActions,
   EntryListDerived,
   EntryListDrag,
-  CombinedEntryListUiState,
-  CombinedEntryListUiActions,
-  CombinedEntryListDerived,
-  CombinedEntryHandlers,
   EntryListLayoutSlots,
   // PR E2d-2a — per-primitive Props interfaces. apps/myk9q will switch
   // its component-side interfaces to these during/after E2d-2b for

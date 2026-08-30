@@ -3,7 +3,7 @@ import type { Entry } from '../../../stores/entryStore';
 import { gateRank } from '../quickAdvanceCandidates';
 
 /**
- * Shared filter/sort/search hook for EntryList and CombinedEntryList views.
+ * Filter/sort/search hook for both entry-list modes (single class, combined A/B).
  *
  * Pure client-side reducer over an in-memory entries array — no data
  * fetching, no app services. Moved into @myk9/ringside in PR E2a; the host
@@ -12,7 +12,21 @@ import { gateRank } from '../quickAdvanceCandidates';
  */
 
 export type TabType = 'pending' | 'completed';
-export type SortType = 'armband' | 'name' | 'handler' | 'breed' | 'manual' | 'run' | 'placement';
+/**
+ * `'section-armband'` groups a combined Novice A/B list by section before
+ * armband. It is meaningless on a single-class list, which has one section --
+ * it is in the union because both modes share one page (MYK9-260), and it
+ * degrades to plain armband order when no entry carries a section.
+ */
+export type SortType =
+  | 'armband'
+  | 'name'
+  | 'handler'
+  | 'breed'
+  | 'manual'
+  | 'run'
+  | 'placement'
+  | 'section-armband';
 export type SectionFilter = 'all' | 'A' | 'B';
 
 // =============================================================================
@@ -41,6 +55,13 @@ const sortComparators: Record<SortType, SortComparator> = {
     }
     // Fallback to exhibitorOrder from database
     return (a.exhibitorOrder || 0) - (b.exhibitorOrder || 0);
+  },
+
+  'section-armband': (a, b) => {
+    if (a.section && b.section && a.section !== b.section) {
+      return a.section.localeCompare(b.section);
+    }
+    return a.armband - b.armband;
   },
 
   run: (a, b) => {
@@ -152,7 +173,7 @@ interface UseEntryListFiltersOptions {
  *
  * @example
  * ```tsx
- * // Basic usage (CombinedEntryList)
+ * // Combined A/B usage
  * const { filteredEntries, searchTerm, setSearchTerm } = useEntryListFilters({
  *   entries: localEntries,
  *   supportSectionFilter: true

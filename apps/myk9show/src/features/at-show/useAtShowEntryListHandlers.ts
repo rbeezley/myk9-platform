@@ -45,9 +45,15 @@ export interface UseAtShowEntryListHandlersDeps {
   /** Permission predicate (already narrowed from RBAC by the auth adapter). */
   hasPermission: (permission: 'canScore') => boolean;
   /** react-router navigate. */
-  navigate: (to: string) => void;
+  navigate: (to: string, options?: { state?: unknown }) => void;
   /** Build the scoresheet route for an entry (wired fully in Phase 1h). */
   buildScoreSheetRoute: (entry: Entry) => string;
+  /**
+   * Router state to carry into the scoresheet. Combined A/B uses it to pass the
+   * PAIRED classId, so the sheet knows the other section is running alongside.
+   * Absent on a single-class list, which has no pair.
+   */
+  buildScoreSheetState?: ((entry: Entry) => unknown) | undefined;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
 
@@ -80,6 +86,7 @@ export function useAtShowEntryListHandlers(
     hasPermission,
     navigate,
     buildScoreSheetRoute,
+    buildScoreSheetState,
     refresh,
     setActiveStatusPopup,
     setActiveResetMenu,
@@ -171,9 +178,10 @@ export function useAtShowEntryListHandlers(
       }
       // INTENT: A card tap is a view/navigation intent. It must not enqueue a
       // ringside status mutation; explicit in-ring controls own that write.
-      navigate(buildScoreSheetRoute(entry));
+      const state = buildScoreSheetState?.(entry);
+      navigate(buildScoreSheetRoute(entry), ...(state === undefined ? [] : [{ state }]));
     },
-    [hasPermission, navigate, buildScoreSheetRoute]
+    [hasPermission, navigate, buildScoreSheetRoute, buildScoreSheetState]
   );
 
   // INTENT (spike): no prefetch cache in myK9Show yet — pure no-op.

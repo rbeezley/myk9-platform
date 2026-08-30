@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTimeLimit } from './combinedEntryListHelpers';
+import { parseTimeLimit } from './entryListHelpers';
 
 describe('parseTimeLimit', () => {
   it('parses the "<seconds>s" wire format used by single-class and combined paths', () => {

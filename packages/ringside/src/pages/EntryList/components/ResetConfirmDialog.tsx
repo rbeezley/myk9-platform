@@ -15,7 +15,7 @@ export interface ResetConfirmDialogProps {
 
 /**
  * Confirmation dialog for resetting an entry's score.
- * Shared between EntryList and CombinedEntryList.
+ * Used by both entry-list modes (single class and combined A/B).
  *
  * Previously authored against `ringside.css`, which #436 deleted without
  * migrating this component — so its `dialog-overlay` / `dialog-button` classes

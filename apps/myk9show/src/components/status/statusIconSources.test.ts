@@ -120,8 +120,11 @@ describe('status icon grammar source ownership', () => {
       'utf8'
     );
     const ringsideTabSources = [
-      'packages/ringside/src/pages/EntryList/EntryListPage.tsx',
-      'packages/ringside/src/pages/EntryList/CombinedEntryListPage.tsx',
+      // MYK9-260 collapsed CombinedEntryListPage into EntryListPage and moved
+      // the tab builders both MODES render into this one module, so it is now
+      // the only ringside file that names a tab icon. Listing EntryListPage
+      // here as well would assert nothing: it no longer builds tabs at all.
+      'packages/ringside/src/pages/EntryList/entryListTabs.tsx',
     ].map(sourcePath => readFileSync(resolve(WORKSPACE_ROOT, sourcePath), 'utf8'));
 
     expect(entriesStatistics).not.toMatch(/icon:\s*(?:CheckCircle|Clock)/);

@@ -157,23 +157,23 @@ describe('calculateTotalFees — wait-list lines are non-payable', () => {
 });
 
 describe('calculateTotalFees — multi-dog discount', () => {
-  it('does not apply the multi-dog discount when one entered dog has several owned dogs', () => {
+  it('does not apply an unhonored discount to three payable dogs', () => {
     const ownedDogs = [
       dog,
       { id: 'dog-2', name: 'Breeze' },
       { id: 'dog-3', name: 'Comet' },
-      { id: 'dog-4', name: 'Dash' },
     ];
+    const selections = ownedDogs.map(ownedDog => ({ ...selection, dogId: ownedDog.id }));
 
     const result = calculateTotalFees(
       ownedDogs.map(ownedDog => ownedDog.id),
-      [selection],
+      selections,
       ownedDogs,
-      [classObj]
+      [classObj, { id: 'class-2', entryFee: 25 }, { id: 'class-3', entryFee: 25 }]
     );
 
-    expect(result.subtotal).toBe(25);
+    expect(result.subtotal).toBe(75);
     expect(result.discounts).toEqual([]);
-    expect(result.total).toBe(25);
+    expect(result.total).toBe(75);
   });
 });

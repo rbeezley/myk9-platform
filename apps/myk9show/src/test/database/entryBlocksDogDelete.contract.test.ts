@@ -14,19 +14,28 @@
  * warning silently becomes a lie and the user meets a server error the dialog
  * told them would not happen.
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(import.meta.dirname, '../../../../..');
 
-const migration = readFileSync(
-  resolve(
-    repoRoot,
-    'supabase/migrations/20260830140000_soft_delete_dog_releases_armband_and_waitlist.sql'
-  ),
-  'utf8'
-);
+// The LATEST migration carrying the guard, not a hardcoded filename: the guard
+// has already moved once (20260830140000 -> 20260830190000, when the armband
+// half was reverted), and a pinned name would have kept reading the superseded
+// copy and passing while the live definition drifted away underneath it.
+const migrationsDir = resolve(repoRoot, 'supabase/migrations');
+const guardMigrationName = readdirSync(migrationsDir)
+  .filter(f => f.endsWith('.sql'))
+  .sort()
+  .reverse()
+  .find(f => readFileSync(resolve(migrationsDir, f), 'utf8').includes("ERRCODE = 'MK002'"));
+
+if (!guardMigrationName) {
+  throw new Error('No migration defines the MK002 delete guard');
+}
+
+const migration = readFileSync(resolve(migrationsDir, guardMigrationName), 'utf8');
 const reads = readFileSync(
   resolve(repoRoot, 'apps/myk9show/src/services/database/entries/reads.ts'),
   'utf8'

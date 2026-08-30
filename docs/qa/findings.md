@@ -326,7 +326,7 @@ Copy this block for each new finding.
 - **Confidence:** high; focused tests/typechecks plus controlled desktop/mobile browser persistence replay passed.
 - **Fix owner:** Show Creation Wizard edit-mode data-source contract and `showStore.updateShow` integration.
 - **Existing references:** Linear MYK9-257 (Done; exact issue, no duplicate); related MYK9-252 is the separate replicated-read truthfulness fix.
-- **Linear issue:** reused MYK9-257; no new issue created or modified.
+- **Linear issue:** reused MYK9-257; no new issue created. Closure evidence comment `1980fabb-1ada-4180-80db-bd4fcae88fbe` added to the existing Done issue.
 - **Proof required:** Satisfied by PR #1856 focused tests/typechecks and the 2026-08-30 secretary browser replay at 1280x720 and 390x844, including save persistence after navigation/reload and restoration of the seeded fixture.
 - **Notes:** Introduced by PR #1845 / commit `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`; source correction merged in PR #1856. Browser console retained existing local-dev errors/warnings, but no product failure blocked the replay. No application code was modified.
 

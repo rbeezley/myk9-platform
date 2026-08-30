@@ -157,16 +157,12 @@ PR smoke is intentionally small. Its purpose is to confirm the app boots, auth s
 | ---------------------------------------------------------------------- | ------------------------------------------ |
 | `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`               | App boots and basic page load works.       |
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts` | Current strict secretary regression proof. |
-| `apps/myk9show/src/test/e2e/admin/payout-ledger-responsive.spec.ts`    | Payout ledger row geometry at audited widths; fixture-backed reads, real site-admin sign-in.|
-| `apps/myk9show/src/test/e2e/legal-page-styles.spec.ts`                 | Legal page theme colors and dividers reaching rendered styles.|
-| `apps/myk9show/src/test/e2e/registrationProgressResponsive.spec.ts`    | Registration progress legibility across 3 viewports x light/dark.|
-| `apps/myk9show/src/test/e2e/load-readiness.spec.ts`                    | Opt-in read-only diagnostic; skipped unless LOAD_READINESS_DIAGNOSTIC=true.|
-| `apps/myk9show/src/test/e2e/load-request-phases.spec.ts`               | Opt-in bounded request-phase diagnostic; same explicit gate.     |
-| `apps/myk9show/src/test/e2e/secretary-task-walk.seed.spec.ts`          | Step-driven audit instrument; its own header says not a CI spec. |
 
 ## Nightly Active
 
-These specs are in the current scheduled Nightly routine. Do not add to this table until the relevant promotion rule passes: run the spec alone, run the full active Nightly command for that runner with retries disabled where applicable, then update this map.
+These specs run on a schedule. Do not add to this table until the relevant promotion rule passes: run the spec alone, run the full active Nightly command for that runner with retries disabled where applicable, then update this map.
+
+**The two subsections run on different schedules, in different workflows.** The Vitest block belongs to the nightly read-only health routine (`nightly-health.yml`, daily 06:00 UTC). Every Playwright entry below is a member of `REGRESSION_SPECS` in `apps/myk9show/playwright.ci.config.ts`, which runs in **Playwright Regression** (`nightly-e2e.yml`) — **weekly**, Mondays 07:00 UTC, against an isolated Supabase target, and gated separately on `MYK9SHOW_REGRESSION_CI_ENABLED`. Reading the heading as "this ran last night" overstates the Playwright half by up to seven days; that workflow was red for four consecutive weeks in August 2026 without anyone noticing.
 
 ### Vitest
 
@@ -182,20 +178,12 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 
 | Spec                                                                        | Why                                                                  |
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`                | Public registration route/auth/navigation smoke.                     |
 | `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`                | Public browse-to-detail navigation.                                  |
 | `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                   | Current public, secretary, exhibitor, and judge route smoke.         |
 | `apps/myk9show/src/test/e2e/authentication-validation.spec.ts`              | Broader authentication validation in the scheduled regression suite. |
-| `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts`                | Public Browse Shows mobile layout and touch targets.                 |
 | `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`                   | Route-health sweep: 6 role groups, console/network/overflow.         |
-| `apps/myk9show/src/test/e2e/registration/index.spec.ts`                     | Maintained registration spec inventory guard.                        |
-| `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`    | Stable secretary existing-user registration guard.                   |
-| `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`         | Secretary mail-in person, dog, and dog-registration path.            |
-| `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`      | Focused one-dog, one-class registration path.                        |
-| `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                   | Stable secretary entry wizard confirmation walk.                     |
 | `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`                | Narrow class-creation route/template smoke.                          |
 | `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`         | Stable secretary show wizard smoke.                                  |
-| `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`        | Officials and judges picker smoke.                                   |
 | `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`                    | App boots and secretary sign-in works.                               |
 | `apps/myk9show/src/test/e2e/slice2-dog-workspace-evidence.spec.ts`          | Maintained read-only dog workspace regression evidence.              |
 | `apps/myk9show/src/test/e2e/admin/userRosterDrilldown.spec.ts`              | Admin roster-to-person drill-down and reversible URL state.          |
@@ -207,8 +195,8 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 | `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`         | Stable secretary disposable entry management.                        |
 | `apps/myk9show/src/test/e2e/uat/secretary/evidence.spec.ts`                 | Stable secretary evidence pass.                                      |
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts`      | Strict secretary regression proof.                                   |
-| `apps/myk9show/src/test/e2e/myEntriesZoomReflow.spec.ts`                    | Exhibitor My Shows zoom/reflow guard; in REGRESSION_SPECS.           |
-| `apps/myk9show/src/test/e2e/offline-cold-boot.spec.ts`                      | Offline cold-boot role hydration (MYK9-200/203); in REGRESSION_SPECS.|
+| `apps/myk9show/src/test/e2e/myEntriesZoomReflow.spec.ts`                    | Exhibitor My Shows zoom/reflow guard.                                |
+| `apps/myk9show/src/test/e2e/offline-cold-boot.spec.ts`                      | Offline cold-boot role hydration (MYK9-200 / MYK9-203).              |
 
 ## Nightly Candidates / Repair Queue
 
@@ -231,6 +219,14 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/registration/exhibitorSelfRegistration.spec.ts` | Needs an isolated fixture with an open entry window; the default Heartland fixture is closed. |
 | `apps/myk9show/src/test/e2e/scoring/scoringWorkflow.spec.ts`                | Obsolete myK9Show scoring UI; rewrite myK9Q-first.                                            |
 | `apps/myk9show/src/test/e2e/show/showManagement.spec.ts`                    | Obsolete all-in-one show workflow; split/rewrite.                                             |
+| `apps/myk9show/src/test/e2e/basic/registrationSmoke.spec.ts`                | Public registration route/auth/navigation smoke. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
+| `apps/myk9show/src/test/e2e/public-shows-responsive.spec.ts`                | Public Browse Shows mobile layout and touch targets. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
+| `apps/myk9show/src/test/e2e/registration/index.spec.ts`                     | Maintained registration spec inventory guard. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
+| `apps/myk9show/src/test/e2e/registration/secretaryExistingUsers.spec.ts`    | Stable secretary existing-user registration guard. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
+| `apps/myk9show/src/test/e2e/registration/secretaryNewUsers.spec.ts`         | Secretary mail-in person, dog, and dog-registration path. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
+| `apps/myk9show/src/test/e2e/registration/singleDogSingleClass.spec.ts`      | Focused one-dog, one-class registration path. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
+| `apps/myk9show/src/test/e2e/secretary-entry-walk.spec.ts`                   | Secretary entry creation. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
+| `apps/myk9show/src/test/e2e/secretary/show-wizard-officials.spec.ts`        | Officials and judges picker smoke. Listed as Nightly Active until 2026-08-30 but selected by no config array and named by no script.|
 
 ## Feature Audit
 
@@ -289,6 +285,9 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/shows-page-ui-improvements.spec.ts`             | Shows page UI improvements.                                                                             |
 | `apps/myk9show/src/test/e2e/trials-page-ui.spec.ts`                         | Trials page UI.                                                                                         |
 | `apps/myk9show/src/test/e2e/user-creation-validation.spec.ts`               | User creation validation.                                                                               |
+| `apps/myk9show/src/test/e2e/admin/payout-ledger-responsive.spec.ts`         | Payout ledger row geometry at audited widths; fixture-backed reads.                                     |
+| `apps/myk9show/src/test/e2e/legal-page-styles.spec.ts`                      | Legal page theme colors and dividers reaching rendered styles.                                          |
+| `apps/myk9show/src/test/e2e/registrationProgressResponsive.spec.ts`         | Registration progress legibility across 3 viewports x light/dark.                                       |
 
 ## Manual Debug
 
@@ -309,6 +308,9 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/slice2-debug.spec.ts`                            | Temporary career investigation probe.                   |
 | `apps/myk9show/src/test/e2e/slice3b-entitlement-transition-evidence.spec.ts` | Deliberate staging grant/revoke evidence walk.          |
 | `apps/myk9show/src/test/e2e/slice5-premium-capability-states.spec.ts`        | Deliberate staging write-and-cleanup evidence walk.     |
+| `apps/myk9show/src/test/e2e/load-readiness.spec.ts`                          | Opt-in read-only diagnostic; skipped unless LOAD_READINESS_DIAGNOSTIC=true.|
+| `apps/myk9show/src/test/e2e/load-request-phases.spec.ts`                     | Opt-in bounded request-phase diagnostic; same explicit gate.|
+| `apps/myk9show/src/test/e2e/secretary-task-walk.seed.spec.ts`                | Step-driven audit instrument; its own header says not a CI spec.|
 
 ## Candidate Delete
 

@@ -30,6 +30,8 @@ export interface PaymentStepProps {
   capacityReady?: boolean | undefined;
   /** Availability query error, when capacityReady is false because of a failure. */
   capacityError?: string | null | undefined;
+  /** Availability could not be read at all, as opposed to still loading. */
+  capacityUnavailable?: boolean | undefined;
   /** Selected classes that are full but accept a wait-list request. */
   waitlistClassIds?: ReadonlySet<string> | undefined;
   /** Selected classes that are full and cannot accept a wait-list request. */

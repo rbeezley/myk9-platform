@@ -137,12 +137,12 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
 
           {/* Progress Indicator */}
           <div className="space-y-2">
-            <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-between text-sm text-muted-foreground">
               <span>Progress</span>
               <span>{Math.round(getProgress())}%</span>
             </div>
             <Progress value={getProgress()} className="w-full" />
-            <div className="flex justify-between text-xs text-gray-500">
+            <div className="flex justify-between text-xs text-muted-foreground">
               <span className={flowState.step === 'exhibitor' ? 'font-semibold' : ''}>
                 Create Exhibitor
               </span>
@@ -160,7 +160,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               <div className="text-center space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold">Create New Exhibitor</h3>
-                  <p className="text-gray-600">
+                  <p className="text-muted-foreground">
                     First, let's create the exhibitor profile. This person will own the dog(s) being
                     registered.
                   </p>
@@ -177,15 +177,15 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 )}
 
                 {flowState.exhibitor && (
-                  <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                  <div className="p-4 border rounded-lg bg-success/10 border-success/20">
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                      <span className="font-semibold text-green-800">Exhibitor Created</span>
+                      <CheckCircle className="h-5 w-5 text-success" />
+                      <span className="font-semibold text-success">Exhibitor Created</span>
                     </div>
                     <p className="text-sm">
                       {flowState.exhibitor.firstName} {flowState.exhibitor.lastName}
                     </p>
-                    <p className="text-sm text-gray-600">{flowState.exhibitor.email}</p>
+                    <p className="text-sm text-muted-foreground">{flowState.exhibitor.email}</p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -204,7 +204,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               <div className="space-y-4">
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold">Add Dog(s)</h3>
-                  <p className="text-gray-600">
+                  <p className="text-muted-foreground">
                     Now let's add the dog(s) for {flowState.exhibitor?.firstName}{' '}
                     {flowState.exhibitor?.lastName}.
                     {mode === 'batch' ? ' You can add multiple dogs.' : ' Add one dog to continue.'}
@@ -228,7 +228,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                             </Badge>
                             <Badge variant="secondary">{dog.gender}</Badge>
                           </div>
-                          <p className="text-sm text-gray-600">{dog.name}</p>
+                          <p className="text-sm text-muted-foreground">{dog.name}</p>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -284,7 +284,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               <div className="space-y-6">
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold">Review & Complete</h3>
-                  <p className="text-gray-600">
+                  <p className="text-muted-foreground">
                     Please review the exhibitor and dog information before completing the setup.
                   </p>
                 </div>
@@ -296,18 +296,18 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                       <UserIcon className="h-4 w-4" />
                       Exhibitor Information
                     </h4>
-                    <div className="p-4 border rounded-lg bg-gray-50">
+                    <div className="p-4 border border-border rounded-lg bg-muted">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="font-medium">
                             {flowState.exhibitor.firstName} {flowState.exhibitor.lastName}
                           </p>
-                          <p className="text-sm text-gray-600">{flowState.exhibitor.email}</p>
-                          <p className="text-sm text-gray-600">{flowState.exhibitor.phone}</p>
+                          <p className="text-sm text-muted-foreground">{flowState.exhibitor.email}</p>
+                          <p className="text-sm text-muted-foreground">{flowState.exhibitor.phone}</p>
                         </div>
                         <div>
                           {flowState.exhibitor.streetAddress && (
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-muted-foreground">
                               <p>{flowState.exhibitor.streetAddress}</p>
                               <p>
                                 {flowState.exhibitor.city}, {flowState.exhibitor.state}{' '}
@@ -339,15 +339,15 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                               <Badge variant="secondary">{dog.gender}</Badge>
                             </div>
                             {getDogRegisteredName(dog) && (
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-muted-foreground">
                                 Registered Name: {getDogRegisteredName(dog)}
                               </p>
                             )}
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                               Born: {dog.dateOfBirth} (Age: {dog.age})
                             </p>
                             {dog.registrations && dog.registrations.length > 0 && (
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-muted-foreground">
                                 Registration: {dog.registrations[0].organization} -{' '}
                                 {dog.registrations[0].registrationNumber}
                               </p>

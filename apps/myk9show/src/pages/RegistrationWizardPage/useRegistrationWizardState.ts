@@ -338,6 +338,16 @@ export function useRegistrationWizardState() {
           !capacityError &&
           registrationCapacity.unknownClassIds.size === 0;
 
+  // `capacityReady === false` covers two states the user experiences very
+  // differently: still loading, and cannot be loaded. (Offline the query pauses
+  // rather than failing — see isAvailabilityUnreadable.) Treating "cannot be
+  // loaded" as "still checking" tells the exhibitor to wait for something that
+  // will never arrive.
+  const capacityUnavailable =
+    capacityCheckEnabled &&
+    !capacityLoading &&
+    (!!capacityError || registrationCapacity.unknownClassIds.size > 0);
+
   const liveTotalFees = useMemo(
     () =>
       calculateTotalFees(
@@ -431,6 +441,7 @@ export function useRegistrationWizardState() {
     agreedToEntryAgreement,
     capacityReady,
     blockedClassCount: registrationCapacity.blockedClassIds.size,
+    capacityUnavailable,
   });
   const canProceed = () => proceedBlocked === null;
   const isLastStep = currentStep === steps.length - 1;
@@ -525,6 +536,7 @@ export function useRegistrationWizardState() {
     liveTotalFees,
     capacityReady,
     capacityError,
+    capacityUnavailable,
     waitlistClassIds: registrationCapacity.waitlistClassIds,
     blockedClassIds: registrationCapacity.blockedClassIds,
     entryCloseAvailability,

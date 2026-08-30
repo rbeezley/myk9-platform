@@ -1,5 +1,4 @@
-import type { ClassSelectionData, PaymentStatus } from '@/types/show-registration-types';
-import { PaymentStatus as PaymentStatusEnum } from '@/types/show-registration-types';
+import type { ClassSelectionData } from '@/types/show-registration-types';
 import type { FeeCalculationResult, FeeBreakdownItem } from './types';
 import { getDogDisplayName } from '@/types/dog-types';
 
@@ -132,7 +131,9 @@ export function calculateTotalFees(
   });
 
   // Keep the result shape ready for server-honoured discounts, but do not
-  // promise a discount that the checkout path does not apply.
+  // promise a discount that the checkout path does not apply. Nothing on the
+  // money path has ever applied one: the cart, registrationCartCheckout and
+  // every edge function charge the full entry fee per line. See MYK9-265.
   const discounts: FeeCalculationResult['discounts'] = [];
   const total = subtotal;
 
@@ -188,23 +189,6 @@ export function formatExpiryDate(value: string): string {
  */
 export function stripNonDigits(value: string): string {
   return value.replace(/\D/g, '');
-}
-
-/**
- * Get the Tailwind badge color classes for a PaymentStatus.
- */
-export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
-  switch (status) {
-    case PaymentStatusEnum.PAID_ONLINE:
-    case PaymentStatusEnum.PAID_BY_CHECK:
-    case PaymentStatusEnum.PAID_BY_CASH:
-      return 'bg-teal-100 text-teal-800 border-teal-200';
-    case PaymentStatusEnum.REFUNDED:
-    case PaymentStatusEnum.PARTIAL_REFUND:
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
 }
 
 /**

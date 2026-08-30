@@ -398,6 +398,102 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
   });
 });
 
+describe('ClassSelectionStep — availability that could not be read', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /**
+   * Offline the availability query PAUSES: isLoading false, error null, no
+   * rows. That is indistinguishable, to a bare `cls.isFull &&` check, from
+   * every class having room — so the step used to render a full class as
+   * selectable with no badge, and the exhibitor only discovered it at payment.
+   * These mount the real component: the bug was a dropped projection, which a
+   * test of the predicate alone cannot see.
+   */
+  it('says availability is unknown when the query is paused offline', async () => {
+    setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
+    mockUseClassAvailability.mockReturnValue({
+      classes: [],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      totalSpotsAvailable: 0,
+      fullClasses: 0,
+    });
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+    expect(await screen.findByText(/could not check which classes still have room/i)).toBeInTheDocument();
+  });
+
+  it('says availability is unknown when the query errored', async () => {
+    setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
+    mockUseClassAvailability.mockReturnValue({
+      classes: [],
+      isLoading: false,
+      error: 'network unavailable',
+      refetch: vi.fn(),
+      totalSpotsAvailable: 0,
+      fullClasses: 0,
+    });
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+    expect(await screen.findByText(/could not check which classes still have room/i)).toBeInTheDocument();
+  });
+
+  it('does not claim availability is unknown once it resolves', async () => {
+    setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+    expect(await screen.findByText('Novice A')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/could not check which classes still have room/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('stays quiet while availability is still loading', async () => {
+    setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });
+    mockUseClassAvailability.mockReturnValue({
+      classes: [],
+      isLoading: true,
+      error: null,
+      refetch: vi.fn(),
+      totalSpotsAvailable: 0,
+      fullClasses: 0,
+    });
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+    await screen.findByText('Trial 1');
+    expect(
+      screen.queryByText(/could not check which classes still have room/i)
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('ClassSelectionStep — empty class inventory', () => {
   it('renders availability-backed classes when trialStore has trials but no class groups yet', async () => {
     setupDefaultMocks({ judgeDayFull: false, waitlistCount: 0 });

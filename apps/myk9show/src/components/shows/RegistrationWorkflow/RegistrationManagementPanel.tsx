@@ -17,7 +17,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { getPaymentMethodDisplay, getPaymentStatusBadgeColor } from './ConfirmationStep.helpers';
+import {
+  getPaymentMethodDisplay,
+  getPaymentStatusBadgeColor,
+  getPaymentStatusDisplay,
+} from './ConfirmationStep.helpers';
 import { StatusBadge } from '@/components/status';
 import type { ArmbandAssignment } from './ConfirmationStep.types';
 
@@ -75,18 +79,18 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
             <TabsContent value="summary" className="space-y-4">
               <div className="space-y-4">
                 {/* Registration Overview */}
-                <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-3 gap-4 p-4 bg-muted border border-border rounded-lg">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">{selectedDogs.length}</div>
-                    <div className="text-xs text-gray-600">Dogs Registered</div>
+                    <div className="text-2xl font-bold text-foreground">{selectedDogs.length}</div>
+                    <div className="text-xs text-muted-foreground">Dogs Registered</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">{classSelectionsCount}</div>
-                    <div className="text-xs text-gray-600">Total Classes</div>
+                    <div className="text-2xl font-bold text-foreground">{classSelectionsCount}</div>
+                    <div className="text-xs text-muted-foreground">Total Classes</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-700">${totalFees.toFixed(0)}</div>
-                    <div className="text-xs text-green-600">Total Fees</div>
+                    <div className="text-2xl font-bold text-success">${totalFees.toFixed(0)}</div>
+                    <div className="text-xs text-success">Total Fees</div>
                   </div>
                 </div>
 
@@ -94,7 +98,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Registration ID</Label>
-                    <div className="text-sm text-gray-600">{registrationNumber}</div>
+                    <div className="text-sm text-muted-foreground">{registrationNumber}</div>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Entry Status</Label>
@@ -106,13 +110,13 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
                     <Label className="text-sm font-medium">Payment Status</Label>
                     <div className="mt-1">
                       <Badge className={getPaymentStatusBadgeColor(paymentStatus)}>
-                        {paymentStatus}
+                        {getPaymentStatusDisplay(paymentStatus)}
                       </Badge>
                     </div>
                   </div>
                   <div>
                     <Label className="text-sm font-medium">Payment Method</Label>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       {getPaymentMethodDisplay(paymentMethod)}
                     </div>
                   </div>
@@ -164,7 +168,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
             </TabsContent>
 
             <TabsContent value="armbands" className="space-y-4">
-              <div className="text-sm text-gray-600 mb-4">
+              <div className="text-sm text-muted-foreground mb-4">
                 Assign armband numbers for each dog. Numbers should be unique within each ring.
               </div>
               {selectedDogs.map(dogId => {

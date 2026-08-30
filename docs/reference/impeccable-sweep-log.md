@@ -60,28 +60,28 @@ Dispatched individually via `/impeccable-page`, not as one unattended sweep, so
 there is no single base or stack. Each row is the last impeccable pass merged to
 `main` for that page.
 
-| #   | Page                              | Route                           | Last pass      | PR(s)                                                                                      |
-| --- | --------------------------------- | ------------------------------- | -------------- | ------------------------------------------------------------------------------------------ |
-| 1   | ~~Show Workbench — Setup~~        | ~~/shows/:id/setup~~            | —              | **RETIRED** — now a `<Navigate>` to `/shows/:id`; not a valid target                       |
-| 2   | Show Desk                         | /shows/:showId/show-desk        | 2026-08-28     | #1839                                                                                      |
-| 3   | Entry Management                  | /shows/:showId/entry-management | 2026-08-28     | #1835                                                                                      |
-| 4   | Reports                           | /shows/:id/reports              | 2026-08-23     | #1771                                                                                      |
-| 5   | Results Control / Submit Results  | /shows/:id/results-*            | 2026-08-28     | #1840                                                                                      |
-| 6   | Show creation wizard              | /secretary/create-show/wizard   | 2026-08-28     | #1845                                                                                      |
-| 7   | Public show landing               | /shows/:id                      | 2026-08-29     | #1851                                                                                      |
-| 8   | At-Show — class picker            | /at-show/:showId                | 2026-08-27     | #1827                                                                                      |
-| 8b  | At-Show — entry list + scoresheet | /at-show/:showId/class/:classId | 2026-08-29     | #1863 — structural cause since closed, see below                                           |
-| 9   | Admin Dashboard                   | /admin/dashboard                | 2026-08-19     | #1694                                                                                      |
-| 10  | User Management                   | /admin/users                    | 2026-08-19     | #1682, #1695                                                                               |
-| 11  | Payout Ledger                     | /admin/payouts                  | 2026-08-21     | #1692, #1731, #1740, #1789                                                                 |
-| 12  | Permission Management             | /admin/permissions              | 2026-08-24     | #1691, #1703, #1730, #1781                                                                 |
-| 13  | Role Requests                     | /admin/role-requests            | 2026-08-19     | #1693                                                                                      |
-| 14  | My Entries / My Shows             | /exhibitor/entries              | 2026-08-29     | #1696, #1862                                                                               |
-| 15  | **Show Registration wizard**      | /shows/:showId/register         | **2026-06-28** | #1008 — **OVERDUE**, queued as [MYK9-264](https://linear.app/myk9-platform/issue/MYK9-264) |
-| 16  | Exhibitor Payments                | /exhibitor/payments             | 2026-08-20     | #1697, #1704, #1705                                                                        |
-| 17  | Cart                              | /cart                           | 2026-08-20     | #1700                                                                                      |
-| 18  | Club Members                      | /club-admin/members             | 2026-08-20     | #1708                                                                                      |
-| 19  | Club Payments                     | /club-admin/payments            | 2026-08-21     | #1711, #1721, #1723, #1725                                                                 |
+| #   | Page                              | Route                           | Last pass  | PR(s)                                                                |
+| --- | --------------------------------- | ------------------------------- | ---------- | -------------------------------------------------------------------- |
+| 1   | ~~Show Workbench — Setup~~        | ~~/shows/:id/setup~~            | —          | **RETIRED** — now a `<Navigate>` to `/shows/:id`; not a valid target |
+| 2   | Show Desk                         | /shows/:showId/show-desk        | 2026-08-28 | #1839                                                                |
+| 3   | Entry Management                  | /shows/:showId/entry-management | 2026-08-28 | #1835                                                                |
+| 4   | Reports                           | /shows/:id/reports              | 2026-08-23 | #1771                                                                |
+| 5   | Results Control / Submit Results  | /shows/:id/results-*            | 2026-08-28 | #1840                                                                |
+| 6   | Show creation wizard              | /secretary/create-show/wizard   | 2026-08-28 | #1845                                                                |
+| 7   | Public show landing               | /shows/:id                      | 2026-08-29 | #1851                                                                |
+| 8   | At-Show — class picker            | /at-show/:showId                | 2026-08-27 | #1827                                                                |
+| 8b  | At-Show — entry list + scoresheet | /at-show/:showId/class/:classId | 2026-08-29 | #1863 — structural cause since closed, see below                     |
+| 9   | Admin Dashboard                   | /admin/dashboard                | 2026-08-19 | #1694                                                                |
+| 10  | User Management                   | /admin/users                    | 2026-08-19 | #1682, #1695                                                         |
+| 11  | Payout Ledger                     | /admin/payouts                  | 2026-08-21 | #1692, #1731, #1740, #1789                                           |
+| 12  | Permission Management             | /admin/permissions              | 2026-08-24 | #1691, #1703, #1730, #1781                                           |
+| 13  | Role Requests                     | /admin/role-requests            | 2026-08-19 | #1693                                                                |
+| 14  | My Entries / My Shows             | /exhibitor/entries              | 2026-08-29 | #1696, #1862                                                         |
+| 15  | Show Registration wizard          | /shows/:showId/register         | 2026-08-30 | MYK9-264 — see round 3 below                                         |
+| 16  | Exhibitor Payments                | /exhibitor/payments             | 2026-08-20 | #1697, #1704, #1705                                                  |
+| 17  | Cart                              | /cart                           | 2026-08-20 | #1700                                                                |
+| 18  | Club Members                      | /club-admin/members             | 2026-08-20 | #1708                                                                |
+| 19  | Club Payments                     | /club-admin/payments            | 2026-08-21 | #1711, #1721, #1723, #1725                                           |
 
 ### Structural outcomes
 
@@ -89,8 +89,8 @@ When a page's findings turn out to share a cause, the cause gets its own issue
 rather than another page pass. Record them here so a later run does not re-file
 the same thing, and knows the page's mechanical row is not the whole story.
 
-| Page | Issue | Finding | Closed by |
-| --- | --- | --- | --- |
+| Page                    | Issue                                                       | Finding                                                                                                                                                                                                                                                                                                                                                                                       | Closed by                                                        |
+| ----------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | 8b — At-Show entry list | [MYK9-260](https://linear.app/myk9-platform/issue/MYK9-260) | The combined Novice A/B list was a SECOND implementation of the single-class one. Every difference between them was a divergence, not a design choice — endless skeleton on an empty class, empty ring shown as settled truth during first sync, syncs dropped mid-drag, no containment banner, `window.alert()`, a dead tap on a scored dog. Fixing them one at a time only reset the clock. | #1875 (collapse, −539 lines), #1878 (500-line ceiling follow-up) |
 
 Worth expecting more of this shape: a page that keeps yielding mechanical
@@ -113,6 +113,35 @@ swept-once orphans with no scheduled revisit.
 | System Health board   | /admin/health     | 2026-08-19 | #1689 |
 | Club onboarding inbox | /admin/onboarding | 2026-08-19 | #1690 |
 | Browse Dogs           | /dogs             | 2026-08-20 | #1698 |
+
+## Round 3 — Show Registration wizard (2026-08-30)
+
+Queue page 15, run on its own after the round-2 revisit skipped it. Scores
+before → after: a11y 2→2, performance 3→3, responsive 2→3, theming 2→2,
+error/edge 2→2. Only responsive cleared the 3/4 bar; the shortfalls are recorded
+in the PR body rather than papered over.
+
+**The lesson worth keeping.** The run's headline finding — "the wizard charges
+for wait-list spots it shows as free" — was WRONG, and the fix built on it was a
+net regression that had to be reverted. `registrationToCartItems` does bill every
+line at full fee, which is what the first two evaluators saw; but
+`submitRegistrationCartCheckout` only builds the cart and navigates to `/cart`,
+and **CartPage** is what charges — it refetches capacity, splits the cart via
+`splitCartItemsByJudgeDayCapacity`, records wait-list lines through
+`checkoutWithWaitlist` → `add_to_waitlist`, and sends only confirmed lines to
+Stripe (MYK9-122). Building the cart is not the charge. Two independent Opus
+evaluators and the dispatcher all accepted the premise; only the adversarial
+confirm round caught it. **Before asserting a money-path defect, follow the
+navigation to the surface that actually takes payment** — stopping at the
+function that computes line prices is not tracing the money.
+
+The confirm round also found that six of the run's own fixes introduced new
+defects (a contradictory pair of availability messages, a heading skip created
+by adding an `h1`, an assertive `role="alert"` on an informational notice, a
+`bg-muted` panel invisible where `--muted` equals `--card`, a weakened dark-mode
+shadow, and a selected state left conveying by colour alone). All were repaired
+in the same PR. A confirm round that only re-scores is not doing its job; this
+one earned its cost several times over.
 
 ## Never swept
 

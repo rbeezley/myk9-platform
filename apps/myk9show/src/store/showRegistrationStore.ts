@@ -6,7 +6,6 @@ import {
   ShowEntry,
   ClassEntry,
   RegistrationFormData,
-  FeeCalculation,
   EntryStatus,
   PaymentStatus,
   StatusChange,
@@ -113,7 +112,6 @@ interface ShowRegistrationStore {
   getStatusHistory: (registrationId: string) => StatusChange[];
 
   // Fee calculation
-  calculateFees: (registration: ShowRegistration) => FeeCalculation;
 
   // Submission
   submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
@@ -381,40 +379,6 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
             state
           )
         );
-      },
-
-      calculateFees: registration => {
-        const breakdown = registration.entries.map(entry => {
-          const classes = entry.classes.map(cls => ({
-            className: cls.className,
-            fee: cls.fee,
-          }));
-
-          const subtotal = classes.reduce((sum, cls) => sum + cls.fee, 0);
-
-          return {
-            dogId: entry.dogId,
-            dogName: entry.dogName,
-            classes,
-            subtotal,
-          };
-        });
-
-        const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0);
-
-        // Keep the result shape ready for server-honoured discounts, but do
-        // not promise a discount that the checkout path does not apply.
-        const discounts: FeeCalculation['discounts'] = [];
-        const taxes = 0;
-        const total = subtotal + taxes;
-
-        return {
-          subtotal,
-          discounts,
-          taxes,
-          total,
-          breakdown,
-        };
       },
 
       submitRegistration: async (registrationId, paymentDetails) => {

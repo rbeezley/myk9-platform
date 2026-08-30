@@ -1,9 +1,11 @@
 /* myK9 Registration Workflow Styles */
 
 /* Main workflow container */
+/* Inherits the app typeface deliberately. This block used to hardcode
+   -apple-system/SF Pro, which overrode Montserrat on the two steps that import
+   this sheet — so the registration flow rendered in a different face from every
+   other page. */
 .myk9-registration-workflow {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
 }
@@ -24,29 +26,17 @@
 .myk9-dog-card:hover {
   border-color: color-mix(in srgb, var(--primary) 30%, transparent) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: var(--shadow-card-hover) !important;
 }
 
+/* Selected state is carried by border WEIGHT as well as colour — the 3px
+   gradient ::before that used to do this was removed as decoration, which left
+   the state colour-only. */
 .myk9-dog-card.selected {
+  border-width: 2px !important;
   border-color: var(--primary) !important;
   background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 10%, transparent) !important;
-}
-
-.myk9-dog-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.myk9-dog-card.selected::before {
-  opacity: 1;
 }
 
 /* Class Selection Grid */
@@ -80,7 +70,10 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  /* 14px floor. These chips are the primary content an exhibitor reads to pick
+     classes, often outdoors on a phone; the type scale's smallest step is not
+     the right size for the decision the screen exists to support. */
+  font-size: 14px;
   color: var(--foreground);
   background: var(--background);
   transition:
@@ -133,7 +126,8 @@
        one-handed at a show. Width can shrink, height should not. */
     min-height: 44px;
     padding: 6px 10px;
-    font-size: 12px;
+    /* Held at the 14px floor — the phone is where this is hardest to read. */
+    font-size: 14px;
   }
 
   .myk9-element-card {
@@ -146,7 +140,7 @@
    system setting and bypass the in-app theme switch (project watchlist #2). */
 .dark .myk9-dog-card:hover,
 .dark .myk9-class-card:hover {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: var(--shadow-card-hover) !important;
 }
 
 .dark .myk9-dog-card.selected,

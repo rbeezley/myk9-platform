@@ -36,17 +36,22 @@ import {
   TrialSection,
   NoTrialsAlert,
   NoClassesAlert,
+  AvailabilityUnreadableNotice,
   ElementCard,
   DogCartSummary,
   OverallCartSummary,
 } from './ClassSelectionStep.components';
 import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
-import { listRegistries } from '@/features/registries';
+import { resolveConfiguredRegistryId } from '@/features/registries';
 import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
+import {
+  buildAvailabilityMap,
+  isAvailabilityUnreadable,
+} from './ClassSelectionStep.availability';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -90,7 +95,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const removeItem = useCartStore(state => state.removeItem);
 
   const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
-  const { classes: availabilityClasses } = useClassAvailability(showId);
+  const { classes: availabilityClasses, isLoading: availabilityLoading } =
+    useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
   const showTrials = useMemo(
@@ -237,20 +243,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     initializeCart();
   }, [showId, exhibitorId, loadCart, createCart]);
 
-  const availabilityMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { isFull: boolean; waitlistCount: number; allowsWaitlist: boolean }
-    >();
-    for (const cls of availabilityClasses) {
-      map.set(cls.classId, {
-        isFull: cls.isFull,
-        waitlistCount: cls.waitlistCount,
-        allowsWaitlist: cls.allowsWaitlist,
-      });
-    }
-    return map;
-  }, [availabilityClasses]);
+  const availabilityUnreadable = isAvailabilityUnreadable({
+    isLoading: availabilityLoading,
+    rowCount: availabilityClasses.length,
+  });
+  const availabilityMap = useMemo(
+    () => buildAvailabilityMap(availabilityClasses),
+    [availabilityClasses]
+  );
 
   // The cart requires classes to exist in Supabase (FK on entry_cart_items.class_id), but
   // wizard-created classes may only be in the replication layer. Local selection state is
@@ -368,6 +368,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       workflowMode={workflowMode}
                     />
                   )}
+                  {availabilityUnreadable && hasClassGroups && <AvailabilityUnreadableNotice />}
                   {showTrials.length === 0 && isTrialsSyncing ? (
                     <div role="status" aria-label="Loading trials" className="space-y-3 py-2">
                       {Array.from({ length: 3 }).map((_, index) => (
@@ -396,6 +397,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           );
                         }, 0);
 
+                        // Depends only on the trial, so it is resolved once
+                        // here rather than per level inside the map below.
+                        const trialRegistryId = resolveConfiguredRegistryId(trial.registryId);
+
                         return (
                           <TrialSection
                             key={`${trial.id}-${dogId}`}
@@ -413,17 +418,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 isSingleClass={group.isSingleClass}
                                 levels={group.levels.map(l => {
                                   const avail = availabilityMap.get(l.classId);
-                                  const rawRegistryId = trial.registryId?.trim() || null;
-                                  const registryId =
-                                    rawRegistryId &&
-                                    listRegistries().some(
-                                      configuredId => configuredId === rawRegistryId
-                                    )
-                                      ? rawRegistryId
-                                      : null;
                                   const prerequisite = getRegistrationPrerequisite({
                                     registrations: dog?.registrations,
-                                    registryId,
+                                    registryId: trialRegistryId,
                                     trialType: trial.trialType,
                                     className: l.className,
                                     element: group.element,

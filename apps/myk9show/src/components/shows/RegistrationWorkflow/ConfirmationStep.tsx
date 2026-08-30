@@ -26,7 +26,8 @@ import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
   getPaymentMethodDisplay,
-  isPaidStatus,
+  getPaymentStatusBadgeColor,
+  getPaymentStatusDisplay,
   getConfirmationHeroCopy,
   isRegistrationRecorded,
   generateReceiptText,
@@ -362,11 +363,11 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             </div>
             <div className="flex justify-between items-center">
               <span>Payment Status:</span>
-              <Badge
-                variant={isPaidStatus(paymentStatus) ? 'default' : 'secondary'}
-                className={isPaidStatus(paymentStatus) ? 'text-success border-success/30 ' : ''}
-              >
-                {paymentStatus}
+              {/* One tokenized source for payment-status chips. This used to be
+                  variant="default" (bg-primary) with text-success layered on
+                  top, which put green-800 on brand orange at 1.22:1. */}
+              <Badge variant="outline" className={getPaymentStatusBadgeColor(paymentStatus)}>
+                {getPaymentStatusDisplay(paymentStatus)}
               </Badge>
             </div>
             {(paymentStatus === PaymentStatus.PENDING ||

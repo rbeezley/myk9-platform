@@ -21,6 +21,12 @@ export interface ProceedGatingContext {
   agreedToEntryAgreement: boolean;
   capacityReady: boolean;
   blockedClassCount: number;
+  /**
+   * True when availability could not be read at all (offline, or the query
+   * failed) rather than merely still loading. Separates "wait a moment" from
+   * "we cannot check", which never resolves on its own.
+   */
+  capacityUnavailable: boolean;
 }
 
 function handlerReason(count: number): string {
@@ -48,6 +54,9 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.unassignedHandlerCount > 0) return handlerReason(ctx.unassignedHandlerCount);
       return null;
     case 'payment':
+      if (ctx.capacityUnavailable) {
+        return 'We could not confirm which classes still have room, so we cannot total this entry yet. Check your connection and try again, or go back and re-pick the classes.';
+      }
       if (!ctx.capacityReady) {
         return 'Checking class availability. Please wait, then try again.';
       }

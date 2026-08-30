@@ -28,7 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
-import { getPaymentStatusBadgeColor } from './utils';
+import { getPaymentStatusBadgeColor, getPaymentStatusDisplay } from '../ConfirmationStep.helpers';
 import type { SecretaryPaymentManagementProps } from './types';
 import { StatusBadge } from '@/components/status';
 
@@ -124,10 +124,10 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 </div>
 
                 {/* Current Payment Status */}
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted p-3">
                   <span className="text-sm font-medium">Current Status:</span>
                   <Badge className={getPaymentStatusBadgeColor(paymentStatus)}>
-                    {paymentStatus}
+                    {getPaymentStatusDisplay(paymentStatus)}
                   </Badge>
                 </div>
 

@@ -157,12 +157,13 @@ describe('calculateTotalFees — wait-list lines are non-payable', () => {
 });
 
 describe('calculateTotalFees — multi-dog discount', () => {
+  // The wizard used to subtract 10% here for 3+ entered dogs. Nothing on the
+  // money path honoured it — the cart bills every line at full entry fee — so
+  // the quoted total was lower than the charge. Quoting a discount the product
+  // cannot apply is the defect; re-adding it needs a server-side discount
+  // first (MYK9-265).
   it('does not apply an unhonored discount to three payable dogs', () => {
-    const ownedDogs = [
-      dog,
-      { id: 'dog-2', name: 'Breeze' },
-      { id: 'dog-3', name: 'Comet' },
-    ];
+    const ownedDogs = [dog, { id: 'dog-2', name: 'Breeze' }, { id: 'dog-3', name: 'Comet' }];
     const selections = ownedDogs.map(ownedDog => ({ ...selection, dogId: ownedDog.id }));
 
     const result = calculateTotalFees(

@@ -37,6 +37,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onClassSelectionChange,
   capacityReady = true,
   capacityError,
+  capacityUnavailable,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
 }) => {
@@ -115,11 +116,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       />
 
       {!capacityReady && (
-        <Alert role={capacityError ? 'alert' : 'status'}>
+        <Alert role={capacityError || capacityUnavailable ? 'alert' : 'status'}>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            {capacityError
-              ? 'We could not verify class availability. Refresh the page before continuing.'
+            {/* capacityUnavailable covers the case capacityError misses: a
+                paused query reports no error at all. Saying "checking" there
+                describes a wait that never ends, and contradicts the blocking
+                reason under the Next button. */}
+            {capacityError || capacityUnavailable
+              ? 'We could not confirm class availability. Check your connection and refresh before continuing.'
               : 'Checking class availability before confirming what is payable.'}
           </AlertDescription>
         </Alert>

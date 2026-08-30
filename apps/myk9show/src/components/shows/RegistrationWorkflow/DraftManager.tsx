@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Save, FolderOpen, Trash2, Clock, FileText, CheckCircle, Archive } from 'lucide-react';
 import { SavedDraft, DraftMetadata } from '../../../hooks/useDraftPersistence';
 import { formatDistanceToNow } from 'date-fns';
+import { notifications } from '@/lib/notifications';
 
 interface DraftManagerProps {
   saveDraft: (title: string) => string | null;
@@ -46,7 +47,14 @@ export function DraftManager({
       onDraftSaved?.(draftId);
       setSaveTitle('');
       setIsSaveDialogOpen(false);
+      return;
     }
+    // saveDraft returns null when local storage refuses the write — quota
+    // exceeded, or a private-mode restriction. The dialog used to just sit
+    // there, so the exhibitor could not tell a saved draft from a lost one.
+    notifications.error(
+      'We could not save this draft on this device. Your entry is still here — try again, or keep going and finish the entry now.'
+    );
   };
 
   const handleLoadDraft = (draftId: string) => {
@@ -55,7 +63,13 @@ export function DraftManager({
       onDraftLoaded?.(draft);
       setIsLoadDialogOpen(false);
       setSelectedDraft(null);
+      return;
     }
+    // Same silent-failure shape on the way back in: a corrupt or evicted
+    // payload returned null and the dialog stayed open with no explanation.
+    notifications.error(
+      'We could not open that draft — it may have been cleared by this browser. Start the entry again, or pick a different draft.'
+    );
   };
 
   const handleDeleteDraft = (draftId: string) => {

@@ -1,4 +1,5 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { getStatusDescriptor } from '@/components/status';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import type { DogClassDetails } from './ConfirmationStep.types';
 
@@ -109,8 +110,8 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push(thinDivider);
   lines.push(`Total Fees:     $${data.totalFees.toFixed(2)}`);
   lines.push(`Method:         ${getPaymentMethodDisplay(data.paymentMethod)}`);
-  lines.push(`Payment Status: ${data.paymentStatus}`);
-  lines.push(`Entry Status:   ${data.entryStatus}`);
+  lines.push(`Payment Status: ${getPaymentStatusDisplay(data.paymentStatus)}`);
+  lines.push(`Entry Status:   ${getStatusDescriptor('entry', data.entryStatus).label}`);
   lines.push('');
   lines.push(divider);
   lines.push('Thank you for your entry!');
@@ -217,7 +218,7 @@ export function generateReceiptHtml(data: ReceiptData): string {
     </div>
     <div style="display: flex; justify-content: space-between; padding: 8px 0;">
       <span>Payment Status</span>
-      <span>${escapeHtml(data.paymentStatus)}</span>
+      <span>${escapeHtml(getPaymentStatusDisplay(data.paymentStatus))}</span>
     </div>
   </div>
 
@@ -251,17 +252,55 @@ export function getPaymentMethodDisplay(paymentMethod: string): string {
   }
 }
 
+/**
+ * Theme-aware chip classes for a payment status. These were light-only raw
+ * palette (bg-teal-100 / bg-red-100 / bg-gray-100), which painted a bright
+ * block on the dark receipt card; the semantic tokens carry both modes and
+ * already meet AA in each.
+ */
 export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
   switch (status) {
     case PaymentStatus.PAID_ONLINE:
     case PaymentStatus.PAID_BY_CHECK:
     case PaymentStatus.PAID_BY_CASH:
-      return 'bg-teal-100 text-teal-800 border-teal-200';
+      return 'bg-success/10 text-success border-success/20';
     case PaymentStatus.REFUNDED:
     case PaymentStatus.PARTIAL_REFUND:
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'bg-destructive/10 text-destructive border-destructive/20';
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+      return 'bg-muted text-muted-foreground border-border';
+  }
+}
+
+/**
+ * Plain-English label for a payment status. The enum value used to be rendered
+ * straight into the receipt, the plaintext copy and the email, so exhibitors
+ * read "paid_online" and "partial_refund" as UI copy.
+ *
+ * Entry statuses deliberately do NOT have a twin of this function: they are
+ * labelled by getStatusDescriptor('entry', …).label, the canonical table in
+ * @myk9/ui that StatusBadge already renders from. A parallel formatter here
+ * disagreed with it ("Not Accepted" vs "Not accepted") and routed around the
+ * INTENT comment on that table's "Pending" label.
+ */
+export function getPaymentStatusDisplay(status: PaymentStatus | string): string {
+  switch (status) {
+    case PaymentStatus.PENDING:
+      return 'Payment pending';
+    case PaymentStatus.PAID_ONLINE:
+      return 'Paid online';
+    case PaymentStatus.PAID_BY_CHECK:
+      return 'Paid by check';
+    case PaymentStatus.PAID_BY_CASH:
+      return 'Paid by cash';
+    case PaymentStatus.REFUNDED:
+      return 'Refunded';
+    case PaymentStatus.PARTIAL_REFUND:
+      return 'Partially refunded';
+    case PaymentStatus.WAIVED:
+      return 'Fees waived';
+    default:
+      return String(status);
   }
 }
 

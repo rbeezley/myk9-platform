@@ -36,14 +36,14 @@ describe('DogStrip', () => {
 
   it('renders Add Dog button', () => {
     render(<DogStrip dogs={dogs} upcomingClassCountByDog={{ d1: 2 }} />);
-    expect(screen.getByText('New Dog')).toBeInTheDocument();
+    expect(screen.getByText('Add Dog')).toBeInTheDocument();
   });
 
   /**
-   * MYK9-124. The New Dog control used to be the LAST child of the horizontal
+   * MYK9-124. The add-a-dog control used to be the LAST child of the horizontal
    * rail, after every dog card. Cards are `w-52` (208px) plus a 12px gap, and
    * the content column is ~672px at 150-200% browser zoom, so only three items
-   * fit — which puts New Dog off-screen for any exhibitor with three or more
+   * fit — which puts it off-screen for any exhibitor with three or more
    * dogs. The rail carries `hide-scrollbar`, so there was no scrollbar to
    * reveal it either; only a faint edge fade.
    *
@@ -54,20 +54,20 @@ describe('DogStrip', () => {
    * jsdom does no layout, so this asserts the structural property that makes
    * the layout property true.
    */
-  it('keeps the New Dog action out of the horizontal scroller', () => {
+  it('keeps the add-a-dog action out of the horizontal scroller', () => {
     render(<DogStrip dogs={dogs} upcomingClassCountByDog={{ d1: 2 }} />);
 
-    const newDog = screen.getByRole('button', { name: /new dog/i });
+    const newDog = screen.getByRole('button', { name: /add dog/i });
     const rail = newDog.closest('.overflow-x-auto');
 
     expect(
       rail,
-      'New Dog must not live inside the scrolling rail — with 3+ dogs at 150% ' +
+      'Add Dog must not live inside the scrolling rail — with 3+ dogs at 150% ' +
         'zoom it scrolls out of view behind a hidden scrollbar'
     ).toBeNull();
   });
 
-  it('still reaches the New Dog action when the strip is long', async () => {
+  it('still reaches the add-a-dog action when the strip is long', async () => {
     const manyDogs = Array.from({ length: 20 }, (_, i) => ({
       id: `d${i}`,
       call_name: `Dog ${i}`,
@@ -76,7 +76,7 @@ describe('DogStrip', () => {
     const onAddDog = vi.fn();
     const { user } = render(<DogStrip dogs={manyDogs} onAddDog={onAddDog} />);
 
-    await user.click(screen.getByRole('button', { name: /new dog/i }));
+    await user.click(screen.getByRole('button', { name: /add dog/i }));
     expect(onAddDog).toHaveBeenCalledOnce();
   });
 });

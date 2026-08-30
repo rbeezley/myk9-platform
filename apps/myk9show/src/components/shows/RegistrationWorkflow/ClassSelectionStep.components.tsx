@@ -392,6 +392,24 @@ export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOr
   </Alert>
 );
 
+/**
+ * Shown when class availability could not be read at all — offline, or the
+ * query failed. Without it the absence of every Full and Wait list badge reads
+ * as "all of these have room", which is a claim nothing measured. Says what is
+ * unknown and what still works, rather than blocking the step: the selection is
+ * still worth building, and the payment step refuses to total it until
+ * availability resolves.
+ */
+export const AvailabilityUnreadableNotice: React.FC = () => (
+  <Alert className="mb-3">
+    <Info className="h-4 w-4" />
+    <AlertDescription>
+      We could not check which classes still have room, so none are marked full or wait list below.
+      You can still choose classes — we will confirm what is available before you pay.
+    </AlertDescription>
+  </Alert>
+);
+
 // ─── Cart Summary ──────────────────────────────────────────────────────────────
 
 interface DogCartSummaryProps {

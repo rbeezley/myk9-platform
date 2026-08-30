@@ -36,6 +36,7 @@ import {
   TrialSection,
   NoTrialsAlert,
   NoClassesAlert,
+  AvailabilityUnreadableNotice,
   ElementCard,
   DogCartSummary,
   OverallCartSummary,
@@ -90,7 +91,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const removeItem = useCartStore(state => state.removeItem);
 
   const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
-  const { classes: availabilityClasses } = useClassAvailability(showId);
+  const {
+    classes: availabilityClasses,
+    isLoading: availabilityLoading,
+    error: availabilityError,
+  } = useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
   const showTrials = useMemo(
@@ -237,6 +242,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     initializeCart();
   }, [showId, exhibitorId, loadCart, createCart]);
 
+  // Availability is a direct server read — it cannot resolve offline, and the
+  // global query client uses networkMode 'online', so the query PAUSES:
+  // isLoading false, error null, no rows. Without this the map is simply empty,
+  // `avail` is undefined for every class, and each chip renders exactly as a
+  // class with room — the wizard states availability it never read.
+  const availabilityUnreadable =
+    !availabilityLoading && (!!availabilityError || availabilityClasses.length === 0);
+
   const availabilityMap = useMemo(() => {
     const map = new Map<
       string,
@@ -368,6 +381,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       workflowMode={workflowMode}
                     />
                   )}
+                  {availabilityUnreadable && <AvailabilityUnreadableNotice />}
                   {showTrials.length === 0 && isTrialsSyncing ? (
                     <div role="status" aria-label="Loading trials" className="space-y-3 py-2">
                       {Array.from({ length: 3 }).map((_, index) => (

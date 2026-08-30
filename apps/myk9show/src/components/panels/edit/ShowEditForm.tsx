@@ -7,6 +7,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useEditPanel } from './useEditPanel';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -22,10 +24,22 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
+import { DEFAULT_SHOW_EDIT_TAB, type ShowEditTab } from '@/components/shows/showEditRoutes';
 
-export const ShowEditForm: React.FC = () => {
+interface ShowEditFormProps {
+  /**
+   * Tab to open on. Deep links land here (F4/F12): a class surface with no judges to
+   * offer points at this panel's Judges tab, which is the one place that owns the show's
+   * judge roster.
+   */
+  initialTab?: ShowEditTab;
+}
+
+export const ShowEditForm: React.FC<ShowEditFormProps> = ({
+  initialTab = DEFAULT_SHOW_EDIT_TAB,
+}) => {
   const { data, form } = useEditPanel<ShowEditFormData>();
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
 
   // Store data
   const { templates } = useTemplateStore();
@@ -299,9 +313,22 @@ export const ShowEditForm: React.FC = () => {
                   <div className="text-sm text-muted-foreground bg-warning/10 p-4 rounded-xl">
                     <p className="mb-2">No qualified judges found for {data.organization} shows.</p>
                     <p className="text-xs">
-                      You can assign judges later or add judge qualifications to people in the Users
-                      section.
+                      A person becomes selectable here once they hold an active{' '}
+                      {data.organization} judge qualification.
                     </p>
+                    {/*
+                      This used to end at "add judge qualifications to people in the Users
+                      section" -- prose naming a screen, with no way to reach it. That is the
+                      same dead end as F4/F12 one hop further on: a secretary sent here by
+                      the "Add a judge" link would arrive and be told to go somewhere else
+                      again. Make it a link.
+                    */}
+                    <Button asChild variant="outline" size="sm" className="mt-3">
+                      <Link to="/people" className="gap-2">
+                        <UserCheck className="h-4 w-4" />
+                        Manage judge qualifications
+                      </Link>
+                    </Button>
                   </div>
                 )
               ) : (

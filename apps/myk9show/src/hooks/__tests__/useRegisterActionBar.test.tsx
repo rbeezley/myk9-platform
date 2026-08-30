@@ -12,7 +12,7 @@
  * These tests mount and unmount a conditionally-rendered bar, which is the
  * thing that was actually wrong.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useState } from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { useRegisterActionBar } from '../useRegisterActionBar';
@@ -38,6 +38,24 @@ function Panel({ open }: { open: boolean }) {
 function FloatingBar() {
   const setBar = useRegisterActionBar<HTMLDivElement>({ bottomOffsetPx: 24 });
   return <div ref={setBar}>floating action bar</div>;
+}
+
+function MeasuredPanel({ open, onHeight }: { open: boolean; onHeight: (h: number) => void }) {
+  const setBar = useRegisterActionBar<HTMLDivElement>({ onHeightChange: onHeight });
+  if (!open) return null;
+  return <div ref={setBar}>measured action bar</div>;
+}
+
+function MeasuredHarness({ onHeight }: { onHeight: (h: number) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(o => !o)}>
+        toggle
+      </button>
+      <MeasuredPanel open={open} onHeight={onHeight} />
+    </>
+  );
 }
 
 function Harness() {
@@ -106,5 +124,21 @@ describe('useRegisterActionBar', () => {
   it('includes a floating bar bottom offset in the reserved extent', () => {
     render(<FloatingBar />);
     expect(reserved()).toBe(96);
+  });
+
+  // The page cannot reserve room for a docked bar from the registry alone —
+  // dialog and slide-over footers register there too. The bar's own height has
+  // to reach the bar's own component, on both edges.
+  it('reports the measured height to onHeightChange, and 0 when the bar detaches', () => {
+    const onHeight = vi.fn();
+    render(<MeasuredHarness onHeight={onHeight} />);
+    expect(onHeight).not.toHaveBeenCalledWith(72);
+
+    act(() => screen.getByRole('button', { name: 'toggle' }).click());
+    expect(onHeight).toHaveBeenCalledWith(72);
+
+    onHeight.mockClear();
+    act(() => screen.getByRole('button', { name: 'toggle' }).click());
+    expect(onHeight).toHaveBeenCalledWith(0);
   });
 });

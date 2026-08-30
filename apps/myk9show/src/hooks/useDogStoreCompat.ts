@@ -316,23 +316,10 @@ export const useDogStoreCompat = () => {
     await runDogMutation(() =>
       deleteMutation.mutateAsync({ id, ...(deletedBy !== undefined && { deletedBy }) })
     );
-    // Soft-delete removes the row from RLS visibility, so replication polling never
-    // sees the change. Remove locally so the dog doesn't reappear after reload.
-    await replicatedDogsTable.delete(id).catch(err => {
-      logger.warn(
-        'Failed to remove soft-deleted dog from IndexedDB',
-        'dogs',
-        { dogId: id },
-        err as Error
-      );
-    });
-    // exhibitor-ux-remediation: the dogs list query (`getAllDogs`) falls back
-    // to this same IndexedDB table (offline-first), so the mutation's own
-    // onSuccess invalidate/refetch can race this cleanup — a refetch that
-    // lands before the line above finishes re-reads the still-present local
-    // row and resurrects the just-deleted dog in the list until a full reload.
-    // A second invalidation, now that the local row is definitely gone,
-    // closes that race regardless of how the first one landed.
+    // The IndexedDB row is removed inside `useDeleteDogMutation`'s `mutationFn`
+    // (exhibitor-ux-remediation) — before its `onSuccess` invalidate, so no
+    // refetch can resurrect the deleted dog, and every caller of the mutation
+    // gets the same guarantee rather than only this one.
     await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
   };
 

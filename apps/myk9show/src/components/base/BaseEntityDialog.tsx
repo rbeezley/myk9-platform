@@ -18,6 +18,13 @@ export interface BaseEntityDialogProps {
   /** Render the submit action as destructive (see DialogFooterButtons). */
   destructive?: boolean;
   showFooter?: boolean;
+  /**
+   * Disables the submit action while leaving the dialog open and readable. For a
+   * refusal the user can act on elsewhere — the dialog still has to explain it,
+   * so closing the dialog or hiding the button would take the explanation with
+   * it.
+   */
+  submitDisabled?: boolean;
 }
 
 export function BaseEntityDialog({
@@ -35,6 +42,7 @@ export function BaseEntityDialog({
   maxWidth,
   destructive,
   showFooter = true,
+  submitDisabled = false,
 }: BaseEntityDialogProps) {
   const handleCancel = () => {
     onCancel?.();
@@ -66,6 +74,7 @@ export function BaseEntityDialog({
               cancelLabel={cancelLabel}
               saveLabel={submitLabel}
               isSubmitting={isSubmitting}
+              {...(submitDisabled && { saveButtonProps: { disabled: true } })}
               showIcons={
                 submitLabel !== 'Delete' &&
                 !submitLabel?.toString().toLowerCase().includes('delete')

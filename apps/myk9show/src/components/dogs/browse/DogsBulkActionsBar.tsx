@@ -38,7 +38,12 @@ export function DogsBulkActionsBar({
   const updateDogMutation = useUpdateDogMutation();
   const deleteDogMutation = useDeleteDogMutation();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
-  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
+  // The bar is `fixed`, so it takes no room in flow and lands on top of the
+  // last thing on the page — the pagination controls. Reserve its measured
+  // height back in normal flow instead of hard-coding a `pb-*`: the bar wraps
+  // to two rows at narrow widths, which is exactly when a constant is wrong.
+  const [barHeight, setBarHeight] = useState(0);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>({ onHeightChange: setBarHeight });
 
   const statusDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
   const deleteDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
@@ -110,6 +115,8 @@ export function DogsBulkActionsBar({
 
   return (
     <>
+      <div aria-hidden="true" style={{ height: barHeight }} />
+
       <div
         ref={actionBarRef}
         className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"
@@ -140,7 +147,7 @@ export function DogsBulkActionsBar({
         }
         entityType="Dog"
         isDeleting={deleteDispatch.isBusy}
-        warningText="Deleting these dogs also removes their show entries and any related cart items. This action cannot be undone."
+        warningText="Deleting these dogs also removes their show entries, cart items and waitlist spots, and releases their armbands. This action cannot be undone."
       />
     </>
   );

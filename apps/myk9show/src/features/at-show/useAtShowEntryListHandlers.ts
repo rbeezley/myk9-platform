@@ -187,21 +187,67 @@ export function useAtShowEntryListHandlers(
   // INTENT (spike): no prefetch cache in myK9Show yet — pure no-op.
   const handleEntryPrefetch = useCallback<EntryListHandlers['handleEntryPrefetch']>(() => {}, []);
 
-  // ── Status mutations (delegate) ──────────────────────────────────────
+  // ── Status mutations (delegate, optimistically) ──────────────────────
+  // The mirror is updated BEFORE the write and rolled back if it throws.
+  //
+  // For a judge or steward this is only a few hundred milliseconds of polish:
+  // the write lands in the replicated store, so the `refresh()` inside
+  // `actions` re-reads it and the card settles either way.
+  //
+  // For an EXHIBITOR it is the whole thing. That role writes through
+  // `self_checkin_entry`, a bare RPC that never touches the replicated store,
+  // so the refresh re-reads a cache that has not heard about the change and the
+  // card snaps back to its old status. The dog is checked in on the server and
+  // the exhibitor cannot tell -- so they tap again.
+  //
+  // The combined A/B page used to carry its own copy of this and the
+  // single-class route never had one, which is how a bug that reproduces on
+  // both went unnoticed on one. Fixing it here covers both (MYK9-260).
+  //
+  // NOTE: this does NOT make the exhibitor's status survive a reload -- only a
+  // real write into the replicated store would, and that path is blocked for
+  // exhibitors by design. Tracked separately.
   const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
     async (entryId, status: EntryStatusChange) => {
       setActiveStatusPopup(null);
-      if (status === 'in-ring') {
-        await actions.handleMarkInRing(entryId);
-        return;
+
+      const previous = entriesRef.current.find(entry => entry.id === entryId);
+      setLocalEntries(prev =>
+        prev.map(entry =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                status,
+                checkedIn: status !== 'no-status',
+                ...(status === 'completed' ? { isScored: true } : {}),
+              }
+            : entry
+        )
+      );
+
+      const rollback = () => {
+        if (!previous) return;
+        setLocalEntries(prev => prev.map(entry => (entry.id === entryId ? previous : entry)));
+      };
+
+      try {
+        if (status === 'in-ring') {
+          await actions.handleMarkInRing(entryId);
+          return;
+        }
+        if (status === 'completed') {
+          await actions.handleMarkCompleted(entryId);
+          return;
+        }
+        await actions.handleStatusChange(entryId, status);
+      } catch (error) {
+        // Showing a status the server rejected is worse than showing none: the
+        // gate would be worked from a check-in that does not exist.
+        rollback();
+        logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
-      if (status === 'completed') {
-        await actions.handleMarkCompleted(entryId);
-        return;
-      }
-      await actions.handleStatusChange(entryId, status);
     },
-    [actions, setActiveStatusPopup]
+    [actions, setActiveStatusPopup, setLocalEntries]
   );
 
   const handleStatusClick = useCallback<EntryListHandlers['handleStatusClick']>(

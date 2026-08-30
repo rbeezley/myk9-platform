@@ -61,7 +61,11 @@ function makeActions(): EntryListActions {
   };
 }
 
-function renderHandlers(localEntries: Entry[], actions: EntryListActions) {
+function renderHandlers(
+  localEntries: Entry[],
+  actions: EntryListActions,
+  setLocalEntries: (updater: (prev: Entry[]) => Entry[]) => void = vi.fn()
+) {
   const navigate = vi.fn();
   return renderHook(() =>
     useAtShowEntryListHandlers({
@@ -80,7 +84,7 @@ function renderHandlers(localEntries: Entry[], actions: EntryListActions) {
       setIsDragMode: vi.fn(),
       setIsManualRefreshing: vi.fn(),
       setActiveTab: vi.fn(),
-      setLocalEntries: vi.fn(),
+      setLocalEntries: setLocalEntries as never,
     })
   );
 }
@@ -267,5 +271,59 @@ describe('useAtShowEntryListHandlers — placement recompute RPC', () => {
       'refresh_class_scoring_state',
       expect.anything()
     );
+  });
+});
+
+
+/**
+ * Optimistic check-in (MYK9-260).
+ *
+ * For an exhibitor the write goes through `self_checkin_entry`, a bare RPC that
+ * never touches the replicated store -- so the `refresh()` that follows re-reads
+ * a cache which has not heard about the change and the card snaps back to its
+ * old status. The dog is checked in on the server and the exhibitor cannot tell,
+ * so they tap again.
+ *
+ * The deleted combined A/B page carried its own optimistic update; the
+ * single-class route never had one, which is how a bug that reproduces on BOTH
+ * went unnoticed on one. The collapse removed the combined copy and made that
+ * visible. This lives in the shared handler so both routes are covered.
+ */
+describe('useAtShowEntryListHandlers - optimistic check-in', () => {
+  let actions: EntryListActions;
+  let mirror: Entry[];
+  const applyToMirror = (updater: (prev: Entry[]) => Entry[]) => {
+    mirror = updater(mirror);
+  };
+
+  beforeEach(() => {
+    actions = makeActions();
+    mirror = [makeEntry({ id: 'e1', status: 'no-status' as EntryStatus })];
+  });
+  afterEach(() => vi.clearAllMocks());
+
+  it('shows the new status before the write resolves', async () => {
+    const { result } = renderHandlers(mirror, actions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'checked-in');
+    });
+
+    expect(mirror[0]?.status).toBe('checked-in');
+    expect(mirror[0]?.checkedIn).toBe(true);
+    expect(actions.handleStatusChange).toHaveBeenCalledWith('e1', 'checked-in');
+  });
+
+  it('rolls the card back when the write is rejected', async () => {
+    // Showing a status the server refused is worse than showing none -- the
+    // gate would be worked from a check-in that does not exist.
+    actions.handleStatusChange = vi.fn(() => Promise.reject(new Error('denied')));
+    const { result } = renderHandlers(mirror, actions, applyToMirror);
+
+    await act(async () => {
+      await result.current.handleStatusChange('e1', 'checked-in');
+    });
+
+    expect(mirror[0]?.status).toBe('no-status');
   });
 });

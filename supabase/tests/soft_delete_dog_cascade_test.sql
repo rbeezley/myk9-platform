@@ -47,6 +47,39 @@ VALUES (
   now(), now(), '{}', '{}', false, false, false
 );
 
+-- A SEPARATE site-admin actor for the restore below. restore_dog gates on
+-- is_platform_admin() -> is_site_admin(), which is a SQL predicate over
+-- user_roles keyed on auth.uid() — NOT a privilege check, so the superuser the
+-- rest of this file runs as does not satisfy it and neither does the owner.
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES (
+  '00000000-0000-0000-0000-000000dd0012',
+  'Soft Delete',
+  'Admin',
+  'soft-delete-dog-admin@example.test'
+);
+
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES (
+  '00000000-0000-0000-0000-000000dd0102',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated', 'soft-delete-dog-admin@example.test', '', now(),
+  now(), now(), '{}', '{}', false, false, false
+);
+
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000dd0012',
+  r.id,
+  true,
+  '00000000-0000-0000-0000-000000dd0102'
+FROM public.roles r
+WHERE r.name = 'site_admin';
+
 INSERT INTO public.shows (id, name, organization, start_date, end_date, status)
 VALUES (
   '00000000-0000-0000-0000-000000dd0021',
@@ -229,9 +262,21 @@ BEGIN
 END;
 $$;
 
--- restore_dog is platform-admin gated, and the fixture owner is not one, so the
--- restore runs as the migration role rather than through another JWT.
+-- restore_dog is platform-admin gated. The gate is a PREDICATE over user_roles,
+-- not a privilege check, so running as the migration superuser does not satisfy
+-- it — the first cut of this test assumed it did and CI answered with
+-- "Permission denied" from restore_dog line 6. Switch to the admin's JWT.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000dd0102', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000dd0102","role":"authenticated"}',
+  true
+);
+
 SELECT public.restore_dog('00000000-0000-0000-0000-000000dd0051');
+
+RESET ROLE;
 
 DO $$
 DECLARE

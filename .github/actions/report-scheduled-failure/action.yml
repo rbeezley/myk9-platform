@@ -1,0 +1,95 @@
+name: Report scheduled failure
+description: >-
+  Keep exactly one GitHub issue per scheduled workflow reflecting whether that
+  workflow is currently broken. Opens it on the first failure, comments on
+  repeats, and closes it when the workflow goes green again.
+
+inputs:
+  workflow-name:
+    description: Human name of the workflow, used in the issue title.
+    required: true
+  outcome:
+    description: >-
+      The job result to report — pass the job status expression, e.g.
+      ${{ job.status }}. Anything other than "success" counts as broken.
+    required: true
+  token:
+    description: Token with issues:write on this repository.
+    required: true
+  extra:
+    description: Optional markdown appended to the issue body or comment.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Reconcile the tracking issue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        WORKFLOW_NAME: ${{ inputs.workflow-name }}
+        OUTCOME: ${{ inputs.outcome }}
+        EXTRA: ${{ inputs.extra }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        REPO: ${{ github.repository }}
+      run: |
+        # `set -e` deliberately: this step must go RED if it cannot report.
+        # A notifier that fails quietly reproduces the exact defect it exists
+        # to fix -- a signal produced and then dropped.
+        set -euo pipefail
+
+        TITLE="CI: ${WORKFLOW_NAME} is failing"
+        LABEL="ci-failure"
+
+        # The label must exist before it can be used as a filter.
+        gh label create "$LABEL" --repo "$REPO" \
+          --description "A scheduled workflow is currently red" --color B60205 2>/dev/null || true
+
+        # Match on the exact title rather than relevance ranking, which is
+        # fuzzy and would happily return a different workflow's issue.
+        EXISTING="$(gh issue list --repo "$REPO" --label "$LABEL" --state open \
+          --json number,title --limit 100 \
+          --jq "[.[] | select(.title == \"${TITLE}\")] | .[0].number // empty")"
+
+        if [ "$OUTCOME" = "success" ]; then
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "$REPO" \
+              --body "Green again as of [this run](${RUN_URL}). Closing."
+            gh issue close "$EXISTING" --repo "$REPO"
+            echo "Closed #${EXISTING} — ${WORKFLOW_NAME} recovered."
+          else
+            echo "${WORKFLOW_NAME} is green and no issue is open. Nothing to do."
+          fi
+          exit 0
+        fi
+
+        BODY="$(printf '%s\n' \
+          "**${WORKFLOW_NAME}** failed." \
+          "" \
+          "Latest failing run: ${RUN_URL}" \
+          "" \
+          "${EXTRA}" \
+          "" \
+          "---" \
+          "" \
+          "This issue is opened and closed automatically by the workflow itself." \
+          "While it is open, that workflow is red. It closes on the next green run," \
+          "so it needs no manual triage to stay accurate." \
+          "" \
+          "It exists because a scheduled workflow's result is only visible to someone" \
+          "who opens the Actions tab. Playwright Regression was red for four consecutive" \
+          "weeks before anyone noticed, which is how a broken spec reached four PRs.")"
+
+        if [ -n "$EXISTING" ]; then
+          # EDIT, never comment. A repeat failure is not news — the open issue
+          # already says the workflow is broken. Support Triage runs every 15
+          # minutes, so commenting per failure would post ~96 notifications a
+          # day and train the reader to mute the one channel that matters.
+          # Refreshing the body keeps the newest run link current and silent.
+          gh issue edit "$EXISTING" --repo "$REPO" --body "$BODY"
+          echo "Refreshed #${EXISTING} — ${WORKFLOW_NAME} still red."
+        else
+          gh issue create --repo "$REPO" --title "$TITLE" --label "$LABEL" --body "$BODY"
+          echo "Opened a new issue — ${WORKFLOW_NAME} newly red."
+        fi

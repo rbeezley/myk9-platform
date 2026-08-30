@@ -37,6 +37,7 @@ const launchCriticalSqlTests = [
   'club_secretary_grant_test.sql',
   'club_delete_restrict_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
+  'show_message_tenant_isolation_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'null_club_show_authorization_test.sql',
   'anon_tv_entry_soft_delete_test.sql',

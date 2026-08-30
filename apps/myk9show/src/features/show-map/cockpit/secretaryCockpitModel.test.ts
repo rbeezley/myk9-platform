@@ -16,6 +16,7 @@ function makeClass(
     actions: [],
     attention: [],
     paperwork: [],
+  entryRows: [],
     ...input,
   };
 }

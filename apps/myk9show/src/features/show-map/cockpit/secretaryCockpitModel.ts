@@ -378,6 +378,7 @@ function toFocusedClass(
     prepareActions: actionsFor('prepare'),
     finishActions: actionsFor('finish'),
     classWorkActions: actionsFor('class-work'),
+    entryRows: cls.entryRows,
   };
 }
 

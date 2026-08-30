@@ -48,6 +48,11 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
+import {
+  buildAvailabilityMap,
+  isAvailabilityUnreadable,
+  resolveConfiguredRegistryId,
+} from './ClassSelectionStep.availability';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -242,28 +247,15 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     initializeCart();
   }, [showId, exhibitorId, loadCart, createCart]);
 
-  // Availability is a direct server read — it cannot resolve offline, and the
-  // global query client uses networkMode 'online', so the query PAUSES:
-  // isLoading false, error null, no rows. Without this the map is simply empty,
-  // `avail` is undefined for every class, and each chip renders exactly as a
-  // class with room — the wizard states availability it never read.
-  const availabilityUnreadable =
-    !availabilityLoading && (!!availabilityError || availabilityClasses.length === 0);
-
-  const availabilityMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { isFull: boolean; waitlistCount: number; allowsWaitlist: boolean }
-    >();
-    for (const cls of availabilityClasses) {
-      map.set(cls.classId, {
-        isFull: cls.isFull,
-        waitlistCount: cls.waitlistCount,
-        allowsWaitlist: cls.allowsWaitlist,
-      });
-    }
-    return map;
-  }, [availabilityClasses]);
+  const availabilityUnreadable = isAvailabilityUnreadable({
+    isLoading: availabilityLoading,
+    error: availabilityError,
+    rowCount: availabilityClasses.length,
+  });
+  const availabilityMap = useMemo(
+    () => buildAvailabilityMap(availabilityClasses),
+    [availabilityClasses]
+  );
 
   // The cart requires classes to exist in Supabase (FK on entry_cart_items.class_id), but
   // wizard-created classes may only be in the replication layer. Local selection state is
@@ -427,14 +419,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 isSingleClass={group.isSingleClass}
                                 levels={group.levels.map(l => {
                                   const avail = availabilityMap.get(l.classId);
-                                  const rawRegistryId = trial.registryId?.trim() || null;
-                                  const registryId =
-                                    rawRegistryId &&
-                                    listRegistries().some(
-                                      configuredId => configuredId === rawRegistryId
-                                    )
-                                      ? rawRegistryId
-                                      : null;
+                                  const registryId = resolveConfiguredRegistryId(
+                                    trial.registryId,
+                                    listRegistries()
+                                  );
                                   const prerequisite = getRegistrationPrerequisite({
                                     registrations: dog?.registrations,
                                     registryId,

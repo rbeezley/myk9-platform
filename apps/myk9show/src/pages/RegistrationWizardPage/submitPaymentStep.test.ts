@@ -38,6 +38,7 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     previousStatus: 'draft',
     isLateEntryMode: false,
     currentWorkflowMode: 'exhibitor',
+    waitlistClassIds: new Set<string>(),
     paymentMethod: 'check',
     paymentStatus: PaymentStatus.PENDING,
     paymentDetails: {},
@@ -150,6 +151,48 @@ describe('submitPaymentStep', () => {
     expect(notificationErrorMock).toHaveBeenCalledWith(
       'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
     );
+  });
+
+  // Every cart line is billed at full entry fee and the cart has no zero-price
+  // or request line type, so a wait-list class reaching checkout is charged as
+  // if the spot were held. The UI blocks this (proceedGating); this guard is
+  // for a loaded draft that arrives at submit with the selection already made.
+  it('refuses card checkout when a selected class is only a wait-list request', async () => {
+    const { ctx } = makeContextAndOrder({
+      paymentMethod: 'credit_card',
+      waitlistClassIds: new Set(['class-full']),
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          selectedClasses: [{ classId: 'class-full' }],
+        },
+      ] as SubmitPaymentStepContext['classSelections'],
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitRegistrationCartCheckoutMock).not.toHaveBeenCalled();
+    expect(submitShowRegistrationMock).not.toHaveBeenCalled();
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('wait list request')
+    );
+  });
+
+  it('allows card checkout when no selected class is wait-listed', async () => {
+    const { ctx } = makeContextAndOrder({
+      paymentMethod: 'credit_card',
+      waitlistClassIds: new Set(['some-other-full-class']),
+      classSelections: [
+        {
+          dogId: 'dog-1',
+          selectedClasses: [{ classId: 'class-open' }],
+        },
+      ] as SubmitPaymentStepContext['classSelections'],
+    });
+
+    await submitPaymentStep(ctx);
+
+    expect(submitRegistrationCartCheckoutMock).toHaveBeenCalledTimes(1);
   });
 
   it('blocks non-late submissions after entries close before writing entries', async () => {

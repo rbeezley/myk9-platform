@@ -3,7 +3,7 @@ import type { ReportProps } from '@/lib/reports/types';
 import { formatReportTime, buildReportOrgTitle } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
 import { buildHighInTrial } from '@/lib/reports/highInTrial';
-import type { HighInTrialLevel } from '@/lib/reports/highInTrial';
+import type { HighInTrialExclusion, HighInTrialLevel } from '@/lib/reports/highInTrial';
 import { TrialInfoBox } from './TrialInfoBox';
 
 /**
@@ -22,6 +22,36 @@ import { TrialInfoBox } from './TrialInfoBox';
 function formatTotalTime(seconds: number | null): string {
   return seconds == null ? '—' : formatReportTime(seconds);
 }
+
+/**
+ * Why a class the secretary can see on the schedule is not in the maths above. Without
+ * this, a trial whose Novice level ran one element shows no Novice section at all, which
+ * reads as a missing report rather than as the rule in §8.
+ */
+const ExclusionNote: React.FC<{ exclusions: HighInTrialExclusion[] }> = ({ exclusions }) => {
+  if (exclusions.length === 0) return null;
+
+  const single = exclusions.filter(e => e.reason === 'single-element-level');
+  const notElement = exclusions.filter(e => e.reason === 'not-an-odor-search-element');
+
+  return (
+    <div className="stats-section">
+      <div className="stats-section-header">Classes not counted</div>
+      {single.length > 0 && (
+        <p className="catalog-empty">
+          Only one element ran at these levels, so Chapter 6 §8 confers no High in Trial:{' '}
+          {single.map(e => `${e.element} ${e.level}`).join(', ')}.
+        </p>
+      )}
+      {notElement.length > 0 && (
+        <p className="catalog-empty">
+          Not one of the four Odor Search elements, so excluded from High in Trial:{' '}
+          {notElement.map(e => `${e.element} ${e.level}`).join(', ')}.
+        </p>
+      )}
+    </div>
+  );
+};
 
 const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
   const winners = level.teams.filter(team => team.rank === 1);
@@ -142,6 +172,8 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
       ) : (
         model.levels.map(level => <LevelSection key={level.level} level={level} />)
       )}
+
+      <ExclusionNote exclusions={model.exclusions} />
 
       {/*
         `.report-footer` is `display: flex; justify-content: space-between`, built for a

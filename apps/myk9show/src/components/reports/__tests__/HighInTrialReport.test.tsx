@@ -154,6 +154,34 @@ describe('HighInTrialReport', () => {
     expect(screen.getByText(/No team qualified in every element/i)).toBeInTheDocument();
   });
 
+  it('says why a single-element level got no award, instead of omitting it', () => {
+    // A level that ran one element produces no section at all. Silence reads as a
+    // missing report; §8 is the actual reason and the page must say so.
+    renderReport({
+      allClasses: [
+        { id: 'c1', trialId: 't1', element: 'Container', level: 'Novice' },
+        { id: 'c2', trialId: 't1', element: 'Interior', level: 'Novice' },
+        { id: 'c3', trialId: 't1', element: 'Buried', level: 'Master' },
+      ],
+      entries: [],
+    });
+
+    expect(screen.getByText(/Classes not counted/i)).toBeInTheDocument();
+    expect(screen.getByText(/Buried Master/)).toBeInTheDocument();
+  });
+
+  it('says which classes were skipped for not being Odor Search elements', () => {
+    renderReport({
+      allClasses: [
+        ...TWO_ELEMENT_NOVICE,
+        { id: 'c3', trialId: 't1', element: 'Handler Discrimination', level: 'Novice' },
+      ],
+      entries: [],
+    });
+
+    expect(screen.getByText(/Handler Discrimination Novice/)).toBeInTheDocument();
+  });
+
   it('states the two limits a secretary would otherwise assume away', () => {
     renderReport({ entries: [...team('dog-a', '101', 'Ranger', 0, 20)] });
 

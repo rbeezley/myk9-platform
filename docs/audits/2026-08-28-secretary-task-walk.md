@@ -578,7 +578,7 @@ three showed the Score Sheet):
 blob is dropped before the markup write. Confirmed non-vacuous (it fails when the
 handoff is removed). 123 ReportsPage tests, typecheck, ratchet and lint all clean.
 
-### F26 — P1 — CORRECTED — High in Trial / High in Class does not exist
+### F26 — P1 — FIXED — High in Trial / High in Class does not exist
 
 Task 11 has no report. The Reports picker lists 24 report types and none of them is a
 High in Trial or High in Class award report.
@@ -604,7 +604,13 @@ Also worth correcting: **"High in Class" is not an AKC concept** (zero rulebook
 occurrences). The equivalent is §6 Placements 1–4 per class, which the app already
 computes — verified during the walk. So this is one missing report, not two.
 
-Planned as Phase 2B in `plan-secretary-walk-remediation.md`.
+**Fixed 2026-08-30.** `lib/reports/highInTrial.ts` computes the award from the rulebook,
+rendered by the AKC-scoped, trial-scoped `high-in-trial` report. The mock was deleted.
+Browser-verified on two trials: one offering Container + Interior at Novice (renders the
+level and its counted elements) and Heartland, whose every level runs a single element
+(renders the §8 empty state plus the "Classes not counted" list). HCD (§9) is
+deliberately not implemented — our rulebook copy truncates mid-sentence and no PDF in the
+repo can confirm the rest.
 
 ### F27 — P2 — FIXED (#1858) — A cold replication store reports "Class not found" for a class that exists
 
@@ -1150,7 +1156,7 @@ merge), not localhost — so this exercises the deployed artifact after PRs #185
 | 17 | Volunteer scheduling | **Verified via Show Desk → Tools** — Add Volunteer and per-class assign slots by trial. Direct navigation misdirects (F32) |
 | 18 | Ringside access codes | **Verified** — Admin/Judge/Steward/Exhibitor codes with copy, copy-link, Print slip, Regenerate |
 | 19 | Close out the show | **Verified** — closeout panel reconciles attendance & fees (entries, day-of, at-show collected, waived, pulled/no-show, refund review) and incidents (all/reportable/urgent), e.g. "2 pulled entries have $60.00 marked refunded" |
-| 11 | High in Trial / High in Class | **Gap (F26)** — no report exists; the only implementation is orphaned |
+| 11 | High in Trial / High in Class | **WORKS** — `Reports → High in Trial`, AKC trials, trial-scoped (F26, fixed 2026-08-30). "High in Class" is not an AKC concept; the equivalent is per-class placements 1–4, already computed |
 | 20 | Approve / accept online entries | **WORKS** — re-verified 2026-08-29; the block was the orphaned audit show, not the feature — every entry write on the audit show is refused because the show has no club, so accept could not be exercised end to end. The refusal is surfaced correctly (F31) |
 
 Tasks 20 (approve/accept online entries) and 13 (waitlist) were added to the canonical

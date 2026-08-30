@@ -157,6 +157,12 @@ PR smoke is intentionally small. Its purpose is to confirm the app boots, auth s
 | ---------------------------------------------------------------------- | ------------------------------------------ |
 | `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`               | App boots and basic page load works.       |
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts` | Current strict secretary regression proof. |
+| `apps/myk9show/src/test/e2e/admin/payout-ledger-responsive.spec.ts`    | Payout ledger row geometry at audited widths; fixture-backed reads, real site-admin sign-in.|
+| `apps/myk9show/src/test/e2e/legal-page-styles.spec.ts`                 | Legal page theme colors and dividers reaching rendered styles.|
+| `apps/myk9show/src/test/e2e/registrationProgressResponsive.spec.ts`    | Registration progress legibility across 3 viewports x light/dark.|
+| `apps/myk9show/src/test/e2e/load-readiness.spec.ts`                    | Opt-in read-only diagnostic; skipped unless LOAD_READINESS_DIAGNOSTIC=true.|
+| `apps/myk9show/src/test/e2e/load-request-phases.spec.ts`               | Opt-in bounded request-phase diagnostic; same explicit gate.     |
+| `apps/myk9show/src/test/e2e/secretary-task-walk.seed.spec.ts`          | Step-driven audit instrument; its own header says not a CI spec. |
 
 ## Nightly Active
 
@@ -201,6 +207,8 @@ These specs are in the current scheduled Nightly routine. Do not add to this tab
 | `apps/myk9show/src/test/e2e/uat/secretary/disposable-entry.spec.ts`         | Stable secretary disposable entry management.                        |
 | `apps/myk9show/src/test/e2e/uat/secretary/evidence.spec.ts`                 | Stable secretary evidence pass.                                      |
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts`      | Strict secretary regression proof.                                   |
+| `apps/myk9show/src/test/e2e/myEntriesZoomReflow.spec.ts`                    | Exhibitor My Shows zoom/reflow guard; in REGRESSION_SPECS.           |
+| `apps/myk9show/src/test/e2e/offline-cold-boot.spec.ts`                      | Offline cold-boot role hydration (MYK9-200/203); in REGRESSION_SPECS.|
 
 ## Nightly Candidates / Repair Queue
 

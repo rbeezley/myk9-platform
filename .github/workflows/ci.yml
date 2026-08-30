@@ -145,6 +145,15 @@ jobs:
       - name: Nightly health workflow contract
         run: pnpm qa:nightly:workflow:test
 
+      # The map (docs/qa/e2e-suite-map.md) is where a spec's suite is decided:
+      # PR smoke, nightly, feature-audit, manual-debug, or candidate-delete. A
+      # spec absent from it belongs to no suite, so nobody owns its result.
+      # This checker already existed and already failed; nothing ran it, so the
+      # map drifted by eight specs — myEntriesZoomReflow.spec.ts among them,
+      # which then went red across four PRs with no suite to notice.
+      - name: E2E suite map drift
+        run: pnpm qa:e2e-map:check
+
       - name: Behavioral SQL harness contract
         run: pnpm qa:sql:behavioral:test
 

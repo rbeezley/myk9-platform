@@ -14,7 +14,11 @@
 --     reclaims the same number through assign_armband's (show_id, dog_id) fast
 --     path — nulling it would make restore_dog lossy;
 --   * waitlist spots are DELETED, so a deleted dog cannot be promoted into a
---     live entry.
+--     live entry;
+--   * a RESTORE brings the armband back to assigned. Releasing without this is
+--     worse than the stale assignment it replaced: the ringside replication pull
+--     filters `is_available = false`, so a restored dog would carry a number the
+--     offline store never receives (Codex P1 on #1879).
 --
 -- All fixtures roll back.
 
@@ -222,6 +226,31 @@ BEGIN
     RAISE EXCEPTION 'FAIL a deleted dog is still queued on a waitlist';
   END IF;
   RAISE NOTICE 'PASS waitlist spot removed';
+END;
+$$;
+
+-- restore_dog is platform-admin gated, and the fixture owner is not one, so the
+-- restore runs as the migration role rather than through another JWT.
+SELECT public.restore_dog('00000000-0000-0000-0000-000000dd0051');
+
+DO $$
+DECLARE
+  v_armband RECORD;
+BEGIN
+  SELECT dog_id, is_available, assigned_at INTO v_armband
+  FROM public.armbands WHERE id = '00000000-0000-0000-0000-000000dd0061';
+
+  IF v_armband.is_available IS NOT FALSE THEN
+    RAISE EXCEPTION
+      'FAIL a restored dog keeps a number the ringside replication pull filters out';
+  END IF;
+  IF v_armband.assigned_at IS NULL THEN
+    RAISE EXCEPTION 'FAIL the reclaimed armband has no assigned_at stamp';
+  END IF;
+  IF v_armband.dog_id IS DISTINCT FROM '00000000-0000-0000-0000-000000dd0051'::uuid THEN
+    RAISE EXCEPTION 'FAIL the reclaimed armband is not the restored dog''s';
+  END IF;
+  RAISE NOTICE 'PASS restore reclaims the armband as assigned';
 END;
 $$;
 

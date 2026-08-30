@@ -170,7 +170,17 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
 }) => {
   const model = buildHighInTrial({
     entries,
-    classes: (allClasses ?? []).map(c => ({ id: c.id, element: c.element, level: c.level })),
+    // `status` is load-bearing, not decoration: without it every class reads as live, a
+    // cancelled element counts as offered, and the level's award is suppressed because
+    // nobody can qualify in a class that never ran. An earlier version of this mapping
+    // hand-picked id/element/level and silently dropped it, which made the whole
+    // cancelled-class rule inert in the app while the model's own tests still passed.
+    classes: (allClasses ?? []).map(c => ({
+      id: c.id,
+      element: c.element,
+      level: c.level,
+      status: c.status ?? null,
+    })),
   });
   // buildReportOrgTitle appends an element slot; with none it leaves a trailing space.
   const orgTitle = buildReportOrgTitle(organization, activityType).trim();

@@ -196,6 +196,28 @@ describe('HighInTrialReport', () => {
     expect(screen.getByText(/PROVISIONAL/)).toBeInTheDocument();
   });
 
+  it('honours a cancelled class from the REAL allClasses prop', () => {
+    // The wiring test. `buildHighInTrial` handled cancelled classes correctly while this
+    // component re-mapped allClasses to id/element/level and dropped `status`, so the
+    // rule was inert everywhere a user could see it. Asserting through the component --
+    // with status on the prop, as ReportsPage supplies it -- is what catches that.
+    renderReport({
+      allClasses: [
+        { id: 'c1', trialId: 't1', element: 'Container', level: 'Novice' },
+        { id: 'c2', trialId: 't1', element: 'Interior', level: 'Novice' },
+        { id: 'c3', trialId: 't1', element: 'Exterior', level: 'Novice', status: 'cancelled' },
+      ],
+      entries: [...team('dog-a', '101', 'Ranger', 0, 20)],
+    });
+
+    // The award still happens over the two elements that ran...
+    expect(screen.getByText('Ranger')).toBeInTheDocument();
+    expect(screen.getByText(/Container, Interior/)).toBeInTheDocument();
+    // ...and the cancelled one is named as excluded, with the reason.
+    expect(screen.getByText(/Cancelled, so not an available class/i)).toBeInTheDocument();
+    expect(screen.getByText(/Exterior Novice/)).toBeInTheDocument();
+  });
+
   it('states the two limits a secretary would otherwise assume away', () => {
     renderReport({ entries: [...team('dog-a', '101', 'Ranger', 0, 20)] });
 

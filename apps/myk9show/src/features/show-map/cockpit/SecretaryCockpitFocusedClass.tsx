@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { Button } from '@/components/ui/button';
 import { formatTime } from '@/lib/format/dates';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -304,6 +305,51 @@ export function SecretaryCockpitFocusedClass({
             ))}
           </div>
         </section>
+
+        {canManageShow && focused.entryRows.length > 0 && (
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Entries
+            </h3>
+            {/* F29b: the only reachable home for these actions. `ShowMapRowActionsMenu`
+                renders the same set, but mounts only inside the public Show Map, which
+                is read-only by intent (#291) -- so a secretary-initiated move-up had no
+                path at all. ShowDeskPanel already owns the dialog and the mutation;
+                these buttons emit the commandId its runCommand resolves.
+                See docs/plan-f29b-operational-actions-home.md. */}
+            <ul className="mt-2 divide-y rounded-md border">
+              {focused.entryRows.map(row => (
+                <li
+                  key={row.nodeId}
+                  className="flex items-center justify-between gap-3 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{row.label}</div>
+                    {row.subtitle && (
+                      <div className="truncate text-xs text-muted-foreground">{row.subtitle}</div>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    {row.actions.map(action => (
+                      <Button
+                        key={action.commandId}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-9"
+                        title={action.why}
+                        aria-label={`${action.label} — ${row.label}`}
+                        onClick={() => onCommand(action.commandId)}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {focused.paperwork.length > 0 && (
           <section>

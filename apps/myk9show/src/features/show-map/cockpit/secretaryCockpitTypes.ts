@@ -63,8 +63,40 @@ export interface SecretaryCockpitTrial {
   order: number;
 }
 
+/**
+ * One entry inside a focused class, with the operational actions that have no other
+ * home in the app.
+ *
+ * F29b: `ShowMapRowActionsMenu` is the only renderer of the entry action set, and it
+ * mounts only inside `ShowMapTab` -- the public show page, read-only by intent (#291).
+ * The cockpit's own action surface filters to `recommended` actions, and no entry
+ * action sets that flag, so `ShowDeskPanel`'s move-up dialog could never open. These
+ * rows are what emit the commandId `runCommand` already knows how to resolve.
+ *
+ * Deliberately narrow: check-in, edit-score, scratch and message-handler already have
+ * working homes (the run sheet, Entry Management -> Exceptions, the Messages panel),
+ * and re-homing them here would duplicate live surfaces. See
+ * docs/plan-f29b-operational-actions-home.md.
+ */
+export interface SecretaryCockpitEntryAction {
+  id: string;
+  /** `${action.id}:${action.nodeId}` -- the shape ShowDeskPanel's runCommand resolves. */
+  commandId: string;
+  label: string;
+  why: string;
+}
+
+export interface SecretaryCockpitEntryRow {
+  nodeId: string;
+  label: string;
+  subtitle?: string | undefined;
+  actions: readonly SecretaryCockpitEntryAction[];
+}
+
 export interface SecretaryCockpitClass {
   id: string;
+  /** Entries of this class carrying stranded operational actions (F29b). */
+  entryRows: readonly SecretaryCockpitEntryRow[];
   trialId: string;
   name: string;
   classOrder: number;
@@ -133,6 +165,7 @@ export interface TrialScheduleGroupModel {
 }
 
 export interface FocusedClassModel extends ScheduledClassModel {
+  entryRows: readonly SecretaryCockpitEntryRow[];
   actualStart: EvidenceValue<string>;
   actualFinish: EvidenceValue<string>;
   paperwork: readonly (SecretaryCockpitPaperwork & { evidence: EvidenceKind })[];

@@ -21,6 +21,7 @@ const snapshot: SecretaryCockpitSnapshot = {
       scoredCount: 0,
       actions: [],
       paperwork: [],
+      entryRows: [],
       attention: Array.from({ length: 5 }, (_, index) => ({
         id: `issue-${index + 1}`,
         kind: 'blocker' as const,

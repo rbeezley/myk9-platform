@@ -12,6 +12,7 @@ type OnCreated = (
 interface FinishShowSaveOptions {
   status: ShowStatus;
   shouldShowCompletion: boolean;
+  isEditMode: boolean;
   showId: string;
   showName: string;
   passcodes: ShowPasscodes | null;
@@ -29,6 +30,7 @@ export async function createDraftShow(
 export function finishShowSave({
   status,
   shouldShowCompletion,
+  isEditMode,
   showId,
   showName,
   passcodes,
@@ -36,7 +38,11 @@ export function finishShowSave({
   onCreated,
   navigate,
 }: FinishShowSaveOptions): void {
-  if (shouldShowCompletion && onCreated) {
+  // Edit-mode saves update an existing show; they do not own creation-only
+  // completion content such as one-time access codes.
+  if (isEditMode) {
+    navigate(`/shows/${showId}`);
+  } else if (shouldShowCompletion && onCreated) {
     onCreated(showId, showName, passcodes, passcodeError);
   } else if (status === 'draft') {
     navigate(`/shows/${showId}`);

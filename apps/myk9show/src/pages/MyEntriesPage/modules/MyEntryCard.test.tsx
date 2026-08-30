@@ -620,6 +620,52 @@ describe('MyEntryCard scored result display', () => {
     expect(screen.getAllByText('Preliminary').length).toBeGreaterThan(0);
     expect(screen.queryByText('2nd')).not.toBeInTheDocument();
   });
+
+  it('says nothing about "preliminary" once results are released', () => {
+    // The negative half, and it was missing. Without it, rendering the label
+    // unconditionally passed the whole suite — every FINAL result would have
+    // been captioned "Preliminary" for good, which is the opposite of the
+    // reassurance this label exists to give. Verified by mutation: replacing
+    // the release check with `true` left 117/117 green before this test.
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: 2,
+            resultsReleasedAt: '2026-09-14T20:00:00.000Z',
+          }),
+        ],
+      })
+    );
+    openDetails();
+
+    expect(screen.queryByText('Preliminary')).not.toBeInTheDocument();
+    expect(screen.getAllByText('2nd').length).toBeGreaterThan(0);
+  });
+
+  it('labels the preliminary result on the ALWAYS-VISIBLE band, not only in the panel', () => {
+    // The band is what an exhibitor sees without clicking anything, so it is
+    // the surface where an unlabelled preliminary result actually misleads.
+    // The assertion above uses getAllByText(...).length > 0, which one site
+    // satisfies alone: deleting the band's label entirely left 85/85 green.
+    // Scope this one to the band by rendering WITHOUT opening the panel.
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: 2,
+          }),
+        ],
+      })
+    );
+
+    expect(screen.getByText('Preliminary')).toBeInTheDocument();
+    expect(screen.queryByText('2nd')).not.toBeInTheDocument();
+  });
 });
 
 describe('MyEntryCard confirmation number fallback (P1-04w-1)', () => {

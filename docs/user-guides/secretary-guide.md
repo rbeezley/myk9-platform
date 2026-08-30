@@ -74,6 +74,8 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
 > **A dog needs a registration number** for the trial's registry before it can be entered. This is enforced: an entry without one is refused rather than accepted and fixed later.
+>
+> **One exception:** conformation puppy classes. AKC allows a puppy to be entered while its registration is still being processed, so those entries go through without a number.
 
 > **Keep your own record of cheque numbers.** The reference and payment date you enter are saved, but they are not shown back to you anywhere in Entry Management yet — so you cannot look a cheque number up in the app.
 
@@ -169,9 +171,9 @@ Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time 
 
 > Placements are calculated for you once every dog in the class is scored. You don't enter them.
 
-## 18 · Print preliminary results
+## 18 · Print the results sheet
 
-**Reports → Preliminary Results.** Element, level, trial, date, and judge, with each dog's result and placement.
+**Reports → Results Sheet.** Element, level, trial, date, and judge, with each dog's result and placement.
 
 ---
 
@@ -189,17 +191,21 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 ## 20 · Submit results to the registry
 
-**Show Desk → Submit Results.**
+**Show Desk → Submit Results.** What you see here depends on the registry.
+
+**If the registry accepts electronic submission (AKC):**
 
 1. Check **Closeout guidance** for anything outstanding — most often entries missing a registration number.
-2. **Send to AKC** (or your registry) emails the results file for you. This is the normal path.
-3. If you already filed through the registry's own portal, use **Mark as submitted** instead — that only records it here.
+2. **Send to AKC** emails the results file for you. This is the normal path.
+3. If you already filed through AKC's portal, use **Mark as submitted** instead — that only records it here.
 
-**Download XML** gives you the file itself if you want a copy or need to file it another way. **AKC Downloadable Forms** links the registry's own paperwork.
+**Download XML** gives you the file itself if you want a copy or need to file it another way.
 
-> **If Send to AKC is greyed out**, the preflight found blocking problems — usually missing registration numbers. The button stays disabled until they're fixed, and the download is labelled **Download draft XML** while that's true, so you can see the draft without being able to file it.
+> **If Send to AKC is greyed out**, the preflight found blocking problems — usually missing registration numbers. It stays disabled until they're fixed, and the download is labelled **Download draft XML** while that's true, so you can see the draft without being able to file it.
 
-> For a registry with no submission email configured, there is no Send action: file through their process, then **Mark as submitted** to log it.
+**If the registry files manually (UKC, ASCA):** there is no Send action and no XML download. Submit through the registry's own process, then use **Mark as submitted** to log it here. **AKC Downloadable Forms** links registry paperwork where it applies.
+
+> **Mark as submitted records _your_ action** — it does not confirm the registry received anything. Keep their acknowledgement as your proof.
 
 ## 21 · Registry reports
 

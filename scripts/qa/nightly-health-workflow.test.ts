@@ -59,12 +59,40 @@ const jobs = extractJobs(workflow);
 
 const PREFLIGHT_STEP = 'scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor';
 
+/**
+ * The jobs that actually sweep routes, and therefore carry the build-first and
+ * preflight-first obligations below.
+ */
+const HEALTH_JOBS = ['nightly-health', 'cross-browser-health'] as const;
+
 describe('nightly health workflow', () => {
   it('defines both the blocking chromium job and the advisory cross-browser job', () => {
-    expect([...jobs.keys()]).toEqual(['nightly-health', 'cross-browser-health']);
+    for (const name of HEALTH_JOBS) {
+      expect([...jobs.keys()], `job ${name} is missing`).toContain(name);
+    }
   });
 
-  it.each(['nightly-health', 'cross-browser-health'])(
+  it('checks EVERY job that sweeps routes, not just the two named above', () => {
+    // This replaces an exact `toEqual([...])` on the job list.
+    //
+    // That equality was the right guard for the wrong reason. Its purpose
+    // (#1774) is that a job running route health without building the shared
+    // packages first silently under-tests against a stale dist/ — so the
+    // it.each list below must never fall behind reality. But exact equality
+    // enforces that only by rejecting EVERY new job, including ones that sweep
+    // nothing, which is how a notifier job with no route-health step broke it.
+    //
+    // Deriving the obligation from the workflow is strictly stronger: a new
+    // job that DOES sweep routes now fails here even if someone remembers to
+    // add it to the list, and a job that does not is simply out of scope.
+    const sweeps = [...jobs.entries()]
+      .filter(([, body]) => body.includes(HEALTH_STEP))
+      .map(([name]) => name);
+
+    expect(sweeps.sort()).toEqual([...HEALTH_JOBS].sort());
+  });
+
+  it.each(HEALTH_JOBS)(
     'builds shared packages before running route health in %s',
     jobName => {
       const job = jobs.get(jobName);
@@ -92,7 +120,7 @@ describe('nightly health workflow', () => {
     expect(job).toContain('playwright install --with-deps webkit');
   });
 
-  it.each(['nightly-health', 'cross-browser-health'])(
+  it.each(HEALTH_JOBS)(
     'runs the credential preflight before route health in %s',
     jobName => {
       const job = jobs.get(jobName)!;

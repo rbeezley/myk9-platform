@@ -321,15 +321,26 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
       <layout.PullToRefresh onRefresh={() => refresh(true)} enabled={false} threshold={80}>
         <div className="isolate">
           <div className="pb-8 pt-2">
-            {/* `classId` here is only the celebration CLAIM KEY -- readiness
-                comes from `classInfo` plus `entries`. A combined A/B pair
-                therefore gets one composite key and one celebration, fired
-                only once BOTH sections are finalized and released, because
-                `localEntries` holds both. The combined route had no
-                completion view at all before the MYK9-260 collapse. */}
+            {/* `classId` here is ONLY the celebration claim key -- it decides
+                which celebration fires once, not whether one should. Readiness
+                is `isScoringFinalized && resultsReleasedAt` off `classInfo`,
+                so the combined route's "both sections done" rule is enforced
+                where that `classInfo` is BUILT (`fetchCombinedClasses` ANDs the
+                two class rows), not here. Getting that backwards is how the
+                first cut of this collapse would have celebrated the pair the
+                moment section A was released.
+
+                One celebration for the pair -- the counts and elapsed time are
+                genuinely pair-level -- but a podium PER SECTION: A and B are
+                placed independently, so a merged podium would show two 1sts,
+                two 2nds, and a ranking nobody competed in.
+
+                The combined route had no completion view at all before the
+                MYK9-260 collapse. */}
             <ClassCompletionPresentation
               key={completionKey}
               classId={completionKey}
+              {...(isCombined ? { podiumSections: ['A', 'B'] } : {})}
               classInfo={classInfo}
               entries={localEntries}
               activeTab={activeTab}

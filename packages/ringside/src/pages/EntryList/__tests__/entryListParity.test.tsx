@@ -52,9 +52,15 @@ vi.mock('../components/EntryListContent', () => ({
 }));
 
 // Stubbed in both modes: the completion view has its own suite, and mounting it
-// here would drag the celebration-claim storage into every parity case.
+// here would drag the celebration-claim storage into every parity case. The
+// props are captured because `podiumSections` is a PAGE-level decision the
+// component's own suite cannot see.
+export const completionSpy: { podiumSections?: string[] } = {};
 vi.mock('../components/ClassCompletionPresentation', () => ({
-  ClassCompletionPresentation: () => <div data-testid="class-completion" />,
+  ClassCompletionPresentation: (props: { podiumSections?: string[] }) => {
+    completionSpy.podiumSections = props.podiumSections;
+    return <div data-testid="class-completion" />;
+  },
 }));
 
 type PageUnderTest = {
@@ -186,6 +192,31 @@ describe('combined mode renders what single-class mode must not', () => {
     expect(screen.getByRole('button', { name: /all sections/i })).not.toBeNull();
     expect(screen.getByRole('button', { name: /section a/i })).not.toBeNull();
     expect(screen.getByRole('button', { name: /section b/i })).not.toBeNull();
+  });
+
+  it('asks for a podium PER SECTION in combined mode', () => {
+    // A and B are placed independently -- that is what the sections are for --
+    // so one merged podium would render two 1sts, two 2nds, and a ranking
+    // nobody competed in.
+    delete completionSpy.podiumSections;
+    render(
+      <MemoryRouter>
+        <EntryListPage {...makeCombinedProps({ entries, loaded: true })} />
+      </MemoryRouter>
+    );
+
+    expect(completionSpy.podiumSections).toEqual(['A', 'B']);
+  });
+
+  it('asks for a single podium on a single class', () => {
+    delete completionSpy.podiumSections;
+    render(
+      <MemoryRouter>
+        <EntryListPage {...makeSingleClassProps({ entries, loaded: true })} />
+      </MemoryRouter>
+    );
+
+    expect(completionSpy.podiumSections).toBeUndefined();
   });
 
   it('shows no section filter on a single class', () => {

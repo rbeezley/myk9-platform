@@ -72,7 +72,16 @@ const sortComparators: Record<SortType, SortComparator> = {
   },
 
   placement: (a, b) => {
-    // Sort by placement, entries without placement go last
+    // Section FIRST. A combined Novice A/B list is two competitions that ran
+    // together, and A/B exists precisely so each section is PLACED separately
+    // -- so there are two 1sts, two 2nds, and so on. Ordering by number alone
+    // interleaves them and presents the pair as one ranking that nobody
+    // actually competed in. Single-class lists carry one section (or none), so
+    // this falls through to the placement compare unchanged.
+    if (a.section && b.section && a.section !== b.section) {
+      return a.section.localeCompare(b.section);
+    }
+    // Entries without a placement go last.
     const aPlacement = a.placement || 999;
     const bPlacement = b.placement || 999;
     if (aPlacement !== bPlacement) {

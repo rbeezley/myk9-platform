@@ -48,9 +48,32 @@ runs:
 
         # Match on the exact title rather than relevance ranking, which is
         # fuzzy and would happily return a different workflow's issue.
-        EXISTING="$(gh issue list --repo "$REPO" --label "$LABEL" --state open \
+        #
+        # Sorted ascending and ALL matches captured, not just the first. The
+        # lookup and the create below are not atomic, so two overlapping runs
+        # could each see nothing and each open an issue. Each wired workflow
+        # carries a concurrency group to prevent that, but a belt-and-braces
+        # collapse costs one line and makes the invariant self-healing: the
+        # lowest-numbered issue always wins, and any duplicate is closed on the
+        # next run rather than lingering as the noise this action exists to
+        # avoid.
+        MATCHES="$(gh issue list --repo "$REPO" --label "$LABEL" --state open \
           --json number,title --limit 100 \
-          --jq "[.[] | select(.title == \"${TITLE}\")] | .[0].number // empty")"
+          --jq "[.[] | select(.title == \"${TITLE}\") | .number] | sort | .[]")"
+        EXISTING="$(printf '%s' "$MATCHES" | head -n 1)"
+
+        # Collapse any duplicate a past race left behind.
+        #
+        # `|| [ -n "$dup" ]` is required, not defensive noise: MATCHES has no
+        # trailing newline, so `read` returns non-zero on the final line and a
+        # plain `while read` silently drops it. Caught by a dry run with three
+        # duplicates, where only the middle one was closed.
+        printf '%s' "$MATCHES" | tail -n +2 | while read -r dup || [ -n "$dup" ]; do
+          [ -n "$dup" ] || continue
+          gh issue close "$dup" --repo "$REPO" \
+            --comment "Duplicate of #${EXISTING}, which tracks this workflow."
+          echo "Closed duplicate #${dup}."
+        done
 
         if [ "$OUTCOME" = "success" ]; then
           if [ -n "$EXISTING" ]; then

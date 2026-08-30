@@ -49,6 +49,17 @@ describe('scheduled workflows report their own failures', () => {
   });
 
   it.each(scheduledWorkflows().map(w => w.file))(
+    '%s serializes its runs so the issue lookup cannot race',
+    file => {
+      // Two overlapping runs would each see no open issue and each create one.
+      // `cancel-in-progress: true` is fine — it prevents the overlap too — but
+      // the group itself is what makes the reconciliation single-threaded.
+      const source = readFileSync(join(workflowsDir, file), 'utf8');
+      expect(source).toMatch(/^concurrency:\n\s+group:/m);
+    }
+  );
+
+  it.each(scheduledWorkflows().map(w => w.file))(
     '%s grants issues: write and reports unconditionally',
     file => {
       const source = readFileSync(join(workflowsDir, file), 'utf8');
@@ -77,6 +88,22 @@ describe('scheduled workflows report their own failures', () => {
       expect(action).toContain('gh issue list');
       expect(action).toContain('select(.title == ');
       expect(action).not.toContain('--search');
+    });
+
+    it('collapses duplicates a concurrent run could have created', () => {
+      // Codex P2 on #1883. Lookup and create are not atomic, so two
+      // overlapping runs can each see nothing and each open an issue. The
+      // concurrency groups asserted above prevent that; this makes the
+      // invariant self-healing if one ever slips through, so a duplicate is
+      // collapsed on the next run instead of lingering as the noise this
+      // action exists to avoid.
+      expect(action).toContain('| sort | .[]');
+      expect(action).toContain('Duplicate of #');
+
+      // The final line of a `printf '%s'` list has no trailing newline, so a
+      // plain `while read` drops it. Without this, a third duplicate survives
+      // — which a dry run caught after the first fix looked correct.
+      expect(action).toContain('|| [ -n "$dup" ]');
     });
 
     it('fails loudly when it cannot report', () => {

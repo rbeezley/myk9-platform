@@ -12,6 +12,13 @@ env:
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
+# Serialized. The two jobs already avoid signing in as the same E2E accounts
+# concurrently; this extends that to runs of the whole workflow, and keeps
+# the tracking-issue reconciliation free of a lookup/create race.
+concurrency:
+  group: nightly-health
+  cancel-in-progress: false
+
 jobs:
   nightly-health:
     name: Read-only QA health

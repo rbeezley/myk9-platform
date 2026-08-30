@@ -15,7 +15,9 @@ staff `/at-show` surface); availability is governed by the secretary's
 
 ## Live verification (ground truth, 2026-06-23)
 
-Signed in as `e2e-exhibitor@test.myk9.com` (7 **upcoming** entries, Heartland show
+Signed in as `e2e-exhibitor@test.myk9.com` — the address that account used at the
+time; it moved to `exhibitor@myk9t.com` when `test.myk9.com` was retired on
+2026-08-23, so use the new one to re-run this (7 **upcoming** entries, Heartland show
 dated Aug 2026). Check-in on an upcoming entry from My Entries →
 `POST /rpc/self_checkin_entry → 204` (persisted), UI updated, no console errors,
 reverted after. Confirms: early self-check-in works, via the correct RPC.

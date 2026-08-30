@@ -29,6 +29,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
+import { assertAddressIsLive } from '../../fixtures/retiredFixtureDomain';
 
 export interface TestUser {
   email: string;
@@ -186,6 +187,8 @@ export async function signIn(
     throw new Error(`Missing E2E credentials for ${email || 'unknown test user'}`);
   }
 
+  assertAddressIsLive(email);
+
   const params = new URLSearchParams({ returnTo });
   await gotoSignIn(page, `/sign-in?${params.toString()}`);
 
@@ -237,10 +240,14 @@ export async function signInAsTestUser(page: Page, userType: keyof typeof TEST_U
 /**
  * Role convenience wrappers — use the env-backed canonical accounts.
  *
- * The `*@myk9t.com` addresses are now real mailboxes with `auth.users` rows and
- * DO authenticate; verified 2026-08-26 signing in as `secretary@myk9t.com` and
- * `exhibitor@myk9t.com`. They are the defaults below for that reason. The older
- * `e2e-*@test.myk9.com` addresses are what the env vars may still override with.
+ * The `*@myk9t.com` addresses are real mailboxes with `auth.users` rows and DO
+ * authenticate; verified 2026-08-26 signing in as `secretary@myk9t.com` and
+ * `exhibitor@myk9t.com`. They are the defaults below for that reason.
+ *
+ * The older `e2e-*@test.myk9.com` addresses are NOT a supported override — that
+ * domain is retired and holds no auth users. `assertAddressIsLive` rejects one
+ * before it reaches Supabase, because the error Supabase returns for a dead
+ * address is indistinguishable from a wrong password.
  */
 export const signInAsSecretary = (page: Page, returnTo = '/') =>
   signIn(page, TEST_USERS.SECRETARY.email, TEST_USERS.SECRETARY.password, returnTo);

@@ -454,7 +454,17 @@ the guard. All accounts share the password in `apps/myk9show/.env.local`.
 Phase 0 still resolves each page's real route/role against the router; the
 routes here are the known-canonical ones.
 
-### Secretary workflow — login `e2e-secretary@test.myk9.com`
+These are `@myk9t.com` addresses. The `e2e-*@test.myk9.com` set this table
+named until 2026-08-30 was retired on 2026-08-23 (`test.myk9.com` has no MX
+record, so mail to it hard-bounced off a third party's server) and has **zero**
+`auth.users` rows — verified again on 2026-08-30: 22 users on `@myk9t.com`,
+none on `test.myk9.com`. Signing in with a retired address fails as
+`Invalid login credentials`, the same message a wrong password gives, so it
+reads as rotation drift rather than a dead account. Prefer the helpers in
+`src/test/e2e/helpers/testUsers.ts` (`signInAsSecretary` and siblings), which
+read both address and password from env themselves.
+
+### Secretary workflow — login `secretary@myk9t.com`
 
 | #   | Page                                     | Route                                               | Notes                                                                                                                                                                                                                                                                                                                                                                                                            |
 | --- | ---------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -468,7 +478,7 @@ routes here are the known-canonical ones.
 | 8   | At-Show — class picker                   | /at-show/:showId                                    | **Swept** (PR #1827). Offline-first constraints dominate; keep calm, no motion                                                                                                                                                                                                                                                                                                                                   |
 | 8b  | At-Show — entry list + scoresheet        | /at-show/:showId/class/:classId, .../score/:entryId | **Not yet swept.** The p8 run covered only the picker. Watchlist #1 already has **19 raw palette hits** here (`packages/ringside` `SortableEntryCard.tsx`, `SortableEntryCardComponents.tsx`, `ClassCardSkeleton.tsx`) — start from those. `useEntryListData.ts` already sets `networkMode:'always'` correctly; confirm the combined A/B and scoresheet routes inherit it rather than deriving their own queries |
 
-### Site admin — login `e2e-admin@test.myk9.com` (role: `SITE_ADMIN`)
+### Site admin — login `testadmin@myk9t.com` (role: `SITE_ADMIN`)
 
 | #   | Page                  | Route                | Entry file                                               | Notes                                   |
 | --- | --------------------- | -------------------- | -------------------------------------------------------- | --------------------------------------- |
@@ -487,7 +497,7 @@ routes here are the known-canonical ones.
 | 16  | Exhibitor Payments       | /exhibitor/payments     | src/pages/exhibitor/ExhibitorPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive                                                                                                                                                                                                                                                      |
 | 17  | Cart                     | /cart                   | src/pages/CartPage.tsx                        | Checkout flow; conversion-critical                                                                                                                                                                                                                                                           |
 
-### Club admin — login `e2e-clubadmin@test.myk9.com` (role: `CLUB_ADMIN`)
+### Club admin — login `clubadmin@myk9t.com` (role: `CLUB_ADMIN`)
 
 | #   | Page          | Route                | Entry file                                | Notes                                   |
 | --- | ------------- | -------------------- | ----------------------------------------- | --------------------------------------- |

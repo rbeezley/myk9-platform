@@ -1,3 +1,5 @@
+import { assertAddressIsLive } from '../fixtures/retiredFixtureDomain';
+
 export type AuthPreflightRole = 'secretary' | 'admin' | 'judge' | 'exhibitor';
 
 interface RoleEnv {
@@ -73,6 +75,20 @@ export function resolveAuthPreflightConfig(
         `Missing E2E auth preflight secret(s) for ${role}: ${missingRoleSecrets.join(', ')}`
       );
     }
+
+    // A retired address must die here rather than at Supabase. This preflight
+    // runs BEFORE Playwright in five workflow steps (ci.yml x2, nightly-e2e,
+    // nightly-health x2), so it is the FIRST place a stale `E2E_*_EMAIL`
+    // secret surfaces — and it would surface as the same generic
+    // "Invalid login credentials" that a wrong password gives, sending the
+    // reader off to rotate a password that was never wrong.
+    //
+    // Note the asymmetry with testUsers.ts: there, every email has an
+    // @myk9t.com default, so only a STALE override is dangerous. Here there
+    // are no defaults at all — a MISSING secret already fails loudly above.
+    // Staleness is the only failure mode this adds, which is exactly the one
+    // the generic error hides.
+    assertAddressIsLive(email);
 
     return {
       role,

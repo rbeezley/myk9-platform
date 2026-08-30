@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { SHOW_ORGANIZATIONS } from '../organizations';
-import { JUDGE_ORGANIZATIONS } from '@/components/panels/edit/JudgeQualificationPanel';
+import { JUDGE_ORGANIZATIONS } from '@/features/judges/judgeOrganizations';
 
 describe('judge qualification organizations cover every show organization', () => {
   it('offers a qualification option for each creatable show organization', () => {

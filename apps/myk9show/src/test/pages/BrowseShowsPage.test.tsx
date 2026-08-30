@@ -239,7 +239,9 @@ function setupMocks(options: {
   // Set the auth user for useAuthContext mock
   mockAuthUser.current = user;
 
-  const tabQuickActions = getTabQuickActions('all', user);
+  // The navigator is injected now — these actions used to set
+  // window.location.href, a full document load in an offline-first PWA.
+  const tabQuickActions = getTabQuickActions('all', user, () => {});
 
   // Build default enhanced shows from the shows
   const defaultEnhanced: EnhancedShow[] = shows.map(s => ({

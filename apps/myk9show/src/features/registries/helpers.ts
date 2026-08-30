@@ -84,6 +84,22 @@ export function getTrialRegistry(trial: TrialLike | null | undefined): Registry 
 }
 
 /**
+ * Narrow a raw `registry_id` to a configured RegistryId, or null.
+ *
+ * Unlike `getTrialRegistry`, this does NOT default to AKC — the caller wants to
+ * know whether the trial names a registry we actually have config for, so that
+ * an unrecognised or blank value cannot silently drive a registration
+ * prerequisite check against the wrong rulebook.
+ */
+export function resolveConfiguredRegistryId(
+  rawRegistryId: string | null | undefined
+): RegistryId | null {
+  const id = rawRegistryId?.trim();
+  if (!id) return null;
+  return (listRegistries() as readonly string[]).includes(id) ? (id as RegistryId) : null;
+}
+
+/**
  * Derive a trial's `registry_id` from the show's `organization`.
  *
  * `organization` and `registry_id` are the same axis (the sanctioning body):

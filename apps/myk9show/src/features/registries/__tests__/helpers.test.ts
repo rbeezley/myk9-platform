@@ -8,7 +8,13 @@ vi.mock('@sentry/react', () => ({
   captureMessage: sentryMocks.captureMessage,
 }));
 
-import { getShowStyle, getTrialRegistry, getTrialTimezone, deriveRegistryId } from '../helpers';
+import {
+  getShowStyle,
+  getTrialRegistry,
+  getTrialTimezone,
+  deriveRegistryId,
+  resolveConfiguredRegistryId,
+} from '../helpers';
 import { akcRegistry } from '../akc';
 import { ukcRegistry } from '../ukc';
 import { ascaRegistry } from '../asca';
@@ -52,6 +58,37 @@ describe('getShowStyle', () => {
     expect(getShowStyle(undefined)).toBe('monogram');
     expect(getShowStyle({})).toBe('monogram');
     expect(getShowStyle({ style: null })).toBe('monogram');
+  });
+});
+
+describe('resolveConfiguredRegistryId', () => {
+  // Unlike getTrialRegistry this must NOT default to AKC: the caller uses it to
+  // decide whether a registration prerequisite can be checked at all, and a
+  // wrong-rulebook check is worse than no check.
+  it('accepts a configured registry id', () => {
+    expect(resolveConfiguredRegistryId('UKC')).toBe('UKC');
+    expect(resolveConfiguredRegistryId('AKC')).toBe('AKC');
+    expect(resolveConfiguredRegistryId('ASCA')).toBe('ASCA');
+  });
+
+  it('trims before matching', () => {
+    expect(resolveConfiguredRegistryId('  UKC  ')).toBe('UKC');
+  });
+
+  // The ids are upper-case and the match is case-sensitive. A lower-case value
+  // is NOT configured, and must not resolve.
+  it('rejects a lower-case id rather than coercing it', () => {
+    expect(resolveConfiguredRegistryId('ukc')).toBeNull();
+  });
+
+  it('rejects an unrecognised id rather than passing it through', () => {
+    expect(resolveConfiguredRegistryId('made-up')).toBeNull();
+  });
+
+  it('treats blank and missing values as absent, without defaulting to AKC', () => {
+    expect(resolveConfiguredRegistryId('   ')).toBeNull();
+    expect(resolveConfiguredRegistryId(null)).toBeNull();
+    expect(resolveConfiguredRegistryId(undefined)).toBeNull();
   });
 });
 

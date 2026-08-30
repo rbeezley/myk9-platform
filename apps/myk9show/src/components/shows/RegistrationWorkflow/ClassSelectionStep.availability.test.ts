@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildAvailabilityMap,
-  isAvailabilityUnreadable,
-  resolveConfiguredRegistryId,
-} from './ClassSelectionStep.availability';
+import { buildAvailabilityMap, isAvailabilityUnreadable } from './ClassSelectionStep.availability';
 
 describe('isAvailabilityUnreadable', () => {
   // The offline case is the one that matters: the query PAUSES rather than
@@ -46,24 +42,3 @@ describe('buildAvailabilityMap', () => {
   });
 });
 
-describe('resolveConfiguredRegistryId', () => {
-  const configured = ['akc', 'ukc', 'asca'];
-
-  it('accepts a configured id', () => {
-    expect(resolveConfiguredRegistryId('ukc', configured)).toBe('ukc');
-  });
-
-  it('trims before matching', () => {
-    expect(resolveConfiguredRegistryId('  akc  ', configured)).toBe('akc');
-  });
-
-  it('rejects an unrecognised id rather than passing it through', () => {
-    expect(resolveConfiguredRegistryId('made-up', configured)).toBeNull();
-  });
-
-  it('treats blank and missing values as absent', () => {
-    expect(resolveConfiguredRegistryId('   ', configured)).toBeNull();
-    expect(resolveConfiguredRegistryId(null, configured)).toBeNull();
-    expect(resolveConfiguredRegistryId(undefined, configured)).toBeNull();
-  });
-});

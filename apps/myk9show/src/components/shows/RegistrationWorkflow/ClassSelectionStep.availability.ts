@@ -56,17 +56,3 @@ export function buildAvailabilityMap(
   }
   return map;
 }
-
-/**
- * Resolve a trial's registry id against the configured registry list. An
- * unrecognised value is treated as absent rather than passed through, so a
- * stale or free-text registry cannot silently drive prerequisite checks.
- */
-export function resolveConfiguredRegistryId(
-  rawRegistryId: string | null | undefined,
-  configuredIds: readonly string[]
-): string | null {
-  const trimmed = rawRegistryId?.trim() || null;
-  if (!trimmed) return null;
-  return configuredIds.some(configuredId => configuredId === trimmed) ? trimmed : null;
-}

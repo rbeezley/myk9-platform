@@ -6,7 +6,6 @@ import {
   ShowEntry,
   ClassEntry,
   RegistrationFormData,
-  FeeCalculation,
   EntryStatus,
   PaymentStatus,
   StatusChange,
@@ -113,7 +112,6 @@ interface ShowRegistrationStore {
   getStatusHistory: (registrationId: string) => StatusChange[];
 
   // Fee calculation
-  calculateFees: (registration: ShowRegistration) => FeeCalculation;
 
   // Submission
   submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
@@ -383,42 +381,6 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         );
       },
 
-      calculateFees: registration => {
-        const breakdown = registration.entries.map(entry => {
-          const classes = entry.classes.map(cls => ({
-            className: cls.className,
-            fee: cls.fee,
-          }));
-
-          const subtotal = classes.reduce((sum, cls) => sum + cls.fee, 0);
-
-          return {
-            dogId: entry.dogId,
-            dogName: entry.dogName,
-            classes,
-            subtotal,
-          };
-        });
-
-        const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0);
-
-        // Deliberately empty — the multi-dog discount this used to add was
-        // never applied by the cart or any server path, so it quoted a total
-        // lower than the exhibitor was charged. See MYK9-265.
-        const discounts: { type: string; amount: number; description: string }[] = [];
-
-        const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
-        const taxes = 0;
-        const total = subtotal - discountTotal + taxes;
-
-        return {
-          subtotal,
-          discounts,
-          taxes,
-          total,
-          breakdown,
-        };
-      },
 
       submitRegistration: async (registrationId, paymentDetails) => {
         await new Promise(resolve => setTimeout(resolve, 1000));

@@ -42,7 +42,7 @@ import {
   OverallCartSummary,
 } from './ClassSelectionStep.components';
 import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
-import { listRegistries } from '@/features/registries';
+import { resolveConfiguredRegistryId } from '@/features/registries';
 import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
@@ -51,7 +51,6 @@ import '@/styles/myk9-registration-workflow.css';
 import {
   buildAvailabilityMap,
   isAvailabilityUnreadable,
-  resolveConfiguredRegistryId,
 } from './ClassSelectionStep.availability';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
@@ -398,6 +397,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           );
                         }, 0);
 
+                        // Depends only on the trial, so it is resolved once
+                        // here rather than per level inside the map below.
+                        const trialRegistryId = resolveConfiguredRegistryId(trial.registryId);
+
                         return (
                           <TrialSection
                             key={`${trial.id}-${dogId}`}
@@ -415,13 +418,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 isSingleClass={group.isSingleClass}
                                 levels={group.levels.map(l => {
                                   const avail = availabilityMap.get(l.classId);
-                                  const registryId = resolveConfiguredRegistryId(
-                                    trial.registryId,
-                                    listRegistries()
-                                  );
                                   const prerequisite = getRegistrationPrerequisite({
                                     registrations: dog?.registrations,
-                                    registryId,
+                                    registryId: trialRegistryId,
                                     trialType: trial.trialType,
                                     className: l.className,
                                     element: group.element,

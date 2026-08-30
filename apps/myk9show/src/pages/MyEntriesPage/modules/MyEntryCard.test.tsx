@@ -393,7 +393,14 @@ describe('MyEntryCard placement — edge cases (beyond the #775 "scored result d
     // came in, so the rank renders for every qualifier (5th, 6th, …).
     renderCard(
       makeEntry({
-        classes: [makeClass({ isScored: true, resultStatus: 'qualified', finalPlacement: 5 })],
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: 5,
+            resultsReleasedAt: '2026-09-14T20:00:00.000Z',
+          }),
+        ],
       })
     );
     openDetails();
@@ -544,6 +551,7 @@ describe('MyEntryCard scored result display', () => {
             isScored: true,
             resultStatus: 'qualified',
             finalPlacement: 2,
+            resultsReleasedAt: '2026-09-14T20:00:00.000Z',
             searchTimeSeconds: 42.5,
           }),
         ],
@@ -593,6 +601,24 @@ describe('MyEntryCard scored result display', () => {
 
     expect(screen.getAllByText('Q').length).toBeGreaterThan(0);
     expect(screen.queryByText(/\d(st|nd|rd|th)$/)).not.toBeInTheDocument();
+  });
+
+  it('labels qualifying results as preliminary and withholds placement before release', () => {
+    renderCard(
+      makeEntry({
+        classes: [
+          makeClass({
+            isScored: true,
+            resultStatus: 'qualified',
+            finalPlacement: 2,
+          }),
+        ],
+      })
+    );
+    openDetails();
+
+    expect(screen.getAllByText('Preliminary').length).toBeGreaterThan(0);
+    expect(screen.queryByText('2nd')).not.toBeInTheDocument();
   });
 });
 

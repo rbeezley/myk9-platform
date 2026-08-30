@@ -78,7 +78,13 @@ describe('buildDogFaceSummary — before the run', () => {
 describe('buildDogFaceSummary — after the run', () => {
   it('carries the result instead of check-in state once a class is scored', () => {
     const summary = buildDogFaceSummary([
-      cls({ id: 'a', isScored: true, resultStatus: 'qualified', finalPlacement: 2 }),
+      cls({
+        id: 'a',
+        isScored: true,
+        resultStatus: 'qualified',
+        finalPlacement: 2,
+        resultsReleasedAt: '2026-08-01T09:35:00Z',
+      }),
     ]);
     expect(summary.groups[0]?.classes[0]?.resultStatus).toBe('qualified');
     expect(summary.groups[0]?.classes[0]?.finalPlacement).toBe(2);
@@ -97,6 +103,13 @@ describe('buildDogFaceSummary — after the run', () => {
   it('never renders an unranked placement of 0', () => {
     const summary = buildDogFaceSummary([
       cls({ id: 'a', isScored: true, resultStatus: 'qualified', finalPlacement: 0 }),
+    ]);
+    expect(summary.groups[0]?.classes[0]?.finalPlacement).toBeUndefined();
+  });
+
+  it('withholds placement while a qualifying result is preliminary', () => {
+    const summary = buildDogFaceSummary([
+      cls({ id: 'a', isScored: true, resultStatus: 'qualified', finalPlacement: 2 }),
     ]);
     expect(summary.groups[0]?.classes[0]?.finalPlacement).toBeUndefined();
   });
@@ -197,7 +210,6 @@ describe('dogGroupsForFace', () => {
   });
 });
 
-
 describe('buildDogFaceSummary — trial grouping', () => {
   const AUG1 = () => new Date('2026-08-01T00:00:00Z');
   const AUG2 = () => new Date('2026-08-02T00:00:00Z');
@@ -278,7 +290,6 @@ describe('buildDogFaceSummary — trial grouping', () => {
   });
 });
 
-
 describe('buildDogFaceSummary — exhibitor-set check-in states', () => {
   it('takes a pulled class out of the tally denominator', () => {
     // `pulled` is a CHECK-IN status, not a row status, so it is invisible to
@@ -327,7 +338,6 @@ describe('buildDogFaceSummary — exhibitor-set check-in states', () => {
     expect(summary.groups[0]?.classes[0]?.checkInState).toBe('none');
   });
 });
-
 
 describe('buildDogFaceSummary — result detail', () => {
   it('carries search time and faults onto the face with the result', () => {

@@ -797,6 +797,23 @@ UPDATE public.classes SET
 WHERE id = 'dec1a55e-0000-0000-0000-000000000031';
 
 -- ---------------------------------------------------------------------------
+-- 8b. GAP FIXTURE #3 (preliminary result): Willow's Interior Advanced run is
+--    scored and qualified, but the class is still in progress and results
+--    have not been released. This keeps the exhibitor's own result visible
+--    while proving placement remains withheld until release.
+-- ---------------------------------------------------------------------------
+UPDATE public.entries SET
+  is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+  entry_status = 'completed', search_time_seconds = 52.40, total_faults = 0,
+  total_score = 100, final_placement = 1,
+  scoring_completed_at = '2026-08-01 10:15:00+00'
+WHERE id = 'dededede-0000-0000-0000-000000000052';
+UPDATE public.classes SET
+  status = 'in_progress', is_scoring_finalized = false, scored_count = 1,
+  results_released_at = NULL
+WHERE id = 'dec1a55e-0000-0000-0000-000000000032';
+
+-- ---------------------------------------------------------------------------
 -- 9. GAP FIXTURE #4 (refunded/withdrawn entries, P1-04 seam): two new fixed-id
 --    entries, both entry_status='withdrawn' + payment_status='refunded' with the
 --    refund columns populated:

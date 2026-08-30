@@ -29,6 +29,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryListPage } from '../EntryListPage';
+import type { EntryListPageProps } from '../pageProps';
 import {
   contentSpy,
   makeCombinedProps,
@@ -51,6 +52,18 @@ vi.mock('../components/EntryListContent', () => ({
   },
 }));
 
+// The page hands its run-order wrapper to EntryListDialogs; the injected dialog
+// slots are null components, so this is the only way to reach it.
+export const dialogSpy: {
+  handleApplyRunOrder?: (preset: string) => Promise<void>;
+} = {};
+vi.mock('../components/EntryListDialogs', () => ({
+  EntryListDialogs: (props: { handleApplyRunOrder?: (preset: string) => Promise<void> }) => {
+    dialogSpy.handleApplyRunOrder = props.handleApplyRunOrder;
+    return <div data-testid="entry-list-dialogs" />;
+  },
+}));
+
 // Stubbed in both modes: the completion view has its own suite, and mounting it
 // here would drag the celebration-claim storage into every parity case. The
 // props are captured because `podiumSections` is a PAGE-level decision the
@@ -66,11 +79,14 @@ vi.mock('../components/ClassCompletionPresentation', () => ({
 type PageUnderTest = {
   name: string;
   render: (cse?: ParityCase) => void;
+  /** The same props `render` uses, for cases that must mutate them. */
+  makeProps: (cse?: ParityCase) => EntryListPageProps;
 };
 
 const PAGES: PageUnderTest[] = [
   {
     name: 'EntryListPage (single class)',
+    makeProps: (cse = {}) => makeSingleClassProps(cse),
     render: (cse = {}) =>
       void render(
         <MemoryRouter>
@@ -80,6 +96,7 @@ const PAGES: PageUnderTest[] = [
   },
   {
     name: 'EntryListPage (combined Section A/B)',
+    makeProps: (cse = {}) => makeCombinedProps(cse),
     render: (cse = {}) =>
       void render(
         <MemoryRouter>
@@ -90,6 +107,8 @@ const PAGES: PageUnderTest[] = [
 ];
 
 describe.each(PAGES)('entry-list parity — $name', page => {
+  const makeProps = page.makeProps;
+
   beforeEach(() => {
     resetContentSpy();
   });
@@ -160,6 +179,43 @@ describe.each(PAGES)('entry-list parity — $name', page => {
       expect(uiActionSpy.setSortOrder).toHaveBeenCalledWith('run');
       expect(uiActionSpy.setRunOrderDialogOpen).toHaveBeenCalledWith(false);
       expect(uiActionSpy.setManualOrder).toHaveBeenCalled();
+    });
+  });
+
+  describe('run-order outcome', () => {
+    it('does NOT claim success when the handler reports the write did not land', async () => {
+      // The regression this pins: both hosts catch their own persistence
+      // failure and RETURN NORMALLY (the dialog invokes them fire-and-forget,
+      // so a rejection would be unhandled). A page that treats "did not throw"
+      // as success congratulates a steward on an order that never left their
+      // phone, and switches the list to show it.
+      const props = makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+      props.handlers.handleApplyRunOrder = vi.fn().mockResolvedValue(false);
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      await dialogSpy.handleApplyRunOrder?.('by-armband');
+
+      expect(uiActionSpy.setShowSuccessMessage).not.toHaveBeenCalledWith(true);
+      expect(uiActionSpy.setRunOrderDialogOpen).toHaveBeenCalledWith(false);
+    });
+
+    it('confirms and re-sorts when the handler reports the write landed', async () => {
+      const props = makeProps({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+      props.handlers.handleApplyRunOrder = vi.fn().mockResolvedValue(true);
+      render(
+        <MemoryRouter>
+          <EntryListPage {...props} />
+        </MemoryRouter>
+      );
+
+      await dialogSpy.handleApplyRunOrder?.('by-armband');
+
+      expect(uiActionSpy.setShowSuccessMessage).toHaveBeenCalledWith(true);
+      expect(uiActionSpy.setSortOrder).toHaveBeenCalledWith('run');
     });
   });
 

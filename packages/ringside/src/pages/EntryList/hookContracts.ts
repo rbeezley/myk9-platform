@@ -213,12 +213,22 @@ export interface EntryListHandlers {
    * `scope` and `renumberMode` are meaningful only for a combined A/B list,
    * where the steward can renumber one section without disturbing the other;
    * the single-class implementation ignores them.
+   *
+   * RETURNS whether a new order was actually PERSISTED. The outcome is a return
+   * value rather than a thrown error because the RunOrderDialog invokes this
+   * fire-and-forget (`void onApplyOrder(...)`), so a rejection would surface as
+   * an unhandled rejection rather than reaching a caller. A host that swallows
+   * its own failure and returns normally is indistinguishable from success --
+   * which is how the page came to show "Run order updated successfully" over a
+   * write that never landed, and switch the steward's view to an order that
+   * existed only on their phone. `false` for both a failed write and `'manual'`,
+   * which opens drag mode and persists nothing.
    */
   handleApplyRunOrder: (
     preset: RunOrderPreset,
     scope?: RunOrderScope,
     renumberMode?: RenumberMode
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   /** Switch the entry list into drag-to-reorder mode. UI-only. */
   handleOpenDragMode: () => void;
 

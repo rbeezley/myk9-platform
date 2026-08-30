@@ -24,9 +24,13 @@ import React, { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TabBar } from '@myk9/ui';
 import type { EntryListPageProps } from './pageProps';
-import type { EntryListHandlers } from './hookContracts';
 import { useAutoDismiss } from './hooks/useAutoDismiss';
-import type { PrintSortOrder } from './dialogSlots';
+import type {
+  PrintSortOrder,
+  RenumberMode,
+  RunOrderPreset,
+  RunOrderScope,
+} from './dialogSlots';
 import type { TabType } from './hooks/useEntryListFilters';
 import {
   buildSectionTabs,
@@ -165,8 +169,15 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   // no way to tell a completed renumber from one that never fired, and the
   // natural response is to apply it again.
   const showSuccess = useAutoDismiss(uiActions.setShowSuccessMessage, 2000);
-  const handleApplyRunOrder = useCallback<EntryListHandlers['handleApplyRunOrder']>(
-    async (preset, scope, renumberMode) => {
+  // Returns void, not the handler's boolean: this wrapper is consumed by the
+  // RunOrderDialog, which fires it and forgets. The boolean is the HOST's
+  // report to this page, and it stops here.
+  const handleApplyRunOrder = useCallback(
+    async (
+      preset: RunOrderPreset,
+      scope?: RunOrderScope,
+      renumberMode?: RenumberMode
+    ): Promise<void> => {
       // 'manual' applies no order -- it opens drag-to-reorder, which needs the
       // dialog closed, the manual order seeded and the sort switched, none of
       // which the host handler does.
@@ -174,16 +185,20 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         handleOpenDragMode();
         return;
       }
+      // The handler REPORTS whether the order persisted; it does not signal by
+      // throwing, because the dialog invokes it fire-and-forget. Treating "did
+      // not throw" as success is how this banner came to congratulate a steward
+      // on an order that never left their phone -- both hosts catch their own
+      // persistence failures and return normally. The catch stays as a backstop
+      // for a host that does reject.
+      let persisted = false;
       try {
-        await handlers.handleApplyRunOrder(preset, scope, renumberMode);
+        persisted = await handlers.handleApplyRunOrder(preset, scope, renumberMode);
       } catch {
-        // The handler already surfaced the failure. Close the dialog WITHOUT
-        // the success banner -- claiming success over a failed write is how a
-        // steward ends up running the ring from an order that was never saved.
-        setRunOrderDialogOpen(false);
-        return;
+        persisted = false;
       }
       setRunOrderDialogOpen(false);
+      if (!persisted) return;
       showSuccess();
       setSortOrder('run');
     },

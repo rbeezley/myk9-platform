@@ -316,7 +316,8 @@ export function useAtShowEntryListHandlers(
     async (preset: RunOrderPreset) => {
       if (preset === 'manual') {
         setIsDragMode(true);
-        return;
+        // Opens drag mode; nothing is persisted until the steward drops.
+        return false;
       }
       // Compute the preset order with the shared myK9Show helper, then persist
       // each entry's new run_order. run_order is ringside-whitelisted, so
@@ -338,14 +339,16 @@ export function useAtShowEntryListHandlers(
       } catch (error) {
         // The single-class RunOrderDialog fires this fire-and-forget (`void
         // onApplyOrder(...)`), so a re-throw would surface as an unhandled
-        // rejection. Surface the failure as a toast and stop here instead — the
-        // write didn't land, so there's nothing to re-pull.
+        // rejection. Surface the failure as a toast and report it to the caller
+        // through the RETURN value instead — returning normally here is what let
+        // the page congratulate a steward on an order that was never saved.
         notifyRunOrderPersistError(error);
-        return;
+        return false;
       }
       // The write landed — re-pull is best-effort reconciliation, kept OUT of the
       // try so a refresh hiccup can't read as a failed apply (false error toast).
       await refresh();
+      return true;
     },
     [localEntries, refresh, setIsDragMode]
   );

@@ -294,26 +294,28 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // route through `applyCombinedRunOrder`, which persists each entry's run_order
   // offline-first via the replication layer. `manual` opens drag mode instead.
   const handleApplyRunOrder = useCallback<
-    (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => Promise<void>
+    (preset: RunOrderPreset, scope?: RunOrderScope, renumberMode?: RenumberMode) => Promise<boolean>
   >(
     async (preset, scope, renumberMode) => {
       if (preset === 'manual') {
         uiActions.setIsDragMode(true);
-        return;
+        return false;
       }
       try {
         await applyCombinedRunOrder(localEntries, preset, scope, renumberMode);
       } catch (error) {
-        // Surface the failure, then re-throw: EntryListPage catches it to close
-        // the dialog WITHOUT flashing the success banner. Swallowing here would
-        // let that banner show on a failed write.
+        // Surface the failure and report it through the RETURN value, matching
+        // the single-class host. Throwing would work too -- the page catches --
+        // but the dialog calls this fire-and-forget, so one convention that
+        // never rejects is the safer of the two.
         notifyRunOrderPersistError(error);
-        throw error;
+        return false;
       }
       // The write landed — re-pull is best-effort reconciliation, kept OUT of the
       // try so a refresh hiccup can't read as a failed apply (false error toast +
       // suppressed success banner). The persist outcome alone decides success.
       await refresh();
+      return true;
     },
     [localEntries, refresh, uiActions]
   );

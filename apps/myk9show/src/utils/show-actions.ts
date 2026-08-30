@@ -3,6 +3,7 @@ import { UserWithRoles, PERMISSIONS, Permission } from '@/types/auth-types';
 import { ShowRelationship } from '@/types/unified-shows-types';
 import { ShowPermissionValidator } from './permissionValidation';
 import { logger } from '@/services/LoggingService';
+import { features } from '@/config/features';
 
 /**
  * Action types for show cards
@@ -61,17 +62,12 @@ export function getTabQuickActions(
         });
       }
 
-      // Bulk register (for club admins)
-      if (userPermissions.includes(PERMISSIONS.REGISTRATION_BULK_OPERATIONS)) {
-        actions.push({
-          id: 'bulk_register',
-          label: 'Bulk Register',
-          icon: 'Users',
-          variant: 'default',
-          permission: PERMISSIONS.REGISTRATION_BULK_OPERATIONS,
-          onClick: () => logger.logUserAction('bulk_register', 'shows', {}),
-        });
-      }
+      // No "Bulk Register" button. It shipped with the app's first commit
+      // (35c3a1d4b, 2026-01-02) wired to nothing but a log line, and eight
+      // months later no bulk-registration feature exists anywhere in the
+      // codebase — only the permission constant does. A control that has never
+      // done anything is a promise, not a feature; it comes back with the
+      // implementation.
       break;
 
     case 'managing':
@@ -90,49 +86,43 @@ export function getTabQuickActions(
         });
       }
 
-      // Bulk show management
-      if (userPermissions.includes(PERMISSIONS.SHOW_MANAGE)) {
+      // No "Bulk Actions" button, for the same reason as Bulk Register above.
+      // The only bulk affordance in the app is CheckinBulkActions inside the
+      // Show Workbench, which is a different feature entirely.
+
+      // Analytics is offered only when the feature is actually on. The route
+      // is wrapped in `featurePage(features.analytics, ...)`, so with the flag
+      // off this button navigated correctly to a "coming soon" screen — an
+      // honest destination for a control that should not have been there.
+      if (features.analytics) {
         actions.push({
-          id: 'bulk_manage',
-          label: 'Bulk Actions',
-          icon: 'Settings',
+          id: 'analytics',
+          label: 'Analytics',
+          icon: 'BarChart3',
           variant: 'default',
-          permission: PERMISSIONS.SHOW_MANAGE,
-          onClick: () => logger.logUserAction('bulk_manage', 'shows', {}),
+          onClick: () => {
+            logger.logUserAction('view_analytics', 'shows', {});
+            navigate('/exhibitor/analytics');
+          },
         });
       }
-
-      // Show analytics
-      actions.push({
-        id: 'analytics',
-        label: 'Analytics',
-        icon: 'BarChart3',
-        variant: 'default',
-        onClick: () => {
-          logger.logUserAction('view_analytics', 'shows', {});
-          navigate('/exhibitor/analytics');
-        },
-      });
       break;
 
     case 'assignments':
-      // Judge schedule overview
-      actions.push({
-        id: 'schedule_overview',
-        label: 'Schedule Overview',
-        icon: 'Calendar',
-        variant: 'default',
-        onClick: () => logger.logUserAction('view_schedule_overview', 'judge', {}),
-      });
-
-      // Judging reports
-      actions.push({
-        id: 'judging_reports',
-        label: 'My Reports',
-        icon: 'FileText',
-        variant: 'default',
-        onClick: () => logger.logUserAction('view_judging_reports', 'judge', {}),
-      });
+      // No "Schedule Overview" or "My Reports" buttons.
+      //
+      // Both logged and did nothing. The obvious repair — point them at
+      // /judge/dashboard and /judge/stats — is wrong: those routes are
+      // reachable ONLY from test specs, and the judge dashboard is withheld on
+      // purpose. docs/INTENT.md uses it as its worked example of the intent
+      // convention: "Judges redirect to /exhibitor/dashboard (not
+      // /judge/dashboard) because the judge dashboard isn't ready for
+      // production yet. When it is, update this AND the judge onboarding flow."
+      //
+      // Wiring these buttons would have given an unfinished dashboard its first
+      // production entry point and silently overridden that decision. They come
+      // back when the judge surface does, alongside the onboarding change the
+      // INTENT already asks for.
       break;
   }
 

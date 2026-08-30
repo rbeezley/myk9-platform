@@ -3,6 +3,7 @@ import { getTabQuickActions } from './show-actions';
 import { PERMISSIONS } from '@/types/auth-types';
 import type { UserWithRoles } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
+import { features } from '@/config/features';
 
 /**
  * These actions render as the buttons in the Find Shows page header.
@@ -78,6 +79,45 @@ describe('getTabQuickActions navigation', () => {
     }
 
     expect(assigned, `actions performed a full page load: ${assigned.join(', ')}`).toEqual([]);
+  });
+
+  it('offers no control for a feature that does not exist', () => {
+    // Bulk Register and Bulk Actions shipped with the app's first commit wired
+    // to a log line, and no bulk-registration or bulk-show feature was ever
+    // built. A button that has never done anything is a promise, not a feature.
+    const all = getTabQuickActions(
+      'all',
+      userWith([PERMISSIONS.SHOW_CREATE, PERMISSIONS.REGISTRATION_BULK_OPERATIONS]),
+      vi.fn()
+    ).map(a => a.id);
+    expect(all).not.toContain('bulk_register');
+
+    const managing = getTabQuickActions(
+      'managing',
+      userWith([PERMISSIONS.SHOW_CREATE, PERMISSIONS.SHOW_MANAGE]),
+      vi.fn()
+    ).map(a => a.id);
+    expect(managing).not.toContain('bulk_manage');
+  });
+
+  it('offers no judge control that would surface a deliberately withheld page', () => {
+    // Both logged and did nothing, and the obvious repair is wrong:
+    // /judge/dashboard and /judge/stats are reachable only from test specs, and
+    // docs/INTENT.md withholds the judge dashboard by name until it is ready.
+    // Wiring these would have given it its first production entry point.
+    const ids = getTabQuickActions('assignments', userWith([]), vi.fn()).map(a => a.id);
+    expect(ids).toEqual([]);
+  });
+
+  it('offers Analytics only when the feature flag is on', () => {
+    // The route is wrapped in featurePage(features.analytics, ...), so with the
+    // flag off this button navigated correctly to a "coming soon" screen.
+    const ids = getTabQuickActions(
+      'managing',
+      userWith([PERMISSIONS.SHOW_MANAGE]),
+      vi.fn()
+    ).map(a => a.id);
+    expect(ids.includes('analytics')).toBe(features.analytics);
   });
 
   it('returns nothing without a user, rather than unguarded actions', () => {

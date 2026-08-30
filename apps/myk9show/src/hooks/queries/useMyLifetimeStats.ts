@@ -3,27 +3,59 @@ import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { StatsEntry } from '@/components/analytics/analytics-utils';
+import type { Database } from '@/types/supabase';
 
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 100;
 
-interface LifetimeEntryRow {
+type LifetimeEntryViewRow = Database['public']['Views']['view_authenticated_entry_results']['Row'];
+
+type LifetimeEntryRow = Pick<
+  LifetimeEntryViewRow,
+  | 'id'
+  | 'dog_id'
+  | 'dog_call_name'
+  | 'show_id'
+  | 'class_id'
+  | 'class_name'
+  | 'class_element'
+  | 'class_level'
+  | 'result_text'
+  | 'search_time_seconds'
+  | 'total_faults'
+  | 'final_placement'
+  | 'show_name'
+  | 'show_start_date'
+  | 'show_organization'
+  | 'created_at'
+>;
+
+type LifetimeEntryIdentityRow = LifetimeEntryRow & {
   id: string;
   dog_id: string;
-  dog_call_name: string | null;
   show_id: string;
   class_id: string;
-  class_name: string | null;
-  class_element: string | null;
-  class_level: string | null;
-  result_text: StatsEntry['resultText'] | null;
-  search_time_seconds: number | null;
-  total_faults: number | null;
-  final_placement: number | null;
-  show_name: string | null;
-  show_start_date: string | null;
-  show_organization: string | null;
-  created_at: string | null;
+};
+
+function assertLifetimeEntryIdentity(
+  row: LifetimeEntryRow
+): asserts row is LifetimeEntryIdentityRow {
+  if (!row.id || !row.dog_id || !row.show_id || !row.class_id) {
+    throw new Error('Lifetime analytics row is missing required identity fields');
+  }
+}
+
+function normalizeResultText(value: string | null): StatsEntry['resultText'] {
+  switch (value) {
+    case 'Q':
+    case 'NQ':
+    case 'ABS':
+    case 'EX':
+    case 'WD':
+      return value;
+    default:
+      return 'pending';
+  }
 }
 
 const LIFETIME_ENTRY_SELECT = `
@@ -48,7 +80,7 @@ const LIFETIME_ENTRY_SELECT = `
 async function fetchMyLifetimeEntries(dogIds: string[]): Promise<StatsEntry[]> {
   if (dogIds.length === 0) return [];
 
-  const rows: LifetimeEntryRow[] = [];
+  const rows: LifetimeEntryIdentityRow[] = [];
   let lastId: string | undefined;
   let complete = false;
 
@@ -66,15 +98,23 @@ async function fetchMyLifetimeEntries(dogIds: string[]): Promise<StatsEntry[]> {
 
     if (error) throw error;
 
-    const pageRows = (data ?? []) as LifetimeEntryRow[];
-    rows.push(...pageRows);
+    const pageRows: LifetimeEntryRow[] = data ?? [];
+    const validPageRows = pageRows.map(row => {
+      assertLifetimeEntryIdentity(row);
+      return row;
+    });
+    rows.push(...validPageRows);
 
-    if (pageRows.length < PAGE_SIZE) {
+    if (validPageRows.length < PAGE_SIZE) {
       complete = true;
       break;
     }
 
-    lastId = String(pageRows[pageRows.length - 1]!.id);
+    const pageLastRow = validPageRows[validPageRows.length - 1];
+    if (!pageLastRow) {
+      throw new Error('Lifetime analytics page unexpectedly returned no rows');
+    }
+    lastId = pageLastRow.id;
   }
 
   if (!complete) {
@@ -100,7 +140,7 @@ async function fetchMyLifetimeEntries(dogIds: string[]): Promise<StatsEntry[]> {
     className: row.class_name || 'Unknown Class',
     classElement: row.class_element,
     classLevel: row.class_level,
-    resultText: row.result_text || 'pending',
+    resultText: normalizeResultText(row.result_text),
     searchTimeSeconds: row.search_time_seconds,
     totalFaults: row.total_faults,
     finalPlacement: row.final_placement,

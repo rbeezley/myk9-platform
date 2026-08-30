@@ -22,7 +22,7 @@ interface ResultRow {
   dog_id: string;
   dog_call_name: string;
   show_id: string;
-  class_id: string;
+  class_id: string | null;
   class_name: string;
   class_element: string;
   class_level: string;
@@ -139,6 +139,18 @@ describe('useMyLifetimeStats', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error).toEqual(new Error('results page unavailable'));
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('rejects malformed view rows instead of returning invalid analytics identities', async () => {
+    mockFrom.mockReturnValue(createPagedQuery([[makeRow(1, { class_id: null })]]));
+
+    const { result } = renderHook(() => useMyLifetimeStats(), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toEqual(
+      new Error('Lifetime analytics row is missing required identity fields')
+    );
     expect(result.current.data).toBeUndefined();
   });
 

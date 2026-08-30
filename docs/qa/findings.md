@@ -300,12 +300,10 @@ Copy this block for each new finding.
 - **Related issues:** MYK9-162 — https://linear.app/myk9-platform/issue/MYK9-162/ncr-2026-08-02-01-register-roster-drilldown-e2e-coverage
 - **Proof required:** Satisfied by the current `pnpm qa:e2e-map:check` run (`112` spec files covered).
 
-## Open Findings
-
 ### MYK9-257
 
-- **Status:** open
-- **Lifecycle status:** blocked
+- **Status:** fixed (2026-08-30 — PR #1856 / commit `d0747e819263c31e7974fff1c03bafff88dd6d52`; desktop/mobile browser persistence replay)
+- **Lifecycle status:** resolved
 - **Classification:** Confirmed product/UX workflow defect
 - **Severity:** Medium
 - **Canonical priority:** P2
@@ -320,17 +318,19 @@ Copy this block for each new finding.
 - **Last seen:** 2026-08-30
 - **Consecutive-run count:** 2
 - **Baseline SHA:** `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`
-- **Evidence:** PR #1845 introduced the wider read/write mismatch. PR #1856 (`d0747e819263c31e7974fff1c03bafff88dd6d52`) now gates edit mode against the Zustand-backed writer store and adds focused tests for unavailable/retry behavior; the app, test, and edge TypeScript checks pass after rebuilding the ignored `@myk9/ringside` declarations. The required browser replay that edits and persists a React Query-only show was not run, so the Linear-closed fix remains unproven under this finding contract.
+- **Evidence:** PR #1845 introduced the read/write mismatch. PR #1856 (`d0747e819263c31e7974fff1c03bafff88dd6d52`) gates edit mode against the Zustand-backed writer store and its focused tests/typechecks pass. On 2026-08-30, the signed-in secretary replay opened seeded show `ZZ Audit - Rewalk` (`75e078e9-81c3-46f0-aedd-94acfe15d353`), edited the venue at 1280x720, saved through the Add Classes flow, navigated to the show page, and observed the changed venue persisted. The same edit/save flow passed at 390x844; the original venue was then restored and verified after navigation/reload. An unavailable all-zero show ID also showed the safe retry/back-to-shows gate.
 - **Expected behavior:** The show used to pass edit-mode resolution must be available to the write path, or the wizard must refuse entry before the secretary invests work and provide a recoverable reload path.
-- **Observed behavior:** Before #1856, a React Query-only show passed the edit gate, initialized the draft, and then failed at final save. Current source now refuses that cold-store case before wizard work, but persistence through the intended secretary browser path is not independently verified.
-- **User impact:** A secretary can spend several steps editing a show only to hit a dead end at the final save and lose confidence that the workflow is safe. No silent write or data corruption was observed.
-- **Intent check:** Violates “That was easy” and the no-dead-ends expectation for secretary show administration.
-- **Confidence:** high for the original defect and source-path correction; closure confidence is incomplete without the required browser replay.
+- **Observed behavior:** Resolved. The corrected gate/write path completed the edit at desktop and mobile sizes, and the saved value persisted after navigation/reload.
+- **User impact:** Before the fix, a secretary could spend several steps editing a show only to hit a dead end at final save and lose confidence that the workflow was safe.
+- **Intent check:** Restores “That was easy” and the no-dead-ends expectation for secretary show administration.
+- **Confidence:** high; focused tests/typechecks plus controlled desktop/mobile browser persistence replay passed.
 - **Fix owner:** Show Creation Wizard edit-mode data-source contract and `showStore.updateShow` integration.
 - **Existing references:** Linear MYK9-257 (Done; exact issue, no duplicate); related MYK9-252 is the separate replicated-read truthfulness fix.
-- **Linear issue:** reused MYK9-257; no new issue created.
-- **Proof required:** Add a focused regression test that resolves an edit target from React Query-only data and completes `updateShow`, or change the gate/write path to share one authoritative source; then run a secretary browser replay that edits and saves a React Query-only show and verifies persistence.
-- **Notes:** Introduced by PR #1845 / commit `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`; source correction merged in PR #1856 / commit `d0747e819263c31e7974fff1c03bafff88dd6d52`. Linear MYK9-257 is Done and its comments claim the acceptance gate passed, but no comment records the required React Query-only browser persistence replay. P2 remains report-only under the lifecycle contract.
+- **Linear issue:** reused MYK9-257; no new issue created or modified.
+- **Proof required:** Satisfied by PR #1856 focused tests/typechecks and the 2026-08-30 secretary browser replay at 1280x720 and 390x844, including save persistence after navigation/reload and restoration of the seeded fixture.
+- **Notes:** Introduced by PR #1845 / commit `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`; source correction merged in PR #1856. Browser console retained existing local-dev errors/warnings, but no product failure blocked the replay. No application code was modified.
+
+## Open Findings
 
 ### NCR-2026-08-26-01
 

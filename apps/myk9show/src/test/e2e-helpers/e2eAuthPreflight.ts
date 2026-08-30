@@ -1,3 +1,4 @@
+import { resolveFixtureEmail } from '../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../fixtures/retiredFixtureDomain';
 
 export type AuthPreflightRole = 'secretary' | 'admin' | 'judge' | 'exhibitor';
@@ -87,7 +88,7 @@ export function resolveAuthPreflightConfig(
     }
 
     const envNames = ROLE_ENV[role];
-    const email = env[envNames.email] || envNames.defaultEmail;
+    const email = resolveFixtureEmail(env[envNames.email], envNames.defaultEmail);
     const password = env[envNames.password];
 
     if (!password) {

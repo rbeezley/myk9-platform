@@ -154,6 +154,19 @@ describe('e2e auth preflight', () => {
       );
     });
 
+    it('treats an EMPTY email override as absent, matching testUsers.ts', () => {
+      // An unset GitHub secret interpolates to '' rather than undefined. Before
+      // this, the preflight fell back (`||`) and passed while testUsers.ts kept
+      // the empty string (`??`) and signed in as nobody — a green preflight
+      // followed by an auth failure, which is the false negative it exists to
+      // prevent. Both now route through resolveFixtureEmail.
+      const config = resolveAuthPreflightConfig(
+        { ...noEmails, E2E_SECRETARY_EMAIL: '' },
+        ['secretary']
+      );
+      expect(config.credentials[0]?.email).toBe('secretary@myk9t.com');
+    });
+
     it('still honours an explicit override when one is set', () => {
       const config = resolveAuthPreflightConfig(
         { ...noEmails, E2E_SECRETARY_EMAIL: 'someone-else@myk9t.com' },

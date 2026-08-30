@@ -7,7 +7,13 @@
  * "Champion Rex" behind a fake progress bar).
  */
 import { describe, expect, it } from 'vitest';
-import { buildHighInTrial, HIT_ELEMENTS } from '../highInTrial';
+import {
+  buildHighInTrial,
+  HIT_ELEMENTS,
+  HIT_NON_PARTICIPATING_STATUSES,
+  HIT_PARTICIPATING_STATUSES,
+} from '../highInTrial';
+import { ENTRY_LIFECYCLE_STATUS_VALUES } from '@/types/entry-lifecycle';
 import type { HighInTrialClassLike } from '../highInTrial';
 import type { ReportEntry } from '../types';
 
@@ -176,14 +182,32 @@ describe('§8 — eligibility is all-or-nothing', () => {
     expect(team?.rank).toBe(1);
   });
 
-  it('does not count a withdrawn or moved entry as participation', () => {
-    // A `moved` row is the vacated half of a move-up; its replacement is its own row.
-    // Counting it would demand a qualifying score from a class the dog never ran.
+  it.each(['withdrawn', 'moved', 'scratched', 'absent', 'not_accepted'])(
+    'does not count a %s entry as participation',
+    status => {
+      // A `moved` row is the vacated half of a move-up; its replacement is its own row.
+      // `scratched` and `absent` mean the dog never ran. Counting any of them would
+      // demand a qualifying score from a class the dog did not complete.
+      const model = buildHighInTrial({
+        classes: CLASSES,
+        entries: [
+          entry({ classElement: 'Container', classLevel: 'Novice' }),
+          entry({ classElement: 'Interior', classLevel: 'Novice', entryStatus: status }),
+        ],
+      });
+
+      expect(model.levels[0]?.teams).toHaveLength(0);
+    }
+  );
+
+  it('ignores a stale qualifying result left on a scratched entry', () => {
+    // The sharper half of the same bug: a row scratched AFTER being scored still carries
+    // result_status 'qualified'. Ranking it would award on a run that was struck.
     const model = buildHighInTrial({
       classes: CLASSES,
       entries: [
         entry({ classElement: 'Container', classLevel: 'Novice' }),
-        entry({ classElement: 'Interior', classLevel: 'Novice', entryStatus: 'moved' }),
+        entry({ classElement: 'Interior', classLevel: 'Novice', entryStatus: 'scratched' }),
       ],
     });
 
@@ -443,5 +467,46 @@ describe('provisional results', () => {
     });
 
     expect(model.levels[0]?.pendingCount).toBe(0);
+  });
+});
+
+describe('highInTrialStatusCoverage', () => {
+  it('classifies EVERY lifecycle status as participating or not', () => {
+    // The guard that makes the two sets maintainable. `entries_entry_status_check`
+    // permits 21 values; my first cut covered three ('withdrawn', 'moved', and a
+    // 'cancelled' that is not even in the constraint), so a scratched entry counted as
+    // a competitor. Because this reads the canonical list rather than a copy, adding a
+    // lifecycle status fails here until someone decides which side it belongs on.
+    const unclassified = ENTRY_LIFECYCLE_STATUS_VALUES.filter(
+      status =>
+        !HIT_NON_PARTICIPATING_STATUSES.has(status) && !HIT_PARTICIPATING_STATUSES.has(status)
+    );
+
+    expect(unclassified).toEqual([]);
+  });
+
+  it('puts no status on both sides at once', () => {
+    const both = [...HIT_NON_PARTICIPATING_STATUSES].filter(s => HIT_PARTICIPATING_STATUSES.has(s));
+    expect(both).toEqual([]);
+  });
+
+  it('treats an unrecognised status as participating, not as removed', () => {
+    // Conservative default: an unknown status leaves the level PROVISIONAL rather than
+    // silently finalising an award on incomplete data.
+    const model = buildHighInTrial({
+      classes: [cls('Container', 'Novice'), cls('Interior', 'Novice')],
+      entries: [
+        entry({
+          classElement: 'Container',
+          classLevel: 'Novice',
+          entryStatus: 'some-future-status',
+          isScored: false,
+          resultText: 'pending',
+        }),
+      ],
+    });
+
+    expect(model.levels[0]?.pendingCount).toBe(1);
+    expect(model.levels[0]?.isFinal).toBe(false);
   });
 });

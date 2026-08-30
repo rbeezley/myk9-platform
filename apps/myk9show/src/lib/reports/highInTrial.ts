@@ -47,11 +47,59 @@ export const HIT_ELEMENTS = ['Container', 'Interior', 'Exterior', 'Buried'] as c
 export type HitElement = (typeof HIT_ELEMENTS)[number];
 
 /**
- * Entry statuses that mean the dog is not in the class. A `moved` entry is the vacated
- * half of a move-up and its replacement is a separate row, so counting it would demand a
- * qualifying score from a class the dog no longer ran.
+ * Statuses in which the dog is NOT in the class, so the entry can neither contribute a
+ * qualifying score nor hold the level open awaiting one.
+ *
+ * `entries_entry_status_check` permits 21 values and grows over time, and the two ways
+ * of getting this wrong are both live defects, not tidiness:
+ *
+ * - Treating a terminal row as participating leaves an unscored `scratched` entry
+ *   holding the level at PROVISIONAL forever, so a finished trial can never award, and
+ *   lets a stale qualifying result on a scratched row count toward the standing.
+ * - Treating a participating row as terminal drops a real competitor from the ranking.
+ *
+ * `moved` is the vacated half of a move-up — its replacement is a separate row, so
+ * counting it would demand a qualifying score from a class the dog no longer ran.
+ * `absent` and `scratched` mean the dog never ran. `not_accepted` was declined.
+ * `draft` / `pending-payment` / `promotion-expired` are pre-acceptance, so no result
+ * can exist yet.
+ *
+ * Everything else — including `submitted`, `paid` and `no-status`, which await secretary
+ * review, and any status added in future — counts as participating. That default is the
+ * conservative one: an unrecognised status leaves the level provisional rather than
+ * silently finalising an award. `highInTrialStatusCoverage` in the tests asserts this
+ * classification is TOTAL over `ENTRY_LIFECYCLE_STATUS_VALUES`, so a new lifecycle status
+ * fails the suite until someone decides which side it belongs on.
  */
-const NOT_ENTERED_STATUSES = new Set(['withdrawn', 'moved', 'cancelled']);
+export const HIT_NON_PARTICIPATING_STATUSES: ReadonlySet<string> = new Set([
+  'withdrawn',
+  'not_accepted',
+  'scratched',
+  'absent',
+  'moved',
+  'draft',
+  'pending-payment',
+  'promotion-expired',
+]);
+
+/** The complement, enumerated so the classification can be proved total. */
+export const HIT_PARTICIPATING_STATUSES: ReadonlySet<string> = new Set([
+  'no-status',
+  'submitted',
+  'paid',
+  'confirmed',
+  'scheduled',
+  'checked-in',
+  'at-gate',
+  'in-ring',
+  'competing',
+  'completed',
+  // The DB constraint carries hyphen AND underscore spellings of both request states.
+  'scratch-requested',
+  'scratch_requested',
+  'move-up-requested',
+  'move_up_requested',
+]);
 
 export interface HighInTrialElementScore {
   element: HitElement;
@@ -136,7 +184,8 @@ function teamKey(entry: ReportEntry): string | null {
 }
 
 function isEntered(entry: ReportEntry): boolean {
-  return !NOT_ENTERED_STATUSES.has((entry.entryStatus ?? '').toLowerCase());
+  // Unknown or missing status defaults to participating -- see the note above.
+  return !HIT_NON_PARTICIPATING_STATUSES.has((entry.entryStatus ?? '').toLowerCase());
 }
 
 /** Awaiting a result: entered, not scored, and carrying no result text yet. */

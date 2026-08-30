@@ -45,7 +45,9 @@ The wizard creates all three in one pass. **Dashboard → Create Show.**
 4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class.
 5. **Step 4 — Review.** Check the summary, then **Create Show (Unpublished)** or **Create & Publish Show**.
 
-> **⚠️ Add your judges on Step 1.** If you skip the _Show Judges_ field, Step 3 gives you **no way to assign a judge at all** — and Review will still say "Show Configuration Complete" and offer to publish. Add the judges first, and you can assign them per class normally.
+> **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.
+
+> **Your club's own people are listed first** in the chairman and secretary pickers. Anyone else is still there — keep typing to search — so you can appoint an official from outside the club when you need to.
 
 > **Entries closing on the show's first day is allowed** — normal for day-of entry.
 
@@ -125,7 +127,9 @@ Pending and pulled queues sit together. On each pulled entry, record what you de
 
 Payment status shows on every registration row in **Entry Management**, and refunds are reconciled in the **Pulls / scratches** queue.
 
-> **Known limitation:** every paid entry currently reads **"Paid online"**, including cheques and cash. The amount and the refund state are correct — only the channel label is wrong.
+> **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid — recorded by secretary**.
+>
+> **An entry that just says "Paid" means the channel was never recorded** — not that it came through Stripe. Older entries taken before the app captured a method read this way, so don't count a plain "Paid" as an online payment when you reconcile against your payout.
 
 ---
 
@@ -273,7 +277,6 @@ Honest list, so nothing surprises you mid-show.
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | High Combined Division (HCD)             | Not built — calculate by hand when you offer Handler Discrimination (card 23)                                                                  |
 | Hand-placing a dog in the run order      | Not built — presets only (card 10)                                                                                                             |
-| "Paid online" on cheque and cash entries | Label only; amounts are correct (card 9)                                                                                                       |
 | Emailing exhibitors                      | Works, but the composer is in the **Message Center panel in the header**, not the Messages page, and it doesn't pick up the show you came from |
 | Wait-list capacity                       | Displayed, not enforced (card 6)                                                                                                               |
 

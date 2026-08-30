@@ -20,12 +20,13 @@ function renderReport(report: ReportDefinition) {
 }
 
 describe('reportRegistry', () => {
-  it('has 35 total entries', () => {
-    expect(reportRegistry).toHaveLength(35);
+  // 36 since F26 added `high-in-trial` (AKC Scent Work Chapter 6 §8).
+  it('has 36 total entries', () => {
+    expect(reportRegistry).toHaveLength(36);
   });
 
-  it('has exactly 35 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(35);
+  it('has exactly 36 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(36);
   });
 
   it('has all unique IDs', () => {

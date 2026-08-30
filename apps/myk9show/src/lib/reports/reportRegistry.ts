@@ -22,6 +22,7 @@ import { StewardReport } from '@/components/reports/StewardReport';
 import { AKCJudgeReport } from '@/components/reports/AKCJudgeReport';
 import { TrialSecretaryCertification } from '@/components/reports/TrialSecretaryCertification';
 import { JudgeSupplyChecklistReport } from '@/components/reports/JudgeSupplyChecklistReport';
+import { HighInTrialReport } from '@/components/reports/HighInTrialReport';
 import type React from 'react';
 
 const PlaceholderReport: React.FC<ReportProps> = () => null;
@@ -123,6 +124,21 @@ export const reportRegistry: ReportDefinition[] = [
     enabled: true,
     registryId: 'AKC',
     supportsDogFilter: true,
+  },
+  {
+    id: 'high-in-trial',
+    name: 'High in Trial',
+    category: 'operational',
+    // Trial-scoped by rule, not by convenience: Chapter 6 §8 awards HIT per difficulty
+    // level across the elements a TRIAL offers, so a class-scoped view cannot compute it.
+    scopes: ['trial'],
+    sortOptions: [],
+    defaultSort: '',
+    component: HighInTrialReport,
+    enabled: true,
+    // AKC-specific: UKC and ASCA define their own high-scoring awards with different
+    // eligibility, so offering this on their trials would state AKC's rules as theirs.
+    registryId: 'AKC',
   },
   {
     id: 'ukc-nosework-entry-form',

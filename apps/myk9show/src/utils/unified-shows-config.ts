@@ -18,7 +18,7 @@ import {
 } from './show-relationships';
 import { ShowPermissionValidator } from './permissionValidation';
 import { showDateRangeStatus } from './date-format';
-import { Globe, History, ClipboardList, Settings, Gavel } from 'lucide-react';
+import { Globe, History, Settings, Gavel } from 'lucide-react';
 
 /**
  * Generate tab configuration based on user roles and permissions
@@ -144,25 +144,25 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
-  // --- My Shows tab (only for exhibitor/handler roles) ---
-  if (accessibleTabs.includes('entries')) {
-    tabs.push({
-      id: 'entries',
-      label: 'Entered as exhibitor',
-      icon: ClipboardList,
-      description: 'Your shows, entries, and dogs',
-      getCount: (shows, entries, userId) => {
-        if (!userId || !entries) return 0;
-        const userEntries = getUserEntries(userId, shows, entries);
-        return userEntries.filter(s => ShowPermissionValidator.canView(user, s)).length;
-      },
-      filterShows: (shows, entries, userId) => {
-        if (!userId || !entries) return [];
-        const userEntries = getUserEntries(userId, shows, entries);
-        return userEntries.filter(s => ShowPermissionValidator.canView(user, s));
-      },
-    });
-  }
+  // The "Entered as exhibitor" tab is deliberately absent.
+  //
+  // It answered "what have I entered?" — which is My Shows, a whole page whose
+  // own sidebar entry sits two rows above "Find Shows" for every exhibitor. Its
+  // description was literally the sidebar's words for that page ("Your shows,
+  // entries, and dogs"), so the two surfaces described themselves identically
+  // and diverged in what they could actually do: My Shows carries the per-dog
+  // bands, results, check-in and payment state; this tab carried a filtered
+  // show list.
+  //
+  // Phase B of docs/plan-ia-exhibitor-surface.md: /shows is for FINDING shows;
+  // "what I entered" reaches My Shows by link rather than being re-answered
+  // here. The link already exists in the sidebar, so removing the tab needs no
+  // replacement affordance — see the exhibitor sidebar contract in
+  // unifiedSidebarConfig.test.ts.
+  //
+  // NOTE: the per-show `entries` RELATIONSHIP is untouched. It still drives the
+  // View Entry / Modify actions on individual show cards, and
+  // `mergeAccountEnteredShowStubs` still feeds it.
 
   // --- Judge assignments tab ---
   if (userRoles.includes(UserRole.JUDGE)) {

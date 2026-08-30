@@ -347,18 +347,25 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       expect(screen.queryByRole('button', { name: 'Reset table view' })).not.toBeInTheDocument();
     });
 
-    it('renders cards by default on the Entered as exhibitor tab', async () => {
+    it('falls back to a real tab when a stale ?tab=entries link arrives', async () => {
+      // The "Entered as exhibitor" tab was removed (it duplicated My Shows), but
+      // links to it exist in the wild. The page must still render a list rather
+      // than blanking on an id it no longer knows.
       setupMocks({ user: createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY]) });
 
       renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=entries' });
 
+      // useUrlTab drops an unknown id and uses the default tab, so the link
+      // still lands on a real list instead of an empty page.
       await waitFor(() => {
-        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+        const list =
+          screen.queryByTestId('shows-cards') ?? screen.queryByTestId('shows-table');
+        expect(list).toBeInTheDocument();
       });
-      expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /entered as exhibitor/i })).not.toBeInTheDocument();
     });
 
-    it('honors an explicit table view URL on the Entered as exhibitor tab', async () => {
+    it('honors an explicit table view URL even on a retired tab id', async () => {
       setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
 
       renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=entries&view=table' });
@@ -405,13 +412,18 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
     });
 
-    it('should render base tabs plus Entered as exhibitor for exhibitors', async () => {
+    it('gives exhibitors the find-only tabs, with no "entered" duplicate of My Shows', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /entered as exhibitor/i })).toBeInTheDocument();
+        // "Entered as exhibitor" answered the question My Shows exists to
+        // answer, and described itself in that page's own sidebar words.
+        // /shows is for FINDING shows; the sidebar already links My Shows.
+        expect(
+          screen.queryByRole('tab', { name: /entered as exhibitor/i })
+        ).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
@@ -569,7 +581,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
   });
 
   describe('Multi-Role User Tab Rendering', () => {
-    it('should render combined tabs for exhibitor + secretary (includes Entered as exhibitor)', async () => {
+    it('should render combined tabs for exhibitor + secretary', async () => {
       const multiRoleUser = createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY], 'multi-user');
       setupMocks({ user: multiRoleUser });
 
@@ -579,7 +591,9 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /entered as exhibitor/i })).toBeInTheDocument();
+        expect(
+          screen.queryByRole('tab', { name: /entered as exhibitor/i })
+        ).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
     });

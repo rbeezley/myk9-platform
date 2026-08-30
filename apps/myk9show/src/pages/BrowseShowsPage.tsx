@@ -266,7 +266,9 @@ const BrowseShowsPage: React.FC = () => {
 
   // Breadcrumb items for PageHeader
   const breadcrumbs = useMemo(() => {
-    const items = [{ label: 'Shows', href: '/shows', onClick: () => handleTabChange('all') }];
+    // 'Find Shows', matching the sidebar entry and the page title. All three
+    // named the same destination differently before F6.
+    const items = [{ label: 'Find Shows', href: '/shows', onClick: () => handleTabChange('all') }];
 
     if (selectedTab !== 'all') {
       const currentTab = tabConfig.tabs.find(tab => tab.id === selectedTab);
@@ -437,7 +439,12 @@ const BrowseShowsPage: React.FC = () => {
       {/* Normal content */}
       {!isLoading && !hasError && (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title="Shows" actions={actionButtons} />
+          {/* "Find Shows", matching the sidebar entry that leads here (F6). The page
+            said "Shows" while the sidebar said "Find Shows", so the two named the
+            same destination differently — and with the "Entered as exhibitor" tab
+            gone this page is unambiguously about finding, not about what you
+            already entered. */}
+          <PageHeader breadcrumbs={breadcrumbs} title="Find Shows" actions={actionButtons} />
 
           <ListControls
             search={filters.search}

@@ -78,6 +78,16 @@ export interface SecretaryCockpitTrial {
  * and re-homing them here would duplicate live surfaces. See
  * docs/plan-f29b-operational-actions-home.md.
  */
+/**
+ * Run-order auto-sort controls, threaded from `useShowMapWorkbenchState`'s
+ * `runOrderAutoSort` (F29b phase 2a). Structural rather than an import of the hook's
+ * return type so the cockpit layer does not depend on the workbench hook.
+ */
+export interface SecretaryCockpitRunOrderControls {
+  onAutoSort: (input: { classId: string; kind: ShowMapAutoSortKind; classLabel: string }) => void;
+  isAutoSorting: boolean;
+}
+
 export interface SecretaryCockpitEntryAction {
   id: string;
   /** `${action.id}:${action.nodeId}` -- the shape ShowDeskPanel's runCommand resolves. */
@@ -190,3 +200,4 @@ export interface SecretaryCockpitModel {
   focusedClass: FocusedClassModel | null;
 }
 import type { ReportScope } from '@/lib/reports/types';
+import type { ShowMapAutoSortKind } from '../showMapRunOrderAutoSort';

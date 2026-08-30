@@ -3,7 +3,9 @@ import { AlertTriangle, CheckCircle2, Clock3, Printer, RefreshCw } from 'lucide-
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { ShowMapRunOrderMenu } from '../ShowMapRunOrderMenu';
 import { formatTime } from '@/lib/format/dates';
+import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { replicatedPaperworkPrintsTable } from '@/services/replication';
@@ -175,6 +177,7 @@ export function SecretaryCockpitFocusedClass({
   timeZone,
   canManageShow,
   onCommand,
+  runOrder,
 }: {
   focused: FocusedClassModel | null;
   sourceClass: SecretaryCockpitClass | null;
@@ -183,6 +186,8 @@ export function SecretaryCockpitFocusedClass({
   timeZone: string;
   canManageShow: boolean;
   onCommand: (commandId: string) => void;
+  /** Run-order auto-sort for the focused class (F29b phase 2a). */
+  runOrder?: SecretaryCockpitRunOrderControls | undefined;
 }) {
   if (!focused || !sourceClass || !trial) {
     return (
@@ -308,9 +313,25 @@ export function SecretaryCockpitFocusedClass({
 
         {canManageShow && focused.entryRows.length > 0 && (
           <section>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Entries
-            </h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Entries
+              </h3>
+              {/* F29b phase 2a: run order had a three-hop dead end -- the run sheet
+                  sends you to Show Desk, Show Desk's "Run order and class setup" link
+                  lands on Manage Classes, and Manage Classes has no run-order control.
+                  This is that control. Manual drag reorder (2b) is still outstanding;
+                  see docs/plan-f29b-operational-actions-home.md. */}
+              {runOrder && (
+                <ShowMapRunOrderMenu
+                  classId={focused.id}
+                  classLabel={focused.name}
+                  entryCount={focused.entryRows.length}
+                  onAutoSort={runOrder.onAutoSort}
+                  isAutoSorting={runOrder.isAutoSorting}
+                />
+              )}
+            </div>
             {/* F29b: the only reachable home for these actions. `ShowMapRowActionsMenu`
                 renders the same set, but mounts only inside the public Show Map, which
                 is read-only by intent (#291) -- so a secretary-initiated move-up had no

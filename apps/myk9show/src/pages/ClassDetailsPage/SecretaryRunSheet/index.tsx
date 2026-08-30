@@ -48,11 +48,15 @@ export function SecretaryRunSheet({
       {parentShowId && sortedEntries.length > 1 && (
         <div className="flex justify-end">
           <Link
-            to={`/shows/${parentShowId}/show-desk`}
+            // F29b phase 2a: deep-link to THIS class on Show Desk, where the run-order
+            // control now lives. The bare /show-desk link landed on the desk with no
+            // class focused, and the run-order control there only appears for a focused
+            // class -- so following "Reorder in Show Map" showed nothing to reorder.
+            to={`/shows/${parentShowId}/show-desk?focus=${encodeURIComponent(currentClass.id)}`}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ListTree className="h-4 w-4" aria-hidden="true" />
-            Reorder in Show Map
+            Set run order
           </Link>
         </div>
       )}

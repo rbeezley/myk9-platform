@@ -65,7 +65,7 @@ export default function ShowDeskPanel({
     // attention count missed `review-entry` on every pending entry past the 25th.
     entryPreviewLimit: Number.POSITIVE_INFINITY,
   });
-  const { tree, executor, navigateTo, effectiveScopeNow } = state;
+  const { tree, executor, navigateTo, effectiveScopeNow, runOrderAutoSort } = state;
   const {
     executeAction,
     moveUpAction,
@@ -193,7 +193,19 @@ export default function ShowDeskPanel({
           pages.
         </div>
       )}
-      <SecretaryCockpit snapshot={snapshot} canManageShow={canManageShow} onCommand={runCommand} />
+      <SecretaryCockpit
+        snapshot={snapshot}
+        canManageShow={canManageShow}
+        onCommand={runCommand}
+        {...(canManageShow && {
+          // F29b phase 2a. Gated on canManageShow for the same reason the entry rows
+          // are: an exhibitor-facing render must not get a mutation control.
+          runOrder: {
+            onAutoSort: runOrderAutoSort.autoSort,
+            isAutoSorting: runOrderAutoSort.isAutoSorting,
+          },
+        })}
+      />
 
       {canManageShow && (
         <>

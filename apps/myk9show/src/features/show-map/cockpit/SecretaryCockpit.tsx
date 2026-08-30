@@ -11,16 +11,25 @@ import { CockpitActionLink } from './CockpitActionLink';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
-import type { SecretaryCockpitSnapshot } from './secretaryCockpitTypes';
+import type {
+  SecretaryCockpitRunOrderControls,
+  SecretaryCockpitSnapshot,
+} from './secretaryCockpitTypes';
 
 export function SecretaryCockpit({
   snapshot,
   canManageShow,
   onCommand,
+  runOrder,
 }: {
   snapshot: SecretaryCockpitSnapshot;
   canManageShow: boolean;
   onCommand: (commandId: string) => void;
+  /**
+   * Auto-sort controls for the focused class (F29b phase 2a). Optional so a
+   * read-only or test render can omit it; the menu simply does not appear.
+   */
+  runOrder?: SecretaryCockpitRunOrderControls | undefined;
 }) {
   const { state, updateState } = useSecretaryCockpitUrlState();
   const [showAllAttention, setShowAllAttention] = useState(false);
@@ -45,6 +54,7 @@ export function SecretaryCockpit({
       timeZone={snapshot.timeZone}
       canManageShow={canManageShow}
       onCommand={onCommand}
+      {...(runOrder !== undefined && { runOrder })}
     />
   ) : null;
 

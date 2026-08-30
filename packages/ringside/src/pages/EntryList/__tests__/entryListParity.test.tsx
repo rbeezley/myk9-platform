@@ -34,6 +34,7 @@ import {
   makeCombinedProps,
   makeSingleClassProps,
   resetContentSpy,
+  uiActionSpy,
   type ParityCase,
 } from './entryListParity.fixtures';
 
@@ -41,9 +42,11 @@ vi.mock('../components/EntryListContent', () => ({
   EntryListContent: (props: {
     onEntryClick?: (entry: unknown) => void;
     onStatusClick?: (...args: unknown[]) => void;
+    onOpenDragMode?: () => void;
   }) => {
     contentSpy.onEntryClick = props.onEntryClick;
     contentSpy.onStatusClick = props.onStatusClick;
+    contentSpy.onOpenDragMode = props.onOpenDragMode;
     return <div data-testid="entry-list-content" />;
   },
 }));
@@ -133,6 +136,24 @@ describe.each(PAGES)('entry-list parity — $name', page => {
 
       expect(screen.getByRole('button', { name: /pending/i })).not.toBeNull();
       expect(screen.getByRole('button', { name: /completed/i })).not.toBeNull();
+    });
+  });
+
+  describe('drag-to-reorder setup', () => {
+    it('switches to run-order sort and seeds the manual order when drag mode opens', () => {
+      // The host handler only flips `isDragMode`. Without the rest, a drop
+      // writes a new exhibitorOrder that the ACTIVE sort ignores, so the
+      // steward's reorder reverts under their finger the moment they let go.
+      // Combined A/B hit this every time -- it sorts 'section-armband' -- and
+      // the single-class route hit it as soon as the steward sorted by armband
+      // or placement first.
+      page.render({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+
+      contentSpy.onOpenDragMode?.();
+
+      expect(uiActionSpy.setSortOrder).toHaveBeenCalledWith('run');
+      expect(uiActionSpy.setRunOrderDialogOpen).toHaveBeenCalledWith(false);
+      expect(uiActionSpy.setManualOrder).toHaveBeenCalled();
     });
   });
 

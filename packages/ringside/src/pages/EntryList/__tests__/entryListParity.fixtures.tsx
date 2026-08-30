@@ -22,11 +22,22 @@ import type { EntryListPageProps } from '../pageProps';
 export const contentSpy: {
   onEntryClick?: (entry: unknown) => void;
   onStatusClick?: (...args: unknown[]) => void;
+  onOpenDragMode?: () => void;
 } = {};
+
+/**
+ * Memoized `uiActions` setters, so a test can assert what the page DROVE rather
+ * than only what it rendered. A plain Proxy minting a fresh `vi.fn()` per access
+ * cannot be asserted on -- the spy the page called is never the spy the test
+ * reads back.
+ */
+export const uiActionSpy: Record<string, ReturnType<typeof vi.fn>> = {};
 
 export function resetContentSpy(): void {
   delete contentSpy.onEntryClick;
   delete contentSpy.onStatusClick;
+  delete contentSpy.onOpenDragMode;
+  for (const key of Object.keys(uiActionSpy)) delete uiActionSpy[key];
 }
 
 export const passthroughSlot = ({ children }: { children?: React.ReactNode }) => (
@@ -86,6 +97,8 @@ export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
       confirmResetScore: vi.fn(),
       cancelResetScore: vi.fn(),
       closeResetMenu: vi.fn(),
+      handleOpenDragMode: vi.fn(),
+      handleApplyRunOrder: vi.fn().mockResolvedValue(undefined),
       resetConfirmDialog: { show: false, entry: null },
       resetMenuEntryId: null,
       resetMenuPosition: null,
@@ -125,8 +138,9 @@ export function makeSingleClassProps(cse: ParityCase = {}): EntryListPageProps {
       {},
       {
         // Every setter is a no-op spy; enumerating all ~25 by hand would add
-        // nothing but drift when the state bag changes.
-        get: () => vi.fn(),
+        // nothing but drift when the state bag changes. Memoized into
+        // `uiActionSpy` so tests can assert on the calls.
+        get: (_target, prop: string) => (uiActionSpy[prop] ??= vi.fn()),
       }
     ),
     derived: {

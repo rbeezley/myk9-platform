@@ -139,6 +139,23 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     [printDialogType, handlers, setPrintDialogType]
   );
 
+  // Entering drag mode: close the run-order dialog it was launched from,
+  // snapshot the visible order as the starting manual order, and switch to
+  // run-order sort.
+  //
+  // The shared host handler only flips `isDragMode`. That was survivable on the
+  // single-class route, whose sort already defaults to 'run' -- but only until
+  // the steward sorted by armband or placement first. On combined A/B it fails
+  // every time: that mode sorts 'section-armband', which ignores the
+  // exhibitorOrder a drop writes, so the reorder silently reverts under the
+  // steward's finger the moment they let go.
+  const handleOpenDragMode = useCallback(() => {
+    setRunOrderDialogOpen(false);
+    uiActions.setManualOrder([...currentEntries]);
+    handlers.handleOpenDragMode();
+    setSortOrder('run');
+  }, [setRunOrderDialogOpen, uiActions, currentEntries, handlers, setSortOrder]);
+
   // Applying a run-order preset: close the dialog, confirm, and drop back to
   // run-order sort so the steward SEES the order they just applied.
   //
@@ -150,6 +167,13 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const showSuccess = useAutoDismiss(uiActions.setShowSuccessMessage, 2000);
   const handleApplyRunOrder = useCallback<EntryListHandlers['handleApplyRunOrder']>(
     async (preset, scope, renumberMode) => {
+      // 'manual' applies no order -- it opens drag-to-reorder, which needs the
+      // dialog closed, the manual order seeded and the sort switched, none of
+      // which the host handler does.
+      if (preset === 'manual') {
+        handleOpenDragMode();
+        return;
+      }
       try {
         await handlers.handleApplyRunOrder(preset, scope, renumberMode);
       } catch {
@@ -160,13 +184,10 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         return;
       }
       setRunOrderDialogOpen(false);
-      // 'manual' applies no order -- it opens drag mode, and the order is not
-      // updated until the steward finishes dragging.
-      if (preset === 'manual') return;
       showSuccess();
       setSortOrder('run');
     },
-    [handlers, setRunOrderDialogOpen, showSuccess, setSortOrder]
+    [handlers, setRunOrderDialogOpen, showSuccess, setSortOrder, handleOpenDragMode]
   );
 
   const statusTabs = useMemo(
@@ -330,7 +351,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               sensors={sensors}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
-              onOpenDragMode={handlers.handleOpenDragMode}
+              onOpenDragMode={handleOpenDragMode}
               {...(favorites ? { favorites } : {})}
               {...(ownership ? { ownership } : {})}
               DogCard={layout.DogCard}
@@ -372,7 +393,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         runOrderDialogOpen={runOrderDialogOpen}
         setRunOrderDialogOpen={setRunOrderDialogOpen}
         handleApplyRunOrder={handleApplyRunOrder}
-        handleOpenDragMode={handlers.handleOpenDragMode}
+        handleOpenDragMode={handleOpenDragMode}
         classOptionsDialogOpen={classOptionsDialogOpen}
         setClassOptionsDialogOpen={setClassOptionsDialogOpen}
         setRequirementsDialogOpen={setRequirementsDialogOpen}

@@ -23,6 +23,7 @@ import { FeatureGate } from '@/components/subscription/FeatureGate';
 import { useTrackSectionView, TRACKED_SECTIONS } from '@/hooks/useTrackSectionView';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
+import { ErrorState } from '@/components/common/ErrorState';
 import {
   Select,
   SelectContent,
@@ -36,7 +37,7 @@ const FASTEST_TIMES_LIMIT = 10;
 export default function AnalyticsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: allEntries = [], isLoading } = useMyLifetimeStats();
+  const { data: allEntries = [], isLoading, isError, refetch } = useMyLifetimeStats();
 
   const selectedDog = searchParams.get('dog') ?? 'all';
   const [selectedOrg, setSelectedOrg] = useState<string>('all');
@@ -93,7 +94,7 @@ export default function AnalyticsPage() {
   }, [allEntries]);
 
   const { tier, isInTrial } = useSubscriptionGate(
-    isLoading ? undefined : { trialShowCount: scoredShowCount }
+    isLoading || isError ? undefined : { trialShowCount: scoredShowCount }
   );
 
   const pageRef = useTrackSectionView(TRACKED_SECTIONS.LIFETIME_PAGE, 'analytics');
@@ -165,7 +166,16 @@ export default function AnalyticsPage() {
 
       {isLoading && <StatsSummaryCardsSkeleton />}
 
-      {!isLoading && !hasData && (
+      {!isLoading && isError && (
+        <ErrorState
+          message="We couldn't load your analytics."
+          description="Your results are still safe. Try again to load your complete history."
+          onRetry={() => void refetch()}
+          headingLevel={2}
+        />
+      )}
+
+      {!isLoading && !isError && !hasData && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <BarChart3 className="h-16 w-16 text-muted-foreground/40 mb-4" />
           <h2 className="text-xl font-semibold mb-2">No Analytics Yet</h2>
@@ -175,7 +185,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {!isLoading && hasFilteredData && (
+      {!isLoading && !isError && hasFilteredData && (
         <div ref={pageRef} className="space-y-6">
           <StatsSummaryCards stats={summary} />
 

@@ -123,9 +123,18 @@ export function getTabQuickActions(
       // production entry point and silently overridden that decision. They come
       // back when the judge surface does, alongside the onboarding change the
       // INTENT already asks for.
+      //
+      // Nor should this tab gain a "go to my ring" action instead. A judge does
+      // not arrive here on the way to work: `buildUnifiedSidebarConfig` gives
+      // every ringside role a "Show Day" group carrying STAFF_RINGSIDE_NAV_ITEM,
+      // placed directly after Manage precisely because "for a judge it may be
+      // the only section that matters". An action here would be a second door to
+      // a destination already one click away in the sidebar. The tab itself
+      // still earns its place as a FILTER — a judge reaching Find Shows through
+      // Browse wants their assignments separated from every other show — but a
+      // filter needs no header buttons to justify it.
       break;
   }
 
   return actions;
 }
-

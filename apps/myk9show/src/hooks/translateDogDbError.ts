@@ -7,6 +7,8 @@
 const PG_UNIQUE_VIOLATION = '23505';
 const PG_FOREIGN_KEY_VIOLATION = '23503';
 const PG_INSUFFICIENT_PRIVILEGE = '42501';
+/** myK9 custom SQLSTATE: the dog has paid or scored entries (soft_delete_dog). */
+const MK_DOG_HAS_SETTLED_ENTRIES = 'MK002';
 
 function withCause(message: string, cause: unknown): Error {
   const err = new Error(message);
@@ -20,6 +22,16 @@ export function translateDogDbError(err: unknown): Error {
   const raw = err as { code?: unknown; message?: unknown } | null;
   const code = typeof raw?.code === 'string' ? raw.code : '';
   const message = typeof raw?.message === 'string' ? raw.message : base.message;
+
+  // Before the privilege branch: MK002 is a deliberate product refusal whose
+  // message IS the instruction, so it must never be flattened into a generic
+  // permission error.
+  if (code === MK_DOG_HAS_SETTLED_ENTRIES) {
+    return withCause(
+      'This dog has paid or scored entries. Scratch or refund them before deleting.',
+      err
+    );
+  }
 
   if (code === PG_UNIQUE_VIOLATION || /duplicate key value/i.test(message)) {
     if (/microchip_number/i.test(message)) {

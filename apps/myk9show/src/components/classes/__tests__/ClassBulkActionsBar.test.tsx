@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { ClassBulkActionsBar } from '../ClassBulkActionsBar';
 import type { ClassActionItem } from '../classActions';
@@ -24,7 +24,34 @@ function setup(selectedClasses: ClassActionItem[], bulkBusy = false) {
   return { ...utils, onBulkDelete, onBulkStatusChange, onClear };
 }
 
+const realGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+/** jsdom reports 0 for every box, so an unstubbed spacer assertion is vacuous. */
+function stubBarHeight(px: number) {
+  Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ height: px, width: 100, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }),
+  });
+}
+
 describe('ClassBulkActionsBar', () => {
+  afterEach(() => {
+    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: realGetBoundingClientRect,
+    });
+  });
+
+  // Fixed bar, so without an in-flow spacer it covers the bottom of the class list.
+  it('reserves its own measured height in normal flow', () => {
+    stubBarHeight(64);
+    const { container } = setup([cls('1', 'Scheduled')]);
+
+    const spacer = container.querySelector('[aria-hidden="true"]');
+    expect(spacer).not.toBeNull();
+    expect((spacer as HTMLElement).style.height).toBe('64px');
+  });
+
   it('renders nothing when no classes are selected', () => {
     const { container } = setup([]);
     expect(container).toBeEmptyDOMElement();

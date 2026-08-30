@@ -21,6 +21,9 @@ concurrency:
 
 jobs:
   audit:
+    permissions:
+      contents: read
+      issues: write
     name: Monthly dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -66,3 +69,16 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit $CODE
+
+      # A scheduled workflow's result reaches nobody unless someone opens the
+      # Actions tab. This keeps ONE issue mirroring the workflow's state --
+      # opened when it breaks, closed when it recovers -- so a month-long red
+      # cannot pass unnoticed the way Playwright Regression's did.
+      - name: Report status to the tracking issue
+        if: always()
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Dependency Audit
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: 'A dependency has a known advisory, or the audit tooling itself broke.'

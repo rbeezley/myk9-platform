@@ -18,6 +18,8 @@ import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 import { useCurrentPersonId } from '@/hooks/useCurrentPersonId';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { rosterIsOwnDogsOnly } from '@/utils/dogRosterScope';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { logger } from '@/services/LoggingService';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 
 // Get all dogs visible to the current user.
@@ -242,6 +244,21 @@ export const useDeleteDogMutation = () => {
     mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
       const { data, error } = await deleteDog(id, deletedBy);
       if (error) throw error;
+      // The dogs list reads IndexedDB first (`getAllDogs` -> replication), and a
+      // soft delete removes the row from RLS visibility so replication polling
+      // never learns about it. Without this the invalidate below refetches the
+      // still-present local row and the dog reappears until a full reload.
+      // It belongs HERE rather than in a caller: `mutationFn` resolves before
+      // `onSuccess` runs, so the refetch cannot race the cleanup, and every
+      // caller of this mutation (bulk bar included) gets it.
+      await replicatedDogsTable.delete(id).catch(err => {
+        logger.warn(
+          'Failed to remove soft-deleted dog from IndexedDB',
+          'dogs',
+          { dogId: id },
+          err as Error
+        );
+      });
       return data;
     },
     onMutate: async ({ id: deletedId }) => {

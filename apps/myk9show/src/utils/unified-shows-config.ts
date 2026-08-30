@@ -1,14 +1,12 @@
 import { UserRole, PERMISSIONS, UserWithRoles } from '@/types/auth-types';
 import { Show } from '@/types/show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
-import { logger } from '@/services/LoggingService';
 import {
   ShowTab,
   TabConfiguration,
   UserShowContext,
   ShowWithRelationship,
   ShowRelationship,
-  TabAction,
 } from '@/types/unified-shows-types';
 import {
   getUserEntries,
@@ -59,7 +57,6 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         },
       ],
       defaultTab: 'all',
-      actions: {},
     };
   }
 
@@ -190,112 +187,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
   return {
     tabs,
     defaultTab,
-    actions: generateTabActions(userRoles),
   };
-}
-
-/**
- * Generate available actions for each tab based on user roles
- */
-function generateTabActions(userRoles: UserRole[]) {
-  const actions: Record<string, TabAction[]> = {
-    all: [
-      {
-        id: 'register',
-        label: 'Register',
-        variant: 'default',
-        onClick: (showId: string) => logger.debug('Register for show action', 'shows', { showId }),
-      },
-    ],
-    past: [
-      {
-        id: 'view_results',
-        label: 'View Results',
-        variant: 'outline',
-        onClick: (showId: string) =>
-          logger.debug('View results for show action', 'shows', { showId }),
-      },
-    ],
-    entries: [
-      {
-        id: 'view_entry',
-        label: 'View Entry',
-        variant: 'outline',
-        onClick: (showId: string) =>
-          logger.debug('View entry for show action', 'shows', { showId }),
-      },
-      {
-        id: 'modify_entry',
-        label: 'Modify',
-        variant: 'outline',
-        onClick: (showId: string) =>
-          logger.debug('Modify entry for show action', 'shows', { showId }),
-      },
-    ],
-  };
-
-  // Add role-specific actions
-  if (
-    userRoles.includes(UserRole.SECRETARY) ||
-    userRoles.includes(UserRole.CLUB_ADMIN) ||
-    userRoles.includes(UserRole.SITE_ADMIN)
-  ) {
-    actions.all.unshift({
-      id: 'create_show',
-      label: 'New Show',
-      variant: 'default',
-      requiredPermissions: [PERMISSIONS.SHOW_CREATE],
-      onClick: () => logger.debug('Create new show action', 'shows'),
-    });
-
-    actions.managing = [
-      {
-        id: 'edit_show',
-        label: 'Edit Show',
-        variant: 'outline',
-        requiredPermissions: [PERMISSIONS.SHOW_UPDATE],
-        onClick: (showId: string) => logger.debug('Edit show action', 'shows', { showId }),
-      },
-      {
-        id: 'manage_entries',
-        label: 'Manage Entries',
-        variant: 'outline',
-        requiredPermissions: [PERMISSIONS.SHOW_MANAGE_ENTRIES],
-        onClick: (showId: string) =>
-          logger.debug('Manage entries for show action', 'shows', { showId }),
-      },
-      {
-        id: 'view_reports',
-        label: 'Reports',
-        variant: 'ghost',
-        onClick: (showId: string) =>
-          logger.debug('View reports for show action', 'shows', { showId }),
-      },
-    ];
-  }
-
-  if (userRoles.includes(UserRole.JUDGE)) {
-    actions.assignments = [
-      {
-        id: 'view_assignment',
-        label: 'View Assignment',
-        variant: 'outline',
-        requiredPermissions: [PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS],
-        onClick: (showId: string) =>
-          logger.debug('View assignment for show action', 'shows', { showId }),
-      },
-      {
-        id: 'enter_results',
-        label: 'Enter Results',
-        variant: 'default',
-        requiredPermissions: [PERMISSIONS.JUDGE_ENTER_RESULTS],
-        onClick: (showId: string) =>
-          logger.debug('Enter results for show action', 'shows', { showId }),
-      },
-    ];
-  }
-
-  return actions;
 }
 
 /**

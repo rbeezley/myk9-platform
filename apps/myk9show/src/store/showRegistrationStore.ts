@@ -402,18 +402,11 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
 
         const subtotal = breakdown.reduce((sum, item) => sum + item.subtotal, 0);
 
-        const discounts = [];
-        if (registration.entries.length >= 3) {
-          discounts.push({
-            type: 'multi-dog',
-            amount: subtotal * 0.1,
-            description: '10% multi-dog discount',
-          });
-        }
-
-        const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
+        // Keep the result shape ready for server-honoured discounts, but do
+        // not promise a discount that the checkout path does not apply.
+        const discounts: FeeCalculation['discounts'] = [];
         const taxes = 0;
-        const total = subtotal - discountTotal + taxes;
+        const total = subtotal + taxes;
 
         return {
           subtotal,

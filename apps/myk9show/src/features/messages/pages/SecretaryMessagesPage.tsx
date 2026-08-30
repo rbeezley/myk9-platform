@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { selectMessageShows } from '@/features/messages/messageShowScope';
 import { useMessageStore } from '@/store/messageStore';
 import { useMessageMutations } from '@/hooks/mutations/useMessageMutations';
 import { useShowStore } from '@/store/showStore';
@@ -35,7 +37,19 @@ export default function SecretaryMessagesPage() {
   const storeMarkThreadRead = useMessageStore(s => s.markThreadRead);
   const subscribeMessages = useMessageStore(s => s.subscribe);
 
-  const shows = useShowStore(s => s.shows);
+  const allLoadedShows = useShowStore(s => s.shows);
+  const { userWithRoles, hasRole } = useAuthContext();
+
+  // F24: the store holds every show the app has loaded, including other clubs'
+  // shows pulled in for public browsing. Using it directly listed those clubs'
+  // show NAMES in the filter and subscribed to their threads. Message content was
+  // never exposed -- `threads_select` scopes reads to the show's club, proven by
+  // supabase/tests/show_message_tenant_isolation_test.sql -- but the page should
+  // not advertise shows it cannot read, nor ask the server for them.
+  const shows = useMemo(
+    () => selectMessageShows(allLoadedShows, userWithRoles, hasRole),
+    [allLoadedShows, userWithRoles, hasRole]
+  );
 
   // Widen the message subscription beyond what App-level useMessageSubscription
   // provides (which scopes to exhibitorShowIds ∪ selectedShowId). The

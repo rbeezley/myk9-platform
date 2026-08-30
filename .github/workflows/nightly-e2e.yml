@@ -72,17 +72,22 @@ jobs:
 
       # The regression suite spans secretary, admin, judge, and demo-exhibitor
       # journeys, so preflight every role before starting the browser suite.
+      #
+      # NO E2E_*_EMAIL secrets here, deliberately. This job builds its own
+      # isolated Supabase target and seeds it from setup-e2e-test-users.ts,
+      # which hard-codes the @myk9t.com addresses; only passwords are secrets.
+      # Passing an email override therefore preflighted an account the seed had
+      # never created, which is why this workflow failed all seven of its runs
+      # on `main` (2026-07-16 .. 2026-08-24) at this step and never executed a
+      # single test. The addresses now come from the same defaults testUsers.ts
+      # uses, so the seed and the sign-in cannot disagree.
       - name: Verify E2E auth credentials
         working-directory: apps/myk9show
         run: pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary admin judge exhibitor
         env:
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
       - name: Build app + packages
@@ -99,13 +104,9 @@ jobs:
           CI: 'true'
           MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
           MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
           # Needed by the specs themselves, not just provisioning: a spec that
           # signs in as one of these accounts has no other source for the password.
@@ -142,13 +143,9 @@ jobs:
           CI: 'true'
           MYK9_PLAYWRIGHT_REGRESSION_ENABLED: 'true'
           MYK9_PLAYWRIGHT_REGRESSION_TARGET: isolated
-          E2E_SECRETARY_EMAIL: ${{ secrets.E2E_SECRETARY_EMAIL }}
           E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_JUDGE_EMAIL: ${{ secrets.E2E_JUDGE_EMAIL }}
           E2E_JUDGE_PASSWORD: ${{ secrets.E2E_JUDGE_PASSWORD }}
-          E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
           E2E_CLUB_ADMIN_PASSWORD: ${{ secrets.E2E_CLUB_ADMIN_PASSWORD }}
 

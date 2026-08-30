@@ -6,6 +6,7 @@ import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
+import { selectMessageShows } from '@/features/messages/messageShowScope';
 
 function retryIncompleteSubscription() {
   const state = useMessageStore.getState();
@@ -22,7 +23,7 @@ function retryIncompleteSubscription() {
  * Mount once inside AuthProvider tree (App.tsx, not main.tsx — needs useAuthContext).
  */
 export function useMessageSubscription() {
-  const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const { user, userWithRoles, hasRole } = useAuthContext();
   const subscribe = useMessageStore(s => s.subscribe);
   const unsubscribe = useMessageStore(s => s.unsubscribe);
   const setCurrentUserId = useMessageStore(s => s.setCurrentUserId);
@@ -59,10 +60,16 @@ export function useMessageSubscription() {
     return [...showIds];
   }, [databaseUserId, dogs, storeEntries]);
 
-  const managedShowIds = useMemo(() => {
-    if (!(isSecretary || isAdmin || hasRole('club_admin'))) return [];
-    return shows.map(show => show.id).filter(Boolean);
-  }, [shows, isSecretary, isAdmin, hasRole]);
+  // F24: this is where the widening actually happened. Gating on the GLOBAL roles and
+  // then mapping the whole store subscribed a club secretary to every show the app had
+  // loaded, including other clubs' shows pulled in for public browsing -- and because
+  // this hook and the Messages page share one `subscribe`, an app-level re-run would
+  // overwrite a scoped page subscription with the wide one. Same club-scoped predicate
+  // as the page, mirroring `threads_select`.
+  const managedShowIds = useMemo(
+    () => selectMessageShows(shows, userWithRoles, hasRole).map(show => show.id),
+    [shows, userWithRoles, hasRole]
+  );
 
   // Union both sources, deduplicated
   const showIdsKey = useMemo(() => {

@@ -22,10 +22,22 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 import { ShowEditBasicInfoTab } from './ShowEditBasicInfoTab';
 import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
+import { DEFAULT_SHOW_EDIT_TAB, type ShowEditTab } from '@/components/shows/showEditRoutes';
 
-export const ShowEditForm: React.FC = () => {
+interface ShowEditFormProps {
+  /**
+   * Tab to open on. Deep links land here (F4/F12): a class surface with no judges to
+   * offer points at this panel's Judges tab, which is the one place that owns the show's
+   * judge roster.
+   */
+  initialTab?: ShowEditTab;
+}
+
+export const ShowEditForm: React.FC<ShowEditFormProps> = ({
+  initialTab = DEFAULT_SHOW_EDIT_TAB,
+}) => {
   const { data, form } = useEditPanel<ShowEditFormData>();
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
 
   // Store data
   const { templates } = useTemplateStore();

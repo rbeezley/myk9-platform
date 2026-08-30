@@ -1,3 +1,4 @@
+import type { ShowEditTab } from '@/components/shows/showEditRoutes';
 /**
  * ShowEditPanel - Type Definitions
  */
@@ -16,6 +17,8 @@ export interface ShowEditPanelProps {
   onSave?: (showData: ShowEditSaveData) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
+  /** Tab the panel opens on; set by the `editTab` deep link (F4/F12). */
+  initialTab?: ShowEditTab;
 }
 
 export interface ShowEditSaveData extends Partial<Show> {

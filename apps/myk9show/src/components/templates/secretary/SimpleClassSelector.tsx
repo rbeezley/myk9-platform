@@ -13,6 +13,7 @@ import { Search, CheckSquare, Square, Filter, User } from 'lucide-react';
 import { formatJudgeName, groupClassesByElement } from './SimpleClassSelector.helpers';
 import '@/styles/myk9-class-selection.css';
 import { countLabel } from '@/utils/pluralize';
+import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 
 interface SimpleClassSelectorProps {
   template: ClassTemplate;
@@ -22,6 +23,16 @@ interface SimpleClassSelectorProps {
   availableJudges?: ShowJudgeAssignment[];
   judgeAssignments?: Record<string, string>; // classId -> judgeId
   onJudgeAssignmentChange?: (assignments: Record<string, string>) => void;
+  /**
+   * How to reach the show's judge roster when it is empty (F4).
+   *
+   * Without this the per-element judge control simply is not rendered — the whole
+   * `availableJudges.length > 0` block below disappears — so the class step offered no
+   * dropdown, no explanation, and no way forward. The caller supplies the route because
+   * it differs: an unsaved wizard show sends the secretary back to its own judges step,
+   * while a saved show links to the Edit panel's Judges tab.
+   */
+  addJudge?: { showId: string; onAddJudge?: never } | { onAddJudge: () => void; showId?: never };
 }
 
 export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
@@ -29,6 +40,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   selectedClasses,
   onSelectionChange,
   existingClasses = [],
+  addJudge,
   availableJudges = [],
   judgeAssignments = {},
   onJudgeAssignmentChange,
@@ -231,6 +243,21 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
 
   return (
     <div className="myk9-class-selector w-full">
+      {/*
+        F4: with no judges on the show, the per-element judge control below is not
+        rendered at all, so this step silently lost the ability to assign one. Say so
+        once, here, rather than repeating it on every element header.
+      */}
+      {availableJudges.length === 0 && addJudge && (
+        <NoJudgesNotice
+          {...(addJudge.onAddJudge
+            ? { onAddJudge: addJudge.onAddJudge }
+            : { showId: addJudge.showId })}
+          message="This show has no judges yet, so classes cannot be assigned one here. Add a judge and a judge picker appears on every element."
+          className="mb-4"
+        />
+      )}
+
       {/* Streamlined Filters and Search */}
       <div className="myk9-class-filters">
         <div className="myk9-class-filters-row">

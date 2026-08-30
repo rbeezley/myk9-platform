@@ -30,6 +30,12 @@ import {
 import { getShowStyle } from '@/features/registries';
 import { publishExperience } from '@/features/experience/publishExperience';
 import { persistShowJudgeAssignments } from '@/services/database/judges';
+import {
+  SHOW_EDIT_TAB_PARAM,
+  normalizeShowEditTab,
+  DEFAULT_SHOW_EDIT_TAB,
+  type ShowEditTab,
+} from '@/components/shows/showEditRoutes';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_MANAGEMENT_NAV_SECTIONS } from '@/routes/showManagementSections';
@@ -126,12 +132,33 @@ export function ShowManagementShell({
   const [showEditPanel, setShowEditPanel] = useState(
     () => new URLSearchParams(window.location.search).get('edit') === 'true'
   );
+  // Which tab the deep link asked for. Captured once, from the same initial URL read as
+  // `edit` above, because the effect below strips both params immediately -- reading it
+  // from `searchParams` during render would come back null on the second pass and snap
+  // the panel back to Basic Info while the secretary was looking at Judges (F4/F12).
+  const [editPanelTab] = useState<ShowEditTab>(() =>
+    normalizeShowEditTab(new URLSearchParams(window.location.search).get(SHOW_EDIT_TAB_PARAM))
+  );
   useEffect(() => {
-    if (searchParams.get('edit') === 'true') {
+    // Strip both so a refresh or a shared URL does not reopen the editor.
+    const hadEdit = searchParams.get('edit') === 'true';
+    const hadTab = searchParams.get(SHOW_EDIT_TAB_PARAM) !== null;
+    if (hadEdit || hadTab) {
       searchParams.delete('edit');
+      searchParams.delete(SHOW_EDIT_TAB_PARAM);
       setSearchParams(searchParams, { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reopening from the menu should start on Basic Info, not on whatever tab a deep link
+  // once asked for -- the deep link is a one-shot instruction, not a preference.
+  const [editPanelOpenedByLink, setEditPanelOpenedByLink] = useState(
+    () => new URLSearchParams(window.location.search).get('edit') === 'true'
+  );
+  const openEditPanel = () => {
+    setEditPanelOpenedByLink(false);
+    setShowEditPanel(true);
+  };
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const entryDataUnavailable = entryDataState !== 'ready';
   const isShowDesk = activeManagementSection === 'show-desk';
@@ -150,7 +177,7 @@ export function ShowManagementShell({
             show={show}
             canonicalShowHref={canonicalShowHref}
             armbandCount={armbandCount}
-            onEdit={() => setShowEditPanel(true)}
+            onEdit={openEditPanel}
             onDelete={() => setShowDeleteDialog(true)}
           />
         ) : (
@@ -201,7 +228,7 @@ export function ShowManagementShell({
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setShowEditPanel(true)}>
+                      <DropdownMenuItem onClick={openEditPanel}>
                         <Pencil className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
@@ -327,6 +354,7 @@ export function ShowManagementShell({
       {/* Dialogs */}
       <ShowEditPanel
         open={showEditPanel}
+        initialTab={editPanelOpenedByLink ? editPanelTab : DEFAULT_SHOW_EDIT_TAB}
         onClose={() => setShowEditPanel(false)}
         showId={show.id || ''}
         showName={show.name || ''}

@@ -30,6 +30,7 @@ import {
   isScentWorkNovice,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
+import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { formatJudgeAvailabilityWindow } from '@/utils/classJudgeDisplay';
 
@@ -120,6 +121,18 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
 
           <div className="grid grid-cols-3 gap-4">
             <FormField label="Judge" fieldId="judgeId" error={judgeError}>
+              {/*
+                F12: the same dead end as the full form -- a DISABLED
+                "No judges assigned to this show" option, naming the problem inside the
+                control that cannot solve it. Which of the two forms renders is decided
+                by the shape of `initialClassData`, so both need the way out.
+              */}
+              {showId && assignedJudges.length === 0 ? (
+                <NoJudgesNotice
+                  showId={showId}
+                  message="No judges on this show yet, so there is nobody to assign to this class."
+                />
+              ) : (
               <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
                 <SelectTrigger
                   id="judgeId"
@@ -136,25 +149,20 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {assignedJudges.length > 0 ? (
-                    assignedJudges.map(judge => (
-                      <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                        {judge.judgeName}
-                        {formatJudgeAvailabilityWindow(judge) && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            {formatJudgeAvailabilityWindow(judge)}
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="TBD" disabled>
-                      No judges assigned to this show
+                  {assignedJudges.map(judge => (
+                    <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                      {judge.judgeName}
+                      {formatJudgeAvailabilityWindow(judge) && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {formatJudgeAvailabilityWindow(judge)}
+                        </span>
+                      )}
                     </SelectItem>
-                  )}
+                  ))}
                   <SelectItem value="TBD">TBD</SelectItem>
                 </SelectContent>
               </Select>
+              )}
             </FormField>
             <FormField label="Status" fieldId="trialStatus" required error={statusError}>
               <Select value={data.status} onValueChange={handleSelectChange('status')}>

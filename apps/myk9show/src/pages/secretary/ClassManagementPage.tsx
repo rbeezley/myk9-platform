@@ -380,14 +380,6 @@ export const ClassManagementPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <ClassBulkActionsBar
-        selectedClasses={selection.selectedItems}
-        bulkBusy={bulkBusy}
-        onBulkDelete={handleBulkDelete}
-        onBulkStatusChange={handleBulkStatusChange}
-        onClear={selection.clearSelection}
-      />
-
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -457,6 +449,17 @@ export const ClassManagementPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Rendered last so its in-flow height spacer lands BELOW the class list
+          rather than in the middle of the page — the bar itself is `fixed`, so
+          its on-screen position is unchanged by where it sits in the tree. */}
+      <ClassBulkActionsBar
+        selectedClasses={selection.selectedItems}
+        bulkBusy={bulkBusy}
+        onBulkDelete={handleBulkDelete}
+        onBulkStatusChange={handleBulkStatusChange}
+        onClear={selection.clearSelection}
+      />
     </div>
   );
 };

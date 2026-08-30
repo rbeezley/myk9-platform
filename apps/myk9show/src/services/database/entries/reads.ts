@@ -925,6 +925,26 @@ export const countActiveEntriesByDog = async (dogId: string): Promise<number> =>
   return count ?? 0;
 };
 
+// Count a dog's live entries that BLOCK a delete — the exact predicate
+// soft_delete_dog refuses on (MK002, migration 20260830140000). Kept in step
+// with it by `entryBlocksDogDelete.contract.test.ts`, which reads both.
+//
+// 'refunded' and 'waived' do not block: no money is being kept. A direct
+// head-count for the same reason as countActiveEntriesByDog above — a
+// per-show-replicated local store cannot answer this honestly.
+export const countBlockingEntriesByDog = async (dogId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('dog_id', dogId)
+    .is('deleted_at', null)
+    .or(
+      'payment_status.eq.paid,is_scored.is.true,scoring_completed_at.not.is.null,and(result_status.not.is.null,result_status.neq.pending)'
+    );
+  if (error) throw error;
+  return count ?? 0;
+};
+
 // Get entries by status
 export const getEntriesByStatus = async (status: EntryStatus) => {
   return readWithReplicationFallback({

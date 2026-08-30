@@ -9,6 +9,17 @@ export const deleteDogSubtitle =
 const entryNoun = (count: number): string => (count === 1 ? 'entry' : 'entries');
 
 /**
+ * The server refuses (MK002) when a dog has live entries that are paid or
+ * scored: deleting them would drop a paid entry with no refund decision, and
+ * would recompute placements behind a scored one. The dialog says so up front
+ * rather than letting the user click Delete into an error.
+ */
+export function buildBlockedText(blockingEntryCount: number | undefined): string | null {
+  if (!blockingEntryCount || blockingEntryCount <= 0) return null;
+  return `This dog has ${blockingEntryCount} paid or scored ${entryNoun(blockingEntryCount)}. Scratch or refund ${blockingEntryCount === 1 ? 'it' : 'them'} before deleting.`;
+}
+
+/**
  * Inline suffix after the dog name in "You are about to delete <b>Dog</b>…".
  * Surfaces the cascade impact (entries removed with the dog, per migration
  * 20260616130000) right where the user confirms. Empty when there are no
@@ -29,8 +40,11 @@ export function buildImpactSuffix(activeEntryCount?: number): string {
  */
 export function buildWarningText(
   activeEntryCount: number | undefined,
-  canRestore: boolean
+  canRestore: boolean,
+  blockingEntryCount?: number
 ): string {
+  const blocked = buildBlockedText(blockingEntryCount);
+  if (blocked) return blocked;
   if (!canRestore) return 'This action cannot be undone.';
   const what =
     !activeEntryCount || activeEntryCount <= 0 ? 'The dog' : 'The dog and its entries';

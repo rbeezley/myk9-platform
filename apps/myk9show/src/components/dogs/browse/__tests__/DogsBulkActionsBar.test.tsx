@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { DogsBulkActionsBar } from '../DogsBulkActionsBar';
@@ -40,13 +40,54 @@ function setup(dogs: Dog[], canDelete = true) {
   return { ...utils, onClear };
 }
 
+/**
+ * jsdom reports 0 for every box, so the bar's measured height has to be
+ * stubbed — otherwise the spacer assertion below passes on a 0px spacer, i.e.
+ * on the bug.
+ */
+const realGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+
+function stubBarHeight(px: number) {
+  Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({ height: px, width: 100, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }),
+  });
+}
+
 describe('DogsBulkActionsBar', () => {
   beforeEach(() => {
     updateDogMutateAsync.mockReset().mockResolvedValue(undefined);
     deleteDogMutateAsync.mockReset().mockResolvedValue(undefined);
   });
 
+  // Restore unconditionally: a prototype stub left in place is exactly the
+  // cross-test leak CI's shuffled run turns into a random failure.
+  afterEach(() => {
+    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: realGetBoundingClientRect,
+    });
+  });
+
   it('renders nothing when no dogs are selected', () => {
+    const { container } = setup([]);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  // The bar is `fixed`, so without an in-flow spacer it lands on top of the
+  // last thing on the page — on /dogs that is the pagination control, which
+  // becomes unreachable the moment one checkbox is ticked.
+  it('reserves its own measured height in normal flow', () => {
+    stubBarHeight(72);
+    const { container } = setup([dog('1')]);
+
+    const spacer = container.querySelector('[aria-hidden="true"]');
+    expect(spacer).not.toBeNull();
+    expect((spacer as HTMLElement).style.height).toBe('72px');
+  });
+
+  it('reserves nothing when no dogs are selected', () => {
+    stubBarHeight(72);
     const { container } = setup([]);
     expect(container).toBeEmptyDOMElement();
   });

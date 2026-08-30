@@ -36,7 +36,11 @@ export function ClassBulkActionsBar({
   onClear,
 }: ClassBulkActionsBarProps) {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
-  const actionBarRef = useRegisterActionBar<HTMLDivElement>();
+  // Same reservation the dogs bar makes: the bar is `fixed`, so without an
+  // in-flow spacer it sits on top of the last rows of the class list. Measured
+  // rather than a constant `pb-*` — the bar wraps to two rows on narrow widths.
+  const [barHeight, setBarHeight] = useState(0);
+  const actionBarRef = useRegisterActionBar<HTMLDivElement>({ onHeightChange: setBarHeight });
 
   if (selectedClasses.length === 0) return null;
 
@@ -65,6 +69,8 @@ export function ClassBulkActionsBar({
 
   return (
     <>
+      <div aria-hidden="true" style={{ height: barHeight }} />
+
       <div
         ref={actionBarRef}
         className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background p-3 shadow-lg"

@@ -57,6 +57,7 @@ TEST_FILES=(
   "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/placement_soft_delete_ranking_test.sql"
   "$TEST_DIR/pre_rule_table_grants_test.sql"
+  "$TEST_DIR/show_message_tenant_isolation_test.sql"
   "$TEST_DIR/pull_refund_decision_rls_test.sql"
   "$TEST_DIR/rbac_access_lookup_authorization_test.sql"
   "$TEST_DIR/recoverable_show_access_codes_test.sql"

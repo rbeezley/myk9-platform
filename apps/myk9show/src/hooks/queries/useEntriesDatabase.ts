@@ -11,6 +11,7 @@ import {
   getPublicEntriesByClass,
   getEntriesByDog,
   countActiveEntriesByDog,
+  countBlockingEntriesByDog,
   getEntriesByStatus,
   getEntriesForShow,
   createEntry,
@@ -152,6 +153,18 @@ export const useDogActiveEntryCountQuery = (dogId: string, enabled = true) => {
   return useQuery({
     queryKey: [...queryKeys.dogEntries(dogId), 'active-count'],
     queryFn: () => countActiveEntriesByDog(dogId),
+    enabled: !!dogId && enabled,
+    ...cacheStrategies.moderate,
+  });
+};
+
+// Count the dog's entries that would make soft_delete_dog refuse (MK002), so the
+// confirmation can say so up front instead of letting the user click Delete into
+// a server error. Gated by `enabled` like the active count beside it.
+export const useDogBlockingEntryCountQuery = (dogId: string, enabled = true) => {
+  return useQuery({
+    queryKey: [...queryKeys.dogEntries(dogId), 'blocking-count'],
+    queryFn: () => countBlockingEntriesByDog(dogId),
     enabled: !!dogId && enabled,
     ...cacheStrategies.moderate,
   });

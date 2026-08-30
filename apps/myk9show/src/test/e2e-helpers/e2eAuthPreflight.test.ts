@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { resolveAuthPreflightConfig, verifyE2EAuthCredentials } from './e2eAuthPreflight';
@@ -99,5 +102,114 @@ describe('e2e auth preflight', () => {
     expect(() => resolveAuthPreflightConfig(baseEnv, ['secretary', 'unknown'])).toThrow(
       'Unsupported E2E auth preflight role: unknown'
     );
+  });
+
+  // This preflight runs BEFORE Playwright in five workflow steps, so it is the
+  // first place a stale secret surfaces. Without these, the retired-domain
+  // guard in testUsers.ts is unreachable in CI: the run dies here, with the
+  // generic message, and the guard never executes.
+  describe('seeded default addresses', () => {
+    // Playwright Regression seeded secretary@myk9t.com into a fresh isolated
+    // target, then preflighted whatever E2E_SECRETARY_EMAIL held. It failed all
+    // seven runs on `main` at this step and never executed a test.
+    const noEmails = {
+      VITE_SUPABASE_URL: 'https://project.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'anon-key',
+      E2E_SECRETARY_PASSWORD: 'secret-password',
+      E2E_ADMIN_PASSWORD: 'admin-password',
+      E2E_JUDGE_PASSWORD: 'judge-password',
+      E2E_DEMO_EXHIBITOR_PASSWORD: 'exhibitor-password',
+    };
+    const ROLES = ['secretary', 'admin', 'judge', 'exhibitor'];
+
+    it('resolves every role with no E2E_*_EMAIL set at all', () => {
+      const config = resolveAuthPreflightConfig(noEmails, ROLES);
+      expect(config.credentials.map(c => c.email)).toEqual([
+        'secretary@myk9t.com',
+        'testadmin@myk9t.com',
+        'judge@myk9t.com',
+        'exhibitor@myk9t.com',
+      ]);
+    });
+
+    it('matches the addresses the seeds actually create', () => {
+      // Read from the seed rather than restated, so a rename in one place
+      // cannot leave the other silently disagreeing — which is the whole bug.
+      const seed = readFileSync(
+        resolve(__dirname, '../../../scripts/setup-e2e-test-users.ts'),
+        'utf8'
+      );
+      for (const { email } of resolveAuthPreflightConfig(noEmails, ROLES).credentials) {
+        expect(seed, `${email} is not created by setup-e2e-test-users.ts`).toContain(
+          `'${email}'`
+        );
+      }
+    });
+
+    it('still requires the password, which is a real secret', () => {
+      const withoutPassword = { ...noEmails };
+      delete (withoutPassword as Record<string, string>).E2E_SECRETARY_PASSWORD;
+      expect(() => resolveAuthPreflightConfig(withoutPassword, ['secretary'])).toThrow(
+        /E2E_SECRETARY_PASSWORD/
+      );
+    });
+
+    it('treats an EMPTY email override as absent, matching testUsers.ts', () => {
+      // An unset GitHub secret interpolates to '' rather than undefined. Before
+      // this, the preflight fell back (`||`) and passed while testUsers.ts kept
+      // the empty string (`??`) and signed in as nobody — a green preflight
+      // followed by an auth failure, which is the false negative it exists to
+      // prevent. Both now route through resolveFixtureEmail.
+      const config = resolveAuthPreflightConfig(
+        { ...noEmails, E2E_SECRETARY_EMAIL: '' },
+        ['secretary']
+      );
+      expect(config.credentials[0]?.email).toBe('secretary@myk9t.com');
+    });
+
+    it('still honours an explicit override when one is set', () => {
+      const config = resolveAuthPreflightConfig(
+        { ...noEmails, E2E_SECRETARY_EMAIL: 'someone-else@myk9t.com' },
+        ['secretary']
+      );
+      expect(config.credentials[0]?.email).toBe('someone-else@myk9t.com');
+    });
+  });
+
+  describe('retired fixture domains', () => {
+    it('rejects a stale secret before it reaches Supabase', () => {
+      const env = { ...baseEnv, E2E_SECRETARY_EMAIL: 'e2e-secretary@test.myk9.com' };
+      expect(() => resolveAuthPreflightConfig(env, ['secretary'])).toThrow(/test\.myk9\.com/);
+    });
+
+    it('names the cause rather than reporting it as a credentials failure', () => {
+      // The whole point. Reaching Supabase yields "Invalid login credentials",
+      // which sends the reader to rotate a password that was never wrong.
+      const env = { ...baseEnv, E2E_ADMIN_EMAIL: 'e2e-admin@test.myk9.com' };
+      let message = '';
+      try {
+        resolveAuthPreflightConfig(env, ['admin']);
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain('e2e-admin@test.myk9.com');
+      expect(message).toContain('.env.local');
+      expect(message).toContain('@myk9t.com');
+    });
+
+    it('checks every requested role, not just the first', () => {
+      // A loop that returned early on the first good credential would let a
+      // stale secret in any later role through.
+      const env = { ...baseEnv, E2E_DEMO_EXHIBITOR_EMAIL: 'e2e-exhibitor@test.myk9.com' };
+      expect(() => resolveAuthPreflightConfig(env, ['secretary', 'admin', 'exhibitor'])).toThrow(
+        /test\.myk9\.com/
+      );
+    });
+
+    it('leaves live addresses alone', () => {
+      expect(() =>
+        resolveAuthPreflightConfig(baseEnv, ['secretary', 'admin', 'exhibitor'])
+      ).not.toThrow();
+    });
   });
 });

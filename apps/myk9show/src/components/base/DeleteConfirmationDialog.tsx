@@ -25,6 +25,11 @@ export interface DeleteConfirmationDialogProps {
    * delete is reversible (e.g. a soft-delete that an admin can restore).
    */
   warningText?: React.ReactNode | undefined;
+  /**
+   * Blocks confirmation while still showing the dialog — use with `warningText`
+   * carrying the reason. A delete the server will refuse should not be clickable.
+   */
+  confirmDisabled?: boolean | undefined;
 }
 
 export function DeleteConfirmationDialog({
@@ -41,6 +46,7 @@ export function DeleteConfirmationDialog({
   cancelLabel = 'Cancel',
   impactSuffix,
   warningText = 'This action cannot be undone.',
+  confirmDisabled = false,
 }: DeleteConfirmationDialogProps) {
   const defaultTitle = title || `Delete ${entityType}`;
   const defaultTitleIcon = titleIcon || <Trash2 className="w-5 h-5" />;
@@ -57,6 +63,7 @@ export function DeleteConfirmationDialog({
       submitLabel={confirmLabel}
       cancelLabel={cancelLabel}
       isSubmitting={isDeleting}
+      submitDisabled={confirmDisabled}
       maxWidth="max-w-md"
     >
       <div className="space-y-4">

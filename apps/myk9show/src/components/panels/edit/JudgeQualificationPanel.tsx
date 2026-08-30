@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
+import { JUDGE_ORGANIZATIONS } from '@/features/judges/judgeOrganizations';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -79,13 +80,7 @@ function mapUiToDbQualification(
   };
 }
 
-const JUDGE_ORGANIZATIONS = [
-  { value: 'AKC', label: 'American Kennel Club (AKC)' },
-  { value: 'UKC', label: 'United Kennel Club (UKC)' },
-  { value: 'NACSW', label: 'North American Canine Scent Work (NACSW)' },
-  { value: 'CPE', label: 'Canine Performance Events (CPE)' },
-  { value: 'OTHER', label: 'Other' },
-] as const;
+
 
 // Organization-specific disciplines sourced from official org websites:
 // AKC: akc.org/sports/ and akc.org/sports/titles-and-abbreviations/titles-by-sport/

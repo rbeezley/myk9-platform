@@ -125,7 +125,10 @@ export const MyEntryDogFace: React.FC<MyEntryDogFaceProps> = ({ dogs }) => {
                         {cls.resultStatus ? (
                           <>
                             <ResultBadge resultStatus={cls.resultStatus} />
-                            {cls.finalPlacement != null && (
+                            {!cls.resultsReleasedAt && (
+                              <span className="myk9-entries-dog-face-preliminary">Preliminary</span>
+                            )}
+                            {cls.resultsReleasedAt && cls.finalPlacement != null && (
                               <PlacementPill placement={cls.finalPlacement} size="sm" />
                             )}
                             {/* Time and faults read with the result, not

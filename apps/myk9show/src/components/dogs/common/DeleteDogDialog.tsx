@@ -21,6 +21,13 @@ interface DeleteDogDialogProps {
    * "This action cannot be undone." Defaults to false (the safe, honest message).
    */
   canRestore?: boolean;
+  /**
+   * Live entries that make the server refuse the delete (paid or scored). When
+   * > 0 the dialog explains the refusal and blocks Delete. Pass undefined while
+   * loading — an unknown count must not read as zero and enable a delete the
+   * server will reject.
+   */
+  blockingEntryCount?: number | undefined;
 }
 
 const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
@@ -31,7 +38,9 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
   isSubmitting,
   activeEntryCount,
   canRestore = false,
+  blockingEntryCount,
 }) => {
+  const isBlocked = (blockingEntryCount ?? 0) > 0;
   return (
     <DeleteConfirmationDialog
       open={open}
@@ -41,7 +50,8 @@ const DeleteDogDialog: React.FC<DeleteDogDialogProps> = ({
       entityType="Dog"
       description={deleteDogSubtitle}
       impactSuffix={buildImpactSuffix(activeEntryCount)}
-      warningText={buildWarningText(activeEntryCount, canRestore)}
+      warningText={buildWarningText(activeEntryCount, canRestore, blockingEntryCount)}
+      confirmDisabled={isBlocked}
       isDeleting={isSubmitting}
     />
   );

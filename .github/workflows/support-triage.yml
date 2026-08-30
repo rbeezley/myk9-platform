@@ -11,6 +11,9 @@ concurrency:
 
 jobs:
   triage:
+    permissions:
+      contents: read
+      issues: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -53,3 +56,15 @@ jobs:
           SUPPORT_TRIAGE_FROM_EMAIL: 'myK9Show Support <notifications@myk9show.com>'
           MYK9_APP_URL: 'https://myk9show.com'
         run: pnpm support:triage
+
+      # Runs every 15 minutes, so a break here is both the easiest to miss and
+      # the noisiest to announce. The action opens ONE issue and thereafter
+      # only refreshes it, so this cadence costs a single notification.
+      - name: Report status to the tracking issue
+        if: always()
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Support Triage
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: 'Inbound support triage stopped running. Customer messages may be going unanswered.'

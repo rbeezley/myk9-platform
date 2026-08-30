@@ -157,40 +157,20 @@ describe('calculateTotalFees — wait-list lines are non-payable', () => {
 });
 
 describe('calculateTotalFees — multi-dog discount', () => {
-  it('does not apply the multi-dog discount when one entered dog has several owned dogs', () => {
-    const ownedDogs = [
-      dog,
-      { id: 'dog-2', name: 'Breeze' },
-      { id: 'dog-3', name: 'Comet' },
-      { id: 'dog-4', name: 'Dash' },
-    ];
-
-    const result = calculateTotalFees(
-      ownedDogs.map(ownedDog => ownedDog.id),
-      [selection],
-      ownedDogs,
-      [classObj]
-    );
-
-    expect(result.subtotal).toBe(25);
-    expect(result.discounts).toEqual([]);
-    expect(result.total).toBe(25);
-  });
-
   // The wizard used to subtract 10% here for 3+ entered dogs. Nothing on the
   // money path honoured it — the cart bills every line at full entry fee — so
   // the quoted total was lower than the charge. Quoting a discount the product
   // cannot apply is the defect; re-adding it needs a server-side discount
   // first (MYK9-265).
-  it('quotes no discount for three entered dogs, because nothing applies one', () => {
-    const dogs = [dog, { id: 'dog-2', name: 'Breeze' }, { id: 'dog-3', name: 'Comet' }];
-    const selections = dogs.map(d => ({ ...selection, dogId: d.id }));
+  it('does not apply an unhonored discount to three payable dogs', () => {
+    const ownedDogs = [dog, { id: 'dog-2', name: 'Breeze' }, { id: 'dog-3', name: 'Comet' }];
+    const selections = ownedDogs.map(ownedDog => ({ ...selection, dogId: ownedDog.id }));
 
     const result = calculateTotalFees(
-      dogs.map(d => d.id),
+      ownedDogs.map(ownedDog => ownedDog.id),
       selections,
-      dogs,
-      [classObj]
+      ownedDogs,
+      [classObj, { id: 'class-2', entryFee: 25 }, { id: 'class-3', entryFee: 25 }]
     );
 
     expect(result.subtotal).toBe(75);

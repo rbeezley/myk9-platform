@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { DogEditPanelSkeleton, PhotoDialogSkeleton } from './Skeletons';
 import { DeleteDogDialog } from '@/components/dogs/common/DeleteDogDialog';
-import { useDogActiveEntryCountQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useDogActiveEntryCountQuery, useDogBlockingEntryCountQuery } from '@/hooks/queries/useEntriesDatabase';
 import { convertDogToDogInput, CELEBRATION_DURATION_MS, CELEBRATION_FADE_DELAY_MS } from './utils';
 import type { DogDialogsProps } from './types';
 
@@ -47,6 +47,10 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   // Fetch the dog's live entry count only while the delete dialog is open, so the
   // confirmation can warn that those entries will be removed by the cascade.
   const { data: activeEntryCount } = useDogActiveEntryCountQuery(dog.id, isDeleteDialogOpen);
+  // Separate count, not a filter over the one above: the delete-blocking
+  // predicate is the server's (MK002), and the two must be able to disagree —
+  // "3 entries, 1 of them paid" is the case the dialog has to describe.
+  const { data: blockingEntryCount } = useDogBlockingEntryCountQuery(dog.id, isDeleteDialogOpen);
 
   useEffect(() => {
     return () => {
@@ -142,6 +146,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           dog={dog}
           isSubmitting={isDeleting ?? false}
           activeEntryCount={activeEntryCount}
+          blockingEntryCount={blockingEntryCount}
           canRestore={canRestore ?? false}
         />
       )}

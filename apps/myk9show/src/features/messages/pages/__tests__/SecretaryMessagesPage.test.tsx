@@ -100,14 +100,31 @@ vi.mock('@/features/email-delivery-history', () => ({
   ),
 }));
 
+// The page scopes the show filter to clubs this user is secretary/admin for (F24), so
+// the fixture now carries `clubId` and a matching role scope. Before that filter the
+// store's shows were used raw, which is how other clubs' show names reached the filter.
 vi.mock('@/store/showStore', () => ({
-  useShowStore: (selector: (state: { shows: Array<{ id: string; name: string }> }) => unknown) =>
+  useShowStore: (
+    selector: (state: { shows: Array<{ id: string; name: string; clubId: string }> }) => unknown
+  ) =>
     selector({
       shows: [
-        { id: 'show-1', name: 'Spring Trial' },
-        { id: 'show-2', name: 'Summer Trial' },
+        { id: 'show-1', name: 'Spring Trial', clubId: 'club-1' },
+        { id: 'show-2', name: 'Summer Trial', clubId: 'club-1' },
+        // Another club's show, as the global store really does carry (loaded for
+        // public browsing). This is the row F24 was about.
+        { id: 'show-9', name: 'Rival Club Open', clubId: 'club-9' },
       ],
     }),
+}));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    userWithRoles: {
+      scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }],
+    },
+    hasRole: (role: string) => role === 'secretary',
+  }),
 }));
 
 vi.mock('@/lib/supabase-client', () => ({
@@ -151,6 +168,30 @@ describe('SecretaryMessagesPage — all-shows mode', () => {
     expect(baseStoreState.subscribe).toHaveBeenCalledWith(
       expect.arrayContaining(['show-1', 'show-2'])
     );
+  });
+
+  it('does not name another club’s show in the filter', async () => {
+    // F24: the filter was built straight from the global show store, which holds every
+    // show the app has loaded — so a Heartland-only secretary saw MYK9-109 Load Shows
+    // 1–3 by name. Message CONTENT was never exposed (RLS scopes reads to the show's
+    // club, proven by supabase/tests/show_message_tenant_isolation_test.sql), but the
+    // existence and names of other clubs' shows did leak.
+    renderAtUrl('/secretary/messages');
+
+    expect(screen.queryByText('Rival Club Open')).toBeNull();
+    const body = document.body.textContent ?? '';
+    expect(body).not.toContain('Rival Club Open');
+  });
+
+  it('does not subscribe to another club’s show', () => {
+    // The page asked the server for threads on shows it cannot read. Harmless thanks to
+    // RLS, but it is a request that should never be made.
+    renderAtUrl('/secretary/messages');
+
+    const subscribedIds = (baseStoreState.subscribe as ReturnType<typeof vi.fn>).mock
+      .calls[0]?.[0] as string[];
+    expect(subscribedIds).toEqual(expect.arrayContaining(['show-1', 'show-2']));
+    expect(subscribedIds).not.toContain('show-9');
   });
 
   it('renders all threads across shows when no ?showId= filter is set', () => {

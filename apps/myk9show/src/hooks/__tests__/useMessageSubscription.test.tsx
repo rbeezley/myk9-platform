@@ -36,7 +36,7 @@ vi.mock('@/hooks/queries/useShowDayData', () => ({
 }));
 
 let selectedShowId: string | null = null;
-let shows: Array<{ id: string }> = [];
+let shows: Array<{ id: string; clubId?: string }> = [];
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (s: unknown) => unknown) => selector({ selectedShowId, shows }),
 }));
@@ -157,18 +157,51 @@ describe('useMessageSubscription', () => {
     expect(subscribeMock).toHaveBeenCalledWith(['today-show']);
   });
 
-  it('subscribes staff to managed shows', () => {
+  it('subscribes staff to shows of clubs they hold a role for', () => {
+    // F24: "managed" used to mean every show in the store, gated on the GLOBAL
+    // secretary role — so a club secretary subscribed to other clubs' shows. It now
+    // mirrors `threads_select`, which asks `is_trial_secretary(s.club_id)`.
     authState = {
       user: { id: 'auth-user-1' },
-      userWithRoles: { id: 'person-1', roles: ['secretary'], scopes: [] },
+      userWithRoles: {
+        id: 'person-1',
+        roles: ['secretary'],
+        scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }],
+      },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
-    shows = [{ id: 'managed-1' }, { id: 'managed-2' }];
+    shows = [
+      { id: 'managed-1', clubId: 'club-1' },
+      { id: 'managed-2', clubId: 'club-1' },
+    ];
 
     renderHook(() => useMessageSubscription());
     expect(subscribeMock).toHaveBeenCalledWith(['managed-1', 'managed-2', 'today-show']);
+  });
+
+  it('does not subscribe staff to another club’s show', () => {
+    authState = {
+      user: { id: 'auth-user-1' },
+      userWithRoles: {
+        id: 'person-1',
+        roles: ['secretary'],
+        scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }],
+      },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: (role: string) => role === 'secretary',
+    };
+    shows = [
+      { id: 'managed-1', clubId: 'club-1' },
+      { id: 'rival-1', clubId: 'club-9' },
+    ];
+
+    renderHook(() => useMessageSubscription());
+    const ids = subscribeMock.mock.calls[0]?.[0] as string[];
+    expect(ids).toContain('managed-1');
+    expect(ids).not.toContain('rival-1');
   });
 
   it('subscribes exhibitors to entered shows beyond active show-day shows', () => {
@@ -198,14 +231,21 @@ describe('useMessageSubscription', () => {
   it('unions active, selected, and managed shows without duplicates', () => {
     authState = {
       user: { id: 'auth-user-1' },
-      userWithRoles: { id: 'person-1', roles: ['secretary', 'exhibitor'], scopes: [] },
+      userWithRoles: {
+        id: 'person-1',
+        roles: ['secretary', 'exhibitor'],
+        scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }],
+      },
       isSecretary: true,
       isAdmin: false,
-      hasRole: () => false,
+      hasRole: (role: string) => role === 'secretary',
     };
     activeShows = [{ showId: 'show-1' }];
     selectedShowId = 'show-2';
-    shows = [{ id: 'show-1' }, { id: 'show-3' }];
+    shows = [
+      { id: 'show-1', clubId: 'club-1' },
+      { id: 'show-3', clubId: 'club-1' },
+    ];
 
     renderHook(() => useMessageSubscription());
     expect(subscribeMock).toHaveBeenCalledWith(['show-1', 'show-2', 'show-3']);

@@ -130,16 +130,12 @@ export function calculateTotalFees(
     }
   });
 
-  // No discount is applied here. A 10% multi-dog discount used to be added at
-  // this point, but nothing on the money path has ever honoured it: the cart,
-  // registrationCartCheckout and every edge function charge the full entry fee
-  // per line. Showing it made the wizard quote a total lower than it charged.
-  // The array stays so a real, server-honoured discount can populate it without
-  // a shape change — see MYK9-265.
+  // Keep the result shape ready for server-honoured discounts, but do not
+  // promise a discount that the checkout path does not apply. Nothing on the
+  // money path has ever applied one: the cart, registrationCartCheckout and
+  // every edge function charge the full entry fee per line. See MYK9-265.
   const discounts: FeeCalculationResult['discounts'] = [];
-
-  const discountTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
-  const total = subtotal - discountTotal;
+  const total = subtotal;
 
   return {
     subtotal,

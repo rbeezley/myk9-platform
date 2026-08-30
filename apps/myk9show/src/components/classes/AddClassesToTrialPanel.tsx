@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialClass } from '@/components/trials/types/trial.types';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { useShowStore } from '@/store/showStore';
@@ -201,8 +202,19 @@ export const AddClassesToTrialPanel: React.FC<AddClassesToTrialPanelProps> = ({
   );
 
   return (
-    <SlideOverPanel
-      open={open}
+    <>
+      {/*
+        Leaving this flow drops the class selection, and there is no draft to come back
+        to. The edit panels get this from EditPanelWrapper; these two Add-Classes
+        surfaces had no guard at all, so any route change -- including the "Add a judge"
+        link the empty-roster notice now offers -- discarded the work silently.
+      */}
+      <UnsavedChangesRouteGuard
+        isDirty={open && selectedClasses.length > 0}
+        subject="the classes you selected"
+      />
+      <SlideOverPanel
+        open={open}
       onClose={onClose}
       title={STEP_TITLES[currentStep]}
       subtitle={getStepDescription()}
@@ -247,6 +259,7 @@ export const AddClassesToTrialPanel: React.FC<AddClassesToTrialPanelProps> = ({
         )}
       </div>
     </SlideOverPanel>
+    </>
   );
 };
 

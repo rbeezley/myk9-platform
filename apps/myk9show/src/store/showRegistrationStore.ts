@@ -381,7 +381,6 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
         );
       },
 
-
       submitRegistration: async (registrationId, paymentDetails) => {
         await new Promise(resolve => setTimeout(resolve, 1000));
 

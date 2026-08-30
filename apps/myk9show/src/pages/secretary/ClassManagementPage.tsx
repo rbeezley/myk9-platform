@@ -16,6 +16,7 @@ import { deriveClassLifecycleValue, type ClassLifecycleValue } from '@/lib/statu
 import { ClassManagementRow, type DbClassRow } from '@/components/classes/ClassManagementRow';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
+import { selectQualifiedJudges } from '@/features/judges/qualifiedJudges';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
 import {
   applyManualClassStatus,
@@ -164,18 +165,13 @@ export const ClassManagementPage: React.FC = () => {
     }
     return tally;
   }, [allClasses]);
+  // Scoped to the show's organization. This list used to test only that a
+  // qualification was Active, so an AKC show offered UKC- and ASCA-only judges --
+  // and because `show.assignedJudges` is derived from judge_assignments, assigning
+  // one here is what puts them on the show and its registry paperwork.
   const availableJudges = useMemo(
-    () =>
-      judges
-        .filter(judge =>
-          judge.judgeQualifications?.some(qualification => qualification.status === 'Active')
-        )
-        .map(judge => ({
-          id: judge.id,
-          name: `${judge.firstName} ${judge.lastName}`.trim() || 'Unknown Judge',
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [judges]
+    () => selectQualifiedJudges(judges, show?.organization),
+    [judges, show?.organization]
   );
 
   const getClassId = useCallback((cls: DbClassRow) => cls.id, []);
@@ -380,14 +376,6 @@ export const ClassManagementPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <ClassBulkActionsBar
-        selectedClasses={selection.selectedItems}
-        bulkBusy={bulkBusy}
-        onBulkDelete={handleBulkDelete}
-        onBulkStatusChange={handleBulkStatusChange}
-        onClear={selection.clearSelection}
-      />
-
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -457,6 +445,17 @@ export const ClassManagementPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Rendered last so its in-flow height spacer lands BELOW the class list
+          rather than in the middle of the page — the bar itself is `fixed`, so
+          its on-screen position is unchanged by where it sits in the tree. */}
+      <ClassBulkActionsBar
+        selectedClasses={selection.selectedItems}
+        bulkBusy={bulkBusy}
+        onBulkDelete={handleBulkDelete}
+        onBulkStatusChange={handleBulkStatusChange}
+        onClear={selection.clearSelection}
+      />
     </div>
   );
 };

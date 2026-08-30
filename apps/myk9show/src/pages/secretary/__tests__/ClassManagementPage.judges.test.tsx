@@ -11,6 +11,7 @@ const useDeleteClassMutationMock = vi.hoisted(() => vi.fn());
 // full cache invalidations), same as single-class delete.
 const deleteMutateAsyncMock = vi.hoisted(() => vi.fn());
 const useJudgesWithQualificationsMock = vi.hoisted(() => vi.fn());
+const useShowQueryMock = vi.hoisted(() => vi.fn());
 const upsertClassJudgeAssignmentMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
 const updateClassMock = vi.hoisted(() => vi.fn());
@@ -28,6 +29,13 @@ vi.mock('@/hooks/queries/useClassesDatabase', () => ({
 
 vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
   useJudgesWithQualifications: useJudgesWithQualificationsMock,
+}));
+
+// The page filters judges to the SHOW's organization, so the show has to exist here.
+// Before that filter landed the list was organization-blind and this mock was not
+// needed -- which is exactly how an AKC show came to offer UKC-only judges.
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({
+  useShowQuery: useShowQueryMock,
 }));
 
 vi.mock('@/services/database/judges', () => ({
@@ -89,25 +97,65 @@ describe('ClassManagementPage judge assignment', () => {
       mutateAsync: deleteMutateAsyncMock,
       isPending: false,
     });
+    useShowQueryMock.mockReturnValue({ data: { id: 'show-1', organization: 'AKC' } });
     useJudgesWithQualificationsMock.mockReturnValue({
       data: [
         {
           id: 'judge-1',
           firstName: 'Alex',
           lastName: 'Judge',
-          judgeQualifications: [{ status: 'Active' }],
+          judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
         },
         {
           id: 'judge-2',
           firstName: 'Bailey',
           lastName: 'Judge',
-          judgeQualifications: [{ status: 'Active' }],
+          judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
         },
       ],
     });
     upsertClassJudgeAssignmentMock.mockResolvedValue(undefined);
     updateClassMock.mockResolvedValue('mutation-1');
     deleteClassMock.mockResolvedValue({ data: { id: 'class-1', name: null }, error: null });
+  });
+
+  it('does not offer a judge qualified for a DIFFERENT registry', async () => {
+    // The regression this filter closes. `show.assignedJudges` is derived from
+    // judge_assignments, so assigning here is what puts a judge on the show and onto
+    // its registry paperwork -- offering a UKC-only judge on an AKC show is a write
+    // path into the roster, not a cosmetic list problem.
+    const user = userEvent.setup();
+    useJudgesWithQualificationsMock.mockReturnValue({
+      data: [
+        {
+          id: 'judge-akc',
+          firstName: 'Alex',
+          lastName: 'Judge',
+          judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
+        },
+        {
+          id: 'judge-ukc',
+          firstName: 'Bailey',
+          lastName: 'Judge',
+          judgeQualifications: [{ status: 'Active', organization: 'UKC' }],
+        },
+      ],
+    });
+
+    render(
+      <Routes>
+        <Route path="/trials/:trialId/classes" element={<ClassManagementPage />} />
+      </Routes>,
+      { initialRoute: '/trials/trial-1/classes' }
+    );
+
+    const row = screen.getByText('Container Novice A').closest('[data-class-id="class-1"]');
+    await user.click(
+      within(row as HTMLElement).getByRole('combobox', { name: /judge for container novice a/i })
+    );
+
+    expect(await screen.findByRole('option', { name: 'Alex Judge' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Bailey Judge' })).toBeNull();
   });
 
   it('renders inline judge assignment and writes the selected class judge', async () => {

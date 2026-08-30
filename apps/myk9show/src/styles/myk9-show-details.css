@@ -1074,6 +1074,23 @@
   font-weight: 500;
 }
 
+/*
+ * "Preliminary" — the result is scored but the class has not released results,
+ * so the placement is withheld and this result can still change.
+ *
+ * Sized and coloured deliberately rather than inherited: it sits immediately
+ * beside the result badge, and an unstyled label there reads as part of the
+ * result rather than as a caveat about it. Muted, not warning-coloured — per
+ * docs/INTENT.md the exhibitor surface stays calm, and a preliminary Q is good
+ * news that is simply not final yet, not a problem to alarm anyone about.
+ */
+.myk9-entries-dog-face-preliminary {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
 .myk9-entries-dog-face-pulled,
 .myk9-entries-dog-face-conflict {
   display: inline-flex;

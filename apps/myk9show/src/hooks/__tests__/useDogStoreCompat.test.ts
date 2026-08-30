@@ -420,29 +420,24 @@ describe('useDogStoreCompat.addDog — local-first', () => {
   });
 });
 
-describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () => {
+/**
+ * The IndexedDB cleanup this block used to pin here now lives inside
+ * `useDeleteDogMutation`'s own `mutationFn` — the bulk-actions bar calls that
+ * mutation DIRECTLY, so a cleanup that only ran in this wrapper left the
+ * soft-deleted dog in the local replica and `getAllDogs` (replication-first)
+ * refetched it straight back into the list. The guarantee itself is pinned
+ * against the real mutation in `hooks/queries/useDogsDatabase.test.tsx`; this
+ * mock cannot see inside it. What stays testable here is the delegation and
+ * the error contract.
+ */
+describe('useDogStoreCompat.deleteDog — delegates to the shared mutation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDeleteMutateAsync.mockResolvedValue(undefined);
     mockDeleteReplicatedDog.mockResolvedValue(undefined);
   });
 
-  it('calls replicatedDogsTable.delete after a successful DB mutation', async () => {
-    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
-
-    await act(async () => {
-      await result.current.deleteDog('dog-123');
-    });
-
-    expect(mockDeleteMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ id: 'dog-123' }));
-    expect(mockDeleteReplicatedDog).toHaveBeenCalledWith('dog-123');
-  });
-
-  it('invalidates the dogs query again after IndexedDB cleanup (closes the resurrection race)', async () => {
-    // exhibitor-ux-remediation: getAllDogs falls back to the same IndexedDB
-    // table, so the mutation's own onSuccess invalidate/refetch can race this
-    // cleanup and resurrect the just-deleted dog. A second invalidation after
-    // the local row is definitely gone closes that race.
+  it('dispatches the delete mutation and invalidates the dogs list', async () => {
     const invalidateSpy = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
 
@@ -450,28 +445,17 @@ describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () =
       await result.current.deleteDog('dog-123');
     });
 
-    const deleteCleanupOrder = mockDeleteReplicatedDog.mock.invocationCallOrder[0];
+    expect(mockDeleteMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ id: 'dog-123' }));
+    const mutationOrder = mockDeleteMutateAsync.mock.invocationCallOrder[0];
     const laterInvalidateCall = invalidateSpy.mock.invocationCallOrder.find(
-      order => order > deleteCleanupOrder
+      order => order > mutationOrder
     );
     expect(laterInvalidateCall).toBeDefined();
 
     invalidateSpy.mockRestore();
   });
 
-  it('does not throw when replicatedDogsTable.delete rejects (warn-only contract)', async () => {
-    mockDeleteReplicatedDog.mockRejectedValue(new Error('IndexedDB unavailable'));
-
-    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
-
-    await act(async () => {
-      await expect(result.current.deleteDog('dog-123')).resolves.toBeUndefined();
-    });
-
-    expect(mockDeleteReplicatedDog).toHaveBeenCalledWith('dog-123');
-  });
-
-  it('propagates the error and skips IndexedDB cleanup when DB mutation fails', async () => {
+  it('propagates the error when the DB mutation fails', async () => {
     mockDeleteMutateAsync.mockRejectedValue(new Error('DB delete failed'));
 
     const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
@@ -479,8 +463,6 @@ describe('useDogStoreCompat.deleteDog — soft-delete + IndexedDB cleanup', () =
     await act(async () => {
       await expect(result.current.deleteDog('dog-123')).rejects.toThrow('DB delete failed');
     });
-
-    expect(mockDeleteReplicatedDog).not.toHaveBeenCalled();
   });
 });
 

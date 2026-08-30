@@ -191,14 +191,15 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 **Show Desk → Submit Results.**
 
-1. Check **Closeout guidance** for anything outstanding.
-2. **Download XML** — the submission file for the registry.
-3. Send it to the registry the way they require (for AKC, by email — the app does not transmit it for you).
-4. **Mark as submitted** once it is sent, so the show's record matches reality.
+1. Check **Closeout guidance** for anything outstanding — most often entries missing a registration number.
+2. **Send to AKC** (or your registry) emails the results file for you. This is the normal path.
+3. If you already filed through the registry's own portal, use **Mark as submitted** instead — that only records it here.
 
-**AKC Downloadable Forms** on the same screen links the registry's own paperwork.
+**Download XML** gives you the file itself if you want a copy or need to file it another way. **AKC Downloadable Forms** links the registry's own paperwork.
 
-> Marking as submitted records _your_ action; it does not confirm the registry received anything. Keep the registry's acknowledgement as your proof.
+> **If Send to AKC is greyed out**, the preflight found blocking problems — usually missing registration numbers. The button stays disabled until they're fixed, and the download is labelled **Download draft XML** while that's true, so you can see the draft without being able to file it.
+
+> For a registry with no submission email configured, there is no Send action: file through their process, then **Mark as submitted** to log it.
 
 ## 21 · Registry reports
 

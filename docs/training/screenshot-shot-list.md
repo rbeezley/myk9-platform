@@ -40,34 +40,36 @@ Every screenshot and diagram in final documentation and training materials must 
 
 ## Part 1 — Secretary Guide Screenshots
 
-| Shot ID | Description                                                                   | Route                                                         | Account                       | Viewport | Expected state                                                                              | Guide section        | Status                                            |
-| ------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------- | -------- | ------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------- |
-| S-01    | Secretary dashboard — one active show                                         | `/secretary/dashboard`                                        | `secretary@myk9t.com` | Desktop  | Heritage show listed with entry count badge                                                 | § 1 Dashboard        | `ready`                                           |
-| S-02    | Create Show wizard — Step 1 (show details)                                    | `/secretary/create-show/wizard`                               | `secretary@myk9t.com` | Desktop  | Form with name, org, dates, entry fee, entry window                                         | § 2 Create a Show    | `ready`                                           |
-| S-03    | Create Show wizard — Step 2 (trial config)                                    | `/secretary/create-show/wizard`                               | `secretary@myk9t.com` | Desktop  | At least one trial with date and event number                                               | § 2                  | `captured 2026-06-25`                             |
-| S-04    | Create Show wizard — Step 3 (class selection)                                 | `/secretary/create-show/wizard`                               | `secretary@myk9t.com` | Desktop  | Classes listed with judge assignment dropdowns                                              | § 2                  | `ready`                                           |
-| S-05    | Create Show wizard — Step 4 (review)                                          | `/secretary/create-show/wizard`                               | `secretary@myk9t.com` | Desktop  | Full review of show + trials + classes                                                      | § 2                  | `captured 2026-06-25`                             |
-| S-06    | Show Workbench — Setup tab                                                    | `/shows/:showId` (Setup tab)                                  | `secretary@myk9t.com` | Desktop  | Show details visible; readiness signals                                                     | § 3 Show Setup       | `ready`                                           |
-| S-07    | Entry Management — Needs review queue and focused registration                | `/shows/:showId/entry-management`                             | `secretary@myk9t.com` | Desktop  | Needs review selected; registration queue and focused-registration pane visible             | § 4 Entry Management | `needs recapture — cockpit redesign`              |
-| S-08    | Entry Management — focused registration Entries and actions                   | `/shows/:showId/entry-management`                             | `secretary@myk9t.com` | Desktop  | Focused registration open; Dog group expanded with child Entry status and actions visible   | § 4                  | `needs recapture — cockpit redesign`              |
-| S-09    | Entry Management — registration selection and floating toolbar                | `/shows/:showId/entry-management`                             | `secretary@myk9t.com` | Desktop  | Two or more registrations checked; compact floating toolbar shows registration/Entry counts | § 4                  | `needs recapture — cockpit redesign`              |
-| S-10    | Entry Management — Exceptions / Waitlist                                      | `/shows/:showId/entry-management?tab=exceptions&exception=waitlist` | `secretary@myk9t.com` | Desktop  | Exceptions peer visible; Waitlist selected                                                   | § 4                  | `needs recapture — cockpit redesign`              |
-| S-11    | Message Center — compose form                                                 | `/secretary/messages`                                         | `secretary@myk9t.com` | Desktop  | New message compose panel open, show pre-selected                                           | § 5 Communications   | `ready`                                           |
-| S-12    | Reports page — Check-in Sheet selected                                        | `/shows/:showId/reports`                                      | `secretary@myk9t.com` | Desktop  | Trial selector showing Heritage trial; Check-in Sheet selected                              | § 6 Reports          | `ready`                                           |
-| S-13    | Reports page — Steward's Report selected                                      | `/shows/:showId/reports`                                      | `secretary@myk9t.com` | Desktop  | Steward's Report type selected; preview rendered                                            | § 6                  | `ready`                                           |
-| S-14    | Reports page — Armband Labels                                                 | `/shows/:showId/reports`                                      | `secretary@myk9t.com` | Desktop  | Armband Labels selected; preview visible                                                    | § 6                  | `ready`                                           |
-| S-15    | Show Desk — task queue with "Show in progress" banner and Next Best Action    | `/shows/:showId/show-desk`                                    | `secretary@myk9t.com` | Desktop  | Task queue visible; "Show in progress" banner; Next Best Action button                      | § 7 Show Desk        | `ready`                                           |
-| S-16    | Entry Management — "Remove entry?" confirmation dialog                        | `/shows/:showId/entry-management`                             | `secretary@myk9t.com` | Desktop  | Focused registration open; "Remove entry?" dialog opened from a child Entry action          | § 7                  | `needs recapture — cockpit redesign`              |
-| S-17    | Show Desk — move-up dialog                                                    | `/shows/:showId/show-desk`                                    | `secretary@myk9t.com` | Desktop  | Move-up dialog open; target class picker visible                                            | § 7                  | `ready`                                           |
-| S-18    | Late Entry registration wizard — Step 1 (Select Dogs)                         | `/secretary/register/:showId?source=show-desk&entryMode=late` | `secretary@myk9t.com` | Desktop  | Late Entry wizard Step 1 open; dog search field and filters visible                         | § 7                  | `ready`                                           |
-| S-19    | Show Desk — Tools panel side sheet                                            | `/shows/:showId/show-desk`                                    | `secretary@myk9t.com` | Desktop  | Tools panel open; Late entries, Access codes, Volunteers visible                            | § 7                  | `ready`                                           |
-| S-20    | Results Control — visibility preset cards                                     | `/shows/:showId/results-control`                              | `secretary@myk9t.com` | Desktop  | Three preset cards visible; "After Class" card highlighted as active                        | § 8 Results Control  | `ready`                                           |
-| S-21    | Results Control — Release Results action bar                                  | `/shows/:showId/results-control`                              | `secretary@myk9t.com` | Desktop  | Classes selected via checkboxes; sticky bottom bar showing "Release Results" button enabled | § 8                  | `ready`                                           |
-| S-22    | Submit Results — submission summary (preflight)                               | `/shows/:showId/submit-results`                               | `secretary@myk9t.com` | Desktop  | Submission summary checklist showing entries ready count                                    | § 9 Submit to AKC    | `ready`                                           |
-| S-23    | Submit Results — XML download button                                          | `/shows/:showId/submit-results`                               | `secretary@myk9t.com` | Desktop  | "Download XML" button visible; no blocking warnings                                         | § 9                  | `ready`                                           |
-| S-24    | Submit Results — preflight warning (missing AKC numbers)                      | `/shows/:showId/submit-results`                               | `secretary@myk9t.com` | Desktop  | Warning listing dogs without AKC registration numbers                                       | § 9                  | `ready`                                           |
+> **Rewritten 2026-08-30.** The guide was restructured from numbered `§` sections into
+> 23 task cards, so the old section column pointed at headings that no longer exist. The
+> set is also deliberately smaller: the guide is text-first, and a shot earns its place
+> only where a picture settles *which screen am I on* faster than a sentence can. Words
+> survive a UI change; pictures do not — the previous set went stale the moment the
+> workbench collapsed into Show Desk, and sixteen files were deleted rather than left to
+> be reused by mistake.
 
----
+| Shot ID | Description | Route | Account | Viewport | Expected state | Guide card | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| S-01 | Secretary dashboard | `/secretary/dashboard` | `secretary@myk9t.com` | Desktop | Managed shows listed with the needs-attention summary | Before you start | `captured 2026-08-30` |
+| S-02 | Create Show wizard — Step 1 | `/secretary/create-show/wizard` | `secretary@myk9t.com` | Desktop | Four-step tracker; clone option; starred required fields | 1 · Create a show | `captured 2026-08-30` |
+| S-07 | Entry Management — Needs review queue | `/shows/:showId/entry-management` | `secretary@myk9t.com` | Desktop | Queue chips with counts; rows offering Review registration | 3 · Approve entries | `captured 2026-08-30` |
+| S-10 | Entry Management — Exceptions / Waitlist | `/shows/:showId/entry-management?tab=exceptions&exception=waitlist` | `secretary@myk9t.com` | Desktop | Exceptions tab with the waitlist selected | 6 · Manage the wait list | `captured 2026-08-30` |
+| S-12 | Reports — Check-in Sheet | `/shows/:showId/reports` | `secretary@myk9t.com` | Desktop | Report / Trial / Class / Sort controls and Print | 11 · Print check-in sheets | `captured 2026-08-30` |
+| S-15 | Show Desk — focused class | `/shows/:showId/show-desk` | `secretary@myk9t.com` | Desktop | Focused class with the Run order control and Move up per entry | 10 · Run order, 15 · Move up | `captured 2026-08-30` |
+| S-20 | Results — visibility presets | `/shows/:showId/results-control` | `secretary@myk9t.com` | Desktop | Readiness panel; Immediately / After Class / After Review | 19 · Release results | `captured 2026-08-30` |
+| S-22 | Submit Results | `/shows/:showId/submit-results` | `secretary@myk9t.com` | Desktop | Send to AKC, Download XML, Mark as submitted; closeout guidance | 20 · Submit to the registry | `captured 2026-08-30` |
+
+**Capturing these again.** Two things bite, both discovered the hard way:
+
+1. Show-scoped pages open on a tall header that fills a 1280×800 viewport, so a plain
+   screenshot returns the header and none of the tab content. Scroll first.
+2. Show Desk and Entry Management render a real `[role="tablist"]`; Reports, Results and
+   Submit Results render tab-*looking* navigation with **no tablist role**, so a scroll
+   anchored on that selector silently does nothing there. Anchor on the tablist when it
+   exists, fall back to a fixed offset, and verify the page actually moved.
+
+Cards without a shot are intentional, not missing.
+
 
 ## Part 2 — Exhibitor Guide Screenshots
 

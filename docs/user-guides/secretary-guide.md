@@ -1,8 +1,8 @@
 # Secretary Guide
 
-**Status:** `qa-draft`
+**Status:** `active`
 **Audience:** Trial secretaries
-**Last verified:** 2026-08-30 — walked in a browser against staging (`a50596ad6`)
+**Last verified:** 2026-08-30 — walked in a browser, screenshots recaptured against `main`
 **Verified by:** the secretary task walk (`docs/audits/2026-08-28-secretary-task-walk.md`) and its 2026-08-29 verification pass
 
 > **What "verified" covers here.** Each card's path was opened on staging and its controls
@@ -10,11 +10,11 @@
 > described from their surfaces only: promoting someone off the wait list (nobody is
 > waitlisted there) and submitting results to a registry (that is a real submission).
 
-> **Screenshots are pending.** The previous guide embedded shots captured 2026-06-25,
-> before the workbench was collapsed into Show Desk. They show screens that no longer
-> exist, so they have been removed rather than left to mislead. The `S-*` files are
-> still in `docs/screenshots/` and need recapturing against the current UI before this
-> guide moves off `qa-draft`.
+> **About the screenshots.** Recaptured 2026-08-30 against the current UI. The previous
+> set predated the workbench collapsing into Show Desk and showed screens that no longer
+> exist; those sixteen files are deleted rather than left to be reused by mistake. Shots
+> are placed only where a picture settles "which screen am I even on" — the rest of the
+> guide is deliberately text, because words survive a UI change and pictures do not.
 
 > **How this guide is organised.** One card per job, in the order you'll do them. Each card tells you where to go, what to do, and what to watch for. If you only need one thing, jump to its card — they don't depend on each other.
 
@@ -23,6 +23,8 @@
 ## Before you start
 
 **Sign in** at the show's URL and you land on your Secretary Dashboard. It lists the shows you manage with entry counts and anything needing attention.
+
+![Secretary dashboard listing managed shows with a needs-attention summary](../screenshots/S-01.png)
 
 Two words appear throughout the app and are worth knowing up front:
 
@@ -38,6 +40,8 @@ Most day-of jobs live behind **Show Desk → Tools**.
 ## 1 · Create a show, its trials, and its classes
 
 The wizard creates all three in one pass. **Dashboard → Create Show.**
+
+![Create Show wizard on Step 1, showing the four steps and the starred required fields](../screenshots/S-02.png)
 
 1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), dates, location, host club, entry fee, and the entry open/close dates. Add your **chairman** and **secretary**.
 2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
@@ -66,6 +70,8 @@ The wizard creates all three in one pass. **Dashboard → Create Show.**
 
 **Entry Management → Needs review.** Each registration shows the dog, the entry count, and payment status. Choose **Review registration** to accept, decline, or ask for a correction.
 
+![Entry Management with the Needs review queue selected and Review registration on each row](../screenshots/S-07.png)
+
 The chips across the top are queues — _Needs review_, _Missing information_, _Payment due_, _All registrations_. The active one is highlighted; the counts beside each tell you what's waiting.
 
 ## 4 · Enter a mail-in or paper entry
@@ -92,6 +98,8 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 ## 6 · Manage the wait list
 
 **Entry Management → Exceptions → Waitlist.**
+
+![Entry Management Exceptions tab with the waitlist selected](../screenshots/S-10.png)
 
 1. Each judge-day shows as a card — the judge's name, the date, and how full it is.
 2. **View Wait List** on a card opens that judge-day's queue, filtered to the class.
@@ -138,6 +146,8 @@ Payment status shows on every registration row in **Entry Management**, and refu
 
 **Show Desk → click the class → Run order.**
 
+![Show Desk focused class showing the Run order control and Move up on each entry](../screenshots/S-15.png)
+
 Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside.
 
 > You can also reach this from a class's page — **Set run order** takes you straight to that class on Show Desk.
@@ -147,6 +157,8 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 ## 11 · Print check-in sheets
 
 **Reports → Check-in Sheet.** Scope it to a trial or a single class, then print. Columns are Gate Order, Armband, Call Name, Breed, and Handler.
+
+![Reports page with Check-in Sheet chosen and the trial, class and sort controls](../screenshots/S-12.png)
 
 ## 12 · Print scoresheets
 
@@ -200,6 +212,8 @@ Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time 
 
 **Show Desk → Results** (the show's Results control).
 
+![Results page showing readiness and the Immediately, After Class and After Review presets](../screenshots/S-20.png)
+
 Each class can release its results **Immediately**, **After Class**, **After Review**, or **Inherit** the show's setting. Set the show-level default, then override any class that needs it.
 
 > This is what decides whether an exhibitor can see a score yet. If results are not appearing for exhibitors, this is the first place to look — a class set to _After Review_ stays hidden until you review it.
@@ -209,6 +223,8 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 ## 20 · Submit results to the registry
 
 **Show Desk → Submit Results.** What you see here depends on the registry.
+
+![Submit Results with Send to AKC, Download XML and Mark as submitted](../screenshots/S-22.png)
 
 **If the registry accepts electronic submission (AKC):**
 

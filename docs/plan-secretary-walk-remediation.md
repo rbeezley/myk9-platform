@@ -165,6 +165,12 @@ Implementation notes:
 
 ## Phase 4 — The deliverable
 
+> **DONE 2026-08-30.** `docs/user-guides/secretary-guide.md` rewritten as 20 task cards,
+> written from the verification walk rather than from the audit\'s claims. Two gaps are
+> marked in the guide itself (High in Trial, manual run-order placement) plus three
+> rough edges. Screenshots deliberately dropped and flagged for recapture: the old ones
+> predate the workbench collapse.
+
 Rewrite [`user-guides/secretary-guide.md`](user-guides/secretary-guide.md) as one short
 card per task — *When you do this / Where / Steps / Gotchas* — from the walk's verified
 click-paths, replacing the narrative sections. Blocked on Phase 1 and on 2.2 (task 11

@@ -100,4 +100,45 @@ describe('e2e auth preflight', () => {
       'Unsupported E2E auth preflight role: unknown'
     );
   });
+
+  // This preflight runs BEFORE Playwright in five workflow steps, so it is the
+  // first place a stale secret surfaces. Without these, the retired-domain
+  // guard in testUsers.ts is unreachable in CI: the run dies here, with the
+  // generic message, and the guard never executes.
+  describe('retired fixture domains', () => {
+    it('rejects a stale secret before it reaches Supabase', () => {
+      const env = { ...baseEnv, E2E_SECRETARY_EMAIL: 'e2e-secretary@test.myk9.com' };
+      expect(() => resolveAuthPreflightConfig(env, ['secretary'])).toThrow(/test\.myk9\.com/);
+    });
+
+    it('names the cause rather than reporting it as a credentials failure', () => {
+      // The whole point. Reaching Supabase yields "Invalid login credentials",
+      // which sends the reader to rotate a password that was never wrong.
+      const env = { ...baseEnv, E2E_ADMIN_EMAIL: 'e2e-admin@test.myk9.com' };
+      let message = '';
+      try {
+        resolveAuthPreflightConfig(env, ['admin']);
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain('e2e-admin@test.myk9.com');
+      expect(message).toContain('.env.local');
+      expect(message).toContain('@myk9t.com');
+    });
+
+    it('checks every requested role, not just the first', () => {
+      // A loop that returned early on the first good credential would let a
+      // stale secret in any later role through.
+      const env = { ...baseEnv, E2E_DEMO_EXHIBITOR_EMAIL: 'e2e-exhibitor@test.myk9.com' };
+      expect(() => resolveAuthPreflightConfig(env, ['secretary', 'admin', 'exhibitor'])).toThrow(
+        /test\.myk9\.com/
+      );
+    });
+
+    it('leaves live addresses alone', () => {
+      expect(() =>
+        resolveAuthPreflightConfig(baseEnv, ['secretary', 'admin', 'exhibitor'])
+      ).not.toThrow();
+    });
+  });
 });

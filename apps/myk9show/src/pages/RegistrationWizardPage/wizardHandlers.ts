@@ -137,6 +137,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           ownerResolution,
           exhibitorProfileId: exhibitorProfile?.id ?? '',
           classSelections: state.classSelections,
+          waitlistClassIds: state.waitlistClassIds,
           handlerAssignments: state.handlerAssignments,
           classes,
           canAssignArmbands,

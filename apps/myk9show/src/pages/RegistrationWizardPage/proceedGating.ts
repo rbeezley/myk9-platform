@@ -21,6 +21,19 @@ export interface ProceedGatingContext {
   agreedToEntryAgreement: boolean;
   capacityReady: boolean;
   blockedClassCount: number;
+  /**
+   * True when availability could not be read at all (offline, or the query
+   * failed) rather than merely still loading. Separates "wait a moment" from
+   * "we cannot check", which never resolves on its own.
+   */
+  capacityUnavailable: boolean;
+  paymentMethod: string | null;
+  /**
+   * Selected classes that are full but accept a wait list. These are recorded
+   * as requests, not sales, and the cart has no line type for them — see the
+   * card-checkout gate below.
+   */
+  waitlistClassCount: number;
 }
 
 function handlerReason(count: number): string {
@@ -48,11 +61,25 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.unassignedHandlerCount > 0) return handlerReason(ctx.unassignedHandlerCount);
       return null;
     case 'payment':
+      if (ctx.capacityUnavailable) {
+        return 'We could not check which classes still have room, so we cannot total this entry yet. Check your connection and try again.';
+      }
       if (!ctx.capacityReady) {
         return 'Checking class availability. Please wait, then try again.';
       }
       if (ctx.blockedClassCount > 0) {
         return 'Remove the full class that does not accept a wait list to continue.';
+      }
+      // A wait-list request is recorded, never sold, and the cart has no line
+      // type for a zero-price request — every cart item is charged at full fee
+      // (registrationToCartItems.ts). Sending one through card checkout would
+      // either bill for a spot the exhibitor does not have or, if filtered out,
+      // drop the request silently. Both are worse than asking for another
+      // payment method, so the card path is closed while one is selected.
+      if (ctx.waitlistClassCount > 0 && ctx.paymentMethod === 'credit_card') {
+        return ctx.waitlistClassCount === 1
+          ? 'One of these classes is full, so that entry is a wait list request and cannot be paid for online yet. Choose another payment method, or remove it to pay by card.'
+          : `${ctx.waitlistClassCount} of these classes are full, so those entries are wait list requests and cannot be paid for online yet. Choose another payment method, or remove them to pay by card.`;
       }
       if (ctx.totalFees > 0 && !ctx.hasPaymentMethod) {
         return 'Choose a payment method to continue.';

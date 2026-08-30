@@ -16,6 +16,9 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     agreedToEntryAgreement: false,
     capacityReady: true,
     blockedClassCount: 0,
+    capacityUnavailable: false,
+    paymentMethod: 'credit_card',
+    waitlistClassCount: 0,
     ...overrides,
   };
 }
@@ -98,6 +101,60 @@ describe('proceedBlockedReason', () => {
   });
 
   describe('payment', () => {
+    // A wait-list request is recorded, never sold, and every cart line is
+    // billed at full entry fee. Letting one reach card checkout either charges
+    // for a spot the exhibitor does not have or drops the request silently.
+    it('blocks card checkout while a wait-list class is selected', () => {
+      const reason = proceedBlockedReason(
+        ctx({ stepId: 'payment', paymentMethod: 'credit_card', waitlistClassCount: 1 })
+      );
+      expect(reason).toMatch(/wait list request/i);
+      expect(reason).toMatch(/another payment method/i);
+    });
+
+    it('counts the wait-listed classes in the blocking reason', () => {
+      expect(
+        proceedBlockedReason(
+          ctx({ stepId: 'payment', paymentMethod: 'credit_card', waitlistClassCount: 3 })
+        )
+      ).toMatch(/^3 of these classes are full/);
+    });
+
+    it('allows a non-card method to proceed with a wait-list class', () => {
+      expect(
+        proceedBlockedReason(
+          ctx({ stepId: 'payment', paymentMethod: 'check', waitlistClassCount: 2 })
+        )
+      ).toBeNull();
+    });
+
+    it('allows card checkout when nothing is wait-listed', () => {
+      expect(
+        proceedBlockedReason(
+          ctx({ stepId: 'payment', paymentMethod: 'credit_card', waitlistClassCount: 0 })
+        )
+      ).toBeNull();
+    });
+
+    // Offline the availability query pauses: isLoading false, error null, no
+    // data. "Please wait, then try again" describes a wait that never ends.
+    it('names an unreadable availability check instead of asking the user to wait', () => {
+      const reason = proceedBlockedReason(
+        ctx({ stepId: 'payment', capacityReady: false, capacityUnavailable: true })
+      );
+      expect(reason).toMatch(/could not check/i);
+      expect(reason).toMatch(/connection/i);
+      expect(reason).not.toMatch(/please wait/i);
+    });
+
+    it('still says "checking" while availability is genuinely loading', () => {
+      expect(
+        proceedBlockedReason(
+          ctx({ stepId: 'payment', capacityReady: false, capacityUnavailable: false })
+        )
+      ).toBe('Checking class availability. Please wait, then try again.');
+    });
+
     it('blocks when fees are due and no method is chosen', () => {
       expect(
         proceedBlockedReason(ctx({ stepId: 'payment', totalFees: 25, hasPaymentMethod: false }))

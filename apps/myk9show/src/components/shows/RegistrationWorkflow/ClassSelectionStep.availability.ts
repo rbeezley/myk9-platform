@@ -31,12 +31,15 @@ interface AvailabilityClassLike {
  */
 export function isAvailabilityUnreadable(params: {
   isLoading: boolean;
-  error: unknown;
   rowCount: number;
 }): boolean {
-  const { isLoading, error, rowCount } = params;
+  const { isLoading, rowCount } = params;
   if (isLoading) return false;
-  return !!error || rowCount === 0;
+  // Deliberately NOT `|| !!error`. A failed refetch that retained earlier rows
+  // still renders real Full and Wait list badges, so the notice's "none are
+  // marked full or wait list below" would be a false statement. Unreadable
+  // means we have nothing to show, whatever the reason.
+  return rowCount === 0;
 }
 
 /** Index availability rows by class id for O(1) lookup during render. */

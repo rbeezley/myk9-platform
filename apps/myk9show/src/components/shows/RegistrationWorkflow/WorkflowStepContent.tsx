@@ -60,6 +60,8 @@ interface WorkflowStepContentProps {
   currentRegistrationTotalFees: number;
   capacityReady?: boolean | undefined;
   capacityError?: string | null | undefined;
+  /** Availability could not be read at all, as opposed to still loading. */
+  capacityUnavailable?: boolean | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
   blockedClassIds?: ReadonlySet<string> | undefined;
   /** Armband assignments from the RPC call */
@@ -100,6 +102,7 @@ export function WorkflowStepContent({
   currentRegistrationTotalFees,
   capacityReady = true,
   capacityError,
+  capacityUnavailable,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
   armbandAssignments,
@@ -397,6 +400,7 @@ export function WorkflowStepContent({
             onClassSelectionChange={onClassSelectionChange}
             capacityReady={capacityReady}
             capacityError={capacityError}
+            capacityUnavailable={capacityUnavailable}
             waitlistClassIds={waitlistClassIds}
             blockedClassIds={blockedClassIds}
           />

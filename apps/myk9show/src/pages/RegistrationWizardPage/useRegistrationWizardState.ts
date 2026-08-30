@@ -442,8 +442,6 @@ export function useRegistrationWizardState() {
     capacityReady,
     blockedClassCount: registrationCapacity.blockedClassIds.size,
     capacityUnavailable,
-    paymentMethod: registrationData.paymentMethod ?? null,
-    waitlistClassCount: capacityReady ? registrationCapacity.waitlistClassIds.size : 0,
   });
   const canProceed = () => proceedBlocked === null;
   const isLastStep = currentStep === steps.length - 1;

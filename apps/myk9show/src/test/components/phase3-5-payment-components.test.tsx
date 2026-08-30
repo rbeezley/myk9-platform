@@ -241,8 +241,9 @@ describe('Phase 3.5: Payment Component Tests', () => {
         wrapper: TestWrapper,
       });
 
-      // Should show current payment status
-      expect(screen.getByText(PaymentStatus.PAID_ONLINE)).toBeInTheDocument();
+      // Should show current payment status, in words. The raw enum used to
+      // reach the user here; the assertion tracked the bug, not an intent.
+      expect(screen.getByText('Paid online')).toBeInTheDocument();
     });
 
     it('should handle fee override functionality', async () => {
@@ -493,7 +494,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       // Should show payment status information in some form (text, badges, or icons)
       // Try different possible formats for payment status display
       const statusFound =
-        screen.queryAllByText(PaymentStatus.PAID_ONLINE).length > 0 ||
+        screen.queryAllByText('Paid online').length > 0 ||
         screen.queryAllByText('Paid Online').length > 0 ||
         screen.queryAllByText('paid').length > 0 ||
         screen.queryAllByText(/paid/i).length > 0;
@@ -625,7 +626,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       );
 
       // Should show both payment and entry status
-      expect(screen.getByText(PaymentStatus.PAID_ONLINE)).toBeInTheDocument();
+      expect(screen.getByText('Paid online')).toBeInTheDocument();
     });
 
     it('should fire onPaymentDetailsChange when check number is entered', async () => {

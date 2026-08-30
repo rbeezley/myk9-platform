@@ -79,7 +79,7 @@ export const RegistrationManagementPanel: React.FC<RegistrationManagementPanelPr
             <TabsContent value="summary" className="space-y-4">
               <div className="space-y-4">
                 {/* Registration Overview */}
-                <div className="grid grid-cols-3 gap-4 p-4 bg-muted rounded-lg">
+                <div className="grid grid-cols-3 gap-4 p-4 bg-muted border border-border rounded-lg">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-foreground">{selectedDogs.length}</div>
                     <div className="text-xs text-muted-foreground">Dogs Registered</div>

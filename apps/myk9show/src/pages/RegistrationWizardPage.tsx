@@ -63,6 +63,7 @@ function RegistrationWizardContent() {
     liveTotalFees,
     capacityReady,
     capacityError,
+    capacityUnavailable,
     waitlistClassIds,
     blockedClassIds,
     armbandAssignments,
@@ -261,6 +262,12 @@ function RegistrationWizardContent() {
                 </div>
               )}
 
+            {/* The page h1 is the wizard title and the step components render
+                h3s, so without this the heading tree skips a level. It also
+                gives a screen-reader user the current step by name at the point
+                the step's own content begins. */}
+            <h2 className="sr-only">{steps[currentStep]?.label ?? 'Current step'}</h2>
+
             {/* Step content */}
             <WorkflowStepContent
               currentStepId={currentStepId}
@@ -274,6 +281,7 @@ function RegistrationWizardContent() {
               currentRegistrationTotalFees={liveTotalFees}
               capacityReady={capacityReady}
               capacityError={capacityError}
+              capacityUnavailable={capacityUnavailable}
               waitlistClassIds={waitlistClassIds}
               blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}

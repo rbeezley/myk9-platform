@@ -401,7 +401,7 @@ export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOr
  * availability resolves.
  */
 export const AvailabilityUnreadableNotice: React.FC = () => (
-  <Alert className="mb-3">
+  <Alert role="status" className="mb-3">
     <Info className="h-4 w-4" />
     <AlertDescription>
       We could not check which classes still have room, so none are marked full or wait list below.

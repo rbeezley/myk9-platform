@@ -110,7 +110,7 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push(`Total Fees:     $${data.totalFees.toFixed(2)}`);
   lines.push(`Method:         ${getPaymentMethodDisplay(data.paymentMethod)}`);
   lines.push(`Payment Status: ${getPaymentStatusDisplay(data.paymentStatus)}`);
-  lines.push(`Entry Status:   ${data.entryStatus}`);
+  lines.push(`Entry Status:   ${getEntryStatusDisplay(data.entryStatus)}`);
   lines.push('');
   lines.push(divider);
   lines.push('Thank you for your entry!');
@@ -268,6 +268,21 @@ export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
       return 'bg-destructive/10 text-destructive border-destructive/20';
     default:
       return 'bg-muted text-muted-foreground border-border';
+  }
+}
+
+/** Plain-English label for an entry status, for the same reason. */
+export function getEntryStatusDisplay(status: EntryStatus | string): string {
+  switch (status) {
+    case EntryStatus.PENDING:
+      return 'Pending';
+    case EntryStatus.ACCEPTED:
+      return 'Accepted';
+    default:
+      return String(status)
+        .split(/[-_]/)
+        .map(part => (part ? part[0]!.toUpperCase() + part.slice(1) : part))
+        .join(' ');
   }
 }
 

@@ -69,8 +69,6 @@ export interface SubmitPaymentStepContext {
   ownerResolution: SelectedDogsOwnerResult;
   exhibitorProfileId: string;
   classSelections: ClassSelectionData[];
-  /** Full classes that accept a wait list — recorded as requests, never sold. */
-  waitlistClassIds: ReadonlySet<string>;
   handlerAssignments: Record<string, HandlerInfo>;
   classes: SubmitShowRegistrationParams['classes'];
   canAssignArmbands: boolean;
@@ -135,22 +133,6 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
         throw new Error(
           'Online card checkout is only available when an exhibitor pays for their own entries. For on-behalf entries, record the payment as check, cash, or mark it as paid.'
         );
-      }
-      // Wait-list requests must not reach the cart. Every cart line is billed
-      // at full entry fee (registrationToCartItems.ts) and the cart has no
-      // zero-price or request line type, so a wait-list class here would be
-      // charged as if the spot were held. The payment step blocks this in the
-      // UI (proceedGating.ts); this guards loaded drafts and any path that
-      // bypasses it. Caught below → toast + flag reset.
-      if (ctx.waitlistClassIds.size > 0) {
-        const selectedWaitlisted = ctx.classSelections.some(selection =>
-          selection.selectedClasses.some(cls => ctx.waitlistClassIds.has(cls.classId))
-        );
-        if (selectedWaitlisted) {
-          throw new Error(
-            'One or more of these classes is full, so those entries are wait list requests and cannot be paid for online yet. Choose another payment method, or remove them to pay by card.'
-          );
-        }
       }
       await submitRegistrationCartCheckout({
         showId: ctx.showId,

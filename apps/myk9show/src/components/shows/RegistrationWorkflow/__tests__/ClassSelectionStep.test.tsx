@@ -437,7 +437,7 @@ describe('ClassSelectionStep — availability that could not be read', () => {
     mockUseClassAvailability.mockReturnValue({
       classes: [],
       isLoading: false,
-      error: new Error('network'),
+      error: 'network unavailable',
       refetch: vi.fn(),
       totalSpotsAvailable: 0,
       fullClasses: 0,

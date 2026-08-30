@@ -96,11 +96,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const removeItem = useCartStore(state => state.removeItem);
 
   const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
-  const {
-    classes: availabilityClasses,
-    isLoading: availabilityLoading,
-    error: availabilityError,
-  } = useClassAvailability(showId);
+  const { classes: availabilityClasses, isLoading: availabilityLoading } =
+    useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
   const showTrials = useMemo(
@@ -249,7 +246,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   const availabilityUnreadable = isAvailabilityUnreadable({
     isLoading: availabilityLoading,
-    error: availabilityError,
     rowCount: availabilityClasses.length,
   });
   const availabilityMap = useMemo(
@@ -373,7 +369,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       workflowMode={workflowMode}
                     />
                   )}
-                  {availabilityUnreadable && <AvailabilityUnreadableNotice />}
+                  {availabilityUnreadable && hasClassGroups && <AvailabilityUnreadableNotice />}
                   {showTrials.length === 0 && isTrialsSyncing ? (
                     <div role="status" aria-label="Loading trials" className="space-y-3 py-2">
                       {Array.from({ length: 3 }).map((_, index) => (

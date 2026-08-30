@@ -26,10 +26,14 @@
 .myk9-dog-card:hover {
   border-color: color-mix(in srgb, var(--primary) 30%, transparent) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 8px 25px rgba(61, 37, 22, 0.1) !important;
+  box-shadow: var(--shadow-card-hover) !important;
 }
 
+/* Selected state is carried by border WEIGHT as well as colour — the 3px
+   gradient ::before that used to do this was removed as decoration, which left
+   the state colour-only. */
 .myk9-dog-card.selected {
+  border-width: 2px !important;
   border-color: var(--primary) !important;
   background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 10%, transparent) !important;
@@ -136,7 +140,7 @@
    system setting and bypass the in-app theme switch (project watchlist #2). */
 .dark .myk9-dog-card:hover,
 .dark .myk9-class-card:hover {
-  box-shadow: 0 8px 25px rgba(61, 37, 22, 0.2) !important;
+  box-shadow: var(--shadow-card-hover) !important;
 }
 
 .dark .myk9-dog-card.selected,

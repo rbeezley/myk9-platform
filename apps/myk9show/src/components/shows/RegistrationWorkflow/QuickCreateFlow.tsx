@@ -296,7 +296,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                       <UserIcon className="h-4 w-4" />
                       Exhibitor Information
                     </h4>
-                    <div className="p-4 border rounded-lg bg-muted">
+                    <div className="p-4 border border-border rounded-lg bg-muted">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="font-medium">

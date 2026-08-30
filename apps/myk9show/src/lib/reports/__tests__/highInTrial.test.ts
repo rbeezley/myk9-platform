@@ -510,3 +510,99 @@ describe('highInTrialStatusCoverage', () => {
     expect(model.levels[0]?.isFinal).toBe(false);
   });
 });
+
+describe('incomplete scores are never converted into a clean result', () => {
+  const CLASSES = [cls('Container', 'Novice'), cls('Interior', 'Novice')];
+
+  it('does not treat an unrecorded fault count as zero faults', () => {
+    // `entries.total_faults` is nullable. Coercing null to 0 reads as a perfect run and,
+    // with one eligible team, hands it High in Trial on data nobody entered.
+    const model = buildHighInTrial({
+      classes: CLASSES,
+      entries: [
+        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: null }),
+        entry({ classElement: 'Interior', classLevel: 'Novice', totalFaults: 0 }),
+      ],
+    });
+
+    const level = model.levels[0]!;
+    const team = level.teams[0]!;
+    expect(team.totalFaults).toBeNull();
+    expect(team.hasIncompleteScores).toBe(true);
+    // Listed (it did qualify) but the level cannot be awarded yet.
+    expect(level.teams).toHaveLength(1);
+    expect(level.incompleteScoreCount).toBe(1);
+    expect(level.isFinal).toBe(false);
+  });
+
+  it('ranks a team with missing faults BELOW one with a recorded, worse score', () => {
+    // The sharp end: 'unknown' must not beat a real 3-fault round.
+    const model = buildHighInTrial({
+      classes: CLASSES,
+      entries: [
+        ...qualifyingTeam({
+          dogId: 'dog-a',
+          armband: '101',
+          callName: 'Ranger',
+          level: 'Novice',
+          elements: ['Container', 'Interior'],
+          faults: [3, 0],
+          times: [30, 30],
+        }),
+        entry({
+          dogId: 'dog-b',
+          armband: '102',
+          callName: 'Juni',
+          classElement: 'Container',
+          classLevel: 'Novice',
+          totalFaults: null,
+        }),
+        entry({
+          dogId: 'dog-b',
+          armband: '102',
+          callName: 'Juni',
+          classElement: 'Interior',
+          classLevel: 'Novice',
+          totalFaults: 0,
+        }),
+      ],
+    });
+
+    expect(model.levels[0]?.teams.map(t => t.callName)).toEqual(['Ranger', 'Juni']);
+  });
+
+  it('does not call two teams with unrecorded faults a coin-flip tie', () => {
+    // A coin flip settles a genuine §8 tie. It settles nothing when the numbers the rule
+    // ranks on were never entered.
+    const model = buildHighInTrial({
+      classes: CLASSES,
+      entries: [
+        entry({ dogId: 'dog-a', armband: '101', classElement: 'Container', classLevel: 'Novice', totalFaults: null }),
+        entry({ dogId: 'dog-a', armband: '101', classElement: 'Interior', classLevel: 'Novice', totalFaults: null }),
+        entry({ dogId: 'dog-b', armband: '102', classElement: 'Container', classLevel: 'Novice', totalFaults: null }),
+        entry({ dogId: 'dog-b', armband: '102', classElement: 'Interior', classLevel: 'Novice', totalFaults: null }),
+      ],
+    });
+
+    expect(model.levels[0]?.needsCoinFlip).toBe(false);
+    expect(model.levels[0]?.incompleteScoreCount).toBe(2);
+  });
+
+  it('stays final when every qualifying run has both numbers', () => {
+    const model = buildHighInTrial({
+      classes: CLASSES,
+      entries: qualifyingTeam({
+        dogId: 'dog-a',
+        armband: '101',
+        callName: 'Ranger',
+        level: 'Novice',
+        elements: ['Container', 'Interior'],
+        faults: [0, 1],
+        times: [30, 30],
+      }),
+    });
+
+    expect(model.levels[0]?.incompleteScoreCount).toBe(0);
+    expect(model.levels[0]?.isFinal).toBe(true);
+  });
+});

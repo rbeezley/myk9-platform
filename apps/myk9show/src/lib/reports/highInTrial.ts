@@ -103,7 +103,8 @@ export const HIT_PARTICIPATING_STATUSES: ReadonlySet<string> = new Set([
 
 export interface HighInTrialElementScore {
   element: HitElement;
-  faults: number;
+  /** Null when the run qualified but its fault count was never recorded. */
+  faults: number | null;
   timeSeconds: number | null;
 }
 
@@ -114,9 +115,17 @@ export interface HighInTrialTeam {
   callName: string;
   breed: string;
   handler: string;
-  totalFaults: number;
+  /** Null when any counted run is missing its fault count — see `hasIncompleteScores`. */
+  totalFaults: number | null;
   /** Null when any counted run is missing a time — such a team cannot win a tie-break. */
   totalTimeSeconds: number | null;
+  /**
+   * True when a counted run qualified but is missing faults or time. §8 ranks on exactly
+   * those two numbers, so the standing cannot be settled until they are recorded. Such a
+   * team is still listed — it did qualify — but it holds the level at provisional and is
+   * ranked below every team whose data is complete.
+   */
+  hasIncompleteScores: boolean;
   elements: HighInTrialElementScore[];
   /** 1-based. Tied teams share a rank, and the next rank skips accordingly. */
   rank: number;
@@ -132,7 +141,12 @@ export interface HighInTrialLevel {
   teams: HighInTrialTeam[];
   /** Entries at this level still awaiting a result. */
   pendingCount: number;
-  /** False while any counted entry is unscored — the standing can still change. */
+  /** Eligible teams whose qualifying runs are missing a fault count or a time. */
+  incompleteScoreCount: number;
+  /**
+   * False while any counted entry is unscored, OR while an eligible team's qualifying
+   * runs are missing the faults/time §8 ranks on. Both mean the standing can still move.
+   */
   isFinal: boolean;
   /** True when the top rank is shared and §8's coin flip is required. */
   needsCoinFlip: boolean;
@@ -197,7 +211,14 @@ function isPending(entry: ReportEntry): boolean {
 }
 
 function compareTeams(a: HighInTrialTeam, b: HighInTrialTeam): number {
-  if (a.totalFaults !== b.totalFaults) return a.totalFaults - b.totalFaults;
+  // Missing data never sorts as a good score. Coercing an unrecorded fault count to 0
+  // would read as a clean run and could take the award outright, which is the same
+  // fabrication the deleted AwardsProcessor committed — just quieter.
+  if (a.totalFaults == null && b.totalFaults != null) return 1;
+  if (a.totalFaults != null && b.totalFaults == null) return -1;
+  if (a.totalFaults != null && b.totalFaults != null && a.totalFaults !== b.totalFaults) {
+    return a.totalFaults - b.totalFaults;
+  }
   // A team missing a time cannot be declared the faster one, so it sorts last among
   // equals rather than being treated as time zero.
   if (a.totalTimeSeconds == null && b.totalTimeSeconds == null) return 0;
@@ -312,12 +333,17 @@ export function buildHighInTrial(input: {
         const entry = perElement.get(element)!;
         return {
           element,
-          faults: entry.totalFaults ?? 0,
+          faults: entry.totalFaults ?? null,
           timeSeconds: entry.searchTimeSeconds ?? null,
         };
       });
 
-      const totalFaults = scores.reduce((sum, score) => sum + score.faults, 0);
+      const hasIncompleteScores = scores.some(
+        score => score.faults == null || score.timeSeconds == null
+      );
+      const totalFaults = scores.some(score => score.faults == null)
+        ? null
+        : scores.reduce((sum, score) => sum + (score.faults ?? 0), 0);
       const totalTimeSeconds = scores.some(score => score.timeSeconds == null)
         ? null
         : scores.reduce((sum, score) => sum + (score.timeSeconds ?? 0), 0);
@@ -330,6 +356,7 @@ export function buildHighInTrial(input: {
         handler: identity.handler,
         totalFaults,
         totalTimeSeconds,
+        hasIncompleteScores,
         elements: scores,
         rank: 0,
         tiedCount: 1,
@@ -338,13 +365,19 @@ export function buildHighInTrial(input: {
 
     const ranked = assignRanks([...teams].sort(compareTeams));
 
+    const topRank = ranked.filter(team => team.rank === 1);
+    const incompleteScoreCount = ranked.filter(team => team.hasIncompleteScores).length;
+
     levels.push({
       level,
       elements: offered,
       teams: ranked,
       pendingCount,
-      isFinal: pendingCount === 0,
-      needsCoinFlip: ranked.filter(team => team.rank === 1).length > 1,
+      incompleteScoreCount,
+      isFinal: pendingCount === 0 && incompleteScoreCount === 0,
+      // Teams sharing the top rank only because neither has recorded faults are not a
+      // §8 tie — that is missing data, and a coin flip would settle nothing.
+      needsCoinFlip: topRank.length > 1 && topRank.every(team => !team.hasIncompleteScores),
     });
   }
 

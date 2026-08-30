@@ -23,6 +23,11 @@ function formatTotalTime(seconds: number | null): string {
   return seconds == null ? '—' : formatReportTime(seconds);
 }
 
+/** An unrecorded fault count must never print as 0 — that reads as a clean run. */
+function formatFaults(faults: number | null): string {
+  return faults == null ? '—' : String(faults);
+}
+
 /**
  * Why a class the secretary can see on the schedule is not in the maths above. Without
  * this, a trial whose Novice level ran one element shows no Novice section at all, which
@@ -68,11 +73,21 @@ const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
         <span className="info-value">{level.elements.join(', ')}</span>
       </div>
 
-      {!level.isFinal && (
+      {level.pendingCount > 0 && (
         <p className="catalog-empty">
           {level.pendingCount} {level.pendingCount === 1 ? 'entry has' : 'entries have'} no
           result yet. This standing can still change — do not award until the level is
           fully scored.
+        </p>
+      )}
+
+      {level.incompleteScoreCount > 0 && (
+        <p className="catalog-empty">
+          {level.incompleteScoreCount}{' '}
+          {level.incompleteScoreCount === 1 ? 'team qualified but is' : 'teams qualified but are'}{' '}
+          missing a fault count or a time (shown as —). §8 ranks on exactly those two
+          numbers, so record them before awarding; until then these teams rank below every
+          team whose scores are complete.
         </p>
       )}
 
@@ -118,10 +133,10 @@ const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
                   <td>{team.handler}</td>
                   {team.elements.map(score => (
                     <td key={score.element} className="faults-col">
-                      {score.faults} / {formatTotalTime(score.timeSeconds)}
+                      {formatFaults(score.faults)} / {formatTotalTime(score.timeSeconds)}
                     </td>
                   ))}
-                  <td className="faults-col">{team.totalFaults}</td>
+                  <td className="faults-col">{formatFaults(team.totalFaults)}</td>
                   <td className="time-cell">{formatTotalTime(team.totalTimeSeconds)}</td>
                 </tr>
               ))}

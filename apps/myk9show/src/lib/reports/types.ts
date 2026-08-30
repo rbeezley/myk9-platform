@@ -173,6 +173,16 @@ export interface ReportDefinition {
    * to connect to the empty page in front of her.
    */
   pdfOnly?: boolean;
+  /**
+   * True for reports whose subject is the trial's CLASSES rather than its entries, so
+   * they still have something to say when no dog is entered.
+   *
+   * `ReportPreview` otherwise short-circuits on a generic "No entries found for this
+   * selection" before the component renders. For High in Trial that hid the one thing
+   * the secretary needed — which levels were excluded and why — behind a message about
+   * entries, for a report that is about whether §8 applies at all.
+   */
+  rendersWithoutEntries?: boolean;
 }
 
 export interface ReportDataSet {

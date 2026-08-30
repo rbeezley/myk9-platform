@@ -136,6 +136,9 @@ export const reportRegistry: ReportDefinition[] = [
     defaultSort: '',
     component: HighInTrialReport,
     enabled: true,
+    // The award is decided by which CLASSES ran, so this still explains itself for a
+    // trial with no entries -- where the generic "No entries found" gate would hide it.
+    rendersWithoutEntries: true,
     // AKC-specific: UKC and ASCA define their own high-scoring awards with different
     // eligibility, so offering this on their trials would state AKC's rules as theirs.
     registryId: 'AKC',

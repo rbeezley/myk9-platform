@@ -182,6 +182,20 @@ describe('HighInTrialReport', () => {
     expect(screen.getByText(/Handler Discrimination Novice/)).toBeInTheDocument();
   });
 
+  it('prints an unrecorded fault count as a dash, never as 0', () => {
+    // "0" is a claim that the run was clean. The report must not make it on the app's
+    // behalf when the number was never entered.
+    renderReport({
+      entries: [
+        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: null }),
+        entry({ classElement: 'Interior', classLevel: 'Novice', totalFaults: 0 }),
+      ],
+    });
+
+    expect(screen.getByText(/missing a fault count or a time/i)).toBeInTheDocument();
+    expect(screen.getByText(/PROVISIONAL/)).toBeInTheDocument();
+  });
+
   it('states the two limits a secretary would otherwise assume away', () => {
     renderReport({ entries: [...team('dog-a', '101', 'Ranger', 0, 20)] });
 

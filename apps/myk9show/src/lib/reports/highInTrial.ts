@@ -155,7 +155,7 @@ export interface HighInTrialLevel {
 export interface HighInTrialExclusion {
   element: string;
   level: string;
-  reason: 'not-an-odor-search-element' | 'single-element-level';
+  reason: 'not-an-odor-search-element' | 'single-element-level' | 'cancelled-class';
 }
 
 export interface HighInTrialModel {
@@ -168,7 +168,18 @@ export interface HighInTrialClassLike {
   id: string;
   element: string;
   level: string;
+  /** `classes.status`. A cancelled class is not an "available class" under §10. */
+  status?: string | null;
 }
+
+/**
+ * A cancelled class never ran, so under §10 it is not among the classes "available at
+ * that difficulty level". Counting it as offered is not a cosmetic error: eligibility
+ * demands a qualifying score in EVERY offered element, and nobody can qualify in a class
+ * that did not happen — so one cancelled class silently suppresses the entire level's
+ * award instead of letting it be decided over the elements that did run.
+ */
+const CANCELLED_CLASS_STATUS = 'cancelled';
 
 /**
  * Novice -> Master, so the report reads in progression order rather than in whatever
@@ -208,6 +219,31 @@ function isPending(entry: ReportEntry): boolean {
   if (entry.isScored) return false;
   const text = entry.resultText?.trim().toLowerCase() ?? '';
   return text === '' || text === 'pending';
+}
+
+/**
+ * Is `candidate` the better of two qualifying runs in the same element? Fewest faults,
+ * then fastest time — and a MISSING number is worse than any recorded one.
+ *
+ * The earlier version read `entry.totalFaults ?? 0`, so a run whose faults were never
+ * entered looked like a clean round and displaced a genuine 1-fault run. That both
+ * changed the ranking and marked the team incomplete when a complete run existed. The
+ * tell was that the same expression already treated a missing TIME as `Infinity` (worse)
+ * while treating missing faults as `0` (better).
+ */
+function isBetterRun(candidate: ReportEntry, incumbent: ReportEntry): boolean {
+  const cf = candidate.totalFaults ?? null;
+  const inf = incumbent.totalFaults ?? null;
+  if (cf == null && inf != null) return false;
+  if (cf != null && inf == null) return true;
+  if (cf != null && inf != null && cf !== inf) return cf < inf;
+
+  const ct = candidate.searchTimeSeconds ?? null;
+  const it = incumbent.searchTimeSeconds ?? null;
+  if (ct == null && it != null) return false;
+  if (ct != null && it == null) return true;
+  if (ct != null && it != null) return ct < it;
+  return false;
 }
 
 function compareTeams(a: HighInTrialTeam, b: HighInTrialTeam): number {
@@ -262,10 +298,19 @@ export function buildHighInTrial(input: {
 
   // Which elements each level offers. Section is deliberately not part of the key.
   const elementsByLevel = new Map<string, Set<HitElement>>();
+  const cancelledClassIds = new Set<string>();
   for (const cls of classes) {
     const level = cls.level?.trim() ?? '';
     const element = cls.element?.trim() ?? '';
     if (level === '' || element === '') continue;
+
+    if ((cls.status ?? '').toLowerCase() === CANCELLED_CLASS_STATUS) {
+      cancelledClassIds.add(cls.id);
+      if (isHitElement(element)) {
+        exclusions.push({ element, level, reason: 'cancelled-class' });
+      }
+      continue;
+    }
 
     if (!isHitElement(element)) {
       exclusions.push({ element, level, reason: 'not-an-odor-search-element' });
@@ -292,7 +337,10 @@ export function buildHighInTrial(input: {
       entry =>
         (entry.classLevel?.trim() ?? '') === level &&
         isHitElement(entry.classElement?.trim() ?? '') &&
-        elementSet.has((entry.classElement?.trim() ?? '') as HitElement)
+        elementSet.has((entry.classElement?.trim() ?? '') as HitElement) &&
+        // A stale qualifying row on a cancelled class must not count toward the award,
+        // nor hold the level open awaiting a result that will never come.
+        !(entry.classId != null && cancelledClassIds.has(entry.classId))
     );
 
     const pendingCount = levelEntries.filter(isPending).length;
@@ -311,12 +359,7 @@ export function buildHighInTrial(input: {
       const existing = perElement.get(element);
       // A dog should not qualify twice in one element at one level, but if the data says
       // so, count the better run rather than whichever happened to be first.
-      if (
-        !existing ||
-        (entry.totalFaults ?? 0) < (existing.totalFaults ?? 0) ||
-        ((entry.totalFaults ?? 0) === (existing.totalFaults ?? 0) &&
-          (entry.searchTimeSeconds ?? Infinity) < (existing.searchTimeSeconds ?? Infinity))
-      ) {
+      if (!existing || isBetterRun(entry, existing)) {
         perElement.set(element, entry);
       }
       qualifyingByTeam.set(key, perElement);
@@ -381,10 +424,20 @@ export function buildHighInTrial(input: {
     });
   }
 
+  // A cancelled Interior Novice alongside a live Interior Novice B does not remove the
+  // element, so do not report it as excluded -- the element WAS offered.
+  const offeredPairs = new Set(
+    [...elementsByLevel].flatMap(([level, els]) => [...els].map(el => `${el}\u0000${level}`))
+  );
+  const dedupedExclusions = exclusions.filter(
+    ex =>
+      ex.reason !== 'cancelled-class' || !offeredPairs.has(`${ex.element}\u0000${ex.level}`)
+  );
+
   levels.sort((a, b) => {
     const byOrder = levelOrder(a.level) - levelOrder(b.level);
     return byOrder !== 0 ? byOrder : a.level.localeCompare(b.level);
   });
 
-  return { levels, exclusions };
+  return { levels, exclusions: dedupedExclusions };
 }

@@ -606,3 +606,133 @@ describe('incomplete scores are never converted into a clean result', () => {
     expect(model.levels[0]?.isFinal).toBe(true);
   });
 });
+
+describe('§10 — a cancelled class is not an available class', () => {
+  it('does not require a qualifying score in a class that never ran', () => {
+    // The harm is SUPPRESSION, not a wrong winner: eligibility demands a Q in every
+    // offered element, and nobody can qualify in a cancelled class -- so counting it
+    // would wipe out a Novice award the club should still confer over the two elements
+    // that did run.
+    const model = buildHighInTrial({
+      classes: [
+        { id: 'c1', element: 'Container', level: 'Novice' },
+        { id: 'c2', element: 'Interior', level: 'Novice' },
+        { id: 'c3', element: 'Exterior', level: 'Novice', status: 'cancelled' },
+      ],
+      entries: qualifyingTeam({
+        dogId: 'dog-a',
+        armband: '101',
+        callName: 'Ranger',
+        level: 'Novice',
+        elements: ['Container', 'Interior'],
+        faults: [0, 0],
+        times: [30, 30],
+      }),
+    });
+
+    const level = model.levels[0]!;
+    expect(level.elements).toEqual(['Container', 'Interior']);
+    expect(level.teams).toHaveLength(1);
+    expect(model.exclusions).toContainEqual({
+      element: 'Exterior',
+      level: 'Novice',
+      reason: 'cancelled-class',
+    });
+  });
+
+  it('ignores a stale qualifying entry left on a cancelled class', () => {
+    const model = buildHighInTrial({
+      classes: [
+        { id: 'c1', element: 'Container', level: 'Novice' },
+        { id: 'c2', element: 'Interior', level: 'Novice' },
+        { id: 'c3', element: 'Exterior', level: 'Novice', status: 'cancelled' },
+      ],
+      entries: [
+        ...qualifyingTeam({
+          dogId: 'dog-a',
+          armband: '101',
+          callName: 'Ranger',
+          level: 'Novice',
+          elements: ['Container', 'Interior'],
+          faults: [0, 0],
+          times: [30, 30],
+        }),
+        entry({
+          dogId: 'dog-a',
+          armband: '101',
+          classElement: 'Exterior',
+          classLevel: 'Novice',
+          classId: 'c3',
+          totalFaults: 9,
+          searchTimeSeconds: 99,
+        }),
+      ],
+    });
+
+    // The cancelled run's 9 faults must not be added to the team's total.
+    expect(model.levels[0]?.teams[0]?.totalFaults).toBe(0);
+  });
+
+  it('still counts an element whose OTHER section ran', () => {
+    // Cancelling Interior Novice A does not remove Interior from the level when
+    // Interior Novice B ran, so it must not be reported as excluded either.
+    const model = buildHighInTrial({
+      classes: [
+        { id: 'c1', element: 'Container', level: 'Novice' },
+        { id: 'c2', element: 'Interior', level: 'Novice', status: 'cancelled' },
+        { id: 'c3', element: 'Interior', level: 'Novice' },
+      ],
+      entries: [],
+    });
+
+    expect(model.levels[0]?.elements).toEqual(['Container', 'Interior']);
+    expect(model.exclusions.filter(e => e.reason === 'cancelled-class')).toEqual([]);
+  });
+
+  it('does not treat a live class as cancelled', () => {
+    const model = buildHighInTrial({
+      classes: [
+        { id: 'c1', element: 'Container', level: 'Novice', status: 'upcoming' },
+        { id: 'c2', element: 'Interior', level: 'Novice', status: 'completed' },
+      ],
+      entries: [],
+    });
+
+    expect(model.levels[0]?.elements).toEqual(['Container', 'Interior']);
+  });
+});
+
+describe('choosing between duplicate qualifying runs', () => {
+  const CLASSES = [cls('Container', 'Novice'), cls('Interior', 'Novice')];
+
+  it('keeps the run with recorded faults over one with none', () => {
+    // `?? 0` made an unrecorded fault count look like a clean round, so it displaced a
+    // real 1-fault run -- changing the ranking AND marking the team incomplete when a
+    // complete run existed.
+    const model = buildHighInTrial({
+      classes: CLASSES,
+      entries: [
+        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: 1, searchTimeSeconds: 30 }),
+        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: null, searchTimeSeconds: 30 }),
+        entry({ classElement: 'Interior', classLevel: 'Novice', totalFaults: 0, searchTimeSeconds: 30 }),
+      ],
+    });
+
+    const team = model.levels[0]?.teams[0];
+    expect(team?.hasIncompleteScores).toBe(false);
+    expect(team?.totalFaults).toBe(1);
+  });
+
+  it('still prefers the genuinely better recorded run', () => {
+    const model = buildHighInTrial({
+      classes: CLASSES,
+      entries: [
+        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: 4, searchTimeSeconds: 30 }),
+        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: 1, searchTimeSeconds: 30 }),
+        entry({ classElement: 'Interior', classLevel: 'Novice', totalFaults: 0, searchTimeSeconds: 30 }),
+      ],
+    });
+
+    expect(model.levels[0]?.teams[0]?.totalFaults).toBe(1);
+  });
+});

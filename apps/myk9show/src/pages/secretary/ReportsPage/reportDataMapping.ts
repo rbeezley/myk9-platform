@@ -191,6 +191,8 @@ export function buildTrialReportProps(input: {
     element: c.element ?? '',
     level: c.level ?? '',
     section: resolveClassSection(c.section),
+    // Carried for High in Trial, which must not count a cancelled class as offered.
+    status: c.status ?? null,
     judgeName: resolveClassJudgeName(c, show.assignedJudges ?? []),
   }));
 

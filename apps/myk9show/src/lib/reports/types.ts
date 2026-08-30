@@ -123,6 +123,14 @@ export interface ReportProps {
     element: string;
     level: string;
     section?: string | null;
+    /**
+     * `classes.status` — one of upcoming / setup / in_progress / completed / cancelled.
+     * High in Trial needs it because a CANCELLED class is not an "available class" under
+     * Chapter 6 §10, and counting one as offered makes every team at that level
+     * ineligible (nobody can qualify in a class that never ran), silently suppressing an
+     * award the club should confer.
+     */
+    status?: string | null;
     judgeName?: string;
     stewards?: Record<string, string>;
   }>;

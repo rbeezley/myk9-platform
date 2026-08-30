@@ -38,6 +38,7 @@ const ExclusionNote: React.FC<{ exclusions: HighInTrialExclusion[] }> = ({ exclu
 
   const single = exclusions.filter(e => e.reason === 'single-element-level');
   const notElement = exclusions.filter(e => e.reason === 'not-an-odor-search-element');
+  const cancelled = exclusions.filter(e => e.reason === 'cancelled-class');
 
   return (
     <div className="stats-section">
@@ -52,6 +53,12 @@ const ExclusionNote: React.FC<{ exclusions: HighInTrialExclusion[] }> = ({ exclu
         <p className="catalog-empty">
           Not one of the four Odor Search elements, so excluded from High in Trial:{' '}
           {notElement.map(e => `${e.element} ${e.level}`).join(', ')}.
+        </p>
+      )}
+      {cancelled.length > 0 && (
+        <p className="catalog-empty">
+          Cancelled, so not an available class under Chapter 6 §10 and not required for
+          eligibility: {cancelled.map(e => `${e.element} ${e.level}`).join(', ')}.
         </p>
       )}
     </div>

@@ -192,7 +192,7 @@ multi-select for judges. The prop is optional: a picker tracking no persistent
 selection omits the attribute entirely rather than announcing a misleading
 "not selected".
 
-### F8 — P3 — FIXED — Chairman picker lists every person on the platform
+### F8 — P3 — BLOCKED ON AN RLS DECISION — Chairman picker lists every person on the platform
 
 The Show Chairman picker shows "All People" — other clubs' secretaries, exhibitors,
 admins — with no club-member grouping. A search box exists. The judge picker does

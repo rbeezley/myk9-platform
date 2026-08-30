@@ -47,7 +47,6 @@ The wizard creates all three in one pass. **Dashboard → Create Show.**
 
 > **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.
 
-> **Your club's own people are listed first** in the chairman and secretary pickers. Anyone else is still there — keep typing to search — so you can appoint an official from outside the club when you need to.
 
 > **Entries closing on the show's first day is allowed** — normal for day-of entry.
 

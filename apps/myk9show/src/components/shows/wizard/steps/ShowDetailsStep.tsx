@@ -1,5 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { CloneFromShowCombobox } from './CloneFromShowCombobox';
@@ -8,10 +7,6 @@ import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useUserClubIds } from '@/hooks/useUserClubIds';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import {
-  getActiveClubMembers,
-  getClubMembers,
-} from '@/services/database/club-memberships/members';
 import type { ShowDetailsStepProps } from './ShowDetailsStep.types';
 import {
   filterClubs,
@@ -51,25 +46,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const scopedClubs = React.useMemo(
     () => (userClubIds ? clubs.filter(c => userClubIds.has(c.id)) : clubs),
     [clubs, userClubIds]
-  );
-
-  // F8: the official pickers listed every person on the platform under one flat
-  // "All People" group. Loading the host club's roster lets them surface the people
-  // this club actually knows first. Members are a HINT, not a restriction -- a club
-  // may appoint a chairman from outside it, so everyone stays reachable by search.
-  const { data: clubMembers = [] } = useQuery({
-    queryKey: ['club-members', show.clubId],
-    queryFn: () => getClubMembers(show.clubId!),
-    enabled: Boolean(show.clubId),
-    staleTime: 5 * 60 * 1000,
-  });
-  const clubMemberIds = useMemo(
-    () => getActiveClubMembers(clubMembers).map(member => member.personId),
-    [clubMembers]
-  );
-  const hostClubName = useMemo(
-    () => clubs.find(club => club.id === show.clubId)?.name,
-    [clubs, show.clubId]
   );
 
   // Ensure clubs are available — try local cache first, then fetch from Supabase
@@ -188,8 +164,6 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           selectedChairmanId={selectedChairmanId}
           selectedSecretaryId={selectedSecretaryId}
           secretaryIsSelf={selectedSecretaryId === userWithRoles?.databaseUserId}
-          clubMemberIds={clubMemberIds}
-          {...(hostClubName ? { clubName: hostClubName } : {})}
           selectedJudges={selectedJudges}
           onSelectChairman={id =>
             updateShowData({ officials: { ...show.officials, chairman: [id] } })

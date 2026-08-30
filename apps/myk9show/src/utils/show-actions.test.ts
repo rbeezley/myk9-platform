@@ -1,53 +1,86 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { getTabQuickActions } from './show-actions';
+import { PERMISSIONS } from '@/types/auth-types';
 import type { UserWithRoles } from '@/types/auth-types';
-import type { ShowWithRelationship } from '@/types/unified-shows-types';
-import { getShowActions } from './show-actions';
+import type { Show } from '@/types/show-types';
 
-// getShowActions gates a handful of actions on the show's upcoming/active/past
-// phase. These tests pin the timezone boundary: a same-day show in the local
-// evening must be treated as active (neither upcoming nor past), so it shows
-// neither the upcoming-only "Modify Entry" nor the past-only "My Results".
-const AUTHED: UserWithRoles = { id: 'u1', roles: [], permissions: [] } as unknown as UserWithRoles;
+/**
+ * These actions render as the buttons in the Find Shows page header.
+ *
+ * They used to navigate with `window.location.href`, a full document load
+ * inside an offline-first PWA: React state is torn down, the bundle refetched,
+ * and offline it fails outright instead of routing to a cached view.
+ *
+ * A global escape hatch existed for exactly this — `useOptimizedNavigation` set
+ * `window.__NAVIGATE_FUNCTION__` "for compatibility with show-actions" — but
+ * that hook had NO consumers, so the global was never set and never read.
+ * Wiring the buttons to it would have made them do nothing at all. The
+ * navigator is therefore an explicit parameter, so a missing one is a type
+ * error rather than a silent no-op, and these tests assert it is the thing
+ * actually used.
+ */
 
-const enteredShow = (startDate: string, endDate: string): ShowWithRelationship =>
-  ({
-    id: 's1',
-    startDate,
-    endDate,
-    status: 'published',
-    relationship: ['all', 'entries'],
-    userCanManage: false,
-    userIsJudging: false,
-    userHasEntries: true,
-  }) as unknown as ShowWithRelationship;
+function userWith(permissions: string[]): UserWithRoles {
+  return { id: 'u1', permissions, roles: [] } as unknown as UserWithRoles;
+}
 
-const actionIds = (show: ShowWithRelationship) =>
-  getShowActions(show, 'entries', AUTHED).map(a => a.id);
+const SHOW = {} as Show;
 
-describe('getShowActions phase gating (entries tab)', () => {
-  afterEach(() => vi.useRealTimers());
+describe('getTabQuickActions navigation', () => {
+  it('routes "New Show" through the injected navigator', () => {
+    const navigate = vi.fn();
+    const actions = getTabQuickActions('all', userWith([PERMISSIONS.SHOW_CREATE]), navigate);
 
-  it('shows upcoming-only actions for a future show', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 4, 15, 12, 0));
-    const ids = actionIds(enteredShow('2026-05-20', '2026-05-21'));
-    expect(ids).toContain('modify_entry');
-    expect(ids).not.toContain('my_results');
+    const createShow = actions.find(a => a.id === 'create_show');
+    expect(createShow, 'create_show action missing').toBeDefined();
+
+    createShow!.onClick(SHOW);
+    expect(navigate).toHaveBeenCalledWith('/secretary/create-show/wizard');
   });
 
-  it('treats a same-day show in the local evening as active — neither upcoming nor past actions', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 4, 15, 20, 0)); // 2026-05-15 20:00 local
-    const ids = actionIds(enteredShow('2026-05-15', '2026-05-15'));
-    expect(ids).not.toContain('modify_entry');
-    expect(ids).not.toContain('my_results');
+  it('never assigns window.location.href', () => {
+    // The regression guard. A full reload is invisible in a unit test unless
+    // the assignment itself is watched, so watch it: any action that sets it
+    // fails here rather than shipping a page reload.
+    const navigate = vi.fn();
+    const assigned: string[] = [];
+    const original = Object.getOwnPropertyDescriptor(window, 'location');
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: new Proxy(
+        {},
+        {
+          get: () => '',
+          set: (_t, prop, value) => {
+            if (prop === 'href') assigned.push(String(value));
+            return true;
+          },
+        }
+      ),
+    });
+
+    try {
+      for (const tab of ['all', 'managing', 'assignments']) {
+        for (const action of getTabQuickActions(
+          tab,
+          userWith([
+            PERMISSIONS.SHOW_CREATE,
+            PERMISSIONS.SHOW_MANAGE,
+            PERMISSIONS.REGISTRATION_BULK_OPERATIONS,
+          ]),
+          navigate
+        )) {
+          action.onClick(SHOW);
+        }
+      }
+    } finally {
+      if (original) Object.defineProperty(window, 'location', original);
+    }
+
+    expect(assigned, `actions performed a full page load: ${assigned.join(', ')}`).toEqual([]);
   });
 
-  it('shows past-only actions once the end date has fully elapsed locally', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(2026, 4, 16, 0, 1)); // just past local midnight next day
-    const ids = actionIds(enteredShow('2026-05-15', '2026-05-15'));
-    expect(ids).toContain('my_results');
-    expect(ids).not.toContain('modify_entry');
+  it('returns nothing without a user, rather than unguarded actions', () => {
+    expect(getTabQuickActions('all', null, vi.fn())).toEqual([]);
   });
 });

@@ -327,7 +327,7 @@ Copy this block for each new finding.
 - **Intent check:** Violates “That was easy” and the no-dead-ends expectation for secretary show administration.
 - **Confidence:** high for the original defect and source-path correction; closure confidence is incomplete without the required browser replay.
 - **Fix owner:** Show Creation Wizard edit-mode data-source contract and `showStore.updateShow` integration.
-- **Existing references:** Linear MYK9-257 (Backlog; exact issue, no duplicate); related MYK9-252 is the separate replicated-read truthfulness fix.
+- **Existing references:** Linear MYK9-257 (Done; exact issue, no duplicate); related MYK9-252 is the separate replicated-read truthfulness fix.
 - **Linear issue:** reused MYK9-257; no new issue created.
 - **Proof required:** Add a focused regression test that resolves an edit target from React Query-only data and completes `updateShow`, or change the gate/write path to share one authoritative source; then run a secretary browser replay that edits and saves a React Query-only show and verifies persistence.
 - **Notes:** Introduced by PR #1845 / commit `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`; source correction merged in PR #1856 / commit `d0747e819263c31e7974fff1c03bafff88dd6d52`. Linear MYK9-257 is Done and its comments claim the acceptance gate passed, but no comment records the required React Query-only browser persistence replay. P2 remains report-only under the lifecycle contract.

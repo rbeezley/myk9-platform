@@ -143,16 +143,26 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
         model.levels.map(level => <LevelSection key={level.level} level={level} />)
       )}
 
+      {/*
+        `.report-footer` is `display: flex; justify-content: space-between`, built for a
+        short left/right pair. Two bare <p> children become two cramped columns whose
+        lines interleave, so the HD exclusion read as "(Chapteran must be worked out by
+        hand ... 6 §8)". Both notes go in ONE column child so they stack.
+      */}
       <div className="report-footer">
-        <p>
-          Eligible teams entered every element offered at their difficulty level and
-          qualified in each. Handler Discrimination is excluded from High in Trial even
-          when offered (Chapter 6 §8). The High in Trial award is not recorded by the AKC.
-        </p>
-        <p>
-          High Combined Division (§9) is not calculated by this report and must be worked
-          out by hand where a club offers Handler Discrimination alongside High in Trial.
-        </p>
+        <div className="footer-left">
+          <p>
+            Eligible teams entered every element offered at their difficulty level and
+            qualified in each. Handler Discrimination is excluded from High in Trial even
+            when offered (Chapter 6 §8). The High in Trial award is not recorded by the
+            AKC.
+          </p>
+          <p>
+            High Combined Division (§9) is not calculated by this report and must be
+            worked out by hand where a club offers Handler Discrimination alongside High
+            in Trial.
+          </p>
+        </div>
       </div>
     </div>
   );

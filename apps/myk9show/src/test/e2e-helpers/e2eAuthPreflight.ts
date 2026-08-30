@@ -4,6 +4,7 @@ export type AuthPreflightRole = 'secretary' | 'admin' | 'judge' | 'exhibitor';
 
 interface RoleEnv {
   email: string;
+  defaultEmail: string;
   password: string;
 }
 
@@ -19,21 +20,44 @@ export interface AuthPreflightConfig {
   credentials: AuthPreflightCredential[];
 }
 
+/**
+ * Default addresses, matching `testUsers.ts` and the accounts the seeds create.
+ *
+ * These are not secrets. They are hard-coded in `setup-e2e-test-users.ts` and
+ * `seed-isolated-e2e-accounts.sql`, both in git, and an isolated target creates
+ * exactly these — so for that target the address is not a free variable at all
+ * and an override can only ever name an account that was never created.
+ *
+ * That is not hypothetical. Playwright Regression seeded `secretary@myk9t.com`
+ * into a fresh isolated database and then preflighted whatever
+ * `E2E_SECRETARY_EMAIL` held, so it failed on all seven of its runs on `main`
+ * (2026-07-16 through 2026-08-24) with HTTP 400 and never reached a single
+ * test. `testUsers.ts` already reasons this way about club-admin: "this address
+ * is hard-coded in the seeds... An override could only ever point at an account
+ * that was never granted anything."
+ *
+ * Passwords stay required and undefaulted — those genuinely are secrets, and a
+ * missing one must still fail loudly.
+ */
 const ROLE_ENV: Record<AuthPreflightRole, RoleEnv> = {
   secretary: {
     email: 'E2E_SECRETARY_EMAIL',
+    defaultEmail: 'secretary@myk9t.com',
     password: 'E2E_SECRETARY_PASSWORD',
   },
   admin: {
     email: 'E2E_ADMIN_EMAIL',
+    defaultEmail: 'testadmin@myk9t.com',
     password: 'E2E_ADMIN_PASSWORD',
   },
   judge: {
     email: 'E2E_JUDGE_EMAIL',
+    defaultEmail: 'judge@myk9t.com',
     password: 'E2E_JUDGE_PASSWORD',
   },
   exhibitor: {
     email: 'E2E_DEMO_EXHIBITOR_EMAIL',
+    defaultEmail: 'exhibitor@myk9t.com',
     password: 'E2E_DEMO_EXHIBITOR_PASSWORD',
   },
 };
@@ -63,16 +87,12 @@ export function resolveAuthPreflightConfig(
     }
 
     const envNames = ROLE_ENV[role];
-    const email = env[envNames.email];
+    const email = env[envNames.email] || envNames.defaultEmail;
     const password = env[envNames.password];
-    const missingRoleSecrets = [
-      !email ? envNames.email : null,
-      !password ? envNames.password : null,
-    ].filter(Boolean);
 
-    if (!email || !password) {
+    if (!password) {
       throw new Error(
-        `Missing E2E auth preflight secret(s) for ${role}: ${missingRoleSecrets.join(', ')}`
+        `Missing E2E auth preflight secret(s) for ${role}: ${envNames.password}`
       );
     }
 

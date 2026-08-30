@@ -311,33 +311,35 @@ export function SecretaryCockpitFocusedClass({
           </div>
         </section>
 
+        {/* F29b phase 2a: run order had a three-hop dead end -- the run sheet sends you
+            to Show Desk, Show Desk's "Run order and class setup" link lands on Manage
+            Classes, and Manage Classes has no run-order control. This is that control.
+            It sits OUTSIDE the Entries section on purpose: that section is gated on
+            `entryRows`, which is filtered by STRANDED_ENTRY_ACTION_IDS, and auto-sort
+            availability has nothing to do with which actions are stranded. Nesting it
+            there meant a class could have entries to sort and no menu to sort them.
+            The menu hides itself below 2 entries. Manual drag reorder (2b) is still
+            outstanding; see docs/plan-f29b-operational-actions-home.md. */}
+        {canManageShow && runOrder && (
+          <section className="flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Run order
+            </h3>
+            <ShowMapRunOrderMenu
+              classId={focused.id}
+              classLabel={focused.name}
+              entryCount={sourceClass.entryCount ?? focused.entryRows.length}
+              onAutoSort={runOrder.onAutoSort}
+              isAutoSorting={runOrder.isAutoSorting}
+            />
+          </section>
+        )}
+
         {canManageShow && focused.entryRows.length > 0 && (
           <section>
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Entries
-              </h3>
-              {/* F29b phase 2a: run order had a three-hop dead end -- the run sheet
-                  sends you to Show Desk, Show Desk's "Run order and class setup" link
-                  lands on Manage Classes, and Manage Classes has no run-order control.
-                  This is that control. Manual drag reorder (2b) is still outstanding;
-                  see docs/plan-f29b-operational-actions-home.md. */}
-              {runOrder && (
-                <ShowMapRunOrderMenu
-                  classId={focused.id}
-                  classLabel={focused.name}
-                  // The class's own entry count, NOT entryRows.length. Every entry
-                  // yields a row today because move-up is unconditional, so the two
-                  // are equal -- but entryRows is filtered by STRANDED_ENTRY_ACTION_IDS
-                  // and would silently start hiding this menu if that set ever changed.
-                  // Auto-sort availability has nothing to do with which actions are
-                  // stranded.
-                  entryCount={sourceClass.entryCount ?? focused.entryRows.length}
-                  onAutoSort={runOrder.onAutoSort}
-                  isAutoSorting={runOrder.isAutoSorting}
-                />
-              )}
-            </div>
+            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Entries
+            </h3>
             {/* F29b: the only reachable home for these actions. `ShowMapRowActionsMenu`
                 renders the same set, but mounts only inside the public Show Map, which
                 is read-only by intent (#291) -- so a secretary-initiated move-up had no

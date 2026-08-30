@@ -132,4 +132,28 @@ describe('run order is reachable from the focused-class panel', () => {
     renderPanel({ runOrder: undefined });
     expect(screen.queryByRole('button', { name: /run order/i })).toBeNull();
   });
+
+  it('renders for a class with entries but NO stranded actions', () => {
+    // The regression this guards: the menu used to live inside the Entries section,
+    // which is gated on `entryRows` -- filtered by STRANDED_ENTRY_ACTION_IDS. A class
+    // with entries to sort but no move-up actions would have had entries and no menu
+    // to sort them with. Auto-sort availability is unrelated to stranded actions.
+    const onAutoSort = vi.fn();
+    render(
+      <SecretaryCockpitFocusedClass
+        focused={{ ...FOCUSED, entryRows: [] }}
+        sourceClass={{ ...SOURCE_CLASS, entryCount: 8 }}
+        trial={TRIAL}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+        runOrder={{ onAutoSort, isAutoSorting: false }}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /run order/i })).toBeInTheDocument();
+    // ...and the entry-action list is correctly absent, since there are none.
+    expect(screen.queryAllByRole('button', { name: /Move up/i })).toHaveLength(0);
+  });
 });

@@ -10,15 +10,13 @@
 --   * a dog with a PAID entry is refused (MK002) and nothing is touched, because
 --     the delete would otherwise vanish a paid entry with no refund decision and
 --     recompute placements behind a scored one;
---   * armbands are marked available but KEEP dog_id, so a restore or a re-entry
---     reclaims the same number through assign_armband's (show_id, dog_id) fast
---     path — nulling it would make restore_dog lossy;
 --   * waitlist spots are DELETED, so a deleted dog cannot be promoted into a
 --     live entry;
---   * a RESTORE brings the armband back to assigned. Releasing without this is
---     worse than the stale assignment it replaced: the ringside replication pull
---     filters `is_available = false`, so a restored dog would carry a number the
---     offline store never receives (Codex P1 on #1879).
+--   * armbands are LEFT ALONE. That is a decision, not an oversight
+--     (20260830190000): releasing the row bought almost nothing — numbers are
+--     never recycled and `entries.armband` keeps the history — and cost three
+--     reclaim sites on the show-day path to undo. Asserted so a future "tidy-up"
+--     that re-adds the release fails here first.
 --
 -- All fixtures roll back.
 
@@ -46,39 +44,6 @@ VALUES (
   'authenticated', 'authenticated', 'soft-delete-dog-owner@example.test', '', now(),
   now(), now(), '{}', '{}', false, false, false
 );
-
--- A SEPARATE site-admin actor for the restore below. restore_dog gates on
--- is_platform_admin() -> is_site_admin(), which is a SQL predicate over
--- user_roles keyed on auth.uid() — NOT a privilege check, so the superuser the
--- rest of this file runs as does not satisfy it and neither does the owner.
-INSERT INTO public.people (id, first_name, last_name, email)
-VALUES (
-  '00000000-0000-0000-0000-000000dd0012',
-  'Soft Delete',
-  'Admin',
-  'soft-delete-dog-admin@example.test'
-);
-
-INSERT INTO auth.users (
-  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
-  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
-  is_super_admin, is_sso_user, is_anonymous
-)
-VALUES (
-  '00000000-0000-0000-0000-000000dd0102',
-  '00000000-0000-0000-0000-000000000000',
-  'authenticated', 'authenticated', 'soft-delete-dog-admin@example.test', '', now(),
-  now(), now(), '{}', '{}', false, false, false
-);
-
-INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
-SELECT
-  '00000000-0000-0000-0000-000000dd0012',
-  r.id,
-  true,
-  '00000000-0000-0000-0000-000000dd0102'
-FROM public.roles r
-WHERE r.name = 'site_admin';
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, status)
 VALUES (
@@ -237,20 +202,21 @@ BEGIN
   FROM public.armbands WHERE id = '00000000-0000-0000-0000-000000dd0061';
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'FAIL the armband row was removed — release is the contract, not delete';
+    RAISE EXCEPTION 'FAIL the armband row was removed';
   END IF;
-  IF v_armband.is_available IS NOT TRUE THEN
-    RAISE EXCEPTION 'FAIL the armband is still marked assigned for a deleted dog';
+  -- The delete must leave the assignment EXACTLY as it found it. Re-adding a
+  -- release here drags three reclaim sites back with it (20260830160000, then
+  -- reverted by 20260830190000) — read those headers before changing this.
+  IF v_armband.is_available IS NOT FALSE THEN
+    RAISE EXCEPTION 'FAIL the delete released the armband; that half was deliberately dropped';
   END IF;
-  IF v_armband.assigned_at IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL the released armband kept its assigned_at stamp';
+  IF v_armband.assigned_at IS NULL THEN
+    RAISE EXCEPTION 'FAIL the delete cleared assigned_at on the armband';
   END IF;
-  -- Deliberate: nulling dog_id would destroy the only link back and make
-  -- restore_dog lossy. Do not "tidy" this assertion away.
   IF v_armband.dog_id IS DISTINCT FROM '00000000-0000-0000-0000-000000dd0051'::uuid THEN
-    RAISE EXCEPTION 'FAIL the armband lost its dog link, so a restore cannot reclaim the number';
+    RAISE EXCEPTION 'FAIL the delete unlinked the armband from its dog';
   END IF;
-  RAISE NOTICE 'PASS armband released with its dog link intact';
+  RAISE NOTICE 'PASS armband assignment left untouched';
 
   IF EXISTS (
     SELECT 1 FROM public.waitlist_entries
@@ -259,43 +225,6 @@ BEGIN
     RAISE EXCEPTION 'FAIL a deleted dog is still queued on a waitlist';
   END IF;
   RAISE NOTICE 'PASS waitlist spot removed';
-END;
-$$;
-
--- restore_dog is platform-admin gated. The gate is a PREDICATE over user_roles,
--- not a privilege check, so running as the migration superuser does not satisfy
--- it — the first cut of this test assumed it did and CI answered with
--- "Permission denied" from restore_dog line 6. Switch to the admin's JWT.
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000dd0102', true);
-SELECT set_config(
-  'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000dd0102","role":"authenticated"}',
-  true
-);
-
-SELECT public.restore_dog('00000000-0000-0000-0000-000000dd0051');
-
-RESET ROLE;
-
-DO $$
-DECLARE
-  v_armband RECORD;
-BEGIN
-  SELECT dog_id, is_available, assigned_at INTO v_armband
-  FROM public.armbands WHERE id = '00000000-0000-0000-0000-000000dd0061';
-
-  IF v_armband.is_available IS NOT FALSE THEN
-    RAISE EXCEPTION
-      'FAIL a restored dog keeps a number the ringside replication pull filters out';
-  END IF;
-  IF v_armband.assigned_at IS NULL THEN
-    RAISE EXCEPTION 'FAIL the reclaimed armband has no assigned_at stamp';
-  END IF;
-  IF v_armband.dog_id IS DISTINCT FROM '00000000-0000-0000-0000-000000dd0051'::uuid THEN
-    RAISE EXCEPTION 'FAIL the reclaimed armband is not the restored dog''s';
-  END IF;
-  RAISE NOTICE 'PASS restore reclaims the armband as assigned';
 END;
 $$;
 

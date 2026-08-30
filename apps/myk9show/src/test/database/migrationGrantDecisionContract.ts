@@ -20,7 +20,7 @@ const LEGACY_MIGRATION_FILENAME_SHA256 =
 
 const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
   'auto_assign_armband_on_accept()':
-    'Pre-existing anon grant, untouched by 20260830160000, which edits the body only. Narrowing it belongs in a deliberate ACL sweep.',
+    'Pre-existing anon grant, untouched by 20260830160000 and its revert 20260830190000, both of which edit the body only. Narrowing it belongs in a deliberate ACL sweep.',
   'get_my_person_id()':
     'Anon-readable RLS policies resolve the current person through this helper.',
   'has_role(text, uuid)': 'Anon-readable RLS policies use this role predicate.',

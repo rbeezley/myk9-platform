@@ -147,7 +147,7 @@ export function DogsBulkActionsBar({
         }
         entityType="Dog"
         isDeleting={deleteDispatch.isBusy}
-        warningText="Deleting these dogs also removes their show entries, cart items and waitlist spots, and releases their armbands. This action cannot be undone."
+        warningText="Deleting these dogs also removes their show entries, cart items and waitlist spots. This action cannot be undone."
       />
     </>
   );

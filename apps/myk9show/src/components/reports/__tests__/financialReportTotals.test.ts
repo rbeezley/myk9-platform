@@ -56,9 +56,17 @@ describe('financialReportTotals', () => {
         entry({ paymentStatus: PaymentStatus.PAID_BY_CASH, paymentMethod: 'cash' })
       )
     ).toBe('Cash');
+    // F18: a bare 'paid' with no recorded method used to read "Online". It describes
+    // 1,228 staging rows that record no method at all, and it is the one claim a
+    // secretary reconciling cheques against a Stripe payout must not be handed.
+    // #1222's own goal was "separate entry lifecycle status from payment status";
+    // this fallback was a leftover of the conflation it set out to remove.
     expect(getFinancialPaymentLabel(entry({ paymentStatus: 'paid', paymentMethod: '' }))).toBe(
-      'Online'
+      'Paid'
     );
+    expect(
+      getFinancialPaymentLabel(entry({ paymentStatus: 'paid', paymentMethod: 'secretary_paid' }))
+    ).toBe('Secretary Paid');
     expect(getFinancialPaymentLabel(entry({ paymentStatus: PaymentStatus.WAIVED }))).toBe(
       'Waived/Comped'
     );

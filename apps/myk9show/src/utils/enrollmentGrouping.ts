@@ -19,6 +19,18 @@ export interface EnrollmentGroup {
   /** Amount already recorded as paid, in dollars. */
   paidAmount: number;
   paymentReference: string | null;
+  /**
+   * `entries.payment_method` — the only field that records HOW payment arrived.
+   * The group used to drop it, so the UI had nothing but `payment_status` to go on
+   * and rendered the generic 'paid' as "Paid online" (F18).
+   */
+  paymentMethod: string | null;
+  /**
+   * Raw DB `payment_status`. `paymentStatus` above has already been through
+   * `mapPaymentStatus`, which turns the generic `'paid'` into `PAID_ONLINE` — so the
+   * channel resolver must read this, or it can never see the unknown case (F18).
+   */
+  rawPaymentStatus: string | null;
   /** Refund amount in dollars (null until a refund is recorded). */
   refundAmount: number | null;
   refundNotes: string | null;
@@ -52,6 +64,8 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
         // mixing the enrollment figure in would double-count.
         paidAmount: hasEnrollmentTotal ? (entry.enrollmentPaidAmount ?? 0) : 0,
         paymentReference: entry.enrollmentPaymentReference ?? null,
+        paymentMethod: entry.paymentMethod ?? null,
+        rawPaymentStatus: entry.rawPaymentStatus ?? null,
         refundAmount: entry.enrollmentRefundAmount ?? null,
         refundNotes: entry.enrollmentRefundNotes ?? null,
         refundedAt: entry.enrollmentRefundedAt ?? null,

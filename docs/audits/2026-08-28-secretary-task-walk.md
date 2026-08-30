@@ -125,7 +125,7 @@ password-rotation problem when it is not.
 This also inverts what `project_staging_named_accounts_no_auth` records (that memory
 says the `e2e-*` accounts work and the named ones do not; the reverse is now true).
 
-### F3 — P2 — Escape in the show wizard threatens to discard the show
+### F3 — P2 — FIXED — Escape in the show wizard threatens to discard the show
 
 Pressing **Escape** anywhere in the create-show wizard — with no popover open —
 raises an `Unsaved Changes` alertdialog: *"You have unsaved changes that will be
@@ -133,7 +133,13 @@ lost. Are you sure you want to leave the wizard?"* with **Keep Editing** /
 **Leave Wizard**. Escape is the universal dismiss key, and the natural reflex after
 opening the club or judge picker. Recoverable, but alarming, and it hides the form.
 
-### F4 — P2 — Judges can only be assigned if they were added on Step 1
+**Fixed.** The binding is removed, not guarded harder. The old listener already
+skipped when an overlay was open and still fired, because the failure is a race: a
+popover handles Escape, closes itself, and the same keypress continues to the window
+listener, which then correctly sees nothing open. `handleClose` still confirms the
+deliberate exit.
+
+### F4 — P2 — FIXED — Judges can only be assigned if they were added on Step 1
 
 Step 3 shows a per-class judge dropdown **only when judges were added via the
 optional, unstarred "Show Judges" field on Step 1**. Skip that field and Step 3
@@ -186,7 +192,7 @@ multi-select for judges. The prop is optional: a picker tracking no persistent
 selection omits the attribute entirely rather than announcing a misleading
 "not selected".
 
-### F8 — P3 — Chairman picker lists every person on the platform
+### F8 — P3 — BLOCKED ON AN RLS DECISION — Chairman picker lists every person on the platform
 
 The Show Chairman picker shows "All People" — other clubs' secretaries, exhibitors,
 admins — with no club-member grouping. A search box exists. The judge picker does
@@ -210,7 +216,7 @@ declare; it resolves in the main checkout only by hoisting accident. In a fresh
 worktree after `scripts/bootstrap-worktree.sh`, loading it fails with
 `Cannot find module '@playwright/test'`.
 
-### F12 — P2 — Reassigning a class judge needs a judge added at show level first
+### F12 — P2 — FIXED — Reassigning a class judge needs a judge added at show level first
 
 The class **Edit** dialog's Judge dropdown offers only judges already attached to the
 show (here: `Test Judge` and `TBD`), so a secretary who needs a different judge finds
@@ -433,7 +439,7 @@ The **Help** link on `/secretary/register/:showId` points at
 `help.myk9show.com/guides/exhibitor-guide` even in the secretary's mail-in and
 late-entry modes.
 
-### F18 — P2 — Every paid entry is labelled "Paid online", including checks
+### F18 — P2 — FIXED — Every paid entry is labelled "Paid online", including checks
 
 `mapPaymentStatus` (`utils/entryManagementUtils.ts:31`) maps the generic database
 status `'paid'` onto `PaymentStatus.PAID_ONLINE`, discarding `payment_method`
@@ -503,7 +509,7 @@ Show field at "Select a show" and blocks with "Select a show to continue." The r
 doc explicitly lists "manually copying data between screens" as something the
 secretary should never have to do; the context is already on screen.
 
-### F24 — P3 — Other clubs' show names appear in the Communication History filter
+### F24 — P3 — FIXED — Other clubs' show names appear in the Communication History filter
 
 The show filter lists **MYK9-109 Load Show 1/2/3**, which belong to Load Clubs 1, 2
 and 3. This secretary holds `user_roles` only for Heartland, and the dashboard

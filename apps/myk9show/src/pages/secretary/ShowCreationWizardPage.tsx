@@ -121,25 +121,19 @@ const ShowCreationWizardPage: React.FC = () => {
     loadPeople();
   }, [loadPeople]);
 
-  // Keyboard navigation handler - Escape to prompt save draft
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isDirty) {
-        // Don't trigger if a popover, dropdown, or dialog overlay is open —
-        // Escape should only close the innermost overlay (e.g., date picker)
-        const hasOpenOverlay = document.querySelector(
-          '[data-open], [data-state="open"], [role="dialog"], [role="alertdialog"]'
-        );
-        if (hasOpenOverlay) return;
-
-        e.preventDefault();
-        setShowConfirmDialog(true);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDirty]);
+  // F3: Escape used to raise "You have unsaved changes... leave the wizard?" from
+  // anywhere in the form. Removed rather than guarded harder.
+  //
+  // The listener already skipped when an overlay was open, and still fired, because
+  // the failure is a race rather than a missing check: a popover handles Escape,
+  // closes itself, and the SAME keypress continues to this window listener, which
+  // now correctly observes no open overlay. Opening the club or judge picker and
+  // pressing Escape to dismiss it — the reflex the audit describes — therefore
+  // offered to discard the whole show.
+  //
+  // No convention maps Escape to "abandon this form", and nothing is lost by
+  // dropping it: `handleClose` still raises the same dialog for the deliberate exit,
+  // which is the action that warrants a confirmation.
 
   // Focus first input when step changes
   useEffect(() => {

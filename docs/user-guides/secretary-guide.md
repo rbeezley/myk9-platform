@@ -95,7 +95,14 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 ## 7 · Handle scratches, pulls, and no-shows
 
-**Entry Management → Exceptions → Pulls / scratches.** Pending and pulled queues in one place, with the refund decision recorded against each.
+**Entry Management → Exceptions → Pulls / scratches.**
+
+Pending and pulled queues sit together. On each pulled entry, record what you decided:
+
+- **Refund issued** — you refunded them.
+- **Deny refund** — you did not, per your published policy.
+
+> Recording the decision is what keeps the closeout totals honest, so do it as you go rather than at the end.
 
 ## 8 · Email your exhibitors
 
@@ -135,7 +142,9 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 ## 12 · Print scoresheets
 
-**Reports → Scoresheet.** One page per dog, with the registry's own fault and scoring layout.
+**Reports → Score Sheet.** One page per dog, with the registry's own fault and scoring layout.
+
+> Your registry may have its own named version — **UKC Nosework Trial Score Sheet**, **ASCA Scent Detection Score Sheet**. Pick the one matching the trial's registry.
 
 ## 13 · Ringside access codes
 
@@ -209,11 +218,27 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 ## 21 · Registry reports
 
-**Reports → Trial Secretary Report** and **AKC Judge's Report**. Both render the registry's own instructions and layout for submission.
+**Reports**, filtered to your registry. The main ones:
+
+| Registry | Reports                                                                                                              |
+| -------- | -------------------------------------------------------------------------------------------------------------------- |
+| All      | Trial Secretary Report · Trial Secretary Certification · Trial Chairman Report · Steward's Report · Financial Report |
+| AKC      | AKC Judge's Report · Judge's Certification Report                                                                    |
+| ASCA     | Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                          |
+| UKC      | Judges Book: Element Trial · Judges Book: Handler Discrimination                                                     |
+
+Each renders the registry's own instructions and layout.
 
 ## 22 · Close out the show
 
-**Show Desk → Closeout.** Reconciles attendance and fees — entries, day-of entries, collected at the show, waived, and pulled or no-show — so the totals you submit match what you took.
+**Show Desk → Closeout.**
+
+1. Read the reconciliation — entries, day-of entries, collected at the show, waived, and pulled or no-show — and check the totals match what you took.
+2. Choose **Close Out Show** and confirm.
+
+> If the readiness check has concerns, the confirm button reads **Close anyway**. That's your decision to make, but read what it's flagging first — it's usually results not released, or pulls with no refund decision recorded.
+
+> **The show stays open until you do this.** Reading the summary is not closing the show.
 
 ## 23 · High in Trial
 

@@ -155,7 +155,13 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
               items={judgeItems}
               value={assignedJudgeId ?? UNASSIGNED_JUDGE_VALUE}
               onValueChange={judgeId => onJudgeChange(cls.id, judgeId)}
-              disabled={!showId || availableJudges.length === 0}
+              // Stay usable while there is something to CLEAR. Narrowing the list to
+              // the show's registry can legitimately empty it while a class still
+              // records an ineligible judge (wrong organization, or a lapsed
+              // qualification), and disabling on an empty list then strands that
+              // assignment: "Unassigned" is the only way out and it sits inside this
+              // control. `judgeItems` already labels an assigned-but-unavailable judge.
+              disabled={!showId || (availableJudges.length === 0 && !assignedJudgeId)}
             >
               <SelectTrigger
                 className="w-full"

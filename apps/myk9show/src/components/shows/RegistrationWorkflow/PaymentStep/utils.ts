@@ -1,5 +1,4 @@
-import type { ClassSelectionData, PaymentStatus } from '@/types/show-registration-types';
-import { PaymentStatus as PaymentStatusEnum } from '@/types/show-registration-types';
+import type { ClassSelectionData } from '@/types/show-registration-types';
 import type { FeeCalculationResult, FeeBreakdownItem } from './types';
 import { getDogDisplayName } from '@/types/dog-types';
 
@@ -197,21 +196,13 @@ export function stripNonDigits(value: string): string {
 }
 
 /**
- * Get the Tailwind badge color classes for a PaymentStatus.
+ * Theme-aware badge classes for a PaymentStatus.
+ *
+ * Re-exported from ConfirmationStep.helpers rather than duplicated: this file
+ * carried a second, byte-identical copy, so tokenising one left the other
+ * painting light-only chips on the dark card in SecretaryPaymentManagement.
  */
-export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
-  switch (status) {
-    case PaymentStatusEnum.PAID_ONLINE:
-    case PaymentStatusEnum.PAID_BY_CHECK:
-    case PaymentStatusEnum.PAID_BY_CASH:
-      return 'bg-teal-100 text-teal-800 border-teal-200';
-    case PaymentStatusEnum.REFUNDED:
-    case PaymentStatusEnum.PARTIAL_REFUND:
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
-}
+export { getPaymentStatusBadgeColor } from '../ConfirmationStep.helpers';
 
 /**
  * Get a human-readable label for a payment method code.

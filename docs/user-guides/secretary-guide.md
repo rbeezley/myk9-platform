@@ -73,11 +73,16 @@ The chips across the top are queues — _Needs review_, _Missing information_, _
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
-> **A dog needs a registration number** for the trial's registry before it can be entered. This is enforced: an entry without one is refused rather than accepted and fixed later.
+> **A dog needs a registration number** for the trial's registry. The entry form will
+> let you continue without one — it shows a warning, not a block — but the save is
+> refused by the database, so get the number first rather than expecting to fix it
+> later.
 >
-> **One exception:** conformation puppy classes. AKC allows a puppy to be entered while its registration is still being processed, so those entries go through without a number.
+> **One exception:** conformation puppy classes. AKC allows a puppy to be entered while
+> its registration is still processing, and those entries are allowed through.
 
-> **Keep your own record of cheque numbers.** The reference and payment date you enter are saved, but they are not shown back to you anywhere in Entry Management yet — so you cannot look a cheque number up in the app.
+> The payment reference you enter shows on the registration's card in Entry Management,
+> so you can look a cheque number up later.
 
 ## 5 · Take a late or walk-in entry on show day
 

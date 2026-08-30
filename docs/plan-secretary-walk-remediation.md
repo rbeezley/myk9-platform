@@ -156,7 +156,7 @@ Implementation notes:
 | # | Item | Why |
 | --- | --- | --- |
 | 3.1 | Backfill decision for F33 | Entries written while the server priced day-of at $0 still carry `entry_fee = 0`. A backfill must decide which tier applied on the day each was taken. |
-| 3.2 | F16 UI surfacing | `payment_reference` / `payment_received_on` / `payment_notes` are stored and readable but not shown in Entry Management. |
+| 3.2 | F16 UI surfacing | **Narrower than filed.** The REGISTRATION's payment reference is already shown on the enrollment card in Entry Management (`EnrollmentCard.tsx:242`) and on the receipt. What is unsurfaced is the ENTRY-level secretary bookkeeping added by `20260828200000` — `payment_received_on` and `payment_notes`. Re-scope before doing anything. |
 | 3.3 | Regenerate `database.types.ts` | Stale for the columns added by `20260828200000`; the replication mapper reads them through a defensive accessor meanwhile. |
 | 3.4 | Do `moved` entries count in financial totals? | Move-up leaves the paid original as `entry_status = 'moved'`. If the Financial Report counts only `confirmed`, that money vanishes from show takings. Unverified. |
 | 3.5 | Staging cleanup | Four audit shows, and a move-up-created entry (`7ae6ac8b-…`) whose id falls outside the seed's fixture ranges, so a reseed will not remove it. |

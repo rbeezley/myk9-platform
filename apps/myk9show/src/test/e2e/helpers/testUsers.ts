@@ -29,6 +29,7 @@
  */
 
 import { expect, type Page } from '@playwright/test';
+import { resolveFixtureEmail } from '../../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../../fixtures/retiredFixtureDomain';
 
 export interface TestUser {
@@ -38,6 +39,17 @@ export interface TestUser {
   description: string;
 }
 
+// EMAILS USE `||`, NOT `??`, AND THE DIFFERENCE IS LOAD-BEARING. An unset
+// GitHub secret does not arrive as undefined — `${{ secrets.FOO }}` interpolates
+// to an EMPTY STRING. `??` only fires on null/undefined, so with `??` an unset
+// secret beat the default and the suite signed in as ''. Worse, the preflight
+// resolver used `||`, so it fell back to the canonical address and reported the
+// credentials healthy; the preflight passed and Playwright then failed, which is
+// the exact false-green the preflight exists to prevent (Codex, #1889).
+//
+// Passwords keep `?? ''` because blank must stay fatal there: `signIn` and
+// `resolveAuthPreflightConfig` both reject an empty password outright.
+//
 // F2: these defaulted to '' while only the `description` named the real account, so a
 // stale env override (or a missing one) failed as `Invalid login credentials` -- the
 // same message Supabase returns for a wrong password, which reads as a rotation problem
@@ -47,14 +59,14 @@ export interface TestUser {
 // unset email impossible. Passwords stay env-only and are never defaulted.
 export const TEST_USERS: Record<string, TestUser> = {
   SITE_ADMIN: {
-    email: process.env.E2E_ADMIN_EMAIL ?? 'testadmin@myk9t.com',
+    email: resolveFixtureEmail(process.env.E2E_ADMIN_EMAIL, 'testadmin@myk9t.com'),
     password: process.env.E2E_ADMIN_PASSWORD ?? '',
     role: 'site_admin',
     description: 'Site administrator — testadmin@myk9t.com, rotated 2026-06-18',
   },
 
   SECRETARY: {
-    email: process.env.E2E_SECRETARY_EMAIL ?? 'secretary@myk9t.com',
+    email: resolveFixtureEmail(process.env.E2E_SECRETARY_EMAIL, 'secretary@myk9t.com'),
     password: process.env.E2E_SECRETARY_PASSWORD ?? '',
     role: 'secretary',
     description: 'Show secretary — secretary@myk9t.com, rotated 2026-06-18',
@@ -70,7 +82,7 @@ export const TEST_USERS: Record<string, TestUser> = {
   // Assigned to classes 031..035 of the Heartland show; 036..039 are assigned to
   // nobody, which is the negative subject for assignment-isolation tests.
   JUDGE: {
-    email: process.env.E2E_JUDGE_EMAIL ?? 'judge@myk9t.com',
+    email: resolveFixtureEmail(process.env.E2E_JUDGE_EMAIL, 'judge@myk9t.com'),
     password: process.env.E2E_JUDGE_PASSWORD ?? '',
     role: 'judge',
     description: 'Show judge — judge@myk9t.com, rotated 2026-06-18',
@@ -92,7 +104,7 @@ export const TEST_USERS: Record<string, TestUser> = {
   },
 
   EXHIBITOR: {
-    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'exhibitor@myk9t.com',
+    email: resolveFixtureEmail(process.env.E2E_DEMO_EXHIBITOR_EMAIL, 'exhibitor@myk9t.com'),
     password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
     description: 'Compatibility alias for DEMO_EXHIBITOR',
@@ -101,7 +113,7 @@ export const TEST_USERS: Record<string, TestUser> = {
   // Canonical exhibitor login with seeded dogs (Willow, Ranger, Juniper).
   // Protected from DB wipes. Use this account for authenticated exhibitor tests.
   DEMO_EXHIBITOR: {
-    email: process.env.E2E_DEMO_EXHIBITOR_EMAIL ?? 'exhibitor@myk9t.com',
+    email: resolveFixtureEmail(process.env.E2E_DEMO_EXHIBITOR_EMAIL, 'exhibitor@myk9t.com'),
     password: process.env.E2E_DEMO_EXHIBITOR_PASSWORD ?? '',
     role: 'exhibitor',
     description: 'Canonical exhibitor with seeded dogs — protected from wipes',

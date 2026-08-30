@@ -56,6 +56,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [launch/go-live-2026-07-11.md](launch/go-live-2026-07-11.md)                                                     | Active    | Go-Live Gate Review — 2026-07-11                                             |
 | [launch/go-live-2026-07-26.md](launch/go-live-2026-07-26.md)                                                     | Active    | Go-Live Gate Review — 2026-07-26 (delta: CI/advisor drift + owner gates)     |
 | [plan-secretary-walk-remediation.md](plan-secretary-walk-remediation.md)                                         | Active    | Secretary task-walk findings — remediation + task-card guide                 |
+| [plan-f29b-operational-actions-home.md](plan-f29b-operational-actions-home.md)                                   | Active    | F29b — move-up and run order have no reachable surface                       |
 | [plan-ai-support-triage.md](plan-ai-support-triage.md)                                                           | Active    | AI Support Triage — external scheduled agent (design spec)                   |
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan (9 tasks)                            |
 | [plan-stripe-golive-enforcement.md](plan-stripe-golive-enforcement.md)                                           | Active    | Stripe Go-Live Enforcement — capacity gate + waitlist Phases 7/8             |
@@ -67,7 +68,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-anon-grant-rls-tightening.md](plan-anon-grant-rls-tightening.md)                                           | Active    | MYK9-93 — Anon grant & RLS tightening (launch gate)                          |
 | [plan-architecture-deepening.md](plan-architecture-deepening.md)                                                 | Active    | Architecture Deepening Plan                                                  |
 | [plan-ia-admin-person-detail.md](plan-ia-admin-person-detail.md)                                                 | Active    | Admin Person Detail + Soft-Delete Lifecycle Consolidation (4 phases)         |
-| [plan-ia-exhibitor-surface.md](plan-ia-exhibitor-surface.md)                                                     | Active    | Exhibitor Surface IA Remediation (4 phases)                                  |
+| [plan-ia-exhibitor-surface.md](plan-ia-exhibitor-surface.md)                                                     | Active    | Exhibitor Surface IA Remediation (4 phases; Phase A shipped, B–D open)       |
 | [plan-asca-level-c-classes.md](plan-asca-level-c-classes.md)                                                     | Active    | ASCA Level C — seed continuation classes into the wizard template            |
 | [plan-askq-revival.md](plan-askq-revival.md)                                                                     | Active    | AskQ Revival & Simplification (select-then-bundle)                           |
 | [plan-data-access-module-drift.md](plan-data-access-module-drift.md)                                             | Active    | Data Access Module Drift Plan                                                |

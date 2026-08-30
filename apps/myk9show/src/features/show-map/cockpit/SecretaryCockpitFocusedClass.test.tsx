@@ -59,6 +59,7 @@ const focused: FocusedClassModel = {
   prepareActions: [],
   finishActions: [],
   classWorkActions: [],
+  entryRows: [],
 };
 
 const sourceClass: SecretaryCockpitClass = {
@@ -73,6 +74,7 @@ const sourceClass: SecretaryCockpitClass = {
   attention: [],
   actions: [],
   paperwork: [],
+  entryRows: [],
 };
 
 describe('SecretaryCockpitFocusedClass paperwork', () => {

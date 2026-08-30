@@ -58,8 +58,14 @@ export default function ShowDeskPanel({
     ...(scopeNow !== undefined && { scopeNow }),
     initialDayScope: 'all',
     initialCompletionScope: 'active',
+    // Show Desk does not render the tree -- it renders the cockpit, and reads the
+    // tree only for actions and counts. The 25-entry preview cap is a TREE-RENDERING
+    // concern (ShowMapTab's table), and applying it here silently truncated two
+    // things: move-up was offered for a class's first 25 entries only, and the
+    // attention count missed `review-entry` on every pending entry past the 25th.
+    entryPreviewLimit: Number.POSITIVE_INFINITY,
   });
-  const { tree, executor, navigateTo, effectiveScopeNow } = state;
+  const { tree, executor, navigateTo, effectiveScopeNow, runOrderAutoSort } = state;
   const {
     executeAction,
     moveUpAction,
@@ -187,7 +193,19 @@ export default function ShowDeskPanel({
           pages.
         </div>
       )}
-      <SecretaryCockpit snapshot={snapshot} canManageShow={canManageShow} onCommand={runCommand} />
+      <SecretaryCockpit
+        snapshot={snapshot}
+        canManageShow={canManageShow}
+        onCommand={runCommand}
+        {...(canManageShow && {
+          // F29b phase 2a. Gated on canManageShow for the same reason the entry rows
+          // are: an exhibitor-facing render must not get a mutation control.
+          runOrder: {
+            onAutoSort: runOrderAutoSort.autoSort,
+            isAutoSorting: runOrderAutoSort.isAutoSorting,
+          },
+        })}
+      />
 
       {canManageShow && (
         <>

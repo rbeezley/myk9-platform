@@ -2,399 +2,283 @@
 
 **Status:** `qa-draft`
 **Audience:** Trial secretaries
-**Last verified:** 2026-06-25 — S-03 and S-05 screenshots added; non-author reviewer still pending
-**Verified by:** walkthrough against outline (`docs/user-guides/secretary-guide-outline.md`); S-03/S-05 captured against staging 2026-06-25
+**Last verified:** 2026-08-30 — walked in a browser against staging (`a50596ad6`)
+**Verified by:** the secretary task walk (`docs/audits/2026-08-28-secretary-task-walk.md`) and its 2026-08-29 verification pass
 
-> **Note:** This is a QA-draft guide — written against the live app as a testing instrument. Ready screenshots are embedded; shots marked `blocked:` in the checklist below require specific seed data or conditions before they can be captured. Do not publish to customers until status is `verified`.
+> **What "verified" covers here.** Each card's path was opened on staging and its controls
+> confirmed present. Two flows could not be exercised end to end on the demo data and are
+> described from their surfaces only: promoting someone off the wait list (nobody is
+> waitlisted there) and submitting results to a registry (that is a real submission).
 
----
+> **Screenshots are pending.** The previous guide embedded shots captured 2026-06-25,
+> before the workbench was collapsed into Show Desk. They show screens that no longer
+> exist, so they have been removed rather than left to mislead. The `S-*` files are
+> still in `docs/screenshots/` and need recapturing against the current UI before this
+> guide moves off `qa-draft`.
 
-## What this guide covers
-
-This guide walks you through every phase of running a dog show on myK9Show: creating your show, managing entries, communicating with exhibitors, running show day, releasing results, and submitting to AKC.
-
-If you are coming from a spreadsheet or from mySWT, the biggest change is that the wizard handles your show, trials, classes, and judge assignments all at once. You don't create them separately.
-
----
-
-## Section 1 — Dashboard
-
-When you sign in, you land on the Secretary Dashboard. It shows all your active shows with their entry counts, entry open and close dates, and a status badge for each.
-
-**If you have exactly one active show,** myK9Show routes you directly to that show's workbench instead of the dashboard. Use the breadcrumb at the top left or the sidebar to navigate back to the dashboard if needed.
-
-Click any show to open its workbench.
-
-![S-01: Secretary dashboard — one active Heritage show with entry count badge](../screenshots/S-01.png)
+> **How this guide is organised.** One card per job, in the order you'll do them. Each card tells you where to go, what to do, and what to watch for. If you only need one thing, jump to its card — they don't depend on each other.
 
 ---
 
-## Section 2 — Create a Show
+## Before you start
 
-The wizard walks you through four steps: show details, trial configuration, class selection, and a review screen. It creates your show, trials, and classes in one pass — there's no separate step for each.
+**Sign in** at the show's URL and you land on your Secretary Dashboard. It lists the shows you manage with entry counts and anything needing attention.
 
-**Before you start,** have these ready:
+Two words appear throughout the app and are worth knowing up front:
 
-- Show name, sanctioning organization (AKC, UKC, or Other)
-- Start and end dates
-- Entry fee per class
-- Entry open and close dates
-- Each trial's date, time, and AKC event number
-- Judge assignments for each class
+- **Entry Management** — everything to do with entries: who's in, who's paid, who's waiting, who pulled out.
+- **Show Desk** — everything to do with running the show: classes, run order, check-in, volunteers, closeout. Open a show and choose **Show Desk**.
 
-**Steps:**
-
-1. From the Dashboard, click **Create Show**.
-
-2. **Step 1 — Show Details.** Enter the show name, sanctioning organization, start and end dates, entry fee, and entry open and close dates. Click **Next**.
-
-   ![S-02: Create Show wizard — Step 1 (show details)](../screenshots/S-02.png)
-
-3. **Step 2 — Trial Configuration.** Add each trial with its date/time and AKC event number. Click **Add Trial** for each additional trial. Click **Next**.
-
-   ![S-03: Create Show wizard — Step 2 (trial configuration)](../screenshots/S-03.png)
-
-4. **Step 3 — Class Selection.** For each trial, choose which classes to offer and assign a judge to each class. Click **Next**.
-
-   ![S-04: Create Show wizard — Step 3 (class selection)](../screenshots/S-04.png)
-
-5. **Step 4 — Review.** Scan the full structure. If anything looks wrong, click **Back** to correct it. When everything is correct, click **Create and Publish**.
-
-   ![S-05: Create Show wizard — Step 4 (review)](../screenshots/S-05.png)
-
-6. Your show is now live and accepting entries. Exhibitors can find it on the Shows page immediately.
-
-**What if I need to change something after publishing?**
-Open the show from the Dashboard → click the **Setup** tab → click **Edit** next to the field you want to change.
+Most day-of jobs live behind **Show Desk → Tools**.
 
 ---
 
-## Section 3 — Show Setup and Configuration
+# Setting up
 
-After creating your show, you can edit any part of its structure from the **Setup** tab on the Show Workbench.
+## 1 · Create a show, its trials, and its classes
 
-![S-06: Show Workbench — Setup tab with readiness signals](../screenshots/S-06.png)
+The wizard creates all three in one pass. **Dashboard → Create Show.**
 
-**Edit show details:**
+1. **Step 1 — Show Details.** Name, organization (AKC/UKC/ASCA), dates, location, host club, entry fee, and the entry open/close dates. Add your **chairman** and **secretary**.
+2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
+3. **Step 2 — Trials.** One row per trial: date, time, and (for AKC) the event number.
+4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class.
+5. **Step 4 — Review.** Check the summary, then **Create Show (Unpublished)** or **Create & Publish Show**.
 
-1. Click the **Setup** tab.
-2. Click **Edit Show** (or the pencil icon next to the field you want to change).
-3. Make your changes → click **Save**.
+> **⚠️ Add your judges on Step 1.** If you skip the _Show Judges_ field, Step 3 gives you **no way to assign a judge at all** — and Review will still say "Show Configuration Complete" and offer to publish. Add the judges first, and you can assign them per class normally.
 
-**Change a judge assignment:**
+> **Entries closing on the show's first day is allowed** — normal for day-of entry.
 
-1. Click the **Setup** tab.
-2. Find the class row → click the judge assignment → select a new judge from the dropdown.
+## 2 · Edit a show, or reassign a judge
 
-**Add a trial after the fact:**
-This is not available in the Setup tab after publication. If you need to add a trial, contact support — a data correction may be needed.
+- **Show details:** open the show → **More show actions → Edit**.
+- **Add a judge to the show:** same place, **Judges** tab.
+- **Change a class's judge:** **Manage Classes**, then the judge dropdown on that class's row.
 
----
-
-## Section 4 — Entry Management
-
-Entry Management is where you review Show Registrations, find individual Entries quickly, add mail-in or walk-in Entries, and manage Exceptions.
-
-![S-07: Entry Management — Needs review queue and focused registration](../screenshots/S-07.png)
-
-### Approving an online entry
-
-1. Open **Entry Management** from the sidebar or from the Show Workbench.
-2. Start in **Needs review**, or search the whole Show by Exhibitor, Dog, Handler, Armband, confirmation, Entry number, or Class.
-3. Select the Show Registration to open it in the focused pane.
-4. Expand the Dog, open the child Entry status, and choose **Accepted**. Payment is already recorded for online Entries paid through the registration wizard.
-
-**To approve many registrations at once:** Check each Show Registration. A compact floating toolbar appears with both the registration count and affected Entry count. Choose the available Accept action; only eligible child Entries are changed.
-
-![S-09: Entry Management — registration selection with floating action toolbar](../screenshots/S-09.png)
-
-![S-08: Entry Management — focused registration with child Entry actions](../screenshots/S-08.png)
-
-### Rejecting an entry
-
-1. Search for or select the Show Registration, then expand the affected Dog.
-2. Open the child Entry status and choose **Not Accepted**. The status changes immediately. If the exhibitor needs an explanation, use **Email Exhibitor** under **Communication and history**.
-
-### Adding a mail-in or walk-in entry
-
-1. Click **Add entry**.
-2. Search for the exhibitor by name or email. If they're not in the system, click **Create Exhibitor** and enter their details.
-3. Search for their dog. If the dog isn't in the system, click **Add Dog** and enter AKC registration number, breed, and name.
-4. Select the class, enter the check number and amount paid.
-5. Click **Save** → the entry appears as Accepted with payment recorded.
-
-### Managing the waitlist
-
-When a Class is full, manage its waitlist through the dedicated Exceptions workflow. The child Entry status menu does not create waitlist membership or position.
-
-When a spot opens (someone scratches or is pulled):
-
-1. Open **Entry Management** → **Exceptions** → **Waitlist**.
-2. Find the next exhibitor in line → click **Offer Spot**.
-3. The exhibitor is notified. If they don't confirm within the notice window, move to the next person.
-
-![S-10: Entry Management — Exceptions with Waitlist selected](../screenshots/S-10.png)
+> A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the Judges tab first, then come back.
 
 ---
 
-## Section 5 — Communications
+# Taking entries
 
-### Send an announcement to all accepted exhibitors
+## 3 · Approve or accept online entries
 
-1. Open the **Message Center** (bell icon in the top bar, or **Messages** in the sidebar).
-2. Click **New Message**.
-3. Select your show from the dropdown.
-4. Choose **All accepted exhibitors** as the recipient.
-5. Write a subject and message body → click **Send**.
+**Entry Management → Needs review.** Each registration shows the dog, the entry count, and payment status. Choose **Review registration** to accept, decline, or ask for a correction.
 
-Exhibitors receive the announcement in their myK9Show inbox and as a push notification on their device.
+The chips across the top are queues — _Needs review_, _Missing information_, _Payment due_, _All registrations_. The active one is highlighted; the counts beside each tell you what's waiting.
 
-![S-11: Message Center — compose form with show selected](../screenshots/S-11.png)
+## 4 · Enter a mail-in or paper entry
 
-### Email one exhibitor about an entry decision
+**Entry Management → Add mail-in entry.** Pick the dog and handler (or create them), choose classes, and record payment.
 
-**From Entry Management (fastest):**
+> This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
-1. Focus the Show Registration and open **Communication and history** → click **Email Exhibitor**.
-2. The decision-email editor opens with the registration and exhibitor already selected.
+> **A dog needs a registration number** for the trial's registry. The entry form will
+> let you continue without one — it shows a warning, not a block — but the save is
+> refused by the database, so get the number first rather than expecting to fix it
+> later.
+>
+> **One exception:** conformation puppy classes. AKC allows a puppy to be entered while
+> its registration is still processing, and those entries are allowed through.
 
-**From the Message Center:**
+> The payment reference you enter shows on the registration's card in Entry Management,
+> so you can look a cheque number up later.
 
-1. Open the Message Center → click **New Message**.
-2. Search for the exhibitor by name or email.
+## 5 · Take a late or walk-in entry on show day
 
-### What about email delivery?
+**Show Desk → Tools → Late entry.** Same flow as a mail-in entry.
 
-Messages in myK9Show send push notifications. Email delivery to exhibitors who haven't installed the app is dependent on the Resend email integration being active for your show. If you're unsure whether exhibitors are receiving email, use the Message Center and follow up directly for time-sensitive communications.
+## 6 · Manage the wait list
 
----
+**Entry Management → Exceptions → Waitlist.**
 
-## Section 6 — Reports (Pre-Show)
+1. Each judge-day shows as a card — the judge's name, the date, and how full it is.
+2. **View Wait List** on a card opens that judge-day's queue, filtered to the class.
+3. When a spot opens, offer it from that queue in the order people joined.
 
-Run these reports before the show to prepare your rings, judges, and stewards.
+> Capacity is displayed, not enforced. A judge-day can read over its limit (e.g. "130 / 125 entries"); the number is telling you the truth, not warning you of a bug.
 
-![S-12: Reports page — Check-in Sheet selected](../screenshots/S-12.png)
+## 7 · Handle scratches, pulls, and no-shows
 
-1. Open **Reports** from the Show Workbench sidebar or from the Show Desk.
-2. Select the trial from the dropdown.
-3. Select a report type:
+**Entry Management → Exceptions → Pulls / scratches.**
 
-| Report           | When to run           | Who gets it                   |
-| ---------------- | --------------------- | ----------------------------- |
-| Check-in Sheet   | Morning of show day   | Ring steward / check-in table |
-| Steward's Report | Before each class     | Steward, posted at ring       |
-| Scoresheets      | Before judges arrive  | Each judge                    |
-| Armband Labels   | Before check-in opens | Print on Avery 18262 stock    |
+Pending and pulled queues sit together. On each pulled entry, record what you decided:
 
-4. Print or download the report.
+- **Refund issued** — you refunded them.
+- **Deny refund** — you did not, per your published policy.
 
-![S-13: Reports page — Steward's Report selected](../screenshots/S-13.png)
-![S-14: Reports page — Armband Labels](../screenshots/S-14.png)
+> Recording the decision is what keeps the closeout totals honest, so do it as you go rather than at the end.
 
-**Note on run order:** The run order shows dog names, handler names, and armband numbers. Volunteer names are not included — those are managed separately outside the app.
+## 8 · Email your exhibitors
 
----
+**Message Center** — the button in the header, not the Messages page.
 
-## Section 7 — Show Desk (Day-of Operations)
+1. Open **Message Center**.
+2. Compose the message and choose who it goes to — the whole show, or a class.
+3. Send.
 
-The Show Desk is your headquarters on show day. Check-in, scratches, move-ups, late entries, and announcements are all here.
+> **The Messages page is history only.** It shows what has been sent; you cannot start a message from it. Composing happens in the header panel.
 
-![S-15: Show Desk — task queue with "Show in progress" banner and Next Best Action](../screenshots/S-15.png)
+> **Check the show before you send.** The composer does not pick up the show you were looking at, so confirm the recipients are the ones you meant.
 
-**Getting there:** From the Show Workbench, click the **Show Desk** tab. On a show running today, the Dashboard will route you here automatically.
+## 9 · Payments and refunds
 
-### Check in an exhibitor
+Payment status shows on every registration row in **Entry Management**, and refunds are reconciled in the **Pulls / scratches** queue.
 
-1. In the Show Map, find the exhibitor's class row → expand it.
-2. Locate the exhibitor's entry by armband number or name.
-3. Click **Check In** → the row updates to show checked-in status.
-
-### Scratch / pull an exhibitor
-
-There are two different actions depending on the reason:
-
-**Show-day withdrawal (stays in records):** Go to **Entry Management**, search for and focus the Show Registration, then change the affected child Entry from **Pending** or **Accepted** to **Pulled**. The Entry remains available under **Exceptions** → **Pulls / Scratches** and counts correctly in AKC results submission.
-
-**Remove a mistaken or duplicate entry (deletes from records):**
-
-1. Go to **Entry Management**.
-2. Search for and focus the Show Registration, then expand the Dog containing the mistaken Entry.
-3. Open the child Entry's secondary actions and choose **Remove entry** → the "Remove entry?" dialog appears.
-4. Confirm → the class entry is deleted from records.
-
-![S-16: Entry Management — "Remove entry?" confirmation dialog](../screenshots/S-16.png)
-
-> **Note:** Use Pulled for a real show-day scratch. Use Remove only for true mistakes (wrong dog, duplicate submission). The dialog text confirms the distinction.
-
-### Process a move-up
-
-A move-up promotes a qualifying dog to a higher-level class in the same element.
-
-1. Find the entry in the Show Map.
-2. Open the three-dot menu → click **Move Up**.
-3. Select the destination class from the picker (only eligible classes are shown — same element, higher level, same trial).
-4. Confirm → the entry appears in the new class and is removed from the original.
-
-![S-17: Show Desk — Approve Move-Up dialog with target class picker](../screenshots/S-17.png)
-
-### Add a late entry (walk-in)
-
-1. Open the **Tools** panel (button at the top right of the Show Desk).
-2. Click **Add late entry** — the Late Entry registration wizard opens.
-3. Step 1: search for the dog (or create a new dog record).
-4. Steps 2–4: select the class, assign a handler, and record payment.
-5. Confirm → the entry is added and the class count updates.
-
-![S-18: Late Entry registration wizard — Step 1 (Select Dogs)](../screenshots/S-18.png)
-
-### Enter scores from paper scoresheets
-
-When judges are scoring on paper rather than using the ringside app:
-
-1. From the Show Map, click the class row → **Enter Scores** (or click into the class directly from the results section).
-2. For each dog in run order: select **Q**, **NQ**, or **Absent** → enter the time if the dog qualified → click **Save**.
-
-### Tools panel
-
-Open the Tools panel from the Show Desk for:
-
-- **Late entries** — add a walk-in entry without leaving Show Desk
-- **Judge hospitality** — track judge meals, breaks, and show-day notes
-- **Incident log** — record any show-day incidents
-- **Delay scripts** — draft calm wording for schedule slips
-- **Access codes** — share judge and ringside entry codes
-- **Volunteers** — track helper assignments and gaps
-- **Tasks and notes** — your personal show-day checklist
-
-![S-19: Show Desk — Tools panel side sheet open](../screenshots/S-19.png)
+> **Known limitation:** every paid entry currently reads **"Paid online"**, including cheques and cash. The amount and the refund state are correct — only the channel label is wrong.
 
 ---
 
-## Section 8 — Results & Check-In
+# Getting ready for show day
 
-Results & Check-In lets you choose when exhibitors can see their results. Open it from the **Results & Check-In** tab on the show workbench.
+## 10 · Set the run order
 
-There are three visibility settings — pick the one that fits your show:
+**Show Desk → click the class → Run order.**
 
-| Setting          | What exhibitors see                                                                               |
-| ---------------- | ------------------------------------------------------------------------------------------------- |
-| **Immediately**  | Q/NQ, time, and faults appear as each dog finishes. Placement appears when the class is complete. |
-| **After Class**  | Q/NQ appears as dogs run. Time, faults, and placement wait until the full class is done.          |
-| **After Review** | All results are hidden until you manually release them.                                           |
+Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside.
 
-Click the card for the setting you want. It applies to all classes at once.
+> You can also reach this from a class's page — **Set run order** takes you straight to that class on Show Desk.
 
-![Results & Check-In — three visibility preset cards; "After Class" is the active selection](../screenshots/S-20.png)
+> **Known limitation:** there's no drag-and-drop yet, so you can't hand-place one dog into a specific slot. The three presets above are all that's available.
 
-**To release results when using "After Review":**
+## 11 · Print check-in sheets
 
-1. Check the box next to each class you are ready to release — or click **Select All**.
-2. In the bar that appears at the bottom of the screen, click **Release Results**.
+**Reports → Check-in Sheet.** Scope it to a trial or a single class, then print. Columns are Gate Order, Armband, Call Name, Breed, and Handler.
 
-![Results & Check-In — classes selected; sticky action bar with "Release Results" button visible](../screenshots/S-21.png)
+## 12 · Print scoresheets
 
-Once released, exhibitors can see their results in **My Shows** immediately.
+**Reports → Score Sheet.** One page per dog, with the registry's own fault and scoring layout.
 
-**Can I un-release results?**
-Yes — select the classes and apply **After Review** again from the action bar. Results will be hidden until you release them again. Use this if a scoring correction is needed after an initial release.
+> Your registry may have its own named version — **UKC Nosework Trial Score Sheet**, **ASCA Scent Detection Score Sheet**. Pick the one matching the trial's registry.
 
----
+## 13 · Ringside access codes
 
-## Section 9 — Submit Results to AKC
+**Show Desk → Tools → access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or regenerate if a code gets out.
 
-After results are released, generate the electronic submission file and email it to AKC.
+## 14 · Volunteer scheduling
 
-1. From the Show Desk closeout section (or from **Reports**), click **Submit Results**.
-2. The page shows a preflight summary: number of entries ready for submission and any warnings.
-3. **If a warning appears about missing AKC registration numbers:** Contact those exhibitors to provide their dog's registration number before submitting. You can still download and submit without them, but AKC may return the file.
-
-   ![S-24: Submit Results — preflight warning listing dogs without AKC registration numbers](../screenshots/S-24.png)
-
-4. Click **Download XML** to download the submission file.
-
-   ![S-22: Submit Results — submission summary (preflight)](../screenshots/S-22.png)
-   ![S-23: Submit Results — XML download button](../screenshots/S-23.png)
-
-5. Email the file to `eresults@akc.org`. Include in your message:
-   - Club name
-   - Event dates
-   - AKC event numbers (one per trial)
-
-AKC processes the file and updates their records. You will receive a confirmation or error reply from AKC directly.
+**Show Desk → Tools → Volunteers.** Add volunteers and assign them to per-class slots grouped by trial.
 
 ---
 
-## Section 10 — Post-Show Reports
+# Show day
 
-After the show closes, generate the official reports for judges, the club chairman, and your AKC submission packet.
+## 15 · Move a dog up
 
-1. Open **Reports** from the Show Desk closeout section or sidebar.
-2. Select the trial.
-3. Generate each report in order:
+**Show Desk → click the class → Entries → Move up** on that dog's row.
 
-| Report                 | Recipient                          | When           |
-| ---------------------- | ---------------------------------- | -------------- |
-| Results Catalog        | Club chairman, your records        | After closeout |
-| Judge Report           | Each judge + AKC submission packet | One per trial  |
-| Trial Secretary Report | AKC submission packet              | One per trial  |
-| Result Labels          | Qualifying dogs' ribbons           | One per show   |
+Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible.
 
-**Note on PDF submission:** The downloaded reports are formatted for printing. The AKC results file (Section 9) is the electronic submission — the Judge and Trial Secretary reports are paper supplements for your own records and the judge's copy.
+> The original entry stays on the books as _moved_ and keeps its fee; the new entry is created at no extra charge.
+
+> An exhibitor can also _request_ a move-up before the show. Those arrive in **Entry Management → Exceptions → Move-ups** for you to approve, deny, or waitlist.
+
+## 16 · Check dogs in
+
+**Show Desk → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
+
+## 17 · Enter results from paper scoresheets
+
+Same run sheet: **Show Desk → click the class → Enter paper scores.**
+
+Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
+
+> Placements are calculated for you once every dog in the class is scored. You don't enter them.
+
+## 18 · Print the results sheet
+
+**Reports → Results Sheet.** Element, level, trial, date, and judge, with each dog's result and placement.
 
 ---
 
-## Section 11 — Closeout
+# After the show
 
-> **Status: Walkthrough needed** — The Show Desk **Close Out Show** action now marks the show, open trials, and open classes completed. This guide section still needs a seeded walkthrough with reports, result submission history, closeout, and sync evidence before final publication.
+## 19 · Release results to exhibitors
 
-Draft flow:
+**Show Desk → Results** (the show's Results control).
 
-1. Open the Show Desk closeout section.
-2. Review Results & Check-In, Reports, Submit Results, and the closeout summary.
-3. Click **Close Out Show**.
-4. Review any concerns shown by myK9.
-5. Confirm the action to mark the show completed.
+Each class can release its results **Immediately**, **After Class**, **After Review**, or **Inherit** the show's setting. Set the show-level default, then override any class that needs it.
+
+> This is what decides whether an exhibitor can see a score yet. If results are not appearing for exhibitors, this is the first place to look — a class set to _After Review_ stays hidden until you review it.
+
+> Closeout expects results to be released, so set this before card 22.
+
+## 20 · Submit results to the registry
+
+**Show Desk → Submit Results.** What you see here depends on the registry.
+
+**If the registry accepts electronic submission (AKC):**
+
+1. Check **Closeout guidance** for anything outstanding — most often entries missing a registration number.
+2. **Send to AKC** emails the results file for you. This is the normal path.
+3. If you already filed through AKC's portal, use **Mark as submitted** instead — that only records it here.
+
+**Download XML** gives you the file itself if you want a copy or need to file it another way.
+
+> **If Send to AKC is greyed out**, the preflight found blocking problems — usually missing registration numbers. It stays disabled until they're fixed, and the download is labelled **Download draft XML** while that's true, so you can see the draft without being able to file it.
+
+**If the registry files manually (UKC, ASCA):** there is no Send action and no XML download. Submit through the registry's own process, then use **Mark as submitted** to log it here. **AKC Downloadable Forms** links registry paperwork where it applies.
+
+> **Mark as submitted records _your_ action** — it does not confirm the registry received anything. Keep their acknowledgement as your proof.
+
+## 21 · Registry reports
+
+**Reports**, filtered to your registry. The main ones:
+
+| Registry | Reports                                                                                                              |
+| -------- | -------------------------------------------------------------------------------------------------------------------- |
+| All      | Trial Secretary Report · Trial Secretary Certification · Trial Chairman Report · Steward's Report · Financial Report |
+| AKC      | AKC Judge's Report · Judge's Certification Report                                                                    |
+| ASCA     | Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                          |
+| UKC      | Judges Book: Element Trial · Judges Book: Handler Discrimination                                                     |
+
+Each renders the registry's own instructions and layout.
+
+## 22 · Close out the show
+
+**Show Desk → Closeout.**
+
+1. Read the reconciliation — entries, day-of entries, collected at the show, waived, and pulled or no-show — and check the totals match what you took.
+2. Choose **Close Out Show** and confirm.
+
+> If the readiness check has concerns, the confirm button reads **Close anyway**. That's your decision to make, but read what it's flagging first — it's usually results not released, or pulls with no refund decision recorded.
+
+> **The show stays open until you do this.** Reading the summary is not closing the show.
+
+## 23 · High in Trial
+
+**Reports → High in Trial**, then narrow it to a trial. AKC trials only.
+
+The report works out who is eligible and ranks them for you. One section per difficulty level, showing the elements counted, each team's faults and time per element, and the totals they were ranked on.
+
+> **A level only gets a High in Trial if the trial ran more than one element at it** (Container, Interior, Exterior, Buried). A level running a single element is listed as excluded rather than left out silently.
+
+> **Eligibility is all-or-nothing.** A team must have entered _every_ element offered at its level and qualified in each. Handler Discrimination never counts, even when you offer it.
+
+> **A tie is shown as a tie.** If two teams match on both faults and time, the report says so and tells you a coin flip decides it. It will not pick a winner for you — record the outcome by hand.
+
+> **Wait for PROVISIONAL to clear.** While any entry at that level has no result, the level is labelled provisional and the standing can still change. Don't hand out the trophy until it's gone.
+
+> Per-class placements (1–4) are calculated separately and automatically — see card 17.
+
+> **High Combined Division is not calculated.** If you offer Handler Discrimination alongside High in Trial, AKC requires you to confer HCD as well, and you'll need to work that one out by hand.
+
+---
+
+## Known gaps and rough edges
+
+Honest list, so nothing surprises you mid-show.
+
+| What                                     | Status                                                                                                                                         |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| High Combined Division (HCD)             | Not built — calculate by hand when you offer Handler Discrimination (card 23)                                                                  |
+| Hand-placing a dog in the run order      | Not built — presets only (card 10)                                                                                                             |
+| "Paid online" on cheque and cash entries | Label only; amounts are correct (card 9)                                                                                                       |
+| Emailing exhibitors                      | Works, but the composer is in the **Message Center panel in the header**, not the Messages page, and it doesn't pick up the show you came from |
+| Wait-list capacity                       | Displayed, not enforced (card 6)                                                                                                               |
 
 ---
 
 ## Still need help?
 
-- [KB: create-a-show](#) — detailed step-by-step for wizard configuration
-- [KB: approve-entries](#) — entry management quick reference
-- [KB: handle-a-scratch](#) — scratch and pull procedures
-- [KB: handle-move-up](#) — move-up eligibility and process
-- [Show-day triage runbook](../support/show-day-triage-outline.md) — live show incident prioritization
-- Support contact: [placeholder — email or contact page]
-
----
-
-## Screenshot Checklist
-
-All shots from `docs/training/screenshot-shot-list.md`. Status as of 2026-06-25:
-
-| Shot ID | Section | Description                                                                        | Status              |
-| ------- | ------- | ---------------------------------------------------------------------------------- | ------------------- |
-| S-01    | § 1     | Dashboard — one active show                                                        | ready               |
-| S-02    | § 2     | Wizard Step 1 (show details)                                                       | ready               |
-| S-03    | § 2     | Wizard Step 2 (trial configuration)                                                | captured 2026-06-25 |
-| S-04    | § 2     | Wizard Step 3 (class selection)                                                    | ready               |
-| S-05    | § 2     | Wizard Step 4 (review)                                                             | captured 2026-06-25 |
-| S-06    | § 3     | Show Workbench — Setup tab                                                         | ready               |
-| S-07    | § 4     | Entry Management — Needs review queue and focused registration                     | needs recapture     |
-| S-08    | § 4     | Focused registration with child Entry actions                                      | needs recapture     |
-| S-09    | § 4     | Registration selection and floating toolbar                                        | needs recapture     |
-| S-10    | § 4     | Exceptions — Waitlist                                                              | needs recapture     |
-| S-11    | § 5     | Message Center — compose                                                           | ready               |
-| S-12    | § 6     | Reports — Check-in Sheet                                                           | ready               |
-| S-13    | § 6     | Reports — Steward's Report selected                                                | ready               |
-| S-14    | § 6     | Reports — Armband Labels                                                           | ready               |
-| S-15    | § 7     | Show Desk — task queue with "Show in progress" banner and Next Best Action         | ready               |
-| S-16    | § 7     | Entry Management — "Remove entry?" dialog                                          | ready               |
-| S-17    | § 7     | Move-up dialog                                                                     | ready               |
-| S-18    | § 7     | Late Entry wizard (Step 1: Select Dogs)                                            | ready               |
-| S-19    | § 7     | Tools panel                                                                        | ready               |
-| S-20    | § 8     | Results & Check-In — three preset cards, "After Class" active                      | ready               |
-| S-21    | § 8     | Results & Check-In — classes selected, sticky "Release Results" action bar visible | ready               |
-| S-22    | § 9     | Submit Results — preflight summary                                                 | ready               |
-| S-23    | § 9     | XML download button                                                                | ready               |
-| S-24    | § 9     | Preflight warning — missing AKC numbers                                            | ready               |
+Full findings behind this guide, including anything fixed recently: `docs/audits/2026-08-28-secretary-task-walk.md`.

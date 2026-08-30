@@ -291,7 +291,11 @@ describe('ShowDeskPanel cockpit', () => {
       'href',
       expect.stringContaining('/scoring/classes/class-1/entries')
     );
-    expect(screen.getAllByRole('link', { name: /run order and class setup/i })).not.toHaveLength(0);
+    // Renamed in F29b phase 2a. It promised run order and landed on Manage Classes,
+    // which has none -- the last hop of the dead end. Run order now lives on the
+    // focused-class panel, so the link keeps only the half it delivers.
+    expect(screen.getAllByRole('link', { name: /class setup/i })).not.toHaveLength(0);
+    expect(screen.queryByRole('link', { name: /run order and class setup/i })).toBeNull();
     expect(screen.getAllByRole('link', { name: /class reports/i })).not.toHaveLength(0);
   });
 

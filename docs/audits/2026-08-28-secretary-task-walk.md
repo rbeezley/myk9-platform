@@ -578,7 +578,7 @@ three showed the Score Sheet):
 blob is dropped before the markup write. Confirmed non-vacuous (it fails when the
 handoff is removed). 123 ReportsPage tests, typecheck, ratchet and lint all clean.
 
-### F26 — P1 — CORRECTED — High in Trial / High in Class does not exist
+### F26 — P1 — FIXED — High in Trial / High in Class does not exist
 
 Task 11 has no report. The Reports picker lists 24 report types and none of them is a
 High in Trial or High in Class award report.
@@ -604,7 +604,13 @@ Also worth correcting: **"High in Class" is not an AKC concept** (zero rulebook
 occurrences). The equivalent is §6 Placements 1–4 per class, which the app already
 computes — verified during the walk. So this is one missing report, not two.
 
-Planned as Phase 2B in `plan-secretary-walk-remediation.md`.
+**Fixed 2026-08-30.** `lib/reports/highInTrial.ts` computes the award from the rulebook,
+rendered by the AKC-scoped, trial-scoped `high-in-trial` report. The mock was deleted.
+Browser-verified on two trials: one offering Container + Interior at Novice (renders the
+level and its counted elements) and Heartland, whose every level runs a single element
+(renders the §8 empty state plus the "Classes not counted" list). HCD (§9) is
+deliberately not implemented — our rulebook copy truncates mid-sentence and no PDF in the
+repo can confirm the rest.
 
 ### F27 — P2 — FIXED (#1858) — A cold replication store reports "Class not found" for a class that exists
 
@@ -660,22 +666,40 @@ among the architectural commitments the workbench collapse had to respect. The
 `ShowDetailsPage.test.tsx:753` ("renders the public Show Map as read-only for show
 managers"), pinned it and failed in CI on all three shards.
 
-**F29a — WITHDRAWN. The row actions are not unreachable.** Show Desk
-(`/shows/:showId/show-desk`) renders `ShowDeskPanel` with `canManageShow`, which
-drives `SecretaryCockpit` off `getRankedActions(...)`. That catalog
-(`showMapActions.ts`) contains `move-up-entry`, `mark-checked-in`, `scratch-entry`,
-`edit-score`, `review-entry` and `message-handler`, and `ShowDeskPanel` owns
-`ShowMapMoveUpDialog` directly. Move-up is reachable for a secretary today; my walk
-missed it because I searched the Show Map tab for a row menu instead of the cockpit,
-which surfaces actions contextually by rank rather than as a per-row menu.
+**F29a — WITHDRAWN, then RE-OPENED by the verification walk (2026-08-29).**
 
-My change therefore did not unlock a missing capability — it **duplicated Show Desk's
-capability onto a browsing page**, the exact move CLAUDE.md's "consolidate, don't
-duplicate" rule exists to prevent. Reverted; the component and both tests now carry a
-comment naming #291 so the next reader does not repeat it.
+I withdrew F29a on the grounds that Show Desk reaches the row actions through
+`ShowDeskPanel` -> `SecretaryCockpit` -> `getRankedActions`, which does contain
+`move-up-entry`, `mark-checked-in`, `scratch-entry` and `edit-score`. The
+verification walk found no Move up anywhere on Show Desk, on the demo show or on a
+focused class, so I traced it properly.
 
-**F29b — REAL, still open. Run order has no reachable surface.** This half survives
-and is *not* fixed by anything above:
+**The catalog has exactly two consumers, and neither reaches these actions from a
+management surface:**
+
+| Consumer | Getter | Consequence |
+| --- | --- | --- |
+| `ShowMapRowActionsMenu` | `getDirectActionsForNode` — every action | Renders ONLY inside `ShowMapStructureTable` -> `ShowMapTab` -> the public Show Map, which is read-only by intent (#291) |
+| `buildSecretaryCockpitSnapshot` | `getRecommendedActionsForNode(node, …, 1)` — filters `action.recommended`, limit 1 | **None** of the entry row actions set `recommended`, so none are ever offered |
+
+So `ShowDeskPanel` owning `ShowMapMoveUpDialog` proves nothing: the dialog opens from
+`runCommand`, `runCommand` resolves a commandId the cockpit emits, and the cockpit
+only ever emits recommended actions. The dialog is unreachable on that page.
+
+**What I got wrong, and how.** I checked that `getRankedActions('root', …)` contains
+move-up and stopped there — I confirmed the action is *eligible* and never checked
+whether any UI *renders* it. That is the same shape as the mistake this walk exists to
+catch: verifying a mechanism exists rather than verifying a user can reach it.
+
+**The revert itself was still correct.** #291 deliberately made the public map
+read-only and the collapse plan lists that as an architectural commitment; forwarding
+`canManageShow` there would contradict it. The fix is to give these actions a home on
+a management surface, not to unlock a browsing one.
+
+**F29b — REAL, still open, and BROADER than run order.** Run order was only the half
+I could prove at the time. With F29a re-opened, the whole row-action layer is
+unreachable: **Move up, Mark checked in, Pull / no-show, Edit score and Message
+handler**, plus run order. All of it:
 
 - `ShowMapRunOrderMenu` and `reorderMode` (drag plus `Alt+ArrowUp/ArrowDown`) render
   only inside `ShowMapStructureTable`, which is imported only by `ShowMapTab`, whose
@@ -1014,6 +1038,45 @@ the ambiguity never arises — that is a data-shape change across the picker and
 show payload, not a one-line edit, so it is left open.
 
 
+## Verification walk — 2026-08-29, against deployed staging
+
+Second pass, run against `myk9-platform-myk9show.vercel.app` at `390197483` (the F30
+merge), not localhost — so this exercises the deployed artifact after PRs #1853,
+#1858, #1860 and #1861. No console errors and no 4xx/5xx on any screen visited.
+
+### Confirmed fixed in the browser
+
+| Finding | Evidence |
+| --- | --- |
+| F1 / F16 | Entry Management renders 515 registrations; reads `view_authenticated_entry_results?select=id` (gated view, counted by column not `*`) |
+| F19 | Queue chips carry `aria-pressed` — "Needs review" `true`, the rest `false` — inside a `role=group` labelled "Registration queues". Exceptions sub-tabs correct too |
+| F28 / F34 | Per-class judge selectors read **"Test Judge"**, not a UUID |
+| F27 | Direct nav to `/scoring/classes/:id/entries` renders "Exterior Excellent"; "Class not found" absent |
+| F32 | Volunteers empty state reads "…choose Tools → Volunteers on its Show Desk"; the sidebar claim is gone |
+| F17 | Help link resolves to `help.myk9show.com/guides/secretary-guide` |
+| F14 | Secretary register shows no "entries are closed" blocker |
+| F20 | Capacity cards carry the **JUDGE** label; entry counts pluralize |
+| Task 20 | The needs-review queue lists 3 registrations with "Review registration" as the next action. The old "Blocked by F30" was the orphaned *audit* show, not the feature |
+
+### Confirmed still broken
+
+- **F29a, re-opened.** No Move up anywhere on Show Desk — not on the show, not on a
+  focused class. Traced to root cause; see the F29 section above.
+- **F18.** 50 entries labelled "Paid online", 0 "Paid by check".
+
+### New observations for the guide
+
+- **`/secretary/waitlist` and `/secretary/check-in` both redirect to the dashboard.**
+  They are retired routes; the guide must not document them. The waitlist lives at
+  Entry Management → Exceptions → Waitlist, and check-in sheets are a **Reports**
+  entry ("Check-in Sheet"), not a page of their own.
+- **Judge-day capacity displays over-subscription**: "130 / 125 entries" and
+  "127 / 125". Consistent with the known state — the capacity model displays, and
+  enforcement was never built — but it is what a secretary sees.
+- Show Desk → Tools carries Volunteers, People, Add late entry, Needs closeout and
+  Ringside, so tasks 16–19 are reachable from one place.
+
+
 ## What works well
 
 - **Show creation wizard defaults.** Host club auto-selected when only one is
@@ -1080,8 +1143,8 @@ show payload, not a one-line edit, so it is left open.
 | 4 | Email exhibitors | **Possible, badly signposted** — composer is in the header Message Center panel, not the Messages page (F22), and does not inherit show context (F23) |
 | 13 | Waitlist | **Verified present** — Entry Management → Exceptions → Waitlist shows judge-day capacity and "View Wait List" per judge-day; no waitlisted entries to promote on this show |
 | 14 | Payments / refunds | **Partial** — Pull Management ("reconcile refunds in one place") loads with Pending/Pulled queues; payment channel is mislabelled (F18) and check references are not stored (F16) |
-| 5 | Set run order | **NOT POSSIBLE (F29b, open)** — the reorder implementation is unreachable from every management surface; Show Desk's "Run order and class setup" link lands on Manage Classes, which has no run-order control |
-| 8 | Process a move-up | **WORKS (F29a withdrawn)** — reachable on Show Desk via the cockpit, which owns `ShowMapMoveUpDialog`; my walk verified the flow end to end (armband 103, Interior Novice B -> Interior Advanced, 65 -> 66 entries) but reached it through a change I have since reverted, so the *dialog behaviour* is confirmed and its Show Desk entry point still wants a browser re-check in the verification pass. Targets are same-element, strictly-higher-level, and a reason is required |
+| 5 | Set run order | **FIXED (F29b phase 2a, #1866)** — Show Desk → focus a class → Run order → Armband ↑ / ↓ / Random. Manual drag-and-drop hand-ordering is still not built (phase 2b) |
+| 8 | Process a move-up | **FIXED (F29b phase 1, #1865)** — Show Desk → focus a class → Entries → Move up; browser-verified, 66 controls on a 66-entry class and the dialog opens with the right entry |
 | 15 | Scratches / pulls / no-shows | **Verified present** — Entry Management → Exceptions → Pulls / scratches: "Review pull requests and reconcile refunds in one place", Pending/Pulled queues with search |
 | 16 | Late / walk-in entries | **Verified** — see Task 3; Show Desk → Tools → Late entry completes end to end |
 | 6 | Print check-in sheets | **Verified** — 33-page PDF, US Letter, "Check-in & Running Order", columns Gate Order / Armband / Call Name / Breed / Reg # / Handler / Pull-Move-Note. The Reg # column is blank for every dog (see F21) |
@@ -1093,8 +1156,8 @@ show payload, not a one-line edit, so it is left open.
 | 17 | Volunteer scheduling | **Verified via Show Desk → Tools** — Add Volunteer and per-class assign slots by trial. Direct navigation misdirects (F32) |
 | 18 | Ringside access codes | **Verified** — Admin/Judge/Steward/Exhibitor codes with copy, copy-link, Print slip, Regenerate |
 | 19 | Close out the show | **Verified** — closeout panel reconciles attendance & fees (entries, day-of, at-show collected, waived, pulled/no-show, refund review) and incidents (all/reportable/urgent), e.g. "2 pulled entries have $60.00 marked refunded" |
-| 11 | High in Trial / High in Class | **Gap (F26)** — no report exists; the only implementation is orphaned |
-| 20 | Approve / accept online entries | **Blocked by F30** — every entry write on the audit show is refused because the show has no club, so accept could not be exercised end to end. The refusal is surfaced correctly (F31) |
+| 11 | High in Trial / High in Class | **WORKS** — `Reports → High in Trial`, AKC trials, trial-scoped (F26, fixed 2026-08-30). "High in Class" is not an AKC concept; the equivalent is per-class placements 1–4, already computed |
+| 20 | Approve / accept online entries | **WORKS** — re-verified 2026-08-29; the block was the orphaned audit show, not the feature — every entry write on the audit show is refused because the show has no club, so accept could not be exercised end to end. The refusal is surfaced correctly (F31) |
 
 Tasks 20 (approve/accept online entries) and 13 (waitlist) were added to the canonical
 list at the owner's request on 2026-08-28. Accept/reject is the secretary's

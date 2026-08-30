@@ -31,6 +31,7 @@ const snapshotWithUnmatchedFilter: SecretaryCockpitSnapshot = {
       scoredCount: 0,
       actions: [],
       paperwork: [],
+  entryRows: [],
       attention: [],
     },
   ],

@@ -21,7 +21,7 @@ Parallel to `secretary-golden-path-checklist.md`. Seed data + credentials in
 
 ### Environment
 - [ ] `pnpm dev:show` running at localhost:5173 (use `preview_start` / launch.json `myK9Show`)
-- [ ] Signed in as **e2e-exhibitor@test.myk9.com** (password in `apps/myk9show/.env.local`)
+- [ ] Signed in as **exhibitor@myk9t.com** (password in `apps/myk9show/.env.local`)
 - [ ] App loads with no console errors
 
 **Note:** the dev server points at the shared staging Supabase

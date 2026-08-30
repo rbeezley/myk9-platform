@@ -157,11 +157,18 @@ function buildAccountEnteredShowStub(
 
 /**
  * Merge account-level entered show ids into the local entry list as stubs, so
- * the Shows-page "Entered as exhibitor" tab counts every show the exhibitor has
- * entered — not only the ones whose entries have synced into the local
- * per-show `entryStore`. A show already represented for this user is left as-is
- * (the real entry wins); the merge is purely additive, so it can never drop an
- * existing entry or mis-count another user's shows.
+ * every show the exhibitor has entered is known to the Shows page — not only
+ * the ones whose entries have synced into the local per-show `entryStore`. A
+ * show already represented for this user is left as-is (the real entry wins);
+ * the merge is purely additive, so it can never drop an existing entry or
+ * mis-count another user's shows.
+ *
+ * This was written for the "Entered as exhibitor" TAB, and its docblock used to
+ * say so. That tab is gone (it duplicated My Shows), but this is not dead with
+ * it: the merged entries also feed each show's `entries` RELATIONSHIP, which is
+ * what puts View Entry / Modify on an individual show card. Without the stubs
+ * those actions would disappear from any entered show whose entries have not
+ * synced locally.
  */
 export function mergeAccountEnteredShowStubs(
   entries: SyncableShowEntry[],

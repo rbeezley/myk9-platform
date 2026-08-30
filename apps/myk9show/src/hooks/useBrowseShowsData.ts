@@ -10,6 +10,7 @@ import { logger } from '@/services/LoggingService';
 import type { Show } from '@/types/show-types';
 import type { UserShowContext, ShowRelationship } from '@/types/unified-shows-types';
 import { getUserShowContext, enhanceShowsWithRelationships } from '@/utils/unified-shows-config';
+import { useNavigate } from 'react-router-dom';
 import { getTabQuickActions } from '@/utils/show-actions';
 import { showRelationshipCache } from '@/utils/show-relationships';
 import {
@@ -83,6 +84,7 @@ export function useBrowseShowsData({
   filteredShows,
   selectedTab,
 }: UseBrowseShowsDataProps): UseBrowseShowsDataReturn {
+  const navigate = useNavigate();
   const { userWithRoles: user, loading: authLoading } = useAuthContext();
   const storeShows = useShowStore(s => s.shows);
   const showsLoading = useShowStore(s => s.isLoading);
@@ -271,10 +273,12 @@ export function useBrowseShowsData({
     });
   }, [filteredShows, userContext, user, entries, activeEnteredShowIds]);
 
-  // Get tab quick actions
+  // Get tab quick actions. `navigate` is passed in rather than reached for
+  // globally: these actions used to set window.location.href, a full document
+  // load in an offline-first PWA.
   const tabQuickActions = useMemo(() => {
-    return getTabQuickActions(selectedTab, user);
-  }, [selectedTab, user]);
+    return getTabQuickActions(selectedTab, user, navigate);
+  }, [selectedTab, user, navigate]);
 
   // Calculate quick stats for summary bar
   const quickStats = useMemo((): QuickStats => {

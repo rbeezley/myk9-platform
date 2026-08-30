@@ -168,7 +168,10 @@ describe('buildSecretaryCockpitSnapshot', () => {
       expect.arrayContaining([
         'Enter paper scores',
         'View entries and results',
-        'Run order and class setup',
+        // F29b phase 2a: was 'Run order and class setup'. It pointed at Manage
+        // Classes, which has no run-order control; run order now lives on the
+        // focused-class panel and this link keeps only what it delivers.
+        'Class setup',
         'Class reports',
       ])
     );

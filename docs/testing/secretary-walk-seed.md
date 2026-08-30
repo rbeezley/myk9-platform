@@ -7,7 +7,7 @@ secretary's Accept / Waitlist / Bulk-email flows.
 
 | Role      | Email                       | Password           |
 | --------- | --------------------------- | ------------------ |
-| Exhibitor | e2e-exhibitor@test.myk9.com | see `.env.local`   |
+| Exhibitor | exhibitor@myk9t.com | see `.env.local`   |
 | Secretary | e2e-secretary@test.myk9.com | see `.env.local`   |
 
 ## Seeded Show
@@ -21,7 +21,7 @@ secretary's Accept / Waitlist / Bulk-email flows.
 
 ## Seeded Entries (as of 2026-05-01)
 
-3 entries from e2e-exhibitor@test.myk9.com (Alice Martin), all **Pending**:
+3 entries from exhibitor@myk9t.com (Alice Martin), all **Pending**:
 
 | Dog   | Class              | Trial                   | Status  |
 | ----- | ------------------ | ----------------------- | ------- |

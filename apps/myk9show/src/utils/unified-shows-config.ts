@@ -1,14 +1,12 @@
 import { UserRole, PERMISSIONS, UserWithRoles } from '@/types/auth-types';
 import { Show } from '@/types/show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
-import { logger } from '@/services/LoggingService';
 import {
   ShowTab,
   TabConfiguration,
   UserShowContext,
   ShowWithRelationship,
   ShowRelationship,
-  TabAction,
 } from '@/types/unified-shows-types';
 import {
   getUserEntries,
@@ -18,7 +16,7 @@ import {
 } from './show-relationships';
 import { ShowPermissionValidator } from './permissionValidation';
 import { showDateRangeStatus } from './date-format';
-import { Globe, History, ClipboardList, Settings, Gavel } from 'lucide-react';
+import { Globe, History, Settings, Gavel } from 'lucide-react';
 
 /**
  * Generate tab configuration based on user roles and permissions
@@ -59,7 +57,6 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         },
       ],
       defaultTab: 'all',
-      actions: {},
     };
   }
 
@@ -144,25 +141,25 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
-  // --- My Shows tab (only for exhibitor/handler roles) ---
-  if (accessibleTabs.includes('entries')) {
-    tabs.push({
-      id: 'entries',
-      label: 'Entered as exhibitor',
-      icon: ClipboardList,
-      description: 'Your shows, entries, and dogs',
-      getCount: (shows, entries, userId) => {
-        if (!userId || !entries) return 0;
-        const userEntries = getUserEntries(userId, shows, entries);
-        return userEntries.filter(s => ShowPermissionValidator.canView(user, s)).length;
-      },
-      filterShows: (shows, entries, userId) => {
-        if (!userId || !entries) return [];
-        const userEntries = getUserEntries(userId, shows, entries);
-        return userEntries.filter(s => ShowPermissionValidator.canView(user, s));
-      },
-    });
-  }
+  // The "Entered as exhibitor" tab is deliberately absent.
+  //
+  // It answered "what have I entered?" — which is My Shows, a whole page whose
+  // own sidebar entry sits two rows above "Find Shows" for every exhibitor. Its
+  // description was literally the sidebar's words for that page ("Your shows,
+  // entries, and dogs"), so the two surfaces described themselves identically
+  // and diverged in what they could actually do: My Shows carries the per-dog
+  // bands, results, check-in and payment state; this tab carried a filtered
+  // show list.
+  //
+  // Phase B of docs/plan-ia-exhibitor-surface.md: /shows is for FINDING shows;
+  // "what I entered" reaches My Shows by link rather than being re-answered
+  // here. The link already exists in the sidebar, so removing the tab needs no
+  // replacement affordance — see the exhibitor sidebar contract in
+  // unifiedSidebarConfig.test.ts.
+  //
+  // NOTE: the per-show `entries` RELATIONSHIP is untouched. It still drives the
+  // View Entry / Modify actions on individual show cards, and
+  // `mergeAccountEnteredShowStubs` still feeds it.
 
   // --- Judge assignments tab ---
   if (userRoles.includes(UserRole.JUDGE)) {
@@ -190,112 +187,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
   return {
     tabs,
     defaultTab,
-    actions: generateTabActions(userRoles),
   };
-}
-
-/**
- * Generate available actions for each tab based on user roles
- */
-function generateTabActions(userRoles: UserRole[]) {
-  const actions: Record<string, TabAction[]> = {
-    all: [
-      {
-        id: 'register',
-        label: 'Register',
-        variant: 'default',
-        onClick: (showId: string) => logger.debug('Register for show action', 'shows', { showId }),
-      },
-    ],
-    past: [
-      {
-        id: 'view_results',
-        label: 'View Results',
-        variant: 'outline',
-        onClick: (showId: string) =>
-          logger.debug('View results for show action', 'shows', { showId }),
-      },
-    ],
-    entries: [
-      {
-        id: 'view_entry',
-        label: 'View Entry',
-        variant: 'outline',
-        onClick: (showId: string) =>
-          logger.debug('View entry for show action', 'shows', { showId }),
-      },
-      {
-        id: 'modify_entry',
-        label: 'Modify',
-        variant: 'outline',
-        onClick: (showId: string) =>
-          logger.debug('Modify entry for show action', 'shows', { showId }),
-      },
-    ],
-  };
-
-  // Add role-specific actions
-  if (
-    userRoles.includes(UserRole.SECRETARY) ||
-    userRoles.includes(UserRole.CLUB_ADMIN) ||
-    userRoles.includes(UserRole.SITE_ADMIN)
-  ) {
-    actions.all.unshift({
-      id: 'create_show',
-      label: 'New Show',
-      variant: 'default',
-      requiredPermissions: [PERMISSIONS.SHOW_CREATE],
-      onClick: () => logger.debug('Create new show action', 'shows'),
-    });
-
-    actions.managing = [
-      {
-        id: 'edit_show',
-        label: 'Edit Show',
-        variant: 'outline',
-        requiredPermissions: [PERMISSIONS.SHOW_UPDATE],
-        onClick: (showId: string) => logger.debug('Edit show action', 'shows', { showId }),
-      },
-      {
-        id: 'manage_entries',
-        label: 'Manage Entries',
-        variant: 'outline',
-        requiredPermissions: [PERMISSIONS.SHOW_MANAGE_ENTRIES],
-        onClick: (showId: string) =>
-          logger.debug('Manage entries for show action', 'shows', { showId }),
-      },
-      {
-        id: 'view_reports',
-        label: 'Reports',
-        variant: 'ghost',
-        onClick: (showId: string) =>
-          logger.debug('View reports for show action', 'shows', { showId }),
-      },
-    ];
-  }
-
-  if (userRoles.includes(UserRole.JUDGE)) {
-    actions.assignments = [
-      {
-        id: 'view_assignment',
-        label: 'View Assignment',
-        variant: 'outline',
-        requiredPermissions: [PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS],
-        onClick: (showId: string) =>
-          logger.debug('View assignment for show action', 'shows', { showId }),
-      },
-      {
-        id: 'enter_results',
-        label: 'Enter Results',
-        variant: 'default',
-        requiredPermissions: [PERMISSIONS.JUDGE_ENTER_RESULTS],
-        onClick: (showId: string) =>
-          logger.debug('Enter results for show action', 'shows', { showId }),
-      },
-    ];
-  }
-
-  return actions;
 }
 
 /**

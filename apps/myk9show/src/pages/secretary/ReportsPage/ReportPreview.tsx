@@ -447,7 +447,9 @@ export function ReportPreview({
           })()
         : pages.some(p => p.entries.length > 0);
 
-  if (!isLoading && !hasEntries) {
+  // `rendersWithoutEntries` reports are about the trial's classes, not its entries, so
+  // the generic empty state would suppress the very explanation they exist to give.
+  if (!isLoading && !hasEntries && !report?.rendersWithoutEntries) {
     return (
       <div
         role="status"

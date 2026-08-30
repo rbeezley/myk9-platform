@@ -54,6 +54,7 @@ function snapshotWithCounts(
         attention: [],
         actions: [],
         paperwork: [],
+  entryRows: [],
       },
     ],
   };

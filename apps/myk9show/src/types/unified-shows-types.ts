@@ -28,24 +28,11 @@ export type ShowRelationship =
   | 'assignments'; // Shows user is judging
 
 /**
- * Tab-specific actions available to users
- */
-export interface TabAction {
-  id: string;
-  label: string;
-  icon?: string;
-  variant?: 'default' | 'outline' | 'ghost' | 'destructive';
-  requiredPermissions?: Permission[];
-  onClick: (showId: string) => void;
-}
-
-/**
  * Configuration for a complete tab system
  */
 export interface TabConfiguration {
   tabs: ShowTab[];
   defaultTab: string;
-  actions: Record<string, TabAction[]>; // Actions by tab ID
 }
 
 /**

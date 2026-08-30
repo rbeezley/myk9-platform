@@ -1,8 +1,14 @@
 import { getTrialTimezone } from '@/features/registries';
 
-import { getAttentionActions, getRecommendedActionsForNode } from '../showMapActions';
+import {
+  getAttentionActions,
+  getDirectActionsForNode,
+  getRecommendedActionsForNode,
+} from '../showMapActions';
+import { getShowMapNodeId } from '../showMapTree';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
+import type { SecretaryCockpitEntryRow } from './secretaryCockpitTypes';
 import type { ShowMapAction } from '../showMapActions';
 import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
 import {
@@ -96,6 +102,50 @@ function actionFor(
   };
 }
 
+/**
+ * Operational actions that exist in the catalog but have no reachable home (F29b).
+ *
+ * Only these are surfaced on the cockpit's entry rows. check-in and edit-score live on
+ * SecretaryRunSheet, scratch under Entry Management -> Exceptions, and message-handler
+ * in the header Messages panel -- adding them here would duplicate working surfaces,
+ * which is what the "consolidate, don't duplicate" rule exists to prevent.
+ */
+const STRANDED_ENTRY_ACTION_IDS: ReadonlySet<string> = new Set(['move-up-entry']);
+
+function entryRowsForClass(
+  classId: string,
+  tree: ShowMapTree
+): SecretaryCockpitEntryRow[] {
+  const classNodeId = getShowMapNodeId('class', classId);
+  const childIds = tree.childIdsByParentId[classNodeId] ?? [];
+  const rows: SecretaryCockpitEntryRow[] = [];
+
+  for (const childId of childIds) {
+    const node = tree.nodesById[childId];
+    if (!node || node.type !== 'entry') continue;
+
+    const actions = getDirectActionsForNode(node, { tree })
+      .filter(action => STRANDED_ENTRY_ACTION_IDS.has(action.id))
+      .map(action => ({
+        id: action.id,
+        // ShowDeskPanel.runCommand matches `${candidate.id}:${candidate.nodeId}`.
+        commandId: `${action.id}:${action.nodeId}`,
+        label: action.label,
+        why: action.why,
+      }));
+    if (actions.length === 0) continue;
+
+    rows.push({
+      nodeId: node.id,
+      label: node.label,
+      ...(node.subtitle !== undefined && { subtitle: node.subtitle }),
+      actions,
+    });
+  }
+
+  return rows;
+}
+
 function classWorkActions(input: {
   showId: string;
   trialId: string;
@@ -122,8 +172,12 @@ function classWorkActions(input: {
       group: 'class-work',
     },
     {
-      id: `run-order:${input.classId}`,
-      label: 'Run order and class setup',
+      // F29b phase 2a: this used to be labelled "Run order and class setup" and pointed
+      // at Manage Classes, which has no run-order control -- the last hop of the dead
+      // end. Run order now lives on this panel, so the link keeps only the half it
+      // actually delivers.
+      id: `class-setup:${input.classId}`,
+      label: 'Class setup',
       destination: { kind: 'href', href: getCockpitClassManagementHref(input) },
       group: 'class-work',
     },
@@ -244,6 +298,7 @@ export function buildSecretaryCockpitSnapshot({
           }),
         ],
         paperwork: [...(paperworkByClassId?.get(classItem.id) ?? [])],
+        entryRows: entryRowsForClass(classItem.id, tree),
       };
     }),
     administrativeAttention: administrativeAttention(pendingSignals, returnTo),

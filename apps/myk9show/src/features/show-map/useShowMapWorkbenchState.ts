@@ -52,6 +52,7 @@ export function useShowMapWorkbenchState({
   scopeNow,
   initialDayScope = 'all',
   initialCompletionScope = 'active',
+  entryPreviewLimit,
 }: UseShowMapWorkbenchStateInput) {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<ShowMapFilter>('all');
@@ -61,9 +62,18 @@ export function useShowMapWorkbenchState({
   // INTENT: Guidance dismissals are session-local noise control, not a permanent action mute.
   const [dismissedGuidanceKeys, setDismissedGuidanceKeys] = useState<Set<string>>(() => new Set());
 
+  // `entryPreviewLimit` was accepted by the input type and then dropped here, so a
+  // caller asking for a fuller tree silently got the 25-entry default (F29b phase 1).
   const tree = useMemo<ShowMapTree>(
-    () => buildShowMapTree({ show, trials, classes, entries }),
-    [show, trials, classes, entries]
+    () =>
+      buildShowMapTree({
+        show,
+        trials,
+        classes,
+        entries,
+        ...(entryPreviewLimit !== undefined && { entryPreviewLimit }),
+      }),
+    [show, trials, classes, entries, entryPreviewLimit]
   );
 
   const scope = useMemo<ShowMapScopeState>(

@@ -63,7 +63,7 @@ test.describe('My Shows reflows under browser zoom', () => {
       // nothing. A bounded prefix keeps the run fast — the seeded exhibitor has
       // dozens of entries.
       const CARDS_TO_EXPAND = 4;
-      const detailToggles = page.getByRole('button', { name: /^Show details$/ });
+      const detailToggles = page.getByRole('button', { name: /^Entered Classes \(\d+\)$/ });
       const toggleCount = Math.min(await detailToggles.count(), CARDS_TO_EXPAND);
       for (let i = 0; i < toggleCount; i += 1) {
         const toggle = detailToggles.nth(i);

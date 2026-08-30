@@ -70,7 +70,7 @@ that may be a deliberate choice.
 | # | Finding | The question |
 | --- | --- | --- |
 | 2.1 | **F30** (P1) | **DECIDED 2026-08-29 — see Phase 2A.** |
-| 2.2 | **F26** (P1) | **DECIDED 2026-08-29 — rules read, see Phase 2B.** |
+| 2.2 | **F26** (P1) | **DONE 2026-08-30 — shipped; see Phase 2B. HCD (§9) still blocked on the rulebook.** |
 | 2.3 | F3 | Escape anywhere in the creation wizard raises "Unsaved Changes — leave the wizard?". Is that intended, or should Escape only dismiss the focused popover? |
 | 2.4 | F8 | The Show Chairman picker lists every person on the platform. Should it be club-scoped, or is cross-club chairman selection legitimate? |
 | 2.5 | F22 / F23 | `/secretary/messages` is history-only and composing lives in a header panel that does not inherit the show you opened it from. Should Messages gain a composer, or should the panel be the only entry point and Messages link to it? |
@@ -110,6 +110,15 @@ correct direction, but it is a deliberate cost, not an oversight.
 ---
 
 ## Phase 2B — F26: High in Trial
+
+> **DONE 2026-08-30.** Shipped as `lib/reports/highInTrial.ts` + the `high-in-trial`
+> report (AKC, trial-scoped). `AwardsProcessor` deleted. 20 rules tests and 9 render
+> tests, all mutation-checked; the full suite passes shuffled. Browser-verified on two
+> trials — one that offers two elements at a level, and one where every level offers a
+> single element. **HCD (§9) remains unimplemented and is the one open piece**: our
+> rulebook copy truncates mid-sentence at the page break and no AKC Scent Work
+> regulations PDF is in the repo, so the tie-break wording cannot be confirmed. The
+> report and the secretary guide both say so.
 
 **Rules read** from `docs/rulebooks/akc-scent-work-regulations.txt`, Chapter 6. This is
 a club award, not an AKC-recorded one, but it is computed from qualifying data and must
@@ -156,7 +165,7 @@ Implementation notes:
 | # | Item | Why |
 | --- | --- | --- |
 | 3.1 | Backfill decision for F33 | Entries written while the server priced day-of at $0 still carry `entry_fee = 0`. A backfill must decide which tier applied on the day each was taken. |
-| 3.2 | F16 UI surfacing | `payment_reference` / `payment_received_on` / `payment_notes` are stored and readable but not shown in Entry Management. |
+| 3.2 | F16 UI surfacing | **Narrower than filed.** The REGISTRATION's payment reference is already shown on the enrollment card in Entry Management (`EnrollmentCard.tsx:242`) and on the receipt. What is unsurfaced is the ENTRY-level secretary bookkeeping added by `20260828200000` — `payment_received_on` and `payment_notes`. Re-scope before doing anything. |
 | 3.3 | Regenerate `database.types.ts` | Stale for the columns added by `20260828200000`; the replication mapper reads them through a defensive accessor meanwhile. |
 | 3.4 | Do `moved` entries count in financial totals? | Move-up leaves the paid original as `entry_status = 'moved'`. If the Financial Report counts only `confirmed`, that money vanishes from show takings. Unverified. |
 | 3.5 | Staging cleanup | Four audit shows, and a move-up-created entry (`7ae6ac8b-…`) whose id falls outside the seed's fixture ranges, so a reseed will not remove it. |
@@ -164,6 +173,12 @@ Implementation notes:
 ---
 
 ## Phase 4 — The deliverable
+
+> **DONE 2026-08-30.** `docs/user-guides/secretary-guide.md` rewritten as 20 task cards,
+> written from the verification walk rather than from the audit\'s claims. Two gaps are
+> marked in the guide itself (High in Trial, manual run-order placement) plus three
+> rough edges. Screenshots deliberately dropped and flagged for recapture: the old ones
+> predate the workbench collapse.
 
 Rewrite [`user-guides/secretary-guide.md`](user-guides/secretary-guide.md) as one short
 card per task — *When you do this / Where / Steps / Gotchas* — from the walk's verified

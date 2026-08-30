@@ -278,7 +278,7 @@ const buildSelfCheckinEntryRow = () => ({
 const submitSelfCheckin = async (user: ReturnType<typeof userEvent.setup>) => {
   await screen.findByText('Spring Trial');
   // Per-class check-in controls live behind the collapsed details panel.
-  await user.click(screen.getByRole('button', { name: /show details/i }));
+  await user.click(screen.getByRole('button', { name: /entered classes/i }));
   await user.click(screen.getByRole('button', { name: /update check-in for koda in novice a/i }));
   const statusOptions = await screen.findAllByRole('radio', { name: /checked in/i });
   const checkedInOption = statusOptions.find(
@@ -318,7 +318,7 @@ describe('MyEntriesPage UI Improvements', () => {
       renderWithProviders(<MyEntriesPage />);
 
       // Wait for the full layout (tabs only render once entries exist)
-      await screen.findByRole('tablist');
+      await screen.findByRole('radiogroup', { name: /filter by time/i });
 
       // Verify no fake trend percentages exist
       expect(screen.queryByText('+5%')).not.toBeInTheDocument();
@@ -331,12 +331,14 @@ describe('MyEntriesPage UI Improvements', () => {
       seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
+      await screen.findByRole('radiogroup', { name: /filter by time/i });
 
       // CompactStatsRow is mocked to null in this file; its label assertions
-      // live in CompactStatsRow.test.tsx. Verify the page renders tabs and
-      // no fake trend strings leak in from anywhere else on the page.
-      expect(screen.getByRole('tablist')).toBeInTheDocument();
+      // live in CompactStatsRow.test.tsx. Verify the page renders its filters
+      // and no fake trend strings leak in from anywhere else on the page.
+      expect(
+        screen.getByRole('radiogroup', { name: /filter by entry status/i })
+      ).toBeInTheDocument();
       expect(screen.queryByText('+5%')).not.toBeInTheDocument();
       expect(screen.queryByText('+12%')).not.toBeInTheDocument();
     });
@@ -357,24 +359,32 @@ describe('MyEntriesPage UI Improvements', () => {
       seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
+      await screen.findByRole('radiogroup', { name: /filter by time/i });
 
       // One axis, and a real partition: every entry is in exactly one of
       // Upcoming or Completed, and they sum to All. Status used to sit here as
       // three more sibling tabs, which double-counted every entry and made
       // "accepted AND still ahead of me" unexpressable — see Phase A of
       // docs/plan-ia-exhibitor-surface.md.
-      expect(screen.getByRole('tab', { name: /All/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Upcoming/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Completed/i })).toBeInTheDocument();
-      expect(screen.getAllByRole('tab')).toHaveLength(3);
+      //
+      // The axis is now a radiogroup rather than a tablist: it narrows the same
+      // list of the same cards, so it is a filter, and tab semantics would
+      // promise assistive tech a different VIEW. The partition it expresses is
+      // unchanged and still pinned in useMyEntriesFilters.test.ts.
+      const timeAxis = screen.getByRole('radiogroup', { name: /filter by time/i });
+      for (const label of [/All/i, /Upcoming/i, /Completed/i]) {
+        expect(within(timeAxis).getByRole('radio', { name: label })).toBeInTheDocument();
+      }
+      expect(within(timeAxis).getAllByRole('radio')).toHaveLength(3);
+      // Nothing on this page claims tab semantics any more.
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     });
 
     it('offers entry status as a composable second axis, not more tabs', async () => {
       seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
+      await screen.findByRole('radiogroup', { name: /filter by time/i });
 
       // radiogroup, not tablist: these chips NARROW whichever tab is active.
       // Tab semantics would tell assistive tech the selection is replaced.
@@ -383,20 +393,24 @@ describe('MyEntriesPage UI Improvements', () => {
         expect(within(statusAxis).getByRole('radio', { name: label })).toBeInTheDocument();
       }
 
-      // The retired ids must not come back as tabs on the other axis.
-      expect(screen.queryByRole('tab', { name: /Pending/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('tab', { name: /Accepted/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('tab', { name: /Waitlist/i })).not.toBeInTheDocument();
+      // The retired ids must not come back on the time axis.
+      const timeAxis = screen.getByRole('radiogroup', { name: /filter by time/i });
+      for (const label of [/Pending/i, /Accepted/i, /Waitlist/i]) {
+        expect(within(timeAxis).queryByRole('radio', { name: label })).not.toBeInTheDocument();
+      }
     });
 
-    it('should have scrollable tab container for mobile', async () => {
+    it('wraps the filters on narrow screens instead of scrolling them sideways', async () => {
       seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
-
-      const tabList = screen.getByRole('tablist');
-      expect(tabList).toHaveClass('overflow-x-auto');
+      // The tab strip used to scroll horizontally on phones, which hides
+      // options with no indication they exist. Chips wrap instead.
+      for (const name of [/filter by time/i, /filter by entry status/i]) {
+        const axis = await screen.findByRole('radiogroup', { name });
+        expect(axis).toHaveClass('flex-wrap');
+        expect(axis).not.toHaveClass('overflow-x-auto');
+      }
     });
   });
 
@@ -405,7 +419,7 @@ describe('MyEntriesPage UI Improvements', () => {
       seedLoadedEntry();
       renderWithProviders(<MyEntriesPage />);
 
-      await screen.findByRole('tablist');
+      await screen.findByRole('radiogroup', { name: /filter by time/i });
 
       // The "All entries" label anchors the entries section wrapper.
       const entriesWrapper = screen.getByText('All entries').closest('div');
@@ -424,12 +438,18 @@ describe('MyEntriesPage UI Improvements', () => {
 
   describe('Zero State (no entries)', () => {
     it('renders FirstRunZeroState instead of the stat/tab stack', async () => {
+      // A RESOLVED identity is what makes "you have no entries" a claim the
+      // page may make. Without it this test passed against the old bug, where
+      // an unresolved person id also produced the welcome screen.
+      seedAuthWithPerson();
       renderWithProviders(<MyEntriesPage />);
 
       // The welcoming zero-state replaces the whole stat/dog/tab stack.
       expect(await screen.findByText(/Welcome!/i)).toBeInTheDocument();
-      // No tabs and no zeroed stat noise for a brand-new exhibitor.
-      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      // No filters and no zeroed stat noise for a brand-new exhibitor.
+      expect(
+        screen.queryByRole('radiogroup', { name: /filter by time/i })
+      ).not.toBeInTheDocument();
     });
 
     it('shows a syncing skeleton instead of the first-run welcome while entries are still syncing', async () => {
@@ -450,6 +470,7 @@ describe('MyEntriesPage UI Improvements', () => {
     });
 
     it('offers a Browse Shows link pointing at /shows', async () => {
+      seedAuthWithPerson();
       renderWithProviders(<MyEntriesPage />);
 
       const browse = await screen.findByRole('link', { name: /browse shows/i });
@@ -457,8 +478,10 @@ describe('MyEntriesPage UI Improvements', () => {
     });
 
     it('leads with "Add Your First Dog" when the exhibitor has no dogs', async () => {
-      // Default auth has no databaseUserId → ownerId is empty → dogs are
-      // definitively none, so the first-dog CTA is shown (no loading flash).
+      // Identity resolved, dog query settled empty → dogs are definitively
+      // none, so the first-dog CTA is shown (no loading flash).
+      seedAuthWithPerson();
+      mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
       renderWithProviders(<MyEntriesPage />);
 
       expect(
@@ -515,9 +538,15 @@ describe('MyEntriesPage UI Improvements', () => {
     it('does not load entries when no person id source is available', async () => {
       renderWithProviders(<MyEntriesPage />);
 
-      // No person id → no entries → zero-state (no tablist to await).
-      await screen.findByText(/Welcome!/i);
-
+      // No person id means we do not know WHOSE entries to load, so the page
+      // must claim nothing. It previously rendered "Welcome!" here — telling a
+      // cold-offline-booted exhibitor they had never entered a show while
+      // their entries sat in IndexedDB.
+      expect(await screen.findByText(/Getting your shows ready/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /add your first dog/i })
+      ).not.toBeInTheDocument();
       expect(getUserEntries).not.toHaveBeenCalled();
     });
 
@@ -691,7 +720,7 @@ describe('MyEntriesPage UI Improvements', () => {
       renderWithProviders(<MyEntriesPage />, '/exhibitor/entries');
 
       // Result buttons render inside the collapsed details panel.
-      await user.click(await screen.findByRole('button', { name: /show details/i }));
+      await user.click(await screen.findByRole('button', { name: /entered classes/i }));
       await user.click(await screen.findByRole('button', { name: /New result/i }));
 
       expect(await screen.findByRole('dialog', { name: /New result/i })).toBeInTheDocument();
@@ -786,7 +815,7 @@ describe('Current Status Integration', () => {
     seedLoadedEntry();
     const { container } = renderWithProviders(<MyEntriesPage />);
 
-    await screen.findByRole('tablist');
+    await screen.findByRole('radiogroup', { name: /filter by time/i });
 
     // Should NOT have the old progress elements
     expect(screen.queryByText('Entry Progress')).not.toBeInTheDocument();

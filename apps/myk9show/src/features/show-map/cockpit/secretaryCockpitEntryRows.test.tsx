@@ -54,17 +54,21 @@ const CLASSES = [
   },
 ] as unknown as Parameters<typeof buildShowMapTree>[0]['classes'];
 
-const ENTRIES = [
-  {
-    id: 'entry-1',
-    class_id: 'class-1',
-    show_id: 'show-1',
-    armband: '101',
-    entry_status: 'confirmed',
-    check_in_status: 'checked-in',
-    dog: { id: 'dog-1', call_name: 'Ranger', name: 'Ranger' },
-  },
-] as unknown as Parameters<typeof buildShowMapTree>[0]['entries'];
+// THIRTY entries on purpose. buildShowMapTree caps a class at
+// DEFAULT_ENTRY_PREVIEW_LIMIT = 25 and emits a synthetic "N more entries" node, so an
+// entry past the 25th has no tree node -- no action, and no commandId for runCommand
+// to resolve. Show Desk therefore builds its tree uncapped. A fixture of one entry
+// would pass whether or not that holds.
+const ENTRY_COUNT = 30;
+const ENTRIES = Array.from({ length: ENTRY_COUNT }, (_, i) => ({
+  id: `entry-${i + 1}`,
+  class_id: 'class-1',
+  show_id: 'show-1',
+  armband: String(101 + i),
+  entry_status: 'confirmed',
+  check_in_status: 'checked-in',
+  dog: { id: `dog-${i + 1}`, call_name: `Dog ${i + 1}`, name: `Dog ${i + 1}` },
+})) as unknown as Parameters<typeof buildShowMapTree>[0]['entries'];
 
 function buildTree() {
   return buildShowMapTree({
@@ -72,6 +76,8 @@ function buildTree() {
     trials: TRIALS,
     classes: CLASSES,
     entries: ENTRIES,
+    // Matches ShowDeskPanel: the cockpit reads the tree for actions, not to render it.
+    entryPreviewLimit: Number.POSITIVE_INFINITY,
   });
 }
 
@@ -150,8 +156,10 @@ describe('cockpit entry rows carry the stranded actions', () => {
       />
     );
 
-    const button = screen.getByRole('button', { name: /Move up/i });
-    await userEvent.click(button);
+    // One button per entry; the first row is the one expectedCommandId came from.
+    const buttons = screen.getAllByRole('button', { name: /Move up/i });
+    expect(buttons).toHaveLength(ENTRY_COUNT);
+    await userEvent.click(buttons[0] as HTMLElement);
     expect(onCommand).toHaveBeenCalledWith(expectedCommandId);
 
     unmount();
@@ -168,6 +176,24 @@ describe('cockpit entry rows carry the stranded actions', () => {
         onCommand={vi.fn()}
       />
     );
-    expect(screen.queryByRole('button', { name: /Move up/i })).toBeNull();
+    expect(screen.queryAllByRole('button', { name: /Move up/i })).toHaveLength(0);
+  });
+
+  it('offers move-up on EVERY entry, not just the first 25', () => {
+    const { tree, snapshot } = buildSnapshot();
+    const cls = snapshot.classes.find(c => c.id === 'class-1');
+
+    expect(cls?.entryRows).toHaveLength(ENTRY_COUNT);
+
+    // The entry past the default cap is the one that proves it: with the 25-entry
+    // preview it has no tree node at all, so its commandId cannot resolve.
+    const last = cls?.entryRows[ENTRY_COUNT - 1];
+    const commandId = last?.actions.find(a => a.id === 'move-up-entry')?.commandId;
+    expect(commandId).toBeTruthy();
+
+    const resolved = getRankedActions('root', { tree }).find(
+      candidate => `${candidate.id}:${candidate.nodeId}` === commandId
+    );
+    expect(resolved).toBeDefined();
   });
 });

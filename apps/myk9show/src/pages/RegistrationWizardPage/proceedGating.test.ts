@@ -17,6 +17,7 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     capacityReady: true,
     blockedClassCount: 0,
     capacityUnavailable: false,
+    agreementUnavailable: false,
     ...overrides,
   };
 }
@@ -140,6 +141,44 @@ describe('proceedBlockedReason', () => {
       expect(
         proceedBlockedReason(ctx({ stepId: 'payment', totalFees: 0, hasPaymentMethod: false }))
       ).toBeNull();
+    });
+
+    // The agreement is a legal gate and is never waived. But when it cannot be
+    // loaded the checkbox is not rendered, so demanding that the user tick it
+    // names a control that is not on screen — a dead end with no exit.
+    it('names an unloadable agreement instead of demanding a checkbox that is not rendered', () => {
+      const reason = proceedBlockedReason(
+        ctx({ stepId: 'payment', needsAgreement: true, agreementUnavailable: true })
+      );
+      expect(reason).toMatch(/could not load the entry agreement/i);
+      expect(reason).toMatch(/try again/i);
+      expect(reason).not.toMatch(/please review and agree/i);
+    });
+
+    it('still blocks when the agreement loaded but is unticked', () => {
+      expect(
+        proceedBlockedReason(
+          ctx({
+            stepId: 'payment',
+            needsAgreement: true,
+            agreementUnavailable: false,
+            agreedToEntryAgreement: false,
+          })
+        )
+      ).toMatch(/please review and agree/i);
+    });
+
+    it('never lets an unloadable agreement through unagreed', () => {
+      expect(
+        proceedBlockedReason(
+          ctx({
+            stepId: 'payment',
+            needsAgreement: true,
+            agreementUnavailable: true,
+            agreedToEntryAgreement: false,
+          })
+        )
+      ).not.toBeNull();
     });
 
     it('blocks until the entry agreement is accepted', () => {

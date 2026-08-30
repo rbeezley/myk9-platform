@@ -98,4 +98,26 @@ describe('EntryAgreementSection', () => {
     await user.click(screen.getByRole('button', { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
   });
+
+  // Offline the query PAUSES rather than failing: isLoading false, isError
+  // false, data undefined. This used to render nothing, which removed the
+  // checkbox while the Next button still blocked demanding it — the exhibitor
+  // was stranded with a reason pointing at a control that was not on screen.
+  it('explains and offers a retry when the agreement resolves to nothing', async () => {
+    const refetch = vi.fn();
+    mockHook.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch,
+    });
+    const user = userEvent.setup();
+    render(<EntryAgreementSection {...baseProps} />);
+
+    expect(screen.getByText(/could not load the .* entry agreement/i)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+    expect(refetch).toHaveBeenCalled();
+  });
 });

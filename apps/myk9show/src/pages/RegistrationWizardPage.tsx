@@ -14,6 +14,7 @@ import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
 import { helpUrl } from '@/lib/help';
+import { cn } from '@/lib/utils';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import type { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useShowStore } from '@/store/showStore';
@@ -27,6 +28,9 @@ import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/Wor
 import { RegistrationWizardShell } from '@/components/shows/RegistrationWorkflow/RegistrationWizardShell';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+
+/** Stable id so the Next button can point at the blocked-reason text. */
+const PROCEED_BLOCKED_ID = 'registration-wizard-blocked-reason';
 
 function RegistrationWizardContent() {
   const wiz = useRegistrationWizard();
@@ -88,6 +92,8 @@ function RegistrationWizardContent() {
     handleBack,
     handleExit,
   } = wiz;
+
+  const showBlockedReason = !!proceedBlocked && !isSubmitting;
 
   return (
     <RegistrationErrorBoundary>
@@ -156,11 +162,13 @@ function RegistrationWizardContent() {
         footer={
           entryCloseAvailability.canEnter ? (
             <>
-              {proceedBlocked && !isSubmitting && (
-                <p role="status" className="mb-3 text-sm text-muted-foreground">
-                  {proceedBlocked}
-                </p>
-              )}
+              <p
+                id={PROCEED_BLOCKED_ID}
+                role="status"
+                className={cn('mb-3 text-sm text-muted-foreground', !showBlockedReason && 'sr-only')}
+              >
+                {showBlockedReason ? proceedBlocked : ''}
+              </p>
               {isLastStep ? (
                 <ReceiptExits
                   isExhibitor={currentWorkflowMode === 'exhibitor'}
@@ -190,6 +198,7 @@ function RegistrationWizardContent() {
                   }
                   backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
                   isLoading={isSubmitting}
+                  {...(showBlockedReason ? { blockedReasonId: PROCEED_BLOCKED_ID } : {})}
                 />
               )}
             </>

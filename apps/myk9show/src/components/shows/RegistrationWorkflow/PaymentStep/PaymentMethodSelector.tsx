@@ -42,8 +42,13 @@ const PaymentOptionCard: React.FC<PaymentOptionCardProps> = ({
   description,
   onSelect,
 }) => (
+  // role="radio" + aria-checked, not a bare button: these sit inside a
+  // RadioGroup that had no radio children, so a screen-reader user was told
+  // "button" with no indication of which payment method was selected.
   <button
     type="button"
+    role="radio"
+    aria-checked={selected}
     onClick={() => onSelect(value)}
     className={cn(
       'relative w-full rounded-lg border-2 p-4 text-left transition-all duration-150',
@@ -69,7 +74,7 @@ const PaymentOptionCard: React.FC<PaymentOptionCardProps> = ({
       <div
         className={cn(
           'flex h-5 w-5 shrink-0 items-center justify-center transition-colors',
-          selected ? 'text-primary' : 'text-muted-foreground/30'
+          selected ? 'text-primary' : 'text-muted-foreground'
         )}
       >
         {selected ? (

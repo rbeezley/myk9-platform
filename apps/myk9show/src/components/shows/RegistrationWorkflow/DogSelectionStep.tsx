@@ -94,7 +94,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">No eligible dogs found.</p>
-        <p className="text-sm text-muted-foreground/80 mt-2">
+        <p className="text-sm text-muted-foreground mt-2">
           Make sure your dogs are active and have up-to-date information.
         </p>
       </div>
@@ -129,6 +129,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                 <CardContent className="p-0">
                   <div className="flex items-start space-x-3">
                     <Checkbox
+                      id={`dog-${dog.id}`}
                       checked={isSelected}
                       disabled={!eligible}
                       onCheckedChange={() => handleDogToggle(dog.id)}
@@ -139,7 +140,10 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label className="text-base font-medium cursor-pointer">
+                          <Label
+                            htmlFor={`dog-${dog.id}`}
+                            className="text-base font-medium cursor-pointer"
+                          >
                             {getDogDisplayName(dog)}
                             {getDogRegisteredName(dog) && ` "${getDogRegisteredName(dog)}"`}
                           </Label>
@@ -187,7 +191,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                           <Button
                             type="button"
                             variant="outline"
-                            size="sm"
+                            size="touch"
                             onClick={event => {
                               event.stopPropagation();
                               openRegistrationEditor(dog.id);

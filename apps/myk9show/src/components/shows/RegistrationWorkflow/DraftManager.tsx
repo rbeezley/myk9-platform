@@ -113,7 +113,7 @@ export function DraftManager({
       {/* Save Draft Button */}
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="sm" disabled={!hasUnsavedChanges} className="text-xs">
+          <Button variant="ghost" size="touch" disabled={!hasUnsavedChanges} className="text-xs">
             <Save className="h-3 w-3 mr-1" />
             Save Draft
           </Button>
@@ -150,7 +150,7 @@ export function DraftManager({
         <DialogTrigger asChild>
           <Button
             variant="ghost"
-            size="sm"
+            size="touch"
             disabled={availableDrafts.length === 0}
             className="text-xs"
           >
@@ -203,7 +203,7 @@ export function DraftManager({
                           </div>
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="touch"
                             className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                             aria-label={`Delete draft ${draft.title}`}
                             onClick={e => {
@@ -224,7 +224,7 @@ export function DraftManager({
                 <div className="flex justify-between items-center">
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="touch"
                     onClick={clearAllDrafts}
                     className="text-destructive hover:text-destructive"
                   >

@@ -52,6 +52,7 @@ import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
 import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
+import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
 import { getRegistrationCapacityState } from './registrationCapacity';
 
 // Exhibitor self-service defaults to online card payment; on-behalf modes
@@ -348,6 +349,19 @@ export function useRegistrationWizardState() {
     !capacityLoading &&
     (!!capacityError || registrationCapacity.unknownClassIds.size > 0);
 
+  // The entry agreement is a legal gate, so it is never waived — but whether it
+  // can be SHOWN is a separate question from whether it is REQUIRED. The
+  // requirement comes from the show's organization; the checkbox comes from a
+  // query that can pause offline (networkMode 'online': isLoading false, no
+  // error, no data) or find no row. When those diverge, Next used to block
+  // demanding a control that was not rendered — a dead end with no exit.
+  // Same query key as EntryAgreementSection, so this is a cache read.
+  const { data: entryAgreement, isLoading: agreementLoading } = useOrganizationAgreement(
+    currentShow?.organization ?? ''
+  );
+  const agreementRequired = !!currentShow?.organization;
+  const agreementUnavailable = agreementRequired && !agreementLoading && !entryAgreement;
+
   const liveTotalFees = useMemo(
     () =>
       calculateTotalFees(
@@ -437,7 +451,8 @@ export function useRegistrationWizardState() {
       .length,
     totalFees: liveTotalFees,
     hasPaymentMethod: !!registrationData.paymentMethod,
-    needsAgreement: !!currentShow?.organization,
+    needsAgreement: agreementRequired,
+    agreementUnavailable,
     agreedToEntryAgreement,
     capacityReady,
     blockedClassCount: registrationCapacity.blockedClassIds.size,
@@ -514,6 +529,7 @@ export function useRegistrationWizardState() {
     isSubmitting,
     setIsSubmitting,
     agreedToEntryAgreement,
+    agreementUnavailable,
     setAgreedToEntryAgreement,
     submittingRef,
     mountedRef,

@@ -13,6 +13,14 @@ interface WizardNavigationProps {
   onSaveDraft?: (() => void) | undefined;
   isLoading?: boolean | undefined;
   nextLabel?: string | undefined;
+  /**
+   * Id of the element explaining why Next is blocked. When set, Next becomes
+   * aria-disabled rather than disabled so it stays focusable and a screen
+   * reader can read the reason on demand — a `disabled` button is unfocusable,
+   * so the explanation was unreachable except by chance at the moment it
+   * mounted.
+   */
+  blockedReasonId?: string | undefined;
   backLabel?: string | undefined;
   className?: string | undefined;
   /**
@@ -40,6 +48,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
   isLoading = false,
   nextLabel,
   backLabel,
+  blockedReasonId,
   className,
   remainingIssueCount = 0,
 }) => {
@@ -57,6 +66,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
       {/* Left side - Back/Cancel button */}
       <Button
         variant="outline"
+        size="touch"
         onClick={onBack}
         disabled={!canGoBack || isLoading}
         className="gap-2 px-4 py-3 sm:px-6 hover:-translate-y-0.5 transition-all duration-200"
@@ -91,8 +101,11 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
           decorative). */}
       <div className="flex flex-col items-end gap-1.5">
         <Button
-          onClick={onNext}
-          disabled={!canGoNext || isLoading}
+          size="touch"
+          onClick={blockedReasonId && !canGoNext ? undefined : onNext}
+          disabled={blockedReasonId ? isLoading : !canGoNext || isLoading}
+          aria-disabled={!canGoNext || isLoading}
+          {...(blockedReasonId && !canGoNext ? { 'aria-describedby': blockedReasonId } : {})}
           className="relative gap-2 px-4 py-3 sm:px-6"
         >
           {isLoading ? (

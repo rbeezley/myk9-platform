@@ -30,7 +30,20 @@ export const EntryAgreementSection = ({
     );
   }
 
-  if (!data) return null;
+  // Not `return null`. A paused query (offline — networkMode 'online' means
+  // isLoading false, no error, no data) and an organization with no agreement
+  // row both land here. Rendering nothing removed the checkbox while the Next
+  // button still demanded it, stranding the exhibitor with a reason pointing at
+  // a control that was not on screen.
+  if (!data) {
+    return (
+      <DelightfulError
+        variant="inline"
+        message={`We could not load the ${organization} entry agreement. You need to agree to it before entering, so this step cannot continue until it loads.`}
+        reset={refetch}
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">

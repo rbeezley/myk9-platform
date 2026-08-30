@@ -32,9 +32,27 @@ VALUES
   ('00000000-0000-0000-0000-00000000aa01', 'Message Isolation Club A'),
   ('00000000-0000-0000-0000-00000000bb01', 'Message Isolation Club B');
 
+-- Order and shape here are dictated by `handle_new_user()`, the trigger on
+-- auth.users. It adopts an existing person by matching `LOWER(email)` where
+-- `auth_user_id IS NULL`; anything else and it INSERTS a fresh people row carrying
+-- the new auth id, which then collides with `people_auth_user_id_key UNIQUE
+-- (auth_user_id)`. So people come FIRST, carrying an email and a null auth link, and
+-- the trigger fills the link in. Setting `people.auth_user_id` directly looks
+-- equivalent and is not -- `people.auth_user_id` has no FK, so nothing objects until
+-- the trigger fires.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-00000000aa11', 'Msg', 'Secretary A',
+   'msg-secretary-a@example.test', NULL),
+  ('00000000-0000-0000-0000-00000000bb11', 'Msg', 'Secretary B',
+   'msg-secretary-b@example.test', NULL),
+  ('00000000-0000-0000-0000-00000000ee11', 'Msg', 'Exhibitor One',
+   'msg-exhibitor-one@example.test', NULL),
+  ('00000000-0000-0000-0000-00000000ee12', 'Msg', 'Exhibitor Two',
+   'msg-exhibitor-two@example.test', NULL);
+
 -- `show_message_threads.participant_id` and `show_messages.sender_id` are FKs to
--- auth.users, so the identities must exist before any thread or message is inserted.
--- (`people.auth_user_id` carries no FK, which is why it is easy to forget these.)
+-- auth.users, so these identities must exist before any thread or message is inserted.
 INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, is_sso_user, is_anonymous)
 VALUES
@@ -47,14 +65,16 @@ VALUES
   ('00000000-0000-0000-0000-00000000ee22','00000000-0000-0000-0000-000000000000','authenticated',
    'authenticated','msg-exhibitor-two@example.test','', now(), now(), now(), '{}','{}', false, false, false);
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id)
-VALUES
-  ('00000000-0000-0000-0000-00000000aa11', 'Msg', 'Secretary A', '00000000-0000-0000-0000-00000000aa21'),
-  ('00000000-0000-0000-0000-00000000bb11', 'Msg', 'Secretary B', '00000000-0000-0000-0000-00000000bb21'),
-  ('00000000-0000-0000-0000-00000000ee11', 'Msg', 'Exhibitor One', '00000000-0000-0000-0000-00000000ee21'),
-  ('00000000-0000-0000-0000-00000000ee12', 'Msg', 'Exhibitor Two', '00000000-0000-0000-0000-00000000ee22');
+-- Guard the assumption the rest of the file rests on: if the trigger ever stops
+-- adopting by email, every identity below would silently belong to a different person.
+DO $adopt$
+BEGIN
+  IF (SELECT auth_user_id FROM public.people WHERE id = '00000000-0000-0000-0000-00000000aa11')
+     IS DISTINCT FROM '00000000-0000-0000-0000-00000000aa21'::uuid THEN
+    RAISE EXCEPTION 'FAIL handle_new_user did not adopt the seeded person by email';
+  END IF;
+END $adopt$;
 
--- `is_trial_secretary` requires an ACTIVE club membership alongside the role row.
 INSERT INTO public.club_members (club_id, person_id, membership_status)
 VALUES
   ('00000000-0000-0000-0000-00000000aa01', '00000000-0000-0000-0000-00000000aa11', 'active'),

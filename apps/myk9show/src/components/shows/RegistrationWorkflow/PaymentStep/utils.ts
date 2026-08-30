@@ -196,15 +196,6 @@ export function stripNonDigits(value: string): string {
 }
 
 /**
- * Theme-aware badge classes for a PaymentStatus.
- *
- * Re-exported from ConfirmationStep.helpers rather than duplicated: this file
- * carried a second, byte-identical copy, so tokenising one left the other
- * painting light-only chips on the dark card in SecretaryPaymentManagement.
- */
-export { getPaymentStatusBadgeColor } from '../ConfirmationStep.helpers';
-
-/**
  * Get a human-readable label for a payment method code.
  */
 export function getPaymentMethodLabel(method: string): string {

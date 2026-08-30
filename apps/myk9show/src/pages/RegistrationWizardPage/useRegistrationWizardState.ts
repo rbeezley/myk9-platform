@@ -339,10 +339,10 @@ export function useRegistrationWizardState() {
           registrationCapacity.unknownClassIds.size === 0;
 
   // `capacityReady === false` covers two states the user experiences very
-  // differently: still loading, and cannot be loaded. Offline the query PAUSES
-  // (networkMode 'online'), so it reports isLoading false, error null and no
-  // data — settled, but unresolved. Treating that as "still checking" tells the
-  // exhibitor to wait for something that will never arrive.
+  // differently: still loading, and cannot be loaded. (Offline the query pauses
+  // rather than failing — see isAvailabilityUnreadable.) Treating "cannot be
+  // loaded" as "still checking" tells the exhibitor to wait for something that
+  // will never arrive.
   const capacityUnavailable =
     capacityCheckEnabled &&
     !capacityLoading &&

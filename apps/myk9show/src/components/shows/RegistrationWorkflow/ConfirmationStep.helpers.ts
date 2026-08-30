@@ -1,4 +1,5 @@
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { getStatusDescriptor } from '@/components/status';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import type { DogClassDetails } from './ConfirmationStep.types';
 
@@ -110,7 +111,7 @@ export function generateReceiptText(data: ReceiptData): string {
   lines.push(`Total Fees:     $${data.totalFees.toFixed(2)}`);
   lines.push(`Method:         ${getPaymentMethodDisplay(data.paymentMethod)}`);
   lines.push(`Payment Status: ${getPaymentStatusDisplay(data.paymentStatus)}`);
-  lines.push(`Entry Status:   ${getEntryStatusDisplay(data.entryStatus)}`);
+  lines.push(`Entry Status:   ${getStatusDescriptor('entry', data.entryStatus).label}`);
   lines.push('');
   lines.push(divider);
   lines.push('Thank you for your entry!');
@@ -271,25 +272,16 @@ export function getPaymentStatusBadgeColor(status: PaymentStatus): string {
   }
 }
 
-/** Plain-English label for an entry status, for the same reason. */
-export function getEntryStatusDisplay(status: EntryStatus | string): string {
-  switch (status) {
-    case EntryStatus.PENDING:
-      return 'Pending';
-    case EntryStatus.ACCEPTED:
-      return 'Accepted';
-    default:
-      return String(status)
-        .split(/[-_]/)
-        .map(part => (part ? part[0]!.toUpperCase() + part.slice(1) : part))
-        .join(' ');
-  }
-}
-
 /**
- * Plain-English label for a payment status. The enum value was being rendered
+ * Plain-English label for a payment status. The enum value used to be rendered
  * straight into the receipt, the plaintext copy and the email, so exhibitors
  * read "paid_online" and "partial_refund" as UI copy.
+ *
+ * Entry statuses deliberately do NOT have a twin of this function: they are
+ * labelled by getStatusDescriptor('entry', …).label, the canonical table in
+ * @myk9/ui that StatusBadge already renders from. A parallel formatter here
+ * disagreed with it ("Not Accepted" vs "Not accepted") and routed around the
+ * INTENT comment on that table's "Pending" label.
  */
 export function getPaymentStatusDisplay(status: PaymentStatus | string): string {
   switch (status) {

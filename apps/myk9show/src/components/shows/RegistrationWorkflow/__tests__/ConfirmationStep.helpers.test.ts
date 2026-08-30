@@ -9,8 +9,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   generateReceiptHtml,
+  generateReceiptText,
   getConfirmationHeroCopy,
   getPaymentMethodDisplay,
+  getPaymentStatusDisplay,
   isRegistrationRecorded,
   type ReceiptData,
 } from '../ConfirmationStep.helpers';
@@ -45,6 +47,59 @@ function makeReceipt(overrides: Partial<ReceiptData> = {}): ReceiptData {
     ...overrides,
   };
 }
+
+describe('getPaymentStatusDisplay', () => {
+  // These labels are the only thing between a raw enum and three user-facing
+  // surfaces: the receipt panel, the plaintext receipt and the email. Before
+  // this existed, exhibitors read "paid_online" and "partial_refund" as copy.
+  it.each([
+    [PaymentStatus.PENDING, 'Payment pending'],
+    [PaymentStatus.PAID_ONLINE, 'Paid online'],
+    [PaymentStatus.PAID_BY_CHECK, 'Paid by check'],
+    [PaymentStatus.PAID_BY_CASH, 'Paid by cash'],
+    [PaymentStatus.REFUNDED, 'Refunded'],
+    [PaymentStatus.PARTIAL_REFUND, 'Partially refunded'],
+    [PaymentStatus.WAIVED, 'Fees waived'],
+  ])('labels %s in words', (status, expected) => {
+    expect(getPaymentStatusDisplay(status)).toBe(expected);
+  });
+
+  it('never leaks an underscored enum value for a known status', () => {
+    for (const status of Object.values(PaymentStatus)) {
+      expect(getPaymentStatusDisplay(status)).not.toMatch(/_/);
+    }
+  });
+});
+
+describe('receipt status labelling', () => {
+  it('writes both statuses in words, not as enum values', () => {
+    const text = generateReceiptText(
+      makeReceipt({
+        paymentStatus: PaymentStatus.PARTIAL_REFUND,
+        entryStatus: EntryStatus.REJECTED,
+      })
+    );
+
+    expect(text).toContain('Payment Status: Partially refunded');
+    expect(text).not.toContain('partial_refund');
+    expect(text).not.toContain('not_accepted');
+  });
+
+  // Entry statuses are labelled by the canonical @myk9/ui descriptor table that
+  // StatusBadge renders from — deliberately NOT by a second formatter here. A
+  // parallel one disagreed with it ("Not Accepted" vs "Not accepted") while the
+  // receipt panel rendered the canonical label for the same axis.
+  it('takes the entry-status label from the canonical descriptor table', () => {
+    const text = generateReceiptText(makeReceipt({ entryStatus: EntryStatus.REJECTED }));
+    expect(text).toContain('Entry Status:   Not accepted');
+  });
+
+  it('labels the payment status in the HTML receipt too', () => {
+    const html = generateReceiptHtml(makeReceipt({ paymentStatus: PaymentStatus.PAID_ONLINE }));
+    expect(html).toContain('Paid online');
+    expect(html).not.toContain('paid_online');
+  });
+});
 
 describe('getPaymentMethodDisplay', () => {
   it('maps credit_card → Credit Card', () => {

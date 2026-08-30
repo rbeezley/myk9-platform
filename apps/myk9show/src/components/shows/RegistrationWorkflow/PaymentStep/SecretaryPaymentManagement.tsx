@@ -28,8 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import type { PaymentMethod } from '@/types/show-registration-types';
-import { getPaymentStatusBadgeColor } from './utils';
-import { getPaymentStatusDisplay } from '../ConfirmationStep.helpers';
+import { getPaymentStatusBadgeColor, getPaymentStatusDisplay } from '../ConfirmationStep.helpers';
 import type { SecretaryPaymentManagementProps } from './types';
 import { StatusBadge } from '@/components/status';
 

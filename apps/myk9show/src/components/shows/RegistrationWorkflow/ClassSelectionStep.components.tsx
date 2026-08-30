@@ -393,12 +393,11 @@ export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOr
 );
 
 /**
- * Shown when class availability could not be read at all — offline, or the
- * query failed. Without it the absence of every Full and Wait list badge reads
- * as "all of these have room", which is a claim nothing measured. Says what is
- * unknown and what still works, rather than blocking the step: the selection is
- * still worth building, and the payment step refuses to total it until
- * availability resolves.
+ * Shown when class availability could not be read at all — see
+ * `isAvailabilityUnreadable` for why "not read" and "read as empty" are
+ * indistinguishable without it. Deliberately does not block the step: the
+ * selection is still worth building, and the payment step refuses to total it
+ * until availability resolves.
  */
 export const AvailabilityUnreadableNotice: React.FC = () => (
   <Alert role="status" className="mb-3">

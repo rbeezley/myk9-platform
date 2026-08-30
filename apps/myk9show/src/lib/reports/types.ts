@@ -123,6 +123,14 @@ export interface ReportProps {
     element: string;
     level: string;
     section?: string | null;
+    /**
+     * `classes.status` — one of upcoming / setup / in_progress / completed / cancelled.
+     * High in Trial needs it because a CANCELLED class is not an "available class" under
+     * Chapter 6 §10, and counting one as offered makes every team at that level
+     * ineligible (nobody can qualify in a class that never ran), silently suppressing an
+     * award the club should confer.
+     */
+    status?: string | null;
     judgeName?: string;
     stewards?: Record<string, string>;
   }>;
@@ -173,6 +181,16 @@ export interface ReportDefinition {
    * to connect to the empty page in front of her.
    */
   pdfOnly?: boolean;
+  /**
+   * True for reports whose subject is the trial's CLASSES rather than its entries, so
+   * they still have something to say when no dog is entered.
+   *
+   * `ReportPreview` otherwise short-circuits on a generic "No entries found for this
+   * selection" before the component renders. For High in Trial that hid the one thing
+   * the secretary needed — which levels were excluded and why — behind a message about
+   * entries, for a report that is about whether §8 applies at all.
+   */
+  rendersWithoutEntries?: boolean;
 }
 
 export interface ReportDataSet {

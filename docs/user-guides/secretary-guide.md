@@ -247,11 +247,21 @@ Each renders the registry's own instructions and layout.
 
 ## 23 · High in Trial
 
-> **Not available yet.** There is no High in Trial report in the app. Calculate it by hand from your class results for now.
->
-> For AKC Scent Work, High in Trial applies when a club runs more than one element at a difficulty level. A team qualifies if it entered _every_ element offered at that level and qualified in each; Handler Discrimination is excluded. Rank by fewest total faults, then fastest total time, then a coin flip.
->
-> Per-class placements (1–4) _are_ calculated automatically — see card 17.
+**Reports → High in Trial**, then narrow it to a trial. AKC trials only.
+
+The report works out who is eligible and ranks them for you. One section per difficulty level, showing the elements counted, each team's faults and time per element, and the totals they were ranked on.
+
+> **A level only gets a High in Trial if the trial ran more than one element at it** (Container, Interior, Exterior, Buried). A level running a single element is listed as excluded rather than left out silently.
+
+> **Eligibility is all-or-nothing.** A team must have entered _every_ element offered at its level and qualified in each. Handler Discrimination never counts, even when you offer it.
+
+> **A tie is shown as a tie.** If two teams match on both faults and time, the report says so and tells you a coin flip decides it. It will not pick a winner for you — record the outcome by hand.
+
+> **Wait for PROVISIONAL to clear.** While any entry at that level has no result, the level is labelled provisional and the standing can still change. Don't hand out the trophy until it's gone.
+
+> Per-class placements (1–4) are calculated separately and automatically — see card 17.
+
+> **High Combined Division is not calculated.** If you offer Handler Discrimination alongside High in Trial, AKC requires you to confer HCD as well, and you'll need to work that one out by hand.
 
 ---
 
@@ -261,7 +271,7 @@ Honest list, so nothing surprises you mid-show.
 
 | What                                     | Status                                                                                                                                         |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| High in Trial report                     | Not built — calculate by hand (card 23)                                                                                                        |
+| High Combined Division (HCD)             | Not built — calculate by hand when you offer Handler Discrimination (card 23)                                                                  |
 | Hand-placing a dog in the run order      | Not built — presets only (card 10)                                                                                                             |
 | "Paid online" on cheque and cash entries | Label only; amounts are correct (card 9)                                                                                                       |
 | Emailing exhibitors                      | Works, but the composer is in the **Message Center panel in the header**, not the Messages page, and it doesn't pick up the show you came from |

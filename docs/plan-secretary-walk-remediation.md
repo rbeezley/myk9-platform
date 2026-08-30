@@ -70,7 +70,7 @@ that may be a deliberate choice.
 | # | Finding | The question |
 | --- | --- | --- |
 | 2.1 | **F30** (P1) | **DECIDED 2026-08-29 — see Phase 2A.** |
-| 2.2 | **F26** (P1) | **DECIDED 2026-08-29 — rules read, see Phase 2B.** |
+| 2.2 | **F26** (P1) | **DONE 2026-08-30 — shipped; see Phase 2B. HCD (§9) still blocked on the rulebook.** |
 | 2.3 | F3 | Escape anywhere in the creation wizard raises "Unsaved Changes — leave the wizard?". Is that intended, or should Escape only dismiss the focused popover? |
 | 2.4 | F8 | The Show Chairman picker lists every person on the platform. Should it be club-scoped, or is cross-club chairman selection legitimate? |
 | 2.5 | F22 / F23 | `/secretary/messages` is history-only and composing lives in a header panel that does not inherit the show you opened it from. Should Messages gain a composer, or should the panel be the only entry point and Messages link to it? |
@@ -110,6 +110,15 @@ correct direction, but it is a deliberate cost, not an oversight.
 ---
 
 ## Phase 2B — F26: High in Trial
+
+> **DONE 2026-08-30.** Shipped as `lib/reports/highInTrial.ts` + the `high-in-trial`
+> report (AKC, trial-scoped). `AwardsProcessor` deleted. 20 rules tests and 9 render
+> tests, all mutation-checked; the full suite passes shuffled. Browser-verified on two
+> trials — one that offers two elements at a level, and one where every level offers a
+> single element. **HCD (§9) remains unimplemented and is the one open piece**: our
+> rulebook copy truncates mid-sentence at the page break and no AKC Scent Work
+> regulations PDF is in the repo, so the tie-break wording cannot be confirmed. The
+> report and the secretary guide both say so.
 
 **Rules read** from `docs/rulebooks/akc-scent-work-regulations.txt`, Chapter 6. This is
 a club award, not an AKC-recorded one, but it is computed from qualifying data and must

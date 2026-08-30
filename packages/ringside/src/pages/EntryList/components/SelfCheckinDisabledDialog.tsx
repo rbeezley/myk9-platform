@@ -10,7 +10,7 @@ export interface SelfCheckinDisabledDialogProps {
 
 /**
  * Dialog shown when a user tries to check in but self check-in is disabled.
- * Shared between EntryList and CombinedEntryList.
+ * Used by both entry-list modes (single class and combined A/B).
  *
  * Same history as ResetConfirmDialog: authored against `ringside.css`, which
  * #436 deleted without migrating this component, so its `reset-dialog-overlay`

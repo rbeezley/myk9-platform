@@ -2,7 +2,7 @@
  * useDragAndDropEntries Hook
  *
  * Shared hook for drag-and-drop reordering of entries in both EntryList
- * and CombinedEntryList views.
+ * for both entry-list modes (single class and combined A/B).
  *
  * Moved into @myk9/ringside in PR E2a — pure helpers + hooks extraction.
  * The host app's mutation service (`updateExhibitorOrder` from

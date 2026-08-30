@@ -437,6 +437,12 @@ them explicitly:
 
 ## Suggested page queue
 
+**This table says which pages are in scope; it does NOT say when each was last
+swept.** That lives in `docs/reference/impeccable-sweep-log.md`, which is the
+record of record — check it before dispatching, or you will re-sweep a page that
+ran last week and skip the one that has not run since June. Per-row "Swept"
+notes below are historical prose and go stale; the ledger does not.
+
 Pages are grouped by **role surface**. The sweep runs **top to bottom across all
 groups**, strictly sequential, each branch stacked on the previous page's tip —
 the collision rule below applies across groups too. Cross-role pages share fewer
@@ -474,12 +480,12 @@ routes here are the known-canonical ones.
 
 ### Exhibitor — login `exhibitor@myk9t.com` (seeded dogs: Willow, Ranger, Juniper)
 
-| #   | Page                     | Route                   | Entry file                                    | Notes                                            |
-| --- | ------------------------ | ----------------------- | --------------------------------------------- | ------------------------------------------------ |
-| 14  | My Entries / My Shows    | /exhibitor/entries      | src/pages/MyEntriesPage.tsx                   | Exhibitor home; **flagship** bar                 |
-| 15  | Show Registration wizard | /shows/:showId/register | src/pages/RegistrationWizardPage.tsx          | Multi-step, first-run state → `onboard` eligible |
-| 16  | Exhibitor Payments       | /exhibitor/payments     | src/pages/exhibitor/ExhibitorPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive          |
-| 17  | Cart                     | /cart                   | src/pages/CartPage.tsx                        | Checkout flow; conversion-critical               |
+| #   | Page                     | Route                   | Entry file                                    | Notes                                                                                                                                                                                                                                                                                        |
+| --- | ------------------------ | ----------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 14  | My Entries / My Shows    | /exhibitor/entries      | src/pages/MyEntriesPage.tsx                   | Exhibitor home; **flagship** bar                                                                                                                                                                                                                                                             |
+| 15  | Show Registration wizard | /shows/:showId/register | src/pages/RegistrationWizardPage.tsx          | Multi-step, first-run state → `onboard` eligible. **OVERDUE** — last pass #1008 (2026-06-28); the round-2 revisit skipped it. Its August commits (#1853, #1858) were the secretary task walk, not an impeccable pass. Queued as [MYK9-264](https://linear.app/myk9-platform/issue/MYK9-264). |
+| 16  | Exhibitor Payments       | /exhibitor/payments     | src/pages/exhibitor/ExhibitorPaymentsPage.tsx | Money UI — `clarify`/`harden` sensitive                                                                                                                                                                                                                                                      |
+| 17  | Cart                     | /cart                   | src/pages/CartPage.tsx                        | Checkout flow; conversion-critical                                                                                                                                                                                                                                                           |
 
 ### Club admin — login `e2e-clubadmin@test.myk9.com` (role: `CLUB_ADMIN`)
 

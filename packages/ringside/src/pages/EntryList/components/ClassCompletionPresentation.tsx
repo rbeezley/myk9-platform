@@ -12,6 +12,13 @@ type PodiumPlacement = 1 | 2 | 3 | 4;
 
 export interface ClassCompletionPresentationProps {
   classId: string | undefined;
+  /**
+   * Sections to render separate podiums for, in order. Set for a combined
+   * Novice A/B pair, whose two sections are placed independently -- a single
+   * merged podium would show two 1sts, two 2nds and so on, presenting a
+   * ranking nobody competed in. Omit for a single-class list.
+   */
+  podiumSections?: string[] | undefined;
   classInfo: ClassInfo | null;
   entries: Entry[];
   activeTab: CompletedTab;
@@ -20,6 +27,12 @@ export interface ClassCompletionPresentationProps {
 
 export interface ClassPodiumProps {
   entries: Entry[];
+  /**
+   * Section this podium covers, when the list is a combined A/B pair. A and B
+   * are placed SEPARATELY -- that is what the sections are for -- so each gets
+   * its own podium and its own heading. Absent on a single-class list.
+   */
+  section?: string | undefined;
 }
 
 function isQualified(entry: Entry): boolean {
@@ -108,7 +121,7 @@ const positionStyle: Record<
 };
 
 /** Released-placement presentation, reusable without the celebration trigger. */
-export function ClassPodium({ entries }: ClassPodiumProps) {
+export function ClassPodium({ entries, section }: ClassPodiumProps) {
   const placedEntries = entries
     .filter(
       (entry): entry is Entry & { placement: PodiumPlacement } =>
@@ -118,7 +131,7 @@ export function ClassPodium({ entries }: ClassPodiumProps) {
 
   return (
     <section
-      aria-label="Class podium"
+      aria-label={section ? `Section ${section} podium` : 'Class podium'}
       className="mb-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm"
     >
       <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-3">
@@ -126,7 +139,9 @@ export function ClassPodium({ entries }: ClassPodiumProps) {
           <Trophy className="h-5 w-5 text-primary" aria-hidden="true" />
         </span>
         <div>
-          <h2 className="text-lg font-semibold text-foreground">The Podium</h2>
+          <h2 className="text-lg font-semibold text-foreground">
+            {section ? `Section ${section} — The Podium` : 'The Podium'}
+          </h2>
           <p className="text-sm text-muted-foreground">Official released placements</p>
         </div>
       </div>
@@ -195,11 +210,17 @@ function fireCompletionConfetti(): void {
 }
 
 /**
- * Released podium plus the one-time final-score celebration for a single class.
- * This stays in ringside so the presentation and trigger semantics remain host-agnostic.
+ * Released podium plus the one-time final-score celebration.
+ *
+ * Covers a single class, or a combined Novice A/B pair via `podiumSections`:
+ * the pair gets ONE celebration (the counts and elapsed time are genuinely
+ * pair-level) but a SEPARATE podium per section, because A and B are placed
+ * independently. This stays in ringside so the presentation and trigger
+ * semantics remain host-agnostic.
  */
 export function ClassCompletionPresentation({
   classId,
+  podiumSections,
   classInfo,
   entries,
   activeTab,
@@ -281,7 +302,19 @@ export function ClassCompletionPresentation({
         </section>
       ) : null}
 
-      {activeTab === 'completed' && isPresentationReady ? <ClassPodium entries={entries} /> : null}
+      {activeTab === 'completed' && isPresentationReady ? (
+        podiumSections && podiumSections.length > 0 ? (
+          podiumSections.map(section => (
+            <ClassPodium
+              key={section}
+              section={section}
+              entries={entries.filter(entry => entry.section === section)}
+            />
+          ))
+        ) : (
+          <ClassPodium entries={entries} />
+        )
+      ) : null}
     </div>
   );
 }

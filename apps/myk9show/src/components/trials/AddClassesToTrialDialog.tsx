@@ -366,6 +366,8 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
           onSelectionChange={setSelectedClasses}
           existingClasses={existingClasses}
           availableJudges={availableJudges}
+          // Same dead end as F4, reached from a saved show: link to the roster's home.
+          {...(currentShow?.id ? { addJudge: { showId: currentShow.id } } : {})}
           judgeAssignments={judgeAssignments}
           onJudgeAssignmentChange={setJudgeAssignments}
         />

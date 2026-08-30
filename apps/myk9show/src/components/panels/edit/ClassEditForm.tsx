@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
+import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import type { ClassEditFormData } from './ClassEditPanel.types';
 import { isScentWorkNovice } from './ClassEditPanel.helpers';
 
@@ -288,6 +289,26 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="Judge" fieldId="judgeId">
+                  {/*
+                    F12: this used to offer a DISABLED "No judges assigned to this show"
+                    option -- naming the problem inside the very control that could not
+                    solve it, with no hint that the roster lives on the show's Edit
+                    panel. Link there instead.
+                  */}
+                  {showId && assignedJudges.length === 0 && (
+                    <NoJudgesNotice
+                      showId={showId}
+                      message="No judges on this show yet, so there is nobody to assign to this class."
+                      className="mb-2"
+                    />
+                  )}
+                  {/*
+                    Keep the control whenever a judge is still recorded, even with an
+                    empty roster: that assignment is now stale (the judge was removed
+                    from the show) and TBD is the only way to clear it. Replacing the
+                    Select outright stranded it.
+                  */}
+                  {(assignedJudges.length > 0 || !!data.judgeId) && (
                   <Select
                     value={data.judgeId || ''}
                     onValueChange={value => {
@@ -308,20 +329,15 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {assignedJudges.length > 0 ? (
-                        assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
-                          <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                            {judge.judgeName}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="TBD" disabled>
-                          No judges assigned to this show
+                      {assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
+                        <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                          {judge.judgeName}
                         </SelectItem>
-                      )}
+                      ))}
                       <SelectItem value="TBD">TBD</SelectItem>
                     </SelectContent>
                   </Select>
+                  )}
                 </FormField>
 
                 {/* Steward positions */}

@@ -48,17 +48,25 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   existingDBClasses = [],
   submitted = false,
 }) => {
-  const { trials, updateTrial, show, judgeDetails, judgeAssignments, assignJudgeToClass } =
-    useWizardStore(
-      useShallow(state => ({
-        trials: state.trials,
-        updateTrial: state.updateTrial,
-        show: state.show,
-        judgeDetails: state.judgeDetails,
-        judgeAssignments: state.judgeAssignments,
-        assignJudgeToClass: state.assignJudgeToClass,
-      }))
-    );
+  const {
+    trials,
+    updateTrial,
+    show,
+    judgeDetails,
+    judgeAssignments,
+    assignJudgeToClass,
+    setCurrentStep,
+  } = useWizardStore(
+    useShallow(state => ({
+      trials: state.trials,
+      updateTrial: state.updateTrial,
+      show: state.show,
+      judgeDetails: state.judgeDetails,
+      judgeAssignments: state.judgeAssignments,
+      assignJudgeToClass: state.assignJudgeToClass,
+      setCurrentStep: state.setCurrentStep,
+    }))
+  );
 
   const { templates } = useTemplates();
 
@@ -481,6 +489,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                           onSelectionChange={handleClassSelectionChange}
                           existingClasses={existingClassesForTrial}
                           availableJudges={availableJudges}
+                          // F4: the show does not exist yet, so there is nothing to
+                          // link to -- send the secretary back to the step that owns
+                          // the judge roster instead.
+                          addJudge={{ onAddJudge: () => setCurrentStep(0) }}
                           judgeAssignments={judgeAssignments}
                           onJudgeAssignmentChange={handleJudgeAssignmentChange}
                         />

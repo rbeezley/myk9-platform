@@ -45,9 +45,15 @@ export interface UseAtShowEntryListHandlersDeps {
   /** Permission predicate (already narrowed from RBAC by the auth adapter). */
   hasPermission: (permission: 'canScore') => boolean;
   /** react-router navigate. */
-  navigate: (to: string) => void;
+  navigate: (to: string, options?: { state?: unknown }) => void;
   /** Build the scoresheet route for an entry (wired fully in Phase 1h). */
   buildScoreSheetRoute: (entry: Entry) => string;
+  /**
+   * Router state to carry into the scoresheet. Combined A/B uses it to pass the
+   * PAIRED classId, so the sheet knows the other section is running alongside.
+   * Absent on a single-class list, which has no pair.
+   */
+  buildScoreSheetState?: ((entry: Entry) => unknown) | undefined;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
 
@@ -80,6 +86,7 @@ export function useAtShowEntryListHandlers(
     hasPermission,
     navigate,
     buildScoreSheetRoute,
+    buildScoreSheetState,
     refresh,
     setActiveStatusPopup,
     setActiveResetMenu,
@@ -171,29 +178,76 @@ export function useAtShowEntryListHandlers(
       }
       // INTENT: A card tap is a view/navigation intent. It must not enqueue a
       // ringside status mutation; explicit in-ring controls own that write.
-      navigate(buildScoreSheetRoute(entry));
+      const state = buildScoreSheetState?.(entry);
+      navigate(buildScoreSheetRoute(entry), ...(state === undefined ? [] : [{ state }]));
     },
-    [hasPermission, navigate, buildScoreSheetRoute]
+    [hasPermission, navigate, buildScoreSheetRoute, buildScoreSheetState]
   );
 
   // INTENT (spike): no prefetch cache in myK9Show yet — pure no-op.
   const handleEntryPrefetch = useCallback<EntryListHandlers['handleEntryPrefetch']>(() => {}, []);
 
-  // ── Status mutations (delegate) ──────────────────────────────────────
+  // ── Status mutations (delegate, optimistically) ──────────────────────
+  // The mirror is updated BEFORE the write and rolled back if it throws.
+  //
+  // For a judge or steward this is only a few hundred milliseconds of polish:
+  // the write lands in the replicated store, so the `refresh()` inside
+  // `actions` re-reads it and the card settles either way.
+  //
+  // For an EXHIBITOR it is the whole thing. That role writes through
+  // `self_checkin_entry`, a bare RPC that never touches the replicated store,
+  // so the refresh re-reads a cache that has not heard about the change and the
+  // card snaps back to its old status. The dog is checked in on the server and
+  // the exhibitor cannot tell -- so they tap again.
+  //
+  // The combined A/B page used to carry its own copy of this and the
+  // single-class route never had one, which is how a bug that reproduces on
+  // both went unnoticed on one. Fixing it here covers both (MYK9-260).
+  //
+  // NOTE: this does NOT make the exhibitor's status survive a reload -- only a
+  // real write into the replicated store would, and that path is blocked for
+  // exhibitors by design. Tracked separately.
   const handleStatusChange = useCallback<EntryListHandlers['handleStatusChange']>(
     async (entryId, status: EntryStatusChange) => {
       setActiveStatusPopup(null);
-      if (status === 'in-ring') {
-        await actions.handleMarkInRing(entryId);
-        return;
+
+      const previous = entriesRef.current.find(entry => entry.id === entryId);
+      setLocalEntries(prev =>
+        prev.map(entry =>
+          entry.id === entryId
+            ? {
+                ...entry,
+                status,
+                checkedIn: status !== 'no-status',
+                ...(status === 'completed' ? { isScored: true } : {}),
+              }
+            : entry
+        )
+      );
+
+      const rollback = () => {
+        if (!previous) return;
+        setLocalEntries(prev => prev.map(entry => (entry.id === entryId ? previous : entry)));
+      };
+
+      try {
+        if (status === 'in-ring') {
+          await actions.handleMarkInRing(entryId);
+          return;
+        }
+        if (status === 'completed') {
+          await actions.handleMarkCompleted(entryId);
+          return;
+        }
+        await actions.handleStatusChange(entryId, status);
+      } catch (error) {
+        // Showing a status the server rejected is worse than showing none: the
+        // gate would be worked from a check-in that does not exist.
+        rollback();
+        logger.error('[at-show] status change failed', 'at-show', { error: String(error) });
       }
-      if (status === 'completed') {
-        await actions.handleMarkCompleted(entryId);
-        return;
-      }
-      await actions.handleStatusChange(entryId, status);
     },
-    [actions, setActiveStatusPopup]
+    [actions, setActiveStatusPopup, setLocalEntries]
   );
 
   const handleStatusClick = useCallback<EntryListHandlers['handleStatusClick']>(
@@ -262,7 +316,8 @@ export function useAtShowEntryListHandlers(
     async (preset: RunOrderPreset) => {
       if (preset === 'manual') {
         setIsDragMode(true);
-        return;
+        // Opens drag mode; nothing is persisted until the steward drops.
+        return false;
       }
       // Compute the preset order with the shared myK9Show helper, then persist
       // each entry's new run_order. run_order is ringside-whitelisted, so
@@ -284,14 +339,16 @@ export function useAtShowEntryListHandlers(
       } catch (error) {
         // The single-class RunOrderDialog fires this fire-and-forget (`void
         // onApplyOrder(...)`), so a re-throw would surface as an unhandled
-        // rejection. Surface the failure as a toast and stop here instead — the
-        // write didn't land, so there's nothing to re-pull.
+        // rejection. Surface the failure as a toast and report it to the caller
+        // through the RETURN value instead — returning normally here is what let
+        // the page congratulate a steward on an order that was never saved.
         notifyRunOrderPersistError(error);
-        return;
+        return false;
       }
       // The write landed — re-pull is best-effort reconciliation, kept OUT of the
       // try so a refresh hiccup can't read as a failed apply (false error toast).
       await refresh();
+      return true;
     },
     [localEntries, refresh, setIsDragMode]
   );

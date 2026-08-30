@@ -75,7 +75,7 @@ export interface EntryListContentProps {
 
 /**
  * Shared content component for entry list grid with drag-and-drop support.
- * Used by both EntryListPage and CombinedEntryListPage.
+ * Used by both of EntryListPage's modes (single class and combined A/B).
  */
 export const EntryListContent: React.FC<EntryListContentProps> = ({
   entries,

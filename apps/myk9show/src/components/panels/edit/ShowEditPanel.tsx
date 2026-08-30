@@ -21,6 +21,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
   showId,
   showName,
   initialShowData,
+  initialTab,
   onSave,
   enableAutoSave = false,
 }) => {
@@ -85,7 +86,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
     >
       {/* Advisory heads-up if another staff member already has this show open. */}
       <EditingBadge entityType="show" entityId={showId} className="mb-3" />
-      <ShowEditForm />
+      <ShowEditForm {...(initialTab ? { initialTab } : {})} />
     </EditPanelWrapper>
   );
 };

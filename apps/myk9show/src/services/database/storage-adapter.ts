@@ -2,6 +2,7 @@
 import { StateStorage } from 'zustand/middleware';
 import { db } from './connection';
 import { logger } from '@/services/LoggingService';
+import { isQuotaExceededError } from '@myk9/replication';
 
 function createIndexedDBStorage(): StateStorage {
   return {
@@ -27,6 +28,17 @@ function createIndexedDBStorage(): StateStorage {
           lastModified: new Date(),
         });
       } catch (error) {
+        // Persisted Zustand state is a cache: the live store already has the
+        // current value. A full browser quota must not become an unhandled
+        // rejection (for example when the admin roster is loaded).
+        if (isQuotaExceededError(error)) {
+          logger.warn(
+            'IndexedDB quota exceeded while persisting state; keeping in-memory state',
+            'storage',
+            { name }
+          );
+          return;
+        }
         logger.error('IndexedDB setItem error', 'storage', { name }, error as Error);
         throw error;
       }

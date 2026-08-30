@@ -149,11 +149,14 @@ test.describe('My Shows reflows under browser zoom', () => {
           await statsToggle.first().click();
         }
       }
-      await expect(page.getByText('Current Fees', { exact: true }).first()).toBeVisible();
+      // "Entry fees" since the four-card stat grid became a single fee strip
+      // (#1862). This spec is not in the PR-gating set, so the rename broke it
+      // silently — hence the assertion below reads the shipped label.
+      await expect(page.getByText('Entry fees', { exact: true }).first()).toBeVisible();
 
       const fees = await page.evaluate(() => {
         const label = Array.from(document.querySelectorAll('*')).find(
-          el => el.children.length === 0 && el.textContent?.trim() === 'Current Fees'
+          el => el.children.length === 0 && el.textContent?.trim() === 'Entry fees'
         );
         if (!label) return { found: false, painted: false, truncated: true };
         // Judge the whole stat card, not just the label: the amount lives in a
@@ -165,18 +168,18 @@ test.describe('My Shows reflows under browser zoom', () => {
         );
         return { found: true, painted: box.width > 0 && box.height > 0, truncated };
       });
-      expect(fees.found, `${zoom * 100}%: "Current Fees" not rendered`).toBe(true);
-      expect(fees.painted, `${zoom * 100}%: "Current Fees" has no painted box`).toBe(true);
-      expect(fees.truncated, `${zoom * 100}%: "Current Fees" card truncates its text`).toBe(false);
+      expect(fees.found, `${zoom * 100}%: "Entry fees" not rendered`).toBe(true);
+      expect(fees.painted, `${zoom * 100}%: "Entry fees" has no painted box`).toBe(true);
+      expect(fees.truncated, `${zoom * 100}%: "Entry fees" card truncates its text`).toBe(false);
 
-      // 6. "New Dog" must be on screen without scrolling the dog rail
+      // 6. "Add Dog" must be on screen without scrolling the dog rail
       //    (MYK9-124). It used to be the rail's last child, so with 3+ dogs at
       //    this zoom it sat past the right edge behind a `hide-scrollbar`
       //    container — reachable only by a scroll gesture with no scrollbar to
       //    suggest it. `toBeVisible()` does NOT catch that: an element scrolled
       //    outside an overflow container is still "visible" to Playwright.
       //    Compare geometry against the viewport instead.
-      const addDog = page.getByRole('button', { name: /new dog/i });
+      const addDog = page.getByRole('button', { name: /add dog/i });
       if ((await addDog.count()) > 0) {
         const onScreen = await addDog.first().evaluate(element => {
           const box = element.getBoundingClientRect();
@@ -184,7 +187,7 @@ test.describe('My Shows reflows under browser zoom', () => {
             box.width > 0 && box.height > 0 && box.left >= -1 && box.right <= window.innerWidth + 1
           );
         });
-        expect(onScreen, `${zoom * 100}%: "New Dog" is not on screen`).toBe(true);
+        expect(onScreen, `${zoom * 100}%: "Add Dog" is not on screen`).toBe(true);
       }
 
       // 7. Keyboard focus stays visible — a wrapped control that lands outside

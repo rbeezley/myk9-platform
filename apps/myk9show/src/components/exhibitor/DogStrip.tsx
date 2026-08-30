@@ -59,7 +59,7 @@ export const DogStrip: React.FC<DogStripProps> = ({
 
   return (
     <div>
-      {/* INTENT: "New Dog" lives in the section header, NOT in the rail below
+      {/* INTENT: the add-a-dog action lives in the section header, NOT in the rail below
           (MYK9-124). As the rail's last child its reachability was a function
           of how many dogs someone owns: cards are 208px + 12px gap and the
           content column is ~672px at 150-200% browser zoom, so three items fit
@@ -80,7 +80,13 @@ export const DogStrip: React.FC<DogStripProps> = ({
           className="ml-auto inline-flex min-h-[44px] flex-shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border px-3 text-xs font-medium text-muted-foreground hover:bg-accent active:scale-[0.98] transition-all duration-state focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <PawPrint className="h-4 w-4" />
-          New Dog
+          {/* "Add Dog", not "New Dog". /dogs already branches on audience —
+              exhibitors get "Add Dog", staff get "New Dog" (BrowseDogsPage),
+              the same per-audience split as the "My Dogs" / "Dogs" sidebar
+              label. This strip renders only on My Shows, an exhibitor surface,
+              so it was showing the staff word and giving one action two names
+              for the same person (F7). */}
+          Add Dog
         </button>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1 hide-scrollbar scroll-shadow-x">

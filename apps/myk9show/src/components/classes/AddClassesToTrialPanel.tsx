@@ -228,6 +228,10 @@ export const AddClassesToTrialPanel: React.FC<AddClassesToTrialPanelProps> = ({
               onSelectionChange={setSelectedClasses}
               existingClasses={existingClasses}
               availableJudges={availableJudges}
+              // The third consumer of this selector, and the same dead end: a saved
+              // show with an empty roster. Codex caught it missing here after the
+              // wizard and the dialog were wired.
+              {...(showId ? { addJudge: { showId } } : {})}
               judgeAssignments={judgeAssignments}
               onJudgeAssignmentChange={setJudgeAssignments}
             />

@@ -58,11 +58,16 @@ describe('run-order deep link', () => {
     expect(href).toContain('day=2026-08-02');
   });
 
-  it('omits the day when the trial is unresolved rather than inventing one', () => {
+  it('drops the focus too when the day is unknown, rather than focusing blind', () => {
+    // parentTrial can be unresolved while the trial store loads, or when the route
+    // carries no trialId. focus WITHOUT day is the hazard: Show Desk filters to its
+    // default day, cannot find the class, falls back to another, and the run-order
+    // menu would sort that one. A link with neither is harmless.
     const href = renderSheet(null).getAttribute('href') ?? '';
 
-    expect(href).toContain('focus=class-1');
     expect(href).not.toContain('day=');
+    expect(href).not.toContain('focus=');
+    expect(href).toContain('/shows/show-1/show-desk');
   });
 
   it('normalizes a datetime trial date to the day Show Desk accepts', () => {

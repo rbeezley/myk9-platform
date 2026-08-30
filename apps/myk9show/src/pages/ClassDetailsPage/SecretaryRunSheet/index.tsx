@@ -77,8 +77,15 @@ export function SecretaryRunSheet({
               showId: parentShowId,
               state: {
                 filter: 'all',
-                focusedClassId: currentClass.id,
-                ...(runOrderDay ? { selectedDay: runOrderDay } : {}),
+                // focus and day travel TOGETHER or not at all. Focus without a day is
+                // the hazard: on a multi-day show, Show Desk filters to its default
+                // day, cannot find the class, and falls back to another one -- which
+                // the run-order menu would then sort. A link with neither is harmless;
+                // it just opens the desk. parentTrial can be unresolved while the trial
+                // store loads, or when the route carries no trialId.
+                ...(runOrderDay
+                  ? { selectedDay: runOrderDay, focusedClassId: currentClass.id }
+                  : {}),
               },
             })}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

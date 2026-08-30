@@ -326,7 +326,13 @@ export function SecretaryCockpitFocusedClass({
                 <ShowMapRunOrderMenu
                   classId={focused.id}
                   classLabel={focused.name}
-                  entryCount={focused.entryRows.length}
+                  // The class's own entry count, NOT entryRows.length. Every entry
+                  // yields a row today because move-up is unconditional, so the two
+                  // are equal -- but entryRows is filtered by STRANDED_ENTRY_ACTION_IDS
+                  // and would silently start hiding this menu if that set ever changed.
+                  // Auto-sort availability has nothing to do with which actions are
+                  // stranded.
+                  entryCount={sourceClass.entryCount ?? focused.entryRows.length}
                   onAutoSort={runOrder.onAutoSort}
                   isAutoSorting={runOrder.isAutoSorting}
                 />

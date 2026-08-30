@@ -32,6 +32,21 @@ VALUES
   ('00000000-0000-0000-0000-00000000aa01', 'Message Isolation Club A'),
   ('00000000-0000-0000-0000-00000000bb01', 'Message Isolation Club B');
 
+-- `show_message_threads.participant_id` and `show_messages.sender_id` are FKs to
+-- auth.users, so the identities must exist before any thread or message is inserted.
+-- (`people.auth_user_id` carries no FK, which is why it is easy to forget these.)
+INSERT INTO auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, is_sso_user, is_anonymous)
+VALUES
+  ('00000000-0000-0000-0000-00000000aa21','00000000-0000-0000-0000-000000000000','authenticated',
+   'authenticated','msg-secretary-a@example.test','', now(), now(), now(), '{}','{}', false, false, false),
+  ('00000000-0000-0000-0000-00000000bb21','00000000-0000-0000-0000-000000000000','authenticated',
+   'authenticated','msg-secretary-b@example.test','', now(), now(), now(), '{}','{}', false, false, false),
+  ('00000000-0000-0000-0000-00000000ee21','00000000-0000-0000-0000-000000000000','authenticated',
+   'authenticated','msg-exhibitor-one@example.test','', now(), now(), now(), '{}','{}', false, false, false),
+  ('00000000-0000-0000-0000-00000000ee22','00000000-0000-0000-0000-000000000000','authenticated',
+   'authenticated','msg-exhibitor-two@example.test','', now(), now(), now(), '{}','{}', false, false, false);
+
 INSERT INTO public.people (id, first_name, last_name, auth_user_id)
 VALUES
   ('00000000-0000-0000-0000-00000000aa11', 'Msg', 'Secretary A', '00000000-0000-0000-0000-00000000aa21'),

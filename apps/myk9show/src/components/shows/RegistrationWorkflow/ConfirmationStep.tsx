@@ -26,6 +26,7 @@ import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
   getPaymentMethodDisplay,
+  getPaymentStatusDisplay,
   isPaidStatus,
   getConfirmationHeroCopy,
   isRegistrationRecorded,
@@ -366,7 +367,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                 variant={isPaidStatus(paymentStatus) ? 'default' : 'secondary'}
                 className={isPaidStatus(paymentStatus) ? 'text-success border-success/30 ' : ''}
               >
-                {paymentStatus}
+                {getPaymentStatusDisplay(paymentStatus)}
               </Badge>
             </div>
             {(paymentStatus === PaymentStatus.PENDING ||

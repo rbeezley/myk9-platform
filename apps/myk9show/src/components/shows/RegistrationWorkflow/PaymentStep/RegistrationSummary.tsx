@@ -33,7 +33,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                     <span className="min-w-0 break-words">
                       {cls.className}
                       {capacityReady && cls.isWaitlist && (
-                        <span className="ml-2 font-medium text-amber-700">
+                        <span className="ml-2 font-medium text-warning">
                           (Wait list request)
                         </span>
                       )}

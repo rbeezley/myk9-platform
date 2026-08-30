@@ -295,12 +295,20 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     solve it, with no hint that the roster lives on the show's Edit
                     panel. Link there instead.
                   */}
-                  {showId && assignedJudges.length === 0 ? (
+                  {showId && assignedJudges.length === 0 && (
                     <NoJudgesNotice
                       showId={showId}
                       message="No judges on this show yet, so there is nobody to assign to this class."
+                      className="mb-2"
                     />
-                  ) : (
+                  )}
+                  {/*
+                    Keep the control whenever a judge is still recorded, even with an
+                    empty roster: that assignment is now stale (the judge was removed
+                    from the show) and TBD is the only way to clear it. Replacing the
+                    Select outright stranded it.
+                  */}
+                  {(assignedJudges.length > 0 || !!data.judgeId) && (
                   <Select
                     value={data.judgeId || ''}
                     onValueChange={value => {

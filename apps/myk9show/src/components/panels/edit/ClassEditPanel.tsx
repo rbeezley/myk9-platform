@@ -127,12 +127,15 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                 control that cannot solve it. Which of the two forms renders is decided
                 by the shape of `initialClassData`, so both need the way out.
               */}
-              {showId && assignedJudges.length === 0 ? (
+              {showId && assignedJudges.length === 0 && (
                 <NoJudgesNotice
                   showId={showId}
                   message="No judges on this show yet, so there is nobody to assign to this class."
+                  className="mb-2"
                 />
-              ) : (
+              )}
+              {/* See the note in ClassEditForm: a stale assignment still needs TBD. */}
+              {(assignedJudges.length > 0 || !!data.judgeId) && (
               <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
                 <SelectTrigger
                   id="judgeId"

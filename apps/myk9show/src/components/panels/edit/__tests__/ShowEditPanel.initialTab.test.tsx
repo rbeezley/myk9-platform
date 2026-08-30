@@ -12,6 +12,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 
 import { ShowEditPanel } from '../ShowEditPanel';
+import { ClassEditPanel } from '../ClassEditPanel';
 
 vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
   useJudgesWithQualifications: () => ({ data: [] }),
@@ -68,5 +69,50 @@ describe('ShowEditPanel initialTab', () => {
 
     expect(selectedTabName()).toMatch(/basic/i);
     expect(selectedTabName()).not.toMatch(/judges/i);
+  });
+});
+
+/**
+ * Codex, round 2 — replacing the judge Select outright when the roster is empty
+ * stranded a STALE assignment: a class that still records a judge who has since been
+ * removed from the show had no control left, so TBD (the only way to clear it) was
+ * unreachable. The notice must sit ALONGSIDE the control in that case, not instead of it.
+ */
+describe('class Edit panel with an empty roster', () => {
+  const classProps = {
+    classId: 'c1',
+    className: 'Interior',
+    showId: 'show-1',
+    onSave: vi.fn(),
+  };
+
+  it('keeps a clearable control when a stale judge is still recorded', () => {
+    render(
+      <ClassEditPanel
+        open
+        onClose={vi.fn()}
+        {...classProps}
+        initialClassData={{ id: 'c1', judgeId: 'judge-gone', judgeName: 'Removed Judge' }}
+      />
+    );
+
+    // The notice explains the empty roster...
+    expect(screen.getByText(/no judges on this show yet/i)).toBeInTheDocument();
+    // ...and the control survives so the stale assignment can be cleared.
+    expect(screen.getByRole('combobox', { name: /judge/i })).toBeInTheDocument();
+  });
+
+  it('drops the control when there is nothing to clear', () => {
+    render(
+      <ClassEditPanel
+        open
+        onClose={vi.fn()}
+        {...classProps}
+        initialClassData={{ id: 'c1', judgeId: '' }}
+      />
+    );
+
+    expect(screen.getByText(/no judges on this show yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /judge/i })).toBeNull();
   });
 });

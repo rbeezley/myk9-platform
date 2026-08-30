@@ -1,249 +1,126 @@
 /**
- * CompactStatsRow — At-a-glance stat cards for the exhibitor dashboard.
+ * CompactStatsRow — the exhibitor's entry-fee balance.
  *
- * Each stat is a tappable card with a compact icon chip, large number, and label.
- * Cards stay neutral so state colors only appear when they carry meaning.
+ * This was a four-across grid of stat cards (Current entries · Upcoming shows ·
+ * Completed shows · Current fees). Three of them are gone, and their deletion
+ * is the point:
  *
- * INTENT: On phones (≤720px) the four-card grid is collapsed behind a single
- * summary line so the exhibitor's schedule (the entry cards below) is fast to
- * reach — "this respects my time". The summary still surfaces the actionable fee
- * balance, and one tap expands the full grid so every deep-link is preserved.
- * Desktop is unchanged: the grid always shows and the summary toggle is hidden.
+ *  - Upcoming and Completed deep-linked to the Upcoming and Completed filters
+ *    rendered about 200px below them. A second control for a control already on
+ *    screen. (#1696 had already repaired these from no-ops that navigated to
+ *    the page you were on; this is the step that run did not take.)
+ *  - "Completed Shows" counted distinct SHOWS while the filter beside it counts
+ *    entries, so "4" sat above "190" describing the same word in different
+ *    units with nothing saying so. Deleting it removes "shows" as a unit this
+ *    page counts at all.
+ *  - "Current entries" restated the status chips at a DIFFERENT scope, which
+ *    invited a comparison that was never valid.
+ *  - Four identical cards in a row is the hero-metric template DESIGN.md bans
+ *    by name.
+ *
+ * What remains is the one fact that is not already on the page and that the
+ * exhibitor can act on: money owed, and the way to pay it.
+ *
+ * INTENT: the fee balance is always visible and never collapsed behind a
+ * disclosure. The previous mobile behaviour hid a four-card grid behind a
+ * summary line that re-surfaced this balance, because the grid was too tall for
+ * a phone — with one strip there is nothing to hide, so the balance is simply
+ * present at every width. Do not reintroduce a collapse here: the whole reason
+ * the old summary line existed was to keep THIS number reachable.
  */
 
 import { cn, formatCurrency } from '@/lib/utils';
-import { FileText, Calendar, DollarSign, History, ChevronDown, ChevronRight } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
-import {
-  CURRENT_ENTRIES_LABEL,
-  CURRENT_ENTRIES_QUALIFIER,
-} from '@/pages/MyEntriesPage/modules/myShowsCopy';
-
-interface StatItem {
-  icon: ReactNode;
-  label: string;
-  /** Small muted sub-label rendered under the label, above the value. */
-  qualifier?: string;
-  value: number;
-  displayValue?: string;
-  /** When set, renders a quiet text state instead of a large numeric/dollar value. */
-  quietValue?: string;
-  detail?: string;
-  detailClassName?: string;
-  href: string;
-  iconColor: string;
-  iconChipClassName?: string;
-}
+import { CircleCheckBig, CreditCard } from 'lucide-react';
 
 interface CompactStatsRowProps {
-  acceptedEntries: number;
-  pendingEntries: number;
-  upcomingShows: number;
-  completedShows: number;
+  /** Total fees across the exhibitor's current entries. */
   currentFees: number;
+  /** Amount still owed. `<= 0` is the paid-in-full state. */
   amountDue: number;
+  /** Cart/payment target for the owed balance; falls back to the cart. */
   currentFeesHref?: string;
   onNavigate: (path: string) => void;
   className?: string | undefined;
 }
 
 export function CompactStatsRow({
-  acceptedEntries,
-  pendingEntries,
-  upcomingShows,
-  completedShows,
   currentFees,
   amountDue,
   currentFeesHref,
   onNavigate,
   className,
 }: CompactStatsRowProps) {
-  const [expanded, setExpanded] = useState(false);
-  const currentEntries = acceptedEntries + pendingEntries;
   const paidInFull = amountDue <= 0;
   const feeHref = paidInFull ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
-  const stats: StatItem[] = [
-    {
-      icon: <FileText className="h-5 w-5" />,
-      // exhibitor-count-integrity: this card is intentionally scoped to CURRENT
-      // (non-past) entries, while the My Entries "All" tab below counts every
-      // entry ever made (including completed/past shows) — a different scope
-      // with the same generic "Entries" word read as a contradiction in the
-      // audit. The visible label + qualifier below name the scope explicitly
-      // so the two numbers are never read as the same count.
-      label: CURRENT_ENTRIES_LABEL,
-      qualifier: CURRENT_ENTRIES_QUALIFIER,
-      value: currentEntries,
-      detail: `${acceptedEntries} accepted · ${pendingEntries} pending`,
-      // Was `/exhibitor/entries` — a navigation to the page you are already on,
-      // i.e. a chevron and a "View details" label that did nothing. This card
-      // counts upcoming + in-review entries, so the Upcoming tab is the filter
-      // that actually shows them.
-      href: '/exhibitor/entries?tab=upcoming',
-      iconColor: 'text-muted-foreground',
-    },
-    {
-      icon: <Calendar className="h-5 w-5" />,
-      label: upcomingShows === 1 ? 'Upcoming Show' : 'Upcoming Shows',
-      value: upcomingShows,
-      detail: 'entered',
-      href: '/shows',
-      iconColor: 'text-muted-foreground',
-    },
-    {
-      icon: <History className="h-5 w-5" />,
-      // Counts shows the exhibitor is DONE with — every run scored, or the
-      // show over — because this card deep-links to the Completed tab, which
-      // uses that same rule. Labelled "Past" while counting past-by-date, it
-      // could read 0 beside a non-empty tab during a show being scored.
-      label: completedShows === 1 ? 'Completed Show' : 'Completed Shows',
-      value: completedShows,
-      detail: 'entered',
-      href: '/exhibitor/entries?tab=completed',
-      iconColor: 'text-muted-foreground',
-    },
-    {
-      icon: <DollarSign className="h-5 w-5" />,
-      label: 'Current Fees',
-      value: currentFees,
-      ...(paidInFull
-        ? { quietValue: 'Paid in full' }
-        : {
-            // formatCurrency, not toLocaleString: a plain number drops the
-            // cents, so a $1,234.50 balance printed as "$1,234.5" on the
-            // exhibitor's money surface.
-            displayValue: formatCurrency(currentFees),
-            detail: `Amount due ${formatCurrency(amountDue)}`,
-            detailClassName: 'text-warning',
-          }),
-      href: feeHref,
-      iconColor: paidInFull ? 'text-success' : 'text-warning',
-      iconChipClassName: paidInFull
-        ? 'border-success/25 bg-success/10'
-        : 'border-warning/30 bg-warning/10',
-    },
-  ];
 
   return (
     <div className={className}>
-      {/* Mobile-only summary line. Collapses the four-card grid so the schedule
-          below is reachable without scrolling past a 2×2 block of cards. Hidden
-          on desktop (≥721px), where the grid is always shown. */}
       <button
         type="button"
-        onClick={() => setExpanded(prev => !prev)}
-        aria-expanded={expanded}
-        aria-controls="exhibitor-stat-cards"
+        onClick={() => onNavigate(feeHref)}
+        aria-label={
+          paidInFull
+            ? 'Entry fees: paid in full. View your payments.'
+            : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
+        }
         className={cn(
-          'hidden max-[720px]:flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm',
-          'active:scale-[0.99] transition-all duration-state',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-          expanded && 'mb-3'
+          'group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm',
+          'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-enter',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
         )}
       >
-        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm">
-          <span className="font-semibold text-foreground tabular-nums">{currentEntries}</span>
-          <span className="text-muted-foreground">
-            {currentEntries === 1 ? 'entry' : 'entries'}
-          </span>
-          <span aria-hidden className="text-muted-foreground">
-            ·
-          </span>
-          <span className="font-semibold text-foreground tabular-nums">{upcomingShows}</span>
-          <span className="text-muted-foreground">upcoming</span>
-          <span aria-hidden className="text-muted-foreground">
-            ·
-          </span>
-          {amountDue > 0 ? (
-            <span className="font-semibold text-warning tabular-nums">
-              {formatCurrency(amountDue)} due
-            </span>
-          ) : (
-            <span className="text-muted-foreground tabular-nums">Paid in full</span>
-          )}
-        </span>
-        <ChevronDown
-          aria-hidden
-          className={cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-state',
-            expanded && 'rotate-180'
-          )}
-        />
-      </button>
-
-      <div
-        id="exhibitor-stat-cards"
-        className={cn(
-          // Narrow phones stay one-up: at 390px, two columns leave only ~66px
-          // for text after icon, gap, and padding, which clips the readable 14px
-          // scope/detail copy. Wider phones and tablets return to two columns;
-          // four-across only returns at xl, where the persistent sidebar still
-          // leaves enough width for every label and detail.
-          'grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-4',
-          !expanded && 'max-[720px]:hidden'
-        )}
-      >
-        {stats.map(stat => (
-          <button
-            key={stat.label}
-            type="button"
-            onClick={() => onNavigate(stat.href)}
+        <span className="flex min-w-0 items-center gap-3">
+          <span
+            data-slot="icon"
             className={cn(
-              'group relative min-h-[92px] overflow-hidden rounded-xl border border-border bg-card p-3 text-left shadow-sm',
-              'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]',
-              'transition-all duration-enter',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
+              'flex size-9 shrink-0 items-center justify-center rounded-lg border shadow-sm',
+              paidInFull
+                ? 'border-success/25 bg-success/10 text-success'
+                : 'border-warning/30 bg-warning/10 text-warning'
             )}
-            aria-label={`${stat.label}: ${stat.quietValue ?? stat.value}.${stat.qualifier ? ` ${stat.qualifier}.` : ''}${stat.detail ? ` ${stat.detail}.` : ''} View details.`}
           >
-            <ChevronRight
-              aria-hidden="true"
-              className="absolute right-3 top-3 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-muted-foreground"
-            />
-            <span className="flex items-start gap-4 pr-4">
-              <span
-                data-slot="icon"
-                className={cn(
-                  'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted shadow-sm',
-                  stat.iconChipClassName,
-                  stat.iconColor
-                )}
-              >
-                {stat.icon}
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {stat.label}
-                </span>
-                {stat.qualifier && (
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {stat.qualifier}
-                  </span>
-                )}
-                {stat.quietValue ? (
-                  <span className="text-sm font-semibold leading-none text-muted-foreground">
-                    {stat.quietValue}
-                  </span>
-                ) : (
-                  <span className="text-2xl font-bold leading-none text-foreground tabular-nums">
-                    {stat.displayValue ?? stat.value}
-                  </span>
-                )}
-                {stat.detail && (
-                  <span
-                    className={cn(
-                      'truncate text-xs font-medium text-muted-foreground',
-                      stat.detailClassName
-                    )}
-                  >
-                    {stat.detail}
-                  </span>
-                )}
-              </span>
+            {paidInFull ? (
+              <CircleCheckBig className="h-5 w-5" />
+            ) : (
+              <CreditCard className="h-5 w-5" />
+            )}
+          </span>
+          <span className="flex min-w-0 flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Entry fees
             </span>
-          </button>
-        ))}
-      </div>
+            {paidInFull ? (
+              <span className="text-base font-semibold leading-none text-success">
+                Paid in full
+              </span>
+            ) : (
+              // The amount owed, and what it is owed against, on one line. This
+              // did not fit while the card was one quarter of a four-column
+              // grid — the space came from the deletion.
+              <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <span className="text-2xl font-bold leading-none text-warning tabular-nums">
+                  {formatCurrency(amountDue)}
+                </span>
+                <span className="text-sm text-muted-foreground tabular-nums">
+                  due of {formatCurrency(currentFees)} entered
+                </span>
+              </span>
+            )}
+          </span>
+        </span>
+
+        {!paidInFull && (
+          <span
+            aria-hidden="true"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
+          >
+            <CreditCard className="h-4 w-4" />
+            Finish Payment
+          </span>
+        )}
+      </button>
     </div>
   );
 }
+
+export default CompactStatsRow;

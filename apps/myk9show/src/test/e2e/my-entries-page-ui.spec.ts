@@ -104,61 +104,72 @@ test.describe('My Shows Page - Enter a Show CTA', () => {
   });
 });
 
-test.describe('My Shows Page - Tab Structure', () => {
+test.describe('My Shows Page - Filter Structure', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await navigateToMyShows(page);
   });
 
-  test('should render the current tabs with scoped counts', async ({ page }) => {
-    const tabList = page.locator('[role="tablist"]');
-    await expect(tabList).toBeVisible();
+  const timeAxis = (page: Page) => page.getByRole('radiogroup', { name: /filter by time/i });
+  const statusAxis = (page: Page) =>
+    page.getByRole('radiogroup', { name: /filter by entry status/i });
 
-    // One axis only (time). Status moved to the chip row below — as six flat
-    // tabs the two axes overwrote each other and the counts summed to double
-    // the entry total. See docs/plan-ia-exhibitor-surface.md, Phase A.
+  test('renders both filter axes with scoped counts', async ({ page }) => {
+    // Time and status are BOTH filters now: they narrow the same list of the
+    // same cards, so neither claims tab semantics. The one-axis-per-group
+    // structure Phase A created is unchanged — as six flat tabs the two axes
+    // overwrote each other and the counts summed to double the entry total.
+    // See docs/plan-ia-exhibitor-surface.md, Phase A.
+    await expect(timeAxis(page)).toBeVisible();
+    await expect(statusAxis(page)).toBeVisible();
+    await expect(page.locator('[role="tablist"]')).toHaveCount(0);
+
     for (const label of ['All', 'Upcoming', 'Completed']) {
-      const tab = page.getByRole('tab', { name: new RegExp(`^${label}\\s*\\d+$`) });
-      await expect(tab).toBeVisible();
+      await expect(
+        timeAxis(page).getByRole('radio', { name: new RegExp(`^${label}\\s*\\d+$`) })
+      ).toBeVisible();
     }
     for (const retired of ['Pending', 'Waitlist']) {
-      await expect(page.getByRole('tab', { name: new RegExp(`^${retired}`) })).toHaveCount(0);
+      await expect(
+        timeAxis(page).getByRole('radio', { name: new RegExp(`^${retired}`) })
+      ).toHaveCount(0);
     }
   });
 
-  test('should have scrollable tab container', async ({ page }) => {
-    const tabList = page.locator('[role="tablist"]');
-    await expect(tabList).toHaveClass(/overflow-x-auto/);
+  test('wraps the filters instead of scrolling them sideways', async ({ page }) => {
+    // The tab strip used to scroll horizontally, hiding options with no
+    // indication they existed.
+    for (const axis of [timeAxis(page), statusAxis(page)]) {
+      await expect(axis).toHaveClass(/flex-wrap/);
+      await expect(axis).not.toHaveClass(/overflow-x-auto/);
+    }
   });
 
-  test('tabs should switch content when clicked', async ({ page }) => {
-    const completedTab = page.getByRole('tab', { name: /^Completed\s*\d+$/ });
-    await completedTab.click();
-    await expect(completedTab).toHaveAttribute('aria-selected', 'true');
+  test('the time filter switches content when clicked', async ({ page }) => {
+    const completed = timeAxis(page).getByRole('radio', { name: /^Completed\s*\d+$/ });
+    await completed.click();
+    await expect(completed).toHaveAttribute('aria-checked', 'true');
 
-    const upcomingTab = page.getByRole('tab', { name: /^Upcoming\s*\d+$/ });
-    await upcomingTab.click();
-    await expect(upcomingTab).toHaveAttribute('aria-selected', 'true');
+    const upcoming = timeAxis(page).getByRole('radio', { name: /^Upcoming\s*\d+$/ });
+    await upcoming.click();
+    await expect(upcoming).toHaveAttribute('aria-checked', 'true');
   });
 
   // The combination the old six-tab strip could not express: picking a status
   // then a time replaced the filter instead of refining it.
-  test('status filter composes with the time tab instead of replacing it', async ({ page }) => {
-    const statusGroup = page.getByRole('radiogroup', { name: /filter by entry status/i });
-    await expect(statusGroup).toBeVisible();
-
-    await statusGroup.getByRole('radio', { name: /^Accepted/ }).click();
-    await page.getByRole('tab', { name: /^Upcoming\s*\d+$/ }).click();
+  test('status filter composes with the time filter instead of replacing it', async ({ page }) => {
+    await statusAxis(page).getByRole('radio', { name: /^Accepted/ }).click();
+    await timeAxis(page).getByRole('radio', { name: /^Upcoming\s*\d+$/ }).click();
 
     // Both constraints still applied.
-    await expect(page.getByRole('tab', { name: /^Upcoming\s*\d+$/ })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    );
-    await expect(statusGroup.getByRole('radio', { name: /^Accepted/ })).toHaveAttribute(
+    await expect(
+      timeAxis(page).getByRole('radio', { name: /^Upcoming\s*\d+$/ })
+    ).toHaveAttribute('aria-checked', 'true');
+    await expect(statusAxis(page).getByRole('radio', { name: /^Accepted/ })).toHaveAttribute(
       'aria-checked',
       'true'
     );
+    // The URL contract is unchanged by the tabs-to-chips move.
     await expect(page).toHaveURL(/status=accepted/);
     await expect(page).toHaveURL(/tab=upcoming/);
   });
@@ -168,7 +179,8 @@ test.describe('My Shows Page - Tab Structure', () => {
   test('Upcoming and Completed partition All', async ({ page }) => {
     const countOf = async (label: string) => {
       const name = await page
-        .getByRole('tab', { name: new RegExp(`^${label}\\s*\\d+$`) })
+        .getByRole('radiogroup', { name: /filter by time/i })
+        .getByRole('radio', { name: new RegExp(`^${label}\\s*\\d+$`) })
         .textContent();
       return Number((name ?? '').replace(/\D+/g, ''));
     };
@@ -183,7 +195,7 @@ test.describe('My Shows Page - Tab Structure', () => {
   });
 });
 
-test.describe('My Shows Page - Mobile Tab Usability', () => {
+test.describe('My Shows Page - Mobile Filter Usability', () => {
   test.use({ viewport: { width: 375, height: 667 } }); // iPhone SE size
 
   test.beforeEach(async ({ page }) => {
@@ -191,17 +203,15 @@ test.describe('My Shows Page - Mobile Tab Usability', () => {
     await navigateToMyShows(page);
   });
 
-  test('tabs should be accessible on mobile via scrolling', async ({ page }) => {
-    const tabList = page.locator('[role="tablist"]');
-    await expect(tabList).toBeVisible();
+  test('every filter is visible on a phone without sideways scrolling', async ({ page }) => {
+    // These used to be tabs in a horizontally scrolling strip, so an option
+    // past the fold had no affordance saying it existed. Chips wrap.
+    const timeAxis = page.getByRole('radiogroup', { name: /filter by time/i });
+    await expect(timeAxis).toBeVisible();
 
-    // All tabs should be present even if scrolled
-    const tabs = ['All', 'Upcoming', 'Completed'];
-    for (const tabName of tabs) {
-      const tab = page.getByRole('tab', { name: new RegExp(`^${tabName}\\s*\\d+$`) });
-      // Scroll into view if needed
-      await tab.scrollIntoViewIfNeeded();
-      await expect(tab).toBeVisible();
+    for (const label of ['All', 'Upcoming', 'Completed']) {
+      const chip = timeAxis.getByRole('radio', { name: new RegExp(`^${label}\\s*\\d+$`) });
+      await expect(chip).toBeInViewport();
     }
   });
 

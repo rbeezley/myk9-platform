@@ -26,7 +26,7 @@ export {
 } from './myEntriesUtils';
 
 // Constants & copy
-export { EntryStatusFilterChips } from './EntryStatusFilterChips';
+export { EntryFilterStrip } from './EntryFilterStrip';
 export {
   ENTRY_STATUS_FILTER_DEFS,
   ENTRY_TAB_DEFS,

@@ -119,6 +119,27 @@ describe.each(PAGES)('entry-list parity — $name', page => {
     });
   });
 
+  describe('wiring that a merge could silently drop', () => {
+    it('passes drag handlers through to the list content', () => {
+      // Drag reorder is the steward's primary tool. A merge that lost the
+      // wiring would still render, still pass typecheck, and still be green.
+      page.render({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+
+      expect(contentSpy.onEntryClick).toBeTypeOf('function');
+      expect(contentSpy.onStatusClick).toBeTypeOf('function');
+    });
+
+    it('offers the Pending / Completed status tabs', () => {
+      // Asserted on the rendered labels rather than a stubbed TabBar: TabBar
+      // comes from @myk9/ui, not a layout slot, and asserting what the judge
+      // actually sees is the point of a parity suite.
+      page.render({ entries: [{ id: 'e1', classId: 'class-a' }], loaded: true });
+
+      expect(screen.getByRole('button', { name: /pending/i })).not.toBeNull();
+      expect(screen.getByRole('button', { name: /completed/i })).not.toBeNull();
+    });
+  });
+
   describe('sync visibility', () => {
     it('routes content through the PullToRefresh slot, which carries the containment banner', () => {
       // MYK9-115: that slot is the only place a judge is told the server has

@@ -20,17 +20,11 @@
  * The shim renders `<EntryListPage {...all-the-bags} />` and that's it.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TabBar } from '@myk9/ui';
 import type { EntryListPageProps } from './pageProps';
-import { useAutoDismiss } from './hooks/useAutoDismiss';
-import type {
-  PrintSortOrder,
-  RenumberMode,
-  RunOrderPreset,
-  RunOrderScope,
-} from './dialogSlots';
+import { useEntryListPageActions } from './hooks/useEntryListPageActions';
 import type { TabType } from './hooks/useEntryListFilters';
 import {
   buildSectionTabs,
@@ -127,83 +121,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const { sensors, handleDragStart, handleDragEnd } = drag;
   const { isSyncing, hasError } = actions;
 
-  // Handler for when user picks a sort order from the print dialog
-  const handlePrintSortOrder = useCallback(
-    (selectedSortOrder: PrintSortOrder) => {
-      const type = printDialogType;
-      setPrintDialogType(null);
-      if (type === 'check-in') handlers.handlePrintCheckIn({ sortOrder: selectedSortOrder });
-      else if (type === 'results')
-        handlers.handlePrintResults({
-          sortOrder: selectedSortOrder === 'run-order' ? 'placement' : 'armband',
-        });
-      else if (type === 'scoresheet')
-        handlers.handlePrintScoresheet({ sortOrder: selectedSortOrder });
-    },
-    [printDialogType, handlers, setPrintDialogType]
-  );
-
-  // Entering drag mode: close the run-order dialog it was launched from,
-  // snapshot the visible order as the starting manual order, and switch to
-  // run-order sort.
-  //
-  // The shared host handler only flips `isDragMode`. That was survivable on the
-  // single-class route, whose sort already defaults to 'run' -- but only until
-  // the steward sorted by armband or placement first. On combined A/B it fails
-  // every time: that mode sorts 'section-armband', which ignores the
-  // exhibitorOrder a drop writes, so the reorder silently reverts under the
-  // steward's finger the moment they let go.
-  const handleOpenDragMode = useCallback(() => {
-    setRunOrderDialogOpen(false);
-    uiActions.setManualOrder([...currentEntries]);
-    handlers.handleOpenDragMode();
-    setSortOrder('run');
-  }, [setRunOrderDialogOpen, uiActions, currentEntries, handlers, setSortOrder]);
-
-  // Applying a run-order preset: close the dialog, confirm, and drop back to
-  // run-order sort so the steward SEES the order they just applied.
-  //
-  // This lived inside the combined page, which meant the single-class route --
-  // where `showSuccessMessage` had no writer at all -- renumbered the whole ring
-  // and said nothing. A steward who taps "Apply" and sees no acknowledgement has
-  // no way to tell a completed renumber from one that never fired, and the
-  // natural response is to apply it again.
-  const showSuccess = useAutoDismiss(uiActions.setShowSuccessMessage, 2000);
-  // Returns void, not the handler's boolean: this wrapper is consumed by the
-  // RunOrderDialog, which fires it and forgets. The boolean is the HOST's
-  // report to this page, and it stops here.
-  const handleApplyRunOrder = useCallback(
-    async (
-      preset: RunOrderPreset,
-      scope?: RunOrderScope,
-      renumberMode?: RenumberMode
-    ): Promise<void> => {
-      // 'manual' applies no order -- it opens drag-to-reorder, which needs the
-      // dialog closed, the manual order seeded and the sort switched, none of
-      // which the host handler does.
-      if (preset === 'manual') {
-        handleOpenDragMode();
-        return;
-      }
-      // The handler REPORTS whether the order persisted; it does not signal by
-      // throwing, because the dialog invokes it fire-and-forget. Treating "did
-      // not throw" as success is how this banner came to congratulate a steward
-      // on an order that never left their phone -- both hosts catch their own
-      // persistence failures and return normally. The catch stays as a backstop
-      // for a host that does reject.
-      let persisted = false;
-      try {
-        persisted = await handlers.handleApplyRunOrder(preset, scope, renumberMode);
-      } catch {
-        persisted = false;
-      }
-      setRunOrderDialogOpen(false);
-      if (!persisted) return;
-      showSuccess();
-      setSortOrder('run');
-    },
-    [handlers, setRunOrderDialogOpen, showSuccess, setSortOrder, handleOpenDragMode]
-  );
+  const { handlePrintSortOrder, handleOpenDragMode, handleApplyRunOrder } =
+    useEntryListPageActions({ handlers, uiActions, printDialogType, currentEntries });
 
   const statusTabs = useMemo(
     () => buildStatusTabs({ pending: entryCounts.pending, completed: entryCounts.completed }),

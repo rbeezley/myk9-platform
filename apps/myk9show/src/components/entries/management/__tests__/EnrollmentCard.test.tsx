@@ -60,6 +60,7 @@ function makeGroup(overrides: Partial<EnrollmentGroup> = {}): EnrollmentGroup {
     totalAmountUnit: 'cents',
     paidAmount: 50,
     paymentReference: null,
+  paymentMethod: null,
     refundAmount: null,
     refundNotes: null,
     refundedAt: null,

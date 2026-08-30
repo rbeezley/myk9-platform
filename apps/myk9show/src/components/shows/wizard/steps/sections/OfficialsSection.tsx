@@ -11,6 +11,9 @@ interface OfficialsSectionProps {
   selectedSecretaryId: string | undefined;
   /** Show the "You" badge on the secretary picker when it's the logged-in user. */
   secretaryIsSelf: boolean;
+  /** Host-club members, surfaced as their own group in both official pickers (F8). */
+  clubMemberIds?: readonly string[];
+  clubName?: string | undefined;
   selectedJudges: React.ComponentProps<typeof JudgesPicker>['selectedJudges'];
   onSelectChairman: (id: string) => void;
   onSelectSecretary: (id: string) => void;
@@ -33,6 +36,8 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
   selectedChairmanId,
   selectedSecretaryId,
   secretaryIsSelf,
+  clubMemberIds = [],
+  clubName,
   selectedJudges,
   onSelectChairman,
   onSelectSecretary,
@@ -53,6 +58,8 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
           people={people}
           suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
           loading={peopleLoading}
+          clubMemberIds={clubMemberIds}
+          {...(clubName ? { clubName } : {})}
           excludePersonIds={selectedSecretaryId ? [selectedSecretaryId] : []}
           onSelect={onSelectChairman}
           onCreatePerson={onCreatePerson}
@@ -64,6 +71,8 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
           people={people}
           suggestedRoles={[UserRole.SECRETARY]}
           loading={peopleLoading}
+          clubMemberIds={clubMemberIds}
+          {...(clubName ? { clubName } : {})}
           excludePersonIds={selectedChairmanId ? [selectedChairmanId] : []}
           {...(secretaryIsSelf ? { autoFillBadge: 'You' } : {})}
           onSelect={onSelectSecretary}

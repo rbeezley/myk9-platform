@@ -30,6 +30,14 @@ export interface OfficialPickerProps {
   excludePersonIds?: string[];
   /** True while the people list is still being fetched. */
   loading?: boolean;
+  /**
+   * Person ids in the show's host club, surfaced as their own group (F8). Optional:
+   * with none supplied the picker behaves exactly as before, so callers that have no
+   * club context are unaffected.
+   */
+  clubMemberIds?: readonly string[];
+  /** Club name for the group heading, e.g. "Heartland Scent Work Club members". */
+  clubName?: string | undefined;
   onSelect: (personId: string) => void;
   onCreatePerson: (data: CreatePersonData) => Promise<string>;
 }
@@ -43,6 +51,8 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   autoFillBadge,
   excludePersonIds = [],
   loading = false,
+  clubMemberIds = [],
+  clubName,
   onSelect,
   onCreatePerson,
 }) => {
@@ -57,11 +67,12 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const selectedName = getPersonName(people, selectedPersonId);
-  const { suggested, others } = groupPeopleForOfficial(
+  const { members, suggested, others } = groupPeopleForOfficial(
     people,
     suggestedRoles,
     searchTerm,
-    excludePersonIds
+    excludePersonIds,
+    clubMemberIds
   );
 
   const handleOpenAddNew = () => {
@@ -144,10 +155,18 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
           onSearchChange={setSearchTerm}
           loading={loading}
           loadingLabel="Loading people…"
+          // Club members first: for a club's own show, "someone this club knows" is
+          // the more useful cut than a platform-wide role hint. Empty groups are
+          // dropped so a picker with no club context looks exactly as it did.
           groups={[
+            {
+              groupKey: 'members',
+              label: clubName ? `${clubName} members` : 'Club members',
+              items: members,
+            },
             { groupKey: 'suggested', label: 'Suggested', items: suggested },
             { groupKey: 'all', label: 'All People', items: others },
-          ]}
+          ].filter(group => group.items.length > 0)}
           renderItem={renderPersonRow}
           selectedItemIds={selectedPersonId ? [selectedPersonId] : []}
           onSelect={person => onSelect(person.id)}

@@ -1,4 +1,8 @@
 import { PaymentStatus } from '@/types/show-registration-types';
+import {
+  financialReportPaymentLabel,
+  resolvePaymentChannel,
+} from '@/features/payments/paymentChannel';
 import type { ReportEntry } from '@/lib/reports/types';
 
 export type FinancialReportMode = 'current' | 'waitlist';
@@ -113,19 +117,16 @@ export function getFinancialPaymentLabel(entry: ReportEntry): string {
   if (isFullyRefunded(entry)) return 'Refunded';
   if (isPartiallyRefunded(entry)) return 'Partial Refund';
 
-  const method = normalize(entry.paymentMethod);
-  if (method === 'check') return 'Check';
-  if (method === 'cash') return 'Cash';
-  if (method === 'credit_card' || method === 'online' || method === 'stripe') return 'Online';
-  if (method === 'secretary_paid') return 'Secretary Paid';
-  if (method === 'group_payment') return 'Group Payment';
-
-  const status = getEffectivePaymentStatus(entry);
-  if (status === PaymentStatus.PAID_BY_CHECK) return 'Check';
-  if (status === PaymentStatus.PAID_BY_CASH) return 'Cash';
-  if (status === PaymentStatus.PAID_ONLINE || status === 'paid') return 'Online';
-
-  return entry.paymentMethod || entry.paymentStatus || 'Unknown';
+  // Method-first precedence was already right here; the shared resolver keeps it and
+  // fixes the tail. `status === 'paid'` used to fall through to "Online", which on
+  // staging describes 1,228 rows that record no method at all -- exactly the claim a
+  // secretary reconciling against a Stripe payout must not be given (F18).
+  return financialReportPaymentLabel(
+    resolvePaymentChannel({
+      paymentMethod: entry.paymentMethod,
+      paymentStatus: getEffectivePaymentStatus(entry),
+    })
+  );
 }
 
 /**

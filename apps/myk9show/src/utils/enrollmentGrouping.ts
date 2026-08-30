@@ -19,6 +19,12 @@ export interface EnrollmentGroup {
   /** Amount already recorded as paid, in dollars. */
   paidAmount: number;
   paymentReference: string | null;
+  /**
+   * `entries.payment_method` — the only field that records HOW payment arrived.
+   * The group used to drop it, so the UI had nothing but `payment_status` to go on
+   * and rendered the generic 'paid' as "Paid online" (F18).
+   */
+  paymentMethod: string | null;
   /** Refund amount in dollars (null until a refund is recorded). */
   refundAmount: number | null;
   refundNotes: string | null;
@@ -52,6 +58,7 @@ export function groupEntriesByEnrollment(entries: EntryManagementEntry[]): Enrol
         // mixing the enrollment figure in would double-count.
         paidAmount: hasEnrollmentTotal ? (entry.enrollmentPaidAmount ?? 0) : 0,
         paymentReference: entry.enrollmentPaymentReference ?? null,
+        paymentMethod: entry.paymentMethod ?? null,
         refundAmount: entry.enrollmentRefundAmount ?? null,
         refundNotes: entry.enrollmentRefundNotes ?? null,
         refundedAt: entry.enrollmentRefundedAt ?? null,

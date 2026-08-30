@@ -5,6 +5,10 @@ import { cn } from '@/lib/utils';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { PaymentStatus } from '@/types/show-registration-types';
+import {
+  entryManagementPaymentLabel,
+  resolvePaymentChannel,
+} from '@/features/payments/paymentChannel';
 import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 import {
   getEntryRegistrationRowId,
@@ -66,23 +70,23 @@ function formatSubmittedAt(value: Date): string {
 }
 
 function paymentLabel(group: ShowRegistrationGroup): string {
-  switch (group.paymentStatus) {
-    case PaymentStatus.PAID_BY_CASH:
-      return 'Paid by cash';
-    case PaymentStatus.PAID_BY_CHECK:
-      return 'Paid by check';
-    case PaymentStatus.PAID_ONLINE:
-      return 'Paid online';
-    case PaymentStatus.WAIVED:
-      return 'Waived';
-    case PaymentStatus.REFUNDED:
-      return 'Refunded';
-    case PaymentStatus.PARTIAL_REFUND:
-      return 'Partially refunded';
-    case PaymentStatus.PENDING:
-    default:
-      return group.attentionReasons.includes('payment_due') ? 'Payment due' : 'Not paid yet';
+  // Refund state outranks the channel: what matters first is that money went back.
+  if (group.paymentStatus === PaymentStatus.REFUNDED) return 'Refunded';
+  if (group.paymentStatus === PaymentStatus.PARTIAL_REFUND) return 'Partially refunded';
+  if (group.paymentStatus === PaymentStatus.PENDING) {
+    return group.attentionReasons.includes('payment_due') ? 'Payment due' : 'Not paid yet';
   }
+
+  // F18: this used to read the channel off `paymentStatus` alone, so the generic
+  // database status 'paid' -- which is what a mail-in cheque carries -- rendered as
+  // "Paid online". The channel now comes from `payment_method` where one was
+  // recorded, and says plain "Paid" where none was.
+  return entryManagementPaymentLabel(
+    resolvePaymentChannel({
+      paymentMethod: group.paymentMethod,
+      paymentStatus: group.paymentStatus,
+    })
+  );
 }
 
 const reviewLabel = getRegistrationReviewLabel;

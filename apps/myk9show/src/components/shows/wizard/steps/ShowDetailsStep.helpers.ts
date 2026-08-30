@@ -69,14 +69,34 @@ export function groupPeopleForOfficial(
   people: User[],
   suggestedRoles: UserRole[],
   searchTerm: string,
-  excludeIds: string[] = []
-): { suggested: User[]; others: User[] } {
+  excludeIds: string[] = [],
+  /**
+   * Person ids belonging to the show's host club. When supplied, club members are
+   * lifted into their own group ahead of everyone else (F8).
+   *
+   * Members are surfaced, NOT enforced: a club may legitimately appoint a chairman
+   * from outside its roster, so everyone stays reachable through the search box. The
+   * finding was that the picker offered a single undifferentiated "All People" list —
+   * other clubs' secretaries, exhibitors and admins — with nothing to say which of
+   * them the club actually knows. This mirrors JudgesPicker, which the audit cites as
+   * doing it better by splitting credentialed judges from everyone else.
+   */
+  clubMemberIds: readonly string[] = []
+): { members: User[]; suggested: User[]; others: User[] } {
   const exclude = new Set(excludeIds);
+  const members = new Set(clubMemberIds);
   const sorted = getAllPeopleSorted(people).filter(p => !exclude.has(p.id));
   const filtered = filterPeopleByName(sorted, searchTerm);
+
+  const hasSuggestedRole = (p: User) =>
+    Boolean(p.roles?.some(r => suggestedRoles.includes(r as UserRole)));
+
+  // Club membership outranks the role hint: "someone this club knows" is the more
+  // useful first cut when picking an official for that club's show.
   return {
-    suggested: filtered.filter(p => p.roles?.some(r => suggestedRoles.includes(r as UserRole))),
-    others: filtered.filter(p => !p.roles?.some(r => suggestedRoles.includes(r as UserRole))),
+    members: filtered.filter(p => members.has(p.id)),
+    suggested: filtered.filter(p => !members.has(p.id) && hasSuggestedRole(p)),
+    others: filtered.filter(p => !members.has(p.id) && !hasSuggestedRole(p)),
   };
 }
 

@@ -100,7 +100,20 @@ function invokedByName() {
         visit(full);
         continue;
       }
-      const text = fs.readFileSync(full, 'utf8');
+      // Comment lines are stripped before scanning. Prose that merely NAMES a
+      // spec is not evidence that anything runs it — and this file's own CI
+      // step carries a comment naming myEntriesZoomReflow.spec.ts, which would
+      // otherwise have whitelisted the very spec this guard exists for.
+      //
+      // Only line-leading comments are removed. A `#` inside a quoted command
+      // is not reliably a comment, and guessing would drop real invocations;
+      // scoping to line-leading keeps the check honest in the direction that
+      // fails loudly rather than silently.
+      const text = fs
+        .readFileSync(full, 'utf8')
+        .split('\n')
+        .filter(line => !/^\s*#/.test(line))
+        .join('\n');
       for (const m of text.matchAll(/([A-Za-z0-9._/-]+\.spec\.ts)/g)) {
         named.add(path.basename(m[1]));
       }
@@ -113,9 +126,24 @@ function invokedByName() {
 const namedInScripts = invokedByName();
 
 const misfiled = [];
+const undocumented = [];
 for (const { heading, constant } of CI_SECTIONS) {
   const configured = configuredSpecs(constant);
-  for (const spec of sectionSpecs(heading)) {
+  const documented = sectionSpecs(heading);
+
+  // Both directions, because each one hides a different lie. A spec filed
+  // under a CI section that does not run it OVERSTATES coverage; a spec the
+  // config runs but the section omits UNDERSTATES it, leaving a gated spec
+  // with no documented owner. The one-directional version of this check
+  // passed while my-entries-page-ui.spec.ts was gating every PR and appeared
+  // nowhere under "PR Smoke".
+  for (const pattern of configured) {
+    if (!documented.some(spec => spec.endsWith(pattern))) {
+      undocumented.push({ pattern, heading, constant });
+    }
+  }
+
+  for (const spec of documented) {
     const selectedByConfig = configured.some(pattern => spec.endsWith(pattern));
     const launchedByName = namedInScripts.has(path.basename(spec));
     if (!selectedByConfig && !launchedByName) {
@@ -124,12 +152,25 @@ for (const { heading, constant } of CI_SECTIONS) {
   }
 }
 
-if (missingFromMap.length === 0 && staleInMap.length === 0 && misfiled.length === 0) {
+if (
+  missingFromMap.length === 0 &&
+  staleInMap.length === 0 &&
+  misfiled.length === 0 &&
+  undocumented.length === 0
+) {
   console.log(
     `E2E suite map covers ${actualSpecs.size} spec files; ` +
       `its CI sections agree with playwright.ci.config.ts.`
   );
   process.exit(0);
+}
+
+if (undocumented.length > 0) {
+  console.error('Specs that CI runs but the suite map does not document there:');
+  for (const { pattern, heading, constant } of undocumented) {
+    console.error(`  - ${pattern}`);
+    console.error(`      selected by ${constant} but absent from "${heading}"`);
+  }
 }
 
 if (misfiled.length > 0) {

@@ -157,6 +157,8 @@ PR smoke is intentionally small. Its purpose is to confirm the app boots, auth s
 | ---------------------------------------------------------------------- | ------------------------------------------ |
 | `apps/myk9show/src/test/e2e/simple-connectivity.spec.ts`               | App boots and basic page load works.       |
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts` | Current strict secretary regression proof. |
+| `apps/myk9show/src/test/e2e/uat/secretary/critical-path.spec.ts`       | Stable secretary UAT critical path. Also in REGRESSION_SPECS, so it appears under Nightly Active too.|
+| `apps/myk9show/src/test/e2e/my-entries-page-ui.spec.ts`                | Exhibitor entries page regression coverage. Also in REGRESSION_SPECS, so it appears under Nightly Active too.|
 
 ## Nightly Active
 

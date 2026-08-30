@@ -95,7 +95,7 @@ function RegistrationWizardContent() {
         isInsideSidebar={isInsideSidebar}
         header={
           <div className="container mx-auto px-4 py-3 max-w-7xl sm:px-6">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <Button
                 variant="ghost"
                 size="default"
@@ -105,7 +105,10 @@ function RegistrationWizardContent() {
                 <ArrowLeft className="h-4 w-4" />
                 {exitTarget.label}
               </Button>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              {/* min-w-0 is load-bearing: without it this flex child cannot
+                  shrink below its content, so the truncate on the show name
+                  never engages and the row overflows at 375px. */}
+              <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
                 <span>Shows</span>
                 <span>/</span>
                 <span className="truncate max-w-[200px]">{currentShow?.name || 'Show'}</span>
@@ -122,7 +125,7 @@ function RegistrationWizardContent() {
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-auto hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="ml-auto flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 <HelpCircle className="h-4 w-4" />
                 Help
@@ -131,7 +134,7 @@ function RegistrationWizardContent() {
 
             {/* Title + horizontal step indicator */}
             <div className="mt-3">
-              <h2 className="text-base font-semibold text-foreground">{sidebarTitle}</h2>
+              <h1 className="text-base font-semibold text-foreground">{sidebarTitle}</h1>
               {workflowSubtitle && (
                 <p className="text-sm text-muted-foreground">{workflowSubtitle}</p>
               )}

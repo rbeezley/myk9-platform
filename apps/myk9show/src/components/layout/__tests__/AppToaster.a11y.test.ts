@@ -31,7 +31,9 @@ describe('AppToaster accessibility contract', () => {
   });
 
   it('clears stale actions when navigation leaves the current pathname', () => {
-    expect(appToaster).toContain('const { pathname } = useLocation();');
-    expect(appToaster).toContain('}, [pathname]);');
+    expect(appToaster).toContain('const { pathname, key } = useLocation();');
+    expect(appToaster).toContain('const navigationType = useNavigationType();');
+    expect(appToaster).toContain("navigationType === 'REPLACE'");
+    expect(appToaster).toContain('}, [key, navigationType, pathname]);');
   });
 });

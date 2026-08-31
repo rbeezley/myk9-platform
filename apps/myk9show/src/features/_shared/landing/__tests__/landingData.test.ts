@@ -111,4 +111,41 @@ describe('buildLandingData', () => {
     const data = buildLandingData(show, trials[1], trials, 12);
     expect(data.trials.map(t => t.id)).toEqual(['trial-1', 'trial-2']);
   });
+
+  // Codex caught this on review: sorting by label alone reorders a multi-day show.
+  // Real staging data — Heartland has "Saturday Trial" on Aug 1 and
+  // "ASCA-ScentDetection" on Aug 2 — and alphabetically ASCA leads, which would put
+  // day two ahead of day one on a public page.
+  it('keeps trials chronological when labels sort against the calendar', () => {
+    const multiDay = [
+      { ...trials[0], id: 'asca', trialNumber: 'ASCA-ScentDetection', trialDate: '2026-08-02' },
+      { ...trials[1], id: 'sat', trialNumber: 'Saturday Trial', trialDate: '2026-08-01' },
+    ] as unknown as typeof trials;
+
+    const data = buildLandingData(show, multiDay[1], multiDay, 12);
+
+    expect(data.trials.map(t => t.id)).toEqual(['sat', 'asca']);
+  });
+
+  it('orders same-day trials by label, numerically', () => {
+    const sameDay = [
+      { ...trials[0], id: 't-10', trialNumber: 'Trial 10', trialDate: '2026-08-01' },
+      { ...trials[1], id: 't-2', trialNumber: 'Trial 2', trialDate: '2026-08-01' },
+    ] as unknown as typeof trials;
+
+    const data = buildLandingData(show, sameDay[0], sameDay, 12);
+
+    expect(data.trials.map(t => t.id)).toEqual(['t-2', 't-10']);
+  });
+
+  it('sorts undated trials last rather than first', () => {
+    const withUndated = [
+      { ...trials[0], id: 'undated', trialNumber: 'TBD', trialDate: null },
+      { ...trials[1], id: 'dated', trialNumber: 'Saturday Trial', trialDate: '2026-08-01' },
+    ] as unknown as typeof trials;
+
+    const data = buildLandingData(show, withUndated[1], withUndated, 12);
+
+    expect(data.trials.map(t => t.id)).toEqual(['dated', 'undated']);
+  });
 });

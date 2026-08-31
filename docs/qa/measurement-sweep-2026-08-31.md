@@ -131,6 +131,40 @@ one run and 16 on the next. The sweep now waits for the app's API reads to go
 idle, for text length to stop changing between samples, and for running
 animations to finish, each capped.
 
+## Corrected 2026-08-31 (MYK9-281)
+
+The first publication of this report overstated its own small-target count. The
+probe reported every **stretched link** — an anchor whose `::after` is inset
+across its card, so the whole card is the hit area — as a ~24px target, because
+`getBoundingClientRect()` excludes pseudo-elements and the ancestor walk only
+promoted elements setting `cursor: pointer`. On `/dogs`, **25 of 26** findings
+were this artefact.
+
+Fixed in `measurementProbe.ts`, and the numbers below are from a full re-run.
+
+| Metric | First run | Corrected |
+| --- | --- | --- |
+| Small-target findings | 620 | **620** |
+| `a` 24px cluster | 66 instances / 18 routes | **16 / 16** — breadcrumbs only |
+| `/dogs` findings | 26 | **1** (a genuine 40px "Add Dog") |
+
+Two things worth stating rather than glossing:
+
+- **The estimate of the error was itself wrong.** Before re-running, the guess
+  was ~12 artefacts on `/dogs`; the answer was 25. There was no way to know
+  without measuring, which is the same lesson the probe keeps teaching.
+- **The contrast numbers also moved (947 → 931), and that is NOT this fix.**
+  `effectiveBox` is used only by the target scan. The re-run happened on a base
+  14 commits newer than the original (`51a9bd718` → `0cca87202`), including
+  #1914's rework of the report components, so page content differs. Treat
+  cross-run contrast deltas as base drift unless the bases match.
+
+The sweep now carries a **geometry** known-answer check alongside its colour
+ones: every page measures a synthetic stretched link inside a 120px card and
+must get 120 back, not the anchor's own ~20px line box. Until MYK9-281 the
+harness verified only its arithmetic, never its geometry — which is why a broken
+`effectiveBox` published a full sweep without tripping anything.
+
 ## Coverage
 
 Two measurements per route, light and dark. Club-admin is absent because
@@ -144,10 +178,10 @@ Two measurements per route, light and dark. Club-admin is absent because
 | Never attempted (group skipped) | 0 |
 | Usable | 80 |
 | Excluded | 4 |
-| Text nodes measured for contrast | 31,046 |
+| Text nodes measured for contrast | 30,914 |
 | Text nodes not measurable (image/gradient backdrop) | 164 |
-| Contrast findings | 947 |
-| Small-target findings | 676 |
+| Contrast findings | 931 |
+| Small-target findings | 620 |
 | Controls with no accessible name | 10 |
 | **Measurements with horizontal overflow** | **0** |
 
@@ -162,7 +196,7 @@ account — worth a look, but not a measurement.
 work that `shell-integrity-responsive.spec.ts` and the round-4 registration pass
 pinned is holding across every route, not just the pinned ones.
 
-**No WCAG 2.5.8 AA target failures.** All 676 small-target instances are against
+**No WCAG 2.5.8 AA target failures.** All 620 small-target instances are against
 the **44px** bar this project adopted in round 5, not the 24px WCAG AA floor —
 `under24` is zero across every one of them. Every undersized control either
 clears 24px or satisfies 2.5.8's spacing exception, checked in both its halves
@@ -224,7 +258,7 @@ Whether that is worth changing is a design call, not a defect report.
 | --- | --- | --- | --- | --- |
 | `button` | 20 | 50 | 32px | "Change photo", "See classes", "Copy Admin code" |
 | `button` | 20 | 50 | 40px | "Add Dog", "Copy link", "Print", "Regenerate codes" |
-| `a` | 18 | 66 | 24px | sidebar / nav links |
+| `a` | 16 | 16 | 24px | "Shows" / "Admin" breadcrumbs |
 | `a` | 14 | 28 | 36px | "Sign In", "Sign Up" |
 | `button` | 14 | 138 | 36px | "More show actions", "Move up — #100 Willow" |
 | `combobox` | 12 | 18 | 40px | "Trial", "Sort", "Report", "Organization *" |

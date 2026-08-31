@@ -110,7 +110,7 @@ export function measurePage(limit: number): ProbeResult {
   const white = parse('#ffffff');
   const black = parse('#000000');
   const grey = parse('#767676');
-  const sanity: ProbeSanity = {
+  const contrastSanity = {
     blackOnWhite: round(ratioOf(black, white)),
     whiteOnWhite: round(ratioOf(white, white)),
     greyOnWhite: round(ratioOf(grey, white)),
@@ -286,6 +286,36 @@ export function measurePage(limit: number): ProbeResult {
     if (el.id) consider(document.querySelector(`label[for="${CSS.escape(el.id)}"]`));
     consider(el.closest('label'));
 
+    // The STRETCHED-LINK pattern: an anchor whose ::after is absolutely
+    // positioned across its nearest positioned ancestor, so the whole card is
+    // the hit area even though the anchor is a line of text.
+    //
+    // `getBoundingClientRect()` excludes pseudo-elements, and the card need not
+    // set `cursor: pointer` — the anchor supplies the interactivity — so the
+    // ancestor walk below cannot see it either. Left unhandled this reports
+    // every card title in the app as a ~24px target (MYK9-281): 12 of the 26
+    // findings on /dogs alone were `BrowseCard`, which needs no fix at all.
+    //
+    // Same family as the round-5 trap this probe was built to avoid — 504
+    // phantom checkbox findings, each wrapped in a clickable card. That one was
+    // solved by the pointer-cursor walk; this one slips past it because the
+    // interactivity lives in a pseudo-element rather than an ancestor.
+    const after = getComputedStyle(el, '::after');
+    if (after.position === 'absolute' && after.content !== 'none') {
+      // Its containing block is the nearest positioned ancestor, which is the
+      // box the pseudo-element actually covers.
+      let host: Element | null = el.parentElement;
+      for (let i = 0; host && i < 6; i++) {
+        if (host === document.body) break;
+        const pos = getComputedStyle(host).position;
+        if (pos !== 'static') {
+          consider(host);
+          break;
+        }
+        host = host.parentElement;
+      }
+    }
+
     // A clickable ancestor: pointer cursor, and still a component-sized box
     // rather than the page shell.
     let cur: Element | null = el.parentElement;
@@ -297,6 +327,39 @@ export function measurePage(limit: number): ProbeResult {
       cur = cur.parentElement;
     }
     return best;
+  };
+
+  /**
+   * Known-answer check for `effectiveBox`, run on every page against a
+   * synthetic stretched link. The contrast sanity values above catch broken
+   * arithmetic; nothing caught broken GEOMETRY until MYK9-281, where every card
+   * title in the app was reported as a ~24px target for a full sweep.
+   *
+   * Builds a 200x120 positioned card containing a one-line anchor whose ::after
+   * is inset-0. The correct answer is 120 — the card. A regression returns the
+   * anchor's own ~20px line box, and the report then discards the run instead of
+   * publishing the inflated count.
+   */
+  const stretchedLinkSelfTest = (): number => {
+    const card = document.createElement('div');
+    card.setAttribute('style', 'position:relative;width:200px;height:120px;left:-9999px;top:0');
+    const link = document.createElement('a');
+    link.href = '#';
+    link.textContent = 'self test';
+    card.appendChild(link);
+    document.body.appendChild(card);
+
+    const style = document.createElement('style');
+    style.textContent =
+      '#probe-self-test a::after{content:"";position:absolute;inset:0;}';
+    card.id = 'probe-self-test';
+    document.head.appendChild(style);
+
+    const measured = Math.round(effectiveBox(link).height);
+
+    card.remove();
+    style.remove();
+    return measured;
   };
 
   /**
@@ -364,6 +427,11 @@ export function measurePage(limit: number): ProbeResult {
       }
     }
     return '';
+  };
+
+  const sanity: ProbeSanity = {
+    ...contrastSanity,
+    stretchedLink: stretchedLinkSelfTest(),
   };
 
   const targets: TargetFinding[] = [];

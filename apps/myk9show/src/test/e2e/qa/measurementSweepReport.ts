@@ -34,6 +34,11 @@ const SANITY = {
   blackOnWhite: { expected: 21, slack: 0.3 },
   whiteOnWhite: { expected: 1, slack: 0.05 },
   greyOnWhite: { expected: 4.54, slack: 0.15 },
+  // Geometry, not colour: a synthetic stretched link must measure as the
+  // 120px card it covers, not its own ~20px line box. Until MYK9-281 nothing
+  // checked the geometry half at all, and a broken `effectiveBox` reported
+  // every card title in the app as a small target for a whole sweep.
+  stretchedLink: { expected: 120, slack: 1 },
 };
 
 /**

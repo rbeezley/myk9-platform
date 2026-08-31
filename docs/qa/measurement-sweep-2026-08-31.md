@@ -262,3 +262,29 @@ reader user needs it.
    Measure first, decide the bar from real numbers, then pin the specific
    defects worth pinning — which is what `wizardVisualQA.spec.ts` does for the
    two the registration wizard had.
+
+## Filed
+
+Every finding above is tracked. None is fixed in PR #1911 — that PR adds the
+sweep and this report, and touches no application code.
+
+| Issue | Priority | Scope |
+| --- | --- | --- |
+| [MYK9-274](https://linear.app/myk9-platform/issue/MYK9-274) | High | `text-muted-foreground` opacity family — 14 route-measurements, both themes |
+| [MYK9-275](https://linear.app/myk9-platform/issue/MYK9-275) | High | The two unreadable badges — 1.03:1 on `/admin/help`, 1.17:1 on show-desk |
+| [MYK9-276](https://linear.app/myk9-platform/issue/MYK9-276) | Medium | Hardcoded zinc/slate class-code badges, ~1.9:1, 200 instances |
+| [MYK9-277](https://linear.app/myk9-platform/issue/MYK9-277) | Medium | Shared `Button`/input/combobox size variants under 44px |
+| [MYK9-278](https://linear.app/myk9-platform/issue/MYK9-278) | Medium | Five placeholder-only inputs with no accessible name |
+| [MYK9-279](https://linear.app/myk9-platform/issue/MYK9-279) | Low | `/secretary/tasks` and `/secretary/waitlist` redirect to the dashboard |
+
+Already open from the round-5 pass, and not re-filed:
+[MYK9-269](https://linear.app/myk9-platform/issue/MYK9-269) — sonner toast at
+4.26:1 with a 20×20 close button. The toast is global styling from the library
+rather than a route, so this sweep does not reach it.
+
+Note that MYK9-277 deliberately asks whether the 44px bar is right before asking
+anyone to meet it. 676 instances is a great deal of churn for a self-imposed
+standard that no conformance criterion requires, and the sweep's own finding is
+that the app has **zero** WCAG 2.5.8 AA failures. A measurement report is most
+useful when it makes that distinction on the reader's behalf instead of
+presenting every number as a defect.

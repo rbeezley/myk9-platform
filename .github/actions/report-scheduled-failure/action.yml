@@ -10,8 +10,12 @@ inputs:
     required: true
   outcome:
     description: >-
-      The job result to report — pass the job status expression, e.g.
-      ${{ job.status }}. Anything other than "success" counts as broken.
+      The job result to report. Callers pass the job-status expression from the
+      WORKFLOW, where the job context exists. Anything other than "success"
+      counts as broken. Do not write that expression literally here: GitHub
+      evaluates expressions inside a manifest's description, and the job context
+      does not exist inside a composite action, so the interpolation braces alone
+      make the whole action fail to load.
     required: true
   token:
     description: Token with issues:write on this repository.

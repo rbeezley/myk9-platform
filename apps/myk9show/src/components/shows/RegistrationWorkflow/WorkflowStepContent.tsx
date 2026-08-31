@@ -62,6 +62,7 @@ interface WorkflowStepContentProps {
   capacityError?: string | null | undefined;
   /** Availability could not be read at all, as opposed to still loading. */
   capacityUnavailable?: boolean | undefined;
+  onRetryAvailability?: (() => void) | undefined;
   waitlistClassIds?: ReadonlySet<string> | undefined;
   blockedClassIds?: ReadonlySet<string> | undefined;
   /** Armband assignments from the RPC call */
@@ -103,6 +104,7 @@ export function WorkflowStepContent({
   capacityReady = true,
   capacityError,
   capacityUnavailable,
+  onRetryAvailability,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
   armbandAssignments,
@@ -185,7 +187,7 @@ export function WorkflowStepContent({
               : fmt(currentShow.startDate);
           })()
         : '',
-      dogRegisteredName: firstDog ? getDogRegisteredName(firstDog) ?? '' : '',
+      dogRegisteredName: firstDog ? (getDogRegisteredName(firstDog) ?? '') : '',
       dogCallName: firstDog?.callName ?? null,
       classSummary,
       // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar
@@ -401,6 +403,7 @@ export function WorkflowStepContent({
             capacityReady={capacityReady}
             capacityError={capacityError}
             capacityUnavailable={capacityUnavailable}
+            onRetryAvailability={onRetryAvailability}
             waitlistClassIds={waitlistClassIds}
             blockedClassIds={blockedClassIds}
           />

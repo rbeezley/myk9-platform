@@ -19,9 +19,19 @@ describe('WizardNavigation', () => {
     expect(screen.getByText('Back')).toBeInTheDocument();
   });
 
-  it('shows step indicator', () => {
+  // The step counter lives in HorizontalProgressIndicator, which both consumers
+  // of this component also render. It used to be printed here as well, and once
+  // more by the page, so "Step N of M" appeared three times on one screen.
+  // currentStep/totalSteps still drive behaviour — the Cancel-vs-Back label and
+  // isLastStep — they just no longer render a duplicate counter.
+  it('does not duplicate the step counter owned by the progress indicator', () => {
     render(<WizardNavigation {...defaultProps} currentStep={2} totalSteps={5} />);
-    expect(screen.getByText('Step 3 of 5')).toBeInTheDocument();
+    expect(screen.queryByText('Step 3 of 5')).not.toBeInTheDocument();
+  });
+
+  it("still labels the first step's back action as Cancel", () => {
+    render(<WizardNavigation {...defaultProps} currentStep={0} totalSteps={5} />);
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
   });
 
   it('uses custom labels when provided', () => {
@@ -86,6 +96,52 @@ describe('WizardNavigation', () => {
       render(<WizardNavigation {...defaultProps} canGoBack={false} />);
       const backButton = screen.getByText('Back').closest('button');
       expect(backButton).toBeDisabled();
+    });
+  });
+
+  // The blocked Next has now shipped wrong twice with no test to catch it:
+  // first as a fully-enabled-looking button that silently ate clicks, then as
+  // one whose dim evaporated on hover because the variant's own hover:opacity-90
+  // outranked it. It is aria-disabled rather than disabled ON PURPOSE, so its
+  // reason stays reachable to a keyboard user — which is exactly why it needs
+  // its own assertions.
+  describe('blockedReasonId (aria-disabled Next)', () => {
+    const blocked = { canGoNext: false, blockedReasonId: 'why-blocked' };
+
+    it('stays focusable so its reason can be read on demand', () => {
+      render(<WizardNavigation {...defaultProps} {...blocked} />);
+      const next = screen.getByRole('button', { name: 'Next' });
+      expect(next).not.toBeDisabled();
+      expect(next).toHaveAttribute('aria-disabled', 'true');
+      expect(next).toHaveAttribute('aria-describedby', 'why-blocked');
+    });
+
+    it('does nothing when clicked while blocked', async () => {
+      const onNext = vi.fn();
+      const { user } = render(<WizardNavigation {...defaultProps} {...blocked} onNext={onNext} />);
+      await user.click(screen.getByRole('button', { name: 'Next' }));
+      expect(onNext).not.toHaveBeenCalled();
+    });
+
+    it('carries a blocked appearance that hover cannot undo', () => {
+      render(<WizardNavigation {...defaultProps} {...blocked} />);
+      const classes = screen.getByRole('button', { name: 'Next' }).className.split(/\s+/);
+      const cls = classes.join(' ');
+      // Token pair, not an opacity dim: this control is focusable, so it still
+      // has to meet AA. opacity-50 measured 2.22:1 light / 2.42:1 dark.
+      expect(cls).toContain('bg-muted');
+      // Exact token, not a substring: the variant ships `disabled:opacity-50`,
+      // which a toContain check would match and pass on.
+      expect(classes).not.toContain('opacity-50');
+      // The variant ships hover:opacity-90 and a hover lift; both must be
+      // neutralised or the "disabled" look disappears under the pointer.
+      expect(cls).toContain('hover:opacity-100');
+      expect(cls).toContain('hover:translate-y-0');
+    });
+
+    it('behaves like a normal disabled button when no reason id is given', () => {
+      render(<WizardNavigation {...defaultProps} canGoNext={false} />);
+      expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
     });
   });
 

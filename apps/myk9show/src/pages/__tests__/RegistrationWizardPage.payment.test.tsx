@@ -258,6 +258,34 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
     expect(submitShowRegistrationMock).not.toHaveBeenCalled();
   });
 
+  // Advancing scrolled the wizard but never moved focus, so a keyboard user
+  // stayed on the Next button of the step they had just left — and on the
+  // payment -> receipt swap that button is unmounted entirely, dropping focus
+  // to <body>. Mounted through the real page: the heading and the effect that
+  // focuses it are page-level, and a test of the effect alone would not catch
+  // the ref being unwired.
+  it('moves focus to the step heading when the step changes', async () => {
+    const { user } = render(<RegistrationWizardPage />, {
+      initialRoute: '/shows/show-1/register',
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection')
+    );
+    // First render must NOT steal focus — the user has only just arrived.
+    expect(document.activeElement).not.toBe(screen.getByRole('heading', { name: /step 1 of/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('step-content')).toHaveTextContent('class-selection')
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('heading', { name: /step 2 of/i }))
+    );
+  });
+
   it('discards wizard drafts without allowing final auto-save during Stripe handoff', async () => {
     const { user } = render(<RegistrationWizardPage />, {
       initialRoute: '/shows/show-1/register',

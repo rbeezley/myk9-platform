@@ -9,11 +9,13 @@
  * hook's values and handlers.
  */
 
+import { useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notifications } from '@/lib/notifications';
 import { helpUrl } from '@/lib/help';
+import { cn } from '@/lib/utils';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import type { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useShowStore } from '@/store/showStore';
@@ -27,6 +29,9 @@ import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/Wor
 import { RegistrationWizardShell } from '@/components/shows/RegistrationWorkflow/RegistrationWizardShell';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+
+/** Stable id so the Next button can point at the blocked-reason text. */
+const PROCEED_BLOCKED_ID = 'registration-wizard-blocked-reason';
 
 function RegistrationWizardContent() {
   const wiz = useRegistrationWizard();
@@ -64,6 +69,7 @@ function RegistrationWizardContent() {
     capacityReady,
     capacityError,
     capacityUnavailable,
+    refetchClassAvailability,
     waitlistClassIds,
     blockedClassIds,
     armbandAssignments,
@@ -88,6 +94,24 @@ function RegistrationWizardContent() {
     handleBack,
     handleExit,
   } = wiz;
+
+  const showBlockedReason = !!proceedBlocked && !isSubmitting;
+
+  // Move focus to the step heading whenever the step changes. Without this the
+  // wizard scrolls but focus stays put — and on the payment -> receipt swap the
+  // focused Next button is unmounted entirely, dropping focus to <body> so a
+  // keyboard user restarts from the top of the document. Focusing a heading
+  // that names the step also announces where they now are.
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const hasMountedStep = useRef(false);
+  useEffect(() => {
+    if (!hasMountedStep.current) {
+      // Don't steal focus on first render — the user has just navigated here.
+      hasMountedStep.current = true;
+      return;
+    }
+    stepHeadingRef.current?.focus({ preventScroll: true });
+  }, [currentStep]);
 
   return (
     <RegistrationErrorBoundary>
@@ -156,11 +180,16 @@ function RegistrationWizardContent() {
         footer={
           entryCloseAvailability.canEnter ? (
             <>
-              {proceedBlocked && !isSubmitting && (
-                <p role="status" className="mb-3 text-sm text-muted-foreground">
-                  {proceedBlocked}
-                </p>
-              )}
+              <p
+                id={PROCEED_BLOCKED_ID}
+                role="status"
+                className={cn(
+                  'mb-3 text-sm text-muted-foreground',
+                  !showBlockedReason && 'sr-only'
+                )}
+              >
+                {showBlockedReason ? proceedBlocked : ''}
+              </p>
               {isLastStep ? (
                 <ReceiptExits
                   isExhibitor={currentWorkflowMode === 'exhibitor'}
@@ -190,6 +219,7 @@ function RegistrationWizardContent() {
                   }
                   backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
                   isLoading={isSubmitting}
+                  {...(showBlockedReason ? { blockedReasonId: PROCEED_BLOCKED_ID } : {})}
                 />
               )}
             </>
@@ -199,12 +229,14 @@ function RegistrationWizardContent() {
         {entryCloseAvailability.canEnter && (
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-medium">
-                  Step {currentStep + 1} of {steps.length}:
-                </span>
-                <span>{steps[currentStep]?.label}</span>
-              </div>
+              <h2
+                ref={stepHeadingRef}
+                tabIndex={-1}
+                className="text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                {steps[currentStep]?.label}
+                <span className="sr-only">{` — step ${currentStep + 1} of ${steps.length}`}</span>
+              </h2>
               <DraftManager
                 saveDraft={draftSave}
                 loadDraft={draftLoad}
@@ -266,8 +298,6 @@ function RegistrationWizardContent() {
                 h3s, so without this the heading tree skips a level. It also
                 gives a screen-reader user the current step by name at the point
                 the step's own content begins. */}
-            <h2 className="sr-only">{steps[currentStep]?.label ?? 'Current step'}</h2>
-
             {/* Step content */}
             <WorkflowStepContent
               currentStepId={currentStepId}
@@ -282,6 +312,7 @@ function RegistrationWizardContent() {
               capacityReady={capacityReady}
               capacityError={capacityError}
               capacityUnavailable={capacityUnavailable}
+              onRetryAvailability={refetchClassAvailability}
               waitlistClassIds={waitlistClassIds}
               blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}

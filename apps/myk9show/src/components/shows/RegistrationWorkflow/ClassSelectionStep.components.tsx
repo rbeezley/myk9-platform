@@ -205,7 +205,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 p-2">
             <span className="text-sm text-foreground">{cls.registrationGuidance}</span>
             {onAddRegistration && (
-              <Button type="button" variant="outline" size="sm" onClick={onAddRegistration}>
+              <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add required registration
               </Button>
@@ -249,7 +249,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             {blockedRegistration.registrationGuidance}
           </span>
           {onAddRegistration && (
-            <Button type="button" variant="outline" size="sm" onClick={onAddRegistration}>
+            <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
               <Plus className="mr-2 h-4 w-4" />
               Add required registration
             </Button>

@@ -32,6 +32,8 @@ export interface PaymentStepProps {
   capacityError?: string | null | undefined;
   /** Availability could not be read at all, as opposed to still loading. */
   capacityUnavailable?: boolean | undefined;
+  /** Re-run the availability check from the unavailable state. */
+  onRetryAvailability?: (() => void) | undefined;
   /** Selected classes that are full but accept a wait-list request. */
   waitlistClassIds?: ReadonlySet<string> | undefined;
   /** Selected classes that are full and cannot accept a wait-list request. */
@@ -76,6 +78,8 @@ export interface RegistrationSummaryProps {
   feeCalculation: FeeCalculationResult;
   /** False while the availability query is loading or failed. */
   capacityReady?: boolean | undefined;
+  /** Availability could not be read at all, as opposed to still loading. */
+  capacityUnavailable?: boolean | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
 }
@@ -125,6 +129,8 @@ export interface PaymentSummaryCardProps {
   feeCalculation: FeeCalculationResult;
   /** False while the availability query is loading or failed. */
   capacityReady?: boolean | undefined;
+  /** Availability could not be read at all, as opposed to still loading. */
+  capacityUnavailable?: boolean | undefined;
   waiveFees: boolean;
   feeOverride: number | null;
 }
@@ -136,4 +142,14 @@ export interface EntryAgreementSectionProps {
   onAgree: (agreed: boolean) => void;
   /** True when a secretary/admin is entering on behalf of an exhibitor. */
   isOnBehalf?: boolean;
+}
+
+/**
+ * Placeholder shown in the money column while class availability is not a
+ * number yet. "Not confirmed" and "Checking availability" describe genuinely
+ * different situations — a check that failed versus one still running — and
+ * printing the wrong one puts the summary at odds with the alert above it.
+ */
+export function availabilityPlaceholder(unavailable: boolean | undefined): string {
+  return unavailable ? 'Not confirmed' : 'Checking availability';
 }

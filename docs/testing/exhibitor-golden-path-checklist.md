@@ -119,10 +119,11 @@ instead of "Scent Work" (a `formatTrialTypeLabel` exists on the secretary side).
 - [x] Select "Credit/Debit Card" payment method (required) + check the agreement → Next enables
 - [x] "Online payment coming soon — entry submitted, payment collected later" (expected; no Stripe yet)
 
-**🐞 BUG-EX-03 [P2] — multi-dog discount on a single-dog entry (open).** A
-"10% multi-dog discount (3+ dogs) −$3.00" applied to a **one-dog, one-class**
-registration. It appears keyed to dogs the account *owns* (4), not dogs *entered
-in this registration* (1). Verify the fee calculator's dog-count source.
+**✅ BUG-EX-03 [P2] — closed as not a product feature.** The registration
+wizard previously displayed an unhonored "10% multi-dog discount (3+ dogs)".
+Registration totals now charge the full entry fee, matching the checkout path.
+Do not document an automatic multi-dog discount; supported discounts must be
+server-honored before they are shown to exhibitors.
 
 **✅ BUG-EX-08 [Minor UX] — fixed.** On the payment step, the summary now shows
 "Not selected" and an inline "Choose a payment method to continue" hint while a
@@ -202,7 +203,7 @@ The My Entries card dialog now persists through `useCheckInMutation` / `self_che
 | 2 | BUG-EX-02 | Minor | 2 | Show Today banner "8:00 AM AM" double meridiem | ✅ Fixed |
 | 3 | BUG-EX-09 | P1 | 5.3 | Exhibitor self-entry calls staff-only `assign_armband` → 400 (swallowed); no armband | ✅ Fixed (#500) |
 | 3b | BUG-EX-11 | P1 | 7 | Check-in status never displayed — `transformEntry` hardcoded `checkInStatus: undefined` | ✅ Fixed |
-| 4 | BUG-EX-03 | P2 | 5.2 | Multi-dog discount applied to single-dog entry (keyed to dogs owned, not entered) | 🐞 Open |
+| 4 | BUG-EX-03 | P2 | 5.2 | Unhonored automatic multi-dog discount shown in registration total | ✅ Closed — not a product feature |
 | 4b | BUG-EX-13 | P2 | 7 | Check-in write over-reaches via secretary path (sets is_in_ring/judge_notes as exhibitor) | ✅ Fixed |
 | 4c | BUG-EX-12 | P2 | 6 | `/dogs` "My Dogs" shows 9 vs dashboard 4 — owner-scope/count mismatch | 🐞 Open |
 | 4d | BUG-EX-14 | Minor | 7 | CheckInStatusDialog renders `<div>` inside `<p>` (validateDOMNesting/hydration) | 🐞 Open |

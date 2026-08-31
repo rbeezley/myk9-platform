@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { RegistrationSummaryProps } from './types';
+import { availabilityPlaceholder } from './types';
 
 /**
  * Displays the fee breakdown for each dog and class, discounts, and total due.
@@ -11,6 +12,7 @@ import type { RegistrationSummaryProps } from './types';
 export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
   feeCalculation,
   capacityReady = true,
+  capacityUnavailable = false,
   onRemoveLine,
   removingLineKey,
 }) => {
@@ -33,9 +35,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                     <span className="min-w-0 break-words">
                       {cls.className}
                       {capacityReady && cls.isWaitlist && (
-                        <span className="ml-2 font-medium text-warning">
-                          (Wait list request)
-                        </span>
+                        <span className="ml-2 font-medium text-warning">(Wait list request)</span>
                       )}
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
@@ -44,7 +44,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                           ? cls.isWaitlist
                             ? 'No payment due'
                             : `$${cls.fee.toFixed(2)}`
-                          : 'Checking availability'}
+                          : availabilityPlaceholder(capacityUnavailable)}
                       </span>
                       {onRemoveLine && (
                         <Button
@@ -92,7 +92,9 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
             <div className="flex justify-between font-semibold">
               <span>Total Due</span>
               <span className="text-lg">
-                {capacityReady ? `$${feeCalculation.total.toFixed(2)}` : 'Checking availability'}
+                {capacityReady
+                  ? `$${feeCalculation.total.toFixed(2)}`
+                  : availabilityPlaceholder(capacityUnavailable)}
               </span>
             </div>
           </div>

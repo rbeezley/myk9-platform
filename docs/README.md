@@ -181,6 +181,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [qa/discovery-workflow.md](qa/discovery-workflow.md) | Reference | QA Discovery Workflow |
 | [qa/e2e-suite-map.md](qa/e2e-suite-map.md)           | Reference | E2E Suite Map         |
 | [qa/findings.md](qa/findings.md)                     | Active    | QA Findings Registry  |
+| [qa/measurement-sweep-2026-08-31.md](qa/measurement-sweep-2026-08-31.md) | Reference | Route Measurement Sweep — 2026-08-31 |
 | [qa/nightly-history.md](qa/nightly-history.md)       | Reference | Nightly QA History    |
 | [qa/quality-score.md](qa/quality-score.md)           | Reference | myK9 Quality Score    |
 | [qa/quality-scorecard.md](qa/quality-scorecard.md)   | Reference | QA Quality Scorecard  |

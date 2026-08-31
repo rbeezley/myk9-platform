@@ -142,6 +142,21 @@ Compatibility alias for prior QA notes:
 pnpm qa:discovery:crud:full
 ```
 
+### Route measurement sweep
+
+Measurement only — no assertions, no gate. Visits every route in
+`measurementSweepRoutes.ts` in both themes and writes contrast, touch-target,
+accessible-name and overflow findings to `test-results/measurement-sweep/`.
+Rank its output by how many routes a finding spans, not by severity: one page
+with a small control is a page nit, one colour pair failing across nine routes
+is a single token edit.
+
+```bash
+cd apps/myk9show
+pnpm exec playwright test src/test/e2e/qa/measurementSweep.spec.ts \
+  --project=chromium --reporter=list --retries=0 --workers=1
+```
+
 ### Manual Debug
 
 ```bash
@@ -276,6 +291,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/people-page-ui.spec.ts`                         | People page UI.                                                                                         |
 | `apps/myk9show/src/test/e2e/real-auth-browse-shows.spec.ts`                 | Authenticated browse shows.                                                                             |
 | `apps/myk9show/src/test/e2e/qa/roleJourneyVisualQa.spec.ts`                 | MYK9-17 role/viewport/theme visual QA matrix.                                                           |
+| `apps/myk9show/src/test/e2e/qa/measurementSweep.spec.ts`                    | Route-wide contrast/touch-target/name/overflow measurement sweep; writes findings, asserts nothing.     |
 | `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`          | Detailed show wizard.                                                                                   |
 | `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`        | Show details navigation.                                                                                |
 | `apps/myk9show/src/test/e2e/show/atShowJudgeAuditReplay.spec.ts`            | Scheduled judge scoring replay: conflict re-upload, quick-advance, shared-staging escape proof.         |

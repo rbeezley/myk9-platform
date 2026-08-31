@@ -536,9 +536,19 @@ select:hover {
     --card-secondary: var(--ink-900);
     --card-secondary-foreground: var(--ivory-50);
     --muted: #1e1c19;
-    --muted-foreground: var(
-      --stone-500
-    ); /* stone-500 #8c8376 — passes WCAG AA on dark surfaces (≥4.5:1); light mode now uses a darker value, see :root */
+    /* WCAG AA fix, dark half. stone-500 (#8c8376) was kept here on the strength
+       of its ratio against the FLAT --card (#1e1c19), where it measures 4.55:1
+       and the claim "passes AA on dark surfaces" holds. Real dark surfaces are
+       composited, though — a nested card or elevated panel lands around
+       rgb(39,33,28) and rgb(48,38,32), where the same token measures 4.27:1 and
+       3.96:1. Measured in Chrome on the registration wizard, not derived from
+       the token: the step-progress "Current"/"Done" captions and the payment
+       method helper text were all under 4.5:1.
+       #9a9184 clears AA on the lightest of those surfaces (4.75:1) and on the
+       flat card (5.47:1) while staying a warm stone tone. Lightening is safe in
+       the other direction too: the only non-text use of this token is the
+       scrollbar thumb, which gains contrast against the dark track. */
+    --muted-foreground: #9a9184; /* was var(--stone-500) #8c8376; failed WCAG AA on composited dark surfaces */
     /* Dark keeps amber-500: 7.92:1 on the dark card, already well clear. */
     --at-show-in-ring: #f59e0b;
     /* Primary overridden by accent color classes below */

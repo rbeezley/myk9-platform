@@ -184,11 +184,21 @@ describe('semantic token contrast', () => {
     const lightBg = parseColor(varValue(indexCss, '--muted'));
     const lightFg = parseColor(varValue(indexCss, '--muted-foreground'));
     const darkBg = parseColor(varValue(darkBlock, '--muted'));
-    const darkFg = parseColor('#8c8376');
+    // Read the token, don't restate it. This was pinned to the literal #8c8376
+    // because the token used to be var(--stone-500), which varValue cannot
+    // resolve — so it kept asserting a colour after the app stopped using it.
+    const darkFg = parseColor(varValue(darkBlock, '--muted-foreground'));
 
     expect(contrastRatio(lightBg, lightFg)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
     expect(contrastRatio(darkBg, darkFg)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
   });
+
+  // This file compares each token against its FLAT surface, which is why the
+  // dark muted-foreground passed here for months while failing on screen: real
+  // surfaces are composited, and the same token measured 3.96:1 on the
+  // registration wizard's elevated panel. The rendered check lives in
+  // wizardVisualQA.spec.ts; keep both — this one is fast and catches token
+  // regressions, that one catches what compositing does to them.
 
   it.each(['green', 'amber', 'red', 'blue', 'purple', 'teal', 'stone'])(
     'keeps %s chip pairs readable in light and dark mode',

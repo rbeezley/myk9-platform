@@ -9,7 +9,7 @@ test.describe('Cross-role workflow smoke', () => {
     await page.goto('/shows/browse', { waitUntil: 'domcontentloaded' });
 
     await expect(page).toHaveURL(/\/shows$/);
-    await expect(page.getByRole('heading', { name: 'Shows', exact: true })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Find Shows', exact: true })).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByRole('textbox', { name: /Search shows/i })).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('Cross-role workflow smoke', () => {
     await expect(page.getByRole('heading', { name: 'My Shows' })).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: 'Enter a Show' }).click();
     await expect(page).toHaveURL(/\/shows$/);
-    await expect(page.getByRole('heading', { name: 'Shows', exact: true })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Find Shows', exact: true })).toBeVisible({
       timeout: 15000,
     });
   });

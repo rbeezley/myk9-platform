@@ -187,6 +187,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
                 In cart
               </Badge>
             )}
+            {cls.isAvailabilityUnknown && !cls.isAlreadyEntered && <AvailabilityUnknownBadge />}
             {cls.isFull && cls.allowsWaitlist !== false && !cls.isAlreadyEntered && (
               <WaitlistBadge waitlistCount={cls.waitlistCount} />
             )}
@@ -237,6 +238,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
             isFull={cls.isFull}
             waitlistCount={cls.waitlistCount}
             allowsWaitlist={cls.allowsWaitlist}
+            isAvailabilityUnknown={cls.isAvailabilityUnknown}
             isRegistrationBlocked={cls.isRegistrationBlocked}
             registrationGuidance={cls.isRegistrationBlocked ? null : cls.registrationGuidance}
             onToggle={onToggle}
@@ -285,6 +287,7 @@ interface LevelChipProps {
   isFull?: boolean | undefined;
   waitlistCount?: number | undefined;
   allowsWaitlist?: boolean | undefined;
+  isAvailabilityUnknown?: boolean | undefined;
   isRegistrationBlocked?: boolean | undefined;
   registrationGuidance?: string | null | undefined;
   onToggle: (classId: string) => void;
@@ -298,6 +301,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
   isFull,
   waitlistCount,
   allowsWaitlist = true,
+  isAvailabilityUnknown = false,
   isRegistrationBlocked,
   registrationGuidance,
   onToggle,
@@ -328,6 +332,7 @@ const LevelChip: React.FC<LevelChipProps> = ({
         <span className="sr-only">{isAlreadyEntered ? 'Already entered:' : 'Select'}</span>{' '}
         <span className="text-xs">{displayLabel}</span>
       </label>
+      {isAvailabilityUnknown && !isAlreadyEntered && <AvailabilityUnknownBadge />}
       {isFull && allowsWaitlist && !isAlreadyEntered && (
         <WaitlistBadge waitlistCount={waitlistCount} />
       )}
@@ -353,6 +358,12 @@ const LevelChip: React.FC<LevelChipProps> = ({
     </div>
   );
 };
+
+const AvailabilityUnknownBadge: React.FC = () => (
+  <Badge variant="outline" className="h-5 text-xs text-muted-foreground">
+    Availability unknown
+  </Badge>
+);
 
 // ─── Empty States ──────────────────────────────────────────────────────────────
 
@@ -396,15 +407,14 @@ export const NoClassesAlert: React.FC<NoClassesAlertProps> = ({ trialCount, isOr
  * Shown when class availability could not be read at all — see
  * `isAvailabilityUnreadable` for why "not read" and "read as empty" are
  * indistinguishable without it. Deliberately does not block the step: the
- * selection is still worth building, and the payment step refuses to total it
- * until availability resolves.
+ * selection is still worth building for any classes whose rows did resolve.
  */
 export const AvailabilityUnreadableNotice: React.FC = () => (
   <Alert role="status" className="mb-3">
     <Info className="h-4 w-4" />
     <AlertDescription>
-      We could not check which classes still have room, so none are marked full or wait list below.
-      You can still choose classes — we will confirm what is available before you pay.
+      We could not check which classes still have room. Classes marked “Availability unknown” have
+      not been confirmed yet; classes with a resolved status remain available to choose.
     </AlertDescription>
   </Alert>
 );

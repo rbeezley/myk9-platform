@@ -44,11 +44,17 @@ async function assertNoHorizontalOverflow(page: Page, label: string) {
 }
 
 async function openFirstOwnedDog(page: Page): Promise<void> {
-  // Dog cards are links wrapping an h3; the SPA shell can lag past goto on a
-  // cold dev server, so retry the load once (mirrors gotoSignIn's retry).
+  // A dog card's name is a real <Link> INSIDE an h3 (BrowseCard renders
+  // `<h3><Link to={href}>`), stretched over the card by its ::after. This used
+  // to be the other way round — a card-level role=link wrapping the heading —
+  // and this locator still described that shape, so it matched nothing and the
+  // spec reported "the dog list is empty" while the page was rendering 257
+  // dogs. Accept either nesting so a future markup flip fails loudly on the
+  // assertion rather than silently here (MYK9-271).
   const dogLink = page
+    .getByRole('heading', { level: 3 })
     .getByRole('link')
-    .filter({ has: page.getByRole('heading', { level: 3 }) })
+    .or(page.getByRole('link').filter({ has: page.getByRole('heading', { level: 3 }) }))
     .first();
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await page.goto('/dogs', { waitUntil: 'load' });

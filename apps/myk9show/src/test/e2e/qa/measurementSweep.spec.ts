@@ -216,7 +216,7 @@ async function sweepGroup(page: Page, group: SweepGroup, theme: 'light' | 'dark'
     });
 
     const summary = probe
-      ? `contrast=${probe.totals.contrast} targets=${probe.totals.targets} names=${probe.totals.names} measured=${probe.measured} unmeasurable=${probe.unmeasurable} sanity=${probe.sanity.blackOnWhite}/${probe.sanity.whiteOnWhite}/${probe.sanity.greyOnWhite}/${probe.sanity.stretchedLink}px`
+      ? `contrast=${probe.totals.contrast} targets=${probe.totals.targets} names=${probe.totals.names} measured=${probe.measured} unmeasurable=${probe.unmeasurable} sanity=${probe.sanity.blackOnWhite}/${probe.sanity.whiteOnWhite}/${probe.sanity.greyOnWhite}/${probe.sanity.stretchedLink}px/agree${probe.sanity.syntaxAgreement}`
       : `error=${error}`;
     // The console IS the live progress view for a findings run.
     console.log(`[sweep] ${theme.padEnd(5)} ${id.padEnd(34)} ${summary}`);

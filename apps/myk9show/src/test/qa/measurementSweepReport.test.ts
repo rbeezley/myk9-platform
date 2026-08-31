@@ -24,7 +24,7 @@ import {
 
 function probe(overrides: Partial<ProbeResult> = {}): ProbeResult {
   return {
-    sanity: { blackOnWhite: 21, whiteOnWhite: 1, greyOnWhite: 4.54, stretchedLink: 120 },
+    sanity: { blackOnWhite: 21, whiteOnWhite: 1, greyOnWhite: 4.54, stretchedLink: 120, syntaxAgreement: 0 },
     measured: 100,
     unmeasurable: 0,
     interactive: 20,
@@ -78,7 +78,7 @@ describe('sanityFailures', () => {
 
   it('catches the collapsed-ratio failure mode round 5 shipped three times', () => {
     // Every broken colour parser produced ratios near 1.0 across the board.
-    const broken = probe({ sanity: { blackOnWhite: 1.0, whiteOnWhite: 1, greyOnWhite: 1.0, stretchedLink: 120 } });
+    const broken = probe({ sanity: { blackOnWhite: 1.0, whiteOnWhite: 1, greyOnWhite: 1.0, stretchedLink: 120, syntaxAgreement: 0 } });
     expect(sanityFailures(broken)).toEqual([
       'blackOnWhite=1 (expected ~21)',
       'greyOnWhite=1 (expected ~4.54)',
@@ -91,14 +91,32 @@ describe('sanityFailures', () => {
     // covers. Nothing in the contrast checks moves, and the run over-reports
     // small targets across every route that uses the pattern.
     const broken = probe({
-      sanity: { blackOnWhite: 21, whiteOnWhite: 1, greyOnWhite: 4.54, stretchedLink: 20 },
+      sanity: { blackOnWhite: 21, whiteOnWhite: 1, greyOnWhite: 4.54, stretchedLink: 20, syntaxAgreement: 0 },
     });
     expect(sanityFailures(broken)).toEqual(['stretchedLink=20 (expected ~120)']);
     expect(partition([measurement({ probe: broken })]).usable).toHaveLength(0);
   });
 
+  it('catches a colour NOTATION regression the hex answers cannot see', () => {
+    // The audit case. A total failure of CSS Color 4 parsing left all three hex
+    // answers reading 21 / 1 / 4.54 while the sweep published 56 fabricated
+    // findings across eight public routes. This app emits `color(srgb ...)` for
+    // most of its computed colours, so the guard has to speak that notation.
+    const broken = probe({
+      sanity: {
+        blackOnWhite: 21,
+        whiteOnWhite: 1,
+        greyOnWhite: 4.54,
+        stretchedLink: 120,
+        syntaxAgreement: 3.5,
+      },
+    });
+    expect(sanityFailures(broken)).toEqual(['syntaxAgreement=3.5 (expected ~0)']);
+    expect(partition([measurement({ probe: broken })]).usable).toHaveLength(0);
+  });
+
   it('catches a probe that inflates rather than collapses', () => {
-    const broken = probe({ sanity: { blackOnWhite: 21, whiteOnWhite: 3.2, greyOnWhite: 4.54, stretchedLink: 120 } });
+    const broken = probe({ sanity: { blackOnWhite: 21, whiteOnWhite: 3.2, greyOnWhite: 4.54, stretchedLink: 120, syntaxAgreement: 0 } });
     expect(sanityFailures(broken)).toHaveLength(1);
   });
 });
@@ -134,7 +152,7 @@ describe('partition', () => {
 
   it('excludes a measurement whose known-answer checks failed', () => {
     const { usable, excluded } = partition([
-      measurement({ probe: probe({ sanity: { blackOnWhite: 1, whiteOnWhite: 1, greyOnWhite: 1, stretchedLink: 120 } }) }),
+      measurement({ probe: probe({ sanity: { blackOnWhite: 1, whiteOnWhite: 1, greyOnWhite: 1, stretchedLink: 120, syntaxAgreement: 0 } }) }),
     ]);
     expect(usable).toHaveLength(0);
     expect(excluded[0].reason).toContain('known-answer check failed');
@@ -162,6 +180,18 @@ describe('partition', () => {
         }),
       ]).usable
     ).toHaveLength(1);
+  });
+
+  it('disbelieves a page where every single text node failed, whatever its size', () => {
+    // 14 of 14 slipped past the `measured > 20` sample floor during the
+    // colour-notation audit. 100% is categorically different from "most".
+    const { usable, excluded } = partition([
+      measurement({
+        probe: probe({ measured: 14, totals: { contrast: 14, targets: 0, names: 0 } }),
+      }),
+    ]);
+    expect(usable).toHaveLength(0);
+    expect(excluded[0].reason).toContain('14/14');
   });
 
   it('does not disbelieve a tiny page that happens to fail proportionally', () => {

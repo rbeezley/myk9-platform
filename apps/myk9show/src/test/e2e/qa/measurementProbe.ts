@@ -110,10 +110,36 @@ export function measurePage(limit: number): ProbeResult {
   const white = parse('#ffffff');
   const black = parse('#000000');
   const grey = parse('#767676');
+  // The three answers above are all HEX, and that was a hole big enough to
+  // drive the round-5 bug back through. This app emits `color(srgb ...)` for
+  // the majority of its computed colours (92 of 160 sampled findings), so a
+  // total failure of CSS Color 4 parsing left every one of those answers
+  // reading 21 / 1 / 4.54 while the sweep published 56 fabricated findings on
+  // eight public routes — three of them failing 100% of their text.
+  //
+  // So the last check is syntax-agnostic by construction: one mid-grey written
+  // three ways, whose on-white ratios must agree. It calibrates itself, needs no
+  // hardcoded expected ratio, and fails loudly the moment any syntax stops
+  // round-tripping. If the design tokens ever emit a fourth notation (oklch,
+  // lab, colour-mix), add it to this list — a guard that does not cover what the
+  // app actually renders is not a guard.
+  const sameGrey = [
+    parse('#767676'),
+    parse('rgb(118, 118, 118)'),
+    parse('color(srgb 0.462745 0.462745 0.462745)'),
+  ].map(c => ratioOf(c, white));
+  let syntaxAgreement = 0;
+  for (let i = 0; i < sameGrey.length; i++) {
+    for (let j = i + 1; j < sameGrey.length; j++) {
+      syntaxAgreement = Math.max(syntaxAgreement, Math.abs(sameGrey[i] - sameGrey[j]));
+    }
+  }
+
   const contrastSanity = {
     blackOnWhite: round(ratioOf(black, white)),
     whiteOnWhite: round(ratioOf(white, white)),
     greyOnWhite: round(ratioOf(grey, white)),
+    syntaxAgreement: round(syntaxAgreement),
   };
 
   // ── Shared element helpers ────────────────────────────────────────────────
@@ -301,7 +327,19 @@ export function measurePage(limit: number): ProbeResult {
     // solved by the pointer-cursor walk; this one slips past it because the
     // interactivity lives in a pseudo-element rather than an ancestor.
     const after = getComputedStyle(el, '::after');
-    if (after.position === 'absolute' && after.content !== 'none') {
+    // All four edges pinned, none `auto`. That is what makes a pseudo-element
+    // STRETCH to its containing block, and it is the difference between the
+    // stretched-link pattern and a decorative one — `data-table/types.ts` pins
+    // top/right/bottom and leaves `left: auto` to draw a 1px column divider.
+    // Promoting on that would hide a genuinely small control behind its
+    // container's box, trading this fix's false positives for false negatives,
+    // which is the worse direction for a findings report (Codex surfaced the
+    // divider while reviewing this change).
+    const pinned =
+      after.position === 'absolute' &&
+      after.content !== 'none' &&
+      [after.top, after.right, after.bottom, after.left].every(v => v !== 'auto');
+    if (pinned) {
       // Its containing block is the nearest positioned ancestor, which is the
       // box the pseudo-element actually covers.
       let host: Element | null = el.parentElement;

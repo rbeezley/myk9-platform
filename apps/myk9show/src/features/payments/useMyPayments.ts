@@ -9,6 +9,7 @@ import {
   type PaymentYearQueryRange,
   type PaymentYearSelection,
 } from './paymentYearFilter';
+import { chunk } from '@/utils/chunkIds';
 
 const PAYMENT_ORDER_PAGE_SIZE = 100;
 const ENTRY_ID_CHUNK_SIZE = 100;
@@ -43,14 +44,6 @@ interface RefundEntryRow {
   refunded_at: string | null;
   dogs: { call_name: string | null } | null;
   classes: { name: string | null } | null;
-}
-
-function chunks<T>(items: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let offset = 0; offset < items.length; offset += size) {
-    result.push(items.slice(offset, offset + size));
-  }
-  return result;
 }
 
 function orderYearPredicate(range: PaymentYearQueryRange): string {
@@ -122,7 +115,7 @@ async function fetchOrders(selection: PaymentYearSelection): Promise<StripeOrder
   // their older owning order so a 2025 charge refunded in 2026 still produces
   // the 2026 cash-basis refund row after the server-side order date filter.
   const refundedEntryIds = await fetchRefundedEntryIds(range);
-  for (const entryIdChunk of chunks(refundedEntryIds, ENTRY_ID_CHUNK_SIZE)) {
+  for (const entryIdChunk of chunk(refundedEntryIds, ENTRY_ID_CHUNK_SIZE)) {
     for (const order of await fetchOrderPages({ refundedEntryIds: entryIdChunk })) {
       ordersById.set(order.id, order);
     }
@@ -143,7 +136,7 @@ async function fetchOrders(selection: PaymentYearSelection): Promise<StripeOrder
 
 async function fetchEntryDetails(entryIds: string[]): Promise<RefundEntryRow[]> {
   const rows: RefundEntryRow[] = [];
-  for (const entryIdChunk of chunks(entryIds, ENTRY_ID_CHUNK_SIZE)) {
+  for (const entryIdChunk of chunk(entryIds, ENTRY_ID_CHUNK_SIZE)) {
     const { data, error } = await supabase
       .from('entries')
       .select('id, refund_amount, refunded_at, dogs(call_name), classes(name)')
@@ -174,7 +167,7 @@ async function fetchPaymentYearMetadataOrders(): Promise<PaymentYearMetadataOrde
 
 async function fetchEntryRefundDates(entryIds: string[]): Promise<Array<string | null>> {
   const dates: Array<string | null> = [];
-  for (const entryIdChunk of chunks(entryIds, ENTRY_ID_CHUNK_SIZE)) {
+  for (const entryIdChunk of chunk(entryIds, ENTRY_ID_CHUNK_SIZE)) {
     const { data, error } = await supabase
       .from('entries')
       .select('id, refunded_at')

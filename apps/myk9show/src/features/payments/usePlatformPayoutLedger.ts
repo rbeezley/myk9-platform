@@ -10,6 +10,7 @@ import {
   type PayoutStatus,
 } from './payoutLedger';
 import { isPullRefundSchemaUnavailable } from './pullRefundSchemaCompatibility';
+import { chunk } from '@/utils/chunkIds';
 
 const LEDGER_ENTRY_BASE_SELECT =
   'id, show_id, entry_status, entry_fee, payment_method, payment_status, refund_amount';
@@ -90,12 +91,6 @@ const PAGE = 1000;
 const MAX_PAGES = 5000;
 /** Ids per `.in(...)` batch. Under PAGE so a one-row-per-id read cannot truncate. */
 const ID_CHUNK = 500;
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
 
 type ShowRow = {
   id: string;

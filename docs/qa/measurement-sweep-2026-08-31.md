@@ -165,6 +165,64 @@ must get 120 back, not the anchor's own ~20px line box. Until MYK9-281 the
 harness verified only its arithmetic, never its geometry — which is why a broken
 `effectiveBox` published a full sweep without tripping anything.
 
+## Compositing correction, 2026-08-31 (MYK9-275)
+
+Investigating the last remaining contrast finding — the show-desk "In progress"
+badge at 1.17:1, reported here as the worst reading in the app — found that it
+was **not an app defect**. It was the harness again, and this is the third
+distinct probe bug of the same family.
+
+`over()` hardcoded the composited result's alpha to `1`. That is correct only
+when the lower layer is already opaque, and `backdropOf` composites ancestor
+backgrounds, which frequently are not. So the first pair of translucent layers
+produced a "fully opaque" result and every layer behind it was discarded.
+
+The badge is `bg-warning/10` sitting on a `/10` terracotta selected row:
+
+```
+button          rgba(146,64,14, 0.1)            10% amber
+div.grid…       srgb(0.659 0.278 0.176 / 0.1)   10% terracotta  ← selected row
+div.rounded-xl  #ffffff                          opaque
+```
+
+The probe read that as amber on **solid** terracotta — `rgb(165,69,45)`, 1.17:1.
+Correctly composited the backdrop is `rgb(236,219,212)` and the badge measures
+about **5.4:1**, which passes comfortably.
+
+Fixed with real source-over compositing that preserves alpha. When the lower
+layer is opaque it reduces exactly to the previous formula, so every
+already-correct call is unchanged.
+
+| | Before | After |
+| --- | --- | --- |
+| Contrast findings | 67 | **49** |
+| "In progress" badge | 1.17:1 (worst in app) | absent — passes |
+
+The `rgb(201,100,66)` show-detail cluster (24 instances) also went, for the same
+reason. Nothing was fixed in the app; the report was wrong.
+
+### A fourth known answer
+
+Every page now composites two nested 50% blacks over white and must read
+**63.75**. With the bug present it reads 0. The colour answers verify `parse`,
+the geometry answer verifies `effectiveBox`, and this one verifies the
+compositing — which nothing checked until it invented the app's worst finding.
+
+Its slack is deliberately wide (2, not 0.5). The canvas round-trip quantises
+alpha to 8 bits, so the real reading is ~63.25 and a tight bound would sit on
+its own rounding edge — a guard that fails closed across every page is worse
+than no guard. The failure it catches returns 0, so the margin still
+discriminates completely.
+
+### What this says about the four earlier gaps
+
+The ancestor-opacity gap recorded below is a *different* bug from this one and
+is still latent. But the pattern is now unmistakable: every part of this probe
+that was never given a known answer has eventually been found wrong — colour
+notation, geometry, and now compositing. The remaining unverified areas
+(pseudo-element text, paint order, blend modes and filters) should be read as
+open risks rather than as passing checks.
+
 ## Contrast-path audit, 2026-08-31
 
 > **Base:** measured at `0cca87202`, before #1916 landed its a11y fixes. The

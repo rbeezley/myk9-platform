@@ -29,6 +29,12 @@ export interface ProbeSanity {
    * computed colours.
    */
   syntaxAgreement: number;
+  /**
+   * Red channel of two nested 50% blacks composited over white. Must be 63.75.
+   * A hardcoded alpha in `over` collapsed such a stack to opaque black (0) and
+   * invented the app's worst contrast reading (MYK9-275).
+   */
+  translucentStack: number;
 }
 
 export interface ContrastFinding {

@@ -90,12 +90,28 @@ export function measurePage(limit: number): ProbeResult {
     return 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
   };
 
-  const over = (fg: number[], bg: number[]) => [
-    fg[0] * fg[3] + bg[0] * (1 - fg[3]),
-    fg[1] * fg[3] + bg[1] * (1 - fg[3]),
-    fg[2] * fg[3] + bg[2] * (1 - fg[3]),
-    1,
-  ];
+  /**
+   * Source-over compositing that PRESERVES alpha.
+   *
+   * This used to hardcode the result's alpha to 1, which is correct only when
+   * `bg` is already opaque. `backdropOf` composites ancestor backgrounds, which
+   * are frequently NOT opaque, so the first pair of translucent layers produced
+   * a fully opaque result and every layer behind it was discarded.
+   *
+   * That mis-read a 10% amber badge sitting on a 10% terracotta selected row as
+   * amber-on-SOLID-terracotta: `rgb(165,69,45)` and 1.17:1, when the real
+   * composite is `rgb(236,219,212)` and about 5.4:1. It was the app's worst
+   * reported contrast reading, and it was the harness (MYK9-275).
+   *
+   * When `bg[3] === 1` this reduces exactly to the old formula, so every
+   * already-correct caller is unchanged.
+   */
+  const over = (fg: number[], bg: number[]) => {
+    const a = fg[3] + bg[3] * (1 - fg[3]);
+    if (a <= 0) return [0, 0, 0, 0];
+    const blend = (i: number) => (fg[i] * fg[3] + bg[i] * bg[3] * (1 - fg[3])) / a;
+    return [blend(0), blend(1), blend(2), a];
+  };
 
   const ratioOf = (fg: number[], bg: number[]) => {
     const l1 = luminance(over(fg, bg));
@@ -214,7 +230,10 @@ export function measurePage(limit: number): ProbeResult {
       const c = parse(cs.backgroundColor);
       if (c[3] > 0) {
         acc = acc ? over(acc, c) : c;
-        if (c[3] === 1) return acc;
+        // Stop on the ACCUMULATED alpha, not this layer's. Two translucent
+        // layers never reach opacity, and treating them as if they did is the
+        // bug described on `over` above.
+        if (acc[3] >= 1) return acc;
       }
       cur = cur.parentElement;
     }
@@ -368,6 +387,34 @@ export function measurePage(limit: number): ProbeResult {
   };
 
   /**
+   * Known-answer check for `backdropOf`, run on every page. Two nested 50%
+   * blacks over white must composite to 63.75, not 0.
+   *
+   * The colour answers verify `parse`, and the geometry answer verifies
+   * `effectiveBox`. Nothing verified the COMPOSITING until MYK9-275, where a
+   * hardcoded alpha collapsed a two-layer translucent stack to opaque and
+   * produced the app's worst reported contrast reading out of nothing. With the
+   * bug present this returns 0; correct is 63.75.
+   */
+  const stackSelfTest = (): number => {
+    const outer = document.createElement('div');
+    outer.setAttribute('style', 'position:fixed;left:-9999px;top:0;background:#fff');
+    const midA = document.createElement('div');
+    midA.setAttribute('style', 'background:rgba(0,0,0,0.5)');
+    const midB = document.createElement('div');
+    midB.setAttribute('style', 'background:rgba(0,0,0,0.5)');
+    const text = document.createElement('span');
+    text.textContent = 'x';
+    midB.appendChild(text);
+    midA.appendChild(midB);
+    outer.appendChild(midA);
+    document.body.appendChild(outer);
+    const measured = backdropOf(text);
+    outer.remove();
+    return measured ? round(measured[0]) : -1;
+  };
+
+  /**
    * Known-answer check for `effectiveBox`, run on every page against a
    * synthetic stretched link. The contrast sanity values above catch broken
    * arithmetic; nothing caught broken GEOMETRY until MYK9-281, where every card
@@ -470,6 +517,7 @@ export function measurePage(limit: number): ProbeResult {
   const sanity: ProbeSanity = {
     ...contrastSanity,
     stretchedLink: stretchedLinkSelfTest(),
+    translucentStack: stackSelfTest(),
   };
 
   const targets: TargetFinding[] = [];

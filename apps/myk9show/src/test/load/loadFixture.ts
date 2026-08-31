@@ -45,7 +45,7 @@ const DOGS_PER_SHOW = 63;
 const CLASSES_PER_TRIAL = 2;
 
 /** Hand-authored golden-path entries, present only on the original show. */
-const LARGE_SHOW_HAND_AUTHORED_ENTRIES = 10;
+const LARGE_SHOW_HAND_AUTHORED_ENTRIES = 12;
 
 /**
  * Load ids carry their show in the FIRST digit of the final UUID group, with the

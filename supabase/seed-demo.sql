@@ -5,7 +5,7 @@
 --   TypeScript fixture counts live in apps/myk9show/src/test/load/loadFixture.ts;
 --   keep this SQL contract aligned because SQL cannot import those constants.
 --   A realistic, *publicly visible* demo dataset (1 club, 1 published
---   multi-registry show, 4 trials, 9 classes, 69 dogs, 514 entries). Ten
+--   multi-registry show, 4 trials, 10 classes, 69 dogs, 516 entries). Ten
 --   hand-authored entries preserve the golden paths; 504 deterministic entries
 --   support the MYK9-109 rehearsal. The demo exhibitor therefore owns an
 --   intentionally heavy persona; targeted exhibitor tests must tolerate 504
@@ -121,9 +121,9 @@ END $$;
 --   club   dededede-0000-0000-0000-000000000001
 --   show   dededede-0000-0000-0000-000000000010
 --   trials dededede-0000-0000-0000-00000000002{1,2}
---   class  dec1a55e-0000-0000-0000-00000000003{1..5}
+--   class  dec1a55e-0000-0000-0000-00000000003{1..5}, ...040
 --   dog    dededede-0000-0000-0000-00000000004{1..6}
---   entry  dededede-0000-0000-0000-00000000005{1..8}  (+ ...059/...060 refund fixtures)
+--   entry  dededede-0000-0000-0000-00000000005{1..8}, ...067/...068 (+ ...059/...060 refund fixtures)
 --   armband      dededede-0000-0000-0000-00000000006{1..6}
 --   load dog     a1090000-0000-0000-0001-{000000000001..000000000063}
 --   load entry   a1090000-0000-0000-0002-{000000000001..000000000504}
@@ -141,7 +141,7 @@ DELETE FROM public.entry_cart_items
 WHERE class_id IN (
         'dec1a55e-0000-0000-0000-000000000031','dec1a55e-0000-0000-0000-000000000032',
         'dec1a55e-0000-0000-0000-000000000033','dec1a55e-0000-0000-0000-000000000034',
-        'dec1a55e-0000-0000-0000-000000000035')
+        'dec1a55e-0000-0000-0000-000000000035','dec1a55e-0000-0000-0000-000000000040')
    OR dog_id IN (
         'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
         'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
@@ -196,6 +196,7 @@ DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000053','dededede-0000-0000-0000-000000000054',
   'dededede-0000-0000-0000-000000000055','dededede-0000-0000-0000-000000000056',
   'dededede-0000-0000-0000-000000000057','dededede-0000-0000-0000-000000000058',
+  'dededede-0000-0000-0000-000000000067','dededede-0000-0000-0000-000000000068',
   'dededede-0000-0000-0000-000000000059','dededede-0000-0000-0000-000000000060'
 );
 -- The multi-dog enrollment (section 6b) is referenced by the entries above via
@@ -216,7 +217,8 @@ DELETE FROM public.classes WHERE id IN (
   'dec1a55e-0000-0000-0000-000000000035',
   -- UKC Nosework / ASCA Scent Detection registry demo classes (task 6.3)
   'dec1a55e-0000-0000-0000-000000000036','dec1a55e-0000-0000-0000-000000000037',
-  'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039'
+  'dec1a55e-0000-0000-0000-000000000038','dec1a55e-0000-0000-0000-000000000039',
+  'dec1a55e-0000-0000-0000-000000000040'
 );
 DELETE FROM public.dogs WHERE id IN (
   'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
@@ -513,7 +515,7 @@ VALUES
    '2:00 PM', false, 'scent_detection', 1, 4, 'Sunday ASCA Scent Detection', 'ASCA', 'America/Chicago', 1);
 
 -- ---------------------------------------------------------------------------
--- 4. Classes (9)  -- valid element/level/section, status 'upcoming'
+-- 4. Classes (10) -- valid element/level/section, status 'upcoming'
 --    Saturday: 3 classes  |  Sunday: 2 classes  |  Sunday UKC: 2  |  Sunday ASCA: 2
 --    judge_name is a DENORMALIZED SNAPSHOT of the assigned judge ('Test Judge' =
 --    judge@myk9t.com), NOT the source of truth: the relational link is
@@ -558,7 +560,13 @@ VALUES
    30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, 1),
   ('dec1a55e-0000-0000-0000-000000000039', 'dededede-0000-0000-0000-000000000024',
    'Exterior Open', 'Open', 'Exterior', NULL, 'Test Judge',
-   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1);
+   30.00, 'upcoming', 180, 2, 1, false, 'single', true, 2, 1),
+  -- Purpose-built two-entry class for the unreleased-results fixture. It is
+  -- intentionally outside the MYK9-109 load set so every eligible entry can
+  -- be scored and its persisted placements can be read back deterministically.
+  ('dec1a55e-0000-0000-0000-000000000040', 'dededede-0000-0000-0000-000000000021',
+   'Interior Advanced Preliminary', 'Advanced', 'Interior', NULL, 'Test Judge',
+   30.00, 'upcoming', 180, 2, 2, false, 'single', true, 4, 1);
 
 -- ---------------------------------------------------------------------------
 -- 5. Dogs (6)  -- owner_id resolved from protected accounts by email
@@ -615,7 +623,7 @@ WHERE NOT EXISTS (
 );
 
 -- ---------------------------------------------------------------------------
--- 6. Entries (8)  -- valid entry_status + payment_status, denormalized
+-- 6. Entries (10) -- valid entry_status + payment_status, denormalized
 --    show_id/trial_id, sequential armbands. handler_id = owner (demo).
 --    Each (dog_id, class_id) pair is unique (entries_dog_class_unique_idx).
 -- ---------------------------------------------------------------------------
@@ -678,6 +686,24 @@ VALUES
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
    (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Test Secretary',
    'confirmed', 'paid', 30.00, 105, 3, false, 1);
+
+-- Purpose-built preliminary-results class (...040): two paid entries means the
+-- class can be fully scored without touching the 63-dog load fixture.
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+  entry_status, payment_status, entry_fee, armband, run_order, move_up_requested, version
+)
+VALUES
+  ('dededede-0000-0000-0000-000000000067',
+   'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0000-000000000040',
+   'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   'confirmed', 'paid', 30.00, 106, 1, false, 1),
+  ('dededede-0000-0000-0000-000000000068',
+   'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000040',
+   'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   'confirmed', 'paid', 30.00, 107, 2, false, 1);
 
 -- ---------------------------------------------------------------------------
 -- 6b. MULTI-DOG ORDER FIXTURE — the shape production actually produces.
@@ -797,21 +823,51 @@ UPDATE public.classes SET
 WHERE id = 'dec1a55e-0000-0000-0000-000000000031';
 
 -- ---------------------------------------------------------------------------
--- 8b. GAP FIXTURE #3 (preliminary result): Willow's Interior Advanced run is
---    scored and qualified, but the class is still in progress and results
---    have not been released. This keeps the exhibitor's own result visible
---    while proving placement remains withheld until release.
+-- 8b. GAP FIXTURE #3 (preliminary result): a purpose-built two-entry class is
+--    fully scored and finalized, but results have not been released. This keeps
+--    the exhibitor's own result visible while proving placement remains withheld
+--    until release. Finalize the class first: the entry scoring trigger owns
+--    placement calculation and otherwise clears a partly-scored class.
 -- ---------------------------------------------------------------------------
+UPDATE public.classes SET
+  status = 'completed', is_scoring_finalized = true, scored_count = 2,
+  results_released_at = NULL
+WHERE id = 'dec1a55e-0000-0000-0000-000000000040';
+
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 52.40, total_faults = 0,
   total_score = 100, final_placement = 1,
   scoring_completed_at = '2026-08-01 10:15:00+00'
-WHERE id = 'dededede-0000-0000-0000-000000000052';
+WHERE id = 'dededede-0000-0000-0000-000000000067';
 UPDATE public.classes SET
-  status = 'in_progress', is_scoring_finalized = false, scored_count = 1,
-  results_released_at = NULL
-WHERE id = 'dec1a55e-0000-0000-0000-000000000032';
+  scored_count = 2
+WHERE id = 'dec1a55e-0000-0000-0000-000000000040';
+UPDATE public.entries SET
+  is_scored = true, result_status = 'qualified', check_in_status = 'completed',
+  entry_status = 'completed', search_time_seconds = 56.80, total_faults = 0,
+  total_score = 100, final_placement = 2,
+  scoring_completed_at = '2026-08-01 10:18:00+00'
+WHERE id = 'dededede-0000-0000-0000-000000000068';
+
+DO $$
+DECLARE
+  v_placed_count integer;
+  v_released_at timestamptz;
+BEGIN
+  SELECT count(*) INTO v_placed_count
+  FROM public.entries
+  WHERE class_id = 'dec1a55e-0000-0000-0000-000000000040'
+    AND final_placement IS NOT NULL;
+
+  SELECT results_released_at INTO v_released_at
+  FROM public.classes
+  WHERE id = 'dec1a55e-0000-0000-0000-000000000040';
+
+  IF v_placed_count <> 2 OR v_released_at IS NOT NULL THEN
+    RAISE EXCEPTION 'MYK9-263 preliminary fixture lost placements or was released';
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 9. GAP FIXTURE #4 (refunded/withdrawn entries, P1-04 seam): two new fixed-id
@@ -1187,9 +1243,11 @@ WHERE ur.user_id = p.id
 --     sets class_id. (This is also why a wizard-created SHOW-level assignment
 --     does not reach the dashboard — a separate product gap, not seeded here.)
 --
---     Coverage is a STRICT SUBSET, and that is the point (MYK9-141). Nine classes
+--     Coverage is a STRICT SUBSET, and that is the point (MYK9-141). Ten classes
 --     are seeded (031..039); e2e-judge is assigned to five of them:
 --       ...0b{1..5}  judge@myk9t.com -> classes 031..035 (trials 021/022)
+--     Purpose-built class 040 remains unassigned because it exists only for
+--     the exhibitor preliminary-results fixture.
 --     leaving 036..039 (trials 023/024) assigned to NOBODY. Assignment-isolation
 --     QA needs both halves: without an assigned class "the judge can see it" is
 --     untestable, and without an unassigned one "the judge cannot see it" passes
@@ -1939,8 +1997,8 @@ BEGIN
   FROM public.entries
   WHERE show_id = 'dededede-0000-0000-0000-000000000010';
 
-  IF v_entry_count <> 514 THEN
-    RAISE EXCEPTION 'MYK9-109 expected 514 demo-show entries, found %', v_entry_count;
+  IF v_entry_count <> 516 THEN
+    RAISE EXCEPTION 'MYK9-109 expected 516 demo-show entries, found %', v_entry_count;
   END IF;
 END $$;
 

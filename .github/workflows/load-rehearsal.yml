@@ -189,12 +189,12 @@ jobs:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          # Keep this 514/504 contract aligned with src/test/load/loadFixture.ts.
+          # Keep this 516/504 contract aligned with src/test/load/loadFixture.ts.
           counts="$(psql \
             "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:5432/postgres" \
             -X -v ON_ERROR_STOP=1 -At -F '|' \
             -c "SELECT count(*), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%'), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%' AND is_scored) FROM public.entries WHERE show_id = 'dededede-0000-0000-0000-000000000010'::uuid;")"
-          [[ "$counts" == "514|504|0" ]] || {
+          [[ "$counts" == "516|504|0" ]] || {
             echo "Canonical fixture postcondition failed: $counts" >&2
             exit 1
           }
@@ -469,12 +469,12 @@ jobs:
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           set -euo pipefail
-          # Keep this 514/504 contract aligned with src/test/load/loadFixture.ts.
+          # Keep this 516/504 contract aligned with src/test/load/loadFixture.ts.
           counts="$(psql \
             "postgresql://postgres.${LOAD_TEST_PROJECT_REF}@${LOAD_TEST_DB_HOST}:5432/postgres" \
             -X -v ON_ERROR_STOP=1 -At -F '|' \
             -c "SELECT count(*), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%'), count(*) FILTER (WHERE id::text LIKE 'a1090000-0000-0000-0002-%' AND is_scored) FROM public.entries WHERE show_id = 'dededede-0000-0000-0000-000000000010'::uuid;")"
-          [[ "$counts" == "514|504|0" ]] || {
+          [[ "$counts" == "516|504|0" ]] || {
             echo "Canonical cleanup postcondition failed: $counts" >&2
             exit 1
           }

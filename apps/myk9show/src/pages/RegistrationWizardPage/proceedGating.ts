@@ -18,6 +18,14 @@ export interface ProceedGatingContext {
   totalFees: number;
   hasPaymentMethod: boolean;
   needsAgreement: boolean;
+  /**
+   * An agreement may apply but the query FAILED, so we do not know whether one
+   * is required. Distinct from "resolved to no row", which means this
+   * organization simply has no agreement and nothing should block.
+   */
+  agreementUnavailable: boolean;
+  /** An agreement may apply and is still fetching — the checkbox is a skeleton. */
+  agreementLoadingNow: boolean;
   agreedToEntryAgreement: boolean;
   capacityReady: boolean;
   blockedClassCount: number;
@@ -65,6 +73,15 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       }
       if (ctx.totalFees > 0 && !ctx.hasPaymentMethod) {
         return 'Choose a payment method to continue.';
+      }
+      if (ctx.agreementUnavailable) {
+        // Never waived — entering a show requires agreeing to the organization's
+        // terms. But say what is actually wrong, and point at the retry that is
+        // now rendered in place of the checkbox.
+        return 'We could not load the entry agreement, so we cannot take this entry yet. Check your connection, then use the retry button in the message above.';
+      }
+      if (ctx.agreementLoadingNow) {
+        return 'Loading the entry agreement. It will appear here in a moment.';
       }
       if (ctx.needsAgreement && !ctx.agreedToEntryAgreement) {
         return 'Please review and agree to the entry agreement to continue.';

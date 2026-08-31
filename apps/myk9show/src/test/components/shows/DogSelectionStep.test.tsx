@@ -180,6 +180,40 @@ describe('DogSelectionStep', () => {
     await user.click(checkbox);
 
     expect(onSelectionChange).toHaveBeenCalledWith(['dog-1']);
+    expect(onSelectionChange).toHaveBeenCalledTimes(1);
+  });
+
+  // A <Label htmlFor> pointed at this checkbox labelled Base UI's HIDDEN input,
+  // so clicking the dog name both bubbled to the card and label-activated the
+  // input: two toggles, and two registrations created. toHaveBeenCalledWith
+  // alone cannot see it — both calls carry the same argument — so this asserts
+  // the COUNT, which is the only thing that distinguishes the regression.
+  it('toggles exactly once when the dog name is clicked', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue({
+      dogs: [mockDog()],
+      isLoading: false,
+    } as ReturnType<typeof useDogStoreCompat>);
+
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <DogSelectionStep selectedDogs={[]} onSelectionChange={onSelectionChange} />
+    );
+
+    await user.click(screen.getByText(/Max/i));
+
+    expect(onSelectionChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives the selection checkbox an accessible name', () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue({
+      dogs: [mockDog()],
+      isLoading: false,
+    } as ReturnType<typeof useDogStoreCompat>);
+
+    render(<DogSelectionStep selectedDogs={[]} onSelectionChange={vi.fn()} />);
+
+    // Was announced as a bare "checkbox, unchecked" on the exhibitor's first step.
+    expect(screen.getByRole('checkbox', { name: /Max/i })).toBeInTheDocument();
   });
 
   it('shows loading state while dogs are loading', () => {

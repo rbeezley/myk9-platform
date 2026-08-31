@@ -52,6 +52,7 @@ import { buildDraftFormData } from './buildDraftFormData';
 import { autoAssignHandlers } from './autoAssignHandlers';
 import { getEntryCloseAvailability, getEntryWindowTimezone } from './entryCloseGuard';
 import { useClassAvailability } from '@/hooks/useClassAvailability';
+import { useOrganizationAgreement } from '@/hooks/queries/useOrganizationAgreement';
 import { getRegistrationCapacityState } from './registrationCapacity';
 
 // Exhibitor self-service defaults to online card payment; on-behalf modes
@@ -323,9 +324,10 @@ export function useRegistrationWizardState() {
     setDraftData,
   ]);
 
-  const selectedDogIds = useMemo(() => new Set(registrationData.selectedDogs), [
-    registrationData.selectedDogs,
-  ]);
+  const selectedDogIds = useMemo(
+    () => new Set(registrationData.selectedDogs),
+    [registrationData.selectedDogs]
+  );
   const registrationCapacity = useMemo(
     () => getRegistrationCapacityState(classSelections, availabilityClasses, selectedDogIds),
     [classSelections, availabilityClasses, selectedDogIds]
@@ -334,9 +336,9 @@ export function useRegistrationWizardState() {
     !capacityCheckEnabled && !capacityLoading && !capacityError
       ? true
       : capacityCheckEnabled &&
-          !capacityLoading &&
-          !capacityError &&
-          registrationCapacity.unknownClassIds.size === 0;
+        !capacityLoading &&
+        !capacityError &&
+        registrationCapacity.unknownClassIds.size === 0;
 
   // `capacityReady === false` covers two states the user experiences very
   // differently: still loading, and cannot be loaded. (Offline the query pauses
@@ -347,6 +349,42 @@ export function useRegistrationWizardState() {
     capacityCheckEnabled &&
     !capacityLoading &&
     (!!capacityError || registrationCapacity.unknownClassIds.size > 0);
+
+  // FOUR states, not three. The question is not only "is there an agreement?"
+  // but "have we actually resolved that question for THIS organization?".
+  //   resolved with a row  -> must be ticked
+  //   resolved with null   -> no agreement configured; nothing to present
+  //   not resolved         -> unknown; block
+  //
+  // Both failure modes here are silent. The client is networkMode 'online', so
+  // offline this query PAUSES: isLoading false, isError false, no data — which
+  // an earlier version read as "no agreement configured" and let the exhibitor
+  // submit without accepting the legal agreement. And the client sets a global
+  // placeholderData that carries the PREVIOUS organization's agreement across a
+  // key change, so `data` can be present and belong to a different show.
+  // isSuccess plus !isPlaceholderData is the only combination that means
+  // "answered, for this organization".
+  const {
+    data: entryAgreement,
+    isLoading: agreementLoading,
+    isFetching: agreementFetching,
+    isSuccess: agreementQueryResolved,
+    isPlaceholderData: agreementIsPlaceholder,
+  } = useOrganizationAgreement(currentShow?.organization ?? '');
+  const agreementGateApplies = !!currentShow?.organization;
+  const agreementAnswered =
+    agreementGateApplies && agreementQueryResolved && !agreementIsPlaceholder;
+  const agreementRequired = agreementAnswered && !!entryAgreement;
+  // Order matters: an answer wins, then work in progress, then unknown.
+  // Switching organizations serves the PREVIOUS show's row as placeholder while
+  // the new request runs (isLoading false, isPlaceholderData true, isFetching
+  // true), so keying "unknown" off !answered alone showed a retry error during
+  // an ordinary fetch.
+  const agreementLoadingNow =
+    agreementGateApplies && !agreementAnswered && (agreementLoading || agreementFetching);
+  // Paused offline, or failed. Not "still arriving".
+  const agreementUnavailable =
+    agreementGateApplies && !agreementAnswered && !agreementLoadingNow;
 
   const liveTotalFees = useMemo(
     () =>
@@ -437,7 +475,9 @@ export function useRegistrationWizardState() {
       .length,
     totalFees: liveTotalFees,
     hasPaymentMethod: !!registrationData.paymentMethod,
-    needsAgreement: !!currentShow?.organization,
+    needsAgreement: agreementRequired,
+    agreementUnavailable,
+    agreementLoadingNow,
     agreedToEntryAgreement,
     capacityReady,
     blockedClassCount: registrationCapacity.blockedClassIds.size,
@@ -537,6 +577,7 @@ export function useRegistrationWizardState() {
     capacityReady,
     capacityError,
     capacityUnavailable,
+    refetchClassAvailability,
     waitlistClassIds: registrationCapacity.waitlistClassIds,
     blockedClassIds: registrationCapacity.blockedClassIds,
     entryCloseAvailability,

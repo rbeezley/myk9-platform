@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -38,6 +39,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   capacityReady = true,
   capacityError,
   capacityUnavailable,
+  onRetryAvailability,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
 }) => {
@@ -111,6 +113,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       <RegistrationSummary
         feeCalculation={feeCalculation}
         capacityReady={capacityReady}
+        capacityUnavailable={capacityUnavailable}
         onRemoveLine={onClassSelectionChange ? handleRemoveSummaryLine : undefined}
         removingLineKey={removingLineKey}
       />
@@ -123,9 +126,25 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
                 paused query reports no error at all. Saying "checking" there
                 describes a wait that never ends, and contradicts the blocking
                 reason under the Next button. */}
-            {capacityError || capacityUnavailable
-              ? 'We could not confirm class availability. Check your connection and refresh before continuing.'
-              : 'Checking class availability before confirming what is payable.'}
+            {capacityError || capacityUnavailable ? (
+              <span className="flex flex-wrap items-center gap-2">
+                <span>
+                  We could not confirm class availability, so we cannot total this entry yet.
+                </span>
+                {onRetryAvailability && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="touch"
+                    onClick={onRetryAvailability}
+                  >
+                    Try again
+                  </Button>
+                )}
+              </span>
+            ) : (
+              'Checking class availability before confirming what is payable.'
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -179,6 +198,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         paymentMethod={paymentMethod}
         feeCalculation={feeCalculation}
         capacityReady={capacityReady}
+        capacityUnavailable={capacityUnavailable}
         waiveFees={waiveFees}
         feeOverride={feeOverride}
       />

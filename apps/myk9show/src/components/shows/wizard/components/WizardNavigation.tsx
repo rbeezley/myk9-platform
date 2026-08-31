@@ -13,6 +13,14 @@ interface WizardNavigationProps {
   onSaveDraft?: (() => void) | undefined;
   isLoading?: boolean | undefined;
   nextLabel?: string | undefined;
+  /**
+   * Id of the element explaining why Next is blocked. When set, Next becomes
+   * aria-disabled rather than disabled so it stays focusable and a screen
+   * reader can read the reason on demand — a `disabled` button is unfocusable,
+   * so the explanation was unreachable except by chance at the moment it
+   * mounted.
+   */
+  blockedReasonId?: string | undefined;
   backLabel?: string | undefined;
   className?: string | undefined;
   /**
@@ -40,6 +48,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
   isLoading = false,
   nextLabel,
   backLabel,
+  blockedReasonId,
   className,
   remainingIssueCount = 0,
 }) => {
@@ -57,6 +66,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
       {/* Left side - Back/Cancel button */}
       <Button
         variant="outline"
+        size="touch"
         onClick={onBack}
         disabled={!canGoBack || isLoading}
         className="gap-2 px-4 py-3 sm:px-6 hover:-translate-y-0.5 transition-all duration-200"
@@ -65,23 +75,17 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         {currentStep === 0 ? 'Cancel' : backLabel || defaultBackLabel}
       </Button>
 
-      {/* Center - Save Draft and Step indicator */}
-      <div className="flex items-center gap-3 sm:gap-6">
-        {onSaveDraft && (
-          <Button
-            variant="ghost"
-            onClick={onSaveDraft}
-            disabled={isLoading}
-            className="text-muted-foreground hover:bg-muted/50 transition-all duration-200"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            Save Draft
-          </Button>
-        )}
-        <div className="text-sm text-muted-foreground font-medium">
-          Step {currentStep + 1} of {totalSteps}
-        </div>
-      </div>
+      {onSaveDraft && (
+        <Button
+          variant="ghost"
+          onClick={onSaveDraft}
+          disabled={isLoading}
+          className="text-muted-foreground hover:bg-muted/50 transition-all duration-200"
+        >
+          <Save className="mr-2 h-4 w-4" />
+          Save Draft
+        </Button>
+      )}
 
       {/* Right side - Next/Create button with an inline readiness hint beneath
           it. Next stays clickable when the step is incomplete (the click
@@ -91,9 +95,27 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
           decorative). */}
       <div className="flex flex-col items-end gap-1.5">
         <Button
-          onClick={onNext}
-          disabled={!canGoNext || isLoading}
-          className="relative gap-2 px-4 py-3 sm:px-6"
+          size="touch"
+          onClick={blockedReasonId && !canGoNext ? undefined : onNext}
+          disabled={blockedReasonId ? isLoading : !canGoNext || isLoading}
+          aria-disabled={!canGoNext || isLoading}
+          {...(blockedReasonId && !canGoNext ? { 'aria-describedby': blockedReasonId } : {})}
+          /* aria-disabled keeps the button focusable so its reason stays
+             reachable, but it applies none of the `disabled:` styles — without
+             these the button looked fully enabled, still hover-lifted, and
+             silently did nothing on click. */
+          className={cn(
+            'relative gap-2 px-4 py-3 sm:px-6',
+            // NOT opacity-50. This button is deliberately focusable so its
+            // reason stays reachable, which means it must still meet AA — an
+            // opacity dim measured 2.22:1 light / 2.42:1 dark. It also lost to
+            // the variant's own `hover:opacity-90`, which sits in a different
+            // twMerge group and wins on specificity, so the "disabled" look
+            // evaporated the moment the pointer arrived.
+            !canGoNext &&
+              !isLoading &&
+              'cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted hover:text-muted-foreground hover:opacity-100 hover:translate-y-0'
+          )}
         >
           {isLoading ? (
             <>

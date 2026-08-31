@@ -114,6 +114,17 @@ export function createWizardHandlers(state: RegistrationWizardState) {
       return;
     }
 
+    // On the payment step a missing registration means there is nothing to
+    // submit. Falling through to the generic advance below would mark the step
+    // complete and show the Receipt for an entry that was never written — the
+    // worst possible silent failure on this page. Say so and stay put.
+    if (currentStepId === 'payment' && !(registrationId && currentRegistration)) {
+      notifications.error(
+        'We could not find this registration to submit. Go back to the dog step and reselect your dogs, then try again.'
+      );
+      return;
+    }
+
     if (currentStepId === 'payment' && registrationId && currentRegistration) {
       if (!currentShow) {
         notifications.error('Show not found. Please go back and try again.');

@@ -33,7 +33,7 @@ export function ReceiptExits({
   if (!isExhibitor) {
     return (
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-8 mt-8">
-        <Button onClick={onDone} disabled={isLoading} className="gap-2 px-6 py-3">
+        <Button size="touch" onClick={onDone} disabled={isLoading} className="gap-2 px-6 py-3">
           {doneLabel}
           <ArrowRight className="h-4 w-4" />
         </Button>
@@ -44,6 +44,7 @@ export function ReceiptExits({
   return (
     <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-8 mt-8">
       <Button
+        size="touch"
         variant="outline"
         onClick={() => navigate(`/shows/${encodeURIComponent(showId)}`)}
         disabled={isLoading}
@@ -52,6 +53,7 @@ export function ReceiptExits({
         Back to show
       </Button>
       <Button
+        size="touch"
         onClick={() => navigate('/exhibitor/entries')}
         disabled={isLoading}
         className="gap-2 px-6 py-3"

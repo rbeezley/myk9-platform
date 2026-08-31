@@ -38,7 +38,7 @@ describe('useOrganizationAgreement', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: mockAgreement, error: null }),
+          maybeSingle: vi.fn().mockResolvedValue({ data: mockAgreement, error: null }),
         }),
       }),
     });
@@ -60,19 +60,41 @@ describe('useOrganizationAgreement', () => {
     expect(result.current.isFetching).toBe(false);
   });
 
-  it('returns error when query fails', async () => {
+  // An organization with no configured agreement is a CONFIGURATION FACT, not a
+  // failure. Only 'AKC' is seeded (migration 122), and while this resolved as
+  // PGRST116 from .single() every UKC and ASCA show blocked entry permanently
+  // behind a retry that re-threw forever.
+  it('resolves to null when the organization has no agreement configured', async () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    });
+
+    const { result } = renderHook(() => useOrganizationAgreement('UKC'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
+    expect(result.current.isError).toBe(false);
+  });
+
+  it('returns error when the query genuinely fails', async () => {
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({
             data: null,
-            error: { message: 'Not found', code: 'PGRST116' },
+            error: { message: 'network unreachable', code: '08006' },
           }),
         }),
       }),
     });
 
-    const { result } = renderHook(() => useOrganizationAgreement('UNKNOWN'), {
+    const { result } = renderHook(() => useOrganizationAgreement('AKC'), {
       wrapper: createWrapper(),
     });
 

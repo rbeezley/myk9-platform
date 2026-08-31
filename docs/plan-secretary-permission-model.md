@@ -91,8 +91,35 @@ paperwork record. Phase 2 exists to give that record a home of its own.
 
 ## Phase 1 — drop the membership coupling
 
+> **Shipped** as `20260830210000_appointment_grants_show_access.sql`. The scope below was
+> written as three functions; it is **six**, plus two client surfaces. Corrected here
+> because the undercount is the interesting part — see "What Phase 1 actually touched".
+
 Remove the `is_active_club_member(...)` clause from `is_trial_secretary`, and from the
 secretary arms of `is_show_secretary` and `is_show_official`.
+
+### What Phase 1 actually touched
+
+Six live functions carried the predicate, confirmed by querying `pg_get_functiondef`
+rather than reading the migration:
+
+| Function                               | Why it matters                                                                                                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `grant_club_secretary`                 | **The appointment path.** It RAISED 42501 for a non-member, so leaving it would have blocked the entire feature while every read-side helper reported success. |
+| `is_trial_secretary`                   | Club-scoped check                                                                                                                                              |
+| `is_show_secretary`                    | Show-level check                                                                                                                                               |
+| `is_show_official`                     | Secretary arm only — chairman/steward were already exempt                                                                                                      |
+| `get_club_show_manager_ids`            | Notification fan-out                                                                                                                                           |
+| `private.entry_results_caller_context` | Folds the predicate **twice**                                                                                                                                  |
+
+And two client surfaces enforced or described the rule independently of the database:
+
+- `ClubMemberDialogs.tsx` disabled "Grant Show Access" unless the member was `active` —
+  the retired rule enforced a second time in the client, which would have left the fix
+  shipped and unreachable.
+- `ClubMembersPage.tsx` told an admin removing a member that "they also lose show
+  access". That sentence is now false, and it is false in the dangerous direction: an
+  admin removing a member to end their access would have believed it worked.
 
 After this, membership status has no bearing on show access. A club admin can manage the
 member roster without silently changing who can run shows, and a hired non-member
@@ -208,8 +235,39 @@ tag backfill-created appointments so they can be identified later.
 
 ## Phase 3 — make it visible
 
+> **Shipped** as `20260830220000_club_show_managers_with_names.sql` plus a **Show
+> Access** tab on the existing club members page. Reclassified while building: this is
+> not polish, it is the completion of Phase 1 — see "Phase 1 left a hole" below.
+
 A **Show secretaries** list on the club page: who is appointed, with add and remove,
 managed by the club admin.
+
+### Phase 1 left a hole, and Phase 3 is what closes it
+
+Show access was rendered as a badge on each `club_members` row, which worked only
+because appointment required an active membership: every appointee had a roster row to
+hang the badge on. Phase 1 removed that guarantee without removing the assumption, so a
+club could appoint a professional secretary who then:
+
+- appeared **nowhere** in the club admin UI (no roster row to annotate),
+- could not be **revoked** (Revoke Show Access lives in a member row's action menu),
+- and could not have been **appointed** in the first place, because Grant Show Access
+  lives in that same menu.
+
+An appointment nobody can see or undo is worse than one nobody can make. Phase 1 should
+not ship to users without this.
+
+### Why a tab and not a new page
+
+The instinct — "add a Show Secretaries page" — would have duplicated the roster, which
+this phase of the project is explicitly trying to avoid. It is a **tab on the page that
+already owns club people**, and it earns its place because it is the only surface that
+can show someone who is not on the roster. That is the case the permission change exists
+to serve, so the tab is not a second view of the same list.
+
+Membership status appears beside each appointee as context, deliberately **not** as a
+warning: a lapsed member who is still appointed is now a normal state, and flagging it
+would re-teach the rule Phase 1 removed.
 
 This is the part that actually stops the tickets. A permission nobody can see is a
 question someone has to ask, and there is currently no screen that answers "who is allowed

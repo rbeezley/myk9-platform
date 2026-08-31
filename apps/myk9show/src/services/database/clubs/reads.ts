@@ -441,3 +441,28 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
     return { exists: false, data: null, error: dbError };
   }
 };
+
+/**
+ * How many shows this club has that have not finished yet.
+ *
+ * Used by the Show Access tab to warn before a club revokes its last appointed
+ * secretary. The number only has to be good enough to justify a warning, so it counts
+ * anything ending today or later.
+ *
+ * Counts a named column, never '*': `select('*', { count, head: true })` on a
+ * column-allowlisted table returns 403 with an empty body, because a star asks for
+ * columns the role may not read even when head:true returns no values.
+ */
+export const countUpcomingClubShows = async (clubId: string): Promise<number> => {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { count, error } = await supabase
+    .from('shows')
+    .select('id', { count: 'exact', head: true })
+    .eq('club_id', clubId)
+    .is('deleted_at', null)
+    .gte('end_date', today);
+
+  if (error) throw createDatabaseError(error, 'club', 'count_upcoming_shows');
+  return count ?? 0;
+};

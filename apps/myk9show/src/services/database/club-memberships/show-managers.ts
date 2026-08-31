@@ -4,20 +4,46 @@
 
 import { supabase } from '../supabaseClient';
 
+export interface ClubShowManager {
+  personId: string;
+  personName: string | null;
+  personEmail: string | null;
+  /**
+   * False for a professional secretary the club appointed without enrolling them.
+   * The roster cannot show these people at all — they have no club_members row —
+   * so this is the flag that keeps an appointment visible and revocable.
+   */
+  isClubMember: boolean;
+  membershipStatus: string | null;
+}
+
 /**
- * Get person IDs that have the SECRETARY RBAC role scoped to this club.
- * These people can create and manage shows for the club.
+ * Everyone appointed to run this club's shows, member or not.
+ *
+ * Replaces the earlier id-only lookup. Ids were enough while every appointee was
+ * necessarily a club member, because the UI only ever needed to annotate a roster row
+ * that already existed. Appointment no longer implies membership, so the answer to
+ * "who can run our shows?" is a list in its own right rather than a filter over the
+ * roster.
+ *
+ * SA-006: user_roles is not directly SELECT-able cross-user, so this reads through the
+ * get_club_show_managers SECURITY DEFINER RPC, which restates the caller check
+ * internally (site admin, an admin of this club, or one of its secretaries).
  */
-export async function getClubShowManagerIds(clubId: string): Promise<Set<string>> {
-  // SA-006: user_roles is no longer directly SELECT-able cross-user, so this
-  // reads through the get_club_show_manager_ids SECURITY DEFINER RPC
-  // (migration 20260703180000).
-  const { data, error } = await supabase.rpc('get_club_show_manager_ids', {
+export async function getClubShowManagers(clubId: string): Promise<ClubShowManager[]> {
+  const { data, error } = await supabase.rpc('get_club_show_managers', {
     p_club_id: clubId,
   });
 
   if (error) throw error;
-  return new Set(((data as Array<{ user_id: string }> | null) ?? []).map(row => row.user_id));
+
+  return (data ?? []).map(row => ({
+    personId: row.person_id,
+    personName: row.person_name,
+    personEmail: row.person_email,
+    isClubMember: row.is_club_member,
+    membershipStatus: row.membership_status,
+  }));
 }
 
 interface SetClubShowManagerAccessRequest {

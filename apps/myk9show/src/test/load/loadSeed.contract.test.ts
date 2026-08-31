@@ -151,12 +151,17 @@ describe('multi-show seed agrees with the fixture', () => {
   });
 
   it('pairs every per-show secretary grant with club membership in the same club', () => {
-    // A club-scoped secretary grant is INERT without a club_members row:
-    // is_trial_secretary() requires is_active_club_member(user_id, club_id), so
-    // the account resolves to zero manageable shows rather than to its own show.
+    // HISTORY: a club-scoped secretary grant was INERT without a club_members row,
+    // because is_trial_secretary() required is_active_club_member(user_id, club_id),
+    // so the account resolved to zero manageable shows rather than to its own show.
     // Verified against staging 2026-08-28 -- all three held the role, none held a
     // membership, and the harness would only have reported "manages nothing"
     // from the shard job, after the reseed had spent the approved window.
+    //
+    // That coupling is gone: appointment alone now grants show access, so the seed
+    // no longer NEEDS the membership row. It is kept because the load fixtures should
+    // look like real clubs, and asserted because a silent drop would make the seed
+    // diverge from what it claims to model.
     const block = multiShowBlock;
     expect(block).toContain('INSERT INTO public.club_members');
     expect(block).toContain('ON CONFLICT (club_id, person_id) DO NOTHING');

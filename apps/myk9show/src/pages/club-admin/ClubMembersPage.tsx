@@ -16,7 +16,7 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
+import { Users, Plus, Shield, Search, AlertTriangle, KeyRound } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -38,13 +38,15 @@ import {
   removeClubMember,
   addClubOfficer,
   removeClubOfficer,
-  getClubShowManagerIds,
+  getClubShowManagers,
   setClubShowManagerAccess,
 } from '@/services/database/club-memberships';
+import { countUpcomingClubShows } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
+import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +61,9 @@ import {
 const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'officers', label: 'Officers', icon: Shield },
+  // Separate from Members on purpose: an appointed secretary need not be a member, so
+  // this tab can list people the roster structurally cannot.
+  { id: 'show-access', label: 'Show Access', icon: KeyRound },
 ];
 
 // --- Main Page ---
@@ -76,6 +81,7 @@ const ClubMembersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAssignOfficer, setShowAssignOfficer] = useState(false);
+  const [showAppointSecretary, setShowAppointSecretary] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<{
     kind: 'member' | 'officer';
     id: string;
@@ -109,17 +115,26 @@ const ClubMembersPage: React.FC = () => {
 
   const showManagersQuery = useQuery({
     queryKey: ['club-show-managers', clubId],
-    queryFn: () => getClubShowManagerIds(clubId!),
+    queryFn: () => getClubShowManagers(clubId!),
+    enabled: !!clubId,
+  });
+
+  // Only read to decide whether revoking the last secretary deserves a warning, so a
+  // failure here must not block the tab: it falls back to 0, which shows no warning
+  // rather than a wrong one.
+  const upcomingShowsQuery = useQuery({
+    queryKey: ['club-upcoming-show-count', clubId],
+    queryFn: () => countUpcomingClubShows(clubId!),
     enabled: !!clubId,
   });
 
   const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const activeMemberCount = useMemo(() => countActiveClubMembers(members), [members]);
   const officers = useMemo(() => officersQuery.data ?? [], [officersQuery.data]);
-  const showManagerIds = useMemo(
-    () => showManagersQuery.data ?? new Set<string>(),
-    [showManagersQuery.data]
-  );
+  const showManagers = useMemo(() => showManagersQuery.data ?? [], [showManagersQuery.data]);
+  // The roster still annotates member rows, so it still needs the id set — now derived
+  // from the same fetch instead of a second RPC.
+  const showManagerIds = useMemo(() => new Set(showManagers.map(m => m.personId)), [showManagers]);
 
   // Sorted officers by position order
   const sortedOfficers = useMemo(() => {
@@ -175,7 +190,8 @@ const ClubMembersPage: React.FC = () => {
     }) => updateClubMember(data.memberId, data.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
-      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      // Show access is not invalidated here: membership status no longer affects it.
+      // Only toggleShowAccessMutation can change who manages this club's shows.
     },
     onError: error =>
       reportMutationFailure("We couldn't update that member. Please try again.", error),
@@ -185,9 +201,10 @@ const ClubMembersPage: React.FC = () => {
     mutationFn: (memberId: string) => removeClubMember(memberId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
-      // Removing a member changes who can manage shows for this club, because
-      // every server-side secretary predicate gates on is_active_club_member().
-      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      // Deliberately NOT invalidating show managers. Removing a membership used to
+      // end show access, because every secretary predicate gated on
+      // is_active_club_member(). Appointment is now the only grant, so the
+      // person keeps managing this club's shows until the appointment is revoked.
     },
     onError: error =>
       reportMutationFailure("We couldn't remove that member. Please try again.", error),
@@ -224,14 +241,26 @@ const ClubMembersPage: React.FC = () => {
   });
 
   const toggleShowAccessMutation = useMutation({
-    mutationFn: ({ personId, grant }: { personId: string; grant: boolean }) =>
-      setClubShowManagerAccess({ personId, clubId: clubId!, grant }),
-    onSuccess: (_, { personId, grant }) => {
+    mutationFn: ({
+      personId,
+      grant,
+    }: {
+      personId: string;
+      grant: boolean;
+      personName?: string | undefined;
+    }) => setClubShowManagerAccess({ personId, clubId: clubId!, grant }),
+    onSuccess: (_, { personId, grant, personName }) => {
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
-      const memberName = members.find(member => member.personId === personId)?.personName;
-      notifications.success(
-        `Show access ${grant ? 'granted to' : 'revoked from'} ${memberName || 'the member'}.`
-      );
+      // The name has to be supplied by the caller now. Resolving it from `members`
+      // fails for exactly the people this feature added — a non-member appointee has
+      // no roster row — and the fallback called them "the member", which is both
+      // anonymous and the one thing they are not.
+      const name =
+        personName ??
+        members.find(member => member.personId === personId)?.personName ??
+        showManagers.find(manager => manager.personId === personId)?.personName ??
+        'that person';
+      notifications.success(`Show access ${grant ? 'granted to' : 'revoked from'} ${name}.`);
       logger.info(`Show access ${grant ? 'granted to' : 'revoked from'} ${personId}`, 'club-admin');
     },
     onError: (error, { grant }) => {
@@ -254,9 +283,9 @@ const ClubMembersPage: React.FC = () => {
   };
 
   // Removal is a hard DELETE of the person's membership record - join date,
-  // dues history, voting eligibility - and it also ends any show access they
-  // hold, because every server-side secretary predicate gates on
-  // is_active_club_member(). It sat one row below "Resigned" in the same menu
+  // dues history, voting eligibility. It no longer ends show access: appointment
+  // is a separate grant, so the dialog says so rather than letting an admin
+  // assume the two travel together. It sat one row below "Resigned" in the same menu
   // with no confirmation, no undo and no message. PRODUCT.md rules out confirm
   // dialogs for ROUTINE actions; permanently deleting a person's club record
   // is not routine.
@@ -296,8 +325,17 @@ const ClubMembersPage: React.FC = () => {
     setIsRemovalOpen(false);
   };
 
-  const handleToggleShowAccess = (personId: string, grant: boolean) => {
-    toggleShowAccessMutation.mutate({ personId, grant });
+  const handleToggleShowAccess = (personId: string, grant: boolean, personName?: string) => {
+    toggleShowAccessMutation.mutate({ personId, grant, personName });
+  };
+
+  const handleAppointSecretary = (personId: string) => {
+    const person = people.find(candidate => candidate.id === personId);
+    const personName = person ? `${person.firstName} ${person.lastName}`.trim() : undefined;
+    toggleShowAccessMutation.mutate(
+      { personId, grant: true, personName },
+      { onSuccess: () => setShowAppointSecretary(false) }
+    );
   };
 
   const existingMemberPersonIds = useMemo(() => new Set(members.map(m => m.personId)), [members]);
@@ -516,6 +554,20 @@ const ClubMembersPage: React.FC = () => {
                   />
                 )}
               </TabsContent>
+
+              {/* Show Access Tab */}
+              <TabsContent value="show-access" className="mt-6 space-y-4">
+                <ClubShowAccessTab
+                  managers={showManagers}
+                  unavailable={showAccessUnavailable}
+                  onRetry={() => void showManagersQuery.refetch()}
+                  onAppoint={() => setShowAppointSecretary(true)}
+                  onRevoke={(personId, personName) =>
+                    handleToggleShowAccess(personId, false, personName)
+                  }
+                  upcomingShowCount={upcomingShowsQuery.data ?? 0}
+                />
+              </TabsContent>
             </PrimaryTabs>
           </CardContent>
         </Card>
@@ -540,7 +592,7 @@ const ClubMembersPage: React.FC = () => {
                 ? 'The officer record is deleted. Their club membership is not affected.'
                 : 'Their membership record, join date and dues history are deleted.'}
               {pendingRemoval?.kind === 'member' && pendingRemoval?.hasShowAccess
-                ? ' They also lose show access, so they can no longer run shows for this club.'
+                ? ' Their show access is separate and is NOT removed — they stay an appointed secretary and can still run this club’s shows. Revoke show access as well if that is what you intend.'
                 : ''}{' '}
               This cannot be undone.
             </AlertDialogDescription>
@@ -563,6 +615,15 @@ const ClubMembersPage: React.FC = () => {
         people={people}
         existingMemberIds={existingMemberPersonIds}
         isSaving={addMemberMutation.isPending}
+      />
+
+      <AppointSecretaryDialog
+        open={showAppointSecretary}
+        onClose={() => setShowAppointSecretary(false)}
+        onAppoint={handleAppointSecretary}
+        people={people}
+        appointedIds={showManagerIds}
+        isSaving={toggleShowAccessMutation.isPending}
       />
 
       <AssignOfficerDialog

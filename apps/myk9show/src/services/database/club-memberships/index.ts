@@ -14,4 +14,5 @@ export {
 
 export { getClubOfficers, addClubOfficer, removeClubOfficer } from './officers';
 
-export { getClubShowManagerIds, setClubShowManagerAccess } from './show-managers';
+export { getClubShowManagers, setClubShowManagerAccess } from './show-managers';
+export type { ClubShowManager } from './show-managers';

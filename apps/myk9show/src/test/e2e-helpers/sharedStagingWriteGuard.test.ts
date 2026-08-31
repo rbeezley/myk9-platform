@@ -6,6 +6,7 @@ import {
   AUDIT_READ_ONLY_RPCS,
   classifySharedStagingWrite,
   installSharedStagingWriteGuard,
+  isObservableIsolatedRingsideWrite,
   isUnambiguousSharedStagingRestWrite,
   SHARED_STAGING_PROJECT_REF,
   summarizeSharedStagingWriteLedger,
@@ -76,11 +77,15 @@ describe('installSharedStagingWriteGuard', () => {
     expect(secondRoute.fulfilledBodies).toEqual(['202']);
   });
 
-  it('can observe an isolated-target RPC without intercepting the write', async () => {
+  // The assertion that matters is the DEFAULT. An earlier version of this test
+  // passed `observeIsolatedRingsideWrites: true` and proved only that the
+  // capability existed when asked for — which stayed green for seven weeks
+  // while every atShowJudgeScoring spec, none of which passed the flag, saw an
+  // empty `ringsideRpcCalls` against the isolated target. Pass NO options here.
+  it('observes an isolated-target RPC without intercepting the write, with no flag', async () => {
     const { page, handlers } = createRouteRecorder();
     const ringsideRpcCalls: GuardedRingsideRpcCall[] = [];
     await installSharedStagingWriteGuard(page, {
-      observeIsolatedRingsideWrites: true,
       ringsideRpcCalls,
     });
 
@@ -95,6 +100,52 @@ describe('installSharedStagingWriteGuard', () => {
     expect(isolatedRoute.fulfilledBodies).toEqual([]);
     expect(isolatedRoute.fallbackCount()).toBe(1);
     expect(ringsideRpcCalls).toEqual([{ p_entry_id: 'entry-1', p_fields: { is_scored: true } }]);
+  });
+});
+
+describe('isObservableIsolatedRingsideWrite', () => {
+  // Known-answer checks for the host gate that caused MYK9-270. If someone
+  // narrows observation back to the shared-staging host, these fail loudly
+  // instead of quietly emptying every spec's `ringsideRpcCalls`.
+  it.each(['http://127.0.0.1:54321', 'http://localhost:54321'])(
+    'observes a ringside write to the isolated target at %s',
+    origin => {
+      expect(
+        isObservableIsolatedRingsideWrite({
+          method: 'POST',
+          url: `${origin}/rest/v1/rpc/ringside_update_entry`,
+        })
+      ).toBe(true);
+    }
+  );
+
+  it('does NOT treat a shared-staging ringside write as isolated', () => {
+    // Shared staging takes the interception path instead, which answers the
+    // call locally so the write never reaches the real project.
+    expect(
+      isObservableIsolatedRingsideWrite({
+        method: 'POST',
+        url: `${sharedBaseUrl}/rest/v1/rpc/ringside_update_entry`,
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT observe a different RPC on the isolated target', () => {
+    expect(
+      isObservableIsolatedRingsideWrite({
+        method: 'POST',
+        url: 'http://127.0.0.1:54321/rest/v1/rpc/self_checkin_entry',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT observe a GET to the ringside RPC path', () => {
+    expect(
+      isObservableIsolatedRingsideWrite({
+        method: 'GET',
+        url: 'http://127.0.0.1:54321/rest/v1/rpc/ringside_update_entry',
+      })
+    ).toBe(false);
   });
 });
 

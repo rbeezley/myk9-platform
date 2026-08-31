@@ -24,7 +24,7 @@ export interface SharedStagingWriteLedgerEntry {
   disposition: SharedStagingWriteDisposition;
 }
 
-interface RequestLike {
+export interface RequestLike {
   method: string;
   url: string;
 }
@@ -43,7 +43,6 @@ export interface GuardedRingsideRpcCall {
 interface SharedStagingWriteGuardOptions {
   ringsideRpcCalls?: GuardedRingsideRpcCall[];
   versionBase?: number;
-  observeIsolatedRingsideWrites?: boolean;
   /**
    * Append-only record of every shared-staging write this guard saw. Pass an
    * array to collect the audit's escape proof (MYK9-144 AC6); omit it and the
@@ -198,7 +197,6 @@ export async function installSharedStagingWriteGuard(
 ) {
   const ringsideRpcCalls = options.ringsideRpcCalls ?? [];
   const versionBase = options.versionBase ?? 100;
-  const observeIsolatedRingsideWrites = options.observeIsolatedRingsideWrites ?? false;
   const ledger = options.ledger;
   const conflictServerVersion = options.conflictServerVersion ?? versionBase + 1;
   const conflictMatcher = options.conflictMatcher ?? (() => true);
@@ -236,10 +234,7 @@ export async function installSharedStagingWriteGuard(
     const guardedWrite = classifySharedStagingWrite(requestLike);
 
     const isSharedStagingWrite = guardedWrite?.kind === 'ringside-update-entry-rpc';
-    const isObservedIsolatedWrite =
-      observeIsolatedRingsideWrites &&
-      isRingsideUpdateEntryRequest(requestLike) &&
-      isIsolatedHost(requestLike.url);
+    const isObservedIsolatedWrite = isObservableIsolatedRingsideWrite(requestLike);
 
     if (!isSharedStagingWrite && !isObservedIsolatedWrite) {
       await fallbackRoute(route);
@@ -349,6 +344,28 @@ function isRingsideUpdateEntryRequest(request: RequestLike) {
     request.method.toUpperCase() === 'POST' &&
     url?.pathname === '/rest/v1/rpc/ringside_update_entry'
   );
+}
+
+/**
+ * Whether a ringside write addressed to an ISOLATED target should be recorded
+ * in `ringsideRpcCalls` (and then forwarded untouched).
+ *
+ * This is deliberately NOT opt-in. It used to be, and the default of `false`
+ * cost more than it ever saved: `classifySharedStagingWrite` only matches the
+ * shared-staging host, so against the isolated Supabase target every
+ * `ringside_update_entry` POST fell through unrecorded and `ringsideRpcCalls`
+ * stayed empty forever. On the first run of Playwright Regression that ever
+ * executed a test (2026-08-31, after #1889), five `atShowJudgeScoring` specs
+ * failed with `Received: []` while the aria snapshot showed the judge's score
+ * saved — and a sixth, which asserts the array stays EMPTY, passed without
+ * ever having been able to fail.
+ *
+ * Observation now follows the host, so a spec cannot be blind to writes it is
+ * asserting on by forgetting a flag. Shared-staging interception is unchanged:
+ * those writes are still answered locally and never leave the machine.
+ */
+export function isObservableIsolatedRingsideWrite(request: RequestLike) {
+  return isRingsideUpdateEntryRequest(request) && isIsolatedHost(request.url);
 }
 
 function isIsolatedHost(value: string) {

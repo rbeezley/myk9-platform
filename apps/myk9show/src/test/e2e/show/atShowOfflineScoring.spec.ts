@@ -41,7 +41,6 @@ test.describe('At-show offline scoring', () => {
 
     try {
       await installSharedStagingWriteGuard(page, {
-        observeIsolatedRingsideWrites: true,
         ringsideRpcCalls: rpcCalls,
       });
       await signInAsSecretary(page, scorePath);

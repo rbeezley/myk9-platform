@@ -241,14 +241,26 @@ const ClubMembersPage: React.FC = () => {
   });
 
   const toggleShowAccessMutation = useMutation({
-    mutationFn: ({ personId, grant }: { personId: string; grant: boolean }) =>
-      setClubShowManagerAccess({ personId, clubId: clubId!, grant }),
-    onSuccess: (_, { personId, grant }) => {
+    mutationFn: ({
+      personId,
+      grant,
+    }: {
+      personId: string;
+      grant: boolean;
+      personName?: string | undefined;
+    }) => setClubShowManagerAccess({ personId, clubId: clubId!, grant }),
+    onSuccess: (_, { personId, grant, personName }) => {
       queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
-      const memberName = members.find(member => member.personId === personId)?.personName;
-      notifications.success(
-        `Show access ${grant ? 'granted to' : 'revoked from'} ${memberName || 'the member'}.`
-      );
+      // The name has to be supplied by the caller now. Resolving it from `members`
+      // fails for exactly the people this feature added — a non-member appointee has
+      // no roster row — and the fallback called them "the member", which is both
+      // anonymous and the one thing they are not.
+      const name =
+        personName ??
+        members.find(member => member.personId === personId)?.personName ??
+        showManagers.find(manager => manager.personId === personId)?.personName ??
+        'that person';
+      notifications.success(`Show access ${grant ? 'granted to' : 'revoked from'} ${name}.`);
       logger.info(`Show access ${grant ? 'granted to' : 'revoked from'} ${personId}`, 'club-admin');
     },
     onError: (error, { grant }) => {
@@ -313,13 +325,15 @@ const ClubMembersPage: React.FC = () => {
     setIsRemovalOpen(false);
   };
 
-  const handleToggleShowAccess = (personId: string, grant: boolean) => {
-    toggleShowAccessMutation.mutate({ personId, grant });
+  const handleToggleShowAccess = (personId: string, grant: boolean, personName?: string) => {
+    toggleShowAccessMutation.mutate({ personId, grant, personName });
   };
 
   const handleAppointSecretary = (personId: string) => {
+    const person = people.find(candidate => candidate.id === personId);
+    const personName = person ? `${person.firstName} ${person.lastName}`.trim() : undefined;
     toggleShowAccessMutation.mutate(
-      { personId, grant: true },
+      { personId, grant: true, personName },
       { onSuccess: () => setShowAppointSecretary(false) }
     );
   };
@@ -548,7 +562,9 @@ const ClubMembersPage: React.FC = () => {
                   unavailable={showAccessUnavailable}
                   onRetry={() => void showManagersQuery.refetch()}
                   onAppoint={() => setShowAppointSecretary(true)}
-                  onRevoke={personId => handleToggleShowAccess(personId, false)}
+                  onRevoke={(personId, personName) =>
+                    handleToggleShowAccess(personId, false, personName)
+                  }
                   upcomingShowCount={upcomingShowsQuery.data ?? 0}
                 />
               </TabsContent>

@@ -121,5 +121,71 @@ BEGIN
 END;
 $$;
 
+-- Anything this list shows a Revoke button for must actually be revocable.
+--
+-- get_club_show_managers returns both role names the read-side helpers honour, but
+-- revoke_club_secretary used to match 'secretary' alone. It returns void and returns
+-- early when nothing matched, so the revoke reported success while every permission
+-- survived. `trial_secretary` has no row in public.roles today, so the fixture creates
+-- one -- the point is that the list and the revoke path agree on what a secretary is,
+-- not that this particular role is in use.
+-- Back to the owning role: user_roles INSERT is site-admin-only under RLS, and
+-- `authenticated` cannot write public.roles at all. Both rolled back with the rest.
+RESET ROLE;
+
+INSERT INTO public.roles (name, description)
+SELECT 'trial_secretary', 'MYK9 test-only role for revoke parity'
+WHERE NOT EXISTS (SELECT 1 FROM public.roles WHERE name = 'trial_secretary');
+
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000229015', r.id,
+       '00000000-0000-0000-0000-000000229001', true,
+       '00000000-0000-0000-0000-000000229105'
+FROM public.roles r WHERE r.name = 'trial_secretary';
+
+SET LOCAL ROLE authenticated;
+
+DO $$
+DECLARE
+  listed integer;
+  still_active integer;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000229101', true);
+
+  -- It is listed, so the tab renders a Revoke button for it.
+  SELECT count(*) INTO listed
+  FROM public.get_club_show_managers('00000000-0000-0000-0000-000000229001')
+  WHERE person_id = '00000000-0000-0000-0000-000000229015';
+  IF listed <> 1 THEN
+    RAISE EXCEPTION 'FAIL a trial_secretary appointee was not listed, expected 1 got %', listed;
+  END IF;
+
+  PERFORM public.revoke_club_secretary(
+    '00000000-0000-0000-0000-000000229015',
+    '00000000-0000-0000-0000-000000229001'
+  );
+
+  SELECT count(*) INTO still_active
+  FROM public.user_roles ur
+  JOIN public.roles r ON r.id = ur.role_id
+  WHERE ur.user_id = '00000000-0000-0000-0000-000000229015'
+    AND ur.club_id = '00000000-0000-0000-0000-000000229001'
+    AND ur.show_id IS NULL
+    AND ur.is_active = true
+    AND r.name IN ('secretary', 'trial_secretary');
+  IF still_active <> 0 THEN
+    RAISE EXCEPTION 'FAIL revoke reported success but % appointment row(s) stayed active', still_active;
+  END IF;
+
+  -- And the access itself is gone, not merely the row flag.
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000229105', true);
+  IF public.is_trial_secretary('00000000-0000-0000-0000-000000229001') THEN
+    RAISE EXCEPTION 'FAIL a revoked trial_secretary still resolves as a club secretary';
+  END IF;
+
+  RAISE NOTICE 'PASS revoke_club_secretary clears every role the access list can display';
+END;
+$$;
+
 RESET ROLE;
 ROLLBACK;

@@ -240,3 +240,60 @@ describe('ClubMembersPage Show Access tab wiring', () => {
     expect(await screen.findByText(/Club membership is not required/i)).toBeInTheDocument();
   });
 });
+
+describe('ClubMembersPage show-access confirmations name the person', () => {
+  // The toast resolved names from `members`, which cannot contain a non-member
+  // appointee — the people this feature exists for. It fell back to "the member",
+  // which is anonymous AND the one thing they are not. (Codex, PR #1895.)
+  beforeEach(() => {
+    vi.clearAllMocks();
+    countUpcomingClubShows.mockResolvedValue(0);
+    setClubShowManagerAccess.mockResolvedValue(undefined);
+  });
+
+  it('names a non-member when revoking from the tab', async () => {
+    getClubShowManagers.mockResolvedValue([
+      {
+        personId: 'person-hired',
+        personName: 'Grace Hopper',
+        personEmail: 'grace@example.com',
+        isClubMember: false,
+        membershipStatus: null,
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<ClubMembersPage />);
+
+    await user.click(await screen.findByRole('tab', { name: /show access/i }));
+    await user.click(await screen.findByRole('button', { name: /revoke/i }));
+
+    await waitFor(() => {
+      expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Grace Hopper.');
+    });
+    expect(notificationSuccess).not.toHaveBeenCalledWith(
+      expect.stringContaining('the member')
+    );
+  });
+
+  it('still names a member revoked from the roster menu', async () => {
+    // The roster path must keep working — the fix adds a source, it does not replace one.
+    getClubShowManagers.mockResolvedValue([
+      {
+        personId: 'person-1',
+        personName: 'Ada Lovelace',
+        personEmail: 'ada@example.com',
+        isClubMember: true,
+        membershipStatus: 'active',
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<ClubMembersPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
+
+    await waitFor(() => {
+      expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Ada Lovelace.');
+    });
+  });
+});

@@ -77,7 +77,7 @@ there is no single base or stack. Each row is the last impeccable pass merged to
 | 12  | Permission Management             | /admin/permissions              | 2026-08-24 | #1691, #1703, #1730, #1781                                           |
 | 13  | Role Requests                     | /admin/role-requests            | 2026-08-19 | #1693                                                                |
 | 14  | My Entries / My Shows             | /exhibitor/entries              | 2026-08-29 | #1696, #1862                                                         |
-| 15  | Show Registration wizard          | /shows/:showId/register         | 2026-08-30 | MYK9-264 — see round 3 below                                         |
+| 15  | Show Registration wizard          | /shows/:showId/register         | 2026-08-31 | MYK9-264 — #1890, #1896, #1901; see rounds 3–5 below                  |
 | 16  | Exhibitor Payments                | /exhibitor/payments             | 2026-08-20 | #1697, #1704, #1705                                                  |
 | 17  | Cart                              | /cart                           | 2026-08-20 | #1700                                                                |
 | 18  | Club Members                      | /club-admin/members             | 2026-08-20 | #1708                                                                |
@@ -142,6 +142,57 @@ by adding an `h1`, an assertive `role="alert"` on an informational notice, a
 shadow, and a selected state left conveying by colour alone). All were repaired
 in the same PR. A confirm round that only re-scores is not doing its job; this
 one earned its cost several times over.
+
+## Rounds 4–5 — Show Registration wizard (2026-08-31)
+
+Round 4 (#1896) closed the entry-agreement dead end: `useOrganizationAgreement`
+used `.single()`, which throws PGRST116 when no row exists, and only `'AKC'` is
+seeded — so every UKC/ASCA show blocked entry permanently. The repair then
+inverted twice under Codex review, first into a legal-gate **bypass** (offline,
+the paused query read as "no agreement configured") and then into a spurious
+retry error on an ordinary org switch. The shape that held is four explicit
+states — answered / still-arriving / unavailable / absent — with
+`isSuccess && !isPlaceholderData` as the definition of *answered*.
+
+Round 5 (#1901) was the first round with a working browser, and that is the
+whole point of it. Vercel was rate-limited for the entire life of #1890, so
+rounds 1–4 scored a11y and theming from design tokens and Tailwind class
+strings. Both defects below survived all four rounds and were found in the
+first browser pass:
+
+- **dark `--muted-foreground` failed AA on the surfaces the page actually
+  paints.** The token carried a comment asserting it passes on dark surfaces,
+  true against the flat `--card` (4.55:1) and false wherever the wizard
+  composites a tint over it — 3.96:1 on the "Current" step caption, 4.26:1 on
+  "Done", 4.27:1 on the payment helper text. `#9a9184` measures 4.76:1 there.
+- **the wizard's only exit was 181×40**, from a `size="default"` variant whose
+  own comment calls it "Comfortable touch target".
+
+**The lesson worth keeping.** A rendered-measurement test is not automatically
+better than a token check — it just fails in less obvious ways. The contrast
+assertion passed three times while proving nothing: it selected the *first*
+`.text-muted-foreground` (the 14px breadcrumb on the flat background, which
+passes on the old token too); it measured before the dog list loaded, catching
+"No eligible dogs found." where the elevated panel does not exist; and it
+walked to the first **opaque** ancestor instead of compositing the translucent
+layers, reading `#1e1c19` rather than the rgb(48,38,32) the caption is actually
+read against. Only mutating the token — and getting back the same 3.96 the
+independent probe had reported — established that it measured anything. The
+measurement probe itself was wrong twice first: computed styles here serialise
+as `color(srgb 0..1)`, whose components are not 8-bit, so parsing them as such
+collapsed every ratio to ~1.0 and produced 1,113 phantom defects; it also
+flagged 504 dog checkboxes as 16×16 targets before accounting for the clickable
+card wrapping each one. **Give any contrast or geometry harness known-answer
+checks (black-on-white == 21) and mutate the thing it measures before believing
+a single number it prints.**
+
+Two findings were checked and are *not* defects: the entry-agreement checkbox is
+correctly named via `aria-labelledby` and its label toggles it, and
+"Load Draft (0)" reads 3.46:1 only while genuinely `disabled`, which WCAG 1.4.3
+exempts. Both would have been "fixes" to working code.
+
+Deferred as global surfaces rather than page defects: the sonner success toast
+(#008a2e on #ecfdf3 at 13px = 4.26:1) and its 20×20 close button (MYK9-269).
 
 ## Never swept
 

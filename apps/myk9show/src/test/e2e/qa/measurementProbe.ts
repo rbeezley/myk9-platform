@@ -324,18 +324,45 @@ export function measurePage(limit: number): ProbeResult {
         .trim();
       if (text) return text;
     }
+    // Native labels, both associations, and BEFORE `title` — that is the
+    // ACCNAME precedence, and it matters here because a wrapping
+    // `<label><input> Text</label>` is every bit as valid as `label[for]`.
+    // Checking only the explicit form reported the landing page's waitlist
+    // radios and the sign-up consent checkbox as unnamed; `effectiveBox` two
+    // functions down already walked to `closest('label')` for the target check,
+    // so the probe knew about implicit labels and simply did not use them here.
+    if (el.id) {
+      const explicit = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+      if (explicit?.textContent?.trim()) return explicit.textContent.trim();
+    }
+    const wrapping = el.closest('label');
+    if (wrapping?.textContent?.trim()) return wrapping.textContent.trim();
+
     const title = el.getAttribute('title');
     if (title && title.trim()) return title.trim();
-    if (el.id) {
-      const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
-      if (label?.textContent?.trim()) return label.textContent.trim();
-    }
+
     const own = (el.textContent || '').trim();
     if (own) return own;
     const alt = el.querySelector('img[alt]')?.getAttribute('alt');
     if (alt && alt.trim()) return alt.trim();
-    const value = (el as HTMLInputElement).value;
-    if (typeof value === 'string' && value.trim()) return value.trim();
+
+    // An input's `value` names the control only for the button-like types,
+    // where the value IS the visible label. For a text input the value is user
+    // data, so accepting it as a name means a prefilled unlabelled field
+    // reports as accessible and an empty one reports as a defect — the finding
+    // would depend on whether the fixture happened to have typed something
+    // (Codex, this PR). `type=image` is named by its alt attribute.
+    if (el.tagName === 'INPUT') {
+      const type = (el.getAttribute('type') || 'text').toLowerCase();
+      if (type === 'image') {
+        const imageAlt = el.getAttribute('alt');
+        return imageAlt && imageAlt.trim() ? imageAlt.trim() : '';
+      }
+      if (type === 'button' || type === 'submit' || type === 'reset') {
+        const value = (el as HTMLInputElement).value;
+        if (typeof value === 'string' && value.trim()) return value.trim();
+      }
+    }
     return '';
   };
 

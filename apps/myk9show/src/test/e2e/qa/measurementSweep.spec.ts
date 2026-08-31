@@ -201,7 +201,16 @@ async function sweepGroup(page: Page, group: SweepGroup, theme: 'light' | 'dark'
       // A route that bounced to sign-in measures the sign-in page. Recording
       // the landed path lets the report drop those rather than attribute
       // another page's findings to a route nobody reached.
-      reached: landedPath === path || landedPath.startsWith(path),
+      //
+      // Exact match, ignoring a trailing slash. A `startsWith` prefix test
+      // accepted any CHILD route as a successful measurement of its parent —
+      // and this table sweeps several parent/child pairs, so a redirect from
+      // `/shows/:id` into `/shows/:id/register` would have filed the wizard's
+      // findings under the show-detail row while the wizard's own row measured
+      // it again (Codex, this PR). Anything that normalises elsewhere now shows
+      // up in the exclusion table with the path it actually landed on, which is
+      // the more useful answer anyway.
+      reached: landedPath.replace(/\/$/, '') === path.replace(/\/$/, ''),
       error,
       probe,
     });

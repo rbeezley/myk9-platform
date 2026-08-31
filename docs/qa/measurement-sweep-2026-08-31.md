@@ -28,7 +28,7 @@ without the gate a plain `pnpm test:e2e` would silently gain this run's ~15
 minutes plus a dependency on live seeded data and four sets of credentials.
 
 Writes `test-results/measurement-sweep/findings.json` and `report.md`. The run
-below took 14.6 minutes for 84 measurements.
+below took 13.4 minutes for 84 measurements.
 
 ## Why these numbers can be believed
 
@@ -60,9 +60,11 @@ It also carries two standing guards for the failure modes that burned round 5:
   everywhere, so a failed flip is otherwise indistinguishable from a clean dark
   theme.
 
-Four further harness defects were found across two rounds of review on this PR,
-each of which would have made the report state something false. All were fixed
-before these numbers were taken, and the sweep was re-run after each round:
+Seven further harness defects were found across three rounds of review on this
+PR, each of which would have made the report state something false. All were
+fixed before these numbers were taken, and the sweep was re-run in full after
+every round — five runs in total, because a fix that could move a published
+number is not finished until the number has been re-measured:
 
 - **Clustering read truncated data.** The probe samples at most 12 findings per
   category per page, and the cross-route grouping was built from those samples.
@@ -94,6 +96,33 @@ before these numbers were taken, and the sweep was re-run after each round:
   **Never attempted** row for groups skipped for missing credentials. This one
   was a plain self-contradiction — the same file's exclusion list exists to stop
   exactly this, and the sign-in path went around it.
+- **The opt-in was documentary only.** `playwright.config.ts` matches every spec
+  under `src/test/e2e`, so describing this file as "run it deliberately" in prose
+  changed nothing: a plain `pnpm test:e2e` picked it up and gained ~15 minutes
+  plus a dependency on seeded data and four sets of credentials. Now gated on
+  `MYK9_MEASUREMENT_SWEEP=1`, verified in both directions (without it the file
+  reports "10 skipped").
+- **A child route counted as its parent.** Reachability used a `startsWith`
+  prefix test, so a redirect from `/shows/:id` into `/shows/:id/register` would
+  have filed the wizard's findings under the show-detail row — and this table
+  sweeps several parent/child pairs. Now an exact match; anything that
+  normalises elsewhere appears in the exclusion table with the path it landed
+  on, which is the more useful answer anyway.
+- **An input's `value` was read as its accessible name, and then the correction
+  overshot.** `value` names only the button-like input types; for a text input
+  it is user data, so an unlabelled prefilled field reported as accessible and
+  an identical empty one reported as a defect. Fixing that took the count from
+  **4 to 28** — and 18 of those 24 were false, because `accessibleName` checked
+  `label[for]` but never a *wrapping* `<label>`, which is an equally valid
+  association. The landing page's waitlist radios and the sign-up consent
+  checkbox are all correctly labelled that way. The probe already knew about
+  implicit labels — `effectiveBox` walks to `closest('label')` for the target
+  check — and simply did not use them here. Final count: **10**, all real.
+
+  This one is the whole lesson in miniature. The first number was wrong, the
+  correction was also wrong, and the only thing that separated them was
+  re-running and reading the output instead of trusting that a fix which sounded
+  right had made things better.
 
 Fixing the wizard result also meant replacing the readiness gate.
 Route-health's "body text > 20 chars, then settle" is too weak for
@@ -119,7 +148,7 @@ Two measurements per route, light and dark. Club-admin is absent because
 | Text nodes not measurable (image/gradient backdrop) | 164 |
 | Contrast findings | 947 |
 | Small-target findings | 676 |
-| Controls with no accessible name | 4 |
+| Controls with no accessible name | 10 |
 | **Measurements with horizontal overflow** | **0** |
 
 The four exclusions are all the same honest result: `/secretary/tasks` and
@@ -211,8 +240,12 @@ itself is still 40px everywhere else.
 
 ## Controls with no accessible name
 
-Four, and only two distinct: the reply input on `/admin/support` and the search
-input on `/admin/help`. Both are placeholder-only inputs with no label.
+Ten, across three surfaces: three form inputs on `/exhibitor/account`, the reply
+input on `/admin/support`, and the search input on `/admin/help` — each counted
+once per theme. All are inputs carrying a placeholder and no label, explicit or
+wrapping. Placeholder text is deliberately not accepted as a name here: it
+disappears the moment the field has content, which is exactly when a screen
+reader user needs it.
 
 ## What this argues for
 

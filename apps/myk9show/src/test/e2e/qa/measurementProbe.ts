@@ -327,7 +327,19 @@ export function measurePage(limit: number): ProbeResult {
     // solved by the pointer-cursor walk; this one slips past it because the
     // interactivity lives in a pseudo-element rather than an ancestor.
     const after = getComputedStyle(el, '::after');
-    if (after.position === 'absolute' && after.content !== 'none') {
+    // All four edges pinned, none `auto`. That is what makes a pseudo-element
+    // STRETCH to its containing block, and it is the difference between the
+    // stretched-link pattern and a decorative one — `data-table/types.ts` pins
+    // top/right/bottom and leaves `left: auto` to draw a 1px column divider.
+    // Promoting on that would hide a genuinely small control behind its
+    // container's box, trading this fix's false positives for false negatives,
+    // which is the worse direction for a findings report (Codex surfaced the
+    // divider while reviewing this change).
+    const pinned =
+      after.position === 'absolute' &&
+      after.content !== 'none' &&
+      [after.top, after.right, after.bottom, after.left].every(v => v !== 'auto');
+    if (pinned) {
       // Its containing block is the nearest positioned ancestor, which is the
       // box the pseudo-element actually covers.
       let host: Element | null = el.parentElement;

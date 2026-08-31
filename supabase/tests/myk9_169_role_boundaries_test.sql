@@ -1,7 +1,23 @@
--- MYK9-169 policy matrix.
--- Club-scoped secretary access requires active club membership. Explicit
--- show-scoped secretary access remains available to a non-member, but must not
--- be promoted to club-wide access by a role lookup.
+-- Club secretary policy matrix.
+--
+-- REWRITTEN, deliberately, alongside 20260830210000_appointment_grants_show_access.sql.
+-- This file previously asserted the OPPOSITE of what it asserts now: that club-scoped
+-- secretary access required an active club_members row, so a lapsed or suspended member
+-- lost show access. That was MYK9-169, and it was a considered decision, not drift — the
+-- reversal is considered too, and the reasoning is in the migration header.
+--
+-- The rule now:
+--
+--   A club appoints its secretaries. Any appointed secretary can run any of that
+--   club's shows. Appointment is the only thing that grants access.
+--
+-- Both directions matter and both are asserted here: appointment grants without
+-- membership, and membership grants nothing without appointment.
+--
+-- What MYK9-169 got right and this file still pins: a role lookup must never promote a
+-- club appointment into access at a DIFFERENT club, and must never act as a
+-- platform-wide grant. That is migration 102's guarantee, and it is the expensive thing
+-- to lose while editing this predicate.
 
 BEGIN;
 
@@ -16,7 +32,10 @@ VALUES
   ('00000000-0000-0000-0000-000000169012', 'MYK9-169', 'Active Member', '00000000-0000-0000-0000-000000169102'),
   ('00000000-0000-0000-0000-000000169013', 'MYK9-169', 'Lapsed Member', '00000000-0000-0000-0000-000000169103'),
   ('00000000-0000-0000-0000-000000169014', 'MYK9-169', 'Suspended Member', '00000000-0000-0000-0000-000000169104'),
-  ('00000000-0000-0000-0000-000000169015', 'MYK9-169', 'External Secretary', '00000000-0000-0000-0000-000000169105');
+  ('00000000-0000-0000-0000-000000169015', 'MYK9-169', 'External Secretary', '00000000-0000-0000-0000-000000169105'),
+  ('00000000-0000-0000-0000-000000169016', 'MYK9-169', 'Show Scoped Only', '00000000-0000-0000-0000-000000169106'),
+  ('00000000-0000-0000-0000-000000169017', 'MYK9-169', 'Plain Member', '00000000-0000-0000-0000-000000169107'),
+  ('00000000-0000-0000-0000-000000169018', 'MYK9-169', 'Club Chairman', '00000000-0000-0000-0000-000000169108');
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 VALUES
@@ -39,11 +58,14 @@ VALUES
     'published'
   );
 
+-- Membership states are seeded precisely so the assertions below can prove that they
+-- no longer affect access. 'Plain Member' is an active member who is never appointed.
 INSERT INTO public.club_members (club_id, person_id, membership_status)
 VALUES
   ('00000000-0000-0000-0000-000000169001', '00000000-0000-0000-0000-000000169012', 'active'),
   ('00000000-0000-0000-0000-000000169001', '00000000-0000-0000-0000-000000169013', 'lapsed'),
-  ('00000000-0000-0000-0000-000000169001', '00000000-0000-0000-0000-000000169014', 'suspended');
+  ('00000000-0000-0000-0000-000000169001', '00000000-0000-0000-0000-000000169014', 'suspended'),
+  ('00000000-0000-0000-0000-000000169001', '00000000-0000-0000-0000-000000169017', 'active');
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
@@ -55,16 +77,16 @@ SELECT
 FROM public.roles r
 WHERE r.name = 'club_admin';
 
--- Existing stale role rows must not remain effective after membership lapses.
+-- A club-scoped chairman, to prove secretary/chairman/steward now follow one rule.
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT fixture.person_id, r.id, club.club_id, true, fixture.auth_id
-FROM (
-  VALUES
-    ('00000000-0000-0000-0000-000000169013'::uuid, '00000000-0000-0000-0000-000000169103'::uuid),
-    ('00000000-0000-0000-0000-000000169014'::uuid, '00000000-0000-0000-0000-000000169104'::uuid)
-) AS fixture(person_id, auth_id)
-CROSS JOIN (VALUES ('00000000-0000-0000-0000-000000169001'::uuid)) AS club(club_id)
-JOIN public.roles r ON r.name = 'secretary';
+SELECT
+  '00000000-0000-0000-0000-000000169018',
+  r.id,
+  '00000000-0000-0000-0000-000000169001',
+  true,
+  '00000000-0000-0000-0000-000000169108'
+FROM public.roles r
+WHERE r.name = 'chairman';
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169101', true);
@@ -74,83 +96,115 @@ SELECT set_config(
   true
 );
 
+-- Appointment succeeds regardless of membership state, including for someone with no
+-- club_members row at all. Under MYK9-169 the last three of these raised 42501.
 SELECT public.grant_club_secretary(
   '00000000-0000-0000-0000-000000169012',
   '00000000-0000-0000-0000-000000169001'
 );
-
-DO $$
-BEGIN
-  BEGIN
-    PERFORM public.grant_club_secretary(
-      '00000000-0000-0000-0000-000000169013',
-      '00000000-0000-0000-0000-000000169001'
-    );
-    RAISE EXCEPTION 'FAIL lapsed member received club secretary access';
-  EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM NOT LIKE 'Club secretary access requires an active club membership%' THEN
-      RAISE;
-    END IF;
-  END;
-
-  BEGIN
-    PERFORM public.grant_club_secretary(
-      '00000000-0000-0000-0000-000000169014',
-      '00000000-0000-0000-0000-000000169001'
-    );
-    RAISE EXCEPTION 'FAIL suspended member received club secretary access';
-  EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM NOT LIKE 'Club secretary access requires an active club membership%' THEN
-      RAISE;
-    END IF;
-  END;
-END;
-$$;
-
--- The explicit show-scoped path permits an external professional secretary.
-SELECT public.grant_show_official(
+SELECT public.grant_club_secretary(
+  '00000000-0000-0000-0000-000000169013',
+  '00000000-0000-0000-0000-000000169001'
+);
+SELECT public.grant_club_secretary(
+  '00000000-0000-0000-0000-000000169014',
+  '00000000-0000-0000-0000-000000169001'
+);
+SELECT public.grant_club_secretary(
   '00000000-0000-0000-0000-000000169015',
+  '00000000-0000-0000-0000-000000169001'
+);
+
+-- The show-scoped path still exists and still grants only its own show.
+SELECT public.grant_show_official(
+  '00000000-0000-0000-0000-000000169016',
   'secretary',
   '00000000-0000-0000-0000-000000169003'
 );
 
 DO $$
 DECLARE
-  active_manager_count integer;
+  fixture record;
+  manager_count integer;
 BEGIN
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169102', true);
-  IF NOT public.is_trial_secretary('00000000-0000-0000-0000-000000169001')
-     OR NOT public.is_show_secretary('00000000-0000-0000-0000-000000169003') THEN
-    RAISE EXCEPTION 'FAIL active club secretary lost effective access';
-  END IF;
+  -- 1. Every appointee reaches the club's show, whatever their membership says.
+  FOR fixture IN
+    SELECT * FROM (VALUES
+      ('00000000-0000-0000-0000-000000169102'::uuid, 'active member'),
+      ('00000000-0000-0000-0000-000000169103'::uuid, 'lapsed member'),
+      ('00000000-0000-0000-0000-000000169104'::uuid, 'suspended member'),
+      ('00000000-0000-0000-0000-000000169105'::uuid, 'non-member professional')
+    ) AS f(auth_id, label)
+  LOOP
+    PERFORM set_config('request.jwt.claim.sub', fixture.auth_id::text, true);
 
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169103', true);
+    IF NOT public.is_trial_secretary('00000000-0000-0000-0000-000000169001') THEN
+      RAISE EXCEPTION 'FAIL appointed % has no club-scoped access', fixture.label;
+    END IF;
+
+    -- 2. Parity: the three helpers must agree, or the same row means different
+    --    things depending on which one a policy happens to call.
+    IF NOT public.is_show_secretary('00000000-0000-0000-0000-000000169003')
+       OR NOT public.is_show_official('00000000-0000-0000-0000-000000169003') THEN
+      RAISE EXCEPTION 'FAIL helpers disagree for appointed %', fixture.label;
+    END IF;
+
+    -- 3. Migration 102's guarantee: an appointment is club-scoped, never global.
+    IF public.is_trial_secretary('00000000-0000-0000-0000-000000169002')
+       OR public.is_show_secretary('00000000-0000-0000-0000-000000169004')
+       OR public.is_show_official('00000000-0000-0000-0000-000000169004') THEN
+      RAISE EXCEPTION 'FAIL appointed % reached another club''s show', fixture.label;
+    END IF;
+  END LOOP;
+
+  -- 4. The other direction: membership alone grants nothing. An active member who was
+  --    never appointed must have no access — otherwise this change would have widened
+  --    access to every member of every club.
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169107', true);
   IF public.is_trial_secretary('00000000-0000-0000-0000-000000169001')
-     OR public.is_show_secretary('00000000-0000-0000-0000-000000169003') THEN
-    RAISE EXCEPTION 'FAIL lapsed secretary retained effective access';
+     OR public.is_show_secretary('00000000-0000-0000-0000-000000169003')
+     OR public.is_show_official('00000000-0000-0000-0000-000000169003') THEN
+    RAISE EXCEPTION 'FAIL an unappointed active member has show access';
   END IF;
 
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169104', true);
-  IF public.is_trial_secretary('00000000-0000-0000-0000-000000169001')
-     OR public.is_show_secretary('00000000-0000-0000-0000-000000169003') THEN
-    RAISE EXCEPTION 'FAIL suspended secretary retained effective access';
+  -- 5. A show-scoped row still grants its own show and must not be promoted to
+  --    club-wide access. (Phase 2 retires this path; until then it is load-bearing.)
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169106', true);
+  IF NOT public.is_show_secretary('00000000-0000-0000-0000-000000169003') THEN
+    RAISE EXCEPTION 'FAIL show-scoped secretary lost their own show';
+  END IF;
+  IF public.is_trial_secretary('00000000-0000-0000-0000-000000169001') THEN
+    RAISE EXCEPTION 'FAIL show-scoped secretary was promoted to club-wide access';
   END IF;
 
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169105', true);
-  IF public.is_trial_secretary('00000000-0000-0000-0000-000000169001')
-     OR NOT public.is_show_secretary('00000000-0000-0000-0000-000000169003')
-     OR public.is_show_secretary('00000000-0000-0000-0000-000000169004') THEN
-    RAISE EXCEPTION 'FAIL external show secretary scope was not preserved';
+  -- 6. Secretary, chairman and steward now follow ONE rule. Before this change the
+  --    chairman arm skipped the membership test that the secretary arm applied, so the
+  --    two disagreed for the same shape of row.
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169108', true);
+  IF NOT public.is_show_official('00000000-0000-0000-0000-000000169003') THEN
+    RAISE EXCEPTION 'FAIL club-scoped chairman lost show official access';
+  END IF;
+  IF public.is_show_official('00000000-0000-0000-0000-000000169004') THEN
+    RAISE EXCEPTION 'FAIL club-scoped chairman reached another club''s show';
   END IF;
 
+  -- 7. The notification fan-out follows the same rule: all four appointees, and not
+  --    the unappointed member.
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169101', true);
-  SELECT count(*) INTO active_manager_count
+  SELECT count(*) INTO manager_count
   FROM public.get_club_show_manager_ids('00000000-0000-0000-0000-000000169001');
-  IF active_manager_count <> 1 THEN
-    RAISE EXCEPTION 'FAIL club manager lookup returned % rows, expected active member only', active_manager_count;
+  IF manager_count <> 4 THEN
+    RAISE EXCEPTION 'FAIL club manager lookup returned % rows, expected 4 appointees', manager_count;
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-169 active/lapsed/suspended club secretary and external show secretary matrix';
+  IF EXISTS (
+    SELECT 1 FROM public.get_club_show_manager_ids('00000000-0000-0000-0000-000000169001')
+    WHERE user_id = '00000000-0000-0000-0000-000000169017'
+  ) THEN
+    RAISE EXCEPTION 'FAIL unappointed member appeared in the club manager lookup';
+  END IF;
+
+  RAISE NOTICE 'PASS appointment grants show access; membership neither grants nor revokes';
 END;
 $$;
 

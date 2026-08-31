@@ -175,7 +175,8 @@ const ClubMembersPage: React.FC = () => {
     }) => updateClubMember(data.memberId, data.updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
-      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      // Show access is not invalidated here: membership status no longer affects it.
+      // Only toggleShowAccessMutation can change who manages this club's shows.
     },
     onError: error =>
       reportMutationFailure("We couldn't update that member. Please try again.", error),
@@ -185,9 +186,10 @@ const ClubMembersPage: React.FC = () => {
     mutationFn: (memberId: string) => removeClubMember(memberId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['club-members', clubId] });
-      // Removing a member changes who can manage shows for this club, because
-      // every server-side secretary predicate gates on is_active_club_member().
-      queryClient.invalidateQueries({ queryKey: ['club-show-managers', clubId] });
+      // Deliberately NOT invalidating show managers. Removing a membership used to
+      // end show access, because every secretary predicate gated on
+      // is_active_club_member(). Appointment is now the only grant, so the
+      // person keeps managing this club's shows until the appointment is revoked.
     },
     onError: error =>
       reportMutationFailure("We couldn't remove that member. Please try again.", error),
@@ -254,9 +256,9 @@ const ClubMembersPage: React.FC = () => {
   };
 
   // Removal is a hard DELETE of the person's membership record - join date,
-  // dues history, voting eligibility - and it also ends any show access they
-  // hold, because every server-side secretary predicate gates on
-  // is_active_club_member(). It sat one row below "Resigned" in the same menu
+  // dues history, voting eligibility. It no longer ends show access: appointment
+  // is a separate grant, so the dialog says so rather than letting an admin
+  // assume the two travel together. It sat one row below "Resigned" in the same menu
   // with no confirmation, no undo and no message. PRODUCT.md rules out confirm
   // dialogs for ROUTINE actions; permanently deleting a person's club record
   // is not routine.
@@ -540,7 +542,7 @@ const ClubMembersPage: React.FC = () => {
                 ? 'The officer record is deleted. Their club membership is not affected.'
                 : 'Their membership record, join date and dues history are deleted.'}
               {pendingRemoval?.kind === 'member' && pendingRemoval?.hasShowAccess
-                ? ' They also lose show access, so they can no longer run shows for this club.'
+                ? ' Their show access is separate and is NOT removed — they stay an appointed secretary and can still run this club’s shows. Revoke show access as well if that is what you intend.'
                 : ''}{' '}
               This cannot be undone.
             </AlertDialogDescription>

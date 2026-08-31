@@ -91,8 +91,35 @@ paperwork record. Phase 2 exists to give that record a home of its own.
 
 ## Phase 1 — drop the membership coupling
 
+> **Shipped** as `20260830210000_appointment_grants_show_access.sql`. The scope below was
+> written as three functions; it is **six**, plus two client surfaces. Corrected here
+> because the undercount is the interesting part — see "What Phase 1 actually touched".
+
 Remove the `is_active_club_member(...)` clause from `is_trial_secretary`, and from the
 secretary arms of `is_show_secretary` and `is_show_official`.
+
+### What Phase 1 actually touched
+
+Six live functions carried the predicate, confirmed by querying `pg_get_functiondef`
+rather than reading the migration:
+
+| Function                               | Why it matters                                                                                                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `grant_club_secretary`                 | **The appointment path.** It RAISED 42501 for a non-member, so leaving it would have blocked the entire feature while every read-side helper reported success. |
+| `is_trial_secretary`                   | Club-scoped check                                                                                                                                              |
+| `is_show_secretary`                    | Show-level check                                                                                                                                               |
+| `is_show_official`                     | Secretary arm only — chairman/steward were already exempt                                                                                                      |
+| `get_club_show_manager_ids`            | Notification fan-out                                                                                                                                           |
+| `private.entry_results_caller_context` | Folds the predicate **twice**                                                                                                                                  |
+
+And two client surfaces enforced or described the rule independently of the database:
+
+- `ClubMemberDialogs.tsx` disabled "Grant Show Access" unless the member was `active` —
+  the retired rule enforced a second time in the client, which would have left the fix
+  shipped and unreachable.
+- `ClubMembersPage.tsx` told an admin removing a member that "they also lose show
+  access". That sentence is now false, and it is false in the dangerous direction: an
+  admin removing a member to end their access would have believed it worked.
 
 After this, membership status has no bearing on show access. A club admin can manage the
 member roster without silently changing who can run shows, and a hired non-member

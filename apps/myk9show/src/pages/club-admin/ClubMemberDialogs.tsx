@@ -162,20 +162,22 @@ export const MemberActionMenu: React.FC<ActionMenuProps> = ({
 
       <DropdownMenuGroup>
         <DropdownMenuLabel className={MENU_LABEL_BASE}>Show Access</DropdownMenuLabel>
+        {/*
+          Appointment is the grant, and it is independent of membership: a club may
+          appoint a professional secretary who is a member of none of its clubs, and a
+          member going lapsed no longer revokes anything. This item used to be disabled
+          for every non-active member, which was the membership rule enforced twice —
+          once in the database and once here.
+        */}
         <DropdownMenuItem
           onClick={() => onToggleShowAccess(member.personId, !hasShowAccess)}
-          disabled={!hasShowAccess && member.membershipStatus !== 'active'}
           className={cn(
             MENU_ITEM_BASE,
             hasShowAccess ? 'text-warning focus:bg-warning/10' : 'text-success focus:bg-success/10'
           )}
         >
           <KeyRound className="h-3.5 w-3.5" />
-          {hasShowAccess
-            ? 'Revoke Show Access'
-            : member.membershipStatus === 'active'
-              ? 'Grant Show Access'
-              : 'Grant Show Access (active members only)'}
+          {hasShowAccess ? 'Revoke Show Access' : 'Grant Show Access'}
         </DropdownMenuItem>
       </DropdownMenuGroup>
 

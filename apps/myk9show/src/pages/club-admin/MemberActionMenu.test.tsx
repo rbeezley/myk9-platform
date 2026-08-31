@@ -103,15 +103,41 @@ describe('MemberActionMenu', () => {
     expect(screen.getByRole('menuitem', { name: /full member/i })).toHaveAttribute('data-disabled');
   });
 
-  it('does not allow inactive members to receive club-wide show access', async () => {
+  it('lets a club appoint a member whose membership is not active', async () => {
+    // Inverted deliberately. This asserted the opposite until appointment became the
+    // only grant: membership no longer gates show access in the database, so gating it
+    // here would enforce the retired rule in the client alone — the shape where a fix
+    // ships and is unreachable.
+    const granted: Array<[string, boolean]> = [];
     const { user } = renderMenu({
       member: { ...baseMember, membershipStatus: 'lapsed' },
+      onToggleShowAccess: (personId, grant) => granted.push([personId, grant]),
     });
     await openMenu(user);
 
     await screen.findByRole('menu');
-    expect(
-      screen.getByRole('menuitem', { name: /grant show access.*active members only/i })
-    ).toHaveAttribute('data-disabled');
+    const item = screen.getByRole('menuitem', { name: /grant show access/i });
+    expect(item).not.toHaveAttribute('data-disabled');
+    // The label carried the rule too, so a disabled-only assertion would pass on a
+    // menu that still tells the admin members-only.
+    expect(item).toHaveTextContent(/^Grant Show Access$/);
+
+    await user.click(item);
+    expect(granted).toEqual([['p1', true]]);
+  });
+
+  it('still offers revoke for an appointed member whose membership lapsed', async () => {
+    // The pairing that makes the change safe: appointment survives a lapse, so the
+    // club must retain a way to end it.
+    const { user } = renderMenu({
+      member: { ...baseMember, membershipStatus: 'lapsed' },
+      hasShowAccess: true,
+    });
+    await openMenu(user);
+
+    await screen.findByRole('menu');
+    expect(screen.getByRole('menuitem', { name: /revoke show access/i })).not.toHaveAttribute(
+      'data-disabled'
+    );
   });
 });

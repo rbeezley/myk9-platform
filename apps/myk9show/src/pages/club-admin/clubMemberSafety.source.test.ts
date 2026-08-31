@@ -63,14 +63,26 @@ describe('mutation failure reporting', () => {
     expect(onErrors.length).toBe(mutations.length);
   });
 
-  it('invalidates show managers when a member is removed', () => {
-    // Every server-side secretary predicate gates on is_active_club_member(),
-    // so removing a member changes who can run the club's shows.
+  it('does not invalidate show managers when a member is removed', () => {
+    // Inverted deliberately. Membership used to gate every secretary predicate, so
+    // removing a member changed who could run the club's shows. Appointment is now
+    // the only grant, which makes that refetch dead — and, worse, implies to the
+    // next reader that the two are still coupled.
     const removeBlock = page.slice(
       page.indexOf('removeMemberMutation = useMutation'),
       page.indexOf('addOfficerMutation = useMutation')
     );
-    expect(removeBlock).toContain("['club-show-managers', clubId]");
+    expect(removeBlock).not.toContain("['club-show-managers', clubId]");
+  });
+
+  it('still invalidates show managers when access is actually toggled', () => {
+    // The one mutation that does change it. Without this the inverted assertion
+    // above would pass just as happily on a page that never refetches at all.
+    const toggleBlock = page.slice(
+      page.indexOf('toggleShowAccessMutation = useMutation'),
+      page.indexOf('// Handlers')
+    );
+    expect(toggleBlock).toContain("['club-show-managers', clubId]");
   });
 });
 
@@ -81,9 +93,23 @@ describe('destructive removal', () => {
     expect(page).toContain('cannot be undone');
   });
 
-  it('warns that show access ends when the member holds it', () => {
+  it('tells the admin that show access SURVIVES removal when the member holds it', () => {
+    // The dialog used to promise the opposite ("They also lose show access"), which
+    // is now false: the appointment outlives the membership record. An admin who
+    // removes a member to end their access would otherwise walk away believing it
+    // worked. The negative assertion is the one that matters — it fails if the old
+    // sentence comes back.
     expect(page).toContain('hasShowAccess');
-    expect(page).toMatch(/lose show access/i);
+    expect(page).toMatch(/is NOT removed/);
+    expect(page).not.toMatch(/lose show access/i);
+  });
+
+  it('does not gate the grant-access action on membership status', () => {
+    // Server-side the appointment RPC no longer checks membership; leaving the menu
+    // item disabled would enforce the retired rule in the client alone, which is the
+    // failure mode where a fix looks shipped and is unreachable.
+    expect(dialogs).not.toContain("member.membershipStatus !== 'active'");
+    expect(dialogs).not.toContain('active members only');
   });
 
   it('routes officer removal through the same confirmation', () => {

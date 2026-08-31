@@ -553,6 +553,7 @@ export function useRegistrationWizardState() {
     capacityReady,
     capacityError,
     capacityUnavailable,
+    refetchClassAvailability,
     waitlistClassIds: registrationCapacity.waitlistClassIds,
     blockedClassIds: registrationCapacity.blockedClassIds,
     entryCloseAvailability,

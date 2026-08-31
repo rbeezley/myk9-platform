@@ -32,6 +32,8 @@ export interface PaymentStepProps {
   capacityError?: string | null | undefined;
   /** Availability could not be read at all, as opposed to still loading. */
   capacityUnavailable?: boolean | undefined;
+  /** Re-run the availability check from the unavailable state. */
+  onRetryAvailability?: (() => void) | undefined;
   /** Selected classes that are full but accept a wait-list request. */
   waitlistClassIds?: ReadonlySet<string> | undefined;
   /** Selected classes that are full and cannot accept a wait-list request. */
@@ -76,6 +78,8 @@ export interface RegistrationSummaryProps {
   feeCalculation: FeeCalculationResult;
   /** False while the availability query is loading or failed. */
   capacityReady?: boolean | undefined;
+  /** Availability could not be read at all, as opposed to still loading. */
+  capacityUnavailable?: boolean | undefined;
   onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
   removingLineKey?: string | null | undefined;
 }
@@ -125,6 +129,8 @@ export interface PaymentSummaryCardProps {
   feeCalculation: FeeCalculationResult;
   /** False while the availability query is loading or failed. */
   capacityReady?: boolean | undefined;
+  /** Availability could not be read at all, as opposed to still loading. */
+  capacityUnavailable?: boolean | undefined;
   waiveFees: boolean;
   feeOverride: number | null;
 }

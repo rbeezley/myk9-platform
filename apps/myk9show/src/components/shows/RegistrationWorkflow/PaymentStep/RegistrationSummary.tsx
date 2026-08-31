@@ -11,6 +11,7 @@ import type { RegistrationSummaryProps } from './types';
 export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
   feeCalculation,
   capacityReady = true,
+  capacityUnavailable = false,
   onRemoveLine,
   removingLineKey,
 }) => {
@@ -44,7 +45,9 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                           ? cls.isWaitlist
                             ? 'No payment due'
                             : `$${cls.fee.toFixed(2)}`
-                          : 'Checking availability'}
+                          : capacityUnavailable
+                            ? 'Not confirmed'
+                            : 'Checking availability'}
                       </span>
                       {onRemoveLine && (
                         <Button
@@ -92,7 +95,11 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
             <div className="flex justify-between font-semibold">
               <span>Total Due</span>
               <span className="text-lg">
-                {capacityReady ? `$${feeCalculation.total.toFixed(2)}` : 'Checking availability'}
+                {capacityReady
+                  ? `$${feeCalculation.total.toFixed(2)}`
+                  : capacityUnavailable
+                    ? 'Not confirmed'
+                    : 'Checking availability'}
               </span>
             </div>
           </div>

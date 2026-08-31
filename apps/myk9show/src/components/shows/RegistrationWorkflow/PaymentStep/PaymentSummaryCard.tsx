@@ -13,6 +13,7 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
   paymentMethod,
   feeCalculation,
   capacityReady = true,
+  capacityUnavailable = false,
   waiveFees,
   feeOverride,
 }) => {
@@ -20,7 +21,9 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
   const amountDueValue = feeOverride ?? feeCalculation.total;
   const requiresPaymentMethod = capacityReady && !isWaived && amountDueValue > 0 && !paymentMethod;
   const amountDue = !capacityReady
-    ? 'Checking availability'
+    ? capacityUnavailable
+      ? 'Not confirmed'
+      : 'Checking availability'
     : isWaived
       ? '$0.00 (Waived)'
       : `$${amountDueValue.toFixed(2)}`;

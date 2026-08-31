@@ -68,6 +68,7 @@ function RegistrationWizardContent() {
     capacityReady,
     capacityError,
     capacityUnavailable,
+    refetchClassAvailability,
     waitlistClassIds,
     blockedClassIds,
     armbandAssignments,
@@ -291,6 +292,7 @@ function RegistrationWizardContent() {
               capacityReady={capacityReady}
               capacityError={capacityError}
               capacityUnavailable={capacityUnavailable}
+              onRetryAvailability={refetchClassAvailability}
               waitlistClassIds={waitlistClassIds}
               blockedClassIds={blockedClassIds}
               armbandAssignments={armbandAssignments}

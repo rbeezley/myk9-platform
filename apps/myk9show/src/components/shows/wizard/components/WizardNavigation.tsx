@@ -88,9 +88,6 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
             Save Draft
           </Button>
         )}
-        <div className="text-sm text-muted-foreground font-medium">
-          Step {currentStep + 1} of {totalSteps}
-        </div>
       </div>
 
       {/* Right side - Next/Create button with an inline readiness hint beneath

@@ -9,6 +9,7 @@
  * hook's values and handlers.
  */
 
+import { useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -95,6 +96,22 @@ function RegistrationWizardContent() {
   } = wiz;
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
+
+  // Move focus to the step heading whenever the step changes. Without this the
+  // wizard scrolls but focus stays put — and on the payment -> receipt swap the
+  // focused Next button is unmounted entirely, dropping focus to <body> so a
+  // keyboard user restarts from the top of the document. Focusing a heading
+  // that names the step also announces where they now are.
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const hasMountedStep = useRef(false);
+  useEffect(() => {
+    if (!hasMountedStep.current) {
+      // Don't steal focus on first render — the user has just navigated here.
+      hasMountedStep.current = true;
+      return;
+    }
+    stepHeadingRef.current?.focus();
+  }, [currentStep]);
 
   return (
     <RegistrationErrorBoundary>
@@ -209,12 +226,16 @@ function RegistrationWizardContent() {
         {entryCloseAvailability.canEnter && (
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-medium">
-                  Step {currentStep + 1} of {steps.length}:
+              <h2
+                ref={stepHeadingRef}
+                tabIndex={-1}
+                className="text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {steps[currentStep]?.label}
+                <span className="sr-only">
+                  {` — step ${currentStep + 1} of ${steps.length}`}
                 </span>
-                <span>{steps[currentStep]?.label}</span>
-              </div>
+              </h2>
               <DraftManager
                 saveDraft={draftSave}
                 loadDraft={draftLoad}
@@ -276,8 +297,6 @@ function RegistrationWizardContent() {
                 h3s, so without this the heading tree skips a level. It also
                 gives a screen-reader user the current step by name at the point
                 the step's own content begins. */}
-            <h2 className="sr-only">{steps[currentStep]?.label ?? 'Current step'}</h2>
-
             {/* Step content */}
             <WorkflowStepContent
               currentStepId={currentStepId}

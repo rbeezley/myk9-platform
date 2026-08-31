@@ -19,9 +19,19 @@ describe('WizardNavigation', () => {
     expect(screen.getByText('Back')).toBeInTheDocument();
   });
 
-  it('shows step indicator', () => {
+  // The step counter lives in HorizontalProgressIndicator, which both consumers
+  // of this component also render. It used to be printed here as well, and once
+  // more by the page, so "Step N of M" appeared three times on one screen.
+  // currentStep/totalSteps still drive behaviour — the Cancel-vs-Back label and
+  // isLastStep — they just no longer render a duplicate counter.
+  it('does not duplicate the step counter owned by the progress indicator', () => {
     render(<WizardNavigation {...defaultProps} currentStep={2} totalSteps={5} />);
-    expect(screen.getByText('Step 3 of 5')).toBeInTheDocument();
+    expect(screen.queryByText('Step 3 of 5')).not.toBeInTheDocument();
+  });
+
+  it('still labels the first step\'s back action as Cancel', () => {
+    render(<WizardNavigation {...defaultProps} currentStep={0} totalSteps={5} />);
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
   });
 
   it('uses custom labels when provided', () => {

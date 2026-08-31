@@ -181,7 +181,13 @@ const CONTRAST_OF = (selector: string) => {
   const els = Array.from(document.querySelectorAll(selector)).filter(el => {
     const r = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
-    return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && (el.textContent || '').trim();
+    if (!(r.width > 0 && r.height > 0)) return false;
+    if (cs.visibility === 'hidden') return false;
+    if (!(el.textContent || '').trim()) return false;
+    // WCAG 1.4.3 exempts inactive controls, and this app dims them with
+    // disabled:opacity-50 — "Load Draft (0)" measures 3.46:1 while disabled.
+    // Counting them would fail the assertion on text the standard excuses.
+    return !el.closest('[disabled],[aria-disabled="true"],:disabled');
   });
   if (!els.length) return null;
   const cv = document.createElement('canvas');
@@ -240,7 +246,18 @@ const CONTRAST_OF = (selector: string) => {
       cur = cur.parentElement;
     }
     if (acc && acc[3] < 1) bg = over(acc, bg);
-    const fg = parse(getComputedStyle(el).color)!;
+    // Fold in every ancestor's opacity, not just the element's own colour
+    // alpha. The shared Button ships disabled:opacity-50, so a dimmed label
+    // would otherwise be certified at the token's full contrast while its
+    // rendered pixels are half-composited against the surface.
+    let effOpacity = 1;
+    let opCur: Element | null = el;
+    while (opCur) {
+      effOpacity *= Number(getComputedStyle(opCur).opacity);
+      opCur = opCur.parentElement;
+    }
+    const rawFg = parse(getComputedStyle(el).color)!;
+    const fg = [rawFg[0], rawFg[1], rawFg[2], rawFg[3] * effOpacity];
     const l1 = lum(over(fg, bg));
     const l2 = lum(bg);
     const r = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);

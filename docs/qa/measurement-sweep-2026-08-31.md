@@ -167,6 +167,11 @@ harness verified only its arithmetic, never its geometry — which is why a brok
 
 ## Contrast-path audit, 2026-08-31
 
+> **Base:** measured at `0cca87202`, before #1916 landed its a11y fixes. The
+> before/after figures below are about the HARNESS and hold regardless, but the
+> app-side counts they quote are pre-#1916 and should not be compared against a
+> fresh run.
+
 After MYK9-281 exposed that the harness verified its arithmetic but never its
 geometry, the contrast path was audited for the same shape of gap. It had one,
 and it was live.

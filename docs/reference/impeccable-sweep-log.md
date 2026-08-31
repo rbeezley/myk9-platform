@@ -119,7 +119,11 @@ swept-once orphans with no scheduled revisit.
 Queue page 15, run on its own after the round-2 revisit skipped it. Scores
 before → after: a11y 2→2, performance 3→3, responsive 2→3, theming 2→2,
 error/edge 2→2. Only responsive cleared the 3/4 bar; the shortfalls are recorded
-in the PR body rather than papered over.
+in the PR body rather than papered over. The current re-score after the browser
+verified round 5 is a11y 3, performance 3, responsive 3, theming 3,
+error/edge 2. The error/edge dimension remains below the bar but was not part of
+MYK9-264's acceptance criteria and stays deferred rather than being widened into
+this page pass.
 
 **The lesson worth keeping.** The run's headline finding — "the wizard charges
 for wait-list spots it shows as free" — was WRONG, and the fix built on it was a
@@ -143,9 +147,11 @@ shadow, and a selected state left conveying by colour alone). All were repaired
 in the same PR. A confirm round that only re-scores is not doing its job; this
 one earned its cost several times over.
 
-## Rounds 4–5 — Show Registration wizard (2026-08-31)
+## Round 4 — Show Registration wizard (2026-08-31)
 
-Round 4 (#1896) closed the entry-agreement dead end: `useOrganizationAgreement`
+Round 4 (#1896) scores before → after: a11y 2→2, performance 3→3,
+responsive 3→3, theming 2→2, error/edge 2→2. The round closed the
+entry-agreement dead end: `useOrganizationAgreement`
 used `.single()`, which throws PGRST116 when no row exists, and only `'AKC'` is
 seeded — so every UKC/ASCA show blocked entry permanently. The repair then
 inverted twice under Codex review, first into a legal-gate **bypass** (offline,
@@ -153,6 +159,8 @@ the paused query read as "no agreement configured") and then into a spurious
 retry error on an ordinary org switch. The shape that held is four explicit
 states — answered / still-arriving / unavailable / absent — with
 `isSuccess && !isPlaceholderData` as the definition of *answered*.
+
+## Round 5 — Show Registration wizard (2026-08-31)
 
 Round 5 (#1901) was the first round with a working browser, and that is the
 whole point of it. Vercel was rate-limited for the entire life of #1890, so
@@ -167,6 +175,14 @@ first browser pass:
   "Done", 4.27:1 on the payment helper text. `#9a9184` measures 4.76:1 there.
 - **the wizard's only exit was 181×40**, from a `size="default"` variant whose
   own comment calls it "Comfortable touch target".
+
+Round 5 scores after the fixes: a11y 3, performance 3, responsive 3,
+theming 3, error/edge 2. The a11y and theming scores clear the flagship bar in
+both light and dark: the rendered browser check covers the dark composited
+surfaces, while the token and responsive checks cover both themes. No user-facing
+claim is treated as authoritative until the corresponding show, agreement,
+availability, or registration data has successfully loaded; failed reads remain
+explicitly unavailable states.
 
 **The lesson worth keeping.** A rendered-measurement test is not automatically
 better than a token check — it just fails in less obvious ways. The contrast

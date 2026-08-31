@@ -165,6 +165,68 @@ must get 120 back, not the anchor's own ~20px line box. Until MYK9-281 the
 harness verified only its arithmetic, never its geometry — which is why a broken
 `effectiveBox` published a full sweep without tripping anything.
 
+## Contrast-path audit, 2026-08-31
+
+After MYK9-281 exposed that the harness verified its arithmetic but never its
+geometry, the contrast path was audited for the same shape of gap. It had one,
+and it was live.
+
+**The known-answer checks were hex-only, and this app does not emit hex.** The
+three answers — `#ffffff`, `#000000`, `#767676` — never exercised
+`color(srgb ...)`, which accounts for 92 of 160 sampled finding foregrounds.
+
+Proven by simulating a total CSS Color 4 parsing failure (the round-5 bug) and
+re-running `public` in dark:
+
+| | Broken, old guards | Broken, new guards |
+| --- | --- | --- |
+| Fabricated findings published | **56** | **0** |
+| Pages excluded | 2 of 8 | **8 of 8** |
+| Sanity line | `21/1/4.54/120px` — unmoved | `syntaxAgreement=16.33` |
+
+Every guard reported healthy while the report published 56 findings that did not
+exist. Three pages failed 100% of their text. The implausible-failure-rate guard
+caught only the two largest: `sign-in` failed 14 of 14 but sits under the
+`measured > 20` sample floor, and `show-detail` failed 19 of 137 — a plausible
+*minority* of false findings, which is the dangerous case, because nothing about
+it looks broken.
+
+This was worse than the geometry gap in one respect. There, no guard existed.
+Here a guard existed, ran on every page, and was blind to the majority case.
+
+Two fixes:
+
+- **A syntax-agnostic known answer.** One mid-grey written as hex, `rgb()` and
+  `color(srgb ...)`; their on-white ratios must agree. It calibrates itself,
+  needs no hardcoded expected ratio, and fails the instant any notation stops
+  round-tripping. Reported per page as `agree0`. If the design tokens ever emit
+  a fourth notation, it goes in that list — a guard that does not cover what the
+  app renders is not a guard.
+- **100% failure is disbelieved at any size above 5 nodes**, without the sample
+  floor. That floor exists so a small empty state is not disbelieved for failing
+  proportionally; total failure is categorically different from "most".
+
+### Gaps found and NOT fixed
+
+Recorded rather than quietly closed, because none of them is currently firing
+and two are not even quantified:
+
+- **Ancestor-opacity compositing (latent).** `backdropOf` returns raw ancestor
+  background colours while `effectiveOpacity` dims only the foreground. If a
+  card *with a background* carried `opacity`, the group composites as a unit and
+  both would dim — the probe would report contrast worse than it renders. Six
+  findings carry `opacity: 0.8`, but all trace to
+  `.myk9-template-card-date { opacity: 0.8 }`, where the opacity is on the text
+  element itself and the probe is correct. A real modelling gap that nothing
+  triggers today.
+- **Pseudo-element text is never measured.** Content in `::before` / `::after`
+  is invisible to the text scan. Under-reports; unquantified.
+- **`backdropOf` walks DOM ancestors, not paint order.** A fixed header or
+  overlay painted above the text is not its backdrop as far as the probe is
+  concerned. Unquantified.
+- **`mix-blend-mode`, `filter` and `backdrop-filter` are ignored entirely.**
+  Unquantified.
+
 ## Coverage
 
 Two measurements per route, light and dark. Club-admin is absent because

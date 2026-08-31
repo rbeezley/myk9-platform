@@ -21,6 +21,14 @@ export interface ProbeSanity {
    * and the run will over-report small targets (MYK9-281).
    */
   stretchedLink: number;
+  /**
+   * Max disagreement between one mid-grey written as hex, `rgb()` and
+   * `color(srgb ...)`. Must be 0: they are the same colour. Any other value
+   * means a colour NOTATION stopped round-tripping, which the hex-only answers
+   * above cannot see — and this app emits `color(srgb ...)` for most of its
+   * computed colours.
+   */
+  syntaxAgreement: number;
 }
 
 export interface ContrastFinding {

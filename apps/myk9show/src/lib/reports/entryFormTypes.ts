@@ -16,7 +16,15 @@ export interface EntryFormSecretary {
 export interface EntryFormTrial {
   id: string;
   date: string;
-  trialNumber: number;
+  /**
+   * MYK9-282: `trials.trial_number` is a TEXT column holding labels like
+   * "Friday Trial 1". This was typed `number` and populated with
+   * `Number(trial_number)`, which is NaN for every non-numeric label — the
+   * official AKC entry form printed "Trial NaN". Typecheck could not catch it:
+   * NaN satisfies `number`. Every other trialNumber type in the codebase is a
+   * string; this one was the outlier.
+   */
+  trialNumber: string;
 }
 
 /** A class offered at the show (used to build the grid columns) */

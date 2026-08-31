@@ -203,7 +203,13 @@ function ClassGrid({
           return (
             <tr key={trial.id}>
               <td style={styles.trialLabel}>
-                Trial {trial.trialNumber}
+                {/*
+                  MYK9-282: printed verbatim, with no "Trial " prefix. The column
+                  header above already reads "Trial", and real labels are text like
+                  "Friday Trial 1" — prefixing produced "Trial Friday Trial 1" on
+                  paperwork an exhibitor signs.
+                */}
+                {trial.trialNumber}
                 <br />
                 {formatReportDate(trial.date)}
               </td>

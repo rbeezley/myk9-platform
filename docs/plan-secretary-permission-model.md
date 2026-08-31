@@ -249,6 +249,34 @@ Also note the constraint trigger from migration 102: it requires `club_id IS NOT
 secretary rows. Once show officials no longer live in `user_roles`, that trigger's job is
 narrower but still correct — keep it, and do not let the backfill write NULL-club rows.
 
+### [ADDED] Measured blast radius: six behavioural SQL tests, found only in CI
+
+Phase 2's first real execution (CI run 33393950324) showed that show-scoped
+`user_roles` rows were not merely the paperwork record — they were the ordinary
+way six behavioural tests granted a secretary access to a show. The migration
+itself applied cleanly; the failure was downstream, and the runner aborts on the
+first failing file, so CI surfaces these one per push.
+
+| Test | Was | Now | Why |
+| --- | --- | --- | --- |
+| `judge_assignment_private_read` | show-scoped secretary | club-scoped | fixture only; subject is column ACLs |
+| `entry_status_history_rls` | two show-scoped secretaries | club-scoped | shows already sit in different clubs, so isolation survives |
+| `office_admin_rls` | show-scoped steward + secretary | club-scoped | fixture only |
+| `pull_refund_decision_rls` | show-scoped secretary | club-scoped | second show is club-less, so the isolation assertion keeps its force |
+| `show_email_delivery_history` | show-scoped secretary, both shows one club | club-scoped, **show B rehomed to its own club** | otherwise the caller is legitimately authorized for show B and `FAIL cross-show secretary read succeeded` becomes vacuous |
+| `null_club_show_authorization` | 4.1 asserted a show-scoped grant *reaches* its show | inverted, **plus a new 4.0 positive control** | this is the deliberate reversal, not a fixture fix |
+
+Two of these were traps rather than mechanical edits. Rehoming show B was
+necessary because widening a fixture's scope can satisfy an isolation assertion
+instead of testing it. And once section 4's caller lost every grant, 4.1 and 4.2
+would both have passed for the wrong reason — the "would also pass if the guard
+hid everything" failure that file's own header warns about — so club B gained a
+show and section 4 gained a positive control asserted first.
+
+`seed-demo.sql` was checked and needs nothing: every grant it writes is already
+club-scoped (`show_id IS NULL` in each dedupe guard), so no demo or staging user
+loses access.
+
 ## [ADDED] Rollback
 
 Phase 1 reverts cleanly: re-`CREATE OR REPLACE` the three functions from

@@ -121,9 +121,13 @@ function RegistrationWizardContent() {
         header={
           <div className="container mx-auto px-4 py-3 max-w-7xl sm:px-6">
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+              {/* size="touch", not "default": default is h-10 (measured 181x40
+                  in Chrome), under the 44px floor. The sibling exit on the
+                  entry-closed panel already carries min-h-[44px]; this one is
+                  the only way out of the wizard on every other step. */}
               <Button
                 variant="ghost"
-                size="default"
+                size="touch"
                 onClick={handleExit}
                 className="gap-2 hover:-translate-y-0.5 transition-all duration-300"
               >

@@ -76,7 +76,7 @@ export const FilterableFieldGrid: React.FC<FilterableFieldGridProps> = ({
           <button
             type="button"
             onClick={toggleHideEmpty}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors duration-200"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-muted-foreground transition-colors duration-200"
           >
             {isHiding ? (
               <>
@@ -96,7 +96,7 @@ export const FilterableFieldGrid: React.FC<FilterableFieldGridProps> = ({
       <div className={`grid ${colsClass[columns]} gap-x-8 gap-y-5`}>
         {visible.map(field => (
           <div key={field.label} className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-1">
               {field.label}
             </span>
             {field.render ?? (

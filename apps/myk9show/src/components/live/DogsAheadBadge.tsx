@@ -34,7 +34,7 @@ export function DogsAheadBadge({
     <div className={cn('flex flex-col items-end gap-0.5', className)}>
       <span className={cn('px-3 py-1 rounded-lg text-sm font-medium', style)}>{text}</span>
       {staleMinutes !== undefined && staleMinutes > 0 && (
-        <span className="text-xs text-muted-foreground/60">Updated {staleMinutes}m ago</span>
+        <span className="text-xs text-muted-foreground">Updated {staleMinutes}m ago</span>
       )}
     </div>
   );

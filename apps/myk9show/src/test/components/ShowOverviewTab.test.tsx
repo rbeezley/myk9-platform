@@ -160,6 +160,7 @@ describe('ShowOverviewTab', () => {
     expect(screen.getByText(/2\s+classes/)).toBeInTheDocument();
     expect(screen.getByText('Jumpers')).toBeInTheDocument();
     expect(screen.getByText('Standard')).toBeInTheDocument();
+    expect(screen.getByText('Jumpers')).toHaveClass('bg-background', 'text-foreground');
 
     await user.click(screen.getByRole('button', { name: /View all classes/i }));
 

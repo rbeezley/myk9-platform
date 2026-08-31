@@ -84,7 +84,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onOpenChange }) 
 
         <div className="text-center space-y-1">
           <p className="text-sm text-muted-foreground">Version {productVersion}</p>
-          <p className="text-xs text-muted-foreground/70">Build: {formattedBuildLabel}</p>
+          <p className="text-xs text-muted-foreground">Build: {formattedBuildLabel}</p>
         </div>
 
         <UpdateRow status={status} onCheck={handleCheck} onApply={handleApply} />

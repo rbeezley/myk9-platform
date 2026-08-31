@@ -165,7 +165,7 @@ export function EntryPanel({
           >
             Search Time
             {selectedResult !== 'Q' && (
-              <span className="ml-1 text-muted-foreground/60 normal-case">(optional)</span>
+              <span className="ml-1 text-muted-foreground normal-case">(optional)</span>
             )}
           </label>
           <TimeInput
@@ -183,7 +183,7 @@ export function EntryPanel({
       {selectedResult === 'Q' && (
         <div className="space-y-1">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Faults <span className="normal-case text-muted-foreground/60">(optional)</span>
+            Faults <span className="normal-case text-muted-foreground">(optional)</span>
           </div>
           <div className="flex items-center gap-3">
             <Button

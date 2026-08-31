@@ -18,7 +18,7 @@ const inputStyles = {
   typography: [
     'text-sm font-medium',
     'tracking-tight',
-    'placeholder:text-muted-foreground/60',
+    'placeholder:text-muted-foreground',
     'placeholder:font-normal',
   ],
   // Focus states

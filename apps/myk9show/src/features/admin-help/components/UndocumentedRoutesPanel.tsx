@@ -11,9 +11,9 @@ export function UndocumentedRoutesPanel({ missing, extra }: UndocumentedRoutesPa
   if (missing.length === 0 && extra.length === 0) return null;
 
   return (
-    <section className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+    <section className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-warning">
       <div className="mb-2 flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <AlertTriangle className="h-4 w-4 text-warning" />
         <h3 className="font-semibold">Directory drift</h3>
       </div>
       {missing.length > 0 && (

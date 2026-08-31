@@ -43,7 +43,7 @@ function RequirementField({
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase flex items-center">
+      <Label className="text-xs font-medium text-muted-foreground tracking-wide uppercase flex items-center">
         {label}
         {hasRule && !autoFillMeta.isJudgeSettable && <RuleBadge label="From rules" />}
         {autoFillMeta?.isJudgeSettable && <RuleBadge label="Judge sets" />}

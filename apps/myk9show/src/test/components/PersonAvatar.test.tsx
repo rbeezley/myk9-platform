@@ -14,6 +14,14 @@ describe('PersonAvatar', () => {
     expect(screen.getByText('JD')).toBeInTheDocument();
   });
 
+  it('uses a semantic foreground token for neutral fallback initials', () => {
+    render(<PersonAvatar name="Jane Doe" />);
+    const fallback = screen.getByText('JD');
+
+    expect(fallback).toHaveClass('text-foreground');
+    expect(fallback.className).not.toMatch(/text-(gray|slate|zinc)-/);
+  });
+
   it('renders initials for single name', () => {
     render(<PersonAvatar name="Madonna" />);
     expect(screen.getByText('MA')).toBeInTheDocument();

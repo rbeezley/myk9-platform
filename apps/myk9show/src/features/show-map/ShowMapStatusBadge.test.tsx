@@ -28,7 +28,7 @@ describe('ShowMapNodeStatusBadge', () => {
   });
 
   it('shows in progress when an active child exists before any class completes', () => {
-    render(
+    const { container } = render(
       <ShowMapNodeStatusBadge
         node={node({
           status: { value: 'In Progress', label: 'In Progress', kind: 'active' },
@@ -38,22 +38,26 @@ describe('ShowMapNodeStatusBadge', () => {
     );
 
     expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(container.querySelector('div.inline-flex')).toHaveClass('bg-info/10', 'text-info');
   });
 
-  it.each(['scratch', 'scratched', 'cancelled', 'canceled'])('%s uses the pulled entry shape', value => {
-    const { container } = render(
-      <ShowMapNodeStatusBadge
-        node={node({
-          type: 'entry',
-          childrenCount: 0,
-          status: { value, label: 'Pulled', kind: 'muted' },
-        })}
-      />
-    );
+  it.each(['scratch', 'scratched', 'cancelled', 'canceled'])(
+    '%s uses the pulled entry shape',
+    value => {
+      const { container } = render(
+        <ShowMapNodeStatusBadge
+          node={node({
+            type: 'entry',
+            childrenCount: 0,
+            status: { value, label: 'Pulled', kind: 'muted' },
+          })}
+        />
+      );
 
-    expect(container.querySelector('[data-status="pulled"]')).toHaveAttribute(
-      'data-shape',
-      'complete'
-    );
-  });
+      expect(container.querySelector('[data-status="pulled"]')).toHaveAttribute(
+        'data-shape',
+        'complete'
+      );
+    }
+  );
 });

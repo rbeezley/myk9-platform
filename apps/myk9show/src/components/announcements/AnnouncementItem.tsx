@@ -56,7 +56,7 @@ export function AnnouncementItem({
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold leading-tight">{announcement.title}</p>
           <p className="mt-1 text-xs text-muted-foreground">{announcement.content}</p>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <span>{announcement.author_name ?? 'Unknown'}</span>
             <span>&middot;</span>
             <span className="rounded bg-muted px-1 py-0.5 text-[9px] font-medium">

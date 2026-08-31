@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.test.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "node_modules/.cache/tsc/e2e.tsbuildinfo",
+    "noImplicitAny": false,
+    "noImplicitOverride": false,
+    "useUnknownInCatchVariables": false
+  },
+  "include": [
+    "src/vite-env.d.ts",
+    "src/types/**/*.d.ts",
+    "src/test/e2e/**/*"
+  ],
+  "exclude": []
+}

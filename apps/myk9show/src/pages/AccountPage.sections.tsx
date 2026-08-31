@@ -179,16 +179,19 @@ export function ProfileSection() {
             </Label>
             <div className="grid gap-2 sm:grid-cols-3">
               <Input
+                aria-label="City"
                 placeholder="City"
                 value={form.values.city}
                 onChange={e => form.setValue('city', e.target.value)}
               />
               <Input
+                aria-label="State"
                 placeholder="State"
                 value={form.values.state}
                 onChange={e => form.setValue('state', e.target.value)}
               />
               <Input
+                aria-label="ZIP or postal code"
                 placeholder="ZIP"
                 value={form.values.zipCode}
                 onChange={e => form.setValue('zipCode', e.target.value)}

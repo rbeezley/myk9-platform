@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.test.json",
   "compilerOptions": {
+    // E2E debt is tracked by scripts/typecheck-e2e.ts; keep this project
+    // broad so new specs cannot bypass the gate while legacy diagnostics are
+    // retired incrementally.
     "tsBuildInfoFile": "node_modules/.cache/tsc/e2e.tsbuildinfo",
     "noImplicitAny": false,
     "noImplicitOverride": false,

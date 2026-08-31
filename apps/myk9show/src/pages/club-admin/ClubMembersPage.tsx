@@ -16,7 +16,7 @@ import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { PageTransition } from '@/components/common/PageTransition';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
-import { Users, Plus, Shield, Search, AlertTriangle } from 'lucide-react';
+import { Users, Plus, Shield, Search, AlertTriangle, KeyRound } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -38,13 +38,15 @@ import {
   removeClubMember,
   addClubOfficer,
   removeClubOfficer,
-  getClubShowManagerIds,
+  getClubShowManagers,
   setClubShowManagerAccess,
 } from '@/services/database/club-memberships';
+import { countUpcomingClubShows } from '@/services/database/clubs';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { AddMemberDialog, AssignOfficerDialog } from './ClubMemberDialogs';
 import { MembersTable, OfficersTable } from './ClubMemberTables';
+import { ClubShowAccessTab, AppointSecretaryDialog } from './ClubShowAccessTab';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +61,9 @@ import {
 const CLUB_MEMBERS_TABS: PrimaryTabDef[] = [
   { id: 'members', label: 'Members', icon: Users },
   { id: 'officers', label: 'Officers', icon: Shield },
+  // Separate from Members on purpose: an appointed secretary need not be a member, so
+  // this tab can list people the roster structurally cannot.
+  { id: 'show-access', label: 'Show Access', icon: KeyRound },
 ];
 
 // --- Main Page ---
@@ -76,6 +81,7 @@ const ClubMembersPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAssignOfficer, setShowAssignOfficer] = useState(false);
+  const [showAppointSecretary, setShowAppointSecretary] = useState(false);
   const [pendingRemoval, setPendingRemoval] = useState<{
     kind: 'member' | 'officer';
     id: string;
@@ -109,17 +115,26 @@ const ClubMembersPage: React.FC = () => {
 
   const showManagersQuery = useQuery({
     queryKey: ['club-show-managers', clubId],
-    queryFn: () => getClubShowManagerIds(clubId!),
+    queryFn: () => getClubShowManagers(clubId!),
+    enabled: !!clubId,
+  });
+
+  // Only read to decide whether revoking the last secretary deserves a warning, so a
+  // failure here must not block the tab: it falls back to 0, which shows no warning
+  // rather than a wrong one.
+  const upcomingShowsQuery = useQuery({
+    queryKey: ['club-upcoming-show-count', clubId],
+    queryFn: () => countUpcomingClubShows(clubId!),
     enabled: !!clubId,
   });
 
   const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data]);
   const activeMemberCount = useMemo(() => countActiveClubMembers(members), [members]);
   const officers = useMemo(() => officersQuery.data ?? [], [officersQuery.data]);
-  const showManagerIds = useMemo(
-    () => showManagersQuery.data ?? new Set<string>(),
-    [showManagersQuery.data]
-  );
+  const showManagers = useMemo(() => showManagersQuery.data ?? [], [showManagersQuery.data]);
+  // The roster still annotates member rows, so it still needs the id set — now derived
+  // from the same fetch instead of a second RPC.
+  const showManagerIds = useMemo(() => new Set(showManagers.map(m => m.personId)), [showManagers]);
 
   // Sorted officers by position order
   const sortedOfficers = useMemo(() => {
@@ -300,6 +315,13 @@ const ClubMembersPage: React.FC = () => {
 
   const handleToggleShowAccess = (personId: string, grant: boolean) => {
     toggleShowAccessMutation.mutate({ personId, grant });
+  };
+
+  const handleAppointSecretary = (personId: string) => {
+    toggleShowAccessMutation.mutate(
+      { personId, grant: true },
+      { onSuccess: () => setShowAppointSecretary(false) }
+    );
   };
 
   const existingMemberPersonIds = useMemo(() => new Set(members.map(m => m.personId)), [members]);
@@ -518,6 +540,18 @@ const ClubMembersPage: React.FC = () => {
                   />
                 )}
               </TabsContent>
+
+              {/* Show Access Tab */}
+              <TabsContent value="show-access" className="mt-6 space-y-4">
+                <ClubShowAccessTab
+                  managers={showManagers}
+                  unavailable={showAccessUnavailable}
+                  onRetry={() => void showManagersQuery.refetch()}
+                  onAppoint={() => setShowAppointSecretary(true)}
+                  onRevoke={personId => handleToggleShowAccess(personId, false)}
+                  upcomingShowCount={upcomingShowsQuery.data ?? 0}
+                />
+              </TabsContent>
             </PrimaryTabs>
           </CardContent>
         </Card>
@@ -565,6 +599,15 @@ const ClubMembersPage: React.FC = () => {
         people={people}
         existingMemberIds={existingMemberPersonIds}
         isSaving={addMemberMutation.isPending}
+      />
+
+      <AppointSecretaryDialog
+        open={showAppointSecretary}
+        onClose={() => setShowAppointSecretary(false)}
+        onAppoint={handleAppointSecretary}
+        people={people}
+        appointedIds={showManagerIds}
+        isSaving={toggleShowAccessMutation.isPending}
       />
 
       <AssignOfficerDialog

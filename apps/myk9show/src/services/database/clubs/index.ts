@@ -15,6 +15,7 @@ export {
   getDeletedClubs,
   searchClubs,
   getClubsWithShowCounts,
+  countUpcomingClubShows,
   getClubStatistics,
   checkClubNameExists,
 } from './reads';

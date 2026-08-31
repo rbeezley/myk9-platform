@@ -11128,6 +11128,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_club_show_managers: {
+        Args: { p_club_id: string }
+        Returns: {
+          person_id: string
+          person_name: string | null
+          person_email: string | null
+          is_club_member: boolean
+          membership_status: string | null
+        }[]
+      }
       get_deleted_classes: {
         Args: never
         Returns: {

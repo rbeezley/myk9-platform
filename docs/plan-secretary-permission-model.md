@@ -235,8 +235,39 @@ tag backfill-created appointments so they can be identified later.
 
 ## Phase 3 — make it visible
 
+> **Shipped** as `20260830220000_club_show_managers_with_names.sql` plus a **Show
+> Access** tab on the existing club members page. Reclassified while building: this is
+> not polish, it is the completion of Phase 1 — see "Phase 1 left a hole" below.
+
 A **Show secretaries** list on the club page: who is appointed, with add and remove,
 managed by the club admin.
+
+### Phase 1 left a hole, and Phase 3 is what closes it
+
+Show access was rendered as a badge on each `club_members` row, which worked only
+because appointment required an active membership: every appointee had a roster row to
+hang the badge on. Phase 1 removed that guarantee without removing the assumption, so a
+club could appoint a professional secretary who then:
+
+- appeared **nowhere** in the club admin UI (no roster row to annotate),
+- could not be **revoked** (Revoke Show Access lives in a member row's action menu),
+- and could not have been **appointed** in the first place, because Grant Show Access
+  lives in that same menu.
+
+An appointment nobody can see or undo is worse than one nobody can make. Phase 1 should
+not ship to users without this.
+
+### Why a tab and not a new page
+
+The instinct — "add a Show Secretaries page" — would have duplicated the roster, which
+this phase of the project is explicitly trying to avoid. It is a **tab on the page that
+already owns club people**, and it earns its place because it is the only surface that
+can show someone who is not on the roster. That is the case the permission change exists
+to serve, so the tab is not a second view of the same list.
+
+Membership status appears beside each appointee as context, deliberately **not** as a
+warning: a lapsed member who is still appointed is now a normal state, and flagging it
+would re-teach the rule Phase 1 removed.
 
 This is the part that actually stops the tickets. A permission nobody can see is a
 question someone has to ask, and there is currently no screen that answers "who is allowed

@@ -76,8 +76,6 @@ export const SWEEP_GROUPS: readonly SweepGroup[] = [
       { id: 'create-show-wizard', path: '/secretary/create-show/wizard' },
       { id: 'settings', path: '/secretary/settings' },
       { id: 'people', path: '/people' },
-      { id: 'tasks', path: '/secretary/tasks' },
-      { id: 'waitlist', path: '/secretary/waitlist' },
     ],
   },
   {

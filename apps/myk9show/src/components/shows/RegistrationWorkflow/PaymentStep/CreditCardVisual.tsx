@@ -339,7 +339,7 @@ export const CreditCardVisual: React.FC<CreditCardVisualProps> = ({
             setTimeout(() => cvvInputRef.current?.focus(), 400);
           }
         }}
-        className="mt-1 mx-auto block text-xs text-muted-foreground/60 hover:text-muted-foreground underline"
+        className="mt-1 mx-auto block text-xs text-muted-foreground hover:text-foreground underline"
       >
         {isFlipped ? 'Show card front' : 'Enter CVV'}
       </button>

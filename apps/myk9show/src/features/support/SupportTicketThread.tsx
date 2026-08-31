@@ -90,6 +90,7 @@ export function SupportTicketThread({
       <form onSubmit={submitReply} className="flex gap-2">
         <input
           type="text"
+          aria-label="Reply to support ticket"
           value={reply}
           onChange={event => setReply(event.target.value)}
           placeholder="Reply"

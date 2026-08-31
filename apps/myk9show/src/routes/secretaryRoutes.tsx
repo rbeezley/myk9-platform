@@ -16,6 +16,7 @@ import { useShowStore } from '@/store/showStore';
 import { useToastStore } from '@/store/toastStore';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
 import { useTrialStore } from '@/store/trialStore';
+import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
 const SecretaryDashboardPage = lazy(() =>
@@ -130,28 +131,73 @@ const SecretaryEntriesRedirect = () => {
   return <Navigate to="/secretary/dashboard" replace />;
 };
 
-// Redirects old standalone routes (reports, results-control, results-submission)
-// that have no show context to the dashboard, with a contextual toast.
-const SecretaryNoContextRedirect = () => {
+const SecretaryCompatibilityRedirect = ({
+  to,
+  toastId,
+  toastTitle,
+  toastBody,
+}: {
+  to: string;
+  toastId: string;
+  toastTitle: string;
+  toastBody: string;
+}) => {
   const addToast = useToastStore(s => s.addToast);
   useEffect(() => {
     addToast({
-      id: 'no-show-context',
+      id: toastId,
       type: 'announcement',
-      title: 'Select a show to continue',
-      body: '',
+      title: toastTitle,
+      body: toastBody,
       priority: 'normal',
       timestamp: Date.now(),
     });
-  }, [addToast]);
-  return <Navigate to="/secretary/dashboard" replace />;
+  }, [addToast, toastBody, toastId, toastTitle]);
+  return <Navigate to={to} replace />;
 };
 
-const SecretaryShowRedirect = ({
-  subPath,
-}: {
-  subPath: 'show-desk' | '';
-}) => {
+// Legacy standalone routes are compatibility aliases, not missing pages. The
+// dashboard owns personal tasks; show-scoped operational work stays in the
+// show's workbench. Every fallback explains the destination so a secretary
+// does not experience a silent redirect.
+const SecretaryNoContextRedirect = () => (
+  <SecretaryCompatibilityRedirect
+    to="/secretary/dashboard"
+    toastId="no-show-context"
+    toastTitle="Select a show to continue"
+    toastBody="This secretary task needs a show. Choose one from your dashboard."
+  />
+);
+
+const SecretaryWaitlistRedirect = () => {
+  const { showId, isResolving } = useSecretaryRedirectShowId();
+
+  if (isResolving) {
+    return <LoadingSkeleton variant="cards" count={2} />;
+  }
+
+  if (showId) {
+    return (
+      <SecretaryCompatibilityRedirect
+        to={getEntryManagementHref({ showId, tab: 'waitlist' })}
+        toastId="waitlist-moved"
+        toastTitle="Waitlist moved"
+        toastBody="Waitlist work now lives in Entry Management for this show."
+      />
+    );
+  }
+
+  return (
+    <SecretaryCompatibilityRedirect
+      to="/secretary/dashboard"
+      toastId="waitlist-no-show-context"
+      toastTitle="Select a show to continue"
+      toastBody="Waitlist work lives in Entry Management inside a show."
+    />
+  );
+};
+
+const SecretaryShowRedirect = ({ subPath }: { subPath: 'show-desk' | '' }) => {
   const { showId, isResolving } = useSecretaryRedirectShowId();
 
   if (isResolving) {
@@ -349,7 +395,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/waitlist"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <Navigate to="/secretary/dashboard" replace />
+          <SecretaryWaitlistRedirect />
         </ProtectedRoute>
       }
     />
@@ -367,7 +413,19 @@ export const SecretaryRoutes = () => (
       path="/secretary/volunteer-scheduling"
       element={<Navigate to="/secretary/volunteers" replace />}
     />
-    <Route path="/secretary/tasks" element={<Navigate to="/secretary/dashboard" replace />} />
+    <Route
+      path="/secretary/tasks"
+      element={
+        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+          <SecretaryCompatibilityRedirect
+            to="/secretary/dashboard"
+            toastId="tasks-moved"
+            toastTitle="Tasks moved"
+            toastBody="Personal tasks now live on your secretary dashboard."
+          />
+        </ProtectedRoute>
+      }
+    />
 
     {/* Legacy secretary show routes — canonical management lives under /shows/:id/* */}
     <Route

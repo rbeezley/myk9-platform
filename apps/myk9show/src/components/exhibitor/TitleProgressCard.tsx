@@ -46,7 +46,7 @@ const DogTitleRow: React.FC<DogTitleRowProps> = ({ dogId, dogName }) => {
       aria-label={`View title progress for ${dogName}`}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <PawPrint className="h-4 w-4 text-muted-foreground/60 flex-shrink-0" />
+        <PawPrint className="h-4 w-4 text-muted-foreground flex-shrink-0" />
         <span className="text-sm font-medium text-foreground truncate">{dogName}</span>
       </div>
 

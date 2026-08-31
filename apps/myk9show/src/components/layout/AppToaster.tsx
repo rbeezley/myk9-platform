@@ -16,7 +16,7 @@
  * corner and `test/mainToasterDocking.source.test.ts` pins sonner away from it.
  */
 import { useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import { Toaster, toast, useSonner } from 'sonner';
 import { useActionBarStore, selectReservedBottom } from '@/store/actionBarStore';
 
@@ -37,9 +37,11 @@ const NAVIGATION_FEEDBACK_GRACE_MS = 1500;
 
 export function AppToaster() {
   const reservedBottom = useActionBarStore(selectReservedBottom);
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
+  const navigationType = useNavigationType();
   const { toasts } = useSonner();
   const firstRender = useRef(true);
+  const previousPathname = useRef(pathname);
 
   // First time each toast was seen. Sonner exposes no created-at, and toast ids
   // are caller-supplied often enough that they cannot stand in for one.
@@ -65,6 +67,15 @@ export function AppToaster() {
       firstRender.current = false;
       return;
     }
+    const samePathname = previousPathname.current === pathname;
+    previousPathname.current = pathname;
+
+    // URL filters use replaceState while the user types. They update the
+    // location key without leaving the current screen, so their URL churn
+    // must not dismiss an older retry/undo action. A same-path push, however,
+    // is an intentional navigation (for example a query-backed tab) and
+    // should clear stale actions.
+    if (samePathname && navigationType === 'REPLACE') return;
     // A toast describes something that happened on the screen you were on.
     // Once you leave, its CTA points somewhere the message no longer explains,
     // and it is still clickable. Clear those — but spare anything raised as
@@ -77,7 +88,7 @@ export function AppToaster() {
     // `toasts` is deliberately not a dependency: this must fire on navigation,
     // not on every toast change. seenAt is a ref, read at fire time, so the
     // lint rule is satisfied without a suppression.
-  }, [pathname]);
+  }, [key, navigationType, pathname]);
 
   const bottom =
     reservedBottom > 0
@@ -94,6 +105,7 @@ export function AppToaster() {
       theme="system"
       richColors
       closeButton
+      className="myk9-sonner-a11y"
       position="bottom-right"
       offset={offset}
       mobileOffset={offset}

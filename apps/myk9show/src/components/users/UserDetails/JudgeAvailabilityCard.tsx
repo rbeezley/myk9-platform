@@ -86,7 +86,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
                          from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-2">
               Max Shows/Month
             </span>
             <div className="flex items-center gap-1.5">
@@ -102,7 +102,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
                          from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-2">
               Travel Radius
             </span>
             <div className="flex items-center gap-1.5">
@@ -118,7 +118,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
                          from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-2">
               Available From
             </span>
             <div className="flex items-center gap-1.5">
@@ -136,7 +136,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
                          from-muted/30 to-muted/10 rounded-xl myk9-subtle-card-border
                          hover:scale-105 transition-all duration-300"
           >
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-2">
               Available Until
             </span>
             <div className="flex items-center gap-1.5">
@@ -152,7 +152,7 @@ const JudgeAvailabilityCard: React.FC<JudgeAvailabilityCardProps> = ({ personId 
 
         {hasBlackoutDates && (
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
               Blackout Dates
             </span>
             <div className="flex flex-wrap gap-1.5">

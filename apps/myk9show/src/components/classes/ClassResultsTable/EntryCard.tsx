@@ -46,7 +46,7 @@ export function EntryCard({ entry, scoringRoute, onStatusClick }: EntryCardProps
           />
         </div>
         <div className="text-[13px] text-muted-foreground truncate">{entry.dogBreed}</div>
-        <div className="text-xs text-muted-foreground/70 truncate">
+        <div className="text-xs text-muted-foreground truncate">
           Handler: {entry.handlerName}
         </div>
       </div>

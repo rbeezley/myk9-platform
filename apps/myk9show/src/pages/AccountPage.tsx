@@ -267,7 +267,7 @@ export default function AccountPage() {
                 {NAV_GROUPS.map(group => (
                   <div key={group.label || 'danger'} className="contents md:mb-4 md:block">
                     {group.label && (
-                      <p className="sr-only px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 md:not-sr-only">
+                      <p className="sr-only px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground md:not-sr-only">
                         {group.label}
                       </p>
                     )}

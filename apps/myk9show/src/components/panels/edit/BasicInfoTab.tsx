@@ -195,7 +195,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </h4>
 
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+              <Label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
                 User Roles
               </Label>
               <div className="flex flex-wrap gap-2">

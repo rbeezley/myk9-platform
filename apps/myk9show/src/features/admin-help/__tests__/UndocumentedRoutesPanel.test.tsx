@@ -22,10 +22,26 @@ describe('UndocumentedRoutesPanel', () => {
   });
 
   it('renders both sections when both lists are non-empty', () => {
-    render(<UndocumentedRoutesPanel missing={['/admin/new-page']} extra={['/old-route']} />);
+    const { container } = render(
+      <UndocumentedRoutesPanel missing={['/admin/new-page']} extra={['/old-route']} />
+    );
     expect(screen.getByText(/missing/i)).toBeInTheDocument();
     expect(screen.getByText(/extra/i)).toBeInTheDocument();
     expect(screen.getByText('/admin/new-page')).toBeInTheDocument();
     expect(screen.getByText('/old-route')).toBeInTheDocument();
+    expect(container.querySelector('section')).toHaveClass('bg-warning/10', 'text-warning');
+  });
+
+  it('uses the semantic warning surface in place of a light-only amber callout', () => {
+    const { container } = render(
+      <UndocumentedRoutesPanel missing={['/admin/new-page']} extra={[]} />
+    );
+
+    expect(container.querySelector('section')).toHaveClass(
+      'border-warning/40',
+      'bg-warning/10',
+      'text-warning'
+    );
+    expect(container.querySelector('section')).not.toHaveClass('bg-amber-50');
   });
 });

@@ -1,21 +1,23 @@
 import { deriveTrialStatusKey } from '@myk9/core';
-import { StatusBadge } from '@/components/status';
+import { getStatusSurfaceClasses, StatusBadge } from '@/components/status';
 import type { ShowMapNode } from './showMapTypes';
 
 export function ShowMapNodeStatusBadge({ node }: { node: ShowMapNode }) {
   if (!node.status) return null;
 
   if (node.type === 'trial') {
+    const status = deriveTrialStatusKey({
+      trialStatus: node.status.value,
+      classCount: node.childrenCount,
+      completedCount: node.progress?.completed,
+      hasStarted: node.status.kind === 'active',
+    });
+
     return (
       <StatusBadge
         family="trial"
-        status={deriveTrialStatusKey({
-          trialStatus: node.status.value,
-          classCount: node.childrenCount,
-          completedCount: node.progress?.completed,
-          hasStarted: node.status.kind === 'active',
-        })}
-        variant="secondary"
+        status={status}
+        className={getStatusSurfaceClasses('trial', status)}
       />
     );
   }
@@ -25,7 +27,7 @@ export function ShowMapNodeStatusBadge({ node }: { node: ShowMapNode }) {
       <StatusBadge
         family="class"
         status={node.status.value}
-        variant="secondary"
+        className={getStatusSurfaceClasses('class', node.status.value)}
         label={node.status.label}
       />
     );
@@ -41,7 +43,7 @@ export function ShowMapNodeStatusBadge({ node }: { node: ShowMapNode }) {
     <StatusBadge
       family="entry"
       status={entryStatus}
-      variant="secondary"
+      className={getStatusSurfaceClasses('entry', entryStatus)}
       label={node.status.label}
     />
   );
@@ -53,7 +55,7 @@ export function ShowMapCheckInStatusBadge({ node }: { node: ShowMapNode }) {
     <StatusBadge
       family="entry"
       status={node.checkInStatus.value}
-      variant="outline"
+      className={getStatusSurfaceClasses('entry', node.checkInStatus.value)}
       label={node.checkInStatus.label}
     />
   );

@@ -66,7 +66,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
           <span>Essential Information</span>
         </CardTitle>
-        <p className="text-sm text-muted-foreground/80 mt-1 leading-relaxed">
+        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
           Basic details to get started with your dog's profile
         </p>
       </CardHeader>
@@ -117,7 +117,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               />
             </FormField>
             {formData.callName && (
-              <div className="text-xs text-muted-foreground/70 animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
+              <div className="text-xs text-muted-foreground animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
                 Looking great! This will be your dog's primary name.
               </div>
             )}
@@ -177,7 +177,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               {...form.getFieldProps('dateOfBirth')}
             />
             {formData.dateOfBirth && !form.getError('dateOfBirth') && (
-              <div className="text-xs text-muted-foreground/70 bg-muted/30 px-3 py-2 rounded-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
+              <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
                 Age: {calculateAge(formData.dateOfBirth)}
               </div>
             )}
@@ -231,7 +231,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                           {person.firstName} {person.lastName}
                         </div>
                         {person.email && (
-                          <div className="text-xs text-muted-foreground/70">{person.email}</div>
+                          <div className="text-xs text-muted-foreground">{person.email}</div>
                         )}
                       </div>
                     </div>
@@ -258,7 +258,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                       : 'You';
                   })()}
                 </div>
-                <div className="text-xs text-muted-foreground/70 mt-0.5">
+                <div className="text-xs text-muted-foreground mt-0.5">
                   This dog will be registered to your account
                 </div>
               </div>

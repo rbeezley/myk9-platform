@@ -12,7 +12,7 @@ const labelVariants = cva(
     'text-xs font-medium', // Smaller, less prominent labels
     'leading-tight', // Tighter leading for labels
     'tracking-wide uppercase', // Preferred spacing with uppercase
-    'text-muted-foreground/80', // Much more muted foreground
+    'text-muted-foreground', // Much more muted foreground
 
     // Interaction states
     'peer-disabled:cursor-not-allowed',

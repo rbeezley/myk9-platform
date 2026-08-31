@@ -360,7 +360,7 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                   </span>
                 ))}
 
-                <span className="ml-auto text-muted-foreground/70 whitespace-nowrap">
+                <span className="ml-auto text-muted-foreground whitespace-nowrap">
                   {isCompleted
                     ? 'All complete'
                     : `${remainingCount} of ${entryCount} remaining`}

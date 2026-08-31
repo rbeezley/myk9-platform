@@ -111,7 +111,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                 <div className="space-y-3">
                   {qual.date_obtained && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+                      <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
                         Certified:
                       </span>
                       <span className="text-sm font-medium text-foreground">
@@ -122,7 +122,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
 
                   {qual.judge_number && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+                      <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
                         Judge #:
                       </span>
                       <span className="text-sm font-medium text-foreground">

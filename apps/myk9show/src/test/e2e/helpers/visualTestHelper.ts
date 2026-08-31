@@ -589,7 +589,7 @@ export class VisualTestHelper {
   async takeNamedScreenshot(name: string, options: Record<string, unknown> = {}) {
     const defaultOptions = {
       fullPage: true,
-      animations: 'disabled',
+      animations: 'disabled' as const,
       ...options
     };
     

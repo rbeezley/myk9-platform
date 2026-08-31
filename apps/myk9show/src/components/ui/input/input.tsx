@@ -17,7 +17,7 @@ const appleInput = {
   typography: [
     'text-sm font-medium', // 0.875rem with medium weight
     'tracking-tight', // Tight letter spacing
-    'placeholder:text-muted-foreground/60',
+    'placeholder:text-muted-foreground',
     'placeholder:font-normal',
   ],
   // Focus states with Premium styling

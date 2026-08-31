@@ -214,9 +214,29 @@ async function sweepGroup(page: Page, group: SweepGroup, theme: 'light' | 'dark'
   }
 }
 
+/**
+ * Opt-in, and enforced rather than merely documented.
+ *
+ * `playwright.config.ts` sets `testDir: './src/test/e2e'` and matches every
+ * spec beneath it, so describing this file as "run it deliberately" in prose
+ * changes nothing — a plain `pnpm test:e2e` would pick it up and gain roughly
+ * 15 minutes plus a dependency on live seeded data and four sets of
+ * credentials, none of which the rest of that suite needs (Codex, this PR).
+ *
+ * An env gate is the smallest thing that makes the documented intent true. It
+ * is deliberately not a `.skip` on a condition the CI config might satisfy by
+ * accident: nothing in this repo sets this variable except the commands in
+ * `docs/qa/e2e-suite-map.md`.
+ */
+const SWEEP_ENABLED = process.env.MYK9_MEASUREMENT_SWEEP === '1';
+
 for (const group of SWEEP_GROUPS) {
   for (const theme of THEMES) {
     test(`measure ${group.id} routes (${theme})`, async ({ page }) => {
+      test.skip(
+        !SWEEP_ENABLED,
+        'Measurement sweep is opt-in: set MYK9_MEASUREMENT_SWEEP=1 to run it'
+      );
       const user = credentialsFor(group.authUser);
       if (user && (!user.email || !user.password)) {
         test.skip(true, `${group.authUser} credentials absent — group not measured`);
@@ -227,6 +247,12 @@ for (const group of SWEEP_GROUPS) {
 }
 
 test.afterAll(() => {
+  // Never overwrite a real report with an empty one. When every group skipped,
+  // `measurements` is [] and rendering it would replace the previous run's
+  // findings with a clean-looking zero-coverage table — a file that reads like
+  // a result and is the absence of one.
+  if (!measurements.length) return;
+
   mkdirSync(OUT_DIR, { recursive: true });
   const jsonPath = resolve(OUT_DIR, 'findings.json');
   const reportPath = resolve(OUT_DIR, 'report.md');

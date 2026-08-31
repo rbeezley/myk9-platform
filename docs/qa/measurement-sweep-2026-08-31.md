@@ -18,9 +18,14 @@ generalised across every route.
 
 ```bash
 cd apps/myk9show
-pnpm exec playwright test src/test/e2e/qa/measurementSweep.spec.ts \
+MYK9_MEASUREMENT_SWEEP=1 pnpm exec playwright test src/test/e2e/qa/measurementSweep.spec.ts \
   --project=chromium --reporter=list --retries=0 --workers=1
 ```
+
+The `MYK9_MEASUREMENT_SWEEP=1` gate is required, not decorative: without it every
+group skips. `playwright.config.ts` matches every spec under `src/test/e2e`, so
+without the gate a plain `pnpm test:e2e` would silently gain this run's ~15
+minutes plus a dependency on live seeded data and four sets of credentials.
 
 Writes `test-results/measurement-sweep/findings.json` and `report.md`. The run
 below took 14.6 minutes for 84 measurements.

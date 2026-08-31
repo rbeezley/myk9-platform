@@ -14,6 +14,13 @@ export interface ProbeSanity {
   whiteOnWhite: number;
   /** Must be ~4.5. A mid grey (#767676) on white is the AA boundary case. */
   greyOnWhite: number;
+  /**
+   * Height of a synthetic stretched link inside a 120px card. Must be 120, not
+   * the ~20px of its own text: the whole point of the pattern is that the card
+   * is the hit area. If this reads ~20 the stretched-link detection has broken
+   * and the run will over-report small targets (MYK9-281).
+   */
+  stretchedLink: number;
 }
 
 export interface ContrastFinding {

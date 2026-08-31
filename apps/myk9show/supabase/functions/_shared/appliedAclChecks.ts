@@ -104,6 +104,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   show_message_threads: 'SELECT,INSERT,UPDATE',
   show_messages: 'SELECT,INSERT,UPDATE',
   show_money_locks: '',
+  show_officials: 'SELECT,INSERT,UPDATE,DELETE',
   show_passcodes: '',
   show_payouts: 'SELECT',
   show_templates: 'SELECT,INSERT,UPDATE,DELETE',

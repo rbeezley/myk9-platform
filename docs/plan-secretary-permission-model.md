@@ -165,7 +165,36 @@ relying on a policy it bypasses.
 
 ## Phase 2 — separate the label from the permission
 
+> **Built** as `20260830240000_show_officials_separates_label_from_permission.sql`, on a
+> branch stacked on #1895 and **deliberately not merged until #1895 is applied and
+> merged**. Two corrections to the scope below, both found by checking rather than
+> reading — see "What Phase 2 actually took".
+
 Give the named official its own home so a `user_roles` row always means "has access".
+
+### What Phase 2 actually took
+
+**Moving the label is not enough.** This plan assumed that once the show-scoped rows were
+emptied, the `ur.show_id` arms in the read helpers would be dead. They would not:
+`approve_role_request` (site-admin) can mint a fresh show-scoped `secretary` row at any
+time, so the exception would have survived with nothing in it, waiting. Nine functions
+consult those rows, and seven had to lose their show-scoped arm — including
+`get_show_access_codes`, `get_show_class_hide_counts` and the results authorization
+context, which sit on show-day paths. `approve_role_request` now refuses a show-scoped
+official request **loudly**, rather than approving it and handing over nothing.
+
+**The backfill asserts instead of widening.** The plan says to CREATE a club appointment
+for anyone holding only a show-scoped row. That is a silent widening — it hands club-wide
+access to someone who had exactly one show. Measured live, no such person exists, so the
+step is a no-op either way; the migration now **fails** with instructions instead, so a
+human decides if that ever changes.
+
+**The premise held where it mattered.** `get_show_officials` really does read
+`user_roles WHERE show_id = ...`, and `useEntryFormData` fills the AKC/UKC entry-form PDFs
+from it — so deleting those rows would have blanked the Trial Secretary on printed
+paperwork. That is why the table exists rather than a straight deletion. (The public
+Gazette/Heritage landing pages are not affected either way: `secretaryName` and `officers`
+are hardcoded `null`/`[]` there today.)
 
 Recommended: a `show_officials` table (`show_id`, `person_id`, `role`, plus whatever the
 premium list and registry reports need), backfilled from the existing show-scoped

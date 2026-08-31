@@ -115,7 +115,8 @@ SELECT public.grant_club_secretary(
   '00000000-0000-0000-0000-000000169001'
 );
 
--- The show-scoped path still exists and still grants only its own show.
+-- Naming someone on a show's paperwork. Since Phase 2 this writes show_officials and
+-- grants nothing at all; the assertions below pin both halves of that.
 SELECT public.grant_show_official(
   '00000000-0000-0000-0000-000000169016',
   'secretary',
@@ -167,14 +168,25 @@ BEGIN
     RAISE EXCEPTION 'FAIL an unappointed active member has show access';
   END IF;
 
-  -- 5. A show-scoped row still grants its own show and must not be promoted to
-  --    club-wide access. (Phase 2 retires this path; until then it is load-bearing.)
+  -- 5. Being NAMED on a show grants nothing. This inverts what this file used to
+  --    assert: before Phase 2 a show-scoped user_roles row was both the paperwork
+  --    record and a grant, so "appointment is the only thing that grants access" was
+  --    true of the club path and false of this one. The label now lives in
+  --    show_officials and carries no permission.
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000169106', true);
-  IF NOT public.is_show_secretary('00000000-0000-0000-0000-000000169003') THEN
-    RAISE EXCEPTION 'FAIL show-scoped secretary lost their own show';
+  IF public.is_show_secretary('00000000-0000-0000-0000-000000169003') THEN
+    RAISE EXCEPTION 'FAIL being named on a show still grants show access';
   END IF;
   IF public.is_trial_secretary('00000000-0000-0000-0000-000000169001') THEN
-    RAISE EXCEPTION 'FAIL show-scoped secretary was promoted to club-wide access';
+    RAISE EXCEPTION 'FAIL being named on a show granted club-wide access';
+  END IF;
+
+  -- ...but the naming itself survived, or the paperwork lost its Trial Secretary.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.get_show_officials('00000000-0000-0000-0000-000000169003')
+    WHERE user_id = '00000000-0000-0000-0000-000000169016' AND role = 'secretary'
+  ) THEN
+    RAISE EXCEPTION 'FAIL the named show secretary is missing from get_show_officials';
   END IF;
 
   -- 6. Secretary, chairman and steward now follow ONE rule. Before this change the

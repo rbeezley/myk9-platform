@@ -249,6 +249,39 @@ Also note the constraint trigger from migration 102: it requires `club_id IS NOT
 secretary rows. Once show officials no longer live in `user_roles`, that trigger's job is
 narrower but still correct — keep it, and do not let the backfill write NULL-club rows.
 
+### [ADDED] Scope correction: steward is not a paperwork label
+
+Phase 2 originally treated all three official roles the same and made every
+show-scoped row label-only. That is right for secretary and chairman and wrong
+for steward, and `myk9_114_entry_access_context_test.sql` says so directly — it
+loops over a show-scoped and a club-scoped steward and asserts both keep
+row-only access, under the notice "show- and club-scoped stewards preserve
+row-only access". The migration's own comment claimed `steward_show_ids`
+"existed only to carry show-scoped grants" and that the club arrays "already
+carry every real caller". That was false.
+
+It also was not theoretical. Both callers of `grant_show_official` offer the
+role — `ShowOfficialsEditor` assigns a steward, and the creation wizard's
+`grantShowOfficials.ts:43` maps `officials.steward` — so shipping this would
+have silently withdrawn access from every steward named through either surface,
+while the RPC kept reporting success. A steward is a ring assignment, not a name
+printed on a form.
+
+So Phase 2's rule narrows to what the approved rule actually says: **the label
+that grants nothing is the secretary and chairman naming.** Stewards are
+untouched. Six sites changed: `is_show_official`, `get_show_access_codes`,
+`get_show_class_hide_counts` and `entry_results_caller_context` keep honouring
+show-scoped steward rows; `grant_show_official`/`revoke_show_official` write and
+withdraw the steward's operational row alongside the label; and step 4's
+deactivation sweep excludes stewards. `show_officials_label_not_permission_test.sql`
+now pins the exception in both directions, including that a named steward is
+still not a show manager.
+
+While extending that sweep, the orphan guard in step 2 was found to cover only
+secretaries even though step 4 retires chairman rows too. It now covers chairman,
+so a chairman with no club appointment blocks the migration instead of quietly
+losing access.
+
 ### [ADDED] Phase 2 reintroduced MYK9-258, and only CI caught it
 
 Rewriting `is_show_office_manager` and `manageable_show_ids` to drop their

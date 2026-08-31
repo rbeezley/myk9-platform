@@ -91,7 +91,10 @@ BEGIN
   FROM public.user_roles ur
   JOIN public.roles r ON r.id = ur.role_id
   JOIN public.shows s ON s.id = ur.show_id
-  WHERE r.name IN ('secretary', 'trial_secretary')
+  -- Chairman is included because step 4 retires chairman show-scoped rows too;
+  -- a chairman with no club appointment would otherwise lose access silently.
+  -- Steward is excluded because its show-scoped row is not being retired.
+  WHERE r.name IN ('secretary', 'trial_secretary', 'chairman')
     AND ur.show_id IS NOT NULL
     AND ur.is_active = true
     AND (ur.expires_at IS NULL OR ur.expires_at > NOW())
@@ -99,7 +102,10 @@ BEGIN
       SELECT 1
       FROM public.user_roles club_row
       JOIN public.roles cr ON cr.id = club_row.role_id
-      WHERE cr.name IN ('secretary', 'trial_secretary')
+      WHERE (
+          (r.name IN ('secretary', 'trial_secretary') AND cr.name IN ('secretary', 'trial_secretary'))
+          OR (r.name = 'chairman' AND cr.name = 'chairman')
+        )
         AND club_row.user_id = ur.user_id
         AND club_row.show_id IS NULL
         AND club_row.club_id = s.club_id
@@ -109,7 +115,7 @@ BEGIN
 
   IF v_orphans > 0 THEN
     RAISE EXCEPTION
-      'Refusing to proceed: % show-scoped secretary row(s) have no club appointment and would lose access. Appoint those people at the show''s club first (grant_club_secretary), then re-run.',
+      'Refusing to proceed: % show-scoped secretary/chairman row(s) have no club appointment and would lose access. Appoint those people at the show''s club first (grant_club_secretary), then re-run.',
       v_orphans
       USING ERRCODE = 'data_exception';
   END IF;
@@ -137,7 +143,9 @@ FROM public.roles r
 WHERE r.id = ur.role_id
   AND ur.show_id IS NOT NULL
   AND ur.is_active = true
-  AND r.name IN ('secretary', 'chairman', 'steward');
+  -- Stewards deliberately excluded: their show-scoped row is a ring assignment
+  -- that still grants (MYK9-114), not a paperwork label being retired.
+  AND r.name IN ('secretary', 'chairman');
 
 -- 5. Naming someone writes the label, and nothing else.
 CREATE OR REPLACE FUNCTION public.grant_show_official(
@@ -196,12 +204,39 @@ BEGIN
     SET created_by = EXCLUDED.created_by
   RETURNING id INTO v_existing_id;
 
+  -- A steward is the exception, and it is not a paperwork exception: naming
+  -- someone steward of a show is a ring assignment that has always granted
+  -- operational access, MYK9-114 pins it, and both callers of this RPC
+  -- (ShowOfficialsEditor and the creation wizard's grantShowOfficials) offer
+  -- the role. Only secretary and chairman become label-only here.
+  IF p_role_name = 'steward' THEN
+    INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, granted_by, auth_user_id)
+    SELECT p_person_id, r.id, p_show_id, v_club_id, true, v_caller_person_id, pe.auth_user_id
+    FROM public.roles r
+    CROSS JOIN LATERAL (SELECT auth_user_id FROM public.people WHERE id = p_person_id) pe
+    WHERE r.name = 'steward'
+      AND NOT EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = p_person_id
+          AND ur.role_id = r.id
+          AND ur.show_id = p_show_id
+      );
+
+    UPDATE public.user_roles ur
+    SET is_active = true
+    FROM public.roles r
+    WHERE r.id = ur.role_id
+      AND r.name = 'steward'
+      AND ur.user_id = p_person_id
+      AND ur.show_id = p_show_id;
+  END IF;
+
   RETURN v_existing_id;
 END;
 $$;
 
 COMMENT ON FUNCTION public.grant_show_official(uuid, text, uuid) IS
-  'Names someone on a show''s paperwork. Grants NO permissions — show access comes from a club appointment (grant_club_secretary). Naming does not require the person to have a login.';
+  'Names someone on a show''s paperwork. For secretary and chairman this grants NO permissions — show access comes from a club appointment (grant_club_secretary). Steward is different: it is a ring assignment and still grants show-scoped access (MYK9-114). Naming does not require the person to have a login.';
 
 REVOKE ALL ON FUNCTION public.grant_show_official(uuid, text, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.grant_show_official(uuid, text, uuid) TO authenticated;
@@ -237,11 +272,24 @@ BEGIN
   WHERE show_id = p_show_id
     AND person_id = p_person_id
     AND role = p_role_name;
+
+  -- Mirror of the grant: un-naming a steward must also withdraw the ring
+  -- assignment, or revoke would report success while access remained.
+  IF p_role_name = 'steward' THEN
+    UPDATE public.user_roles ur
+    SET is_active = false
+    FROM public.roles r
+    WHERE r.id = ur.role_id
+      AND r.name = 'steward'
+      AND ur.user_id = p_person_id
+      AND ur.show_id = p_show_id
+      AND ur.is_active = true;
+  END IF;
 END;
 $$;
 
 COMMENT ON FUNCTION public.revoke_show_official(uuid, text, uuid) IS
-  'Removes someone from a show''s paperwork. Does not touch their show access, which comes from a club appointment.';
+  'Removes someone from a show''s paperwork. For secretary and chairman this does not touch show access, which comes from a club appointment. For steward it also withdraws the show-scoped ring assignment that naming granted.';
 
 REVOKE ALL ON FUNCTION public.revoke_show_official(uuid, text, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.revoke_show_official(uuid, text, uuid) TO authenticated;
@@ -336,12 +384,19 @@ AS $$
           AND ur.show_id IS NULL
           AND ur.club_id = (SELECT club_id FROM public.shows WHERE id = check_show_id)
         )
+        -- A steward's show-scoped row is NOT a paperwork label. MYK9-114 pins
+        -- show- and club-scoped stewards as equals
+        -- (myk9_114_entry_access_context_test.sql, "show- and club-scoped
+        -- stewards preserve row-only access"), and a steward is an operational
+        -- per-show ring assignment rather than a name printed on a form. Only
+        -- the secretary and chairman arms move to show_officials.
+        OR (r.name = 'steward' AND ur.show_id = check_show_id)
       )
   );
 $$;
 
 COMMENT ON FUNCTION public.is_show_official(uuid) IS
-  'True for a site admin or a secretary/chairman/steward appointed at the show''s club. Being named on the show grants nothing.';
+  'True for a site admin, a secretary/chairman/steward appointed at the show''s club, or a steward assigned to this show. Being NAMED on the show as secretary or chairman grants nothing.';
 
 REVOKE ALL ON FUNCTION public.is_show_official(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.is_show_official(uuid) TO anon, authenticated;
@@ -440,7 +495,9 @@ begin
       v_allowed_roles := array_append(v_allowed_roles, 'exhibitor');
     end if;
 
-    -- Club-scoped only: the show_id disjunct that used to sit beside this is gone.
+    -- Stewards keep BOTH scopes: a show-scoped steward row is an operational
+    -- ring assignment, not a paperwork label (MYK9-114). Only secretary and
+    -- chairman naming moves to show_officials.
     if exists (
       select 1
         from public.user_roles ur
@@ -449,8 +506,10 @@ begin
          and r.name = 'steward'
          and ur.is_active = true
          and (ur.expires_at is null or ur.expires_at > now())
-         and ur.show_id is null
-         and ur.club_id = v_club_id
+         and (
+           ur.show_id = p_show_id
+           or (ur.show_id is null and ur.club_id = v_club_id)
+         )
     ) then
       v_allowed_roles := array_append(v_allowed_roles, 'steward');
       v_allowed_roles := array_append(v_allowed_roles, 'exhibitor');
@@ -546,7 +605,7 @@ BEGIN
     OR public.is_trial_secretary(v_club_id)
     OR public.is_club_admin(v_club_id);
 
-  -- Club-scoped only; the show_id disjunct is gone.
+  -- Both scopes, same reason as the passcode reader above (MYK9-114).
   v_is_steward := EXISTS (
     SELECT 1
       FROM public.user_roles ur
@@ -555,8 +614,10 @@ BEGIN
        AND r.name = 'steward'
        AND ur.is_active
        AND (ur.expires_at IS NULL OR ur.expires_at > now())
-       AND ur.show_id IS NULL
-       AND ur.club_id = v_club_id
+       AND (
+         ur.show_id = p_show_id
+         OR (ur.show_id IS NULL AND ur.club_id = v_club_id)
+       )
   );
 
   v_claim_kind    := (SELECT auth.jwt()) -> 'app_metadata' ->> 'kind';
@@ -602,9 +663,11 @@ REVOKE ALL ON FUNCTION public.get_show_class_hide_counts(uuid) FROM PUBLIC, anon
 GRANT EXECUTE ON FUNCTION public.get_show_class_hide_counts(uuid) TO anon, authenticated;
 
 -- 14. The cached results authorization context. Its managed_show_ids and
---     steward_show_ids arrays existed only to carry show-scoped grants, so they are now
+--     managed_show_ids array existed only to carry show-scoped SECRETARY grants, so it is now
 --     empty by construction rather than by luck. The club-scoped arrays beside them
---     (managed_club_ids, steward_club_ids) already carry every real caller.
+--     (managed_club_ids) carries every real manager. steward_show_ids is NOT emptied:
+--     MYK9-114 pins show-scoped stewards, whose rows are ring assignments rather
+--     than paperwork labels.
 --
 --     CREATE OR REPLACE, never DROP: view_authenticated_entry_results depends on this
 --     function and the signature is unchanged. Recreating that view would reset its
@@ -664,6 +727,12 @@ AS $$
           )
         )
       ), ARRAY[]::uuid[]) AS managed_club_ids,
+      -- steward_show_ids stays populated: MYK9-114 pins show-scoped stewards as
+      -- equals of club-scoped ones, and a ring assignment is not paperwork.
+      COALESCE(array_agg(DISTINCT ur.show_id) FILTER (
+        WHERE r.name = 'steward'
+          AND ur.show_id IS NOT NULL
+      ), ARRAY[]::uuid[]) AS steward_show_ids,
       COALESCE(array_agg(DISTINCT ur.club_id) FILTER (
         WHERE r.name = 'steward'
           AND ur.show_id IS NULL
@@ -695,7 +764,7 @@ AS $$
     -- these columns; always empty because nothing may grant through them.
     ARRAY[]::uuid[] AS managed_show_ids,
     jc.assigned_class_ids,
-    ARRAY[]::uuid[] AS steward_show_ids,
+    rc.steward_show_ids,
     rc.steward_club_ids,
     ci.jwt -> 'app_metadata' ->> 'kind' AS claim_kind,
     nullif(ci.jwt -> 'app_metadata' ->> 'show_id', '') AS claim_show_id,
@@ -707,7 +776,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION private.entry_results_caller_context() IS
-  'Internal MYK9-114 helper. Manager and steward context is club-scoped only; being named on a show (show_officials) grants nothing. Membership is not consulted.';
+  'Internal MYK9-114 helper. Manager context is club-scoped only; being named on a show as secretary or chairman grants nothing. Steward context keeps both scopes -- a show-scoped steward row is a ring assignment. Membership is not consulted.';
 
 -- 15. The one path that could still mint a show-scoped official row. It must not do so
 --     SILENTLY now that such a row grants nothing: a site admin approving a "secretary

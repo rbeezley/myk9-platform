@@ -168,6 +168,49 @@ BEGIN
 END;
 $$;
 
+-- 4b. Steward is the deliberate exception, and it needs its own pin. Naming a
+--     steward is a ring assignment, not paperwork: MYK9-114 asserts show- and
+--     club-scoped stewards as equals, and both callers of grant_show_official
+--     offer the role. Phase 2 originally made it label-only, which would have
+--     silently withdrawn access from every steward named through the wizard or
+--     the officials editor. Only secretary and chairman are label-only.
+SELECT public.grant_show_official(
+  '00000000-0000-0000-0000-000000240013',
+  'steward',
+  '00000000-0000-0000-0000-000000240003'
+);
+
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000240103', true);
+
+  IF NOT public.is_show_official('00000000-0000-0000-0000-000000240003') THEN
+    RAISE EXCEPTION 'FAIL naming a steward stopped granting the ring assignment';
+  END IF;
+
+  -- ...but it is still not a manager. The steward exception must not leak into
+  -- the manager helpers, or "label-only" would have been widened, not narrowed.
+  IF public.is_show_secretary('00000000-0000-0000-0000-000000240003')
+     OR public.can_manage_show('00000000-0000-0000-0000-000000240003') THEN
+    RAISE EXCEPTION 'FAIL a named steward was treated as a show manager';
+  END IF;
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000240101', true);
+  PERFORM public.revoke_show_official(
+    '00000000-0000-0000-0000-000000240013',
+    'steward',
+    '00000000-0000-0000-0000-000000240003'
+  );
+
+  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000240103', true);
+  IF public.is_show_official('00000000-0000-0000-0000-000000240003') THEN
+    RAISE EXCEPTION 'FAIL revoking a steward left the ring assignment in place';
+  END IF;
+
+  RAISE NOTICE 'PASS steward naming grants and revokes the ring assignment';
+END;
+$$;
+
 -- 5. Approving a show-scoped official request must FAIL LOUDLY rather than succeed and
 --    hand over nothing. This is the same shape as the revoke bug Codex found on #1895:
 --    a call that reports success while changing nothing the requester can feel.

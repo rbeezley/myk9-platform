@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getPaymentMethodLabel } from './utils';
 import type { PaymentSummaryCardProps } from './types';
+import { availabilityPlaceholder } from './types';
 
 /**
  * Displays the final payment summary: selected method, amount due, and contextual alerts.
@@ -21,9 +22,7 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
   const amountDueValue = feeOverride ?? feeCalculation.total;
   const requiresPaymentMethod = capacityReady && !isWaived && amountDueValue > 0 && !paymentMethod;
   const amountDue = !capacityReady
-    ? capacityUnavailable
-      ? 'Not confirmed'
-      : 'Checking availability'
+    ? availabilityPlaceholder(capacityUnavailable)
     : isWaived
       ? '$0.00 (Waived)'
       : `$${amountDueValue.toFixed(2)}`;

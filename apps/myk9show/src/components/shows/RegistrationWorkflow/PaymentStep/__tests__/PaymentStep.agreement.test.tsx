@@ -41,6 +41,11 @@ vi.mock('@/hooks/queries/useOrganizationAgreement', () => ({
     data: { organization: 'AKC', agreement_text: 'Test agreement text' },
     isLoading: false,
     isError: false,
+    // "Answered for this organization" — the component requires both, because a
+    // paused query and another show's placeholder row both otherwise look
+    // resolved.
+    isSuccess: true,
+    isPlaceholderData: false,
     refetch: vi.fn(),
   }),
 }));

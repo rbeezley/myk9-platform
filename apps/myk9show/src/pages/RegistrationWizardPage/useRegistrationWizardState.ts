@@ -350,24 +350,33 @@ export function useRegistrationWizardState() {
     !capacityLoading &&
     (!!capacityError || registrationCapacity.unknownClassIds.size > 0);
 
-  // Three distinct states, which the previous version collapsed into two and
-  // got wrong. The show's organization says an agreement MAY apply; the query
-  // says whether one is configured; and failure says we do not know.
-  //   - resolved with a row  -> must be ticked
-  //   - resolved with null   -> this organization has no agreement configured,
-  //                             so there is nothing to present or to agree to
-  //   - failed               -> unknown, block with a retry
-  // Only 'AKC' is seeded, so treating "no row" as an error blocked every UKC and
-  // ASCA show permanently. Same query key as EntryAgreementSection: a cache read.
+  // FOUR states, not three. The question is not only "is there an agreement?"
+  // but "have we actually resolved that question for THIS organization?".
+  //   resolved with a row  -> must be ticked
+  //   resolved with null   -> no agreement configured; nothing to present
+  //   not resolved         -> unknown; block
+  //
+  // Both failure modes here are silent. The client is networkMode 'online', so
+  // offline this query PAUSES: isLoading false, isError false, no data — which
+  // an earlier version read as "no agreement configured" and let the exhibitor
+  // submit without accepting the legal agreement. And the client sets a global
+  // placeholderData that carries the PREVIOUS organization's agreement across a
+  // key change, so `data` can be present and belong to a different show.
+  // isSuccess plus !isPlaceholderData is the only combination that means
+  // "answered, for this organization".
   const {
     data: entryAgreement,
     isLoading: agreementLoading,
-    isError: agreementFailed,
+    isSuccess: agreementQueryResolved,
+    isPlaceholderData: agreementIsPlaceholder,
   } = useOrganizationAgreement(currentShow?.organization ?? '');
   const agreementGateApplies = !!currentShow?.organization;
-  const agreementRequired = agreementGateApplies && !!entryAgreement;
+  const agreementAnswered =
+    agreementGateApplies && agreementQueryResolved && !agreementIsPlaceholder;
+  const agreementRequired = agreementAnswered && !!entryAgreement;
   const agreementLoadingNow = agreementGateApplies && agreementLoading;
-  const agreementUnavailable = agreementGateApplies && !agreementLoading && agreementFailed;
+  // Paused, errored, or showing another organization's cached row — all unknown.
+  const agreementUnavailable = agreementGateApplies && !agreementAnswered && !agreementLoading;
 
   const liveTotalFees = useMemo(
     () =>
@@ -537,7 +546,6 @@ export function useRegistrationWizardState() {
     isSubmitting,
     setIsSubmitting,
     agreedToEntryAgreement,
-    agreementUnavailable,
     setAgreedToEntryAgreement,
     submittingRef,
     mountedRef,

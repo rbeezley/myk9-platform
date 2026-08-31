@@ -143,3 +143,13 @@ export interface EntryAgreementSectionProps {
   /** True when a secretary/admin is entering on behalf of an exhibitor. */
   isOnBehalf?: boolean;
 }
+
+/**
+ * Placeholder shown in the money column while class availability is not a
+ * number yet. "Not confirmed" and "Checking availability" describe genuinely
+ * different situations — a check that failed versus one still running — and
+ * printing the wrong one puts the summary at odds with the alert above it.
+ */
+export function availabilityPlaceholder(unavailable: boolean | undefined): string {
+  return unavailable ? 'Not confirmed' : 'Checking availability';
+}

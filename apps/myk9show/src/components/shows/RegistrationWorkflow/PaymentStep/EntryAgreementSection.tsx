@@ -13,7 +13,13 @@ export const EntryAgreementSection = ({
   onAgree,
   isOnBehalf = false,
 }: EntryAgreementSectionProps) => {
-  const { data, isLoading, isError, refetch } = useOrganizationAgreement(organization);
+  const { data, isLoading, isError, isSuccess, isPlaceholderData, refetch } =
+    useOrganizationAgreement(organization);
+  // Matches the wizard's gate: "answered for THIS organization" is isSuccess
+  // AND not placeholder data. Offline the query pauses (isLoading false,
+  // isError false, no data) and the global placeholderData can carry another
+  // show's agreement across a key change — both look like a resolved answer.
+  const answered = isSuccess && !isPlaceholderData;
 
   if (isLoading) {
     return (
@@ -24,7 +30,7 @@ export const EntryAgreementSection = ({
     );
   }
 
-  if (isError) {
+  if (isError || !answered) {
     return (
       <DelightfulError
         variant="inline"
@@ -34,7 +40,7 @@ export const EntryAgreementSection = ({
     );
   }
 
-  // Resolved with no row: this organization has no agreement configured, so
+  // Answered, with no row: this organization has no agreement configured, so
   // there is nothing to present and nothing to agree to. Rendering nothing is
   // correct here — the gate does not ask for a tick in this state.
   if (!data) return null;

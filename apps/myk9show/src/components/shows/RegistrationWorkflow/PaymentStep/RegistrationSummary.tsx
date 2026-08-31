@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import type { RegistrationSummaryProps } from './types';
+import { availabilityPlaceholder } from './types';
 
 /**
  * Displays the fee breakdown for each dog and class, discounts, and total due.
@@ -43,9 +44,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
                           ? cls.isWaitlist
                             ? 'No payment due'
                             : `$${cls.fee.toFixed(2)}`
-                          : capacityUnavailable
-                            ? 'Not confirmed'
-                            : 'Checking availability'}
+                          : availabilityPlaceholder(capacityUnavailable)}
                       </span>
                       {onRemoveLine && (
                         <Button
@@ -95,9 +94,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
               <span className="text-lg">
                 {capacityReady
                   ? `$${feeCalculation.total.toFixed(2)}`
-                  : capacityUnavailable
-                    ? 'Not confirmed'
-                    : 'Checking availability'}
+                  : availabilityPlaceholder(capacityUnavailable)}
               </span>
             </div>
           </div>

@@ -75,20 +75,17 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         {currentStep === 0 ? 'Cancel' : backLabel || defaultBackLabel}
       </Button>
 
-      {/* Center - Save Draft and Step indicator */}
-      <div className="flex items-center gap-3 sm:gap-6">
-        {onSaveDraft && (
-          <Button
-            variant="ghost"
-            onClick={onSaveDraft}
-            disabled={isLoading}
-            className="text-muted-foreground hover:bg-muted/50 transition-all duration-200"
-          >
-            <Save className="mr-2 h-4 w-4" />
-            Save Draft
-          </Button>
-        )}
-      </div>
+      {onSaveDraft && (
+        <Button
+          variant="ghost"
+          onClick={onSaveDraft}
+          disabled={isLoading}
+          className="text-muted-foreground hover:bg-muted/50 transition-all duration-200"
+        >
+          <Save className="mr-2 h-4 w-4" />
+          Save Draft
+        </Button>
+      )}
 
       {/* Right side - Next/Create button with an inline readiness hint beneath
           it. Next stays clickable when the step is incomplete (the click

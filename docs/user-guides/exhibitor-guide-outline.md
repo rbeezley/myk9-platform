@@ -148,8 +148,8 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 - `entry-not-showing.md` — high priority (E-02); link from confirmation page
 
 **Stability notes:**
-- Wizard is stable. Two open bugs to note:
-  - **Multi-dog discount (BUG-EX-03):** discount may appear incorrectly on single-dog entries. Do not document the discount until the bug is fixed.
+- Wizard is stable. Current notes:
+  - **Automatic multi-dog discount (BUG-EX-03):** closed as not a product feature. Do not document an automatic multi-dog discount; registration totals charge the full entry fee unless a supported, server-honored discount is applied.
   - **Raw enum label (BUG-EX-06):** trial header may show `scent_work` instead of "Scent Work". If still visible when the guide is drafted, file to backlog first.
   - Wizard payment step currently shows a deferred-payment message in dev ("Online payment coming soon") — confirm live Stripe checkout is wired before screenshotting.
   - Order confirmation shows a UUID not a human-readable MK9 number — see journey doc note; verify before screenshotting.
@@ -328,7 +328,7 @@ The sign-in/sign-up gate is triggered only by "Enter This Show" — not by brows
 | Finding | Section | Backlog action |
 |---|---|---|
 | Browse counts inconsistent (BUG-EX-07) | § 1 | Don't document counts; track in OPEN-TODOS |
-| Multi-dog discount bug (BUG-EX-03) | § 4 | Don't document discount; track in OPEN-TODOS |
+| Automatic multi-dog discount (BUG-EX-03) | § 4 | Closed as not a product feature; do not document it |
 | Raw enum "scent_work" in wizard (BUG-EX-06) | § 4 | Fix before screenshotting |
 | Run order not in My Entries (journey § Phase 3) | § 6 | **RESOLVED** — PR #845 added "View run order" deep-link on entry card → `/shows/:showId?tab=classes` |
 | ShowTodayBanner only on show day | § 7 | Explain clearly — exhibitors checking early won't see it |

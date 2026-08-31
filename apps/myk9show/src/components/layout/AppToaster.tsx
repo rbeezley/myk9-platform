@@ -94,6 +94,7 @@ export function AppToaster() {
       theme="system"
       richColors
       closeButton
+      className="myk9-sonner-a11y"
       position="bottom-right"
       offset={offset}
       mobileOffset={offset}

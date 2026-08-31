@@ -5,7 +5,7 @@
 --   TypeScript fixture counts live in apps/myk9show/src/test/load/loadFixture.ts;
 --   keep this SQL contract aligned because SQL cannot import those constants.
 --   A realistic, *publicly visible* demo dataset (1 club, 1 published
---   multi-registry show, 4 trials, 9 classes, 69 dogs, 514 entries). Ten
+--   multi-registry show, 4 trials, 10 classes, 69 dogs, 516 entries). Ten
 --   hand-authored entries preserve the golden paths; 504 deterministic entries
 --   support the MYK9-109 rehearsal. The demo exhibitor therefore owns an
 --   intentionally heavy persona; targeted exhibitor tests must tolerate 504

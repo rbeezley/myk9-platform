@@ -75,7 +75,7 @@ describe('manual distributed load workflow', () => {
       "if: ${{ always() && needs.prepare.result == 'success' }}\n    runs-on: ubuntu-latest\n    timeout-minutes: 12"
     );
     expect(workflow).toContain('supabase/seed-demo.sql');
-    expect(workflow).toContain('514|504|0');
+    expect(workflow).toContain('516|504|0');
     expect(workflow).toContain(
       "has_function_privilege('authenticated', 'public.ringside_update_entry(uuid,jsonb,integer)', 'EXECUTE')"
     );

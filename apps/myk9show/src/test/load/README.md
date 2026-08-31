@@ -192,7 +192,7 @@ computes the actual cross-runner simultaneous peak instead of summing unrelated
 shard-local maxima. The separate `if: always()` cleanup job first cancels scoring
 queries that began inside the database-clock rehearsal ownership window, requires zero
 scoring workers across the target and three unchanged rollback samples, then reseeds
-and verifies `514|504|0` after success or failure. Before either reseed, the workflow
+and verifies `516|504|0` after success or failure. Before either reseed, the workflow
 removes canonical-show emergency packet objects through the service-role Storage API,
 then deletes their audit rows; the SQL seed refuses metadata-only deletion. Pre-existing scoring work is never
 canceled; it blocks reseeding instead. If the quiet-window gate fails, cleanup leaves
@@ -251,7 +251,7 @@ exactly one reason — they stopped representing the application — and a synth
 generator that outruns the browsers would measure something other than what
 users experience. That trade was already made once.
 
-For calibration: 100 concurrent sessions against a 514-entry show is roughly one
+For calibration: 100 concurrent sessions against a 516-entry show is roughly one
 live session per five entries, counting secretaries, stewards, judges and the
 fraction of exhibitors actually looking at a phone at any given moment. The gate
 number is already generous relative to a real show day.
@@ -281,7 +281,7 @@ credentials, storage state, database headers, or raw provider exports.
 `supabase/seed-demo.sql` creates 63 deterministic load dogs across the eight
 non-finalized demo classes: 504 load entries plus the 10 hand-authored entries.
 It excludes the finalized/released class and aborts unless the show total is
-exactly 514. Re-run the canonical reset/reseed before and after an approved
+exactly 516. Re-run the canonical reset/reseed before and after an approved
 rehearsal; verify the postcondition both times.
 
 The browser runner scores deterministic entries through the live scoresheet,
@@ -302,7 +302,7 @@ evidence. Missing G9 metrics fail closed.
 
 After a forced workflow cancellation, verify that the cleanup job completed.
 If GitHub itself prevented cleanup from running, manually restore the approved
-target with the canonical reseed and verify `514|504|0` before leaving the load
+target with the canonical reseed and verify `516|504|0` before leaving the load
 window.
 
 ## Known coverage caveats

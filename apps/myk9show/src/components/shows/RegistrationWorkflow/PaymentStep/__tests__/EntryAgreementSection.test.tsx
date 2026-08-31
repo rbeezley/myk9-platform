@@ -27,6 +27,7 @@ describe('EntryAgreementSection', () => {
         agreement_text: 'I certify that I am the actual owner of the dog...',
       },
       isLoading: false,
+      isFetching: false,
       isError: false,
       isSuccess: true,
       isPlaceholderData: false,
@@ -77,6 +78,7 @@ describe('EntryAgreementSection', () => {
     mockHook.mockReturnValue({
       data: undefined,
       isLoading: true,
+      isFetching: true,
       isError: false,
       isSuccess: false,
       isPlaceholderData: false,
@@ -91,6 +93,7 @@ describe('EntryAgreementSection', () => {
     mockHook.mockReturnValue({
       data: undefined,
       isLoading: false,
+      isFetching: false,
       isError: true,
       isSuccess: false,
       isPlaceholderData: false,
@@ -114,6 +117,7 @@ describe('EntryAgreementSection', () => {
     mockHook.mockReturnValue({
       data: undefined,
       isLoading: false,
+      isFetching: false,
       isError: false,
       isSuccess: false,
       isPlaceholderData: false,
@@ -131,6 +135,7 @@ describe('EntryAgreementSection', () => {
     mockHook.mockReturnValue({
       data: { organization: 'UKC', agreement_text: 'Some other agreement' },
       isLoading: false,
+      isFetching: true,
       isError: false,
       isSuccess: true,
       isPlaceholderData: true,
@@ -140,6 +145,26 @@ describe('EntryAgreementSection', () => {
 
     expect(screen.queryByText('Some other agreement')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    // In flight, not broken: a normal organization switch must not accuse the
+    // request of having failed.
+    expect(screen.getByTestId('agreement-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText(/could not load/i)).not.toBeInTheDocument();
+  });
+
+  it('blocks when placeholder data is all we have and nothing is in flight', () => {
+    mockHook.mockReturnValue({
+      data: { organization: 'UKC', agreement_text: 'Some other agreement' },
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+      isPlaceholderData: true,
+      refetch: vi.fn(),
+    });
+    render(<EntryAgreementSection {...baseProps} />);
+
+    expect(screen.queryByText('Some other agreement')).not.toBeInTheDocument();
+    expect(screen.getByText(/could not load the .* entry agreement/i)).toBeInTheDocument();
   });
 
   // Resolved with no row means this organization has no agreement configured —
@@ -150,6 +175,7 @@ describe('EntryAgreementSection', () => {
     mockHook.mockReturnValue({
       data: null,
       isLoading: false,
+      isFetching: false,
       isError: false,
       isSuccess: true,
       isPlaceholderData: false,

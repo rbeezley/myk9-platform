@@ -13,15 +13,19 @@ export const EntryAgreementSection = ({
   onAgree,
   isOnBehalf = false,
 }: EntryAgreementSectionProps) => {
-  const { data, isLoading, isError, isSuccess, isPlaceholderData, refetch } =
+  const { data, isLoading, isFetching, isError, isSuccess, isPlaceholderData, refetch } =
     useOrganizationAgreement(organization);
   // Matches the wizard's gate: "answered for THIS organization" is isSuccess
   // AND not placeholder data. Offline the query pauses (isLoading false,
   // isError false, no data) and the global placeholderData can carry another
   // show's agreement across a key change — both look like a resolved answer.
   const answered = isSuccess && !isPlaceholderData;
+  // Placeholder data from the previous organization arrives with isLoading
+  // false and isFetching true. That is an ordinary in-flight request, not a
+  // failure — showing the retry error there tells the user something broke.
+  const stillArriving = !answered && (isLoading || isFetching);
 
-  if (isLoading) {
+  if (stillArriving) {
     return (
       <div className="space-y-3" data-testid="agreement-skeleton">
         <Skeleton className="h-10 w-full" />

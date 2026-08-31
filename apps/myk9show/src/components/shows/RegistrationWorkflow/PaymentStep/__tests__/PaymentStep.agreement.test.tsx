@@ -44,6 +44,7 @@ vi.mock('@/hooks/queries/useOrganizationAgreement', () => ({
     // "Answered for this organization" — the component requires both, because a
     // paused query and another show's placeholder row both otherwise look
     // resolved.
+    isFetching: false,
     isSuccess: true,
     isPlaceholderData: false,
     refetch: vi.fn(),

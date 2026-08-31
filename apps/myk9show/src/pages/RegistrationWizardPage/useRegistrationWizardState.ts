@@ -367,6 +367,7 @@ export function useRegistrationWizardState() {
   const {
     data: entryAgreement,
     isLoading: agreementLoading,
+    isFetching: agreementFetching,
     isSuccess: agreementQueryResolved,
     isPlaceholderData: agreementIsPlaceholder,
   } = useOrganizationAgreement(currentShow?.organization ?? '');
@@ -374,9 +375,16 @@ export function useRegistrationWizardState() {
   const agreementAnswered =
     agreementGateApplies && agreementQueryResolved && !agreementIsPlaceholder;
   const agreementRequired = agreementAnswered && !!entryAgreement;
-  const agreementLoadingNow = agreementGateApplies && agreementLoading;
-  // Paused, errored, or showing another organization's cached row — all unknown.
-  const agreementUnavailable = agreementGateApplies && !agreementAnswered && !agreementLoading;
+  // Order matters: an answer wins, then work in progress, then unknown.
+  // Switching organizations serves the PREVIOUS show's row as placeholder while
+  // the new request runs (isLoading false, isPlaceholderData true, isFetching
+  // true), so keying "unknown" off !answered alone showed a retry error during
+  // an ordinary fetch.
+  const agreementLoadingNow =
+    agreementGateApplies && !agreementAnswered && (agreementLoading || agreementFetching);
+  // Paused offline, or failed. Not "still arriving".
+  const agreementUnavailable =
+    agreementGateApplies && !agreementAnswered && !agreementLoadingNow;
 
   const liveTotalFees = useMemo(
     () =>

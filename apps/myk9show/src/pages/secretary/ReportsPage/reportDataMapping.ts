@@ -2,12 +2,19 @@ import { mapDbEntryToReportEntry, resolveReportHandlerName } from '@/lib/reports
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import { REPORT_ENTRY_SOURCE } from '@/lib/reports/types';
 import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
-import type { ReportDbEntry, ReportEntry, ReportProps, ReportScope } from '@/lib/reports/types';
-import type { DbTrial, DbClass } from '@/types/database-mappings';
+import type {
+  ReportDbEntry,
+  ReportDefinition,
+  ReportEntry,
+  ReportProps,
+  ReportScope,
+} from '@/lib/reports/types';
+import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/types';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 
 export function mapReportEntries(
@@ -329,5 +336,91 @@ export function buildEmergencyPacketData(input: {
       };
     }),
     entries: mappedEntries,
+  };
+}
+
+/**
+ * Builds the single ReportProps object for a show-scoped report.
+ *
+ * Extracted from ReportPreview (MYK9-280) because that file sits at the 500-line
+ * ceiling `pnpm qa:code-quality-ratchet` enforces, and the fix adds lines to it.
+ */
+export function buildShowReportProps({
+  report,
+  show,
+  trials,
+  classes,
+  entries,
+  trialId,
+  classId,
+  dogId,
+  sortOrder,
+  entryFormData,
+  judgeSupplies,
+}: {
+  report: ReportDefinition;
+  show: Show;
+  trials: DbTrial[];
+  classes: DbClass[];
+  entries: DbEntry[];
+  trialId: string;
+  classId: string;
+  dogId: string;
+  sortOrder: string;
+  entryFormData?: ReportProps['entryFormData'];
+  judgeSupplies?: ReportProps['judgeSupplies'];
+}): ReportProps {
+  const targetTrialIds = trialId === 'all' ? trials.map(t => t.id) : [trialId];
+  const shouldFilterClass = report.scopes.includes('class') && classId !== 'all';
+
+  const filteredClasses = classes.filter(
+    c => targetTrialIds.includes(c.trial_id ?? '') && (!shouldFilterClass || c.id === classId)
+  );
+  const filteredClassIds = new Set(filteredClasses.map(c => c.id));
+
+  const allEntriesEnriched = entries
+    .filter(e => filteredClassIds.has(e.class_id ?? ''))
+    .map(e => {
+      const cls = filteredClasses.find(c => c.id === e.class_id);
+      const trial = trials.find(t => t.id === cls?.trial_id);
+      return mapReportEntries([e], trial, cls, show.assignedJudges ?? [])[0];
+    });
+
+  const allTrials = trials
+    .filter(t => targetTrialIds.includes(t.id))
+    .map(t => ({
+      id: t.id,
+      ...mapReportTrialFields(t),
+      judgeName: resolveTrialJudgeName(
+        filteredClasses.filter(c => c.trial_id === t.id),
+        show.assignedJudges ?? []
+      ),
+    }));
+
+  const allClasses = filteredClasses.map(c => ({
+    id: c.id,
+    trialId: c.trial_id ?? '',
+    element: c.element ?? '',
+    level: c.level ?? '',
+    section: c.section ?? '',
+    judgeName: resolveClassJudgeName(c, show.assignedJudges ?? []),
+  }));
+
+  const showDates = formatShowDateRange(show.startDate, show.endDate) || undefined;
+
+  return {
+    showId: show.id,
+    showName: show.name ?? '',
+    entries: allEntriesEnriched,
+    sortOrder,
+    allTrials,
+    allClasses,
+    organization: show.organization ?? undefined,
+    clubName: show.clubName ?? undefined,
+    ...(showDates ? { showDates } : {}),
+    ...(dogId !== 'all' ? { dogId } : {}),
+    ...(trialId !== 'all' ? { trialId } : {}),
+    ...(entryFormData ? { entryFormData } : {}),
+    ...(judgeSupplies ? { judgeSupplies } : {}),
   };
 }

@@ -112,9 +112,23 @@ const {
   }
 );
 
+// MYK9-280: AKCScentWorkEntryForm no longer fetches — ReportPreview renders it
+// through renderToStaticMarkup, where a React Query hook throws. The mock is kept
+// as the per-test DATA HOLDER: each test still sets the dataset it wants via
+// mockReturnValue, and `renderForm` passes it in as the `entryFormData` prop the
+// host now supplies. The mock factory below keeps the hook module stubbed so an
+// accidental re-introduction of the fetch still fails loudly rather than hitting
+// the network.
 vi.mock('@/hooks/queries/useEntryFormData', () => ({
   useEntryFormData: mockUseEntryFormData,
 }));
+
+/** Renders with whatever dataset the current test configured. */
+function renderForm(props: Partial<ReportProps> = {}) {
+  return render(
+    <AKCScentWorkEntryForm {...baseProps} {...props} entryFormData={mockUseEntryFormData()} />
+  );
+}
 
 const baseProps: ReportProps = {
   showId: 'show-1',
@@ -136,7 +150,7 @@ describe('AKCScentWorkEntryForm', () => {
   });
 
   it('renders the form title', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText('OFFICIAL ENTRY FORM')).toBeInTheDocument();
   });
 
@@ -167,55 +181,55 @@ describe('AKCScentWorkEntryForm', () => {
       isError: false,
     });
 
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
 
     expect(screen.getByText(/On the Day/i)).toBeInTheDocument();
     expect(screen.getByText(/Coffee in the morning/i)).toBeInTheDocument();
   });
 
   it('renders the secretary address in the header', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/Jane Smith/)).toBeInTheDocument();
     expect(screen.getByText(/123 Main St/)).toBeInTheDocument();
   });
 
   it('renders the dog registered name', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/GCH Oakwood's Rising Star/)).toBeInTheDocument();
   });
 
   it('renders the registration number', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/DN12345678/)).toBeInTheDocument();
   });
 
   it('renders the owner name and address', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/Sarah Johnson/)).toBeInTheDocument();
     expect(screen.getByText(/456 Oak Ave/)).toBeInTheDocument();
   });
 
   it('renders breeder, sire, and dam when available', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/John Doe/)).toBeInTheDocument();
     expect(screen.getByText(/CH Oakwood's Golden Boy/)).toBeInTheDocument();
     expect(screen.getByText(/Oakwood's Shining Light/)).toBeInTheDocument();
   });
 
   it('renders the agreement text', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getAllByText(/AGREEMENT/).length).toBeGreaterThan(0);
     expect(screen.getByText(/I certify that I am the actual owner/)).toBeInTheDocument();
   });
 
   it('renders the digital consent note with date', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/Entered via myK9Show/)).toBeInTheDocument();
     expect(screen.getByText(/4\/1\/2026/)).toBeInTheDocument();
   });
 
   it('renders element column headers', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText('Cont.')).toBeInTheDocument();
     expect(screen.getByText('Int.')).toBeInTheDocument();
     expect(screen.getByText('Ext.')).toBeInTheDocument();
@@ -223,7 +237,7 @@ describe('AKCScentWorkEntryForm', () => {
   });
 
   it('shows error state when showId is missing', () => {
-    render(<AKCScentWorkEntryForm {...baseProps} showId={undefined} />);
+    renderForm({ showId: undefined });
     expect(screen.getByText(/Show ID is required/)).toBeInTheDocument();
   });
 
@@ -236,7 +250,7 @@ describe('AKCScentWorkEntryForm', () => {
       isLoading: false,
       isError: false,
     });
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getAllByText(/Star/).length).toBeGreaterThan(0);
     expect(screen.getByText('OFFICIAL ENTRY FORM')).toBeInTheDocument();
   });
@@ -250,7 +264,7 @@ describe('AKCScentWorkEntryForm', () => {
       isLoading: false,
       isError: false,
     });
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/Bob Handler/)).toBeInTheDocument();
   });
 
@@ -263,7 +277,7 @@ describe('AKCScentWorkEntryForm', () => {
       isLoading: false,
       isError: false,
     });
-    render(<AKCScentWorkEntryForm {...baseProps} />);
+    renderForm();
     expect(screen.getByText(/No entries found/)).toBeInTheDocument();
   });
 });

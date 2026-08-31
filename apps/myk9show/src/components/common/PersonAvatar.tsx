@@ -9,14 +9,14 @@ const SIZES = {
 
 // 8 muted colors for deterministic fallback
 const COLORS = [
-  { bg: 'bg-slate-500/15', text: 'text-slate-600' },
-  { bg: 'bg-stone-500/15', text: 'text-stone-600' },
+  { bg: 'bg-slate-500/15' },
+  { bg: 'bg-stone-500/15' },
   { bg: 'bg-amber-600/15', text: 'text-amber-700' },
   { bg: 'bg-emerald-600/15', text: 'text-emerald-700' },
   { bg: 'bg-sky-600/15', text: 'text-sky-700' },
   { bg: 'bg-violet-600/15', text: 'text-violet-700' },
   { bg: 'bg-rose-600/15', text: 'text-rose-700' },
-  { bg: 'bg-zinc-500/15', text: 'text-zinc-600' },
+  { bg: 'bg-zinc-500/15' },
 ] as const;
 
 function hashName(name: string): number {
@@ -52,7 +52,7 @@ export function PersonAvatar({ name, avatarUrl, size = 'md', className }: Person
     <Avatar className={cn(SIZES[size], 'flex-shrink-0', className)}>
       {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
       <AvatarFallback
-        className={cn(SIZES[size], color.bg, color.text, 'font-semibold')}
+        className={cn(SIZES[size], color.bg, color.text ?? 'text-foreground', 'font-semibold')}
         data-color={colorIndex}
       >
         {initials}

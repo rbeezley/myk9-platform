@@ -76,6 +76,17 @@ describe('ElementCard — wait list badge', () => {
     expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
   });
 
+  it('labels a class whose availability was not read without calling it open', async () => {
+    const onToggle = vi.fn();
+    const levels: LevelInfo[] = [{ ...baseLevel, isAvailabilityUnknown: true }];
+    const { user } = render(<ElementCard {...defaultProps} levels={levels} onToggle={onToggle} />);
+
+    expect(screen.getByText('Availability unknown')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+    await user.click(screen.getByText('Novice A'));
+    expect(onToggle).toHaveBeenCalledWith('c1');
+  });
+
   it('surfaces already-entered classes with a visible badge', () => {
     const levels: LevelInfo[] = [{ ...baseLevel, isAlreadyEntered: true }];
     render(<ElementCard {...defaultProps} levels={levels} />);
@@ -396,6 +407,95 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
     expect(await screen.findByText('Novice A')).toBeInTheDocument();
     expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
   });
+
+  it('marks an omitted class unknown without hiding availability for its neighbor', async () => {
+    setupDefaultMocks();
+    const knownClassId = 'class-known';
+    mockUseTrialStore.mockImplementation((selector: (s: unknown) => unknown) => {
+      const state = {
+        trials: [
+          {
+            id: TRIAL_ID,
+            showId: SHOW_ID,
+            name: 'Trial 1',
+            registryId: 'AKC',
+            trialType: 'Nosework',
+            order: '1',
+            trialDate: '2026-05-01',
+          },
+        ],
+        trialClasses: {
+          [TRIAL_ID]: [
+            { id: CLASS_ID, element: 'Container', level: 'Novice', section: 'A' },
+            { id: knownClassId, element: 'Container', level: 'Advanced', section: 'A' },
+          ],
+        },
+      };
+      return selector(state);
+    });
+    mockUseClassStoreCompat.mockReturnValue({
+      classes: [
+        {
+          id: CLASS_ID,
+          trialId: TRIAL_ID,
+          className: 'Container Novice',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          entryFee: 15,
+        },
+        {
+          id: knownClassId,
+          trialId: TRIAL_ID,
+          className: 'Container Advanced',
+          element: 'Container',
+          level: 'Advanced',
+          section: 'A',
+          entryFee: 15,
+        },
+      ],
+    });
+    mockUseClassAvailability.mockReturnValue({
+      classes: [
+        {
+          classId: knownClassId,
+          className: 'Container Advanced A',
+          level: 'Advanced',
+          trialId: TRIAL_ID,
+          trialName: 'Trial 1',
+          trialDate: '2026-05-01',
+          entryLimit: 10,
+          currentEntries: 1,
+          spotsAvailable: 9,
+          waitlistCount: 0,
+          isFull: false,
+          hasWaitlist: false,
+          judgeId: 'judge-1',
+          judgeDayFull: false,
+          judgeDayAvailable: 9,
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      totalSpotsAvailable: 9,
+      fullClasses: 0,
+    });
+
+    render(
+      <ClassSelectionStep
+        selectedDogs={[DOG_ID]}
+        classSelections={[]}
+        onSelectionChange={vi.fn()}
+        showId={SHOW_ID}
+      />
+    );
+
+    expect(await screen.findByText('Availability unknown')).toBeInTheDocument();
+    expect(screen.getByText('Advanced A')).toBeInTheDocument();
+    expect(screen.getByText('Novice A').closest('label')).toHaveTextContent('Novice A');
+    expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+  });
 });
 
 describe('ClassSelectionStep — availability that could not be read', () => {
@@ -429,7 +529,9 @@ describe('ClassSelectionStep — availability that could not be read', () => {
         showId={SHOW_ID}
       />
     );
-    expect(await screen.findByText(/could not check which classes still have room/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/could not check which classes still have room/i)
+    ).toBeInTheDocument();
   });
 
   it('says availability is unknown when the query errored', async () => {
@@ -450,7 +552,9 @@ describe('ClassSelectionStep — availability that could not be read', () => {
         showId={SHOW_ID}
       />
     );
-    expect(await screen.findByText(/could not check which classes still have room/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/could not check which classes still have room/i)
+    ).toBeInTheDocument();
   });
 
   it('does not claim availability is unknown once it resolves', async () => {

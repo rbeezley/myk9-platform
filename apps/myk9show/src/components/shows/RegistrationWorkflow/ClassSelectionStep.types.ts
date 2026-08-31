@@ -44,6 +44,8 @@ export interface LevelInfo {
   waitlistCount?: number | undefined;
   /** True when the class accepts new wait-list requests */
   allowsWaitlist?: boolean | undefined;
+  /** True when the availability read did not return a trustworthy row for this class. */
+  isAvailabilityUnknown?: boolean | undefined;
   /** Entry is unavailable until the dog has a registration for this trial's registry. */
   isRegistrationBlocked?: boolean | undefined;
   /** Calm explanation for a registration block or puppy-class exception. */

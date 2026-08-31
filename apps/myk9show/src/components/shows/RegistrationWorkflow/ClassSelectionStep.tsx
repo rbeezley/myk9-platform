@@ -48,10 +48,7 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import '@/styles/myk9-registration-workflow.css';
-import {
-  buildAvailabilityMap,
-  isAvailabilityUnreadable,
-} from './ClassSelectionStep.availability';
+import { buildAvailabilityMap, isAvailabilityUnreadable } from './ClassSelectionStep.availability';
 
 export type { ClassSelectionStepProps } from './ClassSelectionStep.types';
 
@@ -437,6 +434,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
                                     isRegistrationBlocked: !prerequisite.allowed,
                                     registrationGuidance: prerequisite.message,
+                                    isAvailabilityUnknown:
+                                      availabilityLoading || avail === undefined,
                                     ...(avail !== undefined && {
                                       isFull: avail.isFull,
                                       waitlistCount: avail.waitlistCount,

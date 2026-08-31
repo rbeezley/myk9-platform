@@ -23,6 +23,13 @@ import {
  * Fixture: Heartland Scent Work Classic demo seed (judge_assignments seeded for
  * these classes). If the seed is rebuilt, update the IDs together.
  *
+ * This spec runs against two targets. On shared staging (the scheduled judge
+ * replay) the ringside RPC is INTERCEPTED, so verification never mutates the
+ * real project. Against the isolated Supabase target (Playwright Regression)
+ * the same call is OBSERVED and forwarded — the guard decides by host, not by
+ * a per-spec flag, because the flag it used to need defaulted to off and left
+ * every assertion here blind (MYK9-270).
+ *
  * `strictRpcWrites` is on because this spec is part of the scheduled judge
  * replay (`pnpm test:e2e:audit:judge`), and that run reports that shared staging
  * received no writes. A permissive guard in ONE included spec would make the
@@ -118,7 +125,25 @@ test.describe('At-show judge scoring authorization', () => {
       timeout: 20_000,
     });
     await expect(page.getByRole('button', { name: /^Save$/ })).toHaveCount(0);
-    expect(rpcCalls).toEqual([]);
+    expect(rpcCalls.filter(call => call.p_entry_id === UNASSIGNED_ENTRY_ID)).toEqual([]);
+
+    // Positive control. An empty `rpcCalls` is only evidence of a BLOCK if the
+    // guard was awake — and against the isolated target it was not: it recorded
+    // ringside writes only on the shared-staging host, so this assertion could
+    // never fail (MYK9-270). Scoring the class this judge
+    // IS assigned to must now produce a recorded call on the same page and the
+    // same collector. Empty-then-non-empty is what makes the emptiness above
+    // mean something.
+    await page.goto(SCORE_PATH);
+    await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
+    await page.getByTestId('result-Q').click();
+    await page.getByRole('button', { name: /^Save$/ }).click();
+    await page.getByRole('button', { name: /Confirm & Submit/i }).click();
+
+    await expect
+      .poll(() => rpcCalls.some(call => call.p_entry_id === ENTRY_ID), { timeout: 20_000 })
+      .toBe(true);
+    expect(rpcCalls.filter(call => call.p_entry_id === UNASSIGNED_ENTRY_ID)).toEqual([]);
   });
 
   test('records an explicit absence without exposing a qualified result', async ({ page }) => {

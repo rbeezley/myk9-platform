@@ -156,7 +156,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               reg.registeredName?.toLowerCase().includes(query) ||
               reg.registrationNumber?.toLowerCase().includes(query)
           ) ||
-          getDogBreedLabel(dog).toLowerCase().includes(query) ||
+            getDogBreedLabel(dog).toLowerCase().includes(query) ||
           (dog.microchip && dog.microchip.toLowerCase().includes(query))
         );
       });

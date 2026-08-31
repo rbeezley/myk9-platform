@@ -429,9 +429,7 @@ describe('ClassSelectionStep — availability that could not be read', () => {
         showId={SHOW_ID}
       />
     );
-    expect(
-      await screen.findByText(/could not check which classes still have room/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/could not check which classes still have room/i)).toBeInTheDocument();
   });
 
   it('says availability is unknown when the query errored', async () => {
@@ -452,9 +450,7 @@ describe('ClassSelectionStep — availability that could not be read', () => {
         showId={SHOW_ID}
       />
     );
-    expect(
-      await screen.findByText(/could not check which classes still have room/i)
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/could not check which classes still have room/i)).toBeInTheDocument();
   });
 
   it('does not claim availability is unknown once it resolves', async () => {

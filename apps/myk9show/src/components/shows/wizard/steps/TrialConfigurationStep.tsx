@@ -148,7 +148,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Add Trial Button */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-foreground">Trials ({trials.length})</h3>
+            <h3 className="text-lg font-semibold text-foreground">
+              Trials ({trials.length})
+            </h3>
             <Button onClick={handleAddTrial} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Add Trial

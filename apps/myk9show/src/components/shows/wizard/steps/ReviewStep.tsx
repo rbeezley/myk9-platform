@@ -234,14 +234,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     readiness tile has to count the thing that must be covered, so it
                     now counts classes, agreeing with the "n of m classes need judges"
                     line below rather than contradicting it. */}
-                <p className="text-sm font-medium text-muted-foreground">Classes with a Judge</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Classes with a Judge
+                </p>
                 <p className="text-4xl font-bold mt-1 text-foreground">
                   {classesWithJudges}
                   <span className="text-2xl text-muted-foreground">/{totalClasses}</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {countLabel(uniqueAssignedJudges, 'judge')} of {countLabel(totalJudges, 'judge')}{' '}
-                  added
+                  {countLabel(uniqueAssignedJudges, 'judge')} of{' '}
+                  {countLabel(totalJudges, 'judge')} added
                 </p>
               </div>
             </div>

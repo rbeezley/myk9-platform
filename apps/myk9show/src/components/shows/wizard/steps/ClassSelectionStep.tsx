@@ -334,7 +334,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         <div className="max-w-5xl mx-auto space-y-6 px-4">
           {/* Classes Header */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-foreground">Classes ({totalClasses})</h3>
+            <h3 className="text-lg font-semibold text-foreground">
+              Classes ({totalClasses})
+            </h3>
           </div>
 
           {/* Template Selection Alert for No Templates */}

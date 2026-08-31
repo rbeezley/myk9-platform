@@ -14,11 +14,7 @@ const dogs: HandlerCandidateDog[] = [
 ];
 
 const selections: ClassSelectionData[] = [
-  {
-    dogId: 'dog-1',
-    trialId: 't-1',
-    selectedClasses: [{ classId: 'class-a' }, { classId: 'class-b' }],
-  },
+  { dogId: 'dog-1', trialId: 't-1', selectedClasses: [{ classId: 'class-a' }, { classId: 'class-b' }] },
   { dogId: 'dog-2', trialId: 't-1', selectedClasses: [{ classId: 'class-a' }] },
 ];
 

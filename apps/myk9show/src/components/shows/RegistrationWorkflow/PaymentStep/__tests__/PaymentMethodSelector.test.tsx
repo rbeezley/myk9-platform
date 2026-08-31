@@ -59,7 +59,11 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
 
   it('hides the secure-checkout redirect notice when allowCardCheckout is false', () => {
     render(
-      <PaymentMethodSelector {...baseProps} paymentMethod="credit_card" allowCardCheckout={false} />
+      <PaymentMethodSelector
+        {...baseProps}
+        paymentMethod="credit_card"
+        allowCardCheckout={false}
+      />
     );
     expect(
       screen.queryByText(/You'll be taken to our secure checkout to complete payment/)

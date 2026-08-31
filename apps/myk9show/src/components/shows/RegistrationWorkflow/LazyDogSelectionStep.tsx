@@ -64,7 +64,9 @@ export function LazyDogSelectionStep({
         }
 
         if (filters.breed) {
-          filteredDogs = filteredDogs.filter(dog => getDogBreedLabel(dog) === filters.breed);
+          filteredDogs = filteredDogs.filter(
+            dog => getDogBreedLabel(dog) === filters.breed
+          );
         }
 
         if (filters.gender) {

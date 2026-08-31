@@ -110,7 +110,9 @@ describe('DogSelectionStepEnhanced — system-wide search failure', () => {
     typeSearch('ranger');
 
     await waitFor(() => expect(mockSearchAllDogs).toHaveBeenCalled(), { timeout: 3000 });
-    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    );
   });
 
   it('still warns when local dogs match, because the server list is silently incomplete', async () => {

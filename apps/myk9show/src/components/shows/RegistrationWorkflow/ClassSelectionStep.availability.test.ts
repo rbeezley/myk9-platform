@@ -41,3 +41,4 @@ describe('buildAvailabilityMap', () => {
     expect(buildAvailabilityMap([]).get('anything')).toBeUndefined();
   });
 });
+

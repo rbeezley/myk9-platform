@@ -1,8 +1,4 @@
-import {
-  TrialType,
-  formatTrialTypeLabel,
-  getTrialTypesForOrganization,
-} from '@/types/template.types';
+import { TrialType, formatTrialTypeLabel, getTrialTypesForOrganization } from '@/types/template.types';
 
 interface TrialTypeTemplateOption {
   isActive?: boolean;

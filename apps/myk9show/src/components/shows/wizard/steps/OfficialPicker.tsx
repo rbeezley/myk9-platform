@@ -99,7 +99,10 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   };
 
   const canSave =
-    firstName.trim() !== '' && lastName.trim() !== '' && email.trim() !== '' && phone.trim() !== '';
+    firstName.trim() !== '' &&
+    lastName.trim() !== '' &&
+    email.trim() !== '' &&
+    phone.trim() !== '';
 
   // Slug derived from `label` so two OfficialPickers on the same page (e.g.
   // "Show Chairman" + "Show Secretary") don't collide on element ids.
@@ -164,7 +167,10 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
       )}
 
       {autoFillBadge && selectedName && !showCreateForm && (
-        <Badge variant="outline" className="text-xs px-1.5 py-0 text-info border-info/30">
+        <Badge
+          variant="outline"
+          className="text-xs px-1.5 py-0 text-info border-info/30"
+        >
           {autoFillBadge}
         </Badge>
       )}

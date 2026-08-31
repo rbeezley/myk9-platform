@@ -111,7 +111,8 @@ export function ConfirmationEntryDetails({
                           ` "${getDogRegisteredName(details.dog)}"`}
                       </h4>
                       <p className="text-sm text-muted-foreground">
-                        {getDogBreedLabel(details.dog)} &bull; {details.dog.gender} &bull;{' '}
+                        {getDogBreedLabel(details.dog)} &bull;{' '}
+                        {details.dog.gender} &bull;{' '}
                         {details.dog.dateOfBirth &&
                           `Born ${formatDateMMDDYYYY(details.dog.dateOfBirth)}`}
                       </p>

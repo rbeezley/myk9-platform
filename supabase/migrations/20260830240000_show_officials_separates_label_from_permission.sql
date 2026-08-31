@@ -347,6 +347,13 @@ REVOKE ALL ON FUNCTION public.is_show_official(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.is_show_official(uuid) TO anon, authenticated;
 
 -- 10. The office-manager check loses its show-scoped EXISTS block.
+--
+-- The `s.club_id IS NOT NULL` guards are MYK9-258 and MUST stay. is_club_admin
+-- and is_trial_secretary treat a NULL argument as "no club filter", so passing a
+-- club-less show's NULL club_id positionally makes that show manageable by every
+-- active secretary and club admin on the platform -- and get_entries_for_export
+-- then hands each of them owner email and phone. Removing the show-scoped arm
+-- here is not a licence to drop these.
 CREATE OR REPLACE FUNCTION public.is_show_office_manager(check_show_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -360,8 +367,8 @@ AS $$
     WHERE s.id = check_show_id
       AND (
         (SELECT public.is_site_admin())
-        OR (SELECT public.is_club_admin(s.club_id))
-        OR (SELECT public.is_trial_secretary(s.club_id))
+        OR (s.club_id IS NOT NULL AND (SELECT public.is_club_admin(s.club_id)))
+        OR (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
       )
   );
 $$;
@@ -379,8 +386,10 @@ SET search_path = ''
 AS $$
   SELECT s.id
   FROM public.shows s
-  WHERE (SELECT public.is_club_admin(s.club_id))
-     OR (SELECT public.is_trial_secretary(s.club_id))
+  -- The `s.club_id IS NOT NULL` guards are MYK9-258; see the note above
+  -- is_show_office_manager. A club-less show must reach nobody but a site admin.
+  WHERE (s.club_id IS NOT NULL AND (SELECT public.is_club_admin(s.club_id)))
+     OR (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
      OR (SELECT public.is_site_admin());
 $$;
 

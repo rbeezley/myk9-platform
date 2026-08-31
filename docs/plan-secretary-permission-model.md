@@ -249,6 +249,31 @@ Also note the constraint trigger from migration 102: it requires `club_id IS NOT
 secretary rows. Once show officials no longer live in `user_roles`, that trigger's job is
 narrower but still correct — keep it, and do not let the backfill write NULL-club rows.
 
+### [ADDED] Phase 2 reintroduced MYK9-258, and only CI caught it
+
+Rewriting `is_show_office_manager` and `manageable_show_ids` to drop their
+show-scoped arms also dropped their `s.club_id IS NOT NULL` guards. Those guards
+are MYK9-258: `is_club_admin` and `is_trial_secretary` treat a NULL argument as
+"no club filter", so a club-less show became manageable by every active secretary
+and club admin on the platform — and `get_entries_for_export` hands each of them
+owner email and phone. The original was found on staging by the G9 rehearsal;
+this time `null_club_show_authorization_test.sql` caught it at
+`FAIL 1.2 club secretary manages a show with no club`.
+
+Nothing local could have caught it. Typecheck, lint, the ratchet and all 742 DB
+contract tests passed with the guards missing, because the regression only exists
+against a real Postgres. Both functions now carry the guards back with a comment
+naming MYK9-258, and the two remaining rewrites were checked the same way:
+`is_show_secretary`/`is_show_official` are NULL-safe by construction
+(`ur.club_id = NULL` yields NULL, not true), `get_show_access_codes` and
+`get_show_class_hide_counts` early-return on a NULL club, and
+`private.entry_results_caller_context` kept both of its `ur.club_id IS NOT NULL`
+filters.
+
+The general shape, for the next person removing an arm from one of these: a
+predicate sitting next to the thing you are deleting is not necessarily part of
+it.
+
 ### [ADDED] Measured blast radius: six behavioural SQL tests, found only in CI
 
 Phase 2's first real execution (CI run 33393950324) showed that show-scoped

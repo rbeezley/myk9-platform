@@ -57,6 +57,26 @@ export interface OverflowSource {
   right: number;
 }
 
+/** Per-page aggregate of one colour pair, counted BEFORE the report limit. */
+export interface ContrastGroup {
+  signature: string;
+  count: number;
+  worst: number;
+  required: number;
+  fontPx: number;
+  bold: boolean;
+  sampleText: string;
+}
+
+/** Per-page aggregate of one undersized-control shape, counted before the limit. */
+export interface TargetGroup {
+  signature: string;
+  count: number;
+  smallest: number;
+  under24: boolean;
+  labels: string[];
+}
+
 export interface ProbeResult {
   sanity: ProbeSanity;
   /** Text nodes whose contrast was successfully computed. */
@@ -67,6 +87,11 @@ export interface ProbeResult {
   interactive: number;
   /** True finding counts, before the per-category report limit is applied. */
   totals: { contrast: number; targets: number; names: number };
+  /** Every colour pair on the page, aggregated. Clustering reads THIS, never
+   *  the truncated `contrast` rows — see the note in `measurementProbe.ts`. */
+  contrastGroups: ContrastGroup[];
+  /** Every undersized-control shape on the page, aggregated. */
+  targetGroups: TargetGroup[];
   contrast: ContrastFinding[];
   targets: TargetFinding[];
   names: NameFinding[];

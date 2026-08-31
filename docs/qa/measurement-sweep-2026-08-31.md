@@ -23,7 +23,7 @@ pnpm exec playwright test src/test/e2e/qa/measurementSweep.spec.ts \
 ```
 
 Writes `test-results/measurement-sweep/findings.json` and `report.md`. The run
-below took 14.1 minutes for 84 measurements.
+below took 14.2 minutes for 84 measurements.
 
 ## Why these numbers can be believed
 
@@ -55,7 +55,26 @@ It also carries two standing guards for the failure modes that burned round 5:
   everywhere, so a failed flip is otherwise indistinguishable from a clean dark
   theme.
 
-Fixing that wizard result also meant replacing the readiness gate.
+Two further harness defects were found in review of this PR, both of which would
+have made the report state something false, and both fixed before these numbers
+were taken:
+
+- **Clustering read truncated data.** The probe samples at most 12 findings per
+  category per page, and the cross-route grouping was built from those samples.
+  The report would therefore have ranked by severity while claiming to rank by
+  spread — a colour pair used 400 times on a page contributed nothing unless it
+  happened to be among that page's worst dozen readings. Clustering now reads
+  untruncated per-page aggregates, and the report carries an **Instances**
+  column so the difference is visible. It mattered: the `L0` class-code badges
+  below appear **200 times** on one route and were invisible in the first run.
+- **The spacing exception was under-strict.** It compared centre distances only,
+  which tests circle-against-circle and misses WCAG 2.5.8's other half — the
+  24px circle must not intersect *another target* either. A 16px control beside
+  a large button 20px away passed a test that was not looking. Now checked
+  against neighbouring bounding boxes as well. The conclusion below survived the
+  stricter check, which is the only reason it is stated.
+
+Fixing the wizard result also meant replacing the readiness gate.
 Route-health's "body text > 20 chars, then settle" is too weak for
 authenticated, data-driven pages — the same route measured 1,291 text nodes on
 one run and 16 on the next. The sweep now waits for the app's API reads to go
@@ -73,7 +92,7 @@ Two measurements per route, light and dark. Club-admin is absent because
 | Route × theme measurements attempted | 84 |
 | Usable | 80 |
 | Excluded | 4 |
-| Text nodes measured for contrast | 31,047 |
+| Text nodes measured for contrast | 31,046 |
 | Text nodes not measurable (image/gradient backdrop) | 164 |
 | Contrast findings | 947 |
 | Small-target findings | 676 |
@@ -91,29 +110,31 @@ account — worth a look, but not a measurement.
 work that `shell-integrity-responsive.spec.ts` and the round-4 registration pass
 pinned is holding across every route, not just the pinned ones.
 
-**No WCAG 2.5.8 AA target failures.** All 676 small-target findings are against
-the **44px** bar this project adopted in round 5, not the 24px WCAG AA floor.
-Every undersized control either clears 24px or passes 2.5.8's spacing exception
-(a 24px circle centred on it touching no other target's circle). That
-distinction matters: 44px is a self-imposed comfort standard, so these are
-polish, not conformance defects.
+**No WCAG 2.5.8 AA target failures.** All 676 small-target instances are against
+the **44px** bar this project adopted in round 5, not the 24px WCAG AA floor —
+`under24` is zero across every one of them. Every undersized control either
+clears 24px or satisfies 2.5.8's spacing exception, checked in both its halves
+(the 24px circle intersects neither another undersized target's circle nor any
+other target's bounding box). That distinction matters: 44px is a self-imposed
+comfort standard, so these are polish, not conformance defects.
 
 ## Contrast — ranked by spread, not by severity
 
 This is the ranking that answers the original question. A single low reading is
 a page nit; the same colour pair across many routes is **one token edit**.
 
-| Colour pair | Routes | Worst | Detail |
-| --- | --- | --- | --- |
-| `--muted-foreground` @ 70% on card | **5 light + 4 dark** | 3.04 / 3.40 | 14px "Entries Close", "Total Entries" |
-| `--muted-foreground` @ 60% on page bg | 2 light + 2 dark | 2.49 / 2.90 | 10px "Your account", "Notifications" |
-| `--muted-foreground` @ 80% on card | 2 light + 2 dark | 3.80 / 3.99 | 14px form labels — "First name" |
-| `rgb(255,255,255)` on emerald `rgb(52,211,153)` | 2 | 1.92 | 14px badge "6 elements", admin/templates |
-| `rgb(255,255,255)` on terracotta `rgb(217,119,87)` | 2 | 3.12 | 16px "Table" toggle, browse-shows dark |
-| `rgb(201,100,66)` ↔ `rgb(245,244,237)` | 2 | 3.54 | "Enter this show", "An A.K.C. Licensed Trial" |
-| amber on amber — `rgb(146,64,14)` on `rgb(165,69,45)` | 1 | **1.17** | "In progress" badge, secretary/show-desk |
-| zinc-600 `rgb(82,82,91)` on dark card | 2 | 1.88 | avatar initials "TJ", class codes "L0"–"L3" |
-| green/amber stat numbers | 3 | 2.06 | 36–42px bold "0", "2", "90%" — judge/stats, admin/sync |
+| Colour pair | Routes | Instances | Worst | Detail |
+| --- | --- | --- | --- | --- |
+| `--muted-foreground` @ 70% on card | **5 light + 5 dark** | 40 | 3.04 / 3.40 | 14px "Entries Close", "Total Entries" |
+| `--muted-foreground` @ 60% on page bg | 2 light + 2 dark | 12 | 2.49 / 2.90 | 10px "Your account", "Notifications" |
+| `--muted-foreground` @ 80% on card | 2 light + 2 dark | 16 | 3.80 / 3.99 | 14px form labels — "First name" |
+| zinc/slate greys on dark cards | 1 | **200** | 1.88 | class-code badges "L0"–"L3", avatar initials "TJ" |
+| `rgb(255,255,255)` on emerald `rgb(52,211,153)` | 2 | 12 | 1.92 | 14px badge "6 elements", admin/templates |
+| near-white on `rgb(255,251,235)` | 1 | 4 | **1.03** | 16px "Directory drift", admin/help dark |
+| `rgb(201,100,66)` ↔ `rgb(245,244,237)` | 2 | 32 | 3.54 | "Enter this show", "An A.K.C. Licensed Trial" |
+| `rgb(255,255,255)` on terracotta `rgb(217,119,87)` | 2 | 2 | 3.12 | 16px "Table" toggle, browse-shows dark |
+| amber on amber — `rgb(146,64,14)` on `rgb(165,69,45)` | 1 | 1 | **1.17** | "In progress" badge, secretary/show-desk |
+| green/amber stat numbers | 3 | 3 | 2.06 | 36–42px bold "0", "2", "90%" — judge/stats, admin/sync |
 
 ### What the top three rows mean
 
@@ -132,30 +153,35 @@ decision fixes all of it; nine impeccable runs would have found it nine times.
 
 ### What the rest mean
 
-`1.17:1` for "In progress" on the show-desk is the worst single reading in the
-app: dark amber text on a mid-amber badge, effectively unreadable. The zinc-600
-avatar initials are hardcoded outside the token system and vanish on dark
-surfaces. Both are page-local and cheap.
+`1.03:1` on `/admin/help` (dark) is the worst reading in the app — near-white
+text on a near-white amber callout, invisible. `1.17:1` for the show-desk's
+"In progress" badge is dark amber on mid-amber, equally unreadable.
+
+The zinc/slate class-code badges on `exhibitor/show-detail` are the largest
+single block: four hardcoded greys outside the token system, 200 rendered
+instances, all around 1.9:1 on dark cards. This one is only visible because
+clustering counts instances — by *route* spread it is a single-route finding,
+and by worst-ratio it sits mid-table.
 
 The 36–42px stat numbers only need 3:1 as large text, and miss it by a little.
 Whether that is worth changing is a design call, not a defect report.
 
 ## Small targets — the 44px bar
 
-| Control | Routes | Size | Examples |
-| --- | --- | --- | --- |
-| `button` | 18 | 32px | "Change photo", "See classes", "Copy Admin code" |
-| `a` | 18 | 24px | sidebar/nav links |
-| `button` | 16 | 40px | "Copy link", "Print", "New Person" |
-| `a` | 14 | 36px | "Sign In", "Sign Up" |
-| `button` | 14 | 36px | "More show actions", "Move up — #100 Willow" |
-| `combobox` | 8 | 40px | "Trial", "Sort", "Report", "Organization *" |
-| `input` | 6 | 40px | form fields on account and create-show |
-| `checkbox` | 4 | 16px | "Select all registrations on this page" |
+| Control | Routes | Instances | Size | Examples |
+| --- | --- | --- | --- | --- |
+| `button` | 20 | 50 | 32px | "Change photo", "See classes", "Copy Admin code" |
+| `button` | 20 | 50 | 40px | "Add Dog", "Copy link", "Print", "Regenerate codes" |
+| `a` | 18 | 66 | 24px | sidebar / nav links |
+| `a` | 14 | 28 | 36px | "Sign In", "Sign Up" |
+| `button` | 14 | 138 | 36px | "More show actions", "Move up — #100 Willow" |
+| `combobox` | 12 | 18 | 40px | "Trial", "Sort", "Report", "Organization *" |
+| `input` | 8 | 24 | 40px | form fields on account and create-show |
+| `checkbox` | 4 | 6 | 16px | "Select all registrations on this page" |
 
 The shape here is a **shared-component** story, not a per-page one: the 32px and
-36px button clusters span 18 and 14 route-measurements respectively, which means
-they are `Button` size variants, not individual mistakes. Round 5 already found
+40px button clusters each span 20 route-measurements, which means they are
+`Button` size variants, not individual mistakes. Round 5 already found
 one instance of exactly this (`size="default"` is `h-10` = 40px, despite its
 "Comfortable touch target" comment) and fixed it at one call site. The variant
 itself is still 40px everywhere else.

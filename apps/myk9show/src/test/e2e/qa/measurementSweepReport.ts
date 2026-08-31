@@ -102,66 +102,77 @@ export interface Cluster {
   signature: string;
   detail: string;
   worst: number;
+  /** Total occurrences across every route, not the number of routes. */
+  occurrences: number;
   routes: string[];
 }
 
 /**
  * Groups contrast findings by the colour pair that produced them. The colour
  * pair — not the text — is the thing a fix would change.
+ *
+ * Reads the probe's UNTRUNCATED per-page aggregates, never the sampled rows.
+ * Clustering the samples would rank by severity while claiming to rank by
+ * spread: a pair used 400 times on a page contributes nothing unless it happens
+ * to be among that page's worst dozen readings.
  */
 export function contrastClusters(usable: RouteMeasurement[]): Cluster[] {
   const map = new Map<string, Cluster>();
   for (const m of usable) {
-    for (const f of m.probe!.contrast) {
-      const signature = `${f.fg} on ${f.bg}`;
-      const existing = map.get(signature);
+    for (const g of m.probe!.contrastGroups) {
+      const existing = map.get(g.signature);
       const where = `${m.id} (${m.theme})`;
       if (existing) {
-        existing.worst = Math.min(existing.worst, f.ratio);
+        existing.worst = Math.min(existing.worst, g.worst);
+        existing.occurrences += g.count;
         if (!existing.routes.includes(where)) existing.routes.push(where);
       } else {
-        map.set(signature, {
-          signature,
-          detail: `${f.fontPx}px${f.bold ? ' bold' : ''}, needs ${f.required}:1 — e.g. "${f.text}"`,
-          worst: f.ratio,
+        map.set(g.signature, {
+          signature: g.signature,
+          detail: `${g.fontPx}px${g.bold ? ' bold' : ''}, needs ${g.required}:1 — e.g. "${g.sampleText}"`,
+          worst: g.worst,
+          occurrences: g.count,
           routes: [where],
         });
       }
     }
   }
-  return [...map.values()].sort(
-    (a, b) => b.routes.length - a.routes.length || a.worst - b.worst
-  );
+  return [...map.values()].sort((a, b) => b.routes.length - a.routes.length || a.worst - b.worst);
 }
 
 /**
  * Groups small targets by role, tier, and the shortest side — NOT by the exact
  * box. Clustering on `WxH` split one finding ("the landing footer link row is
- * 18px tall") into eight rows that differ only in label width, which buries the
- * cross-route signal the whole report is ranked on.
+ * 18px tall") into eight rows differing only in label width, which buries the
+ * cross-route signal the report is ranked on. Reads untruncated aggregates for
+ * the same reason `contrastClusters` does.
  */
 export function targetClusters(usable: RouteMeasurement[]): Cluster[] {
   const map = new Map<string, Cluster>();
   for (const m of usable) {
-    for (const f of m.probe!.targets) {
-      const smallest = Math.min(f.width, f.height);
-      const tier = f.under24 ? 'under 24px (WCAG 2.5.8 AA)' : 'under 44px';
-      const signature = `${f.role}, ${smallest}px shortest side, ${tier}`;
-      const existing = map.get(signature);
+    for (const g of m.probe!.targetGroups) {
+      const existing = map.get(g.signature);
       const where = `${m.id} (${m.theme})`;
       if (existing) {
+        existing.occurrences += g.count;
         if (!existing.routes.includes(where)) existing.routes.push(where);
-        if (!existing.detail.includes(f.label) && existing.detail.length < 90) {
-          existing.detail += `, "${f.label}"`;
+        for (const label of g.labels) {
+          if (!existing.detail.includes(label) && existing.detail.length < 90) {
+            existing.detail += `, "${label}"`;
+          }
         }
       } else {
-        map.set(signature, { signature, detail: `e.g. "${f.label}"`, worst: smallest, routes: [where] });
+        map.set(g.signature, {
+          signature: g.signature,
+          detail: g.labels.map(l => `"${l}"`).join(', '),
+          worst: g.smallest,
+          occurrences: g.count,
+          routes: [where],
+        });
       }
     }
   }
-  return [...map.values()].sort(
-    (a, b) => b.routes.length - a.routes.length || a.worst - b.worst
-  );
+  return [...map.values()].sort((a, b) => b.routes.length - a.routes.length || a.worst - b.worst);
 }
 
 function table(header: string[], rows: string[][]): string {
@@ -177,6 +188,7 @@ function clusterRows(clusters: Cluster[], limit: number): string[][] {
     .map(c => [
       `\`${c.signature}\``,
       String(c.routes.length),
+      String(c.occurrences),
       String(c.worst),
       c.detail.replace(/\|/g, '\\|'),
       c.routes.slice(0, 4).join(', ') + (c.routes.length > 4 ? ` +${c.routes.length - 4}` : ''),
@@ -230,14 +242,17 @@ export function renderSweepReport(
   lines.push('');
   lines.push(
     table(
-      ['Colour pair', 'Routes', 'Worst', 'Detail', 'Where'],
+      ['Colour pair', 'Routes', 'Instances', 'Worst', 'Detail', 'Where'],
       clusterRows(contrast, 20)
     )
   );
   lines.push('## Small-target clusters');
   lines.push('');
   lines.push(
-    table(['Control', 'Routes', 'Smallest side', 'Detail', 'Where'], clusterRows(targets, 20))
+    table(
+      ['Control', 'Routes', 'Instances', 'Smallest side', 'Detail', 'Where'],
+      clusterRows(targets, 20)
+    )
   );
   lines.push('## Controls with no accessible name');
   lines.push('');

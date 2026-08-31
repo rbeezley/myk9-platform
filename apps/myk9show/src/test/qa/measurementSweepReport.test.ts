@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ProbeResult } from '../e2e/qa/measurementProbe';
+import type { ContrastGroup, ProbeResult, TargetGroup } from '../e2e/qa/measurementProbe';
 import {
   contrastClusters,
   partition,
@@ -29,6 +29,8 @@ function probe(overrides: Partial<ProbeResult> = {}): ProbeResult {
     unmeasurable: 0,
     interactive: 20,
     totals: { contrast: 0, targets: 0, names: 0 },
+    contrastGroups: [],
+    targetGroups: [],
     contrast: [],
     targets: [],
     names: [],
@@ -166,69 +168,106 @@ describe('partition', () => {
   });
 });
 
+const contrastGroup = (fg: string, bg: string, worst: number, count = 1): ContrastGroup => ({
+  signature: `${fg} on ${bg}`,
+  count,
+  worst,
+  required: 4.5,
+  fontPx: 14,
+  bold: false,
+  sampleText: 'Current',
+});
+
+const targetGroup = (
+  signature: string,
+  smallest: number,
+  under24: boolean,
+  labels: string[],
+  count = 1
+): TargetGroup => ({ signature, count, smallest, under24, labels });
+
 describe('contrastClusters', () => {
   it('ranks a colour pair seen on many routes above a worse one seen once', () => {
-    const shared = contrastFinding('rgb(154,145,132)', 'rgb(48,38,32)', 3.96);
-    const isolated = contrastFinding('rgb(120,120,120)', 'rgb(90,90,90)', 1.6);
-    const usable = [
-      measurement({ id: 'a', probe: probe({ contrast: [shared] }) }),
-      measurement({ id: 'b', probe: probe({ contrast: [shared] }) }),
-      measurement({ id: 'c', probe: probe({ contrast: [shared, isolated] }) }),
-    ];
-    const clusters = contrastClusters(usable);
+    const shared = contrastGroup('rgb(154,145,132)', 'rgb(48,38,32)', 3.96);
+    const isolated = contrastGroup('rgb(120,120,120)', 'rgb(90,90,90)', 1.6);
+    const clusters = contrastClusters([
+      measurement({ id: 'a', probe: probe({ contrastGroups: [shared] }) }),
+      measurement({ id: 'b', probe: probe({ contrastGroups: [shared] }) }),
+      measurement({ id: 'c', probe: probe({ contrastGroups: [shared, isolated] }) }),
+    ]);
     // Spread first: three routes beats a worse single reading. This ordering IS
-    // the argument for sweeping broadly — one token edit fixes the top row.
+    // the argument for sweeping broadly - one token edit fixes the top row.
     expect(clusters[0].routes).toHaveLength(3);
     expect(clusters[0].worst).toBe(3.96);
     expect(clusters[1].routes).toHaveLength(1);
   });
 
-  it('does not double-count one route measured in both themes as two routes', () => {
-    const f = contrastFinding('rgb(1,1,1)', 'rgb(2,2,2)', 2);
+  it('clusters from untruncated per-page aggregates, not the sampled rows', () => {
+    // The probe returns at most `limit` sample rows per page. If clustering read
+    // those, a pair used 400 times but never among a page's worst dozen would
+    // vanish from a ranking that claims to measure spread. Here the sampled rows
+    // deliberately carry a DIFFERENT colour pair from the aggregates.
     const clusters = contrastClusters([
-      measurement({ id: 'a', theme: 'light', probe: probe({ contrast: [f] }) }),
-      measurement({ id: 'a', theme: 'light', probe: probe({ contrast: [f] }) }),
+      measurement({
+        probe: probe({
+          contrastGroups: [contrastGroup('rgb(1,1,1)', 'rgb(2,2,2)', 4.1, 400)],
+          contrast: [contrastFinding('rgb(9,9,9)', 'rgb(8,8,8)', 1.2)],
+        }),
+      }),
+    ]);
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].signature).toBe('rgb(1,1,1) on rgb(2,2,2)');
+    expect(clusters[0].occurrences).toBe(400);
+  });
+
+  it('does not double-count one route measured twice as two routes', () => {
+    const g = contrastGroup('rgb(1,1,1)', 'rgb(2,2,2)', 2);
+    const clusters = contrastClusters([
+      measurement({ id: 'a', theme: 'light', probe: probe({ contrastGroups: [g] }) }),
+      measurement({ id: 'a', theme: 'light', probe: probe({ contrastGroups: [g] }) }),
     ]);
     expect(clusters[0].routes).toEqual(['a (light)']);
+    expect(clusters[0].occurrences).toBe(2);
   });
 });
 
 describe('targetClusters', () => {
   it('sorts controls that miss the 24px AA floor ahead of merely-small ones', () => {
-    const small = {
-      kind: 'target' as const,
-      label: 'Close',
-      role: 'button',
-      width: 20,
-      height: 20,
-      under24: true,
-      where: 'div > button',
-    };
-    const medium = { ...small, label: 'Change', width: 104, height: 32, under24: false };
     const clusters = targetClusters([
-      measurement({ probe: probe({ targets: [medium, small] }) }),
+      measurement({
+        probe: probe({
+          targetGroups: [
+            targetGroup('button, 32px shortest side, under 44px', 32, false, ['Change']),
+            targetGroup('button, 20px shortest side, under 24px (WCAG 2.5.8 AA)', 20, true, [
+              'Close',
+            ]),
+          ],
+        }),
+      }),
     ]);
-    expect(clusters[0].signature).toBe('button, 20px shortest side, under 24px (WCAG 2.5.8 AA)');
+    expect(clusters[0].signature).toContain('2.5.8');
     expect(clusters[1].signature).toContain('under 44px');
   });
 
-  it('clusters same-height controls that differ only in label width', () => {
-    // "Terms", "Privacy" and "Contact" in one footer row are ONE finding. Keying
-    // the cluster on the full WxH box split them into three, which buries the
-    // cross-route ranking the report exists to produce.
-    const link = (label: string, width: number) => ({
-      kind: 'target' as const,
-      label,
-      role: 'a',
-      width,
-      height: 18,
-      under24: true,
-      where: 'footer > nav > a',
-    });
+  it('keeps same-shape controls that differ only in label as one cluster', () => {
+    // "Terms", "Privacy" and "Contact" in one footer row are ONE finding.
     const clusters = targetClusters([
-      measurement({ probe: probe({ targets: [link('Terms', 43), link('Privacy', 50), link('Contact', 55)] }) }),
+      measurement({
+        probe: probe({
+          targetGroups: [
+            targetGroup(
+              'a, 18px shortest side, under 44px',
+              18,
+              false,
+              ['Terms', 'Privacy', 'Contact'],
+              3
+            ),
+          ],
+        }),
+      }),
     ]);
     expect(clusters).toHaveLength(1);
+    expect(clusters[0].occurrences).toBe(3);
     expect(clusters[0].detail).toContain('Terms');
     expect(clusters[0].detail).toContain('Privacy');
   });
@@ -243,7 +282,7 @@ describe('renderSweepReport', () => {
         measurement({
           probe: probe({
             totals: { contrast: 37, targets: 0, names: 0 },
-            contrast: [contrastFinding('a', 'b', 3)],
+            contrastGroups: [contrastGroup('a', 'b', 3)],
           }),
         }),
       ],
@@ -257,6 +296,48 @@ describe('renderSweepReport', () => {
     expect(md).toContain('Excluded measurements');
     expect(md).toContain('/sign-in');
     expect(md).toContain('| Usable | 0 |');
+  });
+
+  it('renders every table with as many cells per row as its header declares', () => {
+    // Adding an "Instances" column to the cluster rows without adding it to the
+    // small-target header shipped a table whose rows had six cells under a
+    // five-column head. Markdown renders that silently and wrong.
+    const md = renderSweepReport(
+      [
+        measurement({
+          probe: probe({
+            contrastGroups: [contrastGroup('rgb(1,1,1)', 'rgb(2,2,2)', 3)],
+            targetGroups: [targetGroup('button, 32px shortest side, under 44px', 32, false, ['X'])],
+            names: [{ kind: 'name', role: 'input', html: '<input>', where: 'div > input' }],
+            overflowPx: 12,
+            overflowSources: [
+              { tag: 'div', className: 'wide', text: 'wide', left: 0, right: 9999 },
+            ],
+          }),
+        }),
+        measurement({ id: 'z', reached: false, landedPath: '/sign-in' }),
+      ],
+      42
+    );
+
+    const lines = md.split('\n');
+    let header: number | null = null;
+    let checked = 0;
+    for (const line of lines) {
+      if (!line.startsWith('|')) {
+        header = null;
+        continue;
+      }
+      const cells = line.split('|').length;
+      if (header === null) header = cells;
+      else if (!/^\|[\s|-]+\|$/.test(line)) {
+        expect(cells, `row has ${cells} cells under a ${header}-cell header: ${line}`).toBe(header);
+        checked++;
+      }
+    }
+    // Guard the guard: if the fixture stopped producing rows this would pass
+    // while checking nothing.
+    expect(checked).toBeGreaterThan(8);
   });
 
   it('renders every section even when nothing was found', () => {

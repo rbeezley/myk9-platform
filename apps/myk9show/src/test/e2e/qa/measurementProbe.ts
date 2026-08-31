@@ -34,6 +34,8 @@
 
 import type {
   ContrastFinding,
+  ContrastGroup,
+  TargetGroup,
   NameFinding,
   OverflowSource,
   ProbeResult,
@@ -346,18 +348,42 @@ export function measurePage(limit: number): ProbeResult {
   }));
 
   /**
-   * WCAG 2.5.8's spacing exception: an undersized target passes if a 24px
-   * circle centred on it touches no other target's circle. A generously spaced
-   * 18px footer link row conforms, and reporting it as a defect is the same
-   * class of error as round 5's 504 phantom checkboxes — technically derived,
-   * empirically wrong, and enough noise to make the real rows unreadable.
+   * WCAG 2.5.8's spacing exception, as actually worded: an undersized target
+   * conforms if a 24 CSS-pixel-diameter circle centred on it intersects neither
+   * another target nor the circle of another undersized target.
+   *
+   * Both halves are required, and the first is the one that bites. Comparing
+   * centre distances alone tests only circle-against-circle, which is the
+   * weaker half: a 16px control whose neighbour is a large button 20px away
+   * passes the centre test while its circle plainly overlaps that button. An
+   * under-strict exception is worse here than an over-strict one, because it
+   * produces a confident "no WCAG target failures" conclusion out of a check
+   * that was not looking (Codex, this PR).
+   *
+   * Reporting these at all still needs care in the other direction — a
+   * generously spaced 18px footer link row genuinely conforms, and calling it a
+   * defect is the same class of error as round 5's 504 phantom checkboxes.
    */
+  const RADIUS = 12;
   const spacingExempt = (index: number) => {
     const a = centers[index];
-    for (let j = 0; j < centers.length; j++) {
+    for (let j = 0; j < candidates.length; j++) {
       if (j === index) continue;
-      const b = centers[j];
-      if (Math.hypot(a.x - b.x, a.y - b.y) < 24) return false;
+      const other = candidates[j].box;
+      const otherSmallest = Math.min(other.width, other.height);
+
+      if (otherSmallest < 24) {
+        // Both undersized: the circles must not intersect.
+        const b = centers[j];
+        if (Math.hypot(a.x - b.x, a.y - b.y) < 2 * RADIUS) return false;
+        continue;
+      }
+
+      // Circle against the other target's bounding box: the closest point of
+      // that box must lie at least one radius away from this target's centre.
+      const dx = Math.max(other.left - a.x, 0, a.x - (other.left + other.width));
+      const dy = Math.max(other.top - a.y, 0, a.y - (other.top + other.height));
+      if (Math.hypot(dx, dy) < RADIUS) return false;
     }
     return true;
   };
@@ -418,6 +444,55 @@ export function measurePage(limit: number): ProbeResult {
     names: names.length,
   };
 
+  // Cluster signatures are ALSO aggregated before truncation, and this is not a
+  // nicety. The report ranks by how many routes a signature spans, so if the
+  // cross-route grouping were built from the truncated rows, a colour pair used
+  // 400 times on a page would vanish from the ranking whenever it was not among
+  // that page's 12 worst readings — the report would claim to rank by spread
+  // while measuring only severity (Codex, this PR).
+  const contrastGroups = new Map<string, ContrastGroup>();
+  for (const f of contrast) {
+    const signature = `${f.fg} on ${f.bg}`;
+    const existing = contrastGroups.get(signature);
+    if (existing) {
+      existing.count++;
+      existing.worst = Math.min(existing.worst, f.ratio);
+    } else {
+      contrastGroups.set(signature, {
+        signature,
+        count: 1,
+        worst: f.ratio,
+        required: f.required,
+        fontPx: f.fontPx,
+        bold: f.bold,
+        sampleText: f.text,
+      });
+    }
+  }
+
+  const targetGroups = new Map<string, TargetGroup>();
+  for (const f of targets) {
+    const smallest = Math.min(f.width, f.height);
+    const signature = `${f.role}, ${smallest}px shortest side, ${
+      f.under24 ? 'under 24px (WCAG 2.5.8 AA)' : 'under 44px'
+    }`;
+    const existing = targetGroups.get(signature);
+    if (existing) {
+      existing.count++;
+      if (existing.labels.length < 8 && !existing.labels.includes(f.label)) {
+        existing.labels.push(f.label);
+      }
+    } else {
+      targetGroups.set(signature, {
+        signature,
+        count: 1,
+        smallest,
+        under24: f.under24,
+        labels: [f.label],
+      });
+    }
+  }
+
   contrast.sort((a, b) => a.ratio - b.ratio);
   targets.sort((a, b) => Number(b.under24) - Number(a.under24) || a.width * a.height - b.width * b.height);
 
@@ -427,6 +502,8 @@ export function measurePage(limit: number): ProbeResult {
     unmeasurable,
     interactive,
     totals,
+    contrastGroups: [...contrastGroups.values()],
+    targetGroups: [...targetGroups.values()],
     contrast: contrast.slice(0, limit),
     targets: targets.slice(0, limit),
     names: names.slice(0, limit),

@@ -14,8 +14,22 @@ BEGIN;
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000240001', 'Show Officials Test Club');
 
--- role_requests.auth_user_id has an FK to auth.users, so these rows are required
--- even though people.auth_user_id does not enforce one.
+-- Fixture order matters here, and both orders fail differently. role_requests
+-- .auth_user_id has an FK to auth.users, so the auth rows are required. But
+-- inserting auth.users first links a people row automatically, and an explicit
+-- people insert then collides on people_auth_user_id_key; while inserting people
+-- WITH an auth_user_id and no email trips the sign-in email invariant. So:
+-- people first carrying the email, then auth.users, then adopt the ids -- the
+-- same order judge_assignment_private_read_test.sql uses.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-000000240011', 'Officials', 'Club Admin', 'officials-club-admin@example.test', NULL),
+  ('00000000-0000-0000-0000-000000240012', 'Officials', 'Appointed Secretary', 'officials-appointed@example.test', NULL),
+  -- Named on the paperwork and appointed nowhere. Under the old model this person had
+  -- full access to the show; now they have none, and that is the point.
+  ('00000000-0000-0000-0000-000000240013', 'Officials', 'Named Only', 'officials-named-only@example.test', NULL),
+  ('00000000-0000-0000-0000-000000240014', 'Officials', 'Requester', 'officials-requester@example.test', NULL);
+
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
   created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
@@ -27,16 +41,18 @@ VALUES
   ('00000000-0000-0000-0000-000000240103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-named-only@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000240104', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-requester@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
 
--- email must match the auth.users row above: a trigger enforces that a person's
--- contact address agrees with the identity they sign in with.
-INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
-VALUES
-  ('00000000-0000-0000-0000-000000240011', 'Officials', 'Club Admin', 'officials-club-admin@example.test', '00000000-0000-0000-0000-000000240101'),
-  ('00000000-0000-0000-0000-000000240012', 'Officials', 'Appointed Secretary', 'officials-appointed@example.test', '00000000-0000-0000-0000-000000240102'),
-  -- Named on the paperwork and appointed nowhere. Under the old model this person had
-  -- full access to the show; now they have none, and that is the point.
-  ('00000000-0000-0000-0000-000000240013', 'Officials', 'Named Only', 'officials-named-only@example.test', '00000000-0000-0000-0000-000000240103'),
-  ('00000000-0000-0000-0000-000000240014', 'Officials', 'Requester', 'officials-requester@example.test', '00000000-0000-0000-0000-000000240104');
+-- Idempotent: if the auth.users insert already adopted these people by email,
+-- this sets what is already set rather than fighting it.
+UPDATE public.people AS person
+SET auth_user_id = fixture.auth_id
+FROM (VALUES
+  ('00000000-0000-0000-0000-000000240011'::uuid, '00000000-0000-0000-0000-000000240101'::uuid),
+  ('00000000-0000-0000-0000-000000240012'::uuid, '00000000-0000-0000-0000-000000240102'::uuid),
+  ('00000000-0000-0000-0000-000000240013'::uuid, '00000000-0000-0000-0000-000000240103'::uuid),
+  ('00000000-0000-0000-0000-000000240014'::uuid, '00000000-0000-0000-0000-000000240104'::uuid)
+) AS fixture(person_id, auth_id)
+WHERE person.id = fixture.person_id
+  AND person.auth_user_id IS DISTINCT FROM fixture.auth_id;
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 VALUES (

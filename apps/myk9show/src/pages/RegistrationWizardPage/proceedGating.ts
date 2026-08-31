@@ -19,12 +19,12 @@ export interface ProceedGatingContext {
   hasPaymentMethod: boolean;
   needsAgreement: boolean;
   /**
-   * The agreement is required but could not be loaded (offline, failed, or no
-   * row for this organization). The checkbox is then not on screen, so asking
-   * the user to tick it names a control that does not exist.
+   * An agreement may apply but the query FAILED, so we do not know whether one
+   * is required. Distinct from "resolved to no row", which means this
+   * organization simply has no agreement and nothing should block.
    */
   agreementUnavailable: boolean;
-  /** The agreement is required and still fetching — the checkbox is a skeleton. */
+  /** An agreement may apply and is still fetching — the checkbox is a skeleton. */
   agreementLoadingNow: boolean;
   agreedToEntryAgreement: boolean;
   capacityReady: boolean;
@@ -74,13 +74,13 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
       if (ctx.totalFees > 0 && !ctx.hasPaymentMethod) {
         return 'Choose a payment method to continue.';
       }
-      if (ctx.needsAgreement && ctx.agreementUnavailable) {
+      if (ctx.agreementUnavailable) {
         // Never waived — entering a show requires agreeing to the organization's
         // terms. But say what is actually wrong, and point at the retry that is
         // now rendered in place of the checkbox.
         return 'We could not load the entry agreement, so we cannot take this entry yet. Check your connection, then use the retry button in the message above.';
       }
-      if (ctx.needsAgreement && ctx.agreementLoadingNow) {
+      if (ctx.agreementLoadingNow) {
         return 'Loading the entry agreement. It will appear here in a moment.';
       }
       if (ctx.needsAgreement && !ctx.agreedToEntryAgreement) {

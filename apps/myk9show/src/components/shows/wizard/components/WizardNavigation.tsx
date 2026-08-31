@@ -109,7 +109,15 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
              silently did nothing on click. */
           className={cn(
             'relative gap-2 px-4 py-3 sm:px-6',
-            !canGoNext && !isLoading && 'opacity-50 cursor-not-allowed hover:translate-y-0'
+            // NOT opacity-50. This button is deliberately focusable so its
+            // reason stays reachable, which means it must still meet AA — an
+            // opacity dim measured 2.22:1 light / 2.42:1 dark. It also lost to
+            // the variant's own `hover:opacity-90`, which sits in a different
+            // twMerge group and wins on specificity, so the "disabled" look
+            // evaporated the moment the pointer arrived.
+            !canGoNext &&
+              !isLoading &&
+              'cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted hover:text-muted-foreground hover:opacity-100 hover:translate-y-0'
           )}
         >
           {isLoading ? (

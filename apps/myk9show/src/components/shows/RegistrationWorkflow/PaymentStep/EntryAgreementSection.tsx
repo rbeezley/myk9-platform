@@ -26,17 +26,6 @@ export const EntryAgreementSection = ({
 
   if (isError) {
     return (
-      <DelightfulError variant="inline" message="Failed to load entry agreement." reset={refetch} />
-    );
-  }
-
-  // Not `return null`. A paused query (offline — networkMode 'online' means
-  // isLoading false, no error, no data) and an organization with no agreement
-  // row both land here. Rendering nothing removed the checkbox while the Next
-  // button still demanded it, stranding the exhibitor with a reason pointing at
-  // a control that was not on screen.
-  if (!data) {
-    return (
       <DelightfulError
         variant="inline"
         message={`We could not load the ${organization} entry agreement. You need to agree to it before entering, so this step cannot continue until it loads.`}
@@ -44,6 +33,11 @@ export const EntryAgreementSection = ({
       />
     );
   }
+
+  // Resolved with no row: this organization has no agreement configured, so
+  // there is nothing to present and nothing to agree to. Rendering nothing is
+  // correct here — the gate does not ask for a tick in this state.
+  if (!data) return null;
 
   return (
     <div className="space-y-3">

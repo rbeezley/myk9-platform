@@ -350,19 +350,24 @@ export function useRegistrationWizardState() {
     !capacityLoading &&
     (!!capacityError || registrationCapacity.unknownClassIds.size > 0);
 
-  // The entry agreement is a legal gate, so it is never waived — but whether it
-  // can be SHOWN is a separate question from whether it is REQUIRED. The
-  // requirement comes from the show's organization; the checkbox comes from a
-  // query that can pause offline (networkMode 'online': isLoading false, no
-  // error, no data) or find no row. When those diverge, Next used to block
-  // demanding a control that was not rendered — a dead end with no exit.
-  // Same query key as EntryAgreementSection, so this is a cache read.
-  const { data: entryAgreement, isLoading: agreementLoading } = useOrganizationAgreement(
-    currentShow?.organization ?? ''
-  );
-  const agreementRequired = !!currentShow?.organization;
-  const agreementUnavailable = agreementRequired && !agreementLoading && !entryAgreement;
-  const agreementLoadingNow = agreementRequired && agreementLoading;
+  // Three distinct states, which the previous version collapsed into two and
+  // got wrong. The show's organization says an agreement MAY apply; the query
+  // says whether one is configured; and failure says we do not know.
+  //   - resolved with a row  -> must be ticked
+  //   - resolved with null   -> this organization has no agreement configured,
+  //                             so there is nothing to present or to agree to
+  //   - failed               -> unknown, block with a retry
+  // Only 'AKC' is seeded, so treating "no row" as an error blocked every UKC and
+  // ASCA show permanently. Same query key as EntryAgreementSection: a cache read.
+  const {
+    data: entryAgreement,
+    isLoading: agreementLoading,
+    isError: agreementFailed,
+  } = useOrganizationAgreement(currentShow?.organization ?? '');
+  const agreementGateApplies = !!currentShow?.organization;
+  const agreementRequired = agreementGateApplies && !!entryAgreement;
+  const agreementLoadingNow = agreementGateApplies && agreementLoading;
+  const agreementUnavailable = agreementGateApplies && !agreementLoading && agreementFailed;
 
   const liveTotalFees = useMemo(
     () =>

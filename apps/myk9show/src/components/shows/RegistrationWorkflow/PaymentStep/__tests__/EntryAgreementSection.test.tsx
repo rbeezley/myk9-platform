@@ -93,31 +93,27 @@ describe('EntryAgreementSection', () => {
     const user = userEvent.setup();
     render(<EntryAgreementSection {...baseProps} />);
 
-    expect(screen.getByText(/Failed to load entry agreement/)).toBeInTheDocument();
+    expect(screen.getByText(/could not load the .* entry agreement/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /retry/i }));
     expect(refetch).toHaveBeenCalled();
   });
 
-  // Offline the query PAUSES rather than failing: isLoading false, isError
-  // false, data undefined. This used to render nothing, which removed the
-  // checkbox while the Next button still blocked demanding it — the exhibitor
-  // was stranded with a reason pointing at a control that was not on screen.
-  it('explains and offers a retry when the agreement resolves to nothing', async () => {
-    const refetch = vi.fn();
+  // Resolved with no row means this organization has no agreement configured —
+  // a configuration fact, not a failure. Rendering nothing is correct, and the
+  // wizard's gate does not ask for a tick in this state. Only 'AKC' is seeded,
+  // so treating this as an error blocked every UKC and ASCA show permanently.
+  it('renders nothing when the organization has no agreement configured', () => {
     mockHook.mockReturnValue({
-      data: undefined,
+      data: null,
       isLoading: false,
       isError: false,
-      refetch,
+      refetch: vi.fn(),
     });
-    const user = userEvent.setup();
-    render(<EntryAgreementSection {...baseProps} />);
+    const { container } = render(<EntryAgreementSection {...baseProps} />);
 
-    expect(screen.getByText(/could not load the .* entry agreement/i)).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /retry/i }));
-    expect(refetch).toHaveBeenCalled();
+    expect(screen.queryByText(/could not load/i)).not.toBeInTheDocument();
   });
 });

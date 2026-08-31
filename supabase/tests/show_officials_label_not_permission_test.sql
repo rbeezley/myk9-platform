@@ -14,6 +14,19 @@ BEGIN;
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000240001', 'Show Officials Test Club');
 
+-- role_requests.auth_user_id has an FK to auth.users, so these rows are required
+-- even though people.auth_user_id does not enforce one.
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES
+  ('00000000-0000-0000-0000-000000240101', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-club-admin@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000240102', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-appointed@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000240103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-named-only@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000240104', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-requester@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
+
 INSERT INTO public.people (id, first_name, last_name, auth_user_id)
 VALUES
   ('00000000-0000-0000-0000-000000240011', 'Officials', 'Club Admin', '00000000-0000-0000-0000-000000240101'),

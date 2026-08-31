@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { signInAsSecretary } from '../shared/auth';
 import {
   createBrowserHealth,
@@ -94,7 +94,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       .filter({ hasText: seed.dogName });
     await expect(entryCard).toContainText(seed.className, { timeout: 10000 });
 
-    await openArmbandDialog(page);
+    await openArmbandDialog(entryCard, seed.dogName);
     const armbandDialog = page.getByRole('dialog', { name: 'Assign Armband' });
     await expect(armbandDialog).toBeVisible();
     await armbandDialog.getByLabel('Armband Number').fill(seed.armband);
@@ -150,47 +150,35 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
   });
 });
 
-async function openArmbandDialog(page: Page) {
-  const directAssign = page.getByRole('button', { name: 'Assign', exact: true }).last();
-  if (await clickVisibleButton(directAssign, 10000)) {
-    return;
-  }
-
-  await clickRowActionsWhenStable(
-    page.getByRole('button', { name: 'Actions', exact: true }).first()
-  );
-  const assignItem = page.getByRole('menuitem', { name: /Assign armband|Change armband/i });
-  await expect(assignItem.first()).toBeVisible({ timeout: 10000 });
-  await assignItem.first().click();
-}
-
-async function clickVisibleButton(button: Locator, timeout: number) {
-  try {
-    await expect(button).toBeVisible({ timeout });
-    await button.click();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function clickRowActionsWhenStable(rowActions: Locator) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    await expect(rowActions).toBeVisible({ timeout: 10000 });
-
-    try {
-      await rowActions.click({ timeout: 3000 });
-      return;
-    } catch (error) {
-      if (attempt === 3 || !isDetachedDuringClick(error)) {
-        throw error;
-      }
-    }
-  }
-}
-
-function isDetachedDuringClick(error: unknown) {
-  return error instanceof Error && /detached from the DOM/i.test(error.message);
+/**
+ * Open the armband dialog from the FOCUSED entry card.
+ *
+ * Both of this helper's old locators addressed names the app no longer emits,
+ * and neither could ever have matched:
+ *
+ * - `button[name="Assign", exact]` — the control's visible text is "Assign",
+ *   but its accessible name comes from `aria-label={`Assign armband to
+ *   ${dogName}`}` (EntryListCard), so an exact match on "Assign" fails. The
+ *   assigned variant reads `"<n>, change armband for <dog>"`.
+ * - `button[name="Actions", exact]` — RowActionMenu's trigger is labelled
+ *   "Actions for <dog>" (default "Row actions"), never bare "Actions".
+ *
+ * A WCAG 2.5.3 accessible-name change broke this and nothing noticed, because
+ * Playwright Regression had never executed a test (MYK9-271).
+ *
+ * Scoped to the card rather than the page: the old page-wide `.first()`/
+ * `.last()` could pick up a control from another region entirely, which turns
+ * a missing affordance into an unrelated click.
+ */
+async function openArmbandDialog(entryCard: Locator, dogName: string) {
+  const armbandButton = entryCard.getByRole('button', {
+    name: new RegExp(
+      `(assign armband to ${escapeRegExp(dogName)}|change armband for ${escapeRegExp(dogName)})`,
+      'i'
+    ),
+  });
+  await expect(armbandButton).toBeVisible({ timeout: 10000 });
+  await armbandButton.click();
 }
 
 function escapeRegExp(value: string) {

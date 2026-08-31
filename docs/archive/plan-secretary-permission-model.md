@@ -1,6 +1,6 @@
 # Plan — one rule for who may run a club's shows
 
-> **Status:** Active
+> **Status:** Complete
 
 ## The rule we want
 
@@ -484,3 +484,43 @@ accident.
 **[ADDED] This blocks nothing.** `expires_at` is already honoured by
 `is_trial_secretary` today and phase 1 keeps that clause, so the answer only decides whether
 phase 3's UI exposes an end date. Phases 1 and 2 proceed either way.
+
+## Outcome — 2026-08-31
+
+All three phases shipped and applied.
+
+| Phase | Migration | PR |
+| --- | --- | --- |
+| 1 — drop the membership coupling | `20260830210000_appointment_grants_show_access.sql` | [#1895](https://github.com/rbeezley/myk9-platform/pull/1895) |
+| 3 — make it visible | `20260830220000_club_show_managers_with_names.sql` | (shipped with phase 1) |
+| 2 — separate the label from the permission | `20260830240000_show_officials_separates_label_from_permission.sql` | [#1897](https://github.com/rbeezley/myk9-platform/pull/1897) |
+
+Phase 2's migration was pushed to `sojmvhhwsjxmfistvzbe` on 2026-08-31 and verified
+against the applied database rather than the migration text:
+
+- `show_officials` exists with RLS enabled and **no** `anon` grant.
+- The MYK9-258 `club_id IS NOT NULL` guard is present in both `manageable_show_ids` and
+  `is_show_office_manager`. Removing the show-scoped arms had removed these guards too —
+  a real cross-tenant regression that typecheck, lint, the ratchet and all 742 DB contract
+  tests passed with, and only CI's behavioural SQL caught.
+- Stewards keep their show-scoped rows (MYK9-114). Phase 2 initially withdrew them as
+  "paperwork"; they are a ring assignment, and the migration's own comments asserting
+  otherwise were wrong.
+- `anon` retains EXECUTE on `get_show_officials` (SA-006). Live had lost this grant with
+  no migration behind it, so the live ACL was **not** the authority — the migration corpus
+  was, and CI rebuilds from it.
+
+**Backfill, measured live:** 2 show-scoped rows deactivated (1 secretary, 1 chairman),
+0 stewards touched. Both people retain an active club-scoped appointment for the same
+club, so nobody lost access. Both labels carried into `show_officials` pointing at the
+same person and show, so the paperwork half is intact.
+
+### Not executed
+
+Two items from Testing above were never run, and are not covered by CI:
+
+- **Browser walk.** Appoint a secretary at Club A who is a member of no club, and confirm
+  they can create and run a Club A show end to end.
+- **Rendered paperwork.** The premium list, Trial Secretary Report and registry submission
+  were verified at the data layer only — `show_officials` holds the right person for the
+  right show. Nothing confirmed the PDFs and reports actually print it.

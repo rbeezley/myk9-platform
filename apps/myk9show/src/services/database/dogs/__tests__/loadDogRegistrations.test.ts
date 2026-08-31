@@ -267,3 +267,68 @@ describe('getAllDogs registration completeness', () => {
     expect(result.data?.[0]?.registrations).toEqual([fallbackRegistration]);
   });
 });
+
+/**
+ * MYK9-272.
+ *
+ * A PostgREST `.in()` filter travels in the URL, so an unbounded id list
+ * eventually produces a request the server rejects outright — and because the
+ * rejection carries no CORS headers, the browser reports it as a CORS error,
+ * naming the wrong cause entirely.
+ *
+ * It scales with data: small accounts never reach the limit, and a secretary
+ * gathering dogs across every managed show sent 200+ ids and failed every
+ * time. It also degrades quietly, since the caller catches the failure so the
+ * local replica can still answer — the user sees registrations and only
+ * `registrationsReadComplete` goes false.
+ *
+ * Asserting the CALL COUNT is the point. A test that only checked the merged
+ * rows would pass with the batching removed, because the mock has no URL.
+ */
+describe('loadDogRegistrations batching', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const ids = Array.from({ length: 250 }, (_, i) => `dog-${i}`);
+
+  it('splits a large id list across several requests and merges every batch', async () => {
+    mockLocalGet.mockResolvedValue([]);
+    mockServerIn.mockImplementation((_column: string, batch: string[]) => ({
+      data: batch.map(dogId => ({ id: `reg-${dogId}`, dog_id: dogId })),
+      error: null,
+    }));
+
+    const result = await loadDogRegistrations(ids);
+
+    // 250 ids at 100 per batch.
+    expect(mockServerIn).toHaveBeenCalledTimes(3);
+
+    // Every id is requested exactly once — no gaps, no repeats.
+    const requested = mockServerIn.mock.calls.flatMap(call => call[1] as string[]);
+    expect(requested).toEqual(ids);
+
+    // And every batch's rows survive the merge.
+    expect(result.byDog.size).toBe(250);
+    expect(result.registrationsReadComplete).toBe(true);
+  });
+
+  it('keeps the batches that succeeded when a later one fails', async () => {
+    // #1490 decided that a partial read stays VISIBLE and is reported as
+    // incomplete, rather than being discarded. Batching must not quietly
+    // reverse that: a first draft returned early on the failing batch and
+    // broke two of this file's existing tests.
+    mockLocalGet.mockResolvedValue([]);
+    mockServerIn
+      .mockReturnValueOnce({ data: [{ id: 'reg-1', dog_id: 'dog-0' }], error: null })
+      .mockReturnValueOnce({ data: null, error: { message: 'boom' } })
+      .mockReturnValueOnce({ data: [{ id: 'reg-2', dog_id: 'dog-200' }], error: null });
+
+    const result = await loadDogRegistrations(ids);
+
+    expect(result.serverError).toEqual({ message: 'boom' });
+    expect(result.registrationsReadComplete).toBe(false);
+    // The surviving batches are still here.
+    expect(result.byDog.get('dog-0')).toHaveLength(1);
+    expect(result.byDog.get('dog-200')).toHaveLength(1);
+  });
+});
+

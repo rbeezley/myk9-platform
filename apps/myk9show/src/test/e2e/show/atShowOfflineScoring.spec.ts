@@ -157,6 +157,41 @@ async function seedOfflineScoringEntry(): Promise<OfflineScoringSeed> {
     throw new Error(`Could not seed scoring dog: ${dogError?.message ?? 'missing dog'}`);
   }
 
+  // The new dog must carry a registration for this trial's registry, or the
+  // `entries_require_dog_registration` trigger (migration 20260828210000)
+  // rejects the entry with "A registration number is required to enter."
+  //
+  // Copy the TEMPLATE dog's registrations rather than hard-coding AKC: the
+  // template already enters this class, so whatever it holds satisfies the
+  // trigger by construction, and this keeps working if the trial's registry
+  // changes.
+  const { data: templateRegistrations, error: templateRegistrationsError } = await client
+    .from('dog_registrations')
+    .select('organization, registration_number, is_primary')
+    .eq('dog_id', template.dog_id);
+  if (templateRegistrationsError || !templateRegistrations?.length) {
+    await client.from('dogs').delete().eq('id', dog.id);
+    throw new Error(
+      `Could not read template registrations: ${
+        templateRegistrationsError?.message ?? 'template dog has none'
+      }`
+    );
+  }
+
+  const { error: registrationError } = await client.from('dog_registrations').insert(
+    templateRegistrations.map(registration => ({
+      dog_id: dog.id,
+      organization: registration.organization,
+      // Unique per seeded dog so a re-run cannot collide with a previous one.
+      registration_number: `E2E-${suffix}`,
+      is_primary: registration.is_primary,
+    }))
+  );
+  if (registrationError) {
+    await client.from('dogs').delete().eq('id', dog.id);
+    throw new Error(`Could not seed scoring registration: ${registrationError.message}`);
+  }
+
   const { data: entry, error: entryError } = await client
     .from('entries')
     .insert({
@@ -175,6 +210,8 @@ async function seedOfflineScoringEntry(): Promise<OfflineScoringSeed> {
     .select('id')
     .single();
   if (entryError || !entry) {
+    // dog_registrations.dog_id is ON DELETE CASCADE, so dropping the dog takes
+    // the registrations seeded above with it.
     await client.from('dogs').delete().eq('id', dog.id);
     throw new Error(`Could not seed scoring entry: ${entryError?.message ?? 'missing entry'}`);
   }

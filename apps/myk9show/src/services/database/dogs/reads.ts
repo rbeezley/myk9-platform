@@ -17,6 +17,7 @@ import {
   normalizeDogRegistrationNumber,
   normalizeDogRegistrationOrganization,
 } from '@/utils/dogIdentity';
+import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -176,7 +177,27 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
     // read — the replica may still be able to answer.
     (async (): Promise<{ data: unknown; error: unknown }> => {
       try {
-        return await supabase.from('dog_registrations').select('*').in('dog_id', dogIds);
+        // Batched, not one `.in(...)`: the filter travels in the URL, so an
+        // unbounded id list produces a request the server rejects outright.
+        // A secretary gathering dogs across every managed show sent 200+ ids
+        // and the read failed every time, reported by the browser as a CORS
+        // error because the rejection carries no CORS headers (MYK9-272).
+        const rows: Record<string, unknown>[] = [];
+        let firstError: unknown = null;
+        for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
+          const result = await supabase
+            .from('dog_registrations')
+            .select('*')
+            .in('dog_id', batch);
+          // Keep going after a failed batch, and return the rows that did
+          // arrive alongside the error. #1490 established that a partial read
+          // stays VISIBLE and is reported as incomplete rather than discarded;
+          // dropping it here would make those dogs read as having no
+          // registrations at all.
+          if (result.error) firstError = firstError ?? result.error;
+          rows.push(...((result.data ?? []) as Record<string, unknown>[]));
+        }
+        return { data: rows, error: firstError };
       } catch (error) {
         return { data: null, error };
       }

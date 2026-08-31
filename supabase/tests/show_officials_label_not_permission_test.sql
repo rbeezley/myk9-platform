@@ -27,14 +27,16 @@ VALUES
   ('00000000-0000-0000-0000-000000240103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-named-only@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000240104', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'officials-requester@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+-- email must match the auth.users row above: a trigger enforces that a person's
+-- contact address agrees with the identity they sign in with.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
-  ('00000000-0000-0000-0000-000000240011', 'Officials', 'Club Admin', '00000000-0000-0000-0000-000000240101'),
-  ('00000000-0000-0000-0000-000000240012', 'Officials', 'Appointed Secretary', '00000000-0000-0000-0000-000000240102'),
+  ('00000000-0000-0000-0000-000000240011', 'Officials', 'Club Admin', 'officials-club-admin@example.test', '00000000-0000-0000-0000-000000240101'),
+  ('00000000-0000-0000-0000-000000240012', 'Officials', 'Appointed Secretary', 'officials-appointed@example.test', '00000000-0000-0000-0000-000000240102'),
   -- Named on the paperwork and appointed nowhere. Under the old model this person had
   -- full access to the show; now they have none, and that is the point.
-  ('00000000-0000-0000-0000-000000240013', 'Officials', 'Named Only', '00000000-0000-0000-0000-000000240103'),
-  ('00000000-0000-0000-0000-000000240014', 'Officials', 'Requester', '00000000-0000-0000-0000-000000240104');
+  ('00000000-0000-0000-0000-000000240013', 'Officials', 'Named Only', 'officials-named-only@example.test', '00000000-0000-0000-0000-000000240103'),
+  ('00000000-0000-0000-0000-000000240014', 'Officials', 'Requester', 'officials-requester@example.test', '00000000-0000-0000-0000-000000240104');
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 VALUES (

@@ -24,7 +24,13 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { getDogBreedLabel, getDogDisplayName, getDogRegisteredName, Dog, User } from '@/types/dog-types';
+import {
+  getDogBreedLabel,
+  getDogDisplayName,
+  getDogRegisteredName,
+  Dog,
+  User,
+} from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { UserRole } from '@/types/auth-types';

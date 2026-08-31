@@ -24,6 +24,8 @@ export interface ProceedGatingContext {
    * the user to tick it names a control that does not exist.
    */
   agreementUnavailable: boolean;
+  /** The agreement is required and still fetching — the checkbox is a skeleton. */
+  agreementLoadingNow: boolean;
   agreedToEntryAgreement: boolean;
   capacityReady: boolean;
   blockedClassCount: number;
@@ -76,7 +78,10 @@ export function proceedBlockedReason(ctx: ProceedGatingContext): string | null {
         // Never waived — entering a show requires agreeing to the organization's
         // terms. But say what is actually wrong, and point at the retry that is
         // now rendered in place of the checkbox.
-        return 'We could not load the entry agreement, so we cannot take this entry yet. Check your connection and use Try again above.';
+        return 'We could not load the entry agreement, so we cannot take this entry yet. Check your connection, then use the retry button in the message above.';
+      }
+      if (ctx.needsAgreement && ctx.agreementLoadingNow) {
+        return 'Loading the entry agreement. It will appear here in a moment.';
       }
       if (ctx.needsAgreement && !ctx.agreedToEntryAgreement) {
         return 'Please review and agree to the entry agreement to continue.';

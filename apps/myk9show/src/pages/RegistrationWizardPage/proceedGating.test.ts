@@ -18,6 +18,7 @@ function ctx(overrides: Partial<ProceedGatingContext>): ProceedGatingContext {
     blockedClassCount: 0,
     capacityUnavailable: false,
     agreementUnavailable: false,
+    agreementLoadingNow: false,
     ...overrides,
   };
 }
@@ -126,15 +127,15 @@ describe('proceedBlockedReason', () => {
     });
 
     it('blocks while recovered class availability is unresolved', () => {
-      expect(
-        proceedBlockedReason(ctx({ stepId: 'payment', capacityReady: false }))
-      ).toBe('Checking class availability. Please wait, then try again.');
+      expect(proceedBlockedReason(ctx({ stepId: 'payment', capacityReady: false }))).toBe(
+        'Checking class availability. Please wait, then try again.'
+      );
     });
 
     it('blocks a full class that does not accept a wait list', () => {
-      expect(
-        proceedBlockedReason(ctx({ stepId: 'payment', blockedClassCount: 1 }))
-      ).toBe('Remove the full class that does not accept a wait list to continue.');
+      expect(proceedBlockedReason(ctx({ stepId: 'payment', blockedClassCount: 1 }))).toBe(
+        'Remove the full class that does not accept a wait list to continue.'
+      );
     });
 
     it('skips payment method for $0 totals', () => {
@@ -151,7 +152,7 @@ describe('proceedBlockedReason', () => {
         ctx({ stepId: 'payment', needsAgreement: true, agreementUnavailable: true })
       );
       expect(reason).toMatch(/could not load the entry agreement/i);
-      expect(reason).toMatch(/try again/i);
+      expect(reason).toMatch(/retry button/i);
       expect(reason).not.toMatch(/please review and agree/i);
     });
 
@@ -168,17 +169,27 @@ describe('proceedBlockedReason', () => {
       ).toMatch(/please review and agree/i);
     });
 
-    it('never lets an unloadable agreement through unagreed', () => {
-      expect(
-        proceedBlockedReason(
-          ctx({
-            stepId: 'payment',
-            needsAgreement: true,
-            agreementUnavailable: true,
-            agreedToEntryAgreement: false,
-          })
-        )
-      ).not.toBeNull();
+    it('says the agreement is loading rather than asking for a checkbox that is still a skeleton', () => {
+      const reason = proceedBlockedReason(
+        ctx({ stepId: 'payment', needsAgreement: true, agreementLoadingNow: true })
+      );
+      expect(reason).toMatch(/loading the entry agreement/i);
+      expect(reason).not.toMatch(/please review and agree/i);
+    });
+
+    it('blocks an unloadable agreement even when the box was somehow ticked', () => {
+      // not.toBeNull() alone would pass against the unfixed code through the
+      // `needsAgreement && !agreed` branch. Ticking the box removes that branch,
+      // so only the unavailable arm can produce a block here.
+      const reason = proceedBlockedReason(
+        ctx({
+          stepId: 'payment',
+          needsAgreement: true,
+          agreementUnavailable: true,
+          agreedToEntryAgreement: true,
+        })
+      );
+      expect(reason).toMatch(/could not load the entry agreement/i);
     });
 
     it('blocks until the entry agreement is accepted', () => {

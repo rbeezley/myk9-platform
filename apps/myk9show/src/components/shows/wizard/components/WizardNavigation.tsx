@@ -103,7 +103,14 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
           disabled={blockedReasonId ? isLoading : !canGoNext || isLoading}
           aria-disabled={!canGoNext || isLoading}
           {...(blockedReasonId && !canGoNext ? { 'aria-describedby': blockedReasonId } : {})}
-          className="relative gap-2 px-4 py-3 sm:px-6"
+          /* aria-disabled keeps the button focusable so its reason stays
+             reachable, but it applies none of the `disabled:` styles — without
+             these the button looked fully enabled, still hover-lifted, and
+             silently did nothing on click. */
+          className={cn(
+            'relative gap-2 px-4 py-3 sm:px-6',
+            !canGoNext && !isLoading && 'opacity-50 cursor-not-allowed hover:translate-y-0'
+          )}
         >
           {isLoading ? (
             <>

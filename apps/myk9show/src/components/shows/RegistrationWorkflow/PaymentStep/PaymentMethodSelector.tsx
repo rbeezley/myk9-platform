@@ -13,7 +13,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
@@ -42,13 +41,14 @@ const PaymentOptionCard: React.FC<PaymentOptionCardProps> = ({
   description,
   onSelect,
 }) => (
-  // role="radio" + aria-checked, not a bare button: these sit inside a
-  // RadioGroup that had no radio children, so a screen-reader user was told
-  // "button" with no indication of which payment method was selected.
+  // aria-pressed, not role="radio": the selected state was invisible to a
+  // screen reader (plain buttons, and the RadioGroup wrapper had no radio
+  // children). A radio role would promise roving tabindex and arrow-key
+  // navigation these cards do not implement, and a radiogroup may not contain
+  // the input/textarea detail panels interleaved between these options.
   <button
     type="button"
-    role="radio"
-    aria-checked={selected}
+    aria-pressed={selected}
     onClick={() => onSelect(value)}
     className={cn(
       'relative w-full rounded-lg border-2 p-4 text-left transition-all duration-150',
@@ -151,10 +151,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         <CardTitle className="text-base">Payment Method</CardTitle>
       </CardHeader>
       <CardContent>
-        <RadioGroup
-          value={paymentMethod}
-          onValueChange={v => onPaymentMethodChange(v as PaymentMethod)}
-        >
+        <div role="group" aria-label="Payment method">
           <div className="space-y-3">
             {/* Card checkout is exhibitor-self-service only: Stripe-hosted
                 checkout runs under the logged-in user's account and
@@ -177,9 +174,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <div className="ml-4 border-l-2 border-primary/20 pl-4">
                     <Alert>
                       <CreditCard className="h-4 w-4" />
-                      <AlertDescription>
-                        {PAYMENT_MESSAGES.CARD_CHECKOUT_REDIRECT}
-                      </AlertDescription>
+                      <AlertDescription>{PAYMENT_MESSAGES.CARD_CHECKOUT_REDIRECT}</AlertDescription>
                     </Alert>
                   </div>
                 )}
@@ -358,7 +353,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               </div>
             )}
           </div>
-        </RadioGroup>
+        </div>
       </CardContent>
     </Card>
   );

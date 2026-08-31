@@ -273,9 +273,7 @@ describe('RegistrationWizardPage — Stripe payment handoff', () => {
       expect(screen.getByTestId('step-content')).toHaveTextContent('dog-selection')
     );
     // First render must NOT steal focus — the user has only just arrived.
-    expect(document.activeElement).not.toBe(
-      screen.getByRole('heading', { name: /step 1 of/i })
-    );
+    expect(document.activeElement).not.toBe(screen.getByRole('heading', { name: /step 1 of/i }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled());
     await user.click(screen.getByRole('button', { name: 'Next' }));

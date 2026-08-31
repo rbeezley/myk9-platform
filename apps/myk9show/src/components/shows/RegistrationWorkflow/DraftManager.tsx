@@ -203,8 +203,8 @@ export function DraftManager({
                           </div>
                           <Button
                             variant="ghost"
-                            size="touch"
-                            className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            size="icon-lg"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             aria-label={`Delete draft ${draft.title}`}
                             onClick={e => {
                               e.stopPropagation();

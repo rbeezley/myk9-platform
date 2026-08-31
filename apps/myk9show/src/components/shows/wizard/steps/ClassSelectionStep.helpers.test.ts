@@ -39,9 +39,7 @@ describe('ClassSelectionStep helpers', () => {
   );
 
   it('preserves DB-backed classes when a new class is selected in add-classes mode', () => {
-    const selectedClasses = [
-      classDefinition('Container Novice B', 'Container', 'Novice', 'B'),
-    ];
+    const selectedClasses = [classDefinition('Container Novice B', 'Container', 'Novice', 'B')];
 
     const merged = mergeSelectedClassesWithExisting(
       existingTrialClasses,

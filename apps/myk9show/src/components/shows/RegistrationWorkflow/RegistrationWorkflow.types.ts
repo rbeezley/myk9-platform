@@ -11,18 +11,10 @@ export interface RegistrationStep {
 }
 
 export type WorkflowMode =
-  | 'exhibitor'
-  | 'secretary_existing'
-  | 'secretary_new'
-  | 'club_admin'
-  | 'site_admin';
+  'exhibitor' | 'secretary_existing' | 'secretary_new' | 'club_admin' | 'site_admin';
 
 export type StepId =
-  | 'dog-selection'
-  | 'class-selection'
-  | 'handler-assignment'
-  | 'payment'
-  | 'confirmation';
+  'dog-selection' | 'class-selection' | 'handler-assignment' | 'payment' | 'confirmation';
 
 export interface WorkflowConfig {
   steps: StepId[];

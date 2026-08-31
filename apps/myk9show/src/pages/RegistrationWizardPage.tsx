@@ -110,7 +110,7 @@ function RegistrationWizardContent() {
       hasMountedStep.current = true;
       return;
     }
-    stepHeadingRef.current?.focus();
+    stepHeadingRef.current?.focus({ preventScroll: true });
   }, [currentStep]);
 
   return (
@@ -183,7 +183,10 @@ function RegistrationWizardContent() {
               <p
                 id={PROCEED_BLOCKED_ID}
                 role="status"
-                className={cn('mb-3 text-sm text-muted-foreground', !showBlockedReason && 'sr-only')}
+                className={cn(
+                  'mb-3 text-sm text-muted-foreground',
+                  !showBlockedReason && 'sr-only'
+                )}
               >
                 {showBlockedReason ? proceedBlocked : ''}
               </p>
@@ -229,12 +232,10 @@ function RegistrationWizardContent() {
               <h2
                 ref={stepHeadingRef}
                 tabIndex={-1}
-                className="text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 {steps[currentStep]?.label}
-                <span className="sr-only">
-                  {` — step ${currentStep + 1} of ${steps.length}`}
-                </span>
+                <span className="sr-only">{` — step ${currentStep + 1} of ${steps.length}`}</span>
               </h2>
               <DraftManager
                 saveDraft={draftSave}

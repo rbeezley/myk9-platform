@@ -128,7 +128,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
                 reason under the Next button. */}
             {capacityError || capacityUnavailable ? (
               <span className="flex flex-wrap items-center gap-2">
-                <span>We could not confirm class availability, so we cannot total this entry yet.</span>
+                <span>
+                  We could not confirm class availability, so we cannot total this entry yet.
+                </span>
                 {onRetryAvailability && (
                   <Button
                     type="button"

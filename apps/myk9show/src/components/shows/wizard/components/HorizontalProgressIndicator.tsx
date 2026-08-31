@@ -83,10 +83,7 @@ export const HorizontalProgressIndicator: React.FC<HorizontalProgressIndicatorPr
             const statusLabel = isCompleted ? 'Done' : isCurrent ? 'Current' : 'Upcoming';
 
             return (
-              <li
-                key={step.id}
-                className="relative flex min-w-0 flex-1 flex-col items-center"
-              >
+              <li key={step.id} className="relative flex min-w-0 flex-1 flex-col items-center">
                 {/* Connecting line bridges the outer edges of adjacent circles.
                   Starting at the edge keeps it out of translucent inactive
                   circles, where a center-to-center line would show through. */}

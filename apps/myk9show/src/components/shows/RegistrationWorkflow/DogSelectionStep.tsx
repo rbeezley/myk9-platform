@@ -129,7 +129,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                 <CardContent className="p-0">
                   <div className="flex items-start space-x-3">
                     <Checkbox
-                      id={`dog-${dog.id}`}
+                      aria-label={`Select ${getDogDisplayName(dog)}`}
                       checked={isSelected}
                       disabled={!eligible}
                       onCheckedChange={() => handleDogToggle(dog.id)}
@@ -140,10 +140,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label
-                            htmlFor={`dog-${dog.id}`}
-                            className="text-base font-medium cursor-pointer"
-                          >
+                          <Label className="text-base font-medium text-foreground cursor-pointer">
                             {getDogDisplayName(dog)}
                             {getDogRegisteredName(dog) && ` "${getDogRegisteredName(dog)}"`}
                           </Label>

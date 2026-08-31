@@ -223,9 +223,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{dog.callName}</span>
-                            <Badge variant="outline">
-                              {getDogBreedLabel(dog)}
-                            </Badge>
+                            <Badge variant="outline">{getDogBreedLabel(dog)}</Badge>
                             <Badge variant="secondary">{dog.gender}</Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">{dog.name}</p>
@@ -302,8 +300,12 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                           <p className="font-medium">
                             {flowState.exhibitor.firstName} {flowState.exhibitor.lastName}
                           </p>
-                          <p className="text-sm text-muted-foreground">{flowState.exhibitor.email}</p>
-                          <p className="text-sm text-muted-foreground">{flowState.exhibitor.phone}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {flowState.exhibitor.email}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {flowState.exhibitor.phone}
+                          </p>
                         </div>
                         <div>
                           {flowState.exhibitor.streetAddress && (
@@ -333,9 +335,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{dog.callName}</span>
-                              <Badge variant="outline">
-                                {getDogBreedLabel(dog)}
-                              </Badge>
+                              <Badge variant="outline">{getDogBreedLabel(dog)}</Badge>
                               <Badge variant="secondary">{dog.gender}</Badge>
                             </div>
                             {getDogRegisteredName(dog) && (

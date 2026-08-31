@@ -324,9 +324,10 @@ export function useRegistrationWizardState() {
     setDraftData,
   ]);
 
-  const selectedDogIds = useMemo(() => new Set(registrationData.selectedDogs), [
-    registrationData.selectedDogs,
-  ]);
+  const selectedDogIds = useMemo(
+    () => new Set(registrationData.selectedDogs),
+    [registrationData.selectedDogs]
+  );
   const registrationCapacity = useMemo(
     () => getRegistrationCapacityState(classSelections, availabilityClasses, selectedDogIds),
     [classSelections, availabilityClasses, selectedDogIds]
@@ -335,9 +336,9 @@ export function useRegistrationWizardState() {
     !capacityCheckEnabled && !capacityLoading && !capacityError
       ? true
       : capacityCheckEnabled &&
-          !capacityLoading &&
-          !capacityError &&
-          registrationCapacity.unknownClassIds.size === 0;
+        !capacityLoading &&
+        !capacityError &&
+        registrationCapacity.unknownClassIds.size === 0;
 
   // `capacityReady === false` covers two states the user experiences very
   // differently: still loading, and cannot be loaded. (Offline the query pauses
@@ -361,6 +362,7 @@ export function useRegistrationWizardState() {
   );
   const agreementRequired = !!currentShow?.organization;
   const agreementUnavailable = agreementRequired && !agreementLoading && !entryAgreement;
+  const agreementLoadingNow = agreementRequired && agreementLoading;
 
   const liveTotalFees = useMemo(
     () =>
@@ -453,6 +455,7 @@ export function useRegistrationWizardState() {
     hasPaymentMethod: !!registrationData.paymentMethod,
     needsAgreement: agreementRequired,
     agreementUnavailable,
+    agreementLoadingNow,
     agreedToEntryAgreement,
     capacityReady,
     blockedClassCount: registrationCapacity.blockedClassIds.size,

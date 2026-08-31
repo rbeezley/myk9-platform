@@ -187,7 +187,7 @@ export function WorkflowStepContent({
               : fmt(currentShow.startDate);
           })()
         : '',
-      dogRegisteredName: firstDog ? getDogRegisteredName(firstDog) ?? '' : '',
+      dogRegisteredName: firstDog ? (getDogRegisteredName(firstDog) ?? '') : '',
       dogCallName: firstDog?.callName ?? null,
       classSummary,
       // Use T12:00:00 (noon) so date-only strings from Postgres never shift a calendar

@@ -76,7 +76,7 @@ export const FilterableFieldGrid: React.FC<FilterableFieldGridProps> = ({
           <button
             type="button"
             onClick={toggleHideEmpty}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-muted-foreground transition-colors duration-200"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-200"
           >
             {isHiding ? (
               <>

@@ -15,17 +15,23 @@ describe('AppToaster accessibility contract', () => {
     expect(indexCss).toContain('height: 44px;');
     expect(indexCss).toContain('min-width: 44px;');
     expect(indexCss).toContain('min-height: 44px;');
+    expect(indexCss).toContain('right: 8px;');
+    expect(indexCss).toContain('top: 50%;');
+    expect(indexCss).toContain('transform: translateY(-50%);');
+    expect(indexCss).toContain('padding-right: 64px;');
   });
 
   it('defines every rich-color variant in both theme contexts', () => {
     for (const variant of ['success', 'info', 'warning', 'error']) {
       expect(indexCss).toContain(`data-type='${variant}'`);
-      expect(indexCss).toContain(`data-sonner-theme='dark']`);
+      expect(indexCss).toContain(
+        `[data-sonner-toaster].myk9-sonner-a11y[data-sonner-theme='dark']`
+      );
     }
   });
 
-  it('clears stale actions when URL-driven navigation changes query or hash state', () => {
-    expect(appToaster).toContain('const { pathname, search, hash } = useLocation();');
-    expect(appToaster).toContain('}, [pathname, search, hash]);');
+  it('clears stale actions when navigation leaves the current pathname', () => {
+    expect(appToaster).toContain('const { pathname } = useLocation();');
+    expect(appToaster).toContain('}, [pathname]);');
   });
 });

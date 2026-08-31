@@ -74,6 +74,14 @@
   height: 44px;
   min-width: 44px;
   min-height: 44px;
+  left: auto;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+[data-sonner-toaster].myk9-sonner-a11y [data-sonner-toast][data-styled='true'] {
+  padding-right: 64px;
 }
 
 /* Setup tab: schedule+venue left 2/3, officials+judges right 1/3 */

@@ -299,7 +299,9 @@ test.describe('Cross-Browser Functionality Tests', () => {
       await page.click('[data-testid="save-dog-button"]');
 
       // Verify validation errors
-      await expect(await page.locator('.error-message, .field-error').count()).toBeGreaterThan(0);
+      await expect
+        .poll(() => page.locator('.error-message, .field-error').count())
+        .toBeGreaterThan(0);
 
       // Test field-specific validation
       await page.fill('[data-testid="dog-call-name"]', 'A'); // Too short

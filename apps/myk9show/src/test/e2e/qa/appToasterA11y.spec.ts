@@ -46,6 +46,7 @@ test.describe('AppToaster rendered accessibility', () => {
           const toast = document.createElement('div');
           toast.dataset.sonnerToast = '';
           toast.dataset.styled = 'true';
+          toast.dataset.richColors = 'true';
           toast.dataset.type = variant;
           const close = document.createElement('button');
           close.dataset.closeButton = '';

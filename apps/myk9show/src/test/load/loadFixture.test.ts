@@ -78,7 +78,7 @@ describe('load fixture mapping', () => {
     expect(PRIMARY_LOAD_SHOW.showId).toBe('dededede-0000-0000-0000-000000000010');
     expect(PRIMARY_LOAD_SHOW.ringCount).toBe(8);
     expect(PRIMARY_LOAD_SHOW.generatedEntryCount).toBe(504);
-    expect(PRIMARY_LOAD_SHOW.showEntryCount).toBe(514);
+    expect(PRIMARY_LOAD_SHOW.showEntryCount).toBe(516);
   });
 });
 
@@ -128,9 +128,9 @@ describe('multi-show fixture', () => {
     expect(new Set(entryIds).size).toBe(entryIds.length);
   });
 
-  it('totals 1,260 generated and 1,270 seeded entries', () => {
+  it('totals 1,260 generated and 1,272 seeded entries', () => {
     expect(LOAD_TOTAL_GENERATED_ENTRY_COUNT).toBe(504 + 252 * 3);
-    expect(LOAD_TOTAL_ENTRY_COUNT).toBe(504 + 252 * 3 + 10);
+    expect(LOAD_TOTAL_ENTRY_COUNT).toBe(504 + 252 * 3 + 12);
   });
 
   it('keeps every entry inside its own show', () => {

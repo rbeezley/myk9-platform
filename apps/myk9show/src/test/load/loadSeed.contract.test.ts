@@ -33,8 +33,8 @@ describe('canonical MYK9-109 load fixture', () => {
     );
   });
 
-  it('asserts the declared 514-row show total', () => {
-    expect(seed).toContain('MYK9-109 expected 514 demo-show entries');
+  it('asserts the declared 516-row show total', () => {
+    expect(seed).toContain('MYK9-109 expected 516 demo-show entries');
   });
 });
 

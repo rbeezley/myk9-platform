@@ -102,9 +102,16 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     await expect(armbandDialog).not.toBeVisible({ timeout: 10000 });
     await expect(entryCard.getByText(seed.armband).first()).toBeVisible();
 
+    // Case-INSENSITIVE on purpose. EntryStatusPopover's accessible name is
+    // `${visibleStatusLabel}, change entry status for <dog> in <class>` — the
+    // verb is lower-case because it follows the status label. A capitalised
+    // "Change" without the `i` flag matches nothing, which is why this line
+    // failed after the armband fix let the test reach it. Every sibling gets
+    // this right: postPaymentLifecycle.spec.ts and both unit tests use /i.
     const entryStatusButton = entryCard.getByRole('button', {
       name: new RegExp(
-        `Change entry status for ${escapeRegExp(seed.dogName)} in ${escapeRegExp(seed.className)}`
+        `change entry status for ${escapeRegExp(seed.dogName)} in ${escapeRegExp(seed.className)}`,
+        'i'
       ),
     });
     await expect(entryStatusButton).toBeVisible({ timeout: 10000 });

@@ -17,8 +17,8 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../.
 const templatePath = resolve(repoRoot, 'docs/AKC-forms/SW-EntryForm.pdf');
 
 const trials: EntryFormTrial[] = [
-  { id: 'trial-1', date: '2026-04-12', trialNumber: 1 },
-  { id: 'trial-2', date: '2026-04-13', trialNumber: 2 },
+  { id: 'trial-1', date: '2026-04-12', trialNumber: 'Trial 1' },
+  { id: 'trial-2', date: '2026-04-13', trialNumber: 'Trial 2' },
 ];
 
 const dog: EntryFormDog = {

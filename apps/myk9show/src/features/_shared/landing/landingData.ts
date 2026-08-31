@@ -159,11 +159,14 @@ export function buildLandingData(
 
   const trials = allTrials
     .slice()
-    .sort((left, right) => {
-      const leftNumber = Number.parseInt(String(left.trialNumber ?? 0), 10);
-      const rightNumber = Number.parseInt(String(right.trialNumber ?? 0), 10);
-      return leftNumber - rightNumber;
-    })
+    // MYK9-282: parseInt("Friday Trial 1") is NaN, and NaN - NaN is NaN, so this
+    // comparator returned NaN for every pair and the sort silently did nothing —
+    // trials rendered in fetch order with no visible symptom.
+    .sort((left, right) =>
+      String(left.trialNumber ?? '').localeCompare(String(right.trialNumber ?? ''), undefined, {
+        numeric: true,
+      })
+    )
     .map<LandingTrial>(trial => ({
       id: trial.id,
       trialNumber: trial.trialNumber ?? '',

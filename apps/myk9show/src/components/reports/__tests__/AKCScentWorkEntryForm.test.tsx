@@ -81,8 +81,12 @@ const {
     };
 
     const trials: EntryFormTrial[] = [
-      { id: 'trial-1', date: '2026-04-12', trialNumber: 1 },
-      { id: 'trial-2', date: '2026-04-12', trialNumber: 2 },
+      // MYK9-282: trials.trial_number is TEXT. Real rows hold labels like
+      // "Friday Trial 1"; every trial on staging is non-numeric. The old fixture
+      // used numbers, so the component printed "Trial NaN" in production while
+      // these tests stayed green.
+      { id: 'trial-1', date: '2026-04-12', trialNumber: 'Friday Trial 1' },
+      { id: 'trial-2', date: '2026-04-12', trialNumber: 'Friday Trial 2' },
     ];
 
     const classes: EntryFormClass[] = [
@@ -279,5 +283,13 @@ describe('AKCScentWorkEntryForm', () => {
     });
     renderForm();
     expect(screen.getByText(/No entries found/)).toBeInTheDocument();
+  });
+
+  it('prints a non-numeric trial label instead of NaN (MYK9-282)', () => {
+    renderForm();
+    // The real column is text; the grid header must show the label verbatim.
+    expect(screen.getAllByText(/Friday Trial 1/).length).toBeGreaterThan(0);
+    // And must never show the coercion artefact, on paperwork an exhibitor signs.
+    expect(document.body.textContent).not.toContain('NaN');
   });
 });

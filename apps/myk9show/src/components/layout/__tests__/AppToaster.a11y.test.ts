@@ -23,4 +23,9 @@ describe('AppToaster accessibility contract', () => {
       expect(indexCss).toContain(`data-sonner-theme='dark']`);
     }
   });
+
+  it('clears stale actions when URL-driven navigation changes query or hash state', () => {
+    expect(appToaster).toContain('const { pathname, search, hash } = useLocation();');
+    expect(appToaster).toContain('}, [pathname, search, hash]);');
+  });
 });

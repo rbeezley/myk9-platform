@@ -37,7 +37,7 @@ const NAVIGATION_FEEDBACK_GRACE_MS = 1500;
 
 export function AppToaster() {
   const reservedBottom = useActionBarStore(selectReservedBottom);
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const { toasts } = useSonner();
   const firstRender = useRef(true);
 
@@ -77,7 +77,7 @@ export function AppToaster() {
     // `toasts` is deliberately not a dependency: this must fire on navigation,
     // not on every toast change. seenAt is a ref, read at fire time, so the
     // lint rule is satisfied without a suppression.
-  }, [pathname]);
+  }, [pathname, search, hash]);
 
   const bottom =
     reservedBottom > 0

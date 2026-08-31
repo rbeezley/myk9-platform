@@ -43,11 +43,13 @@ VALUES (
   current_date, current_date, '00000000-0000-0000-0000-000000146001', 'published'
 );
 
-INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
+-- Club-scoped appointment. Since the label/permission split a show-scoped
+-- user_roles row records paperwork and grants nothing, so this caller reaches
+-- the show by being appointed to the club that owns it.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000146011', roles.id,
-  '00000000-0000-0000-0000-000000146001',
-  '00000000-0000-0000-0000-000000146002', true,
+  '00000000-0000-0000-0000-000000146001', true,
   '00000000-0000-0000-0000-000000146101'
 FROM public.roles
 WHERE roles.name = 'secretary';

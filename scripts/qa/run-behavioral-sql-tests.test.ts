@@ -38,6 +38,7 @@ const launchCriticalSqlTests = [
   'club_show_managers_visibility_test.sql',
   'club_delete_restrict_test.sql',
   'create_show_with_children_tenant_isolation_test.sql',
+  'show_officials_label_not_permission_test.sql',
   'show_message_tenant_isolation_test.sql',
   'entries_manager_policy_hashable_test.sql',
   'null_club_show_authorization_test.sql',
@@ -98,8 +99,11 @@ describe('behavioral SQL test harness', () => {
     expect(pullRefundFixture).toContain(
       'GRANT UPDATE (refund_decision) ON public.entries TO authenticated'
     );
+    // Club-scoped since the label/permission split: a show-scoped row is
+    // paperwork and grants nothing, so the fixture must appoint at the club or
+    // the secretary it sets up cannot reach the show the test then exercises.
     expect(pullRefundFixture).toContain(
-      'INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)'
+      'INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)'
     );
     expect(pullRefundFixture).toContain(
       "IF SQLERRM <> 'refund decisions are written only through set_entry_refund_decision'"

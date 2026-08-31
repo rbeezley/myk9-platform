@@ -103,11 +103,13 @@ GRANT SELECT ON public.people TO authenticated;
 GRANT SELECT ON public.dogs TO authenticated;
 GRANT UPDATE (refund_decision) ON public.entries TO authenticated;
 
-INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
+-- Club-scoped appointment. Since the label/permission split a show-scoped
+-- user_roles row records paperwork and grants nothing, so this caller reaches
+-- the show by being appointed to the club that owns it.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000000811',
   id,
-  '00000000-0000-0000-0000-000000000831',
   '00000000-0000-0000-0000-000000000821',
   true,
   '00000000-0000-0000-0000-000000000801'

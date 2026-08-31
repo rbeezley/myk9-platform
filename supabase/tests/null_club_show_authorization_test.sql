@@ -258,10 +258,15 @@ $$;
 -- club, and the show-scoped arm therefore cannot reach a club-less show at all.
 -- The original case was asserting something the schema forbids.
 --
--- What is worth pinning is the opposite risk — that the new `club_id IS NOT
--- NULL` guards did not narrow the show-scoped arm for shows that DO have a
--- club. A secretary of club B, with no membership or role in club A, reaches
--- club A's show only through their explicit show-scoped grant.
+-- What is worth pinning has since inverted. When MYK9-258 was written the
+-- opposite risk was that the new `club_id IS NOT NULL` guards had narrowed the
+-- show-scoped arm for shows that DO have a club, so this case asserted that a
+-- secretary of club B still reached club A's show through an explicit
+-- show-scoped grant. The label/permission split retired that arm on purpose: a
+-- show-scoped row is now paperwork and carries no permission, and appointment
+-- to the owning club is the only thing that grants access. So the case below
+-- now asserts the reverse — club B's secretary must NOT reach club A's show —
+-- while 4.2 keeps its original force unchanged.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000000c02', 'MYK9-258 Club B');
@@ -281,13 +286,39 @@ VALUES (
   'active'
 );
 
+-- Club B needs a show of its own. Without it this caller manages nothing at all
+-- and 4.1/4.2 below would both pass for the wrong reason -- the "would also pass
+-- if the guard hid everything" failure this file's header calls out.
+INSERT INTO public.shows (id, name, organization, club_id, status, start_date, end_date)
+VALUES (
+  '00000000-0000-0000-0000-000000000c33',
+  'MYK9-258 Club B Show',
+  'AKC',
+  '00000000-0000-0000-0000-000000000c02',
+  'published',
+  DATE '2026-09-01',
+  DATE '2026-09-02'
+);
+
 -- club_id is club B (the schema requires one); show_id points at club A's show.
+-- This is exactly the row that used to grant cross-club access and must not any more.
 INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000000c13',
   id,
   '00000000-0000-0000-0000-000000000c02',
   '00000000-0000-0000-0000-000000000c31',
+  true,
+  '00000000-0000-0000-0000-000000000c23'
+FROM public.roles
+WHERE name = 'secretary';
+
+-- ...and the appointment that DOES grant, so the positive direction is covered.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000000c13',
+  id,
+  '00000000-0000-0000-0000-000000000c02',
   true,
   '00000000-0000-0000-0000-000000000c23'
 FROM public.roles
@@ -301,17 +332,27 @@ SELECT set_config(
 
 DO $$
 BEGIN
+  -- 4.0 first: if this fails, 4.1 and 4.2 prove nothing.
   IF NOT EXISTS (
+    SELECT 1 FROM public.manageable_show_ids() m
+    WHERE m = '00000000-0000-0000-0000-000000000c33'
+  ) THEN
+    RAISE EXCEPTION
+      'FAIL 4.0 club B secretary lost their own club''s show';
+  END IF;
+  RAISE NOTICE 'PASS 4.0 club B secretary manages their own club''s show';
+
+  IF EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
     WHERE m = '00000000-0000-0000-0000-000000000c31'
   ) THEN
     RAISE EXCEPTION
-      'FAIL 4.1 an explicit show-scoped grant no longer reaches its show';
+      'FAIL 4.1 a show-scoped grant still reaches another club''s show';
   END IF;
-  RAISE NOTICE 'PASS 4.1 an explicit show-scoped grant still reaches its show';
+  RAISE NOTICE 'PASS 4.1 a show-scoped grant does not reach another club''s show';
 
-  -- And the guard still holds for someone who reached a show this way: their
-  -- club-B secretary role must not hand them the club-less show.
+  -- And the club-less guard still holds independently: club B's secretary role
+  -- must not hand them the club-less show either.
   IF EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
     WHERE m = '00000000-0000-0000-0000-000000000c32'

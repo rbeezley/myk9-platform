@@ -51,18 +51,21 @@ VALUES
 
 -- club_id is mandatory for secretary/club_admin grants
 -- (public.enforce_club_id_for_scoped_roles).
-INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
+-- Club-scoped appointment. Since the label/permission split a show-scoped
+-- user_roles row records paperwork and grants nothing, so this caller reaches
+-- the show by being appointed to the club that owns it.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000000601', id,
-  '00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000701',
+  '00000000-0000-0000-0000-000000000701',
   true, '00000000-0000-0000-0000-000000000501'
 FROM public.roles
 WHERE name = 'secretary';
 
-INSERT INTO public.user_roles (user_id, role_id, show_id, club_id, is_active, auth_user_id)
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000000602', id,
-  '00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000702',
+  '00000000-0000-0000-0000-000000000702',
   true, '00000000-0000-0000-0000-000000000502'
 FROM public.roles
 WHERE name = 'secretary';

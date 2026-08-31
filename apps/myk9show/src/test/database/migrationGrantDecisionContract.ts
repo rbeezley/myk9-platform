@@ -23,6 +23,8 @@ const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
     'Pre-existing anon grant, untouched by 20260830160000 and its revert 20260830190000, both of which edit the body only. Narrowing it belongs in a deliberate ACL sweep.',
   'get_my_person_id()':
     'Anon-readable RLS policies resolve the current person through this helper.',
+  'get_show_officials(uuid)':
+    "SA-006's follow-up (20260704152531) granted anon deliberately so the officials card renders on the public show overview; 20260830240000 preserves it. The function's own gate limits unauthenticated callers to published/upcoming/in-progress/completed shows, and its return shape is unchanged, so the exposure is the one SA-006 chose.",
   'has_role(text, uuid)': 'Anon-readable RLS policies use this role predicate.',
   'is_club_admin(uuid)': 'Anon-readable RLS policies use this club authorization predicate.',
   'is_platform_admin()': 'Anon-readable RLS policies use this platform authorization predicate.',

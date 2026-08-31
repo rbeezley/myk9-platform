@@ -165,7 +165,36 @@ relying on a policy it bypasses.
 
 ## Phase 2 — separate the label from the permission
 
+> **Built** as `20260830240000_show_officials_separates_label_from_permission.sql`, on a
+> branch stacked on #1895 and **deliberately not merged until #1895 is applied and
+> merged**. Two corrections to the scope below, both found by checking rather than
+> reading — see "What Phase 2 actually took".
+
 Give the named official its own home so a `user_roles` row always means "has access".
+
+### What Phase 2 actually took
+
+**Moving the label is not enough.** This plan assumed that once the show-scoped rows were
+emptied, the `ur.show_id` arms in the read helpers would be dead. They would not:
+`approve_role_request` (site-admin) can mint a fresh show-scoped `secretary` row at any
+time, so the exception would have survived with nothing in it, waiting. Nine functions
+consult those rows, and seven had to lose their show-scoped arm — including
+`get_show_access_codes`, `get_show_class_hide_counts` and the results authorization
+context, which sit on show-day paths. `approve_role_request` now refuses a show-scoped
+official request **loudly**, rather than approving it and handing over nothing.
+
+**The backfill asserts instead of widening.** The plan says to CREATE a club appointment
+for anyone holding only a show-scoped row. That is a silent widening — it hands club-wide
+access to someone who had exactly one show. Measured live, no such person exists, so the
+step is a no-op either way; the migration now **fails** with instructions instead, so a
+human decides if that ever changes.
+
+**The premise held where it mattered.** `get_show_officials` really does read
+`user_roles WHERE show_id = ...`, and `useEntryFormData` fills the AKC/UKC entry-form PDFs
+from it — so deleting those rows would have blanked the Trial Secretary on printed
+paperwork. That is why the table exists rather than a straight deletion. (The public
+Gazette/Heritage landing pages are not affected either way: `secretaryName` and `officers`
+are hardcoded `null`/`[]` there today.)
 
 Recommended: a `show_officials` table (`show_id`, `person_id`, `role`, plus whatever the
 premium list and registry reports need), backfilled from the existing show-scoped
@@ -219,6 +248,92 @@ incorrect ACL here before.
 Also note the constraint trigger from migration 102: it requires `club_id IS NOT NULL` on
 secretary rows. Once show officials no longer live in `user_roles`, that trigger's job is
 narrower but still correct — keep it, and do not let the backfill write NULL-club rows.
+
+### [ADDED] Scope correction: steward is not a paperwork label
+
+Phase 2 originally treated all three official roles the same and made every
+show-scoped row label-only. That is right for secretary and chairman and wrong
+for steward, and `myk9_114_entry_access_context_test.sql` says so directly — it
+loops over a show-scoped and a club-scoped steward and asserts both keep
+row-only access, under the notice "show- and club-scoped stewards preserve
+row-only access". The migration's own comment claimed `steward_show_ids`
+"existed only to carry show-scoped grants" and that the club arrays "already
+carry every real caller". That was false.
+
+It also was not theoretical. Both callers of `grant_show_official` offer the
+role — `ShowOfficialsEditor` assigns a steward, and the creation wizard's
+`grantShowOfficials.ts:43` maps `officials.steward` — so shipping this would
+have silently withdrawn access from every steward named through either surface,
+while the RPC kept reporting success. A steward is a ring assignment, not a name
+printed on a form.
+
+So Phase 2's rule narrows to what the approved rule actually says: **the label
+that grants nothing is the secretary and chairman naming.** Stewards are
+untouched. Six sites changed: `is_show_official`, `get_show_access_codes`,
+`get_show_class_hide_counts` and `entry_results_caller_context` keep honouring
+show-scoped steward rows; `grant_show_official`/`revoke_show_official` write and
+withdraw the steward's operational row alongside the label; and step 4's
+deactivation sweep excludes stewards. `show_officials_label_not_permission_test.sql`
+now pins the exception in both directions, including that a named steward is
+still not a show manager.
+
+While extending that sweep, the orphan guard in step 2 was found to cover only
+secretaries even though step 4 retires chairman rows too. It now covers chairman,
+so a chairman with no club appointment blocks the migration instead of quietly
+losing access.
+
+### [ADDED] Phase 2 reintroduced MYK9-258, and only CI caught it
+
+Rewriting `is_show_office_manager` and `manageable_show_ids` to drop their
+show-scoped arms also dropped their `s.club_id IS NOT NULL` guards. Those guards
+are MYK9-258: `is_club_admin` and `is_trial_secretary` treat a NULL argument as
+"no club filter", so a club-less show became manageable by every active secretary
+and club admin on the platform — and `get_entries_for_export` hands each of them
+owner email and phone. The original was found on staging by the G9 rehearsal;
+this time `null_club_show_authorization_test.sql` caught it at
+`FAIL 1.2 club secretary manages a show with no club`.
+
+Nothing local could have caught it. Typecheck, lint, the ratchet and all 742 DB
+contract tests passed with the guards missing, because the regression only exists
+against a real Postgres. Both functions now carry the guards back with a comment
+naming MYK9-258, and the two remaining rewrites were checked the same way:
+`is_show_secretary`/`is_show_official` are NULL-safe by construction
+(`ur.club_id = NULL` yields NULL, not true), `get_show_access_codes` and
+`get_show_class_hide_counts` early-return on a NULL club, and
+`private.entry_results_caller_context` kept both of its `ur.club_id IS NOT NULL`
+filters.
+
+The general shape, for the next person removing an arm from one of these: a
+predicate sitting next to the thing you are deleting is not necessarily part of
+it.
+
+### [ADDED] Measured blast radius: six behavioural SQL tests, found only in CI
+
+Phase 2's first real execution (CI run 33393950324) showed that show-scoped
+`user_roles` rows were not merely the paperwork record — they were the ordinary
+way six behavioural tests granted a secretary access to a show. The migration
+itself applied cleanly; the failure was downstream, and the runner aborts on the
+first failing file, so CI surfaces these one per push.
+
+| Test | Was | Now | Why |
+| --- | --- | --- | --- |
+| `judge_assignment_private_read` | show-scoped secretary | club-scoped | fixture only; subject is column ACLs |
+| `entry_status_history_rls` | two show-scoped secretaries | club-scoped | shows already sit in different clubs, so isolation survives |
+| `office_admin_rls` | show-scoped steward + secretary | club-scoped | fixture only |
+| `pull_refund_decision_rls` | show-scoped secretary | club-scoped | second show is club-less, so the isolation assertion keeps its force |
+| `show_email_delivery_history` | show-scoped secretary, both shows one club | club-scoped, **show B rehomed to its own club** | otherwise the caller is legitimately authorized for show B and `FAIL cross-show secretary read succeeded` becomes vacuous |
+| `null_club_show_authorization` | 4.1 asserted a show-scoped grant *reaches* its show | inverted, **plus a new 4.0 positive control** | this is the deliberate reversal, not a fixture fix |
+
+Two of these were traps rather than mechanical edits. Rehoming show B was
+necessary because widening a fixture's scope can satisfy an isolation assertion
+instead of testing it. And once section 4's caller lost every grant, 4.1 and 4.2
+would both have passed for the wrong reason — the "would also pass if the guard
+hid everything" failure that file's own header warns about — so club B gained a
+show and section 4 gained a positive control asserted first.
+
+`seed-demo.sql` was checked and needs nothing: every grant it writes is already
+club-scoped (`show_id IS NULL` in each dedupe guard), so no demo or staging user
+loses access.
 
 ## [ADDED] Rollback
 

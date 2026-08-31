@@ -11,7 +11,13 @@ VALUES
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-000000180001', 'MYK9-180 Club');
+VALUES
+  ('00000000-0000-0000-0000-000000180001', 'MYK9-180 Club'),
+  -- Show B needs its OWN club. Access is club-derived since the label/permission
+  -- split, so leaving both shows in one club would make the appointed secretary
+  -- legitimately authorized for show B and turn the refusal asserted below into a
+  -- vacuous pass.
+  ('00000000-0000-0000-0000-000000180011', 'MYK9-180 Other Club');
 
 -- Seed unlinked people first. handle_new_user() adopts a matching person by
 -- email when the auth row is inserted, avoiding duplicate auth_user_id rows.
@@ -34,13 +40,15 @@ VALUES
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
 VALUES
   ('00000000-0000-0000-0000-000000180002', 'MYK9-180 Show A', 'AKC', current_date, current_date, '00000000-0000-0000-0000-000000180001', 'published'),
-  ('00000000-0000-0000-0000-000000180003', 'MYK9-180 Show B', 'AKC', current_date, current_date, '00000000-0000-0000-0000-000000180001', 'published');
+  ('00000000-0000-0000-0000-000000180003', 'MYK9-180 Show B', 'AKC', current_date, current_date, '00000000-0000-0000-0000-000000180011', 'published');
 
-INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
+-- Club-scoped appointment. Since the label/permission split a show-scoped
+-- user_roles row records paperwork and grants nothing, so this caller reaches
+-- show A by being appointed to the club that owns it.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
 SELECT
   '00000000-0000-0000-0000-000000180111', role.id,
-  '00000000-0000-0000-0000-000000180001',
-  '00000000-0000-0000-0000-000000180002', true,
+  '00000000-0000-0000-0000-000000180001', true,
   '00000000-0000-0000-0000-000000180101'
 FROM public.roles AS role WHERE role.name = 'secretary';
 
@@ -171,7 +179,7 @@ BEGIN
 
   BEGIN
     PERFORM * FROM public.get_show_email_delivery_history(show_b, 50, NULL, NULL);
-    RAISE EXCEPTION 'FAIL cross-show secretary read succeeded';
+    RAISE EXCEPTION 'FAIL secretary read the history of a show they do not manage';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
 

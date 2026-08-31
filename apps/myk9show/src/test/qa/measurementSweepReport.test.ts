@@ -291,6 +291,34 @@ describe('renderSweepReport', () => {
     expect(md).toContain('| Contrast findings | 37 |');
   });
 
+  it('counts routes that were never attempted at all', () => {
+    // A role group whose credentials are absent is skipped before it records
+    // anything, so it leaves no exclusion row. The denominator has to say so, or
+    // a partial run reads as full coverage.
+    const md = renderSweepReport([measurement(), measurement({ id: 'b' })], 42);
+    expect(md).toContain('| Route × theme measurements expected | 84 |');
+    expect(md).toContain('| Never attempted (group skipped) | 82 |');
+  });
+
+  it('records a whole group as excluded when its sign-in failed', () => {
+    // Before this, a sign-in exception threw before the route loop and the
+    // entire group vanished from the measurements while the report kept
+    // advertising the full route count.
+    const failed = ['dashboard', 'reports', 'people'].map(route =>
+      measurement({
+        id: `secretary/${route}`,
+        route,
+        reached: false,
+        probe: null,
+        error: 'sign-in failed for SECRETARY: Invalid login credentials',
+      })
+    );
+    const md = renderSweepReport(failed, 42);
+    expect(md).toContain('| Usable | 0 |');
+    expect(md).toContain('| Excluded (see below) | 3 |');
+    expect(md).toContain('sign-in failed for SECRETARY');
+  });
+
   it('lists excluded measurements rather than dropping them', () => {
     const md = renderSweepReport([measurement({ reached: false, landedPath: '/sign-in' })], 41);
     expect(md).toContain('Excluded measurements');

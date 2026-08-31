@@ -148,7 +148,33 @@ async function sweepGroup(page: Page, group: SweepGroup, theme: 'light' | 'dark'
   const user = credentialsFor(group.authUser);
   if (user) {
     const landing = group.routes.find(r => r.landing) ?? group.routes[0];
-    await signIn(page, user.email, user.password, resolveSweepPath(landing.path, PATH_PARAMS));
+    try {
+      await signIn(page, user.email, user.password, resolveSweepPath(landing.path, PATH_PARAMS));
+    } catch (caught) {
+      // A sign-in failure used to throw before the route loop, so the whole
+      // group vanished from `measurements` while the report went on advertising
+      // the full static route count — a credential problem rendered as clean
+      // coverage. That is precisely the failure this file's own exclusion list
+      // exists to prevent, so record every route in the group as excluded and
+      // let the run continue (Codex, this PR).
+      const reason = caught instanceof Error ? caught.message : String(caught);
+      for (const route of group.routes) {
+        measurements.push({
+          id: `${group.id}/${route.id}`,
+          group: group.id,
+          route: route.id,
+          path: resolveSweepPath(route.path, PATH_PARAMS),
+          landedPath: new URL(page.url()).pathname,
+          theme,
+          reached: false,
+          error: `sign-in failed for ${group.authUser}: ${reason}`,
+          probe: null,
+        });
+      }
+      // The console IS the live progress view for a findings run.
+      console.log(`[sweep] ${theme.padEnd(5)} ${group.id} SIGN-IN FAILED: ${reason}`);
+      return;
+    }
   }
 
   for (const route of group.routes) {

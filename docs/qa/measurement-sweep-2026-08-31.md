@@ -23,7 +23,7 @@ pnpm exec playwright test src/test/e2e/qa/measurementSweep.spec.ts \
 ```
 
 Writes `test-results/measurement-sweep/findings.json` and `report.md`. The run
-below took 14.2 minutes for 84 measurements.
+below took 14.6 minutes for 84 measurements.
 
 ## Why these numbers can be believed
 
@@ -55,9 +55,9 @@ It also carries two standing guards for the failure modes that burned round 5:
   everywhere, so a failed flip is otherwise indistinguishable from a clean dark
   theme.
 
-Two further harness defects were found in review of this PR, both of which would
-have made the report state something false, and both fixed before these numbers
-were taken:
+Four further harness defects were found across two rounds of review on this PR,
+each of which would have made the report state something false. All were fixed
+before these numbers were taken, and the sweep was re-run after each round:
 
 - **Clustering read truncated data.** The probe samples at most 12 findings per
   category per page, and the cross-route grouping was built from those samples.
@@ -73,6 +73,22 @@ were taken:
   a large button 20px away passed a test that was not looking. Now checked
   against neighbouring bounding boxes as well. The conclusion below survived the
   stricter check, which is the only reason it is stated.
+- **Visibility ignored opacity.** A dialog or menu that stays mounted at
+  `opacity: 0` still has a real bounding box, `display: block` and
+  `visibility: visible`, so its buttons reached the target and accessible-name
+  scans as findings about controls nobody can see. Worth recording that fixing
+  this changed **no numbers at all** on this app — the counts below are
+  byte-identical before and after — so it removed a latent class of false
+  finding rather than a live one. That is only knowable because the sweep was
+  re-run to check, instead of the fix being assumed to matter.
+- **A failed sign-in erased a whole role group.** The exception was thrown before
+  the route loop, so all of that group's routes vanished from the results while
+  the report went on advertising the full route count: a credential problem
+  rendered as clean coverage. Sign-in failures are now recorded as exclusions,
+  one per route, and the coverage table carries an explicit
+  **Never attempted** row for groups skipped for missing credentials. This one
+  was a plain self-contradiction — the same file's exclusion list exists to stop
+  exactly this, and the sign-in path went around it.
 
 Fixing the wizard result also meant replacing the readiness gate.
 Route-health's "body text > 20 chars, then settle" is too weak for
@@ -89,7 +105,9 @@ Two measurements per route, light and dark. Club-admin is absent because
 | Metric | Value |
 | --- | --- |
 | Routes | 42 |
+| Route × theme measurements expected | 84 |
 | Route × theme measurements attempted | 84 |
+| Never attempted (group skipped) | 0 |
 | Usable | 80 |
 | Excluded | 4 |
 | Text nodes measured for contrast | 31,046 |

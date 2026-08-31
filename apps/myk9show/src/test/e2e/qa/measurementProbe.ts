@@ -134,21 +134,6 @@ export function measurePage(limit: number): ProbeResult {
     return parts.join(' > ').slice(0, 160);
   };
 
-  const isVisible = (el: Element) => {
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return false;
-    const cs = getComputedStyle(el);
-    if (cs.visibility === 'hidden' || cs.display === 'none') return false;
-    if (el.closest('[aria-hidden="true"]')) return false;
-    return true;
-  };
-
-  // WCAG 1.4.3 and 2.5.x both exempt inactive controls, and this app dims them
-  // with `disabled:opacity-50` — counting them files findings the standard
-  // excuses, which is how a report loses its credibility on the first read.
-  const isInactive = (el: Element) =>
-    Boolean(el.closest('[disabled],[aria-disabled="true"],:disabled'));
-
   const effectiveOpacity = (el: Element) => {
     let acc = 1;
     let cur: Element | null = el;
@@ -158,6 +143,31 @@ export function measurePage(limit: number): ProbeResult {
     }
     return acc;
   };
+
+  /**
+   * Opacity is part of visibility here, not a separate refinement. A closed
+   * dialog or menu that stays mounted at `opacity: 0` still has a real bounding
+   * box, `display: block` and `visibility: visible` — so a predicate built from
+   * geometry alone hands its buttons to the target and accessible-name scans as
+   * findings about controls nobody can see (Codex, this PR). That is the same
+   * class of error as round 5's 504 phantom checkboxes: derived correctly from
+   * the wrong premise.
+   */
+  const isVisible = (el: Element) => {
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none') return false;
+    if (el.closest('[aria-hidden="true"]')) return false;
+    if (effectiveOpacity(el) <= 0.01) return false;
+    return true;
+  };
+
+  // WCAG 1.4.3 and 2.5.x both exempt inactive controls, and this app dims them
+  // with `disabled:opacity-50` — counting them files findings the standard
+  // excuses, which is how a report loses its credibility on the first read.
+  const isInactive = (el: Element) =>
+    Boolean(el.closest('[disabled],[aria-disabled="true"],:disabled'));
 
   /**
    * Composite the backdrop rather than stopping at the first opaque ancestor.

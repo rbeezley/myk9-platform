@@ -226,7 +226,14 @@ export function renderSweepReport(
       ['Metric', 'Value'],
       [
         ['Routes in table', String(routeCount)],
+        ['Route × theme measurements expected', String(routeCount * 2)],
         ['Route × theme measurements attempted', String(measurements.length)],
+        // A group whose credentials are absent is skipped before it can record
+        // anything, so its routes leave no exclusion row to count. Without this
+        // line the coverage table would report a tidy 100% of whatever ran and
+        // stay silent about the rest — the same shrinking-denominator lie the
+        // exclusion list below exists to prevent.
+        ['Never attempted (group skipped)', String(Math.max(0, routeCount * 2 - measurements.length))],
         ['Usable', String(usable.length)],
         ['Excluded (see below)', String(excluded.length)],
         ['Text nodes measured for contrast', String(totalMeasured)],

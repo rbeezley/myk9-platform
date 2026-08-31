@@ -109,7 +109,15 @@ BEGIN
     RAISE EXCEPTION 'FAIL show_officials does not have RLS enabled';
   END IF;
 
-  RAISE NOTICE 'PASS show_officials excludes anon and has RLS enabled';
+  -- The TABLE excludes anon, but the READER must not: SA-006 grants anon execute
+  -- on get_show_officials so the public show overview can render its officials
+  -- card, and rewriting that function is exactly how the grant gets dropped by
+  -- accident. Codex caught that on this migration; this pins it.
+  IF NOT has_function_privilege('anon', 'public.get_show_officials(uuid)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL anon lost execute on get_show_officials (SA-006 public officials card)';
+  END IF;
+
+  RAISE NOTICE 'PASS show_officials excludes anon while its public reader keeps execute';
 END;
 $$;
 

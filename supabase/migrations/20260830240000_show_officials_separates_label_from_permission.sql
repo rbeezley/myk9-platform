@@ -326,8 +326,15 @@ $$;
 COMMENT ON FUNCTION public.get_show_officials(uuid) IS
   'Who is named on this show''s paperwork, from show_officials. Naming is not a permission; see grant_club_secretary for access.';
 
-REVOKE ALL ON FUNCTION public.get_show_officials(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO authenticated;
+-- anon KEEPS execute. SA-006's follow-up (20260704152531) granted it deliberately
+-- so the officials card renders on the public show overview, and the gate above
+-- is what makes that safe: a non-published show is visible only to its club
+-- admin, its secretary, or a site admin. The return shape is unchanged from that
+-- migration, email included, so this is the same exposure and not a wider one.
+-- Note the live database has since lost this grant outside of any migration, so
+-- applying this restores the intended state rather than changing it.
+REVOKE ALL ON FUNCTION public.get_show_officials(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon, authenticated;
 
 -- 8. Being named on a show stops granting access. Only the show_id arm goes; the
 --    club-scoped arm above it already carries every real caller.

@@ -113,3 +113,73 @@ describe('scheduled workflows report their own failures', () => {
     });
   });
 });
+
+/**
+ * A composite action's manifest is TEMPLATED, description strings included.
+ *
+ * On 2026-08-31 the notifier failed to load in all four workflows that use it,
+ * every time it had ever run, with:
+ *
+ *   Unrecognized named-value: 'job'. Located at position 1 within expression:
+ *   job.status
+ *
+ * The offending text was a COMMENT — an input description that documented the
+ * expression callers should pass by writing it out in full, braces and all.
+ * GitHub evaluated it, `job` does not exist inside a composite action, and the
+ * whole manifest was rejected before a single line of its shell ran. So the
+ * notifier built to stop scheduled failures going unread was itself a
+ * scheduled failure going unread, and it reddened runs whose real work passed.
+ *
+ * The repo's standing lesson is that a text scan cannot tell code from prose
+ * about code. This is that lesson inverted, and worse: GitHub's parser cannot
+ * either, and it EXECUTES what it finds. Documenting an expression is enough to
+ * evaluate it.
+ *
+ * Nothing local could have caught it. The sibling behaviour test extracts the
+ * `run:` block and executes it, which proves the shell works and says nothing
+ * about whether the manifest around it loads. Only a real run does — and the
+ * cheap standing guard is to forbid the contexts a composite action cannot
+ * resolve, anywhere in the file.
+ */
+describe('composite action manifests', () => {
+  const actionsDir = resolve(__dirname, '../../../../../.github/actions');
+
+  /** Contexts GitHub does not resolve inside a composite action. */
+  const FORBIDDEN = ['job', 'jobs', 'needs', 'secrets'];
+
+  function compositeActions(): { file: string; source: string }[] {
+    return readdirSync(actionsDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => ({
+        file: join(entry.name, 'action.yml'),
+        source: readFileSync(join(actionsDir, entry.name, 'action.yml'), 'utf8'),
+      }))
+      .filter(({ source }) => /using:\s*['"]?composite/.test(source));
+  }
+
+  it('has at least one composite action to check', () => {
+    // Guards the suite against silently passing on an empty set, the way a
+    // glob that matches nothing reports success.
+    expect(compositeActions().length).toBeGreaterThan(0);
+  });
+
+  it.each(compositeActions())(
+    '$file resolves every expression it contains',
+    ({ source }) => {
+      const expressions = [...source.matchAll(/\$\{\{([^}]*)\}\}/g)].map((m) =>
+        m[1].trim()
+      );
+
+      const unresolvable = expressions.filter((expression) =>
+        FORBIDDEN.some((context) =>
+          new RegExp(`(^|[^\\w.])${context}\\.`).test(expression)
+        )
+      );
+
+      // Reported with the offending text so the fix is obvious: either the
+      // caller should pass it as an input, or — if this is documentation —
+      // write the expression without its braces.
+      expect(unresolvable).toEqual([]);
+    }
+  );
+});

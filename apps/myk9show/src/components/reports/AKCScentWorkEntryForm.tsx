@@ -1,6 +1,5 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
-import { useEntryFormData } from '@/hooks/queries/useEntryFormData';
 import { buildClassGrid, sortEntryFormDogs } from '@/lib/reports/entryFormUtils';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 import {
@@ -389,14 +388,20 @@ function EntryFormPage({
 export const AKCScentWorkEntryForm: React.FC<ReportProps> = ({
   showId,
   sortOrder,
-  dogId,
-  trialId,
+  entryFormData,
 }) => {
-  const { dogs, secretary, trials, show, isLoading, isError } = useEntryFormData({
-    showId: showId ?? '',
-    trialId,
-    dogId,
-  });
+  // MYK9-280: this component used to call useEntryFormData itself. ReportPreview
+  // renders it through ReactDOMServer.renderToStaticMarkup, which has no provider
+  // context, so the hook threw `No QueryClient set` and the report never rendered
+  // at all. The host fetches and passes the data in; this component stays pure.
+  const {
+    dogs = [],
+    secretary = null,
+    trials = [],
+    show = null,
+    isLoading = false,
+    isError = false,
+  } = entryFormData ?? {};
   const liveExperience = getLiveExperienceSnapshot(show ?? {});
   const hospitalityNotes = liveExperience?.supplemental.hospitalityNotes ?? null;
 

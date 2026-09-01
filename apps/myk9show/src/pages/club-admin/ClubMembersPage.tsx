@@ -89,6 +89,11 @@ const ClubMembersPage: React.FC = () => {
     hasShowAccess: boolean;
   } | null>(null);
   const [isRemovalOpen, setIsRemovalOpen] = useState(false);
+  const [pendingShowAccessRevoke, setPendingShowAccessRevoke] = useState<{
+    personId: string;
+    personName: string;
+  } | null>(null);
+  const [isShowAccessRevokeOpen, setIsShowAccessRevokeOpen] = useState(false);
 
   const clubId = clubContext.status === 'ready' ? clubContext.clubId : undefined;
   const clubName = clubContext.status === 'ready' ? clubContext.clubName : 'Club';
@@ -326,7 +331,27 @@ const ClubMembersPage: React.FC = () => {
   };
 
   const handleToggleShowAccess = (personId: string, grant: boolean, personName?: string) => {
+    if (!grant) {
+      const resolvedName =
+        personName ??
+        members.find(member => member.personId === personId)?.personName ??
+        showManagers.find(manager => manager.personId === personId)?.personName ??
+        'this person';
+      setPendingShowAccessRevoke({ personId, personName: resolvedName });
+      setIsShowAccessRevokeOpen(true);
+      return;
+    }
     toggleShowAccessMutation.mutate({ personId, grant, personName });
+  };
+
+  const confirmShowAccessRevoke = () => {
+    if (!pendingShowAccessRevoke) return;
+    toggleShowAccessMutation.mutate({
+      personId: pendingShowAccessRevoke.personId,
+      grant: false,
+      personName: pendingShowAccessRevoke.personName,
+    });
+    setIsShowAccessRevokeOpen(false);
   };
 
   const handleAppointSecretary = (personId: string) => {
@@ -601,6 +626,29 @@ const ClubMembersPage: React.FC = () => {
             <AlertDialogCancel>Keep them</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRemoval}>
               {pendingRemoval?.kind === 'officer' ? 'Remove officer' : 'Remove member'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isShowAccessRevokeOpen}
+        onOpenChange={open => !open && setIsShowAccessRevokeOpen(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Revoke show access from {pendingShowAccessRevoke?.personName}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingShowAccessRevoke?.personName} will no longer be able to create or run any of
+              this club&apos;s shows. This does not remove their club membership.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep show access</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmShowAccessRevoke}>
+              Revoke show access
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

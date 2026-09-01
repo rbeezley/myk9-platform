@@ -135,6 +135,8 @@ describe('ClubMembersPage show access', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
+    expect(setClubShowManagerAccess).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
 
     await waitFor(() => {
       expect(setClubShowManagerAccess).toHaveBeenCalledWith({
@@ -162,6 +164,7 @@ describe('ClubMembersPage show access', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
+    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
 
     await waitFor(() => {
       expect(notificationError).toHaveBeenCalledWith(
@@ -216,6 +219,8 @@ describe('ClubMembersPage Show Access tab wiring', () => {
 
     await user.click(await screen.findByRole('tab', { name: /show access/i }));
     await user.click(await screen.findByRole('button', { name: /revoke/i }));
+    expect(setClubShowManagerAccess).not.toHaveBeenCalled();
+    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
 
     await waitFor(() => {
       expect(setClubShowManagerAccess).toHaveBeenCalledWith({
@@ -266,10 +271,13 @@ describe('ClubMembersPage show-access confirmations name the person', () => {
 
     await user.click(await screen.findByRole('tab', { name: /show access/i }));
     await user.click(await screen.findByRole('button', { name: /revoke/i }));
+    expect(setClubShowManagerAccess).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'Grace Hopper will no longer be able to create or run'
+    );
+    await user.click(await screen.findByRole('button', { name: 'Keep show access' }));
+    expect(setClubShowManagerAccess).not.toHaveBeenCalled();
 
-    await waitFor(() => {
-      expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Grace Hopper.');
-    });
     expect(notificationSuccess).not.toHaveBeenCalledWith(
       expect.stringContaining('the member')
     );
@@ -291,6 +299,7 @@ describe('ClubMembersPage show-access confirmations name the person', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Actions for Ada Lovelace' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Revoke Show Access' }));
+    await user.click(await screen.findByRole('button', { name: 'Revoke show access' }));
 
     await waitFor(() => {
       expect(notificationSuccess).toHaveBeenCalledWith('Show access revoked from Ada Lovelace.');

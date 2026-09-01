@@ -155,4 +155,28 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
     expect(result.data).toHaveLength(1);
     expect((result.data[0] as Record<string, unknown>).id).toBe('entry-online-1');
   });
+
+  it('does not resurrect a locally-tombstoned entry the server still returns as live', async () => {
+    // Caught in review of the first cut of this fix: the trial read opted into
+    // verifyOnlineWhenEmpty without reporting its tombstones, so a replica
+    // holding ONLY a queued delete filtered to empty, triggered the online
+    // read, and the not-yet-synced server row put the entry back on the
+    // check-in sheet.
+    mockEntriesTable.getAll.mockResolvedValue([
+      {
+        id: 'entry-tombstoned',
+        dogId: null,
+        classId: 'c1',
+        showId: 's1',
+        registrationId: null,
+        deletedAt: '2026-08-31T00:00:00.000Z',
+        entryStatus: 'confirmed',
+      },
+    ]);
+    onlineRows = [{ id: 'entry-tombstoned', class: { id: 'c1' } }];
+
+    const result = await getEntriesByTrial('t1');
+
+    expect(result.data).toHaveLength(0);
+  });
 });

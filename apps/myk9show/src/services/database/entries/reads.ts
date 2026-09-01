@@ -698,9 +698,14 @@ export const getEntriesByTrial = async (trialId: string) => {
       const trialClassIds = new Set(trialClasses.map(c => c.id));
       const classesMap = buildMapFromArray(trialClasses, c => c.id);
       // Filter entries to only those whose classId is in the trial's classes (inner join)
-      const filtered = allEntries.filter(
-        e => e.classId && trialClassIds.has(e.classId) && isLiveEntry(e)
-      );
+      const inTrial = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
+      const filtered = inTrial.filter(isLiveEntry);
+      // Tombstones for THIS trial's classes — a queued delete not yet synced.
+      // Required because this read opts into `verifyOnlineWhenEmpty`: a replica
+      // holding only a soft-deleted entry filters to empty, which triggers the
+      // online read, and without these ids a server row that has not yet seen
+      // the delete would resurrect the entry onto a check-in sheet.
+      const locallyDeletedIds = inTrial.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = sortedEntries.map(entry =>
@@ -712,7 +717,7 @@ export const getEntriesByTrial = async (trialId: string) => {
             : null,
         })
       );
-      return { data, error: null };
+      return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByTrial(trialId),
     table: 'entries',

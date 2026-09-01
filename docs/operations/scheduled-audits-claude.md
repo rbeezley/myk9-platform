@@ -431,10 +431,11 @@ those two files are the only repo writes this task may make.
 
 ## Maintenance
 
-- The Linear contract above is shared with two tasks that are NOT documented in this file —
-  `secretary-task-walk` and `exhibitor-task-walk`, which live only in
-  `~/.claude/scheduled-tasks/`. Change the contract here and in those two SKILL.md files in the
-  same pass, or they drift.
+- The Linear contract above is shared with two tasks documented separately, in
+  [`scheduled-task-walks.md`](scheduled-task-walks.md) — `secretary-task-walk` and
+  `exhibitor-task-walk`. They are functional walks with no Codex counterpart, so the
+  complement/substitute taxonomy above does not apply to them. Changing the contract means editing
+  it here, in that file, and in all six live `SKILL.md` files, or they drift.
 - `branch-janitor` is deliberately exempt: its "suspected dead, confirm to delete" output is a
   confirm-list, not a defect, and has no issue shape. Do not route it to Linear.
 - When a Codex task changes scope, revisit whether the Claude counterpart still adds a differing

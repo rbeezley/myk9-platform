@@ -39,6 +39,7 @@ import {
   waitForAppApiRequestsToSettle,
   watchAppApiRequests,
 } from '../harness/appApiRequestTracker';
+import { logUnsettledAppApiRequests } from '../harness/routeHealthDiagnostics';
 
 const SEEDED_SHOW = LIVE_SECRETARY_SHOW_ID;
 
@@ -183,9 +184,10 @@ async function assertAppApiRequestsSettled(
     .soft(settlement.settled, `${routeId}: app API requests did not settle before route transition`)
     .toBe(true);
   if (!settlement.settled) {
+    const diagnostic = logUnsettledAppApiRequests(routeId, settlement.pendingUrls);
     test.info().annotations.push({
       type: 'route',
-      description: `${routeId} unsettled-api-requests=${settlement.pendingUrls.join(',') || 'idle-window-incomplete'}`,
+      description: `${routeId} unsettled-api-requests=${diagnostic}`,
     });
   }
 }

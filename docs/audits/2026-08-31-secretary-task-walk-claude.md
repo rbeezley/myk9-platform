@@ -36,6 +36,15 @@ A skipped area is a coverage gap, not a pass.
 
 ### F36 — P1 — NEW — [MYK9-283](https://linear.app/myk9-platform/issue/MYK9-283) — The Check-in Sheet intermittently claims a class has no entries, and never takes it back
 
+> **Resolved 2026-09-01.** Fixed in #1922, deployed, and re-verified against
+> staging: 30 cold loads, 0 false zeros, plus the sibling `scoresheet` report and
+> both trial and class scopes. The replica was proven cold rather than assumed —
+> `entries` absent from `replicated_tables` before the load, 484 rows after.
+> Two measurement traps found while verifying, both now recorded in the
+> `secretary-task-walk` skill: re-navigating in ONE browser context leaves the
+> replica warm from run 2 on, and a `buildPdf` report reads as blank in headless
+> Chromium (measure the Blob via `URL.createObjectURL`, not the frame DOM).
+
 On roughly **1 cold load in 6**, `/shows/:id/reports?report=check-in-sheet` renders
 
 > No entries found for this selection
@@ -275,12 +284,12 @@ No source edits, commits, migrations or deploys.
 
 ## Filed
 
-| Finding | Issue | Priority |
-| --- | --- | --- |
-| F36 | [MYK9-283](https://linear.app/myk9-platform/issue/MYK9-283) — Check-in Sheet reports a false zero on a cold load and never retracts it | High |
-| F37 | [MYK9-284](https://linear.app/myk9-platform/issue/MYK9-284) — Revoking show access takes effect on one click, with no confirmation | Medium |
-| F41 | [MYK9-285](https://linear.app/myk9-platform/issue/MYK9-285) — Delete-show confirmation promises permanent, irreversible deletion; the app soft-deletes | Medium |
-| F42 | [MYK9-286](https://linear.app/myk9-platform/issue/MYK9-286) — `/shows/new` renders "We couldn't load this show" instead of the create wizard | Low |
+| Finding | Issue | Priority | Status |
+| --- | --- | --- | --- |
+| F36 | [MYK9-283](https://linear.app/myk9-platform/issue/MYK9-283) — Check-in Sheet reports a false zero on a cold load and never retracts it | High | **Done** (#1922, verified 2026-09-01) |
+| F37 | [MYK9-284](https://linear.app/myk9-platform/issue/MYK9-284) — Revoking show access takes effect on one click, with no confirmation | Medium | Open |
+| F41 | [MYK9-285](https://linear.app/myk9-platform/issue/MYK9-285) — Delete-show confirmation promises permanent, irreversible deletion; the app soft-deletes | Medium | **Done** (#1922) |
+| F42 | [MYK9-286](https://linear.app/myk9-platform/issue/MYK9-286) — `/shows/new` renders "We couldn't load this show" instead of the create wizard | Low | Open |
 
 F38, F39 and F40 were not filed — all P3, and F39 may be intended behaviour.
 Every issue above was checked for duplicates with `includeArchived: true`;

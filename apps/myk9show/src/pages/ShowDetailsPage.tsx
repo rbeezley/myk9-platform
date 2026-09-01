@@ -41,6 +41,7 @@ import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvi
 import { SHOW_MANAGEMENT_SECTIONS } from '@/routes/showManagementSections';
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
+import { isValidUUID } from '@/utils/validation';
 
 /** Loads `/shows/:id` once and delegates to the public, exhibitor, or management surface. */
 const ShowDetailsPage: React.FC = () => {
@@ -59,7 +60,7 @@ const ShowDetailsPage: React.FC = () => {
     data: showEntries = [],
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
-  } = useEntriesByShowQuery(id || '', !!id);
+  } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id)));
   const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
@@ -125,7 +126,7 @@ const ShowDetailsPage: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !isValidUUID(id)) return;
     void loadTrials();
     void loadTrialClasses();
   }, [id, loadTrials, loadTrialClasses]);

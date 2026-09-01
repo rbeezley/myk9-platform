@@ -19,6 +19,7 @@ import { getShowById } from '@/services/database/shows';
 import { mapDatabaseToShow } from '@/services/mappers/showMappers';
 import type { Show } from '@/types/show-types';
 import { logger } from '@/services/LoggingService';
+import { isValidUUID } from '@/utils/validation';
 
 interface FastShowDetailsResult {
   showId: string | null;
@@ -62,7 +63,9 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
       if (error) throw error;
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
-    enabled: !!showId,
+    // Route params are user-controlled. Do not turn a path such as /shows/new
+    // into a database request for a show whose id can never be valid.
+    enabled: !!showId && isValidUUID(showId),
     // placeholderData provides instant display from pre-existing caches while
     // the real query runs in the background — preserves fast navigation feel.
     placeholderData: (): Show | undefined => {

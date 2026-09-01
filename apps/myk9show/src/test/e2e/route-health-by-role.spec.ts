@@ -183,9 +183,11 @@ async function assertAppApiRequestsSettled(
     .soft(settlement.settled, `${routeId}: app API requests did not settle before route transition`)
     .toBe(true);
   if (!settlement.settled) {
+    const pendingUrls = settlement.pendingUrls.join(',') || 'idle-window-incomplete';
+    console.log(`[route-health] ${routeId}: unsettled app API requests: ${pendingUrls}`);
     test.info().annotations.push({
       type: 'route',
-      description: `${routeId} unsettled-api-requests=${settlement.pendingUrls.join(',') || 'idle-window-incomplete'}`,
+      description: `${routeId} unsettled-api-requests=${pendingUrls}`,
     });
   }
 }

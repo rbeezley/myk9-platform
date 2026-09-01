@@ -120,9 +120,10 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 12. Create a show
 
 **Outcome:** Secretary creates a show with trials, classes, judges, and entry dates, and publishes it.
-**Canonical route:** `/secretary/create-show/wizard` _(source-map re-verified 2026-08-04)_
+**Canonical route:** `/secretary/create-show/wizard` _(source-map re-verified 2026-09-01)_
 **Entry point:** Secretary Dashboard → Create Show
-**Note:** Source-map entry re-verified 2026-08-04 after route definitions moved into the centralized router; the guide-facing show-creation flow is unchanged.
+**Alternate route:** `/shows/new` redirects here for callers using the conventional creation URL.
+**Note:** Source-map entry re-verified 2026-09-01 after adding the `/shows/new` redirect; the guide-facing show-creation flow is unchanged.
 **Docs target:** Secretary Guide § Setup, KB: `create-a-show.md`
 
 ### 13. Monitor all shows (cross-show triage)

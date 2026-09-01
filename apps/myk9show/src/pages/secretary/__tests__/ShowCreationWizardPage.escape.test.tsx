@@ -85,13 +85,13 @@ describe('ShowCreationWizardPage — Escape', () => {
     expect(cancel).not.toBeNull();
     await userEvent.click(cancel!);
 
-    // MYK9-287: the leave prompt is a portalled AlertDialog, so this wait covers a
-    // portal mount plus its transition -- not a state flush. Testing Library's
-    // default 1000ms cleared that on an idle machine and not on a loaded CI runner:
-    // it timed out twice, at 2603ms and 3018ms, on two SHAs in two different jobs,
-    // while passing 8/8 locally under the usual slow-environment recipe. The headroom
-    // is the fix; the assertion is unchanged.
-    expect(await screen.findByText(LEAVE_PROMPT, {}, { timeout: 10_000 })).toBeInTheDocument();
+    // MYK9-287: this wait is NOT the flake, and giving it more time is not the fix.
+    // Raising it to 10s made the run hit vitest's own `testTimeout: 10000` at
+    // 10046ms with the prompt still absent -- so in CI the dialog does not appear
+    // within ten seconds, and the cause is not latency. Kept at a bound safely below
+    // the test timeout so the failure surfaces as Testing Library's "unable to find"
+    // (which names the missing text) rather than as an opaque vitest timeout.
+    expect(await screen.findByText(LEAVE_PROMPT, {}, { timeout: 4000 })).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalledWith('/shows');
   });
 });

@@ -5,14 +5,55 @@ import { logger } from '@/services/LoggingService';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+type TestDataRecord = Record<string, unknown>;
+
+type TestAward = {
+  type: string;
+  dogId: string;
+  awardName: string;
+  points: number;
+};
+
+type TestResultRecord = {
+  dogId: string;
+  time: number;
+  faults: number;
+  score: number;
+  placement: number;
+  qualified: boolean;
+  [key: string]: unknown;
+};
+
+type TestDataStore = {
+  clubs: TestDataRecord[];
+  judges: TestDataRecord[];
+  exhibitors: TestDataRecord[];
+  dogs: TestDataRecord[];
+  entries: TestDataRecord[];
+  // These mock result records intentionally remain open-ended because the legacy
+  // phase-5 specs assert different result shapes through this helper boundary.
+  results: Record<string, TestResultRecord[]>;
+  awards: Record<string, TestAward[]>;
+};
+
+const createTestDataStore = (): TestDataStore => ({
+  clubs: [],
+  judges: [],
+  exhibitors: [],
+  dogs: [],
+  entries: [],
+  results: {},
+  awards: {},
+});
+
 export class ShowTestHelper extends TestSetup {
   public page: Page;
-  private testData: Record<string, unknown> = {};
+  private testData: TestDataStore = createTestDataStore();
 
   constructor(page: Page) {
     super(page);
     this.page = page;
-    this.testData = {};
+    this.testData = createTestDataStore();
   }
 
   /**
@@ -399,8 +440,6 @@ export class ShowTestHelper extends TestSetup {
   async createTestClub(clubData: Record<string, unknown>) {
     // Mock the club creation
     const clubId = `club-${Date.now()}`;
-    this.testData = this.testData || {};
-    this.testData.clubs = this.testData.clubs || [];
     this.testData.clubs.push({ ...clubData, id: clubId });
     return clubId;
   }
@@ -409,9 +448,6 @@ export class ShowTestHelper extends TestSetup {
    * Create test judges with certification data
    */
   async createTestJudges(judges: Record<string, unknown>[]) {
-    this.testData = this.testData || {};
-    this.testData.judges = this.testData.judges || [];
-    
     for (const judge of judges) {
       const judgeId = `judge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       this.testData.judges.push({ ...judge, id: judgeId });
@@ -424,9 +460,6 @@ export class ShowTestHelper extends TestSetup {
    * Create test exhibitors
    */
   async createTestExhibitors(exhibitors: Record<string, unknown>[]) {
-    this.testData = this.testData || {};
-    this.testData.exhibitors = this.testData.exhibitors || [];
-    
     for (const exhibitor of exhibitors) {
       this.testData.exhibitors.push(exhibitor);
     }
@@ -436,9 +469,6 @@ export class ShowTestHelper extends TestSetup {
    * Create test dogs with owner relationships
    */
   async createTestDogs(dogs: Record<string, unknown>[]) {
-    this.testData = this.testData || {};
-    this.testData.dogs = this.testData.dogs || [];
-    
     for (const dog of dogs) {
       this.testData.dogs.push(dog);
     }
@@ -456,9 +486,6 @@ export class ShowTestHelper extends TestSetup {
    * Create test entry with payment processing
    */
   async createTestEntry(entryData: Record<string, unknown>) {
-    this.testData = this.testData || {};
-    this.testData.entries = this.testData.entries || [];
-    
     const entryId = `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.testData.entries.push({ ...entryData, id: entryId });
     
@@ -476,9 +503,7 @@ export class ShowTestHelper extends TestSetup {
    * Judge a class with results
    */
   async judgeClass(classId: string, results: Record<string, unknown>[]) {
-    this.testData = this.testData || {};
-    this.testData.results = this.testData.results || {};
-    this.testData.results[classId] = results;
+    this.testData.results[classId] = results as TestResultRecord[];
     
     // Simulate judging interface interaction
     logger.debug(`Judging class ${classId} with ${results.length} results`, 'app', {});
@@ -511,8 +536,6 @@ export class ShowTestHelper extends TestSetup {
       }
     ];
     
-    this.testData = this.testData || {};
-    this.testData.awards = this.testData.awards || {};
     this.testData.awards[trialId] = awards;
     
     return awards;
@@ -539,7 +562,7 @@ export class ShowTestHelper extends TestSetup {
    */
   async mockShowApiResponses() {
     // Initialize test data storage
-    this.testData = {};
+    this.testData = createTestDataStore();
     
     // Mock show management APIs
     await this.page.route('**/api/shows/**', async (route) => {

@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
+import { useWizardStore } from '@/store/wizardStore';
 import ShowCreationWizardPage from '../ShowCreationWizardPage';
 
 vi.mock('@/pages/secretary/ShowCreationWizard/useShowCreationWizardActions', () => ({
@@ -36,10 +37,33 @@ vi.mock('react-router-dom', async () => ({
 
 const LEAVE_PROMPT = /unsaved changes that will be lost/i;
 
+// MYK9-287. These tests used to type a 22-character show name, and that string
+// -- not the dialog -- was the flake. `#show-name` is a CONTROLLED input bound
+// to the persisted `useWizardStore`, so every keystroke re-renders the whole
+// wizard AND fires a zustand `persist` write into fake-indexeddb. Measured on
+// efficiency cores under coverage (`taskpolicy -b ... --coverage`, the recipe
+// CLAUDE.md prescribes for timeout-class flakes):
+//
+//   render=1549ms  type22=11251ms  find-cancel=2310ms  click=1209ms  dialog=398ms
+//
+// ~512ms per character. Typing alone blew vitest's `testTimeout: 10000` while
+// the dialog it was blamed for took 398ms. `updateShowData` sets
+// `isDirty: true` unconditionally, so ONE character establishes everything
+// these tests need -- a real keystroke through the DOM marking the form dirty.
+// Do not restore a longer string here to make the test read more realistically;
+// the extra characters buy no coverage and cost ten seconds of CI budget.
+const DIRTYING_KEYSTROKE = 'Z';
+
 describe('ShowCreationWizardPage — Escape', () => {
   beforeEach(() => {
     mockNavigate.mockReset();
     Element.prototype.scrollIntoView = vi.fn<typeof Element.prototype.scrollIntoView>();
+    // `useWizardStore` is a module singleton, so without this the tests below
+    // run against whatever the previous one left -- the name field arrives
+    // pre-filled and `isDirty` already true. CI runs with `--sequence.shuffle`,
+    // which reorders tests inside a file as well as the files themselves, so
+    // that leak makes the outcome depend on a random seed.
+    useWizardStore.getState().resetWizard();
   });
 
   afterEach(() => {
@@ -60,9 +84,8 @@ describe('ShowCreationWizardPage — Escape', () => {
     render(<ShowCreationWizardPage />);
 
     const nameField = document.querySelector('#show-name') as HTMLInputElement | null;
-    if (nameField) {
-      await userEvent.type(nameField, 'Escape Regression Show');
-    }
+    expect(nameField).not.toBeNull();
+    await userEvent.type(nameField!, DIRTYING_KEYSTROKE);
 
     await userEvent.keyboard('{Escape}');
 
@@ -79,18 +102,17 @@ describe('ShowCreationWizardPage — Escape', () => {
     // made the test PASS having asserted nothing, which is the one outcome a guard
     // against vacuity must not produce.
     expect(nameField).not.toBeNull();
-    await userEvent.type(nameField!, 'Escape Regression Show');
+    await userEvent.type(nameField!, DIRTYING_KEYSTROKE);
 
     const cancel = screen.queryByRole('button', { name: /^cancel$/i });
     expect(cancel).not.toBeNull();
     await userEvent.click(cancel!);
 
-    // MYK9-287: this wait is NOT the flake, and giving it more time is not the fix.
-    // Raising it to 10s made the run hit vitest's own `testTimeout: 10000` at
-    // 10046ms with the prompt still absent -- so in CI the dialog does not appear
-    // within ten seconds, and the cause is not latency. Kept at a bound safely below
-    // the test timeout so the failure surfaces as Testing Library's "unable to find"
-    // (which names the missing text) rather than as an opaque vitest timeout.
+    // Bounded below vitest's `testTimeout: 10000` so a failure surfaces as
+    // Testing Library's "unable to find" -- which names the missing text --
+    // rather than as an opaque whole-test timeout that says nothing about which
+    // phase ran long. Reading one of those as if it were this assertion is what
+    // sent MYK9-287 after the wrong cause; see the note above.
     expect(await screen.findByText(LEAVE_PROMPT, {}, { timeout: 4000 })).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalledWith('/shows');
   });

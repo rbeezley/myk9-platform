@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { globSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -191,6 +191,31 @@ describe('semantic token contrast', () => {
 
     expect(contrastRatio(lightBg, lightFg)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
     expect(contrastRatio(darkBg, darkFg)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
+  });
+
+  it('does not dim informative muted text with opacity utilities', () => {
+    const sourceFiles = globSync('src/**/*.{tsx,ts,css}', { cwd: appRoot }).filter(file =>
+      statSync(join(appRoot, file)).isFile()
+    );
+    const offenders = sourceFiles.filter(file =>
+      /text-muted-foreground\/(60|70|80)/.test(read(file))
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps muted text readable on representative composited surfaces', () => {
+    const lightForeground = parseColor(varValue(indexCss, '--muted-foreground'));
+    const darkForeground = parseColor(varValue(darkBlock, '--muted-foreground'));
+    const lightSurface = parseColor(varValue(indexCss, '--background'));
+    const darkSurface = parseColor(varValue(darkBlock, '--card'));
+
+    expect(contrastRatio(lightForeground, composite([255, 255, 255], 0.1, lightSurface))).toBeGreaterThanOrEqual(
+      AA_SMALL_TEXT
+    );
+    expect(contrastRatio(darkForeground, composite([30, 28, 25], 0.1, darkSurface))).toBeGreaterThanOrEqual(
+      AA_SMALL_TEXT
+    );
   });
 
   // This file compares each token against its FLAT surface, which is why the

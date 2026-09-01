@@ -66,7 +66,7 @@ export function AskQFeedback({ queryLogId }: AskQFeedbackProps) {
         {!reportSubmitted && (
           <button
             onClick={() => setShowReport(!showReport)}
-            className="text-xs text-muted-foreground/60 hover:text-muted-foreground ml-auto transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground ml-auto transition-colors"
           >
             Report issue
           </button>

@@ -197,11 +197,7 @@ const SecretaryWaitlistRedirect = () => {
   );
 };
 
-const SecretaryShowRedirect = ({
-  subPath,
-}: {
-  subPath: 'show-desk' | '';
-}) => {
+const SecretaryShowRedirect = ({ subPath }: { subPath: 'show-desk' | '' }) => {
   const { showId, isResolving } = useSecretaryRedirectShowId();
 
   if (isResolving) {

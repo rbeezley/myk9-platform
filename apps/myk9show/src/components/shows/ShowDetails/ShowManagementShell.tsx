@@ -211,12 +211,14 @@ export function ShowManagementShell({
                   </span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label="More show actions"
-                        className="h-10 w-10 sm:h-9 sm:w-9"
-                      >
+                      {/* size="icon-lg" (44px), and the responsive override is
+                          gone. It read `h-10 w-10 sm:h-9 sm:w-9` — 40px on a
+                          phone, SHRINKING to 36px from the `sm` breakpoint up.
+                          Whatever that was meant to do, a control does not get
+                          harder to hit as the screen gets bigger, and it put
+                          this one under the 44px floor on every width
+                          (MYK9-277). */}
+                      <Button variant="outline" size="icon-lg" aria-label="More show actions">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

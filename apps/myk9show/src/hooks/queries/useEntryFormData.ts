@@ -95,11 +95,20 @@ async function fetchEntryFormData(
     .order('date')
     .order('trial_number');
 
-  const trials: EntryFormTrial[] = (trialsRaw ?? []).map(t => ({
-    id: t.id,
-    date: t.date ?? '',
-    trialNumber: Number(t.trial_number ?? 0),
-  }));
+  const trials: EntryFormTrial[] = (trialsRaw ?? [])
+    .map(t => ({
+      id: t.id,
+      date: t.date ?? '',
+      trialNumber: t.trial_number ?? '',
+    }))
+    // MYK9-282: `.order('trial_number')` is lexicographic on a text column, so
+    // "Trial 10" lands before "Trial 2" among trials sharing a date. Date stays
+    // primary; the tiebreak is numeric-aware.
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        a.trialNumber.localeCompare(b.trialNumber, undefined, { numeric: true })
+    );
 
   const trialIds = trialId ? [trialId] : trials.map(t => t.id);
 

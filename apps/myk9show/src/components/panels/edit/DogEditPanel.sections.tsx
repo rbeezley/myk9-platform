@@ -60,7 +60,7 @@ export const OwnerSelectionField: React.FC = () => {
           >
             <option value={data.ownerId || ''}>{displayText}</option>
           </select>
-          <p className="text-xs text-muted-foreground/60 mt-1">Loading people…</p>
+          <p className="text-xs text-muted-foreground mt-1">Loading people…</p>
         </FormField>
       </div>
     );
@@ -69,11 +69,11 @@ export const OwnerSelectionField: React.FC = () => {
   if (loadedPeople.length === 0) {
     return (
       <div className="space-y-2 pt-4 border-t border-border/30">
-        <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+        <Label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
           Owner
         </Label>
         <div className="text-sm text-muted-foreground py-2">{displayText}</div>
-        <p className="text-xs text-muted-foreground/60">No people available to assign as owner</p>
+        <p className="text-xs text-muted-foreground">No people available to assign as owner</p>
       </div>
     );
   }
@@ -153,7 +153,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            <Label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
               Dog Photo
             </Label>
             <div className="flex gap-2">
@@ -213,7 +213,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               <option key={b.name} value={b.name} />
             ))}
           </datalist>
-          <p className="text-xs text-muted-foreground/80 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Not sure of the exact breed, or registering a mixed-breed dog? Choose the closest match,
             or select "Mixed Breed" — this does not affect AKC PAL/ILP or mixed-breed registration
             eligibility.
@@ -252,7 +252,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               className={cn(dobError && 'border-destructive')}
               {...form?.getFieldProps('dateOfBirth')}
             />
-            <p className="text-xs text-muted-foreground/80 mt-1">Format: MM/DD/YYYY</p>
+            <p className="text-xs text-muted-foreground mt-1">Format: MM/DD/YYYY</p>
           </FormField>
         </div>
 
@@ -332,7 +332,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     value={data.notes || ''}
                     onChange={handleInputChange('notes')}
                     placeholder="Enter additional notes about the dog"
-                    className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
+                    className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                   />
                 </FormField>
 
@@ -342,7 +342,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     value={data.specialNeeds || ''}
                     onChange={handleInputChange('specialNeeds')}
                     placeholder="Enter any special needs or requirements"
-                    className="min-h-[60px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
+                    className="min-h-[60px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                   />
                 </FormField>
               </div>

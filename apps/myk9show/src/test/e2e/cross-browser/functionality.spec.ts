@@ -299,11 +299,13 @@ test.describe('Cross-Browser Functionality Tests', () => {
       await page.click('[data-testid="save-dog-button"]');
 
       // Verify validation errors
-      await expect(page.locator('.error-message, .field-error')).toHaveCount.greaterThan(0);
+      await expect
+        .poll(() => page.locator('.error-message, .field-error').count())
+        .toBeGreaterThan(0);
 
       // Test field-specific validation
       await page.fill('[data-testid="dog-call-name"]', 'A'); // Too short
-      await page.blur('[data-testid="dog-call-name"]');
+      await page.locator('[data-testid="dog-call-name"]').blur();
       await expect(page.locator('[data-testid="call-name-error"]')).toBeVisible();
 
       console.log(`✅ ${browserName}: Client-side validation completed`);

@@ -6,12 +6,17 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import type { ReportDataSet, ReportProps } from '@/lib/reports/types';
 import type { DbTrial, DbClass, DbEntry } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
-import { formatShowDateRange } from '@/lib/format/dates';
-import { buildTrialReportProps, mapReportEntries, mapReportTrialFields } from './reportDataMapping';
+import {
+  buildShowReportProps,
+  buildTrialReportProps,
+  mapReportEntries,
+  mapReportTrialFields,
+} from './reportDataMapping';
 import { getReportRenderingMode } from './reportRenderingMode';
+import { useHostedReportData } from './useHostedReportData';
 import { releasePdfFrame, writeMarkupIntoFrame } from './reportPreviewFrame';
 import type { ReportDataState } from '@/hooks/queries/useReportData';
-import { resolveClassJudgeName, resolveTrialJudgeName } from '@/utils/classJudgeDisplay';
+import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
 
 export interface ReportPreviewProps {
   reportType: string;
@@ -177,6 +182,15 @@ export function ReportPreview({
     return () => URL.revokeObjectURL(url);
   }, [pdfResult, report, iframeRef]);
 
+  // MYK9-280: resolved HERE, where the providers live, because the report
+  // components are rendered into a detached tree by renderToStaticMarkup.
+  const { entryFormData, judgeSupplies, isHostedDataPending } = useHostedReportData({
+    reportType,
+    showId: show?.id,
+    trialId: trialId !== 'all' ? trialId : undefined,
+    dogId: dogId !== 'all' ? dogId : undefined,
+  });
+
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -184,65 +198,28 @@ export function ReportPreview({
     if (!report) return;
     // Rendered by the PDF pipeline above instead — never build markup for it.
     if (report.buildPdf) return;
+    // Markup is written into the iframe once per change. Building it before the
+    // hosted fetch resolves would bake the empty state in permanently.
+    if (isHostedDataPending) return;
 
     const renderingMode = getReportRenderingMode(report);
 
     let combinedMarkup: string;
 
     if (renderingMode === 'show') {
-      // Filter to selected trial when a specific trial is chosen
-      const targetTrialIds = trialId === 'all' ? (trials ?? []).map(t => t.id) : [trialId];
-      const shouldFilterClass = report.scopes.includes('class') && classId !== 'all';
-
-      const filteredClasses = (classes ?? []).filter(
-        c => targetTrialIds.includes(c.trial_id ?? '') && (!shouldFilterClass || c.id === classId)
-      );
-      const filteredClassIds = new Set(filteredClasses.map(c => c.id));
-
-      // Build enriched entries with class and trial metadata attached to each entry
-      const allEntriesEnriched = (entries ?? [])
-        .filter(e => filteredClassIds.has(e.class_id ?? ''))
-        .map(e => {
-          const cls = filteredClasses.find(c => c.id === e.class_id);
-          const trial = (trials ?? []).find(t => t.id === cls?.trial_id);
-          return mapReportEntries([e], trial, cls, show.assignedJudges ?? [])[0];
-        });
-
-      const allTrials = (trials ?? [])
-        .filter(t => targetTrialIds.includes(t.id))
-        .map(t => ({
-          id: t.id,
-          ...mapReportTrialFields(t),
-          judgeName: resolveTrialJudgeName(
-            filteredClasses.filter(c => c.trial_id === t.id),
-            show.assignedJudges ?? []
-          ),
-        }));
-
-      const allClasses = filteredClasses.map(c => ({
-        id: c.id,
-        trialId: c.trial_id ?? '',
-        element: c.element ?? '',
-        level: c.level ?? '',
-        section: c.section ?? '',
-        judgeName: resolveClassJudgeName(c, show.assignedJudges ?? []),
-      }));
-
-      const showDates = formatShowDateRange(show.startDate, show.endDate) || undefined;
-
-      const props: ReportProps = {
-        showId: show.id,
-        showName: show.name ?? '',
-        entries: allEntriesEnriched,
+      const props = buildShowReportProps({
+        report,
+        show,
+        trials: trials ?? [],
+        classes: classes ?? [],
+        entries: entries ?? [],
+        trialId,
+        classId,
+        dogId,
         sortOrder,
-        allTrials,
-        allClasses,
-        organization: show.organization ?? undefined,
-        clubName: show.clubName ?? undefined,
-        ...(showDates ? { showDates } : {}),
-        ...(dogId !== 'all' ? { dogId } : {}),
-        ...(trialId !== 'all' ? { trialId } : {}),
-      };
+        ...(entryFormData ? { entryFormData } : {}),
+        ...(judgeSupplies ? { judgeSupplies } : {}),
+      });
       const ReportComponent = report.component;
       combinedMarkup = ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
     } else if (renderingMode === 'trial') {
@@ -320,6 +297,11 @@ export function ReportPreview({
     isLoading,
     isError,
     iframeRef,
+    // MYK9-280: without these the preview keeps the markup it built BEFORE the
+    // hosted fetch resolved — a permanently blank entry form.
+    entryFormData,
+    judgeSupplies,
+    isHostedDataPending,
   ]);
 
   // Checked FIRST. With no show there is no showId, so the trials query is

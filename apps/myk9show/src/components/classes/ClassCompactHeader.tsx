@@ -18,7 +18,7 @@ function MetadataItem({ label, value }: MetadataItemProps) {
       data-testid="metadata-item"
       className="flex-1 min-w-[120px] px-4 py-2.5 border-r border-border/50 last:border-r-0"
     >
-      <div className="text-xs uppercase tracking-wide text-muted-foreground/70">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="text-sm font-medium mt-0.5">{value}</div>
     </div>
   );

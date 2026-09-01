@@ -131,6 +131,165 @@ one run and 16 on the next. The sweep now waits for the app's API reads to go
 idle, for text length to stop changing between samples, and for running
 animations to finish, each capped.
 
+## Corrected 2026-08-31 (MYK9-281)
+
+The first publication of this report overstated its own small-target count. The
+probe reported every **stretched link** — an anchor whose `::after` is inset
+across its card, so the whole card is the hit area — as a ~24px target, because
+`getBoundingClientRect()` excludes pseudo-elements and the ancestor walk only
+promoted elements setting `cursor: pointer`. On `/dogs`, **25 of 26** findings
+were this artefact.
+
+Fixed in `measurementProbe.ts`, and the numbers below are from a full re-run.
+
+| Metric | First run | Corrected |
+| --- | --- | --- |
+| Small-target findings | 620 | **620** |
+| `a` 24px cluster | 66 instances / 18 routes | **16 / 16** — breadcrumbs only |
+| `/dogs` findings | 26 | **1** (a genuine 40px "Add Dog") |
+
+Two things worth stating rather than glossing:
+
+- **The estimate of the error was itself wrong.** Before re-running, the guess
+  was ~12 artefacts on `/dogs`; the answer was 25. There was no way to know
+  without measuring, which is the same lesson the probe keeps teaching.
+- **The contrast numbers also moved (947 → 931), and that is NOT this fix.**
+  `effectiveBox` is used only by the target scan. The re-run happened on a base
+  14 commits newer than the original (`51a9bd718` → `0cca87202`), including
+  #1914's rework of the report components, so page content differs. Treat
+  cross-run contrast deltas as base drift unless the bases match.
+
+The sweep now carries a **geometry** known-answer check alongside its colour
+ones: every page measures a synthetic stretched link inside a 120px card and
+must get 120 back, not the anchor's own ~20px line box. Until MYK9-281 the
+harness verified only its arithmetic, never its geometry — which is why a broken
+`effectiveBox` published a full sweep without tripping anything.
+
+## Compositing correction, 2026-08-31 (MYK9-275)
+
+Investigating the last remaining contrast finding — the show-desk "In progress"
+badge at 1.17:1, reported here as the worst reading in the app — found that it
+was **not an app defect**. It was the harness again, and this is the third
+distinct probe bug of the same family.
+
+`over()` hardcoded the composited result's alpha to `1`. That is correct only
+when the lower layer is already opaque, and `backdropOf` composites ancestor
+backgrounds, which frequently are not. So the first pair of translucent layers
+produced a "fully opaque" result and every layer behind it was discarded.
+
+The badge is `bg-warning/10` sitting on a `/10` terracotta selected row:
+
+```
+button          rgba(146,64,14, 0.1)            10% amber
+div.grid…       srgb(0.659 0.278 0.176 / 0.1)   10% terracotta  ← selected row
+div.rounded-xl  #ffffff                          opaque
+```
+
+The probe read that as amber on **solid** terracotta — `rgb(165,69,45)`, 1.17:1.
+Correctly composited the backdrop is `rgb(236,219,212)` and the badge measures
+about **5.4:1**, which passes comfortably.
+
+Fixed with real source-over compositing that preserves alpha. When the lower
+layer is opaque it reduces exactly to the previous formula, so every
+already-correct call is unchanged.
+
+| | Before | After |
+| --- | --- | --- |
+| Contrast findings | 67 | **49** |
+| "In progress" badge | 1.17:1 (worst in app) | absent — passes |
+
+The `rgb(201,100,66)` show-detail cluster (24 instances) also went, for the same
+reason. Nothing was fixed in the app; the report was wrong.
+
+### A fourth known answer
+
+Every page now composites two nested 50% blacks over white and must read
+**63.75**. With the bug present it reads 0. The colour answers verify `parse`,
+the geometry answer verifies `effectiveBox`, and this one verifies the
+compositing — which nothing checked until it invented the app's worst finding.
+
+Its slack is deliberately wide (2, not 0.5). The canvas round-trip quantises
+alpha to 8 bits, so the real reading is ~63.25 and a tight bound would sit on
+its own rounding edge — a guard that fails closed across every page is worse
+than no guard. The failure it catches returns 0, so the margin still
+discriminates completely.
+
+### What this says about the four earlier gaps
+
+The ancestor-opacity gap recorded below is a *different* bug from this one and
+is still latent. But the pattern is now unmistakable: every part of this probe
+that was never given a known answer has eventually been found wrong — colour
+notation, geometry, and now compositing. The remaining unverified areas
+(pseudo-element text, paint order, blend modes and filters) should be read as
+open risks rather than as passing checks.
+
+## Contrast-path audit, 2026-08-31
+
+> **Base:** measured at `0cca87202`, before #1916 landed its a11y fixes. The
+> before/after figures below are about the HARNESS and hold regardless, but the
+> app-side counts they quote are pre-#1916 and should not be compared against a
+> fresh run.
+
+After MYK9-281 exposed that the harness verified its arithmetic but never its
+geometry, the contrast path was audited for the same shape of gap. It had one,
+and it was live.
+
+**The known-answer checks were hex-only, and this app does not emit hex.** The
+three answers — `#ffffff`, `#000000`, `#767676` — never exercised
+`color(srgb ...)`, which accounts for 92 of 160 sampled finding foregrounds.
+
+Proven by simulating a total CSS Color 4 parsing failure (the round-5 bug) and
+re-running `public` in dark:
+
+| | Broken, old guards | Broken, new guards |
+| --- | --- | --- |
+| Fabricated findings published | **56** | **0** |
+| Pages excluded | 2 of 8 | **8 of 8** |
+| Sanity line | `21/1/4.54/120px` — unmoved | `syntaxAgreement=16.33` |
+
+Every guard reported healthy while the report published 56 findings that did not
+exist. Three pages failed 100% of their text. The implausible-failure-rate guard
+caught only the two largest: `sign-in` failed 14 of 14 but sits under the
+`measured > 20` sample floor, and `show-detail` failed 19 of 137 — a plausible
+*minority* of false findings, which is the dangerous case, because nothing about
+it looks broken.
+
+This was worse than the geometry gap in one respect. There, no guard existed.
+Here a guard existed, ran on every page, and was blind to the majority case.
+
+Two fixes:
+
+- **A syntax-agnostic known answer.** One mid-grey written as hex, `rgb()` and
+  `color(srgb ...)`; their on-white ratios must agree. It calibrates itself,
+  needs no hardcoded expected ratio, and fails the instant any notation stops
+  round-tripping. Reported per page as `agree0`. If the design tokens ever emit
+  a fourth notation, it goes in that list — a guard that does not cover what the
+  app renders is not a guard.
+- **100% failure is disbelieved at any size above 5 nodes**, without the sample
+  floor. That floor exists so a small empty state is not disbelieved for failing
+  proportionally; total failure is categorically different from "most".
+
+### Gaps found and NOT fixed
+
+Recorded rather than quietly closed, because none of them is currently firing
+and two are not even quantified:
+
+- **Ancestor-opacity compositing (latent).** `backdropOf` returns raw ancestor
+  background colours while `effectiveOpacity` dims only the foreground. If a
+  card *with a background* carried `opacity`, the group composites as a unit and
+  both would dim — the probe would report contrast worse than it renders. Six
+  findings carry `opacity: 0.8`, but all trace to
+  `.myk9-template-card-date { opacity: 0.8 }`, where the opacity is on the text
+  element itself and the probe is correct. A real modelling gap that nothing
+  triggers today.
+- **Pseudo-element text is never measured.** Content in `::before` / `::after`
+  is invisible to the text scan. Under-reports; unquantified.
+- **`backdropOf` walks DOM ancestors, not paint order.** A fixed header or
+  overlay painted above the text is not its backdrop as far as the probe is
+  concerned. Unquantified.
+- **`mix-blend-mode`, `filter` and `backdrop-filter` are ignored entirely.**
+  Unquantified.
+
 ## Coverage
 
 Two measurements per route, light and dark. Club-admin is absent because
@@ -144,10 +303,10 @@ Two measurements per route, light and dark. Club-admin is absent because
 | Never attempted (group skipped) | 0 |
 | Usable | 80 |
 | Excluded | 4 |
-| Text nodes measured for contrast | 31,046 |
+| Text nodes measured for contrast | 30,914 |
 | Text nodes not measurable (image/gradient backdrop) | 164 |
-| Contrast findings | 947 |
-| Small-target findings | 676 |
+| Contrast findings | 931 |
+| Small-target findings | 620 |
 | Controls with no accessible name | 10 |
 | **Measurements with horizontal overflow** | **0** |
 
@@ -162,7 +321,7 @@ account — worth a look, but not a measurement.
 work that `shell-integrity-responsive.spec.ts` and the round-4 registration pass
 pinned is holding across every route, not just the pinned ones.
 
-**No WCAG 2.5.8 AA target failures.** All 676 small-target instances are against
+**No WCAG 2.5.8 AA target failures.** All 620 small-target instances are against
 the **44px** bar this project adopted in round 5, not the 24px WCAG AA floor —
 `under24` is zero across every one of them. Every undersized control either
 clears 24px or satisfies 2.5.8's spacing exception, checked in both its halves
@@ -224,7 +383,7 @@ Whether that is worth changing is a design call, not a defect report.
 | --- | --- | --- | --- | --- |
 | `button` | 20 | 50 | 32px | "Change photo", "See classes", "Copy Admin code" |
 | `button` | 20 | 50 | 40px | "Add Dog", "Copy link", "Print", "Regenerate codes" |
-| `a` | 18 | 66 | 24px | sidebar / nav links |
+| `a` | 16 | 16 | 24px | "Shows" / "Admin" breadcrumbs |
 | `a` | 14 | 28 | 36px | "Sign In", "Sign Up" |
 | `button` | 14 | 138 | 36px | "More show actions", "Move up — #100 Willow" |
 | `combobox` | 12 | 18 | 40px | "Trial", "Sort", "Report", "Organization *" |

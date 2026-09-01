@@ -259,7 +259,11 @@ describe('secretary show phase redirects', () => {
   });
 
   it('explains the waitlist dashboard fallback when no show context is available', async () => {
-    useShowStore.setState({ selectedShowId: '', shows: [makeShow('show-1'), makeShow('show-2')], isLoading: false });
+    useShowStore.setState({
+      selectedShowId: '',
+      shows: [makeShow('show-1'), makeShow('show-2')],
+      isLoading: false,
+    });
 
     renderSecretaryRoutes('/secretary/waitlist');
 

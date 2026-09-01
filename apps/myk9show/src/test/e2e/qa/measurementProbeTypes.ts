@@ -14,6 +14,27 @@ export interface ProbeSanity {
   whiteOnWhite: number;
   /** Must be ~4.5. A mid grey (#767676) on white is the AA boundary case. */
   greyOnWhite: number;
+  /**
+   * Height of a synthetic stretched link inside a 120px card. Must be 120, not
+   * the ~20px of its own text: the whole point of the pattern is that the card
+   * is the hit area. If this reads ~20 the stretched-link detection has broken
+   * and the run will over-report small targets (MYK9-281).
+   */
+  stretchedLink: number;
+  /**
+   * Max disagreement between one mid-grey written as hex, `rgb()` and
+   * `color(srgb ...)`. Must be 0: they are the same colour. Any other value
+   * means a colour NOTATION stopped round-tripping, which the hex-only answers
+   * above cannot see — and this app emits `color(srgb ...)` for most of its
+   * computed colours.
+   */
+  syntaxAgreement: number;
+  /**
+   * Red channel of two nested 50% blacks composited over white. Must be 63.75.
+   * A hardcoded alpha in `over` collapsed such a stack to opaque black (0) and
+   * invented the app's worst contrast reading (MYK9-275).
+   */
+  translucentStack: number;
 }
 
 export interface ContrastFinding {

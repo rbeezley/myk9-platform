@@ -272,18 +272,22 @@ const AppHeader: React.FC = () => {
               </>
             ) : (
               <>
-                <Link
-                  to="/sign-in"
-                  className="text-primary hover:bg-primary/10 px-3 py-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/sign-up"
-                  className="bg-primary text-primary-foreground hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200 px-3 py-1.5 rounded-lg font-medium transition-colors text-sm"
-                >
-                  Sign Up
-                </Link>
+                {/* size="touch", and via Button rather than a hand-rolled
+                    <Link>. These measured 36px on 7 routes: `px-3 py-1.5`
+                    around 14px text lands well under the 44px floor
+                    docs/INTENT.md § 3 sets for every screen, and being outside
+                    the Button variants meant no shared fix could ever reach
+                    them (MYK9-277).
+
+                    The old sign-in classes also carried both `text-primary`
+                    and `text-foreground`; whichever won was down to stylesheet
+                    order, not intent. `ghost` states it once. */}
+                <Button asChild variant="ghost" size="touch">
+                  <Link to="/sign-in">Sign In</Link>
+                </Button>
+                <Button asChild size="touch">
+                  <Link to="/sign-up">Sign Up</Link>
+                </Button>
               </>
             )}
           </div>

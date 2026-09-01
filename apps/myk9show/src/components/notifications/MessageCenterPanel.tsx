@@ -116,7 +116,7 @@ function NotificationItem({
             </div>
           )}
           <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground/60">
+            <span className="text-[10px] text-muted-foreground">
               {formatRelativeTime(new Date(payload.timestamp))}
             </span>
             <div className="flex items-center gap-2">
@@ -158,7 +158,7 @@ function EmptyPanelState({
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       <Icon className="mb-3 h-8 w-8 text-muted-foreground/30" />
       <p className="text-sm text-muted-foreground">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground/60">{body}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
     </div>
   );
 }

@@ -34,6 +34,25 @@ const SANITY = {
   blackOnWhite: { expected: 21, slack: 0.3 },
   whiteOnWhite: { expected: 1, slack: 0.05 },
   greyOnWhite: { expected: 4.54, slack: 0.15 },
+  // Geometry, not colour: a synthetic stretched link must measure as the
+  // 120px card it covers, not its own ~20px line box. Until MYK9-281 nothing
+  // checked the geometry half at all, and a broken `effectiveBox` reported
+  // every card title in the app as a small target for a whole sweep.
+  stretchedLink: { expected: 120, slack: 1 },
+  // One colour, three notations, ratios must agree exactly. Slack is rounding
+  // only: a real notation regression moves this by whole units (the simulated
+  // CSS Color 4 failure put it at ~3.5).
+  syntaxAgreement: { expected: 0, slack: 0.05 },
+  // Compositing. Two nested 50% blacks over white are 63.75 in exact arithmetic;
+  // the canvas round-trip quantises alpha to 8 bits (0.498, not 0.5) and the
+  // error compounds across both layers, so the real reading is ~63.25.
+  //
+  // Slack is 2, not 0.5, deliberately. A tight bound here would sit on the
+  // measured value's own rounding edge and could start excluding EVERY page on
+  // a browser update — a guard that fails closed across the whole sweep is
+  // worse than no guard. The failure it exists to catch returns 0, so a
+  // 30x margin still discriminates completely (MYK9-275).
+  translucentStack: { expected: 63.75, slack: 2 },
 };
 
 /**
@@ -43,6 +62,9 @@ const SANITY = {
  * headings, labels and body copy do not all share one token.
  */
 const IMPLAUSIBLE_FAILURE_RATE = 0.5;
+
+/** Smallest page size at which a 100%-failure reading is disbelieved outright. */
+const TOTAL_FAILURE_FLOOR = 5;
 
 export function sanityFailures(probe: ProbeResult): string[] {
   const out: string[] = [];
@@ -73,8 +95,15 @@ export function partition(measurements: RouteMeasurement[]) {
       if (failures.length) {
         excluded.push({ m, reason: `known-answer check failed: ${failures.join(', ')}` });
       } else if (
-        m.probe.measured > 20 &&
-        m.probe.totals.contrast / m.probe.measured > IMPLAUSIBLE_FAILURE_RATE
+        (m.probe.measured > 20 &&
+          m.probe.totals.contrast / m.probe.measured > IMPLAUSIBLE_FAILURE_RATE) ||
+        // A page where LITERALLY every text node fails is a broken measurement
+        // at any size, so it does not need the sample floor. That floor exists
+        // to stop a small empty state being disbelieved for failing
+        // proportionally, and it let a 14-of-14 page through during the
+        // colour-notation audit — 100% is categorically different from "most".
+        (m.probe.measured >= TOTAL_FAILURE_FLOOR &&
+          m.probe.totals.contrast === m.probe.measured)
       ) {
         // A page where most of the text fails is a broken measurement, not a
         // broken page. The registration wizard produced 1,277 findings out of

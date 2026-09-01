@@ -90,12 +90,28 @@ export function measurePage(limit: number): ProbeResult {
     return 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
   };
 
-  const over = (fg: number[], bg: number[]) => [
-    fg[0] * fg[3] + bg[0] * (1 - fg[3]),
-    fg[1] * fg[3] + bg[1] * (1 - fg[3]),
-    fg[2] * fg[3] + bg[2] * (1 - fg[3]),
-    1,
-  ];
+  /**
+   * Source-over compositing that PRESERVES alpha.
+   *
+   * This used to hardcode the result's alpha to 1, which is correct only when
+   * `bg` is already opaque. `backdropOf` composites ancestor backgrounds, which
+   * are frequently NOT opaque, so the first pair of translucent layers produced
+   * a fully opaque result and every layer behind it was discarded.
+   *
+   * That mis-read a 10% amber badge sitting on a 10% terracotta selected row as
+   * amber-on-SOLID-terracotta: `rgb(165,69,45)` and 1.17:1, when the real
+   * composite is `rgb(236,219,212)` and about 5.4:1. It was the app's worst
+   * reported contrast reading, and it was the harness (MYK9-275).
+   *
+   * When `bg[3] === 1` this reduces exactly to the old formula, so every
+   * already-correct caller is unchanged.
+   */
+  const over = (fg: number[], bg: number[]) => {
+    const a = fg[3] + bg[3] * (1 - fg[3]);
+    if (a <= 0) return [0, 0, 0, 0];
+    const blend = (i: number) => (fg[i] * fg[3] + bg[i] * bg[3] * (1 - fg[3])) / a;
+    return [blend(0), blend(1), blend(2), a];
+  };
 
   const ratioOf = (fg: number[], bg: number[]) => {
     const l1 = luminance(over(fg, bg));
@@ -110,10 +126,36 @@ export function measurePage(limit: number): ProbeResult {
   const white = parse('#ffffff');
   const black = parse('#000000');
   const grey = parse('#767676');
-  const sanity: ProbeSanity = {
+  // The three answers above are all HEX, and that was a hole big enough to
+  // drive the round-5 bug back through. This app emits `color(srgb ...)` for
+  // the majority of its computed colours (92 of 160 sampled findings), so a
+  // total failure of CSS Color 4 parsing left every one of those answers
+  // reading 21 / 1 / 4.54 while the sweep published 56 fabricated findings on
+  // eight public routes — three of them failing 100% of their text.
+  //
+  // So the last check is syntax-agnostic by construction: one mid-grey written
+  // three ways, whose on-white ratios must agree. It calibrates itself, needs no
+  // hardcoded expected ratio, and fails loudly the moment any syntax stops
+  // round-tripping. If the design tokens ever emit a fourth notation (oklch,
+  // lab, colour-mix), add it to this list — a guard that does not cover what the
+  // app actually renders is not a guard.
+  const sameGrey = [
+    parse('#767676'),
+    parse('rgb(118, 118, 118)'),
+    parse('color(srgb 0.462745 0.462745 0.462745)'),
+  ].map(c => ratioOf(c, white));
+  let syntaxAgreement = 0;
+  for (let i = 0; i < sameGrey.length; i++) {
+    for (let j = i + 1; j < sameGrey.length; j++) {
+      syntaxAgreement = Math.max(syntaxAgreement, Math.abs(sameGrey[i] - sameGrey[j]));
+    }
+  }
+
+  const contrastSanity = {
     blackOnWhite: round(ratioOf(black, white)),
     whiteOnWhite: round(ratioOf(white, white)),
     greyOnWhite: round(ratioOf(grey, white)),
+    syntaxAgreement: round(syntaxAgreement),
   };
 
   // ── Shared element helpers ────────────────────────────────────────────────
@@ -188,7 +230,10 @@ export function measurePage(limit: number): ProbeResult {
       const c = parse(cs.backgroundColor);
       if (c[3] > 0) {
         acc = acc ? over(acc, c) : c;
-        if (c[3] === 1) return acc;
+        // Stop on the ACCUMULATED alpha, not this layer's. Two translucent
+        // layers never reach opacity, and treating them as if they did is the
+        // bug described on `over` above.
+        if (acc[3] >= 1) return acc;
       }
       cur = cur.parentElement;
     }
@@ -286,6 +331,48 @@ export function measurePage(limit: number): ProbeResult {
     if (el.id) consider(document.querySelector(`label[for="${CSS.escape(el.id)}"]`));
     consider(el.closest('label'));
 
+    // The STRETCHED-LINK pattern: an anchor whose ::after is absolutely
+    // positioned across its nearest positioned ancestor, so the whole card is
+    // the hit area even though the anchor is a line of text.
+    //
+    // `getBoundingClientRect()` excludes pseudo-elements, and the card need not
+    // set `cursor: pointer` — the anchor supplies the interactivity — so the
+    // ancestor walk below cannot see it either. Left unhandled this reports
+    // every card title in the app as a ~24px target (MYK9-281): 12 of the 26
+    // findings on /dogs alone were `BrowseCard`, which needs no fix at all.
+    //
+    // Same family as the round-5 trap this probe was built to avoid — 504
+    // phantom checkbox findings, each wrapped in a clickable card. That one was
+    // solved by the pointer-cursor walk; this one slips past it because the
+    // interactivity lives in a pseudo-element rather than an ancestor.
+    const after = getComputedStyle(el, '::after');
+    // All four edges pinned, none `auto`. That is what makes a pseudo-element
+    // STRETCH to its containing block, and it is the difference between the
+    // stretched-link pattern and a decorative one — `data-table/types.ts` pins
+    // top/right/bottom and leaves `left: auto` to draw a 1px column divider.
+    // Promoting on that would hide a genuinely small control behind its
+    // container's box, trading this fix's false positives for false negatives,
+    // which is the worse direction for a findings report (Codex surfaced the
+    // divider while reviewing this change).
+    const pinned =
+      after.position === 'absolute' &&
+      after.content !== 'none' &&
+      [after.top, after.right, after.bottom, after.left].every(v => v !== 'auto');
+    if (pinned) {
+      // Its containing block is the nearest positioned ancestor, which is the
+      // box the pseudo-element actually covers.
+      let host: Element | null = el.parentElement;
+      for (let i = 0; host && i < 6; i++) {
+        if (host === document.body) break;
+        const pos = getComputedStyle(host).position;
+        if (pos !== 'static') {
+          consider(host);
+          break;
+        }
+        host = host.parentElement;
+      }
+    }
+
     // A clickable ancestor: pointer cursor, and still a component-sized box
     // rather than the page shell.
     let cur: Element | null = el.parentElement;
@@ -297,6 +384,67 @@ export function measurePage(limit: number): ProbeResult {
       cur = cur.parentElement;
     }
     return best;
+  };
+
+  /**
+   * Known-answer check for `backdropOf`, run on every page. Two nested 50%
+   * blacks over white must composite to 63.75, not 0.
+   *
+   * The colour answers verify `parse`, and the geometry answer verifies
+   * `effectiveBox`. Nothing verified the COMPOSITING until MYK9-275, where a
+   * hardcoded alpha collapsed a two-layer translucent stack to opaque and
+   * produced the app's worst reported contrast reading out of nothing. With the
+   * bug present this returns 0; correct is 63.75.
+   */
+  const stackSelfTest = (): number => {
+    const outer = document.createElement('div');
+    outer.setAttribute('style', 'position:fixed;left:-9999px;top:0;background:#fff');
+    const midA = document.createElement('div');
+    midA.setAttribute('style', 'background:rgba(0,0,0,0.5)');
+    const midB = document.createElement('div');
+    midB.setAttribute('style', 'background:rgba(0,0,0,0.5)');
+    const text = document.createElement('span');
+    text.textContent = 'x';
+    midB.appendChild(text);
+    midA.appendChild(midB);
+    outer.appendChild(midA);
+    document.body.appendChild(outer);
+    const measured = backdropOf(text);
+    outer.remove();
+    return measured ? round(measured[0]) : -1;
+  };
+
+  /**
+   * Known-answer check for `effectiveBox`, run on every page against a
+   * synthetic stretched link. The contrast sanity values above catch broken
+   * arithmetic; nothing caught broken GEOMETRY until MYK9-281, where every card
+   * title in the app was reported as a ~24px target for a full sweep.
+   *
+   * Builds a 200x120 positioned card containing a one-line anchor whose ::after
+   * is inset-0. The correct answer is 120 — the card. A regression returns the
+   * anchor's own ~20px line box, and the report then discards the run instead of
+   * publishing the inflated count.
+   */
+  const stretchedLinkSelfTest = (): number => {
+    const card = document.createElement('div');
+    card.setAttribute('style', 'position:relative;width:200px;height:120px;left:-9999px;top:0');
+    const link = document.createElement('a');
+    link.href = '#';
+    link.textContent = 'self test';
+    card.appendChild(link);
+    document.body.appendChild(card);
+
+    const style = document.createElement('style');
+    style.textContent =
+      '#probe-self-test a::after{content:"";position:absolute;inset:0;}';
+    card.id = 'probe-self-test';
+    document.head.appendChild(style);
+
+    const measured = Math.round(effectiveBox(link).height);
+
+    card.remove();
+    style.remove();
+    return measured;
   };
 
   /**
@@ -364,6 +512,12 @@ export function measurePage(limit: number): ProbeResult {
       }
     }
     return '';
+  };
+
+  const sanity: ProbeSanity = {
+    ...contrastSanity,
+    stretchedLink: stretchedLinkSelfTest(),
+    translucentStack: stackSelfTest(),
   };
 
   const targets: TargetFinding[] = [];

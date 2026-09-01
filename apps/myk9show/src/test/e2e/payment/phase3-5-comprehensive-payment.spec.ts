@@ -76,19 +76,19 @@ test.describe('Phase 3.5: Comprehensive Payment Processing', () => {
       
       // Test invalid card number
       await page.fill('[data-testid="card-number-input"]', '1234567890123456');
-      await page.blur('[data-testid="card-number-input"]');
+      await page.locator('[data-testid="card-number-input"]').blur();
       await expect(page.locator('[data-testid="card-number-error"]')).toContainText('Invalid card number');
       
       // Test expired card
       await page.fill('[data-testid="card-number-input"]', '4111111111111111');
       await page.fill('[data-testid="expiry-input"]', '01/20');
-      await page.blur('[data-testid="expiry-input"]');
+      await page.locator('[data-testid="expiry-input"]').blur();
       await expect(page.locator('[data-testid="expiry-error"]')).toContainText('Card has expired');
       
       // Test invalid CVV
       await page.fill('[data-testid="expiry-input"]', '12/25');
       await page.fill('[data-testid="cvv-input"]', '12');
-      await page.blur('[data-testid="cvv-input"]');
+      await page.locator('[data-testid="cvv-input"]').blur();
       await expect(page.locator('[data-testid="cvv-error"]')).toContainText('Invalid CVV');
       
       // Test missing required fields
@@ -193,7 +193,7 @@ test.describe('Phase 3.5: Comprehensive Payment Processing', () => {
       
       // Use a check number that's already been used
       await page.fill('[data-testid="check-number-input"]', '999'); // Duplicate check number
-      await page.blur('[data-testid="check-number-input"]');
+      await page.locator('[data-testid="check-number-input"]').blur();
       
       // Verify duplicate warning
       await expect(page.locator('[data-testid="duplicate-check-warning"]')).toBeVisible();
@@ -204,7 +204,7 @@ test.describe('Phase 3.5: Comprehensive Payment Processing', () => {
       
       // Use different check number
       await page.fill('[data-testid="check-number-input"]', '1002');
-      await page.blur('[data-testid="check-number-input"]');
+      await page.locator('[data-testid="check-number-input"]').blur();
       
       // Warning should disappear
       await expect(page.locator('[data-testid="duplicate-check-warning"]')).not.toBeVisible();

@@ -3,6 +3,7 @@ import { faker } from '@faker-js/faker';
 export interface ShowTestData {
   name: string;
   organization: 'AKC' | 'UKC' | 'Other';
+  type: 'AKC' | 'UKC' | 'Other';
   startDate: string;
   endDate: string;
   location: string;
@@ -53,6 +54,7 @@ export class ShowTestDataFactory {
    */
   static createShowData(overrides: Partial<ShowTestData> = {}): ShowTestData {
     const startDate = faker.date.future();
+    const organization = faker.helpers.arrayElement(['AKC', 'UKC', 'Other'] as const);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + faker.number.int({ min: 1, max: 3 }));
 
@@ -64,7 +66,8 @@ export class ShowTestDataFactory {
 
     return {
       name: faker.company.name() + ' Dog Show',
-      organization: faker.helpers.arrayElement(['AKC', 'UKC', 'Other'] as const),
+      organization,
+      type: organization,
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
       location: `${faker.location.city()} Convention Center`,

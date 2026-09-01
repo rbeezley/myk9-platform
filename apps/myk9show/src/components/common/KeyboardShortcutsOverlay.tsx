@@ -44,7 +44,7 @@ function ShortcutKeys({ keys }: { keys: string }) {
       <div className="flex items-center gap-1">
         {parts.map((part, i) => (
           <span key={i} className="flex items-center gap-1">
-            {i > 0 && <span className="text-xs text-muted-foreground/60">then</span>}
+            {i > 0 && <span className="text-xs text-muted-foreground">then</span>}
             <Kbd size="lg">{part.toUpperCase()}</Kbd>
           </span>
         ))}

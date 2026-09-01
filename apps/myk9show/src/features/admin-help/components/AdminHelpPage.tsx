@@ -106,6 +106,7 @@ export function AdminHelpPage() {
 
       <div className="space-y-3 rounded-lg border bg-card p-3">
         <Input
+          aria-label="Search help pages"
           placeholder="Search pages by title, description, path…"
           value={search}
           onChange={e => setSearch(e.target.value)}

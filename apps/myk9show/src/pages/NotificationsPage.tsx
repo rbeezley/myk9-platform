@@ -56,7 +56,7 @@ function NotificationRow({ n }: { n: DbNotification }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className={`text-sm ${isRead ? 'text-muted-foreground' : 'font-medium'}`}>{n.message}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground/60">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {formatRelativeTime(new Date(n.created_at))}
         </p>
       </div>
@@ -122,7 +122,7 @@ export default function NotificationsPage() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <Inbox className="mb-3 h-10 w-10 text-muted-foreground/30" />
             <p className="text-sm text-muted-foreground">No notifications yet</p>
-            <p className="mt-1 text-xs text-muted-foreground/60">
+            <p className="mt-1 text-xs text-muted-foreground">
               Entry confirmations, Qs earned, and schedule updates will appear here.
             </p>
           </div>

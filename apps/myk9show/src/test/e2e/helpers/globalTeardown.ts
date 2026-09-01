@@ -27,7 +27,7 @@ async function globalTeardown(config: FullConfig) {
     try {
       // Only clean up if explicitly requested (not in CI)
       if (!process.env.CI && process.env.CLEAN_TEST_ARTIFACTS === 'true') {
-        await fs.rmdir(screenshotsDir, { recursive: true });
+        await fs.rm(screenshotsDir, { recursive: true, force: true });
         logger.debug('✅ Cleaned up screenshots', 'app', {});
       }
     } catch {

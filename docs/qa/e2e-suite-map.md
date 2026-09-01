@@ -291,6 +291,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/people-page-ui.spec.ts`                         | People page UI.                                                                                         |
 | `apps/myk9show/src/test/e2e/real-auth-browse-shows.spec.ts`                 | Authenticated browse shows.                                                                             |
 | `apps/myk9show/src/test/e2e/qa/roleJourneyVisualQa.spec.ts`                 | MYK9-17 role/viewport/theme visual QA matrix.                                                           |
+| `apps/myk9show/src/test/e2e/qa/appToasterA11y.spec.ts`                       | App toaster rich-color contrast and close-control accessibility.                                        |
 | `apps/myk9show/src/test/e2e/qa/measurementSweep.spec.ts`                    | Route-wide contrast/touch-target/name/overflow sweep; writes findings, asserts nothing. Opt-in: needs `MYK9_MEASUREMENT_SWEEP=1` or every group skips. |
 | `apps/myk9show/src/test/e2e/show-creation-wizard-detailed.spec.ts`          | Detailed show wizard.                                                                                   |
 | `apps/myk9show/src/test/e2e/show-details-sidebar-navigation.spec.ts`        | Show details navigation.                                                                                |

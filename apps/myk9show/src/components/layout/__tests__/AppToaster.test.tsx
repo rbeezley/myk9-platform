@@ -63,6 +63,15 @@ function Jumper({ to }: { to: string }) {
   );
 }
 
+function FilterJumper() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate('/a?filter=updated', { replace: true })}>
+      filter
+    </button>
+  );
+}
+
 describe('AppToaster', () => {
   it('sits at the safe-area inset when no action bar is mounted', async () => {
     const { container } = render(<Harness />);
@@ -147,5 +156,24 @@ describe('AppToaster', () => {
     render(<Harness />);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('keeps stale actions during same-screen replace navigation', async () => {
+    render(
+      <MemoryRouter initialEntries={['/a']}>
+        <Routes>
+          <Route path="/a" element={<FilterJumper />} />
+        </Routes>
+        <AppToaster />
+      </MemoryRouter>
+    );
+    toast('Retry this filter');
+    expect(await screen.findByText('Retry this filter')).toBeInTheDocument();
+
+    const realNow = Date.now;
+    vi.spyOn(Date, 'now').mockImplementation(() => realNow() + 5_000);
+    screen.getByRole('button', { name: 'filter' }).click();
+
+    await waitFor(() => expect(screen.getByText('Retry this filter')).toBeInTheDocument());
   });
 });

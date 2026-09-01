@@ -1,0 +1,357 @@
+[
+  {
+    "file": "src/test/e2e/cross-browser/performance.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'navigationStart' does not exist on type 'PerformanceNavigationTiming'."
+  },
+  {
+    "file": "src/test/e2e/cross-browser/performance.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'navigationStart' does not exist on type 'PerformanceNavigationTiming'."
+  },
+  {
+    "file": "src/test/e2e/cross-browser/quirks.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'webkitAnimation' does not exist on type '{ animation: string; animationName: string; }'."
+  },
+  {
+    "file": "src/test/e2e/cross-browser/quirks.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'webkitTransition' does not exist on type '{ transform: string; transition: string; }'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS18047",
+    "message": "'editButton' is possibly 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS18047",
+    "message": "'firstShow' is possibly 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS18047",
+    "message": "'firstShow' is possibly 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS18047",
+    "message": "'saveButton' is possibly 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS2322",
+    "message": "Type 'Locator' is not assignable to type 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS2322",
+    "message": "Type 'Locator' is not assignable to type 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS2322",
+    "message": "Type 'Locator' is not assignable to type 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS2322",
+    "message": "Type 'Locator' is not assignable to type 'null'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'click' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/debug-show-edit.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'click' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/helpers/showTestHelper.ts",
+    "code": "TS2571",
+    "message": "Object is of type 'unknown'."
+  },
+  {
+    "file": "src/test/e2e/helpers/showTestHelper.ts",
+    "code": "TS2571",
+    "message": "Object is of type 'unknown'."
+  },
+  {
+    "file": "src/test/e2e/helpers/showTestHelper.ts",
+    "code": "TS2571",
+    "message": "Object is of type 'unknown'."
+  },
+  {
+    "file": "src/test/e2e/helpers/showTestHelper.ts",
+    "code": "TS2571",
+    "message": "Object is of type 'unknown'."
+  },
+  {
+    "file": "src/test/e2e/helpers/showTestHelper.ts",
+    "code": "TS2571",
+    "message": "Object is of type 'unknown'."
+  },
+  {
+    "file": "src/test/e2e/helpers/showTestHelper.ts",
+    "code": "TS2571",
+    "message": "Object is of type 'unknown'."
+  },
+  {
+    "file": "src/test/e2e/helpers/showTestHelper.ts",
+    "code": "TS2571",
+    "message": "Object is of type 'unknown'."
+  },
+  {
+    "file": "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'restoreNetwork' does not exist on type 'TestSetup'."
+  },
+  {
+    "file": "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'setupPaymentMocks' does not exist on type 'TestSetup'."
+  },
+  {
+    "file": "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'simulateNetworkFailure' does not exist on type 'TestSetup'."
+  },
+  {
+    "file": "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts",
+    "code": "TS2345",
+    "message": "Argument of type '\"club_organizer\"' is not assignable to parameter of type 'TestRole | undefined'."
+  },
+  {
+    "file": "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts",
+    "code": "TS2345",
+    "message": "Argument of type '\"manager\"' is not assignable to parameter of type 'TestRole | undefined'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS18048",
+    "message": "'hitAward' is possibly 'undefined'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'addSampleScores' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'cleanup' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'createLargeShow' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'generateLeaderboards' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'generateReportData' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getClassEntries' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getExhibitorHistory' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getJudgeWorkload' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getJudgingSheet' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getShowStatistics' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getTrialAwards' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getTrialResults' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'goto' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'goto' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'id' does not exist on type 'void'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'length' does not exist on type '{}'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'locator' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'locator' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'publishResultsBatch' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'recordResults' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'recordResults' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'verifyDatabaseIntegrity' does not exist on type 'ShowTestHelper'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'JudgeTestData[]' is not assignable to parameter of type 'Record<string, unknown>[]'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'number' is not assignable to parameter of type 'never'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2345",
+    "message": "Argument of type 'Page' is not assignable to parameter of type 'never'."
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2551",
+    "message": "Property 'createComplexShow' does not exist on type 'ShowTestHelper'. Did you mean 'createCompleteShow'?"
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2551",
+    "message": "Property 'createComprehensiveShow' does not exist on type 'ShowTestHelper'. Did you mean 'createCompleteShow'?"
+  },
+  {
+    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
+    "code": "TS2551",
+    "message": "Property 'createTestClass' does not exist on type 'ShowTestHelper'. Did you mean 'createTestClub'?"
+  },
+  {
+    "file": "src/test/e2e/show-details-issue.spec.ts",
+    "code": "TS2322",
+    "message": "Type 'Locator' is not assignable to type 'null'."
+  },
+  {
+    "file": "src/test/e2e/show-details-issue.spec.ts",
+    "code": "TS2322",
+    "message": "Type 'Locator' is not assignable to type 'null'."
+  },
+  {
+    "file": "src/test/e2e/show-details-issue.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'click' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/show-details-issue.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'getAttribute' does not exist on type 'never'."
+  },
+  {
+    "file": "src/test/e2e/show-details-performance.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'navigationStart' does not exist on type 'PerformanceNavigationTiming'."
+  },
+  {
+    "file": "src/test/e2e/show-details-performance.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'navigationStart' does not exist on type 'PerformanceNavigationTiming'."
+  },
+  {
+    "file": "src/test/e2e/show/atShowJudgeScoring.spec.ts",
+    "code": "TS2551",
+    "message": "Property 'click' does not exist on type 'SVGElement | HTMLElement'. Did you mean 'onclick'?"
+  },
+  {
+    "file": "src/test/e2e/show/atShowJudgeScoring.spec.ts",
+    "code": "TS2551",
+    "message": "Property 'click' does not exist on type 'SVGElement | HTMLElement'. Did you mean 'onclick'?"
+  },
+  {
+    "file": "src/test/e2e/user-creation-validation.spec.ts",
+    "code": "TS2339",
+    "message": "Property 'SKIP_PERFORMANCE_OPTIMIZATION' does not exist on type 'Window & typeof globalThis'."
+  }
+]

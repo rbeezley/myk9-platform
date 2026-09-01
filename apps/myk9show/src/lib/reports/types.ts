@@ -1,3 +1,10 @@
+import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
+import type {
+  EntryFormDog,
+  EntryFormSecretary,
+  EntryFormTrial,
+} from './entryFormTypes';
+
 import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
 
 import type React from 'react';
@@ -80,6 +87,40 @@ export interface ReportSortOption {
   label: string;
 }
 
+/**
+ * Data a report needs that can only come from an async fetch.
+ *
+ * MYK9-280: report components are rendered by `ReportPreview` through
+ * `ReactDOMServer.renderToStaticMarkup`, which renders into a DETACHED tree
+ * with no provider context. A component that calls a React Query hook there
+ * throws `No QueryClient set` and the whole report is replaced by an error
+ * boundary — in production the cause is minified away, so it reads as a broken
+ * page rather than a broken contract. Two shipped reports were unreachable this
+ * way for months.
+ *
+ * So the rule is: report components are PURE and props-driven. The host resolves
+ * anything asynchronous (where the providers exist) and passes it in here.
+ * `reportComponentsArePropsDriven.test.ts` fails the build if a registry
+ * component reaches for a hook again.
+ */
+export interface ReportAsyncData<T> {
+  data: T;
+  isLoading: boolean;
+  isError: boolean;
+}
+
+export interface ReportEntryFormData {
+  dogs: EntryFormDog[];
+  secretary: EntryFormSecretary | null;
+  trials: EntryFormTrial[];
+  show: {
+    experienceIsPublished?: boolean;
+    experiencePublishedContent?: ShowExperienceSnapshot | null;
+  } | null;
+  isLoading: boolean;
+  isError: boolean;
+}
+
 export interface ReportProps {
   showId?: string;
   showName: string;
@@ -103,6 +144,12 @@ export interface ReportProps {
   };
   entries: ReportEntry[];
   sortOrder: string;
+  /**
+   * Async data resolved by the HOST, never fetched by the component itself.
+   * See ReportAsyncData above — a hook here throws under renderToStaticMarkup.
+   */
+  entryFormData?: ReportEntryFormData;
+  judgeSupplies?: ReportAsyncData<unknown[]>;
   organization?: string;
   activityType?: string;
   clubName?: string;

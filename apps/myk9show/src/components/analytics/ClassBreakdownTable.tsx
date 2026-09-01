@@ -40,7 +40,7 @@ export function ClassBreakdownTable({ classes }: ClassBreakdownTableProps) {
                 <td className="px-4 py-2 whitespace-nowrap">
                   <span className="text-muted-foreground">{formatMonthDay(cls.trialDate)}</span>
                   {cls.trialNumber && (
-                    <span className="ml-1.5 text-xs text-muted-foreground/70">
+                    <span className="ml-1.5 text-xs text-muted-foreground">
                       #{cls.trialNumber}
                     </span>
                   )}

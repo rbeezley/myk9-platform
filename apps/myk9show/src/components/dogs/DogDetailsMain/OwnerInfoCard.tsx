@@ -30,7 +30,7 @@ const OwnerInfoCard: React.FC<OwnerInfoCardProps> = ({ dog, owner }) => {
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
           <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-1">
               Owner Name
             </span>
             {owner.id === 'loading' ? (
@@ -51,7 +51,7 @@ const OwnerInfoCard: React.FC<OwnerInfoCardProps> = ({ dog, owner }) => {
           </div>
 
           <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-1">
               Email
             </span>
             {owner.email && owner.email !== 'N/A' ? (
@@ -68,7 +68,7 @@ const OwnerInfoCard: React.FC<OwnerInfoCardProps> = ({ dog, owner }) => {
           </div>
 
           <div className="flex flex-col pb-3 border-b border-border/30">
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
+            <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase mb-1">
               Phone
             </span>
             {owner.phone && owner.phone !== 'N/A' ? (

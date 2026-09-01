@@ -26,7 +26,7 @@ export function VolunteerPool({ volunteers, onAddClick, onEditClick }: Volunteer
           className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
         >
           {formatVolunteerDisplayName(vol.name)}
-          {!vol.personId && <span className="text-muted-foreground/60">(walk-up)</span>}
+          {!vol.personId && <span className="text-muted-foreground">(walk-up)</span>}
         </button>
       ))}
 

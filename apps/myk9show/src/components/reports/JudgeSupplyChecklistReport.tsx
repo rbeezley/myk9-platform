@@ -1,7 +1,5 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import type { ReportProps } from '@/lib/reports/types';
-import { trialJudgeSuppliesService } from '@/features/judge-supplies/trialJudgeSuppliesService';
 import { judgeKey, type TrialJudgeSupplyRow } from '@/features/judge-supplies/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 
@@ -64,12 +62,16 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
   showId,
   showName,
   allTrials = [],
+  judgeSupplies,
 }) => {
-  const query = useQuery({
-    queryKey: ['judge-supply-checklist-report', showId ?? ''] as const,
-    queryFn: () => trialJudgeSuppliesService.listForShow(showId!),
-    enabled: !!showId,
-  });
+  // MYK9-280: fetched via useQuery here until the host took it over. Under
+  // ReactDOMServer.renderToStaticMarkup there is no QueryClientProvider, so the
+  // hook threw and this report was unreachable from the Reports tab.
+  const query = {
+    data: (judgeSupplies?.data ?? []) as TrialJudgeSupplyRow[],
+    isLoading: judgeSupplies?.isLoading ?? false,
+    error: judgeSupplies?.isError ? new Error('Could not load judge supplies') : null,
+  };
 
   if (!showId) {
     return (

@@ -159,10 +159,27 @@ export function buildLandingData(
 
   const trials = allTrials
     .slice()
+    // MYK9-282: this was parseInt(trialNumber) subtraction. trials.trial_number is
+    // TEXT ("Saturday Trial", "UKC-Nosework"), so both sides were NaN, the comparator
+    // returned NaN for every pair, and the sort silently did nothing.
+    //
+    // Date is the PRIMARY key, not the label. Sorting by label alone reorders a
+    // multi-day show: Heartland has "Saturday Trial" on Aug 1 and "ASCA-ScentDetection"
+    // on Aug 2, and alphabetically ASCA leads — putting day two before day one on a
+    // public page. The label is only a tiebreaker within a single date, numeric-aware
+    // so "Trial 2" precedes "Trial 10". Undated trials sort last rather than jumping
+    // to the front on an empty-string compare.
     .sort((left, right) => {
-      const leftNumber = Number.parseInt(String(left.trialNumber ?? 0), 10);
-      const rightNumber = Number.parseInt(String(right.trialNumber ?? 0), 10);
-      return leftNumber - rightNumber;
+      const leftDate = left.trialDate ?? '';
+      const rightDate = right.trialDate ?? '';
+      if (leftDate !== rightDate) {
+        if (!leftDate) return 1;
+        if (!rightDate) return -1;
+        return leftDate.localeCompare(rightDate);
+      }
+      return String(left.trialNumber ?? '').localeCompare(String(right.trialNumber ?? ''), undefined, {
+        numeric: true,
+      });
     })
     .map<LandingTrial>(trial => ({
       id: trial.id,

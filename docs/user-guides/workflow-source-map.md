@@ -180,6 +180,12 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 ## Secretary Canonical Surface Decisions
 
+### Tasks
+
+**Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tools sheet, not a standalone `/secretary/tasks` page.
+**Canonical routes:** `/secretary/dashboard`, `/shows/:showId/show-desk`
+**Why this does not duplicate another page:** The dashboard and Show Desk already own the two distinct task scopes, so the legacy route is only a compatibility redirect.
+
 ### Waitlist
 
 **Decision:** Waitlist work belongs in Entry Management, not a standalone `/secretary/waitlist/:showId` page.

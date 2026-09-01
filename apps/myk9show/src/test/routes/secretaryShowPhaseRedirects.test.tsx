@@ -6,6 +6,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import { SecretaryRoutes } from '@/routes/secretaryRoutes';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
+import { useToastStore } from '@/store/toastStore';
 import type { Show } from '@/types/show-types';
 import { fromAny } from '@total-typescript/shoehorn';
 
@@ -134,6 +135,7 @@ describe('secretary show phase redirects', () => {
       isLoading: false,
       loadTrials: originalLoadTrials,
     });
+    useToastStore.setState({ toasts: [] });
   });
 
   it('redirects the legacy secretary show base route to canonical setup', async () => {
@@ -230,6 +232,43 @@ describe('secretary show phase redirects', () => {
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
       '/shows/show-1/setup'
     );
+  });
+
+  it('redirects legacy personal tasks to the dashboard and explains the consolidation', async () => {
+    renderSecretaryRoutes('/secretary/tasks');
+
+    expect(await screen.findByTestId('secretary-dashboard')).toBeInTheDocument();
+    expect(useToastStore.getState().toasts[0]?.payload).toMatchObject({
+      id: 'tasks-moved',
+      title: 'Tasks moved',
+      body: 'Personal tasks now live on your secretary dashboard.',
+    });
+  });
+
+  it('redirects legacy waitlist to the selected show exception and explains the consolidation', async () => {
+    renderSecretaryRoutes('/secretary/waitlist');
+
+    expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
+      '/shows/show-1/entry-management?tab=waitlist'
+    );
+    expect(useToastStore.getState().toasts[0]?.payload).toMatchObject({
+      id: 'waitlist-moved',
+      title: 'Waitlist moved',
+      body: 'Waitlist work now lives in Entry Management for this show.',
+    });
+  });
+
+  it('explains the waitlist dashboard fallback when no show context is available', async () => {
+    useShowStore.setState({ selectedShowId: '', shows: [makeShow('show-1'), makeShow('show-2')], isLoading: false });
+
+    renderSecretaryRoutes('/secretary/waitlist');
+
+    expect(await screen.findByTestId('secretary-dashboard')).toBeInTheDocument();
+    expect(useToastStore.getState().toasts[0]?.payload).toMatchObject({
+      id: 'waitlist-no-show-context',
+      title: 'Select a show to continue',
+      body: 'Waitlist work lives in Entry Management inside a show.',
+    });
   });
 
   it('redirects legacy trial class management to the show workbench class route', async () => {

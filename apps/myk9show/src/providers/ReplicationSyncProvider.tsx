@@ -58,6 +58,7 @@ import {
   formatDownloadFailureToast,
   hasPermanentScoreAuthorizationFailure,
   splitPermanentScoreAuthorizationFailures,
+  DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
 import {
   classifyTableSyncResults,
@@ -395,7 +396,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         // (RLS rejection, network blip, auth race). Mirrors the mutation-failure
         // toast added after the 2026-04-16 RLS data-loss incident.
         if (downloadFailures.length > 0) {
-          notifications.error(formatDownloadFailureToast(downloadFailures));
+          notifications.error(formatDownloadFailureToast(downloadFailures), {
+            id: DOWNLOAD_SYNC_FAILURE_TOAST_ID,
+          });
+        } else {
+          toast.dismiss(DOWNLOAD_SYNC_FAILURE_TOAST_ID);
         }
 
         setStatus(prev => ({

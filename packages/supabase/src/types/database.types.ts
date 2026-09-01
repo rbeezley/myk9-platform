@@ -9927,6 +9927,15 @@ export type Database = {
           },
         ]
       }
+      view_authenticated_entry_results_replication: {
+        Row: {
+          id: string | null
+          show_id: string | null
+          updated_at: string | null
+          [key: string]: unknown
+        }
+        Relationships: []
+      }
       view_breed_stats: {
         Row: {
           absent_count: number | null

@@ -152,6 +152,8 @@ export const PublicRoutes = () => (
       }
     />
 
+    <Route path="/shows/new" element={<Navigate to="/secretary/create-show/wizard" replace />} />
+
     <Route
       path="/shows/:id"
       element={

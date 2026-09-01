@@ -75,14 +75,23 @@ describe('ShowCreationWizardPage — Escape', () => {
     render(<ShowCreationWizardPage />);
 
     const nameField = document.querySelector('#show-name') as HTMLInputElement | null;
-    if (!nameField) return; // step 1 shape changed; the assertion below would be vacuous
-    await userEvent.type(nameField, 'Escape Regression Show');
+    // Fail loudly if step 1 stops rendering this field. The previous `return` here
+    // made the test PASS having asserted nothing, which is the one outcome a guard
+    // against vacuity must not produce.
+    expect(nameField).not.toBeNull();
+    await userEvent.type(nameField!, 'Escape Regression Show');
 
     const cancel = screen.queryByRole('button', { name: /^cancel$/i });
     expect(cancel).not.toBeNull();
     await userEvent.click(cancel!);
 
-    expect(await screen.findByText(LEAVE_PROMPT)).toBeInTheDocument();
+    // MYK9-287: the leave prompt is a portalled AlertDialog, so this wait covers a
+    // portal mount plus its transition -- not a state flush. Testing Library's
+    // default 1000ms cleared that on an idle machine and not on a loaded CI runner:
+    // it timed out twice, at 2603ms and 3018ms, on two SHAs in two different jobs,
+    // while passing 8/8 locally under the usual slow-environment recipe. The headroom
+    // is the fix; the assertion is unchanged.
+    expect(await screen.findByText(LEAVE_PROMPT, {}, { timeout: 10_000 })).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalledWith('/shows');
   });
 });

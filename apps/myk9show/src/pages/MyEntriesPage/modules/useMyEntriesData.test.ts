@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useMyEntriesData } from './useMyEntriesData';
+import { shouldRenderOwnEntry, useMyEntriesData } from './useMyEntriesData';
 import { getUserEntries } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
@@ -61,6 +61,23 @@ const renderData = () =>
   renderHook(() =>
     useMyEntriesData({ persistCheckInStatus: vi.fn().mockResolvedValue(undefined) })
   );
+
+describe('shouldRenderOwnEntry', () => {
+  it('keeps deleted entries when the owning show was deleted', () => {
+    expect(
+      shouldRenderOwnEntry({
+        deleted_at: '2026-06-01T00:00:00Z',
+        show: { deleted_at: '2026-06-02T00:00:00Z' },
+      })
+    ).toBe(true);
+  });
+
+  it('hides individually deleted entries on a live show', () => {
+    expect(
+      shouldRenderOwnEntry({ deleted_at: '2026-06-01T00:00:00Z', show: { deleted_at: null } })
+    ).toBe(false);
+  });
+});
 
 describe('useMyEntriesData — a failed reload must not discard loaded entries', () => {
   beforeEach(() => {

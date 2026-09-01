@@ -490,4 +490,5 @@ export const mapReplicatedShowToEntryRow = (show: ReplicatedShow): Record<string
     city: 'city',
     state: 'state',
     status: 'status',
+    deleted_at: 'deletedAt',
   });

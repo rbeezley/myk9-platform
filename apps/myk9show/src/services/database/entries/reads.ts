@@ -683,6 +683,9 @@ export const getEntriesByShowForFinancials = async (showId: string) => {
 };
 
 // Get entries by trial ID (via class join — inner join behavior)
+// MYK9-283: a trial is also wholly inside one per-show replication unit, and the
+// check-in sheet is printable at trial scope too, so it carries the same
+// cold-store false zero. Verified online when the local read comes back empty.
 export const getEntriesByTrial = async (trialId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
@@ -695,9 +698,23 @@ export const getEntriesByTrial = async (trialId: string) => {
       const trialClassIds = new Set(trialClasses.map(c => c.id));
       const classesMap = buildMapFromArray(trialClasses, c => c.id);
       // Filter entries to only those whose classId is in the trial's classes (inner join)
-      const filtered = allEntries.filter(
-        e => e.classId && trialClassIds.has(e.classId) && isLiveEntry(e)
-      );
+      const inTrial = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
+      const filtered = inTrial.filter(isLiveEntry);
+      // Tombstones — a queued delete not yet synced. Required because this read
+      // opts into `verifyOnlineWhenEmpty`: a replica holding only a soft-deleted
+      // entry filters to empty, which triggers the online read, and without
+      // these ids a server row that has not yet seen the delete would resurrect
+      // the entry onto a check-in sheet.
+      //
+      // Deliberately collected from ALL local entries rather than from
+      // `inTrial`. Trial membership here is resolved through the local CLASSES
+      // replica, which can be cold independently of the entries replica — and a
+      // tombstone whose class is missing locally would then be dropped from the
+      // exclusion list, which is the one case where it is needed. Widening the
+      // list cannot over-exclude: the online read is already scoped to this
+      // trial (`class.trial_id = trialId`), so an id from another trial can
+      // never appear in the result it filters.
+      const locallyDeletedIds = allEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = sortedEntries.map(entry =>
@@ -709,16 +726,29 @@ export const getEntriesByTrial = async (trialId: string) => {
             : null,
         })
       );
-      return { data, error: null };
+      return { data, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByTrial(trialId),
     table: 'entries',
     operation: 'select_by_trial',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
   });
 };
 
 // Get entries by class ID (sorted by run_order, nulls last)
+// MYK9-283: entries replicate PER SHOW, so a class in a show the caller has not
+// opened this session reads EMPTY from the local replica — and
+// readWithReplicationFallback only falls back to `postgrest` on a THROW, never
+// on a legitimately-shaped-but-cold empty array. The Reports page then reached
+// `dataState: 'ready'` with no rows and printed "No entries found for this
+// selection" over a class holding 63 entries, on roughly one cold load in six,
+// and never retracted it because nothing re-ran when the store later filled.
+//
+// A class sits ENTIRELY inside one per-show replication unit, so unlike the
+// dog scope (see getEntriesByDog below) empty is the only way this read can be
+// wrong — which is exactly what `verifyOnlineWhenEmpty` is for. Same treatment
+// as getEntriesByShow above.
 export const getEntriesByClass = async (classId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
@@ -726,6 +756,10 @@ export const getEntriesByClass = async (classId: string) => {
         replicatedEntriesTable.getEntriesByClass(classId),
         loadDogsMap(),
       ]);
+      // Locally-tombstoned entries (a queued delete not yet synced), reported so
+      // the online verification excludes them and a stale server row cannot
+      // resurrect a just-deleted entry. See read-shape.ts.
+      const locallyDeletedIds = entries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(
         entries.filter(isLiveEntry),
         compareNumberAscNullsLast(entry => entry.runOrder)
@@ -755,12 +789,13 @@ export const getEntriesByClass = async (classId: string) => {
         }
         return e;
       });
-      return { data: backfilledData, error: null };
+      return { data: backfilledData, error: null, locallyDeletedIds };
     },
     postgrest: () => postgrestGetEntriesByClass(classId),
     table: 'entries',
     operation: 'select_by_class',
     errorData: [],
+    verifyOnlineWhenEmpty: true,
   });
 };
 

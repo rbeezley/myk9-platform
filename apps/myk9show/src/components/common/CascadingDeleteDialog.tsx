@@ -5,6 +5,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle, Calendar, Trophy, Users, Trash2 } from 'lucide-react';
 import { CascadingDeletePreview } from '@/utils/cascadingDelete';
+import {
+  buildCascadingDeleteBody,
+  buildCascadingDeleteHeading,
+} from './cascadingDeleteDialogCopy';
 import { format, parseISO } from 'date-fns';
 
 const ELEMENT_ORDER = ['interior', 'exterior', 'container', 'buried'];
@@ -122,14 +126,27 @@ export function CascadingDeleteDialog({
           </div>
         ) : (
           <>
-            <div className="bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-1">
-              <div className="flex items-center gap-2 text-destructive font-medium leading-none m-0">
+            <div
+              className={
+                permanent
+                  ? 'bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-1'
+                  : 'bg-warning/10 border border-warning/30 rounded-xl px-3 py-1'
+              }
+            >
+              <div
+                className={`flex items-center gap-2 font-medium leading-none m-0 ${
+                  permanent ? 'text-destructive' : 'text-warning'
+                }`}
+              >
                 <AlertTriangle className="h-4 w-4" />
-                Warning: This will permanently delete all related data
+                {buildCascadingDeleteHeading(permanent)}
               </div>
-              <div className="text-sm text-destructive leading-tight m-0">
-                Deleting this {entityType} will also permanently delete {preview.totalToDelete}{' '}
-                related records. This action cannot be undone.
+              <div
+                className={`text-sm leading-tight m-0 ${
+                  permanent ? 'text-destructive' : 'text-warning'
+                }`}
+              >
+                {buildCascadingDeleteBody(entityType, preview.totalToDelete, permanent)}
               </div>
             </div>
 

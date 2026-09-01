@@ -6,6 +6,17 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { MyEntry, MyEntryDogGroup, EntryClass } from './my-entries-types';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 
+const NOW = new Date('2026-09-01T12:00:00Z');
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 /** Expand the collapsed "Entered Classes (N)" panel so its contents are queryable. */
 function openDetails() {
   fireEvent.click(screen.getByRole('button', { name: /entered classes/i }));
@@ -24,7 +35,7 @@ function makeEntry(overrides: Partial<MyEntry> = {}): MyEntry {
     registrationId: 'r1',
     showId: 's1',
     showName: 'Test Show',
-    showDate: new Date('2026-09-01'),
+    showDate: new Date('2026-09-01T12:00:00Z'),
     location: { venue: 'Test Venue', city: 'Denver', state: 'CO' },
     dogName: 'Rex',
     dogId: 'd1',

@@ -1,7 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { MyEntry, EntryClass } from './my-entries-types';
+
+const NOW = new Date('2026-09-01T12:00:00Z');
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 /**
  * Builds a raw per-class-per-dog row — the shape `getUserEntries` produces
@@ -15,7 +26,7 @@ function makeRow(overrides: Partial<MyEntry> = {}): MyEntry {
     registrationId: 'r1',
     showId: 's1',
     showName: 'Test Show',
-    showDate: new Date('2026-09-01'),
+    showDate: new Date('2026-09-01T12:00:00Z'),
     location: { venue: 'Test Venue', city: 'Denver', state: 'CO' },
     dogName: 'Rex',
     dogId: 'd1',

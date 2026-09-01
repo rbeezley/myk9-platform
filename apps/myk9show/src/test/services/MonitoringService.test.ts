@@ -170,6 +170,17 @@ describe('MonitoringService', () => {
       expect(allMetrics).toHaveLength(2);
     });
 
+    it('bounds retained performance metrics to avoid unbounded memory growth', () => {
+      for (let index = 0; index < 300; index += 1) {
+        monitoring.recordPerformanceMetric('bounded.metric', index, 'ms');
+      }
+
+      const metrics = monitoring.getPerformanceMetrics('bounded.metric');
+      expect(metrics).toHaveLength(250);
+      expect(metrics[0]?.value).toBe(50);
+      expect(metrics.at(-1)?.value).toBe(299);
+    });
+
     it('should measure resource timing with promises', async () => {
       const mockResource = vi.fn().mockResolvedValue('result');
 
@@ -347,6 +358,17 @@ describe('MonitoringService', () => {
       sessionEvents.forEach(event => {
         expect(event.sessionId).toBeDefined();
       });
+    });
+
+    it('bounds retained user events to avoid unbounded memory growth', () => {
+      for (let index = 0; index < 600; index += 1) {
+        monitoring.trackUserEvent(`event-${index}`);
+      }
+
+      const events = monitoring.getUserEvents();
+      expect(events).toHaveLength(500);
+      expect(events[0]?.event).toBe('event-100');
+      expect(events.at(-1)?.event).toBe('event-599');
     });
   });
 

@@ -197,26 +197,13 @@ export async function verifyCheckoutSession(
     };
   }
 
-  // Query the stripe_orders table for this checkout session
-  const { data: order, error } = await supabase
-    .from('stripe_orders')
-    .select(
-      `
-      id,
-      status,
-      amount_cents,
-      entry_ids,
-      show_id,
-      paid_at,
-      refunded_at,
-      stripe_payment_intent_id,
-      metadata,
-      shows:show_id (name),
-      enrollment:enrollment_id (confirmation_number)
-    `
-    )
-    .eq('stripe_checkout_session_id', sessionId)
-    .single();
+  // The webhook commits through service_role. Use the owner-scoped RPC so a
+  // freshly committed order is read from the primary instead of a lagging
+  // PostgREST table-read path (MYK9-294).
+  const { data: orderRows, error } = await supabase.rpc('get_my_checkout_order', {
+    p_session_id: sessionId,
+  });
+  const order = orderRows?.[0];
 
   if (!order) {
     if (!error || error.code === 'PGRST116') {
@@ -257,7 +244,7 @@ export async function verifyCheckoutSession(
       orderId: order.id,
       entryIds: [],
       ...(order.show_id != null && { showId: order.show_id }),
-      ...(order.shows && { showName: (order.shows as { name: string }).name }),
+      ...(order.show_name && { showName: order.show_name }),
       ...(cartId !== undefined && { cartId }),
       ...(overflowRefund.amountCents != null && { refundAmount: overflowRefund.amountCents }),
       refundStatus: order.status === 'refunded' ? 'issued' : 'processing',
@@ -302,10 +289,9 @@ export async function verifyCheckoutSession(
     };
   }
 
-  const enrollment = order.enrollment as { confirmation_number: string } | null;
   // Online cart orders have no enrollment record; the payment intent id is the
   // reference that support, refunds, and the Stripe dashboard all pivot on.
-  const confirmationNumber = enrollment?.confirmation_number || order.stripe_payment_intent_id;
+  const confirmationNumber = order.confirmation_number || order.stripe_payment_intent_id;
   const cartId = getOrderCartId(order.metadata);
 
   return {
@@ -315,7 +301,7 @@ export async function verifyCheckoutSession(
     orderId: order.id,
     entryIds: order.entry_ids || [],
     ...(order.show_id != null && { showId: order.show_id }),
-    ...(order.shows && { showName: (order.shows as { name: string }).name }),
+    ...(order.show_name && { showName: order.show_name }),
     ...(cartId !== undefined && { cartId }),
     ...(order.amount_cents != null && { totalAmountCents: order.amount_cents }),
     ...(confirmationNumber && { confirmationNumber }),

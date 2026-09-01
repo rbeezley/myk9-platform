@@ -99,6 +99,22 @@ Universal rules that apply across every role and every screen.
 Our users are not 25-year-old engineers. Many are retired, with varying levels of tech comfort and physical ability.
 
 - **Large touch targets** — minimum 44x44px, prefer 48x48px on tablet views
+  - The floor is the rule. `Button`'s `sm` (32px) and `RowActionMenu`'s `sm`/`md`
+    (32/36px) are the only sanctioned way below it, and they are permitted **only**
+    in dense data grids and scoring surfaces — a scoresheet, a conflict resolver, a
+    sync panel — where a 44px control would genuinely break the layout.
+  - They are **never** permitted for a primary action, a destructive action, or any
+    control that is the only route to one. A row-action menu is often the only way
+    to reach delete or scratch on that row; shrinking it is exactly the case this
+    rule exists to prevent.
+  - Anything else — an action on a settings page, a public call to action, a link in
+    an admin list — takes the floor, whatever it looks like next to its neighbours.
+  - Writing this down is the point. Before 2026-09-01 the exception existed only as
+    the comment `// "Compact areas"` on the variant, which nobody could enforce and
+    317 files had quietly adopted. The measurement sweep
+    (`MYK9_MEASUREMENT_SWEEP=1`) now reports every control below the floor, so a
+    new sub-44px control on a non-dense surface shows up as a finding rather than
+    passing review because it looked fine (MYK9-277).
 - **High contrast text** — WCAG AA minimum, prefer AAA for primary content
 - **Readable font sizes** — 16px body minimum, never below 14px for anything
   - In myK9Show, the `text-xs` Tailwind token is intentionally raised to 14px. It is the

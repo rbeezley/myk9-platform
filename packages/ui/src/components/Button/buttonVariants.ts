@@ -60,7 +60,16 @@ export const buttonVariants = cva(
       size: {
         // Sizes matching myK9Q spacing tokens
         default: 'h-10 px-6 py-2', // Comfortable touch target
-        sm: 'h-8 px-4 text-xs', // Compact areas
+        // 32px, BELOW the 44px floor docs/INTENT.md § 3 sets for every role and
+        // every screen. Permitted only in dense data grids and scoring surfaces
+        // where a 44px control would genuinely break the layout, and never for a
+        // primary or destructive action, or the only route to one.
+        //
+        // "Compact areas" was the whole of this comment until 2026-09-01, and it
+        // was not a rule anyone could apply: 317 files had adopted `sm`, including
+        // an account-page action, a public call to action and admin list links.
+        // If this is not a scoresheet or a conflict resolver, use `touch`.
+        sm: 'h-8 px-4 text-xs',
         lg: 'h-11 px-8 text-base', // Full touch compliance (44px)
         // Frequent actions keep a 44px floor and grow to 48px on tablet.
         touch: 'min-h-11 px-4 py-2 sm:min-h-12',

@@ -70,9 +70,11 @@ export function ProfileSection() {
               <AvatarFallback className="text-lg">{getInitials(fullName)}</AvatarFallback>
             </Avatar>
             <div>
+              {/* size="touch": an action on a settings page is not a dense
+                  data grid, so it takes the 44px floor (docs/INTENT.md § 3). */}
               <Button
                 variant="outline"
-                size="sm"
+                size="touch"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
@@ -200,7 +202,7 @@ export function ProfileSection() {
           </div>
           {form.isDirty && (
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-              <Button onClick={form.save} disabled={form.saving} size="sm">
+              <Button onClick={form.save} disabled={form.saving} size="touch">
                 {form.saving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -210,7 +212,7 @@ export function ProfileSection() {
                   'Save changes'
                 )}
               </Button>
-              <Button variant="ghost" size="sm" onClick={form.reset}>
+              <Button variant="ghost" size="touch" onClick={form.reset}>
                 Discard
               </Button>
             </div>
@@ -367,8 +369,12 @@ export function DeleteSection() {
         <p className="text-sm text-muted-foreground">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
+        {/* size="touch" below. A DESTRUCTIVE action is never permitted under
+            the floor, whatever the surface — docs/INTENT.md § 3 names this case
+            explicitly. Deleting an account at 32px was the clearest breach of
+            the rule in the codebase. */}
         {!confirm ? (
-          <Button variant="destructive" size="sm" onClick={() => setConfirm(true)}>
+          <Button variant="destructive" size="touch" onClick={() => setConfirm(true)}>
             Delete my account
           </Button>
         ) : (
@@ -395,9 +401,14 @@ export function DeleteSection() {
               />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
+              {/* The control that ACTUALLY deletes. The first pass raised the
+                  button that opens this confirmation and left this one at 32px
+                  — fixing the flagged control and missing its sibling in the
+                  other state, which the sweep cannot see because a confirmation
+                  panel is not rendered until it is opened (Codex, this PR). */}
               <Button
                 variant="destructive"
-                size="sm"
+                size="touch"
                 onClick={() => void handleDelete()}
                 disabled={!canDelete || isDeleting}
               >
@@ -409,7 +420,7 @@ export function DeleteSection() {
                     ? 'Retry disabling sign-in'
                     : 'Yes, delete account'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isDeleting}>
+              <Button variant="ghost" size="touch" onClick={handleCancel} disabled={isDeleting}>
                 Cancel
               </Button>
             </div>

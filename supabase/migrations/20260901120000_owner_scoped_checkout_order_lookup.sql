@@ -64,4 +64,5 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.get_my_checkout_order(text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_my_checkout_order(text) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_my_checkout_order(text) TO authenticated;

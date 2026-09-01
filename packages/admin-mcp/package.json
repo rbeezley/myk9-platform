@@ -29,7 +29,7 @@
     "@myk9/core": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@supabase/supabase-js": "2.112.4",
-    "zod": "^4.4.3"
+    "zod": "^4.5.2"
   },
   "devDependencies": {
     "@types/node": "^25.9.5",

@@ -43,6 +43,16 @@ const SANITY = {
   // only: a real notation regression moves this by whole units (the simulated
   // CSS Color 4 failure put it at ~3.5).
   syntaxAgreement: { expected: 0, slack: 0.05 },
+  // Compositing. Two nested 50% blacks over white are 63.75 in exact arithmetic;
+  // the canvas round-trip quantises alpha to 8 bits (0.498, not 0.5) and the
+  // error compounds across both layers, so the real reading is ~63.25.
+  //
+  // Slack is 2, not 0.5, deliberately. A tight bound here would sit on the
+  // measured value's own rounding edge and could start excluding EVERY page on
+  // a browser update — a guard that fails closed across the whole sweep is
+  // worse than no guard. The failure it exists to catch returns 0, so a
+  // 30x margin still discriminates completely (MYK9-275).
+  translucentStack: { expected: 63.75, slack: 2 },
 };
 
 /**

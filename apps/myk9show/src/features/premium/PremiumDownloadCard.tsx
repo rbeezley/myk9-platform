@@ -32,11 +32,14 @@ function PublishFailureNotice({ onRetry, disabled }: { onRetry: () => void; disa
   return (
     <Alert variant="destructive" className="w-full flex items-center justify-between gap-3">
       <AlertDescription>{PUBLISH_FAILURE_MESSAGE}</AlertDescription>
+      {/* `touch` rather than sm plus a min-h-[44px] override: same floor, but it
+          also grows to 48px on tablet as docs/INTENT.md 3 prefers, and the size
+          lives in the variant where the rule can see it. */}
       <Button
         type="button"
-        size="sm"
+        size="touch"
         variant="outline"
-        className="min-h-[44px] shrink-0"
+        className="shrink-0"
         onClick={onRetry}
         disabled={disabled}
       >
@@ -166,7 +169,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
           </div>
           {needsRepublish && (
             <Button
-              size="sm"
+              size="touch"
               className="shrink-0 whitespace-nowrap"
               onClick={handleGenerateAndPublish}
               disabled={isBusy}
@@ -179,7 +182,7 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
             href={publishedUrl ?? ''}
             target="_blank"
             rel="noopener noreferrer"
-            className={buttonVariants({ size: 'sm', className: 'shrink-0 whitespace-nowrap' })}
+            className={buttonVariants({ size: 'touch', className: 'shrink-0 whitespace-nowrap' })}
           >
             Download PDF
           </a>

@@ -461,7 +461,7 @@ function ShowAccessCodesCardForShow({
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="touch"
                   className="gap-1.5 text-xs"
                   onClick={() => printSlip(code)}
                 >

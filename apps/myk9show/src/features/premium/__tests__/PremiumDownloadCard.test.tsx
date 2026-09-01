@@ -286,7 +286,13 @@ describe('PremiumDownloadCard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /we couldn't publish the premium list\. please try again\./i
     );
-    expect(screen.getByRole('button', { name: /try again/i })).toHaveClass('min-h-[44px]');
+    // Assert the PROPERTY, not one spelling of it. This pinned the literal
+    // `min-h-[44px]` from #1424, so moving the button onto the `touch` variant —
+    // which gives min-h-11 (44px) and min-h-12 (48px) on tablet, i.e. strictly
+    // better — failed a test whose intent it satisfied. A pin that bans one
+    // class lets every other spelling through, including smaller ones.
+    const retry = screen.getByRole('button', { name: /try again/i });
+    expect(retry.className).toMatch(/min-h-(?:11|12|\[(?:4[4-9]|[5-9]\d)px\])/);
     expect(screen.queryByText(/db down|edge function returned 500/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /try again/i }));

@@ -35,15 +35,41 @@ run concurrently; see "Failover discipline" below.
 Every prompt below inherits these rules. They are repeated inside each prompt so the tasks stay
 self-contained when pasted into a scheduler.
 
-- **Audit-only.** Never edit source, never open a PR, never merge, never push. Report only.
+- **Audit-only, with one exception.** Never edit source, never open a PR, never merge. The single
+  repo write permitted is committing and pushing the task's **own report** (plus the boundary or
+  findings ledger where the prompt names one) — docs-only, direct to `main`, inside the carve-out in
+  CLAUDE.md § Auto Mode. Verify the commit's filelist before pushing.
 - **Source tag.** Every finding carries `source: claude` so `claude-findings-reconcile` can
   distinguish it from Codex findings.
-- **No Linear writes without approval.** `quality-finding-lifecycle` already gates this — prepare
-  drafts, request one batch approval, and preserve unapproved drafts in the report.
-- **Deduplicate before creating.** Reconcile against `docs/qa/findings.md`, prior reports, and open
-  Linear issues by workflow/route/symptom, not title.
 - **A blocked check is a coverage gap, not a pass.** Say so explicitly.
-- **Never emit credentials, tokens, PII, or connection strings** into a report or Linear draft.
+- **Never emit credentials, tokens, PII, or connection strings** into a report or Linear issue.
+
+### Findings go to Linear — and there is no approval gate
+
+Linear is the sink for every finding. These runs are **unattended**, so a "prepare drafts and
+request one batch approval" step means nothing is ever filed and the finding dies with the
+worktree. That was the actual behaviour until 2026-09-01. File directly instead.
+
+- **Every confirmed P0/P1 product defect gets its own Linear issue** (team **MyK9-platform**),
+  filed without asking. Labels: `p0`/`p1`, `source:claude`, and the task's own tag.
+- **P2/P3 become sub-issues of ONE parent per run**, titled `<Task> <YYYY-MM-DD> — P2/P3 findings`.
+  One row on the board, each child still individually linkable and closable. This is what keeps
+  "one inbox" from becoming a firehose: the constraint is your triage attention, not storage.
+- **These are NOT issues:** coverage gaps, harness or probe bugs, and corrections to your own
+  measurement. They belong in the report body. MYK9-275 and MYK9-281 were both probe bugs filed as
+  defects — each cost a triage slot and pointed the next run at an app problem that did not exist.
+- **Deduplicate before filing, always with `includeArchived: true`.** Match on workflow, route,
+  object and symptom — never on title. Auto-archive is still on as a team setting, so a default
+  query reads shipped work as never-seen and re-files it. If an issue already exists, comment on it
+  rather than opening a second one.
+- **A failed Linear write is a reportable failure, never a silent skip.** If filing fails, put the
+  finding's full text at the top of the report and say plainly that it is unfiled, so it is
+  recoverable from the committed doc alone.
+
+**If Team Triage gets enabled** (it is not configured on `MyK9-platform` as of 2026-09-01), file
+into Triage instead of straight onto the board. That restores an approval seam without blocking an
+unattended run — you accept or decline asynchronously, from a phone, and nothing reaches the main
+board until you do. Update this contract in the same pass if that happens.
 
 ## Schedule
 
@@ -164,10 +190,15 @@ Output:
   new / unchanged / resolved. A merge is not resolution — require the stated exploit-path or SQL
   replay before marking resolved.
 - Append the compact lifecycle ledger to automation memory.
-- Prepare Linear drafts for confirmed non-duplicate P0/P1 findings and request one batch approval.
-  Do not create, update, or close any Linear issue without that approval.
+- File every confirmed non-duplicate P0/P1 finding as its own Linear issue (team MyK9-platform)
+  directly — no approval step, this run is unattended. Label `p0`/`p1`, `source:claude`,
+  `audit:security`. Group P2/P3 as sub-issues of one parent, `Security audit <date> — P2/P3
+  findings`. Dedupe with `includeArchived: true` and comment on an existing issue rather than
+  opening a second. Do NOT file coverage gaps or probe bugs — those stay in the report.
+- Commit the report and push it to `main` (docs-only; verify the filelist is just that file). A
+  report left in the worktree is lost when the worktree is removed.
 
-Do not edit source. Do not open a PR. Do not merge or push anything.
+Do not edit source. Do not open a PR. Do not merge. The report file is the only repo write.
 ```
 
 ## Task 2 — `claude-role-ux-walk`
@@ -209,9 +240,13 @@ where a deep-link with pre-applied filters into an existing surface would do. If
 surface anyway, you must answer explicitly: "Does this duplicate an existing page? If so, why is
 duplication justified instead of a link?"
 
-Safe mutation boundary: use the seeded e2e accounts (`e2e-*@test.myk9.com`; the `*@myk9t.com`
-named accounts cannot log in). Create and edit demo records freely, but do not delete other
-records, do not touch payment or payout flows, and do not run anything against production.
+Safe mutation boundary: sign in with the `@myk9t.com` set (`secretary@myk9t.com`,
+`testadmin@myk9t.com`, `judge@myk9t.com`, `exhibitor@myk9t.com`; the exhibitor's env vars are
+`E2E_DEMO_EXHIBITOR_*`, not `E2E_EXHIBITOR_*`). The old `e2e-*@test.myk9.com` domain was RETIRED on
+2026-08-23 and has no `auth.users` rows — a prompt still naming it will die at sign-in. Passwords
+live in `apps/myk9show/.env.local`; read them from the environment and never print one. Create and
+edit demo records freely, but do not delete records you did not create, do not touch payment or
+payout flows, and do not run anything against production.
 
 Also verify: re-walk any finding from this role's last two walks (Claude or Codex) that is marked
 fixed, and confirm the fix actually holds in the browser.
@@ -241,9 +276,14 @@ Output:
 - Include a coverage matrix of routes walked vs. routes skipped. A skipped route is a coverage gap,
   not a pass.
 - Append the compact lifecycle ledger to automation memory.
-- Prepare Linear drafts for confirmed non-duplicate P0/P1 findings and request one batch approval.
+- File every confirmed non-duplicate P0/P1 finding as its own Linear issue (team MyK9-platform)
+  directly — no approval step, this run is unattended. Label `p0`/`p1`, `source:claude`,
+  `walk:<role>`. Group P2/P3 as sub-issues of one parent, `<Role> UX walk <date> — P2/P3 findings`.
+  Dedupe with `includeArchived: true`. Do NOT file coverage gaps or probe bugs.
+- Commit the report and push it to `main` (docs-only; verify the filelist is just that file).
 
-This skill never fixes source during the walk. Audit only — no edits, no PR, no merge, no push.
+This skill never fixes source during the walk. Audit only — no source edits, no PR, no merge. The
+report file is the only repo write.
 ```
 
 ## Task 3 — `claude-findings-reconcile`
@@ -302,10 +342,14 @@ Output:
 - End with a ranked "top 5 to fix next" list with a one-line justification each, so Friday's Codex
   consolidation starts from a decision rather than a pile.
 - Append the compact lifecycle ledger to automation memory.
-- Prepare Linear drafts only for P0/P1 findings that section 2 promoted to high-confidence and that
-  have no existing issue. Request one batch approval.
+- File a Linear issue directly (no approval step) for each P0/P1 finding that section 2 promoted to
+  high-confidence and that has no existing issue — checked with `includeArchived: true`. Label
+  `p0`/`p1`, `source:claude`, `audit:reconcile`. Where section 3 disproved a closure, REOPEN the
+  existing issue with the disproving evidence rather than filing a new one.
+- Commit and push `docs/qa/reconcile-YYYY-MM-DD.md` and your `docs/qa/findings.md` edits to `main`
+  (docs-only; verify the filelist).
 
-Do not edit source outside `docs/`. Do not open a PR. Do not merge or push.
+Do not edit source outside `docs/`. Do not open a PR. Do not merge.
 ```
 
 ## Task 4 — `claude-daily-commit-review` (failover)
@@ -319,8 +363,8 @@ the window it is meant to protect. Same window, same scope, same output shape.
 
 Four things differ from the Codex prompt, all mechanical: it reads `CLAUDE.md` rather than
 `AGENTS.md`; it reads and stamps the shared boundary cursor instead of relying on private memory; it
-runs in its own worktree; and its Linear step is drafts-only, because a scheduled run is
-non-interactive and there is nobody to give batch approval at 7 AM.
+runs in its own worktree; and it files findings to Linear without an approval step, because a
+scheduled run is non-interactive and there is nobody to approve anything at 7 AM.
 
 ```
 Review the commits merged into myk9-platform since the last recorded review boundary.
@@ -368,22 +412,31 @@ Output:
   baseline SHA; window covered; and verification limits.
 - Prepare Linear-ready drafts for confirmed non-duplicate P0/P1 findings — problem statement,
   evidence, expected vs. actual, impact, likely root cause, recommended approach, acceptance
-  criteria, required proof, and relevant commits/PRs/files/related issues. This run is
-  non-interactive, so batch approval is unavailable: preserve every draft in the report and memory
-  and create nothing. Do not create, update, or close any Linear issue.
-- Keep P2 and P3 findings report-only unless recurring or worsening.
+  criteria, required proof, and relevant commits/PRs/files/related issues — then FILE each one
+  directly as a Linear issue (team MyK9-platform). This run is non-interactive and there is nobody
+  to approve a batch at 7 AM; an approval gate here means nothing is ever filed. Label `p0`/`p1`,
+  `source:claude`, `audit:commit-review`. Dedupe with `includeArchived: true`.
+- Group P2/P3 as sub-issues of one parent, `Commit review <date> — P2/P3 findings`, unless they are
+  recurring or worsening, in which case promote them to their own issue.
 - Stamp the `daily-commit-review` row in `docs/qa/audit-boundary.md` with the newest commit you
   actually reviewed, the window end, `claude-daily-commit-review`, and the run date. Stamp it even
   on a clean run. Do not stamp a range you did not finish.
 - Append the compact lifecycle ledger to automation memory so the next run — Claude or Codex — can
   compare state.
 
-Do not modify application code. Do not open a PR. Do not merge or push anything. The only file this
-task may write outside its report is the boundary row in `docs/qa/audit-boundary.md`.
+Do not modify application code. Do not open a PR. Do not merge. Commit and push the report and the
+`docs/qa/audit-boundary.md` row to `main` (docs-only; verify the filelist contains nothing else) —
+those two files are the only repo writes this task may make.
 ```
 
 ## Maintenance
 
+- The Linear contract above is shared with two tasks that are NOT documented in this file —
+  `secretary-task-walk` and `exhibitor-task-walk`, which live only in
+  `~/.claude/scheduled-tasks/`. Change the contract here and in those two SKILL.md files in the
+  same pass, or they drift.
+- `branch-janitor` is deliberately exempt: its "suspected dead, confirm to delete" output is a
+  confirm-list, not a defect, and has no issue shape. Do not route it to Linear.
 - When a Codex task changes scope, revisit whether the Claude counterpart still adds a differing
   view or has become redundant. Redundant tasks should be deleted, not left running.
 - A substitute must track the task it substitutes for. When the Codex daily commit review changes

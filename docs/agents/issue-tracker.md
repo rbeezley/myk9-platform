@@ -12,10 +12,13 @@ grant carries over.
 
 ## Querying — archived issues are the closed backlog
 
-The workspace runs on Linear's **free tier (250 non-archived issues)**, and the way it stays under
-that cap is auto-archive (Team settings → **Workflows & automations** → "Auto-archive closed issues,
-cycles, and projects" — *not* Issue statuses, which is only the status list), which moves closed issues
-out of the active set once its window elapses. Archived issues still exist — searchable,
+The workspace moved to a **paid plan on 2026-09-01**, retiring the old free-tier ceiling of 250
+non-archived issues. That removed the *pressure* to archive aggressively — it did not remove the
+archiving. Auto-archive is a team **setting** (Team settings → **Workflows & automations** →
+"Auto-archive closed issues, cycles, and projects" — *not* Issue statuses, which is only the status
+list), and it keeps running at whatever window it was left on. Until someone changes that setting,
+closed issues still leave the active set once the window elapses and every rule below still holds.
+Do not treat the upgrade as having fixed this. Archived issues still exist — searchable,
 restorable, and `get_issue`-able by id — but they are **invisible to a default `list_issues` call**,
 which sends `includeArchived: false`.
 

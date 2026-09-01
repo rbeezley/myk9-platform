@@ -23,6 +23,33 @@
 --   Intended to be run AFTER the hard wipe that clears all shows/trials/classes/
 --   entries/dogs/clubs and all non-protected people.
 --
+-- SEED TIMELINE — RELATIVE, NOT FIXED
+--   Every event date in this file is an offset from CURRENT_DATE. Do not
+--   reintroduce a literal date for anything on the show timeline; a fixed date
+--   is a fixture that expires silently and takes coverage with it.
+--
+--   The offsets preserve the timeline this seed was authored with, which had a
+--   notional "today" of 2026-06-17:
+--
+--     CURRENT_DATE - 16                 entry window opens
+--     CURRENT_DATE                      memberships, RBAC grants, registrations
+--     CURRENT_DATE + 28                 armbands assigned
+--     CURRENT_DATE + 31..33, +44, +48   announcements, messages, email history
+--     CURRENT_DATE + 45..47             the show runs (4 trials)
+--     CURRENT_DATE + 76                 entry window closes
+--
+--   So the show is always ~6 weeks out and always accepting entries. Judge
+--   qualifications are relative for the same reason (obtained -5y, expires +3y):
+--   an expired qualification drops that judge out of assignment pickers.
+--
+--   Dog dates of birth stay ABSOLUTE. A dog's birthday is a fact about the dog,
+--   not a position on the show timeline, and sliding it would keep every demo
+--   dog the same age forever.
+--
+--   Why this changed: the window used to be the fixed pair 2026-06-01 ..
+--   2026-09-01 and expired on 2026-09-01, leaving staging with no enterable show
+--   at all. See section 2.
+--
 -- WHAT THIS IS NOT
 --   It does NOT create people and does NOT touch auth.users. The 11 protected
 --   accounts survive the wipe; this seed references them by email lookup
@@ -398,7 +425,7 @@ ON CONFLICT (club_id, livemode) DO UPDATE
 --     (same reason section 10 pins granted_at).
 -- ---------------------------------------------------------------------------
 INSERT INTO public.club_members (club_id, person_id, membership_type, membership_status, joined_date)
-SELECT club.club_id, p.id, club.membership_type, 'active', DATE '2026-06-17'
+SELECT club.club_id, p.id, club.membership_type, 'active', CURRENT_DATE
 FROM (
   VALUES
     ('dededede-0000-0000-0000-000000000001'::uuid, 'testadmin@myk9t.com',     'full'),
@@ -432,16 +459,23 @@ ON CONFLICT (club_id, person_id) DO UPDATE
       notes             = DEFAULT;
 
 -- ---------------------------------------------------------------------------
--- 2. Published show  (AKC, fixed dates ~ Aug 1-3 2026)
+-- 2. Published show  (AKC, runs CURRENT_DATE + 45 .. + 47)
 --    GAP FIXTURE #1 (accepting window): the entry window must contain "today"
---    (the launch-gate walks run 2026-06-17) so the Show Details "Enter" CTA is
---    live. The app derives "accepting entries" in EntryCTA.computeRegistrationState:
---    status='published' AND now > entry_open_date AND now < entry_close_date
---    (close treated as inclusive of its full calendar day). The prior window
---    ('2026-07-01' .. '2026-07-28') was entirely future => NOT accepting. We open
---    it '2026-06-01' .. '2026-09-01' (today falls inside) and keep the show dates
---    Aug 1-3. NOTE: there is no separate status/registration_status enum for
---    "accepting" — the gate is purely status='published' + the date window.
+--    so the Show Details "Enter" CTA is live. The app derives "accepting entries"
+--    in EntryCTA.computeRegistrationState: status='published' AND
+--    now > entry_open_date AND now < entry_close_date (close treated as inclusive
+--    of its full calendar day). NOTE: there is no separate
+--    status/registration_status enum for "accepting" -- the gate is purely
+--    status='published' + the date window.
+--
+--    The window is CURRENT_DATE - 16 .. + 76, so it always contains today. It was
+--    previously the fixed pair '2026-06-01' .. '2026-09-01', chosen to contain the
+--    launch-gate walk date of 2026-06-17 -- and it duly expired on 2026-09-01, at
+--    which point nothing on staging was enterable and the exhibitor's two most
+--    important tasks (find a show, enter and pay) became untestable. That had
+--    already cost one audit: the 2026-07-06 exhibitor walk recorded "only two
+--    shows, both Entries Closed" and could not finish the entry flow. See the
+--    SEED TIMELINE note at the top of this file.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.shows (
   id, name, organization, description,
@@ -461,8 +495,8 @@ VALUES (
   'Heartland Scent Work Classic',
   'AKC',
   'A two-day AKC Scent Work demo trial used to showcase the myK9Show experience.',
-  '2026-08-01 00:00:00+00', '2026-08-03 00:00:00+00',
-  '2026-06-01 00:00:00+00', '2026-09-01 00:00:00+00',
+  ((CURRENT_DATE + 45)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 47)::timestamp AT TIME ZONE 'UTC'),
+  ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
   '100 Dog Show Lane, Tulsa, OK 74101',
   'Tulsa', 'Oklahoma',
   36.15, -95.99,
@@ -498,20 +532,20 @@ INSERT INTO public.trials (
 )
 VALUES
   ('dededede-0000-0000-0000-000000000021', 'dededede-0000-0000-0000-000000000010',
-   'Saturday Trial', '2026-08-01', 'Saturday Trial', 'upcoming',
+   'Saturday Trial', (CURRENT_DATE + 45), 'Saturday Trial', 'upcoming',
    '8:00 AM', false, 'scent_work', 1, 1, 'Saturday Trial', 'AKC', 'America/Chicago', 1),
   ('dededede-0000-0000-0000-000000000022', 'dededede-0000-0000-0000-000000000010',
-   'Sunday Trial', '2026-08-02', 'Sunday Trial', 'upcoming',
+   'Sunday Trial', (CURRENT_DATE + 46), 'Sunday Trial', 'upcoming',
    '8:00 AM', false, 'scent_work', 1, 2, 'Sunday Trial', 'AKC', 'America/Chicago', 1),
   -- Multi-registry demo coverage (task 6.3): same show, different sanctioning
   -- body per trial (trials.registry_id is per-trial, NOT per-show — see
   -- CLAUDE.md heritage/registry notes). Same Sunday date as the AKC trial
   -- above; a later display_order keeps tab ordering stable.
   ('dededede-0000-0000-0000-000000000023', 'dededede-0000-0000-0000-000000000010',
-   'Sunday UKC Nosework', '2026-08-02', 'UKC-Nosework', 'upcoming',
+   'Sunday UKC Nosework', (CURRENT_DATE + 46), 'UKC-Nosework', 'upcoming',
    '1:00 PM', false, 'nosework', 1, 3, 'Sunday UKC Nosework', 'UKC', 'America/Chicago', 1),
   ('dededede-0000-0000-0000-000000000024', 'dededede-0000-0000-0000-000000000010',
-   'Sunday ASCA Scent Detection', '2026-08-02', 'ASCA-ScentDetection', 'upcoming',
+   'Sunday ASCA Scent Detection', (CURRENT_DATE + 46), 'ASCA-ScentDetection', 'upcoming',
    '2:00 PM', false, 'scent_detection', 1, 4, 'Sunday ASCA Scent Detection', 'ASCA', 'America/Chicago', 1);
 
 -- ---------------------------------------------------------------------------
@@ -768,12 +802,12 @@ WHERE id IN (
 -- ---------------------------------------------------------------------------
 INSERT INTO public.armbands (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
 VALUES
-  ('dededede-0000-0000-0000-000000000061', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000041', '100', false, '2026-07-15 00:00:00+00', 1),
-  ('dededede-0000-0000-0000-000000000062', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000042', '101', false, '2026-07-15 00:00:00+00', 1),
-  ('dededede-0000-0000-0000-000000000063', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000043', '102', false, '2026-07-15 00:00:00+00', 1),
-  ('dededede-0000-0000-0000-000000000064', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000044', '103', false, '2026-07-15 00:00:00+00', 1),
-  ('dededede-0000-0000-0000-000000000065', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000045', '104', false, '2026-07-15 00:00:00+00', 1),
-  ('dededede-0000-0000-0000-000000000066', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000046', '105', false, '2026-07-15 00:00:00+00', 1);
+  ('dededede-0000-0000-0000-000000000061', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000041', '100', false, ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0000-000000000062', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000042', '101', false, ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0000-000000000063', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000043', '102', false, ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0000-000000000064', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000044', '103', false, ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0000-000000000065', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000045', '104', false, ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'), 1),
+  ('dededede-0000-0000-0000-000000000066', 'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000046', '105', false, ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'), 1);
 
 -- ---------------------------------------------------------------------------
 -- 8. GAP FIXTURE #2 (released results): Container Novice A (class ...031) is
@@ -800,26 +834,26 @@ UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 38.50, total_faults = 0,
   total_score = 100, final_placement = 1,
-  scoring_completed_at = '2026-08-01 09:15:00+00'
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '09:15:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-000000000051';  -- Willow
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 41.20, total_faults = 0,
   total_score = 100, final_placement = 2,
-  scoring_completed_at = '2026-08-01 09:22:00+00'
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '09:22:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-000000000055';  -- Scout
 UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 45.80, total_faults = 0,
   total_score = 100, final_placement = 3,
-  scoring_completed_at = '2026-08-01 09:30:00+00'
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '09:30:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-000000000058';  -- Cooper
 
 -- Finalize the class so the placement field clears the 'class_complete' gate and
 -- the results read as RELEASED. scored_count = 3 (all entries in ...031 scored).
 UPDATE public.classes SET
   status = 'completed', is_scoring_finalized = true, scored_count = 3,
-  results_released_at = '2026-08-01 09:35:00+00'
+  results_released_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '09:35:00') AT TIME ZONE 'UTC')
 WHERE id = 'dec1a55e-0000-0000-0000-000000000031';
 
 -- ---------------------------------------------------------------------------
@@ -838,7 +872,7 @@ UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 52.40, total_faults = 0,
   total_score = 100, final_placement = 1,
-  scoring_completed_at = '2026-08-01 10:15:00+00'
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '10:15:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-000000000067';
 UPDATE public.classes SET
   scored_count = 2
@@ -847,7 +881,7 @@ UPDATE public.entries SET
   is_scored = true, result_status = 'qualified', check_in_status = 'completed',
   entry_status = 'completed', search_time_seconds = 56.80, total_faults = 0,
   total_score = 100, final_placement = 2,
-  scoring_completed_at = '2026-08-01 10:18:00+00'
+  scoring_completed_at = (((CURRENT_DATE + 45)::timestamp + INTERVAL '10:18:00') AT TIME ZONE 'UTC')
 WHERE id = 'dededede-0000-0000-0000-000000000068';
 
 DO $$
@@ -905,7 +939,7 @@ VALUES
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture.',
-   '2026-06-01 00:00:00+00', 1),
+   ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), 1),
   ('dededede-0000-0000-0000-000000000060',
    'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000033',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
@@ -913,7 +947,7 @@ VALUES
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture (exhibitor-owned).',
-   '2026-06-01 00:00:00+00', 1);
+   ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), 1);
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------
@@ -969,7 +1003,7 @@ WHERE ur.user_id = p.id AND ur.role_id = r.id
        OR ur.expires_at IS NOT NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
-SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'secretary'
@@ -993,7 +1027,7 @@ WHERE ur.user_id = p.id AND ur.role_id = r.id
        OR ur.expires_at IS NOT NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
-SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'club_admin'
@@ -1041,7 +1075,7 @@ WHERE ur.user_id = p.id AND ur.role_id = r.id
        OR ur.expires_at IS NOT NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
-SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'judge'
@@ -1066,7 +1100,7 @@ WHERE ur.user_id = p.id AND ur.role_id = r.id
        OR ur.expires_at IS NOT NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
-SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'steward'
@@ -1103,7 +1137,7 @@ WHERE ur.user_id = p.id AND ur.role_id = r.id
        OR ur.expires_at IS NOT NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
-SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'chairman'
@@ -1154,7 +1188,7 @@ WHERE ur.user_id = p.id AND ur.role_id = r.id
        OR ur.expires_at IS NOT NULL);
 
 INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id, granted_at)
-SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, '2026-06-17 00:00:00+00'
+SELECT p.id, r.id, 'dededede-0000-0000-0000-000000000001', true, p.auth_user_id, ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM public.people p
 CROSS JOIN public.roles r
 WHERE r.name = 'club_admin'
@@ -1277,7 +1311,7 @@ INSERT INTO public.judge_assignments (
 )
 SELECT
   v.id, p.id, 'dededede-0000-0000-0000-000000000010', v.trial_id, v.class_id,
-  'confirmed', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00', '2026-06-17 00:00:00+00'
+  'confirmed', ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM (VALUES
   -- judge@myk9t.com -> all 5 classes (e2e suite dashboard coverage)
   ('dededede-0000-0000-0000-0000000000b1'::uuid, 'judge@myk9t.com', 'dededede-0000-0000-0000-000000000021'::uuid, 'dec1a55e-0000-0000-0000-000000000031'::uuid),
@@ -1322,16 +1356,16 @@ BEGIN
   ) VALUES
     ('dededede-0000-0000-0000-000000000080', 'dededede-0000-0000-0000-000000000010', 'admin',
      public._hash_passcode('ah4r8'), public._encrypt_show_passcode('ah4r8'),
-     '2026-06-17 00:00:00+00'),
+     ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')),
     ('dededede-0000-0000-0000-000000000081', 'dededede-0000-0000-0000-000000000010', 'judge',
      public._hash_passcode('jh3k9'), public._encrypt_show_passcode('jh3k9'),
-     '2026-06-17 00:00:00+00'),
+     ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')),
     ('dededede-0000-0000-0000-000000000082', 'dededede-0000-0000-0000-000000000010', 'steward',
      public._hash_passcode('s7m2p'), public._encrypt_show_passcode('s7m2p'),
-     '2026-06-17 00:00:00+00'),
+     ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')),
     ('dededede-0000-0000-0000-000000000083', 'dededede-0000-0000-0000-000000000010', 'exhibitor',
      public._hash_passcode('e5n8q'), public._encrypt_show_passcode('e5n8q'),
-     '2026-06-17 00:00:00+00');
+     ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'));
 EXCEPTION WHEN sqlstate '55000' THEN
   RAISE NOTICE 'Skipped Heartland ringside passcode seed (% - %). passcode_pepper Vault secret is unset; mint via regenerate_show_passcodes() instead.', SQLSTATE, SQLERRM;
 END $$;
@@ -1371,7 +1405,10 @@ INSERT INTO public.judge_qualifications (
 )
 SELECT
   v.id, p.id, 'AKC', 'Master', ARRAY['Scent Work'], v.judge_number,
-  '2021-01-01', '2027-01-01', true
+  -- Relative for the same reason as the show timeline: a fixed expiry silently
+  -- lapses. '2027-01-01' was four months from expiring, and an expired
+  -- qualification takes the judge out of assignment pickers.
+  (CURRENT_DATE - 1825), (CURRENT_DATE + 1095), true
 FROM (VALUES
   ('dededede-0000-0000-0000-000000000092'::uuid, 'judge@myk9t.com', 'AKC-SW-1002')
 ) AS v(id, email, judge_number)
@@ -1559,7 +1596,7 @@ SELECT
   format('a1090000-0000-0000-0001-%s', lpad(dog_number::text, 12, '0'))::uuid,
   (2000 + dog_number)::text,
   false,
-  '2026-07-15 00:00:00+00',
+  ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'),
   1
 FROM generate_series(1, 63) AS load_armbands(dog_number);
 
@@ -1617,8 +1654,8 @@ SELECT
   format('MYK9-109 Load Show %s', s),
   'AKC',
   format('Concurrent load-rehearsal show %s. Exists so multi-show replication and cross-show delta volume are measurable.', s),
-  '2026-08-01 00:00:00+00', '2026-08-03 00:00:00+00',
-  '2026-06-01 00:00:00+00', '2026-09-01 00:00:00+00',
+  ((CURRENT_DATE + 45)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 47)::timestamp AT TIME ZONE 'UTC'),
+  ((CURRENT_DATE - 16)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE + 76)::timestamp AT TIME ZONE 'UTC'),
   format('%s00 Load Fixture Way, Tulsa, OK 74101', s),
   'Tulsa', 'Oklahoma',
   36.15, -95.99,
@@ -1655,7 +1692,7 @@ SELECT
   format('a1090000-0000-0000-0011-%s%s', s, lpad(t::text, 11, '0'))::uuid,
   format('a1090000-0000-0000-0010-%s%s', s, lpad('1', 11, '0'))::uuid,
   format('Load %s Trial %s', s, t),
-  (DATE '2026-08-01' + (t - 1)),
+  ((CURRENT_DATE + 45) + (t - 1)),
   format('Load %s Trial %s', s, t),
   'upcoming',
   '8:00 AM', true, 'scent_work', 1, t,
@@ -1802,7 +1839,7 @@ SELECT
   format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
   true,
   p.auth_user_id,
-  '2026-06-17 00:00:00+00'
+  ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
 FROM generate_series(1, 3) AS load_secretaries(s)
 JOIN public.people p ON lower(p.email) = format('load-secretary-%s@myk9t.com', s)
 CROSS JOIN public.roles r
@@ -1837,7 +1874,7 @@ SELECT
   p.id,
   'full',
   'active',
-  DATE '2026-06-17'
+  CURRENT_DATE
 FROM generate_series(1, 3) AS load_secretaries(s)
 JOIN public.people p ON lower(p.email) = format('load-secretary-%s@myk9t.com', s)
 ON CONFLICT (club_id, person_id) DO NOTHING;
@@ -1852,7 +1889,7 @@ SELECT
   format('a1090000-0000-0000-0001-%s%s', s, lpad(dog_number::text, 11, '0'))::uuid,
   (2000 + (s * 1000) + dog_number)::text,
   false,
-  '2026-07-15 00:00:00+00',
+  ((CURRENT_DATE + 28)::timestamp AT TIME ZONE 'UTC'),
   1
 FROM generate_series(1, 3) AS load_shows(s)
 CROSS JOIN generate_series(1, 63) AS load_dogs(dog_number);
@@ -1897,8 +1934,8 @@ SELECT
   'Your entry has been accepted',
   '[]'::jsonb,
   'seed-demo-lifecycle-accepted-1',
-  '2026-07-20 14:00:00+00', '2026-07-20 14:00:00+00', '2026-07-20 14:02:11+00',
-  '2026-07-20 14:00:00+00', '2026-07-20 14:02:11+00'
+  (((CURRENT_DATE + 33)::timestamp + INTERVAL '14:00:00') AT TIME ZONE 'UTC'), (((CURRENT_DATE + 33)::timestamp + INTERVAL '14:00:00') AT TIME ZONE 'UTC'), (((CURRENT_DATE + 33)::timestamp + INTERVAL '14:02:11') AT TIME ZONE 'UTC'),
+  (((CURRENT_DATE + 33)::timestamp + INTERVAL '14:00:00') AT TIME ZONE 'UTC'), (((CURRENT_DATE + 33)::timestamp + INTERVAL '14:02:11') AT TIME ZONE 'UTC')
 FROM public.show_lifecycle_email_steps AS step
 WHERE step.show_id = 'dededede-0000-0000-0000-000000000010'
   AND step.step_type = 'accepted';
@@ -1923,8 +1960,8 @@ SELECT
   'Your trial is tomorrow',
   '[]'::jsonb,
   'seed-demo-lifecycle-daybefore-1',
-  '2026-07-31 09:00:00+00', '2026-07-31 09:00:00+00',
-  '2026-07-31 09:00:00+00', '2026-07-31 09:05:44+00'
+  (((CURRENT_DATE + 44)::timestamp + INTERVAL '09:00:00') AT TIME ZONE 'UTC'), (((CURRENT_DATE + 44)::timestamp + INTERVAL '09:00:00') AT TIME ZONE 'UTC'),
+  (((CURRENT_DATE + 44)::timestamp + INTERVAL '09:00:00') AT TIME ZONE 'UTC'), (((CURRENT_DATE + 44)::timestamp + INTERVAL '09:05:44') AT TIME ZONE 'UTC')
 FROM public.show_lifecycle_email_steps AS step
 WHERE step.show_id = 'dededede-0000-0000-0000-000000000010'
   AND step.step_type = 'day_before_reminder';
@@ -1941,7 +1978,7 @@ VALUES (
   NULL,
   'failed',
   'Provider rejected the request before the message was queued.',
-  '2026-07-31 09:05:44+00'
+  (((CURRENT_DATE + 44)::timestamp + INTERVAL '09:05:44') AT TIME ZONE 'UTC')
 );
 
 -- email_log rows. show_id is set directly: these are the shape the RPC reads
@@ -1960,34 +1997,34 @@ INSERT INTO public.email_log (
 VALUES
   ('ee110000-0000-0000-0001-000000000001', 'exhibitor@myk9t.com',
    'show_lifecycle_email', 'ee110000-0000-0000-0002-000000000001',
-   'seed-demo-email-1', 'delivered', '2026-07-20 14:03:02+00',
-   'dededede-0000-0000-0000-000000000010', '2026-07-20 14:02:11+00'),
+   'seed-demo-email-1', 'delivered', (((CURRENT_DATE + 33)::timestamp + INTERVAL '14:03:02') AT TIME ZONE 'UTC'),
+   'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 33)::timestamp + INTERVAL '14:02:11') AT TIME ZONE 'UTC')),
   ('ee110000-0000-0000-0001-000000000002', 'exhibitor@myk9t.com',
    'registration_confirmation', NULL,
-   'seed-demo-email-2', 'delivered', '2026-07-18 10:15:30+00',
-   'dededede-0000-0000-0000-000000000010', '2026-07-18 10:15:02+00'),
+   'seed-demo-email-2', 'delivered', (((CURRENT_DATE + 31)::timestamp + INTERVAL '10:15:30') AT TIME ZONE 'UTC'),
+   'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 31)::timestamp + INTERVAL '10:15:02') AT TIME ZONE 'UTC')),
   ('ee110000-0000-0000-0001-000000000003', 'bounced-handler@myk9t.invalid',
    'registration_confirmation', NULL,
-   'seed-demo-email-3', 'bounced', '2026-07-18 11:02:19+00',
-   'dededede-0000-0000-0000-000000000010', '2026-07-18 11:01:55+00'),
+   'seed-demo-email-3', 'bounced', (((CURRENT_DATE + 31)::timestamp + INTERVAL '11:02:19') AT TIME ZONE 'UTC'),
+   'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 31)::timestamp + INTERVAL '11:01:55') AT TIME ZONE 'UTC')),
   ('ee110000-0000-0000-0001-000000000004', 'complained-handler@myk9t.invalid',
    'registration_confirmation', NULL,
-   'seed-demo-email-4', 'complained', '2026-07-19 08:44:10+00',
-   'dededede-0000-0000-0000-000000000010', '2026-07-19 08:40:00+00'),
+   'seed-demo-email-4', 'complained', (((CURRENT_DATE + 32)::timestamp + INTERVAL '08:44:10') AT TIME ZONE 'UTC'),
+   'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 32)::timestamp + INTERVAL '08:40:00') AT TIME ZONE 'UTC')),
   ('ee110000-0000-0000-0001-000000000005', 'suppressed-handler@myk9t.invalid',
    'registration_confirmation', NULL,
-   'seed-demo-email-5', 'suppressed', '2026-07-19 09:12:00+00',
-   'dededede-0000-0000-0000-000000000010', '2026-07-19 09:11:48+00'),
+   'seed-demo-email-5', 'suppressed', (((CURRENT_DATE + 32)::timestamp + INTERVAL '09:12:00') AT TIME ZONE 'UTC'),
+   'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 32)::timestamp + INTERVAL '09:11:48') AT TIME ZONE 'UTC')),
   -- Unrecognised provider status: the RPC maps anything it does not know to
   -- 'unavailable' rather than inventing a verdict. Keeps that path visible.
   ('ee110000-0000-0000-0001-000000000006', 'clubadmin@myk9t.com',
    'registration_confirmation', NULL,
    'seed-demo-email-6', 'queued', NULL,
-   'dededede-0000-0000-0000-000000000010', '2026-07-19 15:30:00+00'),
+   'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 32)::timestamp + INTERVAL '15:30:00') AT TIME ZONE 'UTC')),
   ('ee110000-0000-0000-0001-000000000007', 'secretary@myk9t.com',
    'registry_results_submission', NULL,
-   'seed-demo-email-7', 'sent', '2026-08-04 17:00:00+00',
-   'dededede-0000-0000-0000-000000000010', '2026-08-04 16:59:31+00');
+   'seed-demo-email-7', 'sent', (((CURRENT_DATE + 48)::timestamp + INTERVAL '17:00:00') AT TIME ZONE 'UTC'),
+   'dededede-0000-0000-0000-000000000010', (((CURRENT_DATE + 48)::timestamp + INTERVAL '16:59:31') AT TIME ZONE 'UTC'));
 
 DO $$
 DECLARE

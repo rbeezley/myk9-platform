@@ -16,8 +16,12 @@ The workspace moved to a **paid plan on 2026-09-01**, retiring the old free-tier
 non-archived issues. That removed the *pressure* to archive aggressively — it did not remove the
 archiving. Auto-archive is a team **setting** (Team settings → **Workflows & automations** →
 "Auto-archive closed issues, cycles, and projects" — *not* Issue statuses, which is only the status
-list), and it keeps running at whatever window it was left on. Until someone changes that setting,
-closed issues still leave the active set once the window elapses and every rule below still holds.
+list), and it keeps running at whatever window it was left on. **That window is 30 days as of
+2026-09-01, and is deliberately being left there.** Until someone changes it, closed issues still
+leave the active set after 30 days and every rule below still holds — a short window makes
+`includeArchived: true` *more* load-bearing, not less. The recurrence checks the scheduled walks
+run (MYK9-245, MYK9-215, MYK9-208, MYK9-122, MYK9-196) all name issues closed well beyond 30 days,
+so they are archived right now and a default query would read every one as never-seen.
 Do not treat the upgrade as having fixed this. Archived issues still exist — searchable,
 restorable, and `get_issue`-able by id — but they are **invisible to a default `list_issues` call**,
 which sends `includeArchived: false`.

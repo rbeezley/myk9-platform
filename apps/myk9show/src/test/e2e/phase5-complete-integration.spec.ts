@@ -151,7 +151,7 @@ test.describe('Phase 5: Complete Integration Testing', () => {
         expect(awards.length).toBeGreaterThan(0);
         
         // Verify High in Trial award exists
-        const hitAward = awards.find(a => a.type === 'High_In_Trial');
+        const hitAward = awards.find(a => a.type === 'High_In_Trial')!;
         expect(hitAward).toBeDefined();
         expect(hitAward.dogId).toBe('dog-2'); // Best overall time
       }
@@ -267,7 +267,7 @@ test.describe('Phase 5: Complete Integration Testing', () => {
       // Verify points and titles are accurate
       const awards = await testHelper.getTrialAwards(testShow.trialId);
       for (const award of awards) {
-        const result = results.find(r => r.dogId === award.dogId);
+        const result = results.find(r => r.dogId === award.dogId)!;
         expect(result).toBeDefined();
         expect(result.qualified).toBe(true);
       }
@@ -313,7 +313,7 @@ test.describe('Phase 5: Complete Integration Testing', () => {
       const updatedResults = await testHelper.getClassResults(classId);
       
       // Verify eliminations don't get placements
-      const eliminatedResult = updatedResults.find(r => r.dogId === 'dog4');
+      const eliminatedResult = updatedResults.find(r => r.dogId === 'dog4')!;
       expect(eliminatedResult.status).toBe('E');
       expect(eliminatedResult.placement).toBeNull();
       

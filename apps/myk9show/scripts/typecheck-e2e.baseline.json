@@ -70,41 +70,6 @@
     "message": "Property 'click' does not exist on type 'never'."
   },
   {
-    "file": "src/test/e2e/helpers/showTestHelper.ts",
-    "code": "TS2571",
-    "message": "Object is of type 'unknown'."
-  },
-  {
-    "file": "src/test/e2e/helpers/showTestHelper.ts",
-    "code": "TS2571",
-    "message": "Object is of type 'unknown'."
-  },
-  {
-    "file": "src/test/e2e/helpers/showTestHelper.ts",
-    "code": "TS2571",
-    "message": "Object is of type 'unknown'."
-  },
-  {
-    "file": "src/test/e2e/helpers/showTestHelper.ts",
-    "code": "TS2571",
-    "message": "Object is of type 'unknown'."
-  },
-  {
-    "file": "src/test/e2e/helpers/showTestHelper.ts",
-    "code": "TS2571",
-    "message": "Object is of type 'unknown'."
-  },
-  {
-    "file": "src/test/e2e/helpers/showTestHelper.ts",
-    "code": "TS2571",
-    "message": "Object is of type 'unknown'."
-  },
-  {
-    "file": "src/test/e2e/helpers/showTestHelper.ts",
-    "code": "TS2571",
-    "message": "Object is of type 'unknown'."
-  },
-  {
     "file": "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts",
     "code": "TS2339",
     "message": "Property 'restoreNetwork' does not exist on type 'TestSetup'."
@@ -128,11 +93,6 @@
     "file": "src/test/e2e/payment/phase3-5-comprehensive-payment.spec.ts",
     "code": "TS2345",
     "message": "Argument of type '\"manager\"' is not assignable to parameter of type 'TestRole | undefined'."
-  },
-  {
-    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
-    "code": "TS18048",
-    "message": "'hitAward' is possibly 'undefined'."
   },
   {
     "file": "src/test/e2e/phase5-complete-integration.spec.ts",
@@ -243,11 +203,6 @@
     "file": "src/test/e2e/phase5-complete-integration.spec.ts",
     "code": "TS2339",
     "message": "Property 'id' does not exist on type 'void'."
-  },
-  {
-    "file": "src/test/e2e/phase5-complete-integration.spec.ts",
-    "code": "TS2339",
-    "message": "Property 'length' does not exist on type '{}'."
   },
   {
     "file": "src/test/e2e/phase5-complete-integration.spec.ts",

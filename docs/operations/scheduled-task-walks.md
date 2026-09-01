@@ -1,27 +1,43 @@
-# Scheduled Task Walks — Secretary & Exhibitor
+# Scheduled Task Walks — Secretary, Exhibitor, Role Intent
 
 > **Status:** Reference
 
-Version-controlled prompts for the two **functional** scheduled walks. Edit here first, then push
-the change into the live task at `~/.claude/scheduled-tasks/<taskId>/SKILL.md` — never edit only the
-live file, or the two drift and no one can diff them.
+Version-controlled prompts for the three **walk** tasks. Edit here first, then push the change into
+the live task at `~/.claude/scheduled-tasks/<taskId>/SKILL.md` — never edit only the live file, or
+the two drift. That is not hypothetical: the judge scoring replay sat in
+`scheduled-audits-claude.md` for weeks while the live prompt had no trace of it, so the strongest
+reason to keep that task was documented but not running.
 
 ## Why these are a separate file
 
-`docs/operations/scheduled-audits-claude.md` holds the four Claude tasks that are paired against the
-Codex nightly set, and its whole taxonomy is relative to Codex: *complements* run alongside a Codex
-task to disagree with it, *substitutes* replace one while it is dark. These two walks fit neither.
-They have no Codex counterpart, they are not looking for a second opinion, and they ask a different
-question from a UX audit:
+[`scheduled-audits-claude.md`](scheduled-audits-claude.md) holds the Claude tasks paired against the
+Codex nightly set, and its taxonomy is relative to Codex: *complements* run alongside a Codex task
+to disagree with it, *substitutes* replace one while it is dark. These three fit neither. They have
+no Codex counterpart and are not seeking a second opinion.
 
-> **Does this role's job actually work, end to end?**
+## The three walks, and the line between them
 
-`claude-role-ux-walk` asks whether the experience *feels* right. These ask whether the secretary can
-run a show and the exhibitor can enter one. A route that renders beautifully and cannot complete the
-task is a pass for the first and a P1 for the second.
+| Task | Roles | Asks |
+| --- | --- | --- |
+| `secretary-task-walk` | secretary | Does the job work end to end? |
+| `exhibitor-task-walk` | exhibitor | Does the job work end to end? |
+| `role-intent-walk` | judge, club-admin, site-admin | Does it *feel* the way INTENT.md says it should? |
 
-They are also, as of 2026-09-01, **the only two finding-producing scheduled tasks that are enabled**
-— which is why they were the worst two to be holding only in a home directory.
+The two task walks ask whether the role can actually do its job — a route that renders beautifully
+and cannot complete the task is a P1. `role-intent-walk` asks the emotional-design question against
+`docs/INTENT.md`.
+
+**The split is by role, not purely by question,** and that is deliberate. Both task walks now carry
+the INTENT lens themselves (the exhibitor's has always; the secretary's moved in on 2026-09-01), so
+`role-intent-walk` covers only the three roles with no dedicated walk. Its predecessor,
+`claude-role-ux-walk`, rotated through all five roles every five weeks — which meant exhibitor and
+secretary got a redundant fifth-week revisit while judge, club-admin and site-admin waited five
+weeks each for their only coverage. The rotation is now three, so those three roles are walked
+three times as often.
+
+**Steward is in none of them,** because there is no steward sign-in: `testUsers.ts` states steward
+flows use the canonical secretary account, so a steward slot would silently re-walk as the secretary
+and report it as steward coverage. Revisit if a distinct actor is ever seeded.
 
 ## What is in these prompts that is not obvious
 
@@ -39,36 +55,47 @@ a bad audit to learn. Preserve them on any edit:
 - **Anchor every destructive click to the row that owns it**, and never assume a confirm dialog
   exists. A page-wide `.last()` fallback destroyed the canonical CI secretary's own appointment on
   2026-08-31 (MYK9-284).
+- The **judge account is judge-ONLY and that is load-bearing** (MYK9-141), as is the club-admin
+  account being club-scoped with no site_admin (MYK9-137). Substituting the site admin for either
+  satisfies the gate without ever testing the scoping.
 
 ## Findings contract
 
-Both walks follow the shared Linear contract in
+All three follow the shared Linear contract in
 [`scheduled-audits-claude.md`](scheduled-audits-claude.md) § "Findings go to Linear" — file P0/P1
 directly with no approval step, group P2/P3 under one parent per run, keep coverage gaps and probe
 bugs out of Linear, dedupe with `includeArchived: true`, and commit the report to `main` as the
-single permitted repo write. The contract is restated inside each prompt below so the prompts stay
-self-contained when pasted into a scheduler; change it in three places or not at all.
+single permitted repo write. It is restated inside each prompt so they stay self-contained when
+pasted into a scheduler; change it everywhere or nowhere.
 
 ## Schedule
 
-| Task                  | Cadence          | Time (local) | Enabled |
-| --------------------- | ---------------- | ------------ | ------- |
+| Task                  | Cadence           | Time (local) | Enabled |
+| --------------------- | ----------------- | ------------ | ------- |
 | `secretary-task-walk` | Weekly, Wednesday | 3:05 AM      | yes     |
+| `role-intent-walk`    | Weekly, Friday    | 3:00 AM      | **no** — needs one supervised run to grant browser-control approvals |
 | `exhibitor-task-walk` | Weekly, Sunday    | 3:05 AM      | yes     |
 
+Spread across three mornings on purpose: two walks against shared staging at the same hour collide.
 Claude Code scheduled tasks run **locally, and only while the desktop app is open** — if the app is
-closed when one comes due it fires on next launch rather than skipping. Treat the times as an
+closed when one comes due it fires on next launch rather than skipping, so treat the times as an
 ordering preference, not a guarantee.
+
+`role-intent-walk` also needs `E2E_CLUB_ADMIN_PASSWORD` in `apps/myk9show/.env.local` for its
+club-admin week; without it that week is a coverage gap, and the prompt forbids substituting the
+site admin.
 
 ## Maintenance
 
 - These walks accumulate a "known mechanics" section from each run. That growth is the point: it is
   what stops the next run re-deriving a false failure. Do not trim it for length.
 - The "open issues to re-verify" list is load-bearing and goes stale fast. When an issue there is
-  fixed and confirmed, move it to the do-not-re-file note rather than deleting it — a walk that
-  re-files a fixed defect costs a triage slot.
+  fixed and confirmed, move it to the do-not-re-file note rather than deleting it.
 - If a walk's findings become dominated by harness bugs rather than product defects, the prompt has
   drifted from the app. Re-walk it by hand before trusting the next report.
+- `claude-role-ux-walk` was retired on 2026-09-01 and replaced by `role-intent-walk`. Its
+  deregistered `SKILL.md` may still be on disk at `~/.claude/scheduled-tasks/claude-role-ux-walk/`;
+  it does not run. Delete it when convenient.
 
 ---
 
@@ -77,7 +104,7 @@ ordering preference, not a guarantee.
 Weekly, Wednesday. Setup, entries, permissions, reports, money.
 
 ````
-Run a FUNCTIONAL walk of the secretary's real task surface in a real browser, and write an audit report. This is not a UX/usability audit — `claude-role-ux-walk` covers that separately. This walk asks a different question: **does the secretary's job actually work end to end?**
+Run a FUNCTIONAL walk of the secretary's real task surface in a real browser, and write an audit report. **Nothing else walks the secretary.** `claude-role-ux-walk` was retired on 2026-09-01 and its replacement, `role-intent-walk`, rotates only through judge / club-admin / site-admin. So this walk carries both questions: the functional one — **does the secretary's job actually work end to end?** — and the INTENT lens in Judgment rules below.
 
 Working directory: /Users/richardbeezley/AI Projects/myk9-platform
 
@@ -151,6 +178,7 @@ Read `docs/audits/2026-08-28-secretary-task-walk.md` (F1–F35) and `docs/audits
 
 ## Judgment rules
 
+- **Read `docs/INTENT.md` and `docs/roles/secretary.md` first.** The target feeling is **"That was easy"** — the secretary is usually a volunteer doing this after a full day, and INTENT.md's guardrails are explicit about *Calm Over Clever* and *Respect the Clock*. A screen that is functionally correct but makes the secretary hunt for a control, re-enter something the system already knows, or second-guess whether an action took IS a finding, and should be rated on that basis rather than dismissed as cosmetic. **This lens lives here now.** It moved from the retired `claude-role-ux-walk`, whose replacement (`role-intent-walk`) rotates only through judge / club-admin / site-admin — the roles with no dedicated walk. Nothing else applies it to the secretary.
 - The project is **pre-launch, consolidating not expanding**. A duplicated surface is itself a finding. Prefer "link these two existing surfaces" over "add a page". If you propose a new surface, answer explicitly: does this duplicate an existing page, and why is duplication justified instead of a link?
 - Code that looks wrong but carries an `// INTENT:` comment is deliberate — read it before calling it a defect. Some things that look like missing wiring are decisions: `ShowDetailTabs` deliberately passes `canManageShow={false}` to `ShowMapTab` because the manager action layer belongs on Show Desk, and forwarding it would duplicate that surface.
 - Verify claims against the running app, not against source text. A comment naming a behaviour is not evidence the behaviour exists.
@@ -179,7 +207,7 @@ Read `docs/audits/2026-08-28-secretary-task-walk.md` (F1–F35) and `docs/audits
 Weekly, Sunday. Dogs, discovery, entry, money, status, show day, results.
 
 ````
-Run a FUNCTIONAL walk of the exhibitor's real task surface in a real browser, and write an audit report. This is not a UX/usability audit — `claude-role-ux-walk` covers that separately (and is currently disabled). This walk asks a different question: **does the exhibitor's job actually work end to end?**
+Run a FUNCTIONAL walk of the exhibitor's real task surface in a real browser, and write an audit report. **Nothing else walks the exhibitor.** `claude-role-ux-walk` was retired on 2026-09-01 and its replacement, `role-intent-walk`, rotates only through judge / club-admin / site-admin. So this walk carries both questions: the functional one — **does the exhibitor's job actually work end to end?** — and the INTENT lens in Judgment rules below.
 
 Working directory: /Users/richardbeezley/AI Projects/myk9-platform
 
@@ -316,3 +344,108 @@ Read the three prior exhibitor audits in `docs/audits/` (`2026-07-02-exhibitor-e
 
 **Audit only, with one exception.** No source edits, no PRs, no merges, no `supabase db push`, no function deploys. If you find something trivial to fix, still do not fix it — record it and let a human decide. The single repo write permitted is committing and pushing your own report file, per the Output section above. (The sandbox-payment boundary earlier in this file is unchanged and is not covered by that exception.)
 ````
+
+---
+
+## `role-intent-walk`
+
+Weekly, Friday. Rotates judge / club-admin / site-admin by ISO week mod 3.
+
+````
+Run an INTENT-driven UX walk of ONE myK9Show role in a real browser.
+
+Working directory: /Users/richardbeezley/AI Projects/myk9-platform
+
+## Which role — rotate by ISO week
+
+  week mod 3 == 0 -> judge
+  week mod 3 == 1 -> club-admin
+  week mod 3 == 2 -> site-admin
+
+State the computed week number and chosen role at the top of the report so the rotation is auditable.
+
+**Exhibitor and secretary are deliberately NOT in this rotation.** They have dedicated weekly walks (`exhibitor-task-walk`, `secretary-task-walk`) that already carry the INTENT framing, so including them here bought a fifth-week revisit of well-covered roles while the three roles nothing else touches waited five weeks each. Do not add them back. **Steward is also excluded, and for a different reason: there is no steward sign-in.** `apps/myk9show/src/test/e2e/helpers/testUsers.ts` states that steward flows use the canonical secretary account, so a steward slot would silently re-walk as the secretary and report it as steward coverage. If a distinct steward actor is ever seeded, revisit this.
+
+## What this walk asks
+
+`secretary-task-walk` and `exhibitor-task-walk` ask whether the job WORKS. This one asks whether it FEELS the way it is supposed to. Read `docs/INTENT.md` and the matching `docs/roles/<role>.md` first and establish the target feeling before you walk anything:
+
+- **Judge** — "Invisible technology"
+- **Club admin** — see `docs/roles/club-admin.md`
+- **Site admin** — "The platform is healthy"
+
+A finding here is not only "this is broken." It is also "this is technically correct and it does not feel the way INTENT.md says it should for this role." Rate on that basis rather than dismissing it as cosmetic. This is the only scheduled task applying that lens to these three roles.
+
+Use the `role-journey-ux-audit` skill, which pulls in `UX-Audit` for methodology, `audit-pages` for the route inventory, and `quality-finding-lifecycle` for findings.
+
+Persona: elderly, nontechnical, first-time user unless INTENT.md says otherwise for this role.
+Viewports: fully walk mobile and desktop, then use tablet as a responsive-difference pass.
+
+## Isolation
+
+Work in your OWN git worktree cut from `origin/main`, and use a unique vite port. A shared checkout gets corrupted by concurrent agents. Do not run in the primary checkout.
+
+## Credentials — read this before signing in
+
+Sign in with the `@myk9t.com` set. The old `e2e-*@test.myk9.com` domain was RETIRED on 2026-08-23 and has no `auth.users` rows; any prompt or doc still naming it is stale.
+
+- judge -> `judge@myk9t.com`, `E2E_JUDGE_PASSWORD`. This account is JUDGE-ONLY and the "only" is load-bearing (MYK9-141) — `seed-demo.sql` §10g deactivates every non-judge grant so judge-scoping checks cannot pass through the wrong branch. If it renders as `Secretary +2`, that is a finding, not a fixture quirk.
+- site-admin -> `testadmin@myk9t.com`, `E2E_ADMIN_PASSWORD`.
+- club-admin -> `clubadmin@myk9t.com`, `E2E_CLUB_ADMIN_PASSWORD`. The email is hard-coded in the seeds and deliberately NOT overridable. This actor is club-scoped ONLY, with no site_admin, because club gates read `is_site_admin() OR is_club_admin(id)` and signing in as the site admin satisfies them without ever testing club scoping (MYK9-137). If `E2E_CLUB_ADMIN_PASSWORD` is absent from `apps/myk9show/.env.local`, that week's walk cannot run as the right actor — record it as a coverage gap and do NOT substitute the site admin.
+
+Passwords live in `apps/myk9show/.env.local` (gitignored). Read them from the environment at runtime. Never print, log, or write a credential into a report or screenshot. If sign-in fails with `Invalid login credentials`, that is auth-state drift, not an app bug — report it and stop rather than debugging the app.
+
+## Safe mutation boundary
+
+Create and edit demo records freely. Do NOT delete records you did not create, do not touch payment or payout flows, and do not run anything against production.
+
+**Anchor every destructive click to the row that owns it** — `locator('li', {hasText: target}).getByRole('button', ...)`, never `.last()` or `.first()` into a list whose length you did not assert. **Never assume a confirm dialog exists**: assert it appeared before looking inside it, and scope the confirm to `[role="dialog"]`. On 2026-08-31 a page-wide `.last()` fallback destroyed the canonical CI secretary's own appointment because Revoke has no confirmation step (MYK9-284). Record the count you expect after a destructive action and assert it.
+
+## Judge week — also run the scoring replay
+
+On a judge week (week mod 3 == 0), run this BEFORE writing the report:
+
+    cd apps/myk9show && pnpm test:e2e:audit:judge
+
+It covers what a hand-driven walk cannot: scoring offline, restart durability, reconnect and queue drain, a version-conflicted score, and duplicate submission. Every shared-staging write is intercepted, and it fails closed rather than writing if it cannot confirm that. If the walk already has an app server up, attach to it rather than letting the runner start a second one:
+
+    PLAYWRIGHT_AUDIT_BASE_URL=http://127.0.0.1:<port> \
+      PLAYWRIGHT_AUDIT_SERVER_ID=<the server's VITE_AUDIT_SERVER_ID> \
+      pnpm test:e2e:audit:judge
+
+Cite the run in the report: pass/fail per case, plus the `shared-staging-write-ledger.json` attachment, which is the evidence that shared staging received no writes. A failure here is a P1 — it is the show-day path with the least tolerance for breakage.
+
+Note the trap this replay guards against: a harness flag that defaults to intercepting writes can also make an absence-assertion vacuous. If a case asserts that no RPC was called, confirm it can observe a positive case on the same collector, or it is proving nothing.
+
+## Judgment rules
+
+- The project is **pre-launch, consolidating not expanding**. A duplicated surface is itself a finding. Prefer "link these two existing surfaces" over "add a page". If you propose a new surface, answer explicitly: does this duplicate an existing page, and why is duplication justified instead of a link?
+- Code that looks wrong but carries an `// INTENT:` comment is deliberate — read it before calling it a defect.
+- Verify claims against the running app, not against source text. A comment naming a behaviour is not evidence the behaviour exists.
+- An empty result is not evidence of emptiness. A disabled query, a query paused offline, and a placeholder from a previous key all render `isLoading: false` with no data, and the UI states that as fact. Cross-check the database before reporting a "you have nothing" screen.
+
+## Regression re-verification
+
+Re-walk any finding from this role's last two walks that is marked fixed and confirm it holds **in the browser**. A finding that regressed is a P1 regardless of its original severity. Explicitly list which prior findings you re-verified and which you could not reach.
+
+## Output
+
+- Write the report to `docs/audits/YYYY-MM-DD-<role>-intent-walk.md`.
+- Tag every finding `source: claude`, assign canonical P0-P3 severity, and mark each new / unchanged / regressed / resolved against prior runs.
+- Include a coverage matrix of routes walked vs. routes skipped. A skipped route is a coverage gap, not a pass.
+- Append the compact lifecycle ledger to automation memory.
+- **File findings to Linear directly — there is no approval step.** This run is unattended; an approval gate means nothing is ever filed and the report dies with the worktree. Every confirmed non-duplicate P0/P1 gets its own issue (team **MyK9-platform**), labelled `p0`/`p1`, `source:claude`, `walk:<role>`. Group P2/P3 as sub-issues of ONE parent titled `<Role> intent walk <YYYY-MM-DD> — P2/P3 findings`.
+- **Dedupe before filing, always with `includeArchived: true`** — match on route/symptom, never on title. Auto-archive runs on a 30-day team setting, so a default query reads shipped work as never-seen and re-files it. If an issue exists, comment on it instead of opening a second.
+- **Do NOT file coverage gaps or probe/harness bugs as issues** — report body only. A probe bug filed as a defect costs a triage slot and points the next run at a problem that does not exist.
+- **A failed Linear write is a reportable failure, never a silent skip.** Put the finding's full text at the top of the report and say plainly that it is unfiled.
+- **Commit the report and push it to `main`.** Docs-only, per CLAUDE.md § Auto Mode. Verify the commit's filelist contains only the report file.
+- Never emit credentials, tokens, or PII into the report.
+
+## Hard constraint
+
+**Audit only, with one exception.** No source edits, no PRs, no merges, no pushes beyond the report file, no `supabase db push`, no function deploys. If you find something trivial to fix, still do not fix it — record it and let a human decide. The single repo write permitted is committing and pushing your own report file.
+
+Prompt source of truth: docs/operations/scheduled-task-walks.md — edit there first, then update this task.
+````
+
+---

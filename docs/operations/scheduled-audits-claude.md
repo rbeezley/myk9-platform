@@ -18,19 +18,19 @@ wrong one that now needs arbitration.
 
 So the tasks below fall into two categories, and the distinction decides how each is scheduled:
 
-**Complements (tasks 1–3) run alongside Codex.** Claude runs where a second model's _judgment_
+**Complements (tasks 1–2) run alongside Codex.** Claude runs where a second model's _judgment_
 diverges usefully — security and role UX — plus one reconciliation task whose entire job is
 comparing the two models' output. A finding both models flag is high-confidence; a finding only one
 flags is where the signal is. That comparison only works if both write into the same ledger with a
 source tag. These are deliberately at a _different cadence_ from their Codex counterparts.
 
-**Substitutes (task 4) replace Codex.** When the Codex budget runs out, a stream stops entirely.
+**Substitutes (task 3) replace Codex.** When the Codex budget runs out, a stream stops entirely.
 A substitute is a deliberate clone — same cadence, same scope, same window — enabled only while its
 Codex counterpart is dark, and disabled again when it returns. Differentiating a substitute would
 defeat it: the point is continuity of the _same_ coverage, not a second opinion. The two must never
 run concurrently; see "Failover discipline" below.
 
-## Shared contract — applies to all four tasks
+## Shared contract — applies to all three tasks
 
 Every prompt below inherits these rules. They are repeated inside each prompt so the tasks stay
 self-contained when pasted into a scheduler.
@@ -90,13 +90,12 @@ plausibly at the keyboard for rather than times that are merely quiet.
 | ---------------------------- | ---------------- | ------------ | -------------------------------------------------- |
 | `claude-findings-reconcile`  | Weekly, Thursday | 6:00 AM      | Must land before Codex's Friday 6:00 AM review     |
 | `claude-security-audit`      | Weekly, Saturday | 3:00 AM      | Clear of Codex judge-ux-walk (Sat 12:15 AM)        |
-| `claude-role-ux-walk`        | Weekly, Sunday   | 3:00 AM      | Clear of Codex club-admin-ux-walk (Sun 12:15 AM)   |
 | `claude-daily-commit-review` | Daily            | 7:00 AM      | Substitute — mirrors the Codex daily commit review |
 
 Only the first row's timing is load-bearing: `claude-findings-reconcile` must run _before_ the
 Codex "Weekly quality findings review" so that review consumes an already-reconciled, deduplicated
 picture instead of two competing scorecards. If a launch-day clump reorders things, this is the one
-to re-run manually in the right order. The other two only need to not collide with a Codex job
+to re-run manually in the right order. The other one only needs to not collide with a Codex job
 touching the same staging surface.
 
 The scheduler adds a few minutes of deterministic jitter at dispatch, so actual fire times land
@@ -109,10 +108,10 @@ with its `cronExpression`, then `update_scheduled_task` with `enabled: false`. C
 "ad-hoc" instead (omitting the cron entirely) also prevents automatic runs, but throws away the
 schedule — prefer create-then-disable so unpausing is a single toggle.
 
-All four tasks are currently **paused** — tasks 1–3 for token cost, task 4 because a substitute is
+All three tasks are currently **paused** — tasks 1–2 for token cost, task 3 because a substitute is
 paused by definition until its Codex counterpart goes dark.
 
-### Failover discipline (task 4)
+### Failover discipline (task 3)
 
 `claude-daily-commit-review` is a substitute, not a complement. Two rules:
 
@@ -134,7 +133,8 @@ on its side — the cursor only works if both ends honor it.
 
 Tool approvals are stored on the task after a run and auto-applied to later runs. Until then a run
 will stall on a permission prompt at 3 AM with no one watching. `claude-security-audit` needs
-Supabase MCP; `claude-role-ux-walk` needs browser control.
+Supabase MCP. (`role-intent-walk`, which needs browser control, moved to
+[`scheduled-task-walks.md`](scheduled-task-walks.md) — the same pre-approval rule applies to it.)
 
 Run each task manually once, while watching, before enabling it. That grants the approvals and
 doubles as a check that the prompt produces the report you actually want.
@@ -201,92 +201,8 @@ Output:
 Do not edit source. Do not open a PR. Do not merge. The report file is the only repo write.
 ```
 
-## Task 2 — `claude-role-ux-walk`
 
-**Cadence:** Weekly, Sunday 3:00 AM. Rotates through five roles.
-
-**Rotation without state:** the role is derived from the ISO week number so the task needs no
-persistent pointer and no scheduler-side state to drift. Over ~2.5 weeks each role gets one Codex
-walk and one Claude walk, which is the comparison you want — not two walks of the same role in the
-same week.
-
-```
-Run a persona-driven UX walk of ONE myK9Show role in a real browser.
-
-Pick the role deterministically from the current ISO week number:
-  week mod 5 == 0 → exhibitor
-  week mod 5 == 1 → secretary
-  week mod 5 == 2 → judge
-  week mod 5 == 3 → club-admin
-  week mod 5 == 4 → site-admin
-State the computed week number and chosen role at the top of the report so the rotation is
-auditable.
-
-Use the `role-journey-ux-audit` skill, which pulls in `UX-Audit` for methodology, `audit-pages` for
-the route inventory, and `quality-finding-lifecycle` for findings.
-
-Before walking, read `docs/INTENT.md` and establish the target feeling for this role. A finding is
-not just "this is broken" — it is also "this is technically fine but it does not feel the way
-INTENT.md says it should for this role." Codex's walk will not have this framing; that difference
-is the point of running a second one.
-
-Persona: elderly, nontechnical, first-time user unless INTENT.md says otherwise for this role.
-Viewports: fully walk mobile and desktop, then use tablet as a responsive-difference pass.
-
-Also hold this phase constraint while judging: the project is pre-launch, consolidating rather than
-expanding. Per CLAUDE.md, a duplicated surface is a finding and a missing link between two existing
-surfaces is a better fix than a new affordance. Do NOT recommend new pages, sheets, or dialogs
-where a deep-link with pre-applied filters into an existing surface would do. If you propose a new
-surface anyway, you must answer explicitly: "Does this duplicate an existing page? If so, why is
-duplication justified instead of a link?"
-
-Safe mutation boundary: sign in with the `@myk9t.com` set (`secretary@myk9t.com`,
-`testadmin@myk9t.com`, `judge@myk9t.com`, `exhibitor@myk9t.com`; the exhibitor's env vars are
-`E2E_DEMO_EXHIBITOR_*`, not `E2E_EXHIBITOR_*`). The old `e2e-*@test.myk9.com` domain was RETIRED on
-2026-08-23 and has no `auth.users` rows — a prompt still naming it will die at sign-in. Passwords
-live in `apps/myk9show/.env.local`; read them from the environment and never print one. Create and
-edit demo records freely, but do not delete records you did not create, do not touch payment or
-payout flows, and do not run anything against production.
-
-Also verify: re-walk any finding from this role's last two walks (Claude or Codex) that is marked
-fixed, and confirm the fix actually holds in the browser.
-
-On a judge week (week mod 5 == 2), also run the judge scoring replay before writing the report:
-
-    cd apps/myk9show && pnpm test:e2e:audit:judge
-
-This covers what a hand-driven walk cannot: scoring offline, restart durability, reconnect and
-queue drain, a version-conflicted score, and duplicate submission. Every shared-staging write is
-intercepted, so it is safe against the shared project — and it fails closed rather than writing if
-it cannot confirm that. If the walk already has an app server up, attach to it instead of letting
-the runner start a second one:
-
-    PLAYWRIGHT_AUDIT_BASE_URL=http://127.0.0.1:<port> \
-      PLAYWRIGHT_AUDIT_SERVER_ID=<the server's VITE_AUDIT_SERVER_ID> \
-      pnpm test:e2e:audit:judge
-
-Cite the run in the report: pass/fail per case, plus the `shared-staging-write-ledger.json`
-attachment, which is the evidence that shared staging received no writes. A failure here is a P1
-finding — it is the show-day path with the least tolerance for breakage.
-
-Output:
-- Write the report to `docs/audits/YYYY-MM-DD-<role>-ux-walk-claude.md`.
-- Tag every finding `source: claude`, assign canonical P0-P3 severity, and mark each
-  new / unchanged / resolved against prior runs.
-- Include a coverage matrix of routes walked vs. routes skipped. A skipped route is a coverage gap,
-  not a pass.
-- Append the compact lifecycle ledger to automation memory.
-- File every confirmed non-duplicate P0/P1 finding as its own Linear issue (team MyK9-platform)
-  directly — no approval step, this run is unattended. Label `p0`/`p1`, `source:claude`,
-  `walk:<role>`. Group P2/P3 as sub-issues of one parent, `<Role> UX walk <date> — P2/P3 findings`.
-  Dedupe with `includeArchived: true`. Do NOT file coverage gaps or probe bugs.
-- Commit the report and push it to `main` (docs-only; verify the filelist is just that file).
-
-This skill never fixes source during the walk. Audit only — no source edits, no PR, no merge. The
-report file is the only repo write.
-```
-
-## Task 3 — `claude-findings-reconcile`
+## Task 2 — `claude-findings-reconcile`
 
 **Cadence:** Weekly, Thursday 6:00 AM — the day before the Codex Friday consolidation.
 
@@ -352,11 +268,11 @@ Output:
 Do not edit source outside `docs/`. Do not open a PR. Do not merge.
 ```
 
-## Task 4 — `claude-daily-commit-review` (failover)
+## Task 3 — `claude-daily-commit-review` (failover)
 
 **Cadence:** Daily, 7:00 AM. **Paused unless the Codex daily commit review is dark.**
 
-**Why this one is a clone, not a differentiated view:** tasks 1–3 exist to disagree with Codex. This
+**Why this one is a clone, not a differentiated view:** tasks 1–2 exist to disagree with Codex. This
 one exists to _be_ Codex for a few days. Narrowing its scope to "what Claude sees differently" would
 leave the ordinary regression coverage — the actual reason the stream exists — unrun during exactly
 the window it is meant to protect. Same window, same scope, same output shape.
@@ -431,18 +347,23 @@ those two files are the only repo writes this task may make.
 
 ## Maintenance
 
-- The Linear contract above is shared with two tasks documented separately, in
-  [`scheduled-task-walks.md`](scheduled-task-walks.md) — `secretary-task-walk` and
-  `exhibitor-task-walk`. They are functional walks with no Codex counterpart, so the
-  complement/substitute taxonomy above does not apply to them. Changing the contract means editing
-  it here, in that file, and in all six live `SKILL.md` files, or they drift.
+- The Linear contract above is shared with three tasks documented separately, in
+  [`scheduled-task-walks.md`](scheduled-task-walks.md) — `secretary-task-walk`, `exhibitor-task-walk`
+  and `role-intent-walk`. They are walks with no Codex counterpart, so the complement/substitute
+  taxonomy above does not apply to them. Changing the contract means editing it here, in that file,
+  and in all six live `SKILL.md` files, or they drift.
+- `claude-role-ux-walk` was **retired on 2026-09-01** and is no longer in this file. Its five-role
+  rotation duplicated the two roles that now have dedicated weekly walks while starving the three
+  that have none, and its "second opinion to a paired Codex walk" premise died when the Codex stream
+  was paused. It was replaced by `role-intent-walk` (judge / club-admin / site-admin), documented in
+  `scheduled-task-walks.md`.
 - `branch-janitor` is deliberately exempt: its "suspected dead, confirm to delete" output is a
   confirm-list, not a defect, and has no issue shape. Do not route it to Linear.
 - When a Codex task changes scope, revisit whether the Claude counterpart still adds a differing
   view or has become redundant. Redundant tasks should be deleted, not left running.
 - A substitute must track the task it substitutes for. When the Codex daily commit review changes
-  scope, update task 4 in the same pass — a stale clone is worse than no backup, because it reports
-  coverage it is no longer providing. If that Codex stream is retired outright, delete task 4 rather
+  scope, update task 3 in the same pass — a stale clone is worse than no backup, because it reports
+  coverage it is no longer providing. If that Codex stream is retired outright, delete task 3 rather
   than leaving an orphan backup for a stream that no longer exists.
 - If `claude-findings-reconcile` reports agreements approaching 100% for several weeks, the two
   models have converged and one of the paired tasks can be retired.

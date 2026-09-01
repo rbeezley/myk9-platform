@@ -267,6 +267,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md)                             | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers)            |
 | [operations/supabase-auth-email.md](operations/supabase-auth-email.md)                                   | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation                    |
 | [operations/scheduled-audits-claude.md](operations/scheduled-audits-claude.md)                           | Reference | Scheduled Audits — Claude Code task prompts paired against the Codex nightly set   |
+| [operations/scheduled-task-walks.md](operations/scheduled-task-walks.md)                                 | Reference | Scheduled Task Walks — secretary, exhibitor + role-intent walk prompts             |
 
 ### future/ — parked backlog
 

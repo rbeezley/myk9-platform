@@ -75,14 +75,23 @@ describe('ShowCreationWizardPage — Escape', () => {
     render(<ShowCreationWizardPage />);
 
     const nameField = document.querySelector('#show-name') as HTMLInputElement | null;
-    if (!nameField) return; // step 1 shape changed; the assertion below would be vacuous
-    await userEvent.type(nameField, 'Escape Regression Show');
+    // Fail loudly if step 1 stops rendering this field. The previous `return` here
+    // made the test PASS having asserted nothing, which is the one outcome a guard
+    // against vacuity must not produce.
+    expect(nameField).not.toBeNull();
+    await userEvent.type(nameField!, 'Escape Regression Show');
 
     const cancel = screen.queryByRole('button', { name: /^cancel$/i });
     expect(cancel).not.toBeNull();
     await userEvent.click(cancel!);
 
-    expect(await screen.findByText(LEAVE_PROMPT)).toBeInTheDocument();
+    // MYK9-287: this wait is NOT the flake, and giving it more time is not the fix.
+    // Raising it to 10s made the run hit vitest's own `testTimeout: 10000` at
+    // 10046ms with the prompt still absent -- so in CI the dialog does not appear
+    // within ten seconds, and the cause is not latency. Kept at a bound safely below
+    // the test timeout so the failure surfaces as Testing Library's "unable to find"
+    // (which names the missing text) rather than as an opaque vitest timeout.
+    expect(await screen.findByText(LEAVE_PROMPT, {}, { timeout: 4000 })).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalledWith('/shows');
   });
 });

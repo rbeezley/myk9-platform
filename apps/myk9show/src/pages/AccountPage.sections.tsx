@@ -70,9 +70,11 @@ export function ProfileSection() {
               <AvatarFallback className="text-lg">{getInitials(fullName)}</AvatarFallback>
             </Avatar>
             <div>
+              {/* size="touch": an action on a settings page is not a dense
+                  data grid, so it takes the 44px floor (docs/INTENT.md § 3). */}
               <Button
                 variant="outline"
-                size="sm"
+                size="touch"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
@@ -367,8 +369,12 @@ export function DeleteSection() {
         <p className="text-sm text-muted-foreground">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
+        {/* size="touch" below. A DESTRUCTIVE action is never permitted under
+            the floor, whatever the surface — docs/INTENT.md § 3 names this case
+            explicitly. Deleting an account at 32px was the clearest breach of
+            the rule in the codebase. */}
         {!confirm ? (
-          <Button variant="destructive" size="sm" onClick={() => setConfirm(true)}>
+          <Button variant="destructive" size="touch" onClick={() => setConfirm(true)}>
             Delete my account
           </Button>
         ) : (

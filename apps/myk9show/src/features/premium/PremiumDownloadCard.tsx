@@ -128,8 +128,10 @@ export function PremiumDownloadCard({ showId, showStaleBadge = false }: PremiumD
             <h3 className="font-semibold text-sm">Premium List</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Premium PDF is not published yet</p>
           </div>
+          {/* size="touch": publishing the premium is a PRIMARY action, which
+              docs/INTENT.md § 3 never permits below the 44px floor. */}
           <Button
-            size="sm"
+            size="touch"
             className="shrink-0 whitespace-nowrap"
             onClick={handleGenerateAndPublish}
             disabled={isBusy}

@@ -436,9 +436,12 @@ function ShowAccessCodesCardForShow({
                   {code}
                 </code>
               </div>
+              {/* size="icon-lg" (44px square). An icon-only copy control on a
+                  card is not a dense grid, and this is the only way to get the
+                  passcode out of the app (docs/INTENT.md § 3). */}
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon-lg"
                 aria-label={`Copy ${role} code`}
                 onClick={() => copyToClipboard(code)}
               >
@@ -449,7 +452,7 @@ function ShowAccessCodesCardForShow({
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="touch"
                   className="gap-1.5 text-xs"
                   onClick={() => copyToClipboard(exhibitorUrl)}
                 >

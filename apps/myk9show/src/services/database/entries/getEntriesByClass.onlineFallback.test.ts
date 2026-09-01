@@ -179,4 +179,29 @@ describe('getEntriesByTrial — cold local replica verifies online', () => {
 
     expect(result.data).toHaveLength(0);
   });
+
+  it('still excludes a tombstone whose class is missing from the local class replica', async () => {
+    // Second review finding on this path: trial membership is resolved through
+    // the local CLASSES replica, which can be cold independently of the entries
+    // replica. A tombstone whose class is unknown locally would be dropped from
+    // the exclusion list — the one case where it is needed — and the stale
+    // server row would put the deleted entry back on the check-in sheet.
+    mockClassesTable.getClassesByTrial.mockResolvedValue([]);
+    mockEntriesTable.getAll.mockResolvedValue([
+      {
+        id: 'entry-tombstoned',
+        dogId: null,
+        classId: 'c-not-in-local-replica',
+        showId: 's1',
+        registrationId: null,
+        deletedAt: '2026-08-31T00:00:00.000Z',
+        entryStatus: 'confirmed',
+      },
+    ]);
+    onlineRows = [{ id: 'entry-tombstoned', class: { id: 'c-not-in-local-replica' } }];
+
+    const result = await getEntriesByTrial('t1');
+
+    expect(result.data).toHaveLength(0);
+  });
 });

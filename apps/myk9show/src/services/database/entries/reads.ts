@@ -700,12 +700,21 @@ export const getEntriesByTrial = async (trialId: string) => {
       // Filter entries to only those whose classId is in the trial's classes (inner join)
       const inTrial = allEntries.filter(e => e.classId && trialClassIds.has(e.classId));
       const filtered = inTrial.filter(isLiveEntry);
-      // Tombstones for THIS trial's classes — a queued delete not yet synced.
-      // Required because this read opts into `verifyOnlineWhenEmpty`: a replica
-      // holding only a soft-deleted entry filters to empty, which triggers the
-      // online read, and without these ids a server row that has not yet seen
-      // the delete would resurrect the entry onto a check-in sheet.
-      const locallyDeletedIds = inTrial.filter(e => !isLiveEntry(e)).map(e => e.id);
+      // Tombstones — a queued delete not yet synced. Required because this read
+      // opts into `verifyOnlineWhenEmpty`: a replica holding only a soft-deleted
+      // entry filters to empty, which triggers the online read, and without
+      // these ids a server row that has not yet seen the delete would resurrect
+      // the entry onto a check-in sheet.
+      //
+      // Deliberately collected from ALL local entries rather than from
+      // `inTrial`. Trial membership here is resolved through the local CLASSES
+      // replica, which can be cold independently of the entries replica — and a
+      // tombstone whose class is missing locally would then be dropped from the
+      // exclusion list, which is the one case where it is needed. Widening the
+      // list cannot over-exclude: the online read is already scoped to this
+      // trial (`class.trial_id = trialId`), so an id from another trial can
+      // never appear in the result it filters.
+      const locallyDeletedIds = allEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const sortedEntries = sortedCopy(filtered, compareDateDesc(getEntryCreatedSortValue));
       const enrollmentsMap = await loadEnrollmentFinancialsMap(sortedEntries);
       const data = sortedEntries.map(entry =>

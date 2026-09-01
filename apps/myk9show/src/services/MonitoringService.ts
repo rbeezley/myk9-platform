@@ -36,6 +36,7 @@ export interface UserMetric {
  * Performance Monitor
  */
 class PerformanceMonitor {
+  private static readonly MAX_METRICS_PER_NAME = 250;
   private observers: PerformanceObserver[] = [];
   private metrics = new Map<string, PerformanceMetric[]>();
   private isInitialized = false;
@@ -244,7 +245,11 @@ class PerformanceMonitor {
     if (!this.metrics.has(name)) {
       this.metrics.set(name, []);
     }
-    this.metrics.get(name)!.push(metric);
+    const metricsForName = this.metrics.get(name)!;
+    metricsForName.push(metric);
+    if (metricsForName.length > PerformanceMonitor.MAX_METRICS_PER_NAME) {
+      metricsForName.splice(0, metricsForName.length - PerformanceMonitor.MAX_METRICS_PER_NAME);
+    }
 
     // Log performance issues - only warn for significant issues in development
     // In development, skip logging minor performance issues to reduce console noise
@@ -321,6 +326,7 @@ class PerformanceMonitor {
  * Error Monitor
  */
 class ErrorMonitor {
+  private static readonly MAX_ERRORS = 500;
   private errors: ErrorMetric[] = [];
 
   constructor() {
@@ -368,6 +374,9 @@ class ErrorMonitor {
     };
 
     this.errors.push(errorMetric);
+    if (this.errors.length > ErrorMonitor.MAX_ERRORS) {
+      this.errors.splice(0, this.errors.length - ErrorMonitor.MAX_ERRORS);
+    }
 
     // Log to logging service
     logger.error(errorMetric.message, 'error-monitor', {
@@ -426,9 +435,11 @@ class ErrorMonitor {
  * User Analytics Monitor
  */
 class UserAnalyticsMonitor {
+  private static readonly MAX_EVENTS = 500;
   private sessionId: string;
   private userId?: string;
   private events: UserMetric[] = [];
+  private readonly handlePopState = () => this.trackCurrentPageView();
 
   constructor() {
     this.sessionId = this.generateSessionId();
@@ -447,21 +458,16 @@ class UserAnalyticsMonitor {
       referrer: document.referrer,
     });
 
-    // Track navigation changes (for SPA)
-    let currentUrl = window.location.href;
-    const observer = new MutationObserver(() => {
-      if (window.location.href !== currentUrl) {
-        currentUrl = window.location.href;
-        this.trackEvent('page_view', {
-          url: currentUrl,
-          title: document.title,
-        });
-      }
-    });
+    // Browser back/forward navigation is observable without watching the entire
+    // document. React Router push navigations are intentionally left to the
+    // owning surface so this service never adds a hot-path MutationObserver.
+    window.addEventListener('popstate', this.handlePopState);
+  }
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
+  private trackCurrentPageView(): void {
+    this.trackEvent('page_view', {
+      url: window.location.href,
+      title: document.title,
     });
   }
 
@@ -483,6 +489,9 @@ class UserAnalyticsMonitor {
     };
 
     this.events.push(metric);
+    if (this.events.length > UserAnalyticsMonitor.MAX_EVENTS) {
+      this.events.splice(0, this.events.length - UserAnalyticsMonitor.MAX_EVENTS);
+    }
 
     // Log user action
     logger.logUserAction(event, String(properties?.target) || 'unknown', properties);
@@ -529,6 +538,10 @@ class UserAnalyticsMonitor {
 
   getSessionEvents(): UserMetric[] {
     return this.events.filter(event => event.sessionId === this.sessionId);
+  }
+
+  destroy(): void {
+    window.removeEventListener('popstate', this.handlePopState);
   }
 }
 
@@ -735,6 +748,7 @@ export class MonitoringService {
 
   destroy(): void {
     this.performanceMonitor.destroy();
+    this.userAnalyticsMonitor.destroy();
   }
 }
 

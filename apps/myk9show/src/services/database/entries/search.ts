@@ -122,6 +122,7 @@ export const USER_ENTRIES_SELECT = `
       show:show_id (
         id,
         name,
+        deleted_at,
         start_date,
         end_date,
         entry_close_date,

@@ -24,6 +24,11 @@ export interface ReplicatedEntry {
   id: string;
   classId?: string | undefined;
   showId?: string | undefined;
+  showDeletedAt?: string | null | undefined;
+  show_deleted_at?: string | null | undefined;
+  showName?: string | undefined;
+  showStartDate?: string | undefined;
+  showEndDate?: string | undefined;
   dogId?: string | undefined;
   handlerId?: string | undefined;
   armband?: string | undefined;
@@ -190,7 +195,8 @@ export function entryToSupabaseRow(entry: ReplicatedEntry): Record<string, unkno
       entry.paymentReference !== undefined ? entry.paymentReference : entry.payment_reference,
     payment_received_on:
       entry.paymentReceivedOn !== undefined ? entry.paymentReceivedOn : entry.payment_received_on,
-    payment_notes: entry.paymentNotes !== undefined ? entry.paymentNotes : entry.payment_notes,    withdrawal_reason:
+    payment_notes: entry.paymentNotes !== undefined ? entry.paymentNotes : entry.payment_notes,
+    withdrawal_reason:
       entry.withdrawalReason !== undefined
         ? entry.withdrawalReason
         : entry.withdrawal_reason !== undefined
@@ -270,6 +276,11 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     id: String(row.id),
     classId: row.class_id ?? undefined,
     showId: row.show_id ?? undefined,
+    showDeletedAt: optionalColumn(row, 'show_deleted_at'),
+    show_deleted_at: optionalColumn(row, 'show_deleted_at'),
+    showName: optionalColumn(row, 'source_show_name'),
+    showStartDate: optionalColumn(row, 'source_show_start_date'),
+    showEndDate: optionalColumn(row, 'source_show_end_date'),
     dogId: row.dog_id ?? undefined,
     handlerId: row.handler_id ?? undefined,
     armband: row.armband ?? undefined,

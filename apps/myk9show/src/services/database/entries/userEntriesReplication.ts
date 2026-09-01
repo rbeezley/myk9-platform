@@ -95,6 +95,15 @@ export async function buildReplicatedUserEntryRows(
           }
         : null,
     });
+    if (!show && entry.showId && entry.showDeletedAt) {
+      row.show = {
+        id: entry.showId,
+        name: entry.showName ?? 'Unknown Show',
+        start_date: entry.showStartDate ?? null,
+        end_date: entry.showEndDate ?? null,
+        deleted_at: entry.showDeletedAt,
+      };
+    }
     // Mirror the PostgREST `show:show_id(..., trials:trials(...))` embed. The
     // amount-due deadline picks the show's PRIMARY trial's timezone, which
     // needs every trial of the show, not just the one this entry is in.

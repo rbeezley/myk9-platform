@@ -148,6 +148,7 @@ export const clubAdminRouteComponents: Record<string, ImportFunction> = {
 export const judgeRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for judge routes - would be populated by actual judge routes
   '/judge/dashboard': () => import('@/pages/JudgeDashboard'),
+  '/results/dashboard': () => import('@/routes/ResultsDashboardRedirect'),
   // Add more judge routes as they're defined
 } as const;
 

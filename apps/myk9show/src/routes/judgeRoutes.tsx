@@ -11,13 +11,12 @@ import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
+import { ResultsDashboardRedirect } from './ResultsDashboardRedirect';
 
 // Judge page lazy imports
 const JudgeDashboard = lazy(() => import('@/pages/JudgeDashboard'));
 const JudgeCheckInDashboard = lazy(() => import('@/pages/judge/JudgeCheckInDashboard'));
 
-// Results and analytics for judges
-const ResultEntryDashboard = lazy(() => import('@/pages/ResultEntryDashboard'));
 const JudgeStatsPage = lazy(() => import('@/pages/judge/JudgeStatsPage'));
 
 /** Routes rendered INSIDE UnifiedAppLayout (with sidebar) */
@@ -65,11 +64,7 @@ export const JudgeSidebarRoutes = () => (
       path="/results/dashboard"
       element={
         <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <ResultEntryDashboard />
-            </PageTransition>
-          </SuspenseWrapper>
+          <ResultsDashboardRedirect />
         </ProtectedRoute>
       }
     />

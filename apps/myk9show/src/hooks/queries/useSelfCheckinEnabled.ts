@@ -97,7 +97,9 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
   // entry list on every parent render, including each replication sync tick.
   // Memoise on the resolved values rather than on `results`, whose identity is
   // exactly the thing that keeps changing.
-  const resolved = results.map(r => r.data ?? true);
+  // Keep the optimistic default while a query has no answer, but fail closed
+  // once React Query reports an actual settings error.
+  const resolved = results.map(r => (r.isError ? false : (r.data ?? true)));
   const signature = resolved.map(v => (v ? '1' : '0')).join('');
 
   return useMemo(() => {

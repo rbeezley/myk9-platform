@@ -110,7 +110,10 @@ export function SubscriptionManager({
 
       if (subError) throw subError;
 
-      if (subData) {
+      // Stripe creates a sentinel `none` row before a customer has a real
+      // subscription. It is not an unpaid subscription and has no billing
+      // period to display.
+      if (subData && subData.status !== 'none') {
         const { amount, interval } = priceDisplay(subData.stripe_price_id);
         setBilling({
           status:

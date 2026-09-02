@@ -135,7 +135,9 @@ function entryLabel(entry: ShowMapEntryInput): string {
 }
 
 function armbandSortValue(entry: ShowMapEntryInput): number {
-  return getArmbandSortValue(entryDisplay(entry));
+  return getArmbandSortValue(
+    readString(entry, 'armband') ?? readString(entry, 'armband_number')
+  );
 }
 
 function addNode(tree: ShowMapTree, node: ShowMapNode): void {

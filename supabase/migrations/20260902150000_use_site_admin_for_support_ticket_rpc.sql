@@ -1,3 +1,5 @@
+-- Correct the authorization helper and grants on environments where the
+-- preceding support-ticket migration was already applied.
 create or replace function public.create_support_ticket(
   p_owner_id uuid,
   p_subject text,
@@ -33,4 +35,5 @@ end;
 $$;
 
 revoke all on function public.create_support_ticket(uuid, text, jsonb, uuid, boolean, text) from public;
+revoke all on function public.create_support_ticket(uuid, text, jsonb, uuid, boolean, text) from anon;
 grant execute on function public.create_support_ticket(uuid, text, jsonb, uuid, boolean, text) to authenticated;

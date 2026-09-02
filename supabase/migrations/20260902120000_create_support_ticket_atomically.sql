@@ -14,7 +14,7 @@ as $$
 declare
   v_ticket_id uuid;
 begin
-  if auth.uid() is distinct from p_owner_id and not public.is_platform_admin() then
+  if auth.uid() is distinct from p_owner_id and not public.is_site_admin() then
     raise exception 'Not allowed to create a ticket for another user';
   end if;
 
@@ -33,4 +33,5 @@ end;
 $$;
 
 revoke all on function public.create_support_ticket(uuid, text, jsonb, uuid, boolean, text) from public;
+revoke all on function public.create_support_ticket(uuid, text, jsonb, uuid, boolean, text) from anon;
 grant execute on function public.create_support_ticket(uuid, text, jsonb, uuid, boolean, text) to authenticated;

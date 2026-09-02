@@ -61,6 +61,7 @@ const launchCriticalSqlTests = [
   'sign_in_email_invariant_test.sql',
   'subscription_entitlement_grants_test.sql',
   'support_triage_atomic_send_test.sql',
+  'support_ticket_creation_atomicity_test.sql',
   'soft_delete_dog_cascade_test.sql',
   'show_email_delivery_history_test.sql',
 ];

@@ -282,10 +282,12 @@ const MyEntriesPage: React.FC = () => {
                         id: string;
                         call_name?: string;
                         name?: string;
+                        image_url?: string | null;
+                        date_of_birth?: string | null;
                         registrations?: {
-                          breed?: string;
-                          organization?: string;
-                          status?: string;
+                          breed?: string | null;
+                          organization?: string | null;
+                          registration_number?: string | null;
                         }[];
                       }[]
                     }

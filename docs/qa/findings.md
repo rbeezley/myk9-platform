@@ -448,6 +448,33 @@ Copy this block for each new finding.
 - **Existing references:** #1943 `a89fbb71b`. `BaseEntityDialog` is shared, so any dialog whose confirm handler throws has this shape.
 - **Linear issue:** MYK9-338 (new) under parent MYK9-335.
 - **Proof required:** A test spying on `window.onunhandledrejection` (or asserting `captureError` is not called) across a refused delete, failing if the catch is removed.
+### MYK9-294
+
+- **Status:** in-progress
+- **Lifecycle status:** blocked
+- **Classification:** Confirmed payment-status visibility defect with deployment proof outstanding
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source:** codex
+- **Role/workflow:** exhibitor / checkout confirmation after successful payment
+- **Surface:** `apps/myk9show/src/lib/stripe.ts:203-308`; `supabase/migrations/20260901130000_owner_scoped_checkout_order_lookup.sql`
+- **Suite category:** security/payment
+- **Pattern:** missing-loading-state
+- **Detected by:** daily commit review / exhibitor task walk
+- **First seen:** 2026-09-01
+- **Last seen:** 2026-09-02
+- **Baseline SHA:** `924b2cbce6ad69113f45dbe697c0bd5b8611920f`
+- **Evidence:** PR #1951 (`0c9981e1e`) replaces the lagging direct order read with an authenticated owner-scoped RPC, adds the migration, and passes 26 focused checkout tests. Rebuilding `@myk9/supabase` from source followed by the app TypeScript check is clean. The exact Linear issue remains In Progress, and no linked-environment migration/replay evidence confirms the RPC is deployed and resolves a real delayed webhook order.
+- **Expected behavior:** After payment, the exhibitor receives a truthful settled result or a bounded, recoverable pending state; a committed order must not appear permanently missing.
+- **Observed behavior:** Source and focused-test fix are present, but deployed closure is unverified; keep blocked rather than treating the merge as proof.
+- **User impact:** A paid exhibitor can still be left unsure whether the order completed if the migration is not applied or the RPC contract is unavailable in the target environment.
+- **Intent check:** Protects exhibitor trust in payment confirmation; the remaining deployment gap prevents launch-grade confidence.
+- **Confidence:** high for the source fix and test coverage; low for shared-environment closure because no live replay was run.
+- **Fix owner:** checkout verification RPC deployment and post-payment browser replay.
+- **Existing references:** Linear MYK9-294 (In Progress; PR #1951 attached). No duplicate issue created.
+- **Linear issue:** reused MYK9-294; no new issue created.
+- **Proof required:** Apply/verify migration `20260901130000_owner_scoped_checkout_order_lookup.sql` in the linked environment and replay delayed order visibility with a real authenticated owner.
+- **Notes:** The initial app typecheck only failed because ignored package declarations were stale; after rebuilding the package, the check passed. This is a deployment-evidence blocker, not a new type defect.
 
 ### NCR-2026-09-02-01
 
@@ -955,6 +982,82 @@ Copy this block for each new finding.
 - **2026-06-05 — CLOSED (non-reproducing; proof met).** Phase 3 route sweep (site-admin session, isolated single-occupant worktree on port `5191`) reported `/admin/dashboard` `render=ok` with `loading=N`, `skel=0`, `err=0`, `repl=0`, `http=0` at both desktop and 375px, alongside all 9 admin routes rendering cleanly. This is the third consecutive clean scheduled replay (06-02, 06-04, 06-05) and the first where the full route sweep completed, satisfying this finding's `Proof required`. The original 2026-05-30 stuck-`Loading...` evidence was gathered under cross-agent dev-server contention. Closed as non-reproducing.
 
 ## Closed Findings
+
+### MYK9-283
+
+- **Status:** fixed (2026-09-02 — PR #1922 / commit `0f974754e`; deployed staging closure comment)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed show-day data-truthfulness defect
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source:** codex
+- **Role/workflow:** secretary / check-in sheet report on a cold show load
+- **Surface:** `apps/myk9show/src/hooks/queries/useReportData.ts`; `apps/myk9show/src/pages/secretary/ReportsPage/ReportPreview.tsx`
+- **Evidence:** The exact Linear MYK9-283 closure record reports the fix live on staging, 30 fresh-context cold loads with `FALSE_ZERO=0`, entries hydrating from `0` to `484`, and populated class/trial check-in and scoresheet PDFs. Focused read/report tests and deployed bundle probes passed.
+- **Expected behavior:** A populated class must not be presented as empty while its cold replica hydrates.
+- **Observed behavior:** Resolved; the report read now verifies a cold empty result online and preserves local tombstones.
+- **User impact:** The secretary no longer receives a false empty check-in sheet on the measured cold-load path.
+- **Intent check:** Restores calm, truthful show-day control.
+- **Confidence:** high; closure includes deployed staging and repeated browser evidence.
+- **Existing references:** Linear MYK9-283 (Done; closure evidence comment); no new issue created.
+- **Proof required:** Satisfied by the recorded 30-run deployed cold-load replay and focused regression coverage.
+
+### MYK9-284
+
+- **Status:** fixed (2026-09-02 — PR #1935 / commit `08e6f63ff`)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed UX safety defect
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source:** codex
+- **Role/workflow:** club administrator / revoke club show access
+- **Surface:** `apps/myk9show/src/pages/club-admin/ClubMembersPage.tsx`; `apps/myk9show/src/pages/club-admin/ClubShowAccessTab.tsx`
+- **Evidence:** PR #1935 adds a named confirmation dialog before the existing revoke mutation and focused tests covering confirm/cancel for members and non-member appointees. Linear MYK9-284 is Done with the PR attached.
+- **Expected behavior:** Revocation explains its impact and occurs only after explicit confirmation.
+- **Observed behavior:** Resolved in source and focused tests; the mutation is no longer called from the first click.
+- **User impact:** Removes destructive surprise from club-wide show-access administration.
+- **Intent check:** Restores calm, respectful administration.
+- **Confidence:** high for source/test closure; no new browser replay was run in this commit review.
+- **Existing references:** Linear MYK9-284 (Done; PR #1935); no new issue created.
+- **Proof required:** Satisfied by the focused confirm/cancel tests; browser replay remains optional follow-up evidence.
+
+### MYK9-279
+
+- **Status:** fixed (2026-09-02 — PR #1932 / commit `e690b4d89`)
+- **Lifecycle status:** resolved
+- **Classification:** Compatibility-route coverage contract
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source:** codex
+- **Role/workflow:** secretary / legacy task and waitlist links
+- **Surface:** `apps/myk9show/src/routes/secretaryRoutes.tsx`; secretary redirect tests
+- **Evidence:** PR #1932 documents `/secretary/tasks` as a compatibility redirect and routes waitlist work to show-scoped Entry Management when context exists, with an explanatory fallback otherwise. The focused secretary redirect suite passed 21 tests and Linear MYK9-279 is Done.
+- **Expected behavior:** Retained legacy URLs must redirect intentionally to canonical surfaces and explain the fallback.
+- **Observed behavior:** Resolved in source and focused route tests; no standalone duplicate task/waitlist surface was added.
+- **User impact:** Secretaries following legacy links reach the appropriate canonical workflow instead of an unexplained dead end.
+- **Intent check:** Advances consolidation and preserves “That was easy.”
+- **Confidence:** high for source/test closure; no deployed route replay was run in this commit review.
+- **Existing references:** Linear MYK9-279 (Done; PR #1932); no new issue created.
+- **Proof required:** Satisfied by the focused redirect suite; deployed route replay remains optional follow-up evidence.
+
+### MYK9-286
+
+- **Status:** fixed (2026-09-02 — PR #1936 / commit `c05824334`)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed broken-navigation UX defect
+- **Severity:** low
+- **Canonical priority:** P3
+- **Source:** codex
+- **Role/workflow:** secretary / show creation entry point
+- **Surface:** `apps/myk9show/src/routes/publicRoutes.tsx`; `apps/myk9show/src/pages/ShowDetailsPage.tsx`
+- **Evidence:** PR #1936 adds the exact `/shows/new` redirect to the existing create wizard and guards invalid UUIDs before show/entry queries. Its focused TypeScript and route tests passed; Linear MYK9-286 is Done.
+- **Expected behavior:** `/shows/new` must reach show creation without treating `new` as a show ID.
+- **Observed behavior:** Resolved in source; invalid show IDs no longer activate the show-detail query path.
+- **User impact:** Removes the misleading retry/error dead end from the secretary's creation entry point.
+- **Intent check:** Restores the no-dead-ends workflow.
+- **Confidence:** high for source/test closure; no deployed browser replay was run in this commit review.
+- **Existing references:** Linear MYK9-286 (Done; PR #1936); no new issue created.
+- **Proof required:** Satisfied by focused route coverage; deployed replay remains optional follow-up evidence.
 
 ### NCR-2026-08-25-01
 

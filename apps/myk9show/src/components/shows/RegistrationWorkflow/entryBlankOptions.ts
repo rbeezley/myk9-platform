@@ -84,6 +84,8 @@ export interface UnavailableRegistrationEntryBlank {
   reason: string;
 }
 
+type EntryBlankSourcePaymentMethod = PaymentMethod | 'debit_card' | 'online';
+
 interface BuildRegistrationEntryBlankDownloadsInput {
   show: ShowSource | null | undefined;
   trials: readonly TrialSource[];
@@ -92,7 +94,7 @@ interface BuildRegistrationEntryBlankDownloadsInput {
   people: readonly PersonSource[];
   outcomes: readonly EntrySubmissionOutcome[] | undefined;
   handlerAssignments: Readonly<Record<string, HandlerInfo>>;
-  paymentMethod: PaymentMethod | undefined;
+  paymentMethod: EntryBlankSourcePaymentMethod | undefined;
 }
 
 function parseOptionalNumber(value: string | number | null | undefined): number | null {
@@ -101,11 +103,13 @@ function parseOptionalNumber(value: string | number | null | undefined): number 
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function entryBlankPaymentMethod(
-  method: PaymentMethod | undefined
+export function entryBlankPaymentMethod(
+  method: EntryBlankSourcePaymentMethod | undefined
 ): EntryBlankProps['fees']['paymentMethod'] {
   if (method === 'check') return 'check';
-  if (method === 'credit_card') return 'online';
+  if (method === 'credit_card' || method === 'debit_card' || method === 'online') {
+    return 'online';
+  }
   return null;
 }
 
@@ -267,7 +271,7 @@ export function buildRegistrationEntryBlankDownloads(
           trial_id: trial.id,
           class_id: selectedClass.id,
           entry_fee: outcome.feeCents / 100,
-          payment_status: entryBlankPaymentMethod(input.paymentMethod),
+          payment_method: entryBlankPaymentMethod(input.paymentMethod),
         },
         dog: {
           name: dog.name ?? null,

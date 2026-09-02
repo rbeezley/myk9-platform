@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { buildRegistrationEntryBlankDownloads } from './entryBlankOptions';
+import {
+  buildRegistrationEntryBlankDownloads,
+  entryBlankPaymentMethod,
+} from './entryBlankOptions';
+
+describe('entryBlankPaymentMethod', () => {
+  it.each([
+    ['credit_card', 'online'],
+    ['debit_card', 'online'],
+    ['online', 'online'],
+    ['check', 'check'],
+  ] as const)('maps %s to the entry blank %s payment option', (source, expected) => {
+    expect(entryBlankPaymentMethod(source)).toBe(expected);
+  });
+
+  it.each(['cash', 'secretary_paid', 'group_payment', 'waived', undefined] as const)(
+    'leaves %s without a mail-in payment option', source => {
+      expect(entryBlankPaymentMethod(source)).toBeNull();
+    }
+  );
+});
 
 describe('buildRegistrationEntryBlankDownloads', () => {
   it('assembles the exact created entry, registration, judge, and handler', () => {
@@ -141,6 +161,7 @@ describe('buildRegistrationEntryBlankDownloads', () => {
 
     expect(result.unavailable).toEqual([]);
     expect(result.downloads).toHaveLength(1);
+    expect(result.downloads[0]?.options.entry).not.toHaveProperty('payment_status');
     expect(result.downloads[0]).toMatchObject({
       entryId: 'entry-2',
       label: 'Tera — Advanced Exterior',
@@ -149,7 +170,7 @@ describe('buildRegistrationEntryBlankDownloads', () => {
           trial_id: 'trial-2',
           class_id: 'class-2',
           entry_fee: 25,
-          payment_status: 'online',
+          payment_method: 'online',
         },
         dog: {
           call_name: 'Tera',

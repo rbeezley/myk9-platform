@@ -297,6 +297,43 @@ describe('submitShowRegistration', () => {
     expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
   });
 
+  it('throws when enrollment creation fails instead of reporting an empty success', async () => {
+    // MYK9-302: createShowRegistration returns { data: null, error } on RLS,
+    // offline, or the registration_confirmation_seq 42501. Swallowing it left
+    // the wizard on the confirmation step with zero entries and an empty cart.
+    const params = makeParams();
+    vi.mocked(params.deps.createShowRegistration!).mockResolvedValueOnce(
+      fromAny({
+        data: null,
+        error: {
+          name: 'DatabaseError',
+          message: 'permission denied for sequence registration_confirmation_seq',
+        },
+      })
+    );
+
+    await expect(submitShowRegistration(params)).rejects.toMatchObject({
+      message: 'permission denied for sequence registration_confirmation_seq',
+    });
+
+    expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
+    expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
+  });
+
+  it('throws when enrollment creation returns no row and no error', async () => {
+    // The unique-violation race path re-reads the concurrent row and can return
+    // { data: null, error: null } when that read comes back empty.
+    const params = makeParams();
+    vi.mocked(params.deps.createShowRegistration!).mockResolvedValueOnce(
+      fromAny({ data: null, error: null })
+    );
+
+    await expect(submitShowRegistration(params)).rejects.toThrow(/enrollment could not be created/i);
+
+    expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
+    expect(params.deps.claimNextArmband).not.toHaveBeenCalled();
+  });
+
   it('does not duplicate claim-next armband patches through generic entry updates', async () => {
     const params = makeParams();
 

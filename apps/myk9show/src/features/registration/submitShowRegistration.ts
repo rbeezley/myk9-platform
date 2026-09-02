@@ -29,7 +29,7 @@ export interface ArmbandAssignmentFailure {
 export interface ShowRegistrationSubmissionResult {
   aborted: false;
   registrationNumber?: string | undefined;
-  dbRegistrationId?: string | undefined;
+  dbRegistrationId: string;
   armbandAssignments: ArmbandAssignment[];
   /**
    * Dogs whose armband claim or replicated armband sync failed. The entries
@@ -144,7 +144,7 @@ export async function submitShowRegistration({
   let armbandFailures: ArmbandAssignmentFailure[] = [];
   let submissionOutcomes: EntrySubmissionOutcome[] | undefined;
 
-  if (entryInputs.length > 0 && enrollment.dbRegistrationId) {
+  if (entryInputs.length > 0) {
     const rpcResult = await resolvedDeps.submitShowEntries({
       showId,
       registrationId: enrollment.dbRegistrationId,
@@ -216,14 +216,29 @@ async function ensureEnrollment({
   showId: string;
   ownerResolution: SelectedDogsOwnerResult;
   deps: SubmitShowRegistrationDeps;
-}): Promise<{ registrationNumber?: string | undefined; dbRegistrationId?: string | undefined }> {
+}): Promise<{ registrationNumber?: string | undefined; dbRegistrationId: string }> {
   assertResolvedEnrollmentOwner(ownerResolution);
 
   const result = await deps.createShowRegistration(showId, ownerResolution.ownerId);
 
+  // Every downstream write hangs off the enrollment id: no id means no entries,
+  // no payment, no armbands. Swallowing the failure here reported a successful
+  // registration, cleared the exhibitor's cart, and created nothing (MYK9-302).
+  // The sibling recordEnrollmentPayment has always thrown; this must too.
+  if (result.error) {
+    throw result.error;
+  }
+  if (!result.data?.id) {
+    // createShowRegistration can also return { data: null, error: null } when
+    // the unique-violation race path re-reads the concurrent row and finds none.
+    throw new Error(
+      'Enrollment could not be created for this show, so no entries were submitted. Please try again.'
+    );
+  }
+
   return {
-    registrationNumber: result.data?.confirmationNumber,
-    dbRegistrationId: result.data?.id,
+    registrationNumber: result.data.confirmationNumber,
+    dbRegistrationId: result.data.id,
   };
 }
 

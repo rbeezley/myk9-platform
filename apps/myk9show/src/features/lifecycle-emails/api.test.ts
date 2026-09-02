@@ -4,6 +4,7 @@ import {
   fetchEntryDecisionEmailStatuses,
   fetchShowLifecycleEmailSummary,
   saveLifecycleEmailJobForLater,
+  sendLifecycleEmailJobs,
   skipLifecycleEmailJobsForReview,
   updateReadyLifecycleEmailJob,
   updateLifecycleEmailStepEnabled,
@@ -304,6 +305,64 @@ describe('lifecycle email api helpers', () => {
     expect(jobs[1]).toMatchObject({
       status: 'failed',
       previewWarnings: ['Previous send failed.'],
+    });
+  });
+
+  it('omits unedited override text so each job keeps its own personalised draft', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const client: LifecycleEmailFunctionsClient = {
+      functions: {
+        invoke: async (_name, options) => {
+          bodies.push(options.body);
+          return { data: null, error: null };
+        },
+      },
+    };
+
+    await sendLifecycleEmailJobs({
+      supabase: client,
+      showId: 'show-1',
+      jobIds: ['job-1', 'job-2'],
+      subject: null,
+      body: null,
+      secretaryNote: null,
+    });
+
+    expect(bodies[0]).toEqual({
+      action: 'send',
+      show_id: 'show-1',
+      job_ids: ['job-1', 'job-2'],
+    });
+    expect(bodies[0]).not.toHaveProperty('subject');
+    expect(bodies[0]).not.toHaveProperty('body');
+    expect(bodies[0]).not.toHaveProperty('secretary_note');
+  });
+
+  it('forwards edited override text as an explicit broadcast', async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const client: LifecycleEmailFunctionsClient = {
+      functions: {
+        invoke: async (_name, options) => {
+          bodies.push(options.body);
+          return { data: null, error: null };
+        },
+      },
+    };
+
+    await sendLifecycleEmailJobs({
+      supabase: client,
+      showId: 'show-1',
+      jobIds: ['job-1', 'job-2'],
+      subject: null,
+      body: 'The venue has changed.',
+      secretaryNote: null,
+    });
+
+    expect(bodies[0]).toEqual({
+      action: 'send',
+      show_id: 'show-1',
+      job_ids: ['job-1', 'job-2'],
+      body: 'The venue has changed.',
     });
   });
 

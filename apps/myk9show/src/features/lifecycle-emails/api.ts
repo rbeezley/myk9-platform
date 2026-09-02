@@ -250,22 +250,31 @@ export async function fetchEntryDecisionEmailStatuses(args: {
   return statuses;
 }
 
+/**
+ * Sends one or more prepared lifecycle email jobs.
+ *
+ * `subject` / `body` / `secretaryNote` are BROADCAST OVERRIDES: whatever is
+ * passed replaces the per-recipient text on every job in `jobIds`. Omit them
+ * (or pass null) so the edge function falls through to each job's own stored,
+ * personalised draft — that is the correct call for a multi-recipient send the
+ * secretary did not edit.
+ */
 export async function sendLifecycleEmailJobs(args: {
   supabase: LifecycleEmailFunctionsClient;
   showId: string;
   jobIds: string[];
-  subject: string;
-  body: string;
-  secretaryNote: string;
+  subject?: string | null;
+  body?: string | null;
+  secretaryNote?: string | null;
 }): Promise<void> {
   const { error } = await args.supabase.functions.invoke('send-lifecycle-email', {
     body: {
       action: 'send',
       show_id: args.showId,
       job_ids: args.jobIds,
-      subject: args.subject,
-      body: args.body,
-      secretary_note: args.secretaryNote,
+      ...(args.subject == null ? {} : { subject: args.subject }),
+      ...(args.body == null ? {} : { body: args.body }),
+      ...(args.secretaryNote == null ? {} : { secretary_note: args.secretaryNote }),
     },
   });
 

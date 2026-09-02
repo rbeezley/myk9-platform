@@ -3,8 +3,7 @@
  * 
  * Calculates and displays placements for Scent Work classes according to AKC rules:
  * - Only Qualified entries receive placements
- * - Ranked by total search time (fastest first)
- * - Faults are a tiebreaker only for equal times
+ * - Displays the server-assigned placement for each Qualified entry
  * - Multi-area classes use total time across all areas
  */
 
@@ -34,6 +33,7 @@ import type {
   ScentWorkClassConfig 
 } from '@/types/scent-work-types';
 import { msToDisplay } from '@/lib/timeUtils';
+import { buildPlacementData } from './PlacementCalculator.helpers';
 
 export interface PlacementCalculatorProps {
   entries: ScentWorkEntry[];
@@ -42,19 +42,6 @@ export interface PlacementCalculatorProps {
   onRecalculate: () => Promise<void>;
   isCalculating: boolean;
   className?: string;
-}
-
-interface PlacementEntry {
-  entryId: string;
-  armband: string;
-  dogName: string;
-  handlerName: string;
-  searchTime: number;
-  faults: number;
-  qualification: string;
-  placement?: number;
-  tieStatus?: 'winner' | 'tied';
-  isQualified: boolean;
 }
 
 /**
@@ -70,91 +57,9 @@ export function PlacementCalculator({
 }: PlacementCalculatorProps) {
   const [showAllEntries, setShowAllEntries] = useState(false);
 
-  // Process entries and calculate placements
+  // Process entries using server-assigned placements.
   const placementData = useMemo(() => {
-    const entryData: PlacementEntry[] = entries.map(entry => {
-      const result = results.get(entry.id);
-      
-      if (!result) {
-        return {
-          entryId: entry.id,
-          armband: entry.displayInfo.armband,
-          dogName: entry.displayInfo.dogName,
-          handlerName: entry.displayInfo.handlerName,
-          searchTime: 0,
-          faults: 0,
-          qualification: 'No Result',
-          isQualified: false
-        };
-      }
-
-      const searchTime = 'totalSearchTime' in result ? result.totalSearchTime : result.searchTime;
-      const faults = 'totalFaults' in result ? result.totalFaults : result.faults;
-      const isQualified = result.qualification === 'Qualified';
-
-      return {
-        entryId: entry.id,
-        armband: entry.displayInfo.armband,
-        dogName: entry.displayInfo.dogName,
-        handlerName: entry.displayInfo.handlerName,
-        searchTime,
-        faults,
-        qualification: result.qualification,
-        isQualified
-      };
-    });
-
-    // Calculate placements for qualified entries only
-    const qualifiedEntries = entryData.filter(entry => entry.isQualified);
-    
-    // Sort by search time (fastest first), then by faults (fewest first)
-    qualifiedEntries.sort((a, b) => {
-      if (a.searchTime !== b.searchTime) {
-        return a.searchTime - b.searchTime;
-      }
-      return a.faults - b.faults;
-    });
-
-    // Assign placements, handling ties
-    let currentPlacement = 1;
-    let lastTime = -1;
-    let lastFaults = -1;
-    let tiedEntries: PlacementEntry[] = [];
-
-    qualifiedEntries.forEach((entry, index) => {
-      if (entry.searchTime !== lastTime || entry.faults !== lastFaults) {
-        // New time/fault combination - assign new placement
-        if (tiedEntries.length > 1) {
-          // Mark previous tied entries
-          tiedEntries.forEach(tied => {
-            tied.tieStatus = 'tied';
-          });
-        } else if (tiedEntries.length === 1) {
-          tiedEntries[0].tieStatus = 'winner';
-        }
-        
-        currentPlacement = index + 1;
-        tiedEntries = [entry];
-      } else {
-        // Same time and faults - tied
-        tiedEntries.push(entry);
-      }
-      
-      entry.placement = currentPlacement;
-      lastTime = entry.searchTime;
-      lastFaults = entry.faults;
-    });
-
-    // Handle final tie group
-    if (tiedEntries.length > 1) {
-      tiedEntries.forEach(tied => {
-        tied.tieStatus = 'tied';
-      });
-    } else if (tiedEntries.length === 1) {
-      tiedEntries[0].tieStatus = 'winner';
-    }
-
-    return entryData;
+    return buildPlacementData(entries, results);
   }, [entries, results]);
 
   // Filter data based on view mode
@@ -207,7 +112,7 @@ export function PlacementCalculator({
   }, [displayData, classConfig]);
 
   // Render placement badge
-  const renderPlacementBadge = (placement?: number, tieStatus?: string) => {
+  const renderPlacementBadge = (placement?: number) => {
     if (!placement) return null;
 
     const colors = {
@@ -225,11 +130,6 @@ export function PlacementCalculator({
         <Badge className={cn('text-xs font-bold', bgClass)}>
           {placement}{suffix}
         </Badge>
-        {tieStatus === 'tied' && (
-          <Badge variant="outline" className="text-xs">
-            Tied
-          </Badge>
-        )}
       </div>
     );
   };
@@ -259,7 +159,7 @@ export function PlacementCalculator({
         <div>
           <h3 className="text-lg font-semibold">Placement Calculator</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            AKC Scent Work placement calculation based on search time and faults
+            AKC Scent Work placements supplied by the server
           </p>
         </div>
 
@@ -350,7 +250,7 @@ export function PlacementCalculator({
         <Calculator className="h-4 w-4" />
         <AlertDescription>
           <strong>AKC Placement Rules:</strong> Only Qualified entries receive placements. 
-          Ranked by total search time (fastest first). Faults are used as tiebreaker for identical times.
+          Placements are assigned by the server using faults first, then total search time.
           {classConfig.multiArea && ' Multi-area classes use total time across all areas.'}
         </AlertDescription>
       </Alert>
@@ -393,7 +293,7 @@ export function PlacementCalculator({
                   )}
                 >
                   <TableCell>
-                    {renderPlacementBadge(entry.placement, entry.tieStatus)}
+                    {renderPlacementBadge(entry.placement)}
                   </TableCell>
                   <TableCell className="font-medium">
                     #{entry.armband}

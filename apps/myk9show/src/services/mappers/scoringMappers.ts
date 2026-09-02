@@ -193,7 +193,7 @@ export function mapScentWorkResultToDbUpdate(result: ScentWorkResult): Record<st
 }
 
 // ============================================================================
-// DB Entry → UnifiedEntryData (for OfflineJudgeInterface)
+// DB Entry → UnifiedEntryData for offline scoring consumers.
 // ============================================================================
 
 export function mapDbEntryToUnifiedEntry(dbEntry: DbEntryWithDog): UnifiedEntryData {

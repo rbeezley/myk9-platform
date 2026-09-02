@@ -38,9 +38,9 @@ const TemplateManagementPage = createEnhancedLazy(
 );
 
 // System management (medium priority)
-const SyncDashboardPage = createEnhancedLazy(() => import('@/pages/sync/SyncMonitoringPage'), {
+const SyncMonitoringPage = createEnhancedLazy(() => import('@/pages/sync/SyncMonitoringPage'), {
   ...RouteLazyPresets.mediumPriority,
-  displayName: 'SyncDashboardPage',
+  displayName: 'SyncMonitoringPage',
 });
 
 // Permission Management Pages (high priority for admin security)
@@ -195,7 +195,7 @@ export const AdminRoutes = () => (
       element={adminGuard(
         <SuspenseWrapper>
           <PageTransition>
-            <SyncDashboardPage />
+            <SyncMonitoringPage />
           </PageTransition>
         </SuspenseWrapper>
       )}

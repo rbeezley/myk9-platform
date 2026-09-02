@@ -205,7 +205,7 @@ export const ClassManagementPage: React.FC = () => {
   // The old row mutation's onSuccess invalidation doesn't run for this path,
   // so invalidate the whole classKeys family here — the old mutation also
   // refreshed lists and the detail cache, and consumers like
-  // JudgeClassInterface/useClassStoreCompat read those.
+  // The class-scoring workflow reads those values.
   const handleStatusChange = async (classId: string, newStatus: string) => {
     try {
       await applyManualClassStatus(classId, newStatus as ManualClassStatus);

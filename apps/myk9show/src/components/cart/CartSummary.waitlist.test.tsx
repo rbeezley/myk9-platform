@@ -109,7 +109,7 @@ describe('CartSummary — wait-list lines', () => {
       [judgeDay(5, ['class-open']), judgeDay(0, ['class-full'], 'judge-2')]
     );
 
-    render(<CartSummary fulfillment={fulfillment} />);
+    render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     expect(screen.getByText('Entry Fees (1 entry)')).toBeInTheDocument();
     expect(screen.getByText('$25.00')).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe('CartSummary — wait-list lines', () => {
       [judgeDay(5, ['class-open']), judgeDay(0, ['class-full'], 'judge-2')]
     );
 
-    render(<CartSummary fulfillment={fulfillment} />);
+    render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     const payButton = screen.getByRole('button', { name: /1 wait list request/i });
     expect(payButton).toBeEnabled();
@@ -139,7 +139,7 @@ describe('CartSummary — wait-list lines', () => {
     storeState.totalEntryFees = 2500;
     const fulfillment = buildCartFulfillmentView([full], [judgeDay(0, ['class-full'])]);
 
-    render(<CartSummary fulfillment={fulfillment} />);
+    render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     const button = screen.getByRole('button', { name: /join the wait list/i });
     expect(button).toBeEnabled();
@@ -152,7 +152,7 @@ describe('CartSummary — wait-list lines', () => {
     storeState.totalEntryFees = 2500;
     const fulfillment = buildCartFulfillmentView([blocked], [judgeDay(0, ['class-full'])]);
 
-    render(<CartSummary fulfillment={fulfillment} />);
+    render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     expect(
       screen.getByText('A class is full and not accepting wait list entries')
@@ -171,7 +171,7 @@ describe('CartSummary — wait-list lines', () => {
     storeState.totalEntryFees = 2500;
     const fulfillment = buildCartFulfillmentView([open], null);
 
-    render(<CartSummary fulfillment={fulfillment} />);
+    render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     expect(screen.getByRole('button', { name: /checking class availability/i })).toBeDisabled();
     // The figure must not read as a settled amount due while it could still drop.
@@ -188,7 +188,7 @@ describe('CartSummary — wait-list lines', () => {
     storeState.totalEntryFees = 2500;
     const fulfillment = buildCartFulfillmentView([open], null);
 
-    render(<CartSummary fulfillment={fulfillment} capacityUnavailable />);
+    render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} capacityUnavailable />);
 
     const button = screen.getByRole('button', { name: /class availability unavailable/i });
     expect(button).toBeDisabled();
@@ -200,7 +200,7 @@ describe('CartSummary — wait-list lines', () => {
   });
 
   it('totals every line when no fulfillment context is supplied', () => {
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByText('Entry Fees (2 entries)')).toBeInTheDocument();
     expect(screen.getByText('$50.00')).toBeInTheDocument();

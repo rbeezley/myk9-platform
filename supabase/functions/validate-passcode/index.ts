@@ -93,13 +93,16 @@ serve(async req => {
     const userAgent = req.headers.get('user-agent') || 'unknown';
     const passcodePrefix = passcode.charAt(0).toLowerCase();
 
-    console.log(`[Auth] Login attempt from IP: ${clientIP}`);
+    console.log(`[Auth] Login attempt from IP: ${clientIP ?? 'unresolved'}`);
 
     const rateLimitGate = await enforcePasscodeRateLimit({
       clientIP,
       checkRateLimit: () =>
-        supabaseClient.rpc('check_login_rate_limit', { p_ip_address: clientIP }),
+        clientIP
+          ? supabaseClient.rpc('check_login_rate_limit', { p_ip_address: clientIP })
+          : Promise.resolve({ data: null, error: null }),
       recordBlockedAttempt: async () => {
+        if (!clientIP) return;
         const { error } = await supabaseClient.rpc('record_login_attempt', {
           p_ip_address: clientIP,
           p_success: false,
@@ -183,23 +186,25 @@ serve(async req => {
     }
 
     // Record the attempt
-    await supabaseClient.rpc('record_login_attempt', {
-      p_ip_address: clientIP,
-      p_success: !!matchedShow,
-      p_passcode_prefix: passcodePrefix,
-      p_license_key: matchedShow?.id || null,
-      p_user_agent: userAgent,
-    });
+    if (clientIP) {
+      await supabaseClient.rpc('record_login_attempt', {
+        p_ip_address: clientIP,
+        p_success: !!matchedShow,
+        p_passcode_prefix: passcodePrefix,
+        p_license_key: matchedShow?.id || null,
+        p_user_agent: userAgent,
+      });
+    }
 
     // If no match, return auth failure
     if (!matchedShow || !matchedRole) {
-      console.log(`[Auth] Invalid passcode from IP ${clientIP}`);
+      console.log(`[Auth] Invalid passcode from IP ${clientIP ?? 'unresolved'}`);
 
       // Get updated rate limit info for response
-      const { data: newRateLimitData } = await supabaseClient.rpc('check_login_rate_limit', {
-        p_ip_address: clientIP,
-      });
-      const newRateLimit = newRateLimitData?.[0] as RateLimitResult | undefined;
+      const newRateLimitData = clientIP
+        ? await supabaseClient.rpc('check_login_rate_limit', { p_ip_address: clientIP })
+        : { data: null };
+      const newRateLimit = newRateLimitData.data?.[0] as RateLimitResult | undefined;
 
       return new Response(
         JSON.stringify({

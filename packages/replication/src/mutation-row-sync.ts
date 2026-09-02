@@ -19,21 +19,18 @@ export async function markReplicatedRowSynced(
     tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).get(key),
     tx
       .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
-      .index('tableName')
-      .getAll(mutation.tableName),
+      .index('tableName_rowId')
+      .getAll([mutation.tableName, String(mutation.rowId)]),
   ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
 
   if (existingRow) {
     const hasAnotherPendingMutation = pendingMutations.some(
-      pending =>
-        pending.id !== mutation.id &&
-        String(pending.rowId) === String(mutation.rowId) &&
-        pending.authUserId === mutation.authUserId
+      pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
     );
     await tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).put({
       ...existingRow,
-      isDirty: hasAnotherPendingMutation,
-      syncStatus: hasAnotherPendingMutation ? 'pending' : 'synced',
+      isDirty: existingRow.isDirty && hasAnotherPendingMutation,
+      syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
       lastSyncedAt: Date.now(),
       ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
     });

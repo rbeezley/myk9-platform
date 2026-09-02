@@ -10,7 +10,7 @@ describe('getClientIP', () => {
       },
     });
 
-    expect(getClientIP(request)).toBe('unknown');
+    expect(getClientIP(request)).toBeNull();
   });
 
   it('prefers the edge-provided client IP over forwarded headers', () => {

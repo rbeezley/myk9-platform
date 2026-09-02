@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  enforcePasscodeRateLimit,
-  type OperatorAlertInsert,
-} from './rateLimitGate';
+import { enforcePasscodeRateLimit, type OperatorAlertInsert } from './rateLimitGate';
 
 const allowedRateLimit = {
   allowed: true,
@@ -32,6 +29,19 @@ function dependencies(result: { data: unknown; error: unknown }) {
 }
 
 describe('enforcePasscodeRateLimit', () => {
+  it('skips the shared IP bucket when the client address is unavailable', async () => {
+    const deps = dependencies({ data: [allowedRateLimit], error: null });
+
+    const result = await enforcePasscodeRateLimit({
+      clientIP: null,
+      ...deps,
+    });
+
+    expect(result).toMatchObject({ kind: 'allowed' });
+    expect(deps.checkRateLimit).not.toHaveBeenCalled();
+    expect(deps.persistAlert).not.toHaveBeenCalled();
+  });
+
   it('returns 503 and persists a deduplicated alert when the limiter RPC errors', async () => {
     const submittedPasscode = 'secret-passcode-value';
     const deps = dependencies({ data: null, error: { message: 'database unavailable' } });

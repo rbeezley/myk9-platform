@@ -4,7 +4,6 @@ export { OfflineStatusBar } from './OfflineStatusBar';
 export { SyncProgressIndicator } from './SyncProgressIndicator';
 export { DataFreshnessBadge } from './DataFreshnessBadge';
 export { ConnectionQualityMeter } from './ConnectionQualityMeter';
-export { StorageUsageMonitor } from './StorageUsageMonitor';
 
 // Data Management Components
 export { DataExportDialog } from './DataExportDialog';

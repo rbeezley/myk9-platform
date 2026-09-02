@@ -73,11 +73,6 @@ vi.mock('@/store/clubStore', () => ({
     }),
 }));
 
-vi.mock('@/components/panels', () => ({
-  PanelProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  PanelStack: () => null,
-}));
-
 vi.mock('@/components/panels/edit/ClubEditPanel', () => ({
   ClubEditPanel: ({ onSave }: { onSave: (club: Partial<Club>) => void }) => (
     <button

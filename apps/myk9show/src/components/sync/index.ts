@@ -16,13 +16,5 @@ export { ConflictResolutionWizard } from './ConflictResolutionWizard';
 export { ConflictNotificationCenter } from './ConflictNotificationCenter';
 export { ConflictResolutionManager } from './ConflictResolutionManager';
 
-// Demo and testing
-export { default as SyncDemoPage } from './SyncDemoPage';
-export { ConflictResolutionDemo } from './ConflictResolutionDemo';
-
-// Existing components
-export { SyncHistoryViewer } from './SyncHistoryViewer';
-export { SyncManagementPanel } from './SyncManagementPanel';
-
 // Type exports
 export type { SyncStatus } from './SyncStatusIndicator';

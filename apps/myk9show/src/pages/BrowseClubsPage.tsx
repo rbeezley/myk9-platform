@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, Building2 } from 'lucide-react';
-import { PanelProvider, PanelStack } from '@/components/panels';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { useClubStore } from '@/store/clubStore';
 import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
@@ -241,22 +240,15 @@ const BrowseClubsPage: React.FC = () => {
 
       {/* Create Club Panel */}
       {showCreateClubPanel && (
-        <PanelProvider
-          onEntityCreated={(entity: Record<string, unknown>) => {
-            handleClubCreated(entity as unknown as Partial<Club>);
-          }}
-        >
-          <ClubEditPanel
-            open={showCreateClubPanel}
-            onClose={() => setCreatePanelRequested(false)}
-            clubId=""
-            clubName=""
-            initialClubData={{}}
-            mode="create"
-            onSave={handleClubCreated}
-          />
-          <PanelStack maxPanels={3} />
-        </PanelProvider>
+        <ClubEditPanel
+          open={showCreateClubPanel}
+          onClose={() => setCreatePanelRequested(false)}
+          clubId=""
+          clubName=""
+          initialClubData={{}}
+          mode="create"
+          onSave={handleClubCreated}
+        />
       )}
     </PageShell>
   );

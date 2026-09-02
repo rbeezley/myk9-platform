@@ -205,26 +205,44 @@ test.describe('My Shows Page - Mobile Filter Usability', () => {
     await navigateToMyShows(page);
   });
 
-  test('every filter is visible on a phone without sideways scrolling', async ({ page }) => {
+  test('every filter is reachable on a phone without sideways scrolling', async ({ page }) => {
     // These used to be tabs in a horizontally scrolling strip, so an option
     // past the fold had no affordance saying it existed. Chips wrap.
     //
-    // This asserted `toBeInViewport()` until #1950 ("keep past-due entry
-    // balances visible") made the fixture account owe money. That grew the
-    // ENTRY FEES card by roughly a hundred pixels -- a big amount, a "due of"
-    // line and a Finish Payment button where a short "paid in full" card had
-    // been -- and pushed the wrapped third chip below the 375x667 fold, so the
-    // test went red on a page that was behaving correctly.
+    // REACHABLE, not visible: the distinction is the whole point of this test.
     //
-    // Above-the-fold was never the property worth pinning, and no page can
-    // promise it as the content above legitimately grows. The risk this test
-    // exists for is SIDEWAYS clipping: a chip you cannot see and are given no
-    // hint about. A chip on a second wrapped line, reached by ordinary
-    // vertical scrolling, has full affordance.
+    // It asserted `toBeInViewport()` until #1950 ("keep past-due entry balances
+    // visible") made the fixture account owe money (MYK9-337). Every dollar the
+    // account owes is past-due and its current unpaid total is zero, so before
+    // that change `amountDue` was 0, `paidInFull` was true, and the ENTRY FEES
+    // card rendered its short variant. #1950 turned it into the tall one -- a
+    // big figure, a "due of" line and a Finish Payment button, roughly a
+    // hundred pixels -- which pushed the wrapped third chip below the 375x667
+    // fold and reddened this spec on a page that was behaving correctly.
     //
-    // So assert the real thing -- every chip lies inside the viewport's
-    // horizontal bounds, and the group itself does not scroll sideways.
-    // Reverting the strip to a horizontal scroller fails both halves.
+    // Two reasons above-the-fold was never the property to pin:
+    //
+    //   1. It is coupled to the height of EVERY element above the strip, so any
+    //      correct change up-page can break it. That is what happened.
+    //   2. It is coupled to how many DIGITS the live counts have. "Completed
+    //      191" is wider than "Completed 19", so the wrap point moves as
+    //      staging accumulates entries. The row needs ~401px of the 375px
+    //      available, and the margin was thin even at two digits -- this was
+    //      one data increment from failing regardless of #1950.
+    //
+    // The risk the test actually exists for is SIDEWAYS clipping: a chip you
+    // cannot see and are given no hint about. A chip on a second wrapped line,
+    // reached by ordinary vertical scrolling, has full affordance.
+    //
+    // So assert that -- every chip lies inside the viewport's horizontal
+    // bounds, and the group itself does not scroll sideways.
+    //
+    // Do NOT call `scrollIntoViewIfNeeded()` before these checks. It scrolls a
+    // horizontally scrolling container's chip INTO view, after which the
+    // clipping assertions pass and the regression this test exists to catch
+    // goes undetected. That was measured, not assumed: an earlier draft of this
+    // fix did exactly that and passed against a `flex-nowrap overflow-x-auto`
+    // strip. As written, that mutation fails here.
     const timeAxis = page.getByRole('radiogroup', { name: /filter by time/i });
     await expect(timeAxis).toBeVisible();
 

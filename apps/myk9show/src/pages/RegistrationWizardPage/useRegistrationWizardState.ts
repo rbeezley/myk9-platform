@@ -235,7 +235,6 @@ export function useRegistrationWizardState() {
   const {
     createRegistration,
     submitRegistration,
-    confirmRegistration,
     currentRegistration,
     setDraftData,
     clearDraftData,
@@ -516,7 +515,6 @@ export function useRegistrationWizardState() {
     abandonCart,
     createRegistration,
     submitRegistration,
-    confirmRegistration,
     currentRegistration,
     updateShowRegistration,
     storeUpdatePaymentStatus,

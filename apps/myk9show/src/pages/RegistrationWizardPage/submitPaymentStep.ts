@@ -78,7 +78,6 @@ export interface SubmitPaymentStepContext {
   // Deps
   cart: PaymentStepCartDeps;
   submitRegistration: SubmitShowRegistrationParams['deps']['submitRegistration'];
-  confirmRegistration: SubmitShowRegistrationParams['deps']['confirmRegistration'];
 
   // Lifecycle / callbacks
   isMounted: () => boolean;
@@ -199,7 +198,6 @@ export async function submitPaymentStep(ctx: SubmitPaymentStepContext): Promise<
       isActive: () => ctx.isMounted(),
       deps: {
         submitRegistration: ctx.submitRegistration,
-        confirmRegistration: ctx.confirmRegistration,
       },
     });
     if (submissionResult.aborted) return;

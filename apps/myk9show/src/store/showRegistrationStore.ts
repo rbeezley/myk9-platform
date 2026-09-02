@@ -17,12 +17,6 @@ import {
 } from '../types/show-registration-types';
 import type { PaymentDetails } from '../types/show-registration-types';
 import {
-  createShowRegistration,
-  getRegistrationByShowAndHandler,
-} from '../services/database/show-registrations';
-import { supabase } from '@/lib/supabase';
-import { logger } from '@myk9/core';
-import {
   buildRegistrationIndexes,
   emptyRegistrationIndexes,
   reassembleRegistration,
@@ -115,11 +109,6 @@ interface ShowRegistrationStore {
 
   // Submission
   submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
-  confirmRegistration: (
-    registrationId: string,
-    paymentReference: string,
-    paymentDetails?: PaymentDetails
-  ) => Promise<{ confirmationNumber?: string | undefined; dbRegistrationId?: string | undefined }>;
   cancelRegistration: (registrationId: string) => void;
 
   // Migration utilities
@@ -404,75 +393,6 @@ export const useShowRegistrationStore = create<ShowRegistrationStore>()(
             state
           );
         });
-      },
-
-      confirmRegistration: async (registrationId, paymentReference, paymentDetails) => {
-        const reg = get().registrationsById[registrationId];
-        if (!reg) return { confirmationNumber: undefined, dbRegistrationId: undefined };
-
-        // Files the enrollment under the dog's owner (set at createRegistration
-        // time from the wizard's selectedDogsOwner resolution). Falls back to
-        // userId for any draft persisted before the handlerId field existed.
-        const handlerId = reg.handlerId ?? reg.userId;
-
-        let confirmationNumber: string | undefined;
-        let dbRegistrationId: string | undefined;
-        try {
-          const existing = await getRegistrationByShowAndHandler(reg.showId, handlerId);
-          if (existing.data) {
-            confirmationNumber = existing.data.confirmationNumber;
-            dbRegistrationId = existing.data.id;
-          } else {
-            const result = await createShowRegistration(
-              reg.showId,
-              handlerId,
-              paymentReference,
-              paymentDetails
-            );
-            if (result.error) {
-              logger.error('[confirmRegistration] Failed to create DB registration:', result.error);
-            }
-            confirmationNumber = result.data?.confirmationNumber;
-            dbRegistrationId = result.data?.id;
-          }
-        } catch (err) {
-          logger.error('[confirmRegistration] Error persisting registration:', err);
-        }
-
-        set(state => {
-          const existing = state.registrationsById[registrationId];
-          if (!existing) return state;
-          return withDerived(
-            {
-              registrationsById: {
-                ...state.registrationsById,
-                [registrationId]: {
-                  ...existing,
-                  status: 'confirmed' as const,
-                  paymentStatus: PaymentStatus.PAID_ONLINE,
-                  paymentReference,
-                  confirmedAt: new Date(),
-                  registrationNumber:
-                    confirmationNumber ?? `REG-${Date.now().toString().slice(-6)}`,
-                  updatedAt: new Date(),
-                },
-              },
-            },
-            state
-          );
-        });
-
-        if (dbRegistrationId) {
-          supabase.functions
-            .invoke('send-registration-email', {
-              body: { registrationId: dbRegistrationId },
-            })
-            .catch(err => {
-              logger.error('[confirmRegistration] Failed to send confirmation email:', err);
-            });
-        }
-
-        return { confirmationNumber, dbRegistrationId };
       },
 
       cancelRegistration: registrationId => {

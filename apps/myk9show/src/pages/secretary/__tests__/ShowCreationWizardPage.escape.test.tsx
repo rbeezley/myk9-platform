@@ -11,7 +11,7 @@
  * form", and the deliberate exit still confirms.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { useWizardStore } from '@/store/wizardStore';
@@ -103,6 +103,7 @@ describe('ShowCreationWizardPage — Escape', () => {
     // against vacuity must not produce.
     expect(nameField).not.toBeNull();
     await userEvent.type(nameField!, DIRTYING_KEYSTROKE);
+    await waitFor(() => expect(useWizardStore.getState().isDirty).toBe(true));
 
     const cancel = screen.queryByRole('button', { name: /^cancel$/i });
     expect(cancel).not.toBeNull();

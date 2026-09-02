@@ -14,6 +14,7 @@ import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
+import { showDateRangeStatus } from '@/utils/date-format';
 import type { ClubTab, ClubShow, StatCard } from './types';
 
 /** Maximum photo file size in bytes (5 MB) */
@@ -131,7 +132,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
   }, [activeTab, canEditBranding, setActiveTab]);
 
   // Get shows for this club from the show store (club store doesn't populate shows)
-  const now = useMemo(() => new Date(), []);
   const clubShows = useMemo((): { upcoming: ClubShow[]; past: ClubShow[] } => {
     if (!selectedClub) return { upcoming: [], past: [] };
 
@@ -148,7 +148,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
         description: show.events?.join(', ') || '',
         accentColor: show.accentColor || null,
       };
-      if (new Date(show.endDate) < now) {
+      if (showDateRangeStatus(show.startDate, show.endDate) === 'past') {
         past.push(clubShow);
       } else {
         upcoming.push(clubShow);
@@ -156,7 +156,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     }
 
     return { upcoming, past };
-  }, [selectedClub, shows, now]);
+  }, [selectedClub, shows]);
 
   // Keep the profile roster on the same club_members projection as the club
   // administration page. The selected club replica may contain stale legacy

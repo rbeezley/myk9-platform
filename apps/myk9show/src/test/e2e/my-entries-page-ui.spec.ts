@@ -208,13 +208,47 @@ test.describe('My Shows Page - Mobile Filter Usability', () => {
   test('every filter is visible on a phone without sideways scrolling', async ({ page }) => {
     // These used to be tabs in a horizontally scrolling strip, so an option
     // past the fold had no affordance saying it existed. Chips wrap.
+    //
+    // This asserted `toBeInViewport()` until #1950 ("keep past-due entry
+    // balances visible") made the fixture account owe money. That grew the
+    // ENTRY FEES card by roughly a hundred pixels -- a big amount, a "due of"
+    // line and a Finish Payment button where a short "paid in full" card had
+    // been -- and pushed the wrapped third chip below the 375x667 fold, so the
+    // test went red on a page that was behaving correctly.
+    //
+    // Above-the-fold was never the property worth pinning, and no page can
+    // promise it as the content above legitimately grows. The risk this test
+    // exists for is SIDEWAYS clipping: a chip you cannot see and are given no
+    // hint about. A chip on a second wrapped line, reached by ordinary
+    // vertical scrolling, has full affordance.
+    //
+    // So assert the real thing -- every chip lies inside the viewport's
+    // horizontal bounds, and the group itself does not scroll sideways.
+    // Reverting the strip to a horizontal scroller fails both halves.
     const timeAxis = page.getByRole('radiogroup', { name: /filter by time/i });
     await expect(timeAxis).toBeVisible();
 
+    const viewportWidth = page.viewportSize()?.width ?? 0;
+    expect(viewportWidth).toBeGreaterThan(0);
+
     for (const label of ['All', 'Upcoming', 'Completed']) {
       const chip = timeAxis.getByRole('radio', { name: new RegExp(`^${label}\\s*\\d+$`) });
-      await expect(chip).toBeInViewport();
+      await expect(chip).toBeAttached();
+
+      const box = await chip.boundingBox();
+      expect(box, `${label} chip should have a layout box`).not.toBeNull();
+      expect(box!.x, `${label} chip is clipped off the left edge`).toBeGreaterThanOrEqual(0);
+      expect(
+        box!.x + box!.width,
+        `${label} chip runs past the right edge of a ${viewportWidth}px screen`
+      ).toBeLessThanOrEqual(viewportWidth);
     }
+
+    // The chips wrap instead of scrolling: the group is never wider than the
+    // space it occupies. This is the half that catches a regression to the
+    // old horizontally scrolling strip.
+    const overflow = await timeAxis.evaluate(el => el.scrollWidth - el.clientWidth);
+    expect(overflow, 'the time filter must wrap, not scroll sideways').toBeLessThanOrEqual(1);
   });
 
   test('should not have horizontal overflow issues on mobile', async ({ page }) => {

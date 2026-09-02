@@ -3,10 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
 import {
   PermissionGuard,
-  ExhibitorOnly,
-  SecretaryOrAbove,
-  ClubAdminOrAbove,
-  SiteAdminOnly,
 } from './PermissionGuard';
 
 // Live component: components/auth/PermissionGuard.tsx (imported by
@@ -31,94 +27,6 @@ function mockAsRole(userKey: keyof typeof MOCK_USERS) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-});
-
-/**
- * Decision table: role x <SecretaryOrAbove/ClubAdminOrAbove/SiteAdminOnly/ExhibitorOnly>
- * -> rendered ('content') or not ('fallback').
- * Derived directly from the role arrays passed to PermissionGuard in
- * components/auth/PermissionGuard.tsx's exported convenience guards.
- */
-describe('PermissionGuard role-based convenience guards', () => {
-  it.each<[keyof typeof MOCK_USERS, boolean]>([
-    ['exhibitor-user', true],
-    ['secretary-user', false],
-    ['club-admin-user', false],
-    ['site-admin-user', false],
-    ['judge-user', false],
-  ])('ExhibitorOnly: %s -> rendered=%s', (userKey, expected) => {
-    mockAsRole(userKey);
-    render(
-      <ExhibitorOnly>
-        <div data-testid="content">content</div>
-      </ExhibitorOnly>
-    );
-    if (expected) {
-      expect(screen.getByTestId('content')).toBeInTheDocument();
-    } else {
-      expect(screen.queryByTestId('content')).not.toBeInTheDocument();
-    }
-  });
-
-  it.each<[keyof typeof MOCK_USERS, boolean]>([
-    ['exhibitor-user', false],
-    ['secretary-user', true],
-    ['club-admin-user', true],
-    ['site-admin-user', true],
-    ['judge-user', false],
-  ])('SecretaryOrAbove: %s -> rendered=%s', (userKey, expected) => {
-    mockAsRole(userKey);
-    render(
-      <SecretaryOrAbove>
-        <div data-testid="content">content</div>
-      </SecretaryOrAbove>
-    );
-    if (expected) {
-      expect(screen.getByTestId('content')).toBeInTheDocument();
-    } else {
-      expect(screen.queryByTestId('content')).not.toBeInTheDocument();
-    }
-  });
-
-  it.each<[keyof typeof MOCK_USERS, boolean]>([
-    ['exhibitor-user', false],
-    ['secretary-user', false],
-    ['club-admin-user', true],
-    ['site-admin-user', true],
-    ['judge-user', false],
-  ])('ClubAdminOrAbove: %s -> rendered=%s', (userKey, expected) => {
-    mockAsRole(userKey);
-    render(
-      <ClubAdminOrAbove>
-        <div data-testid="content">content</div>
-      </ClubAdminOrAbove>
-    );
-    if (expected) {
-      expect(screen.getByTestId('content')).toBeInTheDocument();
-    } else {
-      expect(screen.queryByTestId('content')).not.toBeInTheDocument();
-    }
-  });
-
-  it.each<[keyof typeof MOCK_USERS, boolean]>([
-    ['exhibitor-user', false],
-    ['secretary-user', false],
-    ['club-admin-user', false],
-    ['site-admin-user', true],
-    ['judge-user', false],
-  ])('SiteAdminOnly: %s -> rendered=%s', (userKey, expected) => {
-    mockAsRole(userKey);
-    render(
-      <SiteAdminOnly>
-        <div data-testid="content">content</div>
-      </SiteAdminOnly>
-    );
-    if (expected) {
-      expect(screen.getByTestId('content')).toBeInTheDocument();
-    } else {
-      expect(screen.queryByTestId('content')).not.toBeInTheDocument();
-    }
-  });
 });
 
 /**

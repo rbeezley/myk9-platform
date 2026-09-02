@@ -260,5 +260,4 @@ export {
   BrowseClubsSkeleton,
   BrowseDogsSkeleton,
   BrowsePeopleSkeleton,
-  ProfilePageSkeleton,
 } from './SkeletonLoadersBrowse';

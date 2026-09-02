@@ -99,31 +99,3 @@ export const planDetails: Record<
     color: 'amber',
   },
 };
-
-export function useFeatureAccess(userPlan: PlanType = 'free') {
-  const hasFeature = (feature: FeatureType) => {
-    const featureConfig = features[feature];
-    return planHierarchy[userPlan] >= planHierarchy[featureConfig.requiredPlan];
-  };
-
-  const getRequiredPlan = (feature: FeatureType) => {
-    return features[feature].requiredPlan;
-  };
-
-  const canUseFeature = (feature: FeatureType, showUpgrade = false) => {
-    const hasAccess = hasFeature(feature);
-    return {
-      hasAccess,
-      requiredPlan: getRequiredPlan(feature),
-      showUpgrade: !hasAccess && showUpgrade,
-    };
-  };
-
-  return {
-    hasFeature,
-    getRequiredPlan,
-    canUseFeature,
-    planHierarchy,
-    userPlan,
-  };
-}

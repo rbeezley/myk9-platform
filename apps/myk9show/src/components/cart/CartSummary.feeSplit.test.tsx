@@ -46,7 +46,7 @@ describe('CartSummary — service fee split', () => {
   it('splits the fee on a $25 cart, and the parts add back to the charged fee', () => {
     h.subtotalCents = 2500;
     h.rates = { percent: 7, flatCents: 0, minCents: 0 };
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     const charged = calculatePlatformFeeCents(2500, h.rates);
     expect(charged).toBe(175);
@@ -60,7 +60,7 @@ describe('CartSummary — service fee split', () => {
   it('splits the fee on a $500 cart at a different ratio', () => {
     h.subtotalCents = 50000;
     h.rates = { percent: 7, flatCents: 0, minCents: 0 };
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     const charged = calculatePlatformFeeCents(50000, h.rates);
     expect(charged).toBe(3500);
@@ -74,7 +74,7 @@ describe('CartSummary — service fee split', () => {
   it('follows a non-zero flat component and floor rather than a fixed 7%', () => {
     h.subtotalCents = 2500;
     h.rates = { percent: 7, flatCents: 30, minCents: 250 };
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     const charged = calculatePlatformFeeCents(2500, h.rates);
     expect(charged).toBe(250); // 175 + 30 lifted to the $2.50 floor
@@ -86,7 +86,7 @@ describe('CartSummary — service fee split', () => {
   it('links to the fees page from the cart', () => {
     h.subtotalCents = 2500;
     h.rates = { percent: 7, flatCents: 0, minCents: 0 };
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByRole('link', { name: /how our fees work/i })).toHaveAttribute(
       'href',

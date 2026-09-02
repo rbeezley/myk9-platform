@@ -38,6 +38,14 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   results_available: 'Results available',
 };
 
+// Reminder/results batches remain deferred until a producer exists (MYK9-318;
+// follow-up tracked with the producer work in MYK9-228). Showing their controls
+// would imply that enabling them schedules work that currently cannot be created.
+const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
+  'accepted',
+  'waitlisted',
+]);
+
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
 
 export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmailsPanelProps) {
@@ -82,15 +90,17 @@ export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmai
       ) : null}
 
       <div className="space-y-2">
-        {(summaryQuery.data?.steps ?? []).map(step => (
-          <ScheduledEmailStepRow
-            key={step.stepType}
-            step={step}
-            disabled={updateStep.isPending}
-            onToggle={isEnabled => updateStep.mutate({ stepType: step.stepType, isEnabled })}
-            onReview={() => setReviewStep(step.stepType)}
-          />
-        ))}
+        {(summaryQuery.data?.steps ?? [])
+          .filter(step => PRODUCER_BACKED_STEP_TYPES.has(step.stepType))
+          .map(step => (
+            <ScheduledEmailStepRow
+              key={step.stepType}
+              step={step}
+              disabled={updateStep.isPending}
+              onToggle={isEnabled => updateStep.mutate({ stepType: step.stepType, isEnabled })}
+              onReview={() => setReviewStep(step.stepType)}
+            />
+          ))}
       </div>
 
       {reviewStep ? (
@@ -240,8 +250,8 @@ function LifecycleBatchReviewDialog({
               role="alert"
               className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
             >
-              This text will replace {overriddenCount} personalised drafts. Every selected
-              recipient gets exactly what is written below.
+              This text will replace {overriddenCount} personalised drafts. Every selected recipient
+              gets exactly what is written below.
             </p>
           ) : null}
 

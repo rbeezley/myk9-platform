@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
 import { addDays, format, subDays } from 'date-fns';
 import { useMyShows } from './useMyShows';
 import { showFactory } from '@/test/utils/factories';
@@ -17,6 +17,26 @@ const YESTERDAY = toDateOnly(subDays(new Date(), 1));
 const TOMORROW = toDateOnly(addDays(new Date(), 1));
 
 describe('useMyShows', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('re-buckets a mounted view after local midnight without a show update', () => {
+    vi.setSystemTime(new Date(2026, 8, 2, 23, 59, 59, 900));
+    const show = makeShow({
+      id: 'midnight-show',
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      status: 'published',
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.today.map(item => item.id)).toEqual(['midnight-show']);
+
+    act(() => vi.advanceTimersByTime(101));
+
+    expect(result.current.today).toHaveLength(0);
+    expect(result.current.past.map(item => item.id)).toEqual(['midnight-show']);
+  });
+
   it('returns empty buckets for empty input', () => {
     const { result } = renderHook(() => useMyShows([]));
     expect(result.current.today).toHaveLength(0);

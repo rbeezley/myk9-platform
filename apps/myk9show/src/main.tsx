@@ -16,6 +16,13 @@ import { initializeSettings } from './store/settingsStore';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 import { monitoring } from './services/MonitoringService';
 import { setupRouterPageViewTracking } from './services/RouterPageViewTracking';
+import { installSupportErrorCapture } from './features/support/supportDiagnostics';
+
+// Keep the diagnostic ring available to support tickets in the browser, but
+// avoid touching browser globals during SSR or module-loading tests.
+if (typeof window !== 'undefined' && import.meta.env.MODE !== 'test') {
+  installSupportErrorCapture();
+}
 
 // Initialize settings (applies accent color, theme, etc. from localStorage)
 initializeSettings();

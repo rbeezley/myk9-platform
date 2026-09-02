@@ -404,6 +404,11 @@ export function useAtShowEntryListHandlers(
       logger.error('[at-show] recalculate placements failed', 'at-show', {
         error: String(error),
       });
+      toast.error(
+        typeof navigator !== 'undefined' && !navigator.onLine
+          ? "Couldn't recalculate placements while offline. Reconnect and try again."
+          : "Couldn't recalculate placements. Check your connection and try again."
+      );
     }
   }, [deps, refresh]);
 

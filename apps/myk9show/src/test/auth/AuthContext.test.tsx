@@ -179,6 +179,34 @@ describe('AuthContext', () => {
       });
     });
 
+    it('keeps default exhibitor access when only an expired role row remains', async () => {
+      mockRbacService.getUserPermissions.mockResolvedValue({
+        roles: [
+          {
+            role_id: 'role-secretary',
+            role: { name: UserRole.SECRETARY, display_name: 'Secretary' },
+            is_active: false,
+          },
+        ],
+        permissions: [],
+        effectivePermissions: [],
+        effectivePermissionScopes: [],
+      });
+
+      const TestComponent = () => {
+        const auth = useAuthContext();
+        return (
+          <span data-testid="has-exhibitor">{auth.hasRole(UserRole.EXHIBITOR).toString()}</span>
+        );
+      };
+
+      renderWithAuthProvider(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('has-exhibitor')).toHaveTextContent('true');
+      });
+    });
+
     it('checks permissions', async () => {
       const TestComponent = () => {
         const auth = useAuthContext();

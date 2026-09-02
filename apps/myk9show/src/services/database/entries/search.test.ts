@@ -54,7 +54,7 @@ vi.mock('@/services/mappers/entryMappers', () => ({
   mapReplicatedEntryToDbRow: mocks.mapReplicatedEntryToDbRow,
 }));
 
-import { USER_ENTRIES_SELECT, getUserEntries, searchEntries } from './search';
+import { USER_ENTRIES_SELECT, getUserEntries, isEntryCloseDayPast, searchEntries } from './search';
 import { findMissingReplicatedUserEntryRelations } from './userEntriesReplication';
 
 function makeViewEntriesQuery(
@@ -133,6 +133,31 @@ beforeEach(() => {
   );
 });
 
+describe('isEntryCloseDayPast', () => {
+  it('keeps an entry editable throughout the stored close day', () => {
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-02T18:00:00'))).toBe(
+      false
+    );
+  });
+
+  it('blocks editing on the day after the stored close day', () => {
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-03T00:01:00'))).toBe(
+      true
+    );
+  });
+
+  it("uses the show's timezone at the midnight boundary", () => {
+    const justAfterMidnightUtc = new Date('2026-09-03T04:30:00Z');
+
+    expect(
+      isEntryCloseDayPast('2026-09-02T00:00:00+00:00', justAfterMidnightUtc, 'America/Los_Angeles')
+    ).toBe(false);
+    expect(
+      isEntryCloseDayPast('2026-09-02T00:00:00+00:00', justAfterMidnightUtc, 'America/New_York')
+    ).toBe(true);
+  });
+});
+
 /**
  * The PostgREST fallback for getUserEntries must select every column the
  * MyEntries mapper (transformEntry) reads. A dropped column silently renders a
@@ -180,9 +205,7 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
   it("selects the show's full trial list for the primary-trial timezone", () => {
     // The amount-due deadline picks the PRIMARY trial's zone, which needs every
     // trial of the show — not just the one the entry is in.
-    expect(USER_ENTRIES_SELECT).toMatch(
-      /show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s
-    );
+    expect(USER_ENTRIES_SELECT).toMatch(/show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s);
   });
 
   it('selects enrollment payment status for secretary-recorded grouped payments', () => {

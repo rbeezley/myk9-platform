@@ -11,21 +11,31 @@ export async function markReplicatedRowSynced(
   if (mutation.operation === 'DELETE') return;
 
   const key = [mutation.tableName, String(mutation.rowId)];
-  const existingRow = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-    ReplicatedRow<unknown> | undefined;
+  const tx = db.transaction(
+    [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS],
+    'readwrite'
+  );
+  const [existingRow, pendingMutations] = (await Promise.all([
+    tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).get(key),
+    tx
+      .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
+      .index('tableName_rowId')
+      .getAll([mutation.tableName, String(mutation.rowId)]),
+  ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
 
-  if (!existingRow?.isDirty) return;
-
-  await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
-    ...existingRow,
-    isDirty: false,
-    syncStatus: 'synced',
-    lastSyncedAt: Date.now(),
-    // Refresh OCC precondition so subsequent queued mutations use the post-write
-    // version (trigger incremented it on the server). Without this, a second
-    // offline edit to the same row would carry a stale version and spuriously reject.
-    ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
-  });
+  if (existingRow) {
+    const hasAnotherPendingMutation = pendingMutations.some(
+      pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
+    );
+    await tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).put({
+      ...existingRow,
+      isDirty: existingRow.isDirty && hasAnotherPendingMutation,
+      syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
+      lastSyncedAt: Date.now(),
+      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+    });
+  }
+  await tx.done;
 }
 
 export function remapDogIdReferences<T extends Record<string, unknown>>(
@@ -107,10 +117,16 @@ export async function remapUploadedRpcInsertRowId(
   for (const pendingMutation of pendingMutations) {
     if (pendingMutation.id === mutation.id) continue;
     if (pendingMutation.authUserId !== mutation.authUserId) continue;
-    const remapped = remapDogIdReferences(pendingMutation.data, oldRowId, newRowId);
-    if (remapped.changed) {
+    const remapped = remapDogIdReferences(pendingMutation.data, oldRowId, newRowId, {
+      replacePrimaryId:
+        pendingMutation.tableName === 'dogs' && String(pendingMutation.rowId) === oldRowId,
+    });
+    const rowIdChanged =
+      pendingMutation.tableName === 'dogs' && String(pendingMutation.rowId) === oldRowId;
+    if (remapped.changed || rowIdChanged) {
       await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
         ...pendingMutation,
+        ...(rowIdChanged && { rowId: newRowId }),
         data: remapped.data,
       });
     }

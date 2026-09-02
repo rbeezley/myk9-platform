@@ -158,6 +158,12 @@ function createObjectStores(
     });
     mutationStore.createIndex('status', 'status', { unique: false });
     mutationStore.createIndex('tableName', 'tableName', { unique: false });
+    mutationStore.createIndex('tableName_rowId', ['tableName', 'rowId'], { unique: false });
+  } else {
+    const mutationStore = transaction.objectStore(REPLICATION_STORES.PENDING_MUTATIONS);
+    if (!mutationStore.indexNames.contains('tableName_rowId')) {
+      mutationStore.createIndex('tableName_rowId', ['tableName', 'rowId'], { unique: false });
+    }
   }
 
   // Create prefetch_cache store

@@ -77,9 +77,15 @@ export function buildPlacementData(
   });
 
   return [...placementData].sort((a, b) => {
-    if (a.placement === undefined && b.placement === undefined) return 0;
+    if (a.placement === undefined && b.placement === undefined) {
+      return compareArmbands(a.armband, b.armband);
+    }
     if (a.placement === undefined) return 1;
     if (b.placement === undefined) return -1;
-    return a.placement - b.placement;
+    return a.placement - b.placement || compareArmbands(a.armband, b.armband);
   });
+}
+
+function compareArmbands(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 }

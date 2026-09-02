@@ -126,6 +126,9 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
+    expect(mockRpc).toHaveBeenCalledWith('get_my_checkout_order', {
+      p_session_id: 'cs_test_abc123',
+    });
     expectSuccessfulVerification(result);
     expect(result.confirmationNumber).toBe('MK9-000042');
     expect(result.showName).toBe('Spring Invitational');

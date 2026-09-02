@@ -23,7 +23,7 @@ RETURNS TABLE (
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = ''
 AS $$
   SELECT o.id, o.status, o.amount_cents, o.entry_ids, o.show_id, o.paid_at,
     o.refunded_at, o.stripe_payment_intent_id, o.metadata, s.name,

@@ -8,15 +8,13 @@ import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
 import { UserRole } from '@/types/auth-types';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import { RecordPageLayout } from '@/components/layout/record';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
 import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
-import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 import '@/styles/myk9-show-details.css';
 
-import HeroProfileCard from './HeroProfileCard';
+import DogIdentityRail from './DogIdentityRail';
 import DogDetailsTabs from './DogDetailsTabs';
 import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
@@ -24,10 +22,6 @@ import { saveDogPhoto, validateImageFile } from './utils';
 import { useRouteEntryFocus } from './useRouteEntryFocus';
 import type { DogDetailsMainProps } from './types';
 
-import TitleProgressCard from './sidebar/TitleProgressCard';
-import RegistrationsCard from './sidebar/RegistrationsCard';
-import AboutCard from './sidebar/AboutCard';
-import OwnerContactCard from './sidebar/OwnerContactCard';
 
 const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   dog,
@@ -36,7 +30,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   onUpdate,
   isDeleting,
 }) => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
   const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
@@ -46,7 +40,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // can reach the admin-only restore UI.
   const canDeleteDog = useCanDeleteDog(dog.id);
   const canRestoreDog = hasRole(UserRole.SITE_ADMIN);
-  const { isPremium } = useSubscriptionGate();
 
   // Route-entry focus/scroll (task 3.8, design.md Decision 10): a dog-card
   // click or a Career/Records deep link lands on the main heading; browser
@@ -55,19 +48,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   useRouteEntryFocus(headingRef, dog.id);
 
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
-
-  const openAddRegistration = () => {
-    // Registrations live on Overview — the default section — so clearing
-    // section/view state is enough to land there; no `tab` param is needed.
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.delete('tab');
-      next.delete('section');
-      next.delete('view');
-      return next;
-    });
-    setAutoOpenAddRegistration(true);
-  };
 
   useEffect(() => {
     const shouldAddRegistration = searchParams.get('addRegistration') === 'true';
@@ -257,46 +237,18 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const { data: dbRegistrations } = useRegistrationsByDogQuery(updatedDog.id);
   const liveRegistrationsCount = dbRegistrations?.length ?? updatedDog.registrations?.length ?? 0;
 
-  // Right sidebar — role-aware order
-  const sidebar = isSecretary ? (
-    <>
-      <AboutCard dog={updatedDog} />
-      <OwnerContactCard owner={owner} prominent />
-      <RegistrationsCard
-        dog={updatedDog}
-        registrationsCount={liveRegistrationsCount}
-        registrations={dbRegistrations}
-        onAddRegistration={openAddRegistration}
-      />
-    </>
-  ) : (
-    <>
-      <AboutCard dog={updatedDog} />
-      <OwnerContactCard owner={owner} />
-      {/* INTENT: Free users see no sidebar Title Progress teaser — Career's
-          locked-view treatment is the single upgrade path for Title Progress
-          and Statistics, so the sidebar never repeats a competing upgrade
-          card (spec: exhibitor-dog-management "Premium locks preserve the
-          free dog workspace"). */}
-      {isPremium && <TitleProgressCard dogId={updatedDog.id} />}
-      <RegistrationsCard
-        dog={updatedDog}
-        registrationsCount={liveRegistrationsCount}
-        registrations={dbRegistrations}
-        onAddRegistration={openAddRegistration}
-      />
-    </>
-  );
-
   return (
     <>
-      <RecordPageLayout
-        className="py-6"
-        storageKey="myk9:dog"
-        breadcrumb={<Breadcrumb items={breadcrumbItems} showHomeIcon={true} />}
-        hero={
-          <HeroProfileCard
+      <div className="max-w-[1440px] mx-auto py-6">
+        <div className="px-6 py-3">
+          <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
+        </div>
+        {/* Identity rail beside the content column; stacked below lg. */}
+        <div className="flex flex-col lg:flex-row lg:items-start gap-6 px-6 pb-8">
+          <DogIdentityRail
             dog={updatedDog}
+            owner={owner}
+            registrations={dbRegistrations}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
@@ -305,19 +257,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             canDelete={canDeleteDog}
             headingRef={headingRef}
           />
-        }
-        properties={[]}
-        tabsContent={
-          <DogDetailsTabs
-            dog={updatedDog}
-            autoOpenAddRegistration={autoOpenAddRegistration}
-            registrationsCount={liveRegistrationsCount}
-            role={isSecretary ? 'secretary' : 'exhibitor'}
-          />
-        }
-        associationsExtra={sidebar}
-        mobileAssociationsFirst
-      />
+          <main className="flex-1 min-w-0">
+            <DogDetailsTabs
+              dog={updatedDog}
+              autoOpenAddRegistration={autoOpenAddRegistration}
+              registrationsCount={liveRegistrationsCount}
+              role={isSecretary ? 'secretary' : 'exhibitor'}
+            />
+          </main>
+        </div>
+      </div>
 
       <DogDialogs
         dog={updatedDog}

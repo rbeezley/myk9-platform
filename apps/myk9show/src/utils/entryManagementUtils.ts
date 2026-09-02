@@ -125,12 +125,14 @@ export const mapClassEntryStatus = (
  * `EntryStatus` union in `types/entry-lifecycle.ts`. This function bridges them.
  *
  * Known lossy mappings (no better DB value exists under the current schema):
- *   - REJECTED and CANCELLED both collapse to 'withdrawn'. Distinguishing
- *     secretary-rejected from exhibitor-cancelled requires a future schema
- *     addition (e.g., a 'rejected' value in the constraint).
  *   - WAITLIST returns 'submitted'. Waitlist membership is tracked separately
  *     in the `waitlist_entries` table; `entry_status` stays in its pre-decision
  *     state until the entry is promoted off the waitlist.
+ *   - MISSING_INFO returns 'submitted'. The database has no missing-information
+ *     status, so the secretary command that requested it is not offered here.
+ *
+ * REJECTED maps to 'not_accepted' and CANCELLED maps to 'withdrawn'; those
+ * canonical lifecycle values preserve the distinction between the two actions.
  */
 export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
   switch (status) {
@@ -151,7 +153,6 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
     case EntryStatus.MOVE_UP_REQUESTED:
       return 'move-up-requested';
     case EntryStatus.PENDING:
-    case EntryStatus.MISSING_INFO:
     default:
       return 'submitted';
   }

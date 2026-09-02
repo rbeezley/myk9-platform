@@ -5,11 +5,8 @@
  * completed, scratched, moved, cancelled or move-up-requested entry, because
  * re-approving a scored entry corrupts closed results and the move-up queue.
  *
- * The multi-select toolbar honoured that rule and even labelled its scope
- * ("Accept 3 of 5 selected"). The registration Actions menu did not: it passed
- * `group.entries.map(e => e.id)` straight through, and the shared handler
- * filtered only by id membership -- so "Accept all" on a registration holding a
- * scored entry rewrote it silently, with no dialog and no count.
+ * The multi-select toolbar honours that rule and labels its scope ("Accept 3 of
+ * 5 selected"). The registration Actions menu uses the same eligibility helper.
  *
  * The rule now lives in one status-keyed helper that both paths share.
  */
@@ -47,14 +44,6 @@ describe('getEligibleForBulkStatusChange (audit C2)', () => {
       EntryStatus.ACCEPTED
     );
     expect(eligible.map(item => item.id)).toEqual(['a', 'b']);
-  });
-
-  it('covers MISSING_INFO, which is not a BulkEntryAction but is offered by the Actions menu', () => {
-    const eligible = getEligibleForBulkStatusChange(
-      [entry('scored', EntryStatus.COMPLETED), entry('open', EntryStatus.PENDING)],
-      EntryStatus.MISSING_INFO
-    );
-    expect(eligible.map(item => item.id)).toEqual(['open']);
   });
 
   it('agrees with the action-keyed helper, so the two paths cannot drift', () => {

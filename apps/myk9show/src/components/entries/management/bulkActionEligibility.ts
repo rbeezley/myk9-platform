@@ -60,16 +60,14 @@ export function getEligibleForBulkAction(
 
 /**
  * The same eligibility rule as `getEligibleForBulkAction`, keyed on the TARGET
- * STATUS rather than on a named action, so it also covers status changes that
- * are not `BulkEntryAction`s (the registration Actions menu offers
- * `MISSING_INFO`, for example).
+ * STATUS rather than on a named action, so it also covers any status changes
+ * that are not represented by a `BulkEntryAction`.
  *
  * `getEligibleForBulkAction` is expressed in terms of this function so both
  * paths share one rule. Every bulk status change must be narrowed through it;
  * `useEntryManagementActions.handleEnrollmentBulkStatusChange` applies it to
  * whatever ids it is handed, so a caller that forgets cannot corrupt a scored
- * or moved-up entry — which is exactly what the registration Actions menu did
- * by passing `group.entries.map(e => e.id)` unfiltered.
+ * or moved-up entry.
  *
  * A `null` target means the action is not a status change at all, in which case
  * this rule does not apply and every entry is returned.

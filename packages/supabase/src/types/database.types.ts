@@ -11443,6 +11443,22 @@ export type Database = {
           entry_count: number
         }[]
       }
+      get_my_checkout_order: {
+        Args: { p_session_id: string }
+        Returns: {
+          amount_cents: number
+          confirmation_number: string | null
+          entry_ids: string[] | null
+          id: string
+          metadata: Json | null
+          paid_at: string | null
+          refunded_at: string | null
+          show_id: string | null
+          show_name: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+        }[]
+      }
       get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_onboarding_requests: {
         Args: never

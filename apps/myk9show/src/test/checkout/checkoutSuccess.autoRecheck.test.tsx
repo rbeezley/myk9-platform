@@ -113,6 +113,28 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
     ).toBeInTheDocument();
   });
 
+  it('recovers when a successful order is initially unreadable', async () => {
+    verifyCheckoutSessionMock.mockResolvedValue(notFoundResult);
+
+    render(<CheckoutSuccessPage />, {
+      initialRoute: '/checkout/success?session_id=cs_order_visibility_gap',
+    });
+
+    await parkInitialPoll();
+    expect(screen.getByRole('heading', { name: 'Payment Not Found Yet' })).toBeInTheDocument();
+
+    // MYK9-294: Stripe has succeeded, but the owner cannot read the committed
+    // order during the initial verification window. The existing background
+    // recovery must converge without a second payment or a manual click.
+    verifyCheckoutSessionMock.mockResolvedValue(overflowRefundResult);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(BACKGROUND_RECHECK_INTERVAL_MS + 1_000);
+    });
+
+    expect(screen.getByText('Payment Refunded')).toBeInTheDocument();
+    expect(screen.queryByText(/do not submit another payment/i)).not.toBeInTheDocument();
+  });
+
   it('re-verifies immediately when the tab regains focus', async () => {
     verifyCheckoutSessionMock.mockResolvedValue(processingResult);
 

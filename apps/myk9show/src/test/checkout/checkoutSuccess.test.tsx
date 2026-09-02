@@ -20,8 +20,9 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 // Hoisted mock refs (must be hoisted so vi.mock factory can reference them)
 // ---------------------------------------------------------------------------
 
-const { mockSingle, mockGetSession, mockEntries } = vi.hoisted(() => ({
+const { mockSingle, mockRpc, mockGetSession, mockEntries } = vi.hoisted(() => ({
   mockSingle: vi.fn(),
+  mockRpc: vi.fn(),
   mockGetSession: vi.fn(),
   // Rows returned from the entries fetch (`.select().in('id', ...)`). The
   // armband is read straight off the entry row (denormalized column).
@@ -29,8 +30,8 @@ const { mockSingle, mockGetSession, mockEntries } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/supabase', () => {
-  // Chainable builder: supports `.select().eq().single()` (verifyCheckoutSession)
-  // and `.select().in()` (the entries fetch on the page).
+  // Chainable builder supports the entry-details fetch on the page. Checkout
+  // verification itself uses the owner-scoped RPC (MYK9-294).
   const builder: Record<string, unknown> = {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
@@ -40,6 +41,7 @@ vi.mock('@/lib/supabase', () => {
   return {
     supabase: {
       from: vi.fn(() => builder),
+      rpc: mockRpc,
       auth: { getSession: mockGetSession },
     },
   };
@@ -68,6 +70,22 @@ function mockAuthSession() {
   });
 }
 
+function mockCheckoutRpcFromSingle() {
+  mockRpc.mockImplementation(async () => {
+    const result = await mockSingle();
+    const data = result.data
+      ? [
+          {
+            ...result.data,
+            show_name: result.data.shows?.name ?? null,
+            confirmation_number: result.data.enrollment?.confirmation_number ?? null,
+          },
+        ]
+      : result.data;
+    return { data, error: result.error };
+  });
+}
+
 function expectSuccessfulVerification(
   result: CheckoutVerificationResult
 ): asserts result is Extract<CheckoutVerificationResult, { success: true }> {
@@ -91,6 +109,7 @@ describe('verifyCheckoutSession', () => {
     vi.clearAllMocks();
     mockEntries.rows = [];
     mockAuthSession();
+    mockCheckoutRpcFromSingle();
   });
 
   it('returns confirmationNumber when enrollment row exists on the order', async () => {
@@ -111,6 +130,9 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
+    expect(mockRpc).toHaveBeenCalledWith('get_my_checkout_order', {
+      p_session_id: 'cs_test_abc123',
+    });
     expectSuccessfulVerification(result);
     expect(result.confirmationNumber).toBe('MK9-000042');
     expect(result.showName).toBe('Spring Invitational');
@@ -342,6 +364,7 @@ describe('CheckoutSuccessPage', () => {
     vi.clearAllMocks();
     mockEntries.rows = [];
     mockAuthSession();
+    mockCheckoutRpcFromSingle();
   });
 
   it('displays MK9-XXXXXX confirmation number when enrollment is linked', async () => {

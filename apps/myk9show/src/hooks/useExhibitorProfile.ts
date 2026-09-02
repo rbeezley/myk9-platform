@@ -87,6 +87,7 @@ export function useExhibitorProfile() {
     isLoading,
     error,
     refetch,
+    status,
   } = useQuery({
     queryKey: ['exhibitorProfile', user?.id],
     queryFn: async (): Promise<ExhibitorProfile | null> => {
@@ -248,7 +249,7 @@ export function useExhibitorProfile() {
     error,
     refetch,
     // Derived state
-    needsOnboarding: !isLoading && user && !profile,
+    needsOnboarding: !!user && status === 'success' && !profile,
     hasProfile: !!profile,
     onboardingCompleted: !!profile?.onboarding_completed_at,
     // Mutations

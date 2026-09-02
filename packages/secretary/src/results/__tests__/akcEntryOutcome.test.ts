@@ -23,9 +23,10 @@ import {
   tallyAKCClass,
   countUnscoredAKCEntries,
   selectSubmittableAKCEntries,
+  parseAKCResultStatus,
   type AKCEntryOutcome,
 } from '../formatters/akcEntryOutcome';
-import type { AKCSubmissionEntry } from '../types';
+import type { AKCResultStatus, AKCSubmissionEntry } from '../types';
 
 function makeEntry(overrides: Partial<AKCSubmissionEntry> = {}): AKCSubmissionEntry {
   return {
@@ -187,7 +188,8 @@ describe('classifyAKCEntryOutcome', () => {
     it('keeps a dog whose result was actually recorded, whatever the lifecycle says', () => {
       // Dropping a SCORED dog is the one direction of this call a re-send
       // cannot repair, so a recorded result always wins.
-      for (const resultStatus of ['qualified', 'nq', 'absent', 'excused', 'withdrawn']) {
+      const recorded: AKCResultStatus[] = ['qualified', 'nq', 'absent', 'excused', 'withdrawn'];
+      for (const resultStatus of recorded) {
         const entry = makeEntry({ entryStatus: 'moved', resultStatus });
         expect(classifyAKCEntryOutcome(entry)).not.toBe('excluded');
       }
@@ -226,13 +228,15 @@ describe('classifyAKCEntryOutcome', () => {
     });
   });
 
-  it('is case- and separator-insensitive', () => {
-    expect(classifyAKCEntryOutcome(makeEntry({ resultStatus: 'QUALIFIED' }))).toBe('qualified');
+  it('folds case and separators in the LIFECYCLE columns', () => {
+    // result_status is deliberately NOT folded: it is typed as the union, so a
+    // non-canonical literal is a typecheck error rather than a runtime concern.
     expect(classifyAKCEntryOutcome(makeEntry({ entryStatus: 'Not_Accepted' }))).toBe('excluded');
+    expect(classifyAKCEntryOutcome(makeEntry({ checkInStatus: 'PULLED' }))).toBe('absent');
   });
 
   it('covers every value result_status can hold', () => {
-    const expected: Record<string, AKCEntryOutcome> = {
+    const expected: Record<AKCResultStatus, AKCEntryOutcome> = {
       pending: 'unscored',
       qualified: 'qualified',
       nq: 'not-qualified',
@@ -240,7 +244,10 @@ describe('classifyAKCEntryOutcome', () => {
       excused: 'excused',
       withdrawn: 'withdrawn',
     };
-    for (const [resultStatus, outcome] of Object.entries(expected)) {
+    for (const [resultStatus, outcome] of Object.entries(expected) as [
+      AKCResultStatus,
+      AKCEntryOutcome,
+    ][]) {
       // Neutral lifecycle columns so result_status is the only signal.
       const entry = makeEntry({ resultStatus, entryStatus: 'confirmed', checkInStatus: 'no-status' });
       expect(classifyAKCEntryOutcome(entry)).toBe(outcome);
@@ -302,5 +309,31 @@ describe('countUnscoredAKCEntries', () => {
 
   it('is zero for a fully scored class', () => {
     expect(countUnscoredAKCEntries([makeEntry({ resultStatus: 'qualified' })])).toBe(0);
+  });
+});
+
+// MYK9-323 AC2. The union type is the guard inside the module; this is the
+// boundary that keeps a raw PostgREST read from smuggling past it.
+describe('parseAKCResultStatus', () => {
+  it('accepts every value the CHECK constraint permits', () => {
+    const all: AKCResultStatus[] = ['pending', 'qualified', 'nq', 'absent', 'excused', 'withdrawn'];
+    for (const status of all) {
+      expect(parseAKCResultStatus(status)).toBe(status);
+    }
+  });
+
+  it('folds casing and surrounding whitespace', () => {
+    expect(parseAKCResultStatus('  Qualified ')).toBe('qualified');
+  });
+
+  it('fails closed on anything it does not recognise', () => {
+    // 'Q' is the literal that caused this issue. It must not resolve to
+    // 'qualified' -- an unrecognised value means "no result recorded", which
+    // blocks the submission instead of shipping a guess.
+    for (const raw of ['Q', 'disqualified', 'present', '', 'QUALIFIED!']) {
+      expect(parseAKCResultStatus(raw)).toBeNull();
+    }
+    expect(parseAKCResultStatus(null)).toBeNull();
+    expect(parseAKCResultStatus(undefined)).toBeNull();
   });
 });

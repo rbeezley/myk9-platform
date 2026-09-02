@@ -24,7 +24,7 @@
 // every qualifying dog that had not been placed 1st-4th fell through to the
 // final `NQ` fallback and was submitted to AKC as a non-qualifying run.
 
-import type { AKCSubmissionEntry } from '../types';
+import type { AKCResultStatus, AKCSubmissionEntry } from '../types';
 
 /**
  * What AKC records for a dog.
@@ -45,9 +45,42 @@ export type AKCEntryOutcome =
   | 'not-qualified'
   | 'unscored';
 
-/** Case- and separator-insensitive read of a free-text status column. */
+/**
+ * Case- and separator-insensitive read of a LIFECYCLE column. `entry_status`
+ * genuinely carries both spellings of the same state ('not_accepted' /
+ * 'not-accepted', 'scratch_requested' / 'scratch-requested'), so folding is
+ * required there.
+ *
+ * `result_status` deliberately does NOT go through this. Normalizing widens
+ * the value back to `string`, which would discard the `AKCResultStatus` union
+ * and re-admit the exact comparison this module exists to make impossible.
+ */
 function norm(value: string | null | undefined): string {
   return (value ?? '').trim().toLowerCase().replace(/_/g, '-');
+}
+
+/** Every value the CHECK constraint permits, for narrowing at the boundary. */
+const AKC_RESULT_STATUSES: readonly AKCResultStatus[] = [
+  'pending',
+  'qualified',
+  'nq',
+  'absent',
+  'excused',
+  'withdrawn',
+];
+
+/**
+ * Narrow a raw `entries.result_status` read into the union.
+ *
+ * Fail-closed by design: anything unrecognized becomes `null`, which every
+ * caller treats as "no result recorded". That blocks the submission rather
+ * than letting a value nobody anticipated ship silently as NQ — the failure
+ * mode this whole module exists to prevent.
+ */
+export function parseAKCResultStatus(value: string | null | undefined): AKCResultStatus | null {
+  if (value == null) return null;
+  const candidate = value.trim().toLowerCase();
+  return AKC_RESULT_STATUSES.find(status => status === candidate) ?? null;
 }
 
 // A dog pulled from the running order before the class, or whose entry was
@@ -76,7 +109,13 @@ const NON_PARTICIPATING_ENTRY_STATUSES = new Set([
 ]);
 
 /** Result values that mean a judge actually recorded something for this run. */
-const RECORDED_RESULTS = new Set(['qualified', 'nq', 'absent', 'excused', 'withdrawn']);
+const RECORDED_RESULTS = new Set<AKCResultStatus>([
+  'qualified',
+  'nq',
+  'absent',
+  'excused',
+  'withdrawn',
+]);
 
 /**
  * Classify one entry. Order matters: a dog that never ran cannot also carry a
@@ -84,7 +123,8 @@ const RECORDED_RESULTS = new Set(['qualified', 'nq', 'absent', 'excused', 'withd
  * happens to be sitting on the row.
  */
 export function classifyAKCEntryOutcome(entry: AKCSubmissionEntry): AKCEntryOutcome {
-  const result = norm(entry.resultStatus);
+  // Compared as the union, never normalized — see `norm` above.
+  const result = entry.resultStatus;
   const entryStatus = norm(entry.entryStatus);
   const checkIn = norm(entry.checkInStatus);
 
@@ -92,7 +132,10 @@ export function classifyAKCEntryOutcome(entry: AKCSubmissionEntry): AKCEntryOutc
   // judge saw this dog in this class, so the row is reported however the
   // lifecycle column happens to read. Dropping a SCORED dog from the file is
   // the one direction of this call that cannot be undone by a re-send.
-  if (!RECORDED_RESULTS.has(result) && NON_PARTICIPATING_ENTRY_STATUSES.has(entryStatus)) {
+  if (
+    (result == null || !RECORDED_RESULTS.has(result)) &&
+    NON_PARTICIPATING_ENTRY_STATUSES.has(entryStatus)
+  ) {
     return 'excluded';
   }
 

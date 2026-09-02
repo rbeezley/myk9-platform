@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
   AlertTriangle,
@@ -64,6 +65,7 @@ export function CartSummary({
   onRetryCapacity,
   className,
 }: CartSummaryProps) {
+  const navigate = useNavigate();
   const cart = useCartStore(state => state.cart);
   const getTotalEntryFees = useCartStore(state => state.getTotalEntryFees);
   const getItemCount = useCartStore(state => state.getItemCount);

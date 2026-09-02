@@ -45,8 +45,6 @@ const MIGRATED_RENDERERS = [
   'components/entries/EntryStatusHistory.tsx',
   'components/entries/EntryStatusStepper.tsx',
   'components/entries/management/PullReconciliationCard.tsx',
-  'components/live/EntryRow.tsx',
-  'components/live/LiveClassCard.tsx',
   'components/judges/JudgeCheckInInterface.tsx',
   'components/offline-checkin/StatisticsPanel.tsx',
   'components/schedule/ElementCard.tsx',

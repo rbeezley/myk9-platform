@@ -281,6 +281,14 @@ end
 $$;
 
 -- A manager role preserves can_manage_show(NULL) parity for an unscoped show.
+--
+-- Parity flipped direction with MYK9-258 (20260828230000): can_manage_show()
+-- now REJECTS a club-less show for everyone but a site admin, and MYK9-329
+-- (20260902120000) brought this view's can_manage flag into line. Before that
+-- this block asserted 1/1/1 -- the scoped manager could read the club-less
+-- show's payment column and scores -- which is the cross-tenant leak MYK9-258
+-- named. The view has no other arm that admits this caller to this show, so
+-- the row must be absent entirely, not merely masked.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000114102', true);
 select set_config(
   'request.jwt.claims',
@@ -290,18 +298,16 @@ select set_config(
 do $$
 declare
   row_count integer;
-  admin_count integer;
-  score_count integer;
 begin
-  select count(*), count(payment_status), count(total_score)
-    into row_count, admin_count, score_count
+  select count(*)
+    into row_count
     from public.view_authenticated_entry_results
    where show_id = '00000000-0000-0000-0000-000000114005';
-  if row_count <> 1 or admin_count <> 1 or score_count <> 1 then
-    raise exception 'FAIL null-club manager rows/admin/scores: %/%/%',
-      row_count, admin_count, score_count;
+  if row_count <> 0 then
+    raise exception 'FAIL null-club manager still reads % row(s) of a club-less show (MYK9-329)',
+      row_count;
   end if;
-  raise notice 'PASS manager preserves null-club show access';
+  raise notice 'PASS manager no longer reads a club-less show (can_manage_show parity, MYK9-258)';
 end
 $$;
 

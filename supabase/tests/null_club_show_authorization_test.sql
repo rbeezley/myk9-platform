@@ -94,10 +94,13 @@ VALUES
 -- An entry on EACH show. Without one on the club-less show, case 1.6 passes
 -- against the vulnerable function too — an empty export and a denied export are
 -- indistinguishable — so the assertion would certify nothing.
-INSERT INTO public.entries (id, show_id, armband)
+-- payment_status / entry_fee are the `can_view_admin`-masked columns case 5
+-- reads back through view_authenticated_entry_results; without a value the
+-- "column is masked" and "column is empty" outcomes are indistinguishable.
+INSERT INTO public.entries (id, show_id, armband, payment_status, entry_fee)
 VALUES
-  ('00000000-0000-0000-0000-000000000c51', '00000000-0000-0000-0000-000000000c31', '101'),
-  ('00000000-0000-0000-0000-000000000c52', '00000000-0000-0000-0000-000000000c32', '201');
+  ('00000000-0000-0000-0000-000000000c51', '00000000-0000-0000-0000-000000000c31', '101', 'paid', 25),
+  ('00000000-0000-0000-0000-000000000c52', '00000000-0000-0000-0000-000000000c32', '201', 'paid', 35);
 
 -- ---------------------------------------------------------------------------
 -- 1. The club secretary
@@ -361,6 +364,112 @@ BEGIN
       'FAIL 4.2 a show-scoped grantee also received the club-less show (MYK9-258)';
   END IF;
   RAISE NOTICE 'PASS 4.2 a show-scoped grantee does not receive the club-less show';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 5. The owner-run view (MYK9-329)
+--
+-- view_authenticated_entry_results is security_invoker = false, so RLS on
+-- entries is not a backstop: its own can_manage flag is the only gate. Until
+-- 20260902120000 that flag carried `(sh.club_id IS NULL AND has_manager_role)`,
+-- which cases 1-4 above cannot see because they exercise the SQL helpers, not
+-- the view. A secretary of club A got can_manage (and can_view_admin: payment
+-- columns) on every club-less show on the platform.
+--
+-- Three directions, in this order. 5.1 proves the view works for the caller at
+-- all (own-club row present WITH its masked payment column visible), otherwise
+-- 5.2 "returns nothing" would also pass for a broken view. 5.3 proves the
+-- club-less show is still reachable by the one role that should reach it.
+-- ---------------------------------------------------------------------------
+SELECT set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000c21',
+  true
+);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000c21","role":"authenticated","app_metadata":{}}',
+  true
+);
+
+DO $$
+DECLARE
+  v_own_rows integer;
+  v_own_payment_visible integer;
+  v_clubless_rows integer;
+BEGIN
+  SELECT count(*), count(payment_status)
+    INTO v_own_rows, v_own_payment_visible
+    FROM public.view_authenticated_entry_results
+   WHERE show_id = '00000000-0000-0000-0000-000000000c31';
+
+  IF v_own_rows <> 1 OR v_own_payment_visible <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL 5.1 club secretary lost their own show in the view (rows %, payment visible %)',
+      v_own_rows, v_own_payment_visible;
+  END IF;
+  RAISE NOTICE 'PASS 5.1 club secretary reads their own show''s payment column through the view';
+
+  SELECT count(*)
+    INTO v_clubless_rows
+    FROM public.view_authenticated_entry_results
+   WHERE show_id = '00000000-0000-0000-0000-000000000c32';
+
+  IF v_clubless_rows <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL 5.2 club secretary reads % row(s) of a club-less show through the view (MYK9-329)',
+      v_clubless_rows;
+  END IF;
+  RAISE NOTICE 'PASS 5.2 club secretary reads nothing of a club-less show through the view';
+END;
+$$;
+
+-- 5.3 A site admin still reaches the club-less show, payment column and all.
+INSERT INTO public.people (id, first_name, last_name, auth_user_id)
+VALUES (
+  '00000000-0000-0000-0000-000000000c14',
+  'Site',
+  'Administrator',
+  '00000000-0000-0000-0000-000000000c24'
+);
+
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
+SELECT
+  '00000000-0000-0000-0000-000000000c14',
+  id,
+  true,
+  '00000000-0000-0000-0000-000000000c24'
+FROM public.roles
+WHERE name = 'site_admin';
+
+SELECT set_config(
+  'request.jwt.claim.sub',
+  '00000000-0000-0000-0000-000000000c24',
+  true
+);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000c24","role":"authenticated","app_metadata":{}}',
+  true
+);
+
+DO $$
+DECLARE
+  v_rows integer;
+  v_payment_visible integer;
+BEGIN
+  SELECT count(*), count(payment_status)
+    INTO v_rows, v_payment_visible
+    FROM public.view_authenticated_entry_results
+   WHERE show_id = '00000000-0000-0000-0000-000000000c32';
+
+  IF v_rows <> 1 OR v_payment_visible <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL 5.3 site admin lost the club-less show in the view (rows %, payment visible %)',
+      v_rows, v_payment_visible;
+  END IF;
+  RAISE NOTICE 'PASS 5.3 site admin still reads the club-less show''s payment column';
 END;
 $$;
 

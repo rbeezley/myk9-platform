@@ -157,3 +157,44 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
     }
   });
 });
+
+/**
+ * MYK9-329: the owner-run view had the same collapse in prose form. Its
+ * `can_manage` flag carried `(sh.club_id IS NULL AND ctx.has_manager_role)`,
+ * which no `is_club_admin(x)` scan can see because it never calls the helper.
+ * Only the LATEST migration that defines the view describes live behaviour.
+ */
+function latestViewDefinition(viewName: string): { file: string; body: string } {
+  const marker = `CREATE OR REPLACE VIEW public.${viewName}`;
+  const files = readdirSync(migrationsDir)
+    .filter(name => name.endsWith('.sql'))
+    .sort();
+  let latest: { file: string; body: string } | undefined;
+  for (const file of files) {
+    const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
+    const start = sql.lastIndexOf(marker);
+    if (start === -1) continue;
+    latest = { file, body: sql.slice(start) };
+  }
+  if (!latest) throw new Error(`no migration defines ${viewName}`);
+  return latest;
+}
+
+describe('view_authenticated_entry_results does not admit managers to club-less shows', () => {
+  const view = latestViewDefinition('view_authenticated_entry_results');
+
+  it('reads the live definition, not history', () => {
+    // Guards the guard: if the marker stopped matching, the assertion below
+    // would pass against an empty string.
+    expect(view.body).toContain('AS can_manage');
+    expect(view.file >= '20260902120000').toBe(true);
+  });
+
+  it('has no club-less-show manager arm in can_manage (MYK9-329)', () => {
+    const canManage = view.body.slice(0, view.body.indexOf('AS can_manage'));
+    expect(canManage).not.toMatch(/club_id\s+IS\s+NULL\s+AND\s+ctx\.has_manager_role/i);
+    // ...while the arms that SHOULD be there still are.
+    expect(canManage).toContain('ctx.is_site_admin');
+    expect(canManage).toContain('sh.club_id = ANY(ctx.managed_club_ids)');
+  });
+});

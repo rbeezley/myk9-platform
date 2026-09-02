@@ -70,6 +70,22 @@ function mockAuthSession() {
   });
 }
 
+function mockCheckoutRpcFromSingle() {
+  mockRpc.mockImplementation(async () => {
+    const result = await mockSingle();
+    const data = result.data
+      ? [
+          {
+            ...result.data,
+            show_name: result.data.shows?.name ?? null,
+            confirmation_number: result.data.enrollment?.confirmation_number ?? null,
+          },
+        ]
+      : result.data;
+    return { data, error: result.error };
+  });
+}
+
 function expectSuccessfulVerification(
   result: CheckoutVerificationResult
 ): asserts result is Extract<CheckoutVerificationResult, { success: true }> {
@@ -93,19 +109,7 @@ describe('verifyCheckoutSession', () => {
     vi.clearAllMocks();
     mockEntries.rows = [];
     mockAuthSession();
-    mockRpc.mockImplementation(async () => {
-      const result = await mockSingle();
-      const data = result.data
-        ? [
-            {
-              ...result.data,
-              show_name: result.data.shows?.name ?? null,
-              confirmation_number: result.data.enrollment?.confirmation_number ?? null,
-            },
-          ]
-        : result.data;
-      return { data, error: result.error };
-    });
+    mockCheckoutRpcFromSingle();
   });
 
   it('returns confirmationNumber when enrollment row exists on the order', async () => {
@@ -360,6 +364,7 @@ describe('CheckoutSuccessPage', () => {
     vi.clearAllMocks();
     mockEntries.rows = [];
     mockAuthSession();
+    mockCheckoutRpcFromSingle();
   });
 
   it('displays MK9-XXXXXX confirmation number when enrollment is linked', async () => {

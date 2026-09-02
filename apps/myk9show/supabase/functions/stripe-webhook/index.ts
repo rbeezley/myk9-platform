@@ -2611,6 +2611,15 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscri
       console.log(`No subscriptions found for customer: ${stripeCustomerId}`);
 
       // Update to no subscription state
+      const { error: staleSubscriptionError } = await supabase
+        .from('stripe_subscriptions')
+        .update({ status: 'none' })
+        .eq('customer_id', stripeCustomer.id);
+      if (staleSubscriptionError) {
+        console.error('Error clearing stale subscriptions:', staleSubscriptionError);
+        return;
+      }
+
       const { error: noSubscriptionError } = await supabase.from('stripe_subscriptions').upsert(
         {
           customer_id: stripeCustomer.id,

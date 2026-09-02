@@ -75,7 +75,7 @@ function dogSubtitle(display: ShowMapEntryDisplay): string | undefined {
   return [display.handler, display.breed].filter(Boolean).join(' · ') || undefined;
 }
 
-function armbandSortValue(display: ShowMapEntryDisplay): number {
+export function armbandSortValue(display: ShowMapEntryDisplay): number {
   if (!display.armband) return Number.POSITIVE_INFINITY;
   const parsed = Number.parseInt(display.armband, 10);
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;

@@ -47,7 +47,7 @@ type SupportTableClient = {
   rpc: (
     fn: 'create_support_ticket',
     args: Record<string, unknown>
-  ) => PromiseLike<{ data: { id: string } | null; error: { message: string } | null }>;
+  ) => PromiseLike<{ data: Array<{ id: string }> | null; error: { message: string } | null }>;
   from: (table: 'people' | 'support_tickets' | 'support_ticket_messages') => {
     select: (columns: string) => SupportQueryBuilder;
     insert: (row: Record<string, unknown>) => {
@@ -90,11 +90,11 @@ export async function createSupportTicket(
     p_body: body,
   });
 
-  if (ticketError || !ticket) {
+  if (ticketError || !ticket?.[0]?.id) {
     throw new Error(ticketError?.message ?? 'Could not create the support ticket.');
   }
 
-  return { id: ticket.id };
+  return { id: ticket[0].id };
 }
 
 export async function listSupportTickets(

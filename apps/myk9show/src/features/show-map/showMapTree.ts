@@ -16,7 +16,7 @@ import {
   getShowMapShowHref,
   getShowMapTrialHref,
 } from './showMapRoutes';
-import { addAllExhibitorsBranch } from './showMapDogBranch';
+import { addAllExhibitorsBranch, armbandSortValue as getArmbandSortValue } from './showMapDogBranch';
 import {
   resolveDogIdentity,
   resolveDogIdentityForOrganization,
@@ -135,10 +135,7 @@ function entryLabel(entry: ShowMapEntryInput): string {
 }
 
 function armbandSortValue(entry: ShowMapEntryInput): number {
-  const armband = readString(entry, 'armband');
-  if (!armband) return Number.POSITIVE_INFINITY;
-  const value = Number.parseInt(armband, 10);
-  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+  return getArmbandSortValue(entryDisplay(entry));
 }
 
 function addNode(tree: ShowMapTree, node: ShowMapNode): void {

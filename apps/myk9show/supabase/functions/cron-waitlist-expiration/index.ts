@@ -131,6 +131,7 @@ Deno.serve(async req => {
       expiryNoticesSent: 0,
       retriedNotifications: 0,
       errors: [] as string[],
+      notificationErrors: [] as string[],
     };
     const classesExpiredThisRun = new Set<string>();
     const queuedExpiryNotices: QueuedWaitlistEvent[] = [];
@@ -199,7 +200,7 @@ Deno.serve(async req => {
       pushWebhookSecret,
     });
     results.expiryNoticesSent = expiryDelivery.dispatched;
-    results.errors.push(...expiryDelivery.errors);
+    results.notificationErrors.push(...expiryDelivery.errors);
 
     const reminderResult = await processHalfwayReminders({
       supabase,
@@ -209,7 +210,7 @@ Deno.serve(async req => {
     });
     results.remindersSent = reminderResult.sent;
     results.skippedMailInOffers += reminderResult.skippedMailIn;
-    results.errors.push(...reminderResult.errors);
+    results.notificationErrors.push(...reminderResult.errors);
 
     const retryResult = await retryWaitlistNotificationEvents({
       supabase,
@@ -217,7 +218,7 @@ Deno.serve(async req => {
       pushWebhookSecret,
     });
     results.retriedNotifications = retryResult.dispatched;
-    results.errors.push(...retryResult.errors);
+    results.notificationErrors.push(...retryResult.errors);
 
     console.log(
       `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`

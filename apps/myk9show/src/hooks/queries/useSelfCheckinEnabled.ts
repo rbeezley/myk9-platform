@@ -97,13 +97,13 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
   // entry list on every parent render, including each replication sync tick.
   // Memoise on the resolved values rather than on `results`, whose identity is
   // exactly the thing that keeps changing.
-  const resolved = results.map(r => r.data ?? false);
+  const resolved = results.map(r => r.data ?? true);
   const signature = resolved.map(v => (v ? '1' : '0')).join('');
 
   return useMemo(() => {
     const map: Record<string, boolean> = {};
     classIds.forEach((id, i) => {
-      map[id] = resolved[i] ?? false;
+      map[id] = resolved[i] ?? true;
     });
     return map;
     // `classIds` is memoised by the caller; `signature` collapses the query

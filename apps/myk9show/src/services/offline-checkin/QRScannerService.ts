@@ -251,7 +251,7 @@ export class QRScannerService extends EventEmitter {
 
       if (detectionProbability > 0.95) { // 5% chance of successful scan per frame
         // Simulate successful QR code detection
-        const mockQRData = {
+        const mockQRData: Record<string, string> = {
           entryId: 'entry-123',
           armband: '101',
           showId: 'show-456',
@@ -300,6 +300,8 @@ export class QRScannerService extends EventEmitter {
       if (this.config.checksumValidation && qrData.checksum) {
         const payload = { ...qrData };
         delete payload.checksum;
+        delete payload.generatedAt;
+        delete payload.isValid;
         const calculatedChecksum = this.calculateChecksum(payload);
         if (calculatedChecksum !== qrData.checksum) {
           return false;

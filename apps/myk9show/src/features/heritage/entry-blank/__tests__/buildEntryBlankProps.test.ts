@@ -402,7 +402,7 @@ describe('buildEntryBlankProps — pre-filled mode', () => {
       judges: JUDGES,
       club: CLUB,
       secretary: SECRETARY,
-      entry: { ...ENTRY, payment_status: 'paid', payment_method: 'credit_card' },
+      entry: { ...ENTRY, payment_status: 'paid', payment_method: 'online' },
     });
 
     expect(propsWithOnline.fees.paymentMethod).toBe('online');

@@ -307,10 +307,7 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const total = entry?.entry_fee != null ? formatFee(entry.entry_fee) : null;
   // Only mail-in payment methods (check/money_order/online) appear on the physical blank.
   // 'paid' and other system statuses map to null (blank checkbox row on the form).
-  const paymentMethod =
-    entry?.payment_method === 'credit_card' || entry?.payment_method === 'debit_card'
-      ? 'online'
-      : entry?.payment_method;
+  const paymentMethod = entry?.payment_method;
   const MAIL_PAYMENT_METHODS = new Set(['check', 'money_order', 'online']);
   const feesProps: EntryBlankFees = {
     firstEntryFee: formatFee(preEntry),

@@ -213,6 +213,33 @@ describe('useOptimisticScoring — fail-closed durability', () => {
     expect(payload.points_earned).toBe(0);
   });
 
+  it('preserves blank area positions as null detail values', async () => {
+    updateEntry.mockResolvedValue('mutation-blank-area');
+    const opts = baseOptions({
+      scoreData: {
+        resultText: 'Qualified',
+        searchTime: '1:00.00',
+        faultCount: 0,
+        areaTimes: ['0:45.00', '', '0:15.00'],
+        correctCount: 3,
+        incorrectCount: 0,
+        finishCallErrors: 0,
+        points: 95,
+        nonQualifyingReason: undefined,
+      },
+    });
+
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(opts);
+    });
+
+    const payload = updateEntry.mock.calls[0][1] as Record<string, unknown>;
+    expect(payload.area1_time_seconds).toBe(45);
+    expect(payload.area2_time_seconds).toBeNull();
+    expect(payload.area3_time_seconds).toBe(15);
+  });
+
   // Rescore NQ/DQ → Qualified must CLEAR the old reason (write null), not omit it
   // and leave the stale reason on the entry/reports. Codex P2.
   it('clears disqualification_reason (null) when rescoring to qualified', async () => {

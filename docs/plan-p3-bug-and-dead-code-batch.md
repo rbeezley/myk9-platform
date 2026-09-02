@@ -1,5 +1,7 @@
 # P3 bug and dead-code batch
 
+> **Status:** Active
+
 ## Scope
 
 Fix the nine confirmed P3 defect behaviors represented by MYK9-305, MYK9-309,

@@ -33,7 +33,7 @@ describe('support tickets', () => {
   });
 
   it('creates the ticket and first message through one transactional RPC', async () => {
-    mockRpc.mockResolvedValue({ data: { id: 'ticket-1' }, error: null });
+    mockRpc.mockResolvedValue({ data: [{ id: 'ticket-1' }], error: null });
 
     await expect(createSupportTicket({
       ownerId: 'owner-1',

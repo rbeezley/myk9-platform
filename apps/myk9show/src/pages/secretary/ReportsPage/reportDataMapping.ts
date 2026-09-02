@@ -16,7 +16,7 @@ import type { EmergencyPacketInput } from '@/features/emergency-trial-packet/typ
 import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
-import { getTrialRegistry } from '@/features/registries';
+import { resolveConfiguredRegistryId } from '@/features/registries';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -164,7 +164,7 @@ function readEntrySource(entrySource: string | null | undefined): ReportEntry['e
 }
 
 export function readTrialRegistryId(trial: DbTrial): string {
-  return getTrialRegistry(trial).id;
+  return resolveConfiguredRegistryId(trial.registry_id) ?? 'AKC';
 }
 
 export function mapReportTrialFields(

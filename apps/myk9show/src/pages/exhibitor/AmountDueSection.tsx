@@ -98,6 +98,8 @@ export function AmountDueSection({
     );
   }
 
+  const includesPastBalance = summary.amountDueCents > summary.currentFeesCents;
+
   // Shared by every row so the multi-show breakdown can never disagree with
   // the single-show line about what day it is.
   const now = new Date(nowMs);
@@ -163,7 +165,9 @@ export function AmountDueSection({
                 </p>
               ))}
             <p className="mt-1 text-sm text-muted-foreground">
-              This matches Current Fees on My Shows for current entries.
+              {includesPastBalance
+                ? 'This includes an outstanding balance from an earlier entry.'
+                : 'This matches Current Fees on My Shows for current entries.'}
             </p>
           </div>
           {singleOnlineShowBalance && singleOnlineButtonLabel && (

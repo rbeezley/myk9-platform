@@ -51,6 +51,7 @@ export function CompactStatsRow({
   className,
 }: CompactStatsRowProps) {
   const paidInFull = amountDue <= 0;
+  const includesPastBalance = amountDue > currentFees;
   const feeHref = paidInFull ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
 
   return (
@@ -61,7 +62,9 @@ export function CompactStatsRow({
         aria-label={
           paidInFull
             ? 'Entry fees: paid in full. View your payments.'
-            : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
+            : includesPastBalance
+              ? `Entry fees: ${formatCurrency(amountDue)} outstanding. Finish payment.`
+              : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
         }
         className={cn(
           'group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm',
@@ -101,9 +104,13 @@ export function CompactStatsRow({
                 <span className="text-2xl font-bold leading-none text-warning tabular-nums">
                   {formatCurrency(amountDue)}
                 </span>
-                <span className="text-sm text-muted-foreground tabular-nums">
-                  due of {formatCurrency(currentFees)} entered
-                </span>
+                {includesPastBalance ? (
+                  <span className="text-sm text-muted-foreground">outstanding balance</span>
+                ) : (
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    due of {formatCurrency(currentFees)} entered
+                  </span>
+                )}
               </span>
             )}
           </span>

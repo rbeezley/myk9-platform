@@ -11,31 +11,26 @@ export async function markReplicatedRowSynced(
   if (mutation.operation === 'DELETE') return;
 
   const key = [mutation.tableName, String(mutation.rowId)];
-  const tx = db.transaction(
-    [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS],
-    'readwrite'
-  );
   const [existingRow, pendingMutations] = (await Promise.all([
-    tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).get(key),
-    tx
-      .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
-      .index('tableName_rowId')
-      .getAll([mutation.tableName, String(mutation.rowId)]),
+    db.get(REPLICATION_STORES.REPLICATED_TABLES, key),
+    db.getAllFromIndex(REPLICATION_STORES.PENDING_MUTATIONS, 'tableName_rowId', [
+      mutation.tableName,
+      String(mutation.rowId),
+    ]),
   ])) as [ReplicatedRow<unknown> | undefined, PendingMutation[]];
 
-  if (existingRow) {
-    const hasAnotherPendingMutation = pendingMutations.some(
-      pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
-    );
-    await tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).put({
-      ...existingRow,
-      isDirty: existingRow.isDirty && hasAnotherPendingMutation,
-      syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
-      lastSyncedAt: Date.now(),
-      ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
-    });
-  }
-  await tx.done;
+  if (!existingRow) return;
+
+  const hasAnotherPendingMutation = pendingMutations.some(
+    pending => pending.id !== mutation.id && pending.authUserId === mutation.authUserId
+  );
+  await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
+    ...existingRow,
+    isDirty: existingRow.isDirty && hasAnotherPendingMutation,
+    syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
+    lastSyncedAt: Date.now(),
+    ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),
+  });
 }
 
 export function remapDogIdReferences<T extends Record<string, unknown>>(

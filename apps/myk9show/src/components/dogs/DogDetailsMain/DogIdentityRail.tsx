@@ -48,6 +48,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   dog,
   owner,
   registrations,
+  onAddRegistration,
   role = 'exhibitor',
   onEditPanelOpen,
   onPhotoDialogOpen,
@@ -169,13 +170,23 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           <Row label="Microchip" value={dog.microchipNumber ?? null} mono />
         </div>
 
-        {registry.rows.length > 0 && (
-          <>
-            <div className="mt-5 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Registrations
-            </div>
-            <DogRegistryTable registry={registry} />
-          </>
+        <div className="mt-5 mb-1 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Registrations
+          </span>
+          <button
+            type="button"
+            onClick={onAddRegistration}
+            className="inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add registration
+          </button>
+        </div>
+        {registry.rows.length > 0 ? (
+          <DogRegistryTable registry={registry} />
+        ) : (
+          <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
 
         <div

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import type { Dog, Owner } from '@/types/dog-types';
 import DogIdentityRail from '../DogIdentityRail';
 
@@ -104,5 +104,16 @@ describe('DogIdentityRail', () => {
     renderRail({ ...base, status: 'retired' });
     expect(screen.getByText('Female')).toBeInTheDocument();
     expect(screen.getByText('Retired')).toBeInTheDocument();
+  });
+
+  // The old sidebar card held the ONLY ordinary path into the add panel;
+  // RegistrationsSection's empty state deliberately carries no action, so
+  // the rail must offer it whether or not the dog has registrations yet.
+  it('offers Add registration even when the dog has none', () => {
+    const onAddRegistration = vi.fn();
+    renderRail(base, { onAddRegistration, registrations: [] });
+    expect(screen.getByText('No registrations yet.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /add registration/i }));
+    expect(onAddRegistration).toHaveBeenCalledTimes(1);
   });
 });

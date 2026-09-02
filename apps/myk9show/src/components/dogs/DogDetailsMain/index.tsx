@@ -30,7 +30,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   onUpdate,
   isDeleting,
 }) => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
   const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
@@ -48,6 +48,21 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   useRouteEntryFocus(headingRef, dog.id);
 
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
+
+  // The rail's "Add registration" is the one ordinary path into the add
+  // panel (RegistrationsSection's empty state deliberately carries no action).
+  const openAddRegistration = () => {
+    // Registrations live on Overview — the default section — so clearing
+    // section/view state is enough to land there; no `tab` param is needed.
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('tab');
+      next.delete('section');
+      next.delete('view');
+      return next;
+    });
+    setAutoOpenAddRegistration(true);
+  };
 
   useEffect(() => {
     const shouldAddRegistration = searchParams.get('addRegistration') === 'true';
@@ -249,6 +264,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             dog={updatedDog}
             owner={owner}
             registrations={dbRegistrations}
+            onAddRegistration={openAddRegistration}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}

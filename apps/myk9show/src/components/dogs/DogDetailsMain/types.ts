@@ -24,6 +24,8 @@ export interface DogIdentityRailProps {
   owner: Owner;
   /** Live registrations when loaded; falls back to `dog.registrations`. */
   registrations?: DogCardRegistration[] | undefined;
+  /** Opens the add-registration panel on Overview. */
+  onAddRegistration?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;

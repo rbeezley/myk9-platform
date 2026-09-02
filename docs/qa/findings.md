@@ -83,6 +83,36 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### MYK9-294
+
+- **Status:** fixed (2026-09-02 — PR #1951 / commit `0c9981e1e`; deployed-migration verification)
+- **Lifecycle status:** resolved
+- **Classification:** Confirmed payment-status visibility defect
+- **Severity:** high
+- **Canonical priority:** P1
+- **Source label:** High
+- **Source:** codex (originating); closure verified by claude
+- **Role/workflow:** exhibitor / checkout confirmation after successful payment
+- **Surface:** `apps/myk9show/src/lib/stripe.ts:197-305`; `supabase/migrations/20260901130000_owner_scoped_checkout_order_lookup.sql`
+- **Suite category:** security/payment
+- **Pattern:** missing-loading-state
+- **Detected by:** exhibitor task walk 2026-09-01; closure verified by claude-daily-commit-review
+- **First seen:** 2026-09-01
+- **Last seen:** 2026-09-02
+- **Consecutive-run count:** 2
+- **Baseline SHA:** `42753661e2f60b1b7205df41ff9afebad3d00892`
+- **Evidence:** #1951 replaces the lagging direct `stripe_orders` read with the owner-scoped `get_my_checkout_order` RPC and passes 26 focused checkout tests. The **deployment gap the Codex run left open is now closed by direct verification** against project `sojmvhhwsjxmfistvzbe`: `supabase_migrations.schema_migrations` contains `20260901130000 owner_scoped_checkout_order_lookup`, and `pg_proc` reports `get_my_checkout_order(p_session_id text)` with `prosecdef = true` and ACL `postgres=X | service_role=X | authenticated=X` — anon holds no EXECUTE, matching the migration's `REVOKE`. Function body reviewed in full: `SET search_path = ''`, every reference schema-qualified, and four ownership arms (site admin, `stripe_customers.person_id`, `entry_carts → exhibitor_profiles`, `entry_payment_links → entries/dogs` handler-or-owner-or-co-owner).
+- **Expected behavior:** After payment the exhibitor receives a truthful settled result or a bounded, recoverable pending state; a committed order must never appear permanently missing.
+- **Observed behavior:** Resolved. The read now goes to the primary through a definer RPC scoped to the caller's ownership, so a just-committed webhook write is visible.
+- **User impact:** A paying exhibitor is no longer left at "Payment Not Found Yet" after a payment that succeeded.
+- **Intent check:** Restores exhibitor trust at the single most anxious moment in the role.
+- **Confidence:** high — source, focused tests, and deployed-object verification all pass.
+- **Existing references:** Linear MYK9-294 (Done 2026-09-02T12:04Z). Note PR #1941 (`codex/myk9-294-work`) remains **open and superseded** by the merged #1951; it should be closed.
+- **Linear issue:** reused MYK9-294; no new issue created.
+- **Proof required:** Satisfied for the deployment half by the migration and `pg_proc`/ACL verification above. A live post-payment browser replay of a genuinely delayed webhook order remains the only unexercised step and is optional follow-up, not a blocker.
+- **Notes:** The Codex daily run on 2026-09-02 recorded this as `blocked` on exactly that deployment evidence. That run was never committed; this entry supersedes it. Its four other closure records (MYK9-283, MYK9-284, MYK9-279, MYK9-286) were stranded in the same uncommitted diff and are not re-transcribed here — all four are Done in Linear with their own closure evidence.
+
+
 ### MYK9-258
 
 - **Status:** fixed (2026-08-29 — PR #1847 / commit `dd8184afe741b754c0c2f701648b116a858dd9b5`; focused SQL/source-contract proof)
@@ -331,6 +361,123 @@ Copy this block for each new finding.
 - **Notes:** Introduced by PR #1845 / commit `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`; source correction merged in PR #1856. Browser console retained existing local-dev errors/warnings, but no product failure blocked the replay. No application code was modified.
 
 ## Open Findings
+
+### NCR-2026-09-02-02
+
+- **Status:** open
+- **Lifecycle status:** new
+- **Classification:** Confirmed product/UX defect on a money surface
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** claude
+- **Role/workflow:** exhibitor / settling an outstanding balance for a show that has already run
+- **Surface:** `apps/myk9show/src/features/payments/entryBalanceSummary.ts:200-252`; `apps/myk9show/src/pages/exhibitor/AmountDueSection.tsx:108-179`; `apps/myk9show/src/components/cart/CartSummary.tsx:174-332`; `apps/myk9show/supabase/functions/stripe-checkout/index.ts:494-546`
+- **Suite category:** feature-audit
+- **Pattern:** dead-end-cta
+- **Detected by:** claude-daily-commit-review
+- **First seen:** 2026-09-02
+- **Last seen:** 2026-09-02
+- **Consecutive-run count:** 1
+- **Baseline SHA:** `42753661e2f60b1b7205df41ff9afebad3d00892`
+- **Evidence:** #1950 (`a9ab486eb`) correctly stopped both exhibitor money surfaces reporting "paid in full" over a past-show debt (MYK9-292). Past-show entries now enter `summarizeEntryBalances`, and one with `paymentStatus = PENDING` / `totalFee > 0` / `paymentMethod` `'online'`-or-null resolves to `getEntryPaymentPrompt → { kind: 'finish-online' }`, landing in `onlineShowBalances` **with a `paymentHref`**. Probe at this baseline (past show ending 2026-05-03, `now` 2026-06-01) returned `currentFeesCents = 0` and `onlineShowBalances[0].paymentHref = "/cart?showId=show-past&entryIds=entry-1"`. Verified non-vacuous by mutation: asserting the href against a sentinel printed `Received: "/cart?showId=show-past&entryIds=entry-1"`. The destination refuses on both sides — `CartSummary` renders "Entries are closed for this show" with the button disabled as "Entries closed. Cannot pay online", and `stripe-checkout` fails closed with `403 "Online entry has closed for this show."` (and a second 403 unless `status` is `published`/`accepting_entries`).
+- **Expected behavior:** An outstanding past-show balance is stated truthfully AND offers a route that can settle it — or says plainly that settlement is with the club.
+- **Observed behavior:** "Amount due $90.00 · This includes an outstanding balance from an earlier entry" with a **Finish payment** button whose destination flatly refuses payment, and no alternative named.
+- **User impact:** The exhibitor is told they owe money, given one button, and the button leads to a page saying payment is impossible. Recoverable only out-of-band.
+- **Intent check:** `docs/roles/exhibitor.md` treats unresolved money states as this role's most anxious moment; a dead-end CTA on that surface works against it. This is the missing half of MYK9-292's fix, not a regression of it.
+- **Confidence:** high on the code path (probe + mutation); medium on real-world frequency.
+- **Fix owner:** exhibitor payments — past-show balance presentation and CTA suppression.
+- **Existing references:** MYK9-292 (Done — the fix this follows from); filed as **MYK9-336** under parent MYK9-335.
+- **Linear issue:** MYK9-336 (new; deduped against MYK9-292/290/291/294/89/215/245 with `includeArchived: true`).
+- **Proof required:** Browser replay as an exhibitor holding a past-show unpaid online entry — the balance shows, and either no dead-end CTA is offered or the offered route completes. A merge alone does not close this.
+
+### NCR-2026-09-02-03
+
+- **Status:** open
+- **Lifecycle status:** new
+- **Classification:** Confirmed CI failure; product-vs-fixture cause NOT yet isolated
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** claude
+- **Role/workflow:** exhibitor / My Shows time filter at 375x667 (iPhone SE)
+- **Surface:** `apps/myk9show/src/test/e2e/my-entries-page-ui.spec.ts:199-217`; `apps/myk9show/src/components/exhibitor/CompactStatsRow.tsx:51-115`
+- **Suite category:** test-harness / feature-audit (unresolved between the two)
+- **Pattern:** off-viewport-affordance
+- **Detected by:** claude-daily-commit-review (CI run 33585214084, job 100111240166)
+- **First seen:** 2026-09-02
+- **Last seen:** 2026-09-02
+- **Consecutive-run count:** 1
+- **Baseline SHA:** `42753661e2f60b1b7205df41ff9afebad3d00892`
+- **Evidence:** `E2E PR Smoke` failed on `main` at `ab07dadee` on the initial attempt AND both retries — deterministic. The Playwright error-context artifact names the element: locator `getByRole('radiogroup', {name:/filter by time/i}).getByRole('radio', {name:/^Completed\s*\d+$/})`, `Expected: in viewport / Received: viewport ratio 0`, `32 x locator resolved to <button role="radio" ... min-h-[44px] ...>`, aria snapshot `- radio "Completed 191"`. The chip renders at a compliant 44px and is simply outside the viewport; `All` and `Upcoming` pass. Bisect window from CI history: last green `E2E PR Smoke` on `main` was `2becb7d83` (#1945); the three commits between it and the first red are #1950, #1953, #1951. Only #1950 touches this surface — it renders the taller "outstanding balance" fee-card variant, which would push the filter row down. #1940's `shouldRenderOwnEntry` narrows the entry set and so does not explain a larger count.
+- **Expected behavior:** All three time-filter chips reachable on a phone without the `Completed` option losing its affordance — the intent the spec's own comment records.
+- **Observed behavior:** `Completed 191` renders outside the 375x667 viewport; `main` is red.
+- **User impact:** If product, a phone user must hunt for the Completed filter. If fixture, none — but `main` stays red either way, which blocks the merge gate.
+- **Intent check:** The spec exists to protect an affordance the chip redesign was meant to guarantee; that guarantee is currently unverified.
+- **Confidence:** high that the failure is real and deterministic; medium on attribution; the cause is explicitly NOT isolated.
+- **Fix owner:** exhibitor My Shows filter layout, or the spec's assertion scope — whichever isolation shows.
+- **Existing references:** MYK9-292, #1950 `a9ab486eb`. Distinct from MYK9-287, which reddens the unit shards of the same `main`.
+- **Linear issue:** MYK9-337 (new) under parent MYK9-335.
+- **Proof required:** Re-run the spec at `2becb7d83` and at `a9ab486eb` against the same staging data to isolate product vs. data; then a green `E2E PR Smoke` on `main` plus a 375x667 aria snapshot showing all three chips reachable.
+
+### NCR-2026-09-02-04
+
+- **Status:** open
+- **Lifecycle status:** new
+- **Classification:** Confirmed observability regression
+- **Severity:** low
+- **Canonical priority:** P3
+- **Source label:** Low
+- **Source:** claude
+- **Role/workflow:** any owner / deleting a dog the server refuses to delete
+- **Surface:** `apps/myk9show/src/pages/DogDetailPage.tsx:70-81`; `apps/myk9show/src/components/base/BaseEntityDialog.tsx:52-54`; `apps/myk9show/src/services/MonitoringService.ts:356`
+- **Suite category:** feature-audit
+- **Pattern:** unhandled-rejection
+- **Detected by:** claude-daily-commit-review
+- **First seen:** 2026-09-02
+- **Last seen:** 2026-09-02
+- **Consecutive-run count:** 1
+- **Baseline SHA:** `42753661e2f60b1b7205df41ff9afebad3d00892`
+- **Evidence:** #1943 (`a89fbb71b`) re-throws from `handleDeleteDog` so `DogDialogs` skips `onDeleteDialogClose()` — the intended mechanism, and it works. But the chain above never catches: `DeleteDogDialog` passes `onConfirm={onDelete}` typed `() => void`, `DeleteConfirmationDialog` forwards it as `onSubmit`, and `BaseEntityDialog.handleSubmit` is `() => { onSubmit?.(); }` — fire-and-forget, no `await`, no `.catch()`. `MonitoringService.ts:356` registers `window.addEventListener('unhandledrejection', ...)` routing to `captureError`; Sentry's default integrations capture them too.
+- **Expected behavior:** A refused delete keeps the dialog open and shows the server message, recording nothing beyond the deliberate `logger.error`.
+- **Observed behavior:** All of that, plus an `Uncaught (in promise)` and a captured error event per refusal.
+- **User impact:** None directly; the visible behaviour is correct. The cost is error-monitor noise on an already-handled condition.
+- **Intent check:** For a one-person operation, telemetry noise consumes the scarce resource (triage attention) and trains the operator to ignore the channel.
+- **Confidence:** high; traced through all four layers, and the `unhandledrejection` listener confirmed in source.
+- **Fix owner:** shared dialog primitives — `BaseEntityDialog` promise ownership and prop typing.
+- **Existing references:** #1943 `a89fbb71b`. `BaseEntityDialog` is shared, so any dialog whose confirm handler throws has this shape.
+- **Linear issue:** MYK9-338 (new) under parent MYK9-335.
+- **Proof required:** A test spying on `window.onunhandledrejection` (or asserting `captureError` is not called) across a refused delete, failing if the catch is removed.
+
+### NCR-2026-09-02-01
+
+- **Status:** open
+- **Lifecycle status:** unchanged (reproduced independently by two reviewers on the same window)
+- **Classification:** Confirmed observability regression
+- **Severity:** low
+- **Canonical priority:** P3
+- **Source label:** Low
+- **Source:** codex (originating); re-verified by claude
+- **Role/workflow:** all roles / client-side analytics navigation
+- **Surface:** `apps/myk9show/src/services/MonitoringService.ts:453-471`
+- **Suite category:** feature-audit
+- **Pattern:** missing-feedback
+- **Detected by:** codex-daily-commit-review (uncommitted run), re-verified by claude-daily-commit-review
+- **First seen:** 2026-09-02
+- **Last seen:** 2026-09-02
+- **Consecutive-run count:** 1 (two reviewers, one window)
+- **Baseline SHA:** `42753661e2f60b1b7205df41ff9afebad3d00892`
+- **Evidence:** #1931 (`924b2cbce`) replaced the document-wide `MutationObserver` with a `popstate` listener, deferring push navigation to "the owning surface". Independent grep for `page_view` across the app returns only `MonitoringService.ts:455` (initial load) and `:468` (popstate), plus an unrelated `ProductionMonitoringService.ts:299` — no route owner implements it. `history.pushState`/`replaceState` does not fire `popstate`, so in-app navigation emits nothing.
+- **Expected behavior:** One `page_view` per route transition, without a document-wide observer.
+- **Observed behavior:** Initial load and back/forward tracked; ordinary in-app navigation not tracked.
+- **User impact:** None user-facing. Kept in proportion: `analytics_events` has no writer today, so nothing downstream consumes these events yet.
+- **Intent check:** Preserves #1931's performance intent; weakens a platform-health signal that is not yet wired up.
+- **Confidence:** high on source behaviour; no analytics-pipeline replay was available.
+- **Fix owner:** MonitoringService / app-shell router integration.
+- **Existing references:** #1931 `924b2cbce`. Local worktree `codex/fix-page-view-analytics` exists at this SHA with no open PR.
+- **Linear issue:** MYK9-339 (new) under parent MYK9-335. Codex's original run recorded this as report-only P3; carried into Linear here because that run's report was never committed and would otherwise have been lost.
+- **Proof required:** A push-navigation regression test asserting exactly one event per transition, plus a de-duplication assertion for back/forward.
+
 
 ### NCR-2026-08-26-01
 

@@ -43,16 +43,9 @@ test.describe('Phase 5: Simple Integration Testing', () => {
     console.log('📊 Testing Results Dashboard...');
     await page.goto('/results/dashboard', { waitUntil: 'networkidle', timeout: 15000 });
     
-    // Should see the results entry system
-    await expect(page.locator('h1')).toContainText('Result Entry System');
-    console.log('✅ Results Dashboard accessible');
-    
-    // Check for quick access cards
-    const hasQuickAccess = await page.locator('[data-testid*="card"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasRecentActivity = await page.locator('text=Recent Activity').isVisible({ timeout: 5000 }).catch(() => false);
-    
-    if (hasQuickAccess) console.log('✅ Quick access cards visible');
-    if (hasRecentActivity) console.log('✅ Recent activity section visible');
+    // The retired results dashboard is a compatibility redirect.
+    await expect(page).toHaveURL(/\/shows$/);
+    console.log('✅ Legacy results dashboard redirected to Shows');
     
     // Test 3: Test Judge Dashboard (existing component)
     console.log('👨‍⚖️ Testing Judge Dashboard...');
@@ -137,7 +130,7 @@ test.describe('Phase 5: Simple Integration Testing', () => {
     // Should be able to navigate to Phase 5 components from main app
     const navigationTests = [
       { path: '/judge-scoring', expectedText: 'Judge Scoring Interface' },
-      { path: '/results/dashboard', expectedText: 'Result Entry System' },
+      { path: '/results/dashboard', expectedText: 'Shows' },
       { path: '/judge/dashboard', expectedText: 'Judge' }
     ];
     

@@ -39,7 +39,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 1. Discover and browse shows
 
 **Outcome:** Exhibitor finds an upcoming show with an open entry window.
-**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId`
+**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-09-02)_
+**Source-map note:** Re-verified 2026-09-02 after a legacy results bookmark was consolidated to the canonical show list; the guide-facing discovery flow is unchanged.
 **Docs target:** Exhibitor Guide § Discovery
 
 ### 2. Create an account and add a dog

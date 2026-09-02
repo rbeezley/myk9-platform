@@ -67,11 +67,11 @@ test.describe('Judge dashboard journey', () => {
     await expect(page.locator('h1, h2, [role="heading"]').first()).toBeVisible();
   });
 
-  test('reaches the shared results dashboard', async ({ page }) => {
+  test('redirects the retired shared results dashboard bookmark', async ({ page }) => {
     await signInAsJudge(page, '/results/dashboard');
-    await expect(page).toHaveURL(/\/results\/dashboard/);
+    await expect(page).toHaveURL(/\/shows$/);
 
-    await expect(page.getByRole('heading', { name: 'Result Entry System', level: 1 })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /shows/i }).first()).toBeVisible({
       timeout: 15_000,
     });
   });

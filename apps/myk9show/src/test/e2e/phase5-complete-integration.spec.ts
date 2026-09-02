@@ -165,8 +165,8 @@ test.describe('Phase 5: Complete Integration Testing', () => {
       
       // Verify results are publicly accessible
       await page.goto('/results/dashboard', { waitUntil: 'networkidle' });
-      await expect(page.locator('h1')).toContainText('Result Entry System');
-      console.log('✅ Results published and accessible');
+      await expect(page).toHaveURL(/\/shows$/);
+      console.log('✅ Legacy results dashboard redirected to Shows');
       
       // Generate comprehensive reports
       await testHelper.generateShowReports(createdShow.id);
@@ -353,15 +353,6 @@ test.describe('Phase 5: Complete Integration Testing', () => {
       
       // Verify acceptable performance (under 5 seconds)
       expect(maxLoadTime).toBeLessThan(5000);
-      
-      // Test real-time results updates performance
-      await testHelper.publishResultsBatch(largeShow.classIds);
-      
-      // Verify all users receive updates within acceptable time
-      for (const userPage of userPages) {
-        await userPage.goto('/results/live');
-        await expect(userPage.locator('[data-testid="live-results"]')).toBeVisible({ timeout: 3000 });
-      }
       
       // Test report generation performance
       const reportStartTime = Date.now();

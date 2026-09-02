@@ -234,6 +234,17 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/shows/:id', '/shows/:showId/setup', '/secretary/create-show/wizard'],
   },
   {
+    path: '/results/dashboard',
+    title: 'Results Dashboard (legacy)',
+    description:
+      'Older bookmark that opens the show list, the entry point for show-scoped results work.',
+    roles: [UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN],
+    classification: 'park',
+    category: 'Results',
+    status: 'working',
+    linksTo: ['/shows'],
+  },
+  {
     path: '/secretary/create-show/wizard',
     title: 'Show Creation Wizard',
     description: 'Multi-step wizard for creating a show with trials, classes, and officials.',

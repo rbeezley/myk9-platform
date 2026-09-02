@@ -5,7 +5,7 @@
  * focused sub-components located in ./DogDetailsMain/ directory:
  *
  * - index.tsx         - Main orchestrator component
- * - HeroProfileCard   - Profile photo, name, badges
+ * - DogIdentityRail   - Photo, names, badges, facts, registry table, owner, actions
  * - DogInfoCards      - About & Physical Characteristics cards
  * - OwnerInfoCard     - Owner contact information
  * - DogSummaryCard    - Stats summary (registrations, health records)

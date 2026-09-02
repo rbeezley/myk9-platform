@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
+import TitleProgressSection from './TitleProgressSection';
 import { TabContentSkeleton } from './Skeletons';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -57,6 +58,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
 
       {state.section === 'overview' && (
         <div className="pt-6 space-y-8">
+          {isPremium && <TitleProgressSection dogId={dog.id} />}
           <RegistrationsSection dog={dog} autoOpenAddDialog={autoOpenAddRegistration} />
           <section>
             <h2 className="text-base font-semibold mb-3">Activity</h2>

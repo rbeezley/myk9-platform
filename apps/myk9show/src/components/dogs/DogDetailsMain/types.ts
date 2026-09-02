@@ -2,6 +2,7 @@ import type { RefObject } from 'react';
 import type { Dog, DogInput, Owner } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import type { UserRole } from '@/types/auth-types';
+import type { DogCardRegistration } from '@/components/dogs/common/dogRegistryModel';
 
 export interface DogDetailsMainProps {
   dog: Dog;
@@ -18,8 +19,13 @@ export interface EditableValueProps {
   formatFn?: (val: string) => string;
 }
 
-export interface HeroProfileCardProps {
+export interface DogIdentityRailProps {
   dog: Dog;
+  owner: Owner;
+  /** Live registrations when loaded; falls back to `dog.registrations`. */
+  registrations?: DogCardRegistration[] | undefined;
+  /** Opens the add-registration panel on Overview. */
+  onAddRegistration?: (() => void) | undefined;
   role?: 'exhibitor' | 'secretary';
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;

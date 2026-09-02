@@ -4,6 +4,8 @@ import { Cake, PawPrint, User } from 'lucide-react';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 import { BrowseCard, BrowseCardAvatar, BrowseCardDetail } from '@/components/common/BrowseCard';
 import { getDogCardFacts, type DogCardFactKind } from './dogCardFacts';
+import { DogRegistryTable } from '@/components/dogs/common/DogRegistryTable';
+import { buildDogCardRegistryModel } from '@/components/dogs/common/dogRegistryModel';
 
 interface DogsGridViewProps {
   dogs: Dog[];
@@ -52,7 +54,14 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs, showOwner = tr
         const displayName = dog.callName || dog.name;
         const statusKey = dog.status || 'active';
         const statusBadge = STATUS_BADGES[statusKey];
-        const facts = getDogCardFacts(dog, { showOwner });
+        const registry = buildDogCardRegistryModel(dog.registrations);
+        // One breed line when every registry agrees; when they differ the
+        // table below carries each registry's own breed (see dogRegistryModel).
+        const facts = getDogCardFacts(dog, { showOwner }).map(fact =>
+          fact.kind === 'breed' && registry.breedVaries
+            ? { ...fact, text: 'Breed varies by registry' }
+            : fact
+        );
 
         return (
           <BrowseCard
@@ -99,18 +108,9 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs, showOwner = tr
                 })}
               </div>
             )}
-            {dog.registrations && dog.registrations.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {dog.registrations.map(reg => (
-                  <span
-                    key={reg.id}
-                    className="bg-muted px-2 py-0.5 rounded text-xs text-muted-foreground"
-                  >
-                    {reg.organization} {reg.registrationNumber}
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="mt-2">
+              <DogRegistryTable registry={registry} />
+            </div>
           </BrowseCard>
         );
       })}

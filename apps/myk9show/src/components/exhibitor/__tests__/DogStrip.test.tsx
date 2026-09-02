@@ -8,8 +8,16 @@ vi.mock('@/hooks/useTitleProgress', () => ({
 }));
 
 const dogs = [
-  { id: 'd1', call_name: 'Rosie', breed: 'German Shepherd' },
-  { id: 'd2', call_name: 'Max', breed: 'Border Collie' },
+  {
+    id: 'd1',
+    call_name: 'Rosie',
+    registrations: [{ organization: 'AKC', breed: 'German Shepherd', registration_number: 'DN1' }],
+  },
+  {
+    id: 'd2',
+    call_name: 'Max',
+    registrations: [{ organization: 'AKC', breed: 'Border Collie', registration_number: 'DN2' }],
+  },
 ];
 
 describe('DogStrip', () => {
@@ -41,7 +49,7 @@ describe('DogStrip', () => {
 
   /**
    * MYK9-124. The add-a-dog control used to be the LAST child of the horizontal
-   * rail, after every dog card. Cards are `w-52` (208px) plus a 12px gap, and
+   * rail, after every dog card. Cards are `w-80` (320px) plus a 12px gap, and
    * the content column is ~672px at 150-200% browser zoom, so only three items
    * fit — which puts it off-screen for any exhibitor with three or more
    * dogs. The rail carries `hide-scrollbar`, so there was no scrollbar to

@@ -225,10 +225,16 @@ describe('DB migration sanity contracts', () => {
     const { sql } = latestMigrationContaining(
       /CREATE OR REPLACE FUNCTION public\.handle_entry_scoring_state_change/i
     );
+    // Ends at the function's OWN closing delimiter, not at whatever statement
+    // happened to follow it in the migration that last defined it. The previous
+    // end marker was a DROP TRIGGER that only 20260713101000 carried, so the
+    // next migration to redefine the handler without also touching the trigger
+    // broke this contract on file layout rather than on behaviour
+    // (20260902120000).
     const handler = sliceBetween(
       sql,
       'CREATE OR REPLACE FUNCTION public.handle_entry_scoring_state_change',
-      'DROP TRIGGER IF EXISTS entries_refresh_class_scoring_state'
+      '$$;'
     );
 
     expect(handler).toContain("IF v_class_status = 'completed' THEN");

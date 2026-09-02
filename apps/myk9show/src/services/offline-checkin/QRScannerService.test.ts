@@ -38,5 +38,11 @@ describe('QRScannerService', () => {
     const parsed = JSON.parse(await service.generateQRCodeData(ENTRY)) as Record<string, unknown>;
 
     expect(validateQRChecksum(parsed)).toBe(true);
+
+    const tampered = { ...parsed, armband: '999' };
+    expect(validateQRChecksum(tampered)).toBe(false);
+
+    const tamperedChecksum = { ...parsed, checksum: `${parsed.checksum}tampered` };
+    expect(validateQRChecksum(tamperedChecksum)).toBe(false);
   });
 });

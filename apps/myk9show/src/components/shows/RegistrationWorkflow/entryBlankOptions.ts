@@ -267,7 +267,7 @@ export function buildRegistrationEntryBlankDownloads(
           trial_id: trial.id,
           class_id: selectedClass.id,
           entry_fee: outcome.feeCents / 100,
-          payment_status: entryBlankPaymentMethod(input.paymentMethod),
+          payment_method: entryBlankPaymentMethod(input.paymentMethod),
         },
         dog: {
           name: dog.name ?? null,

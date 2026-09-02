@@ -197,6 +197,31 @@ describe('ResultsSubmissionPage', () => {
     expect(mockInvoke).not.toHaveBeenCalled();
   });
 
+  // MYK9-323 — an entry left at the `result_status` default would be reported
+  // to AKC as NQ. That is a permanent record against a real dog, so it blocks
+  // sending exactly the way a missing registration number does.
+  it('blocks sending to AKC while any entry has no result recorded', async () => {
+    mockAKCData.data = makeAKCSubmissionData({
+      entries: [{ resultStatus: 'qualified' }, { armbandNumber: 102, resultStatus: 'pending' }],
+    });
+
+    renderPage();
+
+    expect(await screen.findByTestId('preflight-unscored')).toHaveTextContent(
+      /would be submitted as NQ/
+    );
+    expect(screen.getByTestId('send-disabled-reason')).toHaveTextContent(
+      '1 entry has no result recorded yet.'
+    );
+    expect(screen.getByTestId('send-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('send-btn'));
+
+    expect(screen.queryByTestId('send-confirm-dialog')).not.toBeInTheDocument();
+    expect(mockInvoke).not.toHaveBeenCalled();
+    // The draft is still downloadable so the secretary can find the gaps.
+    expect(screen.getByTestId('download-btn')).toHaveTextContent('Download draft XML');
+  });
+
   it('"Send to AKC" calls supabase.functions.invoke with send-results', async () => {
     mockAKCData.data = makeAKCSubmissionData();
 
@@ -357,45 +382,9 @@ describe('ResultsSubmissionPage', () => {
   // It must read as distinct from "Send", be guarded against a phantom log on
   // the auto-selected formatter, and persist a distinct `submitted` status.
   describe('Mark as submitted (manual record, distinct from Send)', () => {
-    const oneEntry = {
-      show: {
-        id: 'show-1',
-        name: 'Spring',
-        clubName: 'Club',
-        date: null,
-        clubLicenseNumber: null,
-        secretaryName: 'Jane',
-        secretaryEmail: 'jane@example.com',
-      },
-      trials: [],
-      entries: [
-        {
-          dogName: 'Fluffy',
-          breed: 'X',
-          registrationNumber: 'HP123',
-          handlerName: '',
-          className: 'N',
-          element: 'Container',
-          level: 'Novice',
-          section: 'A',
-          resultCode: null,
-          searchTimeSeconds: null,
-          totalFaults: null,
-          finalPlacement: null,
-          armbandNumber: 101,
-          trialId: 't1',
-          classId: 'c1',
-          dogRegisteredName: null,
-          dogGender: 'B',
-          ownerName: null,
-          ownerAddress: null,
-          timeLimitSeconds: null,
-          entryStatus: 'accepted',
-          checkInStatus: 'present',
-          resultStatus: null,
-        },
-      ],
-    } as import('@myk9/secretary').AKCSubmissionData;
+    // One scored entry, from the shared fixture — an inline copy here drifted
+    // into an invented status vocabulary once already (MYK9-323).
+    const oneEntry = makeAKCSubmissionData();
 
     it('contrasts Send vs Mark as submitted in the helper copy', async () => {
       renderPage();

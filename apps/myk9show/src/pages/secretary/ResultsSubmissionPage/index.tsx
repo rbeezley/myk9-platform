@@ -25,7 +25,11 @@ import {
 import { CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { supabase } from '@/services/database/supabaseClient';
-import { listFormatters, AKCScentWorkFormatter } from '@myk9/secretary';
+import {
+  listFormatters,
+  AKCScentWorkFormatter,
+  countUnscoredAKCEntries,
+} from '@myk9/secretary';
 import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { buildFilename, buildAKCSubmissionReadiness, downloadXml } from './helpers';
@@ -140,14 +144,21 @@ export default function ResultsSubmissionPage() {
 
   // Pre-flight: count entries missing AKC reg numbers
   const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;
+  /**
+   * Entries with no result recorded (MYK9-323). AKC's schema has no "unscored"
+   * code, so these can only leave as NQ — a permanent record against a real
+   * dog. Block sending, the same way a missing registration number does.
+   */
+  const unscoredAKCCount = akcData ? countUnscoredAKCEntries(akcData.entries) : 0;
   /** Nothing to send. An empty XML is still valid XML, so this must be its own gate. */
   const hasNoAKCEntries = isAKCScentWork && Boolean(akcData) && akcData!.entries.length === 0;
   const hasBlockingAKCPreflightIssue =
-    isAKCScentWork && (missingAKCCount > 0 || hasNoAKCEntries);
+    isAKCScentWork && (missingAKCCount > 0 || unscoredAKCCount > 0 || hasNoAKCEntries);
   const akcReadiness = akcData
     ? buildAKCSubmissionReadiness({
         entryCount: akcData.entries.length,
         missingRegistrationNumberCount: missingAKCCount,
+        unscoredEntryCount: unscoredAKCCount,
       })
     : null;
   const sendBlockedReason =
@@ -199,7 +210,14 @@ export default function ResultsSubmissionPage() {
   const handleSend = async () => {
     if (!xmlPreview || !activeFormatter || !showId || !akcData) return;
     if (hasBlockingAKCPreflightIssue) {
-      setSendError('Add AKC registration numbers before sending results.');
+      // The blocker is no longer always a missing registration number, so name
+      // the one that actually fired rather than sending the secretary to fix
+      // data that is already correct (MYK9-323).
+      setSendError(
+        unscoredAKCCount > 0
+          ? 'Record a result for every entry before sending results.'
+          : 'Add AKC registration numbers before sending results.'
+      );
       setShowConfirm(false);
       return;
     }
@@ -526,16 +544,28 @@ export default function ResultsSubmissionPage() {
         </p>
       )}
 
-      {/* Pre-flight warning */}
-      {missingAKCCount > 0 && (
+      {/* Pre-flight warning — one banner, one line per blocker that fired. */}
+      {(missingAKCCount > 0 || unscoredAKCCount > 0) && (
         <div
           className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning "
           role="alert"
           data-testid="preflight-warning"
         >
-          {missingAKCCount} {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC
-          registration {missingAKCCount === 1 ? 'number' : 'numbers'}. Add the missing dog
-          registration {missingAKCCount === 1 ? 'number' : 'numbers'} before sending to AKC.
+          {unscoredAKCCount > 0 && (
+            <p data-testid="preflight-unscored">
+              {unscoredAKCCount} {unscoredAKCCount === 1 ? 'entry has' : 'entries have'} no result
+              recorded. AKC has no code for an unscored run, so{' '}
+              {unscoredAKCCount === 1 ? 'it' : 'they'} would be submitted as NQ. Record a result
+              &mdash; or mark the dog absent, excused, or withdrawn &mdash; before sending to AKC.
+            </p>
+          )}
+          {missingAKCCount > 0 && (
+            <p className={unscoredAKCCount > 0 ? 'mt-2' : undefined}>
+              {missingAKCCount} {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC
+              registration {missingAKCCount === 1 ? 'number' : 'numbers'}. Add the missing dog
+              registration {missingAKCCount === 1 ? 'number' : 'numbers'} before sending to AKC.
+            </p>
+          )}
         </div>
       )}
       {sendBlockedReason && (
@@ -619,6 +649,27 @@ export default function ResultsSubmissionPage() {
                     <strong>{missingAKCCount}</strong>{' '}
                     {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC registration
                     numbers
+                  </span>
+                </>
+              )}
+            </li>
+            <li className="flex items-center gap-2">
+              {akcData.entries.length === 0 ? (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>No entries to check for missing results</span>
+                </>
+              ) : unscoredAKCCount === 0 ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                  <span>Every entry has a result recorded</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <span>
+                    <strong>{unscoredAKCCount}</strong>{' '}
+                    {unscoredAKCCount === 1 ? 'entry has' : 'entries have'} no result recorded
                   </span>
                 </>
               )}

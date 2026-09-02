@@ -46,6 +46,8 @@ export type {
   AKCOwnerAddress,
   AKCSubmissionEntry,
   AKCSubmissionData,
+  AKCEntryOutcome,
+  AKCClassTallies,
 } from './results';
 export {
   registerFormatter,
@@ -53,4 +55,8 @@ export {
   listFormatters,
   clearFormatters,
   AKCScentWorkFormatter,
+  classifyAKCEntryOutcome,
+  akcResultCodesForOutcome,
+  tallyAKCClass,
+  countUnscoredAKCEntries,
 } from './results';

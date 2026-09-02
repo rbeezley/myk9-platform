@@ -71,11 +71,26 @@ export interface AKCSubmissionReadiness {
 export function buildAKCSubmissionReadiness(input: {
   entryCount: number;
   missingRegistrationNumberCount: number;
+  unscoredEntryCount?: number;
 }): AKCSubmissionReadiness {
   if (input.entryCount === 0) {
     return {
       verdict: 'No entries are ready to send yet.',
       details: 'Score entries first, then return here to prepare the AKC file.',
+      canSend: false,
+    };
+  }
+
+  // MYK9-323 — AKC's file has no code for "not scored yet", so an unscored dog
+  // can only go out as NQ. That is a real, permanent record against a real dog,
+  // so sending is blocked until every entry carries a result. The draft
+  // download stays available so the secretary can see exactly which dogs.
+  const unscored = input.unscoredEntryCount ?? 0;
+  if (unscored > 0) {
+    return {
+      verdict: `${unscored} ${unscored === 1 ? 'entry has' : 'entries have'} no result recorded yet.`,
+      details:
+        'AKC has no code for an unscored run, so these would be submitted as NQ. Record a result (or mark the dog absent, excused, or withdrawn) for each one before sending.',
       canSend: false,
     };
   }

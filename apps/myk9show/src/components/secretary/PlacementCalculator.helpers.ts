@@ -26,6 +26,7 @@ function parsePlacement(value: string | undefined): number | undefined {
 }
 
 function getServerPlacement(entry: ScentWorkEntry, result?: PlacementResult): number | undefined {
+  if (result?.qualification !== 'Qualified') return undefined;
   if (result?.placementCalculated !== undefined) return result.placementCalculated;
 
   return parsePlacement(entry.competitionData?.placement);

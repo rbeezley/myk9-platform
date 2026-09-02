@@ -68,4 +68,14 @@ describe('buildPlacementData', () => {
       ['A', 2],
     ]);
   });
+
+  it('does not show a stale placement for a non-qualified result', () => {
+    const entries = [makeEntry('A', '2')];
+    const result = makeResult('A', 35_000, 1, 2);
+    result.qualification = 'Not Qualified';
+
+    const placementData = buildPlacementData(entries, new Map([['A', result]]));
+
+    expect(placementData[0]?.placement).toBeUndefined();
+  });
 });

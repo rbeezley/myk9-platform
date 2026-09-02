@@ -27,6 +27,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from './cors.ts';
+import { getClientIP } from './clientIP.ts';
 import { enforcePasscodeRateLimit, type RateLimitResult } from './rateLimitGate.ts';
 
 interface ValidateRequest {
@@ -51,26 +52,6 @@ interface ShowRow {
   start_date: string;
   organization: string | null;
   is_nationals: boolean | null;
-}
-
-// Get client IP from request headers
-function getClientIP(req: Request): string {
-  // Vercel/Cloudflare headers
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-
-  // Cloudflare specific
-  const cfIP = req.headers.get('cf-connecting-ip');
-  if (cfIP) return cfIP;
-
-  // Vercel specific
-  const realIP = req.headers.get('x-real-ip');
-  if (realIP) return realIP;
-
-  // Fallback
-  return 'unknown';
 }
 
 serve(async req => {

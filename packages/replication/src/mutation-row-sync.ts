@@ -16,6 +16,22 @@ export async function markReplicatedRowSynced(
 
   if (!existingRow?.isDirty) return;
 
+  // The runner calls this before deleting the mutation that just succeeded.
+  // Keep the optimistic row dirty when another mutation for the same row is
+  // still queued; clearing it would let a server pull overwrite the later
+  // local edit and falsely report the row as fully synced.
+  const pendingMutations = (await db.getAll(
+    REPLICATION_STORES.PENDING_MUTATIONS
+  )) as PendingMutation[];
+  const hasAnotherPendingMutation = pendingMutations.some(
+    pending =>
+      pending.id !== mutation.id &&
+      pending.tableName === mutation.tableName &&
+      String(pending.rowId) === String(mutation.rowId) &&
+      pending.authUserId === mutation.authUserId
+  );
+  if (hasAnotherPendingMutation) return;
+
   await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
     ...existingRow,
     isDirty: false,

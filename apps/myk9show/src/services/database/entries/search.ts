@@ -20,6 +20,7 @@ import {
 } from './userEntriesReplication';
 import { hasScoredResult } from './resultVisibility';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
+import { toEntryCloseDay } from '@/features/payments/entryCloseDeadline';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -311,10 +312,7 @@ async function postgrestCanModifyEntry(
     return { canModify: false, reason: 'Show not found' };
   }
 
-  const now = new Date();
-  const closeDate = show.entry_close_date ? new Date(show.entry_close_date) : null;
-
-  if (closeDate && closeDate < now) {
+  if (isEntryCloseDayPast(show.entry_close_date)) {
     return { canModify: false, reason: 'Entry deadline has passed' };
   }
 
@@ -323,6 +321,20 @@ async function postgrestCanModifyEntry(
   }
 
   return { canModify: true };
+}
+
+/** Entry close is an inclusive calendar day, not UTC midnight. */
+export function isEntryCloseDayPast(
+  closeDateValue: string | null | undefined,
+  now: Date = new Date()
+): boolean {
+  const closeDay = toEntryCloseDay(closeDateValue);
+  if (!closeDay) return false;
+
+  const today = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+    .map((part, index) => (index === 0 ? String(part) : String(part).padStart(2, '0')))
+    .join('-');
+  return today > closeDay;
 }
 
 // ---------------------------------------------------------------------------
@@ -530,9 +542,7 @@ export const canModifyEntry = async (
         const show = await replicatedShowsTable.getShowById(showId);
         if (!show) return { canModify: false, reason: 'Show not found' };
 
-        const now = new Date();
-        const closeDate = show.entryCloseDate ? new Date(show.entryCloseDate) : null;
-        if (closeDate && closeDate < now) {
+        if (isEntryCloseDayPast(show.entryCloseDate)) {
           return { canModify: false, reason: 'Entry deadline has passed' };
         }
         if (show.status === 'completed' || show.status === 'cancelled') {

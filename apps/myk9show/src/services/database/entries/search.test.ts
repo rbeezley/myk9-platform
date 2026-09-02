@@ -54,7 +54,7 @@ vi.mock('@/services/mappers/entryMappers', () => ({
   mapReplicatedEntryToDbRow: mocks.mapReplicatedEntryToDbRow,
 }));
 
-import { USER_ENTRIES_SELECT, getUserEntries, searchEntries } from './search';
+import { USER_ENTRIES_SELECT, getUserEntries, isEntryCloseDayPast, searchEntries } from './search';
 import { findMissingReplicatedUserEntryRelations } from './userEntriesReplication';
 
 function makeViewEntriesQuery(
@@ -131,6 +131,20 @@ beforeEach(() => {
       show: options.show ?? null,
     })
   );
+});
+
+describe('isEntryCloseDayPast', () => {
+  it('keeps an entry editable throughout the stored close day', () => {
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-02T18:00:00'))).toBe(
+      false
+    );
+  });
+
+  it('blocks editing on the day after the stored close day', () => {
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-03T00:01:00'))).toBe(
+      true
+    );
+  });
 });
 
 /**

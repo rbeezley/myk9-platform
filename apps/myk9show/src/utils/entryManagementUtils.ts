@@ -153,6 +153,7 @@ export const mapStatusToDb = (status: EntryStatus): CanonicalEntryStatus => {
     case EntryStatus.MOVE_UP_REQUESTED:
       return 'move-up-requested';
     case EntryStatus.PENDING:
+      return 'submitted';
     default:
       return 'submitted';
   }

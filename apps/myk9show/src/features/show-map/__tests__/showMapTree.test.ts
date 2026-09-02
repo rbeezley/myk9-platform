@@ -113,6 +113,21 @@ describe('buildShowMapTree', () => {
     expect(tree.nodesById['entry:entry-1']?.scoreHref).toBeUndefined();
   });
 
+  it('orders unnumbered entries by numeric armband', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes,
+      entries: [dogEntry('entry-10', 'dog-10', '10'), dogEntry('entry-9', 'dog-9', '9'), dogEntry('entry-1', 'dog-1', '1')],
+    });
+
+    expect(tree.childIdsByParentId['class:class-1']).toEqual([
+      'entry:entry-1',
+      'entry:entry-9',
+      'entry:entry-10',
+    ]);
+  });
+
   it('adds an All Exhibitors branch before trial rows', () => {
     const tree = buildShowMapTree({
       show,

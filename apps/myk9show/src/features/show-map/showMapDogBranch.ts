@@ -1,4 +1,5 @@
 import { getEntryAttention } from './attention';
+import { getTrialTimezone } from '@/features/registries';
 import {
   buildProgress,
   classifyEntryCheckInStatus,
@@ -74,15 +75,15 @@ function dogSubtitle(display: ShowMapEntryDisplay): string | undefined {
   return [display.handler, display.breed].filter(Boolean).join(' · ') || undefined;
 }
 
-function armbandSortValue(display: ShowMapEntryDisplay): number {
-  if (!display.armband) return Number.POSITIVE_INFINITY;
-  const parsed = Number.parseInt(display.armband, 10);
+export function armbandSortValue(armband: string | undefined): number {
+  if (!armband) return Number.POSITIVE_INFINITY;
+  const parsed = Number.parseInt(armband, 10);
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
 }
 
 function compareDogBranchEntries(a: DogBranchEntry, b: DogBranchEntry): number {
-  const armbandA = armbandSortValue(a.display);
-  const armbandB = armbandSortValue(b.display);
+  const armbandA = armbandSortValue(a.display.armband);
+  const armbandB = armbandSortValue(b.display.armband);
   if (armbandA !== armbandB) return armbandA - armbandB;
   const dogName = a.display.dogName.localeCompare(b.display.dogName);
   if (dogName !== 0) return dogName;
@@ -229,7 +230,7 @@ export function addAllExhibitorsBranch({
         status: classifyEntryRunStatus(entry),
         checkInStatus: classifyEntryCheckInStatus(entry),
         trialDate: display.trialDate,
-        timezone: trial?.timezone,
+        timezone: getTrialTimezone(trial),
         parentId: dogNodeId,
         childrenCount: 0,
       });

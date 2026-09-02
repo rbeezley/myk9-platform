@@ -173,6 +173,56 @@ describe('executeMutation', () => {
       const result = await executeMutation(supabase, makeLogger(), mutation);
       expect(result).toEqual({});
     });
+
+    it('treats a retried RPC INSERT unique violation as an already-applied mutation', async () => {
+      const supabase = {
+        from: vi.fn(),
+        rpc: vi.fn(() =>
+          Promise.resolve({
+            data: null,
+            error: {
+              code: '23505',
+              message: 'duplicate key value violates unique constraint "dogs_pkey"',
+            },
+          })
+        ),
+      } as unknown as SupabaseClient;
+
+      const mutation = makeMutation({
+        tableName: 'dogs',
+        rowId: 'dog-1',
+        data: { id: 'dog-1' },
+        rpc: { name: 'create_dog_with_registrations', expectRowId: true },
+      });
+
+      await expect(executeMutation(supabase, makeLogger(), mutation)).resolves.toEqual({});
+    });
+
+    it('does not swallow a duplicate registration constraint error', async () => {
+      const supabase = {
+        from: vi.fn(),
+        rpc: vi.fn(() =>
+          Promise.resolve({
+            data: null,
+            error: {
+              code: '23505',
+              message:
+                'duplicate key value violates unique constraint "dog_registrations_live_org_number_unique"',
+            },
+          })
+        ),
+      } as unknown as SupabaseClient;
+
+      const mutation = makeMutation({
+        tableName: 'dogs',
+        rowId: 'dog-1',
+        rpc: { name: 'create_dog_with_registrations', expectRowId: true },
+      });
+
+      await expect(executeMutation(supabase, makeLogger(), mutation)).rejects.toMatchObject({
+        code: '23505',
+      });
+    });
   });
 
   describe('UPDATE', () => {
@@ -256,6 +306,28 @@ describe('executeMutation', () => {
 
       await expect(executeMutation(supabase, makeLogger(), mutation)).rejects.toMatchObject({
         currentServerVersion: 9,
+      });
+    });
+
+    it('does not treat a unique violation from an RPC UPDATE as success', async () => {
+      const supabase = {
+        from: vi.fn(),
+        rpc: vi.fn(() =>
+          Promise.resolve({
+            data: null,
+            error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+          })
+        ),
+      } as unknown as SupabaseClient;
+
+      const mutation = makeMutation({
+        operation: 'UPDATE',
+        data: { id: 'entry-1' },
+        rpc: { name: 'ringside_update_entry' },
+      });
+
+      await expect(executeMutation(supabase, makeLogger(), mutation)).rejects.toMatchObject({
+        code: '23505',
       });
     });
   });

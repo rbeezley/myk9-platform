@@ -127,14 +127,14 @@ export function useOptimisticScoring() {
         // columns it never set. Previously these lived only in the local Zustand
         // session and were lost on device loss, invisible to reports (audit M3).
         const areaSeconds = (scoreData.areaTimes ?? []).map(t =>
-          t ? convertTimeToSeconds(t) : 0
+          t ? convertTimeToSeconds(t) : null
         );
         const detailFields: Partial<ReplicatedEntry> = {};
         // A full score submit is authoritative for all four area columns: write
         // each one, clearing an omitted/cleared area to null. Blank times are
-        // filtered from areaTimes, so a rescore that drops a later area sends a
-        // shorter array — writing null (not omitting) overwrites the stale value
-        // instead of leaving the old area2/3/4 time on the entry and in reports.
+        // A blank positional value is an explicit clear. A rescore that drops a
+        // later area still sends null, overwriting stale values in the entry and
+        // reports rather than leaving the old area time behind.
         detailFields.area1_time_seconds = areaSeconds[0] ?? null;
         detailFields.area2_time_seconds = areaSeconds[1] ?? null;
         detailFields.area3_time_seconds = areaSeconds[2] ?? null;

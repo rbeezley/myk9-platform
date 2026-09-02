@@ -464,4 +464,102 @@ describe('send-lifecycle-email handler', () => {
       ])
     );
   });
+  it('renders each job its own personalised body when the payload omits body text', async () => {
+    const { supabase, calls } = makeSupabase(
+      baseTables({
+        show_lifecycle_email_jobs: [
+          readyJob,
+          {
+            ...readyJob,
+            id: 'job-2',
+            recipient_email: 'bob@example.com',
+            recipient_name: 'Bob',
+            subject: 'Entry accepted - Fido',
+            body: 'Hi Bob, your entry for Fido has been accepted. Armband: 47',
+            idempotency_key: 'idem-job-2',
+          },
+        ],
+      })
+    );
+    // Declare the params so `fetch.mock.calls` is typed as [url, init] rather
+    // than the empty tuple a zero-arg mock infers.
+    const fetch = vi.fn(async (_url: string, _init: { body: string }) => ({
+      ok: true,
+      json: async () => ({ id: 'resend-1' }),
+    }));
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+
+    const result = await handler({
+      body: { action: 'send', show_id: 'show-1', job_ids: ['job-1', 'job-2'] },
+      user: { id: 'secretary-1' },
+      supabase,
+    });
+
+    expect(result).toMatchObject({ attempted: 2, sent: 2, failed: 0 });
+    const sentPayloads = fetch.mock.calls.map(
+      call => JSON.parse(call[1].body) as { to: string; html: string }
+    );
+    expect(sentPayloads.map(payload => payload.to)).toEqual([
+      'jamie@example.com',
+      'bob@example.com',
+    ]);
+    expect(sentPayloads[0].html).toContain('You are accepted.');
+    expect(sentPayloads[0].html).not.toContain('Fido');
+    expect(sentPayloads[1].html).toContain('Armband: 47');
+    expect(sentPayloads[1].html).not.toContain('You are accepted.');
+    const renderedBodies = calls
+      .filter(call => call.table === 'show_lifecycle_email_jobs' && call.action === 'update')
+      .map(call => (call.value as { rendered_body?: string }).rendered_body);
+    expect(renderedBodies).toEqual([
+      'You are accepted.',
+      'Hi Bob, your entry for Fido has been accepted. Armband: 47',
+    ]);
+  });
+
+  it('applies a payload body to every job as an explicit broadcast override', async () => {
+    const { supabase, calls } = makeSupabase(
+      baseTables({
+        show_lifecycle_email_jobs: [
+          readyJob,
+          {
+            ...readyJob,
+            id: 'job-2',
+            recipient_email: 'bob@example.com',
+            body: 'Hi Bob, your entry for Fido has been accepted.',
+            idempotency_key: 'idem-job-2',
+          },
+        ],
+      })
+    );
+    const fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ id: 'resend-1' }),
+    }));
+    const handler = createSendLifecycleEmailHandler({
+      fetch: fetch as unknown as typeof globalThis.fetch,
+      resendApiKey: 'resend-key',
+    });
+
+    await handler({
+      body: {
+        action: 'send',
+        show_id: 'show-1',
+        job_ids: ['job-1', 'job-2'],
+        body: 'The venue has changed. Please read the attached notice.',
+      },
+      user: { id: 'secretary-1' },
+      supabase,
+    });
+
+    const renderedBodies = calls
+      .filter(call => call.table === 'show_lifecycle_email_jobs' && call.action === 'update')
+      .map(call => (call.value as { rendered_body?: string }).rendered_body);
+    expect(renderedBodies).toEqual([
+      'The venue has changed. Please read the attached notice.',
+      'The venue has changed. Please read the attached notice.',
+    ]);
+  });
 });

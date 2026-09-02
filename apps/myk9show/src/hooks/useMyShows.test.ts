@@ -13,6 +13,8 @@ const FUTURE_14 = toDateOnly(addDays(new Date(), 14));
 const FUTURE_30 = toDateOnly(addDays(new Date(), 30));
 const FUTURE_7 = toDateOnly(addDays(new Date(), 7));
 const PAST_30 = toDateOnly(subDays(new Date(), 30));
+const YESTERDAY = toDateOnly(subDays(new Date(), 1));
+const TOMORROW = toDateOnly(addDays(new Date(), 1));
 
 describe('useMyShows', () => {
   it('returns empty buckets for empty input', () => {
@@ -30,6 +32,80 @@ describe('useMyShows', () => {
     expect(result.current.today).toHaveLength(1);
     expect(result.current.today[0].id).toBe('s1');
     expect(result.current.upcoming).toHaveLength(0);
+  });
+
+  it('keeps a multi-day show in the today bucket on its second day', () => {
+    const show = makeShow({
+      id: 'multi-day-2',
+      startDate: YESTERDAY,
+      endDate: TOMORROW,
+      status: 'in_progress',
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.today.map(s => s.id)).toEqual(['multi-day-2']);
+    expect(result.current.past).toHaveLength(0);
+  });
+
+  it('keeps a multi-day show in the today bucket on its final day', () => {
+    const show = makeShow({
+      id: 'multi-day-last',
+      startDate: toDateOnly(subDays(new Date(), 2)),
+      endDate: TODAY,
+      status: 'in_progress',
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.today.map(s => s.id)).toEqual(['multi-day-last']);
+    expect(result.current.past).toHaveLength(0);
+  });
+
+  it('treats a completed show as past even while its dates still cover today', () => {
+    const show = makeShow({
+      id: 'multi-day-completed',
+      startDate: YESTERDAY,
+      endDate: TOMORROW,
+      status: 'completed',
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.past.map(s => s.id)).toEqual(['multi-day-completed']);
+    expect(result.current.today).toHaveLength(0);
+  });
+
+  it('treats a cancelled show as past even while its dates still cover today', () => {
+    const show = makeShow({
+      id: 'multi-day-cancelled',
+      startDate: YESTERDAY,
+      endDate: TOMORROW,
+      status: 'cancelled',
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.past.map(s => s.id)).toEqual(['multi-day-cancelled']);
+    expect(result.current.today).toHaveLength(0);
+    expect(result.current.attentionNeeded).toHaveLength(0);
+  });
+
+  it('moves a multi-day show to past only after its end date', () => {
+    const show = makeShow({
+      id: 'multi-day-done',
+      startDate: toDateOnly(subDays(new Date(), 3)),
+      endDate: YESTERDAY,
+      status: 'published',
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.past.map(s => s.id)).toEqual(['multi-day-done']);
+    expect(result.current.today).toHaveLength(0);
+  });
+
+  it('flags a running multi-day show as urgent on its second day', () => {
+    const show = makeShow({
+      id: 'multi-day-attn',
+      startDate: YESTERDAY,
+      endDate: TOMORROW,
+      status: 'in_progress',
+    });
+    const { result } = renderHook(() => useMyShows([show]));
+    expect(result.current.attentionNeeded).toHaveLength(1);
+    expect(result.current.attentionNeeded[0].kind).toBe('urgent');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/multi-day-attn/show-desk');
   });
 
   it('places a published future show in the upcoming bucket', () => {

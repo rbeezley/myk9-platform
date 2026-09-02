@@ -78,4 +78,14 @@ describe('buildPlacementData', () => {
 
     expect(placementData[0]?.placement).toBeUndefined();
   });
+
+  it('uses armband order as the deterministic tie-breaker for equal placements', () => {
+    const entries = [makeEntry('102', '1'), makeEntry('101', '1')];
+    const results = new Map([
+      ['102', makeResult('102', 35_000, 0, 1)],
+      ['101', makeResult('101', 35_000, 0, 1)],
+    ]);
+
+    expect(buildPlacementData(entries, results).map(entry => entry.entryId)).toEqual(['101', '102']);
+  });
 });

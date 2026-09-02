@@ -71,6 +71,10 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntryStatisticsQuery: () => ({ data: null }),
   useEntriesQuery: () => ({ data: [] }),
 }));
+vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({
+  useSelfCheckinMap: (classIds: string[]) =>
+    Object.fromEntries(classIds.map(classId => [classId, true])),
+}));
 vi.mock('@/components/exhibitor/CompactStatsRow', () => ({
   CompactStatsRow: () => null,
 }));

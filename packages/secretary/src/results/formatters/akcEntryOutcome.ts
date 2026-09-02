@@ -1,0 +1,251 @@
+// packages/secretary/src/results/formatters/akcEntryOutcome.ts
+//
+// Classifies one entry into the single outcome AKC's electres schema records
+// for it. Both the per-dog `actionCode`/`resultCode` pair and the per-class
+// tallies (`numWithdrawals` / `numStarters` / `numQualifying`) are derived from
+// this one classification, so a dog can never be counted as, say, a starter in
+// the header while being reported absent in its own row.
+//
+// MYK9-323 — the vocabulary below is the one the DATABASE actually stores,
+// verified against the applied CHECK constraints on `public.entries`:
+//
+//   entry_status     no-status | draft | submitted | paid | confirmed |
+//                    checked-in | at-gate | in-ring | competing | completed |
+//                    withdrawn | scratched | absent | moved | not_accepted |
+//                    pending-payment | promotion-expired | scratch-requested |
+//                    scratch_requested | move-up-requested | move_up_requested
+//   check_in_status  no-status | checked-in | conflict | pulled | at-gate |
+//                    come-to-gate | in-ring | completed
+//   result_status    pending | qualified | nq | absent | excused | withdrawn
+//
+// The previous mapping tested `resultStatus === 'Q'`, `resultStatus ===
+// 'disqualified'` and `checkInStatus === 'absent'`. None of those three values
+// can exist in any of those columns, so all three branches were unreachable:
+// every qualifying dog that had not been placed 1st-4th fell through to the
+// final `NQ` fallback and was submitted to AKC as a non-qualifying run.
+
+import type { AKCResultStatus, AKCSubmissionEntry } from '../types';
+
+/**
+ * What AKC records for a dog.
+ *
+ * Two of these are not AKC outcomes at all. `unscored` means the secretary has
+ * not entered a result yet, and callers must block submission on it rather
+ * than let it reach the file (see `countUnscoredAKCEntries`). `excluded` means
+ * the row never competed in this class and belongs in no AKC file at all (see
+ * `selectSubmittableAKCEntries`).
+ */
+export type AKCEntryOutcome =
+  | 'excluded'
+  | 'withdrawn'
+  | 'absent'
+  | 'excused'
+  | 'placed'
+  | 'qualified'
+  | 'not-qualified'
+  | 'unscored';
+
+/**
+ * Case- and separator-insensitive read of a LIFECYCLE column. `entry_status`
+ * genuinely carries both spellings of the same state ('not_accepted' /
+ * 'not-accepted', 'scratch_requested' / 'scratch-requested'), so folding is
+ * required there.
+ *
+ * `result_status` deliberately does NOT go through this. Normalizing widens
+ * the value back to `string`, which would discard the `AKCResultStatus` union
+ * and re-admit the exact comparison this module exists to make impossible.
+ */
+function norm(value: string | null | undefined): string {
+  return (value ?? '').trim().toLowerCase().replace(/_/g, '-');
+}
+
+/** Every value the CHECK constraint permits, for narrowing at the boundary. */
+const AKC_RESULT_STATUSES: readonly AKCResultStatus[] = [
+  'pending',
+  'qualified',
+  'nq',
+  'absent',
+  'excused',
+  'withdrawn',
+];
+
+/**
+ * Narrow a raw `entries.result_status` read into the union.
+ *
+ * Fail-closed by design: anything unrecognized becomes `null`, which every
+ * caller treats as "no result recorded". That blocks the submission rather
+ * than letting a value nobody anticipated ship silently as NQ — the failure
+ * mode this whole module exists to prevent.
+ */
+export function parseAKCResultStatus(value: string | null | undefined): AKCResultStatus | null {
+  if (value == null) return null;
+  const candidate = value.trim().toLowerCase();
+  return AKC_RESULT_STATUSES.find(status => status === candidate) ?? null;
+}
+
+// A dog pulled from the running order before the class, or whose entry was
+// withdrawn/scratched, is reported to AKC as withheld. `scratch-requested` is
+// deliberately absent: a request is not a scratch until a secretary acts on it.
+const WITHDRAWN_ENTRY_STATUSES = new Set(['withdrawn', 'scratched']);
+
+/**
+ * Lifecycle states of a row that never competed in this class, so it belongs
+ * in no AKC file: an entry still being drafted, one that was never paid for or
+ * whose hold lapsed, one the secretary declined, and one that was moved to a
+ * different class (where it appears under its new class instead).
+ *
+ * These differ from `withdrawn` / `scratched` / `absent`, which ARE reported:
+ * those dogs held an accepted entry and AKC accounts for them.
+ *
+ * A pending REQUEST — 'scratch-requested', 'move-up-requested' — is not in
+ * this set. The entry is live until a secretary acts on the request.
+ */
+const NON_PARTICIPATING_ENTRY_STATUSES = new Set([
+  'draft',
+  'pending-payment',
+  'promotion-expired',
+  'not-accepted',
+  'moved',
+]);
+
+/** Result values that mean a judge actually recorded something for this run. */
+const RECORDED_RESULTS = new Set<AKCResultStatus>([
+  'qualified',
+  'nq',
+  'absent',
+  'excused',
+  'withdrawn',
+]);
+
+/**
+ * Classify one entry. Order matters: a dog that never ran cannot also carry a
+ * placement, and the terminal lifecycle states outrank whatever result_status
+ * happens to be sitting on the row.
+ */
+export function classifyAKCEntryOutcome(entry: AKCSubmissionEntry): AKCEntryOutcome {
+  // Compared as the union, never normalized — see `norm` above.
+  const result = entry.resultStatus;
+  const entryStatus = norm(entry.entryStatus);
+  const checkIn = norm(entry.checkInStatus);
+
+  // A recorded result outranks a non-participating lifecycle state: it means a
+  // judge saw this dog in this class, so the row is reported however the
+  // lifecycle column happens to read. Dropping a SCORED dog from the file is
+  // the one direction of this call that cannot be undone by a re-send.
+  if (
+    (result == null || !RECORDED_RESULTS.has(result)) &&
+    NON_PARTICIPATING_ENTRY_STATUSES.has(entryStatus)
+  ) {
+    return 'excluded';
+  }
+
+  if (result === 'withdrawn' || WITHDRAWN_ENTRY_STATUSES.has(entryStatus)) return 'withdrawn';
+
+  // Absence reaches us three ways depending on where it was recorded: the
+  // judge's result sheet (`result_status`), the entry lifecycle
+  // (`entry_status`), or the gate steward pulling the dog (`check_in_status`,
+  // whose value for this is 'pulled' — there has never been an 'absent' one).
+  if (result === 'absent' || entryStatus === 'absent' || checkIn === 'pulled') return 'absent';
+
+  if (result === 'excused') return 'excused';
+
+  if (result === 'qualified') {
+    return entry.finalPlacement != null && entry.finalPlacement >= 1 && entry.finalPlacement <= 4
+      ? 'placed'
+      : 'qualified';
+  }
+
+  if (result === 'nq') return 'not-qualified';
+
+  // 'pending' (the column default) and NULL both mean "no result entered yet".
+  return 'unscored';
+}
+
+/**
+ * AKC action/result code pair for an outcome.
+ *
+ * `unscored` maps to CNT/NQ as a last resort so a dog is never silently
+ * dropped from a file AKC expects to account for every entry — but callers
+ * must not let it get that far: `countUnscoredAKCEntries` exists so the
+ * submission page can block sending until every dog has a real result.
+ */
+export function akcResultCodesForOutcome(
+  outcome: AKCEntryOutcome,
+  finalPlacement: number | null
+): { actionCode: string; resultCode: string } {
+  switch (outcome) {
+    case 'withdrawn':
+      return { actionCode: 'WHLD', resultCode: 'EXO' };
+    case 'absent':
+      return { actionCode: 'ABSN', resultCode: 'A' };
+    case 'excused':
+      return { actionCode: 'EXCU', resultCode: 'EXO' };
+    case 'placed':
+      return { actionCode: 'PLAC', resultCode: String(finalPlacement) };
+    case 'qualified':
+      return { actionCode: 'CNT', resultCode: 'Q' };
+    case 'not-qualified':
+    case 'unscored':
+      return { actionCode: 'CNT', resultCode: 'NQ' };
+    case 'excluded':
+      // Unreachable through the formatter, which drops these rows before
+      // emitting. Present so the switch stays exhaustive if a caller asks.
+      return { actionCode: 'CNT', resultCode: 'NQ' };
+  }
+}
+
+/**
+ * The entries that belong in an AKC file: everything except rows that never
+ * competed in this class. Callers must filter with this before counting
+ * entries, missing registration numbers, or unscored runs — a draft or
+ * moved-away row must not block a submission it was never part of.
+ */
+export function selectSubmittableAKCEntries(entries: AKCSubmissionEntry[]): AKCSubmissionEntry[] {
+  return entries.filter(entry => classifyAKCEntryOutcome(entry) !== 'excluded');
+}
+
+/** Outcomes AKC counts as a qualifying run for the class header. */
+const QUALIFYING_OUTCOMES = new Set<AKCEntryOutcome>(['qualified', 'placed']);
+
+export interface AKCClassTallies {
+  numEntries: number;
+  numStarters: number;
+  numQualifying: number;
+  numWithdrawals: number;
+}
+
+/** Per-class header counts, derived from the same classification as each row. */
+export function tallyAKCClass(entries: AKCSubmissionEntry[]): AKCClassTallies {
+  let numWithdrawals = 0;
+  let numAbsent = 0;
+  let numQualifying = 0;
+
+  let counted = 0;
+
+  for (const entry of entries) {
+    const outcome = classifyAKCEntryOutcome(entry);
+    if (outcome === 'excluded') continue;
+    counted += 1;
+    if (outcome === 'withdrawn') numWithdrawals += 1;
+    else if (outcome === 'absent') numAbsent += 1;
+    if (QUALIFYING_OUTCOMES.has(outcome)) numQualifying += 1;
+  }
+
+  const numEntries = counted - numWithdrawals;
+  return {
+    numEntries,
+    // A withdrawn dog is already out of numEntries, so absences are only ever
+    // subtracted once — the classification is exclusive between the two.
+    numStarters: numEntries - numAbsent,
+    numQualifying,
+    numWithdrawals,
+  };
+}
+
+/**
+ * How many entries carry no result yet. A non-zero count means the file would
+ * report real dogs to AKC as NQ purely because nobody has scored them.
+ */
+export function countUnscoredAKCEntries(entries: AKCSubmissionEntry[]): number {
+  return entries.filter(entry => classifyAKCEntryOutcome(entry) === 'unscored').length;
+}

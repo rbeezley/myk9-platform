@@ -14,9 +14,19 @@ export type {
   AKCOwnerAddress,
   AKCSubmissionEntry,
   AKCSubmissionData,
+  AKCResultStatus,
 } from './types';
 export { registerFormatter, getFormatter, listFormatters, clearFormatters } from './registry';
 export { AKCScentWorkFormatter } from './formatters/AKCScentWorkFormatter';
+export {
+  classifyAKCEntryOutcome,
+  akcResultCodesForOutcome,
+  tallyAKCClass,
+  countUnscoredAKCEntries,
+  selectSubmittableAKCEntries,
+  parseAKCResultStatus,
+} from './formatters/akcEntryOutcome';
+export type { AKCEntryOutcome, AKCClassTallies } from './formatters/akcEntryOutcome';
 
 // Auto-register built-in formatters on import
 import { registerFormatter } from './registry';

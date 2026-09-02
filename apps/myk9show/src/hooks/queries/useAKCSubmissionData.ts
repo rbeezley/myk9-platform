@@ -7,6 +7,7 @@ import {
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
 } from '@/features/dogs/identity';
+import { parseAKCResultStatus } from '@myk9/secretary';
 import type {
   AKCSubmissionData,
   AKCSubmissionEntry,
@@ -275,7 +276,11 @@ export function useAKCSubmissionData(showId: string) {
           timeLimitSeconds: cls.time_limit_seconds,
           entryStatus: e.entry_status,
           checkInStatus: e.check_in_status,
-          resultStatus: e.result_status,
+          // Narrowed at the boundary (MYK9-323 AC2). PostgREST hands back
+          // `string | null`; anything outside the CHECK constraint becomes
+          // null, which reads downstream as "no result recorded" and blocks
+          // the submission rather than shipping as NQ.
+          resultStatus: parseAKCResultStatus(e.result_status),
         };
       });
 

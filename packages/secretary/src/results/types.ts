@@ -93,6 +93,24 @@ export interface AKCOwnerAddress {
   country: string | null;
 }
 
+/**
+ * Every value `entries.result_status` can hold, as enforced by the applied
+ * CHECK constraint `entries_result_status_check`.
+ *
+ * MYK9-323 AC2 — this union is the structural guard, not just documentation.
+ * The bug that motivated it was `entry.resultStatus === 'Q'`, a comparison
+ * against a value the column cannot store; against this type TypeScript
+ * rejects that outright (TS2367, no overlap) instead of leaving it to a test
+ * fixture to notice. Widen it only alongside the CHECK constraint.
+ */
+export type AKCResultStatus =
+  | 'pending'
+  | 'qualified'
+  | 'nq'
+  | 'absent'
+  | 'excused'
+  | 'withdrawn';
+
 /** Extends SubmissionEntry with fields required by the AKC electres.xsd schema */
 export interface AKCSubmissionEntry extends SubmissionEntry {
   /** Registered name from dog_registrations (AKC org) — for dogName XML attribute */
@@ -109,8 +127,12 @@ export interface AKCSubmissionEntry extends SubmissionEntry {
   entryStatus: string | null;
   /** entries.check_in_status — 'present', 'absent', etc. */
   checkInStatus: string | null;
-  /** entries.result_status — 'Q', 'NQ', 'disqualified', 'excused', etc. */
-  resultStatus: string | null;
+  /**
+   * entries.result_status. NULL means the column was never set; callers treat
+   * that the same as 'pending' — no result recorded. Values arriving from the
+   * database must go through `parseAKCResultStatus` at the query boundary.
+   */
+  resultStatus: AKCResultStatus | null;
 }
 
 export interface AKCSubmissionData {

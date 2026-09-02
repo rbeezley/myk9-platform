@@ -1,11 +1,12 @@
 // packages/secretary/src/results/formatters/AKCScentWorkFormatter.ts
 
-import type {
-  ResultFormatter,
-  SubmissionData,
-  AKCSubmissionData,
-  AKCSubmissionEntry,
-} from '../types';
+import type { ResultFormatter, SubmissionData, AKCSubmissionData } from '../types';
+import {
+  akcResultCodesForOutcome,
+  classifyAKCEntryOutcome,
+  selectSubmittableAKCEntries,
+  tallyAKCClass,
+} from './akcEntryOutcome';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -66,19 +67,6 @@ function mapSecondaryClass(element: string): string {
   }
 }
 
-function mapResultCodes(entry: AKCSubmissionEntry): { actionCode: string; resultCode: string } {
-  if (entry.entryStatus === 'withdrawn') return { actionCode: 'WHLD', resultCode: 'EXO' };
-  if (entry.checkInStatus === 'absent') return { actionCode: 'ABSN', resultCode: 'A' };
-  if (entry.resultStatus === 'disqualified') return { actionCode: 'DISQ', resultCode: 'A' };
-  if (entry.resultStatus === 'excused') return { actionCode: 'EXCU', resultCode: 'EXO' };
-  if (entry.finalPlacement != null && entry.finalPlacement >= 1 && entry.finalPlacement <= 4) {
-    return { actionCode: 'PLAC', resultCode: String(entry.finalPlacement) };
-  }
-  if (entry.resultStatus === 'Q') return { actionCode: 'CNT', resultCode: 'Q' };
-  // NQ, null result, or any other non-qualifying status
-  return { actionCode: 'CNT', resultCode: 'NQ' };
-}
-
 // ---------------------------------------------------------------------------
 // XML generation
 // ---------------------------------------------------------------------------
@@ -104,7 +92,10 @@ function generateAKCXml(data: AKCSubmissionData): string {
         ` eventDate="${esc(trial.date ?? '')}">`
     );
 
-    const trialEntries = entriesByTrial.get(trial.id) ?? [];
+    // Rows that never competed in this class — still a draft, never paid for,
+    // declined, or moved to another class — belong in no AKC file, so they are
+    // dropped before anything is emitted or counted.
+    const trialEntries = selectSubmittableAKCEntries(entriesByTrial.get(trial.id) ?? []);
     const byClass = groupBy(trialEntries, e => e.classId);
 
     for (const [, classEntries] of byClass) {
@@ -114,15 +105,8 @@ function generateAKCXml(data: AKCSubmissionData): string {
       const secondaryClass = mapSecondaryClass(first.element);
       const courseTime = first.timeLimitSeconds != null ? `${first.timeLimitSeconds}.0` : '0.0';
 
-      const numWithdrawals = classEntries.filter(e => e.entryStatus === 'withdrawn').length;
-      const numEntries = classEntries.length - numWithdrawals;
-      const numAbsent = classEntries.filter(e => e.checkInStatus === 'absent').length;
-      const numStarters = numEntries - numAbsent;
-      const numQualifying = classEntries.filter(
-        e =>
-          e.resultStatus === 'Q' ||
-          (e.finalPlacement != null && e.finalPlacement >= 1 && e.finalPlacement <= 4)
-      ).length;
+      const { numEntries, numStarters, numQualifying, numWithdrawals } =
+        tallyAKCClass(classEntries);
 
       const secondaryAttr = secondaryClass ? ` secondaryClass="${secondaryClass}"` : '';
       lines.push(
@@ -137,7 +121,10 @@ function generateAKCXml(data: AKCSubmissionData): string {
       );
 
       for (const entry of classEntries) {
-        const { actionCode, resultCode } = mapResultCodes(entry);
+        const { actionCode, resultCode } = akcResultCodesForOutcome(
+          classifyAKCEntryOutcome(entry),
+          entry.finalPlacement
+        );
         const searchTime = entry.searchTimeSeconds != null ? String(entry.searchTimeSeconds) : '0';
         const gender = entry.dogGender ?? 'B';
         const dogName = esc(entry.dogRegisteredName ?? entry.dogName);

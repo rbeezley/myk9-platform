@@ -5,11 +5,6 @@ import type {
   DbDogRegistrationInsert,
   DbDogRegistrationUpdate,
 } from '../../../types/database-mappings';
-import {
-  normalizeDogRegistrationOrganization,
-  normalizeDogRegistrationNumber,
-} from '@/utils/dogIdentity';
-
 // Get all registrations with dog information
 export const getAllRegistrations = async () => {
   const startTime = Date.now();
@@ -297,45 +292,6 @@ export const searchRegistrations = async (searchTerm: string) => {
 };
 
 // Find an exact registration identity using the same normalization rules as the DB guardrail.
-export const findRegistrationByExactIdentity = async (
-  organization: string,
-  registrationNumber: string
-) => {
-  const startTime = Date.now();
-
-  try {
-    const expectedOrg = normalizeDogRegistrationOrganization(organization);
-    const expectedNumber = normalizeDogRegistrationNumber(registrationNumber);
-
-    if (!expectedOrg || !expectedNumber) {
-      return { data: null, error: null };
-    }
-
-    const { data, error } = await getAllRegistrations();
-    const duration = Date.now() - startTime;
-    logQuery('dog_registration', 'find_exact_identity', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'dog_registration', 'find_exact_identity');
-    }
-
-    const match =
-      data.find(registration => {
-        return (
-          normalizeDogRegistrationOrganization(registration.organization) === expectedOrg &&
-          normalizeDogRegistrationNumber(registration.registration_number) === expectedNumber
-        );
-      }) ?? null;
-
-    return { data: match, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog_registration', 'find_exact_identity');
-    logQuery('dog_registration', 'find_exact_identity', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
 // Get registration statistics
 export const getRegistrationStatistics = async () => {
   const startTime = Date.now();

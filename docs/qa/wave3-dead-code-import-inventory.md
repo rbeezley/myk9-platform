@@ -46,6 +46,11 @@ summary helpers, `isPaidPaymentStatus`, the reviewed lifecycle alias and guard,
 `isSupersededFailure`, and `KNOWN_PARAMETERIZED_PATTERNS`. The live payment
 ledger total and authoritative payout selector remain covered and exported.
 
+The following database exports were also removed after whole-repository
+verification found no production or test consumer: `findRegistrationByExactIdentity`,
+`joinWaitlist`, and `getManualResultById`. Their authoritative replacement
+surfaces remain available through the existing replicated/RPC-backed flows.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

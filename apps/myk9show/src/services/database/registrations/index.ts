@@ -12,7 +12,6 @@ export {
   updateRegistration,
   deleteRegistration,
   searchRegistrations,
-  findRegistrationByExactIdentity,
   getRegistrationStatistics,
   validateRegistrationNumber,
   getRegistrationsByOwner,

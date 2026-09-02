@@ -12,5 +12,4 @@ export {
   promoteWaitlistEntry,
   removeFromWaitlist,
   getWaitlistPosition,
-  joinWaitlist,
 } from './reads';

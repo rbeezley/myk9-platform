@@ -99,6 +99,3 @@ export function resolveExamplePath(pattern: string, ids: ExampleIds): string | n
   const resolver = PATTERN_RESOLVERS[pattern];
   return resolver ? resolver(ids) : null;
 }
-
-/** Exported for test invariants that assert every registry pattern has a resolver. Not used in production. */
-export const KNOWN_PARAMETERIZED_PATTERNS = Object.keys(PATTERN_RESOLVERS);

@@ -12,7 +12,7 @@
  * attempt fail.
  */
 import { describe, it, expect } from 'vitest';
-import { selectAuthoritativePayout, isSupersededFailure } from './payoutSupersession';
+import { selectAuthoritativePayout } from './payoutSupersession';
 
 interface Row {
   id: string;
@@ -60,38 +60,6 @@ describe('selectAuthoritativePayout', () => {
   });
 });
 
-describe('isSupersededFailure', () => {
-  it('a failed row with any live sibling is history, whatever the order', () => {
-    const older = failed('f', '2026-06-09T00:00:00Z');
-    const rows = [older, live('paid', 'completed', '2026-06-01T00:00:00Z')];
-    expect(isSupersededFailure(older, rows, read)).toBe(true);
-  });
-
-  it('an earlier failed attempt is superseded by a later failed attempt', () => {
-    const first = failed('f1', '2026-06-01T00:00:00Z');
-    const rows = [first, failed('f2', '2026-06-09T00:00:00Z')];
-    expect(isSupersededFailure(first, rows, read)).toBe(true);
-  });
-
-  it('the LATEST failure with no live sibling is genuinely outstanding', () => {
-    const latest = failed('f2', '2026-06-09T00:00:00Z');
-    const rows = [failed('f1', '2026-06-01T00:00:00Z'), latest];
-    expect(isSupersededFailure(latest, rows, read)).toBe(false);
-  });
-
-  it('a lone failure is outstanding', () => {
-    const only = failed('f', '2026-06-01T00:00:00Z');
-    expect(isSupersededFailure(only, [only], read)).toBe(false);
-  });
-
-  it('a non-failed row is never superseded', () => {
-    const paid = live('paid', 'completed', '2026-06-01T00:00:00Z');
-    expect(isSupersededFailure(paid, [paid, failed('f', '2026-06-09T00:00:00Z')], read)).toBe(
-      false
-    );
-  });
-});
-
 describe('ties on created_at', () => {
   // The RPC orders by the tuple `(created_at, id)`. Rows inserted in one
   // transaction, or imported, can share a timestamp -- and a timestamp-only
@@ -104,17 +72,8 @@ describe('ties on created_at', () => {
     expect(selectAuthoritativePayout(rows, read)?.id).toBe('bbb');
   });
 
-  it('supersedes the lower id, so exactly one failure stays outstanding', () => {
-    const lower = failed('aaa', SAME);
-    const higher = failed('bbb', SAME);
-    const rows = [lower, higher];
-    expect(isSupersededFailure(lower, rows, read)).toBe(true);
-    expect(isSupersededFailure(higher, rows, read)).toBe(false);
-  });
-
   it('a live row still wins a tie against a failed one', () => {
     const rows = [failed('zzz', SAME), live('aaa', 'completed', SAME)];
     expect(selectAuthoritativePayout(rows, read)?.id).toBe('aaa');
-    expect(isSupersededFailure(rows[0], rows, read)).toBe(true);
   });
 });

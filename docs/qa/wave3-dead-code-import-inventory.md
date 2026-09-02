@@ -40,6 +40,12 @@ Entry Management/Class Management links. The premium style flag module and
 its test were deleted because no production code imported either export;
 premium styles are selected directly by the live template flow.
 
+The following application dead exports were also removed after a repository-wide
+symbol sweep found only their definitions and/or tests: the two legacy payment
+summary helpers, `isPaidPaymentStatus`, the reviewed lifecycle alias and guard,
+`isSupersededFailure`, and `KNOWN_PARAMETERIZED_PATTERNS`. The live payment
+ledger total and authoritative payout selector remain covered and exported.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

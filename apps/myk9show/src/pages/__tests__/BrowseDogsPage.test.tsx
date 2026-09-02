@@ -238,7 +238,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     renderPage();
 
-    expect(screen.getByText('AKC DN12345678')).toBeInTheDocument();
+    expect(screen.getByText('DN12345678')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Name' })).not.toBeInTheDocument();
   });
 
@@ -251,7 +251,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     renderPage();
 
     expect(screen.queryByRole('columnheader', { name: 'Name' })).not.toBeInTheDocument();
-    expect(screen.getByText('AKC DN12345678')).toBeInTheDocument();
+    expect(screen.getByText('DN12345678')).toBeInTheDocument();
   });
 
   it('hides the view-mode toggle entirely for exhibitor-only users', () => {
@@ -287,14 +287,16 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.getByTestId('current-location')).toHaveTextContent('/dogs/dog-1');
   });
 
-  it('renders dog cards with registration number badges when cards are selected', () => {
+  it('renders dog cards with one registry row per registration when cards are selected', () => {
     localStorage.setItem('view-pref-dogs', 'cards');
 
     renderPage();
 
-    // Registration badges should be visible on the card
-    expect(screen.getByText('AKC DN12345678')).toBeInTheDocument();
-    expect(screen.getByText('UKC R123456')).toBeInTheDocument();
+    // The registry table: org label and number are separate cells.
+    expect(screen.getByText('AKC')).toBeInTheDocument();
+    expect(screen.getByText('DN12345678')).toBeInTheDocument();
+    expect(screen.getByText('UKC')).toBeInTheDocument();
+    expect(screen.getByText('R123456')).toBeInTheDocument();
   });
 
   it('renders dog cards without registration badges when none exist', () => {
@@ -309,8 +311,8 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     // Dog card should still render
     expect(screen.getByText('Max')).toBeInTheDocument();
-    // No registration badges
-    expect(screen.queryByText('AKC DN12345678')).not.toBeInTheDocument();
+    // No registry rows
+    expect(screen.queryByText('DN12345678')).not.toBeInTheDocument();
   });
 
   it('uses "Sex" consistently for the filter and table column', () => {

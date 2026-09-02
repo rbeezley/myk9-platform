@@ -439,7 +439,6 @@ class UserAnalyticsMonitor {
   private sessionId: string;
   private userId?: string;
   private events: UserMetric[] = [];
-  private readonly handlePopState = () => this.trackCurrentPageView();
 
   constructor() {
     this.sessionId = this.generateSessionId();
@@ -457,14 +456,9 @@ class UserAnalyticsMonitor {
       title: document.title,
       referrer: document.referrer,
     });
-
-    // Browser back/forward navigation is observable without watching the entire
-    // document. React Router push navigations are intentionally left to the
-    // owning surface so this service never adds a hot-path MutationObserver.
-    window.addEventListener('popstate', this.handlePopState);
   }
 
-  private trackCurrentPageView(): void {
+  trackPageView(): void {
     this.trackEvent('page_view', {
       url: window.location.href,
       title: document.title,
@@ -541,7 +535,7 @@ class UserAnalyticsMonitor {
   }
 
   destroy(): void {
-    window.removeEventListener('popstate', this.handlePopState);
+    // Page-view navigation is owned by the app router subscription.
   }
 }
 
@@ -618,6 +612,10 @@ export class MonitoringService {
 
   trackUserEvent(event: string, properties?: Record<string, unknown>): void {
     this.userAnalyticsMonitor.trackEvent(event, properties);
+  }
+
+  trackPageView(): void {
+    this.userAnalyticsMonitor.trackPageView();
   }
 
   getUserEvents(): UserMetric[] {

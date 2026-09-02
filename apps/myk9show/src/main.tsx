@@ -14,6 +14,8 @@ import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
 import { initializeSettings } from './store/settingsStore';
 import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
+import { monitoring } from './services/MonitoringService';
+import { setupRouterPageViewTracking } from './services/RouterPageViewTracking';
 
 // Initialize settings (applies accent color, theme, etc. from localStorage)
 initializeSettings();
@@ -49,6 +51,8 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
 }
 
 logger.debug('Starting myK9Show...', 'app', {});
+
+setupRouterPageViewTracking(router, monitoring);
 
 const sentryReactErrorHandler = Sentry.reactErrorHandler();
 

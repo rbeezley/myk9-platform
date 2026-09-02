@@ -66,7 +66,7 @@ export default defineConfig({
       '../../supabase/functions/send-results/authz.test.ts',
       '../../supabase/functions/send-email/authz.test.ts',
       '../../supabase/functions/send-email/recipientResolution.test.ts',
-      '../../supabase/functions/send-registration-email/dateFormat.test.ts',
+      '../../supabase/functions/send-registration-email/*.test.ts',
       '../../supabase/functions/validate-passcode/*.test.ts',
       '../../supabase/functions/generate-premium/*.test.ts',
       '../../supabase/functions/admin-delete-user/*.test.ts',

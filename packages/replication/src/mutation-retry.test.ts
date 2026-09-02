@@ -123,4 +123,21 @@ describe('classifyMutationFailure', () => {
     expect(result.mutation.error).toBe('plain failure');
     expect(result.mutation.nextRetryAt).toBeGreaterThanOrEqual(4_000);
   });
+
+  it.each([
+    ['40001', 'could not serialize access due to concurrent update'],
+    ['40P01', 'deadlock detected'],
+  ])('retries transient PostgreSQL class-40 error %s', (code, message) => {
+    const result = classifyMutationFailure({
+      mutation: mutation(),
+      error: { code, message },
+      maxRetries: 3,
+      retryBackoffBase: 10,
+      now: 5_000,
+    });
+
+    expect(result.canRetry).toBe(true);
+    expect(result.permanentlyFailed).toBe(false);
+    expect(result.mutation.status).toBe('pending');
+  });
 });

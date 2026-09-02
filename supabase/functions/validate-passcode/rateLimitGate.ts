@@ -19,7 +19,7 @@ export type RateLimitGateResult =
   | { kind: 'response'; status: 429 | 503; body: Record<string, unknown> };
 
 export interface EnforcePasscodeRateLimitArgs {
-  clientIP: string;
+  clientIP: string | null;
   checkRateLimit: () => Promise<{ data: unknown; error: unknown }>;
   recordBlockedAttempt: () => Promise<void>;
   persistAlert: (alert: OperatorAlertInsert) => Promise<void>;
@@ -73,6 +73,19 @@ async function unavailable(
 export async function enforcePasscodeRateLimit(
   args: EnforcePasscodeRateLimitArgs
 ): Promise<RateLimitGateResult> {
+  if (!args.clientIP) {
+    return {
+      kind: 'allowed',
+      rateLimit: {
+        allowed: true,
+        attempts_count: 0,
+        remaining_attempts: 0,
+        blocked_until: null,
+        message: 'Client address unavailable; IP rate limiting skipped.',
+      },
+    };
+  }
+
   let checkResult: { data: unknown; error: unknown };
   try {
     checkResult = await args.checkRateLimit();

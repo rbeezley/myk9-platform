@@ -20,6 +20,8 @@ import {
 } from './userEntriesReplication';
 import { hasScoredResult } from './resultVisibility';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
+import { toEntryCloseDay } from '@/features/payments/entryCloseDeadline';
+import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 
 // ---------------------------------------------------------------------------
 // PostgREST fallback wrappers (original implementations)
@@ -303,7 +305,7 @@ async function postgrestCanModifyEntry(
 ): Promise<{ canModify: boolean; reason?: string }> {
   const { data: show, error } = await supabase
     .from('shows')
-    .select('entry_close_date, status')
+    .select('entry_close_date, status, trials(timezone, date, id)')
     .eq('id', showId)
     .single();
 
@@ -311,10 +313,13 @@ async function postgrestCanModifyEntry(
     return { canModify: false, reason: 'Show not found' };
   }
 
-  const now = new Date();
-  const closeDate = show.entry_close_date ? new Date(show.entry_close_date) : null;
-
-  if (closeDate && closeDate < now) {
+  if (
+    isEntryCloseDayPast(
+      show.entry_close_date,
+      new Date(),
+      getEntryWindowTimezone(show.trials ?? undefined)
+    )
+  ) {
     return { canModify: false, reason: 'Entry deadline has passed' };
   }
 
@@ -323,6 +328,24 @@ async function postgrestCanModifyEntry(
   }
 
   return { canModify: true };
+}
+
+/** Entry close is an inclusive calendar day, not UTC midnight. */
+export function isEntryCloseDayPast(
+  closeDateValue: string | null | undefined,
+  now: Date = new Date(),
+  timeZone = 'America/New_York'
+): boolean {
+  const closeDay = toEntryCloseDay(closeDateValue);
+  if (!closeDay) return false;
+
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+  return today > closeDay;
 }
 
 // ---------------------------------------------------------------------------
@@ -530,9 +553,8 @@ export const canModifyEntry = async (
         const show = await replicatedShowsTable.getShowById(showId);
         if (!show) return { canModify: false, reason: 'Show not found' };
 
-        const now = new Date();
-        const closeDate = show.entryCloseDate ? new Date(show.entryCloseDate) : null;
-        if (closeDate && closeDate < now) {
+        const trials = await replicatedTrialsTable.getTrialsByShow(showId);
+        if (isEntryCloseDayPast(show.entryCloseDate, new Date(), getEntryWindowTimezone(trials))) {
           return { canModify: false, reason: 'Entry deadline has passed' };
         }
         if (show.status === 'completed' || show.status === 'cancelled') {

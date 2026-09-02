@@ -33,6 +33,7 @@ export async function createMutationManagerTestDb(
         });
         store.createIndex('status', 'status', { unique: false });
         store.createIndex('tableName', 'tableName', { unique: false });
+        store.createIndex('tableName_rowId', ['tableName', 'rowId'], { unique: false });
       }
 
       if (!db.objectStoreNames.contains(REPLICATION_STORES.FAILED_MUTATIONS)) {

@@ -325,24 +325,17 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
 
-  // Handle save — persist form data + role changes
+  // Handle save — persist profile data. Role assignments have their own
+  // scope-aware surface in User Management.
   const handleSave = useCallback(
     async (formData: UserFormData) => {
       const userData = formDataToUser(formData);
-
-      // Save roles to user_roles table (separate from people table)
-      if (userId && formData.roles) {
-        const { savePersonRoles } = await import('./personRolesService');
-        await savePersonRoles(userId, formData.roles);
-        // Invalidate the role query cache so reopening shows fresh data
-        queryClient.invalidateQueries({ queryKey: ['personRoles', userId] });
-      }
 
       if (onSave) {
         await onSave(userData);
       }
     },
-    [onSave, userId, queryClient]
+    [onSave]
   );
 
   return (

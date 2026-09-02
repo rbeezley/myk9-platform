@@ -28,14 +28,23 @@ describe('CompactStatsRow', () => {
   });
 
   it('labels debt from past entries as an outstanding balance', () => {
-    render(<CompactStatsRow {...defaultProps} currentFees={0} amountDue={90} />);
+    render(
+      <CompactStatsRow
+        {...defaultProps}
+        currentFees={0}
+        amountDue={90}
+        currentFeesHref="/exhibitor/payments?due=1"
+      />
+    );
 
     expect(screen.getByText('$90.00')).toBeInTheDocument();
     expect(screen.getByText('outstanding balance')).toBeInTheDocument();
     expect(screen.queryByText(/due of/)).not.toBeInTheDocument();
     expect(
-      screen.getByLabelText('Entry fees: $90.00 outstanding. Finish payment.')
+      screen.getByLabelText('Entry fees: $90.00 outstanding. View payment details.')
     ).toBeInTheDocument();
+    expect(screen.getByText('Contact the club to settle')).toBeInTheDocument();
+    expect(screen.queryByText('Finish Payment')).not.toBeInTheDocument();
   });
 
   it('formats money with cents', () => {

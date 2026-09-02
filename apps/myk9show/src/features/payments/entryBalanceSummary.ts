@@ -48,6 +48,8 @@ export interface EntryBalanceShowSummary {
   entryCloseDay: string | null;
   /** IANA timezone for deciding whether this show's close day has passed. */
   showTimezone: string;
+  /** True when this balance belongs to a show whose final day has passed. */
+  isPastShow?: boolean;
   amountDueCents: number;
   onlineDueCents: number;
   payAtShowDueCents: number;
@@ -229,6 +231,7 @@ export function summarizeEntryBalances(
       showName: entry.showName || 'This show',
       entryCloseDay: entry.entryCloseDay ?? null,
       showTimezone: entry.showTimezone || DEFAULT_SHOW_TIMEZONE,
+      isPastShow: isPastShowEntry(entry, now),
       amountDueCents: 0,
       onlineDueCents: 0,
       payAtShowDueCents: 0,
@@ -241,6 +244,7 @@ export function summarizeEntryBalances(
     // day wins so one relation-less row cannot erase a deadline the others
     // carry.
     existing.entryCloseDay = existing.entryCloseDay ?? entry.entryCloseDay ?? null;
+    existing.isPastShow = existing.isPastShow || isPastShowEntry(entry, now);
     existing.entryIds.push(...entryIdsForPayment(entry));
     showBalances.set(showId, existing);
   }
@@ -265,6 +269,7 @@ export function summarizeEntryBalances(
 export function buildEntryBalanceRecoveryHref(summary: EntryBalanceSummary): string {
   if (
     summary.onlineShowBalances.length === 1 &&
+    !summary.onlineShowBalances[0].isPastShow &&
     summary.onlineDueCents === summary.amountDueCents &&
     summary.payAtShowDueCents === 0
   ) {

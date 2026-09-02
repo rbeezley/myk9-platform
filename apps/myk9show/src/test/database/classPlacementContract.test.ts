@@ -181,7 +181,7 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
     expect(latestGateMigrationFile).toBe(
-      '20260902120000_class_rollup_excludes_moved_and_not_accepted.sql'
+      '20260902174500_class_rollup_excludes_moved_and_not_accepted.sql'
     );
   });
 

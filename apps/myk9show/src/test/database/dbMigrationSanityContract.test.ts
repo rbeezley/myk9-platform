@@ -230,7 +230,7 @@ describe('DB migration sanity contracts', () => {
     // end marker was a DROP TRIGGER that only 20260713101000 carried, so the
     // next migration to redefine the handler without also touching the trigger
     // broke this contract on file layout rather than on behaviour
-    // (20260902120000).
+    // (20260902174500).
     const handler = sliceBetween(
       sql,
       'CREATE OR REPLACE FUNCTION public.handle_entry_scoring_state_change',

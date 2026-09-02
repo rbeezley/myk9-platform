@@ -75,11 +75,15 @@ vi.mock('@/services/database/supabaseClient', () => ({
     from: (table: string) => {
       if (table === 'view_authenticated_entry_results') {
         const eq = (column: string, value: unknown) => ({
-          order: () =>
-            Promise.resolve({
-              data: mockViewRows.current.filter(row => row[column] === value),
-              error: null,
+          order: () => ({
+            order: () => ({
+              range: () =>
+                Promise.resolve({
+                  data: mockViewRows.current.filter(row => row[column] === value),
+                  error: null,
+                }),
             }),
+          }),
         });
         return {
           select: () => ({

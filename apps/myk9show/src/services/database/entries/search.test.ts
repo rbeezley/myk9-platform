@@ -57,12 +57,21 @@ vi.mock('@/services/mappers/entryMappers', () => ({
 import { USER_ENTRIES_SELECT, getUserEntries, searchEntries } from './search';
 import { findMissingReplicatedUserEntryRelations } from './userEntriesReplication';
 
-function makeViewEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
+function makeViewEntriesQuery(
+  data: Array<Record<string, unknown>>,
+  error: Error | null = null,
+  pages?: Array<Array<Record<string, unknown>>>
+) {
+  let selectedData = data;
   const query = {
     select: vi.fn(() => query),
     is: vi.fn(() => query),
     eq: vi.fn(() => query),
-    order: vi.fn(() => Promise.resolve({ data, error })),
+    order: vi.fn(() => query),
+    range: vi.fn((from: number) => {
+      if (pages) selectedData = pages[Math.floor(from / 1000)] ?? [];
+      return Promise.resolve({ data: selectedData, error });
+    }),
   };
   return query;
 }
@@ -88,12 +97,14 @@ function makeEnrollmentsQuery(data: Array<Record<string, unknown>>) {
 
 function mockSupabaseTables(options: {
   viewEntryRows?: Array<Record<string, unknown>>;
+  viewEntryPages?: Array<Array<Record<string, unknown>>>;
   viewEntriesError?: Error | null;
   enrollmentRows?: Array<Record<string, unknown>>;
 }) {
   const viewQuery = makeViewEntriesQuery(
     options.viewEntryRows ?? [],
-    options.viewEntriesError ?? null
+    options.viewEntriesError ?? null,
+    options.viewEntryPages
   );
   const enrollmentsQuery = makeEnrollmentsQuery(options.enrollmentRows ?? []);
 
@@ -339,6 +350,28 @@ describe('getUserEntries replicated relation completeness', () => {
     expect(viewQuery.eq).toHaveBeenCalledWith('is_own_entry', true);
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+  });
+
+  it("fetches every page when the account has more than PostgREST's 1000-row cap", async () => {
+    mockReplicatedStores({ classes: [] });
+    const firstPage = Array.from({ length: 1000 }, (_, index) => ({ id: `entry-${index}` }));
+    const secondPage = Array.from({ length: 231 }, (_, index) => ({
+      id: `entry-${1000 + index}`,
+    }));
+    const { viewQuery } = mockSupabaseTables({
+      viewEntryPages: [firstPage, secondPage],
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data).toHaveLength(1231);
+    expect(result.data.map(entry => entry.id)).toEqual([
+      ...firstPage.map(entry => entry.id),
+      ...secondPage.map(entry => entry.id),
+    ]);
+    expect(viewQuery.range).toHaveBeenNthCalledWith(1, 0, 999);
+    expect(viewQuery.range).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 
   it('prefers the online view when account-scope local entries filter down to empty', async () => {

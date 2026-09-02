@@ -27,6 +27,8 @@ interface UseClassEntriesResult {
   isError: boolean;
 }
 
+const PAGE_SIZE = 1000;
+
 export function mapEntryStatus(entry: Record<string, unknown>): EntryDisplayStatus {
   if (entry.is_scored) return 'completed';
   if (entry.is_in_ring) return 'in_ring';
@@ -38,20 +40,28 @@ export function mapEntryStatus(entry: Record<string, unknown>): EntryDisplayStat
 }
 
 async function fetchClassEntries(classId: string) {
-  const { data, error } = await supabase
-    .from('view_authenticated_entry_results')
-    .select(
-      `
+  const rows: Record<string, unknown>[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('view_authenticated_entry_results')
+      .select(
+        `
       id, armband, run_order, is_scored, result_status, entry_status, is_in_ring,
       handler_id, handler, dog_call_name, dog_breed
     `
-    )
-    .eq('class_id', classId)
-    .is('deleted_at', null)
-    .order('run_order', { ascending: true });
+      )
+      .eq('class_id', classId)
+      .is('deleted_at', null)
+      .order('run_order', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (error) throw error;
-  return data || [];
+    if (error) throw error;
+    const page = (data || []) as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+  return rows;
 }
 
 export function useClassEntries(classId: string | undefined): UseClassEntriesResult {

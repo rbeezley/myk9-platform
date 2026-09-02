@@ -161,21 +161,46 @@ export const USER_ENTRIES_SELECT = `
 // visibility cascade releases them. The view is owner-run and embeds the same
 // manager/own-entry row gate as entries_select, so it keeps working after
 // scored columns are revoked from the shared authenticated role.
-async function postgrestGetUserEntries() {
-  const { data, error } = await supabase
-    .from('view_authenticated_entry_results')
-    .select(USER_ENTRIES_SELECT)
-    // My Entries is OWN entries only. The view returns can_manage OR
-    // is_own_entry rows, so without this filter a secretary/admin would receive
-    // every manageable show entry here. is_own_entry is a SQL-resolved column
-    // (handler is me OR I own the dog), so this scopes every read path —
-    // including the replication-failure fallback — at the source.
-    .eq('is_own_entry', true)
-    .order('created_at', { ascending: false });
+const USER_ENTRIES_PAGE_SIZE = 1000;
+const USER_ENTRIES_MAX_PAGES = 100;
 
-  if (error)
-    throw createDatabaseError(error, 'view_authenticated_entry_results', 'select_user_entries');
-  return { data: data || [], error: null };
+async function postgrestGetUserEntries() {
+  const rows: Record<string, unknown>[] = [];
+
+  for (let page = 0; page < USER_ENTRIES_MAX_PAGES; page++) {
+    const from = page * USER_ENTRIES_PAGE_SIZE;
+    const to = from + USER_ENTRIES_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from('view_authenticated_entry_results')
+      .select(USER_ENTRIES_SELECT)
+      // My Entries is OWN entries only. The view returns can_manage OR
+      // is_own_entry rows, so without this filter a secretary/admin would receive
+      // every manageable show entry here. is_own_entry is a SQL-resolved column
+      // (handler is me OR I own the dog), so this scopes every read path —
+      // including the replication-failure fallback — at the source.
+      .eq('is_own_entry', true)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw createDatabaseError(error, 'view_authenticated_entry_results', 'select_user_entries');
+    }
+
+    const pageRows = (data || []) as Record<string, unknown>[];
+    rows.push(...pageRows);
+    if (pageRows.length < USER_ENTRIES_PAGE_SIZE) {
+      return { data: rows, error: null };
+    }
+  }
+
+  throw createDatabaseError(
+    new Error(
+      `User entries exceeded the ${USER_ENTRIES_MAX_PAGES * USER_ENTRIES_PAGE_SIZE} row safety limit`
+    ),
+    'view_authenticated_entry_results',
+    'select_user_entries'
+  );
 }
 
 function isOfflineFetchError(error: unknown): boolean {

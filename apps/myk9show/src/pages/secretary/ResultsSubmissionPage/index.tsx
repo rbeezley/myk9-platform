@@ -29,6 +29,7 @@ import {
   listFormatters,
   AKCScentWorkFormatter,
   countUnscoredAKCEntries,
+  selectSubmittableAKCEntries,
 } from '@myk9/secretary';
 import { useAKCSubmissionData } from '@/hooks/queries/useAKCSubmissionData';
 import { useResultSubmission, useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
@@ -142,21 +143,31 @@ export default function ResultsSubmissionPage() {
 
   const xmlPreview = isAKCScentWork && akcData ? AKCScentWorkFormatter.formatXml(akcData) : '';
 
+  /**
+   * The entries that actually go to AKC. `useAKCSubmissionData` reads every row
+   * for the show with no lifecycle filter, so drafts, unpaid entries and rows
+   * moved to another class arrive here too. They compete in no class, the
+   * formatter drops them from the file, and every pre-flight count below must
+   * agree — otherwise a draft entry blocks a submission it was never part of.
+   */
+  const submittableAKCEntries = akcData ? selectSubmittableAKCEntries(akcData.entries) : [];
+
   // Pre-flight: count entries missing AKC reg numbers
-  const missingAKCCount = akcData ? akcData.entries.filter(e => !e.registrationNumber).length : 0;
+  const missingAKCCount = submittableAKCEntries.filter(e => !e.registrationNumber).length;
   /**
    * Entries with no result recorded (MYK9-323). AKC's schema has no "unscored"
    * code, so these can only leave as NQ — a permanent record against a real
    * dog. Block sending, the same way a missing registration number does.
    */
-  const unscoredAKCCount = akcData ? countUnscoredAKCEntries(akcData.entries) : 0;
+  const unscoredAKCCount = countUnscoredAKCEntries(submittableAKCEntries);
   /** Nothing to send. An empty XML is still valid XML, so this must be its own gate. */
-  const hasNoAKCEntries = isAKCScentWork && Boolean(akcData) && akcData!.entries.length === 0;
+  const hasNoAKCEntries =
+    isAKCScentWork && Boolean(akcData) && submittableAKCEntries.length === 0;
   const hasBlockingAKCPreflightIssue =
     isAKCScentWork && (missingAKCCount > 0 || unscoredAKCCount > 0 || hasNoAKCEntries);
   const akcReadiness = akcData
     ? buildAKCSubmissionReadiness({
-        entryCount: akcData.entries.length,
+        entryCount: submittableAKCEntries.length,
         missingRegistrationNumberCount: missingAKCCount,
         unscoredEntryCount: unscoredAKCCount,
       })
@@ -177,7 +188,7 @@ export default function ResultsSubmissionPage() {
   const markSubmittedDisabled =
     !showId ||
     !activeSubmissionOption ||
-    (isAKCScentWork && (isAKCLoading || !akcData || akcData.entries.length === 0));
+    (isAKCScentWork && (isAKCLoading || !akcData || submittableAKCEntries.length === 0));
 
   const { mutate: recordSubmission, mutateAsync: recordSubmissionAsync } =
     useResultSubmission(showId);
@@ -403,8 +414,8 @@ export default function ResultsSubmissionPage() {
                       )}
                       This emails the XML file to {activeFormatter.organization} and CCs your
                       secretary address, so you keep a copy.
-                      {akcData && akcData.entries.length > 0 && (
-                        <> {akcData.entries.length} entries will be included.</>
+                      {submittableAKCEntries.length > 0 && (
+                        <> {submittableAKCEntries.length} entries will be included.</>
                       )}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -473,8 +484,8 @@ export default function ResultsSubmissionPage() {
                   {activeSubmissionOption?.organization} through their portal or another method.{' '}
                   <span className="font-medium">It does not email anything.</span>{' '}
                   <span className="font-medium">This record cannot be undone from here.</span>
-                  {isAKCScentWork && akcData && akcData.entries.length > 0 && (
-                    <> {akcData.entries.length} entries will be logged with this record.</>
+                  {isAKCScentWork && submittableAKCEntries.length > 0 && (
+                    <> {submittableAKCEntries.length} entries will be logged with this record.</>
                   )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -629,7 +640,7 @@ export default function ResultsSubmissionPage() {
               <span>{akcReadiness?.verdict}</span>
             </li>
             <li className="flex items-center gap-2">
-              {akcData.entries.length === 0 ? (
+              {submittableAKCEntries.length === 0 ? (
                 <>
                   {/* Vacuous truth is not a green check. "All entries have AKC
                       registration numbers" was rendered as satisfied for a show
@@ -654,7 +665,7 @@ export default function ResultsSubmissionPage() {
               )}
             </li>
             <li className="flex items-center gap-2">
-              {akcData.entries.length === 0 ? (
+              {submittableAKCEntries.length === 0 ? (
                 <>
                   <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
                   <span>No entries to check for missing results</span>
@@ -675,7 +686,7 @@ export default function ResultsSubmissionPage() {
               )}
             </li>
             <li className="flex items-center gap-2">
-              {hasBlockingAKCPreflightIssue || akcData.entries.length === 0 ? (
+              {hasBlockingAKCPreflightIssue || submittableAKCEntries.length === 0 ? (
                 <>
                   <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
                   <span>{akcReadiness?.details}</span>

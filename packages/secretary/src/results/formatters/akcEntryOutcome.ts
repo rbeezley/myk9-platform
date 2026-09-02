@@ -27,11 +27,16 @@
 import type { AKCSubmissionEntry } from '../types';
 
 /**
- * What AKC records for a dog. `unscored` is not an AKC outcome — it means the
- * secretary has not entered a result yet, and callers must block submission on
- * it rather than let it reach the file. See `countUnscoredAKCEntries`.
+ * What AKC records for a dog.
+ *
+ * Two of these are not AKC outcomes at all. `unscored` means the secretary has
+ * not entered a result yet, and callers must block submission on it rather
+ * than let it reach the file (see `countUnscoredAKCEntries`). `excluded` means
+ * the row never competed in this class and belongs in no AKC file at all (see
+ * `selectSubmittableAKCEntries`).
  */
 export type AKCEntryOutcome =
+  | 'excluded'
   | 'withdrawn'
   | 'absent'
   | 'excused'
@@ -51,6 +56,29 @@ function norm(value: string | null | undefined): string {
 const WITHDRAWN_ENTRY_STATUSES = new Set(['withdrawn', 'scratched']);
 
 /**
+ * Lifecycle states of a row that never competed in this class, so it belongs
+ * in no AKC file: an entry still being drafted, one that was never paid for or
+ * whose hold lapsed, one the secretary declined, and one that was moved to a
+ * different class (where it appears under its new class instead).
+ *
+ * These differ from `withdrawn` / `scratched` / `absent`, which ARE reported:
+ * those dogs held an accepted entry and AKC accounts for them.
+ *
+ * A pending REQUEST — 'scratch-requested', 'move-up-requested' — is not in
+ * this set. The entry is live until a secretary acts on the request.
+ */
+const NON_PARTICIPATING_ENTRY_STATUSES = new Set([
+  'draft',
+  'pending-payment',
+  'promotion-expired',
+  'not-accepted',
+  'moved',
+]);
+
+/** Result values that mean a judge actually recorded something for this run. */
+const RECORDED_RESULTS = new Set(['qualified', 'nq', 'absent', 'excused', 'withdrawn']);
+
+/**
  * Classify one entry. Order matters: a dog that never ran cannot also carry a
  * placement, and the terminal lifecycle states outrank whatever result_status
  * happens to be sitting on the row.
@@ -59,6 +87,14 @@ export function classifyAKCEntryOutcome(entry: AKCSubmissionEntry): AKCEntryOutc
   const result = norm(entry.resultStatus);
   const entryStatus = norm(entry.entryStatus);
   const checkIn = norm(entry.checkInStatus);
+
+  // A recorded result outranks a non-participating lifecycle state: it means a
+  // judge saw this dog in this class, so the row is reported however the
+  // lifecycle column happens to read. Dropping a SCORED dog from the file is
+  // the one direction of this call that cannot be undone by a re-send.
+  if (!RECORDED_RESULTS.has(result) && NON_PARTICIPATING_ENTRY_STATUSES.has(entryStatus)) {
+    return 'excluded';
+  }
 
   if (result === 'withdrawn' || WITHDRAWN_ENTRY_STATUSES.has(entryStatus)) return 'withdrawn';
 
@@ -108,7 +144,21 @@ export function akcResultCodesForOutcome(
     case 'not-qualified':
     case 'unscored':
       return { actionCode: 'CNT', resultCode: 'NQ' };
+    case 'excluded':
+      // Unreachable through the formatter, which drops these rows before
+      // emitting. Present so the switch stays exhaustive if a caller asks.
+      return { actionCode: 'CNT', resultCode: 'NQ' };
   }
+}
+
+/**
+ * The entries that belong in an AKC file: everything except rows that never
+ * competed in this class. Callers must filter with this before counting
+ * entries, missing registration numbers, or unscored runs — a draft or
+ * moved-away row must not block a submission it was never part of.
+ */
+export function selectSubmittableAKCEntries(entries: AKCSubmissionEntry[]): AKCSubmissionEntry[] {
+  return entries.filter(entry => classifyAKCEntryOutcome(entry) !== 'excluded');
 }
 
 /** Outcomes AKC counts as a qualifying run for the class header. */
@@ -127,14 +177,18 @@ export function tallyAKCClass(entries: AKCSubmissionEntry[]): AKCClassTallies {
   let numAbsent = 0;
   let numQualifying = 0;
 
+  let counted = 0;
+
   for (const entry of entries) {
     const outcome = classifyAKCEntryOutcome(entry);
+    if (outcome === 'excluded') continue;
+    counted += 1;
     if (outcome === 'withdrawn') numWithdrawals += 1;
     else if (outcome === 'absent') numAbsent += 1;
     if (QUALIFYING_OUTCOMES.has(outcome)) numQualifying += 1;
   }
 
-  const numEntries = entries.length - numWithdrawals;
+  const numEntries = counted - numWithdrawals;
   return {
     numEntries,
     // A withdrawn dog is already out of numEntries, so absences are only ever

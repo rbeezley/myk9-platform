@@ -22,6 +22,7 @@ import {
   akcResultCodesForOutcome,
   tallyAKCClass,
   countUnscoredAKCEntries,
+  selectSubmittableAKCEntries,
   type AKCEntryOutcome,
 } from '../formatters/akcEntryOutcome';
 import type { AKCSubmissionEntry } from '../types';
@@ -164,9 +165,70 @@ describe('classifyAKCEntryOutcome', () => {
     });
   });
 
+  // Found by Codex review. `useAKCSubmissionData` reads every row for the show
+  // with no lifecycle filter, so these arrive here. Before this they were
+  // emitted to AKC as CNT/NQ runs — a dog reported as failing a class it never
+  // competed in — and after the unscored gate landed they would have blocked
+  // every submission for the show instead.
+  describe('rows that never competed in this class', () => {
+    it('excludes each non-participating lifecycle status', () => {
+      for (const entryStatus of [
+        'draft',
+        'pending-payment',
+        'promotion-expired',
+        'not_accepted',
+        'moved',
+      ]) {
+        const entry = makeEntry({ entryStatus, resultStatus: 'pending' });
+        expect(classifyAKCEntryOutcome(entry)).toBe('excluded');
+      }
+    });
+
+    it('keeps a dog whose result was actually recorded, whatever the lifecycle says', () => {
+      // Dropping a SCORED dog is the one direction of this call a re-send
+      // cannot repair, so a recorded result always wins.
+      for (const resultStatus of ['qualified', 'nq', 'absent', 'excused', 'withdrawn']) {
+        const entry = makeEntry({ entryStatus: 'moved', resultStatus });
+        expect(classifyAKCEntryOutcome(entry)).not.toBe('excluded');
+      }
+    });
+
+    it('keeps an entry that merely has a pending request against it', () => {
+      for (const entryStatus of ['scratch-requested', 'move-up-requested', 'move_up_requested']) {
+        const entry = makeEntry({ entryStatus, resultStatus: 'qualified' });
+        expect(classifyAKCEntryOutcome(entry)).toBe('qualified');
+      }
+    });
+
+    it('still reports withdrawn, scratched and absent dogs — they held real entries', () => {
+      expect(classifyAKCEntryOutcome(makeEntry({ entryStatus: 'withdrawn' }))).toBe('withdrawn');
+      expect(classifyAKCEntryOutcome(makeEntry({ entryStatus: 'scratched' }))).toBe('withdrawn');
+      expect(classifyAKCEntryOutcome(makeEntry({ entryStatus: 'absent' }))).toBe('absent');
+    });
+
+    it('does not let an excluded row block a submission as unscored', () => {
+      const entries = [
+        makeEntry({ armbandNumber: 1, resultStatus: 'qualified' }),
+        makeEntry({ armbandNumber: 2, entryStatus: 'moved', resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: 3, entryStatus: 'promotion-expired', resultStatus: 'pending' }),
+      ];
+      expect(countUnscoredAKCEntries(entries)).toBe(0);
+      expect(selectSubmittableAKCEntries(entries)).toHaveLength(1);
+    });
+
+    it('keeps excluded rows out of every class tally', () => {
+      expect(
+        tallyAKCClass([
+          makeEntry({ armbandNumber: 1, resultStatus: 'qualified' }),
+          makeEntry({ armbandNumber: 2, entryStatus: 'draft', resultStatus: 'pending' }),
+        ])
+      ).toEqual({ numEntries: 1, numStarters: 1, numQualifying: 1, numWithdrawals: 0 });
+    });
+  });
+
   it('is case- and separator-insensitive', () => {
     expect(classifyAKCEntryOutcome(makeEntry({ resultStatus: 'QUALIFIED' }))).toBe('qualified');
-    expect(classifyAKCEntryOutcome(makeEntry({ entryStatus: 'Not_Accepted' }))).toBe('unscored');
+    expect(classifyAKCEntryOutcome(makeEntry({ entryStatus: 'Not_Accepted' }))).toBe('excluded');
   });
 
   it('covers every value result_status can hold', () => {

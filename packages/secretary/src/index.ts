@@ -59,4 +59,5 @@ export {
   akcResultCodesForOutcome,
   tallyAKCClass,
   countUnscoredAKCEntries,
+  selectSubmittableAKCEntries,
 } from './results';

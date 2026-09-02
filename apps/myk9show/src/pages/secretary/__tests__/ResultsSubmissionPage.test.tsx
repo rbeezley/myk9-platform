@@ -222,6 +222,31 @@ describe('ResultsSubmissionPage', () => {
     expect(screen.getByTestId('download-btn')).toHaveTextContent('Download draft XML');
   });
 
+  // Found by Codex review on this change. `useAKCSubmissionData` applies no
+  // lifecycle filter, so drafts and moved-away rows reach the page. They go in
+  // no AKC file, so they must not block a submission they were never part of.
+  it('does not let a row that never competed block the submission', async () => {
+    mockAKCData.data = makeAKCSubmissionData({
+      entries: [
+        { resultStatus: 'qualified' },
+        // Never paid for, and moved to another class: neither ran here.
+        { armbandNumber: 102, entryStatus: 'promotion-expired', resultStatus: 'pending' },
+        { armbandNumber: 103, entryStatus: 'moved', resultStatus: 'pending', registrationNumber: null },
+      ],
+    });
+
+    renderPage();
+
+    const sendBtn = await screen.findByTestId('send-btn');
+    expect(sendBtn).toBeEnabled();
+    expect(screen.queryByTestId('preflight-warning')).not.toBeInTheDocument();
+    // The count the secretary is asked to confirm counts only what ships.
+    fireEvent.click(sendBtn);
+    expect(await screen.findByTestId('send-confirm-dialog')).toHaveTextContent(
+      '1 entries will be included.'
+    );
+  });
+
   it('"Send to AKC" calls supabase.functions.invoke with send-results', async () => {
     mockAKCData.data = makeAKCSubmissionData();
 

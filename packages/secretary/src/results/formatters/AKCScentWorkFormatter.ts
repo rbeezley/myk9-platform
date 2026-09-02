@@ -1,7 +1,12 @@
 // packages/secretary/src/results/formatters/AKCScentWorkFormatter.ts
 
 import type { ResultFormatter, SubmissionData, AKCSubmissionData } from '../types';
-import { akcResultCodesForOutcome, classifyAKCEntryOutcome, tallyAKCClass } from './akcEntryOutcome';
+import {
+  akcResultCodesForOutcome,
+  classifyAKCEntryOutcome,
+  selectSubmittableAKCEntries,
+  tallyAKCClass,
+} from './akcEntryOutcome';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -87,7 +92,10 @@ function generateAKCXml(data: AKCSubmissionData): string {
         ` eventDate="${esc(trial.date ?? '')}">`
     );
 
-    const trialEntries = entriesByTrial.get(trial.id) ?? [];
+    // Rows that never competed in this class — still a draft, never paid for,
+    // declined, or moved to another class — belong in no AKC file, so they are
+    // dropped before anything is emitted or counted.
+    const trialEntries = selectSubmittableAKCEntries(entriesByTrial.get(trial.id) ?? []);
     const byClass = groupBy(trialEntries, e => e.classId);
 
     for (const [, classEntries] of byClass) {

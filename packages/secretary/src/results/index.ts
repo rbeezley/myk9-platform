@@ -22,6 +22,7 @@ export {
   akcResultCodesForOutcome,
   tallyAKCClass,
   countUnscoredAKCEntries,
+  selectSubmittableAKCEntries,
 } from './formatters/akcEntryOutcome';
 export type { AKCEntryOutcome, AKCClassTallies } from './formatters/akcEntryOutcome';
 

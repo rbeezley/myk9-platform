@@ -2,6 +2,7 @@ import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { getEligibleForBulkStatusChange } from './bulkActionEligibility';
+import { BULK_STATUSES } from './bulkStatusCatalog';
 import { BULK_COMMAND_LABELS } from './reviewStateLabels';
 
 /**
@@ -10,20 +11,13 @@ import { BULK_COMMAND_LABELS } from './reviewStateLabels';
  * carries refund nuance, matching `bulkActionEligibility`'s note that
  * withdraw/refund stays off the bulk bar.
  */
-const BULK_STATUSES = [
-  EntryStatus.ACCEPTED,
-  EntryStatus.REJECTED,
-  EntryStatus.MISSING_INFO,
-] as const;
-
 interface EnrollmentBulkStatusItemsProps {
   entries: EntryManagementEntry[];
   onBulkStatusChange: (entryIds: string[], status: EntryStatus) => void;
 }
 
 /**
- * "Accept all" / "Reject all" / "Mark all missing information" for one
- * registration.
+ * "Accept all" / "Reject all" for one registration.
  *
  * These commands used to pass every entry in the registration, unfiltered, to
  * the shared bulk handler — including entries that `bulkActionEligibility` says

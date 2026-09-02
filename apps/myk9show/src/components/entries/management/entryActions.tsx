@@ -139,16 +139,6 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
     run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.PENDING),
   },
   {
-    id: 'missing-info',
-    label: STATUS_COMMAND_LABELS[EntryStatus.MISSING_INFO],
-    sectionLabel: 'Entry',
-    icon: <Ticket className="h-4 w-4" />,
-    statusTarget: EntryStatus.MISSING_INFO,
-    applicableWhen: (entry, handlers) =>
-      Boolean(handlers.onStatusChange) && entry.entryStatus !== EntryStatus.MISSING_INFO,
-    run: (entry, handlers) => handlers.onStatusChange?.(entry.id, EntryStatus.MISSING_INFO),
-  },
-  {
     id: 'pull',
     label: STATUS_COMMAND_LABELS[EntryStatus.SCRATCHED],
     sectionLabel: 'Entry',

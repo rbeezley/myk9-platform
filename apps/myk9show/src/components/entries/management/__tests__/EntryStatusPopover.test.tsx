@@ -7,6 +7,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { toRowActions } from '@/components/ui/RowActionMenu';
 import { entryActions, resolveEntryStatusActions } from '../entryActions';
 import { EntryStatusPopover } from '../EntryStatusPopover';
+import { BULK_STATUSES } from '../bulkStatusCatalog';
 
 function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManagementEntry {
   return {
@@ -45,7 +46,7 @@ describe('entry status action definitions', () => {
     const inline = resolveEntryStatusActions(entry, handlers);
     const row = toRowActions(entry, handlers, entryActions);
 
-    expect(inline.map(action => action.id)).toEqual(['accept', 'missing-info', 'pull', 'reject']);
+    expect(inline.map(action => action.id)).toEqual(['accept', 'pull', 'reject']);
     expect(
       row
         .filter(
@@ -60,7 +61,7 @@ describe('entry status action definitions', () => {
       onStatusChange: vi.fn(),
     });
 
-    expect(inline.map(action => action.id)).toEqual(['pending', 'missing-info', 'pull', 'reject']);
+    expect(inline.map(action => action.id)).toEqual(['pending', 'pull', 'reject']);
   });
 });
 
@@ -346,5 +347,14 @@ describe('EntryStatusPopover', () => {
     // status-descriptor's "Wait list".
     expect(screen.getByRole('menuitem', { name: 'Waitlisted (current)' })).toBeInTheDocument();
     expect(screen.queryByText('Wait list (current)')).not.toBeInTheDocument();
+  });
+});
+
+describe('unsupported missing-information status command', () => {
+  it('is absent from both secretary action catalogs', () => {
+    expect(entryActions.some(action => action.statusTarget === EntryStatus.MISSING_INFO)).toBe(
+      false
+    );
+    expect(BULK_STATUSES).not.toContain(EntryStatus.MISSING_INFO);
   });
 });

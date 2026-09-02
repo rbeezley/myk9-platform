@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { isToday, isBefore, differenceInDays } from 'date-fns';
-import { toLocalDate } from '@/utils/date-format';
+import { differenceInDays } from 'date-fns';
+import { showDateRangeStatus, toLocalDate } from '@/utils/date-format';
 import type { Show } from '@/types/show-types';
 
 export type ShowPhase = 'today' | 'upcoming' | 'draft' | 'past';
@@ -23,11 +23,21 @@ export interface MyShowsBuckets {
 }
 
 function toPhase(show: Show): ShowPhase {
-  const start = toLocalDate(show.startDate);
   if (show.status === 'draft') return 'draft';
-  if (isToday(start)) return 'today';
+  // Terminal statuses win over the date range: a show a secretary has marked
+  // completed or cancelled is over even if its dates still cover today, and
+  // must not sit in the live list or be auto-opened by the ringside chooser
+  // for the rest of its run.
   if (show.status === 'completed' || show.status === 'cancelled') return 'past';
-  if (isBefore(start, new Date())) return 'past';
+  // A multi-day show is live for its whole start→end run, not just its first
+  // day. Classifying on startDate alone dropped it into 'past' on day two,
+  // removing it from the secretary's live list and the ringside chooser
+  // mid-show (MYK9-306).
+  // `endDate` falls back to `startDate` so a show missing one keeps its
+  // single-day semantics rather than being read as never-ending.
+  const dateStatus = showDateRangeStatus(show.startDate, show.endDate || show.startDate);
+  if (dateStatus === 'active') return 'today';
+  if (dateStatus === 'past') return 'past';
   // 'published' (entries open) or 'upcoming' (entries closed) — both go in upcoming
   return 'upcoming';
 }

@@ -56,7 +56,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [launch/go-live-2026-07-11.md](launch/go-live-2026-07-11.md)                                                     | Active    | Go-Live Gate Review — 2026-07-11                                              |
 | [launch/go-live-2026-07-26.md](launch/go-live-2026-07-26.md)                                                     | Active    | Go-Live Gate Review — 2026-07-26 (delta: CI/advisor drift + owner gates)      |
 | [plan-secretary-walk-remediation.md](plan-secretary-walk-remediation.md)                                         | Active    | Secretary task-walk findings — remediation + task-card guide                  |
-| [plan-dog-detail-passport-rail.md](plan-dog-detail-passport-rail.md)                                             | Active    | Dog detail page — identity rail beside full-width content (design C)          |
 | [plan-f29b-operational-actions-home.md](plan-f29b-operational-actions-home.md)                                   | Active    | F29b — move-up and run order have no reachable surface                        |
 | [plan-ai-support-triage.md](plan-ai-support-triage.md)                                                           | Active    | AI Support Triage — external scheduled agent (design spec)                    |
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan (9 tasks)                             |

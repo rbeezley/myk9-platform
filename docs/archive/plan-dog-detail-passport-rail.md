@@ -1,6 +1,6 @@
 # Dog detail page — passport rail layout
 
-> **Status:** Active
+> **Status:** Complete (merged #1974, 2026-09-02)
 
 Design: [Dog Detail Page canvas](https://claude.ai/code/artifact/d0bfd714-9f26-40c0-8c75-756858c1cbc8) (direction C, chosen 2026-09-02).
 

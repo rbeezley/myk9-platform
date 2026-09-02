@@ -5,22 +5,19 @@
  * with the grouped My Entries cards on the same page.
  */
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PawPrint } from 'lucide-react';
 import { DogStripCard } from './DogStripCard';
-
-interface DogRegistration {
-  breed?: string;
-  organization?: string;
-  status?: string;
-}
+import type { DogCardRegistration } from '@/components/dogs/common/dogRegistryModel';
 
 interface Dog {
   id: string;
   call_name?: string;
   name?: string;
-  registrations?: DogRegistration[];
+  image_url?: string | null;
+  date_of_birth?: string | null;
+  registrations?: DogCardRegistration[];
 }
 
 interface DogStripProps {
@@ -36,34 +33,15 @@ export const DogStrip: React.FC<DogStripProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const breedsByDogId = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (const dog of dogs) {
-      const seen = new Set<string>();
-      const parts: string[] = [];
-      for (const r of dog.registrations ?? []) {
-        if (!r.breed) continue;
-        const orgAbbr = r.organization?.split(' ')[0] ?? '';
-        const label = orgAbbr ? `${r.breed} (${orgAbbr})` : r.breed;
-        if (!seen.has(label)) {
-          seen.add(label);
-          parts.push(label);
-        }
-      }
-      map.set(dog.id, parts);
-    }
-    return map;
-  }, [dogs]);
-
   if (dogs.length === 0) return null;
 
   return (
     <div>
       {/* INTENT: the add-a-dog action lives in the section header, NOT in the rail below
           (MYK9-124). As the rail's last child its reachability was a function
-          of how many dogs someone owns: cards are 208px + 12px gap and the
-          content column is ~672px at 150-200% browser zoom, so three items fit
-          and any exhibitor with 3+ dogs had the action scrolled out of sight —
+          of how many dogs someone owns: cards are 320px + 12px gap and the
+          content column is ~672px at 150-200% browser zoom, so two items fit
+          and any exhibitor with 2+ dogs had the action scrolled out of sight —
           with `hide-scrollbar` there was not even a scrollbar to hint at it.
           Keep it out of the scroller, and keep the 44px target: the exhibitors
           most likely to zoom are the ones least able to hit a small control. */}
@@ -95,7 +73,9 @@ export const DogStrip: React.FC<DogStripProps> = ({
             key={dog.id}
             dogId={dog.id}
             dogName={dog.call_name ?? dog.name ?? 'Unknown'}
-            breed={breedsByDogId.get(dog.id) ?? []}
+            imageUrl={dog.image_url}
+            dateOfBirth={dog.date_of_birth}
+            registrations={dog.registrations ?? []}
             upcomingClassCount={upcomingClassCountByDog[dog.id] ?? 0}
           />
         ))}

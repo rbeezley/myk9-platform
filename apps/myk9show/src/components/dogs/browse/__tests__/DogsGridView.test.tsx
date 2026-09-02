@@ -48,13 +48,14 @@ describe('DogsGridView', () => {
     expect(screen.getByText('Exhibitor Exhibitor')).toBeInTheDocument();
   });
 
-  it('still renders the dog’s name, badges and registration chips', () => {
+  it('still renders the dog’s name, badges and registration rows', () => {
     render(<DogsGridView dogs={[dog]} showOwner={false} />);
 
     expect(screen.getByRole('link', { name: 'Max' })).toBeInTheDocument();
     expect(screen.getByText('Male')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('AKC DN12345678')).toBeInTheDocument();
+    expect(screen.getByText('AKC')).toBeInTheDocument();
+    expect(screen.getByText('DN12345678')).toBeInTheDocument();
   });
 
   // Reconciled with OpenSpec `exhibitor-ux-remediation` 2.1/2.2: the card takes
@@ -65,6 +66,21 @@ describe('DogsGridView', () => {
 
     expect(screen.getByText(BREED_NOT_SET)).toBeInTheDocument();
     expect(screen.queryByText('Mixed Breed')).not.toBeInTheDocument();
+  });
+
+  it('names each registry’s breed on its row when registries disagree', () => {
+    const mixed = {
+      ...dog,
+      registrations: [
+        { id: 'r1', organization: 'AKC', breed: 'All-American Dog', registrationNumber: 'PAL1', status: 'Active' },
+        { id: 'r2', organization: 'UKC', breed: 'Mixed Breed', registrationNumber: 'P7', status: 'Active' },
+      ],
+    } as unknown as Dog;
+    render(<DogsGridView dogs={[mixed]} showOwner={false} />);
+
+    expect(screen.getByText('Breed varies by registry')).toBeInTheDocument();
+    expect(screen.getByText('All-American Dog')).toBeInTheDocument();
+    expect(screen.getByText('Mixed Breed')).toBeInTheDocument();
   });
 
   it('omits the age line rather than guessing when no date of birth is recorded', () => {

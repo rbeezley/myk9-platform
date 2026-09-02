@@ -2611,16 +2611,30 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscri
       console.log(`No subscriptions found for customer: ${stripeCustomerId}`);
 
       // Update to no subscription state
-      await supabase.from('stripe_subscriptions').upsert(
+      const { error: staleSubscriptionError } = await supabase
+        .from('stripe_subscriptions')
+        .update({ status: 'none' })
+        .eq('customer_id', stripeCustomer.id);
+      if (staleSubscriptionError) {
+        console.error('Error clearing stale subscriptions:', staleSubscriptionError);
+        return;
+      }
+
+      const { error: noSubscriptionError } = await supabase.from('stripe_subscriptions').upsert(
         {
           customer_id: stripeCustomer.id,
           stripe_subscription_id: `none_${stripeCustomerId}`,
           status: 'none',
         },
         {
-          onConflict: 'customer_id',
+          onConflict: 'stripe_subscription_id',
         }
       );
+
+      if (noSubscriptionError) {
+        console.error('Error recording missing subscription:', noSubscriptionError);
+        return;
+      }
 
       // Reset exhibitor profile subscription
       await supabase

@@ -328,4 +328,26 @@ describe('SubscriptionManager', () => {
 
     expect(await screen.findByText('Canceled')).toBeInTheDocument();
   });
+
+  it('does not present a none sentinel row as an unpaid subscription', async () => {
+    entitlementHolder.value = activeEntitlement('paid');
+    builders.stripe_customers.result = { data: { id: 'cus-row-uuid' }, error: null };
+    builders.stripe_subscriptions.result = {
+      data: {
+        status: 'none',
+        stripe_price_id: null,
+        current_period_start: null,
+        current_period_end: null,
+        cancel_at_period_end: false,
+        customer_id: 'cus-row-uuid',
+      },
+      error: null,
+    };
+
+    render(<SubscriptionManager />);
+
+    expect(await screen.findByText(/billing details are unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText('Unpaid')).not.toBeInTheDocument();
+    expect(screen.queryByText(/your subscription is unpaid/i)).not.toBeInTheDocument();
+  });
 });

@@ -140,7 +140,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         searchTime: calculateTotalTime() || '0.00',
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
-        areaTimes: areas.map(a => a.time).filter(t => t && t !== ''),
+        areaTimes: areas.map(a => a.time),
         correctCount: areas.filter(a => a.correct).length,
         incorrectCount: areas.filter(a => !a.correct && a.time !== '').length,
         faultCount,

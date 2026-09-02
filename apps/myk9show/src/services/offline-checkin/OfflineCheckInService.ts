@@ -192,7 +192,7 @@ export class OfflineCheckInService extends EventEmitter {
         return result;
       }
 
-      if (parsedData.checksum && !validateQRChecksum()) {
+      if (parsedData.checksum && !validateQRChecksum(parsedData)) {
         result.error = 'QR code checksum validation failed';
         return result;
       }

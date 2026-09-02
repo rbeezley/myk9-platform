@@ -26,12 +26,20 @@ export function getOperationType(status: CheckInStatus): CheckInOperation['opera
   }
 }
 
-/**
- * Validate a QR code checksum. Currently a placeholder that always returns true.
- */
-export function validateQRChecksum(): boolean {
-  // Implement checksum validation logic
-  return true; // Placeholder
+/** Validate the checksum over the QR payload, excluding the checksum itself. */
+export function validateQRChecksum(payload: Record<string, unknown>): boolean {
+  if (!payload.checksum || typeof payload.checksum !== 'string') return false;
+  const data = { ...payload };
+  delete data.checksum;
+  delete data.generatedAt;
+  delete data.isValid;
+  const serialized = JSON.stringify(data, Object.keys(data).sort());
+  let hash = 0;
+  for (let i = 0; i < serialized.length; i += 1) {
+    hash = ((hash << 5) - hash) + serialized.charCodeAt(i);
+    hash &= hash;
+  }
+  return Math.abs(hash).toString(36) === payload.checksum;
 }
 
 /**

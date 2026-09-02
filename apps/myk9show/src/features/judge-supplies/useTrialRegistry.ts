@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { getTrialRegistry } from '@/features/registries';
 import { supabase } from '@/services/database/supabaseClient';
 
 async function fetchTrialRegistry(trialId: string): Promise<string | null> {
@@ -8,7 +9,8 @@ async function fetchTrialRegistry(trialId: string): Promise<string | null> {
     .eq('id', trialId)
     .single();
   if (error) throw error;
-  return (data as { registry_id?: string | null } | null)?.registry_id ?? null;
+  const registryId = (data as { registry_id?: string | null } | null)?.registry_id;
+  return registryId ? getTrialRegistry({ registry_id: registryId }).id : null;
 }
 
 /**

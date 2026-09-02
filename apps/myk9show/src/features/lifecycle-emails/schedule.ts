@@ -1,3 +1,5 @@
+// Deferred groundwork for the scheduled batch producer (MYK9-228). The UI does
+// not expose these schedules while no producer exists (MYK9-318).
 import type { LifecycleEmailStepType } from './types';
 
 export interface ShowLifecycleScheduleInput {

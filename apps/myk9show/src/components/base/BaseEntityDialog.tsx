@@ -9,7 +9,7 @@ export interface BaseEntityDialogProps {
   titleIcon?: React.ReactNode;
   description?: string | undefined;
   children: ReactNode;
-  onSubmit?: () => void;
+  onSubmit?: () => void | Promise<void>;
   onCancel?: () => void;
   submitLabel?: string;
   cancelLabel?: string;
@@ -50,7 +50,9 @@ export function BaseEntityDialog({
   };
 
   const handleSubmit = () => {
-    onSubmit?.();
+    // Callers report their own failures; consume rejected async handlers so a
+    // handled refusal does not become an unhandledrejection.
+    void Promise.resolve(onSubmit?.()).catch(() => {});
   };
 
   return (

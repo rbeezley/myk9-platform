@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractRoles } from '../userMappers';
+import { extractRoles, mapDbAvailabilityToUI, mapUIAvailabilityToDb } from '../userMappers';
 
 describe('extractRoles', () => {
   it('returns [] for missing user_roles + missing roles', () => {
@@ -43,5 +43,31 @@ describe('extractRoles', () => {
       user_roles: [{ role: { name: 'judge' } }, { role: null }],
     };
     expect(extractRoles(dbUser)).toEqual(['judge']);
+  });
+});
+
+describe('judge availability date mapping', () => {
+  it('round-trips DATE-only values without shifting them in New York', () => {
+    const dbAvailability = {
+      id: 'availability-1',
+      person_id: 'person-1',
+      start_date: '2026-09-05',
+      end_date: '2026-09-07',
+      blackout_dates: ['2026-09-06', '2026-10-31'],
+      max_shows_per_month: 4,
+      travel_radius_miles: 100,
+      availability_status: 'available',
+      created_at: '2026-09-01T12:00:00.000Z',
+      updated_at: '2026-09-01T12:00:00.000Z',
+    };
+
+    const uiAvailability = mapDbAvailabilityToUI(dbAvailability);
+    const dbPayload = mapUIAvailabilityToDb('person-1', uiAvailability);
+
+    expect(dbPayload).toMatchObject({
+      start_date: '2026-09-05',
+      end_date: '2026-09-07',
+      blackout_dates: ['2026-09-06', '2026-10-31'],
+    });
   });
 });

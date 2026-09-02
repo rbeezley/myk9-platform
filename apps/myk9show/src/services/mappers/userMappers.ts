@@ -185,10 +185,15 @@ export const mapDatabaseToUser = (dbUser: Record<string, unknown>): User => {
 /**
  * Convert DB availability row to UI availability shape
  */
+const parseDateOnlyAsLocalMidnight = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export const mapDbAvailabilityToUI = (db: DbJudgeAvailability): JudgeInfo['availability'] => ({
-  startDate: db.start_date ? new Date(db.start_date) : null,
-  endDate: db.end_date ? new Date(db.end_date) : null,
-  blackoutDates: (db.blackout_dates || []).map((d: string) => new Date(d)),
+  startDate: db.start_date ? parseDateOnlyAsLocalMidnight(db.start_date) : null,
+  endDate: db.end_date ? parseDateOnlyAsLocalMidnight(db.end_date) : null,
+  blackoutDates: (db.blackout_dates || []).map(parseDateOnlyAsLocalMidnight),
   maxShowsPerMonth: db.max_shows_per_month ?? 0,
   travelRadius: db.travel_radius_miles ?? 0,
 });

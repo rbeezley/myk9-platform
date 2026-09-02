@@ -5,7 +5,7 @@ import { AlertTriangle, Trash2 } from 'lucide-react';
 export interface DeleteConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title?: string | undefined;
   titleIcon?: React.ReactNode | undefined;
   description?: string | undefined;
@@ -50,7 +50,8 @@ export function DeleteConfirmationDialog({
 }: DeleteConfirmationDialogProps) {
   const defaultTitle = title || `Delete ${entityType}`;
   const defaultTitleIcon = titleIcon || <Trash2 className="w-5 h-5" />;
-  const defaultDescription = description || `Are you sure you want to delete this ${entityType.toLowerCase()}?`;
+  const defaultDescription =
+    description || `Are you sure you want to delete this ${entityType.toLowerCase()}?`;
 
   return (
     <BaseEntityDialog

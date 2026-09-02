@@ -59,8 +59,25 @@ describe('summarizeEntryBalances', () => {
     );
 
     expect(summary.currentFeesCents).toBe(6500);
-    expect(summary.amountDueCents).toBe(5500);
-    expect(summary.onlineDueCents).toBe(5500);
+    expect(summary.amountDueCents).toBe(10500);
+    expect(summary.onlineDueCents).toBe(10500);
+  });
+
+  it('keeps an unpaid balance visible after the show ends', () => {
+    const summary = summarizeEntryBalances(
+      [
+        entry({
+          showDate: new Date(2026, 4, 1),
+          showEndDate: new Date(2026, 4, 3),
+          totalFee: 90,
+        }),
+      ],
+      now
+    );
+
+    expect(summary.currentFeesCents).toBe(0);
+    expect(summary.amountDueCents).toBe(9000);
+    expect(summary.onlineDueCents).toBe(9000);
   });
 
   it('keeps pay-at-show balances in amount due without adding them to cart checkout links', () => {

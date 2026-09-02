@@ -162,6 +162,16 @@ function isPastShowEntry(entry: EntryBalanceSource, now: Date): boolean {
  */
 export function isCurrentSummaryEntry(entry: EntryBalanceSource, now: Date): boolean {
   if (isPastShowEntry(entry, now)) return false;
+  return isBalanceEligibleEntry(entry);
+}
+
+/**
+ * A show date limits the current-entry view, not whether an unpaid balance
+ * exists. Past unpaid entries remain debt until they are paid or otherwise
+ * settled; dropping them made both exhibitor money surfaces claim "paid in
+ * full" after the show ended.
+ */
+function isBalanceEligibleEntry(entry: EntryBalanceSource): boolean {
   return (
     entry.entryStatus === EntryStatus.ACCEPTED ||
     entry.entryStatus === EntryStatus.COMPLETED ||
@@ -190,10 +200,11 @@ export function summarizeEntryBalances(
   let payAtShowDueCents = 0;
 
   for (const entry of entries) {
-    if (!isCurrentSummaryEntry(entry, now)) continue;
+    const isCurrentEntry = isCurrentSummaryEntry(entry, now);
+    if (!isCurrentEntry && !isBalanceEligibleEntry(entry)) continue;
 
     const cents = feeCents(entry.totalFee);
-    currentFeesCents += cents;
+    if (isCurrentEntry) currentFeesCents += cents;
 
     const prompt = getEntryPaymentPrompt({
       paymentMethod: entry.paymentMethod,

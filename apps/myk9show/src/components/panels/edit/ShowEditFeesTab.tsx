@@ -19,16 +19,12 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 interface ShowEditFeesTabProps {
   data: ShowEditFormData;
   form?: FormValidation<ShowEditFormData> | undefined;
-  handleInputChange: (
-    field: keyof ShowEditFormData
-  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   handleCheckboxChange: (field: keyof ShowEditFormData) => (checked: boolean) => void;
 }
 
 export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   data,
   form,
-  handleInputChange,
   handleCheckboxChange,
 }) => {
   const preEntryFeeError = form?.getError('preEntryFee');

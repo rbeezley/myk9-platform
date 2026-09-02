@@ -141,9 +141,12 @@ export const useUserStore = create<UserStore>()(
           // Assign roles via user_roles table (best-effort — person record is the critical entity)
           if (userData.roles && userData.roles.length > 0) {
             try {
-              const { savePersonRoles } =
-                await import('@/components/panels/edit/personRolesService');
-              await savePersonRoles(newPersonId, userData.roles);
+              const { rbacService } = await import('@/services/rbac');
+              await Promise.all(
+                userData.roles.map(roleName =>
+                  rbacService.assignRole({ userId: newPersonId, roleName })
+                )
+              );
             } catch (roleError) {
               logger.warn('Failed to assign roles during user creation:', 'store', {
                 personId: newPersonId,
@@ -263,8 +266,7 @@ export const useUserStore = create<UserStore>()(
           }
 
           // Import database functions and mappers
-          const { updateUser: updateUserInDb } =
-            await import('@/services/database/users');
+          const { updateUser: updateUserInDb } = await import('@/services/database/users');
           const { mapUserInputToUpdate, mapDatabaseToUser } =
             await import('@/services/mappers/userMappers');
 
@@ -319,8 +321,7 @@ export const useUserStore = create<UserStore>()(
           }
 
           // Soft delete from database
-          const { deleteUser: deleteUserFromDb } =
-            await import('@/services/database/users');
+          const { deleteUser: deleteUserFromDb } = await import('@/services/database/users');
           const { error: dbError } = await deleteUserFromDb(id);
 
           if (dbError) {

@@ -4,7 +4,7 @@ import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import { getAllUsers, createUser, updateUser, deleteUser } from '@/services/database/users';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
-import { savePersonRoles } from '@/components/panels/edit/personRolesService';
+import { rbacService } from '@/services/rbac';
 
 export function useUsers() {
   return useQuery<User[]>({
@@ -35,7 +35,9 @@ export function useAddPerson() {
 
       const newPersonId = (data as Record<string, unknown>).id as string;
       const roles = person.roles?.length ? person.roles : [UserRole.EXHIBITOR];
-      await savePersonRoles(newPersonId, roles);
+      await Promise.all(
+        roles.map(roleName => rbacService.assignRole({ userId: newPersonId, roleName }))
+      );
 
       return mapDatabaseToUser(data);
     },

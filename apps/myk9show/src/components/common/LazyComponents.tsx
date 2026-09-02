@@ -29,52 +29,6 @@ export const VenuePinMap = lazy(() =>
   import('@/features/maps/VenuePinMap').then(m => ({ default: m.VenuePinMap }))
 );
 
-// Rich Text Editor (TipTap dependency)
-export const RichTextEditor = lazy(() =>
-  import('@/components/dogs/DogDetails/TrainingJournal/RichTextEditor').then(m => ({
-    default: m.RichTextEditor,
-  }))
-);
-
-// Analytics Components (recharts dependency)
-export const EnhancedAnalyticsDashboard = lazy(() =>
-  import('@/components/analytics/EnhancedAnalyticsDashboard').then(m => ({
-    default: m.EnhancedAnalyticsDashboard,
-  }))
-);
-
-export const UserActivityMonitor = lazy(() =>
-  import('@/components/analytics/UserActivityMonitor').then(m => ({
-    default: m.UserActivityMonitor,
-  }))
-);
-
-// PDF/Report Components (react-to-print dependency)
-export const PrintableReport = lazy(() =>
-  import('@/components/reports/PrintableReport').then(m => ({ default: m.PrintableReport }))
-);
-
-// Large Table Components (complex data handling)
-export const ClassEntriesTable = lazy(() => import('@/components/classes/ClassEntriesTable'));
-
-export const ClassResultsTable = lazy(() =>
-  import('@/components/classes/ClassResultsTable').then(m => ({ default: m.ClassResultsTable }))
-);
-
-// Complex Dashboard Components
-export const SyncMonitoringDashboard = lazy(
-  () => import('@/components/sync/SyncMonitoringDashboard')
-);
-
-export const OfflineDataManager = lazy(() =>
-  import('@/components/offline/OfflineDataManager').then(m => ({ default: m.OfflineDataManager }))
-);
-
-// Chart Components (recharts dependency - heavy)
-export const TrendChart = lazy(
-  () => import('@/components/shows/ShowDetails/ShowStatistics/TrendChart')
-);
-
 // ============================================================================
 // ENHANCED LOADING WRAPPERS
 // ============================================================================
@@ -94,11 +48,7 @@ export function preloadHeavyComponents(): void {
     logger.debug('🚀 Preloading heavy components...', 'components', {});
 
     // Stagger preloading to avoid overwhelming the main thread
-    const components = [
-      () => EnhancedAnalyticsDashboard,
-      () => ShowCalendar,
-      () => TrendChart,
-    ];
+    const components = [() => ShowCalendar];
 
     components.forEach((component, index) => {
       setTimeout(
@@ -122,9 +72,7 @@ export function preloadByRole(userRole?: string): void {
   if (!userRole) return;
 
   const roleComponents = {
-    admin: [EnhancedAnalyticsDashboard, SyncMonitoringDashboard],
     secretary: [ShowCalendar],
-    judge: [ClassEntriesTable, ClassResultsTable],
     exhibitor: [ShowCalendar],
   };
 

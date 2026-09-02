@@ -33,10 +33,10 @@ const TAB_TRIGGER_CLASS =
 
 // Form content component
 const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
+  const queryClient = useQueryClient();
   const { data, form } = useEditPanel<UserFormData>();
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
-  const queryClient = useQueryClient();
   const { loadUsers } = useUserStore();
 
   // Judge qualifications panel state
@@ -318,7 +318,6 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   enableAutoSave = false,
   // showAdvancedFields = false,
 }) => {
-  const queryClient = useQueryClient();
   const isCreateMode = !userId;
   const title = isCreateMode ? 'Add Person' : 'Edit User';
   const subtitle = isCreateMode ? 'Create a person profile' : `Editing profile for ${userName}`;

@@ -191,10 +191,16 @@ describe('buildResultsReadinessSummary', () => {
       expect(buildResultsReadinessSummary([cls()], [merged]).unscoredEntries).toBe(0);
     });
 
+    // 'cancelled' was here until MYK9-330 and could never have been reached:
+    // `entries_entry_status_check` has never permitted that value, so the case
+    // asserted a branch no row can take. It is replaced by the two statuses
+    // that ARE legal and were genuinely blocking closeout — a move-up's source
+    // row and a declined entry, both live and never scored.
     it.each([
       ['withdrawn', { entry_status: 'withdrawn' }],
       ['scratched', { entry_status: 'scratched' }],
-      ['cancelled', { entry_status: 'cancelled' }],
+      ['moved', { entry_status: 'moved' }],
+      ['not_accepted', { entry_status: 'not_accepted' }],
       ['pulled at check-in', { check_in_status: 'pulled' }],
       ['soft-deleted', { deleted_at: '2026-08-01T12:00:00Z' }],
     ])('does not let a %s entry block closeout', (_label, overrides) => {

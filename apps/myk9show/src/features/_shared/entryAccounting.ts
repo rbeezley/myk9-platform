@@ -5,7 +5,8 @@
  * `20260712180000_class_status_auto_derivation.sql` (D1/D2), which the server
  * uses to auto-derive class completion:
  *
- *   expected  = entry_status NOT IN ('scratched','withdrawn','cancelled')
+ *   expected  = entry_status NOT IN ('scratched','withdrawn','moved',
+ *                                   'not_accepted')
  *               AND check_in_status IS DISTINCT FROM 'pulled'
  *   accounted = is_scored = true OR result_status IN ('absent','excused')
  *   complete  = expected > 0 AND accounted = expected
@@ -19,8 +20,25 @@
  * class store's `SyncableEntryData` satisfy it without conversion.
  */
 
-/** Lifecycle states meaning the entry is not expected to run. */
-const EXCLUDED_ENTRY_STATUSES = new Set(['scratched', 'withdrawn', 'cancelled']);
+/**
+ * Lifecycle states meaning the entry is not expected to run.
+ *
+ * `moved` and `not_accepted` are as terminal as the other three, and leaving
+ * them out was MYK9-330: a move-up leaves the SOURCE row live in the original
+ * class (`showMapActionMutations` creates the destination entry and marks the
+ * original `moved` — deliberately not soft-deleted, so the exhibitor can still
+ * see where the run came from), so it sat in the expected set forever, was
+ * never scored, and the class could never reach `accounted === expected`.
+ *
+ * `cancelled` was dropped in the same change: `entries_entry_status_check` has
+ * never permitted it, so it only made this list look longer than the rule.
+ */
+const EXCLUDED_ENTRY_STATUSES = new Set([
+  'scratched',
+  'withdrawn',
+  'moved',
+  'not_accepted',
+]);
 
 /**
  * Result states that settle an entry without a score. Deliberately narrow:

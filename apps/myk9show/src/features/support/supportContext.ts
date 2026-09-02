@@ -31,7 +31,7 @@ export function extractSupportRouteContext(pathname: string, search = ''): Suppo
     isShowDayContext:
       pathname.includes('/at-show') ||
       pathname.includes('/show-desk') ||
-      pathname.includes('/secretary/show-day'),
+      pathname.includes('/secretary/day-of'),
   };
 }
 

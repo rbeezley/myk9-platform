@@ -48,11 +48,14 @@ describe('markReplicatedRowSynced', () => {
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, currentMutation);
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, laterMutation);
 
-    await markReplicatedRowSynced(db, currentMutation);
+    await markReplicatedRowSynced(db, currentMutation, 3);
 
-    await expect(db.get(REPLICATION_STORES.REPLICATED_TABLES, ['dogs', 'dog-1'])).resolves.toMatchObject({
+    await expect(
+      db.get(REPLICATION_STORES.REPLICATED_TABLES, ['dogs', 'dog-1'])
+    ).resolves.toMatchObject({
       isDirty: true,
       syncStatus: 'pending',
+      serverVersion: 3,
     });
   });
 });

@@ -182,8 +182,7 @@ describe('executeMutation', () => {
             data: null,
             error: {
               code: '23505',
-              message:
-                'duplicate key value violates unique constraint "dog_registrations_live_org_number_unique"',
+              message: 'duplicate key value violates unique constraint "dogs_pkey"',
             },
           })
         ),
@@ -197,6 +196,32 @@ describe('executeMutation', () => {
       });
 
       await expect(executeMutation(supabase, makeLogger(), mutation)).resolves.toEqual({});
+    });
+
+    it('does not swallow a duplicate registration constraint error', async () => {
+      const supabase = {
+        from: vi.fn(),
+        rpc: vi.fn(() =>
+          Promise.resolve({
+            data: null,
+            error: {
+              code: '23505',
+              message:
+                'duplicate key value violates unique constraint "dog_registrations_live_org_number_unique"',
+            },
+          })
+        ),
+      } as unknown as SupabaseClient;
+
+      const mutation = makeMutation({
+        tableName: 'dogs',
+        rowId: 'dog-1',
+        rpc: { name: 'create_dog_with_registrations', expectRowId: true },
+      });
+
+      await expect(executeMutation(supabase, makeLogger(), mutation)).rejects.toMatchObject({
+        code: '23505',
+      });
     });
   });
 

@@ -145,6 +145,17 @@ describe('isEntryCloseDayPast', () => {
       true
     );
   });
+
+  it("uses the show's timezone at the midnight boundary", () => {
+    const justAfterMidnightUtc = new Date('2026-09-03T04:30:00Z');
+
+    expect(
+      isEntryCloseDayPast('2026-09-02T00:00:00+00:00', justAfterMidnightUtc, 'America/Los_Angeles')
+    ).toBe(false);
+    expect(
+      isEntryCloseDayPast('2026-09-02T00:00:00+00:00', justAfterMidnightUtc, 'America/New_York')
+    ).toBe(true);
+  });
 });
 
 /**
@@ -194,9 +205,7 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
   it("selects the show's full trial list for the primary-trial timezone", () => {
     // The amount-due deadline picks the PRIMARY trial's zone, which needs every
     // trial of the show — not just the one the entry is in.
-    expect(USER_ENTRIES_SELECT).toMatch(
-      /show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s
-    );
+    expect(USER_ENTRIES_SELECT).toMatch(/show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s);
   });
 
   it('selects enrollment payment status for secretary-recorded grouped payments', () => {

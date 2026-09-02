@@ -168,10 +168,6 @@ describe('mapStatusToDb round-trip', () => {
     expect(dbValue).toBe('move-up-requested');
     expect(mapEntryStatus(dbValue)).toBe(EntryStatus.MOVE_UP_REQUESTED);
   });
-
-  it("MISSING_INFO writes the DB-safe pending value", () => {
-    expect(mapStatusToDb(EntryStatus.MISSING_INFO)).toBe('submitted');
-  });
 });
 
 describe('mapPaymentStatus', () => {

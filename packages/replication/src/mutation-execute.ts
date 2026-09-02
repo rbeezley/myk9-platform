@@ -68,7 +68,7 @@ export async function executeMutation(
           // violation even though the desired server state already exists.
           // Treat only INSERT RPC duplicates as idempotent success; UPDATE RPC
           // duplicates remain real constraint failures.
-          if (mutation.operation === 'INSERT' && error.code === POSTGRES_UNIQUE_VIOLATION) {
+          if (isPrimaryKeyDuplicateError(error, tableName, mutation.rowId)) {
             logger.log(
               `[MutationManager] 23505 on INSERT ${tableName}/${mutation.rowId} RPC — prior attempt committed, treating as success`
             );

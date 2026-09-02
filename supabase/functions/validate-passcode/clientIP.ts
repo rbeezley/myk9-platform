@@ -6,15 +6,7 @@ export function getClientIP(req: Request): string {
   const realIP = req.headers.get('x-real-ip');
   if (realIP?.trim()) return realIP.trim();
 
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const lastHop = forwarded
-      .split(',')
-      .map(hop => hop.trim())
-      .filter(Boolean)
-      .at(-1);
-    if (lastHop) return lastHop;
-  }
-
+  // X-Forwarded-For is caller-controlled unless the edge proxy overwrites it.
+  // Do not use an arbitrary hop as an identity when the trusted headers are absent.
   return 'unknown';
 }

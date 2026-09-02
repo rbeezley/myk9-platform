@@ -27,8 +27,8 @@ export const useCommandMenuContextStore = create<CommandMenuContextState>((set, 
 }));
 
 /**
- * Register a command-menu context. Call on mount, call the returned
- * unregister function on unmount (e.g. inside a `useEffect` cleanup).
+ * Register a command-menu context. Owner pages call this from an effect and
+ * return the unregister function from that effect for unmount cleanup.
  * Last-write-wins: a later registration always supersedes an earlier one,
  * and an unregister only clears the store if it is still the active
  * registration (guards against unmount-order races).

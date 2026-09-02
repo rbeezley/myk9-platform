@@ -33,6 +33,13 @@ pipeline cluster was not imported by either surface. The live messages
 boundary is `ChatPage`/`SecretaryMessagesPage`; both render message bubbles
 and inputs directly, so `ThreadDetail` was not a route-level component.
 
+The command-menu context is now registered by `EntryManagementPage` with the
+resolved show and optional trial scope. `CommandPalette` remains the read-only
+renderer, and the existing contextual-command tests cover the canonical
+Entry Management/Class Management links. The premium style flag module and
+its test were deleted because no production code imported either export;
+premium styles are selected directly by the live template flow.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

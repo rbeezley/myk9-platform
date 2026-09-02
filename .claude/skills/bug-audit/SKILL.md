@@ -92,22 +92,31 @@ Run whichever the user asks for; default to the launch-critical four. `--scopes`
    between filing a real issue and duplicating someone's in-flight work.
 2. **Write the brief.** Copy `references/reviewer-brief.md` into the scratchpad. Update its
    "known-deliberate" list first — a stale list wastes a whole scope re-reporting settled decisions.
-3. **Run one scope.** `Agent` with the brief path, the scope's file list, its weights, the model
-   from the table, `run_in_background: false`, and an explicit "do not re-report" list of issue ids
-   already filed this run.
-4. **Verify before filing.** Never file from a reviewer's summary. Open the findings file, re-read
+3. **Seed the do-not-report list from prior runs, not just this one.** Every scope has likely been
+   swept before, so pull the existing issues for it first
+   (`list_issues(..., includeArchived: true)`, plus `get_issue` on any id you are unsure of) and put
+   them in the brief's "do NOT report" section as `file:line — MYK9-nnn` lines. A reviewer that does
+   not know a defect is already filed will find it again and describe it convincingly, and you will
+   spend the verification budget re-deriving something already on the board.
+4. **Run one scope.** `Agent` with the brief path, the scope's file list, its weights, the model
+   from the table, `run_in_background: false`, and that do-not-report list.
+5. **Verify before filing.** Never file from a reviewer's summary. Open the findings file, re-read
    the cited lines yourself, and confirm the failure scenario. Reviewers do produce plausible
    findings that do not survive a look at the code.
-5. **Reconcile.** Search **each** of symptom, file path, and route separately — not by title, and
+6. **Reconcile.** Search **each** of symptom, file path, and route separately — not by title, and
    not one axis and done; the same defect gets filed under wording you will not guess. Every search
    passes `includeArchived: true`; closed issues auto-archive on a 30-day window here, so a default
    query reads shipped work as never-seen. **An empty result means "new" only if all three axes came
    back empty with that flag set** — otherwise the status is `blocked`, not `new`, and you search
    again properly.
-6. **File.** Follow `quality-finding-lifecycle` for severity and evidence. Group dead code into
+7. **File.** Follow `quality-finding-lifecycle` for severity and evidence. Group dead code into
    **one issue per scope** with a per-symbol grep-count table; thirty separate dead-code issues is
-   noise.
-7. **Record.** Update the audit ledger memory with one line per issue, and stamp what was and was
+   noise. Match each finding against the known list before opening anything: **still open** → comment
+   only if you have something new, otherwise say nothing; **closed but genuinely reproducing** →
+   comment on the original as a recurrence and ask for a reopen, never a fresh id; **closed and not
+   reproducible** → say nothing. A scope that returns only already-known findings is a good result —
+   report it and file nothing.
+8. **Record.** Update the audit ledger memory with one line per issue, and stamp what was and was
    not covered. A skipped scope is a coverage gap, not a pass.
 
 ## Red flags
@@ -116,6 +125,7 @@ Run whichever the user asks for; default to the launch-critical four. `--scopes`
 - Reviewer summary is convincing and you have not opened the file → **stop.** Verify first.
 - `list_issues` without `includeArchived: true` during reconciliation → the empty result is meaningless.
 - About to file thirty dead-code issues → group them per scope.
+- About to file without having pulled the scope's existing issues → you are about to duplicate.
 - About to fix a finding without checking open PRs by file → you may be duplicating in-flight work.
 
 ## Common mistakes

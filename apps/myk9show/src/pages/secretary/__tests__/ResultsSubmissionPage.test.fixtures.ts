@@ -53,9 +53,12 @@ function makeAKCEntry(
     ownerName: null,
     ownerAddress: null,
     timeLimitSeconds: null,
-    entryStatus: 'accepted',
-    checkInStatus: 'present',
-    resultStatus: null,
+    // Real `public.entries` values. The default entry is SCORED, because the
+    // page's default fixture stands for a show that is ready to submit — an
+    // unscored entry now blocks sending (MYK9-323).
+    entryStatus: 'completed',
+    checkInStatus: 'completed',
+    resultStatus: 'qualified',
     ...overrides,
   };
 }

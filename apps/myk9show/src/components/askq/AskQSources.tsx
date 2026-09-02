@@ -70,7 +70,11 @@ function SourceItem({ type, item }: { type: string; item: Record<string, unknown
             {item.result_status ? (
               <span
                 className={
-                  item.result_status === 'Q' ? 'text-success font-medium' : 'text-muted-foreground'
+                  // `entries.result_status` stores 'qualified', never 'Q' — the
+                  // same mismatch as MYK9-323, here costing only the green.
+                  String(item.result_status).toLowerCase() === 'qualified'
+                    ? 'text-success font-medium'
+                    : 'text-muted-foreground'
                 }
               >
                 {String(item.result_status)}

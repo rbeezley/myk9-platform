@@ -64,9 +64,12 @@ function makeEntry(overrides: Partial<AKCSubmissionEntry> = {}): AKCSubmissionEn
       country: 'US',
     },
     timeLimitSeconds: 120,
-    entryStatus: 'accepted',
-    checkInStatus: 'present',
-    resultStatus: 'Q',
+    // Real `public.entries` values — see akcEntryOutcome.ts for the full
+    // CHECK-constraint vocabulary. A fixture that invents its own status
+    // strings is how MYK9-323 stayed green while every qualifier shipped NQ.
+    entryStatus: 'completed',
+    checkInStatus: 'completed',
+    resultStatus: 'qualified',
     ...overrides,
   };
 }
@@ -211,8 +214,8 @@ describe('AKCScentWorkFormatter', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
-            makeEntry({ classId: 'class-1', armbandNumber: 101, entryStatus: 'accepted' }),
-            makeEntry({ classId: 'class-1', armbandNumber: 102, entryStatus: 'accepted' }),
+            makeEntry({ classId: 'class-1', armbandNumber: 101, entryStatus: 'completed' }),
+            makeEntry({ classId: 'class-1', armbandNumber: 102, entryStatus: 'completed' }),
             makeEntry({ classId: 'class-1', armbandNumber: 103, entryStatus: 'withdrawn' }),
           ],
         })
@@ -225,12 +228,11 @@ describe('AKCScentWorkFormatter', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
-            makeEntry({ classId: 'class-1', armbandNumber: 101, checkInStatus: 'present' }),
+            makeEntry({ classId: 'class-1', armbandNumber: 101, checkInStatus: 'completed' }),
             makeEntry({
               classId: 'class-1',
               armbandNumber: 102,
-              checkInStatus: 'absent',
-              resultStatus: null,
+              resultStatus: 'absent',
               finalPlacement: null,
             }),
           ],
@@ -240,7 +242,7 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('numStarters="1"');
     });
 
-    it('computes numQualifying from Q results and placements 1-4', () => {
+    it('computes numQualifying from qualified results, placed or not', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
@@ -248,19 +250,19 @@ describe('AKCScentWorkFormatter', () => {
               classId: 'class-1',
               armbandNumber: 101,
               finalPlacement: 1,
-              resultStatus: null,
+              resultStatus: 'qualified',
             }),
             makeEntry({
               classId: 'class-1',
               armbandNumber: 102,
               finalPlacement: null,
-              resultStatus: 'Q',
+              resultStatus: 'qualified',
             }),
             makeEntry({
               classId: 'class-1',
               armbandNumber: 103,
               finalPlacement: null,
-              resultStatus: null,
+              resultStatus: 'nq',
             }),
           ],
         })
@@ -382,7 +384,7 @@ describe('AKCScentWorkFormatter', () => {
             makeEntry({
               entryStatus: 'withdrawn',
               checkInStatus: null,
-              resultStatus: null,
+              resultStatus: 'pending',
               finalPlacement: null,
             }),
           ],
@@ -392,14 +394,14 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('<resultCode>EXO</resultCode>');
     });
 
-    it('maps absent → ABSN / A', () => {
+    it('maps result_status absent → ABSN / A', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'absent',
-              resultStatus: null,
+              entryStatus: 'absent',
+              checkInStatus: 'no-status',
+              resultStatus: 'absent',
               finalPlacement: null,
             }),
           ],
@@ -409,20 +411,20 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('<resultCode>A</resultCode>');
     });
 
-    it('maps disqualified → DISQ / A', () => {
+    it('maps a gate-pulled dog (check_in_status "pulled") → ABSN / A', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'present',
-              resultStatus: 'disqualified',
+              entryStatus: 'confirmed',
+              checkInStatus: 'pulled',
+              resultStatus: 'pending',
               finalPlacement: null,
             }),
           ],
         })
       );
-      expect(xml).toContain('actionCode="DISQ"');
+      expect(xml).toContain('actionCode="ABSN"');
       expect(xml).toContain('<resultCode>A</resultCode>');
     });
 
@@ -431,8 +433,8 @@ describe('AKCScentWorkFormatter', () => {
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'present',
+              entryStatus: 'completed',
+              checkInStatus: 'completed',
               resultStatus: 'excused',
               finalPlacement: null,
             }),
@@ -448,9 +450,9 @@ describe('AKCScentWorkFormatter', () => {
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'present',
-              resultStatus: null,
+              entryStatus: 'completed',
+              checkInStatus: 'completed',
+              resultStatus: 'qualified',
               finalPlacement: 1,
             }),
           ],
@@ -465,9 +467,9 @@ describe('AKCScentWorkFormatter', () => {
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'present',
-              resultStatus: null,
+              entryStatus: 'completed',
+              checkInStatus: 'completed',
+              resultStatus: 'qualified',
               finalPlacement: 4,
             }),
           ],
@@ -477,14 +479,14 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('<resultCode>4</resultCode>');
     });
 
-    it('maps Q with no placement → CNT / Q', () => {
+    it('maps qualified with no placement → CNT / Q', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'present',
-              resultStatus: 'Q',
+              entryStatus: 'completed',
+              checkInStatus: 'completed',
+              resultStatus: 'qualified',
               finalPlacement: null,
             }),
           ],
@@ -499,9 +501,9 @@ describe('AKCScentWorkFormatter', () => {
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'present',
-              resultStatus: 'NQ',
+              entryStatus: 'completed',
+              checkInStatus: 'completed',
+              resultStatus: 'nq',
               finalPlacement: null,
             }),
           ],
@@ -511,14 +513,14 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('<resultCode>NQ</resultCode>');
     });
 
-    it('maps unscored entry (null result, null placement) → CNT / NQ', () => {
+    it('maps an unscored entry (result_status "pending") → CNT / NQ', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({
           entries: [
             makeEntry({
-              entryStatus: 'accepted',
-              checkInStatus: 'present',
-              resultStatus: null,
+              entryStatus: 'completed',
+              checkInStatus: 'completed',
+              resultStatus: 'pending',
               finalPlacement: null,
             }),
           ],
@@ -527,6 +529,26 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('actionCode="CNT"');
       expect(xml).toContain('<resultCode>NQ</resultCode>');
     });
+  });
+
+  // MYK9-323 — the whole-file shape of the bug: a class where every dog
+  // qualified and only one was placed used to emit three NQs.
+  it('reports a fully qualifying class without a single NQ', () => {
+    const xml = AKCScentWorkFormatter.formatXml(
+      makeData({
+        entries: [
+          makeEntry({ classId: 'class-1', armbandNumber: 101, resultStatus: 'qualified', finalPlacement: 1 }),
+          makeEntry({ classId: 'class-1', armbandNumber: 102, resultStatus: 'qualified', finalPlacement: null }),
+          makeEntry({ classId: 'class-1', armbandNumber: 103, resultStatus: 'qualified', finalPlacement: null }),
+          makeEntry({ classId: 'class-1', armbandNumber: 104, resultStatus: 'qualified', finalPlacement: null }),
+        ],
+      })
+    );
+    expect(xml).not.toContain('<resultCode>NQ</resultCode>');
+    expect(xml.match(/<resultCode>Q<\/resultCode>/g)).toHaveLength(3);
+    expect(xml).toContain('<resultCode>1</resultCode>');
+    expect(xml).toContain('numQualifying="4"');
+    expect(xml).toContain('numStarters="4"');
   });
 
   describe('owner address', () => {

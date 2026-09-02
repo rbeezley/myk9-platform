@@ -134,14 +134,23 @@ beforeEach(() => {
 });
 
 describe('isEntryCloseDayPast', () => {
+  // `now` is pinned to an explicit UTC instant, never a bare local-time
+  // literal. `isEntryCloseDayPast` defaults to America/New_York, so
+  // `new Date('2026-09-03T00:01:00')` only lands on the day AFTER the close
+  // day when the runner's own zone is west of UTC: it passed on a CDT laptop
+  // and failed in CI, which runs UTC (2026-09-03T00:01Z is still 09-02 20:01
+  // in New York). The comment on each line gives the New York wall clock the
+  // assertion is actually about.
   it('keeps an entry editable throughout the stored close day', () => {
-    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-02T18:00:00'))).toBe(
+    // 2026-09-02 18:00 in New York — still the close day.
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-02T22:00:00Z'))).toBe(
       false
     );
   });
 
   it('blocks editing on the day after the stored close day', () => {
-    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-03T00:01:00'))).toBe(
+    // 2026-09-03 00:01 in New York — one minute into the next day.
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-03T04:01:00Z'))).toBe(
       true
     );
   });

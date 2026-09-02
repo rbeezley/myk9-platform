@@ -205,15 +205,53 @@ test.describe('My Shows Page - Mobile Filter Usability', () => {
     await navigateToMyShows(page);
   });
 
-  test('every filter is visible on a phone without sideways scrolling', async ({ page }) => {
+  test('every filter is reachable on a phone without sideways scrolling', async ({ page }) => {
     // These used to be tabs in a horizontally scrolling strip, so an option
     // past the fold had no affordance saying it existed. Chips wrap.
+    //
+    // That intent is about the HORIZONTAL axis, and this test asserts it on the
+    // horizontal axis only. It deliberately does not require the whole strip to
+    // fit in the first 667px.
+    //
+    // It used to (`toBeInViewport()` with no scroll), and MYK9-337 is what that
+    // cost: on staging the row needs ~401px for one line at 375px wide, so it
+    // wraps — exactly as designed — and the second line sat a few pixels under
+    // the fold. All three chips rendered, at a compliant 44px, correctly
+    // wrapped, and the spec failed anyway. Worse, the margin is a function of
+    // how many DIGITS the live counts have ("Completed 191" is wider than
+    // "Completed 19"), so the assertion re-armed itself every time staging
+    // accumulated entries, and it was coupled to the height of every element
+    // above the strip. Neither is something this spec means to guarantee.
+    //
+    // What it does guarantee: the group never scrolls sideways, no chip is
+    // clipped at either edge, and every chip can be reached. A regression to a
+    // horizontally scrolling strip still fails this — a chip past the fold
+    // would extend beyond the viewport's right edge.
+    const viewportWidth = 375;
     const timeAxis = page.getByRole('radiogroup', { name: /filter by time/i });
     await expect(timeAxis).toBeVisible();
 
+    const axisBox = await timeAxis.boundingBox();
+    expect(axisBox, 'the time filter group should have a layout box').not.toBeNull();
+    expect(axisBox!.width).toBeLessThanOrEqual(viewportWidth);
+
     for (const label of ['All', 'Upcoming', 'Completed']) {
       const chip = timeAxis.getByRole('radio', { name: new RegExp(`^${label}\\s*\\d+$`) });
-      await expect(chip).toBeInViewport();
+
+      // Reachable by ordinary vertical scrolling, which is how a phone page works.
+      await chip.scrollIntoViewIfNeeded();
+      await expect(chip, `the ${label} filter should be reachable`).toBeInViewport();
+
+      // ...and once reached, fully within the viewport horizontally.
+      const chipBox = await chip.boundingBox();
+      expect(chipBox, `the ${label} filter should have a layout box`).not.toBeNull();
+      expect(chipBox!.x, `the ${label} filter is clipped at the left edge`).toBeGreaterThanOrEqual(
+        0
+      );
+      expect(
+        chipBox!.x + chipBox!.width,
+        `the ${label} filter is clipped at the right edge`
+      ).toBeLessThanOrEqual(viewportWidth);
     }
   });
 

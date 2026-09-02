@@ -178,7 +178,11 @@ function FeatureUpgradePrompt({
                           className="w-full mt-4"
                           variant={isRequired ? 'default' : 'outline'}
                           onClick={() => {
-                            onUpgrade?.();
+                            if (onUpgrade) {
+                              onUpgrade();
+                            } else {
+                              navigate('/pricing-page');
+                            }
                             setDialogOpen(false);
                           }}
                         >

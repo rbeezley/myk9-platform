@@ -225,11 +225,12 @@ Deno.serve(async req => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: results.errors.length === 0,
         timestamp: new Date().toISOString(),
         results,
       }),
       {
+        status: results.errors.length === 0 ? 200 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

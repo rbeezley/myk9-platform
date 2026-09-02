@@ -34,6 +34,7 @@ import type {
   ShowMapTree,
 } from './showMapTypes';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
+import { getTrialTimezone } from '@/features/registries';
 
 const DEFAULT_ENTRY_PREVIEW_LIMIT = 25;
 
@@ -133,6 +134,13 @@ function entryLabel(entry: ShowMapEntryInput): string {
   return `Entry ${id.slice(-6)}`;
 }
 
+function armbandSortValue(entry: ShowMapEntryInput): number {
+  const armband = readString(entry, 'armband');
+  if (!armband) return Number.POSITIVE_INFINITY;
+  const value = Number.parseInt(armband, 10);
+  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+}
+
 function addNode(tree: ShowMapTree, node: ShowMapNode): void {
   tree.nodesById[node.id] = node;
   if (node.parentId) {
@@ -146,6 +154,9 @@ function sortEntries(entries: ShowMapEntryInput[]): ShowMapEntryInput[] {
     const orderA = readNumber(a, 'run_order') ?? Number.POSITIVE_INFINITY;
     const orderB = readNumber(b, 'run_order') ?? Number.POSITIVE_INFINITY;
     if (orderA !== orderB) return orderA - orderB;
+    const armbandA = armbandSortValue(a);
+    const armbandB = armbandSortValue(b);
+    if (armbandA !== armbandB) return armbandA - armbandB;
     return entryLabel(a).localeCompare(entryLabel(b));
   });
 }
@@ -279,7 +290,7 @@ export function buildShowMapTree({
       attentionCount,
       href: getShowMapTrialHref(show.id, trial.id),
       trialDate: trial.trialDate || undefined,
-      timezone: trial.timezone,
+      timezone: getTrialTimezone(trial),
       parentId: root.id,
       childrenCount: trialClasses.length,
     };
@@ -303,7 +314,7 @@ export function buildShowMapTree({
         href: getShowMapClassHref(show.id, trial.id, cls.id),
         scoreHref: getShowMapClassScoringHref(cls.id),
         trialDate: trial.trialDate || undefined,
-        timezone: trial.timezone,
+        timezone: getTrialTimezone(trial),
         ringLabel: classRingLabel(cls),
         judgeName: cls.judgeName || undefined,
         startTime: cls.time || undefined,
@@ -325,7 +336,7 @@ export function buildShowMapTree({
           status: classifyEntryRunStatus(entry),
           checkInStatus: classifyEntryCheckInStatus(entry),
           trialDate: trial.trialDate || undefined,
-          timezone: trial.timezone,
+          timezone: getTrialTimezone(trial),
           parentId: classNode.id,
           childrenCount: 0,
         });

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getReportById, getReportsForRegistries } from '@/lib/reports/reportRegistry';
 import type { ReportCategory, ReportDefinition } from '@/lib/reports/types';
-import type { RegistryId } from '@/features/registries';
+import { getTrialRegistry, type RegistryId } from '@/features/registries';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
 
@@ -71,7 +71,7 @@ function getScopedRegistryIds(
 
   const ids = new Set<RegistryId>();
   for (const trial of scopedTrials) {
-    const normalized = (trial.registry_id ?? 'AKC').trim().toUpperCase();
+    const normalized = getTrialRegistry(trial).id;
     if (!KNOWN_REGISTRY_IDS.includes(normalized as RegistryId)) {
       // An unexpected value should never hide a form. Leave the catalog
       // unfiltered until the data contract is corrected.

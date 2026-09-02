@@ -258,8 +258,8 @@ export class QRScannerService extends EventEmitter {
           classId: 'class-789',
           dogName: 'Test Dog',
           handlerName: 'Test Handler',
-          checksum: 'abc123'
         };
+        mockQRData.checksum = this.calculateChecksum(mockQRData);
 
         result.success = true;
         result.data = JSON.stringify(mockQRData);
@@ -298,7 +298,9 @@ export class QRScannerService extends EventEmitter {
 
       // Checksum validation if enabled
       if (this.config.checksumValidation && qrData.checksum) {
-        const calculatedChecksum = this.calculateChecksum(qrData);
+        const payload = { ...qrData };
+        delete payload.checksum;
+        const calculatedChecksum = this.calculateChecksum(payload);
         if (calculatedChecksum !== qrData.checksum) {
           return false;
         }
@@ -464,27 +466,6 @@ export class QRScannerService extends EventEmitter {
     this.emit('disposed', {});
   }
 
-  // Testing and development methods
-  async simulateSuccessfulScan(entryId: string, armband: string): Promise<QRScanResult> {
-    const mockData = {
-      entryId,
-      armband,
-      showId: 'test-show',
-      classId: 'test-class',
-      dogName: 'Test Dog',
-      handlerName: 'Test Handler',
-      checksum: this.calculateChecksum({ entryId, armband })
-    };
-
-    return {
-      success: true,
-      data: JSON.stringify(mockData),
-      entryId,
-      armband,
-      scannedAt: new Date(),
-      scannerType: 'camera'
-    };
-  }
 }
 
 // Export singleton instance

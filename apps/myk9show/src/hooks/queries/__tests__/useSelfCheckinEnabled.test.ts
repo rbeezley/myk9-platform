@@ -261,8 +261,8 @@ describe('useSelfCheckinEnabled', () => {
     });
   });
 
-  describe('safe default on class lookup failure', () => {
-    it('returns enabled=true when class row cannot be fetched', async () => {
+  describe('fail-closed on class lookup failure', () => {
+    it('returns enabled=false when class row cannot be fetched', async () => {
       mockFrom.mockReturnValue(makeQueryChain({ data: null, error: { message: 'not found' } }));
 
       const { Wrapper } = makeWrapper();
@@ -270,7 +270,7 @@ describe('useSelfCheckinEnabled', () => {
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      expect(result.current.enabled).toBe(true);
+      expect(result.current.enabled).toBe(false);
     });
   });
 });

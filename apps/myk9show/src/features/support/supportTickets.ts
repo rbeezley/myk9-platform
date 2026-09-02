@@ -44,6 +44,10 @@ export interface ListSupportTicketsOptions {
 }
 
 type SupportTableClient = {
+  rpc: (
+    fn: 'create_support_ticket',
+    args: Record<string, unknown>
+  ) => PromiseLike<{ data: { id: string } | null; error: { message: string } | null }>;
   from: (table: 'people' | 'support_tickets' | 'support_ticket_messages') => {
     select: (columns: string) => SupportQueryBuilder;
     insert: (row: Record<string, unknown>) => {
@@ -77,32 +81,17 @@ export async function createSupportTicket(
   if (!body) throw new Error('Add a short note before sending.');
 
   const client = supabase as unknown as SupportTableClient;
-  const { data: ticket, error: ticketError } = await client
-    .from('support_tickets')
-    .insert({
-      owner_id: input.ownerId,
-      subject: buildTicketSubject(body),
-      status: 'open',
-      diagnostics: input.diagnostics,
-      show_id: input.showId,
-      is_show_day_priority: input.isShowDayPriority,
-    })
-    .select('id')
-    .single();
+  const { data: ticket, error: ticketError } = await client.rpc('create_support_ticket', {
+    p_owner_id: input.ownerId,
+    p_subject: buildTicketSubject(body),
+    p_diagnostics: input.diagnostics,
+    p_show_id: input.showId,
+    p_is_show_day_priority: input.isShowDayPriority,
+    p_body: body,
+  });
 
   if (ticketError || !ticket) {
     throw new Error(ticketError?.message ?? 'Could not create the support ticket.');
-  }
-
-  const { error: messageError } = await client.from('support_ticket_messages').insert({
-    ticket_id: ticket.id,
-    sender_id: input.ownerId,
-    body,
-    is_from_operator: false,
-  });
-
-  if (messageError) {
-    throw new Error(messageError.message);
   }
 
   return { id: ticket.id };

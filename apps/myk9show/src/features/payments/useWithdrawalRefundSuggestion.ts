@@ -21,8 +21,8 @@ import {
   type WithdrawalPolicy,
   type WithdrawalRefundReason,
 } from './withdrawalPolicy';
+import { getTrialTimezone } from '@/features/registries';
 
-const DEFAULT_TIMEZONE = 'America/New_York';
 
 export interface WithdrawalRefundSuggestion {
   /** A policy was captured at payment → show the disclosure + drive the pre-fill. */
@@ -58,7 +58,7 @@ export function useWithdrawalRefundSuggestion(
       const trial = (Array.isArray(rawTrial) ? rawTrial[0] : rawTrial) as {
         timezone?: string | null;
       } | null;
-      const timeZone = trial?.timezone || DEFAULT_TIMEZONE;
+      const timeZone = getTrialTimezone(trial);
 
       const withdrawnAt = (row.withdrawn_at as string | null) ?? null;
       const asOf = withdrawnAt ? new Date(withdrawnAt) : new Date();

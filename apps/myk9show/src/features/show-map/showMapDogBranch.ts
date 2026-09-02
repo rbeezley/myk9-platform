@@ -1,4 +1,5 @@
 import { getEntryAttention } from './attention';
+import { getTrialTimezone } from '@/features/registries';
 import {
   buildProgress,
   classifyEntryCheckInStatus,
@@ -229,7 +230,7 @@ export function addAllExhibitorsBranch({
         status: classifyEntryRunStatus(entry),
         checkInStatus: classifyEntryCheckInStatus(entry),
         trialDate: display.trialDate,
-        timezone: trial?.timezone,
+        timezone: getTrialTimezone(trial),
         parentId: dogNodeId,
         childrenCount: 0,
       });

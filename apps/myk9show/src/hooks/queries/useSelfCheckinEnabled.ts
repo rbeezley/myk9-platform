@@ -35,7 +35,8 @@ async function fetchSelfCheckinEnabled(classId: string): Promise<boolean> {
     .eq('id', classId)
     .single();
 
-  if (classError || !classRow) return true; // safe default
+  if (classError) throw classError;
+  if (!classRow) throw new Error('Could not find the class self-check-in settings.');
 
   const trialId = classRow.trial_id;
   const showId = (classRow.trials as { show_id: string }).show_id;
@@ -58,6 +59,9 @@ async function fetchSelfCheckinEnabled(classId: string): Promise<boolean> {
       .eq('class_id', classId)
       .maybeSingle(),
   ]);
+
+  const settingsError = [showResult.error, trialResult.error, classResult.error].find(Boolean);
+  if (settingsError) throw settingsError;
 
   const showCheckin =
     (showResult.data as { self_checkin_enabled: boolean | null } | null)?.self_checkin_enabled ??
@@ -93,13 +97,13 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
   // entry list on every parent render, including each replication sync tick.
   // Memoise on the resolved values rather than on `results`, whose identity is
   // exactly the thing that keeps changing.
-  const resolved = results.map(r => r.data ?? true);
+  const resolved = results.map(r => r.data ?? false);
   const signature = resolved.map(v => (v ? '1' : '0')).join('');
 
   return useMemo(() => {
     const map: Record<string, boolean> = {};
     classIds.forEach((id, i) => {
-      map[id] = resolved[i] ?? true;
+      map[id] = resolved[i] ?? false;
     });
     return map;
     // `classIds` is memoised by the caller; `signature` collapses the query
@@ -118,7 +122,7 @@ export function useSelfCheckinEnabled(classId: string | null): SelfCheckinResult
     gcTime: 10 * 60 * 1000,
   });
 
-  const enabled = data ?? true; // default to enabled while loading
+  const enabled = classId === null ? true : isLoading ? true : (data ?? false);
 
   return {
     enabled,

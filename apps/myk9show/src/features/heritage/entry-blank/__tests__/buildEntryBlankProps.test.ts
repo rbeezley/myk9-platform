@@ -394,6 +394,20 @@ describe('buildEntryBlankProps — pre-filled mode', () => {
     expect(propsWithPaid.fees.paymentMethod).toBeNull();
   });
 
+  it('maps an online payment method to the Online checkbox', () => {
+    const propsWithOnline = buildEntryBlankProps({
+      show: SHOW,
+      trials: TRIALS,
+      classes: CLASSES,
+      judges: JUDGES,
+      club: CLUB,
+      secretary: SECRETARY,
+      entry: { ...ENTRY, payment_status: 'paid', payment_method: 'credit_card' },
+    });
+
+    expect(propsWithOnline.fees.paymentMethod).toBe('online');
+  });
+
   it('closeDate is null when show has no entry_close_date', () => {
     const propsNullClose = buildEntryBlankProps({
       show: { ...SHOW, entry_close_date: null },

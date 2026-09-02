@@ -3,6 +3,7 @@ import { AKC_SCENT_WORK_REPORT_FEE_PER_RUN } from '@/lib/reports/reportConstants
 import { AKC_TRIAL_SECRETARY_REPORT_FIELDS } from './akcTrialSecretaryReportFields';
 import type { PdfFormFillValues } from './pdfForm';
 import { formattedTrialDate, textOrUndefined, trialEventNumber } from './reportValueHelpers';
+import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 
 const WITHDRAWN_RUN_STATUS_CODES = new Set([
   'pulled',
@@ -12,14 +13,18 @@ const WITHDRAWN_RUN_STATUS_CODES = new Set([
   'no-show',
   'wd',
   'withdrawn',
+  'abs',
 ]);
 
 function isWithdrawn(entry: ReportEntry): boolean {
+  if (isNonRunningEntry({ entryStatus: entry.entryStatus })) return true;
   const statuses = [entry.checkInStatus, entry.resultText]
     .map(status => status?.trim().toLowerCase())
     .filter((status): status is string => Boolean(status));
 
-  return statuses.some(status => WITHDRAWN_RUN_STATUS_CODES.has(status));
+  return statuses.some(
+    status => WITHDRAWN_RUN_STATUS_CODES.has(status) || isNonRunningEntry({ entryStatus: status })
+  );
 }
 
 export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormFillValues {

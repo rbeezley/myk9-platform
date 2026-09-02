@@ -16,6 +16,7 @@
  */
 
 import { computeDogsAheadInList, type Entry, type DogsAheadResult } from '@myk9/ringside';
+import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 
 /** Minimal structural slice of a ReplicatedEntry the detector reads. */
 export interface RingConflictEntry {
@@ -25,6 +26,9 @@ export interface RingConflictEntry {
   runOrder?: number | undefined;
   isScored?: boolean | undefined;
   checkInStatus?: string | undefined;
+  entryStatus?: string | undefined;
+  entry_status?: string | undefined;
+  status?: string | undefined;
   dogCallName?: string | undefined;
 }
 
@@ -101,6 +105,15 @@ export function detectMyRingConflicts(
 
   const entriesByClass = new Map<string, RingConflictEntry[]>();
   for (const entry of entries) {
+    if (
+      entry.isScored ||
+      entry.checkInStatus === 'pulled' ||
+      isNonRunningEntry({
+        entryStatus: entry.entryStatus ?? entry.entry_status ?? entry.status,
+      })
+    ) {
+      continue;
+    }
     if (!entry.classId || !inProgress.has(entry.classId)) continue;
     const bucket = entriesByClass.get(entry.classId);
     if (bucket) bucket.push(entry);

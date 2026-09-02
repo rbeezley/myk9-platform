@@ -33,12 +33,14 @@
  * `cancelled` was dropped in the same change: `entries_entry_status_check` has
  * never permitted it, so it only made this list look longer than the rule.
  */
-const EXCLUDED_ENTRY_STATUSES = new Set([
-  'scratched',
+/** Lifecycle states that mean this entry will not run. */
+export const NON_RUNNING_ENTRY_STATUSES: ReadonlySet<string> = new Set([
   'withdrawn',
-  'moved',
-  'not_accepted',
+  'scratched',
+  'absent',
 ]);
+
+const EXCLUDED_ENTRY_STATUSES = new Set([...NON_RUNNING_ENTRY_STATUSES, 'moved', 'not_accepted']);
 
 /**
  * Result states that settle an entry without a score. Deliberately narrow:
@@ -66,12 +68,18 @@ function normalized(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
+/** True when the entry lifecycle says the dog will not run. */
+export function isNonRunningEntry(entry: EntryAccountingFields): boolean {
+  const entryStatus = normalized(entry.entryStatus ?? entry.entry_status ?? entry.status);
+  return NON_RUNNING_ENTRY_STATUSES.has(entryStatus);
+}
+
 /** True when the entry is one the show still expects to put in the ring. */
 export function isExpectedEntry(entry: EntryAccountingFields): boolean {
   if (entry.deletedAt != null || entry.deleted_at != null) return false;
 
-  const entryStatus = normalized(entry.entryStatus ?? entry.entry_status ?? entry.status);
   const checkInStatus = normalized(entry.checkInStatus ?? entry.check_in_status);
+  const entryStatus = normalized(entry.entryStatus ?? entry.entry_status ?? entry.status);
   return !EXCLUDED_ENTRY_STATUSES.has(entryStatus) && checkInStatus !== 'pulled';
 }
 

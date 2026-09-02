@@ -31,6 +31,7 @@ import {
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
+import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 
 const atShowSyncsInFlight = new Map<string, Promise<void>>();
 
@@ -153,10 +154,15 @@ function timeLimitString(seconds?: number): string | undefined {
  * deriving from the lifecycle `entry_status` string the way myK9Q must.
  */
 export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null): Entry {
-  const status: EntryStatus = (re.checkInStatus ??
-    re.check_in_status ??
-    'no-status') as EntryStatus;
   const checkinStatus = re.checkInStatus ?? re.check_in_status;
+  const lifecycleStatus = re.entryStatus ?? re.entry_status ?? re.status;
+  const status: EntryStatus = (
+    checkinStatus === 'pulled' || checkinStatus === 'in-ring'
+      ? checkinStatus
+      : isNonRunningEntry({ entryStatus: lifecycleStatus })
+        ? 'pulled'
+        : (checkinStatus ?? 'no-status')
+  ) as EntryStatus;
   const finalPlacement = re.finalPlacement ?? re.final_placement;
   const searchTimeSeconds = re.searchTimeSeconds ?? re.search_time_seconds;
   const resultText = re.resultStatus ?? re.result_status;

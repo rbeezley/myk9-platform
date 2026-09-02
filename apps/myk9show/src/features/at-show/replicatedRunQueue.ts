@@ -20,6 +20,7 @@ import {
   type RunQueueEntry,
 } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 
 /** A replicated row plus the normalized fields the run queue sorts on. */
 export interface ReplicatedQueueEntry extends RunQueueEntry {
@@ -31,15 +32,6 @@ function parseArmband(entry: ReplicatedEntry): number {
   const parsed = Number.parseInt(raw ?? '', 10);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
-
-/**
- * Entry-lifecycle states that mean "this dog is not going to run", but which
- * the show-day check-in flow never sets. `entry_status` (migration 003) allows
- * no-status / draft / submitted / paid / confirmed / checked-in / competing /
- * completed / withdrawn / scratched / absent — note it contains neither
- * `pulled` nor `in-ring`.
- */
-const NOT_RUNNING_LIFECYCLE = new Set(['withdrawn', 'scratched', 'absent']);
 
 /**
  * The status the run queue actually cares about.
@@ -57,7 +49,7 @@ function queueStatus(entry: ReplicatedEntry): string | undefined {
   if (checkIn === 'pulled' || checkIn === 'in-ring') return checkIn;
 
   const lifecycle = entry.status ?? entry.entryStatus;
-  if (lifecycle !== undefined && NOT_RUNNING_LIFECYCLE.has(lifecycle)) return 'pulled';
+  if (isNonRunningEntry({ entryStatus: lifecycle })) return 'pulled';
 
   return checkIn ?? lifecycle;
 }

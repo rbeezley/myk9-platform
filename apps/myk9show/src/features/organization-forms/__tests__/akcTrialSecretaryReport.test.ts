@@ -69,7 +69,7 @@ describe('buildAKCTrialSecretaryReportValues', () => {
     });
   });
 
-  it('counts only exact withdrawn and day-of no-show statuses', () => {
+  it('counts canonical non-running and supported day-of no-show statuses', () => {
     const values = buildAKCTrialSecretaryReportValues({
       ...reportProps,
       entries: [
@@ -81,8 +81,8 @@ describe('buildAKCTrialSecretaryReportValues', () => {
       ],
     });
 
-    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]).toBe(3);
-    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]).toBe(2);
+    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]).toBe(4);
+    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]).toBe(1);
   });
 
   it('omits legal club and event fields when source data is missing', () => {

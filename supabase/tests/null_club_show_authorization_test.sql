@@ -372,7 +372,7 @@ $$;
 --
 -- view_authenticated_entry_results is security_invoker = false, so RLS on
 -- entries is not a backstop: its own can_manage flag is the only gate. Until
--- 20260902120000 that flag carried `(sh.club_id IS NULL AND has_manager_role)`,
+-- 20260902130000 that flag carried `(sh.club_id IS NULL AND has_manager_role)`,
 -- which cases 1-4 above cannot see because they exercise the SQL helpers, not
 -- the view. A secretary of club A got can_manage (and can_view_admin: payment
 -- columns) on every club-less show on the platform.

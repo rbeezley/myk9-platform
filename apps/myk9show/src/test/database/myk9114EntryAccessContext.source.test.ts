@@ -11,12 +11,12 @@ const migration = readFileSync(
 );
 // The view has been rebuilt several times since MYK9-114; the gate assertions
 // below must read the migration that defines it TODAY, or they certify history.
-// MYK9-329 (20260902120000) is the latest: it dropped the club-less-show manager
+// MYK9-329 (20260902130000) is the latest: it dropped the club-less-show manager
 // arm. Bump this path when the view is next rebuilt.
 const viewMigration = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260902120000_myk9_329_null_club_view_can_manage.sql'
+    '../../../../../supabase/migrations/20260902130000_myk9_329_null_club_view_can_manage.sql'
   ),
   'utf8'
 );

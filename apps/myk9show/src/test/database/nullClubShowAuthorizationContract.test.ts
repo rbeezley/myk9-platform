@@ -187,7 +187,7 @@ describe('view_authenticated_entry_results does not admit managers to club-less 
     // Guards the guard: if the marker stopped matching, the assertion below
     // would pass against an empty string.
     expect(view.body).toContain('AS can_manage');
-    expect(view.file >= '20260902120000').toBe(true);
+    expect(view.file >= '20260902130000').toBe(true);
   });
 
   it('has no club-less-show manager arm in can_manage (MYK9-329)', () => {

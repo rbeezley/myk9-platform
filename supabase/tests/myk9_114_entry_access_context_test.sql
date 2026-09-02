@@ -284,7 +284,7 @@ $$;
 --
 -- Parity flipped direction with MYK9-258 (20260828230000): can_manage_show()
 -- now REJECTS a club-less show for everyone but a site admin, and MYK9-329
--- (20260902120000) brought this view's can_manage flag into line. Before that
+-- (20260902130000) brought this view's can_manage flag into line. Before that
 -- this block asserted 1/1/1 -- the scoped manager could read the club-less
 -- show's payment column and scores -- which is the cross-tenant leak MYK9-258
 -- named. The view has no other arm that admits this caller to this show, so

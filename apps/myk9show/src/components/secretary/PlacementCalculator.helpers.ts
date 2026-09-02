@@ -26,10 +26,9 @@ function parsePlacement(value: string | undefined): number | undefined {
 }
 
 function getServerPlacement(entry: ScentWorkEntry, result?: PlacementResult): number | undefined {
-  const entryPlacement = parsePlacement(entry.competitionData?.placement);
-  if (entryPlacement !== undefined) return entryPlacement;
+  if (result?.placementCalculated !== undefined) return result.placementCalculated;
 
-  return result?.placementCalculated;
+  return parsePlacement(entry.competitionData?.placement);
 }
 
 /**

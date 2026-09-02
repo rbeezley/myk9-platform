@@ -34,7 +34,12 @@ function makeEntry(id: string, placement: string): ScentWorkEntry {
   };
 }
 
-function makeResult(entryId: string, searchTime: number, faults: number): ScentWorkResult {
+function makeResult(
+  entryId: string,
+  searchTime: number,
+  faults: number,
+  placementCalculated?: number
+): ScentWorkResult {
   return {
     entryId,
     classId: 'class-1',
@@ -44,6 +49,7 @@ function makeResult(entryId: string, searchTime: number, faults: number): ScentW
     faults,
     recordedBy: 'Judge',
     recordedAt: new Date(0),
+    ...(placementCalculated === undefined ? {} : { placementCalculated }),
   };
 }
 
@@ -51,8 +57,8 @@ describe('buildPlacementData', () => {
   it('orders by server placement when time-first ranking would disagree', () => {
     const entries = [makeEntry('A', '2'), makeEntry('B', '1')];
     const results = new Map([
-      ['A', makeResult('A', 35_000, 1)],
-      ['B', makeResult('B', 40_000, 0)],
+      ['A', makeResult('A', 35_000, 1, 2)],
+      ['B', makeResult('B', 40_000, 0, 1)],
     ]);
 
     const placementData = buildPlacementData(entries, results);

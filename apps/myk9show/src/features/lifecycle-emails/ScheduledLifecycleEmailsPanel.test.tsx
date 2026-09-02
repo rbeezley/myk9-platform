@@ -123,8 +123,9 @@ describe('ScheduledLifecycleEmailsPanel', () => {
         expect.objectContaining({
           showId: 'show-1',
           jobIds: ['job-1'],
-          subject: 'Two weeks away',
-          body: 'See you soon.',
+          subject: null,
+          body: null,
+          secretaryNote: null,
         })
       );
     });
@@ -275,6 +276,104 @@ describe('ScheduledLifecycleEmailsPanel', () => {
       expect(mockSendJobs).toHaveBeenCalledWith(
         expect.objectContaining({
           jobIds: ['job-failed'],
+        })
+      );
+    });
+  });
+
+  it('sends no override text so each recipient keeps their personalised draft', async () => {
+    mockFetchJobs.mockResolvedValueOnce([
+      {
+        id: 'job-alice',
+        stepType: 'two_week_reminder',
+        status: 'ready',
+        recipientEmail: 'alice@example.com',
+        recipientName: 'Alice',
+        subject: 'Entry accepted - Rex',
+        body: 'Hi Alice, your entry for Rex has been accepted. Armband: 12',
+        secretaryNote: '',
+        previewWarnings: [],
+      },
+      {
+        id: 'job-bob',
+        stepType: 'two_week_reminder',
+        status: 'ready',
+        recipientEmail: 'bob@example.com',
+        recipientName: 'Bob',
+        subject: 'Entry accepted - Fido',
+        body: 'Hi Bob, your entry for Fido has been accepted. Armband: 47',
+        secretaryNote: '',
+        previewWarnings: [],
+      },
+    ]);
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    expect(
+      await screen.findByText('The other recipient gets their own personalised message.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await waitFor(() => {
+      expect(mockSendJobs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobIds: ['job-alice', 'job-bob'],
+          subject: null,
+          body: null,
+          secretaryNote: null,
+        })
+      );
+    });
+  });
+
+  it('warns before broadcasting an edited body over every personalised draft', async () => {
+    mockFetchJobs.mockResolvedValueOnce([
+      {
+        id: 'job-alice',
+        stepType: 'two_week_reminder',
+        status: 'ready',
+        recipientEmail: 'alice@example.com',
+        recipientName: 'Alice',
+        subject: 'Entry accepted - Rex',
+        body: 'Hi Alice, your entry for Rex has been accepted.',
+        secretaryNote: '',
+        previewWarnings: [],
+      },
+      {
+        id: 'job-bob',
+        stepType: 'two_week_reminder',
+        status: 'ready',
+        recipientEmail: 'bob@example.com',
+        recipientName: 'Bob',
+        subject: 'Entry accepted - Fido',
+        body: 'Hi Bob, your entry for Fido has been accepted.',
+        secretaryNote: '',
+        previewWarnings: [],
+      },
+    ]);
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Review' }));
+    await screen.findByLabelText('Message');
+    // One keystroke is enough to flip the edit state; see the CLAUDE.md lesson
+    // on userEvent.type cost against controlled inputs.
+    await user.type(screen.getByLabelText('Message'), '!');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'This text will replace 2 personalised drafts.'
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Send now' }));
+
+    await waitFor(() => {
+      expect(mockSendJobs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobIds: ['job-alice', 'job-bob'],
+          body: 'Hi Alice, your entry for Rex has been accepted.!',
+          subject: null,
+          secretaryNote: null,
         })
       );
     });

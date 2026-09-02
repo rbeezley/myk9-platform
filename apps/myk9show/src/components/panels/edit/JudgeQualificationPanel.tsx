@@ -35,8 +35,7 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage, toYYYYMMDD } from '@myk9/core';
 import {
-  createJudgeQualification,
-  deleteJudgeQualificationsByPersonId,
+  replaceJudgeQualifications,
 } from '@/services/database/judges';
 import type { CreateJudgeQualificationData } from '@/types/judge-management';
 
@@ -233,12 +232,9 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
     try {
       setIsLoading(true);
 
-      // Replace all qualifications in a single bulk delete + parallel create
-      await deleteJudgeQualificationsByPersonId(userId);
-      await Promise.all(
-        qualifications.map(qual =>
-          createJudgeQualification(mapUiToDbQualification(qual, userId))
-        )
+      await replaceJudgeQualifications(
+        userId,
+        qualifications.map(qual => mapUiToDbQualification(qual, userId))
       );
 
       // Invalidate caches so the store and queries pick up the new data

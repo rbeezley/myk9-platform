@@ -51,6 +51,20 @@ const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications!inner(
   date_obtained, expiration_date, is_active
 )`;
 
+export async function replaceJudgeQualifications(
+  personId: string,
+  qualifications: CreateJudgeQualificationData[]
+): Promise<void> {
+  const { error } = await (supabase as unknown as {
+    rpc(name: string, args: Record<string, unknown>): Promise<{ error: { message: string } | null }>;
+  }).rpc('replace_judge_qualifications', {
+    p_person_id: personId,
+    p_qualifications: qualifications,
+  });
+
+  if (error) throw new Error(`Failed to replace judge qualifications: ${error.message}`);
+}
+
 // Get judges with their qualifications for Secretary judge assignment UI.
 // Source of truth = judge_qualifications (org/active filtering happens in the UI
 // against the embedded rows); a `judge` user_roles grant is NOT required.

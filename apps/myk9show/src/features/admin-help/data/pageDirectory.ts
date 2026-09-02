@@ -659,14 +659,4 @@ export const pageDirectory: readonly PageEntry[] = [
     status: 'working',
     linksTo: ['/shows'],
   },
-  {
-    path: '/judge/assignments',
-    title: 'Judge Assignments',
-    description: 'Judging assignments list (parked for fall).',
-    roles: [UserRole.JUDGE, UserRole.SITE_ADMIN],
-    classification: 'park',
-    category: 'Shows',
-    status: 'working',
-    linksTo: [],
-  },
 ] as const;

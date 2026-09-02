@@ -72,4 +72,30 @@ describe('support deflection routing', () => {
     expect(isSupportPaymentOrRefundQuestion('Stripe checkout charged me twice')).toBe(true);
     expect(isSupportPaymentOrRefundQuestion('Where do I find my armband?')).toBe(false);
   });
+
+  it('routes announcement answers to a resolvable surface', () => {
+    const route = routeSupportDeflection({
+      question: 'Where can I see announcements?',
+      answer: 'Open Messages to see announcements from the show team.',
+      toolsUsed: [],
+      sources: {},
+      showId: 'show-1',
+    });
+
+    expect(route).toMatchObject({
+      kind: 'answer',
+      deepLink: { label: 'Messages', href: '/messages/show-1' },
+    });
+  });
+
+  it('omits the show-specific messages link without show context', () => {
+    const route = routeSupportDeflection({
+      question: 'Where can I see announcements?',
+      answer: 'Open Messages to see announcements from the show team.',
+      toolsUsed: [],
+      sources: {},
+    });
+
+    expect(route).toMatchObject({ kind: 'answer', deepLink: null });
+  });
 });

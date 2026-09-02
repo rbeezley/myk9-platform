@@ -202,10 +202,6 @@ export const ROUTE_PREFETCH_CONFIGS = {
 
   judgeDashboard: (): RoutePrefetchConfig[] => [
     {
-      queryKey: ['judge', 'assignments'],
-      queryFn: () => fetch('/api/judge/assignments').then(res => res.json()),
-    },
-    {
       queryKey: ['judge', 'schedule'],
       queryFn: () => fetch('/api/judge/schedule').then(res => res.json()),
     },

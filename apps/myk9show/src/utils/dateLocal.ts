@@ -4,9 +4,13 @@
  * IMPORTANT: We consistently work with dates in YYYY-MM-DD format.
  */
 
-import { LoggingService } from '@/services/LoggingService';
-
-const logger = LoggingService.getInstance();
+// Import the exported singleton rather than calling LoggingService.getInstance()
+// here. `logger` IS that instance (LoggingService.ts), so behavior is identical —
+// but a module-scope getInstance() call makes every test that mocks
+// '@/services/LoggingService' with a logger-only factory fail to load the moment
+// this module enters its import graph, before a single test runs. 43 such
+// factories exist; see MYK9-344.
+import { logger } from '@/services/LoggingService';
 
 /**
  * Converts a Date object to a YYYY-MM-DD string.

@@ -134,14 +134,24 @@ beforeEach(() => {
 });
 
 describe('isEntryCloseDayPast', () => {
+  // Every `now` here is an absolute instant (trailing Z) chosen to land on the
+  // intended calendar day in the default zone, America/New_York. A naked
+  // 'YYYY-MM-DDTHH:mm:ss' string is parsed in the RUNNER's zone instead, which
+  // made these assertions depend on where they ran: '2026-09-03T00:01:00' is
+  // Sep 3 01:01 in New York from a CDT machine (passes) but Sep 2 20:01 from a
+  // UTC one (fails), so CI was red while every local run was green. Keep the Z.
+  // See MYK9-344, and MYK9-288 for the same class of bug in the other direction.
   it('keeps an entry editable throughout the stored close day', () => {
-    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-02T18:00:00'))).toBe(
+    // 14:00 on Sep 2 in New York — still the close day.
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-02T18:00:00Z'))).toBe(
       false
     );
   });
 
   it('blocks editing on the day after the stored close day', () => {
-    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-03T00:01:00'))).toBe(
+    // 08:00 on Sep 3 in New York — the day after. Midday UTC keeps this clear of
+    // the boundary in both directions; 00:01Z would still be Sep 2 in New York.
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-03T12:00:00Z'))).toBe(
       true
     );
   });

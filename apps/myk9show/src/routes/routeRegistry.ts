@@ -148,7 +148,6 @@ export const clubAdminRouteComponents: Record<string, ImportFunction> = {
 export const judgeRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for judge routes - would be populated by actual judge routes
   '/judge/dashboard': () => import('@/pages/JudgeDashboard'),
-  '/judge/assignments': () => import('@/pages/JudgeDashboard'),
   // Add more judge routes as they're defined
 } as const;
 
@@ -195,7 +194,7 @@ export const navigationPatterns = {
   secretaryDashboard: ['/shows', '/secretary/create-show/wizard'],
 
   // Judge workflow patterns
-  judgeDashboard: ['/judge/assignments'],
+  judgeDashboard: ['/judge/dashboard'],
 };
 
 // Utility function to get import function for a route path

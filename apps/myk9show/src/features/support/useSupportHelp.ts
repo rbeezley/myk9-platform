@@ -123,6 +123,7 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
           answer,
           toolsUsed,
           sources,
+          showId: routeContext.showId,
           escalation,
         });
         setState(prev => ({

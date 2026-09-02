@@ -132,6 +132,39 @@ describe('ExhibitorPaymentsPage balance states', () => {
     expect(screen.queryByText('Spring Trial')).not.toBeInTheDocument();
   });
 
+  it('keeps a past-show balance visible without offering a dead cart action', () => {
+    balanceState.data = {
+      currentFeesCents: 0,
+      amountDueCents: 9000,
+      onlineDueCents: 9000,
+      payAtShowDueCents: 0,
+      onlineShowBalances: [
+        {
+          showId: 'show-past',
+          showName: 'Past Trial',
+          entryCloseDay: null,
+          showTimezone: 'America/Chicago',
+          isPastShow: true,
+          amountDueCents: 9000,
+          onlineDueCents: 9000,
+          payAtShowDueCents: 0,
+          entryIds: ['entry-1'],
+          paymentHref: '/cart?showId=show-past&entryIds=entry-1',
+        },
+      ],
+    };
+
+    render(<ExhibitorPaymentsPage />);
+
+    expect(screen.getByText('$90.00')).toBeInTheDocument();
+    expect(
+      screen.getByText('Please contact the club to settle this outstanding balance.')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /finish payment|pay .* online/i })
+    ).not.toBeInTheDocument();
+  });
+
   it('always offers a way to act on a positive balance with no payable breakdown', () => {
     balanceState.data = {
       currentFeesCents: 4000,

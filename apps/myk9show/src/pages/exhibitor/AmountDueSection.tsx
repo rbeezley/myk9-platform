@@ -105,12 +105,13 @@ export function AmountDueSection({
   const now = new Date(nowMs);
   const singleOnlineShowBalance =
     summary.onlineShowBalances.length === 1 ? summary.onlineShowBalances[0] : null;
+  const singleOnlineCanPay = singleOnlineShowBalance && !singleOnlineShowBalance.isPastShow;
   const singleOnlineCoversFullDue =
     summary.onlineDueCents === summary.amountDueCents && summary.payAtShowDueCents === 0;
   const singleOnlineButtonLabel =
-    singleOnlineShowBalance && singleOnlineCoversFullDue
+    singleOnlineCanPay && singleOnlineCoversFullDue
       ? 'Finish payment'
-      : singleOnlineShowBalance
+      : singleOnlineCanPay
         ? `Pay ${formatPaymentCents(singleOnlineShowBalance.onlineDueCents, 'usd')} online`
         : null;
 
@@ -170,14 +171,18 @@ export function AmountDueSection({
                 : 'This matches Current Fees on My Shows for current entries.'}
             </p>
           </div>
-          {singleOnlineShowBalance && singleOnlineButtonLabel && (
+          {singleOnlineShowBalance?.isPastShow ? (
+            <p className="max-w-xs text-sm text-muted-foreground">
+              Please contact the club to settle this outstanding balance.
+            </p>
+          ) : singleOnlineShowBalance && singleOnlineButtonLabel ? (
             <Button asChild className="min-h-11 shrink-0">
               <Link to={singleOnlineShowBalance.paymentHref}>
                 <CreditCard className="h-4 w-4" aria-hidden="true" />
                 {singleOnlineButtonLabel}
               </Link>
             </Button>
-          )}
+          ) : null}
         </div>
 
         {/* A positive balance with no online breakdown and nothing marked pay
@@ -208,11 +213,15 @@ export function AmountDueSection({
                     show.showTimezone
                   )}
                 </span>
-                <Button asChild variant="outline" size="touch">
-                  <Link to={show.paymentHref}>
-                    Pay {formatPaymentCents(show.onlineDueCents, 'usd')}
-                  </Link>
-                </Button>
+                {show.isPastShow ? (
+                  <span className="text-sm text-muted-foreground">Contact the club to settle</span>
+                ) : (
+                  <Button asChild variant="outline" size="touch">
+                    <Link to={show.paymentHref}>
+                      Pay {formatPaymentCents(show.onlineDueCents, 'usd')}
+                    </Link>
+                  </Button>
+                )}
               </div>
             ))}
           </div>

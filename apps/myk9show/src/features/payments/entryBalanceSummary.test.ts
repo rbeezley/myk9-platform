@@ -78,6 +78,8 @@ describe('summarizeEntryBalances', () => {
     expect(summary.currentFeesCents).toBe(0);
     expect(summary.amountDueCents).toBe(9000);
     expect(summary.onlineDueCents).toBe(9000);
+    expect(summary.onlineShowBalances[0].isPastShow).toBe(true);
+    expect(buildEntryBalanceRecoveryHref(summary)).toBe('/exhibitor/payments?due=1');
   });
 
   it('keeps pay-at-show balances in amount due without adding them to cart checkout links', () => {
@@ -207,8 +209,10 @@ describe('entry-close deadline on the amount-due summary', () => {
     });
 
     expect(source.showTimezone).toBe('America/Chicago');
-    expect(summarizeEntryBalances([entry({ showTimezone: 'America/Chicago' })], now)
-      .onlineShowBalances[0].showTimezone).toBe('America/Chicago');
+    expect(
+      summarizeEntryBalances([entry({ showTimezone: 'America/Chicago' })], now)
+        .onlineShowBalances[0].showTimezone
+    ).toBe('America/Chicago');
   });
 
   it("uses the show's primary trial timezone, not the one this entry is in", () => {
@@ -264,8 +268,18 @@ describe('entry-close deadline on the amount-due summary', () => {
   it("keeps each show's own close day when several shows owe money", () => {
     const summary = summarizeEntryBalances(
       [
-        entry({ id: 'entry-a', showId: 'show-1', showName: 'A Trial', entryCloseDay: '2026-06-14' }),
-        entry({ id: 'entry-b', showId: 'show-2', showName: 'B Trial', entryCloseDay: '2026-07-02' }),
+        entry({
+          id: 'entry-a',
+          showId: 'show-1',
+          showName: 'A Trial',
+          entryCloseDay: '2026-06-14',
+        }),
+        entry({
+          id: 'entry-b',
+          showId: 'show-2',
+          showName: 'B Trial',
+          entryCloseDay: '2026-07-02',
+        }),
       ],
       now
     );

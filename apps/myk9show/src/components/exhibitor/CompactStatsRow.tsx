@@ -53,6 +53,7 @@ export function CompactStatsRow({
   const paidInFull = amountDue <= 0;
   const includesPastBalance = amountDue > currentFees;
   const feeHref = paidInFull ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
+  const hasActionableOnlinePayment = !paidInFull && feeHref.startsWith('/cart');
 
   return (
     <div className={className}>
@@ -63,7 +64,7 @@ export function CompactStatsRow({
           paidInFull
             ? 'Entry fees: paid in full. View your payments.'
             : includesPastBalance
-              ? `Entry fees: ${formatCurrency(amountDue)} outstanding. Finish payment.`
+              ? `Entry fees: ${formatCurrency(amountDue)} outstanding. View payment details.`
               : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
         }
         className={cn(
@@ -116,7 +117,7 @@ export function CompactStatsRow({
           </span>
         </span>
 
-        {!paidInFull && (
+        {hasActionableOnlinePayment ? (
           <span
             aria-hidden="true"
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
@@ -124,7 +125,9 @@ export function CompactStatsRow({
             <CreditCard className="h-4 w-4" />
             Finish Payment
           </span>
-        )}
+        ) : includesPastBalance ? (
+          <span className="text-sm text-muted-foreground">Contact the club to settle</span>
+        ) : null}
       </button>
     </div>
   );

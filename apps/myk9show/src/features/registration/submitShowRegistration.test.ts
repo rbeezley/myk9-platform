@@ -32,10 +32,6 @@ function makeParams(
     submissionSource: 'organizer',
     deps: {
       submitRegistration: vi.fn().mockResolvedValue(undefined),
-      confirmRegistration: vi.fn().mockResolvedValue({
-        confirmationNumber: 'MK9-000001',
-        dbRegistrationId: 'db-reg-1',
-      }),
       createShowRegistration: vi.fn().mockResolvedValue({
         data: { id: 'db-reg-2', confirmationNumber: 'MK9-000002' },
         error: null,
@@ -83,7 +79,6 @@ describe('submitShowRegistration', () => {
       'Invariant: submitShowRegistration called with credit_card payment method'
     );
 
-    expect(params.deps.confirmRegistration).not.toHaveBeenCalled();
     expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
   });
 
@@ -363,7 +358,6 @@ describe('submitShowRegistration', () => {
     const result = await submitShowRegistration(params);
 
     expect(result).toEqual({ aborted: true });
-    expect(params.deps.confirmRegistration).not.toHaveBeenCalled();
     expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
   });
 });

@@ -127,6 +127,20 @@ describe('detectMyRingConflicts', () => {
     expect(conflicts.size).toBe(0);
   });
 
+  it.each(['withdrawn', 'scratched', 'absent'])('ignores %s lifecycle entries', lifecycle => {
+    const entries = [
+      entry({ id: 'a1', classId: 'class-a', runOrder: 1, entryStatus: lifecycle }),
+      entry({ id: 'b1', classId: 'class-b', runOrder: 1, dogCallName: 'Sparky' }),
+    ];
+    const conflicts = detectMyRingConflicts({
+      entries,
+      classes,
+      ownEntryIds: new Set(['a1', 'b1']),
+      leadDogs: 3,
+    });
+    expect(conflicts.size).toBe(0);
+  });
+
   it('two near-up entries in the SAME class are not a conflict', () => {
     const sameClass: RingConflictEntry[] = [
       entry({ id: 'a1', classId: 'class-a', runOrder: 1, dogCallName: 'Ditto' }),
@@ -157,7 +171,9 @@ describe('detectMyRingConflicts', () => {
       ownEntryIds: new Set(['a1', 'b1', 'd1']),
       leadDogs: 3,
     });
-    expect(conflicts.get('a1')).toBe('Sparky next in Buried Master · Rex next in Exterior Advanced');
+    expect(conflicts.get('a1')).toBe(
+      'Sparky next in Buried Master · Rex next in Exterior Advanced'
+    );
   });
 
   it('returns empty for empty ownership without touching the data', () => {

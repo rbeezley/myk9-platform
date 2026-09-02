@@ -63,7 +63,6 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
       abandonCart: vi.fn(),
     },
     submitRegistration: vi.fn(),
-    confirmRegistration: vi.fn(),
     isMounted: () => true,
     setIsSubmitting: vi.fn(),
     setRegistrationNumber: vi.fn(),

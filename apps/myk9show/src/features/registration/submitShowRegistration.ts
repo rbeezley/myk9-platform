@@ -50,11 +50,6 @@ export type SubmitShowRegistrationResult =
 
 interface SubmitShowRegistrationDeps {
   submitRegistration: (registrationId: string, paymentDetails?: PaymentDetails) => Promise<void>;
-  confirmRegistration: (
-    registrationId: string,
-    paymentReference: string,
-    paymentDetails?: PaymentDetails
-  ) => Promise<{ confirmationNumber?: string | undefined; dbRegistrationId?: string | undefined }>;
   createShowRegistration: typeof createShowRegistration;
   submitShowEntries: typeof submitShowEntries;
   claimNextArmband: typeof claimNextArmband;
@@ -82,17 +77,16 @@ export interface SubmitShowRegistrationParams {
    */
   canAssignArmbands?: boolean | undefined;
   isActive?: (() => boolean) | undefined;
-  deps: Pick<SubmitShowRegistrationDeps, 'submitRegistration' | 'confirmRegistration'> &
+  deps: Pick<SubmitShowRegistrationDeps, 'submitRegistration'> &
     Partial<SubmitShowRegistrationDeps>;
 }
 
-const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration' | 'confirmRegistration'> =
-  {
-    createShowRegistration,
-    submitShowEntries,
-    claimNextArmband,
-    createSubmissionId: () => crypto.randomUUID(),
-  };
+const DEFAULT_DEPS: Omit<SubmitShowRegistrationDeps, 'submitRegistration'> = {
+  createShowRegistration,
+  submitShowEntries,
+  claimNextArmband,
+  createSubmissionId: () => crypto.randomUUID(),
+};
 
 function isStillActive(isActive: (() => boolean) | undefined): boolean {
   return isActive ? isActive() : true;

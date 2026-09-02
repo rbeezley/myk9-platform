@@ -53,7 +53,6 @@ vi.mock('@/store/showRegistrationStore', () => ({
   useShowRegistrationStore: () => ({
     createRegistration: vi.fn(() => ({ id: 'reg-1' })),
     submitRegistration: vi.fn(),
-    confirmRegistration: vi.fn(),
     currentRegistration: null,
     setDraftData: vi.fn(),
     updateRegistration: vi.fn(),

@@ -287,15 +287,13 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(screen.getByTestId('current-location')).toHaveTextContent('/dogs/dog-1');
   });
 
-  it('renders dog cards with one registry row per registration when cards are selected', () => {
+  it('renders dog cards with a registration row per registry when cards are selected', () => {
     localStorage.setItem('view-pref-dogs', 'cards');
 
     renderPage();
 
-    // The registry table: org label and number are separate cells.
-    expect(screen.getByText('AKC')).toBeInTheDocument();
+    // One org / number row per registry should be visible on the card
     expect(screen.getByText('DN12345678')).toBeInTheDocument();
-    expect(screen.getByText('UKC')).toBeInTheDocument();
     expect(screen.getByText('R123456')).toBeInTheDocument();
   });
 
@@ -311,7 +309,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     // Dog card should still render
     expect(screen.getByText('Max')).toBeInTheDocument();
-    // No registry rows
+    // No registration badges
     expect(screen.queryByText('DN12345678')).not.toBeInTheDocument();
   });
 

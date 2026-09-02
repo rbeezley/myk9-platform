@@ -67,7 +67,10 @@ Refresh this list each run; a stale entry costs a whole scope.
 - The `/admin/permissions/roles` and `/admin/permissions/users` redirect entries in routeRegistry.
 - `apps/myk9show/supabase/.temp/*` being tracked in git.
 - Anything carrying a `MYK9-<n>` reference in a nearby comment — note the id instead.
-- Already filed this run: `{{FILED}}`.
+- **Already filed — these are known defects, not findings.** Do not re-report them; if you land on
+  one, note the id in your Coverage section and move on. `{{FILED}}`
+  (Format: `file:line — MYK9-nnn — one-line summary`. Includes prior runs for this scope, not just
+  this one — most scopes have been swept before.)
 
 ## Output
 

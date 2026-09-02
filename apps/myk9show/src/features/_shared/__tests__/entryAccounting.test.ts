@@ -4,11 +4,24 @@ import {
   isAccountedFor,
   isExpectedEntry,
   outstandingEntries,
+  isNonRunningEntry,
 } from '../entryAccounting';
+
+describe('isNonRunningEntry', () => {
+  it.each(['withdrawn', 'scratched', 'absent'])('recognizes %s', status => {
+    expect(isNonRunningEntry({ entry_status: status })).toBe(true);
+  });
+
+  it('does not treat pulled as a lifecycle state', () => {
+    expect(isNonRunningEntry({ check_in_status: 'pulled' })).toBe(false);
+  });
+});
 
 describe('isExpectedEntry', () => {
   it('counts an ordinary confirmed entry', () => {
-    expect(isExpectedEntry({ entry_status: 'confirmed', check_in_status: 'checked-in' })).toBe(true);
+    expect(isExpectedEntry({ entry_status: 'confirmed', check_in_status: 'checked-in' })).toBe(
+      true
+    );
   });
 
   it.each(['scratched', 'withdrawn'])('excludes %s', status => {

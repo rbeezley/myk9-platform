@@ -149,7 +149,7 @@ describe('buildRegistrationEntryBlankDownloads', () => {
           trial_id: 'trial-2',
           class_id: 'class-2',
           entry_fee: 25,
-          payment_status: 'online',
+          payment_method: 'online',
         },
         dog: {
           call_name: 'Tera',

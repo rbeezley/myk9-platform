@@ -10,46 +10,59 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
+import { useOfflineScoringStore } from '@/store/offlineScoringStore';
 
-const PRESERVED_KEYS = ['myK9Q_settings'];
+const DISPOSABLE_STORAGE_KEYS = [
+  'myk9-notification-preferences',
+  'myk9-cart-storage',
+  'draft-storage',
+  'armband-storage',
+  'myk9show-offline-scoring-storage',
+];
+const DISPOSABLE_DATABASE_NAMES = ['myK9ShowDB'];
+
+export function hasPendingOfflineWork(pendingMutations: number, pendingScores: number): boolean {
+  return pendingMutations > 0 || pendingScores > 0;
+}
+
+async function getPendingOfflineWorkCount(): Promise<{ mutations: number; scores: number }> {
+  const db = await databaseManager.getDatabase('data-settings-clear-cache');
+  return {
+    mutations: await db.count(REPLICATION_STORES.PENDING_MUTATIONS),
+    scores: useOfflineScoringStore.getState().syncQueue.length,
+  };
+}
 
 export function DataSettings() {
   const queryClient = useQueryClient();
 
   const handleClearCache = async () => {
+    const { mutations, scores } = await getPendingOfflineWorkCount();
+    const pendingCount = mutations + scores;
+    if (hasPendingOfflineWork(mutations, scores)) {
+      window.alert(
+        `You have ${pendingCount} unsynced change${pendingCount === 1 ? '' : 's'}. Connect and sync before clearing cached data.`
+      );
+      return;
+    }
+
     const confirmed = window.confirm(
-      'This will clear all cached data and reload the app. Your settings and login will be preserved. Continue?'
+      'This will remove cached query data, drafts, preferences, and local scoring data, then reload the app. Your settings, login, and unsynced changes will be preserved. Continue?'
     );
     if (!confirmed) return;
 
-    const preserved = new Map<string, string>();
-    for (const key of PRESERVED_KEYS) {
-      const value = localStorage.getItem(key);
-      if (value !== null) preserved.set(key, value);
+    for (const key of DISPOSABLE_STORAGE_KEYS) {
+      localStorage.removeItem(key);
     }
-    // Supabase auth key uses dynamic prefix (sb-<ref>-auth-token)
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('sb-') && key.includes('auth-token')) {
-        preserved.set(key, localStorage.getItem(key)!);
-      }
-    }
-    localStorage.clear();
-    for (const [key, value] of preserved) {
-      localStorage.setItem(key, value);
-    }
+
+    // Supabase auth and settings are intentionally untouched.
 
     queryClient.clear();
 
-    // Firefox doesn't support indexedDB.databases()
     try {
-      if (window.indexedDB?.databases) {
-        const dbs = await window.indexedDB.databases();
-        for (const db of dbs) {
-          if (db.name) window.indexedDB.deleteDatabase(db.name);
-        }
-      } else if (window.indexedDB) {
-        window.indexedDB.deleteDatabase('myK9ShowDB');
+      for (const databaseName of DISPOSABLE_DATABASE_NAMES) {
+        window.indexedDB?.deleteDatabase(databaseName);
       }
     } catch {
       // IndexedDB cleanup is best-effort

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import {
   getScoresheetComponent,
   registerScoresheet,
@@ -14,22 +14,33 @@ import '../components/scoresheets/UKC/UKCObedienceLiveScoresheet';
 import '../components/scoresheets/UKC/UKCRallyLiveScoresheet';
 import '../components/scoresheets/ASCA/ASCAScentDetectionLiveScoresheet';
 
+const sportTypes = [
+  'AKC_SCENT_WORK',
+  'AKC_FASTCAT',
+  'AKC_SCENT_WORK_NATIONAL',
+  'UKC_NOSEWORK',
+  'UKC_OBEDIENCE',
+  'UKC_RALLY',
+  'ASCA_SCENT_DETECTION',
+] as const;
+
+const importedRegistrations = sportTypes.map(sportType => ({
+  sportType,
+  component: getScoresheetComponent(sportType, 'live'),
+}));
+
+afterEach(() => {
+  for (const { sportType, component } of importedRegistrations) {
+    if (component) registerScoresheet(sportType, 'live', component);
+  }
+});
+
 /**
  * Self-registration tests run FIRST — they verify the registry state
  * from module side-effects that ran at import time. These must run
  * before any test that clears or overwrites the registry.
  */
 describe('self-registration via imports', () => {
-  const sportTypes = [
-    'AKC_SCENT_WORK',
-    'AKC_FASTCAT',
-    'AKC_SCENT_WORK_NATIONAL',
-    'UKC_NOSEWORK',
-    'UKC_OBEDIENCE',
-    'UKC_RALLY',
-    'ASCA_SCENT_DETECTION',
-  ] as const;
-
   for (const sportType of sportTypes) {
     describe(`${sportType} registration`, () => {
       it('has live component registered', () => {

@@ -289,4 +289,3 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | -------------------------------------------------------------- | --------- | -------------------------------------------- |
 | [designs/claude-inspiration.md](designs/claude-inspiration.md) | Reference | Design System Inspired by Claude (Anthropic) |
 
-- [MYK9-361: Create User role grants](plan-myk9-361.md) — Active.

@@ -1,6 +1,6 @@
 # MYK9-361: Truthful role assignment during user creation
 
-> **Status:** Active
+> **Status:** Complete
 
 Request: implement MYK9-361
 
@@ -24,4 +24,4 @@ No database, permission policy, or role-manager changes. Creation remains an onl
 - `pnpm typecheck`: passed, including application, test, E2E baseline gate, and edge-test checks. Initial sandbox run could not open the tsx IPC socket; permitted rerun passed. Existing E2E diagnostics remain within the repository baseline.
 - `pnpm lint`: passed with 0 errors and 18 existing warnings.
 - Prettier on touched TypeScript and `git diff --check`: passed.
-- Branch: `codex/myk9-361`. PR publication requested through ship-pr; merge and Linear completion remain pending.
+- Branch: `codex/myk9-361`. Merged in PR #2003 (`6858ba9b1399e73d00c4e3f67648d924d230e9a8`); MYK9-361 is Done. All required CI checks passed, including Test, Quality Checks, A11y smoke, and E2E PR Smoke.

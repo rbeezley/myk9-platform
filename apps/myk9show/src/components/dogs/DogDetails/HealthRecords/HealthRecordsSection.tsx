@@ -430,7 +430,6 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
         <HealthTimeline
           dogId={dogId}
           events={timelineEvents}
-          onEventClick={() => {}}
           onAddEvent={() => setAddDialogType('vaccination')}
           onImportRecords={handleImportRecords}
           onDeleteEvent={event => {

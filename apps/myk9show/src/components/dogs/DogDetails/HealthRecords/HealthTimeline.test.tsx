@@ -30,6 +30,60 @@ const exportToCSVMock = vi.mocked(exportToCSV);
 const downloadFileMock = vi.mocked(downloadFile);
 const toastErrorMock = vi.mocked(toast.error);
 
+describe('HealthTimeline card affordances', () => {
+  const event: HealthEvent = {
+    id: 'vaccination-1',
+    recordId: 'vaccination-1',
+    recordType: 'vaccination',
+    type: 'vaccination',
+    title: 'Rabies Vaccination',
+    date: new Date('2026-02-14T12:00:00Z'),
+    status: 'completed',
+  };
+
+  it.each(['timeline', 'grid'])('keeps %s cards static without a click action', mode => {
+    const onDeleteEvent = vi.fn();
+    render(<HealthTimeline dogId="dog-123" events={[event]} onDeleteEvent={onDeleteEvent} />);
+    if (mode === 'grid') {
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle timeline view mode' }));
+    }
+
+    const card = screen.getByText(event.title).closest('.shadow-card');
+    expect(card).not.toHaveClass('cursor-pointer');
+    expect(card).not.toHaveClass('hover:shadow-md');
+    fireEvent.click(screen.getByText(event.title));
+    expect(onDeleteEvent).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: `Delete ${event.title}` }));
+    expect(onDeleteEvent).toHaveBeenCalledWith(event);
+  });
+
+  it.each(['timeline', 'grid'])('preserves real %s card actions', mode => {
+    const onEventClick = vi.fn();
+    const onDeleteEvent = vi.fn();
+    render(
+      <HealthTimeline
+        dogId="dog-123"
+        events={[event]}
+        onEventClick={onEventClick}
+        onDeleteEvent={onDeleteEvent}
+      />
+    );
+    if (mode === 'grid') {
+      fireEvent.click(screen.getByRole('button', { name: 'Toggle timeline view mode' }));
+    }
+
+    expect(screen.getByText(event.title).closest('.shadow-card')).toHaveClass(
+      'cursor-pointer',
+      'hover:shadow-md'
+    );
+    fireEvent.click(screen.getByText(event.title));
+    expect(onEventClick).toHaveBeenCalledExactlyOnceWith(event);
+    fireEvent.click(screen.getByRole('button', { name: `Delete ${event.title}` }));
+    expect(onDeleteEvent).toHaveBeenCalledExactlyOnceWith(event);
+    expect(onEventClick).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('HealthTimeline export', () => {
   beforeEach(() => {
     vi.useFakeTimers();

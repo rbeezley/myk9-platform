@@ -230,12 +230,12 @@ export const AtShowClassListPage: React.FC = () => {
   );
 
   // Only a sync that can still make progress justifies a spinner. Offline,
-  // `triggerSync` returns early and every table stays 'idle', which this helper
-  // counts as pending-first-sync -- so without the connectivity test the judge
-  // gets a skeleton that never resolves on a device that is already primed.
+  // `triggerSync` returns early and every table stays 'idle' -- a skeleton that
+  // never resolves on a device that is already primed. That connectivity test
+  // now lives inside `areReplicationTablesPendingFirstSync` (MYK9-365) so all
+  // five call sites are covered, not the two that wrote it out by hand.
   const isClassDataStillSyncing =
     groups.length === 0 &&
-    isOnline &&
     areReplicationTablesPendingFirstSync(syncStatus, ['shows', 'trials', 'classes', 'entries']);
   const hasClasses = groupedByTrial.some(group => group.classes.length > 0);
   const isCheckingOfflineEmptyScope = !isOnline && !hasClasses && classDataHydration === 'checking';

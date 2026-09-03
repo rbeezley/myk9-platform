@@ -239,4 +239,51 @@ test.describe('offline cold boot', () => {
     await expect(page.evaluate(() => navigator.onLine)).resolves.toBe(false);
     expect(interceptedCount()).toBeGreaterThan(0);
   });
+
+  // MYK9-365. Staying on the route is necessary but not sufficient — the page
+  // Richard captured in the 2026-09-03 exhibitor walk WAS on /exhibitor/entries
+  // and still useless: `<main>` held nothing but an animated skeleton, forever.
+  //
+  // Cause: `ReplicationSyncProvider.triggerSync` returns early when offline
+  // WITHOUT touching `tablesStatus`, so every table stays at its initial 'idle',
+  // and `areReplicationTablesPendingFirstSync` counted 'idle' as "first sync
+  // still coming". Offline that is never true, so the skeleton had no exit.
+  //
+  // The contract this pins is the one the audit asked for: previously loaded
+  // entries remain usable, or a bounded explicit recovery state occupies the
+  // main content. An indefinite skeleton is neither.
+  test('a cold offline boot leaves usable content, not an endless skeleton', async ({
+    page,
+    context,
+  }) => {
+    await signInAsExhibitor(page, '/exhibitor/entries');
+    await page.waitForURL('**/exhibitor/entries', { timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+      timeout: 45_000,
+    });
+
+    const interceptedCount = await goOffline(context);
+    await reportOffline(context);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // The page shell must come back with its heading — the skeleton branch
+    // replaces the WHOLE body including the <h1>, so this alone fails on the bug.
+    await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+      timeout: 45_000,
+    });
+
+    // Settle, then require the main region to hold real, readable text. Before
+    // the fix this was exactly 0 characters of innerText behind 501 characters
+    // of pulsing divs, which is why "the page rendered" was not the right
+    // question to ask.
+    await page.waitForTimeout(3_000);
+    const mainText = await page.locator('main').innerText();
+    expect(mainText.trim().length).toBeGreaterThan(50);
+
+    // And no skeleton may still be animating once we have settled.
+    await expect(page.locator('main .animate-pulse')).toHaveCount(0);
+
+    await expect(page.evaluate(() => navigator.onLine)).resolves.toBe(false);
+    expect(interceptedCount()).toBeGreaterThan(0);
+  });
 });

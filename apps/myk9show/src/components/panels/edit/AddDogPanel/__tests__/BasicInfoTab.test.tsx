@@ -52,6 +52,7 @@ const makeContextValue = (form: ReturnType<typeof makeMockForm>) => ({
   errors: [],
   isLoading: false,
   setIsLoading: vi.fn(),
+  runSelfNavigation: (navigate: () => void) => navigate(),
 });
 
 const renderBasicInfoTab = (

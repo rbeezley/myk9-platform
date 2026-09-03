@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,10 @@ export interface SlideOverPanelProps {
 // slide-over), a single Escape press would otherwise fire both listeners and
 // close both panels. Only the topmost (last-pushed) instance should respond.
 let openPanelIds: symbol[] = [];
+
+// Matches the `duration-300` slide/fade classes below; the panel stays mounted
+// for this long after `open` goes false.
+const PANEL_ANIMATION_MS = 300;
 
 const sizeClasses = {
   sm: 'max-w-md w-full md:max-w-md',
@@ -91,6 +95,49 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     }
   }
 
+  // Return focus to whatever opened this panel once it closes, instead of
+  // dropping the user on <body> at the top of the page (WCAG 2.4.3): the panel
+  // traps focus while open, so nothing else restores it (MYK9-165).
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  // Attempts the return, and gives up quietly unless focus has actually fallen
+  // on the floor. The target is only cleared once it has been focused, so an
+  // attempt made while the panel is still closing (focus is still on a live
+  // control inside it) costs nothing and the later attempt still fires.
+  const returnFocus = useCallback(() => {
+    const target = returnFocusRef.current;
+    if (!target || target === document.body) return;
+
+    // A tick, so focus has settled after the panel's DOM was removed.
+    setTimeout(() => {
+      if (returnFocusRef.current !== target) return;
+      if (!target.isConnected) return;
+      const active = document.activeElement;
+      // Focus on a live element belongs to whatever the close handed it to —
+      // another dialog, or the page a navigating close landed on.
+      if (active && active !== document.body && active.isConnected) return;
+      returnFocusRef.current = null;
+      target.focus();
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      returnFocusRef.current = document.activeElement as HTMLElement | null;
+      // Some callers remount the panel subtree on open/close (AddDogPanel keys
+      // on `open`), destroying this instance before the closed branch below
+      // ever runs.
+      return returnFocus;
+    }
+
+    // Otherwise the trigger is the panel actually leaving the DOM
+    // (`!open && !isAnimating` is what renders null below) rather than a delay
+    // racing the close animation: until then the focused control inside the
+    // panel is still mounted, and taking focus from it would be wrong.
+    if (!isAnimating) returnFocus();
+    return;
+  }, [open, isAnimating, returnFocus]);
+
   // Handle focus management and cleanup animations
   useEffect(() => {
     if (open) {
@@ -107,10 +154,10 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
             panelRef.current.focus();
           }
         }
-      }, 300);
+      }, PANEL_ANIMATION_MS);
       return () => clearTimeout(timer);
     } else {
-      const timer = setTimeout(() => setIsAnimating(false), 300);
+      const timer = setTimeout(() => setIsAnimating(false), PANEL_ANIMATION_MS);
       return () => clearTimeout(timer);
     }
   }, [open]);

@@ -197,6 +197,7 @@ These specs run on a schedule. Do not add to this table until the relevant promo
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`                | Public browse-to-detail navigation.                                  |
 | `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                   | Current public, secretary, exhibitor, and judge route smoke.         |
+| `apps/myk9show/src/test/e2e/dogPanelAccessibleNames.spec.ts`                | Add/Edit dog control accessible names, three viewports (MYK9-88).    |
 | `apps/myk9show/src/test/e2e/authentication-validation.spec.ts`              | Broader authentication validation in the scheduled regression suite. |
 | `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`                   | Route-health sweep: 6 role groups, console/network/overflow.         |
 | `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`                | Narrow class-creation route/template smoke.                          |
@@ -272,6 +273,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/judge/judgeJourney.spec.ts`                     | Judge assignments, stats, check-in, and results dashboard audit.                                        |
 | `apps/myk9show/src/test/e2e/entities/registrationUI.spec.ts`                | Registration wizard UI.                                                                                 |
 | `apps/myk9show/src/test/e2e/registration/wizardVisualQA.spec.ts`            | Registration wizard visual and responsive baselines.                                                    |
+| `apps/myk9show/src/test/e2e/registration/dogPickerSearch.spec.ts`           | Exhibitor registration dog search and selection persistence.                                             |
 | `apps/myk9show/src/test/e2e/entities/reportsUI.spec.ts`                     | Reports UI.                                                                                             |
 | `apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts`      | Secretary entry creation.                                                                               |
 | `apps/myk9show/src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts`      | Secretary show workbench.                                                                               |

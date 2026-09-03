@@ -11,6 +11,7 @@ import { getDogDisplayName, getDogBreedLabel, getDogRegisteredName, Dog } from '
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
+import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/ui/button';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
@@ -25,7 +26,8 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
 }) => {
-  const { dogs, isLoading, refetch } = useDogStoreCompat();
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const { dogs, isLoading, error, refetch } = useDogStoreCompat();
   const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
     useInlineDogRegistration(refetch);
 
@@ -43,6 +45,11 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       return true;
     });
   }, [dogs]);
+
+  const query = searchQuery.trim().toLowerCase();
+  const visibleDogs = eligibleDogs.filter(dog =>
+    getDogDisplayName(dog).toLowerCase().includes(query)
+  );
 
   const handleDogToggle = (dogId: string) => {
     if (selectedDogs.includes(dogId)) {
@@ -90,6 +97,17 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     );
   }
 
+  if (error) {
+    return (
+      <div role="alert" className="space-y-3 py-8 text-center">
+        <p>We couldn't load your dogs. Please try again.</p>
+        <Button type="button" variant="outline" size="touch" onClick={refetch}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   if (eligibleDogs.length === 0) {
     return (
       <div className="text-center py-8">
@@ -110,9 +128,23 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
         </p>
       </div>
 
+      <div className="space-y-2">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search dogs by call name"
+          aria-label="Search dogs by call name"
+        />
+        <p role="status" className="text-sm text-muted-foreground">
+          {visibleDogs.length === 0
+            ? 'No dogs match your search. Try another call name or clear the search.'
+            : `${visibleDogs.length} of ${eligibleDogs.length} dogs shown`}
+        </p>
+      </div>
+
       <ScrollArea className="h-auto pr-0 md:h-[400px] md:pr-4">
         <div className="space-y-3">
-          {eligibleDogs.map(dog => {
+          {visibleDogs.map(dog => {
             const { eligible, issues, warnings } = getDogEligibilityStatus(dog);
             const isSelected = selectedDogs.includes(dog.id);
 
@@ -134,13 +166,13 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       disabled={!eligible}
                       onCheckedChange={() => handleDogToggle(dog.id)}
                       onClick={e => e.stopPropagation()}
-                      className="mt-1"
+                      className="mt-1 min-h-11 min-w-11"
                     />
 
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
                         <div>
-                          <Label className="text-base font-medium text-foreground cursor-pointer">
+                          <Label className="break-words text-base font-medium text-foreground cursor-pointer">
                             {getDogDisplayName(dog)}
                             {getDogRegisteredName(dog) && ` "${getDogRegisteredName(dog)}"`}
                           </Label>
@@ -151,7 +183,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         </div>
 
                         {isSelected && (
-                          <Badge variant="default" className="ml-2">
+                          <Badge variant="default" className="shrink-0">
                             <Check className="w-3 h-3 mr-1" />
                             Selected
                           </Badge>
@@ -161,7 +193,11 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       {dog.registrations && dog.registrations.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {dog.registrations.map((reg, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
+                            <Badge
+                              key={idx}
+                              variant="outline"
+                              className="max-w-full whitespace-normal break-all text-xs"
+                            >
                               {reg.organization}: {reg.registrationNumber}
                             </Badge>
                           ))}

@@ -66,14 +66,31 @@ async function gotoMyDogsBrowse(page: Page) {
 
 /**
  * Select a BASE-UI/Radix Select option by the combobox's placeholder text.
- * The AddDogPanel's Select triggers don't have accessible names via label
- * association, so we target them by placeholder ("Choose gender", etc.).
+ * Used where a trigger's visible label is not distinctive enough to target.
  */
 async function selectByPlaceholder(page: Page, placeholder: string, optionText: RegExp | string) {
   const trigger = page.getByRole('combobox').filter({ hasText: placeholder });
   await trigger.click();
   await clickVisibleOption(page, trigger, optionText);
   await expect(page.getByRole('combobox').filter({ hasText: optionText })).toBeVisible();
+}
+
+/**
+ * Select a Select option by the combobox's ACCESSIBLE NAME (MYK9-88). This is
+ * both the more robust locator and a live assertion that the trigger is named:
+ * if the label association regresses, getByRole finds nothing and the test
+ * fails, rather than silently falling back to placeholder text.
+ */
+async function selectByAccessibleName(
+  page: Page,
+  name: RegExp | string,
+  optionText: RegExp | string
+) {
+  const trigger = page.getByRole('combobox', { name });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await clickVisibleOption(page, trigger, optionText);
+  await expect(trigger).toContainText(optionText);
 }
 
 /**
@@ -205,9 +222,10 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await page.getByRole('button', { name: 'New Dog' }).click();
     await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();
 
-    // Fill Essential tab — Gender and Owner use base-ui Select (placeholder-based targeting)
+    // Fill Essential tab — Sex and Owner are base-ui Selects, targeted by
+    // accessible name so a naming regression fails here (MYK9-88).
     await page.getByLabel('Call Name').fill(DOG_A_NAME);
-    await selectByPlaceholder(page, 'Choose gender', /^Male/i);
+    await selectByAccessibleName(page, /^Sex/, /^Male/i);
     await page.getByLabel('Date of Birth').fill('2020-06-15');
 
     // Owner may already be pre-filled for the signed-in secretary.
@@ -233,7 +251,7 @@ test.describe('Dogs UI — Create (secretary)', () => {
     await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();
 
     await page.getByLabel('Call Name').fill(DOG_B_NAME);
-    await selectByPlaceholder(page, 'Choose gender', /Female/i);
+    await selectByAccessibleName(page, /^Sex/, /Female/i);
     await page.getByLabel('Date of Birth').fill('2021-03-20');
 
     await selectOwnerIfNeeded(page, TEST_SECRETARY_PERSON_NAME);
@@ -281,7 +299,7 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await expect(page.getByRole('heading', { name: 'Add New Dog' })).toBeVisible();
 
     await page.getByLabel('Call Name').fill(EXHIBITOR_DOG_NAME);
-    await selectByPlaceholder(page, 'Choose gender', /^Female/i);
+    await selectByAccessibleName(page, /^Sex/, /^Female/i);
     await page.getByLabel('Date of Birth').fill('2022-04-12');
 
     const createResponsePromise = page.waitForResponse(

@@ -61,10 +61,11 @@ export function HealthTimelineEvent({
 
         <Card
           className={cn(
-            'flex-1 cursor-pointer hover:shadow-md transition-shadow',
+            'flex-1',
+            onEventClick && 'cursor-pointer hover:shadow-md transition-shadow',
             viewMode === 'grid' && 'h-full'
           )}
-          onClick={() => onEventClick?.(event)}
+          onClick={onEventClick ? () => onEventClick(event) : undefined}
         >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between">

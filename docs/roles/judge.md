@@ -28,6 +28,39 @@ Nothing beyond what is already built is being added for fall.
   assignments), `/judge/stats`, `/judge/check-in` — for judges with accounts
   and the `judge` role.
 
+## Qualification management authorization
+
+**Owner decision, 2026-09-03 (MYK9-354):** secretaries may manage a person's
+full qualification list through the controlled save RPC,
+`public.replace_judge_qualifications(uuid, jsonb)`. This includes adding,
+changing, removing individual qualifications, and clearing the entire list
+with `[]`. Direct table DELETE remains site-admin-only.
+
+| Operation                                   | Ordinary account / judge role alone | Active secretary | Site admin |
+| ------------------------------------------- | ----------------------------------- | ---------------- | ---------- |
+| RPC replace, remove, clear, or restore list | Denied, including own credentials   | Allowed          | Allowed    |
+| Direct table INSERT / UPDATE                | Denied                              | Allowed          | Allowed    |
+| Direct table DELETE                         | Denied                              | Denied           | Allowed    |
+
+The distinction is intentional: the SECURITY DEFINER RPC authorizes one
+atomic full-list save. It validates every payload `person_id` against the
+target before replacing rows; a failed insert rolls the replacement back.
+Secretary removal must use that operation, not a separate direct-delete
+request or a wider DELETE policy. Direct INSERT/UPDATE rights are unchanged.
+
+The permission is **platform-wide**, not limited to a secretary's own club:
+the RPC uses `has_role('secretary')` without a club argument. A valid active,
+unexpired secretary grant can manage another person's qualifications, even
+without a judge assignment or shared club. This is the approved boundary for
+the shared judge directory, not self-service credential editing.
+
+Sources: [table write policies](../../supabase/migrations/068_fix_judge_qualifications_rls.sql),
+[deployed RPC authorization](../../supabase/migrations/20260903150000_fix_judge_qualification_rpc_authorization.sql),
+and the [behavioral SQL contract](../../supabase/tests/judge_qualification_rpc_authorization_test.sql).
+The test explicitly covers secretary replace/clear/restore, ordinary
+self-service denial, secretary direct DELETE denial, and site-admin
+RPC/direct DELETE access. No new UI or broader table grant is required.
+
 ## Post-fall
 
 Still future work (never built): schedule-change notifications, cross-club

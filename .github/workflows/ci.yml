@@ -242,7 +242,9 @@ jobs:
   test-show:
     name: Test myK9Show (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Coverage-enabled shards can exceed the normal test budget on a cold
+    # runner. Keep the job alive long enough to report the actual test result.
+    timeout-minutes: 30
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     strategy:
       matrix:
@@ -295,7 +297,7 @@ jobs:
   test-show-coverage-gate:
     name: Test myK9Show (coverage gate)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: [test-show]
     if: always() && (github.event_name == 'push' || github.event.pull_request.draft == false) && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
 

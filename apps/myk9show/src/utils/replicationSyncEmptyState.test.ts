@@ -81,9 +81,12 @@ describe('areReplicationTablesPendingFirstSync', () => {
     });
 
     it('still reports pending while a sync is genuinely in flight offline', () => {
-      // `isSyncing` means a run really is underway (it began before the drop).
-      // That is a bounded wait with a real end, so it stays pending.
-      setOnLine(true);
+      // `isSyncing` means a run really is underway — it began before the drop.
+      // That is a bounded wait with a real end, so it stays pending even though
+      // the device now reports offline. This pins the ORDER of the two guards:
+      // `isSyncing` must be checked before the offline short-circuit, or a sync
+      // in flight would be reported as "nothing pending" the moment signal went.
+      setOnLine(false);
       expect(
         areReplicationTablesPendingFirstSync(makeStatus({ isSyncing: true }), ['entries'])
       ).toBe(true);

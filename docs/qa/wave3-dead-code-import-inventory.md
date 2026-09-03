@@ -114,6 +114,10 @@ The unimplemented organization-override methods were removed from
 `RBACService`; they had no callers and target a nonexistent table. Existing
 role/permission cache and audit behavior remains unchanged.
 
+The unused Supabase client health, current-user, and batch-operation helpers
+were removed with the test-only connection diagnostic module and stale global
+mocks; auth/session and query logging helpers remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

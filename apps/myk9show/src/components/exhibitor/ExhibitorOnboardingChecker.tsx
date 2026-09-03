@@ -5,7 +5,6 @@
  *   - no exhibitor_profiles row exists (needsOnboarding), OR
  *   - onboarding has not been completed (onboarding_completed_at is null)
  *
- * ExhibitorOnboardingModal is kept as dead code for edge-case reference
  * but is no longer rendered here.
  */
 

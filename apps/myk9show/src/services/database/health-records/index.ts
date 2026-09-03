@@ -71,7 +71,6 @@ export {
 // OFA Screenings
 export {
   getAllOFAScreenings,
-  getOFAScreeningById,
   createOFAScreening,
   updateOFAScreening,
   deleteOFAScreening,
@@ -82,7 +81,6 @@ export type { DbOFAScreeningInsert, DbOFAScreeningUpdate } from './ofa-screening
 // Genetic Screenings
 export {
   getAllGeneticScreenings,
-  getGeneticScreeningById,
   createGeneticScreening,
   updateGeneticScreening,
   deleteGeneticScreening,

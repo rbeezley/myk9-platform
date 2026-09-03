@@ -28,6 +28,9 @@ DECLARE
   v_c7 uuid := gen_random_uuid();  -- 3.6 manually-STARTED class not reopened by late entry
   v_c8 uuid := gen_random_uuid();  -- 3.7 DELETE of unscored entry completes class
   v_c9 uuid := gen_random_uuid();  -- 3.8 ordinary check-in must not rewrite the class row
+  v_c10 uuid := gen_random_uuid(); -- 3.11 MYK9-330 moved source row must not block completion
+  v_c11 uuid := gen_random_uuid(); -- 3.12 MYK9-330 not_accepted must not block completion
+  v_c12 uuid := gen_random_uuid(); -- 3.13 MYK9-330 a moved-only class is not 'complete'
   v_before_updated timestamptz;
   v_after_updated timestamptz;
   v_before_version integer;
@@ -38,6 +41,9 @@ DECLARE
   v_source text;
   v_reopened timestamptz;
   v_scored integer;
+  v_e_moved uuid;
+  v_p1 integer;
+  v_p2 integer;
 BEGIN
   -- Shared parent rows (minimal NOT NULL columns only).
   INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
@@ -363,6 +369,114 @@ WHERE NOT EXISTS (
     RAISE EXCEPTION '3.10 FAIL: un-pulling and scoring the entry left status=%, expected completed', v_status;
   END IF;
   RAISE NOTICE '3.10 PASS: transition out of pulled re-derived (status=%)', v_status;
+
+
+  -- =====================================================================
+  -- 3.11 MYK9-330: the SOURCE row of a move-up must not block completion,
+  --      and the class must still be RANKED.
+  --
+  --      A move-up leaves the original entry live in its original class at
+  --      entry_status='moved' (showMapActionMutations creates the destination
+  --      entry first, then marks the original -- deliberately NOT soft-deleted
+  --      so the exhibitor can still see where the run came from). Under the old
+  --      exclusion list that row counted as an expected run that could never be
+  --      accounted for, so accounted = expected never held, the class never
+  --      reached 'completed', and recalculate_class_placements -- which ONLY
+  --      the completion branch calls -- never ran. The placement assertion is
+  --      the half that matters: a status check alone would pass on a class
+  --      whose dogs still have no placements.
+  -- =====================================================================
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_c10, v_trial, '3.11 Move-Up Source', 'upcoming');
+
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status,
+     total_faults, search_time_seconds)
+  VALUES
+    (v_c10, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 38.50),
+    (v_c10, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 0, 41.20);
+
+  -- Both scored, no moved row yet: baseline. Guards the fixture -- if this
+  -- fails the rest of 3.11 would pass vacuously.
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c10;
+  IF v_status IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION '3.11 SETUP FAIL: two scored entries did not complete the class, got %', v_status;
+  END IF;
+
+  -- Now the move-up: a third dog is entered and immediately retired as 'moved'.
+  -- Inserting it live first is what a real move-up does NOT do, so insert it
+  -- already-moved -- that also exercises the INSERT reopen guard.
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+  VALUES
+    (v_c10, v_show, v_trial, 'moved', 'no-status', false, 'pending')
+  RETURNING id INTO v_e_moved;
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c10;
+  IF v_status IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION '3.11 FAIL: a moved source row left status=%, expected completed', v_status;
+  END IF;
+
+  SELECT reopened_after_closeout_at INTO v_reopened FROM public.classes WHERE id = v_c10;
+  IF v_reopened IS NOT NULL THEN
+    RAISE EXCEPTION '3.11 FAIL: inserting a moved row reopened the class (reopened_after_closeout_at=%)', v_reopened;
+  END IF;
+
+  SELECT min(final_placement), max(final_placement)
+    INTO v_p1, v_p2
+    FROM public.entries
+    WHERE class_id = v_c10 AND is_scored = true;
+  IF (v_p1, v_p2) IS DISTINCT FROM (1, 2) THEN
+    RAISE EXCEPTION '3.11 FAIL: placements not calculated with a moved row present, got %/%', v_p1, v_p2;
+  END IF;
+
+  -- And the moved row itself is never ranked.
+  SELECT final_placement INTO v_p1 FROM public.entries WHERE id = v_e_moved;
+  IF v_p1 IS NOT NULL THEN
+    RAISE EXCEPTION '3.11 FAIL: the moved source row was given placement %', v_p1;
+  END IF;
+  RAISE NOTICE '3.11 PASS: moved source row neither blocked completion nor took a placement';
+
+  -- =====================================================================
+  -- 3.12 MYK9-330: not_accepted is the same shape -- a live row that will
+  --      never be scored -- and must not block completion either.
+  -- =====================================================================
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_c11, v_trial, '3.12 Not Accepted', 'upcoming');
+
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+  VALUES
+    (v_c11, v_show, v_trial, 'checked-in',   'checked-in', true,  'qualified'),
+    (v_c11, v_show, v_trial, 'not_accepted', 'no-status',  false, 'pending');
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c11;
+  IF v_status IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION '3.12 FAIL: a not_accepted entry left status=%, expected completed', v_status;
+  END IF;
+  RAISE NOTICE '3.12 PASS: not_accepted entry does not block completion (status=%)', v_status;
+
+  -- =====================================================================
+  -- 3.13 MYK9-330 boundary: excluding a status must not turn an EMPTY
+  --      expected set into a completion. A class holding nothing but moved /
+  --      not_accepted rows has expected = 0, which is the 'upcoming' branch --
+  --      not 'completed'. Without this, the fix would silently mark such a
+  --      class finished and rank nobody.
+  -- =====================================================================
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_c12, v_trial, '3.13 Moved Only', 'upcoming');
+
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+  VALUES
+    (v_c12, v_show, v_trial, 'moved',        'no-status', false, 'pending'),
+    (v_c12, v_show, v_trial, 'not_accepted', 'no-status', false, 'pending');
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c12;
+  IF v_status IS DISTINCT FROM 'upcoming' THEN
+    RAISE EXCEPTION '3.13 FAIL: a class of only moved/not_accepted rows derived to %, expected upcoming', v_status;
+  END IF;
+  RAISE NOTICE '3.13 PASS: an all-excluded class stays upcoming, not completed (status=%)', v_status;
 
   RAISE NOTICE 'ALL class-status-auto-derivation assertions passed.';
 END $$;

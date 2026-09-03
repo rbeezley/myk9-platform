@@ -137,6 +137,28 @@ describe('useScoresheetScoring', () => {
     expect(result.current.faultCount).toBe(2);
   });
 
+  it('preserves blank area positions when rebuilding saved score data', () => {
+    const { result } = renderHook(() =>
+      useScoresheetScoring({
+        rules: { ...defaultRules, areaCount: 2 },
+        existingScore: {
+          resultText: 'Q',
+          searchTime: '1:05.00',
+          areas: { 'area 1': ' FOUND CORRECT', 'area 2': '1:05.00 FOUND CORRECT' },
+          areaTimes: ['', '1:05.00'],
+          correctCount: 2,
+          incorrectCount: 0,
+          faultCount: 0,
+          finishCallErrors: 0,
+          points: 0,
+        },
+      })
+    );
+
+    expect(result.current.areas.map(area => area.time)).toEqual(['', '1:05.00']);
+    expect(result.current.buildScoreData().areaTimes).toEqual(['', '1:05.00']);
+  });
+
   it('validates: blocks submit when no result selected', () => {
     const { result } = renderHook(() => useScoresheetScoring({ rules: defaultRules }));
     const validation = result.current.validate();

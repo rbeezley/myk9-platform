@@ -990,7 +990,9 @@ describe('ReplicatedEntriesTable', () => {
       expect(result.tableName).toBe('entries');
       expect(result.rowsAffected).toBe(0);
       expect(result.operation).toBe('full-sync');
-      expect(supabaseMock.from).toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(supabaseMock.from).toHaveBeenCalledWith(
+        'view_authenticated_entry_results_replication'
+      );
       expect(mockSelect).toHaveBeenCalledWith('*');
     });
 
@@ -1133,7 +1135,9 @@ describe('ReplicatedEntriesTable', () => {
 
       // Verify query construction. The authenticated view keeps raw result
       // fields manager-only and cascade-masks own-entry exhibitor reads.
-      expect(supabaseMock.from).toHaveBeenCalledWith('view_authenticated_entry_results');
+      expect(supabaseMock.from).toHaveBeenCalledWith(
+        'view_authenticated_entry_results_replication'
+      );
       expect(mockSelect).toHaveBeenCalledWith('*');
       // ...and the sync scopes to the show (the behavior this test is named for).
       expect(mockEq).toHaveBeenCalledWith('show_id', expect.anything());

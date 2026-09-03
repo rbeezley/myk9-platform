@@ -225,8 +225,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (role: UserRole | string): boolean => {
       if (!userWithRoles) return false;
 
-      // Check database RBAC roles (active only)
-      if (currentRbacRoles.length > 0) {
+      // Match userWithRoles: inactive/expired rows must not suppress the
+      // default exhibitor fallback.
+      if (getUniqueActiveRoleNames(currentRbacRoles).length > 0) {
         return currentRbacRoles.some(ur => ur.role?.name === role && ur.is_active);
       }
 
@@ -288,7 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Get all user roles
    */
   const getUserRoles = useCallback((): UserRole[] => {
-    if (currentRbacRoles.length > 0) {
+    if (getUniqueActiveRoleNames(currentRbacRoles).length > 0) {
       return getUniqueActiveRoleNames(currentRbacRoles);
     }
     return userWithRoles?.roles || [];

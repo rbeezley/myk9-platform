@@ -27,35 +27,17 @@ const baseData: ShowEditFormData = {
 
 describe('ShowEditFeesTab — Payment Methods section', () => {
   it('renders the Payment Methods heading', () => {
-    render(
-      <ShowEditFeesTab
-        data={baseData}
-        handleInputChange={vi.fn(() => vi.fn())}
-        handleCheckboxChange={vi.fn(() => vi.fn())}
-      />
-    );
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
     expect(screen.getByText('Payment Methods')).toBeInTheDocument();
   });
 
   it('renders "Credit/Debit Card — always enabled" row', () => {
-    render(
-      <ShowEditFeesTab
-        data={baseData}
-        handleInputChange={vi.fn(() => vi.fn())}
-        handleCheckboxChange={vi.fn(() => vi.fn())}
-      />
-    );
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
     expect(screen.getByText('Credit/Debit Card — always enabled')).toBeInTheDocument();
   });
 
   it('renders Check checkbox unchecked when acceptCheckPayments is false', () => {
-    render(
-      <ShowEditFeesTab
-        data={baseData}
-        handleInputChange={vi.fn(() => vi.fn())}
-        handleCheckboxChange={vi.fn(() => vi.fn())}
-      />
-    );
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
     expect(screen.getByRole('checkbox', { name: /check \(pay at show\)/i })).not.toBeChecked();
   });
 
@@ -63,7 +45,6 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
     render(
       <ShowEditFeesTab
         data={{ ...baseData, acceptCheckPayments: true }}
-        handleInputChange={vi.fn(() => vi.fn())}
         handleCheckboxChange={vi.fn(() => vi.fn())}
       />
     );
@@ -73,13 +54,7 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
   it('calls handleCheckboxChange("acceptCheckPayments") when Check is toggled', async () => {
     const user = userEvent.setup();
     const mockHandleCheckboxChange = vi.fn(() => vi.fn());
-    render(
-      <ShowEditFeesTab
-        data={baseData}
-        handleInputChange={vi.fn(() => vi.fn())}
-        handleCheckboxChange={mockHandleCheckboxChange}
-      />
-    );
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={mockHandleCheckboxChange} />);
     await user.click(screen.getByRole('checkbox', { name: /check \(pay at show\)/i }));
     expect(mockHandleCheckboxChange).toHaveBeenCalledWith('acceptCheckPayments');
   });
@@ -87,13 +62,7 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
   it('calls handleCheckboxChange("acceptCashPayments") when Cash is toggled', async () => {
     const user = userEvent.setup();
     const mockHandleCheckboxChange = vi.fn(() => vi.fn());
-    render(
-      <ShowEditFeesTab
-        data={baseData}
-        handleInputChange={vi.fn(() => vi.fn())}
-        handleCheckboxChange={mockHandleCheckboxChange}
-      />
-    );
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={mockHandleCheckboxChange} />);
     await user.click(screen.getByRole('checkbox', { name: /cash \(pay at show\)/i }));
     expect(mockHandleCheckboxChange).toHaveBeenCalledWith('acceptCashPayments');
   });

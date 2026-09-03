@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { uploadClubCover, uploadShowCover, uploadShowLogo } from '../imageUploadService';
+import { uploadClubCover, uploadShowCover } from '../imageUploadService';
 
 // Use vi.hoisted so these refs are available inside vi.mock factory (which is hoisted)
 const { mockUpload, mockGetPublicUrl, mockFrom } = vi.hoisted(() => {
@@ -146,69 +146,5 @@ describe('uploadShowCover', () => {
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/invalid file type/i);
     expect(mockUpload).not.toHaveBeenCalled();
-  });
-});
-
-describe('uploadShowLogo', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUpload.mockResolvedValue({ error: null });
-    mockGetPublicUrl.mockReturnValue({
-      data: {
-        publicUrl:
-          'https://example.supabase.co/storage/v1/object/public/images/shows/show-42/logo.webp',
-      },
-    });
-  });
-
-  it('uploads to shows/{showId}/logo.webp with upsert', async () => {
-    const file = makeFile('logo.webp', 'image/webp', 512);
-    const result = await uploadShowLogo('show-42', file);
-
-    expect(mockFrom).toHaveBeenCalledWith('images');
-    expect(mockUpload).toHaveBeenCalledWith(
-      'shows/show-42/logo.webp',
-      file,
-      expect.objectContaining({ upsert: true, cacheControl: '3600' })
-    );
-    expect(result.success).toBe(true);
-    expect(result.url).toContain('shows/show-42/logo.webp');
-    expect(result.url).toMatch(/\?t=\d+$/);
-  });
-
-  it('rejects GIF files (branding only allows JPEG/PNG/WebP)', async () => {
-    const file = makeFile('logo.gif', 'image/gif', 1024);
-    const result = await uploadShowLogo('show-42', file);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toMatch(/invalid file type/i);
-    expect(mockUpload).not.toHaveBeenCalled();
-  });
-
-  it('rejects files over 5MB', async () => {
-    const file = makeFile('huge.png', 'image/png', 10 * 1024 * 1024);
-    const result = await uploadShowLogo('show-42', file);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toMatch(/too large/i);
-    expect(mockUpload).not.toHaveBeenCalled();
-  });
-
-  it('rejects non-image files', async () => {
-    const file = makeFile('logo.svg', 'image/svg+xml', 256);
-    const result = await uploadShowLogo('show-42', file);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toMatch(/invalid file type/i);
-    expect(mockUpload).not.toHaveBeenCalled();
-  });
-
-  it('returns error when upload throws', async () => {
-    mockUpload.mockRejectedValue(new Error('Network failure'));
-    const file = makeFile('logo.png', 'image/png', 1024);
-    const result = await uploadShowLogo('show-42', file);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toMatch(/failed to upload/i);
   });
 });

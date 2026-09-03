@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { isToday, isBefore, differenceInDays } from 'date-fns';
-import { toLocalDate } from '@/utils/date-format';
+import { differenceInDays } from 'date-fns';
+import { showDateRangeStatus, toLocalDate } from '@/utils/date-format';
 import type { Show } from '@/types/show-types';
+import { useCurrentDateKey } from '@/features/_shared/hooks/useCurrentDateKey';
 
 export type ShowPhase = 'today' | 'upcoming' | 'draft' | 'past';
 
@@ -22,17 +23,31 @@ export interface MyShowsBuckets {
   attentionNeeded: AttentionItem[];
 }
 
-function toPhase(show: Show): ShowPhase {
-  const start = toLocalDate(show.startDate);
+function toPhase(show: Show, now: Date): ShowPhase {
   if (show.status === 'draft') return 'draft';
-  if (isToday(start)) return 'today';
+  // Terminal statuses win over the date range: a show a secretary has marked
+  // completed or cancelled is over even if its dates still cover today, and
+  // must not sit in the live list or be auto-opened by the ringside chooser
+  // for the rest of its run.
   if (show.status === 'completed' || show.status === 'cancelled') return 'past';
-  if (isBefore(start, new Date())) return 'past';
+  // A multi-day show is live for its whole start→end run, not just its first
+  // day. Classifying on startDate alone dropped it into 'past' on day two,
+  // removing it from the secretary's live list and the ringside chooser
+  // mid-show (MYK9-306).
+  // `endDate` falls back to `startDate` so a show missing one keeps its
+  // single-day semantics rather than being read as never-ending.
+  const dateStatus = showDateRangeStatus(show.startDate, show.endDate || show.startDate, now);
+  if (dateStatus === 'active') return 'today';
+  if (dateStatus === 'past') return 'past';
   // 'published' (entries open) or 'upcoming' (entries closed) — both go in upcoming
   return 'upcoming';
 }
 
-function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): AttentionItem[] {
+function buildAttentionItems(
+  shows: Show[],
+  phases: Map<string, ShowPhase>,
+  now: Date
+): AttentionItem[] {
   const items: AttentionItem[] = [];
 
   for (const show of shows) {
@@ -63,7 +78,7 @@ function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): Att
     }
 
     if (phase === 'upcoming' && show.entryCloseDate) {
-      const daysToClose = differenceInDays(toLocalDate(show.entryCloseDate), new Date());
+      const daysToClose = differenceInDays(toLocalDate(show.entryCloseDate), now);
       if (daysToClose >= 0 && daysToClose <= 14) {
         items.push({
           showId: show.id,
@@ -80,8 +95,11 @@ function buildAttentionItems(shows: Show[], phases: Map<string, ShowPhase>): Att
 }
 
 export function useMyShows(shows: Show[]): MyShowsBuckets {
+  const currentDateKey = useCurrentDateKey();
   return useMemo(() => {
-    const phases = new Map(shows.map(s => [s.id, toPhase(s)]));
+    const now = toLocalDate(currentDateKey);
+    now.setHours(12, 0, 0, 0);
+    const phases = new Map(shows.map(s => [s.id, toPhase(s, now)]));
 
     const today: Show[] = [];
     const upcoming: Show[] = [];
@@ -109,6 +127,12 @@ export function useMyShows(shows: Show[]): MyShowsBuckets {
     draft.sort((a, b) => a.startDate.localeCompare(b.startDate));
     past.sort((a, b) => b.startDate.localeCompare(a.startDate));
 
-    return { today, upcoming, draft, past, attentionNeeded: buildAttentionItems(shows, phases) };
-  }, [shows]);
+    return {
+      today,
+      upcoming,
+      draft,
+      past,
+      attentionNeeded: buildAttentionItems(shows, phases, now),
+    };
+  }, [shows, currentDateKey]);
 }

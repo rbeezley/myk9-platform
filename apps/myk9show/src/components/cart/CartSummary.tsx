@@ -30,7 +30,7 @@ import { PlatformFeeSplitLines } from '@/features/payments/PlatformFeeSplitLines
 import type { CartFulfillmentView } from '@/features/payments/cartFulfillmentView';
 
 interface CartSummaryProps {
-  onCheckout?: () => void;
+  onCheckout: () => void;
   onContinueShopping?: () => void;
   isCheckingOut?: boolean;
   /**
@@ -146,12 +146,7 @@ export function CartSummary({
   const waitlistOnly = payableCount === 0 && waitlistCount > 0;
 
   const handleCheckout = () => {
-    if (onCheckout) {
-      onCheckout();
-    } else {
-      // Default checkout behavior - navigate to checkout page
-      navigate('/checkout');
-    }
+    onCheckout();
   };
 
   const handleContinueShopping = () => {

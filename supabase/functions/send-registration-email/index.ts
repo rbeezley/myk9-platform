@@ -9,6 +9,7 @@ import { MYK9SHOW_ORIGINS } from '../_shared/http/cors.ts';
 import { HttpError } from '../_shared/http/responses.ts';
 import { applyActiveRoleValidity } from '../_shared/roleValidity.ts';
 import { formatUsShowDateRange } from './dateFormat.ts';
+import { REGISTRATION_ENTRIES_SELECT, mapRegistrationEntries } from './registrationEntries.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
@@ -222,7 +223,7 @@ handle<SendRegistrationEmailPayload>(
     // Fetch entries for this registration
     const { data: entries } = await supabase
       .from('entries')
-      .select('armband_number, dog:dogs(call_name), class:classes(name)')
+      .select(REGISTRATION_ENTRIES_SELECT)
       .eq('registration_id', registrationId);
 
     const recipientEmail = registration.person?.email;
@@ -255,11 +256,7 @@ handle<SendRegistrationEmailPayload>(
       showLocation: show?.location || '',
       showVenue: show?.venue_name,
       confirmationMessage: show?.confirmation_message,
-      entries: (entries || []).map(e => ({
-        dogName: e.dog?.call_name || 'Unknown',
-        className: e.class?.name || 'Unknown',
-        armband: e.armband_number,
-      })),
+      entries: mapRegistrationEntries(entries || []),
       subtotal: registration.total_amount || 0,
       discount: registration.discount_amount,
       total: registration.total_amount || 0,

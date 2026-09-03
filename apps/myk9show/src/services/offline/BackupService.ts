@@ -10,8 +10,30 @@
  * - Cross-device backup synchronization
  */
 
-import { BackupInfo, ExportOptions } from '@/components/offline/OfflineDataManager';
 import { logger } from '@/services/LoggingService';
+
+export interface BackupInfo {
+  id: string;
+  name: string;
+  type: 'auto' | 'manual';
+  createdAt: Date;
+  size: number;
+  entities: string[];
+  compressed: boolean;
+  metadata: {
+    version: string;
+    deviceId: string;
+    entryCount: number;
+  };
+}
+
+export interface ExportOptions {
+  format: 'json' | 'csv' | 'xlsx';
+  entities: string[];
+  dateRange?: { start: Date; end: Date };
+  includeDeleted: boolean;
+  compressed: boolean;
+}
 
 export interface BackupSchedule {
   enabled: boolean;

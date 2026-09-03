@@ -7,7 +7,6 @@
  *   3. Typed sub-hooks read their slice.
  *   4. `useRingsidePermission()` correctly derives role/permission helpers
  *      from the auth slice — mirrors apps/myk9q's `usePermission` surface.
- *   5. `useShowOrg()` micro-consumer reads `auth.showContext?.org`.
  *   6. Replication + prefetch invocations forward to the host functions
  *      (call-through verification, not real I/O).
  */
@@ -16,19 +15,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import {
-  RingsideProvider,
-  useRingside,
-  useRingsideAuth,
-  useRingsideReplication,
-  useRingsidePrefetch,
-} from './RingsideContext';
+import { RingsideProvider, useRingside, useRingsideAuth } from './RingsideContext';
 import { useRingsidePermission } from './useRingsidePermission';
-import { useShowOrg } from './useShowOrg';
-import type {
-  RingsideContextValue,
-  RingsideShowContext,
-} from './types';
+import type { RingsideContextValue, RingsideShowContext } from './types';
 import type { UserPermissions } from '../auth/passcodes';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -110,20 +99,6 @@ describe('typed sub-hooks', () => {
 
     expect(result.current).toBe(value.auth);
   });
-
-  it('useRingsideReplication returns the replication slice', () => {
-    const value = makeContextValue();
-    const { result } = renderHook(() => useRingsideReplication(), { wrapper: wrap(value) });
-
-    expect(result.current).toBe(value.replication);
-  });
-
-  it('useRingsidePrefetch returns the prefetch slice', () => {
-    const value = makeContextValue();
-    const { result } = renderHook(() => useRingsidePrefetch(), { wrapper: wrap(value) });
-
-    expect(result.current).toBe(value.prefetch);
-  });
 });
 
 // ── 4. Derived permission hook ───────────────────────────────────────────
@@ -181,26 +156,6 @@ describe('useRingsidePermission', () => {
   });
 });
 
-// ── 5. Micro-consumer: useShowOrg ────────────────────────────────────────
-
-describe('useShowOrg (micro-consumer, proves end-to-end wiring)', () => {
-  it('returns the org name when a show is in context', () => {
-    const value = makeContextValue({}, {
-      showContext: makeShowContext({ org: 'UKC Nosework' }),
-    });
-    const { result } = renderHook(() => useShowOrg(), { wrapper: wrap(value) });
-
-    expect(result.current).toBe('UKC Nosework');
-  });
-
-  it('returns undefined when showContext is null (pre-login)', () => {
-    const value = makeContextValue({}, { showContext: null });
-    const { result } = renderHook(() => useShowOrg(), { wrapper: wrap(value) });
-
-    expect(result.current).toBeUndefined();
-  });
-});
-
 // ── 6. Replication/prefetch forwarding ───────────────────────────────────
 
 describe('replication + prefetch forwarding', () => {
@@ -210,7 +165,7 @@ describe('replication + prefetch forwarding', () => {
       replication: { updateClassStatus },
     });
 
-    const { result } = renderHook(() => useRingsideReplication(), { wrapper: wrap(value) });
+    const { result } = renderHook(() => useRingside().replication, { wrapper: wrap(value) });
 
     await result.current.updateClassStatus('class-42', 'briefing', {
       briefing_time: '10:30 AM',
@@ -227,7 +182,7 @@ describe('replication + prefetch forwarding', () => {
       prefetch: { get },
     });
 
-    const { result } = renderHook(() => useRingsidePrefetch(), { wrapper: wrap(value) });
+    const { result } = renderHook(() => useRingside().prefetch, { wrapper: wrap(value) });
 
     const data = await result.current.get('trial-info-key');
 

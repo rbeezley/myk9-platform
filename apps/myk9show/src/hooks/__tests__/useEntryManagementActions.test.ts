@@ -11,7 +11,6 @@ import { fromAny } from '@total-typescript/shoehorn';
 
 const mocks = vi.hoisted(() => ({
   setEntryArmband: vi.fn(),
-  getEntryArmbandById: vi.fn(),
   getNextArmbandForShow: vi.fn(),
   changeSecretaryEntryStatus: vi.fn(),
   showUndoToast: vi.fn(),
@@ -19,7 +18,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/services/database/armbands', () => ({
   setEntryArmband: mocks.setEntryArmband,
-  getEntryArmbandById: mocks.getEntryArmbandById,
   getNextArmbandForShow: mocks.getNextArmbandForShow,
 }));
 

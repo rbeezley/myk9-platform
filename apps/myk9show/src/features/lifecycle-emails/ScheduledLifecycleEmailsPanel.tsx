@@ -38,6 +38,14 @@ const STEP_LABELS: Record<LifecycleEmailStepSummary['stepType'], string> = {
   results_available: 'Results available',
 };
 
+// Reminder/results batches remain deferred until a producer exists (MYK9-318;
+// follow-up tracked with the producer work in MYK9-228). Showing their controls
+// would imply that enabling them schedules work that currently cannot be created.
+const PRODUCER_BACKED_STEP_TYPES = new Set<LifecycleEmailStepSummary['stepType']>([
+  'accepted',
+  'waitlisted',
+]);
+
 const queryKey = (showId: string) => ['show-lifecycle-emails', showId] as const;
 
 export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmailsPanelProps) {
@@ -82,15 +90,17 @@ export function ScheduledLifecycleEmailsPanel({ showId }: ScheduledLifecycleEmai
       ) : null}
 
       <div className="space-y-2">
-        {(summaryQuery.data?.steps ?? []).map(step => (
-          <ScheduledEmailStepRow
-            key={step.stepType}
-            step={step}
-            disabled={updateStep.isPending}
-            onToggle={isEnabled => updateStep.mutate({ stepType: step.stepType, isEnabled })}
-            onReview={() => setReviewStep(step.stepType)}
-          />
-        ))}
+        {(summaryQuery.data?.steps ?? [])
+          .filter(step => PRODUCER_BACKED_STEP_TYPES.has(step.stepType))
+          .map(step => (
+            <ScheduledEmailStepRow
+              key={step.stepType}
+              step={step}
+              disabled={updateStep.isPending}
+              onToggle={isEnabled => updateStep.mutate({ stepType: step.stepType, isEnabled })}
+              onReview={() => setReviewStep(step.stepType)}
+            />
+          ))}
       </div>
 
       {reviewStep ? (
@@ -185,13 +195,16 @@ function LifecycleBatchReviewDialog({
         jobIds: input.skippedJobIds,
       });
       if (input.sendJobs.length === 0) return;
+      // Only forward text the secretary actually edited. Anything sent here is a
+      // BROADCAST override applied to every recipient, so an unedited send must
+      // omit it and let each job deliver its own personalised draft (MYK9-315).
       await sendLifecycleEmailJobs({
         supabase,
         showId,
         jobIds: input.sendJobs.map(job => job.id),
-        subject: subject ?? input.sendJobs[0]?.subject ?? '',
-        body: body ?? input.sendJobs[0]?.body ?? '',
-        secretaryNote: secretaryNote ?? input.sendJobs[0]?.secretaryNote ?? '',
+        subject,
+        body,
+        secretaryNote,
       });
     },
     onSuccess: onSent,
@@ -209,6 +222,8 @@ function LifecycleBatchReviewDialog({
     .filter(job => !job.recipientEmail || excludedJobIds.has(job.id))
     .map(job => job.id);
   const previewJob = sendableJobs[0] ?? jobs[0] ?? null;
+  const hasEdit = subject !== null || body !== null || secretaryNote !== null;
+  const overriddenCount = selectedJobs.length;
 
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>
@@ -230,6 +245,16 @@ function LifecycleBatchReviewDialog({
         ) : null}
 
         <div className="space-y-3">
+          {hasEdit && overriddenCount > 1 ? (
+            <p
+              role="alert"
+              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            >
+              This text will replace {overriddenCount} personalised drafts. Every selected recipient
+              gets exactly what is written below.
+            </p>
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="batch-email-subject">Subject</Label>
             <Textarea
@@ -287,6 +312,13 @@ function LifecycleBatchReviewDialog({
               <p className="mb-2 text-sm font-medium">
                 Preview for {previewJob.recipientName || previewJob.recipientEmail || 'recipient'}
               </p>
+              {!hasEdit && overriddenCount > 1 ? (
+                <p className="mb-2 text-xs text-muted-foreground">
+                  {overriddenCount - 1 === 1
+                    ? 'The other recipient gets their own personalised message.'
+                    : `The other ${overriddenCount - 1} recipients each get their own personalised message.`}
+                </p>
+              ) : null}
               <p className="text-sm font-semibold">{selectedSubject || 'No subject'}</p>
               <pre className="mt-2 whitespace-pre-wrap font-sans text-sm text-muted-foreground">
                 {selectedBody || 'No message'}

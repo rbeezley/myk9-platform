@@ -27,7 +27,6 @@
 --     - apps/myk9show/src/hooks/queries/useVisibilitySettings.ts
 --     - apps/myk9show/src/hooks/mutations/useVisibilityMutations.ts
 --     - apps/myk9show/src/hooks/useVisibleResultFields.ts
---     - apps/myk9show/src/features/pipeline/components/ShowSettingsPanel.tsx
 --   myK9Q:
 --     - apps/myk9q/src/services/resultVisibilityService.ts
 --     - apps/myk9q/src/services/replication/ConnectionManager.ts

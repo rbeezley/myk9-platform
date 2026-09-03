@@ -37,6 +37,8 @@ interface CompactStatsRowProps {
   currentFees: number;
   /** Amount still owed. `<= 0` is the paid-in-full state. */
   amountDue: number;
+  /** Whether any portion of the balance belongs to a show that has ended. */
+  hasPastBalance?: boolean;
   /** Cart/payment target for the owed balance; falls back to the cart. */
   currentFeesHref?: string;
   onNavigate: (path: string) => void;
@@ -46,12 +48,15 @@ interface CompactStatsRowProps {
 export function CompactStatsRow({
   currentFees,
   amountDue,
+  hasPastBalance = false,
   currentFeesHref,
   onNavigate,
   className,
 }: CompactStatsRowProps) {
   const paidInFull = amountDue <= 0;
+  const includesPastBalance = hasPastBalance;
   const feeHref = paidInFull ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
+  const hasActionableOnlinePayment = !paidInFull && feeHref.startsWith('/cart');
 
   return (
     <div className={className}>
@@ -61,7 +66,9 @@ export function CompactStatsRow({
         aria-label={
           paidInFull
             ? 'Entry fees: paid in full. View your payments.'
-            : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
+            : includesPastBalance
+              ? `Entry fees: ${formatCurrency(amountDue)} outstanding. View payment details.`
+              : `Entry fees: ${formatCurrency(amountDue)} due of ${formatCurrency(currentFees)}. Finish payment.`
         }
         className={cn(
           'group flex w-full flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 text-left shadow-sm',
@@ -101,15 +108,19 @@ export function CompactStatsRow({
                 <span className="text-2xl font-bold leading-none text-warning tabular-nums">
                   {formatCurrency(amountDue)}
                 </span>
-                <span className="text-sm text-muted-foreground tabular-nums">
-                  due of {formatCurrency(currentFees)} entered
-                </span>
+                {includesPastBalance ? (
+                  <span className="text-sm text-muted-foreground">outstanding balance</span>
+                ) : (
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    due of {formatCurrency(currentFees)} entered
+                  </span>
+                )}
               </span>
             )}
           </span>
         </span>
 
-        {!paidInFull && (
+        {hasActionableOnlinePayment ? (
           <span
             aria-hidden="true"
             className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground"
@@ -117,7 +128,9 @@ export function CompactStatsRow({
             <CreditCard className="h-4 w-4" />
             Finish Payment
           </span>
-        )}
+        ) : includesPastBalance ? (
+          <span className="text-sm text-muted-foreground">Contact the club to settle</span>
+        ) : null}
       </button>
     </div>
   );

@@ -36,11 +36,7 @@ export function RingsideProvider({ value, children }: RingsideProviderProps) {
 }
 
 /**
- * Read the full capability bag. Prefer the typed sub-hooks
- * (`useRingsideAuth`, `useRingsideReplication`, `useRingsidePrefetch`)
- * when a component only needs one slice — they participate in React's
- * re-render scheduling the same way but make the dependency explicit at
- * the call site.
+ * Read the full host capability bag; useRingsideAuth selects the auth slice.
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useRingside(): RingsideContextValue {
@@ -56,22 +52,9 @@ export function useRingside(): RingsideContextValue {
 }
 
 /**
- * Typed sub-hooks. Pages should prefer these over `useRingside()` so the
- * dependency they need is visible at the import. (They also make
- * test-time mocking targeted: a component using `useRingsideReplication`
- * doesn't pull auth or prefetch into its mock surface.)
+ * Select the auth slice used by mounted ringside permission consumers.
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useRingsideAuth() {
   return useRingside().auth;
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useRingsideReplication() {
-  return useRingside().replication;
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useRingsidePrefetch() {
-  return useRingside().prefetch;
 }

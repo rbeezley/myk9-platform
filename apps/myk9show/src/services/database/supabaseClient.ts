@@ -42,41 +42,6 @@ export const createSessionBoundSupabaseClient = (accessToken: string) =>
     global: { headers: { 'X-Client-Info': 'myK9Show@1.0.0' } },
   });
 
-// Database connection health check
-export const checkDatabaseConnection = async (): Promise<{
-  connected: boolean;
-  error?: string;
-  latency?: number;
-}> => {
-  const startTime = Date.now();
-
-  try {
-    // Simple query to test connection
-    const { error } = await supabase.from('clubs').select('id').limit(1);
-
-    const latency = Date.now() - startTime;
-
-    if (error) {
-      return {
-        connected: false,
-        error: error.message,
-        latency,
-      };
-    }
-
-    return {
-      connected: true,
-      latency,
-    };
-  } catch (error) {
-    return {
-      connected: false,
-      error: error instanceof Error ? error.message : 'Unknown connection error',
-      latency: Date.now() - startTime,
-    };
-  }
-};
-
 // Database query logging utility (development only)
 export const logQuery = (table: string, operation: string, duration: number, error?: string) => {
   if (import.meta.env.DEV) {
@@ -104,36 +69,9 @@ export const logQuery = (table: string, operation: string, duration: number, err
 export { createDatabaseError };
 export type { DatabaseError };
 
-// Authentication utilities
-export const getCurrentUser = async () => {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  return { user, error };
-};
-
 export const signOut = async () => {
   const { error } = await supabase.auth.signOut();
   return { error };
-};
-
-// Batch operation utilities
-export const executeBatch = async <T>(
-  operations: Array<() => Promise<T>>
-): Promise<Array<{ success: boolean; data?: T; error?: DatabaseError }>> => {
-  const results = await Promise.allSettled(operations.map(op => op()));
-
-  return results.map(result => {
-    if (result.status === 'fulfilled') {
-      return { success: true, data: result.value };
-    } else {
-      return {
-        success: false,
-        error: createDatabaseError(result.reason),
-      };
-    }
-  });
 };
 
 // Connection pool status (informational)

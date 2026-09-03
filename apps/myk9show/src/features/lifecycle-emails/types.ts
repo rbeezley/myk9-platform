@@ -8,8 +8,6 @@ export const LIFECYCLE_EMAIL_STEP_TYPES = [
 
 export type LifecycleEmailStepType = (typeof LIFECYCLE_EMAIL_STEP_TYPES)[number];
 
-export const REVIEWED_LIFECYCLE_EMAIL_STEP_TYPES = LIFECYCLE_EMAIL_STEP_TYPES;
-
 export const LIFECYCLE_EMAIL_JOB_STATUSES = [
   'ready',
   'sent',
@@ -64,8 +62,4 @@ export function buildLifecycleEmailIdempotencyKey(input: LifecycleEmailIdempoten
     recipientKey,
     input.correctionForJobId ? `correction:${input.correctionForJobId}` : 'original',
   ].join(':');
-}
-
-export function isLifecycleEmailStepType(value: string): value is LifecycleEmailStepType {
-  return LIFECYCLE_EMAIL_STEP_TYPES.includes(value as LifecycleEmailStepType);
 }

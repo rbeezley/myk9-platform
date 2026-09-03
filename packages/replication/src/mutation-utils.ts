@@ -275,6 +275,13 @@ export function isRetryableError(error: unknown): boolean {
       return true;
     }
 
+    // PostgreSQL class 40 transaction failures are transient: the server
+    // aborted this attempt because concurrent work could not be serialized.
+    // They must be retried rather than dead-lettered on the first failure.
+    if (code === '40001' || code === '40P01') {
+      return true;
+    }
+
     // Integrity/constraint violations (Postgres class 23) never succeed on retry.
     if (code?.startsWith('23')) {
       return false;

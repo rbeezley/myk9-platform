@@ -2,16 +2,6 @@ import { CLASS_STATUS, normalizeClassStatus } from '../constants/class-status';
 
 export type ClassDisplayStatus = 'not-started' | 'in-progress' | 'completed';
 
-/**
- * Draft shows render no class lifecycle chips at all — "Not started" on a
- * show that isn't published yet is status noise (UX walk remediation 2.B(1)).
- * Only an affirmative `'draft'` hides chips: cold-store rows with no show
- * status keep their chips (ringside must not lose state while syncing).
- */
-export function shouldShowClassLifecycleChips(showStatus: string | null | undefined): boolean {
-  return showStatus !== 'draft';
-}
-
 export interface ClassDisplayStatusInput {
   status?: string;
   is_scoring_finalized?: boolean;

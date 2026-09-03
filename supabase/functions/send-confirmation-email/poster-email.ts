@@ -4,11 +4,8 @@ import { renderVenueMapBlock } from './static-map.ts';
 //
 // Poster confirmation email — Deno HTML builder.
 //
-// Deno edge functions cannot import from workspace packages, so this file
-// keeps a local copy of the Poster palette + font stack. The canonical
-// React Email implementation lives in
-// packages/email/src/templates/PosterConfirmationEmail.tsx — keep these
-// two in visual sync.
+// This builder owns the production email palette and HTML.
+// @myk9/email supplies data types only; there is no parallel React renderer.
 //
 // Important — Outlook degradation:
 //   - `mix-blend-mode` is unsupported. The Poster ink-blot graphic shape

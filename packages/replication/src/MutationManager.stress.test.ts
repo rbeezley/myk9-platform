@@ -89,9 +89,8 @@ describe('MutationManager: large-queue stress', () => {
   let localStorageMock: Record<string, string>;
 
   beforeEach(async () => {
-    // Use real timers: fake timers with shouldAdvanceTime=true cause the 15s
-    // withTimeout sentinel to fire mid-flush when processing 500 mutations
-    // sequentially (~22s total), producing spurious TimeoutErrors.
+    // Default to real timers. The retry test controls only Date and timeout
+    // timers explicitly; IDB's setImmediate tasks must remain real.
     vi.useRealTimers();
 
     mockDb = await createMutationManagerTestDb(STRESS_DB_NAME);
@@ -221,14 +220,11 @@ describe('MutationManager: large-queue stress', () => {
   // We assert: every id appears exactly once in the final observed set (no
   // duplicates from the first 499 that succeeded, no drops from the failed one).
   //
-  // ISOLATION NOTE: between the two flushes we call manager.destroy() to clear
-  // the scheduleBackoffRetry timer that flush 1 installs. Without that, the
-  // timer can fire async between the test's manual `nextRetryAt = 0` write and
-  // the second flush, racing the IDB record and producing a missed retry. This
-  // showed up as ~30% flake under v8 coverage instrumentation
-  // (https://github.com/rbeezley/myk9-platform/pull/118 investigation).
-  // destroy() only clears timers — the manager remains usable for subsequent
-  // uploadPendingMutations calls.
+  // Control time without auto-advancing timers: the backoff can expire during
+  // a slow first flush, allowing an automatic retry to start during the next
+  // IDB read. destroy() cannot cancel an already-running upload, and a manual
+  // flush then returns early. Move wall time only between completed flushes
+  // so we test retry eligibility without competing background uploads.
   // -------------------------------------------------------------------------
   it(
     'survives a mid-flush failure at mutation 250 — retries on next flush without duplicating the first 249',
@@ -240,6 +236,7 @@ describe('MutationManager: large-queue stress', () => {
       let hasThrown = false;
 
       manager.destroy();
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
 
       // Build supabase mock that throws exactly once for FAIL_ID, then succeeds.
       const midFlushMock = {
@@ -295,7 +292,10 @@ describe('MutationManager: large-queue stress', () => {
       }
 
       // Act: first flush — FAIL_ID throws, stays in IDB; all others succeed
-      await manager.uploadPendingMutations();
+      const firstResults = await manager.uploadPendingMutations();
+      expect(firstResults).toHaveLength(TOTAL);
+      expect(firstResults.filter(result => result.success)).toHaveLength(TOTAL - 1);
+      expect(observedIds).toHaveLength(TOTAL - 1);
 
       // Verify FAIL_ID is still in queue with retries=1
       const stillPending = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
@@ -303,21 +303,23 @@ describe('MutationManager: large-queue stress', () => {
       expect(stillPending[0]?.id).toBe(FAIL_ID);
       expect(stillPending[0]?.retries).toBe(1);
 
-      // Cancel the scheduleBackoffRetry timer flush 1 installed before we
-      // mutate the IDB record below — otherwise the timer races with our
-      // manual nextRetryAt write under coverage instrumentation.
-      manager.destroy();
+      // An immediate flush must respect backoff, not retry early.
+      expect(await manager.uploadPendingMutations()).toEqual([]);
+      expect(observedIds).toHaveLength(TOTAL - 1);
+      expect(await manager.getPendingCount()).toBe(1);
 
-      // Clear nextRetryAt so flush 2 doesn't skip it due to backoff
-      const failedRecord = stillPending[0]!;
-      failedRecord.nextRetryAt = 0; // force eligible for immediate retry
-      await mockDb.put(REPLICATION_STORES.PENDING_MUTATIONS, failedRecord);
+      // Advance past the configured 10ms backoff (including jitter) without
+      // firing timers. The next explicit flush stays in sole control.
+      vi.setSystemTime(Date.now() + 20);
 
       // Act: second flush — retries FAIL_ID, which now succeeds
-      await manager.uploadPendingMutations();
+      const secondResults = await manager.uploadPendingMutations();
+      expect(secondResults).toHaveLength(1);
+      expect(secondResults[0]?.success).toBe(true);
 
       // Assert: FAIL_ID appeared in observedIds exactly once (on retry), queue empty
       const observedSet = new Set(observedIds);
+      expect(observedIds).toHaveLength(TOTAL);
       expect(observedSet.size).toBe(TOTAL);
       for (const id of enqueuedIds) {
         expect(observedSet.has(id)).toBe(true);

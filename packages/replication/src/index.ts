@@ -55,19 +55,13 @@ export {
 export type {
   Logger,
   DiagnosticReport,
-  GetTableTTL,
   LogDiagnostics,
   HandleDatabaseCorruption,
   ReplicatedTableDependencies,
   DatabaseManagerDependencies,
 } from './dependencies';
 
-export {
-  noopLogger,
-  defaultGetTableTTL,
-  noopDiagnostics,
-  noopCorruptionHandler,
-} from './dependencies';
+export { noopLogger, noopDiagnostics, noopCorruptionHandler } from './dependencies';
 
 // Constants
 export {
@@ -75,12 +69,6 @@ export {
   DB_NAME,
   DB_VERSION,
   TOTAL_REPLICATED_TABLES,
-  // TTL
-  DEFAULT_TTL_MS,
-  SHOW_TTL_MS,
-  TRIAL_TTL_MS,
-  ENTRY_TTL_MS,
-  RESULT_TTL_MS,
   // Query Performance
   QUERY_TIMEOUT_MS,
   SLOW_QUERY_THRESHOLD_MS,

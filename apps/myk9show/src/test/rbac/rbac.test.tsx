@@ -9,8 +9,6 @@ import {
 } from '../../types/auth-types';
 import {
   PermissionGuard,
-  ExhibitorOnly,
-  SecretaryOrAbove,
 } from '../../components/auth/PermissionGuard';
 import { useRegistrationPermissions } from '../../hooks/useRegistrationPermissions';
 
@@ -191,39 +189,6 @@ describe('RBAC System', () => {
 
       expect(screen.getByTestId('custom-true')).toBeInTheDocument();
       expect(screen.queryByTestId('custom-false')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('CommonGuards', () => {
-    it('should render ExhibitorOnly content for exhibitors', () => {
-      render(
-        <ExhibitorOnly>
-          <div data-testid="exhibitor-only">Exhibitor Only</div>
-        </ExhibitorOnly>
-      );
-
-      expect(screen.getByTestId('exhibitor-only')).toBeInTheDocument();
-    });
-
-    it('should not render SecretaryOrAbove content for exhibitors', () => {
-      render(
-        <SecretaryOrAbove>
-          <div data-testid="secretary-or-above">Secretary or Above</div>
-        </SecretaryOrAbove>
-      );
-
-      expect(screen.queryByTestId('secretary-or-above')).not.toBeInTheDocument();
-    });
-
-    it('should render SecretaryOrAbove fallback for exhibitors', () => {
-      render(
-        <SecretaryOrAbove fallback={<div data-testid="fallback">Need Secretary Role</div>}>
-          <div data-testid="secretary-or-above">Secretary or Above</div>
-        </SecretaryOrAbove>
-      );
-
-      expect(screen.queryByTestId('secretary-or-above')).not.toBeInTheDocument();
-      expect(screen.getByTestId('fallback')).toBeInTheDocument();
     });
   });
 

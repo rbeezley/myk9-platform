@@ -1,12 +1,48 @@
 import { describe, expect, it } from 'vitest';
 import {
   getRouteImportFunction,
+  fullRouteRegistry,
   navigationPatterns,
   publicRouteComponents,
   secretaryRouteComponents,
 } from './routeRegistry';
+import { router } from '../router';
+
+function flattenRoutePaths(
+  routes: typeof router.routes,
+  parentPath = ''
+): string[] {
+  return routes.flatMap(route => {
+    const path = route.path ? joinRoutePaths(parentPath, route.path) : parentPath;
+    return [path, ...flattenRoutePaths(route.children ?? [], path)];
+  });
+}
+
+function joinRoutePaths(parentPath: string, childPath: string): string {
+  if (childPath.startsWith('/')) return childPath;
+  return `${parentPath}/${childPath}`.replace(/\/+/g, '/');
+}
+
+function routePatternSignature(path: string): string {
+  return path
+    .split('/')
+    .filter(Boolean)
+    .map(segment => (segment.startsWith(':') ? ':' : segment === '*' ? '*' : segment))
+    .join('/');
+}
 
 describe('routeRegistry', () => {
+  it('registers only paths declared in the application route tree', () => {
+    const declaredSignatures = new Set(
+      flattenRoutePaths(router.routes).map(routePatternSignature)
+    );
+    const undeclared = Object.keys(fullRouteRegistry).filter(
+      path => !declaredSignatures.has(routePatternSignature(path))
+    );
+
+    expect(undeclared).toEqual([]);
+  });
+
   it('registers the canonical secretary show creation wizard route', () => {
     expect(secretaryRouteComponents['/secretary/create-show/wizard']).toBeDefined();
     expect(secretaryRouteComponents['/secretary/classes']).toBeUndefined();

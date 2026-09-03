@@ -110,7 +110,7 @@ export function useClassBulkActions({
           // any page-level wrapper has already returned. Partial success still
           // refreshes the succeeded rows. Invalidate the whole classKeys family
           // (lists, detail, byTrial, statistics) — the old row mutation also
-          // refreshed lists/detail, and consumers like JudgeClassInterface read
+          // refreshed lists/detail and other class-scoring consumers read
           // those caches.
           await queryClient.invalidateQueries({ queryKey: classKeys.all });
         },

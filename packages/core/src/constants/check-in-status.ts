@@ -61,13 +61,6 @@ export const EXHIBITOR_ALLOWED_STATUSES: readonly CheckInStatus[] = [
   'no-status',
 ] as const;
 
-/** Statuses that are system/secretary-only (read-only for exhibitors) */
-export const SECRETARY_ONLY_STATUSES: readonly CheckInStatus[] = [
-  'come-to-gate',
-  'in-ring',
-  'completed',
-] as const;
-
 // ============================================================================
 // Helper Functions
 // ============================================================================

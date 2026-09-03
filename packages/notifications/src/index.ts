@@ -16,7 +16,6 @@ export {
   buildClassStartingPayload,
   buildResultsPostedPayload,
   buildCheckInReminderPayload,
-  buildAnnouncementPayload,
 } from './handlers';
 
 export type { VoiceAnnouncementText } from './voice-text';
@@ -24,7 +23,7 @@ export { generateVoiceText } from './voice-text';
 
 export { playNotificationSound, testSound } from './sound';
 
-export { speak, speakWithConfig, cancelSpeech, isSpeechSupported } from './voice';
+export { speak, speakWithConfig, isSpeechSupported } from './voice';
 
 export type { VoiceCategories, VoiceConfig } from './types';
 export { NOTIFICATION_TYPE_TO_VOICE_CATEGORY } from './types';
@@ -32,7 +31,6 @@ export { NOTIFICATION_TYPE_TO_VOICE_CATEGORY } from './types';
 export type { PushSubscriptionData, PushSubscriptionLookup } from './push';
 export {
   isPushSupported,
-  requestPushPermission,
   subscribeToPush,
   unsubscribeFromPush,
   getExistingSubscription,

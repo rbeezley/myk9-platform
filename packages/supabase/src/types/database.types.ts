@@ -9927,6 +9927,15 @@ export type Database = {
           },
         ]
       }
+      view_authenticated_entry_results_replication: {
+        Row: {
+          id: string | null
+          show_id: string | null
+          updated_at: string | null
+          [key: string]: unknown
+        }
+        Relationships: []
+      }
       view_breed_stats: {
         Row: {
           absent_count: number | null
@@ -11443,7 +11452,6 @@ export type Database = {
           entry_count: number
         }[]
       }
-      get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_checkout_order: {
         Args: { p_session_id: string }
         Returns: {
@@ -11460,6 +11468,7 @@ export type Database = {
           stripe_payment_intent_id: string | null
         }[]
       }
+      get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_onboarding_requests: {
         Args: never
         Returns: {

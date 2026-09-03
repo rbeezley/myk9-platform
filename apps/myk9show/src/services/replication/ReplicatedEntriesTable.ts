@@ -44,7 +44,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   private _deletedIds: Set<string> = new Set();
 
   constructor() {
-    super('entries', undefined, { logger });
+    super('entries', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */
@@ -78,7 +78,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       getRemoteRowCount: async () => {
         try {
           const { count, error } = await supabase
-            .from('view_authenticated_entry_results')
+            .from('view_authenticated_entry_results_replication')
             .select('id', { count: 'exact', head: true })
             .eq('show_id', showScopeId);
 
@@ -108,7 +108,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         // their own entries with result columns nulled by the release cascade.
         // The view flattens dog display fields as dog_call_name/dog_breed.
         let query = supabase
-          .from('view_authenticated_entry_results')
+          .from('view_authenticated_entry_results_replication')
           .select('*')
           .gt('updated_at', new Date(since).toISOString())
           .order('updated_at', { ascending: true });

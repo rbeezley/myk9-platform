@@ -11,27 +11,10 @@
 export const DB_NAME = 'myK9_Replication';
 
 /** Database schema version */
-export const DB_VERSION = 6;
+export const DB_VERSION = 7;
 
 /** Total number of tables managed by replication system */
 export const TOTAL_REPLICATED_TABLES = 16;
-
-// ==================== Time-to-Live (TTL) ====================
-
-/** Default TTL for cached data (5 minutes in milliseconds) */
-export const DEFAULT_TTL_MS = 300000; // 5 minutes
-
-/** TTL for show data (30 days in milliseconds) */
-export const SHOW_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** TTL for trial data (30 days in milliseconds) */
-export const TRIAL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-
-/** TTL for entry data (7 days in milliseconds) */
-export const ENTRY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-/** TTL for result data (30 days in milliseconds) */
-export const RESULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 // ==================== Query Performance ====================
 

@@ -34,10 +34,11 @@ import {
 } from './dispatch-helpers.ts';
 import { getPublishedExperienceHospitalityNotes } from './published-experience.ts';
 import { buildVenueMapAssets, renderVenueMapBlock, type VenueMapAssets } from './static-map.ts';
+import { formatEntryFee } from './entryFee.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
-// ─── Palette (must match packages/email/src/templates/HeritageConfirmationEmail.tsx) ──
+// ─── Production Heritage email palette (owned by this builder) ──
 
 const INK = '#1a1612';
 const PAPER = '#f8f4ea';
@@ -518,7 +519,7 @@ handle<ConfirmationEmailPayload>(
           dogSex: entry.dog?.sex ?? null,
           runs: [runRow],
           runCount: 1,
-          totalFeesFormatted: entry.entry_fee ? `$${(entry.entry_fee / 100).toFixed(2)}` : '—',
+          totalFeesFormatted: formatEntryFee(entry.entry_fee),
           receiptNumber: null,
           venue: venueStr,
           doorsTime: null,

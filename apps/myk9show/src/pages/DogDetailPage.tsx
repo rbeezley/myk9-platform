@@ -70,7 +70,15 @@ const DogDetailPage: React.FC = () => {
         { dogId: dog.id },
         err instanceof Error ? err : new Error(String(err))
       );
-      notifications.error('Failed to delete dog. Please try again.');
+      notifications.error(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Failed to delete dog. Please try again.'
+      );
+      // DogDialogs closes only after this callback resolves. Preserve the
+      // rejected result so a server refusal (for example MK002) leaves the
+      // dog and confirmation dialog visible for correction.
+      throw err;
     }
   }
 

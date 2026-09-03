@@ -46,11 +46,18 @@ export type {
   AKCOwnerAddress,
   AKCSubmissionEntry,
   AKCSubmissionData,
+  AKCEntryOutcome,
+  AKCClassTallies,
+  AKCResultStatus,
 } from './results';
 export {
   registerFormatter,
-  getFormatter,
   listFormatters,
-  clearFormatters,
   AKCScentWorkFormatter,
+  classifyAKCEntryOutcome,
+  akcResultCodesForOutcome,
+  tallyAKCClass,
+  countUnscoredAKCEntries,
+  selectSubmittableAKCEntries,
+  parseAKCResultStatus,
 } from './results';

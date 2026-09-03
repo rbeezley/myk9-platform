@@ -6,7 +6,7 @@ import { buildImpactSuffix, buildWarningText, deleteDogSubtitle } from './delete
 interface DeleteDogDialogProps {
   open: boolean;
   onClose: () => void;
-  onDelete: () => void;
+  onDelete: () => void | Promise<void>;
   dog: Dog | null;
   isSubmitting?: boolean;
   /**

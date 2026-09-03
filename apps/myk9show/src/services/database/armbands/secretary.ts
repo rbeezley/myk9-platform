@@ -126,24 +126,3 @@ export const getNextArmbandForShow = async (showId: string): Promise<number> => 
   ]);
   return resolveStartNumber(maxArmband, startingArmband);
 };
-
-/**
- * Fetches the armband assigned to a single entry (after trigger execution).
- * Used to update local state after accepting an entry without a full reload.
- */
-export const getEntryArmbandById = async (
-  entryId: string
-): Promise<{ armband: string | null; dogId: string | null; showId: string | null } | null> => {
-  const entry = await replicatedEntriesTable.getEntryById(entryId);
-  if (!entry) return null;
-
-  const armband =
-    entry.armband ??
-    (entry.showId && entry.dogId
-      ? (await replicatedArmbandsTable.getByShow(entry.showId)).find(a => a.dogId === entry.dogId)
-          ?.armbandNumber
-      : null) ??
-    null;
-
-  return { armband, dogId: entry.dogId ?? null, showId: entry.showId ?? null };
-};

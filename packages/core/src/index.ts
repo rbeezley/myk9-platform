@@ -5,21 +5,11 @@
  */
 
 // Logger
-export {
-  logger,
-  log,
-  warn,
-  error,
-  debug,
-  info,
-  configureLogger,
-  setLogLevel,
-} from './utils/logger';
+export { logger, log, warn, error, debug, info } from './utils/logger';
 
 // Network utilities
 export {
   withTimeout,
-  withRetry,
   TimeoutError,
   calculateBackoffDelay,
   backoffDelay,
@@ -30,8 +20,6 @@ export {
   MAX_BACKOFF_MS,
   BACKOFF_JITTER,
   TIMEOUT_PRESETS,
-  RETRY_PRESETS,
-  type RetryOptions,
 } from './utils/network';
 
 // Entity types
@@ -50,8 +38,6 @@ export type {
 // Class status constants
 export {
   CLASS_STATUS,
-  CLASS_STATUS_ORDER,
-  getNextClassStatus,
   LEGACY_STATUS_MAP,
   normalizeClassStatus,
   type ClassStatusValue,
@@ -60,7 +46,6 @@ export {
 // Class display status helper
 export {
   getClassDisplayStatus,
-  shouldShowClassLifecycleChips,
   type ClassDisplayStatus,
   type ClassDisplayStatusInput,
 } from './helpers/class-display-status';
@@ -108,75 +93,26 @@ export { ensureError, isErrorLike, getErrorMessage } from './utils/errors';
 export { redactSecretLikeString, redactSecretLikeValue } from './utils/redaction';
 
 // Type guard utilities
-export {
-  isDefined,
-  assertDefined,
-  isObject,
-  hasProperty,
-  isString,
-  isNumber,
-  isBoolean,
-  isArray,
-  isArrayOf,
-  isFunction,
-  isDate,
-  isPromise,
-  isNullish,
-  hasRequiredProperties,
-  safeGet,
-  assert,
-  assertNever,
-} from './utils/typeGuards';
+export { isObject, isArray, assert, assertNever } from './utils/typeGuards';
 
 // Search and filter utilities
-export {
-  matchesSearch,
-  matchesAny,
-  createSearchFilter,
-  filterBySearchTerm,
-  normalizeSearchTerm,
-  createDebouncedSearch,
-} from './utils/search';
+export { matchesSearch, matchesAny, createDebouncedSearch } from './utils/search';
 
 // Device detection utilities
 export {
   detectDeviceCapabilities,
   getDeviceTier,
-  resetDeviceDetection,
   type DeviceTier,
   type ConnectionSpeed,
   type ScreenSize,
   type DeviceCapabilities,
 } from './utils/deviceDetection';
 
-// Notification sound service (no-op stub — apps can provide real implementations)
-export {
-  notificationSoundService,
-  type NotificationSoundServiceInterface,
-} from './services/notificationSoundService';
-
-// Voice announcement service (no-op stub — apps can provide real implementations)
-export {
-  default as voiceAnnouncementService,
-  type VoiceAnnouncementServiceInterface,
-} from './services/voiceAnnouncementService';
-
-// Nationals scoring service (types + no-op stub)
-export {
-  nationalsScoring,
-  type ElementType,
-  type CompetitionDay,
-  type NationalsScore,
-  type NationalsRanking,
-  type NationalsScoringInterface,
-} from './services/nationalsScoring';
-
 // Check-in status constants
 export {
   CHECKIN_STATUSES,
   ENTRY_STATUSES,
   EXHIBITOR_ALLOWED_STATUSES,
-  SECRETARY_ONLY_STATUSES,
   isCheckInStatus,
   isEntryStatus,
   isExhibitorAllowedStatus,
@@ -184,14 +120,8 @@ export {
   type EntryStatus,
 } from './constants/check-in-status';
 
-// Passcode utilities (random + legacy derivation)
-export {
-  generatePasscodesFromShowId,
-  generateRoleCode,
-  generateShowPasscodes,
-  type ShowPasscodes,
-  type ShowPasscodeRole,
-} from './utils/passcodes';
+// Legacy passcode derivation
+export { generatePasscodesFromShowId, type ShowPasscodes } from './utils/passcodes';
 
 // Nationals scoring constants
 export {

@@ -113,18 +113,6 @@ export function buildSyncedReplicatedRow<T>(row: ReplicatedRow<T>, now: number):
   };
 }
 
-export function collectFreshLocalIds<T extends { id: string }>(
-  rows: readonly ReplicatedRow<T>[],
-  isExpired: (row: ReplicatedRow<T>) => boolean
-): Set<string> {
-  const ids = new Set<string>();
-  for (const row of rows) {
-    if (isExpired(row)) continue;
-    ids.add(row.id);
-  }
-  return ids;
-}
-
 export function selectStaleCleanRows<T>(
   rows: readonly ReplicatedRow<T>[],
   serverIds: ReadonlySet<string>

@@ -1,3 +1,6 @@
+// Deferred groundwork: this is intentionally not wired into a producer yet.
+// Keep it for the scheduled batch follow-up (MYK9-228); MYK9-318 hides the
+// corresponding controls until a cron/job producer creates these rows.
 import { calculateLifecycleEmailDueAt } from './schedule';
 import { buildLifecycleEmailIdempotencyKey, type LifecycleEmailStepType } from './types';
 

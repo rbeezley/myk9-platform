@@ -38,8 +38,6 @@ export interface PaymentDisplayRow {
   entryIds: string[];
 }
 
-const PAID_STATUSES = new Set(['succeeded', 'paid']);
-
 export function isRetryablePaymentStatus(status: string): boolean {
   const s = status.toLowerCase();
   return s === 'failed' || s === 'cancelled' || s === 'canceled';
@@ -61,10 +59,6 @@ const SETTLING_STATUSES = new Set(['pending', 'processing']);
  */
 export function isSettlingPaymentStatus(status: string): boolean {
   return SETTLING_STATUSES.has(status.toLowerCase());
-}
-
-export function isPaidPaymentStatus(status: string): boolean {
-  return PAID_STATUSES.has(status.toLowerCase());
 }
 
 export function isRefundedPaymentStatus(status: string): boolean {

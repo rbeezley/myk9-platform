@@ -1,4 +1,3 @@
-export { ExhibitorOnboardingModal } from './ExhibitorOnboardingModal';
 export { ExhibitorOnboardingChecker } from './ExhibitorOnboardingChecker';
 export { CompactStatsRow } from './CompactStatsRow';
 export { FirstRunZeroState } from './FirstRunZeroState';

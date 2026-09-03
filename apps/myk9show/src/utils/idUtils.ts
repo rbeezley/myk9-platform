@@ -11,20 +11,6 @@ export function generateId(): string {
 }
 
 /**
- * Generates a temporary ID that can be easily identified as optimistic
- */
-export function generateOptimisticId(prefix: string = 'temp'): string {
-  return `${prefix}_${generateId()}`;
-}
-
-/**
- * Checks if an ID is a temporary/optimistic ID
- */
-export function isOptimisticId(id: string): boolean {
-  return id.includes('temp_') || id.includes('-');
-}
-
-/**
  * Generates a UUID v4-like string
  */
 export function generateUUID(): string {

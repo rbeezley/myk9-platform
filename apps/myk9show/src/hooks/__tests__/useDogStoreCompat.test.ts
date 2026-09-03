@@ -464,6 +464,21 @@ describe('useDogStoreCompat.deleteDog — delegates to the shared mutation', () 
       await expect(result.current.deleteDog('dog-123')).rejects.toThrow('DB delete failed');
     });
   });
+
+  it('preserves the server instruction when paid entries block deletion', async () => {
+    mockDeleteMutateAsync.mockRejectedValue({
+      code: 'MK002',
+      message: 'This dog has paid or scored entries. Scratch or refund them before deleting.',
+    });
+
+    const { result } = renderHook(() => useDogStoreCompat(), { wrapper: makeWrapper() });
+
+    await act(async () => {
+      await expect(result.current.deleteDog('dog-123')).rejects.toThrow(
+        'This dog has paid or scored entries. Scratch or refund them before deleting.'
+      );
+    });
+  });
 });
 
 // MYK9-90 review round 3, finding 3 — REALISTIC-DATA proof.

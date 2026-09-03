@@ -26,8 +26,6 @@ import { AudioSettingsProvider } from './context/AudioSettingsContext';
 import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 
-// Panel System
-import { PanelProvider } from './components/panels/PanelContext';
 import { UnsavedChangesRouteGuardProvider } from './components/navigation/UnsavedChangesRouteGuard';
 
 // Notification System
@@ -216,8 +214,7 @@ function App() {
             <MessageSubscriptionInitializer />
             <NotificationMonitorInitializer />
             <AudioSettingsProvider>
-              <PanelProvider>
-                <UnsavedChangesRouteGuardProvider>
+              <UnsavedChangesRouteGuardProvider>
                   <ExhibitorOnboardingChecker>
                     <ErrorBoundary
                       level="page"
@@ -239,8 +236,7 @@ function App() {
                       </AppShellMobileNavProvider>
                     </ErrorBoundary>
                   </ExhibitorOnboardingChecker>
-                </UnsavedChangesRouteGuardProvider>
-              </PanelProvider>
+              </UnsavedChangesRouteGuardProvider>
             </AudioSettingsProvider>
           </AuthProvider>
         </StoreProvider>

@@ -1,8 +1,0 @@
-- [ ] Investigate and document why a committed `stripe_orders` row is temporarily unreadable to its owner during checkout confirmation. Current source evidence: `verifyCheckoutSession` uses `.single()`, which turns zero visible rows into `PGRST116`; the existing MYK9-207 background chain already retries `not_found`, so client retry is not the missing behavior. Staging timing/RLS evidence is still required to name the server-side cause.
-- [x] Add a regression test for initial unresolved verification followed by successful automatic re-check and rendered success state.
-- [ ] Implement the smallest checkout verification/page change needed to satisfy the regression while preserving bounded polling, cancellation, serialization, and truthful copy.
-- [ ] Run focused checkout verification tests and relevant payment-path tests.
-- [ ] Run the relevant TypeScript typecheck and review the diff for unrelated changes.
-- [ ] Complete the sandbox verification for at least 90 seconds and record evidence in MYK9-294 and the PR.
-- [ ] Update repository tracking documents when the implementation slice is complete.
-- [ ] Complete PR review, CI, and merge before archiving this change.

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -23,6 +24,21 @@ function chain<T>(data: T, error: unknown = null) {
 }
 
 describe('send-email authorization helpers', () => {
+  it.each(['entry_confirmation', 'payment_receipt', 'welcome', 'waitlist_offer', 'unknown'])(
+    'rejects unsupported %s before recipient queries',
+    async type => {
+      const from = vi.fn();
+      await expect(
+        assertSendEmailAuthorization({
+          supabase: { from, rpc: vi.fn() } as unknown as SendEmailSupabaseClient,
+          user: { id: 'caller-user' },
+          data: { type },
+        })
+      ).rejects.toMatchObject({ status: 400, message: 'Unsupported email type' });
+      expect(from).not.toHaveBeenCalled();
+    }
+  );
+
   it('uses the denormalized user_roles auth_user_id role surface', () => {
     expect(SEND_EMAIL_CALLER_ROLE_SELECT).toContain('auth_user_id');
     expect(SEND_EMAIL_CALLER_ROLE_SELECT).not.toContain('people!inner');

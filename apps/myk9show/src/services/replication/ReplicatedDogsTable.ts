@@ -136,7 +136,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('dogs', undefined, { logger });
+    super('dogs', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */

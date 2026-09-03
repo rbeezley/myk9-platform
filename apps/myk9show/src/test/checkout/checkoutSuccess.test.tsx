@@ -32,7 +32,6 @@ const { mockSingle, mockRpc, mockGetSession, mockEntries } = vi.hoisted(() => ({
 vi.mock('@/lib/supabase', () => {
   // Chainable builder supports the entry-details fetch on the page. Checkout
   // verification itself uses the owner-scoped RPC (MYK9-294).
-  // and `.select().in()` (the entries fetch on the page).
   const builder: Record<string, unknown> = {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
@@ -71,6 +70,22 @@ function mockAuthSession() {
   });
 }
 
+function mockCheckoutRpcFromSingle() {
+  mockRpc.mockImplementation(async () => {
+    const result = await mockSingle();
+    const data = result.data
+      ? [
+          {
+            ...result.data,
+            show_name: result.data.shows?.name ?? null,
+            confirmation_number: result.data.enrollment?.confirmation_number ?? null,
+          },
+        ]
+      : result.data;
+    return { data, error: result.error };
+  });
+}
+
 function expectSuccessfulVerification(
   result: CheckoutVerificationResult
 ): asserts result is Extract<CheckoutVerificationResult, { success: true }> {
@@ -94,19 +109,7 @@ describe('verifyCheckoutSession', () => {
     vi.clearAllMocks();
     mockEntries.rows = [];
     mockAuthSession();
-    mockRpc.mockImplementation(async () => {
-      const result = await mockSingle();
-      const data = result.data
-        ? [
-            {
-              ...result.data,
-              show_name: result.data.shows?.name ?? null,
-              confirmation_number: result.data.enrollment?.confirmation_number ?? null,
-            },
-          ]
-        : result.data;
-      return { data, error: result.error };
-    });
+    mockCheckoutRpcFromSingle();
   });
 
   it('returns confirmationNumber when enrollment row exists on the order', async () => {
@@ -127,6 +130,9 @@ describe('verifyCheckoutSession', () => {
 
     const result = await verifyCheckoutSession('cs_test_abc123');
 
+    expect(mockRpc).toHaveBeenCalledWith('get_my_checkout_order', {
+      p_session_id: 'cs_test_abc123',
+    });
     expectSuccessfulVerification(result);
     expect(result.confirmationNumber).toBe('MK9-000042');
     expect(result.showName).toBe('Spring Invitational');
@@ -358,6 +364,7 @@ describe('CheckoutSuccessPage', () => {
     vi.clearAllMocks();
     mockEntries.rows = [];
     mockAuthSession();
+    mockCheckoutRpcFromSingle();
   });
 
   it('displays MK9-XXXXXX confirmation number when enrollment is linked', async () => {

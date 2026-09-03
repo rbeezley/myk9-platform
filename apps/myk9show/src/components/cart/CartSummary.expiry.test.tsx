@@ -67,7 +67,7 @@ describe('CartSummary — lapsed hold', () => {
   it('keeps the Extend affordance on screen once the hold has lapsed', () => {
     timerState.isExpired = true;
 
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByText('Your hold has lapsed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Extend' })).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe('CartSummary — lapsed hold', () => {
   it('reassures that nothing was removed, rather than pressing the exhibitor', () => {
     timerState.isExpired = true;
 
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByText(/nothing has been removed from your cart/i)).toBeInTheDocument();
   });
@@ -84,7 +84,7 @@ describe('CartSummary — lapsed hold', () => {
   it('will not offer to take payment against a hold that has lapsed', () => {
     timerState.isExpired = true;
 
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     const pay = screen.getByRole('button', { name: /extend your hold to continue/i });
     expect(pay).toBeDisabled();
@@ -100,7 +100,7 @@ describe('CartSummary — lapsed hold', () => {
     (storeState.cart as { show: { entry_close_date: string } }).show.entry_close_date =
       '2020-01-01';
 
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByRole('button', { name: /entries closed/i })).toBeDisabled();
     expect(
@@ -112,7 +112,7 @@ describe('CartSummary — lapsed hold', () => {
     timerState.showWarning = true;
     timerState.timeRemainingFormatted = '4:30';
 
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByText('Cart will expire soon')).toBeInTheDocument();
     // The figure includes the platform fee; what matters here is that a real

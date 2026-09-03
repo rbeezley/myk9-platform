@@ -9,11 +9,11 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { eventEmitter } from '../services/sync/eventEmitter';
 import { logger } from '@/services/LoggingService';
 
-// Define types for better type safety
 type RealtimeMessage = Record<string, unknown>;
 type MessageProcessor = (messages: RealtimeMessage[]) => void;
 type EventListener = (...args: unknown[]) => void;
 
+// Define types for better type safety
 /**
  * Connection pool for reusing WebSocket connections
  */
@@ -484,12 +484,16 @@ class EventListenerManager {
   }
 }
 
+// These legacy helpers are retained as private implementation history while
+// their former public entry points are removed.
+void ConnectionPool;
+void MessageBatcher;
+void MessageCompressor;
+void EventListenerManager;
+
 // Export singleton instances
-export const connectionPool = ConnectionPool.getInstance();
-export const messageBatcher = MessageBatcher.getInstance();
-export const messageCompressor = MessageCompressor.getInstance();
 export const smartHeartbeat = SmartHeartbeat.getInstance();
-export const eventListenerManager = EventListenerManager.getInstance();
+
 
 /**
  * Utility functions for real-time optimization
@@ -498,81 +502,9 @@ export const eventListenerManager = EventListenerManager.getInstance();
 /**
  * Optimize channel subscription with connection pooling
  */
-export async function optimizedChannelSubscribe(
-  channelName: string,
-  createChannelFn: () => RealtimeChannel,
-  options: {
-    usePool?: boolean;
-    enableCompression?: boolean;
-    batchMessages?: boolean;
-  } = {}
-): Promise<RealtimeChannel> {
-  // Try to get from pool first
-  if (options.usePool !== false) {
-    const pooledChannel = connectionPool.getConnection(channelName);
-    if (pooledChannel) {
-      return pooledChannel;
-    }
-  }
-
-  // Create new channel
-  const channel = createChannelFn();
-
-  // Add to pool
-  if (options.usePool !== false) {
-    connectionPool.addConnection(channelName, channel);
-  }
-
-  return channel;
-}
-
 /**
  * Optimize message sending with compression and batching
  */
-export function optimizedMessageSend(
-  channel: RealtimeChannel,
-  event: string,
-  payload: Record<string, unknown>,
-  options: {
-    enableCompression?: boolean;
-    batchMessages?: boolean;
-    priority?: 'high' | 'normal' | 'low';
-  } = {}
-): void {
-  let optimizedPayload = payload;
-
-  // Apply compression if enabled
-  if (options.enableCompression) {
-    const compressed = messageCompressor.compressMessage(channel.topic, payload);
-    optimizedPayload = compressed.compressed;
-  }
-
-  // Send immediately for high priority or if batching disabled
-  if (options.priority === 'high' || !options.batchMessages) {
-    channel.send({
-      type: 'broadcast',
-      event,
-      payload: optimizedPayload
-    });
-    return;
-  }
-
-  // Add to batch for normal/low priority
-  messageBatcher.addMessage(
-    channel.topic,
-    { event, payload: optimizedPayload },
-    (messages) => {
-      messages.forEach(msg => {
-        channel.send({
-          type: 'broadcast',
-          event: String(msg.event),
-          payload: msg.payload
-        });
-      });
-    }
-  );
-}
-
 /**
  * Setup optimized presence tracking
  */
@@ -619,80 +551,5 @@ export function setupOptimizedPresence(
   return () => {
     channel.untrack();
     smartHeartbeat.stopHeartbeat(channelName);
-  };
-}
-
-/**
- * Memory-efficient event listener setup
- */
-export function setupOptimizedListeners(
-  channel: RealtimeChannel,
-  listeners: Record<string, EventListener>,
-  component?: object
-): () => void {
-  const cleanupFunctions: (() => void)[] = [];
-
-  Object.entries(listeners).forEach(([event, listener]) => {
-    const cleanup = eventListenerManager.addListener(
-      channel.topic,
-      event,
-      listener,
-      component
-    );
-    cleanupFunctions.push(cleanup);
-
-    // Setup actual channel listener
-    channel.on('broadcast', { event }, listener as EventListener);
-  });
-
-  // Return cleanup function
-  return () => {
-    cleanupFunctions.forEach(cleanup => cleanup());
-    // Channel cleanup handled by RealtimeConnectionManager
-  };
-}
-
-/**
- * Calculate optimal message frequency based on performance
- */
-export function calculateOptimalMessageFrequency(
-  currentLatency: number,
-  targetLatency: number = 50,
-  currentFrequency: number = 60
-): number {
-  // Adjust frequency based on latency performance
-  if (currentLatency <= targetLatency) {
-    // Good performance - can increase frequency
-    return Math.min(120, currentFrequency * 1.1);
-  } else if (currentLatency > targetLatency * 2) {
-    // Poor performance - reduce frequency
-    return Math.max(10, currentFrequency * 0.7);
-  }
-  
-  // Maintain current frequency
-  return currentFrequency;
-}
-
-/**
- * Get real-time optimization statistics
- */
-export function getOptimizationStats(): {
-  connectionPool: Record<string, unknown>;
-  messageCompression: Record<string, unknown>;
-  eventListeners: Record<string, unknown>;
-  heartbeat: Record<string, unknown>;
-} {
-  return {
-    connectionPool: {
-      activeConnections: connectionPool['connections']?.size || 0,
-      // Add more pool stats as needed
-    },
-    messageCompression: messageCompressor.getCompressionStats(),
-    eventListeners: {
-      totalListeners: eventListenerManager.getListenerCount()
-    },
-    heartbeat: {
-      // Add heartbeat stats as needed
-    }
   };
 }

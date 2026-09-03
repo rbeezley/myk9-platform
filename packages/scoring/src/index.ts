@@ -26,36 +26,4 @@ export type {
 } from './types';
 
 // Stores
-export {
-  useScoringStore,
-  createScoringStore,
-  type ScoringState,
-} from './stores/scoringStore';
-
-export {
-  useTimerStore,
-  createTimerStore,
-  type TimerState,
-} from './stores/timerStore';
-
-// Utils - Calculations
-export {
-  calculateTotalAreaTime,
-  formatTimeDisplay,
-  formatSecondsDisplay,
-  calculateRemainingTime,
-  calculateFastCatMph,
-  calculateNationalsPoints,
-} from './utils/calculationUtils';
-
-// Utils - Nationals
-export {
-  mapElementToNationalsType,
-  getNationalsElementDisplayName,
-  getAllNationalsElementTypes,
-  isValidNationalsElement,
-  getNationalsMaxTime,
-  getNationalsMaxTimeFormatted,
-  isValidCompetitionDay,
-  getCompetitionDayName,
-} from './utils/nationalsUtils';
+export { useScoringStore, createScoringStore, type ScoringState } from './stores/scoringStore';

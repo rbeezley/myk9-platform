@@ -1,4 +1,4 @@
-import { getTrialRegistry } from '@/features/registries';
+import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
 import {
   resolveDogIdentityForOrganization,
   type DogRegistrationLike,
@@ -76,6 +76,7 @@ interface EntryInput {
   class_id?: string | null;
   entry_fee?: number | null;
   payment_status?: string | null;
+  payment_method?: string | null;
 }
 
 interface DogInput {
@@ -304,9 +305,9 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
   const preEntry = show.pre_entry_fee ?? 25;
   const additional = show.pre_entry_fee != null ? Math.max(0, preEntry - 3) : 22;
   const total = entry?.entry_fee != null ? formatFee(entry.entry_fee) : null;
-  const pm = entry?.payment_status ?? null;
   // Only mail-in payment methods (check/money_order/online) appear on the physical blank.
   // 'paid' and other system statuses map to null (blank checkbox row on the form).
+  const paymentMethod = entry?.payment_method;
   const MAIL_PAYMENT_METHODS = new Set(['check', 'money_order', 'online']);
   const feesProps: EntryBlankFees = {
     firstEntryFee: formatFee(preEntry),
@@ -314,8 +315,8 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     juniorHandlerFee: '$18.00',
     mailProcessingFee: '$3.00',
     totalAmount: total,
-    paymentMethod: MAIL_PAYMENT_METHODS.has(pm ?? '')
-      ? (pm as 'check' | 'money_order' | 'online')
+    paymentMethod: MAIL_PAYMENT_METHODS.has(paymentMethod ?? '')
+      ? (paymentMethod as 'check' | 'money_order' | 'online')
       : null,
   };
 
@@ -328,7 +329,7 @@ export function buildEntryBlankProps(opts: BuildEntryBlankOptions): EntryBlankPr
     emailSubject: secretary.emailSubject ?? null,
   };
 
-  const timezone = sortedTrials[0]?.timezone ?? 'America/New_York';
+  const timezone = getTrialTimezone(sortedTrials[0]);
   const closeIso = show.entry_close_date ?? null;
 
   return {

@@ -11,6 +11,8 @@ export const TOAST_DURATIONS = {
 } as const;
 
 export interface NotificationOptions {
+  /** Stable Sonner identity for notifications that should replace repeats. */
+  id?: string | number;
   title?: string;
   description?: string;
   action?: {
@@ -23,6 +25,7 @@ export interface NotificationOptions {
 export const notifications = {
   success: (message: string, options?: NotificationOptions) => {
     return toast.success(message, {
+      ...(options?.id !== undefined ? { id: options.id } : {}),
       description: options?.description,
       duration: options?.duration || TOAST_DURATIONS.success,
       action: options?.action
@@ -37,6 +40,7 @@ export const notifications = {
 
   error: (message: string, options?: NotificationOptions) => {
     return toast.error(message, {
+      ...(options?.id !== undefined ? { id: options.id } : {}),
       description: options?.description,
       duration: options?.duration || TOAST_DURATIONS.error,
       action: options?.action
@@ -51,6 +55,7 @@ export const notifications = {
 
   warning: (message: string, options?: NotificationOptions) => {
     return toast.warning(message, {
+      ...(options?.id !== undefined ? { id: options.id } : {}),
       description: options?.description,
       duration: options?.duration || TOAST_DURATIONS.warning,
       action: options?.action
@@ -65,6 +70,7 @@ export const notifications = {
 
   info: (message: string, options?: NotificationOptions) => {
     return toast.info(message, {
+      ...(options?.id !== undefined ? { id: options.id } : {}),
       description: options?.description,
       duration: options?.duration || TOAST_DURATIONS.info,
       action: options?.action

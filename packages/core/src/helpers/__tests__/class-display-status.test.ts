@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  getClassDisplayStatus,
-  shouldShowClassLifecycleChips,
-} from '../../index';
+import { getClassDisplayStatus } from '../../index';
 
 describe('getClassDisplayStatus', () => {
   it('returns "completed" when is_scoring_finalized is true', () => {
@@ -99,23 +96,6 @@ describe('getClassDisplayStatus', () => {
         scored_count: 0,
       })
     ).toBe('in-progress');
-  });
-});
-
-describe('shouldShowClassLifecycleChips', () => {
-  it('hides lifecycle chips on draft shows', () => {
-    expect(shouldShowClassLifecycleChips('draft')).toBe(false);
-  });
-
-  it('shows chips for published and live shows', () => {
-    expect(shouldShowClassLifecycleChips('published')).toBe(true);
-    expect(shouldShowClassLifecycleChips('active')).toBe(true);
-    expect(shouldShowClassLifecycleChips('completed')).toBe(true);
-  });
-
-  it('keeps chips when the show status is not yet known (cold store)', () => {
-    expect(shouldShowClassLifecycleChips(null)).toBe(true);
-    expect(shouldShowClassLifecycleChips(undefined)).toBe(true);
   });
 });
 

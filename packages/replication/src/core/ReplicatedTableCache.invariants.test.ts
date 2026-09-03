@@ -4,7 +4,7 @@ import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
 import type { IDBPDatabase } from 'idb';
 import type { ReplicatedRow } from '../types';
 
-// Ensure navigator.onLine is true so isExpired() doesn't treat Node as offline.
+// Keep a stable network flag for these cache invariants.
 const nav = typeof navigator !== 'undefined' ? navigator : (globalThis.navigator = {} as Navigator);
 const originalOnLine = Object.getOwnPropertyDescriptor(nav, 'onLine');
 beforeAll(() => {
@@ -67,7 +67,6 @@ describe('ReplicatedTableCache invariants', () => {
 
     cacheManager = new ReplicatedTableCacheManager<TestEntity>(
       tableName,
-      () => 5000,
       { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
       async () => db,
       async () => ({ ok: true, rows: await getAllData(), error: null })

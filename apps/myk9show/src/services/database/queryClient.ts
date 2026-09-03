@@ -1,6 +1,4 @@
 import { QueryClient } from '@tanstack/react-query';
-import { DatabaseError } from './supabaseClient';
-import { logger } from '@/services/LoggingService';
 
 // Type for query key structures
 type QueryKeyStructure = {
@@ -152,85 +150,6 @@ export const prefetchQueries = {
       });
     }
   },
-};
-
-// Optimistic update helpers
-export const optimisticUpdates = {
-  // Update single entity in cache
-  updateEntity: <T extends { id: string }>(
-    entity: keyof typeof queryKeys,
-    id: string,
-    updater: (old: T) => T
-  ) => {
-    const keys = queryKeys[entity] as QueryKeyStructure;
-    if (keys.detail && typeof keys.detail === 'function') {
-      queryClient.setQueryData(keys.detail(id), updater);
-    }
-  },
-
-  // Add entity to list cache
-  addToList: <T>(entity: keyof typeof queryKeys, filters: Record<string, unknown>, newItem: T) => {
-    const keys = queryKeys[entity] as QueryKeyStructure;
-    if (keys.list && typeof keys.list === 'function') {
-      queryClient.setQueryData(keys.list(filters), (old: T[] = []) => [...old, newItem]);
-    }
-  },
-
-  // Remove entity from list cache
-  removeFromList: <T extends { id: string }>(
-    entity: keyof typeof queryKeys,
-    filters: Record<string, unknown>,
-    id: string
-  ) => {
-    const keys = queryKeys[entity] as QueryKeyStructure;
-    if (keys.list && typeof keys.list === 'function') {
-      queryClient.setQueryData(keys.list(filters), (old: T[] = []) =>
-        old.filter(item => item.id !== id)
-      );
-    }
-  },
-};
-
-// Global error handler for queries
-export const handleQueryError = (error: DatabaseError) => {
-  logger.error('Query error:', 'database', {}, error as Error);
-
-  // You can add global error handling here
-  // For example, showing a toast notification
-  // toast.error(error.message);
-
-  if (error.code === 'PGRST301') {
-    window.location.href = '/sign-in';
-  }
-};
-
-// Performance monitoring wrapper
-export const withPerformanceTracking = async <T>(
-  queryKey: readonly unknown[],
-  queryFn: () => Promise<T>
-): Promise<T> => {
-  const startTime = performance.now();
-
-  try {
-    const result = await queryFn();
-    const duration = performance.now() - startTime;
-
-    // Log slow queries in development
-    if (import.meta.env.DEV && duration > 1000) {
-      logger.warn(`Slow query detected: ${queryKey.join('/')} took ${duration}ms`, 'database', {});
-    }
-
-    return result;
-  } catch (error) {
-    const duration = performance.now() - startTime;
-    logger.error(
-      `Query failed: ${queryKey.join('/')} after ${duration}ms`,
-      'database',
-      {},
-      error as Error
-    );
-    throw error;
-  }
 };
 
 export default queryClient;

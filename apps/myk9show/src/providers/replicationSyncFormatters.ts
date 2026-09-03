@@ -8,6 +8,8 @@ export interface SyncFailedEventDetail {
   message: string;
 }
 
+export const DOWNLOAD_SYNC_FAILURE_TOAST_ID = 'replication-download-failed';
+
 const NON_SCORING_RINGSIDE_FIELDS = new Set([
   'run_order',
   'check_in_status',

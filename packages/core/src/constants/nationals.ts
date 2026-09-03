@@ -3,8 +3,7 @@
  *
  * These values define the official AKC Nationals scoring rules.
  * Centralizing them ensures consistency across:
- * - nationalsScoring.ts (calculation service)
- * - AKCNationalsScoresheet.tsx (UI component)
+ * - AKCNationalsLiveScoresheet.tsx (UI component)
  * - Test files
  *
  * Reference: AKC Scent Work Nationals Rules

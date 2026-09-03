@@ -26,7 +26,6 @@ These require integration with other systems or significant implementation.
 | File | TODO | Integration Type |
 |------|------|-----------------|
 | `store/trialStore.ts` (x3) | ReplicatedClassesTable integration | Replication system |
-| `services/sync/InitialSyncOrchestrator.ts` | Supabase sync logic | Supabase |
 | `services/sync/SmartQueryBuilder.ts` | Supabase query replacement | Supabase |
 | `pages/MyEntriesPage.tsx` | API/IndexedDB entries fetch | Data layer |
 

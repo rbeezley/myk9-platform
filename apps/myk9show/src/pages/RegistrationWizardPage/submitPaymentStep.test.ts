@@ -63,7 +63,6 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
       abandonCart: vi.fn(),
     },
     submitRegistration: vi.fn(),
-    confirmRegistration: vi.fn(),
     isMounted: () => true,
     setIsSubmitting: vi.fn(),
     setRegistrationNumber: vi.fn(),
@@ -132,6 +131,28 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).toHaveBeenCalledTimes(1);
     expect(ctx.cart.clearCart).toHaveBeenCalledTimes(1);
     expect(order).toEqual(['clearCart', 'triggerSync']);
+  });
+
+  it('keeps the cart and the payment step when submission fails', async () => {
+    // MYK9-302: an enrollment insert failure must reach this catch path, not
+    // present as a confirmation step with an empty registration and no cart.
+    const { ctx, order } = makeContextAndOrder();
+    submitShowRegistrationMock.mockRejectedValueOnce(
+      new Error('permission denied for sequence registration_confirmation_seq')
+    );
+
+    await submitPaymentStep(ctx);
+
+    expect(ctx.cart.clearCart).not.toHaveBeenCalled();
+    expect(ctx.markStepComplete).not.toHaveBeenCalled();
+    expect(ctx.setCurrentStep).not.toHaveBeenCalled();
+    expect(order).toEqual([]);
+    expect(ctx.updateShowRegistration).toHaveBeenCalledWith('registration-1', {
+      status: 'draft',
+    });
+    expect(notificationErrorMock).toHaveBeenCalledWith(
+      'permission denied for sequence registration_confirmation_seq'
+    );
   });
 
   it('rejects stale on-behalf card checkout state before Stripe handoff', async () => {

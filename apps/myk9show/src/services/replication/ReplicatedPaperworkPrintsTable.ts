@@ -110,7 +110,7 @@ export function rowToPaperworkPrint(row: PaperworkPrintRow): ReplicatedPaperwork
 
 export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPaperworkPrint> {
   constructor() {
-    super('paperwork_prints', undefined, { logger });
+    super('paperwork_prints', { logger });
   }
 
   async sync(syncScopeId?: string): Promise<SyncResult> {

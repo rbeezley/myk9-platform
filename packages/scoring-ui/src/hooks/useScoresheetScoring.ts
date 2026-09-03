@@ -4,7 +4,7 @@
  * Core scoring state management for all scoresheet types.
  * Pure form state — no routing, data fetching, or persistence.
  *
- * Used by both LiveScoresheet (judge) and EntryScoresheet (secretary).
+ * Used by the live scoresheets shared across judge and secretary workflows.
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -140,7 +140,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         searchTime: calculateTotalTime() || '0.00',
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
-        areaTimes: areas.map(a => a.time).filter(t => t && t !== ''),
+        areaTimes: areas.map(a => a.time),
         correctCount: areas.filter(a => a.correct).length,
         incorrectCount: areas.filter(a => !a.correct && a.time !== '').length,
         faultCount,

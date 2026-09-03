@@ -4,20 +4,6 @@
  * Supabase client and utilities for the myK9 Platform.
  */
 
-// Client
-export {
-  initSupabase,
-  getSupabase,
-  setLicenseKey,
-  getLicenseKey,
-  isSupabaseInitialized,
-  type SupabaseConfig,
-  type SupabaseClient,
-} from './client';
-
-// React hooks
-export { useSupabase } from './hooks/useSupabase';
-
 // Database types (generated from Supabase schema)
 export type {
   CompositeTypes,

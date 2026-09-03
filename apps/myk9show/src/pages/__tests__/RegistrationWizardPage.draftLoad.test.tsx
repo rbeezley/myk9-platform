@@ -22,7 +22,6 @@ vi.mock('@/store/showRegistrationStore', () => ({
   useShowRegistrationStore: () => ({
     createRegistration: mockCreateRegistration,
     submitRegistration: vi.fn(),
-    confirmRegistration: vi.fn(),
     currentRegistration: null,
     setDraftData: vi.fn(),
     updateRegistration: vi.fn(),
@@ -133,7 +132,6 @@ vi.mock('@/components/common/ErrorBoundary', () => ({
 
 vi.mock('@/services/database/armbands', () => ({
   claimNextArmband: vi.fn(),
-  getEntryArmbandById: vi.fn(),
 }));
 
 // ─── Import page after all mocks ─────────────────────────────────────────────

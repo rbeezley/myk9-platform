@@ -75,12 +75,10 @@ function normalizeJoinedHandlerEmail(handler: RegistrationRow['handler']): strin
 }
 
 /**
- * Result of a successful authorization check, for message types whose
- * recipient must be derived from the resource (SA-018/SA-019). `undefined`
- * for other message types, which keep their existing body-supplied `to`.
+ * Both supported message types require a resource-derived recipient (SA-018/SA-019).
  */
 export type SendEmailAuthorizationResult =
-  SupportNotificationRecipientSource | EntryDecisionRecipientSource | undefined;
+  SupportNotificationRecipientSource | EntryDecisionRecipientSource;
 
 export async function assertSendEmailRateLimit(args: {
   supabase: SendEmailSupabaseClient;
@@ -120,7 +118,7 @@ export async function assertSendEmailAuthorization(args: {
   }
 
   if (args.data.type !== 'entry_decision') {
-    throw new HttpError(403, 'Forbidden: show official role required');
+    throw new HttpError(400, 'Unsupported email type');
   }
 
   if (!args.data.registrationId) {

@@ -316,7 +316,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('classes', undefined, { logger });
+    super('classes', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */

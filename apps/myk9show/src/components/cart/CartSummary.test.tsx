@@ -46,14 +46,14 @@ describe('CartSummary — entries-closed gating', () => {
   it('keeps Continue Shopping at the 44px touch-target floor', () => {
     const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     storeState.cart = mockCart({ entry_close_date: future.toISOString().slice(0, 10) });
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByRole('button', { name: /continue shopping/i })).toHaveClass('min-h-11');
   });
 
   it('disables checkout and explains when the show has closed entries', () => {
     storeState.cart = mockCart({ entry_close_date: '2026-06-30' });
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByText('Entries are closed for this show')).toBeInTheDocument();
     const payButton = screen.getByRole('button', { name: /entries closed. cannot pay online/i });
@@ -64,7 +64,7 @@ describe('CartSummary — entries-closed gating', () => {
   it('allows checkout when entries are still open', () => {
     const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     storeState.cart = mockCart({ entry_close_date: future.toISOString().slice(0, 10) });
-    render(<CartSummary />);
+    render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.queryByText('Entries are closed for this show')).not.toBeInTheDocument();
     const payButton = screen.getByRole('button', { name: /pay \$.* and confirm/i });
@@ -85,7 +85,7 @@ describe('CartSummary — entries-closed gating', () => {
       vi.setSystemTime(new Date(2026, 5, 30, 12, 0, 0)); // 2026-06-30 12:00 local
       storeState.cart = mockCart({ entry_close_date: '2026-06-30' });
 
-      render(<CartSummary />);
+      render(<CartSummary onCheckout={() => {}} />);
 
       expect(screen.queryByText('Entries are closed for this show')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: /pay \$.* and confirm/i })).not.toBeDisabled();
@@ -96,7 +96,7 @@ describe('CartSummary — entries-closed gating', () => {
       vi.setSystemTime(new Date(2026, 6, 1, 0, 1, 0)); // 2026-07-01 00:01 local
       storeState.cart = mockCart({ entry_close_date: '2026-06-30' });
 
-      render(<CartSummary />);
+      render(<CartSummary onCheckout={() => {}} />);
 
       expect(screen.getByText('Entries are closed for this show')).toBeInTheDocument();
       expect(

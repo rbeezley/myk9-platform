@@ -362,6 +362,10 @@ async function sendOneJob(args: {
   supabase: LifecycleEmailSupabaseClient;
   userId: string;
 }): Promise<{ jobId: string; status: 'sent' | 'failed'; emailLogId?: string; error?: string }> {
+  // A non-empty payload subject/body/note is an explicit BROADCAST override: it
+  // replaces the stored text on every job in this send. Callers that did not
+  // edit must omit these fields so each job keeps its own personalised draft
+  // (MYK9-315 — the batch review dialog used to forward the first job's text).
   const subject = args.payload.subject?.trim() || args.job.subject || 'Update from myK9Show';
   const body = args.payload.body?.trim() || args.job.body || '';
   const secretaryNote = args.payload.secretary_note?.trim() || args.job.secretary_note || '';

@@ -4,7 +4,6 @@
  * Database queries for day-of-show entry operations:
  * - Class capacity checking
  * - Walk-in registration (day-of entries)
- * - Show dog lookup
  * - Dog search for new entries
  *
  * Note: Each row in the entries table represents one dog's entry into one class.
@@ -220,54 +219,6 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
     const dbError = createDatabaseError(error, 'entries', 'create_day_of_entry');
     logQuery('entries', 'create_day_of_entry', duration, dbError.message);
     return { data: null, error: dbError };
-  }
-};
-
-/**
- * Get dogs registered for the show (for day-of entry dog selector)
- */
-export const getShowDogs = async (showId: string) => {
-  const startTime = Date.now();
-
-  try {
-    // Get dogs that already have entries in this show
-    const { data: existingEntries, error: entriesError } = await supabase
-      .from('entries')
-      .select(
-        `
-        dog_id,
-        dog:dog_id (
-          id,
-          name,
-          call_name,
-          breed
-        )
-      `
-      )
-      .eq('show_id', showId)
-      .is('deleted_at', null);
-
-    if (entriesError) {
-      throw createDatabaseError(entriesError, 'entries', 'get_show_dogs');
-    }
-
-    // Get unique dogs
-    const dogMap = new Map();
-    existingEntries?.forEach(entry => {
-      if (entry.dog && !dogMap.has(entry.dog_id)) {
-        dogMap.set(entry.dog_id, entry.dog);
-      }
-    });
-
-    const duration = Date.now() - startTime;
-    logQuery('entries', 'get_show_dogs', duration);
-
-    return { data: Array.from(dogMap.values()), error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entries', 'get_show_dogs');
-    logQuery('entries', 'get_show_dogs', duration, dbError.message);
-    return { data: [], error: dbError };
   }
 };
 

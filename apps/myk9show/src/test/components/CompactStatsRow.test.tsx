@@ -27,6 +27,27 @@ describe('CompactStatsRow', () => {
     expect(screen.getByText(/due of \$150\.00 entered/)).toBeInTheDocument();
   });
 
+  it('labels debt from past entries as an outstanding balance', () => {
+    render(
+      <CompactStatsRow
+        {...defaultProps}
+        currentFees={0}
+        amountDue={90}
+        hasPastBalance
+        currentFeesHref="/exhibitor/payments?due=1"
+      />
+    );
+
+    expect(screen.getByText('$90.00')).toBeInTheDocument();
+    expect(screen.getByText('outstanding balance')).toBeInTheDocument();
+    expect(screen.queryByText(/due of/)).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Entry fees: $90.00 outstanding. View payment details.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Contact the club to settle')).toBeInTheDocument();
+    expect(screen.queryByText('Finish Payment')).not.toBeInTheDocument();
+  });
+
   it('formats money with cents', () => {
     // A plain toLocaleString printed a $1,234.50 balance as "$1,234.5" on the
     // exhibitor's money surface.

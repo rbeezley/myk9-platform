@@ -26,24 +26,10 @@ export type {
   ClassStatusUpdateFields,
   ClassStatusValue,
 } from './context';
-export {
-  RingsideProvider,
-  useRingside,
-  useRingsideAuth,
-  useRingsideReplication,
-  useRingsidePrefetch,
-  useRingsidePermission,
-  useShowOrg,
-} from './context';
+export { RingsideProvider, useRingside, useRingsideAuth, useRingsidePermission } from './context';
 
 // ── Utils ────────────────────────────────────────────────────────────────
-export {
-  parseSmartTime,
-  isValidTimeFormat,
-  timeToSeconds,
-  secondsToTime,
-  compareTime,
-} from './utils/timeInputParsing';
+export { parseSmartTime, isValidTimeFormat } from './utils/timeInputParsing';
 
 // Class-status detection + display (moved from apps/myk9q statusUtils in PR E1a)
 export type {
@@ -78,31 +64,11 @@ export { SORT_OPTIONS } from './pages/ClassList';
 // Section grouping (PR E0)
 export {
   shouldCombineAllSections,
-  findPairedNoviceClass,
   findPairedSectionedClass,
-  groupNoviceClasses,
   groupSectionedClasses,
-  isCombinedNoviceEntry,
   isCombinedEntry,
   getClassIds,
 } from './pages/ClassList';
-
-// Status formatting + sort/filter helpers (PR E1a)
-export {
-  getContextualPreview,
-  isMaxTimeSet,
-  shouldShowMaxTimeWarning,
-  isEmptyDataError,
-  filterClasses,
-  sortClasses,
-} from './pages/ClassList';
-
-// Presentational + hook surface (PR E1b)
-export { ClassCardSkeleton, ClassCardSkeletonList } from './pages/ClassList';
-export { useClassDialogs, type PopupPosition, type UseClassDialogsReturn } from './pages/ClassList';
-
-// Favorites hook (PR E1c — dedupe + move)
-export { useFavoriteClasses, type UseFavoriteClassesReturn } from './pages/ClassList';
 
 // ── Pages: EntryList (PR E2a + E2b) ──────────────────────────────────────
 // E2a moved pure helpers + state hooks. E2b moved `useEntryListData` (the
@@ -126,7 +92,6 @@ export type {
 export type { StatusBorderClass } from './pages/EntryList';
 export {
   normalizeResultText,
-  getResultClassName,
   isNonQualifyingResult,
   getStatusBorderClass,
   getPlacementEmoji,
@@ -179,17 +144,9 @@ export {
   RegularResultBadges,
   ResultBadges,
   StatusBadgeContent,
-  // Header helper components. `TrialInfo` is aliased to
-  // `EntryListTrialInfo` to avoid collision with the ClassList type
-  // of the same name (exported on line 76). Matches the handoff's
-  // documented pattern for cross-page name collisions (precedent:
-  // `SortOrder` → `EntryListSortOrder`).
   ActionsDropdownMenu,
   TrialInfo as EntryListTrialInfo,
-  ClassStatusBadge,
-  SectionsBadge,
   getStatusBadge,
-  // Entry-list pure helpers
   parseOrganizationData,
   parseTimeLimit,
 } from './pages/EntryList';
@@ -239,12 +196,9 @@ export {
   gateRank,
   gateStatusLabel,
   gateStatusOf,
-  hasAnyGateStatus,
   quickAdvanceCandidates,
 } from './pages/EntryList';
 export type { GateStatus, QuickAdvanceEntry } from './pages/EntryList';
-
-export { useResetScore } from './pages/EntryList';
 
 export { useDragAndDropEntries } from './pages/EntryList';
 

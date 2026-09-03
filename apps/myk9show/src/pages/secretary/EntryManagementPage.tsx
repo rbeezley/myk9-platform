@@ -36,6 +36,7 @@ import { CopyViewLinkButton } from '@/features/operational-views/CopyViewLinkBut
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import { EntryManagementUnresolvedShow } from './EntryManagementUnresolvedShow';
+import { registerCommandMenuContext } from '@/features/command-menu/commandMenuContextStore';
 
 const PAGE_TABS: PrimaryTabDef[] = [
   { id: 'registrations', label: 'Registrations' },
@@ -86,6 +87,15 @@ const EntryManagementPage: React.FC = () => {
   const activePageTab = cockpitUrl.state.tab;
   const copyLinkHref = `${location.pathname}?${cockpitUrl.params.toString()}`.replace(/\?$/, '');
   const trialParam = cockpitUrl.state.trialId;
+
+  useEffect(() => {
+    if (!selectedShowId) return;
+    return registerCommandMenuContext({
+      surface: 'entry-management',
+      showId: selectedShowId,
+      ...(trialParam ? { trialId: trialParam } : {}),
+    });
+  }, [selectedShowId, trialParam]);
 
   useEffect(() => {
     const focusNeedsValidation = searchParams.has('registration') || searchParams.has('entry');

@@ -64,7 +64,8 @@ function makeActions(): EntryListActions {
 function renderHandlers(
   localEntries: Entry[],
   actions: EntryListActions,
-  setLocalEntries: (updater: (prev: Entry[]) => Entry[]) => void = vi.fn()
+  setLocalEntries: (updater: (prev: Entry[]) => Entry[]) => void = vi.fn(),
+  refresh: (forceSync?: boolean) => Promise<void> = vi.fn(() => Promise.resolve())
 ) {
   const navigate = vi.fn();
   return renderHook(() =>
@@ -76,7 +77,7 @@ function renderHandlers(
       hasPermission: () => true,
       navigate,
       buildScoreSheetRoute: () => '/route',
-      refresh: vi.fn(() => Promise.resolve()),
+      refresh,
       setActiveStatusPopup: vi.fn(),
       setActiveResetMenu: vi.fn(),
       setResetMenuPosition: vi.fn(),
@@ -171,7 +172,7 @@ describe('useAtShowEntryListHandlers — setDogInRingStatus exclusivity', () => 
     // Hold the FIRST call's mark open until released; the second call must not
     // begin its own mark until the first fully settles (mutex serialization).
     let releaseFirstMark!: () => void;
-    const firstMark = new Promise<void>((resolve) => {
+    const firstMark = new Promise<void>(resolve => {
       releaseFirstMark = resolve;
     });
     (actions.handleMarkInRing as ReturnType<typeof vi.fn>)
@@ -272,8 +273,23 @@ describe('useAtShowEntryListHandlers — placement recompute RPC', () => {
       expect.anything()
     );
   });
-});
 
+  it('toasts an offline failure and does not refresh after RPC rejection', async () => {
+    const refresh = vi.fn(() => Promise.resolve());
+    supabaseMocks.rpc.mockRejectedValueOnce(new Error('Failed to fetch'));
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const { result } = renderHandlers([makeEntry({ id: 'entry-1' })], actions, vi.fn(), refresh);
+
+    await act(async () => {
+      await result.current.handleRecalculatePlacements();
+    });
+
+    expect(toastError).toHaveBeenCalledWith(
+      "Couldn't recalculate placements while offline. Reconnect and try again."
+    );
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
 
 /**
  * Optimistic check-in (MYK9-260).

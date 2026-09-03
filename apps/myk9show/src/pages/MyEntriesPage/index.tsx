@@ -265,27 +265,32 @@ const MyEntriesPage: React.FC = () => {
               <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
             ) : (
               <>
-                <CompactStatsRow
-                  currentFees={entryStats.currentFees}
-                  amountDue={entryStats.currentAmountDue}
-                  currentFeesHref={currentFeesHref}
-                  onNavigate={navigate}
-                />
+                <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
+                  <CompactStatsRow
+                    currentFees={entryStats.currentFees}
+                    amountDue={entryStats.currentAmountDue}
+                    hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
+                    currentFeesHref={currentFeesHref}
+                    onNavigate={navigate}
+                  />
+                </div>
 
-                {/* order-2 on mobile pushes the dog strip below the entries section
-                  (which is order-1). On desktop both are order-0, so source order
-                  keeps the dog strip above the entries. */}
-                <div className="max-[720px]:order-2">
+                {/* order-3 on mobile keeps the dog strip below the primary entry
+                  workflow. On desktop all three siblings are order-0, so source order
+                  keeps the balance and dog strip above the entries. */}
+                <div className="max-[720px]:order-3">
                   <DogStrip
                     dogs={
                       (dogs ?? []) as {
                         id: string;
                         call_name?: string;
                         name?: string;
+                        image_url?: string | null;
+                        date_of_birth?: string | null;
                         registrations?: {
-                          breed?: string;
-                          organization?: string;
-                          status?: string;
+                          breed?: string | null;
+                          organization?: string | null;
+                          registration_number?: string | null;
                         }[];
                       }[]
                     }
@@ -294,10 +299,11 @@ const MyEntriesPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Entries section — order-1 on mobile lifts the schedule above the dog
-                  strip. Label + tabs move as one unit; space-y-8 preserves the prior
-                  spacing between them. */}
-                <div className="space-y-8 max-[720px]:order-1">
+                {/* Entries section — order-1 on mobile puts the primary filters directly
+                  below the hero/today context. The balance card stays intact immediately
+                  after the filtered list, while the dog strip remains secondary. Desktop
+                  keeps source order (balance, dogs, entries). */}
+                <div data-testid="entries-filter-section" className="space-y-8 max-[720px]:order-1">
                   {/* This branch only renders when entries.length > 0, so the count
                     badge is always shown here. The scope note distinguishes this
                     all-time count from the "Current entries" stat card above,
@@ -353,33 +359,33 @@ const MyEntriesPage: React.FC = () => {
                         ? '1 entry'
                         : `${filteredEntries.length} entries`}
                     </p>
-                      {filteredEntries.length === 0 ? (
-                        <EntriesEmptyState
-                          selectedTab={selectedTab}
-                          selectedStatus={selectedStatus}
-                          onSwitchTab={setSelectedTab}
-                        />
-                      ) : (
-                        // A real list, so assistive tech announces "list, N
-                        // items" and offers list navigation. This was a bare
-                        // stack of divs. `space-y-4` stays on the wrapper,
-                        // so spacing is unchanged.
-                        <ul className="space-y-4">
-                          {filteredEntries.map(entry => (
-                            <li key={entry.id}>
-                              <MyEntryCard
-                                entry={entry}
-                                selfCheckinByClassId={selfCheckinByClassId}
-                                onCheckInClick={dialogs.openCheckIn}
-                                onEditClick={dialogs.openEdit}
-                                onReceiptClick={dialogs.openReceipt}
-                                onResultRevealClick={reveal.openResultReveal}
-                                seenResultReleaseKeys={reveal.seenResultReleaseKeys}
-                              />
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                    {filteredEntries.length === 0 ? (
+                      <EntriesEmptyState
+                        selectedTab={selectedTab}
+                        selectedStatus={selectedStatus}
+                        onSwitchTab={setSelectedTab}
+                      />
+                    ) : (
+                      // A real list, so assistive tech announces "list, N
+                      // items" and offers list navigation. This was a bare
+                      // stack of divs. `space-y-4` stays on the wrapper,
+                      // so spacing is unchanged.
+                      <ul className="space-y-4">
+                        {filteredEntries.map(entry => (
+                          <li key={entry.id}>
+                            <MyEntryCard
+                              entry={entry}
+                              selfCheckinByClassId={selfCheckinByClassId}
+                              onCheckInClick={dialogs.openCheckIn}
+                              onEditClick={dialogs.openEdit}
+                              onReceiptClick={dialogs.openReceipt}
+                              onResultRevealClick={reveal.openResultReveal}
+                              seenResultReleaseKeys={reveal.seenResultReleaseKeys}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               </>

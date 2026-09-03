@@ -9,6 +9,17 @@ const migration = readFileSync(
   ),
   'utf8'
 );
+// The view has been rebuilt several times since MYK9-114; the gate assertions
+// below must read the migration that defines it TODAY, or they certify history.
+// MYK9-329 (20260902130000) is the latest: it dropped the club-less-show manager
+// arm. Bump this path when the view is next rebuilt.
+const viewMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260902130000_myk9_329_null_club_view_can_manage.sql'
+  ),
+  'utf8'
+);
 const scanEvidenceSql = readFileSync(
   resolve(__dirname, '../../../../../scripts/qa/db-drift/myk9-114-scan-evidence.sql'),
   'utf8'
@@ -33,7 +44,7 @@ describe('MYK9-114 statement-scoped entry access context', () => {
     'COMMENT ON FUNCTION private.entry_results_caller_context'
   );
   const view = sliceBetween(
-    migration,
+    viewMigration,
     'CREATE OR REPLACE VIEW public.view_authenticated_entry_results',
     'GRANT SELECT ON public.view_authenticated_entry_results TO authenticated'
   );
@@ -81,7 +92,9 @@ describe('MYK9-114 statement-scoped entry access context', () => {
   it('preserves manager, judge, steward, owner, exhibitor, and claim gates', () => {
     expect(view).toContain('ctx.is_site_admin');
     expect(view).toContain('sh.id IS NOT NULL');
-    expect(view).toContain('(sh.club_id IS NULL AND ctx.has_manager_role)');
+    // MYK9-258 / MYK9-329: a club-less show is site-admin only. This line used
+    // to assert the arm was PRESENT, which pinned the cross-tenant leak.
+    expect(view).not.toContain('sh.club_id IS NULL AND ctx.has_manager_role');
     expect(view).toContain('sh.club_id = ANY(ctx.managed_club_ids)');
     expect(view).toContain('e.class_id = ANY(ctx.assigned_class_ids)');
     expect(view).toContain('e.show_id = ANY(ctx.steward_show_ids)');

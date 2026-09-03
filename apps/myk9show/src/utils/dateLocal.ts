@@ -4,9 +4,14 @@
  * IMPORTANT: We consistently work with dates in YYYY-MM-DD format.
  */
 
-import { LoggingService } from '@/services/LoggingService';
-
-const logger = LoggingService.getInstance();
+// Import the `logger` singleton rather than calling `LoggingService.getInstance()`
+// at module scope. This module sits deep in common import chains (entries →
+// search → entryWindowDate → here), and a module-scope call to the CLASS means
+// every test that mocks '@/services/LoggingService' with a factory must export
+// `LoggingService` too -- a factory mock replaces the whole module, so omitting
+// it makes the entire suite fail to COLLECT, far from any date code.
+// `logger` is `LoggingService.getInstance()`, so this is behaviour-identical.
+import { logger } from '@/services/LoggingService';
 
 /**
  * Converts a Date object to a YYYY-MM-DD string.

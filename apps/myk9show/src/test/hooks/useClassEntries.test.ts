@@ -27,7 +27,11 @@ vi.mock('@/lib/supabase', () => ({
       select: () => ({
         eq: () => ({
           is: () => ({
-            order: () => Promise.resolve(mockData),
+            order: () => ({
+              order: () => ({
+                range: () => Promise.resolve(mockData),
+              }),
+            }),
           }),
         }),
       }),

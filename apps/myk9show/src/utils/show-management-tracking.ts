@@ -203,34 +203,6 @@ export function syncShowRelationships(shows: Show[], user: UserWithRoles | null)
 }
 
 /**
- * Get shows that user can manage
- */
-export function getManagedShows(shows: Show[], user: UserWithRoles | null): Show[] {
-  if (!user) return [];
-
-  return shows.filter(show => {
-    // Officials (secretary/chairman) are now managed via user_roles — RLS enforces access at DB level
-    const relationships = showManagementTracker.getActiveRelationships(show.id, user.id);
-    return relationships.length > 0 || user.roles?.includes(UserRole.SITE_ADMIN);
-  });
-}
-
-/**
- * Get shows that user is judging
- */
-export function getJudgingShows(shows: Show[], user: UserWithRoles | null): Show[] {
-  if (!user) return [];
-
-  return shows.filter(show => {
-    const relationships = showManagementTracker.getActiveRelationships(show.id, user.id);
-    return (
-      relationships.some(rel => rel.role === 'judge') ||
-      show.assignedJudges?.some(j => j.judgeId === user.id)
-    );
-  });
-}
-
-/**
  * Performance monitoring for relationship tracking
  */
 export class RelationshipPerformanceMonitor {

@@ -4,6 +4,7 @@ import {
   captureSupportClientError,
   clearSupportClientErrors,
   getSupportClientErrors,
+  installSupportErrorCapture,
 } from './supportDiagnostics';
 
 const uuid = '11111111-1111-4111-8111-111111111111';
@@ -114,6 +115,21 @@ describe('support diagnostics', () => {
     expect(message).toContain('token=[redacted]');
     expect(message).toContain('#id_token=[redacted]');
     expect(message).toContain('&token=[redacted]');
+  });
+
+  it('includes a dispatched window error in the next diagnostic bundle', () => {
+    const teardown = installSupportErrorCapture();
+
+    window.dispatchEvent(new ErrorEvent('error', { error: new Error('Scores failed to save') }));
+
+    expect(buildDiagnosticBundle({}).clientErrors).toEqual([
+      expect.objectContaining({
+        message: 'Scores failed to save',
+        source: 'window.error',
+      }),
+    ]);
+
+    teardown();
   });
 
   it('survives hostile inputs', () => {

@@ -62,7 +62,20 @@ export async function executeMutation(
           TIMEOUT_PRESETS.standard,
           `${tableName} rpc ${mutation.rpc.name}`
         );
-        if (error) throw error;
+        if (error) {
+          // An RPC INSERT can commit before its response reaches the client.
+          // Replaying the same client-generated payload then raises a unique
+          // violation even though the desired server state already exists.
+          // Treat only INSERT RPC duplicates as idempotent success; UPDATE RPC
+          // duplicates remain real constraint failures.
+          if (isPrimaryKeyDuplicateError(error, tableName, mutation.rowId)) {
+            logger.log(
+              `[MutationManager] 23505 on INSERT ${tableName}/${mutation.rowId} RPC — prior attempt committed, treating as success`
+            );
+            return {};
+          }
+          throw error;
+        }
         if (mutation.rpc.expectRowId && typeof returned === 'string') {
           if (returned !== mutation.rowId) {
             return { remappedRowId: returned };

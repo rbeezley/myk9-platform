@@ -7,7 +7,6 @@ import {
   updateDog,
   deleteDog,
   searchDogs,
-  getDogsWithUpcomingShows,
   getDogStatistics,
 } from '@/services/database/dogs';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
@@ -383,25 +382,6 @@ describe('Dog Queries', () => {
       const result = await searchDogs('nonexistent', TEST_PERSON_ID);
 
       expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
-  });
-
-  describe('getDogsWithUpcomingShows', () => {
-    it('should fetch dogs with upcoming shows', async () => {
-      const mockData = [
-        {
-          id: '1',
-          name: 'Show Dog',
-          owner: { first_name: 'John', last_name: 'Doe' },
-        },
-      ];
-
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
-
-      const result = await getDogsWithUpcomingShows(TEST_PERSON_ID);
-
-      expect(result.data).toEqual(mockData);
       expect(result.error).toBeNull();
     });
   });

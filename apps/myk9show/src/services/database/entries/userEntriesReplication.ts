@@ -6,6 +6,7 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import { getTrialTimezone } from '@/features/registries';
 
 interface ReplicatedUserEntryRelationMaps {
   dogsMap: ReadonlyMap<string, unknown>;
@@ -91,10 +92,19 @@ export async function buildReplicatedUserEntryRows(
             // Keeps the offline path's trial shape identical to the PostgREST
             // embed. Without it the amount-due deadline would reckon "past" in
             // a different timezone offline than online.
-            timezone: trial.timezone ?? null,
+            timezone: getTrialTimezone(trial),
           }
         : null,
     });
+    if (!show && entry.showId && entry.showDeletedAt) {
+      row.show = {
+        id: entry.showId,
+        name: entry.showName ?? 'Unknown Show',
+        start_date: entry.showStartDate ?? null,
+        end_date: entry.showEndDate ?? null,
+        deleted_at: entry.showDeletedAt,
+      };
+    }
     // Mirror the PostgREST `show:show_id(..., trials:trials(...))` embed. The
     // amount-due deadline picks the show's PRIMARY trial's timezone, which
     // needs every trial of the show, not just the one this entry is in.

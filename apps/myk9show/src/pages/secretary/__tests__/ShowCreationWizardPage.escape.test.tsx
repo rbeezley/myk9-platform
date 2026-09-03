@@ -95,14 +95,10 @@ describe('ShowCreationWizardPage — Escape', () => {
   it('still confirms on the deliberate exit', async () => {
     // Removing the Escape binding must not remove the guard that matters: Cancel is
     // an explicit "I am leaving", and that is what warrants the prompt.
+    // Establish the dirty-form precondition directly so this test measures the
+    // Cancel flow rather than controlled-input and persist-write latency.
+    useWizardStore.getState().setDirty(true);
     render(<ShowCreationWizardPage />);
-
-    const nameField = document.querySelector('#show-name') as HTMLInputElement | null;
-    // Fail loudly if step 1 stops rendering this field. The previous `return` here
-    // made the test PASS having asserted nothing, which is the one outcome a guard
-    // against vacuity must not produce.
-    expect(nameField).not.toBeNull();
-    await userEvent.type(nameField!, DIRTYING_KEYSTROKE);
 
     const cancel = screen.queryByRole('button', { name: /^cancel$/i });
     expect(cancel).not.toBeNull();

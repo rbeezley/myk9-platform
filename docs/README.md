@@ -89,6 +89,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-myk9-100-entry-status-kind.md](plan-myk9-100-entry-status-kind.md)                                         | Active    | MYK9-100 — Preserve entry status kind for honest exhibitor badges             |
 | [plan-myk9-180-show-email-delivery-history.md](plan-myk9-180-show-email-delivery-history.md)                     | Active    | MYK9-180 — Show email delivery history in Communication History               |
 | [plan-myk9-269-279-batch.md](plan-myk9-269-279-batch.md)                                                         | Active    | MYK9-269–279 — Accessibility, E2E typecheck, and route cleanup (MYK9-277 deferred) |
+| [plan-p3-bug-and-dead-code-batch.md](plan-p3-bug-and-dead-code-batch.md)                                         | Active    | P3 reliability defects and dead-code batch remediation                         |
 | [plan-vacation-autopilot.md](plan-vacation-autopilot.md)                                                         | Active    | Vacation Autopilot — unattended 4×/day Linear-issue runs (2026-08-04→14)      |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                                                     | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)        |
 | [plan-phase4-seam-render-only.md](plan-phase4-seam-render-only.md)                                               | Active    | Plan: Phase 4 seam render-only read strategy                                  |
@@ -267,6 +268,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [operations/stripe-treasurer-guide.md](operations/stripe-treasurer-guide.md)                             | Reference | Stripe Treasurer Guide — Club payout onboarding (share with treasurers)            |
 | [operations/supabase-auth-email.md](operations/supabase-auth-email.md)                                   | Reference | Supabase Auth Email — Resend, Rate Limits & Manual Confirmation                    |
 | [operations/scheduled-audits-claude.md](operations/scheduled-audits-claude.md)                           | Reference | Scheduled Audits — Claude Code task prompts paired against the Codex nightly set   |
+| [operations/scheduled-task-walks.md](operations/scheduled-task-walks.md)                                 | Reference | Scheduled Task Walks — secretary, exhibitor + role-intent walk prompts             |
 
 ### future/ — parked backlog
 

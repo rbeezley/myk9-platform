@@ -18,12 +18,17 @@
 // has no colocated vitest of its own; keep it trivial.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import { buildAlertRow, runAlertAdmin, type InsertResultLike } from './alertAdminCore.ts';
+import {
+  buildAlertRow,
+  runAlertAdmin,
+  type InsertResultLike,
+  type AlertDeliveryOptions,
+} from './alertAdminCore.ts';
 import { sendResendEmailWithRetry } from './resendEmail.ts';
 
 export type AlertSeverity = 'info' | 'warn' | 'error';
 
-export interface AlertAdminOptions {
+export interface AlertAdminOptions extends AlertDeliveryOptions {
   /** Row severity; defaults to 'error' (the pre-existing helper had no
    * severity concept — every prior call site was effectively an error). */
   severity?: AlertSeverity;
@@ -100,6 +105,7 @@ export async function alertAdmin(
   await runAlertAdmin(subject, {
     insert: () => insertOperatorAlert(subject, html, opts),
     sendEmail: () => sendAlertEmail(subject, html),
+    skipEmailOnDuplicate: opts.skipEmailOnDuplicate,
     log: console.log,
     logError: console.error,
   });

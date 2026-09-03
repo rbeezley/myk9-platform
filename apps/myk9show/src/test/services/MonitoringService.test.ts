@@ -305,6 +305,15 @@ describe('MonitoringService', () => {
       expect(trackedEvent!.timestamp).toBeTypeOf('number');
     });
 
+    it('should track explicit page views', () => {
+      const eventsBefore = monitoring.getUserEvents().length;
+
+      monitoring.trackPageView();
+
+      expect(monitoring.getUserEvents()).toHaveLength(eventsBefore + 1);
+      expect(monitoring.getUserEvents().at(-1)).toMatchObject({ event: 'page_view' });
+    });
+
     it('should track feature usage', () => {
       const feature = 'offline-scoring';
       const metadata = { scoreCount: 5 };

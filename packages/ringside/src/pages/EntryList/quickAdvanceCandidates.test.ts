@@ -4,7 +4,6 @@ import {
   gatePromotedPending,
   gateRank,
   gateStatusLabel,
-  hasAnyGateStatus,
   type QuickAdvanceEntry,
 } from './quickAdvanceCandidates';
 import { pendingByRunOrder } from './runQueue';
@@ -30,7 +29,6 @@ describe('quickAdvanceCandidates — no check-in status data (paper gate, the co
   });
 
   it('reports no gate statuses present', () => {
-    expect(hasAnyGateStatus(noStatusClass)).toBe(false);
     expect(noStatusClass.every(e => gateRank(e) === 2)).toBe(true);
   });
 });

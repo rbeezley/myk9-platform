@@ -65,24 +65,14 @@ export function findPairedSectionedClass(
   const pairedSection = clickedClass.section === 'A' ? 'B' : 'A';
 
   // Find the matching class with same element, level, but different section
-  const paired = allClasses.find(c =>
-    c.element === clickedClass.element &&
-    c.level === clickedClass.level &&
-    c.section === pairedSection
+  const paired = allClasses.find(
+    c =>
+      c.element === clickedClass.element &&
+      c.level === clickedClass.level &&
+      c.section === pairedSection
   );
 
   return paired || null;
-}
-
-/**
- * @deprecated Use findPairedSectionedClass instead
- * Kept for backwards compatibility
- */
-export function findPairedNoviceClass(
-  clickedClass: ClassEntry,
-  allClasses: ClassEntry[]
-): ClassEntry | null {
-  return findPairedSectionedClass(clickedClass, allClasses, undefined);
 }
 
 /**
@@ -127,9 +117,9 @@ export function groupSectionedClasses(
   const processedIds = new Set<string>();
 
   // Default findPaired function if not provided
-  const findPairedFn = findPaired || ((entry: ClassEntry, all: ClassEntry[]) =>
-    findPairedSectionedClass(entry, all, organization)
-  );
+  const findPairedFn =
+    findPaired ||
+    ((entry: ClassEntry, all: ClassEntry[]) => findPairedSectionedClass(entry, all, organization));
 
   for (const classEntry of classList) {
     // Skip if already processed as part of a pair
@@ -164,7 +154,7 @@ export function groupSectionedClasses(
           dogs: [...first.dogs, ...second.dogs], // Merge dogs array
           is_favorite: first.is_favorite || second.is_favorite, // Favorite if either is favorited
           // Store paired ID for navigation
-          pairedClassId: second.id
+          pairedClassId: second.id,
         };
 
         grouped.push(combined);
@@ -179,17 +169,6 @@ export function groupSectionedClasses(
   }
 
   return grouped;
-}
-
-/**
- * @deprecated Use groupSectionedClasses instead
- * Kept for backwards compatibility
- */
-export function groupNoviceClasses(
-  classList: ClassEntry[],
-  findPaired?: (classEntry: ClassEntry, allClasses: ClassEntry[]) => ClassEntry | null
-): ClassEntry[] {
-  return groupSectionedClasses(classList, undefined, findPaired);
 }
 
 /**
@@ -209,13 +188,6 @@ export function groupNoviceClasses(
  */
 export function isCombinedEntry(classEntry: ClassEntry): boolean {
   return classEntry.section === 'A & B' && !!classEntry.pairedClassId;
-}
-
-/**
- * @deprecated Use isCombinedEntry instead
- */
-export function isCombinedNoviceEntry(classEntry: ClassEntry): boolean {
-  return isCombinedEntry(classEntry);
 }
 
 /**

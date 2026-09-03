@@ -44,19 +44,6 @@ const VISIBILITY_BATCH_SIZE = 100;
 
 type ClassScopeRow = { id: string | number; trial_id?: string | null };
 
-/**
- * Resolve the cascade for a batch of classes that all belong to `trialId`.
- * Preset cascade is last-non-null wins (class → trial → show → 'open');
- * self-check-in via `resolveCheckinCascade`. Falls back to enabled/'open' when
- * a level is missing. Returns a map keyed by classId. Exported for tests.
- */
-export async function resolveClassVisibilityForTrial(
-  trialId: string,
-  classIds: string[]
-): Promise<Map<string, ResolvedClassVisibility>> {
-  return resolveVisibilityForClassRows(classIds.map(id => ({ id, trial_id: trialId })));
-}
-
 function resolveTimingBase(row: VisRow | null): FieldTimings {
   if (!row) return { ...PRESET_CONFIGS.open };
   return applyTimingOverride({ ...PRESET_CONFIGS[row.preset ?? 'open'] }, row);

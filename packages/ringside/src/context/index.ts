@@ -20,10 +20,7 @@ export {
   RingsideProvider,
   useRingside,
   useRingsideAuth,
-  useRingsideReplication,
-  useRingsidePrefetch,
   type RingsideProviderProps,
 } from './RingsideContext';
 
 export { useRingsidePermission } from './useRingsidePermission';
-export { useShowOrg } from './useShowOrg';

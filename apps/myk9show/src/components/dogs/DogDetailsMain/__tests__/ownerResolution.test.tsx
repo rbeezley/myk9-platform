@@ -89,8 +89,8 @@ vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
 // ---------------------------------------------------------------------------
 // Child component mocks (render-heavy; we only care about property sections)
 // ---------------------------------------------------------------------------
-vi.mock('../HeroProfileCard', () => ({
-  default: () => <div data-testid="hero-card" />,
+vi.mock('@/components/common/ThreeDotMenu', () => ({
+  default: () => <button type="button">More</button>,
 }));
 
 vi.mock('../DogDetailsTabs', () => ({
@@ -140,20 +140,18 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('places identity associations before sub-collections on narrow layouts with one add action', () => {
+  it('renders the identity rail before the tabs, with the owner inside it', () => {
     mockPeople = [
       { id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
     ];
 
     render(<DogDetailsMain dog={mockDog} />);
 
-    const mobileIdentity = document.querySelector('[data-mobile-associations]');
-    expect(mobileIdentity).not.toBeNull();
-    const identity = mobileIdentity!.querySelector('span:last-child') ?? mobileIdentity!;
+    const rail = document.querySelector('[data-dog-identity]');
+    expect(rail).not.toBeNull();
+    expect(rail).toHaveTextContent('Jane Smith');
     const tabs = screen.getByTestId('dog-tabs');
-    expect(identity.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(mobileIdentity!.querySelectorAll('button').length).toBe(1);
-    expect(mobileIdentity).toHaveTextContent('Add registration');
+    expect(rail!.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('shows Loading… then owner name when owner is not in the store but DB returns data', async () => {
@@ -205,6 +203,6 @@ describe('DogDetailsMain — owner resolution', () => {
     });
 
     // No crash — the component is still mounted
-    expect(screen.getByTestId('hero-card')).toBeInTheDocument();
+    expect(document.querySelector('[data-dog-identity]')).not.toBeNull();
   });
 });

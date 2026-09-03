@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildTicketSubject, listSupportTickets } from './supportTickets';
+import { buildTicketSubject, createSupportTicket, listSupportTickets } from './supportTickets';
 
 const mockFrom = vi.hoisted(() => vi.fn());
+const mockRpc = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/supabase', () => ({
-  supabase: { from: mockFrom },
+  supabase: { from: mockFrom, rpc: mockRpc },
 }));
 
 function makeQuery(result: { data: Record<string, unknown>[]; error: { message: string } | null }) {
@@ -29,6 +30,24 @@ describe('support tickets', () => {
     expect(buildTicketSubject('My armband is missing. I checked My Entries.')).toBe(
       'My armband is missing.'
     );
+  });
+
+  it('creates the ticket and first message through one transactional RPC', async () => {
+    mockRpc.mockResolvedValue({ data: [{ id: 'ticket-1' }], error: null });
+
+    await expect(createSupportTicket({
+      ownerId: 'owner-1',
+      body: 'Missing armband',
+      diagnostics: {} as never,
+      showId: 'show-1',
+      isShowDayPriority: true,
+    })).resolves.toEqual({ id: 'ticket-1' });
+
+    expect(mockRpc).toHaveBeenCalledWith('create_support_ticket', expect.objectContaining({
+      p_owner_id: 'owner-1',
+      p_body: 'Missing armband',
+    }));
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('truncates long subjects to fit the database check', () => {

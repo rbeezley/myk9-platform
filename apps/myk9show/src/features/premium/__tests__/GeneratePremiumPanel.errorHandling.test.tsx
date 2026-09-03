@@ -149,7 +149,6 @@ describe('GeneratePremiumPanel — PDF error toast deduplication', () => {
     successMock.mockClear();
     errorController.sequence = [];
     errorController.step = null;
-    vi.stubEnv('VITE_PREMIUM_NEW_STYLES_ENABLED', 'true');
   });
   afterEach(() => {
     vi.unstubAllEnvs();

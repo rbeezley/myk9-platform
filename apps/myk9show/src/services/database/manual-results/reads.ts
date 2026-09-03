@@ -54,25 +54,3 @@ export const getQualifyingManualResults = async (dogId: string) => {
     return { data: [], error: dbError };
   }
 };
-
-export const getManualResultById = async (id: string) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase.from('manual_results').select('*').eq('id', id).single();
-
-    const duration = Date.now() - startTime;
-    logQuery('manual_results', 'select_by_id', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'manual_results', 'select_by_id');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'manual_results', 'select_by_id');
-    logQuery('manual_results', 'select_by_id', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};

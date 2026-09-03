@@ -47,7 +47,6 @@ vi.mock('@/store/showRegistrationStore', () => ({
   useShowRegistrationStore: () => ({
     createRegistration: createRegistrationMock,
     submitRegistration: vi.fn(),
-    confirmRegistration: vi.fn(),
     currentRegistration: { id: 'reg-1', status: 'draft', registrationNumber: 'REG-1' },
     setDraftData: vi.fn(),
     clearDraftData: clearDraftDataMock,
@@ -214,7 +213,6 @@ vi.mock('@/components/common/ErrorBoundary', () => ({
 
 vi.mock('@/services/database/armbands', () => ({
   claimNextArmband: vi.fn(),
-  getEntryArmbandById: vi.fn(),
 }));
 
 import RegistrationWizardPage from '../RegistrationWizardPage';

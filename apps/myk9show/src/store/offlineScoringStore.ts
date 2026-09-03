@@ -40,7 +40,7 @@ interface OfflineScoringStore {
   getScoresByClass: (classId: string) => JudgeScore[];
   getPendingSyncItems: () => SyncQueueItem[];
 
-  // Additional methods for OfflineJudgeInterface
+  // Additional methods for the offline scoring workflow.
   startJudgingSession: (classId: string, judgeId: string) => void;
   endJudgingSession: (sessionId: string) => void;
   advanceWorkflowStep: (sessionId: string) => void;

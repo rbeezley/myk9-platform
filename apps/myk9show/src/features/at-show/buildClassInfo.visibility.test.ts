@@ -73,6 +73,12 @@ describe('buildClassInfo — visibility', () => {
     expect(entry.ringEntryTime).toBe('2026-07-24T15:57:00.000Z');
     expect(entry.ringExitTime).toBe('2026-07-24T16:00:00.000Z');
   });
+
+  it.each(['withdrawn', 'scratched', 'absent'])('maps %s lifecycle entries to pulled', status => {
+    expect(
+      transformEntry({ id: 'entry-1', entryStatus: status } as ReplicatedEntry, makeClass()).status
+    ).toBe('pulled');
+  });
 });
 
 describe('buildClassInfo — hides/distractions (R4)', () => {

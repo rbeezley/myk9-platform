@@ -9,8 +9,8 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import React from 'react';
 
 // --- Supabase mock (must be set up before module imports) ---
@@ -30,7 +30,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 // Import after mocks
-import { useSelfCheckinEnabled } from '@/hooks/queries/useSelfCheckinEnabled';
+import { useSelfCheckinEnabled, useSelfCheckinMap } from '@/hooks/queries/useSelfCheckinEnabled';
 
 // --- Helpers ---
 
@@ -261,8 +261,45 @@ describe('useSelfCheckinEnabled', () => {
     });
   });
 
-  describe('safe default on class lookup failure', () => {
-    it('returns enabled=true when class row cannot be fetched', async () => {
+  describe('fail-closed on class lookup failure', () => {
+    it('disables cached enabled settings when a refresh fails and recovers after retry', async () => {
+      setupMockFrom({
+        classRow: CLASS_ROW,
+        showCheckin: true,
+        trialCheckin: null,
+        classCheckin: null,
+      });
+
+      const { queryClient, Wrapper } = makeWrapper();
+      const { result } = renderHook(() => useSelfCheckinEnabled('class-1'), { wrapper: Wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.enabled).toBe(true);
+
+      mockFrom.mockReturnValue(
+        makeQueryChain({ data: null, error: { message: 'settings read failed' } })
+      );
+      await act(async () => {
+        await queryClient.refetchQueries({ queryKey: ['classes', 'class-1', 'selfCheckin'] });
+      });
+
+      await waitFor(() => expect(result.current.enabled).toBe(false));
+      expect(result.current.reason).toBe('Unable to load check-in settings. Please try again.');
+
+      setupMockFrom({
+        classRow: CLASS_ROW,
+        showCheckin: true,
+        trialCheckin: null,
+        classCheckin: null,
+      });
+      await act(async () => {
+        await queryClient.refetchQueries({ queryKey: ['classes', 'class-1', 'selfCheckin'] });
+      });
+
+      await waitFor(() => expect(result.current.enabled).toBe(true));
+      expect(result.current.reason).toBeUndefined();
+    });
+
+    it('returns enabled=false when class row cannot be fetched', async () => {
       mockFrom.mockReturnValue(makeQueryChain({ data: null, error: { message: 'not found' } }));
 
       const { Wrapper } = makeWrapper();
@@ -270,7 +307,77 @@ describe('useSelfCheckinEnabled', () => {
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      expect(result.current.enabled).toBe(true);
+      expect(result.current.enabled).toBe(false);
+      expect(result.current.reason).toBe('Unable to load check-in settings. Please try again.');
+    });
+
+    it('marks a failed class disabled in the batch map', async () => {
+      mockFrom.mockReturnValue(makeQueryChain({ data: null, error: { message: 'not found' } }));
+
+      const { Wrapper } = makeWrapper();
+      const { result } = renderHook(() => useSelfCheckinMap(['class-1']), {
+        wrapper: Wrapper,
+      });
+
+      await waitFor(() => expect(result.current['class-1']).toBe(false));
+    });
+
+    it('also disables cached enabled settings in the batch map after a refresh error', async () => {
+      setupMockFrom({
+        classRow: CLASS_ROW,
+        showCheckin: true,
+        trialCheckin: null,
+        classCheckin: null,
+      });
+      const { queryClient, Wrapper } = makeWrapper();
+      const { result } = renderHook(() => useSelfCheckinMap(['class-1']), { wrapper: Wrapper });
+      await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+      expect(result.current['class-1']).toBe(true);
+
+      mockFrom.mockReturnValue(
+        makeQueryChain({ data: null, error: { message: 'settings read failed' } })
+      );
+      await act(async () => {
+        await queryClient.refetchQueries({ queryKey: ['classes', 'class-1', 'selfCheckin'] });
+      });
+
+      await waitFor(() => expect(result.current['class-1']).toBe(false));
+    });
+  });
+
+  describe('pending settings', () => {
+    it('preserves the optimistic standalone result while the initial request is loading', () => {
+      mockFrom.mockReturnValue({
+        select: () => ({
+          eq: () => ({ single: () => new Promise(() => undefined) }),
+        }),
+      });
+      const { queryClient, Wrapper } = makeWrapper();
+      const { result, unmount } = renderHook(() => useSelfCheckinEnabled('class-1'), {
+        wrapper: Wrapper,
+      });
+
+      expect(result.current).toEqual({ enabled: true, reason: undefined, isLoading: true });
+      unmount();
+      queryClient.clear();
+    });
+
+    it('preserves the optimistic batch-map result when a cold offline query is paused', () => {
+      const wasOnline = onlineManager.isOnline();
+      const { queryClient, Wrapper } = makeWrapper();
+      onlineManager.setOnline(false);
+      try {
+        const { result, unmount } = renderHook(() => useSelfCheckinMap(['class-1']), {
+          wrapper: Wrapper,
+        });
+
+        expect(result.current['class-1']).toBe(true);
+        expect(mockFrom).not.toHaveBeenCalled();
+        unmount();
+      } finally {
+        queryClient.clear();
+        onlineManager.setOnline(wasOnline);
+      }
     });
   });
 });

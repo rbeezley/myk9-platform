@@ -54,15 +54,24 @@ vi.mock('@/services/mappers/entryMappers', () => ({
   mapReplicatedEntryToDbRow: mocks.mapReplicatedEntryToDbRow,
 }));
 
-import { USER_ENTRIES_SELECT, getUserEntries, searchEntries } from './search';
+import { USER_ENTRIES_SELECT, getUserEntries, isEntryCloseDayPast, searchEntries } from './search';
 import { findMissingReplicatedUserEntryRelations } from './userEntriesReplication';
 
-function makeViewEntriesQuery(data: Array<Record<string, unknown>>, error: Error | null = null) {
+function makeViewEntriesQuery(
+  data: Array<Record<string, unknown>>,
+  error: Error | null = null,
+  pages?: Array<Array<Record<string, unknown>>>
+) {
+  let selectedData = data;
   const query = {
     select: vi.fn(() => query),
     is: vi.fn(() => query),
     eq: vi.fn(() => query),
-    order: vi.fn(() => Promise.resolve({ data, error })),
+    order: vi.fn(() => query),
+    range: vi.fn((from: number) => {
+      if (pages) selectedData = pages[Math.floor(from / 1000)] ?? [];
+      return Promise.resolve({ data: selectedData, error });
+    }),
   };
   return query;
 }
@@ -88,12 +97,14 @@ function makeEnrollmentsQuery(data: Array<Record<string, unknown>>) {
 
 function mockSupabaseTables(options: {
   viewEntryRows?: Array<Record<string, unknown>>;
+  viewEntryPages?: Array<Array<Record<string, unknown>>>;
   viewEntriesError?: Error | null;
   enrollmentRows?: Array<Record<string, unknown>>;
 }) {
   const viewQuery = makeViewEntriesQuery(
     options.viewEntryRows ?? [],
-    options.viewEntriesError ?? null
+    options.viewEntriesError ?? null,
+    options.viewEntryPages
   );
   const enrollmentsQuery = makeEnrollmentsQuery(options.enrollmentRows ?? []);
 
@@ -120,6 +131,40 @@ beforeEach(() => {
       show: options.show ?? null,
     })
   );
+});
+
+describe('isEntryCloseDayPast', () => {
+  // `now` is pinned to an explicit UTC instant, never a bare local-time
+  // literal. `isEntryCloseDayPast` defaults to America/New_York, so
+  // `new Date('2026-09-03T00:01:00')` only lands on the day AFTER the close
+  // day when the runner's own zone is west of UTC: it passed on a CDT laptop
+  // and failed in CI, which runs UTC (2026-09-03T00:01Z is still 09-02 20:01
+  // in New York). The comment on each line gives the New York wall clock the
+  // assertion is actually about.
+  it('keeps an entry editable throughout the stored close day', () => {
+    // 2026-09-02 18:00 in New York — still the close day.
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-02T22:00:00Z'))).toBe(
+      false
+    );
+  });
+
+  it('blocks editing on the day after the stored close day', () => {
+    // 2026-09-03 00:01 in New York — one minute into the next day.
+    expect(isEntryCloseDayPast('2026-09-02T00:00:00+00:00', new Date('2026-09-03T04:01:00Z'))).toBe(
+      true
+    );
+  });
+
+  it("uses the show's timezone at the midnight boundary", () => {
+    const justAfterMidnightUtc = new Date('2026-09-03T04:30:00Z');
+
+    expect(
+      isEntryCloseDayPast('2026-09-02T00:00:00+00:00', justAfterMidnightUtc, 'America/Los_Angeles')
+    ).toBe(false);
+    expect(
+      isEntryCloseDayPast('2026-09-02T00:00:00+00:00', justAfterMidnightUtc, 'America/New_York')
+    ).toBe(true);
+  });
 });
 
 /**
@@ -169,9 +214,7 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
   it("selects the show's full trial list for the primary-trial timezone", () => {
     // The amount-due deadline picks the PRIMARY trial's zone, which needs every
     // trial of the show — not just the one the entry is in.
-    expect(USER_ENTRIES_SELECT).toMatch(
-      /show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s
-    );
+    expect(USER_ENTRIES_SELECT).toMatch(/show:show_id\s*\([^)]*trials:trials\s*\([^)]*timezone/s);
   });
 
   it('selects enrollment payment status for secretary-recorded grouped payments', () => {
@@ -339,6 +382,28 @@ describe('getUserEntries replicated relation completeness', () => {
     expect(viewQuery.eq).toHaveBeenCalledWith('is_own_entry', true);
     expect(mocks.supabaseFrom).not.toHaveBeenCalledWith('enrollments');
     expect(mocks.mapReplicatedEntryToDbRow).not.toHaveBeenCalled();
+  });
+
+  it("fetches every page when the account has more than PostgREST's 1000-row cap", async () => {
+    mockReplicatedStores({ classes: [] });
+    const firstPage = Array.from({ length: 1000 }, (_, index) => ({ id: `entry-${index}` }));
+    const secondPage = Array.from({ length: 231 }, (_, index) => ({
+      id: `entry-${1000 + index}`,
+    }));
+    const { viewQuery } = mockSupabaseTables({
+      viewEntryPages: [firstPage, secondPage],
+    });
+
+    const result = await getUserEntries('user-1');
+
+    expect(result.error).toBeNull();
+    expect(result.data).toHaveLength(1231);
+    expect(result.data.map(entry => entry.id)).toEqual([
+      ...firstPage.map(entry => entry.id),
+      ...secondPage.map(entry => entry.id),
+    ]);
+    expect(viewQuery.range).toHaveBeenNthCalledWith(1, 0, 999);
+    expect(viewQuery.range).toHaveBeenNthCalledWith(2, 1000, 1999);
   });
 
   it('prefers the online view when account-scope local entries filter down to empty', async () => {

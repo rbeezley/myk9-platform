@@ -50,6 +50,7 @@ const launchCriticalSqlTests = [
   'image_storage_upsert_rls_test.sql',
   'myk9_114_entry_access_context_test.sql',
   'myk9_169_role_boundaries_test.sql',
+  'judge_qualification_rpc_authorization_test.sql',
   'notification_preferences_sms_rls_test.sql',
   'paperwork_prints_rls_test.sql',
   'placement_soft_delete_ranking_test.sql',
@@ -61,6 +62,7 @@ const launchCriticalSqlTests = [
   'sign_in_email_invariant_test.sql',
   'subscription_entitlement_grants_test.sql',
   'support_triage_atomic_send_test.sql',
+  'support_ticket_creation_atomicity_test.sql',
   'soft_delete_dog_cascade_test.sql',
   'show_email_delivery_history_test.sql',
 ];

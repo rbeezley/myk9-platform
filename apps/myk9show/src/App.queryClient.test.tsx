@@ -44,9 +44,6 @@ vi.mock('./providers/StoreProvider', () => ({
 vi.mock('./providers/ReplicationSyncProvider', () => ({
   ReplicationSyncProvider: ({ children }: { children: ReactNode }) => children,
 }));
-vi.mock('./components/panels/PanelContext', () => ({
-  PanelProvider: ({ children }: { children: ReactNode }) => children,
-}));
 vi.mock('./components/navigation/UnsavedChangesRouteGuard', () => ({
   UnsavedChangesRouteGuardProvider: ({ children }: { children: ReactNode }) => children,
 }));

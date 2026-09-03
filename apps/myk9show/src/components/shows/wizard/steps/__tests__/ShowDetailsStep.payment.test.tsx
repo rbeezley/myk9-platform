@@ -50,9 +50,6 @@ vi.mock('@/store/userStore', () => ({
   useUserStore: vi.fn(() => ({ people: [], loadPeople: vi.fn() })),
 }));
 
-vi.mock('@/components/panels/hooks', () => ({
-  usePanelManager: vi.fn(() => ({ openPanel: vi.fn() })),
-}));
 
 vi.mock('@/hooks/useUserClubIds', () => ({
   useUserClubIds: vi.fn(() => null),

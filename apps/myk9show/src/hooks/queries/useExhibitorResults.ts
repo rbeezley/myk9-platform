@@ -28,13 +28,17 @@ export interface ExhibitorResult {
   showDate: string;
 }
 
+const PAGE_SIZE = 1000;
+
 async function fetchExhibitorResults(dogIds: string[]) {
   if (dogIds.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from('view_authenticated_entry_results')
-    .select(
-      `
+  const rows: Record<string, unknown>[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('view_authenticated_entry_results')
+      .select(
+        `
       id,
       dog_id,
       dog_name,
@@ -53,14 +57,20 @@ async function fetchExhibitorResults(dogIds: string[]) {
       show_name,
       show_start_date
     `
-    )
-    .in('dog_id', dogIds)
-    .eq('is_scored', true)
-    .order('scoring_completed_at', { ascending: false });
+      )
+      .in('dog_id', dogIds)
+      .eq('is_scored', true)
+      .order('scoring_completed_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
 
-  if (error) throw error;
+    if (error) throw error;
+    const page = (data || []) as Record<string, unknown>[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
 
-  return (data || []).map(
+  return rows.map(
     (row: Record<string, unknown>): ExhibitorResult => ({
       id: row.id as string,
       dogId: row.dog_id as string,

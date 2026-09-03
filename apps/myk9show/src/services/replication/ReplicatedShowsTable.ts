@@ -44,6 +44,7 @@ export interface ReplicatedShow {
   city?: string | undefined;
   state?: string | undefined;
   status?: string | undefined;
+  deletedAt?: string | null | undefined;
   entryOpenDate?: string | undefined;
   entryCloseDate?: string | undefined;
   preEntryFee?: number | undefined;
@@ -92,6 +93,7 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     city: row.city ?? undefined,
     state: row.state ?? undefined,
     status: row.status ?? undefined,
+    deletedAt: row.deleted_at ?? null,
     entryOpenDate: row.entry_open_date ?? undefined,
     entryCloseDate: row.entry_close_date ?? undefined,
     preEntryFee: row.pre_entry_fee ?? undefined,
@@ -126,7 +128,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('shows', undefined, { logger });
+    super('shows', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */

@@ -32,6 +32,7 @@ export interface SupportDeflectionInput {
   answer: string;
   toolsUsed: string[];
   sources: Record<string, unknown[]>;
+  showId?: string | null;
   escalation?: SupportEscalationEvent | null;
 }
 
@@ -49,8 +50,8 @@ const DEEP_LINK_RULES: Array<{ pattern: RegExp; link: SupportDeepLink }> = [
     link: { label: 'At Show', href: '/at-show' },
   },
   {
-    pattern: /\b(message|announcement|communication)\b/i,
-    link: { label: 'Messages', href: '/messages' },
+    pattern: /\b(messages?|announcements?|communications?)\b/i,
+    link: { label: 'Messages', href: '/messages/' },
   },
 ];
 
@@ -75,7 +76,7 @@ export function routeSupportDeflection(input: SupportDeflectionInput): SupportDe
   return {
     kind: 'answer',
     answer,
-    deepLink: inferSupportDeepLink(answer, input.sources.guide),
+    deepLink: inferSupportDeepLink(answer, input.sources.guide, input.showId),
     sources: input.sources,
   };
 }
@@ -93,7 +94,11 @@ function escalate(
   };
 }
 
-function inferSupportDeepLink(answer: string, guideSources: unknown): SupportDeepLink | null {
+function inferSupportDeepLink(
+  answer: string,
+  guideSources: unknown,
+  showId?: string | null
+): SupportDeepLink | null {
   const sources = Array.isArray(guideSources) ? guideSources : [];
   const sourceText = sources
     .map(source => {
@@ -104,5 +109,9 @@ function inferSupportDeepLink(answer: string, guideSources: unknown): SupportDee
     .join(' ');
   const haystack = `${answer} ${sourceText}`;
 
-  return DEEP_LINK_RULES.find(rule => rule.pattern.test(haystack))?.link ?? null;
+  const link = DEEP_LINK_RULES.find(rule => rule.pattern.test(haystack))?.link ?? null;
+  if (link?.href === '/messages/') {
+    return showId ? { ...link, href: `${link.href}${showId}` } : null;
+  }
+  return link;
 }

@@ -8,9 +8,6 @@
 export {
   createShowRegistration,
   getRegistrationByShowAndHandler,
-  getRegistrationByConfirmationNumber,
-  getRegistrationsForShow,
   updateRegistrationPayment,
-  getConfirmationNumbersForEntries,
   updateEnrollmentPaymentStatus,
 } from './reads';

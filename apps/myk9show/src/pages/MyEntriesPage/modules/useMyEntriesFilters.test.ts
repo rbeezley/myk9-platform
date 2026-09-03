@@ -97,7 +97,7 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
     expect(result.current.filteredEntries.map(e => e.id)).toEqual(['ended']);
   });
 
-  it('derives current summary counts and amount due from non-past entries once', () => {
+  it('derives current summary counts while retaining past outstanding balances', () => {
     const acceptedUnpaidCurrent = makeEntry({
       id: 'accepted-unpaid-current',
       showId: 'accepted-unpaid-show',
@@ -153,7 +153,7 @@ describe('useMyEntriesFilters tab filtering (date-range aware)', () => {
     expect(result.current.entryStats.currentAcceptedEntries).toBe(2);
     expect(result.current.entryStats.currentPendingEntries).toBe(1);
     expect(result.current.entryStats.currentFees).toBe(65);
-    expect(result.current.entryStats.currentAmountDue).toBe(55);
+    expect(result.current.entryStats.currentAmountDue).toBe(105);
   });
 
   it('counts scored and move-up-requested entries as accepted (exhibitor "in" family)', () => {

@@ -10,7 +10,7 @@ export type {
   CreateDayOfEntryDogInput,
 } from './types';
 
-export { getClassesWithCapacity, createDayOfEntry, getShowDogs, searchDogs } from './entries';
+export { getClassesWithCapacity, createDayOfEntry, searchDogs } from './entries';
 export { createDayOfEntryDog } from './late-entry-dog';
 
 export {

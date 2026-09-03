@@ -20,11 +20,6 @@ export const getAllOFAScreenings = (dogId?: string) =>
     return query;
   });
 
-export const getOFAScreeningById = (id: string) =>
-  wrapQuery('ofa_screening', 'select_by_id', null as DbOFAScreeningRow | null, () =>
-    supabase.from('ofa_screenings').select('*').eq('id', id).single()
-  );
-
 export const createOFAScreening = (screening: DbOFAScreeningInsert) =>
   wrapQuery('ofa_screening', 'insert', null as DbOFAScreeningRow | null, () =>
     supabase.from('ofa_screenings').insert(screening).select().single()

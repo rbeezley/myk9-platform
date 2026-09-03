@@ -87,7 +87,7 @@ export function rowToWaitlistEntry(row: WaitlistEntryRow): ReplicatedWaitlistEnt
 
 export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWaitlistEntry> {
   constructor() {
-    super('waitlist_entries', undefined, { logger });
+    super('waitlist_entries', { logger });
   }
 
   /**

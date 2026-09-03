@@ -85,6 +85,18 @@ type OwnEntryResultRow = Record<string, unknown> & {
   show_id?: string | null;
 };
 
+/**
+ * Keep the historical financial record for a deleted show, but do not expose
+ * an individually removed entry as if it were still active. The show
+ * tombstone is carried by the nested show relation on the online path and by
+ * the replicated show mapper when that relation is available.
+ */
+export function shouldRenderOwnEntry(row: OwnEntryResultRow): boolean {
+  if (!row.deleted_at) return true;
+  const show = row.show as { deleted_at?: string | null } | null | undefined;
+  return Boolean(show?.deleted_at);
+}
+
 function getOwnEntryStatusKind(
   rawStatus: string | null | undefined,
   rawCheckInStatus: string | null | undefined,
@@ -155,6 +167,7 @@ export function useMyEntriesData({
       name: string;
       start_date: string;
       end_date?: string | null;
+      deleted_at?: string | null;
       entry_close_date?: string | null;
       venue_name?: string;
       city?: string;
@@ -189,7 +202,7 @@ export function useMyEntriesData({
     const trialDate = parseShowDate(trialData?.date ?? classData?.trial?.date);
     const trialNumber = trialData?.trial_number ?? classData?.trial?.trial_number ?? undefined;
     const rawEntryStatus = entry.entry_status as string | null | undefined;
-    const isShowCancelled = Boolean(entry.deleted_at);
+    const isShowCancelled = Boolean(show?.deleted_at);
     const rowPaymentStatus = getOwnEntryPaymentStatus(
       entry,
       rowRegistration?.payment_status,
@@ -333,7 +346,7 @@ export function useMyEntriesData({
         return;
       }
 
-      const rawRows = data as OwnEntryResultRow[];
+      const rawRows = (data as OwnEntryResultRow[]).filter(shouldRenderOwnEntry);
       const userEntries = groupEntriesByOrder(rawRows.map(entry => transformEntry(entry)));
       setEntries(userEntries);
       // Money math runs on the same raw, ungrouped rows My Payments uses —

@@ -10,7 +10,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, CheckCheck, Mail, Pencil, Phone, Plus } from 'lucide-react';
+import { Camera, Mail, Pencil, Phone, Plus } from 'lucide-react';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -202,12 +202,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         </div>
 
         <div className="mt-6 flex flex-col gap-2">
-          {isSecretary ? (
-            <Button variant="default" className="w-full gap-1.5">
-              <CheckCheck className="h-4 w-4" />
-              Verify for entry
-            </Button>
-          ) : (
+          {!isSecretary && (
             <Button variant="default" className="w-full gap-1.5" asChild>
               <a href="/shows">
                 <Plus className="h-4 w-4" />

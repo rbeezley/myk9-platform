@@ -87,17 +87,20 @@ describe('DogIdentityRail', () => {
     expect(screen.getByText('Golden Retriever')).toBeInTheDocument();
   });
 
-  it('frames the owner as Primary contact with Verify for entry for a secretary', () => {
-    renderRail(base, { role: 'secretary' });
+  it('keeps secretary editing available without a placeholder verification action', () => {
+    const onEditPanelOpen = vi.fn();
+    renderRail(base, { role: 'secretary', onEditPanelOpen });
     expect(screen.getByText('Primary contact')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /verify for entry/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /verify for entry/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /enter a show/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(onEditPanelOpen).toHaveBeenCalledTimes(1);
   });
 
   it('links the owner and offers Enter a show for an exhibitor', () => {
     renderRail(base);
     expect(screen.getByRole('link', { name: 'Jane Smith' })).toHaveAttribute('href', '/people/owner-1');
-    expect(screen.getByRole('link', { name: /enter a show/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /enter a show/i })).toHaveAttribute('href', '/shows');
   });
 
   it('wears the same sex and status badges as the /dogs card', () => {

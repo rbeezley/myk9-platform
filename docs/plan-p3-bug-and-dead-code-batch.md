@@ -38,10 +38,31 @@ reference evidence confirms the symbols are unreachable.
   `256e657812522721aff29597c38d86e654268d3f`. The two support-ticket migrations
   were applied to the remote project. Downloaded live source confirms the merged
   cron-response fix (v55) and no-subscription conflict/stale-row fix (webhook v89).
-- MYK9-298 is Done. MYK9-308/313/322 are active in the separate wave-three
-  worktree; do not duplicate those changes. MYK9-328's approved `@myk9/supabase`
-  subset merged in #1977; broader package compatibility/ownership decisions
-  remain deferred. Never wire the inert replication TTL.
+- All five sweep issues are marked Done in Linear. MYK9-298 shipped in #1948;
+  MYK9-308/313/322/328 closed after PR
+  [#1984](https://github.com/rbeezley/myk9-platform/pull/1984), merge commit
+  `84324c1ff595c3fd8da314e3d3facf44d5410d7d`, with required CI passing.
+  MYK9-328's earlier approved `@myk9/supabase` subset shipped in #1977.
+  This does not mean every originally listed package export was deleted:
+  [the Wave 3 inventory](qa/wave3-dead-code-import-inventory.md) records retained
+  live/compatibility APIs and deferred package ownership decisions. The inert
+  replication TTL remains retained pending that decision; never wire it.
+- MYK9-305 is Done after acceptance verification against main `8d6264d29`:
+  numeric armband tie-breaking reuses the shared helper, missing/non-numeric
+  armbands sort last, and the behavioral test pins 1, 9, 10 ordering. The fix
+  already shipped in #1956; the stale Linear status is reconciled.
+- MYK9-309 remains Todo after acceptance verification. The production batch-map
+  caller fails closed on `isError`, and lookup errors throw, but the standalone
+  hook still ignores `isError` when cached data is `true`. An installed React
+  Query observer reproduction produced `isError: true`, `isLoading: false`,
+  `data: true` after a failed refresh; the standalone hook's expression still
+  evaluates to enabled. No production caller currently uses that standalone
+  hook. Its explicit acceptance criterion still requires a cached-success /
+  failed-refresh regression test and an error-aware result before closure.
+- Verification for this tracking reconciliation: the Show Map tree and
+  self-check-in hook suites passed (2 files / 29 tests). Existing tests cover
+  cold query failures but not MYK9-309's cached-success failure case. No
+  production code or deployment changed during reconciliation.
 - MYK9-334 is Done: PR [#1982](https://github.com/rbeezley/myk9-platform/pull/1982)
   merged as `df598effe` after independent approval and green required CI. Cron
   outcome monitoring, deduplicated alerts, dead email removal, and behavioral
@@ -55,6 +76,7 @@ reference evidence confirms the symbols are unreachable.
   that currently suppress their errors remain an existing limitation, not a
   guarantee added by this follow-up.
 
-The batch remains Active for the separately owned/deferred sweeps. MYK9-334's
-implementation and deployment acceptance gates are complete; this does not close
-the broader batch.
+The batch remains Active for MYK9-309's remaining acceptance gap and the explicitly
+deferred package decisions. Sweep issue tracking is reconciled, and MYK9-334's
+implementation and deployment acceptance gates are complete; neither justifies
+marking the remaining work complete.

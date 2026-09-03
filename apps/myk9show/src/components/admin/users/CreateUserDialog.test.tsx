@@ -13,8 +13,9 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
+import { QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { CreateUserDialog } from './CreateUserDialog';
@@ -31,7 +32,7 @@ vi.mock('@/hooks/queries/useUsersQuery', () => ({
 }));
 
 vi.mock('@/services/rbac/RBACService', () => ({
-  rbacService: { ensureUserHasRole: vi.fn().mockResolvedValue(undefined) },
+  rbacService: { clearAllCache: vi.fn(), ensureUserHasRole: vi.fn().mockResolvedValue(true) },
 }));
 
 const CREATED_USER = { id: 'person-1', first_name: 'Pat', last_name: 'Secretary' };
@@ -42,9 +43,8 @@ function renderDialog(onUserCreated = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onOpenChange = vi.fn();
   const { container } = render(
-    <QueryClientProvider client={client}>
-      <CreateUserDialog open onOpenChange={onOpenChange} onUserCreated={onUserCreated} />
-    </QueryClientProvider>
+    <CreateUserDialog open onOpenChange={onOpenChange} onUserCreated={onUserCreated} />,
+    { queryClient: client }
   );
   return { onOpenChange, onUserCreated, container };
 }
@@ -67,6 +67,7 @@ function inviteToggle() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(rbacService.ensureUserHasRole).mockReset().mockResolvedValue(true);
   mutateAsync = vi.fn().mockResolvedValue(CREATED_USER);
   vi.mocked(useCreateUserMutation).mockReturnValue({
     mutateAsync,
@@ -80,6 +81,10 @@ beforeEach(() => {
       data: [
         { id: 'r1', name: 'exhibitor', description: 'Enters dogs in shows' },
         { id: 'r2', name: 'secretary', description: 'Runs the show' },
+        { id: 'r3', name: 'judge', description: 'Judges dogs' },
+        { id: 'r4', name: 'club_admin', description: null },
+        { id: 'r5', name: 'trial_secretary', description: null },
+        { id: 'r6', name: 'unknown_role', description: null },
       ],
       error: null,
     })
@@ -129,14 +134,14 @@ describe('CreateUserDialog — the invitation actually happens', () => {
   it('passes the selected roles so the invitation explains itself', async () => {
     renderDialog();
     fillRequired();
-    fireEvent.click(await screen.findByRole('checkbox', { name: /secretary/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^judge$/i }));
     submit();
 
     await waitFor(() => {
       expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
         'admin-invite-user',
         expect.objectContaining({
-          body: expect.objectContaining({ roleLabels: ['exhibitor', 'secretary'] }),
+          body: expect.objectContaining({ roleLabels: ['exhibitor', 'judge'] }),
         })
       );
     });
@@ -294,5 +299,150 @@ describe('CreateUserDialog — no dead inputs remain', () => {
         expect.objectContaining({ street_address: '1 Ring Road', country: 'USA' })
       );
     });
+  });
+});
+
+// First reproduced against the original Secretary checkbox (both invite modes red).
+// Secretary is now unavailable; Judge exercises the same rejection path.
+describe('CreateUserDialog — role grant failures', () => {
+  it.each([true, false])('reports rejected grants with invite=%s', async sendInvite => {
+    vi.mocked(rbacService.ensureUserHasRole).mockImplementation(async (_id, role) => {
+      if (role === 'judge') throw new Error('role grant failed');
+      return true;
+    });
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^judge$/i }));
+    if (!sendInvite) fireEvent.click(inviteToggle());
+    submit();
+
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalledWith(CREATED_USER));
+    expect(rbacService.ensureUserHasRole).toHaveBeenCalledWith('person-1', 'judge');
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(/could not assign.*Judge.*Manage Roles/i)
+    );
+    if (sendInvite) {
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-invite-user', {
+        body: { email: 'new.secretary@example.test', firstName: 'Pat', roleLabels: ['exhibitor'] },
+      });
+    } else {
+      expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe('CreateUserDialog — role checklist', () => {
+  it('offers only manageable roles that do not require a club', async () => {
+    renderDialog();
+    await screen.findByRole('checkbox', { name: /^judge$/i });
+    expect(
+      screen.queryByRole('checkbox', { name: /secretary|club admin|unknown/i })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/Assign Secretary and Club Admin roles/)).toBeInTheDocument();
+  });
+
+  it('never invents invitation roles when all grants fail', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockRejectedValue(new Error('grant failed'));
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-invite-user', {
+      body: { email: 'new.secretary@example.test', firstName: 'Pat', roleLabels: [] },
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not assign.*Exhibitor/i));
+  });
+});
+
+describe('CreateUserDialog — recovery', () => {
+  it('reports both role and invitation failures without recreating the person', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockRejectedValue(new Error('grant failed'));
+    mockSupabase.functions.invoke.mockResolvedValue({
+      data: null,
+      error: { message: 'mail failed' },
+    });
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalledWith(CREATED_USER));
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /could not assign.*Exhibitor.*invitation could not be sent.*Resend access.*Manage Roles/i
+      )
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables submission until pending role grants finish', async () => {
+    let finishGrant!: (granted: boolean) => void;
+    vi.mocked(rbacService.ensureUserHasRole).mockReturnValue(
+      new Promise(resolve => {
+        finishGrant = resolve;
+      })
+    );
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(rbacService.ensureUserHasRole).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: /create/i })).toBeDisabled();
+    submit();
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    finishGrant(true);
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+  });
+});
+
+describe('CreateUserDialog — ambiguous role-service result', () => {
+  it('does not advertise a grant when the service returns false and no assignment exists', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockResolvedValue(false);
+    mockSupabase.from.mockImplementation(() => createChainableQuery({ data: [], error: null }));
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-invite-user', {
+      body: { email: 'new.secretary@example.test', firstName: 'Pat', roleLabels: [] },
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not assign.*Exhibitor/i));
+  });
+
+  it('reports an error when an existing assignment cannot be verified', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockResolvedValue(false);
+    mockSupabase.from.mockImplementation(() =>
+      createChainableQuery({
+        data: null,
+        error: { message: 'lookup unavailable' },
+      })
+    );
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not assign.*Exhibitor/i));
+  });
+
+  it('accepts an already-existing active unscoped assignment', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockResolvedValue(false);
+    const query = createChainableQuery({ data: [{ id: 'existing-grant' }], error: null });
+    mockSupabase.from.mockImplementation(() => query);
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+    expect(mockSupabase.from).toHaveBeenCalledWith('user_roles');
+    expect(query.eq).toHaveBeenCalledWith('user_id', 'person-1');
+    expect(query.eq).toHaveBeenCalledWith('roles.name', 'exhibitor');
+    expect(query.eq).toHaveBeenCalledWith('is_active', true);
+    expect(query.is).toHaveBeenCalledWith('club_id', null);
+    expect(query.is).toHaveBeenCalledWith('show_id', null);
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-invite-user', {
+      body: { email: 'new.secretary@example.test', firstName: 'Pat', roleLabels: ['exhibitor'] },
+    });
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

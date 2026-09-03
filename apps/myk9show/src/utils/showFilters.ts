@@ -4,35 +4,6 @@ import { toLocalDate } from '@/utils/date-format';
 /**
  * Common date filtering utilities for shows
  */
-export const getDateFilteredShows = (shows: Show[], dateRange: string) => {
-  const now = new Date();
-
-  switch (dateRange) {
-    case 'upcoming':
-      return shows.filter(show => toLocalDate(show.startDate) >= now);
-
-    case 'this_month': {
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      return shows.filter(show => {
-        const showDate = toLocalDate(show.startDate);
-        return showDate.getMonth() === currentMonth && showDate.getFullYear() === currentYear;
-      });
-    }
-
-    case 'next_month': {
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-      return shows.filter(show => {
-        const showDate = toLocalDate(show.startDate);
-        return showDate >= now && showDate <= nextMonth;
-      });
-    }
-
-    default:
-      return shows;
-  }
-};
-
 /**
  * Get show statistics with optimized date calculations
  */

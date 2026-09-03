@@ -6,8 +6,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useDeleteClubMutation } from '@/hooks/queries/useClubsDatabase';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { ClubAdminService } from '@/services/clubAdminService';
-import { ScopeType, UserRole } from '@/types/auth-types';
+import { PERMISSIONS, ScopeType, UserRole } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
@@ -15,6 +14,7 @@ import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { showDateRangeStatus } from '@/utils/date-format';
+import { computeClubPermissions, hasClubAdminScope } from './clubPermissions';
 import type { ClubTab, ClubShow, StatCard } from './types';
 
 /** Maximum photo file size in bytes (5 MB) */
@@ -39,34 +39,6 @@ function processPhotoFile(file: File, onResult: (dataUrl: string) => void): void
 }
 
 const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as const;
-
-export interface ClubPermissions {
-  /** Mirrors clubs_update RLS — site_admin or club_admin for this club. */
-  canEditClub: boolean;
-  canManageMembers: boolean;
-  canEditBranding: boolean;
-  /** Mirrors the clubs_delete RLS policy — only site_admin can delete clubs. */
-  canDeleteClub: boolean;
-}
-
-/**
- * Pure permission helper — extracted so it can be unit-tested without mocking
- * the auth context, club store, etc. Mirrors the RLS policies in
- * supabase/migrations/016_fix_permissive_rls_policies.sql.
- */
-export function computeClubPermissions(args: {
-  isClubAdmin: boolean;
-  isSiteAdmin: boolean;
-  hasManageMembersPermission: boolean;
-}): ClubPermissions {
-  const { isClubAdmin, isSiteAdmin, hasManageMembersPermission } = args;
-  return {
-    canEditClub: isSiteAdmin || isClubAdmin,
-    canManageMembers: isClubAdmin || hasManageMembersPermission,
-    canEditBranding: isSiteAdmin || isClubAdmin,
-    canDeleteClub: isSiteAdmin,
-  };
-}
 
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
@@ -111,7 +83,12 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   // RBAC permission checks — see computeClubPermissions for the rules.
   const { canEditClub, canManageMembers, canEditBranding, canDeleteClub } = useMemo(() => {
-    if (!userWithRoles || !selectedClub || !userWithRoles.databaseUserId) {
+    // Deliberately NOT gated on databaseUserId: the club-scoped grant lives in
+    // userWithRoles.scopes, which survives a cold offline boot via the RBAC
+    // cache, while databaseUserId comes from a network `people` lookup that
+    // pauses offline. Requiring it denied every affordance to a club admin with
+    // no signal.
+    if (!userWithRoles || !selectedClub) {
       return {
         canEditClub: false,
         canManageMembers: false,
@@ -120,9 +97,12 @@ export function useClubDetailsState(selectedClub: Club | null) {
       };
     }
     return computeClubPermissions({
-      isClubAdmin: ClubAdminService.isClubAdmin(userWithRoles.databaseUserId, selectedClub.id),
+      isClubAdmin: hasClubAdminScope(userWithRoles.scopes, selectedClub.id),
       isSiteAdmin: userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false,
-      hasManageMembersPermission: hasPermission('club:manage_members', {
+      // `club:manage` is the code migration 067 actually seeds for club_admin.
+      // The previous `club:manage_members` was never seeded by any migration,
+      // so this arm could never be true (MYK9-359).
+      hasManageMembersPermission: hasPermission(PERMISSIONS.CLUB_MANAGE, {
         type: ScopeType.CLUB,
         id: selectedClub.id,
       }),

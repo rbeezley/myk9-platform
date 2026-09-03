@@ -12,8 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Club } from '@/types/club-types';
 import type { ClubMember } from '@/types/club-membership-types';
-import { Mail, MoreVertical, UserMinus, Eye, Shield } from 'lucide-react';
-import { ClubAdminService } from '@/services/clubAdminService';
+import { Mail, MoreVertical, UserMinus, Eye } from 'lucide-react';
 import { removeClubMember } from '@/services/database/club-memberships';
 import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
 import { notifications } from '@/lib/notifications';
@@ -67,10 +66,6 @@ export const MemberList: React.FC<MemberListProps> = ({
     }
   };
 
-  const isClubAdmin = (member: ClubMember) => {
-    return ClubAdminService.isClubAdmin(member.personId, club.id);
-  };
-
   if (members.length === 0) {
     return null; // Empty state is handled by parent component
   }
@@ -98,12 +93,6 @@ export const MemberList: React.FC<MemberListProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-semibold text-foreground truncate">{personName}</h4>
-                      {isClubAdmin(member) && (
-                        <div className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium flex-shrink-0">
-                          <Shield className="w-3 h-3" />
-                          Admin
-                        </div>
-                      )}
                     </div>
                     {member.personEmail && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1 truncate">
@@ -129,7 +118,6 @@ export const MemberList: React.FC<MemberListProps> = ({
                         <DropdownMenuItem
                           onClick={() => setMemberToRemove(member)}
                           className="text-destructive focus:text-destructive"
-                          disabled={isClubAdmin(member)}
                         >
                           <UserMinus className="mr-2 h-4 w-4" />
                           Remove Member

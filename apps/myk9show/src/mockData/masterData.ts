@@ -635,9 +635,10 @@ export const getClubMembers = (clubId: string) => {
  * Get club admin with full person data
  */
 export const getClubAdmin = (): User | undefined => {
-  // This function is deprecated. Use ClubAdminService.getClubAdmins() for RBAC-based admin retrieval.
+  // This function is deprecated. Club admins come from club-scoped `club_admin`
+  // rows in user_roles; there is no client-side registry of them.
   logger.warn(
-    'getClubAdmin is deprecated. Use ClubAdminService.getClubAdmins() instead.',
+    'getClubAdmin is deprecated. Club admins live in user_roles, not mock data.',
     'app',
     {}
   );

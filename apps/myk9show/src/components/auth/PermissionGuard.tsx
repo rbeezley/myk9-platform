@@ -56,7 +56,7 @@ interface PermissionGuardProps {
  * 
  * // Scoped permission
  * <PermissionGuard 
- *   permission={PERMISSIONS.CLUB_EDIT_DETAILS}
+ *   permission={PERMISSIONS.CLUB_MANAGE}
  *   scope={{ type: ScopeType.CLUB, id: clubId }}
  * >
  *   <ClubEditForm />

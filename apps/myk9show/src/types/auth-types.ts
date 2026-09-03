@@ -92,8 +92,7 @@ export const PERMISSIONS = {
   CLUB_READ: 'club:read',
   CLUB_UPDATE: 'club:update',
   CLUB_DELETE: 'club:delete',
-  CLUB_EDIT_DETAILS: 'club:edit_details',
-  CLUB_MANAGE_MEMBERS: 'club:manage_members',
+  CLUB_MANAGE: 'club:manage',
 
   // User management
   USER_CREATE: 'user:create',
@@ -246,8 +245,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.SHOW_MANAGE_ENTRIES,
     PERMISSIONS.CLUB_READ,
     PERMISSIONS.CLUB_UPDATE,
-    PERMISSIONS.CLUB_EDIT_DETAILS,
-    PERMISSIONS.CLUB_MANAGE_MEMBERS,
+    PERMISSIONS.CLUB_MANAGE,
     PERMISSIONS.USER_READ,
   ],
   [UserRole.SITE_ADMIN]: [...Object.values(PERMISSIONS)],

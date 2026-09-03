@@ -2,6 +2,8 @@
  * Component that checks if the current user needs to complete onboarding.
  * Wraps children and redirects to /onboarding when:
  *   - user is authenticated
+ *   - the profile query has SETTLED (see profileSettled — an unresolved query
+ *     is "unknown", never "no profile"), and
  *   - no exhibitor_profiles row exists (needsOnboarding), OR
  *   - onboarding has not been completed (onboarding_completed_at is null)
  *
@@ -39,6 +41,7 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
   const {
     needsOnboarding,
     onboardingCompleted,
+    profileSettled,
     isLoading: profileLoading,
     error: profileError,
   } = useExhibitorProfile();
@@ -65,6 +68,18 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // rows — they are staff roles, not exhibitors. Never route them to exhibitor onboarding.
     if (isSecretary || hasRole('site_admin') || hasRole('judge') || hasRole('club_admin')) return;
 
+    // MYK9-347: only redirect once the profile query has actually reported.
+    // `profileLoading` is `isPending && isFetching`, and a query PAUSED after a
+    // connectivity drop is pending but not fetching — so the guards above let it
+    // through with `profile === undefined`. That makes `onboardingCompleted`
+    // false for a fully onboarded exhibitor and strands them on /onboarding,
+    // which they cannot complete without a backend. An unsettled query is
+    // "unknown", not "no profile".
+    //
+    // The error case is already handled by the `profileError` guard above; this
+    // covers the third state, which has neither data nor an error.
+    if (!profileSettled) return;
+
     if (needsOnboarding || !onboardingCompleted) {
       navigate('/onboarding', { replace: true });
     }
@@ -73,6 +88,7 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     user,
     needsOnboarding,
     onboardingCompleted,
+    profileSettled,
     profileError,
     navigate,
     location.pathname,

@@ -32,6 +32,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
 let profileValue: {
   needsOnboarding: boolean;
   onboardingCompleted: boolean;
+  profileSettled: boolean;
   isLoading: boolean;
   error: Error | null;
 };
@@ -53,6 +54,7 @@ describe('ExhibitorOnboardingChecker — anonymous exemption', () => {
     profileValue = {
       needsOnboarding: true,
       onboardingCompleted: false,
+      profileSettled: true,
       isLoading: false,
       error: null,
     };

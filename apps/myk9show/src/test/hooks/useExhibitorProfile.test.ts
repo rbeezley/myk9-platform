@@ -239,6 +239,12 @@ describe('useExhibitorProfile', () => {
 
         expect(result.current.profile).toBeUndefined();
         expect(result.current.needsOnboarding).toBe(false);
+        // MYK9-347: `onboardingCompleted` cannot carry this on its own — with no
+        // row it is false whether the exhibitor is onboarded or not, and that is
+        // exactly the operand that kept redirecting them. `profileSettled` is
+        // what tells a consumer the answer is unknown rather than "not done".
+        expect(result.current.onboardingCompleted).toBe(false);
+        expect(result.current.profileSettled).toBe(false);
       } finally {
         onlineManager.setOnline(true);
       }

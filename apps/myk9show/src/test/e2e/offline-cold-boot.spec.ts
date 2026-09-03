@@ -1,5 +1,5 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
-import { signInAsSecretary } from './helpers/testUsers';
+import { signInAsSecretary, signInAsExhibitor } from './helpers/testUsers';
 
 /**
  * MYK9-200 AC 1 + MYK9-203 AC 2 — the verification neither issue could close
@@ -54,6 +54,28 @@ async function goOffline(context: BrowserContext): Promise<() => number> {
     return route.abort('internetdisconnected');
   });
   return () => intercepted;
+}
+
+/**
+ * Report `navigator.onLine === false` for the whole context, across reloads.
+ *
+ * This is the app-facing half of "no signal": the offline banners, the network
+ * status provider, and anything else reading `navigator.onLine` see a device
+ * with no connectivity, not one on a captive venue Wi-Fi.
+ *
+ * It does NOT put TanStack Query into its paused state, and that surprised the
+ * fix that added this test. `onlineManager` (query-core 5.x) initialises
+ * `#online = true` unconditionally and only ever changes on a window
+ * `online`/`offline` EVENT — it never reads `navigator.onLine`. A page that
+ * BOOTS with no connectivity gets no such event, so every query fires, fails,
+ * and lands in `status:'error'`. The paused shape needs a connectivity
+ * transition while the page is already open, which a cold boot by definition
+ * does not have. See the exhibitor test below for what that means for coverage.
+ */
+async function reportOffline(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    Object.defineProperty(window.navigator, 'onLine', { get: () => false, configurable: true });
+  });
 }
 
 /** True when the page is showing the "no permission" fallback. */
@@ -156,5 +178,65 @@ test.describe('offline cold boot', () => {
       timeout: 45_000,
     });
     await expect(page.getByRole('status').filter({ hasText: /offline ready/i })).toHaveCount(0);
+  });
+  // MYK9-347. The exhibitor half of this arc, and a different failure from the
+  // secretary one above: nothing crashed and nothing was denied — the app was
+  // confident, and wrong. `ExhibitorOnboardingChecker` wraps the ENTIRE route
+  // tree and redirected on `!onboardingCompleted`, which is false whenever
+  // `profile` is undefined. A fully onboarded exhibitor arriving at a venue was
+  // bounced to /onboarding — a flow that cannot complete without a backend —
+  // from every route, on every navigation, until signal returned.
+  //
+  // WHAT THIS TEST PROVES, precisely: an onboarded exhibitor who cold-boots with
+  // the backend unreachable stays on the route they asked for. That is the
+  // user-facing contract, and it is worth pinning end-to-end.
+  //
+  // WHAT IT DOES NOT PROVE: the `profileSettled` guard specifically. Removing
+  // that guard leaves this test green (verified by mutation, 2026-09-03),
+  // because a cold boot cannot reach the PAUSED query state the guard is for —
+  // `onlineManager` starts optimistic (see `reportOffline`), so the profile
+  // query fetches, fails, and errors, and the checker's older `profileError`
+  // guard carries this case. The paused state is real but needs a connectivity
+  // transition against an already-open page; it is pinned in jsdom instead, by
+  // `components/exhibitor/__tests__/ExhibitorOnboardingChecker.test.tsx` ("does
+  // not redirect while the profile query is paused offline"), which DOES fail
+  // when the guard is removed. Do not read this test as that test's E2E twin.
+  test('an onboarded exhibitor is not sent to /onboarding by a cold offline boot', async ({
+    page,
+    context,
+  }) => {
+    // 1. Prime online. Reaching My Shows proves this account IS onboarded —
+    // without that, staying off /onboarding afterwards would prove nothing.
+    await signInAsExhibitor(page, '/exhibitor/entries');
+    await page.waitForURL('**/exhibitor/entries', { timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+      timeout: 45_000,
+    });
+
+    // 2. No coverage at all, then a genuine cold boot.
+    const interceptedCount = await goOffline(context);
+    await reportOffline(context);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // 3. Wait for the app to reach the state that ARMS the redirect rather than
+    // for a fixed sleep: the cached-permissions notice means auth has settled
+    // from localStorage + the RBAC cache, which is the precondition for the
+    // checker's effect to run. Asserting the URL before that would pass on a
+    // page that had not yet decided anything.
+    await expect(page.getByText(/saved permissions as of/i).first()).toBeVisible({
+      timeout: 45_000,
+    });
+    // The redirect is a replace() from an effect; give it room to land late.
+    await page.waitForTimeout(3_000);
+
+    // The assertion this test exists for.
+    expect(page.url()).not.toContain('/onboarding');
+    await expect(page).toHaveURL(/\/exhibitor\/entries/);
+    expect(await showsPermissionDenied(page)).toBe(false);
+
+    // Prove the app really was cut off. Without this the whole test could have
+    // run ONLINE and passed on a live profile fetch.
+    await expect(page.evaluate(() => navigator.onLine)).resolves.toBe(false);
+    expect(interceptedCount()).toBeGreaterThan(0);
   });
 });

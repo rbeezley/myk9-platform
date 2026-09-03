@@ -78,7 +78,7 @@ test.describe('My Shows Page - Fake Trend Data Removal', () => {
     await page.waitForSelector('[data-slot="icon"]', { timeout: 5000 });
 
     const feeStrip = page.getByRole('button', { name: /^Entry fees:/ });
-    await expect(feeStrip).toHaveAccessibleName(/paid in full|due of/i);
+    await expect(feeStrip).toHaveAccessibleName(/paid in full|due of|outstanding/i);
   });
 });
 

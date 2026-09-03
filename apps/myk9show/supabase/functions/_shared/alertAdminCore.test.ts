@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import { buildAlertRow, classifyInsertResult, runAlertAdmin } from './alertAdminCore';
 
@@ -62,6 +63,25 @@ describe('classifyInsertResult', () => {
 });
 
 describe('runAlertAdmin', () => {
+  it('skips duplicate email only when explicitly requested', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { code: '23505', message: 'dup' } });
+    const sendEmail = vi.fn();
+    const result = await runAlertAdmin('subject', {
+      insert,
+      sendEmail,
+      skipEmailOnDuplicate: true,
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(result).toEqual({ insertOutcome: 'deduped', emailAttempted: false, emailError: null });
+  });
+
+  it('still attempts email on insert failure when duplicate skipping is enabled', async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { message: 'db down' } });
+    const sendEmail = vi.fn();
+    await runAlertAdmin('subject', { insert, sendEmail, skipEmailOnDuplicate: true });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it('attempts email even when the insert fails (insert-fails-email-succeeds)', async () => {
     const insert = vi.fn().mockResolvedValue({ error: { message: 'db down' } });
     const sendEmail = vi.fn().mockResolvedValue(undefined);

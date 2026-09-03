@@ -45,6 +45,7 @@ import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
 import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
+import { persistNoSubscription } from './noSubscription.ts';
 import { listAllChargeRefunds, resolveRefundLedgerAction } from '../_shared/refundLifecycle.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
@@ -2610,41 +2611,7 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string, knownSubscri
     if (subscriptions.data.length === 0) {
       console.log(`No subscriptions found for customer: ${stripeCustomerId}`);
 
-      // Update to no subscription state
-      const { error: staleSubscriptionError } = await supabase
-        .from('stripe_subscriptions')
-        .update({ status: 'none' })
-        .eq('customer_id', stripeCustomer.id);
-      if (staleSubscriptionError) {
-        console.error('Error clearing stale subscriptions:', staleSubscriptionError);
-        return;
-      }
-
-      const { error: noSubscriptionError } = await supabase.from('stripe_subscriptions').upsert(
-        {
-          customer_id: stripeCustomer.id,
-          stripe_subscription_id: `none_${stripeCustomerId}`,
-          status: 'none',
-        },
-        {
-          onConflict: 'stripe_subscription_id',
-        }
-      );
-
-      if (noSubscriptionError) {
-        console.error('Error recording missing subscription:', noSubscriptionError);
-        return;
-      }
-
-      // Reset exhibitor profile subscription
-      await supabase
-        .from('exhibitor_profiles')
-        .update({
-          subscription_tier: 'free',
-          subscription_expires_at: null,
-        })
-        .eq('person_id', stripeCustomer.person_id);
-
+      await persistNoSubscription(supabase, stripeCustomer, stripeCustomerId);
       return;
     }
 

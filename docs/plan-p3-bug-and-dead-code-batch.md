@@ -31,3 +31,26 @@ reference evidence confirms the symbols are unreachable.
 - Edge-function tests registered in the existing edge test configuration.
 - Package/app typecheck, lint, and `qa:code-quality-ratchet`.
 - Full relevant Vitest suite after focused tests pass.
+
+## Progress — 2026-09-02
+
+- PR [#1956](https://github.com/rbeezley/myk9-platform/pull/1956) merged as
+  `256e657812522721aff29597c38d86e654268d3f`. The two support-ticket migrations
+  were applied to the remote project. Downloaded live source confirms the merged
+  cron-response fix (v55) and no-subscription conflict/stale-row fix (webhook v89).
+- MYK9-298 is Done. MYK9-308/313/322 are active in the separate wave-three
+  worktree; do not duplicate those changes. MYK9-328's approved `@myk9/supabase`
+  subset merged in #1977; broader package compatibility/ownership decisions
+  remain deferred. Never wire the inert replication TTL.
+- MYK9-334 follow-up is tracked in
+  `openspec/changes/myk9-334-edge-function-closeout/`: cron outcome monitoring,
+  deduplicated operator alert delivery, four dead email templates removed, and
+  behavioral edge tests. Local implementation is prepared; shared publication,
+  merge, deployment, and Linear close-out still require approval/evidence.
+- Scope boundary: the new cron monitoring covers the primary expired-offer query
+  and existing recorded operational errors. Secondary capacity/promotion queries
+  that currently suppress their errors remain an existing limitation, not a
+  guarantee added by this follow-up.
+
+The batch remains Active; neither the outstanding sweeps nor MYK9-334's deployment
+acceptance gate should be marked complete from PR #1956 alone.

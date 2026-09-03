@@ -378,24 +378,6 @@ async function postgrestSearchDogs(searchTerm: string, personId: string) {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetDogsWithUpcomingShows(personId: string) {
-  const { data, error } = await supabase
-    .from('dogs')
-    .select(
-      `
-      *,
-      owner:people!dogs_owner_id_fkey(first_name, last_name),
-      registrations:dog_registrations(*)
-    `
-    )
-    .or(ownedByPerson(personId))
-    .is('deleted_at', null)
-    .order('name', { ascending: true });
-
-  if (error) throw createDatabaseError(error, 'dog', 'select_with_upcoming_shows');
-  return { data: data || [], error: null };
-}
-
 async function postgrestGetDogStatistics(personId: string) {
   const { error, count } = await supabase
     .from('dogs')
@@ -815,45 +797,6 @@ export const searchDogs = async (searchTerm: string, personId: string) => {
     postgrest: () => postgrestSearchDogs(searchTerm, personId),
     table: 'dog',
     operation: 'search',
-    errorData: [],
-  });
-};
-
-// Get dogs with upcoming shows, scoped to the given person
-export const getDogsWithUpcomingShows = async (personId: string) => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const allDogs = await replicatedDogsTable.getAllDogs();
-      const filtered = filterByOwnership(allDogs, personId);
-      const sortedDogs = sortedCopy(
-        filtered,
-        compareStringAsc(dog => dog.name)
-      );
-      // Batch-load owner names from PostgREST
-      const ownerIds = sortedDogs.map(d => d.ownerId).filter((id): id is string => !!id);
-      const [ownersMap, registrationsResult] = await Promise.all([
-        loadOwnersMap(ownerIds),
-        // Breed comes from the registration, so it has to be loaded even though
-        // the original query only joined the owner.
-        loadDogRegistrations(sortedDogs.map(d => d.id)),
-      ]);
-      // Original query only selects owner(first_name, last_name) — attach minimal owner
-      const data = sortedDogs.map(dog => {
-        const ownerRow = dog.ownerId ? (ownersMap.get(dog.ownerId) ?? null) : null;
-        const owner = ownerRow
-          ? { first_name: ownerRow.first_name, last_name: ownerRow.last_name }
-          : null;
-        return mapReplicatedDogToDbRow(dog, {
-          owner,
-          registrations: registrationsResult.byDog.get(dog.id) ?? [],
-          registrationsReadComplete: registrationsResult.registrationsReadComplete,
-        });
-      });
-      return { data, error: null };
-    },
-    postgrest: () => postgrestGetDogsWithUpcomingShows(personId),
-    table: 'dog',
-    operation: 'select_with_upcoming_shows',
     errorData: [],
   });
 };

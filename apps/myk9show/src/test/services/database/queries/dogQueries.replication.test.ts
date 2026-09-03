@@ -78,7 +78,6 @@ import {
   getDogById,
   getDogsByOwner,
   searchDogs,
-  getDogsWithUpcomingShows,
   getDogStatistics,
 } from '@/services/database/dogs';
 
@@ -423,36 +422,6 @@ describe('dogQueries (replication)', () => {
       await searchDogs('golden', 'person-1');
 
       expect(mockDogsTable.searchDogs).toHaveBeenCalledWith('golden');
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // getDogsWithUpcomingShows
-  // -----------------------------------------------------------------------
-  describe('getDogsWithUpcomingShows', () => {
-    it('returns dogs filtered by ownership and sorted by name', async () => {
-      const dogs = [
-        makeDog({ id: 'dog-2', name: 'Zeus', ownerId: 'person-1' }),
-        makeDog({ id: 'dog-1', name: 'Bella', ownerId: 'person-1' }),
-        makeDog({ id: 'dog-3', name: 'Max', ownerId: 'person-2' }),
-      ];
-      mockDogsTable.getAllDogs.mockResolvedValue(dogs);
-
-      const result = await getDogsWithUpcomingShows('person-1');
-
-      expect(result.error).toBeNull();
-      expect(result.data).toHaveLength(2);
-      expect((result.data[0] as Record<string, unknown>).name).toBe('Bella');
-      expect((result.data[1] as Record<string, unknown>).name).toBe('Zeus');
-    });
-
-    it('returns empty array when no dogs match', async () => {
-      mockDogsTable.getAllDogs.mockResolvedValue([]);
-
-      const result = await getDogsWithUpcomingShows('person-1');
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
     });
   });
 

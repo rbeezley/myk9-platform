@@ -99,6 +99,10 @@ production caller; class-scoped waitlist reads remain available.
 entries after confirming no production caller; armband assignment and next
 number generation remain available.
 
+`getDogsWithUpcomingShows` and its PostgREST helper were removed with their
+dedicated tests after confirming no production caller; the live dog list,
+owner, search, and statistics queries remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

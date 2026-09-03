@@ -61,6 +61,14 @@ credential-integrity regression, not a read of data the caller could not already
 
 Full record, reproduction and acceptance criteria in MYK9-354.
 
+**Resolution (2026-09-03):** PR #1992 removed the self-service arm; deployment
+was verified at 16:43:39 UTC. The owner explicitly approved secretary full-list
+replacement through the RPC while keeping direct DELETE site-admin-only.
+[PR #1994](https://github.com/rbeezley/myk9-platform/pull/1994) documented that
+distinction and passed the expanded behavioral contract in
+[full migrated-schema CI](https://github.com/rbeezley/myk9-platform/actions/runs/33781805850).
+MYK9-354 is Done; the original evidence above describes the pre-fix state.
+
 ## P2
 
 ### `NCR-2026-09-03-02` — MYK9-356 — client/server divergence on `entry_status='absent'`

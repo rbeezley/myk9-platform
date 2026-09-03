@@ -240,7 +240,7 @@ jobs:
         run: pnpm -r --filter='./packages/*' build
 
       - name: Test packages
-        run: pnpm test:packages ${{ github.event_name == 'push' && '-- --coverage' || '' }}
+        run: pnpm test:packages -- --sequence.shuffle${{ github.event_name == 'push' && ' --coverage' || '' }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

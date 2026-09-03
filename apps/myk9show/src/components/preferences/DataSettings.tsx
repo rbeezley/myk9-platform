@@ -5,7 +5,7 @@
  * there are no user-facing sync/bandwidth knobs to configure.
  */
 
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { HardDrive } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { databaseManager, REPLICATION_STORES } from '@myk9/replication';
@@ -41,14 +41,18 @@ export function DataSettings() {
   const [checkError, setCheckError] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
 
+  const inspectPendingWork = async () => {
+    const replicationDb = await databaseManager.getDatabase(REPLICATION_STORES.PENDING_MUTATIONS);
+    const pendingMutationCount = await replicationDb.count(REPLICATION_STORES.PENDING_MUTATIONS);
+    const offlineSyncQueueCount = useOfflineScoringStore.getState().syncQueue.length;
+    return decideClearCache({ pendingMutationCount, offlineSyncQueueCount });
+  };
+
   const handleClearCache = async () => {
     setIsChecking(true);
     setCheckError(null);
     try {
-      const replicationDb = await databaseManager.getDatabase(REPLICATION_STORES.PENDING_MUTATIONS);
-      const pendingMutationCount = await replicationDb.count(REPLICATION_STORES.PENDING_MUTATIONS);
-      const offlineSyncQueueCount = useOfflineScoringStore.getState().syncQueue.length;
-      const decision = decideClearCache({ pendingMutationCount, offlineSyncQueueCount });
+      const decision = await inspectPendingWork();
 
       if (!decision.allowed) {
         setPendingCount(decision.pendingCount);
@@ -81,6 +85,29 @@ export function DataSettings() {
     }
 
     window.location.reload();
+  };
+
+  const handleConfirmClearCache = async (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setIsChecking(true);
+    setCheckError(null);
+    try {
+      const decision = await inspectPendingWork();
+
+      if (!decision.allowed) {
+        setIsConfirmOpen(false);
+        setPendingCount(decision.pendingCount);
+        return;
+      }
+
+      clearCache();
+    } catch {
+      setIsConfirmOpen(false);
+      setPendingCount(0);
+      setCheckError('We could not verify unsynced changes. Connect and sync before clearing.');
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   return (
@@ -136,7 +163,9 @@ export function DataSettings() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep cached data</AlertDialogCancel>
-            <AlertDialogAction onClick={clearCache}>Clear cache and reload</AlertDialogAction>
+            <AlertDialogAction onClick={handleConfirmClearCache} disabled={isChecking}>
+              {isChecking ? 'Checking…' : 'Clear cache and reload'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

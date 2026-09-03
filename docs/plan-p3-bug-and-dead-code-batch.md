@@ -51,12 +51,14 @@ reference evidence confirms the symbols are unreachable.
   numeric armband tie-breaking reuses the shared helper, missing/non-numeric
   armbands sort last, and the behavioral test pins 1, 9, 10 ordering. The fix
   already shipped in #1956; the stale Linear status is reconciled.
-- MYK9-309's remaining gap was reproduced during acceptance verification: the
-  standalone hook ignored `isError` when cached data was `true`, while the
-  production batch-map caller already failed closed. The follow-up below fixes
-  this locally with a real-hook regression; publication and merge remain pending.
-  No production caller currently uses that standalone hook. Keep the issue open
-  until the follow-up's merge/evidence gate is satisfied.
+- MYK9-309 is Done after PR
+  [#1988](https://github.com/rbeezley/myk9-platform/pull/1988) merged as
+  `e637b95f4c3990facc849a5e0bb801b29d2b0f57` with independent approval and all
+  required CI passing. The standalone hook now prioritizes `isError` over cached
+  `true` and returns an accurate retry reason; the production batch-map already
+  failed closed. Real-hook tests cover failed refresh, recovery, loading, and
+  cold-offline map behavior. No production caller currently uses the standalone
+  hook; its retained public contract now satisfies the acceptance criteria.
 - Verification for this tracking reconciliation: the Show Map tree and
   self-check-in hook suites passed (2 files / 29 tests). Existing tests cover
   cold query failures but not MYK9-309's cached-success failure case. No
@@ -74,10 +76,11 @@ reference evidence confirms the symbols are unreachable.
   that currently suppress their errors remain an existing limitation, not a
   guarantee added by this follow-up.
 
-The batch remains Active for MYK9-309's remaining acceptance gap and the explicitly
-deferred package decisions. Sweep issue tracking is reconciled, and MYK9-334's
-implementation and deployment acceptance gates are complete; neither justifies
-marking the remaining work complete.
+The batch remains Active only for the explicitly deferred package decisions.
+MYK9-309's acceptance gap is closed, sweep issue tracking is reconciled, and
+MYK9-334's implementation and deployment acceptance gates are complete. Retained
+package APIs and the inert TTL still require their recorded ownership decisions;
+do not treat them as deleted or wire the TTL.
 
 ## MYK9-309 failed-refresh follow-up
 
@@ -93,7 +96,7 @@ network mode, and the settings-read path. No new UI or database changes.
       instead of claiming show management disabled check-in.
 - [x] Verify recovery, loading/null-class behavior, and the batch-map regression;
       run focused tests, app typecheck, lint, and diff checks.
-- [ ] Publish reviewed changes and close MYK9-309 only after its merge/evidence gate.
+- [x] Publish reviewed changes and close MYK9-309 only after its merge/evidence gate.
 
 Local evidence: the new public-hook test failed with `expected true to be false`
 before the fix and passes afterward. The hook suite passes 15 tests; a shuffled
@@ -102,4 +105,12 @@ seed 310. `pnpm --filter @myk9/show typecheck` passes (E2E ratchet: 59 current,
 62 baselined, 0 new); its first attempt hit a local tsx IPC sandbox restriction,
 then passed with IPC permitted. App lint passes with the existing 18 warnings,
 and formatting/diff checks pass. No Supabase deployment is needed for this hook
-change. Keep MYK9-309 open until publication and merge are verified.
+change.
+
+Merge evidence: PR #1988 merged as `e637b95f4c3990facc849a5e0bb801b29d2b0f57`.
+Independent review returned APPROVED; all executed jobs in
+[CI run 33708400999](https://github.com/rbeezley/myk9-platform/actions/runs/33708400999)
+passed, including SQL, all three app-test shards, coverage, quality checks,
+builds, accessibility smoke, and E2E PR smoke. Linear acceptance checkboxes and
+status are reconciled to Done. The non-required app preview hit the Vercel daily
+deployment quota; merge evidence does not establish a new staging deployment.

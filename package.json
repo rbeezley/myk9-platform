@@ -31,6 +31,8 @@
     "qa:db-drift:functions": "SUPABASE_PROJECT_REF=sojmvhhwsjxmfistvzbe node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/function-inventory.ts",
     "qa:advisor-inventory": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/db-drift/advisor-inventory.ts",
     "qa:db-drift:test": "vitest run scripts/qa/db-drift/*.test.ts",
+    "qa:migrations:guard": "tsx scripts/qa/migration-version-guard.ts",
+    "qa:migrations:guard:test": "vitest run scripts/qa/migration-version-guard.test.ts",
     "qa:code-quality-ratchet": "tsx scripts/qa/code-quality-ratchet.ts",
     "qa:code-quality-ratchet:update": "pnpm qa:code-quality-ratchet -- --update-baseline",
     "qa:code-quality-ratchet:test": "vitest run scripts/qa/code-quality-ratchet.test.ts",

@@ -14,4 +14,4 @@
 - [x] 3.1 After explicit approval, publish PR with scope, issue, checks, risks, and this change name; obtain green CI/review and approval to merge. PR #1982 merged as `df598effe` with all required checks green.
 - [x] 3.2 After explicit approval, deploy only the three reviewed functions to remote sojmvhhwsjxmfistvzbe without Docker and verify downloaded live source parity. Cron v56 (9 files), webhook v90 (25 files), email v74 (10 files): exact source/dependency matches.
 - [x] 3.3 After approval and all acceptance evidence, update MYK9-334 with PR/merge/deployment/tests and Done; retain deferred items as open. Completion evidence posted to Linear.
-- [ ] 3.4 Resolve the requested spec-sync/archive choice, publish the documentation close-out, and perform final scoped worktree cleanup. The merged implementation branch is already deleted; unrelated local-main work is preserved.
+- [x] 3.4 Sync the two main specs and archive the completed implementation after user approval. Documentation publication and final worktree cleanup are owned by the close-out PR, not remaining implementation acceptance criteria.

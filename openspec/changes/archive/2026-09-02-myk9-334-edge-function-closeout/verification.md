@@ -17,7 +17,7 @@ Coverage: 100/100 after stress-testing. Added explicit alert-failure isolation, 
 
 | Dimension    | Evidence                                                                                                                                                                                           |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Completeness | Implementation, required CI, PR merge, remote deployment/source verification, and Linear closure complete; documentation sync/archive/publication remain pending                                   |
+| Completeness | Implementation, required CI, PR merge, remote deployment/source verification, Linear closure, spec sync, and archive complete; the documentation close-out PR owns publication and final cleanup   |
 | Correctness  | `cronOutcome.test.ts` covers failed primary lookup, notification-only success, thrown jobs, missing/broken monitoring, alert failures, per-window keys and actual deduplicated email orchestration |
 | Correctness  | `noSubscription.test.ts` checks exact unique conflict target/payload, sequential stale-row retirement and failure short-circuit                                                                    |
 | Correctness  | `authz.test.ts` rejects four retired types and unknown types before recipient queries; existing supported authorization and recipient tests remain green                                           |
@@ -161,6 +161,15 @@ Local evidence/rollback directories:
 Linear completion comment `feb17b59-f6f7-4f0c-8a02-7bb72a23a837` records the PR,
 merge, tests, versions, source parity, and limitations; both acceptance criteria
 are checked. The implementation branch was deleted after squash-merge proof.
-The separate documentation close-out branch retains this evidence pending the
-spec-sync/archive choice. Primary main's unrelated `cd0ad0762` commit remains
-untouched; it cannot fast-forward without reconciling that separate work.
+The user subsequently approved spec sync and archive publication. Both delta
+requirements are synced into main specs, preserving existing email requirements.
+The completed implementation is archived at
+`openspec/changes/archive/2026-09-02-myk9-334-edge-function-closeout/`.
+All nine implementation/close-out artifact tasks are complete. The documentation
+close-out PR owns publication and final worktree cleanup; archiving this docs-only
+follow-up before its own publication does not waive the already-satisfied #1982
+implementation merge gate.
+
+Primary main contains unrelated local documentation work. It is intentionally
+left untouched; this close-out branch starts from remote main and does not
+publish or rewrite another agent's commits.

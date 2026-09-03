@@ -48,8 +48,8 @@ reference evidence confirms the symbols are unreachable.
   coverage are deployed to the paid remote project: cron v56, webhook v90,
   send-email v74. Downloaded source/dependencies match the reviewed code exactly
   (9, 25, and 10 files respectively). Evidence is recorded in Linear and
-  `openspec/changes/myk9-334-edge-function-closeout/verification.md`; spec sync,
-  archive, and documentation publication remain administrative close-out.
+  `openspec/changes/archive/2026-09-02-myk9-334-edge-function-closeout/verification.md`.
+  The two main specs are synced and the completed change is archived.
 - Scope boundary: the new cron monitoring covers the primary expired-offer query
   and existing recorded operational errors. Secondary capacity/promotion queries
   that currently suppress their errors remain an existing limitation, not a

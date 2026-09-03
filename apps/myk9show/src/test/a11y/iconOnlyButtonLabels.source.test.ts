@@ -18,24 +18,8 @@ const requiredLabels: Array<{ file: string; labels: string[] }> = [
     labels: ['Remove recent search ${search.query}'],
   },
   {
-    file: 'apps/myk9show/src/components/common/search/PaginatedSearchResults.tsx',
-    labels: ['Remove ${filter?.name ?? filterId} filter', 'Previous page', 'Next page'],
-  },
-  {
     file: 'apps/myk9show/src/components/common/UnifiedSidebar.tsx',
     labels: ['Close sidebar', 'Clear ${title} search'],
-  },
-  {
-    file: 'apps/myk9show/src/components/common/PaginationPerformanceMonitor.tsx',
-    labels: ['Hide pagination performance monitor', 'Show pagination performance monitor'],
-  },
-  {
-    file: 'apps/myk9show/src/components/common/SearchPerformanceMonitor.tsx',
-    labels: ['Refresh search performance stats', 'Hide search performance monitor'],
-  },
-  {
-    file: 'apps/myk9show/src/components/common/virtual/VirtualScrollList.tsx',
-    labels: ['Back to top'],
   },
   {
     file: 'apps/myk9show/src/components/layout/sidebar/RoleSidebar.tsx',

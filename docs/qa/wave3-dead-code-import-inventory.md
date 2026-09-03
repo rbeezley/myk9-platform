@@ -133,6 +133,9 @@ monitoring remain available.
 The unreferenced `createBulkActions` factory and base-barrel export were
 removed; `BulkAction` remains available for the mounted `BulkActionsBar`.
 
+The unreferenced `logLazyLoadingReport` development helper was removed; the
+mounted lazy-component start/end/retry metrics remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

@@ -148,7 +148,7 @@ For every 7.x set:
 
 ## MYK9-364 residual cleanup — 2026-09-03
 
-Request: `implement MYK9-364`. Status: implemented and verified locally; awaiting merge.
+Request: `implement MYK9-364`. Status: Complete — merged in [PR #2000](https://github.com/rbeezley/myk9-platform/pull/2000), commit `1edc2f1e`; Linear is Done.
 This follows Batch 7's deletion workflow without a new OpenSpec change because it
 only removes a bounded, confirmed-unmounted residue and stale source-test entries.
 
@@ -170,6 +170,10 @@ untouched files, and code-quality ratchet passing without a baseline update.
 The E2E typecheck gate reported 59 known diagnostics against 62 baselined, zero
 new. Typecheck and ratchet required execution outside the sandbox for tsx's local
 IPC socket. Final diff review and `git diff --check` passed.
+
+Independent Codex and Claude Code reviews approved with no blocking findings;
+Claude also ran 97 source-guard tests successfully. All required CI checks passed,
+including Quality Checks, Test, A11y smoke, and E2E PR Smoke.
 
 ## Final integration
 

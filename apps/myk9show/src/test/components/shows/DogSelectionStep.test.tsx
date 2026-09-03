@@ -31,8 +31,17 @@ beforeEach(() => {
 });
 
 describe('DogSelectionStep', () => {
+  // The 252-dog case renders the full list three times (initial, filtered,
+  // cleared), which is the point of the case — it is why the search has to
+  // survive a long roster. It reddened `main` from the moment it landed (#2004)
+  // by exceeding vitest's 10s default, and was first stabilised by raising the
+  // cap alone. The cap is still here, but it no longer has to absorb an
+  // avoidable 6.7s: see the two comments inside for the costs that were removed.
+  // Measured under the repo's load recipe (`taskpolicy -b … --coverage`):
+  // 14,665ms before, 5,873ms after.
   it.each([3, 252])(
     'finds the last of %i dogs and preserves hidden selections',
+    { timeout: 45000 },
     async count => {
       const dogs = Array.from({ length: count }, (_, index) =>
         mockDog({
@@ -82,19 +91,7 @@ describe('DogSelectionStep', () => {
       expect(document.querySelectorAll('input[type="checkbox"]')).toHaveLength(count);
       expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
       expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
-      // Explicit timeout, with the measurements behind it.
-      //
-      // The count=252 case legitimately renders a 252-row list three times (mount,
-      // filter, clear). After removing the two avoidable costs above it measures
-      // ~9.6s under the repo's load recipe (`taskpolicy -b … --coverage`), which
-      // is inside vitest's 10s default by ~400ms — far too thin, and the reason
-      // this went red on CI rather than locally.
-      //
-      // This is NOT a timeout raised to paper over a flake: the dominant cost was
-      // found (a 6,723ms `getAllByRole`) and removed. What remains is real
-      // rendering work, so the cap is set to match it with room to spare.
-    },
-    30_000
+    }
   );
 
   it('distinguishes no matches from no dogs and retains restored selections', async () => {

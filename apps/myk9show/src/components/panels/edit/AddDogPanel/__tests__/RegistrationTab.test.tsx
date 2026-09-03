@@ -33,6 +33,7 @@ function renderTab(formOverrides: Partial<DogFormData> = {}) {
         errors: [],
         isLoading: false,
         setIsLoading: vi.fn(),
+        runSelfNavigation: (navigate: () => void) => navigate(),
       }}
     >
       <RegistrationTab

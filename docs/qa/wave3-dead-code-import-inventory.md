@@ -95,6 +95,10 @@ available through the live waitlist flows.
 `getWaitlistByShow` was removed with dedicated tests after confirming no
 production caller; class-scoped waitlist reads remain available.
 
+`getEntryArmbandById` was removed with its dedicated test and stale test-mock
+entries after confirming no production caller; armband assignment and next
+number generation remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

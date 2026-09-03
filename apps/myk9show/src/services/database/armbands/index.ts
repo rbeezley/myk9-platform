@@ -9,4 +9,4 @@
 
 export { getArmbandCountForShow, claimNextArmband, lookupDogByArmband } from './reads';
 
-export { setEntryArmband, getNextArmbandForShow, getEntryArmbandById } from './secretary';
+export { setEntryArmband, getNextArmbandForShow } from './secretary';

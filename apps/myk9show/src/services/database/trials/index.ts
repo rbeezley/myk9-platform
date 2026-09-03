@@ -12,7 +12,6 @@ export {
   searchTrials,
   getTrialsByStatus,
   getUpcomingTrials,
-  getTrialsByDateRange,
   createTrial,
   updateTrial,
   deleteTrial,

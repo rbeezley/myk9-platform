@@ -169,29 +169,6 @@ async function postgrestGetUpcomingTrials(limit?: number) {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetTrialsByDateRange(startDate: string, endDate: string) {
-  const { data, error } = await supabase
-    .from('trials')
-    .select(
-      `
-      *,
-      show:shows (
-        id,
-        name,
-        start_date,
-        end_date
-      )
-    `
-    )
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .is('deleted_at', null)
-    .order('date', { ascending: true });
-
-  if (error) throw createDatabaseError(error, 'trial', 'select_by_date_range');
-  return { data: data || [], error: null };
-}
-
 // ---------------------------------------------------------------------------
 // SELECT functions — read from replication store, fallback to PostgREST
 // ---------------------------------------------------------------------------
@@ -317,26 +294,6 @@ export const getUpcomingTrials = async (limit?: number) => {
     postgrest: () => postgrestGetUpcomingTrials(limit),
     table: 'trial',
     operation: 'select_upcoming',
-    errorData: [],
-  });
-};
-
-// Get trials by date range (excluding soft-deleted)
-export const getTrialsByDateRange = async (startDate: string, endDate: string) => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const [allTrials, showsMap] = await Promise.all([
-        replicatedTrialsTable.getAll(),
-        loadShowsMap(),
-      ]);
-      const filtered = allTrials.filter(trial => trial.date >= startDate && trial.date <= endDate);
-      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
-      const data = mapTrialsWithJoins(sortedTrials, showsMap);
-      return { data, error: null };
-    },
-    postgrest: () => postgrestGetTrialsByDateRange(startDate, endDate),
-    table: 'trial',
-    operation: 'select_by_date_range',
     errorData: [],
   });
 };

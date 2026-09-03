@@ -72,6 +72,10 @@ no production caller; the live show/handler registration lookup remains.
 dedicated tests after confirming no production caller; trial list and timeline
 queries remain available.
 
+`getTrialsByDateRange` and its PostgREST helper were removed with dedicated
+tests after confirming no production caller; the live trial list/show queries
+remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

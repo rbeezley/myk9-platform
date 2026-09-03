@@ -55,7 +55,6 @@ import {
   searchTrials,
   getTrialsByStatus,
   getUpcomingTrials,
-  getTrialsByDateRange,
   getShowScheduleTimelineRows,
   getTrialTimelineRows,
 } from '@/services/database/trials';
@@ -424,33 +423,6 @@ describe('trialQueries (replication)', () => {
       setupListMocks([makeTrial({ date: '2020-01-01' })]);
 
       const result = await getUpcomingTrials();
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // getTrialsByDateRange
-  // -----------------------------------------------------------------------
-  describe('getTrialsByDateRange', () => {
-    it('filters trials within date range', async () => {
-      const trials = [
-        makeTrial({ id: 'in-range', date: '2026-05-15' }),
-        makeTrial({ id: 'out-of-range', date: '2026-07-01' }),
-      ];
-      setupListMocks(trials);
-
-      const result = await getTrialsByDateRange('2026-05-01', '2026-06-01');
-
-      expect(result.data).toHaveLength(1);
-      expect((result.data[0] as Record<string, unknown>).id).toBe('in-range');
-    });
-
-    it('returns empty array when no trials match range', async () => {
-      setupListMocks([makeTrial({ date: '2026-01-01' })]);
-
-      const result = await getTrialsByDateRange('2026-06-01', '2026-07-01');
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();

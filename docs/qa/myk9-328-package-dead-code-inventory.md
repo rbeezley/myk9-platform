@@ -19,11 +19,12 @@ The following clusters have no runtime importer in this repository:
 
 ## Decision
 
-Do not delete these symbols in this wave. Several are exported from published
-workspace package barrels, so repository-local zero-import evidence does not
-prove that external consumers are unaffected. The safe next step is a package
-API compatibility decision (or a major-version/deprecation plan), followed by
-one package at a time with package builds and typecheck evidence.
+The approved first cleanup removes the unused `@myk9/supabase` client singleton
+and React hook, trims the package barrel, and documents the package as the
+canonical generated-type surface. Repository-local usage was type-only, and the
+API removal was explicitly approved before implementation. The remaining
+clusters still need the same package-by-package compatibility decision and
+verification before deletion.
 
 The replication TTL cluster is additionally not safe to wire: expiry would
 create false-empty offline reads. Keep it unchanged until a replacement cache

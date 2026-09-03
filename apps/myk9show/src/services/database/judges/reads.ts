@@ -782,14 +782,6 @@ export async function getJudgeAvailabilityByPersonId(
   return data;
 }
 
-export async function deleteJudgeAvailability(personId: string): Promise<void> {
-  const { error } = await supabase.from('judge_availability').delete().eq('person_id', personId);
-
-  if (error) {
-    throw new Error(`Failed to delete judge availability: ${error.message}`);
-  }
-}
-
 export async function createJudgeCertification(
   data: CreateJudgeCertificationDbData
 ): Promise<Record<string, unknown>> {
@@ -800,19 +792,4 @@ export async function createJudgeCertification(
   }
 
   return cert as Record<string, unknown>;
-}
-
-export async function getJudgeCertificationsByPersonId(
-  personId: string
-): Promise<Record<string, unknown>[]> {
-  const { data, error } = await certificationsTable()
-    .select('*')
-    .eq('person_id', personId)
-    .order('certification_date', { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to fetch judge certifications: ${error.message}`);
-  }
-
-  return (data || []) as Record<string, unknown>[];
 }

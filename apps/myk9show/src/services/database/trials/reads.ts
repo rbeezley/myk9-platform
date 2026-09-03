@@ -95,28 +95,6 @@ async function postgrestGetTrialsByShow(showId: string) {
   return { data: data || [], error: null };
 }
 
-async function postgrestSearchTrials(searchTerm: string) {
-  const { data, error } = await supabase
-    .from('trials')
-    .select(
-      `
-      *,
-      show:shows (
-        id,
-        name,
-        start_date,
-        end_date
-      )
-    `
-    )
-    .ilike('name', `%${searchTerm}%`)
-    .is('deleted_at', null)
-    .order('date', { ascending: true });
-
-  if (error) throw createDatabaseError(error, 'trial', 'search');
-  return { data: data || [], error: null };
-}
-
 async function postgrestGetUpcomingTrials(limit?: number) {
   const today = new Date().toISOString().split('T')[0];
 
@@ -214,26 +192,6 @@ export const getTrialsByShow = async (showId: string) => {
 };
 
 // Search trials by name (excluding soft-deleted)
-export const searchTrials = async (searchTerm: string) => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const [allTrials, showsMap] = await Promise.all([
-        replicatedTrialsTable.getAll(),
-        loadShowsMap(),
-      ]);
-      const term = searchTerm.toLowerCase();
-      const filtered = allTrials.filter(trial => trial.name.toLowerCase().includes(term));
-      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
-      const data = mapTrialsWithJoins(sortedTrials, showsMap);
-      return { data, error: null };
-    },
-    postgrest: () => postgrestSearchTrials(searchTerm),
-    table: 'trial',
-    operation: 'search',
-    errorData: [],
-  });
-};
-
 // Get upcoming trials (excluding soft-deleted)
 export const getUpcomingTrials = async (limit?: number) => {
   return readWithReplicationFallback({

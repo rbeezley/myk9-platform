@@ -52,7 +52,6 @@ import {
   getAllTrials,
   getTrialById,
   getTrialsByShow,
-  searchTrials,
   getUpcomingTrials,
   getShowScheduleTimelineRows,
   getTrialTimelineRows,
@@ -313,33 +312,6 @@ describe('trialQueries (replication)', () => {
       mockShowsTable.getShowById.mockResolvedValue(makeShow());
 
       const result = await getTrialsByShow('show-1');
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // searchTrials
-  // -----------------------------------------------------------------------
-  describe('searchTrials', () => {
-    it('filters by name case-insensitively', async () => {
-      const trials = [
-        makeTrial({ id: 'match', name: 'Scent Work Trial' }),
-        makeTrial({ id: 'no-match', name: 'Agility Run' }),
-      ];
-      setupListMocks(trials);
-
-      const result = await searchTrials('scent');
-
-      expect(result.data).toHaveLength(1);
-      expect((result.data[0] as Record<string, unknown>).id).toBe('match');
-    });
-
-    it('returns empty array for no matches', async () => {
-      setupListMocks([makeTrial()]);
-
-      const result = await searchTrials('zzzznonexistent');
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();

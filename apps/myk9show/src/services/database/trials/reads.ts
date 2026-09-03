@@ -192,39 +192,6 @@ async function postgrestGetTrialsByDateRange(startDate: string, endDate: string)
   return { data: data || [], error: null };
 }
 
-async function postgrestGetTrialStatistics() {
-  const totalQuery = supabase
-    .from('trials')
-    .select('id', { count: 'exact' })
-    .is('deleted_at', null);
-
-  const statusQuery = supabase.from('trials').select('status').is('deleted_at', null);
-
-  const [totalResult, statusResult] = await Promise.all([totalQuery, statusQuery]);
-
-  if (totalResult.error || statusResult.error) {
-    throw createDatabaseError(totalResult.error || statusResult.error, 'trial', 'statistics');
-  }
-
-  const statusCounts =
-    statusResult.data?.reduce(
-      (acc: Record<string, number>, trial: { status?: string | null }) => {
-        const status = trial.status || 'Unknown';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    ) || {};
-
-  return {
-    data: {
-      total: totalResult.count || 0,
-      byStatus: statusCounts,
-    },
-    error: null,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // SELECT functions — read from replication store, fallback to PostgREST
 // ---------------------------------------------------------------------------
@@ -371,28 +338,6 @@ export const getTrialsByDateRange = async (startDate: string, endDate: string) =
     table: 'trial',
     operation: 'select_by_date_range',
     errorData: [],
-  });
-};
-
-// Get trial statistics (excluding soft-deleted)
-export const getTrialStatistics = async () => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const allTrials = await replicatedTrialsTable.getAll();
-      const byStatus = allTrials.reduce(
-        (acc: Record<string, number>, trial) => {
-          const status = trial.status || 'Unknown';
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
-      return { data: { total: allTrials.length, byStatus }, error: null };
-    },
-    postgrest: postgrestGetTrialStatistics,
-    table: 'trial',
-    operation: 'statistics',
-    errorData: null,
   });
 };
 

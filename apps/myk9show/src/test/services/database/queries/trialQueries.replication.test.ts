@@ -56,7 +56,6 @@ import {
   getTrialsByStatus,
   getUpcomingTrials,
   getTrialsByDateRange,
-  getTrialStatistics,
   getShowScheduleTimelineRows,
   getTrialTimelineRows,
 } from '@/services/database/trials';
@@ -455,58 +454,6 @@ describe('trialQueries (replication)', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // getTrialStatistics
-  // -----------------------------------------------------------------------
-  describe('getTrialStatistics', () => {
-    it('returns total count and byStatus breakdown', async () => {
-      const trials = [
-        makeTrial({ id: 'a', status: 'upcoming' }),
-        makeTrial({ id: 'b', status: 'upcoming' }),
-        makeTrial({ id: 'c', status: 'completed' }),
-      ];
-      setupListMocks(trials);
-
-      const result = await getTrialStatistics();
-
-      expect(result.error).toBeNull();
-      expect(result.data).toEqual({
-        total: 3,
-        byStatus: {
-          upcoming: 2,
-          completed: 1,
-        },
-      });
-    });
-
-    it('returns 0 total when no trials exist', async () => {
-      setupListMocks([]);
-
-      const result = await getTrialStatistics();
-
-      expect(result.data).toEqual({ total: 0, byStatus: {} });
-      expect(result.error).toBeNull();
-    });
-
-    it('groups trials with null status under Unknown', async () => {
-      const trials = [
-        makeTrial({ id: 'a', status: undefined }),
-        makeTrial({ id: 'b', status: 'upcoming' }),
-      ];
-      setupListMocks(trials);
-
-      const result = await getTrialStatistics();
-
-      expect(result.data).toEqual({
-        total: 2,
-        byStatus: {
-          Unknown: 1,
-          upcoming: 1,
-        },
-      });
     });
   });
 

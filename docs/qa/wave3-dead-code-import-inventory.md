@@ -68,6 +68,10 @@ by the registration/show query paths.
 `getRegistrationsForShow` was removed with its dedicated tests after confirming
 no production caller; the live show/handler registration lookup remains.
 
+`getTrialStatistics` and its PostgREST helper were removed with their
+dedicated tests after confirming no production caller; trial list and timeline
+queries remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

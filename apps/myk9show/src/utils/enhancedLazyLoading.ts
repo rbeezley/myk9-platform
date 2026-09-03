@@ -306,23 +306,6 @@ export class LazyLoadingMonitor {
   }
 }
 
-// Utility to batch preload multiple components
-export function batchPreload(components: unknown[], delay = 100): Promise<void[]> {
-  const preloadPromises = components.map((component, index) => {
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        if (isPreloadable(component)) {
-          component.preload().then(() => resolve()).catch(() => resolve());
-        } else {
-          resolve();
-        }
-      }, delay * index);
-    });
-  });
-
-  return Promise.all(preloadPromises);
-}
-
 // Development helper to expose performance data
 if (process.env.NODE_ENV === 'development') {
   const debugWindow = window as Window & { __lazyLoadingDebug?: unknown };

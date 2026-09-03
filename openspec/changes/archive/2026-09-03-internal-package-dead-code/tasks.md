@@ -17,8 +17,8 @@
 
 - [x] 3.1 Run affected package builds/tests, `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`, and diff/format checks; record failures without weakening gates. Typecheck/lint/ratchet and replication suite pass after TTL removal; full app suite passes 18,717 tests (9 existing skips). See verification.md.
 - [x] 3.2 Update existing batch plan and inventories with actual implementation/verification, and validate this OpenSpec change. Implementation is complete and remaining shipping gates are explicit; see verification.md.
-- [ ] 3.3 Publication and merge approved; publish PR, pass independent review and required CI, and confirm merge before completing the implementation gate.
-- [ ] 3.4 Reconcile Linear and archive/sync only after the merged evidence gate; clean only this task's branch/worktree.
+- [x] 3.3 Publication and merge approved; PR #1990 passed independent review and every required CI check, then merged as `04be609371769d5f8089f7900c30d4abf7523bed` on 2026-09-03.
+- [x] 3.4 Reconciled MYK9-328 to Done with merge and verification evidence. No delta specs require sync; archive this completed change in the tracking-only follow-up PR and clean only this task's branch/worktree after merge.
 
 ## Plan verification
 

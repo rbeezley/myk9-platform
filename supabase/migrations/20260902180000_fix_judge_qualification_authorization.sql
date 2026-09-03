@@ -62,4 +62,5 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.replace_judge_qualifications(uuid, jsonb) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.replace_judge_qualifications(uuid, jsonb) FROM anon;
 GRANT EXECUTE ON FUNCTION public.replace_judge_qualifications(uuid, jsonb) TO authenticated;

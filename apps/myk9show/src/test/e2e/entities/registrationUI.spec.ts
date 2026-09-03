@@ -203,7 +203,7 @@ test.describe('Registration Wizard — Mail-in entry happy path', () => {
     // $10/class (not the class-level $30). With 2 classes the subtotal is $20
     // and the early-bird-discounted Total Due is $19. The exact value isn't the
     // point — what matters is the line shows a real positive amount, never $0.
-    const totalDueRow = page.getByText('Total Due').locator('..');
+    const totalDueRow = page.getByText('Entry fee total').locator('..');
     await expect(totalDueRow).toBeVisible({ timeout: 5000 });
     await expect(totalDueRow).not.toContainText('$0.00');
     await expect(totalDueRow).toContainText(/\$\d+\.\d{2}/);

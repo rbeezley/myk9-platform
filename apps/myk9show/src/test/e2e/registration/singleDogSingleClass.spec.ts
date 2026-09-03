@@ -208,7 +208,7 @@ test('reaches payment with one selected dog and one selected class', async ({ pa
 
   await expect(page.getByRole('heading', { name: 'Payment Information' })).toBeVisible();
   await page.getByRole('button', { name: /Secretary Payment \(Already Received\)/i }).click();
-  await expect(page.getByText('Total Due').locator('..')).toContainText(/\$\d+\.\d{2}/);
+  await expect(page.getByText('Entry fee total').locator('..')).toContainText(/\$\d+\.\d{2}/);
   await expect(page.getByText(new RegExp(DOG_SEARCH, 'i')).first()).toBeVisible();
   await expect(page.locator('body')).toContainText(CLASS_ELEMENT);
   await expect(page.locator('body')).toContainText(CLASS_LEVEL);

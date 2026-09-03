@@ -1,27 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { PaymentStep } from '@/components/shows/RegistrationWorkflow/PaymentStep';
 import { PaymentReconciliation } from '@/components/shows/RegistrationWorkflow/PaymentReconciliation';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
-
-// Create a test query client
-function createTestQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, staleTime: Infinity },
-      mutations: { retry: false },
-    },
-  });
-}
-
-function TestWrapper({ children }: { children: React.ReactNode }) {
-  const client = createTestQueryClient();
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-}
 
 // Mock the hooks and stores
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -105,7 +90,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should render payment step with fee calculation', () => {
-      render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
+      render(<PaymentStep {...defaultProps} />);
 
       expect(screen.getByText('Payment Information')).toBeInTheDocument();
       expect(screen.getByText('Registration Summary')).toBeInTheDocument();
@@ -135,18 +120,18 @@ describe('Phase 3.5: Payment Component Tests', () => {
         ],
       };
 
-      render(<PaymentStep {...propsWithMultipleDogs} />, { wrapper: TestWrapper });
+      render(<PaymentStep {...propsWithMultipleDogs} />);
 
       // Should show subtotal ($35 + $40 = $75)
       const subtotalElements = screen.getAllByText('$75.00');
       expect(subtotalElements.length).toBeGreaterThan(0);
 
       // Should show total due
-      expect(screen.getByText(/Total Due/)).toBeInTheDocument();
+      expect(screen.getByText('Entry fee total')).toBeInTheDocument();
     });
 
     it('should show secure checkout notice for credit card selection instead of card form', () => {
-      render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
+      render(<PaymentStep {...defaultProps} />);
 
       // Credit card option should be rendered and selected
       expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
@@ -163,7 +148,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should handle check payment method selection', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="check" />, { wrapper: TestWrapper });
+      render(<PaymentStep {...defaultProps} paymentMethod="check" />);
 
       // Check option should be rendered
       expect(screen.getByText('Check (pay at show)')).toBeInTheDocument();
@@ -178,7 +163,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should handle cash payment method selection', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="cash" />, { wrapper: TestWrapper });
+      render(<PaymentStep {...defaultProps} paymentMethod="cash" />);
 
       // Cash option should be rendered
       expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
@@ -190,7 +175,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show secretary payment management features', () => {
-      render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
+      render(<PaymentStep {...defaultProps} />);
 
       // Should show secretary management section
       expect(screen.getByText('Secretary Payment Management')).toBeInTheDocument();
@@ -206,9 +191,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       const onPaymentStatusChange = vi.fn();
 
-      render(<PaymentStep {...defaultProps} onPaymentStatusChange={onPaymentStatusChange} />, {
-        wrapper: TestWrapper,
-      });
+      render(<PaymentStep {...defaultProps} onPaymentStatusChange={onPaymentStatusChange} />);
 
       // Click on Mark as Paid by Check button
       const markPaidButton = screen.getByText('Mark as Paid by Check');
@@ -221,9 +204,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const user = userEvent.setup();
       const onEntryStatusChange = vi.fn();
 
-      render(<PaymentStep {...defaultProps} onEntryStatusChange={onEntryStatusChange} />, {
-        wrapper: TestWrapper,
-      });
+      render(<PaymentStep {...defaultProps} onEntryStatusChange={onEntryStatusChange} />);
 
       // Navigate to Entry Status tab
       const entryStatusTab = screen.getByText('Entry Status');
@@ -237,9 +218,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show proper payment status badges', () => {
-      render(<PaymentStep {...defaultProps} paymentStatus={PaymentStatus.PAID_ONLINE} />, {
-        wrapper: TestWrapper,
-      });
+      render(<PaymentStep {...defaultProps} paymentStatus={PaymentStatus.PAID_ONLINE} />);
 
       // Should show current payment status, in words. The raw enum used to
       // reach the user here; the assertion tracked the bug, not an intent.
@@ -249,7 +228,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     it('should handle fee override functionality', async () => {
       const user = userEvent.setup();
 
-      render(<PaymentStep {...defaultProps} />, { wrapper: TestWrapper });
+      render(<PaymentStep {...defaultProps} />);
 
       // Navigate to Fee Override tab
       const feeTab = screen.getByText('Fee Override');
@@ -269,9 +248,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
     });
 
     it('should show payment summary correctly', () => {
-      render(<PaymentStep {...defaultProps} paymentMethod="credit_card" />, {
-        wrapper: TestWrapper,
-      });
+      render(<PaymentStep {...defaultProps} paymentMethod="credit_card" />);
 
       expect(screen.getByText('Payment Summary')).toBeInTheDocument();
       expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
@@ -568,8 +545,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
           ]}
           paymentMethod="credit_card"
           onPaymentMethodChange={onPaymentMethodChange}
-        />,
-        { wrapper: TestWrapper }
+        />
       );
 
       // Switch to check payment by clicking the check option card
@@ -597,13 +573,12 @@ describe('Phase 3.5: Payment Component Tests', () => {
           ]}
           paymentMethod="credit_card"
           onPaymentMethodChange={vi.fn()}
-        />,
-        { wrapper: TestWrapper }
+        />
       );
 
       // Should show subtotal ($35 + $40 = $75)
       expect(screen.getAllByText('$75.00').length).toBeGreaterThan(0);
-      expect(screen.getByText(/Total Due/)).toBeInTheDocument();
+      expect(screen.getByText('Entry fee total')).toBeInTheDocument();
     });
 
     it('should handle payment status integration with entry status', () => {
@@ -621,8 +596,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
           paymentStatus={PaymentStatus.PAID_ONLINE}
           entryStatus={EntryStatus.ACCEPTED}
           onPaymentMethodChange={vi.fn()}
-        />,
-        { wrapper: TestWrapper }
+        />
       );
 
       // Should show both payment and entry status
@@ -642,8 +616,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
           paymentMethod="check"
           onPaymentMethodChange={vi.fn()}
           onPaymentDetailsChange={onPaymentDetailsChange}
-        />,
-        { wrapper: TestWrapper }
+        />
       );
 
       const checkNumberInput = screen.getByLabelText('Check Number (optional)');
@@ -669,8 +642,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
           paymentMethod="secretary_paid"
           onPaymentMethodChange={vi.fn()}
           onPaymentDetailsChange={onPaymentDetailsChange}
-        />,
-        { wrapper: TestWrapper }
+        />
       );
 
       const referenceInput = screen.getByLabelText('Reference/Receipt #');
@@ -695,8 +667,7 @@ describe('Phase 3.5: Payment Component Tests', () => {
           paymentMethod="group_payment"
           onPaymentMethodChange={vi.fn()}
           onPaymentDetailsChange={onPaymentDetailsChange}
-        />,
-        { wrapper: TestWrapper }
+        />
       );
 
       const groupRefInput = screen.getByLabelText('Group/Organization Reference');

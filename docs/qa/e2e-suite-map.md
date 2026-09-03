@@ -197,6 +197,7 @@ These specs run on a schedule. Do not add to this table until the relevant promo
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts`                | Public browse-to-detail navigation.                                  |
 | `apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts`                   | Current public, secretary, exhibitor, and judge route smoke.         |
+| `apps/myk9show/src/test/e2e/dogPanelAccessibleNames.spec.ts`                | Add/Edit dog control accessible names, three viewports (MYK9-88).    |
 | `apps/myk9show/src/test/e2e/authentication-validation.spec.ts`              | Broader authentication validation in the scheduled regression suite. |
 | `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts`                   | Route-health sweep: 6 role groups, console/network/overflow.         |
 | `apps/myk9show/src/test/e2e/secretary/classCreation.spec.ts`                | Narrow class-creation route/template smoke.                          |

@@ -76,6 +76,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           <button
             type="button"
             onClick={onPhotoOpen}
+            aria-label={formData.imageUrl ? 'Change dog photo' : 'Add dog photo'}
             className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all duration-300 hover:scale-105 active:scale-95"
           >
             <Avatar className="w-24 h-24 border-2 border-border/30 group-hover:border-primary/50 transition-all duration-500 shadow-lg group-hover:shadow-xl group-hover:shadow-primary/10">
@@ -142,7 +143,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   field touched and flash "Please select a sex" before the
                   novice had a chance to pick. onValueChange marks it touched on
                   an actual selection; submit marks everything touched. */}
-              <SelectTrigger {...form.getFieldProps('gender')}>
+              <SelectTrigger id="gender" {...form.getFieldProps('gender')}>
                 <SelectValue placeholder="Choose sex" />
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl">
@@ -202,7 +203,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             >
               {/* 4.E: same as gender — no onBlur→touchField; opening the list
                   must not flag "Please select an owner" pre-selection. */}
-              <SelectTrigger {...form.getFieldProps('ownerId')}>
+              <SelectTrigger id="owner" {...form.getFieldProps('ownerId')}>
                 {isPeopleLoading ? (
                   <span className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />

@@ -13,7 +13,13 @@
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
+import * as Sentry from 'npm:@sentry/deno@10.62.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
+import {
+  runWithBestEffortCronCheckIn,
+  type CronCheckInClient,
+} from '../_shared/sentryCronCheckIn.ts';
+import { alertAdmin } from '../_shared/alertAdmin.ts';
 import {
   expireWaitlistOffer,
   type ExpiredWaitlistOffer,
@@ -41,6 +47,32 @@ const stripe = stripeSecret
     })
   : null;
 const waitlistStripe = stripe as WaitlistExpirationStripe | null;
+
+function createSentryCronClient(): CronCheckInClient | null {
+  const dsn = Deno.env.get('SENTRY_DSN');
+  if (!dsn) return null;
+
+  try {
+    Sentry.init({
+      dsn,
+      environment: Deno.env.get('SENTRY_ENVIRONMENT') || undefined,
+      defaultIntegrations: false,
+      sendDefaultPii: false,
+    });
+    return {
+      captureCheckIn: checkIn => Sentry.captureCheckIn(checkIn),
+      flush: timeoutMs => Sentry.flush(timeoutMs),
+    };
+  } catch (error) {
+    console.warn(
+      'Sentry Cron initialization failed:',
+      error instanceof Error ? error.message : String(error)
+    );
+    return null;
+  }
+}
+
+const sentryCronClient = createSentryCronClient();
 
 // CORS configuration - restrict to known app domains
 const ALLOWED_ORIGINS = [
@@ -121,128 +153,138 @@ Deno.serve(async req => {
 
   console.log(`[${new Date().toISOString()}] Running waitlist expiration cron`);
 
-  try {
-    const results = {
-      expiredOffers: 0,
-      newOffers: 0,
-      skippedPaidOffers: 0,
-      skippedMailInOffers: 0,
-      remindersSent: 0,
-      expiryNoticesSent: 0,
-      retriedNotifications: 0,
-      errors: [] as string[],
-      notificationErrors: [] as string[],
-    };
-    const classesExpiredThisRun = new Set<string>();
-    const queuedExpiryNotices: QueuedWaitlistEvent[] = [];
+  return await runWithBestEffortCronCheckIn(sentryCronClient, 'waitlist-expiration', async () => {
+    try {
+      const results = {
+        expiredOffers: 0,
+        newOffers: 0,
+        skippedPaidOffers: 0,
+        skippedMailInOffers: 0,
+        remindersSent: 0,
+        expiryNoticesSent: 0,
+        retriedNotifications: 0,
+        errors: [] as string[],
+        notificationErrors: [] as string[],
+      };
+      const classesExpiredThisRun = new Set<string>();
+      const queuedExpiryNotices: QueuedWaitlistEvent[] = [];
 
-    // Step 1: Find and expire offers past their deadline
-    const { data: expiredOffers, error: expiredError } = await supabase
-      .from('waitlist_entries')
-      .select('id, class_id, exhibitor_id, promoted_entry_id, joined_via')
-      .eq('status', 'offered')
-      .lt('offer_expires_at', new Date().toISOString());
+      // Step 1: Find and expire offers past their deadline
+      const { data: expiredOffers, error: expiredError } = await supabase
+        .from('waitlist_entries')
+        .select('id, class_id, exhibitor_id, promoted_entry_id, joined_via')
+        .eq('status', 'offered')
+        .lt('offer_expires_at', new Date().toISOString());
 
-    if (expiredError) {
-      console.error('Error fetching expired offers:', expiredError);
-      results.errors.push(`Fetch expired: ${expiredError.message}`);
-    }
-
-    // Process each expired offer
-    for (const offer of expiredOffers || []) {
-      try {
-        if (offer.joined_via === 'mail_in') {
-          results.skippedMailInOffers++;
-          continue;
-        }
-
-        const expired = await expireWaitlistOffer({
-          supabase: supabase as WaitlistExpirationSupabase,
-          stripe: waitlistStripe,
-          offer: offer as ExpiredWaitlistOffer,
-          nowIso: new Date().toISOString(),
-        });
-        if (expired === 'paid') {
-          console.log(`Offer ${offer.id} has a completed payment; leaving it for reconciliation`);
-          results.skippedPaidOffers++;
-          continue;
-        }
-        if (expired === 'error') {
-          results.errors.push(`Expire ${offer.id}: failed`);
-          continue;
-        }
-
-        results.expiredOffers++;
-        classesExpiredThisRun.add(offer.class_id);
-        const notice = await enqueueWaitlistEvent({
-          supabase,
-          waitlistEntryId: offer.id,
-          eventType: 'expired',
-        });
-        if (notice) queuedExpiryNotices.push(notice);
-        else results.errors.push(`Expiry notice ${offer.id}: enqueue failed`);
-        console.log(`Expired offer ${offer.id} for class ${offer.class_id}`);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        results.errors.push(`Process ${offer.id}: ${errorMessage}`);
+      if (expiredError) {
+        console.error('Error fetching expired offers:', expiredError);
+        results.errors.push(`Fetch expired: ${expiredError.message}`);
       }
-    }
 
-    // Also check for any classes with available spots but no current offers
-    // This handles cases where spots opened up (cancellations) but no one was auto-offered
-    await processClassesWithOpenSpots(results, classesExpiredThisRun);
+      // Process each expired offer
+      for (const offer of expiredOffers || []) {
+        try {
+          if (offer.joined_via === 'mail_in') {
+            results.skippedMailInOffers++;
+            continue;
+          }
 
-    // Delivery is intentionally after expiry/cascade state work. Provider latency must never
-    // prevent an overdue offer from expiring or the next exhibitor from being promoted.
-    const expiryDelivery = await dispatchQueuedWaitlistEvents({
-      events: queuedExpiryNotices,
-      supabaseUrl,
-      pushWebhookSecret,
-    });
-    results.expiryNoticesSent = expiryDelivery.dispatched;
-    results.notificationErrors.push(...expiryDelivery.errors);
+          const expired = await expireWaitlistOffer({
+            supabase: supabase as WaitlistExpirationSupabase,
+            stripe: waitlistStripe,
+            offer: offer as ExpiredWaitlistOffer,
+            nowIso: new Date().toISOString(),
+          });
+          if (expired === 'paid') {
+            console.log(`Offer ${offer.id} has a completed payment; leaving it for reconciliation`);
+            results.skippedPaidOffers++;
+            continue;
+          }
+          if (expired === 'error') {
+            results.errors.push(`Expire ${offer.id}: failed`);
+            continue;
+          }
 
-    const reminderResult = await processHalfwayReminders({
-      supabase,
-      supabaseUrl,
-      pushWebhookSecret,
-      now: new Date(),
-    });
-    results.remindersSent = reminderResult.sent;
-    results.skippedMailInOffers += reminderResult.skippedMailIn;
-    results.notificationErrors.push(...reminderResult.errors);
+          results.expiredOffers++;
+          classesExpiredThisRun.add(offer.class_id);
+          const notice = await enqueueWaitlistEvent({
+            supabase,
+            waitlistEntryId: offer.id,
+            eventType: 'expired',
+          });
+          if (notice) queuedExpiryNotices.push(notice);
+          else results.errors.push(`Expiry notice ${offer.id}: enqueue failed`);
+          console.log(`Expired offer ${offer.id} for class ${offer.class_id}`);
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          results.errors.push(`Process ${offer.id}: ${errorMessage}`);
+        }
+      }
 
-    const retryResult = await retryWaitlistNotificationEvents({
-      supabase,
-      supabaseUrl,
-      pushWebhookSecret,
-    });
-    results.retriedNotifications = retryResult.dispatched;
-    results.notificationErrors.push(...retryResult.errors);
+      // Also check for any classes with available spots but no current offers
+      // This handles cases where spots opened up (cancellations) but no one was auto-offered
+      await processClassesWithOpenSpots(results, classesExpiredThisRun);
 
-    console.log(
-      `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`
-    );
+      // Delivery is intentionally after expiry/cascade state work. Provider latency must never
+      // prevent an overdue offer from expiring or the next exhibitor from being promoted.
+      const expiryDelivery = await dispatchQueuedWaitlistEvents({
+        events: queuedExpiryNotices,
+        supabaseUrl,
+        pushWebhookSecret,
+      });
+      results.expiryNoticesSent = expiryDelivery.dispatched;
+      results.notificationErrors.push(...expiryDelivery.errors);
 
-    return new Response(
-      JSON.stringify({
-        success: results.errors.length === 0,
-        timestamp: new Date().toISOString(),
-        results,
-      }),
-      {
-        status: results.errors.length === 0 ? 200 : 500,
+      const reminderResult = await processHalfwayReminders({
+        supabase,
+        supabaseUrl,
+        pushWebhookSecret,
+        now: new Date(),
+      });
+      results.remindersSent = reminderResult.sent;
+      results.skippedMailInOffers += reminderResult.skippedMailIn;
+      results.notificationErrors.push(...reminderResult.errors);
+
+      const retryResult = await retryWaitlistNotificationEvents({
+        supabase,
+        supabaseUrl,
+        pushWebhookSecret,
+      });
+      results.retriedNotifications = retryResult.dispatched;
+      results.notificationErrors.push(...retryResult.errors);
+
+      if (results.errors.length > 0) {
+        await alertAdmin(
+          'Waitlist expiration cron failed',
+          `<p>The waitlist expiration cron encountered ${results.errors.length} error(s).</p><pre>${results.errors.join('\n')}</pre>`,
+          { source: 'cron-waitlist-expiration', dedupeKey: 'waitlist-expiration-cron-failure' }
+        );
+      }
+
+      console.log(
+        `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: results.errors.length === 0,
+          timestamp: new Date().toISOString(),
+          results,
+        }),
+        {
+          status: results.errors.length === 0 ? 200 : 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    } catch (error) {
+      console.error('Cron job error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
-  } catch (error) {
-    console.error('Cron job error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+      });
+    }
+  });
 });
 
 /**

@@ -214,6 +214,7 @@ These specs run on a schedule. Do not add to this table until the relevant promo
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts`      | Strict secretary regression proof.                                   |
 | `apps/myk9show/src/test/e2e/myEntriesZoomReflow.spec.ts`                    | Exhibitor My Shows zoom/reflow guard.                                |
 | `apps/myk9show/src/test/e2e/offline-cold-boot.spec.ts`                      | Offline cold-boot role hydration (MYK9-200 / MYK9-203).              |
+| `apps/myk9show/src/test/e2e/registration/dogPickerSearch.spec.ts`           | Exhibitor registration dog search and selection persistence.          |
 
 ## Nightly Candidates / Repair Queue
 

@@ -214,7 +214,6 @@ These specs run on a schedule. Do not add to this table until the relevant promo
 | `apps/myk9show/src/test/e2e/uat/secretary/qa-regression-proof.spec.ts`      | Strict secretary regression proof.                                   |
 | `apps/myk9show/src/test/e2e/myEntriesZoomReflow.spec.ts`                    | Exhibitor My Shows zoom/reflow guard.                                |
 | `apps/myk9show/src/test/e2e/offline-cold-boot.spec.ts`                      | Offline cold-boot role hydration (MYK9-200 / MYK9-203).              |
-| `apps/myk9show/src/test/e2e/registration/dogPickerSearch.spec.ts`           | Exhibitor registration dog search and selection persistence.          |
 
 ## Nightly Candidates / Repair Queue
 
@@ -273,6 +272,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/judge/judgeJourney.spec.ts`                     | Judge assignments, stats, check-in, and results dashboard audit.                                        |
 | `apps/myk9show/src/test/e2e/entities/registrationUI.spec.ts`                | Registration wizard UI.                                                                                 |
 | `apps/myk9show/src/test/e2e/registration/wizardVisualQA.spec.ts`            | Registration wizard visual and responsive baselines.                                                    |
+| `apps/myk9show/src/test/e2e/registration/dogPickerSearch.spec.ts`           | Exhibitor registration dog search and selection persistence.                                             |
 | `apps/myk9show/src/test/e2e/entities/reportsUI.spec.ts`                     | Reports UI.                                                                                             |
 | `apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts`      | Secretary entry creation.                                                                               |
 | `apps/myk9show/src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts`      | Secretary show workbench.                                                                               |

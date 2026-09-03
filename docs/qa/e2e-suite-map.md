@@ -273,6 +273,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/judge/judgeJourney.spec.ts`                     | Judge assignments, stats, check-in, and results dashboard audit.                                        |
 | `apps/myk9show/src/test/e2e/entities/registrationUI.spec.ts`                | Registration wizard UI.                                                                                 |
 | `apps/myk9show/src/test/e2e/registration/wizardVisualQA.spec.ts`            | Registration wizard visual and responsive baselines.                                                    |
+| `apps/myk9show/src/test/e2e/registration/dogPickerSearch.spec.ts`           | Exhibitor registration dog search and selection persistence.                                             |
 | `apps/myk9show/src/test/e2e/entities/reportsUI.spec.ts`                     | Reports UI.                                                                                             |
 | `apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts`      | Secretary entry creation.                                                                               |
 | `apps/myk9show/src/test/e2e/entities/secretaryShowWorkbenchUI.spec.ts`      | Secretary show workbench.                                                                               |

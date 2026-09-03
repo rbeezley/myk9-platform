@@ -31,6 +31,70 @@ beforeEach(() => {
 });
 
 describe('DogSelectionStep', () => {
+  it.each([3, 252])('finds the last of %i dogs and preserves hidden selections', async count => {
+    const dogs = Array.from({ length: count }, (_, index) =>
+      mockDog({
+        id: `dog-${index + 1}`,
+        callName: index === count - 1 ? 'Willow' : `Buddy ${index + 1}`,
+      })
+    );
+    vi.mocked(useDogStoreCompat).mockReturnValue(fromPartial({ dogs, isLoading: false }));
+    const onSelectionChange = vi.fn();
+    const { user, rerender } = render(
+      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /search dogs by call name/i }),
+      '  wILLo  '
+    );
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+    const willow = screen.getByRole('checkbox', { name: 'Select Willow' });
+    willow.focus();
+    await user.keyboard('[Space]');
+    expect(onSelectionChange).toHaveBeenCalledWith(['dog-1', `dog-${count}`]);
+    rerender(
+      <DogSelectionStep
+        selectedDogs={['dog-1', `dog-${count}`]}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(screen.getAllByRole('checkbox')).toHaveLength(count);
+    expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
+  });
+
+  it('distinguishes no matches from no dogs and retains restored selections', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+    );
+    await user.type(screen.getByRole('textbox', { name: /search dogs by call name/i }), 'missing');
+    expect(screen.getByRole('status')).toHaveTextContent('No dogs match your search');
+    expect(screen.queryByText('No eligible dogs found.')).not.toBeInTheDocument();
+    expect(screen.getByText('1 dog selected')).toBeInTheDocument();
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(screen.getByRole('checkbox', { name: 'Select Max' })).toBeChecked();
+  });
+
+  it('shows a retryable load failure rather than an empty list', async () => {
+    const refetch = vi.fn();
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [], isLoading: false, error: 'Request failed', refetch })
+    );
+    const { user } = render(
+      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={vi.fn()} />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't load your dogs");
+    expect(screen.queryByText('No eligible dogs found.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
   it('uses the page scroll on phones and constrains only medium viewports and wider', () => {
     vi.mocked(useDogStoreCompat).mockReturnValue({
       dogs: [mockDog()],

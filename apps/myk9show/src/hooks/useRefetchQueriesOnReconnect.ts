@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { onlineManager } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 
 /**
@@ -41,14 +41,31 @@ import { logger } from '@/services/LoggingService';
  * reconnect — that is precisely the cold-boot case above, and it is the one a
  * naive "listen for events only" version would miss.
  *
- * `invalidateQueries()` with no filter marks everything stale and refetches the
- * ACTIVE ones (TanStack's default `refetchType: 'active'`), so mounted screens
- * recover and background cache entries simply refetch when next used. Repeated
- * flapping costs one round per drop, and TanStack dedupes concurrent identical
- * fetches, so overlapping rounds collapse rather than stacking.
+ * ## How it triggers the refetch
+ *
+ * By replaying the transition into `onlineManager` itself, rather than calling
+ * `invalidateQueries()`. That matters for correctness, not elegance:
+ * `refetchOnReconnect` governs TanStack's own reconnect trigger and has NO
+ * effect on an explicit invalidation, so an unfiltered `invalidateQueries()`
+ * silently overrides queries that opted out. Ringside's entry list is one —
+ * `useEntryListData` sets `refetchOnReconnect: false` and routes invalidation
+ * through a replication subscription that deliberately skips refreshes DURING A
+ * DRAG, so refetching it here would snap a judge's half-finished run-order drag
+ * back to the server's order the moment signal returned, mid-show.
+ *
+ * Filtering with `predicate: q => q.options.refetchOnReconnect !== false` also
+ * works — that option does resolve correctly per query. Replaying the transition
+ * is preferred because it delegates the whole policy to TanStack rather than
+ * restating it: each observer applies its own `refetchOnReconnect`, including
+ * the `'always'` vs `true`-and-stale distinction this app's default relies on,
+ * and any future option in that family is honoured without changing this hook.
+ *
+ * The toggle is momentary and synchronous, so no query is ever left sitting in
+ * the paused state that `networkMode: 'online'` produces while offline. That is
+ * the state MYK9-372 showed this app mishandles, and avoiding it is the whole
+ * reason this is not a persistent `onlineManager` sync.
  */
 export function useRefetchQueriesOnReconnect(): void {
-  const queryClient = useQueryClient();
   // Seeded from the CURRENT state, not from `false`: mounting while online must
   // not look like a recovery, and mounting while offline must arm one.
   const wasOffline = useRef(typeof navigator !== 'undefined' && !navigator.onLine);
@@ -61,8 +78,11 @@ export function useRefetchQueriesOnReconnect(): void {
     const handleOnline = () => {
       if (!wasOffline.current) return;
       wasOffline.current = false;
-      logger.info('Back online - refetching active queries', 'query');
-      void queryClient.invalidateQueries();
+      logger.info('Back online - replaying reconnect for react-query', 'query');
+      // Momentary: TanStack only notifies on a CHANGE, so it has to see the
+      // drop before it can see the recovery. Both calls land in the same tick.
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
     };
 
     window.addEventListener('online', handleOnline);
@@ -72,5 +92,5 @@ export function useRefetchQueriesOnReconnect(): void {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [queryClient]);
+  }, []);
 }

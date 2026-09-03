@@ -118,6 +118,10 @@ The unused Supabase client health, current-user, and batch-operation helpers
 were removed with the test-only connection diagnostic module and stale global
 mocks; auth/session and query logging helpers remain available.
 
+The unreferenced query-client helpers `optimisticUpdates`, `handleQueryError`,
+and `withPerformanceTracking` were removed; the live query client, key map, and
+invalidation helpers remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

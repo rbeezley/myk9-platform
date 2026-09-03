@@ -106,6 +106,39 @@ describe('UpcomingShowsSection', () => {
   });
 
   describe('platform entries (the MYK9-121 false empty state)', () => {
+    it.each(
+      ['2099-01-09', '2099-01-01', '2099-03-01'].flatMap(date => [
+        date,
+        `${date}T00:00:00Z`,
+        `${date}T00:00:00+00:00`,
+      ])
+    )('preserves the show calendar date on Career and Overview for %s (MYK9-366)', date => {
+      useEntriesByDogQueryMock.mockReturnValue(
+        resolved([entryRow({ show: { id: 'show-1', name: 'Calendar Trial', start_date: date } })])
+      );
+      const career = render(<UpcomingShowsSection {...defaultProps} />);
+      const card = screen.getByTestId('section-card');
+      const dateText = card.querySelectorAll('.text-muted-foreground')[0].textContent ?? '';
+      const displayed = new Date(dateText);
+      const [year, month, day] = date.slice(0, 10).split('-').map(Number);
+      expect([displayed.getFullYear(), displayed.getMonth() + 1, displayed.getDate()]).toEqual([
+        year,
+        month,
+        day,
+      ]);
+      career.unmount();
+
+      render(<ActivityTab dogId={DOG_ID} dogName="Willow" role="exhibitor" />);
+      expect(
+        screen.getByText(
+          new Date(year, month - 1, day).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          })
+        )
+      ).toBeInTheDocument();
+    });
+
     it('lists the dog’s upcoming platform entries instead of a false empty state', () => {
       useEntriesByDogQueryMock.mockReturnValue(resolved([entryRow()]));
 

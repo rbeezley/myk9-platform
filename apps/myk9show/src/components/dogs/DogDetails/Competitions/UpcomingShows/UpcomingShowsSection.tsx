@@ -10,6 +10,7 @@ import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 import ShowSourceBadge from '../ShowSourceBadge';
 import { Competition } from '@/types/competition-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { formatEntryDate } from '@/lib/format/dates';
 import { useCompetitionStore } from '@/store/competitionStore';
 import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
@@ -232,7 +233,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({
                   </div>
                   <div className="text-sm mb-1">{entry.class?.name ?? 'Unknown class'}</div>
                   <div className="text-xs text-muted-foreground">
-                    {entry.show?.start_date ? formatDateMMDDYYYY(entry.show.start_date) : ''}
+                    {formatEntryDate(entry.show?.start_date)}
                   </div>
                   <div className="text-xs text-muted-foreground font-semibold">{statusLine}</div>
                 </div>

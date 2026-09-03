@@ -446,54 +446,6 @@ export const updateRegistrationPayment = async (
 };
 
 /**
- * Get the confirmation number for entries via their registration_id.
- * Returns a map of registration_id → confirmation_number.
- */
-export const getConfirmationNumbersForEntries = async (
-  registrationIds: string[]
-): Promise<{
-  data: Map<string, string>;
-  error: ReturnType<typeof createDatabaseError> | null;
-}> => {
-  const startTime = Date.now();
-  const uniqueIds = [...new Set(registrationIds.filter(Boolean))];
-
-  if (uniqueIds.length === 0) {
-    return { data: new Map(), error: null };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select('id, confirmation_number')
-      .in('id', uniqueIds);
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_confirmation_numbers', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'enrollments', 'select_confirmation_numbers');
-    }
-
-    const map = new Map<string, string>();
-    for (const row of data ?? []) {
-      map.set(row.id, row.confirmation_number);
-    }
-
-    return { data: map, error: null };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_confirmation_numbers', duration, String(err));
-    const dbError = createDatabaseError(
-      err instanceof Error ? err : new Error(String(err)),
-      'enrollments',
-      'select_confirmation_numbers'
-    );
-    return { data: new Map(), error: dbError };
-  }
-};
-
-/**
  * Update the payment status (and optionally payment_reference) for an enrollment.
  * Used by secretaries to record cash/check payments received on show day.
  */

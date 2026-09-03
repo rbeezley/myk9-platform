@@ -10,6 +10,5 @@ export {
   getRegistrationByShowAndHandler,
   getRegistrationsForShow,
   updateRegistrationPayment,
-  getConfirmationNumbersForEntries,
   updateEnrollmentPaymentStatus,
 } from './reads';

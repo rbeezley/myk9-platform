@@ -61,6 +61,10 @@ late-entry dog creation path and its workbench test remain.
 after confirming it had no production caller; registration creation and
 show/handler lookup remain live.
 
+`getConfirmationNumbersForEntries` was removed with its dedicated tests after
+the same no-production-caller check; live confirmation data is still returned
+by the registration/show query paths.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

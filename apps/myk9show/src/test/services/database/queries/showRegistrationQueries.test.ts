@@ -4,7 +4,6 @@ import {
   getRegistrationByShowAndHandler,
   getRegistrationsForShow,
   updateRegistrationPayment,
-  getConfirmationNumbersForEntries,
 } from '@/services/database/show-registrations';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
@@ -188,68 +187,4 @@ describe('show-registrations', () => {
     });
   });
 
-  describe('getConfirmationNumbersForEntries', () => {
-    it('returns map of registration IDs to confirmation numbers', async () => {
-      const mockRows = [
-        { id: 'reg-001', confirmation_number: 'MK9-000001' },
-        { id: 'reg-002', confirmation_number: 'MK9-000002' },
-      ];
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockRows, error: null }));
-
-      const result = await getConfirmationNumbersForEntries(['reg-001', 'reg-002']);
-
-      expect(result.error).toBeNull();
-      expect(result.data.get('reg-001')).toBe('MK9-000001');
-      expect(result.data.get('reg-002')).toBe('MK9-000002');
-    });
-
-    it('returns empty map for empty input', async () => {
-      const result = await getConfirmationNumbersForEntries([]);
-
-      expect(result.error).toBeNull();
-      expect(result.data.size).toBe(0);
-    });
-
-    it('deduplicates registration IDs', async () => {
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({
-          data: [{ id: 'reg-001', confirmation_number: 'MK9-000001' }],
-          error: null,
-        })
-      );
-
-      const result = await getConfirmationNumbersForEntries(['reg-001', 'reg-001', 'reg-001']);
-
-      expect(result.error).toBeNull();
-      expect(result.data.size).toBe(1);
-    });
-
-    it('filters out falsy registration IDs', async () => {
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({
-          data: [{ id: 'reg-001', confirmation_number: 'MK9-000001' }],
-          error: null,
-        })
-      );
-
-      const result = await getConfirmationNumbersForEntries(['', 'reg-001', '']);
-
-      expect(result.error).toBeNull();
-      expect(result.data.size).toBe(1);
-    });
-
-    it('returns empty map with error on failure', async () => {
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({
-          data: null,
-          error: { message: 'server error', code: '500' },
-        })
-      );
-
-      const result = await getConfirmationNumbersForEntries(['reg-001']);
-
-      expect(result.data.size).toBe(0);
-      expect(result.error).toBeDefined();
-    });
-  });
 });

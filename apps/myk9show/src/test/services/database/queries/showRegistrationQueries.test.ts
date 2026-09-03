@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   createShowRegistration,
   getRegistrationByShowAndHandler,
-  getRegistrationsForShow,
   updateRegistrationPayment,
 } from '@/services/database/show-registrations';
 import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
@@ -117,46 +116,6 @@ describe('show-registrations', () => {
       const result = await getRegistrationByShowAndHandler('show-abc', 'handler-xyz');
 
       expect(result.data).toBeNull();
-      expect(result.error).toBeDefined();
-    });
-  });
-
-  describe('getRegistrationsForShow', () => {
-    it('returns all registrations for a show', async () => {
-      const mockRows = [
-        { ...MOCK_DB_ROW, id: 'reg-001' },
-        { ...MOCK_DB_ROW, id: 'reg-002', confirmation_number: 'MK9-000043' },
-      ];
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockRows, error: null }));
-
-      const result = await getRegistrationsForShow('show-abc');
-
-      expect(result.error).toBeNull();
-      expect(result.data).toHaveLength(2);
-      expect(result.data[0].id).toBe('reg-001');
-      expect(result.data[1].confirmationNumber).toBe('MK9-000043');
-    });
-
-    it('returns empty array when show has no registrations', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
-
-      const result = await getRegistrationsForShow('show-empty');
-
-      expect(result.error).toBeNull();
-      expect(result.data).toEqual([]);
-    });
-
-    it('returns empty array with error on failure', async () => {
-      mockSupabase.from.mockReturnValue(
-        createChainableQuery({
-          data: null,
-          error: { message: 'forbidden', code: '403' },
-        })
-      );
-
-      const result = await getRegistrationsForShow('show-abc');
-
-      expect(result.data).toEqual([]);
       expect(result.error).toBeDefined();
     });
   });

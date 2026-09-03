@@ -8,7 +8,6 @@
 export {
   createShowRegistration,
   getRegistrationByShowAndHandler,
-  getRegistrationsForShow,
   updateRegistrationPayment,
   updateEnrollmentPaymentStatus,
 } from './reads';

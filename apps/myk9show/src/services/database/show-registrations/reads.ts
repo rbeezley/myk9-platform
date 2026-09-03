@@ -3,7 +3,7 @@
  * One enrollment per person per show with auto-generated MK9-XXXXXX confirmation numbers.
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import { mapDbToRegistration, mapDbToRegistrationArray } from '../../mappers/registrationMappers';
+import { mapDbToRegistration } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
 import {
   PaymentStatus,
@@ -357,47 +357,6 @@ export const getRegistrationByShowAndHandler = async (
       'select_by_show_handler'
     );
     return { data: null, error: dbError };
-  }
-};
-
-/**
- * Get all registrations for a show (secretary view).
- */
-export const getRegistrationsForShow = async (
-  showId: string
-): Promise<{
-  data: Registration[];
-  error: ReturnType<typeof createDatabaseError> | null;
-}> => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select('*')
-      .eq('show_id', showId)
-      .order('created_at', { ascending: false });
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_show', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'enrollments', 'select_by_show');
-    }
-
-    return {
-      data: mapDbToRegistrationArray((data ?? []) as DbRegistration[]),
-      error: null,
-    };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_show', duration, String(err));
-    const dbError = createDatabaseError(
-      err instanceof Error ? err : new Error(String(err)),
-      'enrollments',
-      'select_by_show'
-    );
-    return { data: [], error: dbError };
   }
 };
 

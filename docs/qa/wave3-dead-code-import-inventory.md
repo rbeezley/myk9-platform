@@ -65,6 +65,9 @@ show/handler lookup remain live.
 the same no-production-caller check; live confirmation data is still returned
 by the registration/show query paths.
 
+`getRegistrationsForShow` was removed with its dedicated tests after confirming
+no production caller; the live show/handler registration lookup remains.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

@@ -8,7 +8,6 @@
 export {
   createShowRegistration,
   getRegistrationByShowAndHandler,
-  getRegistrationByConfirmationNumber,
   getRegistrationsForShow,
   updateRegistrationPayment,
   getConfirmationNumbersForEntries,

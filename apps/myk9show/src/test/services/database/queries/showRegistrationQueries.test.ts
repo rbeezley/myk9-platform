@@ -2,7 +2,6 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   createShowRegistration,
   getRegistrationByShowAndHandler,
-  getRegistrationByConfirmationNumber,
   getRegistrationsForShow,
   updateRegistrationPayment,
   getConfirmationNumbersForEntries,
@@ -120,35 +119,6 @@ describe('show-registrations', () => {
 
       expect(result.data).toBeNull();
       expect(result.error).toBeDefined();
-    });
-  });
-
-  describe('getRegistrationByConfirmationNumber', () => {
-    it('returns registration for valid confirmation number', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: MOCK_DB_ROW, error: null }));
-
-      const result = await getRegistrationByConfirmationNumber('MK9-000042');
-
-      expect(result.error).toBeNull();
-      expect(result.data?.id).toBe('reg-001');
-    });
-
-    it('returns null for non-existent confirmation number', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: null }));
-
-      const result = await getRegistrationByConfirmationNumber('MK9-999999');
-
-      expect(result.error).toBeNull();
-      expect(result.data).toBeNull();
-    });
-
-    it('handles case-insensitive lookup (trims input)', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: MOCK_DB_ROW, error: null }));
-
-      const result = await getRegistrationByConfirmationNumber('  mk9-000042  ');
-
-      expect(result.error).toBeNull();
-      expect(result.data).not.toBeNull();
     });
   });
 

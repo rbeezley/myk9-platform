@@ -361,48 +361,6 @@ export const getRegistrationByShowAndHandler = async (
 };
 
 /**
- * Look up a registration by its confirmation number (e.g. MK9-000142).
- * Case-insensitive matching.
- */
-export const getRegistrationByConfirmationNumber = async (
-  confirmationNumber: string
-): Promise<{
-  data: Registration | null;
-  error: ReturnType<typeof createDatabaseError> | null;
-}> => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select('*')
-      .ilike('confirmation_number', confirmationNumber.trim())
-      .maybeSingle();
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_confirmation', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'enrollments', 'select_by_confirmation');
-    }
-
-    return {
-      data: data ? mapDbToRegistration(data as DbRegistration) : null,
-      error: null,
-    };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_confirmation', duration, String(err));
-    const dbError = createDatabaseError(
-      err instanceof Error ? err : new Error(String(err)),
-      'enrollments',
-      'select_by_confirmation'
-    );
-    return { data: null, error: dbError };
-  }
-};
-
-/**
  * Get all registrations for a show (secretary view).
  */
 export const getRegistrationsForShow = async (

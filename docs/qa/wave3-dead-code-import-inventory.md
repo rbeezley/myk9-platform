@@ -57,6 +57,10 @@ Additional database exports removed after the same verification were
 `getShowDogs` lookup was also definition/barrel-only and was removed; the live
 late-entry dog creation path and its workbench test remain.
 
+`getRegistrationByConfirmationNumber` was removed with its dedicated tests
+after confirming it had no production caller; registration creation and
+show/handler lookup remain live.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

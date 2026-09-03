@@ -126,6 +126,10 @@ The inert performance helpers `setupQueryPerformanceMonitoring`,
 `smartCacheInvalidation`, and `preloadNavigationTargets` were removed from the
 live utility module; its mounted `prefetchCriticalData` path remains.
 
+The unreferenced `getManagedShows` and `getJudgingShows` selectors were removed
+from show-management tracking; relationship synchronization and performance
+monitoring remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

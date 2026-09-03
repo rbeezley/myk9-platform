@@ -11,6 +11,7 @@ export type {
 } from './types';
 
 export { getClassesWithCapacity, createDayOfEntry, searchDogs } from './entries';
+export { createDayOfEntryDog } from './late-entry-dog';
 
 export {
   getMoveUpEligibleEntries,

@@ -78,6 +78,39 @@ async function reportOffline(context: BrowserContext): Promise<void> {
   });
 }
 
+/**
+ * Like `goOffline`, but the backend can be switched back on mid-test.
+ *
+ * Returns `[interceptedCount, restore]`. `restore` stops aborting AND tells the
+ * page it is online again — both halves matter: the app reads `navigator.onLine`
+ * for its own banners, and the browser only fires `online` on a transition.
+ */
+async function goOfflineRestorable(
+  context: BrowserContext,
+  page: Page
+): Promise<[() => number, () => Promise<void>]> {
+  let intercepted = 0;
+  let blocking = true;
+  await context.route(supabaseRouteGlob(), route => {
+    if (!blocking) return route.continue();
+    intercepted += 1;
+    return route.abort('internetdisconnected');
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(window.navigator, 'onLine', { get: () => false, configurable: true });
+  });
+
+  const restore = async () => {
+    blocking = false;
+    await page.evaluate(() => {
+      Object.defineProperty(window.navigator, 'onLine', { get: () => true, configurable: true });
+      window.dispatchEvent(new Event('online'));
+    });
+  };
+
+  return [() => intercepted, restore];
+}
+
 /** True when the page is showing the "no permission" fallback. */
 async function showsPermissionDenied(page: Page) {
   return page.getByText(/don't have permission to access this page/i).isVisible();
@@ -285,5 +318,68 @@ test.describe('offline cold boot', () => {
 
     await expect(page.evaluate(() => navigator.onLine)).resolves.toBe(false);
     expect(interceptedCount()).toBeGreaterThan(0);
+  });
+  // MYK9-365. The recovery half. `lib/queryClient.ts` sets
+  // `refetchOnReconnect: 'always'`, and that option is dead: TanStack drives it
+  // from `onlineManager`, which starts `#online = true` and only changes on a
+  // window online/offline EVENT. A page that BOOTS offline never gets one, so
+  // when signal returns `setOnline(true)` finds `true` already there, no
+  // listener runs, and the reconnect is swallowed.
+  //
+  // Recovery was not absent before the fix — it was LATE. Measured with the
+  // refetch hook removed, `<main>` sat at 254 characters through t+55s and
+  // returned to full at t+60s: the ReplicationSyncProvider's periodic re-sync,
+  // which invalidates queries as a side effect. With the hook it is back inside
+  // 20s. So an exhibitor walking back into coverage faced up to a minute of a
+  // page that still said "we are still confirming your account".
+  //
+  // THE 30s BOUND IS THE WHOLE TEST. It sits strictly between the two paths —
+  // above the hook's refetch, below the 60s replication fallback — so removing
+  // the hook fails this test instead of quietly passing on the slow path. An
+  // earlier version of this test polled for 60s and passed with the hook
+  // deleted, which is exactly the kind of green that proves nothing. Do not
+  // raise this timeout to "fix" a flake without re-checking that mutation.
+  test('react-query data returns when connectivity comes back, without a reload', async ({
+    page,
+    context,
+  }) => {
+    await signInAsExhibitor(page, '/exhibitor/entries');
+    await page.waitForURL('**/exhibitor/entries', { timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+      timeout: 45_000,
+    });
+    // Let the entry list finish arriving before measuring the healthy baseline.
+    await expect
+      .poll(async () => (await page.locator('main').innerText()).length, { timeout: 45_000 })
+      .toBeGreaterThan(2_000);
+    const healthyLength = (await page.locator('main').innerText()).length;
+
+    const [interceptedCount, restoreConnectivity] = await goOfflineRestorable(context, page);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Degraded, and provably so — without this the recovery assertion below
+    // could pass on a page that never lost anything.
+    await expect(page.getByRole('heading', { name: 'My Shows', level: 1 })).toBeVisible({
+      timeout: 45_000,
+    });
+    // Dwell long enough for every query to SETTLE into its error state before
+    // reopening the route. This is load-bearing: at ~3s the initial queries are
+    // still in flight, so restoring connectivity simply lets them succeed and
+    // the test passes without any refetch happening at all. It did exactly that
+    // until this wait was added — a green that measured nothing.
+    await page.waitForTimeout(12_000);
+    const offlineLength = (await page.locator('main').innerText()).length;
+    expect(offlineLength).toBeLessThan(healthyLength / 2);
+    expect(interceptedCount()).toBeGreaterThan(0);
+
+    // Signal returns. NO reload — that is the whole point.
+    await restoreConnectivity();
+
+    await expect
+      .poll(async () => (await page.locator('main').innerText()).length, { timeout: 30_000 })
+      .toBeGreaterThan(healthyLength / 2);
+
+    // Still the same document: a reload here would invalidate the test.
+    await expect(page).toHaveURL(/\/exhibitor\/entries/);
   });
 });

@@ -138,7 +138,8 @@ export const useUserStore = create<UserStore>()(
 
           const newPersonId = (dbUser as Record<string, unknown>).id as string;
 
-          // Assign roles via user_roles table (best-effort — person record is the critical entity)
+          // Assign roles via user_roles table. If this fails, roll back the
+          // person so callers are not told creation succeeded without access.
           if (userData.roles && userData.roles.length > 0) {
             try {
               const { rbacService } = await import('@/services/rbac');
@@ -148,11 +149,9 @@ export const useUserStore = create<UserStore>()(
                 )
               );
             } catch (roleError) {
-              logger.warn('Failed to assign roles during user creation:', 'store', {
-                personId: newPersonId,
-                roles: userData.roles,
-                error: roleError,
-              });
+              const { deleteUser } = await import('@/services/database/users');
+              await deleteUser(newPersonId);
+              throw roleError;
             }
           }
 

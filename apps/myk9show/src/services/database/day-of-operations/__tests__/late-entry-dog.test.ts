@@ -3,10 +3,7 @@ import { createDog } from '@/services/database/dogs';
 import { createUser, deleteUser, searchUsers } from '@/services/database/users';
 import { createDayOfEntryDog } from '../late-entry-dog';
 
-vi.mock('@/services/database/dogs', () => ({
-  createDog: vi.fn(),
-}));
-
+vi.mock('@/services/database/dogs', () => ({ createDog: vi.fn() }));
 vi.mock('@/services/database/users', () => ({
   createUser: vi.fn(),
   deleteUser: vi.fn(),
@@ -31,23 +28,13 @@ describe('createDayOfEntryDog', () => {
 
   it('creates an exhibitor and dog for a late entry', async () => {
     createUserMock.mockResolvedValue({
-      data: {
-        id: 'person-1',
-        first_name: 'Jamie',
-        last_name: 'Walker',
-      },
+      data: { id: 'person-1', first_name: 'Jamie', last_name: 'Walker' },
       error: null,
     } as Awaited<ReturnType<typeof createUser>>);
     createDogMock.mockResolvedValue({
-      data: {
-        id: 'dog-1',
-        name: 'Rocket Fuel',
-        call_name: 'Rocket',
-        breed: 'Beagle',
-      },
+      data: { id: 'dog-1', name: 'Rocket Fuel', call_name: 'Rocket', breed: 'Beagle' },
       error: null,
     } as Awaited<ReturnType<typeof createDog>>);
-
     const result = await createDayOfEntryDog({
       ownerFirstName: ' Jamie ',
       ownerLastName: ' Walker ',
@@ -57,7 +44,6 @@ describe('createDayOfEntryDog', () => {
       dogCallName: ' Rocket ',
       dogBreed: ' Beagle ',
     });
-
     expect(searchUsersMock).toHaveBeenCalledWith('Walker');
     expect(createUserMock).toHaveBeenCalledWith({
       first_name: 'Jamie',
@@ -79,11 +65,7 @@ describe('createDayOfEntryDog', () => {
         name: 'Rocket Fuel',
         call_name: 'Rocket',
         breed: 'Beagle',
-        owner: {
-          id: 'person-1',
-          first_name: 'Jamie',
-          last_name: 'Walker',
-        },
+        owner: { id: 'person-1', first_name: 'Jamie', last_name: 'Walker' },
       },
       error: null,
     });
@@ -91,31 +73,18 @@ describe('createDayOfEntryDog', () => {
 
   it('reuses an exact existing exhibitor match before creating the dog', async () => {
     searchUsersMock.mockResolvedValue({
-      data: [
-        {
-          id: 'person-existing',
-          first_name: 'Jamie',
-          last_name: 'Walker',
-        },
-      ],
+      data: [{ id: 'person-existing', first_name: 'Jamie', last_name: 'Walker' }],
       error: null,
     } as Awaited<ReturnType<typeof searchUsers>>);
     createDogMock.mockResolvedValue({
-      data: {
-        id: 'dog-1',
-        name: 'Rocket Fuel',
-        call_name: 'Rocket Fuel',
-        breed: 'Mixed Breed',
-      },
+      data: { id: 'dog-1', name: 'Rocket Fuel', call_name: 'Rocket Fuel', breed: 'Mixed Breed' },
       error: null,
     } as Awaited<ReturnType<typeof createDog>>);
-
     const result = await createDayOfEntryDog({
       ownerFirstName: 'Jamie',
       ownerLastName: 'Walker',
       dogName: 'Rocket Fuel',
     });
-
     expect(createUserMock).not.toHaveBeenCalled();
     // MYK9-90 §5.1 — `dogs.call_name` is NOT NULL after 20260727110000. The
     // call name is optional in this input, so it falls back to the dog name;
@@ -133,24 +102,18 @@ describe('createDayOfEntryDog', () => {
 
   it('soft-deletes a newly-created exhibitor when dog creation fails', async () => {
     createUserMock.mockResolvedValue({
-      data: {
-        id: 'person-created',
-        first_name: 'Jamie',
-        last_name: 'Walker',
-      },
+      data: { id: 'person-created', first_name: 'Jamie', last_name: 'Walker' },
       error: null,
     } as Awaited<ReturnType<typeof createUser>>);
     createDogMock.mockResolvedValue({
       data: null,
       error: new Error('Dog insert failed'),
     } as Awaited<ReturnType<typeof createDog>>);
-
     const result = await createDayOfEntryDog({
       ownerFirstName: 'Jamie',
       ownerLastName: 'Walker',
       dogName: 'Rocket Fuel',
     });
-
     expect(deleteUserMock).toHaveBeenCalledWith('person-created');
     expect(result).toEqual({ data: null, error: new Error('Dog insert failed') });
   });
@@ -162,7 +125,6 @@ describe('createDayOfEntryDog', () => {
       ownerEmail: 'not-an-email',
       dogName: 'Rocket',
     });
-
     expect(searchUsersMock).not.toHaveBeenCalled();
     expect(createUserMock).not.toHaveBeenCalled();
     expect(createDogMock).not.toHaveBeenCalled();
@@ -175,7 +137,6 @@ describe('createDayOfEntryDog', () => {
       ownerLastName: 'Walker',
       dogName: 'Rocket',
     });
-
     expect(createUserMock).not.toHaveBeenCalled();
     expect(createDogMock).not.toHaveBeenCalled();
     expect(result.error?.message).toBe('Please enter the exhibitor name and dog name.');

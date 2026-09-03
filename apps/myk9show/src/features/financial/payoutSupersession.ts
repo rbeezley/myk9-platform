@@ -73,23 +73,3 @@ export function selectAuthoritativePayout<T>(
 
   return live ?? latestFailed;
 }
-
-/**
- * Whether a failed row has been superseded: another attempt for the same show
- * either succeeded, is in flight, or failed later. Such a row is history, not
- * an action item, and must not be labelled "Needs attention".
- */
-export function isSupersededFailure<T>(
-  row: T,
-  siblings: readonly T[],
-  read: (row: T) => PayoutOrderingFacts
-): boolean {
-  const facts = read(row);
-  if (facts.status !== 'failed') return false;
-  return siblings.some(other => {
-    if (other === row) return false;
-    const otherFacts = read(other);
-    if (otherFacts.status !== 'failed') return true;
-    return isNewer(otherFacts, facts);
-  });
-}

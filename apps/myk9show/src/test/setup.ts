@@ -33,12 +33,9 @@ import {
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
   default: mockSupabase,
-  checkDatabaseConnection: vi.fn().mockResolvedValue({ connected: true, latency: 1 }),
-  getCurrentUser: vi.fn().mockResolvedValue({ user: null, error: null }),
   signOut: vi.fn().mockResolvedValue({ error: null }),
   logQuery: vi.fn(),
   createDatabaseError,
-  executeBatch: vi.fn().mockResolvedValue([]),
   getConnectionInfo: vi.fn().mockReturnValue({
     url: 'https://test.supabase.co',
     hasValidConfig: true,

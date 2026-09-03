@@ -65,10 +65,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
 
 // Now import the functions under test
 import {
-  getWaitlistByShow,
   getWaitlistByClass,
   getClassesWithWaitlistCounts,
-  getWaitlistPosition,
 } from '@/services/database/waitlists';
 
 // ---------------------------------------------------------------------------
@@ -139,73 +137,6 @@ function makeEntry(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
 describe('waitlistQueries (replication)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  // -----------------------------------------------------------------------
-  // getWaitlistByShow
-  // -----------------------------------------------------------------------
-  describe('getWaitlistByShow', () => {
-    it('returns waitlist entries with dog/class joins, sorted by position', async () => {
-      const trial = makeTrial();
-      const cls = makeClass();
-      const dog1 = makeDog({ id: 'dog-1', name: 'Rex', callName: 'Rexy' });
-      const dog2 = makeDog({ id: 'dog-2', name: 'Bella', callName: 'Bell' });
-
-      mockTrialsTable.getTrialsByShow.mockResolvedValue([trial]);
-      mockClassesTable.getClassesByTrial.mockResolvedValue([cls]);
-      mockWaitlistTable.getByClass.mockResolvedValue([
-        makeWaitlistEntry({ id: 'wl-2', dogId: 'dog-2', position: 2 }),
-        makeWaitlistEntry({ id: 'wl-1', dogId: 'dog-1', position: 1 }),
-      ]);
-      mockDogsTable.getDogById.mockImplementation(async (id: string) => {
-        if (id === 'dog-1') return dog1;
-        if (id === 'dog-2') return dog2;
-        return null;
-      });
-
-      const result = await getWaitlistByShow('show-1');
-
-      expect(result.error).toBeNull();
-      expect(result.data).toHaveLength(2);
-      // Should be sorted by position
-      expect(result.data[0].id).toBe('wl-1');
-      expect(result.data[0].position).toBe(1);
-      expect(result.data[0].dog?.name).toBe('Rex');
-      expect(result.data[0].class?.name).toBe('Novice A');
-      expect(result.data[1].id).toBe('wl-2');
-      expect(result.data[1].position).toBe(2);
-      expect(result.data[1].dog?.name).toBe('Bella');
-    });
-
-    it('returns empty array when no trials exist', async () => {
-      mockTrialsTable.getTrialsByShow.mockResolvedValue([]);
-
-      const result = await getWaitlistByShow('show-1');
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
-
-    it('returns empty array when no classes exist', async () => {
-      mockTrialsTable.getTrialsByShow.mockResolvedValue([makeTrial()]);
-      mockClassesTable.getClassesByTrial.mockResolvedValue([]);
-
-      const result = await getWaitlistByShow('show-1');
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
-
-    it('returns empty array when no waitlist entries exist', async () => {
-      mockTrialsTable.getTrialsByShow.mockResolvedValue([makeTrial()]);
-      mockClassesTable.getClassesByTrial.mockResolvedValue([makeClass()]);
-      mockWaitlistTable.getByClass.mockResolvedValue([]);
-
-      const result = await getWaitlistByShow('show-1');
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
   });
 
   // -----------------------------------------------------------------------
@@ -322,26 +253,4 @@ describe('waitlistQueries (replication)', () => {
     });
   });
 
-  // -----------------------------------------------------------------------
-  // getWaitlistPosition
-  // -----------------------------------------------------------------------
-  describe('getWaitlistPosition', () => {
-    it('returns the position number', async () => {
-      mockWaitlistTable.getById.mockResolvedValue(makeWaitlistEntry({ position: 3 }));
-
-      const result = await getWaitlistPosition('wl-1');
-
-      expect(result.position).toBe(3);
-      expect(result.error).toBeNull();
-    });
-
-    it('returns null when entry not found', async () => {
-      mockWaitlistTable.getById.mockResolvedValue(null);
-
-      const result = await getWaitlistPosition('wl-999');
-
-      expect(result.position).toBeNull();
-      expect(result.error).toBeNull();
-    });
-  });
 });

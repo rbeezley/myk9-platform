@@ -215,10 +215,6 @@ export async function uploadShowCover(showId: string, file: File): Promise<Uploa
   return uploadBrandingImage('shows', showId, 'cover.webp', file);
 }
 
-export async function uploadShowLogo(showId: string, file: File): Promise<UploadResult> {
-  return uploadBrandingImage('shows', showId, 'logo.webp', file);
-}
-
 /**
  * Get file info for validation display
  */

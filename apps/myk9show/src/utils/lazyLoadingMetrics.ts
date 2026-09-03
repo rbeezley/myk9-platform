@@ -194,17 +194,3 @@ export const trackLazyComponentEnd = (componentName: string, success: boolean, e
 export const trackLazyComponentRetry = (componentName: string) => {
   lazyLoadingMetrics.recordRetry(componentName);
 };
-
-// Development helper to log performance report
-export const logLazyLoadingReport = () => {
-  if (process.env.NODE_ENV === 'development') {
-    const report = lazyLoadingMetrics.generateReport();
-    logger.debug('Lazy Loading Performance Report', 'performance', {
-      totalComponents: report.totalComponents,
-      averageLoadTimeMs: report.averageLoadTime.toFixed(2),
-      failureRate: `${(report.failureRate * 100).toFixed(1)}%`,
-      slowestComponents: report.slowestComponents,
-      failedComponents: report.failedComponents
-    });
-  }
-};

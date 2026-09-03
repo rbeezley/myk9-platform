@@ -3,7 +3,6 @@
 
 export type { WaitlistEntry, ClassWithWaitlistCount } from './reads';
 export {
-  getWaitlistByShow,
   getWaitlistByClass,
   getClassesWithWaitlistCounts,
   bulkPromoteWaitlistEntries,
@@ -11,6 +10,4 @@ export {
   getWaitlistOfferMessageTarget,
   promoteWaitlistEntry,
   removeFromWaitlist,
-  getWaitlistPosition,
-  joinWaitlist,
 } from './reads';

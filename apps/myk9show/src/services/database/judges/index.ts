@@ -27,10 +27,8 @@ export {
   // Judge availability
   upsertJudgeAvailability,
   getJudgeAvailabilityByPersonId,
-  deleteJudgeAvailability,
   // Judge certifications
   createJudgeCertification,
-  getJudgeCertificationsByPersonId,
   // Judge assignments
   reassignClassJudge,
   upsertClassJudgeAssignment,

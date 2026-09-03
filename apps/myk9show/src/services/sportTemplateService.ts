@@ -21,18 +21,6 @@ export async function fetchAllSportTemplates(): Promise<SportTemplateRow[]> {
   return data as SportTemplateRow[];
 }
 
-export async function fetchSportTemplateByCode(
-  sportCode: string
-): Promise<SportTemplateRow | null> {
-  const { data, error } = await supabase
-    .from('sport_templates')
-    .select('*')
-    .eq('sport_code', sportCode)
-    .single();
-  if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
-  return (data as SportTemplateRow) ?? null;
-}
-
 // ---------------------------------------------------------------------------
 // Sport Class Rules
 // ---------------------------------------------------------------------------

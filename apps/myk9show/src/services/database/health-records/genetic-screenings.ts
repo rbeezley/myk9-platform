@@ -22,11 +22,6 @@ export const getAllGeneticScreenings = (dogId?: string) =>
     return query;
   });
 
-export const getGeneticScreeningById = (id: string) =>
-  wrapQuery('genetic_screening', 'select_by_id', null as DbGeneticScreeningRow | null, () =>
-    supabase.from('genetic_screenings').select('*').eq('id', id).single()
-  );
-
 export const createGeneticScreening = (screening: DbGeneticScreeningInsert) =>
   wrapQuery('genetic_screening', 'insert', null as DbGeneticScreeningRow | null, () =>
     supabase.from('genetic_screenings').insert(screening).select().single()

@@ -3,7 +3,7 @@
  * One enrollment per person per show with auto-generated MK9-XXXXXX confirmation numbers.
  */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import { mapDbToRegistration, mapDbToRegistrationArray } from '../../mappers/registrationMappers';
+import { mapDbToRegistration } from '../../mappers/registrationMappers';
 import type { Registration, DbRegistration } from '@/types/registration-types';
 import {
   PaymentStatus,
@@ -361,89 +361,6 @@ export const getRegistrationByShowAndHandler = async (
 };
 
 /**
- * Look up a registration by its confirmation number (e.g. MK9-000142).
- * Case-insensitive matching.
- */
-export const getRegistrationByConfirmationNumber = async (
-  confirmationNumber: string
-): Promise<{
-  data: Registration | null;
-  error: ReturnType<typeof createDatabaseError> | null;
-}> => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select('*')
-      .ilike('confirmation_number', confirmationNumber.trim())
-      .maybeSingle();
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_confirmation', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'enrollments', 'select_by_confirmation');
-    }
-
-    return {
-      data: data ? mapDbToRegistration(data as DbRegistration) : null,
-      error: null,
-    };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_confirmation', duration, String(err));
-    const dbError = createDatabaseError(
-      err instanceof Error ? err : new Error(String(err)),
-      'enrollments',
-      'select_by_confirmation'
-    );
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Get all registrations for a show (secretary view).
- */
-export const getRegistrationsForShow = async (
-  showId: string
-): Promise<{
-  data: Registration[];
-  error: ReturnType<typeof createDatabaseError> | null;
-}> => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select('*')
-      .eq('show_id', showId)
-      .order('created_at', { ascending: false });
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_show', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'enrollments', 'select_by_show');
-    }
-
-    return {
-      data: mapDbToRegistrationArray((data ?? []) as DbRegistration[]),
-      error: null,
-    };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_by_show', duration, String(err));
-    const dbError = createDatabaseError(
-      err instanceof Error ? err : new Error(String(err)),
-      'enrollments',
-      'select_by_show'
-    );
-    return { data: [], error: dbError };
-  }
-};
-
-/**
  * Update a registration's payment status.
  */
 export const updateRegistrationPayment = async (
@@ -484,54 +401,6 @@ export const updateRegistrationPayment = async (
       'update_payment'
     );
     return { data: null, error: dbError };
-  }
-};
-
-/**
- * Get the confirmation number for entries via their registration_id.
- * Returns a map of registration_id → confirmation_number.
- */
-export const getConfirmationNumbersForEntries = async (
-  registrationIds: string[]
-): Promise<{
-  data: Map<string, string>;
-  error: ReturnType<typeof createDatabaseError> | null;
-}> => {
-  const startTime = Date.now();
-  const uniqueIds = [...new Set(registrationIds.filter(Boolean))];
-
-  if (uniqueIds.length === 0) {
-    return { data: new Map(), error: null };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select('id, confirmation_number')
-      .in('id', uniqueIds);
-
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_confirmation_numbers', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'enrollments', 'select_confirmation_numbers');
-    }
-
-    const map = new Map<string, string>();
-    for (const row of data ?? []) {
-      map.set(row.id, row.confirmation_number);
-    }
-
-    return { data: map, error: null };
-  } catch (err) {
-    const duration = Date.now() - startTime;
-    logQuery('enrollments', 'select_confirmation_numbers', duration, String(err));
-    const dbError = createDatabaseError(
-      err instanceof Error ? err : new Error(String(err)),
-      'enrollments',
-      'select_confirmation_numbers'
-    );
-    return { data: new Map(), error: dbError };
   }
 };
 

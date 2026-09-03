@@ -13,6 +13,8 @@
 
 ## 3. Verification and handoff
 
+- [x] 3.0 Investigate and fix the mutation test blockers in a separate commit (owner: "please investigate and fix", 2026-09-03). Reproduced 499/500 under coverage/background scheduling; traced an already-running automatic retry racing the test's manual flush. Control time at the existing public upload-to-Supabase boundary, without production changes or queue-record surgery. Also isolate startup-drain fixtures that reused pending mutations across shuffled tests. Six shuffled stress runs and all 536 replication tests with coverage pass; no-drop/no-duplicate assertions retained and strengthened. See verification.md.
+
 - [x] 3.1 Run affected package builds/tests, `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`, and diff/format checks; record failures without weakening gates. Typecheck/lint/ratchet and replication suite pass after TTL removal; full app suite passes 18,717 tests (9 existing skips). See verification.md.
 - [x] 3.2 Update existing batch plan and inventories with actual implementation/verification, and validate this OpenSpec change. Implementation is complete and remaining shipping gates are explicit; see verification.md.
 - [ ] 3.3 Publication and merge approved; publish PR, pass independent review and required CI, and confirm merge before completing the implementation gate.

@@ -83,6 +83,8 @@ describe('MutationManager startup drain (reload-restored queue)', () => {
 
   beforeEach(async () => {
     mockDb = await createMutationManagerTestDb(TEST_DB_NAME);
+    await mockDb.clear(REPLICATION_STORES.PENDING_MUTATIONS);
+    await mockDb.clear(REPLICATION_STORES.FAILED_MUTATIONS);
     vi.spyOn(databaseManager, 'getDatabase').mockResolvedValue(mockDb);
     logger = createMockLogger();
 

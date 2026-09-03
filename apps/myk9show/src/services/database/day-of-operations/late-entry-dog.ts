@@ -50,12 +50,8 @@ export async function createDayOfEntryDog(
   const dogBreed = input.dogBreed?.trim() || 'Mixed Breed';
 
   if (!ownerFirstName || !ownerLastName || !dogName) {
-    return {
-      data: null,
-      error: new Error('Please enter the exhibitor name and dog name.'),
-    };
+    return { data: null, error: new Error('Please enter the exhibitor name and dog name.') };
   }
-
   if (ownerEmail && !isValidEmail(ownerEmail)) {
     return {
       data: null,
@@ -64,13 +60,10 @@ export async function createDayOfEntryDog(
   }
 
   const existingOwnerResult = await findExistingOwner(ownerFirstName, ownerLastName);
-  if (existingOwnerResult.error) {
-    return { data: null, error: existingOwnerResult.error };
-  }
+  if (existingOwnerResult.error) return { data: null, error: existingOwnerResult.error };
 
   let createdOwnerId: string | null = null;
   let owner = existingOwnerResult.data;
-
   if (!owner) {
     const ownerResult = await createUser({
       first_name: ownerFirstName,
@@ -79,7 +72,6 @@ export async function createDayOfEntryDog(
       phone: cleanOptional(input.ownerPhone),
       status: 'active',
     });
-
     if (ownerResult.error || !ownerResult.data) {
       return {
         data: null,
@@ -89,7 +81,6 @@ export async function createDayOfEntryDog(
             : new Error('Unable to create exhibitor.'),
       };
     }
-
     owner = ownerResult.data;
     createdOwnerId = owner.id;
   }
@@ -112,10 +103,7 @@ export async function createDayOfEntryDog(
   });
 
   if (dogError || !dog) {
-    if (createdOwnerId) {
-      await deleteUser(createdOwnerId);
-    }
-
+    if (createdOwnerId) await deleteUser(createdOwnerId);
     return {
       data: null,
       error: dogError instanceof Error ? dogError : new Error('Unable to create dog.'),

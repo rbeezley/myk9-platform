@@ -51,6 +51,12 @@ verification found no production or test consumer: `findRegistrationByExactIdent
 `joinWaitlist`, and `getManualResultById`. Their authoritative replacement
 surfaces remain available through the existing replicated/RPC-backed flows.
 
+Additional database exports removed after the same verification were
+`deleteJudgeAvailability`, `getJudgeCertificationsByPersonId`,
+`getOFAScreeningById`, and `getGeneticScreeningById`. The day-of
+`getShowDogs` lookup was also definition/barrel-only and was removed; the live
+late-entry dog creation path and its workbench test remain.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

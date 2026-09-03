@@ -1,5 +1,5 @@
--- Replace a judge's qualifications atomically.
--- The client previously deleted all rows and inserted replacements separately.
+-- Keep the deployed qualification replacement function aligned with the
+-- unified RBAC role name. The original migration predates role consolidation.
 CREATE OR REPLACE FUNCTION public.replace_judge_qualifications(
   p_person_id uuid,
   p_qualifications jsonb

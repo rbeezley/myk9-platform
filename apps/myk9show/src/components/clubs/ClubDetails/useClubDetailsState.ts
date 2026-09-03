@@ -77,6 +77,12 @@ export function useClubDetailsState(selectedClub: Club | null) {
   // resurrected on sync and never showed up in the restore UI.
   const deleteClubMutation = useDeleteClubMutation();
   const shows = useShowStore(s => s.shows);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Tab state — URL-synced
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
@@ -148,7 +154,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
         description: show.events?.join(', ') || '',
         accentColor: show.accentColor || null,
       };
-      if (showDateRangeStatus(show.startDate, show.endDate) === 'past') {
+      if (showDateRangeStatus(show.startDate, show.endDate, now) === 'past') {
         past.push(clubShow);
       } else {
         upcoming.push(clubShow);
@@ -156,7 +162,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     }
 
     return { upcoming, past };
-  }, [selectedClub, shows]);
+  }, [selectedClub, shows, now]);
 
   // Keep the profile roster on the same club_members projection as the club
   // administration page. The selected club replica may contain stale legacy

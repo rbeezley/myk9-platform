@@ -35,9 +35,15 @@ export function useAddPerson() {
 
       const newPersonId = (data as Record<string, unknown>).id as string;
       const roles = person.roles?.length ? person.roles : [UserRole.EXHIBITOR];
-      await Promise.all(
-        roles.map(roleName => rbacService.assignRole({ userId: newPersonId, roleName }))
-      );
+      try {
+        await Promise.all(
+          roles.map(roleName => rbacService.assignRole({ userId: newPersonId, roleName }))
+        );
+      } catch (roleError) {
+        // Do not leave a person that the caller was told failed to create.
+        await deleteUser(newPersonId);
+        throw roleError;
+      }
 
       return mapDatabaseToUser(data);
     },

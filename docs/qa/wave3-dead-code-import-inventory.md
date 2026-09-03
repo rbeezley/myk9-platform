@@ -92,6 +92,9 @@ query and apply their existing show scope.
 production caller; waitlist joins, class counts, promotions, and removals stay
 available through the live waitlist flows.
 
+`getWaitlistByShow` was removed with dedicated tests after confirming no
+production caller; class-scoped waitlist reads remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

@@ -125,11 +125,12 @@ export function useMyAtShowJudgeAssignments(
     [assignments]
   );
   const hasAssignments = (assignments?.length ?? 0) > 0;
+  // The connectivity test that used to sit here now lives inside
+  // `areReplicationTablesPendingFirstSync` (MYK9-365), so every call site gets
+  // it instead of the two that remembered to write it out.
   const isWaitingForFirstSync =
     isApplicable &&
     !hasAssignments &&
-    typeof navigator !== 'undefined' &&
-    navigator.onLine &&
     areReplicationTablesPendingFirstSync(syncStatus, ['judge_assignments']);
   const replicationError =
     isApplicable && !hasAssignments && syncStatus.tablesStatus.judge_assignments === 'error'

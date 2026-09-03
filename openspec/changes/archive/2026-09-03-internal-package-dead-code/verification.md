@@ -1,6 +1,6 @@
 # Verification: internal-package-dead-code
 
-> **Status:** Active — local verification and independent review complete; CI/merge pending.
+> **Status:** Complete — merged in PR #1990; archived in tracking-only follow-up.
 
 Verified 2026-09-03 in `codex/myk9-328-completion`, baseline `d5a495862`.
 The missing temporary worktree's recorded patches were recovered into the
@@ -10,7 +10,7 @@ durable project worktree. Evidence below is from fresh runs there.
 
 | Dimension     | Result                                                                                                   |
 | ------------- | -------------------------------------------------------------------------------------------------------- |
-| Completeness  | 10/12 tasks; shipping and closure remain                                                                 |
+| Completeness  | 12/12 tasks; implementation, shipping and closure complete                                               |
 | Correctness   | 167 removed declarations plus 8 exported TTL declarations and internal TTL plumbing inventoried          |
 | Coherence     | Internal-only deletion; live consumers protected; email types-only; inert TTL removed without activation |
 | Plan coverage | 100/100; no new capability specs required (`skip_specs: true`)                                           |
@@ -110,7 +110,7 @@ assertions remain. No production mutation code or coverage thresholds changed.
 - Focused coverage reproductions also report global coverage below thresholds
   because only one file runs; the full-suite coverage check is the gate.
 - Independent follow-up review: APPROVED (Avicenna, 2026-09-03). Fresh PR CI
-  and confirmed merge remain required.
+  subsequently passed and PR #1990 merged successfully.
 
 #### Newly exposed test-isolation follow-up
 
@@ -142,13 +142,14 @@ A later app-only typecheck completed app/test compilation but its E2E tsx
 runner was blocked from opening a local IPC socket (EPERM). E2E and Edge-test
 typechecks passed outside the sandbox; no code change was needed.
 
-## Remaining gates
+## Completed gates
 
-1. Local verification complete, including the fresh full app run.
+1. Local verification completed, including the fresh full app run.
 2. Independent review returned APPROVED with no findings (Avicenna, 2026-09-03).
-   Approved PR publication, required CI and confirmed merge remain.
-3. Only then post final evidence to Linear, mark MYK9-328 Done, archive and
-   clean this task's branch/worktree.
+3. PR #1990 passed all required CI and merged as
+   `04be609371769d5f8089f7900c30d4abf7523bed` on 2026-09-03.
+4. MYK9-328 has final merge/verification evidence and is Done. There are no
+   delta specs to sync; this tracking-only follow-up archives the change.
 
 ## Rollback and preservation
 
@@ -158,4 +159,5 @@ deployment is required. Live Tabs, device detection, UKC timer, grouping,
 podium/results, gate order, scoring store and formatter registration/listing
 remain. App changes only remove the unused TTL constructor argument.
 
-No visual/browser QA is claimed. Linear remains In Progress until merge.
+No visual/browser QA is claimed beyond the passing CI accessibility and E2E
+smoke gates. Linear is Done.

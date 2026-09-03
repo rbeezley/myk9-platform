@@ -122,6 +122,10 @@ The unreferenced query-client helpers `optimisticUpdates`, `handleQueryError`,
 and `withPerformanceTracking` were removed; the live query client, key map, and
 invalidation helpers remain available.
 
+The inert performance helpers `setupQueryPerformanceMonitoring`,
+`smartCacheInvalidation`, and `preloadNavigationTargets` were removed from the
+live utility module; its mounted `prefetchCriticalData` path remains.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

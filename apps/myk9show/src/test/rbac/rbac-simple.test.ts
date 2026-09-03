@@ -164,11 +164,13 @@ describe('RBAC Types and Constants', () => {
       // Secretary and club_admin are PEERS with different authority, not a
       // hierarchy — each holds permissions the other does not. Asserting
       // `secretary.size < clubAdmin.size` (as this test did until MYK9-359)
-      // measured cardinality, not authority, and only passed because two of
-      // the counted club_admin codes — 'club:edit_details' and
-      // 'club:manage_members' — were never seeded by any migration.
-      expect(clubAdminPerms.has(PERMISSIONS.CLUB_MANAGE)).toBe(true);
-      expect(secretaryPerms.has(PERMISSIONS.CLUB_MANAGE)).toBe(false);
+      // measured cardinality, not authority, and only passed because several of
+      // the counted club_admin codes — 'club:edit_details', 'club:manage_members'
+      // and later 'club:manage' — have no row in public.permissions at all.
+      // These two codes are real (verified against the applied database), which
+      // is the whole point: assert on authority that exists (MYK9-371).
+      expect(clubAdminPerms.has(PERMISSIONS.CLUB_UPDATE)).toBe(true);
+      expect(secretaryPerms.has(PERMISSIONS.CLUB_UPDATE)).toBe(false);
       expect(secretaryPerms.has(PERMISSIONS.CHECK_IN_MANAGE_ALL)).toBe(true);
       expect(clubAdminPerms.has(PERMISSIONS.CHECK_IN_MANAGE_ALL)).toBe(false);
 

@@ -139,29 +139,18 @@ describe('useClubDetailsState permissions (MYK9-359)', () => {
     expect(result.current.canDeleteClub).toBe(false);
   });
 
-  it('asks for the club:manage permission code that migration 067 actually seeds', () => {
+  // MYK9-371: the gate no longer consults hasPermission at all. Both codes it
+  // ever asked for — 'club:manage_members' and then 'club:manage' — have no row
+  // in public.permissions, so the operand was never true. A permission grant
+  // must not be able to confer club management on its own any more.
+  it('does not consult hasPermission, and no permission alone confers management', () => {
     mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
-
-    renderState();
-
-    expect(mockAuth.hasPermission).toHaveBeenCalledWith('club:manage', {
-      type: ScopeType.CLUB,
-      id: CLUB_A,
-    });
-    // The unseeded code the gate used to ask for must never come back.
-    expect(mockAuth.hasPermission).not.toHaveBeenCalledWith(
-      'club:manage_members',
-      expect.anything()
-    );
-  });
-
-  it('grants manage-members through the scoped permission alone', () => {
-    mockAuth.userWithRoles = userWith([UserRole.EXHIBITOR], []);
-    mockAuth.hasPermission = vi.fn<PermissionChecker>(code => code === 'club:manage');
+    mockAuth.hasPermission = vi.fn<PermissionChecker>(() => true);
 
     const { result } = renderState();
 
-    expect(result.current.canManageMembers).toBe(true);
+    expect(mockAuth.hasPermission).not.toHaveBeenCalled();
+    expect(result.current.canManageMembers).toBe(false);
     expect(result.current.canEditClub).toBe(false);
   });
 });

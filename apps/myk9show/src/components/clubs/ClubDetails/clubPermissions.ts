@@ -46,16 +46,24 @@ export function hasClubAdminScope(
  * Pure permission helper — extracted so it can be unit-tested without mocking
  * the auth context, club store, etc. Mirrors the RLS policies in
  * supabase/migrations/016_fix_permissive_rls_policies.sql.
+ *
+ * `canManageMembers` is deliberately the club-scoped role ALONE. It used to be
+ * `isClubAdmin || hasManageMembersPermission`, where the second operand asked
+ * `hasPermission()` for a code with no row in `public.permissions` — first
+ * `club:manage_members`, then `club:manage` — so it was never true and the
+ * expression always reduced to `isClubAdmin` anyway. Restating that directly
+ * changes no behaviour and removes a branch that only looked like a capability.
+ * Re-adding a permission operand needs a code that actually exists; see
+ * MYK9-371 for the app-vs-database vocabulary reconciliation.
  */
 export function computeClubPermissions(args: {
   isClubAdmin: boolean;
   isSiteAdmin: boolean;
-  hasManageMembersPermission: boolean;
 }): ClubPermissions {
-  const { isClubAdmin, isSiteAdmin, hasManageMembersPermission } = args;
+  const { isClubAdmin, isSiteAdmin } = args;
   return {
     canEditClub: isSiteAdmin || isClubAdmin,
-    canManageMembers: isClubAdmin || hasManageMembersPermission,
+    canManageMembers: isClubAdmin,
     canEditBranding: isSiteAdmin || isClubAdmin,
     canDeleteClub: isSiteAdmin,
   };

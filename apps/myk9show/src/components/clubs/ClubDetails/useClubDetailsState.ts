@@ -6,7 +6,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useDeleteClubMutation } from '@/hooks/queries/useClubsDatabase';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { PERMISSIONS, ScopeType, UserRole } from '@/types/auth-types';
+import { UserRole } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
@@ -79,7 +79,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
 
   // Auth context for RBAC
-  const { userWithRoles, hasPermission } = useAuthContext();
+  const { userWithRoles } = useAuthContext();
 
   // RBAC permission checks — see computeClubPermissions for the rules.
   const { canEditClub, canManageMembers, canEditBranding, canDeleteClub } = useMemo(() => {
@@ -99,15 +99,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
     return computeClubPermissions({
       isClubAdmin: hasClubAdminScope(userWithRoles.scopes, selectedClub.id),
       isSiteAdmin: userWithRoles.roles?.includes(UserRole.SITE_ADMIN) ?? false,
-      // `club:manage` is the code migration 067 actually seeds for club_admin.
-      // The previous `club:manage_members` was never seeded by any migration,
-      // so this arm could never be true (MYK9-359).
-      hasManageMembersPermission: hasPermission(PERMISSIONS.CLUB_MANAGE, {
-        type: ScopeType.CLUB,
-        id: selectedClub.id,
-      }),
     });
-  }, [userWithRoles, selectedClub, hasPermission]);
+  }, [userWithRoles, selectedClub]);
 
   const visibleActiveTab = !canEditBranding && activeTab === 'branding' ? 'upcoming' : activeTab;
 

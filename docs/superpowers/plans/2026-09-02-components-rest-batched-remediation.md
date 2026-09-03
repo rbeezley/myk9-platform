@@ -59,11 +59,11 @@
 
 **Subagent scope:** `apps/myk9show/src/hooks/useExhibitorProfile.ts`, `apps/myk9show/src/components/exhibitor/ExhibitorOnboardingChecker.tsx`, and their tests. Do not alter role loading or onboarding creation behavior.
 
-- [ ] Add a hook test for `status: 'pending', fetchStatus: 'paused', profile: undefined`, asserting `needsOnboarding` is false.
-- [ ] Add settled-query tests proving a successful `null` profile still requires onboarding and a successful profile does not.
-- [ ] Implement the smallest completeness gate using the full query result; a paused or otherwise unresolved query is unknown, not absence.
-- [ ] Add or extend `test/e2e/offline-cold-boot.spec.ts` for an exhibitor who stays on the requested route during cold offline boot.
-- [ ] Run the focused hook/checker tests and the offline cold-boot E2E.
+- [x] Add a hook test for `status: 'pending', fetchStatus: 'paused', profile: undefined`, asserting `needsOnboarding` is false.
+- [x] Add settled-query tests proving a successful `null` profile still requires onboarding and a successful profile does not.
+- [x] Implement the smallest completeness gate using the full query result; a paused or otherwise unresolved query is unknown, not absence.
+- [x] Add or extend `test/e2e/offline-cold-boot.spec.ts` for an exhibitor who stays on the requested route during cold offline boot.
+- [x] Run the focused hook/checker tests and the offline cold-boot E2E.
 
 **Acceptance gate:** Reverting the completeness condition fails the paused-query unit test or the cold-boot E2E; no route-change loop redirects an onboarded exhibitor while the profile query is unresolved.
 

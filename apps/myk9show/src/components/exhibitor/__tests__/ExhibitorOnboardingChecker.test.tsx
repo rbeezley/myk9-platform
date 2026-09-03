@@ -36,6 +36,7 @@ function setupMocks({
   profileLoading = false,
   needsOnboarding = false,
   onboardingCompleted = true,
+  profileSettled = true,
   isSecretary = false,
 } = {}) {
   mockUseAuthContext.mockReturnValue({
@@ -47,6 +48,7 @@ function setupMocks({
   mockUseExhibitorProfile.mockReturnValue({
     needsOnboarding,
     onboardingCompleted,
+    profileSettled,
     isLoading: profileLoading,
     error: null,
   });
@@ -93,6 +95,7 @@ describe('ExhibitorOnboardingChecker', () => {
     mockUseExhibitorProfile.mockReturnValue({
       needsOnboarding: false,
       onboardingCompleted: false,
+      profileSettled: false,
       isLoading: false,
       error: new Error('Database error'),
     });
@@ -131,6 +134,28 @@ describe('ExhibitorOnboardingChecker', () => {
         <div>Loading state</div>
       </ExhibitorOnboardingChecker>
     );
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+  // MYK9-347 regression guard. A cold boot with no coverage parks the profile
+  // query at status:'pending' / fetchStatus:'paused'. That is NOT loading
+  // (`isLoading` is `isPending && isFetching`, and a paused query is not
+  // fetching) and NOT an error, so every other guard in the effect is open and
+  // `onboardingCompleted` is false purely because `profile` is undefined.
+  // A fully onboarded exhibitor standing at a venue must NOT be sent to an
+  // onboarding flow they cannot complete offline.
+  it('does not redirect while the profile query is paused offline (unsettled)', () => {
+    setupMocks({
+      profileLoading: false,
+      needsOnboarding: false,
+      onboardingCompleted: false,
+      profileSettled: false,
+    });
+    render(
+      <ExhibitorOnboardingChecker>
+        <div>My Entries</div>
+      </ExhibitorOnboardingChecker>
+    );
+    expect(screen.getByText('My Entries')).toBeInTheDocument();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

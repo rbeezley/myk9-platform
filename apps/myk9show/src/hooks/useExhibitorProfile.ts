@@ -249,6 +249,16 @@ export function useExhibitorProfile() {
     error,
     refetch,
     // Derived state
+    //
+    // MYK9-347: every "does this user need onboarding?" answer below is only
+    // meaningful once the query has actually reported. When connectivity drops
+    // against an open page, TanStack parks this query at status:'pending' /
+    // fetchStatus:'paused' — which is NOT loading (`isLoading` is
+    // `isPending && isFetching`, and a paused query is not fetching) and NOT an
+    // error. Both `!profile` and `!profile?.onboarding_completed_at` then read
+    // as a confident "no", so consumers must be able to tell "no profile row"
+    // from "profile unknown". `profileSettled` is that signal.
+    profileSettled: status === 'success',
     needsOnboarding: !!user && status === 'success' && !profile,
     hasProfile: !!profile,
     onboardingCompleted: !!profile?.onboarding_completed_at,

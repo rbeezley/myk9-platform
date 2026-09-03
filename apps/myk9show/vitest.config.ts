@@ -82,6 +82,7 @@ export default defineConfig({
       '../../supabase/functions/generate-trial-packet/*.test.ts',
       '../../supabase/functions/remind-print-trial-packet/*.test.ts',
       'supabase/functions/stripe-webhook/*.test.ts',
+      'supabase/functions/cron-waitlist-expiration/*.test.ts',
     ],
     exclude: [
       '**/node_modules/**',

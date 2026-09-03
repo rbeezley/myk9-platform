@@ -67,7 +67,12 @@ export function classifyInsertResult(result: InsertResultLike): InsertOutcome {
   return 'insert_failed';
 }
 
-export interface RunAlertAdminDeps {
+export interface AlertDeliveryOptions {
+  /** Opt in to suppressing email when an unresolved alert already exists. */
+  skipEmailOnDuplicate?: boolean;
+}
+
+export interface RunAlertAdminDeps extends AlertDeliveryOptions {
   /** Attempts the `operator_alerts` insert. May reject; may also resolve with
    * a non-null `error` (the supabase-js convention) — both are handled. */
   insert: () => Promise<InsertResultLike>;
@@ -80,7 +85,7 @@ export interface RunAlertAdminDeps {
 
 export interface RunAlertAdminResult {
   insertOutcome: InsertOutcome;
-  emailAttempted: true;
+  emailAttempted: boolean;
   emailError: unknown;
 }
 
@@ -104,6 +109,10 @@ export async function runAlertAdmin(
   } catch (err) {
     insertOutcome = 'insert_failed';
     logError(`operator_alerts insert threw: ${subject}`, err);
+  }
+
+  if (insertOutcome === 'deduped' && deps.skipEmailOnDuplicate) {
+    return { insertOutcome, emailAttempted: false, emailError: null };
   }
 
   let emailError: unknown = null;

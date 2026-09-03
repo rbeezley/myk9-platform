@@ -16,10 +16,8 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import * as Sentry from 'npm:@sentry/deno@10.62.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
-import {
-  runWithBestEffortCronCheckIn,
-  type CronCheckInClient,
-} from '../_shared/sentryCronCheckIn.ts';
+import { runWithBestEffortCronCheckIn } from '../_shared/sentryCronCheckIn.ts';
+import { createSentryCronClient } from '../_shared/sentryCronClient.ts';
 import { resolveHealthCheckRun } from '../_shared/healthCheckRun.ts';
 import {
   buildSnapshot,
@@ -40,32 +38,10 @@ if (!supabaseUrl || !supabaseServiceKey || !cronSecret) {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-function createSentryCronClient(): CronCheckInClient | null {
-  const dsn = Deno.env.get('SENTRY_DSN');
-  if (!dsn) return null;
-
-  try {
-    Sentry.init({
-      dsn,
-      environment: Deno.env.get('SENTRY_ENVIRONMENT') || undefined,
-      defaultIntegrations: false,
-      sendDefaultPii: false,
-    });
-
-    return {
-      captureCheckIn: checkIn => Sentry.captureCheckIn(checkIn),
-      flush: timeoutMs => Sentry.flush(timeoutMs),
-    };
-  } catch (error) {
-    console.warn(
-      'Sentry Cron initialization failed:',
-      error instanceof Error ? error.message : String(error)
-    );
-    return null;
-  }
-}
-
-const sentryCronClient = createSentryCronClient();
+const sentryCronClient = createSentryCronClient(Sentry, {
+  dsn: Deno.env.get('SENTRY_DSN'),
+  environment: Deno.env.get('SENTRY_ENVIRONMENT'),
+});
 
 // Constant-time secret check: hash both sides so the comparison cost is
 // independent of how many leading bytes match (SA-002, same as the payout cron).

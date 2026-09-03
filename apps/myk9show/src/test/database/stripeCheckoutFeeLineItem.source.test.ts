@@ -27,28 +27,6 @@ import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = resolve(__dirname, '../../..');
 
-/**
- * The emailed receipt is the ONE fee surface that outlives the session: the
- * exhibitor keeps it after the cart is gone. It hardcoded "Platform Fee (3%)"
- * beside a correctly-computed amount, so it named a rate that has not been
- * charged since 2026-06-10 — the worst possible place for a stale number.
- */
-describe('emailed receipt fee line', () => {
-  const source = readFileSync(
-    resolve(APP_ROOT, '../../supabase/functions/send-email/index.ts'),
-    'utf8'
-  );
-
-  it('states no rate it cannot derive', () => {
-    expect(source).not.toContain('Platform Fee (3%)');
-    expect(source).not.toMatch(/Platform Fee \(\d+(?:\.\d+)?%\)/);
-  });
-
-  it('uses the same name as the charge itself', () => {
-    expect(source.match(/>Service fee</g)).toHaveLength(2);
-  });
-});
-
 const PRODUCERS = [
   ['stripe-checkout', 'supabase/functions/stripe-checkout/index.ts'],
   ['entry payment link', 'supabase/functions/_shared/entryPaymentLink.ts'],

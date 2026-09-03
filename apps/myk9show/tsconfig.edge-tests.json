@@ -21,6 +21,7 @@
     "types/edge-runtime.d.ts",
     "supabase/functions/_shared/*.test.ts",
     "supabase/functions/stripe-webhook/*.test.ts",
+    "supabase/functions/cron-waitlist-expiration/*.test.ts",
     "../../supabase/functions/_shared/askq/*.test.ts",
     "../../supabase/functions/_shared/pushWebhookAuth.test.ts",
     "../../supabase/functions/_shared/roleValidity.test.ts",

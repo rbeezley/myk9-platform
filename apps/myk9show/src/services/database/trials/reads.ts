@@ -95,36 +95,6 @@ async function postgrestGetTrialsByShow(showId: string) {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetUpcomingTrials(limit?: number) {
-  const today = new Date().toISOString().split('T')[0];
-
-  let query = supabase
-    .from('trials')
-    .select(
-      `
-      *,
-      show:shows (
-        id,
-        name,
-        start_date,
-        end_date
-      )
-    `
-    )
-    .gte('date', today)
-    .is('deleted_at', null)
-    .order('date', { ascending: true });
-
-  if (limit) {
-    query = query.limit(limit);
-  }
-
-  const { data, error } = await query;
-
-  if (error) throw createDatabaseError(error, 'trial', 'select_upcoming');
-  return { data: data || [], error: null };
-}
-
 // ---------------------------------------------------------------------------
 // SELECT functions — read from replication store, fallback to PostgREST
 // ---------------------------------------------------------------------------
@@ -192,28 +162,6 @@ export const getTrialsByShow = async (showId: string) => {
 };
 
 // Search trials by name (excluding soft-deleted)
-// Get upcoming trials (excluding soft-deleted)
-export const getUpcomingTrials = async (limit?: number) => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const [allTrials, showsMap] = await Promise.all([
-        replicatedTrialsTable.getAll(),
-        loadShowsMap(),
-      ]);
-      const today = new Date().toISOString().split('T')[0];
-      const filtered = allTrials.filter(trial => trial.date >= today);
-      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
-      const limited = limit ? sortedTrials.slice(0, limit) : sortedTrials;
-      const data = mapTrialsWithJoins(limited, showsMap);
-      return { data, error: null };
-    },
-    postgrest: () => postgrestGetUpcomingTrials(limit),
-    table: 'trial',
-    operation: 'select_upcoming',
-    errorData: [],
-  });
-};
-
 // ---------------------------------------------------------------------------
 // Mutation functions — remain on PostgREST (DO NOT CHANGE)
 // ---------------------------------------------------------------------------

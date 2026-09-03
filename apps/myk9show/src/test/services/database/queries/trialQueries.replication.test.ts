@@ -52,7 +52,6 @@ import {
   getAllTrials,
   getTrialById,
   getTrialsByShow,
-  getUpcomingTrials,
   getShowScheduleTimelineRows,
   getTrialTimelineRows,
 } from '@/services/database/trials';
@@ -312,47 +311,6 @@ describe('trialQueries (replication)', () => {
       mockShowsTable.getShowById.mockResolvedValue(makeShow());
 
       const result = await getTrialsByShow('show-1');
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // getUpcomingTrials
-  // -----------------------------------------------------------------------
-  describe('getUpcomingTrials', () => {
-    it('filters by date >= today and respects limit', async () => {
-      const trials = Array.from({ length: 5 }, (_, i) =>
-        makeTrial({ id: `trial-${i}`, date: `2099-0${i + 1}-01` })
-      );
-      setupListMocks(trials);
-
-      const result = await getUpcomingTrials(3);
-
-      expect(result.data).toHaveLength(3);
-      // Should be sorted ascending by date
-      expect((result.data[0] as Record<string, unknown>).date).toBe('2099-01-01');
-    });
-
-    it('returns all future trials when no limit specified', async () => {
-      const trials = [
-        makeTrial({ id: 'future', date: '2099-06-01' }),
-        makeTrial({ id: 'past', date: '2020-01-01' }),
-      ];
-      setupListMocks(trials);
-
-      const result = await getUpcomingTrials();
-
-      // Only the future trial should be included
-      expect(result.data).toHaveLength(1);
-      expect((result.data[0] as Record<string, unknown>).id).toBe('future');
-    });
-
-    it('returns empty array when no upcoming trials', async () => {
-      setupListMocks([makeTrial({ date: '2020-01-01' })]);
-
-      const result = await getUpcomingTrials();
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();

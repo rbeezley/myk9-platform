@@ -9,7 +9,6 @@ export {
   getAllTrials,
   getTrialById,
   getTrialsByShow,
-  getUpcomingTrials,
   createTrial,
   updateTrial,
   deleteTrial,

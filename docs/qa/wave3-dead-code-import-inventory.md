@@ -84,6 +84,10 @@ remain available.
 confirming no production caller; the live trial list and show-scoped queries
 remain available.
 
+`getUpcomingTrials` and its PostgREST helper were removed with dedicated tests
+after confirming no production caller; callers should use the live trial list
+query and apply their existing show scope.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

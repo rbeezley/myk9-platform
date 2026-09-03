@@ -110,6 +110,10 @@ confirming no production caller; club/show cover uploads remain available.
 confirming no production caller; the live `resolveVisibilityForClassRows`
 resolver remains intact.
 
+The unimplemented organization-override methods were removed from
+`RBACService`; they had no callers and target a nonexistent table. Existing
+role/permission cache and audit behavior remains unchanged.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

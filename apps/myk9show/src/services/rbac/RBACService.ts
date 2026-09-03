@@ -19,7 +19,6 @@ import {
   UserPermissionsResponse,
   AuditLogFilter,
   AuditLogEntry,
-  ActionType,
 } from '@/types/rbac-types';
 import { PermissionChecker } from './PermissionChecker';
 import { RoleManager } from './RoleManager';
@@ -296,70 +295,6 @@ export class RBACService {
 
   clearAllCache(): void {
     this.permissionChecker.clearAllCache();
-  }
-
-  // ==========================================================================
-  // Organization Overrides (placeholder - requires DB schema)
-  // ==========================================================================
-
-  async createOrganizationOverride(
-    organizationId: string,
-    roleId: string,
-    permissionId: string,
-    overrideType: 'grant' | 'deny'
-  ): Promise<void> {
-    logger.debug('📝 Creating organization override (mock)', 'rbac', {
-      data: {
-        organization_id: organizationId,
-        role_id: roleId,
-        permission_id: permissionId,
-        override_type: overrideType,
-      },
-    });
-
-    this.clearAllCache();
-
-    await this.auditLogger.logAuditEvent(ActionType.PERMISSION_OVERRIDE_CREATED, {
-      targetId: roleId,
-      targetType: 'role',
-      newValue: {
-        permission_id: permissionId,
-        organization_id: organizationId,
-        override_type: overrideType,
-      },
-    });
-  }
-
-  async removeOrganizationOverride(
-    organizationId: string,
-    roleId: string,
-    permissionId: string
-  ): Promise<void> {
-    logger.debug('🗑️ Removing organization override (mock)', 'rbac', {
-      data: {
-        organization_id: organizationId,
-        role_id: roleId,
-        permission_id: permissionId,
-      },
-    });
-
-    this.clearAllCache();
-
-    await this.auditLogger.logAuditEvent(ActionType.PERMISSION_OVERRIDE_REMOVED, {
-      targetId: roleId,
-      targetType: 'role',
-      newValue: {
-        permission_id: permissionId,
-        organization_id: organizationId,
-      },
-    });
-  }
-
-  async getOrganizationOverrides(organizationId: string): Promise<Array<Record<string, unknown>>> {
-    logger.warn('Organization overrides not implemented yet, table does not exist:', 'rbac', {
-      data: organizationId,
-    });
-    return [];
   }
 
   // ==========================================================================

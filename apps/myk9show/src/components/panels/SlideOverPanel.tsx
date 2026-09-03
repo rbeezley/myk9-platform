@@ -99,28 +99,24 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   // dropping the user on <body> at the top of the page (WCAG 2.4.3): the panel
   // traps focus while open, so nothing else restores it (MYK9-165).
   const returnFocusRef = useRef<HTMLElement | null>(null);
-  const isUnmountingRef = useRef(false);
-  // Declared BEFORE the focus effect so its cleanup runs first on unmount.
-  useEffect(
-    () => () => {
-      isUnmountingRef.current = true;
-    },
-    []
-  );
 
+  // Attempts the return, and gives up quietly unless focus has actually fallen
+  // on the floor. The target is only cleared once it has been focused, so an
+  // attempt made while the panel is still closing (focus is still on a live
+  // control inside it) costs nothing and the later attempt still fires.
   const returnFocus = useCallback(() => {
     const target = returnFocusRef.current;
     if (!target || target === document.body) return;
-    returnFocusRef.current = null;
 
     // A tick, so focus has settled after the panel's DOM was removed.
     setTimeout(() => {
+      if (returnFocusRef.current !== target) return;
       if (!target.isConnected) return;
       const active = document.activeElement;
-      // Only reclaim focus that fell on the floor: focus on a live element
-      // belongs to whatever the close handed it to — another dialog, or the
-      // page a navigating close landed on.
+      // Focus on a live element belongs to whatever the close handed it to —
+      // another dialog, or the page a navigating close landed on.
       if (active && active !== document.body && active.isConnected) return;
+      returnFocusRef.current = null;
       target.focus();
     }, 0);
   }, []);
@@ -129,17 +125,15 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     if (open) {
       returnFocusRef.current = document.activeElement as HTMLElement | null;
       // Some callers remount the panel subtree on open/close (AddDogPanel keys
-      // on `open`), destroying this instance before the closed branch below can
-      // run.
-      return () => {
-        if (isUnmountingRef.current) returnFocus();
-      };
+      // on `open`), destroying this instance before the closed branch below
+      // ever runs.
+      return returnFocus;
     }
 
-    // Driven by the panel actually leaving the DOM (`!open && !isAnimating` is
-    // what renders null below) rather than by a delay racing the animation:
-    // until then the focused control inside the panel is still mounted, and
-    // taking focus from it would be wrong.
+    // Otherwise the trigger is the panel actually leaving the DOM
+    // (`!open && !isAnimating` is what renders null below) rather than a delay
+    // racing the close animation: until then the focused control inside the
+    // panel is still mounted, and taking focus from it would be wrong.
     if (!isAnimating) returnFocus();
     return;
   }, [open, isAnimating, returnFocus]);

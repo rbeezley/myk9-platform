@@ -371,6 +371,39 @@ describe('EditPanelWrapper route guard', () => {
     expect(screen.queryByRole('heading', { name: /leave dog details/i })).not.toBeInTheDocument();
   });
 
+  it('names the form that actually blocks, not one that is self-navigating', async () => {
+    const user = userEvent.setup();
+    // The first guard is mid-self-navigation (its counter is raised); the
+    // second is the one still holding unsaved work.
+    const selfNavigating = { current: 1 };
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/edit',
+          element: (
+            <UnsavedChangesRouteGuardProvider>
+              <UnsavedChangesRouteGuard
+                isDirty
+                subject="first form"
+                selfNavigationRef={selfNavigating}
+              />
+              <UnsavedChangesRouteGuard isDirty subject="second form" />
+              <Link to="/next">Leave forms</Link>
+            </UnsavedChangesRouteGuardProvider>
+          ),
+        },
+        { path: '/next', element: <p>Next page</p> },
+      ],
+      { initialEntries: ['/edit'] }
+    );
+    render(<RouterProvider router={router} />);
+
+    await user.click(screen.getByRole('link', { name: /leave forms/i }));
+
+    expect(await screen.findByRole('heading', { name: /leave second form/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /leave first form/i })).not.toBeInTheDocument();
+  });
+
   it('aggregates multiple dirty forms behind one route blocker', async () => {
     const user = userEvent.setup();
     const router = createMemoryRouter(

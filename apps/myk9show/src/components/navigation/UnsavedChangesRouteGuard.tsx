@@ -132,17 +132,23 @@ function DataRouterUnsavedChangesBlocker({
   // form that raises its self-navigation counter between render and its own
   // navigate() call is honoured — see SelfNavigationRef.
   const dirtyGuards = useMemo(() => guards.filter(guard => guard.isDirty), [guards]);
-  const shouldBlock = useCallback(
-    () => dirtyGuards.some(guard => !isSelfNavigating(guard)),
-    [dirtyGuards]
-  );
-  const subject = dirtyGuards[0]?.subject ?? 'this page';
+  // Named when the block happens, not at render: with several dirty forms
+  // mounted, the one that stops this navigation is whichever is not currently
+  // self-navigating, and naming a different form would tell the user they are
+  // discarding work they are not.
+  const [blockedSubject, setBlockedSubject] = useState('this page');
+  const shouldBlock = useCallback(() => {
+    const blocking = dirtyGuards.find(guard => !isSelfNavigating(guard));
+    if (!blocking) return false;
+    setBlockedSubject(blocking.subject);
+    return true;
+  }, [dirtyGuards]);
   const blocker = useBlocker(shouldBlock);
 
   return (
     <>
       {children}
-      <BlockedNavigationDialog blocker={blocker} subject={subject} />
+      <BlockedNavigationDialog blocker={blocker} subject={blockedSubject} />
     </>
   );
 }

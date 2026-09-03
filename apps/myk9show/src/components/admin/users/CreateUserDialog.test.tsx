@@ -394,3 +394,55 @@ describe('CreateUserDialog — recovery', () => {
     await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
   });
 });
+
+describe('CreateUserDialog — ambiguous role-service result', () => {
+  it('does not advertise a grant when the service returns false and no assignment exists', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockResolvedValue(false);
+    mockSupabase.from.mockImplementation(() => createChainableQuery({ data: [], error: null }));
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-invite-user', {
+      body: { email: 'new.secretary@example.test', firstName: 'Pat', roleLabels: [] },
+    });
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not assign.*Exhibitor/i));
+  });
+
+  it('reports an error when an existing assignment cannot be verified', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockResolvedValue(false);
+    mockSupabase.from.mockImplementation(() =>
+      createChainableQuery({
+        data: null,
+        error: { message: 'lookup unavailable' },
+      })
+    );
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not assign.*Exhibitor/i));
+  });
+
+  it('accepts an already-existing active unscoped assignment', async () => {
+    vi.mocked(rbacService.ensureUserHasRole).mockResolvedValue(false);
+    const query = createChainableQuery({ data: [{ id: 'existing-grant' }], error: null });
+    mockSupabase.from.mockImplementation(() => query);
+    const { onUserCreated } = renderDialog();
+    fillRequired();
+    submit();
+    await waitFor(() => expect(onUserCreated).toHaveBeenCalled());
+    expect(mockSupabase.from).toHaveBeenCalledWith('user_roles');
+    expect(query.eq).toHaveBeenCalledWith('user_id', 'person-1');
+    expect(query.eq).toHaveBeenCalledWith('roles.name', 'exhibitor');
+    expect(query.eq).toHaveBeenCalledWith('is_active', true);
+    expect(query.is).toHaveBeenCalledWith('club_id', null);
+    expect(query.is).toHaveBeenCalledWith('show_id', null);
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('admin-invite-user', {
+      body: { email: 'new.secretary@example.test', firstName: 'Pat', roleLabels: ['exhibitor'] },
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+});

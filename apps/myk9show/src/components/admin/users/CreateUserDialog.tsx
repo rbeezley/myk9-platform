@@ -28,7 +28,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/services/database/supabaseClient';
 import { CLUB_SCOPED_ROLES, MANAGEABLE_ROLES } from '@/services/rbac/roleUiConstants';
-import { rbacService } from '@/services/rbac/RBACService';
+import { ensureCreatedUserRole } from './ensureCreatedUserRole';
 
 import { User } from '@/types/user-types';
 import { getRoleLabel } from './UserTable/types';
@@ -123,7 +123,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
     if (newUser?.id && validatedData.roles.length > 0) {
       for (const roleName of validatedData.roles) {
         try {
-          await rbacService.ensureUserHasRole(newUser.id, roleName);
+          await ensureCreatedUserRole(newUser.id, roleName);
           grantedRoles.push(roleName);
         } catch (err) {
           logger.error('Failed to assign role:', 'admin', { roleName }, err as Error);

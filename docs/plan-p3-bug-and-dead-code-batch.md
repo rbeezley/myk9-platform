@@ -51,14 +51,12 @@ reference evidence confirms the symbols are unreachable.
   numeric armband tie-breaking reuses the shared helper, missing/non-numeric
   armbands sort last, and the behavioral test pins 1, 9, 10 ordering. The fix
   already shipped in #1956; the stale Linear status is reconciled.
-- MYK9-309 remains Todo after acceptance verification. The production batch-map
-  caller fails closed on `isError`, and lookup errors throw, but the standalone
-  hook still ignores `isError` when cached data is `true`. An installed React
-  Query observer reproduction produced `isError: true`, `isLoading: false`,
-  `data: true` after a failed refresh; the standalone hook's expression still
-  evaluates to enabled. No production caller currently uses that standalone
-  hook. Its explicit acceptance criterion still requires a cached-success /
-  failed-refresh regression test and an error-aware result before closure.
+- MYK9-309's remaining gap was reproduced during acceptance verification: the
+  standalone hook ignored `isError` when cached data was `true`, while the
+  production batch-map caller already failed closed. The follow-up below fixes
+  this locally with a real-hook regression; publication and merge remain pending.
+  No production caller currently uses that standalone hook. Keep the issue open
+  until the follow-up's merge/evidence gate is satisfied.
 - Verification for this tracking reconciliation: the Show Map tree and
   self-check-in hook suites passed (2 files / 29 tests). Existing tests cover
   cold query failures but not MYK9-309's cached-success failure case. No
@@ -80,3 +78,28 @@ The batch remains Active for MYK9-309's remaining acceptance gap and the explici
 deferred package decisions. Sweep issue tracking is reconciled, and MYK9-334's
 implementation and deployment acceptance gates are complete; neither justifies
 marking the remaining work complete.
+
+## MYK9-309 failed-refresh follow-up
+
+Scope: make the standalone hook's public result fail closed on an actual query
+error even when React Query retains cached `true`. Preserve the null-class and
+loading defaults, the existing production batch-map behavior, query keys,
+network mode, and the settings-read path. No new UI or database changes.
+
+- [x] Reproduce cached success followed by failed refresh through the public hook
+      with a real QueryClient and mocked database boundary; assert `enabled: false`
+      before changing the implementation.
+- [x] Give `isError` priority over cached data and provide a settings-error reason
+      instead of claiming show management disabled check-in.
+- [x] Verify recovery, loading/null-class behavior, and the batch-map regression;
+      run focused tests, app typecheck, lint, and diff checks.
+- [ ] Publish reviewed changes and close MYK9-309 only after its merge/evidence gate.
+
+Local evidence: the new public-hook test failed with `expected true to be false`
+before the fix and passes afterward. The hook suite passes 15 tests; a shuffled
+hook + Show Map run passes 33 tests (seed 309), and the hook suite also passes
+seed 310. `pnpm --filter @myk9/show typecheck` passes (E2E ratchet: 59 current,
+62 baselined, 0 new); its first attempt hit a local tsx IPC sandbox restriction,
+then passed with IPC permitted. App lint passes with the existing 18 warnings,
+and formatting/diff checks pass. No Supabase deployment is needed for this hook
+change. Keep MYK9-309 open until publication and merge are verified.

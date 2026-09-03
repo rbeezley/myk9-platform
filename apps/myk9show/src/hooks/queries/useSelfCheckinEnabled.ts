@@ -116,7 +116,7 @@ export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
 }
 
 export function useSelfCheckinEnabled(classId: string | null): SelfCheckinResult {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['classes', classId, 'selfCheckin'],
     queryFn: () => fetchSelfCheckinEnabled(classId!),
     enabled: !!classId,
@@ -124,11 +124,16 @@ export function useSelfCheckinEnabled(classId: string | null): SelfCheckinResult
     gcTime: 10 * 60 * 1000,
   });
 
-  const enabled = classId === null ? true : isLoading ? true : (data ?? false);
+  // Failed refreshes retain cached data; an old `true` must not override an error.
+  const enabled = classId === null ? true : !isError && (isLoading ? true : (data ?? false));
 
   return {
     enabled,
-    reason: enabled ? undefined : 'Check-in disabled by show management',
+    reason: enabled
+      ? undefined
+      : isError
+        ? 'Unable to load check-in settings. Please try again.'
+        : 'Check-in disabled by show management',
     isLoading,
   };
 }

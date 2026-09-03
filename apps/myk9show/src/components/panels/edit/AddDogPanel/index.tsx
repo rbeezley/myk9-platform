@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { EditPanelWrapper } from '../EditPanelWrapper';
+import { EditPanelWrapper, type EditPanelSaveContext } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -67,7 +67,10 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   );
 
   // Handle save: map DogFormData -> DogInput and persist
-  const handleSave = async (formData: DogFormData) => {
+  const handleSave = async (
+    formData: DogFormData,
+    { runSelfNavigation }: EditPanelSaveContext
+  ) => {
     setLocalSaveError(null);
     setDuplicateCandidate(null);
     if (!allowSeparateDog) {
@@ -145,7 +148,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     // Once the dog is persisted, a failure in the parent callback must not
     // bubble up as a save error — the dog already exists in the DB.
     try {
-      onDogCreated(newDog);
+      // The parent routes to the new dog. Suppress the route guard for exactly
+      // that call: the form is still dirty, but the work is saved (MYK9-165).
+      runSelfNavigation(() => onDogCreated(newDog));
     } catch (err) {
       logger.error(
         'onDogCreated callback threw after successful dog create',

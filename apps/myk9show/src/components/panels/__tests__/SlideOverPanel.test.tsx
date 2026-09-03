@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { SlideOverPanel } from '../SlideOverPanel';
 import { selectReservedBottom, useActionBarStore } from '@/store/actionBarStore';
@@ -191,8 +191,10 @@ describe('SlideOverPanel focus return', () => {
     return (
       <>
         <button onClick={() => setOpen(true)}>Add Dog</button>
-        {/* AddDogPanel keys its subtree on `open`, so the panel instance that
-            captured the trigger is gone by the time it closes. */}
+        {/* AddDogPanel keys its subtree on `open`, so the instance that
+            captured the trigger is gone by the time it closes. The other
+            variant — the common one — keeps the panel mounted through its
+            close animation with focus still on the control inside it. */}
         {remountOnToggle ? (
           <React.Fragment key={open ? 'open' : 'closed'}>{panel}</React.Fragment>
         ) : (
@@ -205,48 +207,43 @@ describe('SlideOverPanel focus return', () => {
   it.each([[false], [true]])(
     'returns focus to the control that opened it (remounting subtree: %s)',
     async (remountOnToggle: boolean) => {
-      vi.useFakeTimers();
-      try {
-        render(<TriggerAndPanel remountOnToggle={remountOnToggle} />);
-        const trigger = screen.getByRole('button', { name: 'Add Dog' });
-        trigger.focus();
-        fireEvent.click(trigger);
-
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-        (document.activeElement as HTMLElement | null)?.blur();
-        expect(document.activeElement).toBe(document.body);
-
-        fireEvent.click(screen.getByRole('button', { name: /close panel/i }));
-        await vi.advanceTimersByTimeAsync(400);
-
-        expect(document.activeElement).toBe(trigger);
-      } finally {
-        vi.useRealTimers();
-      }
-    }
-  );
-
-  it('leaves focus alone when the close hands it to something else', async () => {
-    vi.useFakeTimers();
-    try {
-      render(
-        <>
-          <TriggerAndPanel />
-          <button>Elsewhere</button>
-        </>
-      );
+      render(<TriggerAndPanel remountOnToggle={remountOnToggle} />);
       const trigger = screen.getByRole('button', { name: 'Add Dog' });
       trigger.focus();
       fireEvent.click(trigger);
 
-      const elsewhere = screen.getByRole('button', { name: 'Elsewhere' });
-      fireEvent.click(screen.getByRole('button', { name: /close panel/i }));
-      elsewhere.focus();
-      await vi.advanceTimersByTimeAsync(400);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      // No manual blur: focus stays on the control the user clicked, inside the
+      // panel, which is what a real close looks like.
+      const closeButton = screen.getByRole('button', { name: /close panel/i });
+      closeButton.focus();
+      expect(document.activeElement).toBe(closeButton);
 
-      expect(document.activeElement).toBe(elsewhere);
-    } finally {
-      vi.useRealTimers();
+      fireEvent.click(closeButton);
+
+      await waitFor(() => expect(document.activeElement).toBe(trigger), { timeout: 2000 });
     }
+  );
+
+  it('leaves focus alone when the close hands it to something else', async () => {
+    render(
+      <>
+        <TriggerAndPanel />
+        <button>Elsewhere</button>
+      </>
+    );
+    const trigger = screen.getByRole('button', { name: 'Add Dog' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const elsewhere = screen.getByRole('button', { name: 'Elsewhere' });
+    fireEvent.click(screen.getByRole('button', { name: /close panel/i }));
+    elsewhere.focus();
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument(), {
+      timeout: 2000,
+    });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(document.activeElement).toBe(elsewhere);
   });
 });

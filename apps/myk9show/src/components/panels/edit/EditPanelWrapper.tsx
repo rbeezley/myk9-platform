@@ -25,6 +25,17 @@ import {
 
 export type EditPanelVariant = 'panel' | 'dialog';
 
+export interface EditPanelSaveContext {
+  /**
+   * Wrap any navigation the save itself performs (e.g. routing to the record
+   * just created) so the unsaved-changes route guard stands down for exactly
+   * that call. Suppressing for the whole save instead would leave the form
+   * unguarded for the duration of a slow request — during which the user can
+   * still navigate, and the save can still fail (MYK9-165).
+   */
+  runSelfNavigation: (navigate: () => void) => void;
+}
+
 export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   // Panel configuration
   open: boolean;
@@ -35,7 +46,7 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
 
   // Data management
   initialData: T;
-  onSave: (data: T) => Promise<void> | void;
+  onSave: (data: T, context: EditPanelSaveContext) => Promise<void> | void;
 
   // Form configuration
   children: React.ReactNode;
@@ -280,13 +291,15 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   );
 
   // While this counter is above zero the route guard stands down: the panel is
-  // navigating on its own behalf (its own Cancel/Discard dialog already asked,
-  // or a save just persisted the work). Without it, closing a panel whose
-  // parent drops a `?add=true` param — or a save that routes to the new
-  // record — produces a second "Leave this page?" prompt for changes the user
-  // has already resolved (MYK9-165). Callers navigate synchronously inside
-  // onClose/onSave, so a try/finally around those calls closes the window
-  // exactly; a failed save decrements and re-arms the guard.
+  // navigating on its own behalf, and the user already answered for those
+  // changes in the panel's own dialog. Without it, closing a panel whose parent
+  // drops a `?add=true` param produces a second "Leave this page?" prompt for
+  // changes just discarded (MYK9-165).
+  //
+  // The counter is raised around the navigating CALL only — never across an
+  // await — so a slow save leaves the form guarded the whole time it is in
+  // flight. A ref rather than state because nothing can re-render between a
+  // click handler and the navigation it dispatches in the same tick.
   const selfNavigationRef = useRef(0);
   const runSelfNavigation = useCallback((navigate: () => void) => {
     selfNavigationRef.current += 1;
@@ -304,22 +317,20 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // Handle save — schema path delegates to form.handleSubmit
   const wrappedSave = useCallback(
     async (validatedData: T) => {
-      selfNavigationRef.current += 1;
       try {
         setIsLoading(true);
-        await onSave(validatedData);
-        onClose();
+        await onSave(validatedData, { runSelfNavigation });
+        closeWithoutRouteGuard();
       } catch (error) {
         logger.error('Save failed:', 'components', {}, error as Error);
         notifications.error('Failed to save changes', {
           description: getErrorMessage(error),
         });
       } finally {
-        selfNavigationRef.current -= 1;
         setIsLoading(false);
       }
     },
-    [onSave, onClose]
+    [onSave, closeWithoutRouteGuard, runSelfNavigation]
   );
 
   const handleSave = useMemo(() => {
@@ -334,19 +345,17 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         return;
       }
 
-      selfNavigationRef.current += 1;
       try {
         setIsLoading(true);
-        await onSave(legacyData);
+        await onSave(legacyData, { runSelfNavigation });
         setLegacyHasChanges(false);
-        onClose();
+        closeWithoutRouteGuard();
       } catch (error) {
         logger.error('Save failed:', 'components', {}, error as Error);
         notifications.error('Failed to save changes', {
           description: getErrorMessage(error),
         });
       } finally {
-        selfNavigationRef.current -= 1;
         setIsLoading(false);
       }
     };
@@ -357,7 +366,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     legacyIsValid,
     onSave,
     legacyData,
-    onClose,
+    closeWithoutRouteGuard,
+    runSelfNavigation,
     onValidationFail,
   ]);
 

@@ -82,8 +82,9 @@ function SelfNavigatingEditPage() {
         title="Dog details"
         initialData={{ name: 'Original name' }}
         schema={testSchema}
-        onSave={() => {
-          navigate('/next');
+        onSave={(_data, { runSelfNavigation }) => {
+          // Mirrors AddDogPanel: the save routes to the record it just created.
+          runSelfNavigation(() => navigate('/next'));
         }}
         variant="dialog"
       >
@@ -131,6 +132,33 @@ function FailingSaveEditPage() {
       footerActions={
         <>
           {failed && <span>Save failed</span>}
+          <Link to="/next">Leave form</Link>
+        </>
+      }
+    >
+      <TestFormFields />
+    </EditPanelWrapper>
+  );
+}
+
+function SlowSaveEditPage({ onSaveStarted }: { onSaveStarted: (release: () => void) => void }) {
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <EditPanelWrapper
+      open
+      onClose={vi.fn()}
+      title="Dog details"
+      initialData={{ name: 'Original name' }}
+      schema={testSchema}
+      onSave={() => {
+        setSaving(true);
+        return new Promise<void>(resolve => onSaveStarted(resolve));
+      }}
+      variant="dialog"
+      footerActions={
+        <>
+          {saving && <span>Saving in progress</span>}
           <Link to="/next">Leave form</Link>
         </>
       }
@@ -207,6 +235,40 @@ describe.each(BLOCKER_PATHS)('EditPanelWrapper self-navigation (%s)', (_label, W
 
     expect(await screen.findByRole('heading', { name: /leave dog details/i })).toBeInTheDocument();
     expect(screen.queryByText('Next page')).not.toBeInTheDocument();
+  });
+
+  it('keeps guarding while a slow save is in flight', async () => {
+    const user = userEvent.setup();
+    let releaseSave: (() => void) | undefined;
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/edit',
+          element: (
+            <Wrapper>
+              <SlowSaveEditPage onSaveStarted={release => (releaseSave = release)} />
+            </Wrapper>
+          ),
+        },
+        { path: '/next', element: <p>Next page</p> },
+      ],
+      { initialEntries: ['/edit'] }
+    );
+    render(<RouterProvider router={router} />);
+
+    const input = screen.getByRole('textbox', { name: /name/i });
+    await user.clear(input);
+    await user.type(input, 'U');
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+    await screen.findByText(/saving in progress/i);
+
+    // The save has not resolved: a navigation now must still warn, because the
+    // request can still fail and the edit is not yet safe.
+    await user.click(screen.getByRole('link', { name: /leave form/i }));
+    expect(await screen.findByRole('heading', { name: /^leave /i })).toBeInTheDocument();
+    expect(screen.queryByText('Next page')).not.toBeInTheDocument();
+
+    releaseSave?.();
   });
 
   it('does not prompt when a successful save navigates away', async () => {

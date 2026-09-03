@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,10 @@ export interface SlideOverPanelProps {
 // slide-over), a single Escape press would otherwise fire both listeners and
 // close both panels. Only the topmost (last-pushed) instance should respond.
 let openPanelIds: symbol[] = [];
+
+// Matches the `duration-300` slide/fade classes below; the panel stays mounted
+// for this long after `open` goes false.
+const PANEL_ANIMATION_MS = 300;
 
 const sizeClasses = {
   sm: 'max-w-md w-full md:max-w-md',
@@ -94,28 +98,51 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   // Return focus to whatever opened this panel once it closes, instead of
   // dropping the user on <body> at the top of the page (WCAG 2.4.3): the panel
   // traps focus while open, so nothing else restores it (MYK9-165).
-  //
-  // The work happens in the effect CLEANUP because some callers remount the
-  // panel subtree on open/close (AddDogPanel keys on `open`), so an
-  // `open === false` branch would run on a fresh instance that never captured
-  // anything. Restoration is deferred a tick: at cleanup time focus can still
-  // sit on a node React is about to remove.
-  useEffect(() => {
-    if (!open) return;
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const isUnmountingRef = useRef(false);
+  // Declared BEFORE the focus effect so its cleanup runs first on unmount.
+  useEffect(
+    () => () => {
+      isUnmountingRef.current = true;
+    },
+    []
+  );
 
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    return () => {
-      if (!previouslyFocused || previouslyFocused === document.body) return;
-      setTimeout(() => {
-        // Only reclaim focus that fell on the floor — a close that navigates,
-        // or that hands focus to another dialog, already put it somewhere the
-        // user expects.
-        if (document.activeElement !== document.body) return;
-        if (!previouslyFocused.isConnected) return;
-        previouslyFocused.focus();
-      }, 0);
-    };
-  }, [open]);
+  const returnFocus = useCallback(() => {
+    const target = returnFocusRef.current;
+    if (!target || target === document.body) return;
+    returnFocusRef.current = null;
+
+    // A tick, so focus has settled after the panel's DOM was removed.
+    setTimeout(() => {
+      if (!target.isConnected) return;
+      const active = document.activeElement;
+      // Only reclaim focus that fell on the floor: focus on a live element
+      // belongs to whatever the close handed it to — another dialog, or the
+      // page a navigating close landed on.
+      if (active && active !== document.body && active.isConnected) return;
+      target.focus();
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      returnFocusRef.current = document.activeElement as HTMLElement | null;
+      // Some callers remount the panel subtree on open/close (AddDogPanel keys
+      // on `open`), destroying this instance before the closed branch below can
+      // run.
+      return () => {
+        if (isUnmountingRef.current) returnFocus();
+      };
+    }
+
+    // Driven by the panel actually leaving the DOM (`!open && !isAnimating` is
+    // what renders null below) rather than by a delay racing the animation:
+    // until then the focused control inside the panel is still mounted, and
+    // taking focus from it would be wrong.
+    if (!isAnimating) returnFocus();
+    return;
+  }, [open, isAnimating, returnFocus]);
 
   // Handle focus management and cleanup animations
   useEffect(() => {
@@ -133,10 +160,10 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
             panelRef.current.focus();
           }
         }
-      }, 300);
+      }, PANEL_ANIMATION_MS);
       return () => clearTimeout(timer);
     } else {
-      const timer = setTimeout(() => setIsAnimating(false), 300);
+      const timer = setTimeout(() => setIsAnimating(false), PANEL_ANIMATION_MS);
       return () => clearTimeout(timer);
     }
   }, [open]);

@@ -4,7 +4,7 @@
  * Core scoring state management for all scoresheet types.
  * Pure form state — no routing, data fetching, or persistence.
  *
- * Used by both LiveScoresheet (judge) and EntryScoresheet (secretary).
+ * Used by the live scoresheets shared across judge and secretary workflows.
  */
 
 import { useState, useCallback, useRef } from 'react';

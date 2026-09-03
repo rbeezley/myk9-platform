@@ -1,12 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  matchesSearch,
-  matchesAny,
-  createSearchFilter,
-  filterBySearchTerm,
-  normalizeSearchTerm,
-  createDebouncedSearch,
-} from './search';
+import { matchesSearch, matchesAny, createDebouncedSearch } from './search';
 
 describe('matchesSearch', () => {
   it('should match case-insensitively', () => {
@@ -73,105 +66,6 @@ describe('matchesAny', () => {
 
   it('should handle empty array with empty search', () => {
     expect(matchesAny([], '')).toBe(true);
-  });
-});
-
-describe('createSearchFilter', () => {
-  type Dog = {
-    name: string;
-    breed: string;
-    age: number;
-  };
-
-  const dogs: Dog[] = [
-    { name: 'Buddy', breed: 'Golden Retriever', age: 3 },
-    { name: 'Max', breed: 'German Shepherd', age: 5 },
-    { name: 'Luna', breed: 'Golden Doodle', age: 2 },
-  ];
-
-  it('should filter by matching field', () => {
-    const filter = createSearchFilter<Dog>('golden', ['name', 'breed']);
-    const result = dogs.filter(filter);
-    expect(result).toHaveLength(2);
-    expect(result[0]!.name).toBe('Buddy');
-    expect(result[1]!.name).toBe('Luna');
-  });
-
-  it('should return all items for empty search', () => {
-    const filter = createSearchFilter<Dog>('', ['name', 'breed']);
-    const result = dogs.filter(filter);
-    expect(result).toHaveLength(3);
-  });
-
-  it('should match against numeric fields converted to string', () => {
-    const filter = createSearchFilter<Dog>('5', ['age']);
-    const result = dogs.filter(filter);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.name).toBe('Max');
-  });
-
-  it('should return empty array when nothing matches', () => {
-    const filter = createSearchFilter<Dog>('poodle', ['name', 'breed']);
-    const result = dogs.filter(filter);
-    expect(result).toHaveLength(0);
-  });
-
-  it('should handle null field values', () => {
-    const items = [{ name: null as unknown as string, breed: 'Lab' }];
-    const filter = createSearchFilter('lab', ['name', 'breed']);
-    const result = items.filter(filter);
-    expect(result).toHaveLength(1);
-  });
-});
-
-describe('filterBySearchTerm', () => {
-  const users = [
-    { firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
-    { firstName: 'Jane', lastName: 'Smith', email: 'jane@example.com' },
-    { firstName: 'Bob', lastName: 'Johnson', email: 'bob@example.com' },
-  ];
-
-  it('should filter by matching field', () => {
-    const result = filterBySearchTerm(users, 'john', ['firstName', 'lastName', 'email']);
-    expect(result).toHaveLength(2); // John Doe and Bob Johnson
-  });
-
-  it('should return all items for empty search', () => {
-    const result = filterBySearchTerm(users, '', ['firstName']);
-    expect(result).toHaveLength(3);
-  });
-
-  it('should search across multiple fields', () => {
-    const result = filterBySearchTerm(users, 'jane', ['firstName', 'email']);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.firstName).toBe('Jane');
-  });
-
-  it('should return empty array when nothing matches', () => {
-    const result = filterBySearchTerm(users, 'xyz', ['firstName', 'lastName']);
-    expect(result).toHaveLength(0);
-  });
-});
-
-describe('normalizeSearchTerm', () => {
-  it('should trim and lowercase', () => {
-    expect(normalizeSearchTerm('  Hello World  ')).toBe('hello world');
-  });
-
-  it('should return empty string for empty input', () => {
-    expect(normalizeSearchTerm('')).toBe('');
-  });
-
-  it('should return empty string for null', () => {
-    expect(normalizeSearchTerm(null)).toBe('');
-  });
-
-  it('should return empty string for undefined', () => {
-    expect(normalizeSearchTerm(undefined)).toBe('');
-  });
-
-  it('should handle already lowercase trimmed input', () => {
-    expect(normalizeSearchTerm('hello')).toBe('hello');
   });
 });
 

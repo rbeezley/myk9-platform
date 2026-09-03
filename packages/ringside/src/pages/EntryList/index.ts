@@ -6,7 +6,7 @@
  * subpath. Internal organization is free to evolve without breaking
  * downstream importers.
  *
- * PR E2a — pure helpers + hooks (useResetScore, useDragAndDropEntries,
+ * PR E2a — pure helpers + hooks (useDragAndDropEntries,
  * useEntryListFilters, sortableEntryCardUtils, types).
  *
  * PR E2b — `useEntryListData` (the React Query data orchestrator) plus
@@ -43,7 +43,6 @@ export type {
 export type { StatusBorderClass } from './sortableEntryCardUtils';
 export {
   normalizeResultText,
-  getResultClassName,
   isNonQualifyingResult,
   getStatusBorderClass,
   getPlacementEmoji,
@@ -100,7 +99,6 @@ export {
   gateRank,
   gateStatusLabel,
   gateStatusOf,
-  hasAnyGateStatus,
   quickAdvanceCandidates,
 } from './quickAdvanceCandidates';
 export type { GateStatus, QuickAdvanceEntry } from './quickAdvanceCandidates';
@@ -108,8 +106,6 @@ export type { GateStatus, QuickAdvanceEntry } from './quickAdvanceCandidates';
 // ── Hooks ────────────────────────────────────────────────────────────────
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export type { TabType, SortType, SectionFilter } from './hooks/useEntryListFilters';
-
-export { useResetScore } from './hooks/useResetScore';
 
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 
@@ -181,10 +177,7 @@ export type {
 // What survived the MYK9-260 collapse: org parsing and time-limit parsing,
 // both shared by the single-class and combined A/B modes. The sort comparator
 // moved into `useEntryListFilters`; the rest went with the page it served.
-export {
-  parseOrganizationData,
-  parseTimeLimit,
-} from './entryListHelpers';
+export { parseOrganizationData, parseTimeLimit } from './entryListHelpers';
 
 // ── Permissions (PR E2d-2b) ─────────────────────────────────────────────
 // Narrow permission union the EntryList page tree consumes. The host's
@@ -217,10 +210,7 @@ export {
   SuccessToast,
   ActionsDropdownMenu,
   TrialInfo,
-  ClassStatusBadge,
-  SectionsBadge,
   getStatusBadge,
-  // PR E2d-2b — drag-and-drop grid wrapper + page header + dialog cluster
   EntryListContent,
   EntryListHeader,
   EntryListDialogs,

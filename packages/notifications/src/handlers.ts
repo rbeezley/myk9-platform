@@ -1,4 +1,4 @@
-import type { NotificationPayload, NotificationPriority } from './types';
+import type { NotificationPayload } from './types';
 
 interface YourTurnInput {
   dogName: string;
@@ -22,12 +22,6 @@ interface ResultsPostedInput {
 interface CheckInReminderInput {
   dogName: string;
   className: string;
-}
-
-interface AnnouncementInput {
-  title: string;
-  body: string;
-  priority?: NotificationPriority;
 }
 
 function makePayload(partial: Omit<NotificationPayload, 'id' | 'timestamp'>): NotificationPayload {
@@ -93,14 +87,5 @@ export function buildCheckInReminderPayload(input: CheckInReminderInput): Notifi
     body: `${input.dogName} — ${input.className} check-in is open`,
     priority: 'high',
     data: { dogName: input.dogName, className: input.className },
-  });
-}
-
-export function buildAnnouncementPayload(input: AnnouncementInput): NotificationPayload {
-  return makePayload({
-    type: 'announcement',
-    title: input.title,
-    body: input.body,
-    priority: input.priority ?? 'normal',
   });
 }

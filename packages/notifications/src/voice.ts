@@ -49,11 +49,3 @@ export function speakWithConfig(text: string, config: VoiceConfig): void {
     speechSynthesis.speak(utterance);
   }, 100);
 }
-
-/**
- * Cancels any in-progress speech.
- */
-export function cancelSpeech(): void {
-  if (!isSpeechSupported()) return;
-  speechSynthesis.cancel();
-}

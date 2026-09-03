@@ -212,5 +212,4 @@ export type {
   ScoresheetSportType,
   BaseScoresheetProps,
   LiveScoresheetProps,
-  EntryScoresheetProps,
 } from './scoreData';

@@ -3,7 +3,6 @@ import type { Logger } from '../dependencies';
 import type { ReplicatedReadResult, ReplicatedRow } from '../types';
 import { GET_ALL_TIMEOUT_MS, QUERY_TIMEOUT_MS, SLOW_QUERY_THRESHOLD_MS } from '../constants';
 import { databaseManager, REPLICATION_STORES } from './DatabaseManager';
-import { collectFreshLocalIds } from './ReplicatedTableRowState';
 
 /**
  * Query operations for a replicated table.
@@ -13,7 +12,6 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
     private tableName: string,
     private logger: Logger,
     private getDb: () => Promise<IDBPDatabase>,
-    private isExpired: (row: ReplicatedRow<T>) => boolean,
     private getAllData: (licenseKey?: string) => Promise<T[]>
   ) {}
 
@@ -64,8 +62,7 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
           throw new Error('Transaction aborted due to timeout');
         }
 
-        const freshRows = rows.filter(row => !this.isExpired(row));
-        return freshRows.map(row => row.data);
+        return rows.map(row => row.data);
       })();
 
       const results = await Promise.race([queryPromise, timeoutPromise]);
@@ -136,15 +133,14 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
       const index = tx.store.index('tableName');
 
       const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
-      const freshRows = rows.filter(row => !this.isExpired(row));
 
       if (licenseKey) {
-        return freshRows
+        return rows
           .filter(row => (row.data as Record<string, unknown>).license_key === licenseKey)
           .map(row => row.data);
       }
 
-      return freshRows.map(row => row.data);
+      return rows.map(row => row.data);
     })();
 
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -170,6 +166,6 @@ export class ReplicatedTableQueryManager<T extends { id: string }> {
     const index = tx.store.index('tableName');
     const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
 
-    return collectFreshLocalIds(rows, row => this.isExpired(row));
+    return new Set(rows.map(row => row.id));
   }
 }

@@ -54,11 +54,6 @@ export function gateRank(entry: QuickAdvanceEntry): number {
   return GATE_PRIORITY_STATUSES.indexOf(status);
 }
 
-/** True when at least one entry carries a gate status worth promoting. */
-export function hasAnyGateStatus(entries: readonly QuickAdvanceEntry[]): boolean {
-  return entries.some(entry => gateStatusOf(entry) !== null);
-}
-
 /**
  * Pending entries in run order, with gate-flagged dogs stable-partitioned to
  * the front. Run order is preserved within each rank, so with zero status data

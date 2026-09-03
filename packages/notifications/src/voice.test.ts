@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { speak, cancelSpeech, isSpeechSupported } from './voice';
+import { speak, isSpeechSupported } from './voice';
 
 const mockUtterance = {
   text: '',
@@ -65,13 +65,5 @@ describe('speak', () => {
     vi.stubGlobal('speechSynthesis', undefined);
 
     expect(() => speak('Test')).not.toThrow();
-  });
-});
-
-describe('cancelSpeech', () => {
-  it('calls speechSynthesis.cancel', () => {
-    cancelSpeech();
-
-    expect(mockSpeechSynthesis.cancel).toHaveBeenCalled();
   });
 });

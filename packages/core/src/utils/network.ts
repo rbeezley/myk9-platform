@@ -35,7 +35,10 @@ export const BACKOFF_JITTER = 0.1;
  * Error thrown when an operation times out
  */
 export class TimeoutError extends Error {
-  constructor(message: string, public timeoutMs: number) {
+  constructor(
+    message: string,
+    public timeoutMs: number
+  ) {
     super(message);
     this.name = 'TimeoutError';
   }
@@ -74,10 +77,7 @@ export async function withTimeout<T>(
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new TimeoutError(
-        `${operationName} timed out after ${timeoutMs}ms`,
-        timeoutMs
-      ));
+      reject(new TimeoutError(`${operationName} timed out after ${timeoutMs}ms`, timeoutMs));
     }, timeoutMs);
   });
 
@@ -141,116 +141,6 @@ export function backoffDelay(
   const delay = calculateBackoffDelay(attempt, baseDelayMs);
   logger.log(`[Backoff] Waiting ${delay.toFixed(0)}ms before retry (attempt ${attempt + 1})`);
   return new Promise(resolve => setTimeout(resolve, delay));
-}
-
-// ============================================
-// RETRY WITH BACKOFF
-// ============================================
-
-/**
- * Options for retry operations
- */
-export interface RetryOptions {
-  /** Maximum number of retry attempts (default: 3) */
-  maxRetries?: number;
-  /** Base delay for exponential backoff in ms (default: 1000) */
-  baseDelayMs?: number;
-  /** Timeout for each attempt in ms (default: 15000) */
-  timeoutMs?: number;
-  /** Operation name for logging */
-  operationName?: string;
-  /** Whether to retry on specific errors only */
-  shouldRetry?: (error: unknown) => boolean;
-  /** Callback before each retry */
-  onRetry?: (attempt: number, error: unknown) => void;
-}
-
-/**
- * Executes an async operation with retry and exponential backoff
- *
- * @param operation - The async operation to execute
- * @param options - Retry configuration options
- * @returns The operation result
- * @throws The last error if all retries fail
- *
- * @example
- * ```ts
- * const data = await withRetry(
- *   async () => {
- *     const { data, error } = await supabase.from('entries').select('*');
- *     if (error) throw error;
- *     return data;
- *   },
- *   {
- *     maxRetries: 3,
- *     timeoutMs: 15000,
- *     operationName: 'fetch entries'
- *   }
- * );
- * ```
- */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
-  const {
-    maxRetries = DEFAULT_MAX_RETRIES,
-    baseDelayMs = DEFAULT_BACKOFF_BASE_MS,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-    operationName = 'operation',
-    shouldRetry = isRetryableError,
-    onRetry,
-  } = options;
-
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      // Wrap the operation with timeout
-      const result = await withTimeout(
-        operation(),
-        timeoutMs,
-        operationName
-      );
-
-      if (attempt > 0) {
-        logger.log(`[Retry] ${operationName} succeeded on attempt ${attempt + 1}`);
-      }
-
-      return result;
-    } catch (error) {
-      lastError = error;
-
-      // Check if we should retry this error
-      if (!shouldRetry(error)) {
-        logger.warn(`[Retry] ${operationName} failed with non-retryable error:`, error);
-        throw error;
-      }
-
-      // Check if we have retries left
-      if (attempt >= maxRetries) {
-        logger.error(`[Retry] ${operationName} failed after ${maxRetries + 1} attempts:`, error);
-        throw error;
-      }
-
-      // Log and wait before retrying
-      logger.warn(
-        `[Retry] ${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}):`,
-        error instanceof Error ? error.message : error
-      );
-
-      // Call onRetry callback if provided
-      if (onRetry) {
-        onRetry(attempt, error);
-      }
-
-      // Wait with exponential backoff
-      await backoffDelay(attempt, baseDelayMs);
-    }
-  }
-
-  // This should never be reached, but TypeScript needs it
-  throw lastError;
 }
 
 // ============================================
@@ -370,28 +260,4 @@ export const TIMEOUT_PRESETS = {
   bulk: 60000,
   /** Long-running operations (migrations) */
   long: 120000,
-} as const;
-
-/**
- * Retry presets for different scenarios
- */
-export const RETRY_PRESETS = {
-  /** Quick retry for transient failures */
-  quick: {
-    maxRetries: 2,
-    baseDelayMs: 500,
-    timeoutMs: TIMEOUT_PRESETS.quick,
-  },
-  /** Standard retry for normal operations */
-  standard: {
-    maxRetries: 3,
-    baseDelayMs: 1000,
-    timeoutMs: TIMEOUT_PRESETS.standard,
-  },
-  /** Aggressive retry for critical operations */
-  aggressive: {
-    maxRetries: 5,
-    baseDelayMs: 1000,
-    timeoutMs: TIMEOUT_PRESETS.bulk,
-  },
 } as const;

@@ -128,7 +128,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('shows', undefined, { logger });
+    super('shows', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */

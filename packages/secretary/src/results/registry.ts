@@ -3,8 +3,7 @@
  *
  * Usage:
  *   registerFormatter(AKCScentWorkFormatter);
- *   const fmt = getFormatter('AKC', 'scent_work');
- *   const xml  = fmt?.formatXml(data);
+ *   const formatters = listFormatters();
  */
 
 import type { ResultFormatter } from './types';
@@ -25,14 +24,6 @@ export function registerFormatter(formatter: ResultFormatter): void {
 }
 
 /**
- * Retrieve the formatter for a given organization and sport type.
- * Returns undefined when no formatter has been registered.
- */
-export function getFormatter(organization: string, sportType: string): ResultFormatter | undefined {
-  return registry.get(makeKey(organization, sportType));
-}
-
-/**
  * Return all registered formatters, sorted by organization then sport type.
  */
 export function listFormatters(): ResultFormatter[] {
@@ -40,11 +31,4 @@ export function listFormatters(): ResultFormatter[] {
     const orgCmp = a.organization.localeCompare(b.organization);
     return orgCmp !== 0 ? orgCmp : a.sportType.localeCompare(b.sportType);
   });
-}
-
-/**
- * Clear all registered formatters (intended for use in tests only).
- */
-export function clearFormatters(): void {
-  registry.clear();
 }

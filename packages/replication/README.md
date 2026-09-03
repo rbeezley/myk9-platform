@@ -350,6 +350,14 @@ const store = tx.objectStore('dogs');
 await databaseManager.close();
 ```
 
+### Replica retention
+
+Replicated rows do not expire by wall clock, online or offline. Incremental
+sync may leave unchanged rows untouched; those rows remain readable. Authoritative
+server reconciliation and explicit deletes remove rows. Capacity-based LRU/LFU
+eviction still protects dirty/recent edits. Sync timestamps remain metadata;
+no data migration or cache clear is needed for the TTL removal.
+
 ### Constants
 
 ```typescript
@@ -358,11 +366,6 @@ import {
   DB_NAME,                  // 'myk9-replication'
   DB_VERSION,               // 1
   TOTAL_REPLICATED_TABLES,  // 16
-
-  // TTL
-  DEFAULT_TTL_MS,           // 24 hours
-  ENTRY_TTL_MS,             // 7 days
-  RESULT_TTL_MS,            // 30 days
 
   // Sync
   SYNC_INTERVAL_MS,         // 30 seconds

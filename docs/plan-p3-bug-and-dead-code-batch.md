@@ -38,7 +38,7 @@ reference evidence confirms the symbols are unreachable.
   `256e657812522721aff29597c38d86e654268d3f`. The two support-ticket migrations
   were applied to the remote project. Downloaded live source confirms the merged
   cron-response fix (v55) and no-subscription conflict/stale-row fix (webhook v89).
-- All five sweep issues are marked Done in Linear. MYK9-298 shipped in #1948;
+- MYK9-328 is In Progress; the other four sweep issues are marked Done in Linear. MYK9-298 shipped in #1948;
   MYK9-308/313/322/328 closed after PR
   [#1984](https://github.com/rbeezley/myk9-platform/pull/1984), merge commit
   `84324c1ff595c3fd8da314e3d3facf44d5410d7d`, with required CI passing.
@@ -46,7 +46,7 @@ reference evidence confirms the symbols are unreachable.
   This does not mean every originally listed package export was deleted:
   [the Wave 3 inventory](qa/wave3-dead-code-import-inventory.md) records retained
   live/compatibility APIs and deferred package ownership decisions. The inert
-  replication TTL remains retained pending that decision; never wire it.
+  replication TTL is removed with approved public-boundary safety tests; it was never wired.
 - MYK9-305 is Done after acceptance verification against main `8d6264d29`:
   numeric armband tie-breaking reuses the shared helper, missing/non-numeric
   armbands sort last, and the behavioral test pins 1, 9, 10 ordering. The fix
@@ -76,11 +76,30 @@ reference evidence confirms the symbols are unreachable.
   that currently suppress their errors remain an existing limitation, not a
   guarantee added by this follow-up.
 
-The batch remains Active only for the explicitly deferred package decisions.
+The batch remains Active for the deferred package cleanup.
 MYK9-309's acceptance gap is closed, sweep issue tracking is reconciled, and
-MYK9-334's implementation and deployment acceptance gates are complete. Retained
-package APIs and the inert TTL still require their recorded ownership decisions;
-do not treat them as deleted or wire the TTL.
+MYK9-334's implementation and deployment acceptance gates are complete. The owner
+confirmed internal-only packages on 2026-09-02. External compatibility is resolved;
+implementation, TTL behavioral verification, review, and merge are not all complete.
+Do not treat retained APIs as deleted or wire the TTL.
+
+## Internal-package continuation
+
+OpenSpec: `openspec/changes/internal-package-dead-code/`. Branch:
+`codex/myk9-328-completion`, based on `d5a495862`. Work is local and unmerged.
+The [package inventory](qa/myk9-328-package-dead-code-inventory.md) records
+167 removed source declarations on `codex/myk9-328-completion`.
+The missing temporary worktree was recovered from recorded file patches.
+The remaining ringside/logger/secretary helpers are now removed locally.
+Email is types-only; production Edge builders own rendering and keep their tests.
+
+Current evidence: eight affected package builds, 1,331 retained package tests,
+174 production email tests, and 521 app at-show/email-prop tests pass.
+Broad verification is recorded in the active OpenSpec change.
+Replication TTL removal now passes four public-boundary retention tests and all
+536 replication tests, plus monorepo typecheck/lint/quality checks. Publication
+and merge are approved. Full app suite passes 18,717 tests (9 existing skips);
+independent review approved. CI/merge and tracking closure remain pending. MYK9-328 is not Done.
 
 ## MYK9-309 failed-refresh follow-up
 

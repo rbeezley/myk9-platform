@@ -35,7 +35,7 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('people', undefined, { logger });
+    super('people', { logger });
   }
 
   get lastMutationId(): string | null {

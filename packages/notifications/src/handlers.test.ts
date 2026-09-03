@@ -4,7 +4,6 @@ import {
   buildClassStartingPayload,
   buildResultsPostedPayload,
   buildCheckInReminderPayload,
-  buildAnnouncementPayload,
 } from './handlers';
 
 // Mock crypto.randomUUID for deterministic IDs
@@ -126,29 +125,5 @@ describe('buildYourTurnPayload — conflicts', () => {
     });
     expect(payload.priority).toBe('urgent');
     expect(payload.title).toBe("Buddy — You're up!");
-  });
-});
-
-describe('buildAnnouncementPayload', () => {
-  it('builds normal priority by default', () => {
-    const payload = buildAnnouncementPayload({
-      title: 'Gate change',
-      body: 'Ring 2 moved to gate B',
-    });
-
-    expect(payload.type).toBe('announcement');
-    expect(payload.priority).toBe('normal');
-    expect(payload.title).toBe('Gate change');
-    expect(payload.body).toBe('Ring 2 moved to gate B');
-  });
-
-  it('accepts custom priority', () => {
-    const payload = buildAnnouncementPayload({
-      title: 'Emergency',
-      body: 'Show paused',
-      priority: 'urgent',
-    });
-
-    expect(payload.priority).toBe('urgent');
   });
 });

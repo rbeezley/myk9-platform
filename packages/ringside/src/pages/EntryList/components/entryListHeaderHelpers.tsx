@@ -28,7 +28,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { formatTrialDate } from '@myk9/core';
-import { StatusIcon, getStatusDescriptor } from '@myk9/ui';
+import { getStatusDescriptor } from '@myk9/ui';
 
 // ============================================================================
 // Types
@@ -277,49 +277,6 @@ export function getStatusBadge(classStatus?: string): StatusBadgeInfo | null {
   const descriptor = getStatusDescriptor('class', classStatus);
   return { text: descriptor.label.toUpperCase(), className: 'status-neutral' };
 }
-
-interface ClassStatusBadgeProps {
-  classStatus?: string;
-}
-
-export const ClassStatusBadge: React.FC<ClassStatusBadgeProps> = ({ classStatus }) => {
-  const statusBadge = getStatusBadge(classStatus);
-
-  if (!statusBadge) return null;
-
-  return (
-    <>
-      <span className="trial-separator">•</span>
-      <span className={`class-status-badge ${statusBadge.className}`}>
-        <StatusIcon family="class" status={classStatus} size="sm" decorative />
-        {statusBadge.text}
-      </span>
-    </>
-  );
-};
-
-// ============================================================================
-// Sections Badge (for combined view)
-// ============================================================================
-
-interface SectionsBadgeProps {
-  show: boolean;
-  judgeName?: string | null;
-  judgeNameB?: string | null;
-}
-
-export const SectionsBadge: React.FC<SectionsBadgeProps> = ({ show, judgeName, judgeNameB }) => {
-  if (!show || !judgeNameB || judgeNameB === judgeName) {
-    return null;
-  }
-
-  return (
-    <>
-      <span className="trial-separator">•</span>
-      <span className="class-status-badge sections-badge">Section A & B</span>
-    </>
-  );
-};
 
 // ClassInfoPopup has been replaced by ClassDetailsPopover, slotted as
 // `EntryListLayoutSlots.ClassDetailsPopover` in `../pageProps.ts`.

@@ -2,11 +2,8 @@
 //
 // Gazette confirmation email — Deno HTML builder.
 //
-// Deno edge functions cannot import from workspace packages, so this file
-// keeps a local copy of the Gazette palette + font stack. The canonical
-// React Email implementation lives in
-// packages/email/src/templates/GazetteConfirmationEmail.tsx — keep these
-// two in visual sync.
+// This builder owns the production email palette and HTML.
+// @myk9/email supplies data types only; there is no parallel React renderer.
 //
 // Outlook constraints (per README §Known Caveats):
 //   - font-feature-settings ignored on 2007–2019 → body uses lining figures

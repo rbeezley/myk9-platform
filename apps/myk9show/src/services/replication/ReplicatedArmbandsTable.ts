@@ -83,7 +83,7 @@ export function rowToArmband(row: ArmbandRow): ReplicatedArmband {
 
 export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> {
   constructor() {
-    super('armbands', undefined, { logger });
+    super('armbands', { logger });
   }
 
   private toSupabaseRow(armband: ReplicatedArmband): Record<string, unknown> {

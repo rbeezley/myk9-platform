@@ -29,16 +29,6 @@ export function isPushSupported(): boolean {
 }
 
 /**
- * Requests notification permission from the user.
- * Returns the resulting permission state.
- */
-export async function requestPushPermission(): Promise<NotificationPermission> {
-  if (typeof Notification === 'undefined') return 'denied';
-  if (Notification.permission !== 'default') return Notification.permission;
-  return Notification.requestPermission();
-}
-
-/**
  * How long to wait for `navigator.serviceWorker.ready` before giving up.
  *
  * `.ready` never rejects — it simply never settles when registration failed, is

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   withTimeout,
-  withRetry,
   TimeoutError,
   calculateBackoffDelay,
   isRetryableError,
@@ -11,7 +10,6 @@ import {
   MAX_BACKOFF_MS,
   BACKOFF_JITTER,
   TIMEOUT_PRESETS,
-  RETRY_PRESETS,
 } from './network';
 
 // Suppress logger output during tests
@@ -51,12 +49,6 @@ describe('constants', () => {
     expect(TIMEOUT_PRESETS.standard).toBe(15000);
     expect(TIMEOUT_PRESETS.bulk).toBe(60000);
     expect(TIMEOUT_PRESETS.long).toBe(120000);
-  });
-
-  it('should have retry presets', () => {
-    expect(RETRY_PRESETS.quick.maxRetries).toBe(2);
-    expect(RETRY_PRESETS.standard.maxRetries).toBe(3);
-    expect(RETRY_PRESETS.aggressive.maxRetries).toBe(5);
   });
 });
 
@@ -99,7 +91,7 @@ describe('withTimeout', () => {
   });
 
   it('should reject with TimeoutError if promise exceeds timeout', async () => {
-    const promise = new Promise<string>((resolve) => {
+    const promise = new Promise<string>(resolve => {
       setTimeout(() => resolve('late'), 10000);
     });
 
@@ -226,115 +218,5 @@ describe('isRetryableError', () => {
 
   it('should return false for TypeError without fetch', () => {
     expect(isRetryableError(new TypeError('cannot read property'))).toBe(false);
-  });
-});
-
-describe('withRetry', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('should return result on first successful attempt', async () => {
-    const operation = vi.fn().mockResolvedValue('success');
-    const resultPromise = withRetry(operation, {
-      maxRetries: 3,
-      timeoutMs: 5000,
-    });
-    const result = await resultPromise;
-    expect(result).toBe('success');
-    expect(operation).toHaveBeenCalledTimes(1);
-  });
-
-  it('should retry on retryable error and succeed', async () => {
-    const operation = vi.fn()
-      .mockRejectedValueOnce(new TimeoutError('timeout', 5000))
-      .mockResolvedValueOnce('recovered');
-
-    const resultPromise = withRetry(operation, {
-      maxRetries: 3,
-      baseDelayMs: 100,
-      timeoutMs: 5000,
-    });
-
-    // Advance past the backoff delay
-    await vi.advanceTimersByTimeAsync(200);
-
-    const result = await resultPromise;
-    expect(result).toBe('recovered');
-    expect(operation).toHaveBeenCalledTimes(2);
-  });
-
-  it('should throw immediately for non-retryable error', async () => {
-    const operation = vi.fn().mockImplementation(() =>
-      Promise.reject(new Error('validation error'))
-    );
-
-    await expect(
-      withRetry(operation, { maxRetries: 3, timeoutMs: 5000 })
-    ).rejects.toThrow('validation error');
-
-    expect(operation).toHaveBeenCalledTimes(1);
-  });
-
-  it('should throw after exhausting all retries', async () => {
-    vi.useRealTimers(); // Use real timers for this test to avoid unhandled rejection timing issues
-
-    const operation = vi.fn().mockImplementation(() =>
-      Promise.reject(new TimeoutError('timeout', 5000))
-    );
-
-    await expect(
-      withRetry(operation, {
-        maxRetries: 1,
-        baseDelayMs: 1, // Minimal delay for fast test
-        timeoutMs: 5000,
-      })
-    ).rejects.toThrow(TimeoutError);
-
-    expect(operation).toHaveBeenCalledTimes(2); // initial + 1 retry
-
-    vi.useFakeTimers(); // Restore for afterEach cleanup
-  });
-
-  it('should call onRetry callback', async () => {
-    const onRetry = vi.fn();
-    const operation = vi.fn()
-      .mockRejectedValueOnce(new TimeoutError('timeout', 5000))
-      .mockResolvedValueOnce('ok');
-
-    const resultPromise = withRetry(operation, {
-      maxRetries: 3,
-      baseDelayMs: 10,
-      timeoutMs: 5000,
-      onRetry,
-    });
-
-    await vi.advanceTimersByTimeAsync(200);
-    await resultPromise;
-
-    expect(onRetry).toHaveBeenCalledTimes(1);
-    expect(onRetry).toHaveBeenCalledWith(0, expect.any(TimeoutError));
-  });
-
-  it('should use custom shouldRetry function', async () => {
-    const customShouldRetry = vi.fn().mockReturnValue(false);
-    const operation = vi.fn().mockImplementation(() =>
-      Promise.reject(new TimeoutError('timeout', 5000))
-    );
-
-    await expect(
-      withRetry(operation, {
-        maxRetries: 3,
-        timeoutMs: 5000,
-        shouldRetry: customShouldRetry,
-      })
-    ).rejects.toThrow(TimeoutError);
-
-    expect(operation).toHaveBeenCalledTimes(1);
-    expect(customShouldRetry).toHaveBeenCalledTimes(1);
   });
 });

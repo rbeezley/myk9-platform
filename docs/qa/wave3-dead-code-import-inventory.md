@@ -10,12 +10,12 @@ checked separately before deletion.
 
 ## Decisions
 
-| Area | Current result | Decision |
-| --- | --- | --- |
-| Hooks (MYK9-308) | 13 modules have no production importer; one is retained for compatibility tests | Delete the 12 unreferenced modules and their orphaned tests. |
-| Features (MYK9-313) | Nine unmounted pipeline/message components/hooks have no live importer | Delete the unmounted cluster and its orphaned tests. |
-| Services (MYK9-322) | Seven legacy modules have no source/test consumer; payment and scoring mappers remain test-backed | Delete the seven orphaned modules; retain test-backed services. |
-| Packages (MYK9-328) | Several exports have no repository-local importer, but remain package API surface | Keep published barrels until an API compatibility decision is made. |
+| Area                | Current result                                                                                            | Decision                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Hooks (MYK9-308)    | 13 modules have no production importer; one is retained for compatibility tests                           | Delete the 12 unreferenced modules and their orphaned tests.                                           |
+| Features (MYK9-313) | Nine unmounted pipeline/message components/hooks have no live importer                                    | Delete the unmounted cluster and its orphaned tests.                                                   |
+| Services (MYK9-322) | Seven legacy modules have no source/test consumer; payment and scoring mappers remain test-backed         | Delete the seven orphaned modules; retain test-backed services.                                        |
+| Packages (MYK9-328) | Owner confirmed internal-only packages; fresh scans distinguish dead exports from live internal consumers | Local removal is in progress; see the [per-symbol inventory](myk9-328-package-dead-code-inventory.md). |
 
 ## Retained compatibility/live symbols
 
@@ -23,9 +23,13 @@ checked separately before deletion.
 `components/entries/OfflineEntryForm.tsx` import it, and store integration
 tests exercise it. It must not be deleted based on stale issue evidence.
 
-The scoring timer/calculation and scoring-ui exports remain package API until
-the compatibility decision is explicit. The replication TTL machinery remains
-unchanged because enabling expiry would create false-empty offline reads.
+The owner answered "Internal" on 2026-09-02, resolving external-package
+compatibility. Verified scoring timer/calculation and unused scoring-ui APIs
+are now removed locally on `codex/myk9-328-completion`; live consumers
+and remaining slices are recorded in the package inventory. This follow-up is
+not yet merged. Inert replication TTL is removed with approved public-boundary
+tests for aged reads/subscriptions, dirty edits, reconciliation and read errors.
+Expiry was not enabled; data and sync policy are unchanged.
 
 The live pipeline boundary is `SecretaryDashboardPage` →
 `useMissionControlData` and the lazy `TrialPipelineDetail` route. The deleted

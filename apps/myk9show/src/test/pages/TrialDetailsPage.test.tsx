@@ -118,7 +118,6 @@ vi.mock('@/components/classes/AddClassesToTrialPanel', () => ({
 }));
 vi.mock('@/components/panels/edit/TrialEditPanel', () => ({ TrialEditPanel: () => null }));
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({ ClassEditPanel: () => null }));
-vi.mock('@/components/secretary/PromoCodesSection', () => ({ PromoCodesSection: () => null }));
 vi.mock('@/components/secretary/FinancialSummary', () => ({ FinancialSummary: () => null }));
 vi.mock('@/components/trials/TrialDetail/TrialEntriesTable', () => ({
   TrialEntriesTable: () => <div data-testid="trial-entries-table" />,
@@ -146,7 +145,20 @@ vi.mock('@/components/common/DetailHero', () => ({
   ),
 }));
 vi.mock('@/components/common/PrimaryTabs', () => ({
-  PrimaryTabs: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  PrimaryTabs: ({
+    children,
+    tabs,
+  }: {
+    children: React.ReactNode;
+    tabs?: Array<{ id: string; label: string }>;
+  }) => (
+    <div>
+      <nav aria-label="Trial sections">
+        {tabs?.map(tab => <button key={tab.id}>{tab.label}</button>)}
+      </nav>
+      {children}
+    </div>
+  ),
 }));
 vi.mock('@/components/ui/tabs', () => ({
   TabsContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -165,11 +177,11 @@ function makeFallbackTrial(): Trial {
   };
 }
 
-function renderPage() {
+function renderPage(initialEntry = '/trials/trial-1') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={['/trials/trial-1']}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/trials/:trialId" element={<TrialDetailsPage />} />
         </Routes>
@@ -276,5 +288,32 @@ describe('TrialDetailsPage', () => {
     // Store had the trial + show, so both by-id fallbacks stay disabled.
     expect(trialQueryCalls.every(arg => arg === undefined)).toBe(true);
     expect(showQueryCalls.every(arg => arg === '')).toBe(true);
+  });
+
+  it('does not expose promo-code management to a secretary', () => {
+    mockAuthContext.user = { id: 'user-1' };
+    mockAuthContext.isSecretary = true;
+    mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+    mockSelectedTrialId = 'trial-1';
+    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic' }];
+
+    renderPage();
+
+    expect(screen.queryByRole('button', { name: 'Promo Codes' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Financials' })).toBeInTheDocument();
+  });
+
+  it('does not render the removed promo-code panel when deep-linked', () => {
+    mockAuthContext.user = { id: 'user-1' };
+    mockAuthContext.isSecretary = true;
+    mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+    mockSelectedTrialId = 'trial-1';
+    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic' }];
+
+    renderPage('/trials/trial-1?tab=promo-codes');
+
+    expect(screen.queryByRole('button', { name: 'Promo Codes' })).not.toBeInTheDocument();
+    expect(screen.queryByText('PromoCodesSection')).not.toBeInTheDocument();
+    expect(screen.getByTestId('trial-details-main')).toBeInTheDocument();
   });
 });

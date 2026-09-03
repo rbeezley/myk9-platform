@@ -11,7 +11,6 @@ import {
   type TrialManagementDialogsHandle,
 } from '@/components/trials/TrialDetail/TrialManagementDialogs';
 import { TabsContent } from '@/components/ui/tabs';
-import { PromoCodesSection } from '@/components/secretary/PromoCodesSection';
 import { FinancialSummary } from '@/components/secretary/FinancialSummary';
 import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesTable';
 import { TrialClass } from '@/components/trials/types/trial.types';
@@ -19,7 +18,6 @@ import {
   Calendar,
   LayoutDashboard,
   ClipboardList,
-  Tag,
   DollarSign,
   Pencil,
   Trash2,
@@ -50,7 +48,7 @@ import { StatusIcon, getStatusDescriptor } from '@/components/status';
 // so management tabs must be excluded for non-staff or a deep link like
 // `?tab=financials` would render the panel even with its trigger hidden.
 const PUBLIC_TAB_IDS = ['overview', 'entries'] as const;
-const MANAGEMENT_TAB_IDS = ['promo-codes', 'financials'] as const;
+const MANAGEMENT_TAB_IDS = ['financials'] as const;
 const TAB_IDS = [...PUBLIC_TAB_IDS, ...MANAGEMENT_TAB_IDS] as const;
 
 const TrialDetailsPage: React.FC = () => {
@@ -190,7 +188,6 @@ const TrialDetailsPage: React.FC = () => {
       { id: 'entries', label: 'Entries', icon: ClipboardList, count: entryCount },
     ];
     if (canManageTrial) {
-      tabs.push({ id: 'promo-codes', label: 'Promo Codes', icon: Tag });
       tabs.push({ id: 'financials', label: 'Financials', icon: DollarSign });
     }
     return tabs;
@@ -380,10 +377,6 @@ const TrialDetailsPage: React.FC = () => {
 
             <TabsContent value="entries">
               <TrialEntriesTable trialId={trialWithClasses.id} />
-            </TabsContent>
-
-            <TabsContent value="promo-codes">
-              <PromoCodesSection trialId={trialWithClasses.id} />
             </TabsContent>
 
             <TabsContent value="financials">

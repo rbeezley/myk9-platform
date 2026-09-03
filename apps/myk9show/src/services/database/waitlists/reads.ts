@@ -362,31 +362,6 @@ export const closeWaitlistForClasses = async (classIds: string[]): Promise<void>
 };
 
 /**
- * Get waitlist position for a specific entry
- * Replication-first with PostgREST fallback.
- */
-export const getWaitlistPosition = async (waitlistEntryId: string) => {
-  const startTime = Date.now();
-
-  try {
-    const entry = await replicatedWaitlistEntriesTable.getById(waitlistEntryId);
-
-    const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'get_waitlist_position', duration);
-
-    if (!entry) {
-      return { position: null, error: null };
-    }
-
-    return { position: entry.position, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'get_waitlist_position', duration, (error as Error).message);
-    return { position: null, error };
-  }
-};
-
-/**
  * Join the waitlist for a class (exhibitor-facing)
  * Calculates the next position and inserts a new waitlist entry.
  */

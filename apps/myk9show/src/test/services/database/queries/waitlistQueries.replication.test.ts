@@ -68,7 +68,6 @@ import {
   getWaitlistByShow,
   getWaitlistByClass,
   getClassesWithWaitlistCounts,
-  getWaitlistPosition,
 } from '@/services/database/waitlists';
 
 // ---------------------------------------------------------------------------
@@ -322,26 +321,4 @@ describe('waitlistQueries (replication)', () => {
     });
   });
 
-  // -----------------------------------------------------------------------
-  // getWaitlistPosition
-  // -----------------------------------------------------------------------
-  describe('getWaitlistPosition', () => {
-    it('returns the position number', async () => {
-      mockWaitlistTable.getById.mockResolvedValue(makeWaitlistEntry({ position: 3 }));
-
-      const result = await getWaitlistPosition('wl-1');
-
-      expect(result.position).toBe(3);
-      expect(result.error).toBeNull();
-    });
-
-    it('returns null when entry not found', async () => {
-      mockWaitlistTable.getById.mockResolvedValue(null);
-
-      const result = await getWaitlistPosition('wl-999');
-
-      expect(result.position).toBeNull();
-      expect(result.error).toBeNull();
-    });
-  });
 });

@@ -88,6 +88,10 @@ remain available.
 after confirming no production caller; callers should use the live trial list
 query and apply their existing show scope.
 
+`getWaitlistPosition` was removed with its dedicated tests after confirming no
+production caller; waitlist joins, class counts, promotions, and removals stay
+available through the live waitlist flows.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

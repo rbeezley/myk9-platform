@@ -11,5 +11,4 @@ export {
   getWaitlistOfferMessageTarget,
   promoteWaitlistEntry,
   removeFromWaitlist,
-  getWaitlistPosition,
 } from './reads';

@@ -6,14 +6,6 @@ const repoRoot = path.resolve(__dirname, '../../../../..');
 
 const requiredLabels: Array<{ file: string; labels: string[] }> = [
   {
-    file: 'apps/myk9show/src/components/common/AdvancedSearch.tsx',
-    labels: [
-      'aria-label={isSearching ?',
-      'Close advanced filters',
-      'Remove ${status} status filter',
-    ],
-  },
-  {
     file: 'apps/myk9show/src/components/common/RecentSearches.tsx',
     labels: ['Remove recent search ${search.query}'],
   },
@@ -32,10 +24,6 @@ const requiredLabels: Array<{ file: string; labels: string[] }> = [
   {
     file: 'apps/myk9show/src/components/shows/RegistrationWorkflow/DraftManager.tsx',
     labels: ['Delete draft ${draft.title}'],
-  },
-  {
-    file: 'apps/myk9show/src/components/shows/RegistrationWorkflow/InfiniteDogSelectionStep.tsx',
-    labels: ['Show dogs in grid view', 'Show dogs in list view', 'Back to top'],
   },
 ];
 

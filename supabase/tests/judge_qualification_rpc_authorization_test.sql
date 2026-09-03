@@ -1,5 +1,7 @@
 -- MYK9-354 behavioral contract: only secretaries and site admins may replace
--- judge qualifications. An ordinary authenticated user cannot use the RPC to
+-- judge qualifications, including clearing the full list. Direct table DELETE
+-- intentionally remains site-admin-only (owner decision: docs/roles/judge.md).
+-- An ordinary authenticated user cannot use the RPC to
 -- create or delete credential rows for their own person.
 -- All fixtures roll back.
 
@@ -57,6 +59,8 @@ DECLARE
   secretary_auth_id CONSTANT uuid := '00000000-0000-0000-0000-000000354102';
   admin_auth_id CONSTANT uuid := '00000000-0000-0000-0000-000000354103';
   target_person_id CONSTANT uuid := '00000000-0000-0000-0000-000000354001';
+  secretary_qualifications CONSTANT jsonb :=
+    '[{"person_id":"00000000-0000-0000-0000-000000354001","organization":"MYK9-354","qualification_level":"Secretary","disciplines":["Scent Work"],"judge_number":"SECRETARY-354"}]'::jsonb;
   delete_policy text;
   ordinary_denied boolean := false;
   attempted_qualifications jsonb;
@@ -124,10 +128,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL secretary deleted qualifications directly: % rows', direct_delete_count;
   END IF;
 
-  PERFORM public.replace_judge_qualifications(
-    target_person_id,
-    '[{"person_id":"00000000-0000-0000-0000-000000354001","organization":"MYK9-354","qualification_level":"Secretary","disciplines":["Scent Work"],"judge_number":"SECRETARY-354"}]'::jsonb
-  );
+  PERFORM public.replace_judge_qualifications(target_person_id, secretary_qualifications);
   SELECT count(*) INTO qualification_count
   FROM public.judge_qualifications
   WHERE person_id = target_person_id AND judge_number = 'SECRETARY-354';
@@ -141,6 +142,29 @@ BEGIN
     RAISE EXCEPTION 'FAIL secretary replacement left stale qualifications';
   END IF;
 
+  -- The empty replacement is an authorized save, not direct DELETE access.
+  PERFORM public.replace_judge_qualifications(target_person_id, '[]'::jsonb);
+  SELECT count(*) INTO qualification_count
+  FROM public.judge_qualifications
+  WHERE person_id = target_person_id;
+  IF qualification_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL secretary RPC could not clear the full qualification list';
+  END IF;
+
+  PERFORM public.replace_judge_qualifications(target_person_id, secretary_qualifications);
+  SELECT count(*) INTO qualification_count
+  FROM public.judge_qualifications
+  WHERE person_id = target_person_id AND judge_number = 'SECRETARY-354';
+  IF qualification_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary RPC could not restore qualifications after clearing';
+  END IF;
+
+  DELETE FROM public.judge_qualifications WHERE person_id = target_person_id;
+  GET DIAGNOSTICS direct_delete_count = ROW_COUNT;
+  IF direct_delete_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL secretary gained direct DELETE access after an authorized save';
+  END IF;
+
   PERFORM set_config('request.jwt.claim.sub', admin_auth_id::text, true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', admin_auth_id, 'role', 'authenticated')::text, true);
   PERFORM public.replace_judge_qualifications(target_person_id, '[]'::jsonb);
@@ -151,7 +175,15 @@ BEGIN
     RAISE EXCEPTION 'FAIL site-admin replacement did not remove qualification';
   END IF;
 
-  RAISE NOTICE 'PASS MYK9-354 ordinary denial, direct DELETE denial, secretary RPC access, site-admin access, and site-admin-only DELETE policy';
+  -- Prove the policy permits admins rather than merely denying everyone.
+  PERFORM public.replace_judge_qualifications(target_person_id, secretary_qualifications);
+  DELETE FROM public.judge_qualifications WHERE person_id = target_person_id;
+  GET DIAGNOSTICS direct_delete_count = ROW_COUNT;
+  IF direct_delete_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL site admin could not directly delete a qualification';
+  END IF;
+
+  RAISE NOTICE 'PASS MYK9-354 ordinary denial, secretary RPC replace/clear/restore, secretary direct DELETE denial, and site-admin RPC/direct DELETE access';
 END;
 $$;
 

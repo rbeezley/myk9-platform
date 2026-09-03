@@ -146,6 +146,31 @@ For every 7.x set:
 
 **Final acceptance gate:** Every deleted symbol has zero remaining source importers; all explicitly live surfaces remain; the code-quality ratchet, typecheck, lint, and affected tests pass from the same worktree.
 
+## MYK9-364 residual cleanup — 2026-09-03
+
+Request: `implement MYK9-364`. Status: implemented and verified locally; awaiting merge.
+This follows Batch 7's deletion workflow without a new OpenSpec change because it
+only removes a bounded, confirmed-unmounted residue and stale source-test entries.
+
+- [x] Verify all 15 standalone modules and the three-file LazyDogCard chain against
+      source imports, exported symbols, barrels, route tables, and dynamic loaders.
+      No live consumers found; WorkflowStepContent still mounts DogSelectionStepEnhanced.
+- [x] Delete the 18 issue-listed modules and remove the AdvancedSearch and
+      InfiniteDogSelectionStep entries from the icon-only-button source guard.
+- [x] Testing: run the affected source guard and live dog-selection tests, then
+      `pnpm typecheck`, `pnpm lint`, and `pnpm qa:code-quality-ratchet`.
+- [x] Verify no remaining source references to the removed modules or exports;
+      inspect the final diff for changes outside the issue scope.
+- [x] Record verification and branch evidence in Linear; keep the issue open until merge.
+
+Evidence from `codex/myk9-364`: 18 modules deleted (4,340 component lines),
+zero remaining source references, 5 focused test files / 14 tests passing with
+shuffled order, all 26 typecheck tasks passing, lint passing with 18 warnings in
+untouched files, and code-quality ratchet passing without a baseline update.
+The E2E typecheck gate reported 59 known diagnostics against 62 baselined, zero
+new. Typecheck and ratchet required execution outside the sandbox for tsx's local
+IPC socket. Final diff review and `git diff --check` passed.
+
 ## Final integration
 
 - [ ] Review the combined diff for unrelated changes and confirm each Linear issue's acceptance criteria has evidence.

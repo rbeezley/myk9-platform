@@ -2,7 +2,6 @@
  * ReplicatedTableCache - Cache Management for Replicated Tables
  *
  * Responsibilities:
- * - TTL (Time-To-Live) expiration logic
  * - LRU/LFU cache eviction
  * - Cache statistics and monitoring
  * - Subscription/listener management with debouncing
@@ -35,7 +34,7 @@ export interface ReplicatedTableSubscriptionOptions {
 
 /**
  * Cache manager for a replicated table
- * Handles TTL, eviction, stats, and subscriptions
+ * Handles capacity eviction, stats, and subscriptions; rows never expire by age
  */
 export class ReplicatedTableCacheManager<T extends { id: string }> {
   private listeners: Set<(data: T[]) => void> = new Set();
@@ -43,105 +42,12 @@ export class ReplicatedTableCacheManager<T extends { id: string }> {
   private notifyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private hasNotifiedLeadingEdge: boolean = false;
 
-  /** Track last successful sync time (updated by refreshTimestamps) */
-  private lastSuccessfulSyncAt: number = 0;
-
   constructor(
     private tableName: string,
-    private getTtl: () => number,
     private logger: Logger,
     private getDb: () => Promise<IDBPDatabase>,
     private getAllData: () => Promise<ReplicatedReadResult<T>>
   ) {}
-
-  // ========================================
-  // TTL / EXPIRATION
-  // ========================================
-
-  /**
-   * Update the last successful sync timestamp
-   */
-  setLastSuccessfulSync(timestamp: number): void {
-    this.lastSuccessfulSyncAt = timestamp;
-  }
-
-  /**
-   * Check if row is expired based on TTL
-   *
-   * IMPORTANT: Never expire dirty rows (rows with unsaved local changes)
-   */
-  isExpired(row: ReplicatedRow<T>): boolean {
-    // Never expire dirty rows (have pending mutations)
-    if (row.isDirty) {
-      return false;
-    }
-
-    // Don't expire if offline (user may need stale data)
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return false;
-    }
-
-    // Don't expire if we haven't synced successfully in a while
-    const ttl = this.getTtl();
-    const timeSinceLastSync = Date.now() - this.lastSuccessfulSyncAt;
-
-    // If we haven't synced successfully within 2x TTL, don't expire anything
-    if (timeSinceLastSync > ttl * 2) {
-      return false;
-    }
-
-    return Date.now() - row.lastSyncedAt > ttl;
-  }
-
-  /**
-   * Refresh timestamps on all cached rows
-   */
-  async refreshTimestamps(): Promise<void> {
-    const db = await this.getDb();
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-    const index = tx.store.index('tableName');
-
-    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
-    const now = Date.now();
-
-    for (const row of rows) {
-      row.lastSyncedAt = now;
-      row.lastAccessedAt = now;
-      await tx.store.put(row);
-    }
-
-    await tx.done;
-    this.setLastSuccessfulSync(now);
-
-    this.logger.log(`[${this.tableName}] Refreshed timestamps for ${rows.length} cached rows`);
-  }
-
-  /**
-   * Clean expired rows (for maintenance)
-   */
-  async cleanExpired(): Promise<number> {
-    const db = await this.getDb();
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-    const index = tx.store.index('tableName');
-
-    const rows = (await index.getAll(this.tableName)) as ReplicatedRow<T>[];
-    let deletedCount = 0;
-
-    for (const row of rows) {
-      if (this.isExpired(row)) {
-        await tx.store.delete([row.tableName, row.id]);
-        deletedCount++;
-      }
-    }
-
-    await tx.done;
-
-    if (deletedCount > 0) {
-      this.logger.log(`[${this.tableName}] Cleaned ${deletedCount} expired rows`);
-    }
-
-    return deletedCount;
-  }
 
   // ========================================
   // CACHE STATISTICS

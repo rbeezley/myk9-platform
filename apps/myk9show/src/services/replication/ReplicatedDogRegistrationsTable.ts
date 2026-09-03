@@ -66,7 +66,7 @@ function normalizeRegistration(
 
 export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedDogRegistration> {
   constructor() {
-    super('dog_registrations', undefined, { logger });
+    super('dog_registrations', { logger });
   }
 
   async sync(): Promise<SyncResult> {

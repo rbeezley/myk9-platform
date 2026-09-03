@@ -46,7 +46,7 @@ reference evidence confirms the symbols are unreachable.
   This does not mean every originally listed package export was deleted:
   [the Wave 3 inventory](qa/wave3-dead-code-import-inventory.md) records retained
   live/compatibility APIs and deferred package ownership decisions. The inert
-  replication TTL awaits approved public-boundary safety tests; never wire it.
+  replication TTL is removed with approved public-boundary safety tests; it was never wired.
 - MYK9-305 is Done after acceptance verification against main `8d6264d29`:
   numeric armband tie-breaking reuses the shared helper, missing/non-numeric
   armbands sort last, and the behavioral test pins 1, 9, 10 ordering. The fix
@@ -96,8 +96,10 @@ Email is types-only; production Edge builders own rendering and keep their tests
 Current evidence: eight affected package builds, 1,331 retained package tests,
 174 production email tests, and 521 app at-show/email-prop tests pass.
 Broad verification is recorded in the active OpenSpec change.
-Replication TTL tests/removal still require test-boundary approval; PR publication,
-review/CI/merge and tracking closure remain pending. MYK9-328 is not Done.
+Replication TTL removal now passes four public-boundary retention tests and all
+536 replication tests, plus monorepo typecheck/lint/quality checks. Publication
+and merge are approved. Full app suite passes 18,717 tests (9 existing skips);
+independent review approved. CI/merge and tracking closure remain pending. MYK9-328 is not Done.
 
 ## MYK9-309 failed-refresh follow-up
 

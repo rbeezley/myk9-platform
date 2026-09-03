@@ -4,7 +4,6 @@ import {
   buildReconciledDirtyRow,
   buildReplicatedRowForSet,
   buildSyncedReplicatedRow,
-  collectFreshLocalIds,
   selectStaleCleanRows,
 } from './ReplicatedTableRowState';
 
@@ -248,14 +247,6 @@ describe('ReplicatedTableRowState', () => {
   });
 
   describe('stale row selectors', () => {
-    it('collects only fresh local ids', () => {
-      const rows = [row({ id: 'fresh-1' }), row({ id: 'expired-1' }), row({ id: 'fresh-2' })];
-
-      expect(collectFreshLocalIds(rows, staleRow => staleRow.id === 'expired-1')).toEqual(
-        new Set(['fresh-1', 'fresh-2'])
-      );
-    });
-
     it('selects clean rows missing from the server and preserves dirty rows', () => {
       const rows = [
         row({ id: 'server-kept', isDirty: false }),

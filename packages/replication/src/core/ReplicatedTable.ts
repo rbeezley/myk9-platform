@@ -6,7 +6,7 @@
  *
  * Features:
  * - Offline-first data access
- * - Automatic cache management with TTL
+ * - Capacity-based cache management without wall-clock expiry
  * - Optimistic updates with version tracking
  * - Subscription-based reactive updates
  * - LRU/LFU cache eviction
@@ -23,8 +23,8 @@ import type {
   CacheStats,
   ReplicatedReadResult,
 } from '../types';
-import type { Logger, GetTableTTL, ReplicatedTableDependencies } from '../dependencies';
-import { noopLogger, defaultGetTableTTL } from '../dependencies';
+import type { Logger, ReplicatedTableDependencies } from '../dependencies';
+import { noopLogger } from '../dependencies';
 import type { MutationManager } from '../MutationManager';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
 
@@ -68,11 +68,9 @@ export { REPLICATION_STORES } from './DatabaseManager';
  */
 export abstract class ReplicatedTable<T extends { id: string }> {
   protected db: IDBPDatabase | null = null;
-  protected ttl: number;
 
   /** Injected dependencies */
   protected readonly logger: Logger;
-  private readonly getTableTTLFn: GetTableTTL;
 
   /** Extracted cache manager */
   private cacheManager: ReplicatedTableCacheManager<T>;
@@ -88,20 +86,13 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   constructor(
     protected tableName: string,
-    customTTL?: number,
     dependencies: ReplicatedTableDependencies = {}
   ) {
     // Inject dependencies with defaults
     this.logger = dependencies.logger ?? noopLogger;
-    this.getTableTTLFn = dependencies.getTableTTL ?? defaultGetTableTTL;
-
-    // Set TTL using injected function
-    this.ttl = customTTL || this.getTableTTLFn(tableName);
-
     // Initialize extracted managers
     this.cacheManager = new ReplicatedTableCacheManager<T>(
       tableName,
-      () => this.ttl,
       this.logger,
       () => this.init(),
       () => this.getAllWithStatus()
@@ -119,7 +110,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       tableName,
       this.logger,
       () => this.init(),
-      row => this.isExpired(row),
       licenseKey => this.getAll(licenseKey)
     );
 
@@ -320,12 +310,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     if (!row) {
       this.logger.log(`[${this.tableName}] Cache miss for ID: ${normalizedId}`);
-      return null;
-    }
-
-    if (this.cacheManager.isExpired(row)) {
-      this.logger.log(`[${this.tableName}] Cache expired for ID: ${normalizedId}`);
-      await db.delete(REPLICATION_STORES.REPLICATED_TABLES, key);
       return null;
     }
 
@@ -893,18 +877,6 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   protected async notifyListeners(): Promise<void> {
     return this.cacheManager.notifyListeners();
-  }
-
-  protected isExpired(row: ReplicatedRow<T>): boolean {
-    return this.cacheManager.isExpired(row);
-  }
-
-  async refreshTimestamps(): Promise<void> {
-    return this.cacheManager.refreshTimestamps();
-  }
-
-  async cleanExpired(): Promise<number> {
-    return this.cacheManager.cleanExpired();
   }
 
   async estimateTotalSize(): Promise<number> {

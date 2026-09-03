@@ -6,7 +6,7 @@ Inventory date: 2026-09-03. Baseline: `d5a495862`.
 Branch: `codex/myk9-328-completion`.
 Owner confirmed packages are **internal-only** ("Internal").
 The previous temporary worktree disappeared; its recorded file patches were
-recovered in the durable project worktree and verification is being rerun.
+recovered in the durable project worktree and verified afresh.
 
 ## Scope and decisions
 
@@ -22,8 +22,8 @@ recovered in the durable project worktree and verification is being rerun.
   owned by existing Edge Function builders. Former parity tests retain their
   production-content assertions. No HTML behavior or deployment changes.
 - Supabase package client cleanup already merged in #1977; do not repeat it.
-- Replication TTL: **not yet changed**; public-test-boundary approval pending.
-  Never wire expiry, clear data, or change sync/eviction/deletion policy.
+- Replication TTL: removed after explicit public-test-boundary approval.
+  No expiry activation, cache clear, or sync/eviction/deletion-policy change.
 
 ## Count method
 
@@ -211,6 +211,44 @@ the deleted package implementation.
 | `ui/src/components/collapsible.tsx`                                                | `CollapsibleTrigger`                |     21 |                19 |
 | `ui/src/components/collapsible.tsx`                                                | `CollapsibleContent`                |     21 |                19 |
 
+## Replication TTL symbol counts
+
+The same baseline and production-file count method applies. These 17 symbols
+include eight additional exported declarations plus constructor dependencies,
+fields and methods; they are not 17 additional independent APIs.
+
+| Removed symbol          | Before | Current raw files |
+| ----------------------- | -----: | ----------------: |
+| `DEFAULT_TTL_MS`        |      4 |                 1 |
+| `SHOW_TTL_MS`           |      2 |                 0 |
+| `TRIAL_TTL_MS`          |      2 |                 0 |
+| `ENTRY_TTL_MS`          |      2 |                 0 |
+| `RESULT_TTL_MS`         |      2 |                 0 |
+| `GetTableTTL`           |      3 |                 0 |
+| `getTableTTL`           |      2 |                 0 |
+| `defaultGetTableTTL`    |      3 |                 0 |
+| `customTTL`             |      1 |                 0 |
+| `getTableTTLFn`         |      1 |                 0 |
+| `getTtl`                |      1 |                 0 |
+| `lastSuccessfulSyncAt`  |      1 |                 0 |
+| `setLastSuccessfulSync` |      1 |                 0 |
+| `isExpired`             |     13 |                 9 |
+| `refreshTimestamps`     |      2 |                 0 |
+| `cleanExpired`          |      2 |                 0 |
+| `collectFreshLocalIds`  |      2 |                 0 |
+
+The remaining `DEFAULT_TTL_MS` is the unrelated Edge Function money-lock
+lifetime. The nine remaining `isExpired` matches belong to cart, countdown,
+subscription and analytics UI. None references replica expiry. Existing
+prefetch-cache TTL and RBAC/template lifetimes are outside this issue.
+
+Four new public-boundary tests cover 45-day-old clean rows online/offline,
+all read variants and subscriptions, dirty edits/server reconciliation, and
+storage-failure recovery without emitting false empty snapshots. Characterization
+passed before deletion; a temporary five-minute expiry mutation failed both
+read cases; removing the mutation and TTL plumbing restores green. Full
+replication suite: **536 tests / 38 files pass**. Existing capacity tests remain.
+
 ## Retained live boundaries (corrections to the original audit)
 
 - `apps/myk9show/src/store/scoringStore.ts` uses the scoring store/types.
@@ -241,5 +279,6 @@ the **174** passing production email tests provide verification.
 
 See `openspec/changes/internal-package-dead-code/verification.md` for current
 broad-check evidence. Do not reuse the previous temporary worktree's test totals
-as current evidence. Remaining: TTL safety tests/removal, final verification,
-independent review, approved publication/merge, then Linear completion/archive.
+as current evidence. TTL removal, monorepo typecheck/lint and the quality ratchet pass. Remaining:
+required CI and approved publication/merge, then Linear completion/archive.
+Full app suite: 18,717 passed, 9 existing skips. Independent review: APPROVED.

@@ -1,22 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ReplicatedTableCacheManager } from './ReplicatedTableCache';
 import { DatabaseManager, REPLICATION_STORES } from './DatabaseManager';
 import type { IDBPDatabase } from 'idb';
 import type { ReplicatedRow } from '../types';
-
-// Ensure navigator.onLine is true for tests. In Node environments,
-// navigator may not exist or may lack onLine, which tricks isExpired()
-// into thinking we're offline.
-const nav = typeof navigator !== 'undefined' ? navigator : (globalThis.navigator = {} as Navigator);
-const originalOnLine = Object.getOwnPropertyDescriptor(nav, 'onLine');
-beforeAll(() => {
-  Object.defineProperty(nav, 'onLine', { value: true, configurable: true });
-});
-afterAll(() => {
-  if (originalOnLine) {
-    Object.defineProperty(nav, 'onLine', originalOnLine);
-  }
-});
 
 interface TestEntity {
   id: string;
@@ -28,7 +14,6 @@ describe('ReplicatedTableCacheManager', () => {
   let db: IDBPDatabase;
   let cacheManager: ReplicatedTableCacheManager<TestEntity>;
   let tableName: string;
-  const TTL_MS = 5000;
 
   beforeEach(async () => {
     // Reset module-level singleton first
@@ -49,7 +34,7 @@ describe('ReplicatedTableCacheManager', () => {
 
     cacheManager = new ReplicatedTableCacheManager<TestEntity>(
       tableName,
-      () => TTL_MS,
+
       { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
       getDb,
       getAllData
@@ -114,76 +99,6 @@ describe('ReplicatedTableCacheManager', () => {
     await tx.store.put(row);
     await tx.done;
   }
-
-  describe('isExpired', () => {
-    it('should return false for non-expired rows', () => {
-      const row: ReplicatedRow<TestEntity> = {
-        tableName: tableName,
-        id: '1',
-        data: { id: '1', name: 'Rex' },
-        version: 1,
-        lastSyncedAt: Date.now(),
-        lastAccessedAt: Date.now(),
-        isDirty: false,
-        syncStatus: 'synced',
-      };
-
-      // We need a recent sync for expiration to be checked
-      cacheManager.setLastSuccessfulSync(Date.now());
-
-      expect(cacheManager.isExpired(row)).toBe(false);
-    });
-
-    it('should return true for expired rows when recently synced', () => {
-      cacheManager.setLastSuccessfulSync(Date.now());
-
-      const row: ReplicatedRow<TestEntity> = {
-        tableName: tableName,
-        id: '1',
-        data: { id: '1', name: 'Rex' },
-        version: 1,
-        lastSyncedAt: Date.now() - TTL_MS - 1000, // past TTL
-        lastAccessedAt: Date.now(),
-        isDirty: false,
-        syncStatus: 'synced',
-      };
-
-      expect(cacheManager.isExpired(row)).toBe(true);
-    });
-
-    it('should never expire dirty rows', () => {
-      cacheManager.setLastSuccessfulSync(Date.now());
-
-      const row: ReplicatedRow<TestEntity> = {
-        tableName: tableName,
-        id: '1',
-        data: { id: '1', name: 'Rex' },
-        version: 1,
-        lastSyncedAt: Date.now() - TTL_MS - 100000, // way past TTL
-        lastAccessedAt: Date.now(),
-        isDirty: true,
-        syncStatus: 'pending',
-      };
-
-      expect(cacheManager.isExpired(row)).toBe(false);
-    });
-
-    it('should not expire when never synced successfully (lastSuccessfulSync = 0)', () => {
-      // Default lastSuccessfulSyncAt is 0, so timeSinceLastSync > ttl * 2
-      const row: ReplicatedRow<TestEntity> = {
-        tableName: tableName,
-        id: '1',
-        data: { id: '1', name: 'Rex' },
-        version: 1,
-        lastSyncedAt: Date.now() - TTL_MS - 1000, // past TTL
-        lastAccessedAt: Date.now(),
-        isDirty: false,
-        syncStatus: 'synced',
-      };
-
-      expect(cacheManager.isExpired(row)).toBe(false);
-    });
-  });
 
   describe('subscribe', () => {
     it('should call callback with current data immediately', async () => {
@@ -296,7 +211,7 @@ describe('ReplicatedTableCacheManager', () => {
 
       const rejectingManager = new ReplicatedTableCacheManager<TestEntity>(
         tableName,
-        () => TTL_MS,
+
         logger,
         async () => db,
         async () => {
@@ -320,79 +235,6 @@ describe('ReplicatedTableCacheManager', () => {
       );
       expect(internals.notifyDebounceTimer).toBeNull();
       expect(internals.hasNotifiedLeadingEdge).toBe(false);
-    });
-  });
-
-  describe('refreshTimestamps', () => {
-    it('should update lastSyncedAt and lastAccessedAt on all rows', async () => {
-      const oldTime = Date.now() - 60000;
-      await insertRow(
-        '1',
-        { id: '1', name: 'Rex' },
-        { lastSyncedAt: oldTime, lastAccessedAt: oldTime }
-      );
-      await insertRow(
-        '2',
-        { id: '2', name: 'Buddy' },
-        { lastSyncedAt: oldTime, lastAccessedAt: oldTime }
-      );
-
-      await cacheManager.refreshTimestamps();
-
-      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
-      const row1 = (await tx.store.get([tableName, '1'])) as ReplicatedRow<TestEntity>;
-      const row2 = (await tx.store.get([tableName, '2'])) as ReplicatedRow<TestEntity>;
-      await tx.done;
-
-      expect(row1.lastSyncedAt).toBeGreaterThan(oldTime);
-      expect(row1.lastAccessedAt).toBeGreaterThan(oldTime);
-      expect(row2.lastSyncedAt).toBeGreaterThan(oldTime);
-    });
-  });
-
-  describe('cleanExpired', () => {
-    it('should remove expired rows', async () => {
-      cacheManager.setLastSuccessfulSync(Date.now());
-
-      const expiredTime = Date.now() - TTL_MS - 1000;
-      await insertRow('1', { id: '1', name: 'Rex' }, { lastSyncedAt: expiredTime });
-      await insertRow('2', { id: '2', name: 'Buddy' }); // fresh
-
-      const deleted = await cacheManager.cleanExpired();
-
-      expect(deleted).toBe(1);
-
-      const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readonly');
-      const remaining = (await tx.store
-        .index('tableName')
-        .getAll(tableName)) as ReplicatedRow<TestEntity>[];
-      await tx.done;
-
-      expect(remaining).toHaveLength(1);
-      expect(remaining[0]!.id).toBe('2');
-    });
-
-    it('should not remove dirty rows even if expired', async () => {
-      cacheManager.setLastSuccessfulSync(Date.now());
-
-      const expiredTime = Date.now() - TTL_MS - 1000;
-      await insertRow(
-        '1',
-        { id: '1', name: 'Rex' },
-        { lastSyncedAt: expiredTime, isDirty: true, syncStatus: 'pending' }
-      );
-
-      const deleted = await cacheManager.cleanExpired();
-
-      expect(deleted).toBe(0);
-    });
-
-    it('should return 0 when nothing is expired', async () => {
-      await insertRow('1', { id: '1', name: 'Rex' });
-
-      const deleted = await cacheManager.cleanExpired();
-
-      expect(deleted).toBe(0);
     });
   });
 

@@ -9,13 +9,13 @@
 - [x] 2.2 Remove unreachable scoring-ui entry sheets and hooks, preserving live registry dispatch and shared helpers; verify live scoresheet/time/registry tests and package build. Build/typecheck and 198 tests pass. Retain useElementTimer: UKCNoseworkLiveScoresheet uses it.
 - [x] 2.3 Remove verified ringside and ui dead clusters, retaining mounted `/at-show` consumers. Complete locally: residual helpers and unused novice aliases removed; builds, 371 ringside tests, 249 UI tests and 521 at-show/email-prop app tests pass.
 - [x] 2.4 Complete core/notifications/secretary/email cleanup. Removed unused logger config and formatter lookup/reset APIs while retaining live tests. Email is types-only; production-content assertions preserved. Eight package builds, core 253, notifications 54, secretary 140 and production email 174 tests pass.
-- [ ] 2.5 After test-boundary confirmation, remove inert replication TTL plumbing without modifying data or sync policy; verify aged online/offline reads, subscriptions, dirty rows, reconciliation, and error behavior through public table APIs and the replication suite.
+- [x] 2.5 With explicit test-boundary approval, removed inert replication TTL plumbing without modifying data or sync policy. Four public-boundary retention tests and all 536 replication tests pass; aged online/offline reads, subscriptions, dirty rows, reconciliation and read-error recovery remain intact.
 
 ## 3. Verification and handoff
 
-- [ ] 3.1 Run affected package builds/tests, `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`, and diff/format checks; record failures without weakening gates. Implemented-slice checks pass; repeat after remaining code slices. See verification.md.
-- [x] 3.2 Update existing batch plan and inventories with actual implementation/verification, and validate this OpenSpec change. Partial implementation and remaining gates are explicit; see verification.md.
-- [ ] 3.3 Obtain publication approval, publish PR, pass independent review and required CI, and confirm merge before completing the implementation gate.
+- [x] 3.1 Run affected package builds/tests, `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`, and diff/format checks; record failures without weakening gates. Typecheck/lint/ratchet and replication suite pass after TTL removal; full app suite passes 18,717 tests (9 existing skips). See verification.md.
+- [x] 3.2 Update existing batch plan and inventories with actual implementation/verification, and validate this OpenSpec change. Implementation is complete and remaining shipping gates are explicit; see verification.md.
+- [ ] 3.3 Publication and merge approved; publish PR, pass independent review and required CI, and confirm merge before completing the implementation gate.
 - [ ] 3.4 Reconcile Linear and archive/sync only after the merged evidence gate; clean only this task's branch/worktree.
 
 ## Plan verification

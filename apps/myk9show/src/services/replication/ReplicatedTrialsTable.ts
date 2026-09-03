@@ -97,7 +97,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('trials', undefined, { logger });
+    super('trials', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */

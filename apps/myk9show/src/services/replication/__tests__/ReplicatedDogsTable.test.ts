@@ -4,7 +4,7 @@
  * Validates the offline-first dog data replication system:
  * - Dog CRUD operations (create, read, update, delete)
  * - Dog profile management (breed, registration, titles)
- * - Cache management and TTL handling
+ * - Cache management (retention contract covered by package public-boundary tests)
  * - Sync operations (incremental sync from remote)
  * - Conflict resolution (server-authoritative with image preservation)
  * - Dog search and filtering operations
@@ -146,10 +146,6 @@ describe('ReplicatedDogsTable', () => {
     it('should have correct table name', () => {
       expect(dogsTable.getTableName()).toBe('dogs');
     });
-
-    it('should initialize with default TTL', () => {
-      expect((dogsTable as unknown as { ttl: number }).ttl).toBeGreaterThan(0);
-    });
   });
 
   describe('Dog CRUD Operations', () => {
@@ -172,28 +168,6 @@ describe('ReplicatedDogsTable', () => {
         const result = await dogsTable.getDogById('999');
 
         expect(result).toBeNull();
-      });
-
-      it('should return null for expired cache entry', async () => {
-        const mockDog = createMockDog();
-        const expiredRow = createReplicatedRow(mockDog);
-        expiredRow.lastSyncedAt = Date.now() - 365 * 24 * 60 * 60 * 1000; // 1 year ago
-
-        mockDb.get.mockResolvedValue(expiredRow);
-        mockDb.delete.mockResolvedValue(undefined);
-
-        // Mock cacheManager's isExpired to return true
-        const cacheManager = (
-          dogsTable as unknown as {
-            cacheManager: { isExpired: (row: ReplicatedRow<ReplicatedDog>) => boolean };
-          }
-        ).cacheManager;
-        vi.spyOn(cacheManager, 'isExpired').mockReturnValue(true);
-
-        const result = await dogsTable.getDogById('1');
-
-        expect(result).toBeNull();
-        expect(mockDb.delete).toHaveBeenCalledWith('replicated_tables', ['dogs', '1']);
       });
 
       it('should update access tracking on successful get', async () => {
@@ -248,38 +222,6 @@ describe('ReplicatedDogsTable', () => {
 
         expect(result).toHaveLength(3);
         expect(result.map(d => d.name)).toEqual(['Max', 'Bella', 'Charlie']);
-      });
-
-      it('should filter out expired entries', async () => {
-        const freshDog = createMockDog({ id: '1', name: 'Max' });
-        const expiredDog = createMockDog({ id: '2', name: 'Bella' });
-
-        const freshRow = createReplicatedRow(freshDog);
-        const expiredRow = createReplicatedRow(expiredDog);
-        expiredRow.lastSyncedAt = Date.now() - 365 * 24 * 60 * 60 * 1000;
-
-        const mockTx = {
-          store: {
-            index: vi.fn().mockReturnValue({
-              getAll: vi.fn().mockResolvedValue([freshRow, expiredRow]),
-            }),
-          },
-        };
-
-        mockDb.transaction.mockReturnValue(mockTx);
-
-        // Mock cacheManager's isExpired
-        const cacheManager = (
-          dogsTable as unknown as {
-            cacheManager: { isExpired: (row: ReplicatedRow<ReplicatedDog>) => boolean };
-          }
-        ).cacheManager;
-        vi.spyOn(cacheManager, 'isExpired').mockReturnValueOnce(false).mockReturnValueOnce(true);
-
-        const result = await dogsTable.getAllDogs();
-
-        expect(result).toHaveLength(1);
-        expect(result[0].name).toBe('Max');
       });
     });
 

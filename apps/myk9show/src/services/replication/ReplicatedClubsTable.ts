@@ -104,7 +104,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('clubs', undefined, { logger });
+    super('clubs', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */

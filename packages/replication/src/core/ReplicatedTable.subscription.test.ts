@@ -187,70 +187,7 @@ describe('ReplicatedTable subscription lifecycle', () => {
     expect(result).toEqual([]);
   });
 
-  // -------------------------------------------------------------------------
-  // Test 4: getAll() returns cached IDB rows when the network is offline.
-  //
-  // The isExpired guard in cacheManager skips TTL checks when navigator.onLine
-  // is false, so even rows with an expired lastSyncedAt must be served.
-  // No Supabase call should be made (getAll is IDB-only — verified by the
-  // absence of any supabase mock needed).
-  // -------------------------------------------------------------------------
-  it('returns cached data from IDB when the network is offline', async () => {
-    const table = makeTable('offline');
-
-    // Arrange: prime IDB with 3 rows with an already-expired lastSyncedAt so
-    // they would normally be filtered out when online. We do this by inserting
-    // them and then manually backdating via the raw IDB store.
-    await table.set('1', { id: '1', name: 'Alpha' });
-    await table.set('2', { id: '2', name: 'Beta' });
-    await table.set('3', { id: '3', name: 'Gamma' });
-
-    // Backdate lastSyncedAt to force TTL expiry (set to 1ms epoch)
-    const { databaseManager } = await import('./DatabaseManager');
-    const db = await databaseManager.getDatabase(table.getTableName());
-    const { REPLICATION_STORES } = await import('./DatabaseManager');
-    const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
-    const index = tx.store.index('tableName');
-    const rows = await index.getAll(table.getTableName());
-    for (const row of rows) {
-      row.lastSyncedAt = 1; // epoch start → expired relative to any TTL
-      row.isDirty = false; // ensure dirty guard doesn't save them
-      await tx.store.put(row);
-    }
-    await tx.done;
-
-    // Confirm rows are expired online (they should be filtered out)
-    const originalOnLine = Object.getOwnPropertyDescriptor(navigator, 'onLine');
-    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-    await table.getAll();
-    // Rows have expired TTL online — should be empty (or near-empty depending on
-    // lastSuccessfulSyncAt guard). Either way, restore offline mode.
-
-    // Stub navigator.onLine = false
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-
-    try {
-      // Act: fetch while offline
-      const offlineResult = await table.getAll();
-
-      // Assert: all 3 cached rows are returned despite expired TTL
-      expect(offlineResult).toHaveLength(3);
-      const names = offlineResult.map(r => r.name).sort();
-      expect(names).toEqual(['Alpha', 'Beta', 'Gamma']);
-
-      // Confirm no Supabase call was made — getAll is IDB-only by design.
-      // (There is no supabase client in ReplicatedTable to mock; this assertion
-      // is structural: if getAll ever calls supabase, tests would need a mock.)
-      expect(offlineResult.every(r => r.id !== undefined)).toBe(true);
-    } finally {
-      // Restore navigator.onLine
-      if (originalOnLine) {
-        Object.defineProperty(navigator, 'onLine', originalOnLine);
-      } else {
-        Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
-      }
-    }
-  });
+  // Aged online/offline snapshot coverage lives in ReplicatedTable.retention.test.ts.
 });
 
 // ---------------------------------------------------------------------------

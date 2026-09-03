@@ -5,8 +5,6 @@
  * while using real implementations in production.
  */
 
-import { DEFAULT_TTL_MS } from './constants';
-
 /**
  * Logger interface - matches the structure of @myk9/core logger
  */
@@ -27,11 +25,6 @@ export interface DiagnosticReport {
 }
 
 /**
- * TTL provider function type
- */
-export type GetTableTTL = (tableName: string) => number;
-
-/**
  * Diagnostics logger function type
  */
 export type LogDiagnostics = (report: DiagnosticReport) => void | Promise<void>;
@@ -46,7 +39,6 @@ export type HandleDatabaseCorruption = () => void;
  */
 export interface ReplicatedTableDependencies {
   logger?: Logger;
-  getTableTTL?: GetTableTTL;
   logDiagnostics?: LogDiagnostics;
 }
 
@@ -68,11 +60,6 @@ export const noopLogger: Logger = {
   error: () => {},
   debug: () => {},
 };
-
-/**
- * Default TTL provider (5 minutes)
- */
-export const defaultGetTableTTL: GetTableTTL = () => DEFAULT_TTL_MS;
 
 /**
  * Default no-op diagnostics

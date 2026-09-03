@@ -130,7 +130,7 @@ export class ReplicatedJudgeAssignmentsTable extends ReplicatedTable<ReplicatedJ
   private _lastMutationId: string | null = null;
 
   constructor() {
-    super('judge_assignments', undefined, { logger });
+    super('judge_assignments', { logger });
   }
 
   get lastMutationId(): string | null {

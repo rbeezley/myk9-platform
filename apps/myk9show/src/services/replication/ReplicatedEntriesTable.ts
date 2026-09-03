@@ -44,7 +44,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   private _deletedIds: Set<string> = new Set();
 
   constructor() {
-    super('entries', undefined, { logger });
+    super('entries', { logger });
   }
 
   /** Get the mutation ID from the last create/update operation */

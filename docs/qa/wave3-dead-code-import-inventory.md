@@ -27,8 +27,9 @@ The owner answered "Internal" on 2026-09-02, resolving external-package
 compatibility. Verified scoring timer/calculation and unused scoring-ui APIs
 are now removed locally on `codex/myk9-328-completion`; live consumers
 and remaining slices are recorded in the package inventory. This follow-up is
-not yet merged. Replication TTL remains unchanged pending its behavioral-test
-boundary; enabling expiry would create false-empty offline reads.
+not yet merged. Inert replication TTL is removed with approved public-boundary
+tests for aged reads/subscriptions, dirty edits, reconciliation and read errors.
+Expiry was not enabled; data and sync policy are unchanged.
 
 The live pipeline boundary is `SecretaryDashboardPage` →
 `useMissionControlData` and the lazy `TrialPipelineDetail` route. The deleted

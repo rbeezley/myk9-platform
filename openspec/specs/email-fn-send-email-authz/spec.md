@@ -1,6 +1,7 @@
 # email-fn-send-email-authz Specification
 
 ## Purpose
+
 SA-004 remediation. The `send-email` edge function originates branded
 `@myk9show.com` mail (entry-status notices, custom secretary messages). Before
 this change it invoked Resend without authorizing the caller, so any party could
@@ -13,26 +14,32 @@ originate unbounded volume. Deployed live 2026-07-04 (v58); verified `401` on an
 unauthenticated call.
 
 ## Requirements
+
 ### Requirement: send-email requires show-official authorization
+
 The system SHALL reject calls to the `send-email` edge function from a caller
 who is not a secretary or admin for the referenced show/registration, and SHALL
 NOT invoke the email provider on a denied call.
 
 #### Scenario: Non-official caller is denied
+
 - **WHEN** a user with no official role on the referenced show calls
   `send-email` for another address
 - **THEN** the function returns a 403-class error and does not invoke the Resend
   send
 
 #### Scenario: Show official can send
+
 - **WHEN** a secretary or admin for the referenced show calls `send-email`
 - **THEN** the function proceeds and invokes the Resend send
 
 ### Requirement: send-email is rate-limited per user
+
 The system SHALL apply per-user rate-limiting to `send-email` so a single caller
 cannot originate unbounded email volume.
 
 #### Scenario: Caller exceeds the rate limit
+
 - **WHEN** a caller invokes `send-email` more than the allowed number of times
   within the limiter's window
 - **THEN** subsequent calls within the window are rejected
@@ -67,3 +74,17 @@ function SHALL ignore body-supplied `to` and `cc` for these types.
   `support_notification` or `entry_decision` call
 - **THEN** the function does not forward the caller-supplied `cc` to the email
   provider
+
+### Requirement: Only supported email types are accepted
+
+The endpoint SHALL accept only `entry_decision` and `support_notification`, subject to existing resource authorization and server-derived recipient rules. Unsupported types SHALL receive HTTP 400 without sending email.
+
+#### Scenario: Retired type is submitted
+
+- **WHEN** an authenticated caller requests `entry_confirmation`, `payment_receipt`, `welcome`, or `waitlist_offer`
+- **THEN** the request is rejected with HTTP 400 before recipient lookup or email delivery
+
+#### Scenario: Supported type is authorized
+
+- **WHEN** an authorized caller submits either supported type
+- **THEN** the existing content, resource-based recipient, and rate-limit behavior are preserved

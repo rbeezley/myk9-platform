@@ -12,7 +12,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 import {
-  resolveClassVisibilityForTrial,
   resolveVisibilityForClassRows,
 } from '../resolveClassVisibility';
 import { supabase } from '@/services/database/supabaseClient';
@@ -49,64 +48,6 @@ function mockTables(rows: { show?: unknown; trial?: unknown; classRows?: unknown
     }
   });
 }
-
-describe('resolveClassVisibilityForTrial', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('returns an empty map (and skips fetching) for no classes', async () => {
-    const result = await resolveClassVisibilityForTrial('trial-1', []);
-    expect(result.size).toBe(0);
-    expect(supabase.from).not.toHaveBeenCalled();
-  });
-
-  it('class override wins over trial and show', async () => {
-    mockTables({
-      show: { preset: 'standard', self_checkin_enabled: true },
-      trial: { preset: 'open', self_checkin_enabled: true },
-      classRows: [{ class_id: 'c1', preset: 'review', self_checkin_enabled: false }],
-    });
-    const result = await resolveClassVisibilityForTrial('trial-1', ['c1']);
-    expect(result.get('c1')).toEqual({ visibilityPreset: 'review', selfCheckinEnabled: false });
-  });
-
-  it('trial override applies when there is no class override', async () => {
-    mockTables({
-      show: { preset: 'standard', self_checkin_enabled: true },
-      trial: { preset: 'open', self_checkin_enabled: false },
-      classRows: [],
-    });
-    const result = await resolveClassVisibilityForTrial('trial-1', ['c1']);
-    expect(result.get('c1')).toEqual({ visibilityPreset: 'open', selfCheckinEnabled: false });
-  });
-
-  it('falls back to the show default, then to enabled/open', async () => {
-    mockTables({ show: { preset: 'standard', self_checkin_enabled: true }, classRows: [] });
-    const withShow = await resolveClassVisibilityForTrial('trial-1', ['c1']);
-    expect(withShow.get('c1')).toEqual({ visibilityPreset: 'standard', selfCheckinEnabled: true });
-
-    mockTables({ classRows: [] }); // nothing configured at any level
-    const bare = await resolveClassVisibilityForTrial('trial-1', ['c1']);
-    expect(bare.get('c1')).toEqual({ visibilityPreset: 'open', selfCheckinEnabled: true });
-  });
-
-  it('reports custom when show timings do not match a named preset', async () => {
-    mockTables({
-      show: {
-        preset: null,
-        placement_timing: 'manual_release',
-        qualification_timing: 'immediate',
-        time_timing: 'immediate',
-        faults_timing: 'immediate',
-        self_checkin_enabled: true,
-      },
-      classRows: [],
-    });
-
-    const result = await resolveClassVisibilityForTrial('trial-1', ['c1']);
-
-    expect(result.get('c1')).toEqual({ visibilityPreset: 'custom', selfCheckinEnabled: true });
-  });
-});
 
 describe('resolveVisibilityForClassRows', () => {
   beforeEach(() => vi.clearAllMocks());

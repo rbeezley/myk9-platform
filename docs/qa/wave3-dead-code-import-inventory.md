@@ -106,6 +106,10 @@ owner, search, and statistics queries remain available.
 `uploadShowLogo` was removed with its dedicated branding tests after
 confirming no production caller; club/show cover uploads remain available.
 
+`resolveClassVisibilityForTrial` was removed with its wrapper-only tests after
+confirming no production caller; the live `resolveVisibilityForClassRows`
+resolver remains intact.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

@@ -31,38 +31,48 @@ beforeEach(() => {
 });
 
 describe('DogSelectionStep', () => {
-  it.each([3, 252])('finds the last of %i dogs and preserves hidden selections', async count => {
-    const dogs = Array.from({ length: count }, (_, index) =>
-      mockDog({
-        id: `dog-${index + 1}`,
-        callName: index === count - 1 ? 'Willow' : `Buddy ${index + 1}`,
-      })
-    );
-    vi.mocked(useDogStoreCompat).mockReturnValue(fromPartial({ dogs, isLoading: false }));
-    const onSelectionChange = vi.fn();
-    const { user, rerender } = render(
-      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
-    );
-    await user.type(
-      screen.getByRole('textbox', { name: /search dogs by call name/i }),
-      '  wILLo  '
-    );
-    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
-    const willow = screen.getByRole('checkbox', { name: 'Select Willow' });
-    willow.focus();
-    await user.keyboard('[Space]');
-    expect(onSelectionChange).toHaveBeenCalledWith(['dog-1', `dog-${count}`]);
-    rerender(
-      <DogSelectionStep
-        selectedDogs={['dog-1', `dog-${count}`]}
-        onSelectionChange={onSelectionChange}
-      />
-    );
-    await user.click(screen.getByRole('button', { name: 'Clear search' }));
-    expect(screen.getAllByRole('checkbox')).toHaveLength(count);
-    expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
-  });
+  // The 252-dog case renders the full list three times (initial, filtered,
+  // cleared) and types nine characters through it, which is the point of the
+  // case — it is why the search has to survive a long roster. Measured at ~5.3s
+  // in isolation on this machine and ~16s under `--coverage` alongside the rest
+  // of the file, so the 10s default cap fails it on any loaded runner. CI hit
+  // it on `main` from the moment it landed (#2004).
+  it.each([3, 252])(
+    'finds the last of %i dogs and preserves hidden selections',
+    { timeout: 45000 },
+    async count => {
+      const dogs = Array.from({ length: count }, (_, index) =>
+        mockDog({
+          id: `dog-${index + 1}`,
+          callName: index === count - 1 ? 'Willow' : `Buddy ${index + 1}`,
+        })
+      );
+      vi.mocked(useDogStoreCompat).mockReturnValue(fromPartial({ dogs, isLoading: false }));
+      const onSelectionChange = vi.fn();
+      const { user, rerender } = render(
+        <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+      );
+      await user.type(
+        screen.getByRole('textbox', { name: /search dogs by call name/i }),
+        '  wILLo  '
+      );
+      expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+      const willow = screen.getByRole('checkbox', { name: 'Select Willow' });
+      willow.focus();
+      await user.keyboard('[Space]');
+      expect(onSelectionChange).toHaveBeenCalledWith(['dog-1', `dog-${count}`]);
+      rerender(
+        <DogSelectionStep
+          selectedDogs={['dog-1', `dog-${count}`]}
+          onSelectionChange={onSelectionChange}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'Clear search' }));
+      expect(screen.getAllByRole('checkbox')).toHaveLength(count);
+      expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
+    }
+  );
 
   it('distinguishes no matches from no dogs and retains restored selections', async () => {
     vi.mocked(useDogStoreCompat).mockReturnValue(

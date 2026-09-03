@@ -1,13 +1,10 @@
 import type { ComponentType } from 'react';
-import type { LiveScoresheetProps, EntryScoresheetProps, ScoresheetSportType } from '../types';
-
-type ScoresheetMode = 'live' | 'entry';
+import type { LiveScoresheetProps, ScoresheetSportType } from '../types';
 
 type ScoresheetRegistry = Record<
   string,
   {
     live: ComponentType<LiveScoresheetProps> | null;
-    entry: ComponentType<EntryScoresheetProps> | null;
   }
 >;
 
@@ -21,19 +18,9 @@ export function registerScoresheet(
   sportType: ScoresheetSportType,
   mode: 'live',
   component: ComponentType<LiveScoresheetProps>
-): void;
-export function registerScoresheet(
-  sportType: ScoresheetSportType,
-  mode: 'entry',
-  component: ComponentType<EntryScoresheetProps>
-): void;
-export function registerScoresheet(
-  sportType: ScoresheetSportType,
-  mode: ScoresheetMode,
-  component: ComponentType<LiveScoresheetProps> | ComponentType<EntryScoresheetProps>
 ): void {
   if (!registry[sportType]) {
-    registry[sportType] = { live: null, entry: null };
+    registry[sportType] = { live: null };
   }
   if (registry[sportType]?.[mode] != null && registry[sportType]?.[mode] !== component) {
     console.warn(
@@ -60,14 +47,6 @@ export function resetScoresheetRegistry(): void {
 export function getScoresheetComponent(
   sportType: ScoresheetSportType,
   mode: 'live'
-): ComponentType<LiveScoresheetProps> | null;
-export function getScoresheetComponent(
-  sportType: ScoresheetSportType,
-  mode: 'entry'
-): ComponentType<EntryScoresheetProps> | null;
-export function getScoresheetComponent(
-  sportType: ScoresheetSportType,
-  mode: ScoresheetMode
-): ComponentType<LiveScoresheetProps> | ComponentType<EntryScoresheetProps> | null {
+): ComponentType<LiveScoresheetProps> | null {
   return registry[sportType]?.[mode] ?? null;
 }

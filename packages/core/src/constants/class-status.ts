@@ -32,30 +32,6 @@ export const CLASS_STATUS = {
 export type ClassStatusValue = (typeof CLASS_STATUS)[keyof typeof CLASS_STATUS];
 
 /**
- * Order of status progression (for status cycling)
- */
-export const CLASS_STATUS_ORDER: ClassStatusValue[] = [
-  CLASS_STATUS.SCHEDULED,
-  CLASS_STATUS.IN_PROGRESS,
-  CLASS_STATUS.COMPLETED,
-];
-
-/**
- * Get the next status in the progression
- * @param currentStatus - The current class status
- * @returns The next status, or the first status if at the end
- */
-export function getNextClassStatus(currentStatus: ClassStatusValue): ClassStatusValue {
-  const currentIndex = CLASS_STATUS_ORDER.indexOf(currentStatus);
-  if (currentIndex === -1) {
-    return CLASS_STATUS.SCHEDULED;
-  }
-  const nextIndex = (currentIndex + 1) % CLASS_STATUS_ORDER.length;
-  // nextIndex is always valid due to modulo, but TypeScript can't infer this
-  return CLASS_STATUS_ORDER[nextIndex] ?? CLASS_STATUS.SCHEDULED;
-}
-
-/**
  * Legacy status mapping - maps old status values to canonical values
  * Use this when migrating data or handling external inputs
  */

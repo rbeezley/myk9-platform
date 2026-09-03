@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  CLASS_STATUS,
-  CLASS_STATUS_ORDER,
-  getNextClassStatus,
-  LEGACY_STATUS_MAP,
-  normalizeClassStatus,
-  type ClassStatusValue,
-} from './class-status';
+import { CLASS_STATUS, LEGACY_STATUS_MAP, normalizeClassStatus } from './class-status';
 
 describe('CLASS_STATUS constants', () => {
   it('should have all expected status values', () => {
@@ -19,41 +12,6 @@ describe('CLASS_STATUS constants', () => {
 
   it('should have 5 status values', () => {
     expect(Object.keys(CLASS_STATUS)).toHaveLength(5);
-  });
-});
-
-describe('CLASS_STATUS_ORDER', () => {
-  it('should have 3 statuses in progression order', () => {
-    expect(CLASS_STATUS_ORDER).toHaveLength(3);
-    expect(CLASS_STATUS_ORDER[0]).toBe(CLASS_STATUS.SCHEDULED);
-    expect(CLASS_STATUS_ORDER[1]).toBe(CLASS_STATUS.IN_PROGRESS);
-    expect(CLASS_STATUS_ORDER[2]).toBe(CLASS_STATUS.COMPLETED);
-  });
-
-  it('should not include Cancelled in progression', () => {
-    expect(CLASS_STATUS_ORDER).not.toContain(CLASS_STATUS.CANCELLED);
-  });
-});
-
-describe('getNextClassStatus', () => {
-  it('should cycle from Scheduled to In Progress', () => {
-    expect(getNextClassStatus(CLASS_STATUS.SCHEDULED)).toBe(CLASS_STATUS.IN_PROGRESS);
-  });
-
-  it('should cycle from In Progress to Completed', () => {
-    expect(getNextClassStatus(CLASS_STATUS.IN_PROGRESS)).toBe(CLASS_STATUS.COMPLETED);
-  });
-
-  it('should cycle from Completed back to Scheduled', () => {
-    expect(getNextClassStatus(CLASS_STATUS.COMPLETED)).toBe(CLASS_STATUS.SCHEDULED);
-  });
-
-  it('should return Scheduled for unknown status', () => {
-    expect(getNextClassStatus('Unknown' as ClassStatusValue)).toBe(CLASS_STATUS.SCHEDULED);
-  });
-
-  it('should return Scheduled for Cancelled status', () => {
-    expect(getNextClassStatus(CLASS_STATUS.CANCELLED)).toBe(CLASS_STATUS.SCHEDULED);
   });
 });
 

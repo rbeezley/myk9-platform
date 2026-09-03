@@ -209,9 +209,10 @@ export async function detectDeviceCapabilities(): Promise<DeviceCapabilities> {
   }
 
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 2 : 2;
-  const memory = typeof navigator !== 'undefined'
-    ? (navigator as NavigatorWithDeviceMemory).deviceMemory || estimateMemory()
-    : 4;
+  const memory =
+    typeof navigator !== 'undefined'
+      ? (navigator as NavigatorWithDeviceMemory).deviceMemory || estimateMemory()
+      : 4;
   const connection = detectConnection();
   const gpu = await detectGPU();
   const screen = detectScreenSize();
@@ -293,11 +294,4 @@ export async function getDeviceTier(storageKey?: string): Promise<DeviceTier> {
 
   const capabilities = await detectDeviceCapabilities();
   return capabilities.tier;
-}
-
-/**
- * Reset cached capabilities (useful for testing)
- */
-export function resetDeviceDetection(): void {
-  cachedCapabilities = null;
 }

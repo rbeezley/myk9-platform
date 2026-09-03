@@ -2,7 +2,7 @@
  * Results submission module — barrel export.
  *
  * Importing this module auto-registers all built-in formatters so callers
- * can immediately use getFormatter() / listFormatters() without manual setup.
+ * can immediately use listFormatters() without manual setup.
  */
 
 export type {
@@ -16,7 +16,7 @@ export type {
   AKCSubmissionData,
   AKCResultStatus,
 } from './types';
-export { registerFormatter, getFormatter, listFormatters, clearFormatters } from './registry';
+export { registerFormatter, listFormatters } from './registry';
 export { AKCScentWorkFormatter } from './formatters/AKCScentWorkFormatter';
 export {
   classifyAKCEntryOutcome,

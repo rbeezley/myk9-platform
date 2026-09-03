@@ -111,7 +111,8 @@ export function parseSmartTime(input: string): string {
     const totalSeconds = parseInt(wholePart);
     const hundredths = decimalPart.padEnd(2, '0').slice(0, 2);
 
-    if (totalSeconds <= 3599) { // Max 59:59
+    if (totalSeconds <= 3599) {
+      // Max 59:59
       const minutes = Math.floor(totalSeconds / 60);
       const seconds = totalSeconds % 60;
       return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths}`;
@@ -209,72 +210,4 @@ export function isValidTimeFormat(time: string): boolean {
   const hun = parseInt(hundredths);
 
   return min <= 59 && sec <= 59 && hun <= 99;
-}
-
-/**
- * Convert time from MM:SS.HH format to total seconds (with decimal hundredths)
- *
- * @param time - Time string in MM:SS.HH format
- * @returns Total seconds as decimal number, or 0 if invalid
- *
- * @example
- * ```typescript
- * timeToSeconds('01:23.45')  // 83.45
- * timeToSeconds('00:59.99')  // 59.99
- * timeToSeconds('02:00.00')  // 120.00
- * timeToSeconds('invalid')   // 0
- * ```
- */
-export function timeToSeconds(time: string): number {
-  const match = time.match(/^(\d{2}):(\d{2})\.(\d{2})$/);
-  if (!match) return 0;
-
-  const [, minutes, seconds, hundredths] = match;
-  const totalSeconds = parseInt(minutes) * 60 + parseInt(seconds) + parseInt(hundredths) / 100;
-  return totalSeconds;
-}
-
-/**
- * Convert total seconds to MM:SS.HH format
- *
- * @param totalSeconds - Total seconds (can include decimal hundredths)
- * @returns Formatted time string in MM:SS.HH format
- *
- * @example
- * ```typescript
- * secondsToTime(83.45)   // "01:23.45"
- * secondsToTime(59.99)   // "00:59.99"
- * secondsToTime(120)     // "02:00.00"
- * secondsToTime(3599.99) // "59:59.99"
- * ```
- */
-export function secondsToTime(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  const hundredths = Math.round((totalSeconds % 1) * 100);
-
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-}
-
-/**
- * Compare two time strings and return which is faster (lower time wins)
- *
- * @param time1 - First time string in MM:SS.HH format
- * @param time2 - Second time string in MM:SS.HH format
- * @returns -1 if time1 is faster, 1 if time2 is faster, 0 if equal
- *
- * @example
- * ```typescript
- * compareTime('01:23.45', '01:23.50')  // -1 (time1 is faster)
- * compareTime('02:00.00', '01:59.99')  // 1 (time2 is faster)
- * compareTime('01:23.45', '01:23.45')  // 0 (equal)
- * ```
- */
-export function compareTime(time1: string, time2: string): number {
-  const seconds1 = timeToSeconds(time1);
-  const seconds2 = timeToSeconds(time2);
-
-  if (seconds1 < seconds2) return -1;
-  if (seconds1 > seconds2) return 1;
-  return 0;
 }

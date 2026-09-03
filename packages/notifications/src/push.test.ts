@@ -3,7 +3,6 @@ import {
   isPushSupported,
   lookupExistingSubscription,
   SERVICE_WORKER_READY_TIMEOUT_MS,
-  requestPushPermission,
   subscribeToPush,
   unsubscribeFromPush,
   getExistingSubscription,
@@ -54,19 +53,6 @@ describe('isPushSupported', () => {
   it('returns false when serviceWorker is missing', () => {
     vi.stubGlobal('navigator', {});
     expect(isPushSupported()).toBe(false);
-  });
-});
-
-describe('requestPushPermission', () => {
-  it('returns granted when user allows', async () => {
-    const result = await requestPushPermission();
-    expect(result).toBe('granted');
-  });
-
-  it('returns current permission if already decided', async () => {
-    vi.stubGlobal('Notification', { permission: 'denied' });
-    const result = await requestPushPermission();
-    expect(result).toBe('denied');
   });
 });
 

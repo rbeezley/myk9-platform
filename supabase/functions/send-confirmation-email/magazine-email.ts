@@ -2,11 +2,8 @@
 //
 // Magazine confirmation email — Deno HTML builder.
 //
-// Deno edge functions cannot import from workspace packages, so this file
-// keeps a local copy of the Magazine palette + font stack. The canonical
-// React Email implementation lives in
-// packages/email/src/templates/MagazineConfirmationEmail.tsx — keep these
-// two in visual sync.
+// This builder owns the production email palette and HTML.
+// @myk9/email supplies data types only; there is no parallel React renderer.
 //
 // Outlook safety guarantees (per reconciliation notes §"Gradient text in
 // email — Outlook caveat"):

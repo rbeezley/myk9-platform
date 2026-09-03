@@ -21,35 +21,8 @@ export { SORT_OPTIONS } from './types';
 
 export {
   shouldCombineAllSections,
-  findPairedNoviceClass,
   findPairedSectionedClass,
-  groupNoviceClasses,
   groupSectionedClasses,
-  isCombinedNoviceEntry,
   isCombinedEntry,
   getClassIds,
 } from './utils/noviceClassGrouping';
-
-export { getContextualPreview } from './utils/statusFormatting';
-
-export {
-  isMaxTimeSet,
-  shouldShowMaxTimeWarning,
-  isEmptyDataError,
-  filterClasses,
-  sortClasses,
-} from './ClassList.helpers';
-
-// Presentational + hook surface (PR E1b)
-export { ClassCardSkeleton, ClassCardSkeletonList } from './ClassCardSkeleton';
-export {
-  useClassDialogs,
-  type PopupPosition,
-  type UseClassDialogsReturn,
-} from './hooks/useClassDialogs';
-
-// Favorites hook (PR E1c — dedupe + move from apps/myk9q)
-export {
-  useFavoriteClasses,
-  type UseFavoriteClassesReturn,
-} from './hooks/useFavoriteClasses';

@@ -1,7 +1,7 @@
 {
   "name": "@myk9/email",
   "version": "0.0.1",
-  "description": "Email templates for myK9Show — React Email components",
+  "description": "Shared confirmation email data types for myK9Show",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -17,16 +17,10 @@
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no lint configured'",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
-  },
-  "dependencies": {
-    "@react-email/components": "^0.0.36",
-    "react": "^19.2.8"
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests"
   },
   "devDependencies": {
-    "@react-email/render": "^1.0.5",
-    "@types/react": "^19.2.18",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",
     "vitest": "^4.1.11"

@@ -4,11 +4,8 @@ import { renderVenueMapBlock } from './static-map.ts';
 //
 // Field Guide confirmation email — Deno HTML builder.
 //
-// Deno edge functions cannot import from workspace packages, so this file
-// keeps a local copy of the Field Guide palette + font stack. The
-// canonical React-Email implementation lives in
-// packages/email/src/templates/FieldGuideConfirmationEmail.tsx — keep
-// these two in visual sync.
+// This builder owns the production email palette and HTML.
+// @myk9/email supplies data types only; there is no parallel React renderer.
 //
 // Field Guide has no per-club brand color machinery — every show that
 // selects this style gets the same parchment + indicator-orange palette.

@@ -77,8 +77,3 @@ export interface LiveScoresheetProps extends BaseScoresheetProps {
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
 }
-
-/** Additional props for EntryScoresheet variants */
-export interface EntryScoresheetProps extends BaseScoresheetProps {
-  onNext?: () => void;
-}

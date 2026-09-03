@@ -38,7 +38,7 @@ import { formatEntryFee } from './entryFee.ts';
 
 const FROM_EMAIL = 'myK9Show <notifications@myk9show.com>';
 
-// ─── Palette (must match packages/email/src/templates/HeritageConfirmationEmail.tsx) ──
+// ─── Production Heritage email palette (owned by this builder) ──
 
 const INK = '#1a1612';
 const PAPER = '#f8f4ea';

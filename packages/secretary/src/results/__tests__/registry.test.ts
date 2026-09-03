@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { registerFormatter, getFormatter, listFormatters, clearFormatters } from '../registry';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 import type { ResultFormatter } from '../types';
 
 function makeFormatter(org: string, sport: string): ResultFormatter {
@@ -12,22 +12,21 @@ function makeFormatter(org: string, sport: string): ResultFormatter {
 }
 
 describe('formatter registry', () => {
-  beforeEach(() => {
-    clearFormatters();
+  let registerFormatter: typeof import('../registry').registerFormatter;
+  let listFormatters: typeof import('../registry').listFormatters;
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ registerFormatter, listFormatters } = await import('../registry'));
   });
 
-  it('starts empty after clearFormatters()', () => {
+  it('starts empty before registration', () => {
     expect(listFormatters()).toHaveLength(0);
   });
 
   it('registers a formatter and retrieves it', () => {
     const fmt = makeFormatter('AKC', 'scent_work');
     registerFormatter(fmt);
-    expect(getFormatter('AKC', 'scent_work')).toBe(fmt);
-  });
-
-  it('returns undefined for an unregistered combination', () => {
-    expect(getFormatter('UKC', 'scent_work')).toBeUndefined();
+    expect(listFormatters()).toEqual([fmt]);
   });
 
   it('overwrites an existing formatter for the same key', () => {
@@ -35,7 +34,7 @@ describe('formatter registry', () => {
     const second = makeFormatter('AKC', 'scent_work');
     registerFormatter(first);
     registerFormatter(second);
-    expect(getFormatter('AKC', 'scent_work')).toBe(second);
+    expect(listFormatters()).toEqual([second]);
     expect(listFormatters()).toHaveLength(1);
   });
 
@@ -52,21 +51,9 @@ describe('formatter registry', () => {
     expect(orgs).toEqual(['AKC', 'UKC']);
   });
 
-  it('lookup is case-insensitive for organization', () => {
-    registerFormatter(makeFormatter('AKC', 'scent_work'));
-    expect(getFormatter('akc', 'scent_work')).toBeDefined();
-  });
-
-  it('lookup is case-insensitive for sport type', () => {
-    registerFormatter(makeFormatter('AKC', 'scent_work'));
-    expect(getFormatter('AKC', 'SCENT_WORK')).toBeDefined();
-  });
-
   it('supports multiple sport types for the same org', () => {
     registerFormatter(makeFormatter('AKC', 'scent_work'));
     registerFormatter(makeFormatter('AKC', 'fast_cat'));
-    expect(getFormatter('AKC', 'scent_work')).toBeDefined();
-    expect(getFormatter('AKC', 'fast_cat')).toBeDefined();
     expect(listFormatters()).toHaveLength(2);
   });
 });

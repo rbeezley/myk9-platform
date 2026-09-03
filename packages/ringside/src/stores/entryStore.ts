@@ -123,7 +123,7 @@ const defaultFilters: EntryFilters = {
  * Create an Entry store instance.
  *
  * Mirrors the factory pattern used in `@myk9/scoring` (see
- * `packages/scoring/src/stores/timerStore.ts`) so the package stays
+ * `packages/scoring/src/stores/scoringStore.ts`) so the package stays
  * portable: no Vite-specific `import.meta.env.DEV` references leak in,
  * and consumers can opt into Redux DevTools explicitly.
  *

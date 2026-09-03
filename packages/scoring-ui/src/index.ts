@@ -44,39 +44,6 @@ export {
   type UseLongPressOptions,
   type LongPressHandlers,
 } from './hooks/useLongPress';
-export {
-  useSwipeGesture,
-  useSwipeToAction,
-  type SwipeDirection,
-  type SwipeGestureOptions,
-  type SwipeGestureHandlers,
-  type SwipeToActionOptions,
-  type SwipeToActionHandlers,
-  type SwipeToActionReturn,
-} from './hooks/useSwipeGesture';
-
-// Phase 3: Extracted Hooks (Sprint 25)
-export { useDialogState, type DialogState } from './hooks/useDialogState';
-export {
-  useNotificationPermissions,
-  type NotificationPermissionStatus,
-  type UseNotificationPermissionsOptions,
-  type UseNotificationPermissionsReturn,
-} from './hooks/useNotificationPermissions';
-export {
-  useAnimationSettings,
-  useAnimationProps,
-  useAnimationDuration,
-  useCanAnimate,
-  useSpringConfig,
-  useThrottledRaf,
-  usePrefersReducedMotion,
-  useAnimationClasses,
-  createAnimationSettingsProvider,
-  type AnimationConfig,
-  type AnimationSettingsInput,
-  type AnimationSettingsProvider,
-} from './hooks/useAnimationSettings';
 
 // Utils
 export {
@@ -132,31 +99,20 @@ export type {
   ScoresheetSportType,
   BaseScoresheetProps,
   LiveScoresheetProps,
-  EntryScoresheetProps,
 } from './types';
 
 // Components
-export {
-  ResultChoiceChips,
-  type ResultChoiceChipsProps,
-} from './components/ResultChoiceChips';
+export { ResultChoiceChips, type ResultChoiceChipsProps } from './components/ResultChoiceChips';
 
 // Scoresheets - AKC
 export { AKCScentWorkLiveScoresheet } from './components/scoresheets/AKC/AKCScentWorkLiveScoresheet';
-export { AKCScentWorkEntryScoresheet } from './components/scoresheets/AKC/AKCScentWorkEntryScoresheet';
 export { AKCNationalsLiveScoresheet } from './components/scoresheets/AKC/AKCNationalsLiveScoresheet';
-export { AKCNationalsEntryScoresheet } from './components/scoresheets/AKC/AKCNationalsEntryScoresheet';
 export { AKCFastCatLiveScoresheet } from './components/scoresheets/AKC/AKCFastCatLiveScoresheet';
-export { AKCFastCatEntryScoresheet } from './components/scoresheets/AKC/AKCFastCatEntryScoresheet';
 
 // Scoresheets - UKC
 export { UKCNoseworkLiveScoresheet } from './components/scoresheets/UKC/UKCNoseworkLiveScoresheet';
-export { UKCNoseworkEntryScoresheet } from './components/scoresheets/UKC/UKCNoseworkEntryScoresheet';
 export { UKCRallyLiveScoresheet } from './components/scoresheets/UKC/UKCRallyLiveScoresheet';
-export { UKCRallyEntryScoresheet } from './components/scoresheets/UKC/UKCRallyEntryScoresheet';
 export { UKCObedienceLiveScoresheet } from './components/scoresheets/UKC/UKCObedienceLiveScoresheet';
-export { UKCObedienceEntryScoresheet } from './components/scoresheets/UKC/UKCObedienceEntryScoresheet';
 
 // Scoresheets - ASCA
 export { ASCAScentDetectionLiveScoresheet } from './components/scoresheets/ASCA/ASCAScentDetectionLiveScoresheet';
-export { ASCAScentDetectionEntryScoresheet } from './components/scoresheets/ASCA/ASCAScentDetectionEntryScoresheet';

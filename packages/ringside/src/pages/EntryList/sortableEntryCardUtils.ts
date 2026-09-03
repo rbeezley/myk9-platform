@@ -45,13 +45,6 @@ export function normalizeResultText(result: string | null | undefined): string {
 }
 
 /**
- * Get the result class name for styling
- */
-export function getResultClassName(result: string | null | undefined): string {
-  return (result || '').toLowerCase();
-}
-
-/**
  * Check if result is non-qualifying (for placement display logic)
  */
 export function isNonQualifyingResult(result: string | null | undefined): boolean {

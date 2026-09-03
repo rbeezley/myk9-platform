@@ -52,9 +52,7 @@ export type {
 } from './results';
 export {
   registerFormatter,
-  getFormatter,
   listFormatters,
-  clearFormatters,
   AKCScentWorkFormatter,
   classifyAKCEntryOutcome,
   akcResultCodesForOutcome,

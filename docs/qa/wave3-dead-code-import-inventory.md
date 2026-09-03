@@ -103,6 +103,9 @@ number generation remain available.
 dedicated tests after confirming no production caller; the live dog list,
 owner, search, and statistics queries remain available.
 
+`uploadShowLogo` was removed with its dedicated branding tests after
+confirming no production caller; club/show cover uploads remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

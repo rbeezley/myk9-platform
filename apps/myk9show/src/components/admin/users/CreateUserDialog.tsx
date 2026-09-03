@@ -6,22 +6,9 @@
  * - Role assignment during creation (fetched dynamically from DB)
  * - Form validation with Zod schema
  * - Supabase Auth invitation so the new person can actually sign in
- *
- * MYK9-131 / PRA-2026-07-31-01. This dialog used to collect a password
- * (auto-generate toggle + custom field), a membership id and a list of club
- * affiliations, and to default "Send Invitation Email" to on — while
- * `handleCreate` inserted a `people` row and nothing else. Every one of those
- * inputs was dropped on the floor, so the operator saw a success state for an
- * account that had no auth identity and could never log in.
- *
- * The dead inputs are gone rather than implemented:
- *  - passwords: an admin-chosen password has no safe delivery channel, and the
- *    invite flow lets the recipient set their own. Invitation is now the only
- *    path to an identity.
- *  - membership id / club affiliations: `people` has no column for either, and
- *    club membership is already modelled through user_roles club scoping.
- *
- * `street_address` and `country` WERE storable all along and are now saved.
+ * MYK9-131: invitation is the only supported account-activation path.
+ * Password, membership and club-affiliation inputs were deliberately removed;
+ * they were never persisted by this form.
  */
 
 import React, { useState } from 'react';
@@ -40,50 +27,24 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/services/database/supabaseClient';
+import { CLUB_SCOPED_ROLES, MANAGEABLE_ROLES } from '@/services/rbac/roleUiConstants';
 import { rbacService } from '@/services/rbac/RBACService';
 
 import { User } from '@/types/user-types';
 import { getRoleLabel } from './UserTable/types';
 import { useCreateUserMutation } from '@/hooks/queries/useUsersQuery';
 import { useFormValidation } from '@/hooks/useFormValidation';
-import { commonValidations } from '@/lib/validation';
-import { z } from 'zod';
+import {
+  createUserSchema,
+  INITIAL_FORM_DATA,
+  type CreateUserFormData,
+} from './CreateUserDialog.schema';
 
 interface CreateUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUserCreated: (user: User) => void;
 }
-
-const createUserSchema = z.object({
-  firstName: z.string().min(1, 'Please enter a first name'),
-  lastName: z.string().min(1, 'Please enter a last name'),
-  email: commonValidations.emailRequired,
-  phone: z.string(),
-  address: z.string(),
-  city: z.string(),
-  state: z.string(),
-  zipCode: z.string(),
-  country: z.string(),
-  roles: z.array(z.string()).min(1, 'Please select at least one role'),
-  sendInviteEmail: z.boolean(),
-});
-
-type CreateUserFormData = z.infer<typeof createUserSchema>;
-
-const INITIAL_FORM_DATA: CreateUserFormData = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  phone: '',
-  address: '',
-  city: '',
-  state: '',
-  zipCode: '',
-  country: '',
-  roles: ['exhibitor'],
-  sendInviteEmail: true,
-};
 
 export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   open,
@@ -98,6 +59,11 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
 
   const { data: availableRoles = [] } = useQuery({
     queryKey: ['roles'],
+    select: roles =>
+      roles.filter(
+        role =>
+          MANAGEABLE_ROLES.some(name => name === role.name) && !CLUB_SCOPED_ROLES.has(role.name)
+      ),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('roles')
@@ -151,21 +117,36 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       return;
     }
 
+    const grantedRoles: string[] = [];
+    const failedRoles: string[] = [];
     // Assign selected roles via RBAC service (handles dedup + reactivation)
     if (newUser?.id && validatedData.roles.length > 0) {
       for (const roleName of validatedData.roles) {
         try {
           await rbacService.ensureUserHasRole(newUser.id, roleName);
+          grantedRoles.push(roleName);
         } catch (err) {
           logger.error('Failed to assign role:', 'admin', { roleName }, err as Error);
+          failedRoles.push(roleName);
         }
       }
     }
 
+    const reportGrantFailures = (invitationStatus: string) =>
+      toast.error(
+        `${validatedData.email} was added, but we could not assign: ${failedRoles.map(getRoleLabel).join(', ')}. ${invitationStatus} Use Manage Roles from their record to finish assigning roles.`
+      );
+
     if (!validatedData.sendInviteEmail) {
       // Say plainly that the record cannot sign in yet. The old dialog let the
       // operator believe otherwise; that is the bug.
-      toast.success(`${validatedData.email} added. No invitation sent — they cannot sign in yet.`);
+      if (failedRoles.length) {
+        reportGrantFailures('No invitation sent — they cannot sign in yet.');
+      } else {
+        toast.success(
+          `${validatedData.email} added. No invitation sent — they cannot sign in yet.`
+        );
+      }
       onUserCreated(newUser);
       onOpenChange(false);
       return;
@@ -177,12 +158,14 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         body: {
           email: validatedData.email,
           firstName: validatedData.firstName,
-          roleLabels: validatedData.roles,
+          roleLabels: grantedRoles,
         },
       });
       if (error) throw error;
 
-      if (data?.outcome === 'reinvited') {
+      if (failedRoles.length) {
+        reportGrantFailures('Invitation sent with only the assigned roles.');
+      } else if (data?.outcome === 'reinvited') {
         toast.success(`${validatedData.email} already had an account — sent them a sign-in link.`);
       } else {
         toast.success(`Invitation sent to ${validatedData.email}.`);
@@ -196,9 +179,15 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       );
       // The person row exists; only delivery failed. Report both halves rather
       // than a bare failure, so the operator knows not to re-create them.
-      toast.error(
-        `${validatedData.email} was added, but the invitation could not be sent. Use Resend access from their record.`
-      );
+      if (failedRoles.length) {
+        reportGrantFailures(
+          'The invitation could not be sent. Use Resend access from their record.'
+        );
+      } else {
+        toast.error(
+          `${validatedData.email} was added, but the invitation could not be sent. Use Resend access from their record.`
+        );
+      }
     } finally {
       setInviting(false);
     }
@@ -223,7 +212,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   // Pre-compute errors for fields referenced multiple times
   const rolesError = form.getError('roles');
 
-  const submitting = createUserMutation.isPending || inviting;
+  const submitting = form.isSubmitting || createUserMutation.isPending || inviting;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -418,6 +407,11 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
                     </div>
                   ))}
                 </div>
+
+                <p className="text-sm text-muted-foreground">
+                  Assign Secretary and Club Admin roles with a club in Manage Roles from the user’s
+                  record after creation.
+                </p>
 
                 {/* Selected Roles Display */}
                 <div className="pt-4 border-t">

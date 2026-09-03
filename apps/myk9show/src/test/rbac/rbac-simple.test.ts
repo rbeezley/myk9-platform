@@ -158,10 +158,19 @@ describe('RBAC Types and Constants', () => {
       const clubAdminPerms = new Set(DEFAULT_ROLE_PERMISSIONS[UserRole.CLUB_ADMIN]);
       const siteAdminPerms = new Set(DEFAULT_ROLE_PERMISSIONS[UserRole.SITE_ADMIN]);
 
-      // Each role should have unique permission counts
       expect(exhibitorPerms.size).toBeLessThan(secretaryPerms.size);
-      expect(secretaryPerms.size).toBeLessThan(clubAdminPerms.size);
       expect(clubAdminPerms.size).toBeLessThan(siteAdminPerms.size);
+
+      // Secretary and club_admin are PEERS with different authority, not a
+      // hierarchy — each holds permissions the other does not. Asserting
+      // `secretary.size < clubAdmin.size` (as this test did until MYK9-359)
+      // measured cardinality, not authority, and only passed because two of
+      // the counted club_admin codes — 'club:edit_details' and
+      // 'club:manage_members' — were never seeded by any migration.
+      expect(clubAdminPerms.has(PERMISSIONS.CLUB_MANAGE)).toBe(true);
+      expect(secretaryPerms.has(PERMISSIONS.CLUB_MANAGE)).toBe(false);
+      expect(secretaryPerms.has(PERMISSIONS.CHECK_IN_MANAGE_ALL)).toBe(true);
+      expect(clubAdminPerms.has(PERMISSIONS.CHECK_IN_MANAGE_ALL)).toBe(false);
 
       // Secretary should have all exhibitor permissions plus more
       const exhibitorPermsArray = Array.from(exhibitorPerms);

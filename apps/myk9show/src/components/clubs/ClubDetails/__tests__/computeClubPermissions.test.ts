@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeClubPermissions } from '../useClubDetailsState';
+import { computeClubPermissions } from '../clubPermissions';
 
 describe('computeClubPermissions', () => {
   it('grants all permissions to site admins', () => {

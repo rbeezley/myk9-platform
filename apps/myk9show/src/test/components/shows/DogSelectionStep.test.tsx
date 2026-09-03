@@ -31,38 +31,71 @@ beforeEach(() => {
 });
 
 describe('DogSelectionStep', () => {
-  it.each([3, 252])('finds the last of %i dogs and preserves hidden selections', async count => {
-    const dogs = Array.from({ length: count }, (_, index) =>
-      mockDog({
-        id: `dog-${index + 1}`,
-        callName: index === count - 1 ? 'Willow' : `Buddy ${index + 1}`,
-      })
-    );
-    vi.mocked(useDogStoreCompat).mockReturnValue(fromPartial({ dogs, isLoading: false }));
-    const onSelectionChange = vi.fn();
-    const { user, rerender } = render(
-      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
-    );
-    await user.type(
-      screen.getByRole('textbox', { name: /search dogs by call name/i }),
-      '  wILLo  '
-    );
-    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
-    const willow = screen.getByRole('checkbox', { name: 'Select Willow' });
-    willow.focus();
-    await user.keyboard('[Space]');
-    expect(onSelectionChange).toHaveBeenCalledWith(['dog-1', `dog-${count}`]);
-    rerender(
-      <DogSelectionStep
-        selectedDogs={['dog-1', `dog-${count}`]}
-        onSelectionChange={onSelectionChange}
-      />
-    );
-    await user.click(screen.getByRole('button', { name: 'Clear search' }));
-    expect(screen.getAllByRole('checkbox')).toHaveLength(count);
-    expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
-  });
+  it.each([3, 252])(
+    'finds the last of %i dogs and preserves hidden selections',
+    async count => {
+      const dogs = Array.from({ length: count }, (_, index) =>
+        mockDog({
+          id: `dog-${index + 1}`,
+          callName: index === count - 1 ? 'Willow' : `Buddy ${index + 1}`,
+        })
+      );
+      vi.mocked(useDogStoreCompat).mockReturnValue(fromPartial({ dogs, isLoading: false }));
+      const onSelectionChange = vi.fn();
+      const { user, rerender } = render(
+        <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+      );
+      // PASTE rather than type. The query string is deliberately awkward — it
+      // pins trimming, case-insensitivity and substring matching in one go — but
+      // `user.type` delivers it a keystroke at a time and each keystroke
+      // re-renders the whole list. At count=252 that is nine full re-renders.
+      // `paste` produces ONE input event with the identical value, so every
+      // assertion below is unchanged; the component filters on the input's value,
+      // not on keystroke count, so no coverage is lost.
+      const searchBox = screen.getByRole('textbox', { name: /search dogs by call name/i });
+      searchBox.focus();
+      await user.paste('  wILLo  ');
+      expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+      const willow = screen.getByRole('checkbox', { name: 'Select Willow' });
+      willow.focus();
+      await user.keyboard('[Space]');
+      expect(onSelectionChange).toHaveBeenCalledWith(['dog-1', `dog-${count}`]);
+      rerender(
+        <DogSelectionStep
+          selectedDogs={['dog-1', `dog-${count}`]}
+          onSelectionChange={onSelectionChange}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'Clear search' }));
+      // Count via the DOM, not `getAllByRole('checkbox')`.
+      //
+      // This one line was 6,723ms of a 12.8s test at count=252 and is what
+      // actually reddened main (measured under `taskpolicy -b … --coverage`).
+      // Testing Library's role query runs an accessibility-visibility check per
+      // element, which is ~26ms each in jsdom; the DOM query is 11ms for all 252
+      // and returns the same 252. `{ hidden: true }` is fast (60ms) but WRONG
+      // here — it returns 504, counting the hidden inputs behind the styled ones.
+      //
+      // The accessible-name assertions below are deliberately kept as role
+      // queries: they are two lookups, not 252, and they carry the semantics that
+      // matter. This is only about counting rows.
+      expect(document.querySelectorAll('input[type="checkbox"]')).toHaveLength(count);
+      expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
+      // Explicit timeout, with the measurements behind it.
+      //
+      // The count=252 case legitimately renders a 252-row list three times (mount,
+      // filter, clear). After removing the two avoidable costs above it measures
+      // ~9.6s under the repo's load recipe (`taskpolicy -b … --coverage`), which
+      // is inside vitest's 10s default by ~400ms — far too thin, and the reason
+      // this went red on CI rather than locally.
+      //
+      // This is NOT a timeout raised to paper over a flake: the dominant cost was
+      // found (a 6,723ms `getAllByRole`) and removed. What remains is real
+      // rendering work, so the cap is set to match it with room to spare.
+    },
+    30_000
+  );
 
   it('distinguishes no matches from no dogs and retains restored selections', async () => {
     vi.mocked(useDogStoreCompat).mockReturnValue(

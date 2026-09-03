@@ -23,6 +23,7 @@ import {
 } from '@/features/show-workbench/showCloseOutShow';
 import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
 import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
+import { getTrialTimezone } from '@/features/registries';
 import { useResultSubmissions } from '@/hooks/mutations/useResultSubmission';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -131,7 +132,7 @@ export function ShowWorkbenchShowDeskPage() {
           entryCount: entriesKnown ? (entryTallies.get(cls.id)?.total ?? 0) : null,
           scoredCount: entriesKnown ? (entryTallies.get(cls.id)?.scored ?? 0) : null,
           trialDate: trial.trialDate || '',
-          timezone: trial.timezone ?? null,
+          timezone: getTrialTimezone(trial),
           trialNumber: trial.trialNumber || '',
           trialName: trial.name || '',
         }));

@@ -6,6 +6,7 @@ import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable';
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
+import { getTrialTimezone } from '@/features/registries';
 
 interface ReplicatedUserEntryRelationMaps {
   dogsMap: ReadonlyMap<string, unknown>;
@@ -91,7 +92,7 @@ export async function buildReplicatedUserEntryRows(
             // Keeps the offline path's trial shape identical to the PostgREST
             // embed. Without it the amount-due deadline would reckon "past" in
             // a different timezone offline than online.
-            timezone: trial.timezone ?? null,
+            timezone: getTrialTimezone(trial),
           }
         : null,
     });

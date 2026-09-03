@@ -8,6 +8,7 @@ import type { ReplicatedClub } from '@/services/replication/ReplicatedClubsTable
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedJudgeAssignment } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import { getTrialTimezone } from '@/features/registries';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -113,7 +114,10 @@ export const mapDatabaseToShow = (
       date: (trialObj.date || '') as string,
       trialNumber: (trialObj.trial_number || '') as string,
       status: (trialObj.status || 'planned') as string,
-      timezone: (trialObj.timezone ?? null) as string | null,
+      timezone: getTrialTimezone({
+        id: trialObj.id as string | null | undefined,
+        timezone: trialObj.timezone as string | null | undefined,
+      }),
       classes: ((trialObj.class as unknown[]) || []).map((cls: unknown) => {
         const classObj = cls as Record<string, unknown>;
         return {

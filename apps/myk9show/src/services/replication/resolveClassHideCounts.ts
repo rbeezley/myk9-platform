@@ -1,5 +1,6 @@
 import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
+import { getTrialRegistry } from '@/features/registries';
 
 interface HideCountClassRow {
   id: string;
@@ -113,7 +114,7 @@ export async function resolveHideCountsForClassRows(
 
       for (const row of rows) {
         if (!row.trial_id) continue;
-        const registryId = trialById.get(row.trial_id)?.registry_id;
+        const registryId = getTrialRegistry(trialById.get(row.trial_id)).id;
         if (!registryId) continue;
         const fixedCount = fixedCountByRule.get(
           ruleKey(registryId, row.element, row.level, row.section)

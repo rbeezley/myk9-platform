@@ -150,7 +150,16 @@ export const useUserStore = create<UserStore>()(
               );
             } catch (roleError) {
               const { deleteUser } = await import('@/services/database/users');
-              await deleteUser(newPersonId);
+              const { error: rollbackError } = await deleteUser(newPersonId);
+              if (rollbackError) {
+                logger.error('Failed to roll back user after role assignment failure', 'store', {
+                  personId: newPersonId,
+                  rollbackError,
+                });
+                throw new Error(
+                  `Role assignment failed and user rollback failed: ${rollbackError.message}`
+                );
+              }
               throw roleError;
             }
           }

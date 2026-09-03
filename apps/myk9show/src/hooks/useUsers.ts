@@ -41,7 +41,12 @@ export function useAddPerson() {
         );
       } catch (roleError) {
         // Do not leave a person that the caller was told failed to create.
-        await deleteUser(newPersonId);
+        const { error: rollbackError } = await deleteUser(newPersonId);
+        if (rollbackError) {
+          throw new Error(
+            `Role assignment failed and user rollback failed: ${rollbackError.message}`
+          );
+        }
         throw roleError;
       }
 

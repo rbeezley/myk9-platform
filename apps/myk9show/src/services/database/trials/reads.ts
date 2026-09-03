@@ -117,28 +117,6 @@ async function postgrestSearchTrials(searchTerm: string) {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetTrialsByStatus(status: string) {
-  const { data, error } = await supabase
-    .from('trials')
-    .select(
-      `
-      *,
-      show:shows (
-        id,
-        name,
-        start_date,
-        end_date
-      )
-    `
-    )
-    .eq('status', status)
-    .is('deleted_at', null)
-    .order('date', { ascending: true });
-
-  if (error) throw createDatabaseError(error, 'trial', 'select_by_status');
-  return { data: data || [], error: null };
-}
-
 async function postgrestGetUpcomingTrials(limit?: number) {
   const today = new Date().toISOString().split('T')[0];
 
@@ -252,26 +230,6 @@ export const searchTrials = async (searchTerm: string) => {
     postgrest: () => postgrestSearchTrials(searchTerm),
     table: 'trial',
     operation: 'search',
-    errorData: [],
-  });
-};
-
-// Get trials by status (excluding soft-deleted)
-export const getTrialsByStatus = async (status: string) => {
-  return readWithReplicationFallback({
-    replication: async () => {
-      const [allTrials, showsMap] = await Promise.all([
-        replicatedTrialsTable.getAll(),
-        loadShowsMap(),
-      ]);
-      const filtered = allTrials.filter(trial => trial.status === status);
-      const sortedTrials = sortedCopy(filtered, compareDateAsc(trial => trial.date));
-      const data = mapTrialsWithJoins(sortedTrials, showsMap);
-      return { data, error: null };
-    },
-    postgrest: () => postgrestGetTrialsByStatus(status),
-    table: 'trial',
-    operation: 'select_by_status',
     errorData: [],
   });
 };

@@ -76,6 +76,10 @@ queries remain available.
 tests after confirming no production caller; the live trial list/show queries
 remain available.
 
+`getTrialsByStatus` and its PostgREST helper were removed with dedicated tests
+after confirming no production caller; upcoming-trial and trial-by-show paths
+remain available.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

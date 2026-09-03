@@ -53,7 +53,6 @@ import {
   getTrialById,
   getTrialsByShow,
   searchTrials,
-  getTrialsByStatus,
   getUpcomingTrials,
   getShowScheduleTimelineRows,
   getTrialTimelineRows,
@@ -344,47 +343,6 @@ describe('trialQueries (replication)', () => {
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // getTrialsByStatus
-  // -----------------------------------------------------------------------
-  describe('getTrialsByStatus', () => {
-    it('filters by status', async () => {
-      const trials = [
-        makeTrial({ id: 'upcoming-1', status: 'upcoming' }),
-        makeTrial({ id: 'completed-1', status: 'completed' }),
-      ];
-      setupListMocks(trials);
-
-      const result = await getTrialsByStatus('upcoming');
-
-      expect(result.data).toHaveLength(1);
-      expect((result.data[0] as Record<string, unknown>).id).toBe('upcoming-1');
-    });
-
-    it('returns empty when no trials match status', async () => {
-      setupListMocks([makeTrial({ status: 'upcoming' })]);
-
-      const result = await getTrialsByStatus('cancelled');
-
-      expect(result.data).toEqual([]);
-      expect(result.error).toBeNull();
-    });
-
-    it('orders replicated status-filtered trials by date ascending', async () => {
-      setupListMocks([
-        makeTrial({ id: 'later', status: 'upcoming', date: '2026-06-01' }),
-        makeTrial({ id: 'earlier', status: 'upcoming', date: '2026-04-01' }),
-      ]);
-
-      const result = await getTrialsByStatus('upcoming');
-
-      expect(result.data.map(row => (row as Record<string, unknown>).id)).toEqual([
-        'earlier',
-        'later',
-      ]);
     });
   });
 

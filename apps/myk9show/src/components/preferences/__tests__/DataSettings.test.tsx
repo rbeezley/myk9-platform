@@ -92,4 +92,16 @@ describe('DataSettings cache clear', () => {
     expect(indexedDB.deleteDatabase).toHaveBeenCalledWith('myK9ShowDB');
     expect(indexedDB.deleteDatabase).not.toHaveBeenCalledWith('myK9_Replication');
   });
+
+  it('rechecks for pending changes before the destructive action', async () => {
+    mockCount.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
+    const { user, clearSpy } = renderSettings();
+
+    await user.click(screen.getByRole('button', { name: /^clear cache$/i }));
+    await user.click(await screen.findByRole('button', { name: /clear cache and reload/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('1 unsynced change');
+    expect(clearSpy).not.toHaveBeenCalled();
+    expect(mockReload).not.toHaveBeenCalled();
+  });
 });

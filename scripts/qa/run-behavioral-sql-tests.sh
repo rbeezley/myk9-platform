@@ -47,6 +47,7 @@ TEST_FILES=(
   "$TEST_DIR/entry_requires_dog_registration_test.sql"
   "$TEST_DIR/anon_tv_entry_soft_delete_test.sql"
   "$TEST_DIR/judge_assignment_private_read_test.sql"
+  "$TEST_DIR/judge_qualification_rpc_authorization_test.sql"
   "$TEST_DIR/office_admin_rls_test.sql"
   "$TEST_DIR/null_club_show_authorization_test.sql"
   "$TEST_DIR/entry_status_history_rls_test.sql"

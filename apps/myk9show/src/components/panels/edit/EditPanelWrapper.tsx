@@ -279,9 +279,32 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     [useSchemaPath, form]
   );
 
+  // While this counter is above zero the route guard stands down: the panel is
+  // navigating on its own behalf (its own Cancel/Discard dialog already asked,
+  // or a save just persisted the work). Without it, closing a panel whose
+  // parent drops a `?add=true` param — or a save that routes to the new
+  // record — produces a second "Leave this page?" prompt for changes the user
+  // has already resolved (MYK9-165). Callers navigate synchronously inside
+  // onClose/onSave, so a try/finally around those calls closes the window
+  // exactly; a failed save decrements and re-arms the guard.
+  const selfNavigationRef = useRef(0);
+  const runSelfNavigation = useCallback((navigate: () => void) => {
+    selfNavigationRef.current += 1;
+    try {
+      navigate();
+    } finally {
+      selfNavigationRef.current -= 1;
+    }
+  }, []);
+  const closeWithoutRouteGuard = useCallback(
+    () => runSelfNavigation(onClose),
+    [onClose, runSelfNavigation]
+  );
+
   // Handle save — schema path delegates to form.handleSubmit
   const wrappedSave = useCallback(
     async (validatedData: T) => {
+      selfNavigationRef.current += 1;
       try {
         setIsLoading(true);
         await onSave(validatedData);
@@ -292,6 +315,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           description: getErrorMessage(error),
         });
       } finally {
+        selfNavigationRef.current -= 1;
         setIsLoading(false);
       }
     },
@@ -310,6 +334,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         return;
       }
 
+      selfNavigationRef.current += 1;
       try {
         setIsLoading(true);
         await onSave(legacyData);
@@ -321,6 +346,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           description: getErrorMessage(error),
         });
       } finally {
+        selfNavigationRef.current -= 1;
         setIsLoading(false);
       }
     };
@@ -357,11 +383,15 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       setShowUnsavedDialog(true);
       return;
     }
-    onClose();
-  }, [hasChanges, showUnsavedWarning, onClose]);
+    closeWithoutRouteGuard();
+  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard]);
 
   const routeLeaveGuard = (
-    <UnsavedChangesRouteGuard isDirty={open && hasChanges && showUnsavedWarning} subject={title} />
+    <UnsavedChangesRouteGuard
+      isDirty={open && hasChanges && showUnsavedWarning}
+      subject={title}
+      selfNavigationRef={selfNavigationRef}
+    />
   );
 
   // Context value
@@ -375,6 +405,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     errors,
     isLoading,
     setIsLoading,
+    runSelfNavigation,
   };
 
   const visibleErrors = showAllErrors ? errors : errors.slice(0, 2);
@@ -499,7 +530,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           onDiscard={() => {
             confirmedCloseRef.current = true;
             setShowUnsavedDialog(false);
-            onClose();
+            closeWithoutRouteGuard();
           }}
         />
         {routeLeaveGuard}
@@ -535,7 +566,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         onDiscard={() => {
           confirmedCloseRef.current = true;
           setShowUnsavedDialog(false);
-          onClose();
+          closeWithoutRouteGuard();
         }}
       />
       {routeLeaveGuard}

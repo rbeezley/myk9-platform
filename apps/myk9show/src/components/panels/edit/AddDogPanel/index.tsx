@@ -228,7 +228,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   onUseExistingDog,
   onCreateSeparateDog,
 }) => {
-  const { form } = useEditPanel<DogFormData>();
+  const { form, runSelfNavigation } = useEditPanel<DogFormData>();
 
   // The hook needs form to manage registrations/photos via context
   const uiState = useAddDogForm({ open, form });
@@ -308,7 +308,12 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
                   already saved for this owner.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => onUseExistingDog(duplicateCandidate.dog)}>
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      runSelfNavigation(() => onUseExistingDog(duplicateCandidate.dog))
+                    }
+                  >
                     Use existing dog
                   </Button>
                   <Button size="sm" variant="outline" onClick={onCreateSeparateDog}>

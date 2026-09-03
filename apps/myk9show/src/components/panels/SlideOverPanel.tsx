@@ -91,6 +91,32 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     }
   }
 
+  // Return focus to whatever opened this panel once it closes, instead of
+  // dropping the user on <body> at the top of the page (WCAG 2.4.3): the panel
+  // traps focus while open, so nothing else restores it (MYK9-165).
+  //
+  // The work happens in the effect CLEANUP because some callers remount the
+  // panel subtree on open/close (AddDogPanel keys on `open`), so an
+  // `open === false` branch would run on a fresh instance that never captured
+  // anything. Restoration is deferred a tick: at cleanup time focus can still
+  // sit on a node React is about to remove.
+  useEffect(() => {
+    if (!open) return;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    return () => {
+      if (!previouslyFocused || previouslyFocused === document.body) return;
+      setTimeout(() => {
+        // Only reclaim focus that fell on the floor — a close that navigates,
+        // or that hands focus to another dialog, already put it somewhere the
+        // user expects.
+        if (document.activeElement !== document.body) return;
+        if (!previouslyFocused.isConnected) return;
+        previouslyFocused.focus();
+      }, 0);
+    };
+  }, [open]);
+
   // Handle focus management and cleanup animations
   useEffect(() => {
     if (open) {

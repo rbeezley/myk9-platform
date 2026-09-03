@@ -11,9 +11,27 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+/**
+ * Counter a form owns and increments while it is navigating on its own behalf
+ * (its Cancel/Discard close, or a save that routes to the saved record). The
+ * route blocker reads it at navigation time, so the form can suppress the
+ * "Leave this page?" prompt synchronously around the call that navigates —
+ * the user already answered for those changes in the form's own dialog.
+ *
+ * A ref rather than a prop because React state cannot land between the click
+ * handler and the navigation it dispatches in the same tick.
+ */
+export type SelfNavigationRef = { current: number };
+
 interface UnsavedChangesRouteGuardProps {
   isDirty: boolean;
   subject: string;
+  selfNavigationRef?: SelfNavigationRef | undefined;
+}
+
+/** True while the form owning this guard is navigating on its own behalf. */
+function isSelfNavigating(guard: { selfNavigationRef?: SelfNavigationRef | undefined }): boolean {
+  return (guard.selfNavigationRef?.current ?? 0) > 0;
 }
 
 interface RegisteredGuard extends UnsavedChangesRouteGuardProps {
@@ -38,7 +56,12 @@ export function UnsavedChangesRouteGuardProvider({ children }: { children: React
   const register = useCallback((guard: RegisteredGuard) => {
     setGuards(current => {
       const existing = current.find(item => item.id === guard.id);
-      if (existing && existing.isDirty === guard.isDirty && existing.subject === guard.subject) {
+      if (
+        existing &&
+        existing.isDirty === guard.isDirty &&
+        existing.subject === guard.subject &&
+        existing.selfNavigationRef === guard.selfNavigationRef
+      ) {
         return current;
       }
       return [...current.filter(item => item.id !== guard.id), guard];
@@ -71,7 +94,11 @@ export function UnsavedChangesRouteGuardProvider({ children }: { children: React
  * This wrapper detects the data-router context before mounting the hook so
  * components can still be rendered in focused tests using MemoryRouter.
  */
-export function UnsavedChangesRouteGuard({ isDirty, subject }: UnsavedChangesRouteGuardProps) {
+export function UnsavedChangesRouteGuard({
+  isDirty,
+  subject,
+  selfNavigationRef,
+}: UnsavedChangesRouteGuardProps) {
   const dataRouterContext = useContext(UNSAFE_DataRouterContext);
   const registry = useContext(UnsavedChangesRegistryContext);
   const id = useId();
@@ -79,13 +106,19 @@ export function UnsavedChangesRouteGuard({ isDirty, subject }: UnsavedChangesRou
   useEffect(() => {
     if (!registry || !dataRouterContext) return;
 
-    registry.register({ id, isDirty, subject });
+    registry.register({ id, isDirty, subject, selfNavigationRef });
     return () => registry.unregister(id);
-  }, [dataRouterContext, id, isDirty, registry, subject]);
+  }, [dataRouterContext, id, isDirty, registry, subject, selfNavigationRef]);
 
   if (!dataRouterContext || registry) return null;
 
-  return <DataRouterUnsavedChangesGuard isDirty={isDirty} subject={subject} />;
+  return (
+    <DataRouterUnsavedChangesGuard
+      isDirty={isDirty}
+      subject={subject}
+      selfNavigationRef={selfNavigationRef}
+    />
+  );
 }
 
 function DataRouterUnsavedChangesBlocker({
@@ -95,9 +128,16 @@ function DataRouterUnsavedChangesBlocker({
   children: React.ReactNode;
   guards: RegisteredGuard[];
 }) {
-  const isDirty = guards.some(guard => guard.isDirty);
-  const subject = guards.find(guard => guard.isDirty)?.subject ?? 'this page';
-  const blocker = useBlocker(isDirty);
+  // Blocking is decided at navigation time (function form of useBlocker) so a
+  // form that raises its self-navigation counter between render and its own
+  // navigate() call is honoured — see SelfNavigationRef.
+  const dirtyGuards = useMemo(() => guards.filter(guard => guard.isDirty), [guards]);
+  const shouldBlock = useCallback(
+    () => dirtyGuards.some(guard => !isSelfNavigating(guard)),
+    [dirtyGuards]
+  );
+  const subject = dirtyGuards[0]?.subject ?? 'this page';
+  const blocker = useBlocker(shouldBlock);
 
   return (
     <>
@@ -107,8 +147,16 @@ function DataRouterUnsavedChangesBlocker({
   );
 }
 
-function DataRouterUnsavedChangesGuard({ isDirty, subject }: UnsavedChangesRouteGuardProps) {
-  const blocker = useBlocker(isDirty);
+function DataRouterUnsavedChangesGuard({
+  isDirty,
+  subject,
+  selfNavigationRef,
+}: UnsavedChangesRouteGuardProps) {
+  const shouldBlock = useCallback(
+    () => isDirty && !isSelfNavigating({ selfNavigationRef }),
+    [isDirty, selfNavigationRef]
+  );
+  const blocker = useBlocker(shouldBlock);
 
   return <BlockedNavigationDialog blocker={blocker} subject={subject} />;
 }

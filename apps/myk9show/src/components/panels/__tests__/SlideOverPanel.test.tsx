@@ -178,3 +178,75 @@ describe('SlideOverPanel stacked Escape handling', () => {
     expect(document.body.style.overflow).toBe('unset');
   });
 });
+
+describe('SlideOverPanel focus return', () => {
+  function TriggerAndPanel({ remountOnToggle = false }: { remountOnToggle?: boolean }) {
+    const [open, setOpen] = useState(false);
+    const panel = (
+      <SlideOverPanel open={open} onClose={() => setOpen(false)} title="Add dog">
+        <p>Body</p>
+      </SlideOverPanel>
+    );
+
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Add Dog</button>
+        {/* AddDogPanel keys its subtree on `open`, so the panel instance that
+            captured the trigger is gone by the time it closes. */}
+        {remountOnToggle ? (
+          <React.Fragment key={open ? 'open' : 'closed'}>{panel}</React.Fragment>
+        ) : (
+          panel
+        )}
+      </>
+    );
+  }
+
+  it.each([[false], [true]])(
+    'returns focus to the control that opened it (remounting subtree: %s)',
+    async (remountOnToggle: boolean) => {
+      vi.useFakeTimers();
+      try {
+        render(<TriggerAndPanel remountOnToggle={remountOnToggle} />);
+        const trigger = screen.getByRole('button', { name: 'Add Dog' });
+        trigger.focus();
+        fireEvent.click(trigger);
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        (document.activeElement as HTMLElement | null)?.blur();
+        expect(document.activeElement).toBe(document.body);
+
+        fireEvent.click(screen.getByRole('button', { name: /close panel/i }));
+        await vi.advanceTimersByTimeAsync(400);
+
+        expect(document.activeElement).toBe(trigger);
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
+
+  it('leaves focus alone when the close hands it to something else', async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <>
+          <TriggerAndPanel />
+          <button>Elsewhere</button>
+        </>
+      );
+      const trigger = screen.getByRole('button', { name: 'Add Dog' });
+      trigger.focus();
+      fireEvent.click(trigger);
+
+      const elsewhere = screen.getByRole('button', { name: 'Elsewhere' });
+      fireEvent.click(screen.getByRole('button', { name: /close panel/i }));
+      elsewhere.focus();
+      await vi.advanceTimersByTimeAsync(400);
+
+      expect(document.activeElement).toBe(elsewhere);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

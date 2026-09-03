@@ -37,6 +37,8 @@ interface CompactStatsRowProps {
   currentFees: number;
   /** Amount still owed. `<= 0` is the paid-in-full state. */
   amountDue: number;
+  /** Whether any portion of the balance belongs to a show that has ended. */
+  hasPastBalance?: boolean;
   /** Cart/payment target for the owed balance; falls back to the cart. */
   currentFeesHref?: string;
   onNavigate: (path: string) => void;
@@ -46,12 +48,13 @@ interface CompactStatsRowProps {
 export function CompactStatsRow({
   currentFees,
   amountDue,
+  hasPastBalance = false,
   currentFeesHref,
   onNavigate,
   className,
 }: CompactStatsRowProps) {
   const paidInFull = amountDue <= 0;
-  const includesPastBalance = amountDue > currentFees;
+  const includesPastBalance = hasPastBalance;
   const feeHref = paidInFull ? '/exhibitor/payments' : (currentFeesHref ?? '/cart');
   const hasActionableOnlinePayment = !paidInFull && feeHref.startsWith('/cart');
 

@@ -130,6 +130,9 @@ The unreferenced `getManagedShows` and `getJudgingShows` selectors were removed
 from show-management tracking; relationship synchronization and performance
 monitoring remain available.
 
+The unreferenced `createBulkActions` factory and base-barrel export were
+removed; `BulkAction` remains available for the mounted `BulkActionsBar`.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

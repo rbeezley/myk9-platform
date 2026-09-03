@@ -15,7 +15,6 @@ export type { ChipProps, ChipColor, ChipSize } from './Chip';
 
 // Bulk operations
 export { BulkActionsBar, BulkSelectCheckbox, BulkSelectRow } from './BulkActionsBar';
-export { createBulkActions } from '@/utils/bulkActions';
 export type { BulkAction } from '@/utils/bulkActions';
 
 // Form validation

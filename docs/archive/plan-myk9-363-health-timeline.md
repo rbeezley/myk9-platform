@@ -1,6 +1,6 @@
 # MYK9-363: Health timeline card affordances
 
-> **Status:** Active
+> **Status:** Complete
 
 Request: implement MYK9-363
 
@@ -33,4 +33,9 @@ the lightweight workflow instead of OPSX.
 - Local diff review confirms the section omits the no-op callback, and both timeline
   and grid cards share the conditional styling. Actual click callbacks still receive
   the event; Delete remains functional and does not trigger the card action.
-- Branch: `codex/myk9-363`. Prepared for PR; merge remains pending.
+- Merged [PR #1998](https://github.com/rbeezley/myk9-platform/pull/1998) on
+  2026-09-03 as `6803cce08eb3b4f3d7ec2c5463ddb6b44c182649`.
+- All required CI gates passed: Quality Checks (including full typecheck and lint),
+  Test, A11y smoke, and E2E PR Smoke. All app shards, package and SQL tests, coverage
+  gate, builds, and both previews passed. This closes the local typecheck limitation.
+- MYK9-363 is Done; no remaining implementation work.

@@ -1,7 +1,5 @@
 # myK9 Documentation Index
 
-- [MYK9-363: Health timeline card affordances](plan-myk9-363-health-timeline.md) — Active
-
 This is the single index of **living** documentation. If a doc isn't listed here, it has been
 retired to [`archive/`](archive/) (kept for history, not maintained).
 

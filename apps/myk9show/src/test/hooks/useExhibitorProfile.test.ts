@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 
@@ -230,6 +230,20 @@ describe('useExhibitorProfile', () => {
   });
 
   describe('derived state', () => {
+    it('does not treat a paused cold query as a missing profile', () => {
+      onlineManager.setOnline(false);
+      try {
+        const { result } = renderHook(() => useExhibitorProfile(), {
+          wrapper: createWrapper(),
+        });
+
+        expect(result.current.profile).toBeUndefined();
+        expect(result.current.needsOnboarding).toBe(false);
+      } finally {
+        onlineManager.setOnline(true);
+      }
+    });
+
     it('should return needsOnboarding=true when user exists but profile does not', async () => {
       mockSupabaseQuery.mockResolvedValue({ data: null, error: null });
 

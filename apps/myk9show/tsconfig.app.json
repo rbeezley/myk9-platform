@@ -67,7 +67,6 @@
     "src/components/deployment/CDNDashboard.tsx",
     "src/components/admin/PerformanceDashboard.tsx",
     "src/components/admin/LoadTestDashboard.tsx",
-    "src/components/common/SearchPerformanceMonitor.tsx",
     "src/hooks/usePerformanceOptimization.ts",
     "src/hooks/optimized/usePerformanceMonitor.ts",
     "src/hooks/useCDN.ts",

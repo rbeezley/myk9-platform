@@ -19,20 +19,18 @@ import type { ShowEditFormData } from './ShowEditPanel.types';
 interface ShowEditFeesTabProps {
   data: ShowEditFormData;
   form?: FormValidation<ShowEditFormData> | undefined;
-  handleInputChange: (
-    field: keyof ShowEditFormData
-  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   handleCheckboxChange: (field: keyof ShowEditFormData) => (checked: boolean) => void;
 }
 
 export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   data,
   form,
-  handleInputChange,
   handleCheckboxChange,
 }) => {
   const preEntryFeeError = form?.getError('preEntryFee');
   const dayOfShowFeeError = form?.getError('dayOfShowFee');
+  const maxEntriesPerDogError = form?.getError('maxEntriesPerDog');
+  const maxTotalEntriesError = form?.getError('maxTotalEntries');
 
   const handleFeeChange = (field: keyof ShowEditFormData) => (value: number) => {
     form?.setValue(field, String(value));
@@ -118,24 +116,50 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md">
-              <FormField label="Max Entries Per Dog" fieldId="maxEntriesPerDog">
+              <FormField
+                label="Max Entries Per Dog"
+                fieldId="maxEntriesPerDog"
+                error={maxEntriesPerDogError}
+              >
                 <Input
                   id="maxEntriesPerDog"
                   type="number"
                   value={data.maxEntriesPerDog || ''}
-                  onChange={handleInputChange('maxEntriesPerDog')}
+                  {...form?.getFieldProps('maxEntriesPerDog')}
+                  onChange={e => {
+                    const value = e.target.value;
+                    const parsed = value === '' ? undefined : Number(value);
+                    form?.setValue(
+                      'maxEntriesPerDog',
+                      parsed === undefined || Number.isNaN(parsed) ? undefined : parsed
+                    );
+                    form?.touchField('maxEntriesPerDog');
+                  }}
                   onBlur={() => form?.touchField('maxEntriesPerDog')}
                   placeholder="Unlimited"
                   min="1"
                 />
               </FormField>
 
-              <FormField label="Max Total Entries" fieldId="maxTotalEntries">
+              <FormField
+                label="Max Total Entries"
+                fieldId="maxTotalEntries"
+                error={maxTotalEntriesError}
+              >
                 <Input
                   id="maxTotalEntries"
                   type="number"
                   value={data.maxTotalEntries || ''}
-                  onChange={handleInputChange('maxTotalEntries')}
+                  {...form?.getFieldProps('maxTotalEntries')}
+                  onChange={e => {
+                    const value = e.target.value;
+                    const parsed = value === '' ? undefined : Number(value);
+                    form?.setValue(
+                      'maxTotalEntries',
+                      parsed === undefined || Number.isNaN(parsed) ? undefined : parsed
+                    );
+                    form?.touchField('maxTotalEntries');
+                  }}
                   onBlur={() => form?.touchField('maxTotalEntries')}
                   placeholder="Unlimited"
                   min="1"

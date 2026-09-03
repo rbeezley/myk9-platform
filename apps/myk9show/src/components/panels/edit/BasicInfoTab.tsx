@@ -1,47 +1,16 @@
-import React, { useEffect, useMemo } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { FormField } from '@/components/common/FormField';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Camera } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { supabase } from '@/services/database/supabaseClient';
 import { fetchPersonIdentity } from '@/services/database/users';
 import { useEditPanel } from './useEditPanel';
 import type { UserFormData } from './UserEditPanel.types';
-
-/**
- * Fetch role names for a person (people.id) from user_roles table.
- *
- * Returns a stable empty array when the query is idle/loading so consumers
- * can use it directly in `useEffect` deps without tripping a render loop on
- * every re-render.
- */
-function usePersonRoleNames(personId?: string) {
-  const query = useQuery({
-    queryKey: ['personRoles', personId],
-    queryFn: async () => {
-      if (!personId) return [];
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role:roles!user_roles_role_id_fkey(name)')
-        .eq('user_id', personId)
-        .eq('is_active', true);
-      if (error) throw error;
-      return (data || [])
-        .map((r: Record<string, unknown>) => (r.role as { name: string })?.name)
-        .filter(Boolean) as string[];
-    },
-    enabled: !!personId,
-    staleTime: 30_000,
-  });
-  const data = useMemo(() => query.data ?? [], [query.data]);
-  return { ...query, data };
-}
 
 /**
  * Whether this person can sign in. Read here rather than taken from the
@@ -76,23 +45,11 @@ interface BasicInfoTabProps {
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   personId,
-  hasAdminPermission,
   canEditAdvancedFields,
   onOpenPhotoModal,
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
-  const { data: dbRoles } = usePersonRoleNames(personId);
   const hasSignInAccount = usePersonHasSignInAccount(personId);
-
-  // Seed form roles from DB on initial load
-  useEffect(() => {
-    if (dbRoles.length > 0 && data.roles.length === 0) {
-      form?.setValue(
-        'roles',
-        dbRoles.map(r => (r === 'site_admin' ? 'admin' : r))
-      );
-    }
-  }, [dbRoles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const firstNameError = form?.getError('firstName');
   const lastNameError = form?.getError('lastName');
@@ -185,63 +142,13 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         )}
       </FormField>
 
-      {/* Role Management - Admin Only */}
-      {hasAdminPermission && (
-        <>
-          <Separator />
-          <div className="space-y-4">
-            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-              Role Management
-            </h4>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-                User Roles
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    'exhibitor',
-                    'handler',
-                    'judge',
-                    'secretary',
-                    'chairman',
-                    'steward',
-                    'admin',
-                  ] as const
-                ).map(role => {
-                  const isSelected = data.roles.includes(role);
-                  return (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => {
-                        const newRoles = isSelected
-                          ? data.roles.filter(r => r !== role)
-                          : [...data.roles, role];
-                        form?.setValue('roles', newRoles);
-                      }}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-medium border transition-all duration-200',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-input border-0 text-muted-foreground hover:text-foreground hover:bg-muted'
-                      )}
-                    >
-                      {role.charAt(0).toUpperCase() + role.slice(1)}
-                    </button>
-                  );
-                })}
-              </div>
-              {data.roles.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No roles assigned. Users with no roles are considered Members.
-                </p>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      <p className="text-sm text-muted-foreground">
+        Role assignments are managed from the{' '}
+        <Link className="text-primary underline underline-offset-2" to="/admin/users">
+          User Management
+        </Link>{' '}
+        page so club and show scopes remain visible.
+      </p>
 
       {canEditAdvancedFields && (
         <>

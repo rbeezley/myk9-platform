@@ -4,7 +4,7 @@ import { UserRole } from '@/types/auth-types';
 import type { User } from '@/types/user-types';
 import { getAllUsers, createUser, updateUser, deleteUser } from '@/services/database/users';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
-import { savePersonRoles } from '@/components/panels/edit/personRolesService';
+import { rbacService } from '@/services/rbac';
 
 export function useUsers() {
   return useQuery<User[]>({
@@ -35,7 +35,20 @@ export function useAddPerson() {
 
       const newPersonId = (data as Record<string, unknown>).id as string;
       const roles = person.roles?.length ? person.roles : [UserRole.EXHIBITOR];
-      await savePersonRoles(newPersonId, roles);
+      try {
+        await Promise.all(
+          roles.map(roleName => rbacService.assignRole({ userId: newPersonId, roleName }))
+        );
+      } catch (roleError) {
+        // Do not leave a person that the caller was told failed to create.
+        const { error: rollbackError } = await deleteUser(newPersonId);
+        if (rollbackError) {
+          throw new Error(
+            `Role assignment failed and user rollback failed: ${rollbackError.message}`
+          );
+        }
+        throw roleError;
+      }
 
       return mapDatabaseToUser(data);
     },

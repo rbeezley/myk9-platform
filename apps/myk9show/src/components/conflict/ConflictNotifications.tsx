@@ -127,13 +127,18 @@ export function ConflictNotifications({
   ) => {
     // Map simple resolution strings to ResolutionStrategy enum
     const strategyMap: Record<string, ResolutionStrategy> = {
-      local: ResolutionStrategy.LAST_WRITE_WINS, // Favor local
-      remote: ResolutionStrategy.LAST_WRITE_WINS, // Favor remote
-      merge: ResolutionStrategy.FIELD_MERGE,
+      local: 'local_wins',
+      remote: 'remote_wins',
+      merge: 'merge_manual',
     };
 
-    const strategy = strategyMap[resolution] || ResolutionStrategy.MANUAL_REQUIRED;
-    handleResolveConflict(strategy, mergedData).catch(err =>
+    const strategy = strategyMap[resolution] || 'user_decides';
+    const resolvedData = resolution === 'local'
+      ? selectedConflict?.localData
+      : resolution === 'remote'
+        ? selectedConflict?.remoteData
+        : mergedData;
+    handleResolveConflict(strategy, resolvedData).catch(err =>
       logger.error('Error', 'conflict', {}, err as Error)
     );
   };

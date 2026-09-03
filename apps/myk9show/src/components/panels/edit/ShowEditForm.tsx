@@ -345,12 +345,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
         </TabsContent>
 
         {/* Fees Tab */}
-        <ShowEditFeesTab
-          data={data}
-          form={form}
-          handleInputChange={handleInputChange}
-          handleCheckboxChange={handleCheckboxChange}
-        />
+        <ShowEditFeesTab data={data} form={form} handleCheckboxChange={handleCheckboxChange} />
 
         <ShowEditPremiumTab
           data={data}

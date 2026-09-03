@@ -8,6 +8,7 @@
 export {
   getJudgesWithQualifications,
   // Judge qualifications
+  replaceJudgeQualifications,
   createJudgeQualification,
   getJudgeQualificationById,
   getJudgeQualificationsByJudgeId,

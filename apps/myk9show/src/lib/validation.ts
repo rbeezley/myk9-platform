@@ -183,6 +183,7 @@ export const showSchemas = {
       maxEntriesPerDog: z.number().optional(),
       maxTotalEntries: z.number().optional(),
       allowNonOwnerHandlers: z.boolean().optional(),
+      isNationals: z.boolean().optional(),
       acceptCheckPayments: z.boolean().optional(),
       acceptCashPayments: z.boolean().optional(),
       style: z.string().default('monogram'),

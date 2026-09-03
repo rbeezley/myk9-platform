@@ -121,6 +121,13 @@ describe('ShowEditPanel helpers', () => {
     expect(parsed.inkSaver).toBe(true);
   });
 
+  it('keeps the Nationals flag through edit form validation', () => {
+    const result = showSchemas.edit.safeParse({ ...baseFormData, isNationals: true });
+
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.isNationals).toBe(true);
+  });
+
   it('blocks publishing before shared show content is ready', () => {
     const parsed = showSchemas.edit.safeParse({
       ...baseFormData,

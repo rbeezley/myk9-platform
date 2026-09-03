@@ -138,18 +138,29 @@ export const useUserStore = create<UserStore>()(
 
           const newPersonId = (dbUser as Record<string, unknown>).id as string;
 
-          // Assign roles via user_roles table (best-effort — person record is the critical entity)
+          // Assign roles via user_roles table. If this fails, roll back the
+          // person so callers are not told creation succeeded without access.
           if (userData.roles && userData.roles.length > 0) {
             try {
-              const { savePersonRoles } =
-                await import('@/components/panels/edit/personRolesService');
-              await savePersonRoles(newPersonId, userData.roles);
+              const { rbacService } = await import('@/services/rbac');
+              await Promise.all(
+                userData.roles.map(roleName =>
+                  rbacService.assignRole({ userId: newPersonId, roleName })
+                )
+              );
             } catch (roleError) {
-              logger.warn('Failed to assign roles during user creation:', 'store', {
-                personId: newPersonId,
-                roles: userData.roles,
-                error: roleError,
-              });
+              const { deleteUser } = await import('@/services/database/users');
+              const { error: rollbackError } = await deleteUser(newPersonId);
+              if (rollbackError) {
+                logger.error('Failed to roll back user after role assignment failure', 'store', {
+                  personId: newPersonId,
+                  rollbackError,
+                });
+                throw new Error(
+                  `Role assignment failed and user rollback failed: ${rollbackError.message}`
+                );
+              }
+              throw roleError;
             }
           }
 
@@ -263,8 +274,7 @@ export const useUserStore = create<UserStore>()(
           }
 
           // Import database functions and mappers
-          const { updateUser: updateUserInDb } =
-            await import('@/services/database/users');
+          const { updateUser: updateUserInDb } = await import('@/services/database/users');
           const { mapUserInputToUpdate, mapDatabaseToUser } =
             await import('@/services/mappers/userMappers');
 
@@ -319,8 +329,7 @@ export const useUserStore = create<UserStore>()(
           }
 
           // Soft delete from database
-          const { deleteUser: deleteUserFromDb } =
-            await import('@/services/database/users');
+          const { deleteUser: deleteUserFromDb } = await import('@/services/database/users');
           const { error: dbError } = await deleteUserFromDb(id);
 
           if (dbError) {

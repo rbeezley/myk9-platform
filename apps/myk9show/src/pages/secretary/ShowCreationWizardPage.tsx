@@ -17,7 +17,6 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import HorizontalProgressIndicator from '@/components/shows/wizard/components/HorizontalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
-import { PanelProvider, PanelStack } from '@/components/panels';
 import {
   WIZARD_STEPS,
   type EditMode,
@@ -278,24 +277,7 @@ const ShowCreationWizardPage: React.FC = () => {
   // lose work if they briefly leave the page.
 
   return (
-    <PanelProvider
-      onEntityCreated={(entity, context) => {
-        logger.debug('Entity created', 'wizard', {
-          entityName: entity.name || entity.id,
-          entityType: context.entityType,
-        });
-        if (context.selectionCallback) {
-          context.selectionCallback(entity);
-        }
-      }}
-      onPanelResult={(panelId, result) => {
-        logger.debug('Panel result', 'wizard', {
-          panelId,
-          action: result.action,
-          success: result.success,
-        });
-      }}
-    >
+    <>
       <div className="min-h-screen bg-background">
         {/* Success overlay — shown after show creation, before navigating away */}
         {createdShow && (
@@ -418,9 +400,6 @@ const ShowCreationWizardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Panel Stack for slide-over panels */}
-      <PanelStack maxPanels={3} />
-
       {/* Unsaved Changes Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
@@ -441,7 +420,7 @@ const ShowCreationWizardPage: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PanelProvider>
+    </>
   );
 };
 

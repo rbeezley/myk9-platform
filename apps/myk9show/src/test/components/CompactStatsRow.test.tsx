@@ -33,6 +33,7 @@ describe('CompactStatsRow', () => {
         {...defaultProps}
         currentFees={0}
         amountDue={90}
+        hasPastBalance
         currentFeesHref="/exhibitor/payments?due=1"
       />
     );

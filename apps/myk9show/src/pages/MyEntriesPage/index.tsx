@@ -269,6 +269,7 @@ const MyEntriesPage: React.FC = () => {
                   <CompactStatsRow
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
+                    hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
                     currentFeesHref={currentFeesHref}
                     onNavigate={navigate}
                   />

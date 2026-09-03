@@ -17,7 +17,7 @@ Coverage: 100/100 after stress-testing. Added explicit alert-failure isolation, 
 
 | Dimension    | Evidence                                                                                                                                                                                           |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Completeness | Implementation tasks 1.1–1.3 complete; publication, CI/merge, deployment, tracking/archive gates pending                                                                                           |
+| Completeness | Implementation, required CI, PR merge, remote deployment/source verification, and Linear closure complete; documentation sync/archive/publication remain pending                                   |
 | Correctness  | `cronOutcome.test.ts` covers failed primary lookup, notification-only success, thrown jobs, missing/broken monitoring, alert failures, per-window keys and actual deduplicated email orchestration |
 | Correctness  | `noSubscription.test.ts` checks exact unique conflict target/payload, sequential stale-row retirement and failure short-circuit                                                                    |
 | Correctness  | `authz.test.ts` rejects four retired types and unknown types before recipient queries; existing supported authorization and recipient tests remain green                                           |
@@ -116,5 +116,51 @@ behavior rollout for this issue.
 
 The user explicitly approved PR publication, merge after CI, the three remote
 function deployments, and Linear close-out on 2026-09-02 (local time).
-Publication/CI/merge, verified remote rollout, and tracking evidence remain the
-completion gates; approval alone does not complete them. MYK9-334 is In Progress.
+Those implementation/deployment gates are now complete. MYK9-334 is Done.
+
+### Completed rollout — 2026-09-03 UTC (2026-09-02 local)
+
+PR [#1982](https://github.com/rbeezley/myk9-platform/pull/1982) merged at
+01:33:44 UTC as `df598effe08b1a17947dfcf6f43dc7e3cd975946`, following final
+independent APPROVED review. [CI run 33702691723](https://github.com/rbeezley/myk9-platform/actions/runs/33702691723)
+passed Quality Checks, all three app-test shards, SQL tests, package tests,
+coverage gate, Test, Build, A11y smoke, and E2E PR Smoke. The non-required Vercel
+app preview was quota-limited; no Vercel settings were changed.
+
+Only the three approved functions were deployed to `sojmvhhwsjxmfistvzbe`, using
+`--use-api --no-verify-jwt`. No migrations, secrets, Docker, or local Supabase.
+
+| Function                 | Live version | Exact source/dependency matches |
+| ------------------------ | -----------: | ------------------------------: |
+| cron-waitlist-expiration |           56 |                               9 |
+| stripe-webhook           |           90 |                              25 |
+| send-email               |           74 |                              10 |
+
+All three are ACTIVE with `verify_jwt=false`. Each function was downloaded into
+an isolated directory using the Management API (`functions download --use-api`),
+then every downloaded source/dependency file was byte-compared to reviewed
+source. This is the source-verification equivalent of the unavailable
+`get_edge_function` tool. No mismatches remain. The first successful email deploy
+response left v73 unchanged; source verification caught this, and an isolated
+retry published v74. The cause of that first no-op response was not established.
+
+Live POST probes were blocked by the safety reviewer and did not execute because
+of potential shared-system effects. No live authenticated behavior test is
+claimed. The deployment acceptance gate is source verification, backed by the
+behavioral tests and green CI above.
+
+Local evidence/rollback directories:
+
+- Before cron: `/private/tmp/myk9-334-before-cron.qcGL2f`
+- Before webhook: `/private/tmp/myk9-334-before-webhook.es0wCy`
+- Before email: `/private/tmp/myk9-334-before-email.VgAtm9`
+- Verified cron: `/private/tmp/myk9-334-after-cron.Om1mWr`
+- Verified webhook: `/private/tmp/myk9-334-after-webhook.EG6NeY`
+- Verified email: `/private/tmp/myk9-334-after-email-retry.2qDnUK`
+
+Linear completion comment `feb17b59-f6f7-4f0c-8a02-7bb72a23a837` records the PR,
+merge, tests, versions, source parity, and limitations; both acceptance criteria
+are checked. The implementation branch was deleted after squash-merge proof.
+The separate documentation close-out branch retains this evidence pending the
+spec-sync/archive choice. Primary main's unrelated `cd0ad0762` commit remains
+untouched; it cannot fast-forward without reconciling that separate work.

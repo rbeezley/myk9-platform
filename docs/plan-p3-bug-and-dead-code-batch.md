@@ -42,15 +42,19 @@ reference evidence confirms the symbols are unreachable.
   worktree; do not duplicate those changes. MYK9-328's approved `@myk9/supabase`
   subset merged in #1977; broader package compatibility/ownership decisions
   remain deferred. Never wire the inert replication TTL.
-- MYK9-334 follow-up is tracked in
-  `openspec/changes/myk9-334-edge-function-closeout/`: cron outcome monitoring,
-  deduplicated operator alert delivery, four dead email templates removed, and
-  behavioral edge tests. Local implementation is prepared; shared publication,
-  merge, deployment, and Linear close-out still require approval/evidence.
+- MYK9-334 is Done: PR [#1982](https://github.com/rbeezley/myk9-platform/pull/1982)
+  merged as `df598effe` after independent approval and green required CI. Cron
+  outcome monitoring, deduplicated alerts, dead email removal, and behavioral
+  coverage are deployed to the paid remote project: cron v56, webhook v90,
+  send-email v74. Downloaded source/dependencies match the reviewed code exactly
+  (9, 25, and 10 files respectively). Evidence is recorded in Linear and
+  `openspec/changes/myk9-334-edge-function-closeout/verification.md`; spec sync,
+  archive, and documentation publication remain administrative close-out.
 - Scope boundary: the new cron monitoring covers the primary expired-offer query
   and existing recorded operational errors. Secondary capacity/promotion queries
   that currently suppress their errors remain an existing limitation, not a
   guarantee added by this follow-up.
 
-The batch remains Active; neither the outstanding sweeps nor MYK9-334's deployment
-acceptance gate should be marked complete from PR #1956 alone.
+The batch remains Active for the separately owned/deferred sweeps. MYK9-334's
+implementation and deployment acceptance gates are complete; this does not close
+the broader batch.

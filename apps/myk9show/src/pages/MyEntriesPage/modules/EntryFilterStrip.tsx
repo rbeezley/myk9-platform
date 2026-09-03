@@ -113,7 +113,7 @@ export const EntryFilterStrip: React.FC<EntryFilterStripProps> = ({
   onSelectStatus,
   statusCounts,
 }) => (
-  <div className="flex flex-col gap-3">
+  <div data-testid="entry-filter-strip" className="flex flex-col gap-3">
     <EntryFilterChipGroup
       label="When"
       ariaLabel="Filter by time"

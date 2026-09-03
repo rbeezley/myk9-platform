@@ -141,6 +141,9 @@ points for pooled subscriptions, batched/compressed messages, listener setup,
 frequency tuning, and aggregate stats were removed. The live presence setup
 and adaptive heartbeat path remain.
 
+The unreferenced optimistic-ID helpers and date-range show filter were removed;
+the live ID generator and show statistics calculation remain.
+
 ## Deleted hook set
 
 These files had no production importer after excluding the file itself and

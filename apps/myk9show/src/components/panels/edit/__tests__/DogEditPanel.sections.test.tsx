@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { EditPanelWrapper } from '../EditPanelWrapper';
 import { DogEditContext } from '../DogEditPanel';
-import { OwnerSelectionField } from '../DogEditPanel.sections';
+import { BasicInfoTab, OwnerSelectionField } from '../DogEditPanel.sections';
 import type { DogFormData } from '../DogEditPanel.types';
 import type { User as PersonType } from '@/types/user-types';
 
@@ -153,5 +153,48 @@ describe('OwnerSelectionField', () => {
     await waitFor(() => {
       expect(screen.queryByText(/admin only/i)).toBeNull();
     });
+  });
+});
+
+describe('Edit Dog BasicInfoTab accessible names (MYK9-88)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const renderTab = (formData: DogFormData = defaultFormData) =>
+    render(
+      <DogEditContext.Provider value={{ isAdmin: false, people: [] }}>
+        <EditPanelWrapper
+          open={true}
+          onClose={vi.fn()}
+          title="Test"
+          initialData={formData}
+          onSave={vi.fn()}
+          forceHasChanges
+        >
+          <BasicInfoTab
+            handleInputChange={() => vi.fn()}
+            handleSelectChange={() => vi.fn()}
+            onOpenPhotoModal={vi.fn()}
+          />
+        </EditPanelWrapper>
+      </DogEditContext.Provider>
+    );
+
+  it('gives the gender combobox an accessible name from its visible label', () => {
+    renderTab();
+    expect(screen.getByRole('combobox', { name: /^Gender/ })).toBeInTheDocument();
+  });
+
+  it('keeps the change-photo action named by its visible text', () => {
+    renderTab();
+    expect(screen.getByRole('button', { name: 'Change Photo' })).toBeInTheDocument();
+  });
+
+  // The bare "Remove" label says nothing about what is removed out of context.
+  // WCAG 2.5.3 requires the visible text to be part of the accessible name.
+  it('names the remove-photo action for what it removes', () => {
+    renderTab({ ...defaultFormData, imageUrl: 'https://example.com/dog.jpg' });
+    expect(screen.getByRole('button', { name: 'Remove photo' })).toBeInTheDocument();
   });
 });

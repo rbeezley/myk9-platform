@@ -173,6 +173,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => updateData({ imageUrl: '' })}
+                  aria-label="Remove photo"
                   className="gap-2 text-muted-foreground hover:text-destructive"
                 >
                   Remove
@@ -230,6 +231,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               }}
             >
               <SelectTrigger
+                id="gender"
                 className={cn(genderError && 'border-destructive')}
                 {...form?.getFieldProps('gender')}
               >

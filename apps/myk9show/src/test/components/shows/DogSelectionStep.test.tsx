@@ -31,6 +31,100 @@ beforeEach(() => {
 });
 
 describe('DogSelectionStep', () => {
+  // The 252-dog case renders the full list three times (initial, filtered,
+  // cleared), which is the point of the case — it is why the search has to
+  // survive a long roster. It reddened `main` from the moment it landed (#2004)
+  // by exceeding vitest's 10s default, and was first stabilised by raising the
+  // cap alone. The cap is still here, but it no longer has to absorb an
+  // avoidable 6.7s: see the two comments inside for the costs that were removed.
+  // Measured under the repo's load recipe (`taskpolicy -b … --coverage`):
+  // 14,665ms before, 5,873ms after.
+  it.each([3, 252])(
+    'finds the last of %i dogs and preserves hidden selections',
+    { timeout: 45000 },
+    async count => {
+      const dogs = Array.from({ length: count }, (_, index) =>
+        mockDog({
+          id: `dog-${index + 1}`,
+          callName: index === count - 1 ? 'Willow' : `Buddy ${index + 1}`,
+        })
+      );
+      vi.mocked(useDogStoreCompat).mockReturnValue(fromPartial({ dogs, isLoading: false }));
+      const onSelectionChange = vi.fn();
+      const { user, rerender } = render(
+        <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+      );
+      // PASTE rather than type. The query string is deliberately awkward — it
+      // pins trimming, case-insensitivity and substring matching in one go — but
+      // `user.type` delivers it a keystroke at a time and each keystroke
+      // re-renders the whole list. At count=252 that is nine full re-renders.
+      // `paste` produces ONE input event with the identical value, so every
+      // assertion below is unchanged; the component filters on the input's value,
+      // not on keystroke count, so no coverage is lost.
+      const searchBox = screen.getByRole('textbox', { name: /search dogs by call name/i });
+      searchBox.focus();
+      await user.paste('  wILLo  ');
+      expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+      const willow = screen.getByRole('checkbox', { name: 'Select Willow' });
+      willow.focus();
+      await user.keyboard('[Space]');
+      expect(onSelectionChange).toHaveBeenCalledWith(['dog-1', `dog-${count}`]);
+      rerender(
+        <DogSelectionStep
+          selectedDogs={['dog-1', `dog-${count}`]}
+          onSelectionChange={onSelectionChange}
+        />
+      );
+      await user.click(screen.getByRole('button', { name: 'Clear search' }));
+      // Count via the DOM, not `getAllByRole('checkbox')`.
+      //
+      // This one line was 6,723ms of a 12.8s test at count=252 and is what
+      // actually reddened main (measured under `taskpolicy -b … --coverage`).
+      // Testing Library's role query runs an accessibility-visibility check per
+      // element, which is ~26ms each in jsdom; the DOM query is 11ms for all 252
+      // and returns the same 252. `{ hidden: true }` is fast (60ms) but WRONG
+      // here — it returns 504, counting the hidden inputs behind the styled ones.
+      //
+      // The accessible-name assertions below are deliberately kept as role
+      // queries: they are two lookups, not 252, and they carry the semantics that
+      // matter. This is only about counting rows.
+      expect(document.querySelectorAll('input[type="checkbox"]')).toHaveLength(count);
+      expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
+    }
+  );
+
+  it('distinguishes no matches from no dogs and retains restored selections', async () => {
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [mockDog()], isLoading: false })
+    );
+    const onSelectionChange = vi.fn();
+    const { user } = render(
+      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
+    );
+    await user.type(screen.getByRole('textbox', { name: /search dogs by call name/i }), 'missing');
+    expect(screen.getByRole('status')).toHaveTextContent('No dogs match your search');
+    expect(screen.queryByText('No eligible dogs found.')).not.toBeInTheDocument();
+    expect(screen.getByText('1 dog selected')).toBeInTheDocument();
+    expect(onSelectionChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(screen.getByRole('checkbox', { name: 'Select Max' })).toBeChecked();
+  });
+
+  it('shows a retryable load failure rather than an empty list', async () => {
+    const refetch = vi.fn();
+    vi.mocked(useDogStoreCompat).mockReturnValue(
+      fromPartial({ dogs: [], isLoading: false, error: 'Request failed', refetch })
+    );
+    const { user } = render(
+      <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={vi.fn()} />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent("We couldn't load your dogs");
+    expect(screen.queryByText('No eligible dogs found.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
   it('uses the page scroll on phones and constrains only medium viewports and wider', () => {
     vi.mocked(useDogStoreCompat).mockReturnValue({
       dogs: [mockDog()],

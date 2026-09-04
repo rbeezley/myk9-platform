@@ -7,7 +7,7 @@ import type { RegistrationSummaryProps } from './types';
 import { availabilityPlaceholder } from './types';
 
 /**
- * Displays the fee breakdown for each dog and class, discounts, and total due.
+ * Displays the entry fee breakdown. PaymentSummaryCard includes applicable card fees.
  */
 export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
   feeCalculation,
@@ -90,7 +90,7 @@ export const RegistrationSummary: React.FC<RegistrationSummaryProps> = ({
             <Separator />
 
             <div className="flex justify-between font-semibold">
-              <span>Total Due</span>
+              <span>Entry fee total</span>
               <span className="text-lg">
                 {capacityReady
                   ? `$${feeCalculation.total.toFixed(2)}`

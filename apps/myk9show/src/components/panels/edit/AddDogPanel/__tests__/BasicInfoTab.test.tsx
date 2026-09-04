@@ -52,6 +52,7 @@ const makeContextValue = (form: ReturnType<typeof makeMockForm>) => ({
   errors: [],
   isLoading: false,
   setIsLoading: vi.fn(),
+  runSelfNavigation: (navigate: () => void) => navigate(),
 });
 
 const renderBasicInfoTab = (
@@ -184,6 +185,35 @@ describe('BasicInfoTab', () => {
       const source = readFileSync(join(__dirname, '../BasicInfoTab.tsx'), 'utf8');
       expect(source).not.toContain("onBlur={() => form.touchField('gender')}");
       expect(source).not.toContain("onBlur={() => form.touchField('ownerId')}");
+    });
+  });
+
+  describe('Accessible names (MYK9-88)', () => {
+    // Base UI's Select.Trigger renders a native button; without an `id` matching
+    // FormField's <Label htmlFor>, it reaches assistive technology unnamed.
+    it('gives the sex combobox an accessible name from its visible label', () => {
+      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
+      expect(screen.getByRole('combobox', { name: /^Sex/ })).toBeInTheDocument();
+    });
+
+    it('gives the owner combobox an accessible name from its visible label', async () => {
+      mockSupabasePeople([]);
+      renderBasicInfoTab(UserRole.SECRETARY);
+      await waitFor(() => {
+        expect(screen.getByRole('combobox', { name: /^Owner/ })).toBeInTheDocument();
+      });
+    });
+
+    it('names the photo action for a dog with no photo yet', () => {
+      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123');
+      expect(screen.getByRole('button', { name: 'Add dog photo' })).toBeInTheDocument();
+    });
+
+    it('names the photo action for a dog that already has a photo', () => {
+      renderBasicInfoTab(UserRole.EXHIBITOR, 'person-123', {
+        imageUrl: 'https://example.com/dog.jpg',
+      });
+      expect(screen.getByRole('button', { name: 'Change dog photo' })).toBeInTheDocument();
     });
   });
 

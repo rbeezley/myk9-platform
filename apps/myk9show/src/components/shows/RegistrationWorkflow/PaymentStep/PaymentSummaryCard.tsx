@@ -3,6 +3,9 @@ import { Calendar, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
+import { calculatePlatformFeeCents, formatCartCurrency } from '@/store/cartStore.helpers';
+import { PlatformFeeSplitLines } from '@/features/payments/PlatformFeeSplitLines';
 import { getPaymentMethodLabel } from './utils';
 import type { PaymentSummaryCardProps } from './types';
 import { availabilityPlaceholder } from './types';
@@ -18,14 +21,21 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
   waiveFees,
   feeOverride,
 }) => {
+  const feeRates = usePlatformFeeRates();
   const isWaived = paymentMethod === 'waived' || waiveFees;
-  const amountDueValue = feeOverride ?? feeCalculation.total;
+  const entryFeeCents = Math.round((feeOverride ?? feeCalculation.total) * 100);
+  const isPayableCard =
+    capacityReady && !isWaived && paymentMethod === 'credit_card' && entryFeeCents > 0;
+  // Use the cart preview's configured rates and cent rounding. Offline methods
+  // and wait-list-only entries do not go through card checkout.
+  const serviceFeeCents = isPayableCard ? calculatePlatformFeeCents(entryFeeCents, feeRates) : 0;
+  const amountDueValue = entryFeeCents + serviceFeeCents;
   const requiresPaymentMethod = capacityReady && !isWaived && amountDueValue > 0 && !paymentMethod;
   const amountDue = !capacityReady
     ? availabilityPlaceholder(capacityUnavailable)
     : isWaived
       ? '$0.00 (Waived)'
-      : `$${amountDueValue.toFixed(2)}`;
+      : formatCartCurrency(amountDueValue);
 
   return (
     <Card>
@@ -40,7 +50,10 @@ export const PaymentSummaryCard: React.FC<PaymentSummaryCardProps> = ({
               {paymentMethod ? getPaymentMethodLabel(paymentMethod) : 'Not selected'}
             </Badge>
           </div>
-          <div className="flex justify-between font-semibold text-lg">
+          {isPayableCard && (
+            <PlatformFeeSplitLines subtotalCents={entryFeeCents} rates={feeRates} />
+          )}
+          <div className="flex flex-wrap justify-between gap-2 font-semibold text-lg">
             <span>Amount Due:</span>
             <span>{amountDue}</span>
           </div>

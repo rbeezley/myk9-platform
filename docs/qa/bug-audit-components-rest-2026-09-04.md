@@ -5,23 +5,32 @@
 - **Reviewer:** one Fable agent, `run_in_background: false`, read-only, no sub-agents. 289,499 subagent tokens, 41 tool calls, 14.8 min.
 - **Scope:** `apps/myk9show/src/components/` excluding the show-ops directories (`shows`, `classes`, `entries`, `scoring`, `secretary`, `schedule`, `reports`, `trials`, `checkin`, `offline-checkin`, `stewards`, `judges`, `results`, `conflict`, `waitlist`, `volunteers`, `announcements`).
 
-## NOTHING IN THIS REPORT IS FILED — Linear was unreachable
+## Filed — after a Linear outage during the run
 
-The Linear connector (`plugin:engineering:linear`) required an OAuth grant this session could not
-perform (unattended run; no CLI, no API key on the machine). **No Linear read or write happened.**
-Consequences, stated plainly:
+The Linear connector (`plugin:engineering:linear`) needed an OAuth grant the unattended run could
+not perform, so the run itself filed nothing; the findings were queued in
+`docs/qa/linear-pending-writes.md` (since applied and deleted). Richard authorized the connector
+the same afternoon and every item was applied from this session, **after** the three-axis
+`list_issues(includeArchived: true)` dedupe (file path, symptom, route — `admin/sync`,
+`SyncAnalyticsService`, `FieldOverrideForm`, `date_obtained`, `toLocaleDateString`,
+`PerformanceGraphs`, `TimerIntegration` all empty; fuzzy hits were the known dead-code sweeps and
+MYK9-311, a different DATE surface). Filed:
 
-1. **The four findings below are unfiled.** Their full text is here, and paste-ready issue bodies
-   are queued in [`linear-pending-writes.md`](linear-pending-writes.md) items 4–7, the repo's
-   existing convention for exactly this failure (`cc410fe8c`).
-2. **Dedupe was done against repo artefacts only** — the two prior reports for this scope
-   (2026-09-02, 2026-09-03), the audit ledger (MYK9-295..364), `docs/qa/findings.md`,
-   `TECHNICAL_DEBT.md`, the 2026-06 dead-code audit, and `docs/plan-*.md`. None mentions any of
-   the four. That is NOT the three-axis `includeArchived: true` search the procedure requires;
-   **whoever applies the queue must run it first** (file path, symptom, route — each separately).
-3. The known-list for the reviewer's brief was built from the same repo artefacts instead of
-   `list_issues`. It was sufficient — every do-not-report item the reviewer landed on was already
-   on it — but it cannot have contained issues filed by other walks this week that no report names.
+| Issue | Sev | Title |
+| -- | -- | -- |
+| [MYK9-373](https://linear.app/myk9-platform/issue/MYK9-373) | — | Parent: `Bug audit components/ rest 2026-09-04 — P2/P3 findings` |
+| [MYK9-375](https://linear.app/myk9-platform/issue/MYK9-375) | P2 | `/admin/sync` renders `Math.random()` mock data as live sync health |
+| [MYK9-376](https://linear.app/myk9-platform/issue/MYK9-376) | P2 | Class-creation "Overrides" tab strip pinned to Basic |
+| [MYK9-377](https://linear.app/myk9-platform/issue/MYK9-377) | P3 | Judge qualification "Certified" date one day early west of UTC |
+| [MYK9-374](https://linear.app/myk9-platform/issue/MYK9-374) | P3 | Dead code: `PerformanceGraphs` cluster + six zero-importer modules |
+
+The same session applied the three older queued items: MYK9-365's residual section replaced,
+MYK9-372's correction comment posted, and **MYK9-289 reopened (Done → In Review)** with
+NCR-2026-09-04-04's root cause attached and #2018 linked — it had been closed on a logging change
+(#1934), never a fix.
+
+The reviewer's known-list was built from repo artefacts, not `list_issues`; it was sufficient
+(every do-not-report item the reviewer landed on was on it), but that is a limitation of this run.
 
 ## Third pass on one scope in one week — how the brief was cut
 
@@ -53,15 +62,15 @@ Part B (the new code in those commits) was clean. One nit not filed: `withCacheC
 `null` when `navigator.locks` is absent and `DataSettings.tsx:107-108` then says "Another cache
 clear is already in progress" — wrong message, no shipping browser lacks Web Locks.
 
-## Findings — all UNFILED (see the section above)
+## Findings
 
-| Would-be issue | Sev | Title                                                                                                                    | Evidence                                                                                                                                                                                     |
+| Issue          | Sev | Title                                                                                                                    | Evidence                                                                                                                                                                                     |
 | -------------- | --- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| parent         | —   | `Bug audit components/ rest 2026-09-04 — P2/P3 findings`                                                                 | —                                                                                                                                                                                            |
-| sub 1          | P2  | `/admin/sync` Sync Monitoring dashboard renders `Math.random()` mock data as live sync health                            | `sync/SyncMonitoringDashboard/index.tsx:28,57`; `services/analytics/SyncAnalyticsService.ts:545-551`; `sync-analytics-helpers.ts:235-260`; `ConflictsTab.tsx:41,48`; `NetworkTab.tsx:82,116` |
-| sub 2          | P2  | Class-creation "Overrides" step pins its tab strip to Basic — Financial/Timing/Personnel/Rules overrides are unreachable | `templates/secretary/FieldOverrideForm.tsx:362`                                                                                                                                              |
-| sub 3          | P3  | Judge qualification "Certified" date renders one day early west of UTC (MYK9-352 pattern, two surviving sites)           | `users/UserDetails/JudgeQualificationsCard.tsx:118`; `panels/edit/QualificationsTab.tsx:57`                                                                                                  |
-| standalone     | P3  | Dead code: `PerformanceGraphs` cluster orphaned by #1980 + six more zero-importer modules (~2.3k lines)                  | per-symbol table below                                                                                                                                                                       |
+| MYK9-373       | —   | `Bug audit components/ rest 2026-09-04 — P2/P3 findings`                                                                 | —                                                                                                                                                                                            |
+| MYK9-375       | P2  | `/admin/sync` Sync Monitoring dashboard renders `Math.random()` mock data as live sync health                            | `sync/SyncMonitoringDashboard/index.tsx:28,57`; `services/analytics/SyncAnalyticsService.ts:545-551`; `sync-analytics-helpers.ts:235-260`; `ConflictsTab.tsx:41,48`; `NetworkTab.tsx:82,116` |
+| MYK9-376       | P2  | Class-creation "Overrides" step pins its tab strip to Basic — Financial/Timing/Personnel/Rules overrides are unreachable | `templates/secretary/FieldOverrideForm.tsx:362`                                                                                                                                              |
+| MYK9-377       | P3  | Judge qualification "Certified" date renders one day early west of UTC (MYK9-352 pattern, two surviving sites)           | `users/UserDetails/JudgeQualificationsCard.tsx:118`; `panels/edit/QualificationsTab.tsx:57`                                                                                                  |
+| MYK9-374       | P3  | Dead code: `PerformanceGraphs` cluster orphaned by #1980 + six more zero-importer modules (~2.3k lines)                  | per-symbol table below                                                                                                                                                                       |
 
 ### F1 — `/admin/sync` reports randomly generated mock metrics as live sync health (P2, Bug)
 
@@ -246,10 +255,9 @@ click the parent row handles — not a dead control), `layout/{AppHeader,Sidebar
   MYK9-371) — it was on the reviewer's do-not-report list and touches no file cited above. No open
   PR touches `components/sync`, `components/analytics`, `templates/secretary`,
   `users/UserDetails`, `panels/edit/QualificationsTab.tsx`, or the `common/` modules in F4.
-- **Linear:** see the first section. Nothing was filed, nothing was commented, nothing was
-  reopened. Items 4–7 in `linear-pending-writes.md` carry the paste-ready bodies; the applier must
-  run the three-axis `includeArchived: true` dedupe before creating anything.
-- Labels/priority convention for the applier (from the 09-03 ledger): the workspace has no
+- **Linear:** see the first section — filed later the same day once the connector was
+  authorized; nothing remains unfiled.
+- Labels/priority convention used: the workspace has no
   `p0`/`p1`/`source:*`/`audit:*` labels — use `Claude` + `Bug`/`Improvement`, priority field
   P2 → 3 Medium, P3 → 4 Low, P-level stated in the body.
 - Budget rules held: one reviewer, Fable as the table names, no sub-agents, findings written

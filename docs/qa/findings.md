@@ -362,6 +362,36 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### NCR-2026-09-04-04
+
+- **Status:** in-progress
+- **Lifecycle status:** new
+- **Classification:** Confirmed HARNESS defect — not a product bug
+- **Severity:** medium
+- **Canonical priority:** P2
+- **Source label:** Medium
+- **Source:** claude
+- **Role/workflow:** all — Nightly Health route sweep; the finding is about the harness, not a role surface
+- **Surface:** `apps/myk9show/src/test/harness/appApiRequestTracker.ts:21-45`; `apps/myk9show/src/test/e2e/route-health-by-role.spec.ts:215-218` (per-route reset block), `:363` (tracker construction)
+- **Suite category:** nightly
+- **Pattern:** stale-state-leak
+- **Detected by:** claude-daily-commit-review
+- **First seen:** 2026-09-01 (as an unexplained recurrence); root-caused 2026-09-04
+- **Last seen:** 2026-09-04 (run 33865556960)
+- **Consecutive-run count:** 2 as an observed recurrence; 1 as a root-caused finding
+- **Baseline SHA:** `589b06fcaba3510e8a41316ac7c36e888fe4323e`
+- **Evidence:** `watchAppApiRequests` builds its `pending` set ONCE PER ROLE. `route-health-by-role.spec.ts:363` constructs it and passes it into `sweepRoutes`, whose loop resets the browser-health arrays every iteration (`:215-218`) but never `pending`. A request still in flight when the next `page.goto` tears down the document may emit NEITHER `requestfinished` NOR `requestfailed`, so it stays pending for the life of the tracker and fails the 5s settle assertion (`DEFAULT_TIMEOUT_MS`, `appApiRequestTracker.ts:5`) on every REMAINING route in that sweep. Run 33865556960 reports the SAME two URLs as unsettled on all five failing secretary routes (`entries`, `reports`, `settings`, `people`, `workbench`): `/rest/v1/dog_registrations?select=*&dog_id=in.(...)` (exactly 100 ids, URL ~3,940 chars) and `/rest/v1/people?select=id,first_name,last_name,email,phone&id=in.(3 ids)`. A three-id `people` read cannot take five seconds five times in a row; identical URLs repeated across routes is only possible if the set is never cleared.
+- **Expected behavior:** A route that fails to settle is reported once, against itself. A slow request on route N does not implicate routes N+1..N+k.
+- **Observed behavior:** One stranded request fails every later route in the role sweep, each naming the same URLs. The failing ROLE migrates between runs — exhibitor on 2026-09-01 and 2026-09-03, secretary on 2026-09-04 with exhibitor clean — which is the signature of a timing-dependent harness leak, not a role-specific defect.
+- **User impact:** None directly — no user-facing behaviour is involved. The cost is diagnostic: Nightly Health has been red on 5 of the last 7 runs, the failures read as a product emergency, and a genuine never-settling route is indistinguishable from a stranded one. Real product signal is masked.
+- **Intent check:** n/a — test harness.
+- **Confidence:** high on the mechanism (identical URLs across five routes, including a trivially fast one); the mechanism is now covered by unit tests, but the integration is not — see Proof required.
+- **Fix owner:** `apps/myk9show/src/test/harness/` + `route-health-by-role.spec.ts`
+- **Existing references:** **This is the mechanism behind the MYK9-289 recurrence.** MYK9-289 is marked Done and the same failure keeps returning, because the closure addressed one role's symptom rather than the shared amplifier. Root-cause write-up: `docs/qa/claude-daily-commit-review-2026-09-04.md` § H-1.
+- **Linear issue:** **NOT FILED — Linear was unreachable.** The `plugin:linear:linear` MCP server is connected at the CLI but was not enabled for the authoring session, so no Linear tools were callable (`ToolSearch "+linear"` returned nothing; `ListPlugins` empty). Recorded here at the user's direction instead. **Someone with Linear access should decide whether to reopen MYK9-289 or file this separately** — that call needs MYK9-289's full description read first (`get_issue` by id, `includeArchived: true`), which could not be done here.
+- **Proof required:** A Nightly Health run at or after `68a0bd813` showing at most ONE settle failure, and that failure on the route that ORIGINATES the request. **Do not close on a fully green run alone without checking which routes reported** — and specifically do NOT raise `DEFAULT_TIMEOUT_MS` if `secretary/entries` still fails by itself: that remaining failure is the genuine slow-query signal the cascade was masking, and raising the budget buries it.
+- **Notes:** Fix merged as **#2018** (`68a0bd813`) — `tracker.reset()` clearing `pending` AND `lastActivityAt`, called in the sweep's per-route reset block before `page.goto`. Mutation-verified five ways, including that commenting the call out (leaving the exact text in the file) still fails the wiring assertions. Status is `in-progress` rather than `fixed` because the spec runs ONLY in Nightly Health: the unit behaviour is covered, the integration has never executed. A one-time scheduled task checks the 2026-09-05 run. **Not a defect, do not "fix" it:** the 100-id batch is correct — `ID_CHUNK_SIZE = 100` (`apps/myk9show/src/utils/chunkIds.ts:30`) applied at `apps/myk9show/src/services/database/dogs/reads.ts:187` is the MYK9-272 fix working as intended.
+
 ### NCR-2026-09-02-02
 
 - **Status:** open

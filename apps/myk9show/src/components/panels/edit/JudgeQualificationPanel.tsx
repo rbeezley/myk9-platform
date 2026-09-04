@@ -31,6 +31,7 @@ import { queryKeys } from '@/lib/queryClient';
 import type { JudgeQualification as DbJudgeQualification } from '@/types/judge-management';
 import type { JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
+import { toLocalDate } from '@/utils/date-format';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage, toYYYYMMDD } from '@myk9/core';
@@ -55,7 +56,7 @@ function mapDbToUiQualification(q: DbJudgeQualification): JudgeQualification {
     showTypes: q.disciplines || [],
     disciplines: q.disciplines || [],
     certificationDate: q.date_obtained || '',
-    dateObtained: q.date_obtained ? new Date(q.date_obtained) : null,
+    dateObtained: q.date_obtained ? toLocalDate(q.date_obtained) : null,
     expirationDate: q.expiration_date ? new Date(q.expiration_date) : null,
     status: q.is_active ? 'Active' : q.suspension_date ? 'Suspended' : 'Expired',
   } as JudgeQualification;

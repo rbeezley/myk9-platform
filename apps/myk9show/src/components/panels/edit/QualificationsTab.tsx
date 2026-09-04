@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Award, Hash, Plus, Settings } from 'lucide-react';
 import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
+import { formatDateOnly } from '@/lib/format/dates';
 
 interface QualificationsTabProps {
   personId: string;
@@ -54,7 +55,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {qual.date_obtained && (
-                    <p>Certified: {new Date(qual.date_obtained).toLocaleDateString()}</p>
+                    <p>Certified: {formatDateOnly(qual.date_obtained)}</p>
                   )}
                   {qual.disciplines.length > 0 && (
                     <div className="mt-2">

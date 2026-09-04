@@ -131,4 +131,24 @@ describe('buildSupportInvestigationModel', () => {
     expect(model.actions.some(action => action.id === 'reported-route')).toBe(false);
     expect(model.escalationText).toContain('"ticketId": "ticket-1"');
   });
+
+  it('does not link to retired admin routes from ticket diagnostics', () => {
+    const model = buildSupportInvestigationModel(
+      ticket({
+        diagnostics: {
+          ...ticket().diagnostics,
+          route: '/admin/sync',
+          context: { showId: null, trialId: null, entryId: null },
+          user: { authUserId: null, databaseUserId: null, role: null },
+        },
+        showId: null,
+        subject: 'Sync monitoring page is unavailable',
+      })
+    );
+
+    expect(model.actions.some(action => action.id === 'reported-route')).toBe(false);
+    expect(model.nextChecks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: '/admin/health' })])
+    );
+  });
 });

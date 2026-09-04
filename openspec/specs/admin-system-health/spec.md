@@ -246,12 +246,12 @@ appearing as an aging (eventually stale) run.
 
 ### Requirement: Degraded health checks expose owner and next action
 
-The system SHALL attach remediation metadata to health checks rendered on `/admin/health`. For every failed, warning, stale, unknown, or incomplete check, the page SHALL show a plain-English owner surface or runbook destination and a next-action link. Known sync checks SHALL route to `/admin/sync`; support checks SHALL route to `/admin/support`; deleted/recovery checks SHALL route to `/admin/deleted-items`; permission/access checks SHALL route to `/admin/permissions`; payout/payment checks SHALL route to `/admin/payouts`; migration, deploy, scheduler, or manual checks SHALL route to the relevant operations runbook when no app owner surface exists.
+The system SHALL attach remediation metadata to health checks rendered on `/admin/health`. For every failed, warning, stale, unknown, or incomplete check, the page SHALL show a plain-English owner surface or runbook destination and a next-action link. Known sync checks SHALL route to `/admin/support`; support checks SHALL route to `/admin/support`; deleted/recovery checks SHALL route to `/admin/deleted-items`; permission/access checks SHALL route to `/admin/permissions`; payout/payment checks SHALL route to `/admin/payouts`; migration, deploy, scheduler, or manual checks SHALL route to the relevant operations runbook when no app owner surface exists.
 
-#### Scenario: Failed sync check links to sync monitoring
+#### Scenario: Failed sync check links to support diagnostics
 
 - **WHEN** `/admin/health` renders a failed, warning, stale, unknown, or incomplete sync-related check
-- **THEN** the check row shows `/admin/sync` as the owner action
+- **THEN** the check row shows `/admin/support` as the owner action
 
 #### Scenario: Failed payout check links to payout owner
 

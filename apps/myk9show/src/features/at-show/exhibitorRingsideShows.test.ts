@@ -11,6 +11,7 @@ function row(overrides: Partial<ExhibitorEntryRow> = {}): ExhibitorEntryRow {
     show: {
       id: 'show-1',
       name: 'Autumn Classic',
+      status: 'published',
       start_date: '2026-07-04',
       end_date: '2026-07-05',
       deleted_at: null,
@@ -141,6 +142,59 @@ describe('selectExhibitorUpcomingShows', () => {
     expect(selectExhibitorUpcomingShows(rows, NOW).map(s => s.showId)).toEqual([
       'show-1',
       'show-2',
+    ]);
+  });
+
+  // A terminal status WINS over the date range, matching useMyShows.toPhase.
+  // A show the secretary cancelled next month is over, and pointing an
+  // exhibitor at its ringside is a dead end. (Codex review, MYK9-379.)
+  it.each(['cancelled', 'completed', 'draft'])(
+    'drops a future show whose status is %s',
+    status => {
+      const terminal = row({
+        show: {
+          id: 'show-1',
+          name: 'Autumn Classic',
+          status,
+          start_date: '2026-07-04',
+          end_date: '2026-07-05',
+          deleted_at: null,
+        },
+      });
+      expect(selectExhibitorUpcomingShows([terminal], NOW)).toEqual([]);
+    }
+  );
+
+  it.each(['published', 'upcoming', 'in_progress'])('keeps a future show in %s', status => {
+    const live = row({
+      show: {
+        id: 'show-1',
+        name: 'Autumn Classic',
+        status,
+        start_date: '2026-07-04',
+        end_date: '2026-07-05',
+        deleted_at: null,
+      },
+    });
+    expect(selectExhibitorUpcomingShows([live], NOW)).toEqual([
+      { showId: 'show-1', showName: 'Autumn Classic' },
+    ]);
+  });
+
+  // The replicated path maps show.status, the PostgREST path must select it —
+  // an absent status must not silently drop every show on one of the two paths.
+  it('keeps a show whose status is absent from the row', () => {
+    const noStatus = row({
+      show: {
+        id: 'show-1',
+        name: 'Autumn Classic',
+        start_date: '2026-07-04',
+        end_date: '2026-07-05',
+        deleted_at: null,
+      },
+    });
+    expect(selectExhibitorUpcomingShows([noStatus], NOW)).toEqual([
+      { showId: 'show-1', showName: 'Autumn Classic' },
     ]);
   });
 });

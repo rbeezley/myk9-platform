@@ -125,6 +125,7 @@ export const USER_ENTRIES_SELECT = `
         id,
         name,
         deleted_at,
+        status,
         start_date,
         end_date,
         entry_close_date,

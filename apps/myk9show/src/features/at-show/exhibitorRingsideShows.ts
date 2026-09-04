@@ -27,6 +27,7 @@ export interface ExhibitorEntryRow {
   show?: {
     id?: string | null;
     name?: string | null;
+    status?: string | null;
     start_date?: string | null;
     end_date?: string | null;
     deleted_at?: string | null;
@@ -34,13 +35,29 @@ export interface ExhibitorEntryRow {
 }
 
 /**
+ * Show statuses that must never reach the Ringside chooser, regardless of what
+ * the show's dates say. Mirrors `useMyShows.toPhase`, where a terminal status
+ * WINS over the date range — a show the secretary has marked completed or
+ * cancelled is over even if its dates are still in the future, and a draft has
+ * no ringside to step into. Without this a cancelled-but-future show would be
+ * offered to an exhibitor as a live destination.
+ */
+const RINGSIDE_INELIGIBLE_SHOW_STATUSES: ReadonlySet<string> = new Set([
+  'completed',
+  'cancelled',
+  'draft',
+]);
+
+/**
  * Shows the exhibitor is entered in whose date range is still in the future.
  *
  * Excluded: soft-deleted entries and shows, entries that are no longer live
  * (withdrawn / scratched / not accepted / pulled — `isActiveSubmittedEntryStatus`,
  * the same predicate the Shows page uses for its "entered" tab), shows already
- * running or finished, and shows missing an id or name (a partially replicated
- * row cannot be labelled, and an unlabelled card is worse than no card).
+ * running or finished, shows in a terminal or draft STATUS regardless of their
+ * dates (see `RINGSIDE_INELIGIBLE_SHOW_STATUSES`), and shows missing an id or
+ * name (a partially replicated row cannot be labelled, and an unlabelled card
+ * is worse than no card).
  *
  * Deduplicated by show id — one exhibitor typically holds many entry rows per
  * show (one per dog per class).
@@ -57,6 +74,7 @@ export function selectExhibitorUpcomingShows(
 
     const show = row.show;
     if (!show || show.deleted_at) continue;
+    if (show.status && RINGSIDE_INELIGIBLE_SHOW_STATUSES.has(show.status)) continue;
 
     const showId = show.id;
     const showName = show.name;

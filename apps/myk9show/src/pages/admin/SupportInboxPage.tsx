@@ -388,7 +388,7 @@ function InvestigationActions({
             className="w-full justify-start"
             asChild
           >
-            <Link to={action.href}>
+            <Link to={action.href} aria-label={action.label}>
               {action.label}
               <span className="ml-2 truncate text-xs font-normal text-muted-foreground">
                 {action.description}

@@ -33,7 +33,6 @@ import {
   calculateOfflineQueuedSyncs,
   convertMetricsToCSV,
   generateAnalyticsId,
-  generateMockAnalyticsData,
 } from './sync-analytics-helpers';
 
 // Re-export types for backward compatibility
@@ -543,11 +542,8 @@ export class SyncAnalyticsService {
    * Load persisted data from storage
    */
   private async loadPersistedData(): Promise<void> {
-    // In real implementation, this would load from IndexedDB
-    // For now, generate some mock data for demo purposes
-    const mockData = generateMockAnalyticsData();
-    this.events.push(...mockData.events);
-    this.conflicts.push(...mockData.conflicts);
+    // Persisted event storage is not available yet. Keep the service empty until
+    // a real event source is connected; fabricated metrics are unsafe in support tooling.
   }
 
   /**

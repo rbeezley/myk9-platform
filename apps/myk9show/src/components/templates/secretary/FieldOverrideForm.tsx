@@ -38,6 +38,8 @@ interface FieldOverrideFormProps {
   showAdvanced?: boolean;
 }
 
+type OverrideTab = 'basic' | 'financial' | 'timing' | 'personnel' | 'rules';
+
 export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   template,
   selectedClasses,
@@ -48,11 +50,12 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   showAdvanced = false,
 }) => {
   const [showAllFields, setShowAllFields] = useState(showAdvanced);
+  const [activeTab, setActiveTab] = useState<OverrideTab>('basic');
 
   const fields = template.fieldSpecifications || [];
 
   // Group fields by category
-  const fieldGroups: Record<string, FieldSpecification[]> = {
+  const categorizedFieldGroups: Record<string, FieldSpecification[]> = {
     basic: fields.filter(f =>
       ['organization', 'showType', 'element', 'level', 'section', 'className'].includes(f.fieldName)
     ),
@@ -82,11 +85,11 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
         f.fieldName.toLowerCase().includes('distraction') ||
         f.fieldName.toLowerCase().includes('area')
     ),
+  };
+  const fieldGroups: Record<string, FieldSpecification[]> = {
+    ...categorizedFieldGroups,
     other: fields.filter(
-      (f: FieldSpecification) =>
-        !['basic', 'financial', 'timing', 'personnel', 'rules'].some((group: string) =>
-          fieldGroups[group]?.includes(f)
-        )
+      field => !Object.values(categorizedFieldGroups).some(groupFields => groupFields.includes(field))
     ),
   };
 
@@ -359,7 +362,7 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
       {/* Field Override Tabs */}
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={'basic'} onValueChange={() => {}}>
+          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as OverrideTab)}>
             <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="basic" className="flex items-center gap-1">
                 {getTabIcon('basic')}

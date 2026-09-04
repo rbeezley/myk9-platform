@@ -30,7 +30,6 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/dashboard': () => import('@/pages/admin/AdminDashboard'),
   '/admin/templates': () => import('@/pages/admin/TemplateManagementPage'),
   '/admin/health': () => import('@/pages/admin/SystemHealthPage'),
-  '/admin/sync': () => import('@/pages/sync/SyncMonitoringPage'),
   '/admin/role-requests': () => import('@/pages/admin/RoleRequestsPage'),
   '/admin/users': () => import('@/pages/admin/UserManagementPage'),
   '/admin/payouts': () => import('@/pages/admin/PayoutLedgerPage'),
@@ -171,7 +170,7 @@ export const routeCategories = {
     '/shows',
   ],
 
-  high: ['/admin/templates', '/admin/sync', '/shows', '/dogs', '/calendar'],
+  high: ['/admin/templates', '/shows', '/dogs', '/calendar'],
 
   medium: ['/admin/deleted-items', '/exhibitor/analytics', '/clubs', '/subscription'],
 

@@ -192,10 +192,10 @@ export function getHealthCheckRemediation(check: HealthCheck): HealthCheckRemedi
 
   if (matches(check, /sync|replication|queue|conflict/)) {
     return {
-      ownerLabel: 'Sync Monitoring',
-      actionLabel: 'Open Sync',
-      href: '/admin/sync',
-      nextStep: 'Review device queues, conflicts, and sync errors.',
+      ownerLabel: 'System Health',
+      actionLabel: 'Open Health',
+      href: '/admin/health',
+      nextStep: 'Review the system health checks and current replication status.',
       coverageIncomplete,
     };
   }

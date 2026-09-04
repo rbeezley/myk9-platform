@@ -204,9 +204,9 @@ describe('getHealthCheckRemediation', () => {
     });
 
     expect(remediation).toMatchObject({
-      ownerLabel: 'Sync Monitoring',
-      actionLabel: 'Open Sync',
-      href: '/admin/sync',
+      ownerLabel: 'System Health',
+      actionLabel: 'Open Health',
+      href: '/admin/health',
     });
   });
 

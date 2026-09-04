@@ -128,12 +128,11 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
 
   if (hasSyncIssue(ticket)) {
     addUnique(actions, {
-      id: 'sync-monitoring',
-      label: 'Open sync monitoring',
-      description: 'Review device queues, conflicts, and sync errors.',
-      href: '/admin/sync',
+      id: 'system-health',
+      label: 'Open system health',
+      description: 'Review current system and replication health.',
+      href: '/admin/health',
     });
-    addUnique(nextChecks, { id: 'sync', label: 'Review sync monitoring', href: '/admin/sync' });
     addUnique(nextChecks, { id: 'health', label: 'Check system health', href: '/admin/health' });
   }
 

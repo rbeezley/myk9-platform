@@ -1,4 +1,5 @@
 import type { ShowStatus } from './types';
+import { toLocalDate } from '@/utils/date-format';
 
 /** Get club initials for logo fallback display */
 export const getClubInitials = (name: string): string => {
@@ -12,7 +13,7 @@ export const getClubInitials = (name: string): string => {
 
 /** Determine show status based on date and whether it is upcoming */
 export const getShowStatus = (date: string, isUpcoming: boolean): ShowStatus => {
-  const showDate = new Date(date);
+  const showDate = toLocalDate(date);
   const today = new Date();
   const daysUntil = Math.ceil((showDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 

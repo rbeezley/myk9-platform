@@ -5,7 +5,6 @@ import {
   computeResultDistribution,
   computeFastestTimes,
   computeQualificationTrend,
-  findCleanSweepDogs,
   computeClassBreakdown,
   type StatsEntry,
 } from '../analytics-utils';
@@ -409,52 +408,6 @@ describe('computeQualificationTrend', () => {
     const result = computeQualificationTrend(entries);
     expect(result[0]!.totalEntries).toBe(0);
     expect(result[0]!.qualificationRate).toBe(0);
-  });
-});
-
-// ── findCleanSweepDogs ─────────────────────────────────────────────────
-
-describe('findCleanSweepDogs', () => {
-  it('returns empty array for empty input', () => {
-    expect(findCleanSweepDogs([])).toEqual([]);
-  });
-
-  it('finds dogs where all scored entries are Q', () => {
-    const result = findCleanSweepDogs(mixedEntries);
-    const ids = result.map(d => d.dogId);
-    // Bella: 1Q, 1 pending → clean sweep
-    expect(ids).toContain('dog-2');
-    // Rex: 2Q, 1NQ → not clean sweep
-    expect(ids).not.toContain('dog-1');
-    // Max: 1 ABS → not clean sweep
-    expect(ids).not.toContain('dog-3');
-  });
-
-  it('ignores pending when determining clean sweep', () => {
-    const entries = [
-      makeEntry({ id: 'e1', dogId: 'dog-a', dogCallName: 'Ace', resultText: 'Q' }),
-      makeEntry({ id: 'e2', dogId: 'dog-a', dogCallName: 'Ace', resultText: 'pending' }),
-      makeEntry({ id: 'e3', dogId: 'dog-a', dogCallName: 'Ace', resultText: 'Q' }),
-    ];
-    const result = findCleanSweepDogs(entries);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.dogId).toBe('dog-a');
-    expect(result[0]!.totalEntries).toBe(3);
-    expect(result[0]!.qualifiedCount).toBe(2);
-  });
-
-  it('requires at least 1 scored entry', () => {
-    const entries = [
-      makeEntry({ id: 'e1', dogId: 'dog-a', dogCallName: 'Ace', resultText: 'pending' }),
-    ];
-    const result = findCleanSweepDogs(entries);
-    expect(result).toEqual([]);
-  });
-
-  it('includes dogCallName in results', () => {
-    const entries = [makeEntry({ id: 'e1', dogId: 'dog-a', dogCallName: 'Ace', resultText: 'Q' })];
-    const result = findCleanSweepDogs(entries);
-    expect(result[0]!.dogCallName).toBe('Ace');
   });
 });
 

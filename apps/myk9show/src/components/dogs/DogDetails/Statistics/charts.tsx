@@ -23,7 +23,6 @@ import type {
 import { formatDateShortMonth } from '@/utils/dateFormat';
 
 // Recharts v3 uses readonly arrays in tooltip props, causing strict TS errors.
-// Use the same type-cast pattern from PerformanceGraphs.tsx.
 const Tooltip = RechartsTooltip as React.ComponentType<
   React.ComponentProps<typeof RechartsTooltip>
 >;

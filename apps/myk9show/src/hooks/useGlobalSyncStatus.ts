@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { SyncStatus } from '@/components/sync/SyncStatusIndicator';
 import type { SyncMetrics } from '@/types/sync-types';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { usePendingMutationCount } from '@/hooks/usePendingMutationCount';
+
+export type SyncStatus = 'synced' | 'pending' | 'error' | 'conflict' | 'offline';
 
 interface GlobalSyncState {
   status: SyncStatus;

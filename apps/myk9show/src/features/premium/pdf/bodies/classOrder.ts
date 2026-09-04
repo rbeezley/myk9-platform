@@ -35,7 +35,7 @@ function tablesFor(registryId: RegistryId): LevelTables {
   );
   if (registryId === 'AKC') {
     // 'Masters' (plural) is an AKC-only legacy alias — the DB stores 'Master', but
-    // scent-work-types.ts / TimerIntegration.tsx (the AKC scoring island, intentionally
+    // scent-work-types.ts (the AKC scoring island, intentionally
     // untouched here — see docs/plan-multi-registry-scent-work.md) still emit 'Masters'.
     // Scoped to AKC only so it can't leak a false-positive match into UKC/ASCA canonicalization.
     canonicalByKey.masters = 'Master';

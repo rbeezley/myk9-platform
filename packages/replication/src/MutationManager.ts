@@ -21,10 +21,7 @@ import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
 import { MutationUploadRunner } from './MutationUploadRunner';
 import { type PendingMutation, type SyncResult } from './types';
-import type {
-  MutationManagerOptions,
-  MutationUploadAuthContext,
-} from './mutation-manager-options';
+import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 export type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
 
 // ============================================
@@ -51,12 +48,14 @@ export class MutationManager {
   private uploadInFlight: Promise<SyncResult[]> | null = null;
   private readonly getCurrentUserId: () => Promise<string | null>;
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
+  private readonly acquireQueueMutationLock: (() => () => void) | undefined;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
     this.logger = options.logger ?? noopLogger;
     this.getCurrentUserId = options.getCurrentUserId ?? (async () => null);
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
+    this.acquireQueueMutationLock = options.acquireQueueMutationLock;
     this.queueStore = new MutationQueueStore(this.logger);
     this.backupStore = new MutationBackupStore(this.logger);
     this.uploadRunner = new MutationUploadRunner(
@@ -129,68 +128,73 @@ export class MutationManager {
     rpc?: PendingMutation['rpc'],
     scheduleUploadNow = true
   ): Promise<string> {
-    const authUserId = await this.requireCurrentUserId();
-    // Queue overflow protection
-    const pendingCount = await this.getPendingCount();
-    const capacity = getMutationQueueCapacity(pendingCount);
-    if (capacity === 'overflow') {
-      this.logger.error(`[MutationManager] Queue overflow: ${pendingCount} pending mutations`);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('replication:queue-overflow', {
-            detail: { count: pendingCount },
-          })
+    const releaseQueueLock = this.acquireQueueMutationLock?.();
+    try {
+      const authUserId = await this.requireCurrentUserId();
+      // Queue overflow protection
+      const pendingCount = await this.getPendingCount();
+      const capacity = getMutationQueueCapacity(pendingCount);
+      if (capacity === 'overflow') {
+        this.logger.error(`[MutationManager] Queue overflow: ${pendingCount} pending mutations`);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('replication:queue-overflow', {
+              detail: { count: pendingCount },
+            })
+          );
+        }
+        throw new Error(`Mutation queue overflow: ${pendingCount} pending`);
+      }
+      if (capacity === 'warning') {
+        this.logger.warn(`[MutationManager] Queue warning: ${pendingCount} pending mutations`);
+      }
+
+      const id = await this.queueStore.queueMutation(
+        tableName,
+        operation,
+        rowId,
+        data,
+        authUserId,
+        dependsOn,
+        serverVersion,
+        rpc
+      );
+      // Backup synchronously (not debounced): a page reload inside a debounce
+      // window would leave the newest mutations only in IndexedDB, where browser
+      // cache eviction can destroy them. Offline scores must hit localStorage
+      // before queueMutation resolves.
+      //
+      // But the backup is a SECONDARY safety net: the score is already durable in
+      // IndexedDB above. A localStorage-full failure (Safari private mode, a large
+      // queue) must NOT fail a successfully-queued score, so swallow it here
+      // instead of rejecting queueMutation (audit M2).
+      try {
+        await this.backupStore.writeCurrent();
+      } catch (backupErr) {
+        this.logger.warn(
+          '[MutationManager] localStorage backup failed (score is durably queued in IndexedDB):',
+          backupErr
         );
       }
-      throw new Error(`Mutation queue overflow: ${pendingCount} pending`);
-    }
-    if (capacity === 'warning') {
-      this.logger.warn(`[MutationManager] Queue warning: ${pendingCount} pending mutations`);
-    }
 
-    const id = await this.queueStore.queueMutation(
-      tableName,
-      operation,
-      rowId,
-      data,
-      authUserId,
-      dependsOn,
-      serverVersion,
-      rpc
-    );
-    // Backup synchronously (not debounced): a page reload inside a debounce
-    // window would leave the newest mutations only in IndexedDB, where browser
-    // cache eviction can destroy them. Offline scores must hit localStorage
-    // before queueMutation resolves.
-    //
-    // But the backup is a SECONDARY safety net: the score is already durable in
-    // IndexedDB above. A localStorage-full failure (Safari private mode, a large
-    // queue) must NOT fail a successfully-queued score, so swallow it here
-    // instead of rejecting queueMutation (audit M2).
-    try {
-      await this.backupStore.writeCurrent();
-    } catch (backupErr) {
-      this.logger.warn(
-        '[MutationManager] localStorage backup failed (score is durably queued in IndexedDB):',
-        backupErr
-      );
-    }
+      // Announce the queue grew so pending-count UIs update immediately rather
+      // than waiting for the next poll tick. Critical offline: no upload-complete
+      // event can fire while offline, so without this the "N waiting to sync"
+      // signal would lag a queued score by up to the poll interval.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: { rowId } }));
+      }
 
-    // Announce the queue grew so pending-count UIs update immediately rather
-    // than waiting for the next poll tick. Critical offline: no upload-complete
-    // event can fire while offline, so without this the "N waiting to sync"
-    // signal would lag a queued score by up to the poll interval.
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('replication:mutation-queued', { detail: { rowId } }));
-    }
+      // Auto-upload: schedule immediate flush to server — unless the caller is
+      // deferring it until after a dependent local write (see scheduleUploadNow).
+      if (scheduleUploadNow) {
+        this.scheduleUpload();
+      }
 
-    // Auto-upload: schedule immediate flush to server — unless the caller is
-    // deferring it until after a dependent local write (see scheduleUploadNow).
-    if (scheduleUploadNow) {
-      this.scheduleUpload();
+      return id;
+    } finally {
+      releaseQueueLock?.();
     }
-
-    return id;
   }
 
   /**

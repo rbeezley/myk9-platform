@@ -181,8 +181,14 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
     expect(latestGateMigrationFile).toBe(
-      '20260902174500_class_rollup_excludes_moved_and_not_accepted.sql'
+      '20260904160000_exclude_absent_entries_from_class_rollup.sql'
     );
+  });
+
+  it('excludes absent lifecycle rows from the expected denominator', () => {
+    expect(gateBody).toContain("'not_accepted', 'absent'");
+    expect(gateMigration).toContain("COALESCE(NEW.entry_status, '') NOT IN");
+    expect(gateMigration).toContain("'not_accepted', 'absent'");
   });
 
   it('computes placements ONLY in the fully-accounted-for branch', () => {

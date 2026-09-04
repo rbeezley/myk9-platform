@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { useOfflineScoringStore } from '@/store/offlineScoringStore';
+import { beginCacheClear } from '@/services/cacheClearGate';
 import { decideClearCache } from './clearCacheGuard';
 
 const CACHE_KEYS_TO_CLEAR = [
@@ -89,9 +90,15 @@ export function DataSettings() {
 
   const handleConfirmClearCache = async (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    const cacheClear = beginCacheClear();
+    if (!cacheClear) {
+      setCheckError('Another cache clear is already in progress. Try again in a moment.');
+      return;
+    }
     setIsChecking(true);
     setCheckError(null);
     try {
+      await cacheClear.waitForWriters();
       const decision = await inspectPendingWork();
 
       if (!decision.allowed) {
@@ -106,6 +113,7 @@ export function DataSettings() {
       setPendingCount(0);
       setCheckError('We could not verify unsynced changes. Connect and sync before clearing.');
     } finally {
+      cacheClear.release();
       setIsChecking(false);
     }
   };

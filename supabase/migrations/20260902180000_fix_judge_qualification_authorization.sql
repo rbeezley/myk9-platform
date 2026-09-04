@@ -1,5 +1,9 @@
--- Keep the deployed qualification replacement function aligned with the
--- unified RBAC role name. The original migration predates role consolidation.
+-- Historical no-op retained for migration-ledger compatibility.
+--
+-- The preceding migration already emitted this exact function definition; the
+-- role-name alignment described by the old header had already landed in
+-- migration 068. The actual authorization correction is applied by
+-- 20260903150000_fix_judge_qualification_rpc_authorization.sql.
 CREATE OR REPLACE FUNCTION public.replace_judge_qualifications(
   p_person_id uuid,
   p_qualifications jsonb

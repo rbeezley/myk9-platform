@@ -149,16 +149,6 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: [],
   },
   {
-    path: '/admin/sync',
-    title: 'Sync Monitoring',
-    description: 'Monitor ingress/egress sync jobs and queued mutations.',
-    roles: [UserRole.SITE_ADMIN],
-    classification: 'park',
-    category: 'Admin',
-    status: 'working',
-    linksTo: [],
-  },
-  {
     path: '/admin/deleted-items',
     title: 'Deleted Items',
     description:

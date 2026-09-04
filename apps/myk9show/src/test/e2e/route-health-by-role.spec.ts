@@ -114,7 +114,6 @@ const ADMIN_ROUTES: RouteSpec[] = [
   { label: 'permissions-assignments', path: '/admin/permissions?tab=assignments' },
   { label: 'deleted-items', path: '/admin/deleted-items' },
   { label: 'templates', path: '/admin/templates' },
-  { label: 'sync', path: '/admin/sync' },
   { label: 'role-requests', path: '/admin/role-requests' },
   { label: 'judges-analytics', path: '/admin/judges/analytics' },
   { label: 'help', path: '/admin/help' },

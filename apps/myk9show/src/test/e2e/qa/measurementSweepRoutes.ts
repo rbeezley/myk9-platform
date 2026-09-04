@@ -100,7 +100,6 @@ export const SWEEP_GROUPS: readonly SweepGroup[] = [
       { id: 'permissions', path: '/admin/permissions' },
       { id: 'role-requests', path: '/admin/role-requests' },
       { id: 'templates', path: '/admin/templates' },
-      { id: 'sync', path: '/admin/sync' },
       { id: 'deleted-items', path: '/admin/deleted-items' },
       { id: 'help', path: '/admin/help' },
     ],

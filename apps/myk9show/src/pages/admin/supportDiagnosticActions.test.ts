@@ -60,7 +60,7 @@ describe('buildSupportInvestigationModel', () => {
     );
   });
 
-  it('routes sync issues to sync monitoring and health next checks', () => {
+  it('routes sync issues to the health next check without inventing a monitoring surface', () => {
     const model = buildSupportInvestigationModel(
       ticket({
         diagnostics: {
@@ -80,14 +80,11 @@ describe('buildSupportInvestigationModel', () => {
       })
     );
 
-    expect(model.actions).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'sync-monitoring', href: '/admin/sync' }),
-      ])
+    expect(model.actions).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: '/admin/sync' })])
     );
     expect(model.nextChecks).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'sync', href: '/admin/sync' }),
         expect.objectContaining({ id: 'health', href: '/admin/health' }),
       ])
     );

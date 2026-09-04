@@ -8,7 +8,6 @@
 import type {
   SyncEvent,
   SyncMetrics,
-  ConflictResolution,
   AnalyticsConfig,
 } from '../../types/analytics-types';
 import type { HealthScoreFactors } from './sync-analytics-types';
@@ -225,60 +224,4 @@ export function convertMetricsToCSV(metrics: SyncMetrics): string {
  */
 export function generateAnalyticsId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
- * Generate mock sync events and conflict resolutions for demonstration purposes.
- *
- * Returns arrays of events and conflicts covering the last 24 hours.
- */
-export function generateMockAnalyticsData(): {
-  events: SyncEvent[];
-  conflicts: ConflictResolution[];
-} {
-  const now = new Date();
-  const events: SyncEvent[] = [];
-  const conflicts: ConflictResolution[] = [];
-
-  // Generate mock events for the last 24 hours
-  for (let i = 0; i < 100; i++) {
-    const timestamp = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
-    const collections = ['dogs', 'shows', 'entries', 'people', 'clubs'];
-
-    events.push({
-      id: generateAnalyticsId(),
-      type: Math.random() > 0.1 ? 'sync_completed' : 'sync_failed',
-      timestamp,
-      duration: Math.random() * 5000 + 1000, // 1-6 seconds
-      status: Math.random() > 0.1 ? 'completed' : 'failed',
-      collectionName: collections[Math.floor(Math.random() * collections.length)],
-      recordCount: Math.floor(Math.random() * 50) + 1,
-      bytesTransferred: Math.floor(Math.random() * 1024 * 1024) + 1024,
-      errorMessage: Math.random() > 0.9 ? 'Network timeout' : undefined,
-      metadata: {
-        latency: Math.random() * 100 + 10
-      }
-    });
-  }
-
-  // Generate mock conflict resolutions
-  for (let i = 0; i < 10; i++) {
-    const timestamp = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
-    const collections = ['dogs', 'shows', 'entries', 'people', 'clubs'];
-
-    conflicts.push({
-      conflictId: generateAnalyticsId(),
-      type: 'update_update',
-      strategy: 'last_write_wins',
-      resolvedAt: timestamp,
-      resolvedBy: 'system',
-      originalValue: { name: 'Old Value' },
-      resolvedValue: { name: 'New Value' },
-      fieldPath: 'name',
-      recordId: generateAnalyticsId(),
-      collectionName: collections[Math.floor(Math.random() * collections.length)]
-    });
-  }
-
-  return { events, conflicts };
 }

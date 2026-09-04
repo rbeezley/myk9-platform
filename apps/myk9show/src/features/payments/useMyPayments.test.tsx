@@ -160,7 +160,7 @@ describe('useMyPayments', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(entriesSelect).toHaveBeenCalledWith(
-      'id, refund_amount, refunded_at, dogs(call_name), classes(name)'
+      'id, refund_amount, refunded_at, dogs(call_name), classes(name), show_id, shows(id, name)'
     );
     expect(inFilter).toHaveBeenCalledWith('id', ['e1', 'e2']);
     expect(result.current.data?.[0]).toMatchObject({
@@ -175,6 +175,49 @@ describe('useMyPayments', () => {
           label: 'Copper - Advanced A',
         },
       ],
+    });
+  });
+
+  it('recovers a missing order show from its linked entry provenance', async () => {
+    stripeOrdersRange.mockResolvedValue({
+      data: [
+        {
+          id: 'legacy-order',
+          amount_cents: 3000,
+          currency: 'usd',
+          status: 'succeeded',
+          paid_at: '2025-08-10T00:00:00Z',
+          created_at: '2025-08-10T00:00:00Z',
+          stripe_payment_intent_id: 'pi_legacy',
+          entry_ids: ['entry-legacy'],
+          show_id: null,
+          show: null,
+        },
+      ],
+      error: null,
+    });
+    inFilter.mockResolvedValue({
+      data: [
+        {
+          id: 'entry-legacy',
+          refund_amount: null,
+          refunded_at: null,
+          dogs: null,
+          classes: null,
+          show_id: 'show-legacy',
+          shows: { id: 'show-legacy', name: 'Archived Trial' },
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.[0]).toMatchObject({
+      showId: 'show-legacy',
+      showName: 'Archived Trial',
+      entryIds: ['entry-legacy'],
     });
   });
 

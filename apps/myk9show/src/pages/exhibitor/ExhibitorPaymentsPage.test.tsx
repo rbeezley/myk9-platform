@@ -147,12 +147,24 @@ describe('ExhibitorPaymentsPage', () => {
     );
   });
 
-  it('states no receipt is available for a failed order with no show or entries, instead of a bare dash', () => {
+  it('gives an unlinked failed order a clear limitation and support path', () => {
     state.data = [{ ...payment, status: 'failed', showId: null, entryIds: [] }];
     render(<ExhibitorPaymentsPage />);
     expect(screen.queryByRole('link', { name: /finish payment/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /my shows/i })).not.toBeInTheDocument();
-    expect(screen.getByText('No receipt available')).toBeInTheDocument();
+    expect(screen.getByText('Historical receipt unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Contact support' })).toBeInTheDocument();
+  });
+
+  it('gives an unlinked historical payment a clear limitation and support path', () => {
+    state.data = [{ ...payment, status: 'succeeded', showId: null, showName: null, entryIds: [] }];
+    render(<ExhibitorPaymentsPage />);
+    expect(screen.getAllByText('Historical payment').length).toBeGreaterThan(0);
+    expect(screen.getByText('Historical receipt unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Contact support' })).toHaveAttribute(
+      'href',
+      'mailto:support@myk9show.com?subject=Payment%20receipt%20help%20(o1)'
+    );
   });
 
   it('gives a refund-specific reason instead of a generic "no receipt" for the split-off refund row, while the original charge keeps its receipt link', () => {

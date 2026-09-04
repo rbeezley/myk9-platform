@@ -15,6 +15,7 @@ This directory contains the Architecture Decision Records (ADRs) for the myK9 Pl
 | [007](007-supabase-backend.md)                   | Supabase as Unified Backend                                 | Accepted | 2026-01-02 |
 | [008](008-entity-module-export-shape.md)         | Canonical Entity-Module Export Shape (Flat Named Functions) | Accepted | 2026-05-14 |
 | [009](009-online-only-data-access-exceptions.md) | Online-Only Data Access Exceptions                          | Accepted | 2026-06-15 |
+| [010](010-cold-offline-query-semantics.md)       | Cold-Offline Query Semantics (Errors, Not Pauses)           | Accepted | 2026-09-03 |
 
 ## Format
 

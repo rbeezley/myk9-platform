@@ -63,9 +63,6 @@ import {
 import { PaymentsSummary } from './PaymentsSummaryCard';
 import { PaymentYearFilter } from './PaymentYearFilter';
 
-/** Placeholder for a missing cell value. Hyphen-minus, never an em dash (UI-copy rule). */
-const EMPTY = '-';
-
 /**
  * Status chips drawn from the design system's chip pairs rather than the
  * generic Badge variants. `variant="secondary"` was invisible in dark mode:
@@ -152,19 +149,36 @@ function PaymentActionContent({ row }: { row: PaymentDisplayRow }) {
   // hovering "Receipt: -" can't distinguish from a truncated reference
   // number. Match the link's min height so rows stay vertically even.
   return (
-    <span className="inline-flex min-h-11 items-center text-sm text-muted-foreground">
-      {isRefundedPaymentStatus(row.status) ? 'No receipt (refunded)' : 'No receipt available'}
+    <span className="inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground">
+      {isRefundedPaymentStatus(row.status) ? (
+        'No receipt (refunded)'
+      ) : row.entryIds.length === 0 ? (
+        <>
+          <span>Historical receipt unavailable</span>
+          <a
+            href={`mailto:support@myk9show.com?subject=Payment%20receipt%20help%20(${encodeURIComponent(row.orderId)})`}
+            className="text-primary hover:underline focus-visible:underline"
+          >
+            Contact support
+          </a>
+        </>
+      ) : (
+        'No receipt available'
+      )}
     </span>
   );
 }
 
 function PaymentRow({ row }: { row: PaymentDisplayRow }) {
-  const showName = row.showName ?? EMPTY;
+  const showName = row.showName ?? 'Historical payment';
   const dateLabel = formatPaymentDate(row.date);
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap tabular-nums">{dateLabel}</TableCell>
-      <TableCell className="max-w-[16rem] truncate font-medium" title={showName}>
+      <TableCell
+        className="max-w-[16rem] truncate font-medium"
+        title={row.showName ? showName : 'This historical payment has no recoverable show link.'}
+      >
         {showName}
       </TableCell>
       <TableCell className="max-w-[16rem] truncate" title={row.description}>
@@ -189,7 +203,7 @@ function PaymentRow({ row }: { row: PaymentDisplayRow }) {
  * duplicated, only reshaped.
  */
 function PaymentCard({ row }: { row: PaymentDisplayRow }) {
-  const showName = row.showName ?? EMPTY;
+  const showName = row.showName ?? 'Historical payment';
   const dateLabel = formatPaymentDate(row.date);
   // The divider is a full-strength border, not border/60: at 60% it measured
   // 1.20:1 in light and 1.11:1 in dark. Full strength reaches 1.36:1 and

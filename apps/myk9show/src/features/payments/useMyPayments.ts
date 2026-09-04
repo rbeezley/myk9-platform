@@ -44,6 +44,8 @@ interface RefundEntryRow {
   refunded_at: string | null;
   dogs: { call_name: string | null } | null;
   classes: { name: string | null } | null;
+  show_id: string | null;
+  shows: { id: string; name: string } | null;
 }
 
 function orderYearPredicate(range: PaymentYearQueryRange): string {
@@ -139,7 +141,9 @@ async function fetchEntryDetails(entryIds: string[]): Promise<RefundEntryRow[]> 
   for (const entryIdChunk of chunk(entryIds, ENTRY_ID_CHUNK_SIZE)) {
     const { data, error } = await supabase
       .from('entries')
-      .select('id, refund_amount, refunded_at, dogs(call_name), classes(name)')
+      .select(
+        'id, refund_amount, refunded_at, dogs(call_name), classes(name), show_id, shows(id, name)'
+      )
       .in('id', entryIdChunk);
     if (error) throw error;
     rows.push(...((data ?? []) as unknown as RefundEntryRow[]));
@@ -245,11 +249,15 @@ export function useMyPayments(selection: PaymentYearSelection = ALL_PAYMENT_YEAR
       const entryIds = [...new Set(orders.flatMap(o => o.entry_ids ?? []))];
       const refundsByEntryId = new Map<string, number>();
       const refundDetailsByEntryId = new Map<string, PaymentPresentationRefund>();
+      const showByEntryId = new Map<string, { id: string; name: string }>();
 
       if (entryIds.length > 0) {
         for (const entry of await fetchEntryDetails(entryIds)) {
           const refundCents = Math.round((entry.refund_amount ?? 0) * 100);
           refundsByEntryId.set(entry.id, refundCents);
+          if (entry.show_id && entry.shows) {
+            showByEntryId.set(entry.id, entry.shows);
+          }
           if (refundCents <= 0) continue;
 
           const label = [entry.dogs?.call_name, entry.classes?.name].filter(Boolean).join(' - ');
@@ -269,11 +277,18 @@ export function useMyPayments(selection: PaymentYearSelection = ALL_PAYMENT_YEAR
         );
         const amountCents = o.amount_cents;
 
+        const linkedShows = (o.entry_ids ?? [])
+          .map(entryId => showByEntryId.get(entryId))
+          .filter((show): show is { id: string; name: string } => Boolean(show));
+        const uniqueLinkedShows = [...new Map(linkedShows.map(show => [show.id, show])).values()];
+        const recoveredShow =
+          !o.show_id && uniqueLinkedShows.length === 1 ? uniqueLinkedShows[0] : null;
+
         return {
           id: o.id,
           date: o.paid_at ?? o.created_at,
-          showId: o.show_id ?? null,
-          showName: (o.show as { name: string } | null)?.name ?? null,
+          showId: o.show_id ?? recoveredShow?.id ?? null,
+          showName: (o.show as { name: string } | null)?.name ?? recoveredShow?.name ?? null,
           amountCents,
           netPaidCents: Math.max(0, amountCents - entryRefundCents),
           currency: o.currency ?? 'usd',

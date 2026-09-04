@@ -118,12 +118,17 @@ const UserManagementPage: React.FC = () => {
 
   // Data fetching with error handling
   const {
-    data: users = [],
+    data: rosterData,
     isLoading,
     error,
     refetch,
     fetchStatus,
   } = useAdminUsersQuery(filters.showDeleted);
+  // Memoised so the empty fallback keeps ONE identity across renders. Without
+  // it, `rosterData ?? []` produces a fresh array every render while the roster
+  // is unread, which re-runs the filter, sort and role-stat memos below each
+  // time (react-hooks/exhaustive-deps flags exactly this).
+  const users = useMemo(() => rosterData ?? [], [rosterData]);
   // The roster is unavailable for want of a network. TWO states mean that, and
   // an admin should not be able to tell them apart:
   //
@@ -141,7 +146,12 @@ const UserManagementPage: React.FC = () => {
   // BOOTS with no signal never pauses — it fetches, fails, and errors. Measured
   // on /admin/users: fetchStatus went 'fetching' → 'idle' with error set, and
   // the admin got a raw "TypeError: Failed to fetch" (MYK9-365).
-  const hasNoRoster = users.length === 0;
+  // `rosterData === undefined` means the roster was NEVER read, which is not the
+  // same as reading it and finding it empty. Testing `users.length === 0` would
+  // conflate them, because `users` defaults to `[]`: a successfully cached empty
+  // roster that later pauses offline would lose its "No users yet" state and the
+  // create action with it (Codex review, P2).
+  const hasNoRoster = rosterData === undefined;
   const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
   const isRosterOffline = hasNoRoster && (fetchStatus === 'paused' || (!!error && isDeviceOffline));
   const updateUserMutation = useUpdateUserMutation();

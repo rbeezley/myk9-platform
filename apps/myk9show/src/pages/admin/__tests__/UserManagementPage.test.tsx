@@ -22,7 +22,7 @@ const makeUser = (overrides: Partial<User> = {}): User =>
 
 const mockRefetch = vi.fn();
 let mockQueryReturn: {
-  data: User[];
+  data: User[] | undefined;
   isLoading: boolean;
   error: Error | null;
   refetch: ReturnType<typeof vi.fn>;
@@ -223,7 +223,7 @@ describe('UserManagementPage (shared primitives migration)', () => {
     afterEach(() => setOnLine(true));
 
     it('shows the calm waiting state when the query is paused with no roster', () => {
-      mockQueryReturn = { ...mockQueryReturn, data: [], fetchStatus: 'paused' };
+      mockQueryReturn = { ...mockQueryReturn, data: undefined, fetchStatus: 'paused' };
 
       renderPage();
 
@@ -238,7 +238,7 @@ describe('UserManagementPage (shared primitives migration)', () => {
       setOnLine(false);
       mockQueryReturn = {
         ...mockQueryReturn,
-        data: [],
+        data: undefined,
         error: new Error('TypeError: Failed to fetch'),
         fetchStatus: 'idle',
       };
@@ -255,7 +255,7 @@ describe('UserManagementPage (shared primitives migration)', () => {
       setOnLine(true);
       mockQueryReturn = {
         ...mockQueryReturn,
-        data: [],
+        data: undefined,
         error: new Error('Boom'),
         fetchStatus: 'idle',
       };
@@ -275,6 +275,20 @@ describe('UserManagementPage (shared primitives migration)', () => {
 
       expect(screen.queryByText('Waiting for a connection')).not.toBeInTheDocument();
       expect(screen.getByTestId('user-table')).toBeInTheDocument();
+    });
+    // Codex review, P2. A roster that was READ and found empty is a fact the
+    // admin can act on — "No users yet" plus a create button. A later offline
+    // pause must not overwrite that with "Waiting for a connection", which is
+    // what testing `users.length === 0` did: `users` defaults to `[]`, so a
+    // cached empty roster and a never-read one looked identical.
+    it('keeps the empty-roster state when a successful empty read later pauses', () => {
+      setOnLine(false);
+      mockQueryReturn = { ...mockQueryReturn, data: [], fetchStatus: 'paused' };
+
+      renderPage();
+
+      expect(screen.getByText('No users yet')).toBeInTheDocument();
+      expect(screen.queryByText('Waiting for a connection')).not.toBeInTheDocument();
     });
   });
 });

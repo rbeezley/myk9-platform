@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useJudgeQualifications } from '@/hooks/queries/useJudgeDatabase';
+import { formatDateOnly } from '@/lib/format/dates';
 
 interface JudgeQualificationsCardProps {
   personId: string;
@@ -115,7 +116,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
                         Certified:
                       </span>
                       <span className="text-sm font-medium text-foreground">
-                        {new Date(qual.date_obtained).toLocaleDateString()}
+                        {formatDateOnly(qual.date_obtained)}
                       </span>
                     </div>
                   )}

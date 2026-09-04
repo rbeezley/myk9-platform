@@ -36,6 +36,40 @@ appeared without an accompanying review artifact (2026-09-02 `42753661e`, 2026-0
 shared cursor without reviewing. Recommend disabling that stamp until the Codex stream resumes, or
 requiring the stamp commit to carry a report path.
 
+## Correction — 2026-09-04, later the same day
+
+**One impact claim in `NCR-2026-09-04-01` was wrong, and it is retracted here rather than edited
+away.** The finding itself stands; its blast radius does not.
+
+I wrote that the red `main` had **stopped staging release promotion**, and that twelve commits sat
+unpromoted. That was an inference from reading `Deploy Staging: skipped` next to each `cancelled` CI
+run. I never checked *why* it was skipping.
+
+The real reason: **`STAGING_RELEASE_ENABLED=false`** at the repository level. That variable is the
+FIRST condition in the promote job's `if:`, so the job skips unconditionally — it would have logged
+exactly the same `skipped` line beside a perfectly green run. The protected release refs
+(`staging-release`, `guides-release`) both point at `5975adadb`, *"fix(access): persist role-scoped
+show codes (#1498)"*, dated **2026-07-27** — 620 commits behind `main`. Nothing in this window moved
+them, and nothing in this window could have.
+
+What survives unchanged:
+
+- The coverage regression was real, `main` was red for 18 hours across 12 commits, and `Build`,
+  `Smoke build`, `A11y smoke` and `E2E PR Smoke` genuinely did not run for that whole window. That
+  half of the impact stands and was the reason to fix it.
+- The `--coverage`-on-push-only gate hole was real (`NCR-2026-09-04-01`) and is now closed by #2017.
+- A *separate* promotion defect was found later the same day and fixed by #2020: the run-level
+  conclusion is an AND over every job including the informational `Test myK9Show (coverage)`, which
+  the concurrency group cancels on rapid merges. That is a genuine blocker — but a **latent** one.
+  It will bite the first time `STAGING_RELEASE_ENABLED` is turned on; it was not biting on
+  2026-09-04, because nothing was promoting.
+
+**The lesson, recorded because it is the second time this shape has cost something today.** A
+`skipped` job says a condition was false; it does not say WHICH condition. `deploy-staging.yml`'s
+`if:` has five clauses ANDed together and I attributed the skip to the one I had just been reading
+about. Read the whole predicate and check each clause's actual value before naming a cause — the
+same discipline as dating a red CI check before believing it.
+
 ## Counts
 
 | Category                        | Count |
@@ -186,10 +220,11 @@ show the failure under its own SHA.
 
 ### Impact
 
-1. **Staging release promotion is stopped.** `deploy-staging.yml:24-26` gates promotion on
-   `github.event.workflow_run.conclusion == 'success'`. No SHA has been promoted to the protected
-   release refs since `d5a495862`. Twelve commits of merged work — including three offline fixes, a
-   money-path fee correction and an RBAC authorization fix — are unpromoted.
+1. ~~**Staging release promotion is stopped.**~~ **RETRACTED — this claim was wrong.** See
+   "Correction" at the top of this report. Staging promotion was already disabled at the repository
+   level (`STAGING_RELEASE_ENABLED=false`), so the red CI stopped nothing that was otherwise
+   running. The release refs have been pinned at `5975adadb` (2026-07-27) for six weeks, which no
+   commit in this window caused.
 2. **Nothing in this window has been build- or E2E-verified on `main`.** `Build`, `Smoke build`,
    `A11y smoke` and `E2E PR Smoke` are all `skipped` on every run because they need `Test`. An 18-hour
    window of merges has had no build gate at all.
@@ -218,7 +253,8 @@ Two parts, and the second is the one that matters:
 
 - `cd packages/core && pnpm run test --sequence.shuffle --coverage` exits 0.
 - A `push` run of CI on `main` is green, and `Build` / `Smoke build` / `A11y smoke` actually execute.
-- A `Deploy Staging` run reaches `promote` rather than being skipped.
+- ~~A `Deploy Staging` run reaches `promote` rather than being skipped.~~ **Removed** — unachievable
+  while `STAGING_RELEASE_ENABLED=false`, and never a consequence of this finding.
 - A deliberate coverage regression on a scratch PR **fails that PR**, not just `main`.
 
 ### Required proof for closure
@@ -232,7 +268,7 @@ proof.
 - `04be60937` (PR #1990) — cause
 - `.github/workflows/ci.yml:243` — the gate hole
 - `packages/core/vitest.config.ts:13-18` — thresholds
-- `.github/workflows/deploy-staging.yml:24-26` — the blocked promotion
+- `.github/workflows/deploy-staging.yml:24-26` — named here in error; see the Correction
 - Related: MYK9-328 (the sweep), `docs/qa/myk9-328-package-dead-code-inventory.md`
 
 ---
@@ -622,7 +658,7 @@ Recorded so the next run does not re-derive them.
 
 ```
 ID | P# | src | status | first/last | runs | evidence | next proof
-NCR-2026-09-04-01 | P1 | claude | new (UNFILED) | 09-04/09-04 | 1 | packages/core coverage 91.64/93.22 vs 92/94 reproduced locally byte-identical to run 33832052383; main red 12 commits since 04be60937; --coverage only on push | green main CI incl. Build + a coverage regression failing its own PR
+NCR-2026-09-04-01 | P1 | claude | RESOLVED (#2015 coverage, #2017 gate) | 09-04/09-04 | 1 | packages/core coverage 91.64/93.22 vs 92/94 reproduced locally byte-identical to run 33832052383; main red 12 commits since 04be60937; --coverage only on push. IMPACT CORRECTED: the staging-promotion claim is retracted - STAGING_RELEASE_ENABLED=false, refs pinned at 5975adadb since 2026-07-27 | main CI green at 6d7a2db9a (14/14) + PR-level coverage enforced by #2017
 NCR-2026-09-04-02 | P1 | claude | new (UNFILED) | 09-04/09-04 | 1 | ref-scan simulation: 22 refs flagged for merged version 20260903150000; PR HEAD is the merge ref so origin/<pr-branch> is never filtered; runGuard/liveMigrationCount untested | green Quality Checks on a real migration PR + red on a deliberate-collision PR
 NCR-2026-09-04-03 | P3 | claude | new (UNFILED) | 09-04/09-04 | 1 | 3 new plans this window lack the status line and README row; 22 of 78 repo-wide; no check enforces it | doc-staleness check red on a scratch omission
 NCR-2026-09-03-01 | P1 | claude | RESOLVED (MYK9-354) | 09-03/09-04 | 2 | migration 20260903150000 applied; live functiondef has no get_my_person_id; SQL tests green on 589b06fca | (satisfied)

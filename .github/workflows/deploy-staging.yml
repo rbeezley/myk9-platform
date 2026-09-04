@@ -21,9 +21,21 @@ concurrency:
 jobs:
   promote:
     name: Promote exact SHA to staging release refs
+    # `cancelled` is admitted here and then judged by "Evaluate CI gating jobs"
+    # below, which looks at the JOBS. The run-level conclusion is an AND over
+    # every job including `Test myK9Show (coverage)` -- a push-only informational
+    # report that CI's concurrency group cancels whenever merges land close
+    # together. Gating on the conclusion alone stranded three consecutive green
+    # merges on 2026-09-04 (f7876cd6a, 68a0bd813, ad060903c) with the release
+    # refs pinned to 6d7a2db9a.
+    #
+    # `failure` and `timed_out` are still refused outright -- admitting
+    # `cancelled` is not the same as trusting it, and a genuinely superseded run
+    # has gating jobs cancelled mid-flight, which the evaluator blocks.
     if: >-
       vars.STAGING_RELEASE_ENABLED == 'true' &&
-      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.conclusion == 'success' ||
+       github.event.workflow_run.conclusion == 'cancelled') &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_sha != ''
@@ -36,19 +48,43 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+      CI_RUN_ID: ${{ github.event.workflow_run.id }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
+      # Judge the run by its jobs, not by its rollup conclusion. The rule and the
+      # reasoning live in the script, which is exercised against recorded real
+      # runs by scripts/qa/evaluate-gating-jobs.test.ts.
+      - name: Evaluate CI gating jobs
+        id: gating
+        run: |
+          set -uo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID/jobs?per_page=100" \
+            | scripts/ci/evaluate-gating-jobs.sh; then
+            echo "promotable=true" >>"$GITHUB_OUTPUT"
+          else
+            status=$?
+            echo "promotable=false" >>"$GITHUB_OUTPUT"
+            echo "CI run $CI_RUN_ID is not promotable (evaluator exit $status); leaving the release refs where they are."
+          fi
+
       - name: Skip superseded CI candidates
         id: candidate
+        if: steps.gating.outputs.promotable == 'true'
         run: |
           set -euo pipefail
-          latest_sha="$(gh run list --workflow CI --branch main --event push --status success --limit 1 --json headSha --jq '.[0].headSha')"
+          # Compare against the newest main push CI run of ANY status, not the
+          # newest SUCCESSFUL one. Under the job-level rule above a promotable
+          # run's conclusion may legitimately be `cancelled`, so a
+          # `--status success` filter would skip the very runs this change
+          # exists to promote. Whichever run is newest gets its own turn at this
+          # workflow, so nothing is lost by deferring to it.
+          latest_sha="$(gh run list --workflow CI --branch main --event push --limit 1 --json headSha --jq '.[0].headSha')"
           if [[ "$latest_sha" != "$TARGET_SHA" ]]; then
-            echo "Superseded by newer successful main CI SHA $latest_sha"
+            echo "Superseded by newer main CI run for SHA $latest_sha"
             echo "should_promote=false" >>"$GITHUB_OUTPUT"
             exit 0
           fi

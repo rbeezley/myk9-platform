@@ -160,6 +160,9 @@ jobs:
       - name: CI coverage gate contract
         run: pnpm qa:ci-coverage-gate:test
 
+      - name: Staging promotion gate contract
+        run: pnpm qa:gating-jobs:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 

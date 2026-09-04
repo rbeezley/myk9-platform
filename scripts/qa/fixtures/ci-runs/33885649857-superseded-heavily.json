@@ -1,0 +1,75 @@
+{
+  "total_count": 14,
+  "jobs": [
+    {
+      "name": "Test myK9Show (coverage)",
+      "conclusion": "cancelled",
+      "status": "completed"
+    },
+    {
+      "name": "Test myK9Show (2/3)",
+      "conclusion": "cancelled",
+      "status": "completed"
+    },
+    {
+      "name": "Quality Checks",
+      "conclusion": "success",
+      "status": "completed"
+    },
+    {
+      "name": "Test myK9Show (3/3)",
+      "conclusion": "cancelled",
+      "status": "completed"
+    },
+    {
+      "name": "Test myK9Show (1/3)",
+      "conclusion": "success",
+      "status": "completed"
+    },
+    {
+      "name": "Test packages",
+      "conclusion": "success",
+      "status": "completed"
+    },
+    {
+      "name": "Smoke scope",
+      "conclusion": "success",
+      "status": "completed"
+    },
+    {
+      "name": "SQL tests",
+      "conclusion": "success",
+      "status": "completed"
+    },
+    {
+      "name": "Test",
+      "conclusion": "failure",
+      "status": "completed"
+    },
+    {
+      "name": "Test myK9Show (coverage gate)",
+      "conclusion": "cancelled",
+      "status": "completed"
+    },
+    {
+      "name": "Build",
+      "conclusion": "cancelled",
+      "status": "completed"
+    },
+    {
+      "name": "E2E PR Smoke",
+      "conclusion": "cancelled",
+      "status": "completed"
+    },
+    {
+      "name": "A11y smoke",
+      "conclusion": "cancelled",
+      "status": "completed"
+    },
+    {
+      "name": "Smoke build",
+      "conclusion": "cancelled",
+      "status": "completed"
+    }
+  ]
+}

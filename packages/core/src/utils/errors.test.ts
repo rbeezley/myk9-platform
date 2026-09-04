@@ -142,3 +142,63 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage('')).toBe('');
   });
 });
+
+/**
+ * The `catch` fallbacks. `String(value)` is not total: it propagates whatever a
+ * hostile `toString` / `Symbol.toPrimitive` throws, and it throws outright for a
+ * null-prototype object, which has no `toString` to call. Both helpers exist so
+ * a caller can never be handed an exception while trying to describe one, so
+ * the fallback is the whole point of the function — and it was the uncovered
+ * half after the MYK9-328 sweep.
+ *
+ * NOT included here, deliberately: a symbol. `String(sym)` is a spec special
+ * case that RETURNS "Symbol(desc)" rather than throwing — only `\`${sym}\`` and
+ * `'' + sym` throw. A test using a symbol to reach the `catch` passes for the
+ * wrong reason, so the symbol case is pinned below as ordinary stringification.
+ */
+describe('values that cannot be stringified', () => {
+  const throwingToString = {
+    toString() {
+      throw new Error('toString exploded');
+    },
+  };
+  const nullPrototype = Object.create(null) as object;
+
+  describe('ensureError', () => {
+    it('returns a generic Error when toString throws', () => {
+      const result = ensureError(throwingToString);
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toBe('Unknown error');
+    });
+
+    it('returns a generic Error for a null-prototype object', () => {
+      expect(ensureError(nullPrototype).message).toBe('Unknown error');
+    });
+
+    it('does not let the thrown value escape', () => {
+      expect(() => ensureError(throwingToString)).not.toThrow();
+    });
+
+    it('stringifies a symbol rather than falling back', () => {
+      expect(ensureError(Symbol('nope')).message).toBe('Symbol(nope)');
+    });
+  });
+
+  describe('getErrorMessage', () => {
+    it('returns the generic message when toString throws', () => {
+      expect(getErrorMessage(throwingToString)).toBe('Unknown error');
+    });
+
+    it('returns the generic message for a null-prototype object', () => {
+      expect(getErrorMessage(nullPrototype)).toBe('Unknown error');
+    });
+
+    it('does not let the thrown value escape', () => {
+      expect(() => getErrorMessage(throwingToString)).not.toThrow();
+    });
+
+    it('stringifies a symbol rather than falling back', () => {
+      expect(getErrorMessage(Symbol('nope'))).toBe('Symbol(nope)');
+    });
+  });
+});

@@ -3,6 +3,7 @@ import {
   withTimeout,
   TimeoutError,
   calculateBackoffDelay,
+  backoffDelay,
   isRetryableError,
   DEFAULT_TIMEOUT_MS,
   DEFAULT_MAX_RETRIES,
@@ -218,5 +219,74 @@ describe('isRetryableError', () => {
 
   it('should return false for TypeError without fetch', () => {
     expect(isRetryableError(new TypeError('cannot read property'))).toBe(false);
+  });
+});
+
+/**
+ * `backoffDelay` was the only uncovered function in this file after the
+ * MYK9-328 sweep — its sibling `calculateBackoffDelay` is well covered, but
+ * nothing exercised the wrapper that actually waits.
+ *
+ * Fake timers, not a real wait: the default base is 1000ms and the delay grows
+ * exponentially, so a real-time version of the third assertion below would sit
+ * for four seconds on every CI run. Coverage is not worth wall-clock (see the
+ * 252-dog test, #2013).
+ */
+describe('backoffDelay', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('resolves only after the calculated delay has elapsed', async () => {
+    const settled = vi.fn();
+    const pending = backoffDelay(0, 1000).then(settled);
+
+    // Jitter is ±10%, so the earliest possible resolution for attempt 0 is
+    // 900ms. Nothing may have settled before then.
+    await vi.advanceTimersByTimeAsync(899);
+    expect(settled).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1100 - 899);
+    await pending;
+    expect(settled).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits longer on a later attempt', async () => {
+    const early = vi.fn();
+    const late = vi.fn();
+    const earlyPending = backoffDelay(0, 1000).then(early);
+    const latePending = backoffDelay(3, 1000).then(late);
+
+    // Attempt 0 tops out at 1100ms; attempt 3 starts at 7200ms.
+    await vi.advanceTimersByTimeAsync(1100);
+    await earlyPending;
+    expect(early).toHaveBeenCalledTimes(1);
+    expect(late).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(MAX_BACKOFF_MS);
+    await latePending;
+    expect(late).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the default base delay when none is given', async () => {
+    const settled = vi.fn();
+    const pending = backoffDelay(0).then(settled);
+
+    await vi.advanceTimersByTimeAsync(DEFAULT_BACKOFF_BASE_MS * (1 + BACKOFF_JITTER));
+    await pending;
+    expect(settled).toHaveBeenCalledTimes(1);
+  });
+
+  it('never waits beyond the cap, however high the attempt', async () => {
+    const settled = vi.fn();
+    const pending = backoffDelay(50, 1000).then(settled);
+
+    await vi.advanceTimersByTimeAsync(MAX_BACKOFF_MS);
+    await pending;
+    expect(settled).toHaveBeenCalledTimes(1);
   });
 });

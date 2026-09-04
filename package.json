@@ -35,6 +35,7 @@
     "qa:migrations:guard:test": "vitest run scripts/qa/migration-version-guard.test.ts",
     "qa:code-quality-ratchet": "tsx scripts/qa/code-quality-ratchet.ts",
     "qa:code-quality-ratchet:update": "pnpm qa:code-quality-ratchet -- --update-baseline",
+    "qa:ci-coverage-gate:test": "vitest run scripts/qa/ci-coverage-gate.test.ts",
     "qa:code-quality-ratchet:test": "vitest run scripts/qa/code-quality-ratchet.test.ts",
     "qa:go-live:phase1": "tsx scripts/go-live/phase-1-platform-deploy.ts",
     "qa:go-live:phase1:test": "vitest run scripts/go-live/phase-1-platform-deploy.test.ts",

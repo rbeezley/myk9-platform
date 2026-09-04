@@ -157,6 +157,9 @@ jobs:
       - name: Behavioral SQL harness contract
         run: pnpm qa:sql:behavioral:test
 
+      - name: CI coverage gate contract
+        run: pnpm qa:ci-coverage-gate:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 
@@ -239,8 +242,29 @@ jobs:
       - name: Build shared packages
         run: pnpm -r --filter='./packages/*' build
 
+      # `--coverage` on EVERY event, not just `push`. It used to be push-only,
+      # which meant the thresholds in each package's vitest.config.ts were
+      # unenforceable on a PR: a change that lowered coverage was green on its
+      # own PR and turned `main` red on merge, with nothing to point at but the
+      # merge commit.
+      #
+      # That is not hypothetical — it is how #1990 (MYK9-328) reddened `main`
+      # for 18 hours across 12 commits. It deleted 2,228 lines of well-covered
+      # code from packages/core, which shrank the coverage DENOMINATOR below the
+      # thresholds. The PR was green by construction, and the failure surfaced
+      # on a later, unrelated docs-only commit.
+      #
+      # The myK9Show side already worked this way: `Test myK9Show` collects
+      # coverage on every event and `Test myK9Show (coverage gate)` enforces it
+      # on PRs. This brings packages into line. (`Test myK9Show (coverage)`
+      # further down stays push-only on purpose — it is a post-merge report, not
+      # a gate.)
+      #
+      # Measured cost on this job: 136s with coverage vs 96s without, and it
+      # runs in parallel with the myK9Show shards, so it does not extend the
+      # critical path.
       - name: Test packages
-        run: pnpm test:packages -- --sequence.shuffle${{ github.event_name == 'push' && ' --coverage' || '' }}
+        run: pnpm test:packages -- --sequence.shuffle --coverage
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

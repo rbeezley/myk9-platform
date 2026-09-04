@@ -167,8 +167,8 @@ describe('RBAC Types and Constants', () => {
       // measured cardinality, not authority, and only passed because two of
       // the counted club_admin codes — 'club:edit_details' and
       // 'club:manage_members' — were never seeded by any migration.
-      expect(clubAdminPerms.has(PERMISSIONS.CLUB_MANAGE)).toBe(true);
-      expect(secretaryPerms.has(PERMISSIONS.CLUB_MANAGE)).toBe(false);
+      expect(clubAdminPerms.has(PERMISSIONS.CLUB_UPDATE)).toBe(true);
+      expect(secretaryPerms.has(PERMISSIONS.CLUB_UPDATE)).toBe(false);
       expect(secretaryPerms.has(PERMISSIONS.CHECK_IN_MANAGE_ALL)).toBe(true);
       expect(clubAdminPerms.has(PERMISSIONS.CHECK_IN_MANAGE_ALL)).toBe(false);
 

@@ -7,7 +7,6 @@ describe('computeClubPermissions', () => {
       computeClubPermissions({
         isClubAdmin: false,
         isSiteAdmin: true,
-        hasManageMembersPermission: false,
       })
     ).toEqual({
       canEditClub: true,
@@ -22,7 +21,6 @@ describe('computeClubPermissions', () => {
       computeClubPermissions({
         isClubAdmin: true,
         isSiteAdmin: false,
-        hasManageMembersPermission: false,
       })
     ).toEqual({
       canEditClub: true,
@@ -32,16 +30,15 @@ describe('computeClubPermissions', () => {
     });
   });
 
-  it('grants manage-members via scoped permission alone', () => {
+  it('does not grant member management from an unscoped permission', () => {
     expect(
       computeClubPermissions({
         isClubAdmin: false,
         isSiteAdmin: false,
-        hasManageMembersPermission: true,
       })
     ).toEqual({
       canEditClub: false,
-      canManageMembers: true,
+      canManageMembers: false,
       canEditBranding: false,
       canDeleteClub: false,
     });
@@ -52,7 +49,6 @@ describe('computeClubPermissions', () => {
       computeClubPermissions({
         isClubAdmin: false,
         isSiteAdmin: false,
-        hasManageMembersPermission: false,
       })
     ).toEqual({
       canEditClub: false,
@@ -67,7 +63,6 @@ describe('computeClubPermissions', () => {
       computeClubPermissions({
         isClubAdmin: true,
         isSiteAdmin: false,
-        hasManageMembersPermission: true,
       }).canDeleteClub
     ).toBe(false);
 
@@ -75,7 +70,6 @@ describe('computeClubPermissions', () => {
       computeClubPermissions({
         isClubAdmin: false,
         isSiteAdmin: true,
-        hasManageMembersPermission: false,
       }).canDeleteClub
     ).toBe(true);
   });

@@ -50,12 +50,11 @@ export function hasClubAdminScope(
 export function computeClubPermissions(args: {
   isClubAdmin: boolean;
   isSiteAdmin: boolean;
-  hasManageMembersPermission: boolean;
 }): ClubPermissions {
-  const { isClubAdmin, isSiteAdmin, hasManageMembersPermission } = args;
+  const { isClubAdmin, isSiteAdmin } = args;
   return {
     canEditClub: isSiteAdmin || isClubAdmin,
-    canManageMembers: isClubAdmin || hasManageMembersPermission,
+    canManageMembers: isClubAdmin,
     canEditBranding: isSiteAdmin || isClubAdmin,
     canDeleteClub: isSiteAdmin,
   };

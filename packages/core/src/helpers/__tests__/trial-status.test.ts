@@ -122,3 +122,43 @@ describe('deriveTrialCompositeStatus — DB status spellings', () => {
     expect(result.label).toBe('In progress — 1 of 2 classes complete');
   });
 });
+
+/**
+ * The two arms `deriveTrialStatusKey` reaches only when `completedCount` is
+ * NOT supplied. Every caller in the app passes a count, so these read as
+ * belt-and-braces — but they are the trial's only status source when the
+ * caller has a trial row and has not yet loaded its classes, which is exactly
+ * the offline/first-paint case. They were uncovered when the MYK9-328 sweep
+ * shrank this package's coverage denominator.
+ */
+describe('deriveTrialStatusKey — status string only, no completedCount', () => {
+  it.each(['completed', 'complete', 'Completed', '  COMPLETE  '])(
+    'reads %j as completed',
+    trialStatus => {
+      expect(deriveTrialStatusKey({ trialStatus, classCount: 3 })).toBe('completed');
+    }
+  );
+
+  it.each(['in-progress', 'in progress', 'in_progress', 'inprogress', 'briefing', 'break'])(
+    'reads %j as in-progress',
+    trialStatus => {
+      expect(deriveTrialStatusKey({ trialStatus, classCount: 3 })).toBe('in-progress');
+    }
+  );
+
+  it('falls through to not-started for an unrecognised status', () => {
+    expect(deriveTrialStatusKey({ trialStatus: 'scheduled', classCount: 3 })).toBe('not-started');
+  });
+
+  it('prefers completedCount over the status string when both disagree', () => {
+    // The `else if` arm must not run when a count is present: a trial row still
+    // saying "completed" while its classes are only half scored is in progress.
+    expect(
+      deriveTrialStatusKey({ trialStatus: 'completed', classCount: 4, completedCount: 2 })
+    ).toBe('in-progress');
+  });
+
+  it('still reports cancelled ahead of any status-string reading', () => {
+    expect(deriveTrialStatusKey({ trialStatus: 'canceled', classCount: 3 })).toBe('cancelled');
+  });
+});

@@ -8,6 +8,8 @@ import {
   isValidDateFormat,
   dateDifferenceInDays,
   formatTrialDate,
+  formatDayAbbreviation,
+  formatTime,
 } from './dateFormatting';
 
 describe('formatDateMMDDYYYY', () => {
@@ -223,5 +225,79 @@ describe('formatTrialDate', () => {
     expect(result).toContain('Wed');
     expect(result).toContain('Dec');
     expect(result).toContain('25');
+  });
+});
+
+/**
+ * `formatDayAbbreviation` and `formatTime` had NO tests at all — they were the
+ * two uncovered functions in this file after the MYK9-328 sweep, not merely
+ * partially covered ones. Both are locale-formatting wrappers, so the
+ * assertions below pin the contract that matters (empty/invalid input never
+ * produces "Invalid Date" in the UI) plus the parts of the output that are
+ * stable across ICU versions.
+ */
+describe('formatDayAbbreviation', () => {
+  it('returns the abbreviated weekday', () => {
+    // 2024-01-15 is a Monday. Constructed via the local-date parser so the
+    // assertion does not depend on the runner's timezone.
+    expect(formatDayAbbreviation('2024-01-15T12:00:00')).toBe('Mon');
+  });
+
+  it('returns an empty string for undefined', () => {
+    expect(formatDayAbbreviation()).toBe('');
+  });
+
+  it('returns an empty string for an empty string', () => {
+    expect(formatDayAbbreviation('')).toBe('');
+  });
+
+  it('returns an empty string for an unparseable date, never "Invalid Date"', () => {
+    expect(formatDayAbbreviation('not-a-date')).toBe('');
+  });
+});
+
+describe('formatTime', () => {
+  const at = (h: number, m: number, s = 0) => new Date(2024, 0, 15, h, m, s);
+
+  it('formats a Date in 12-hour form by default', () => {
+    const result = formatTime(at(14, 5));
+    expect(result).toMatch(/^2:05/);
+    expect(result).toMatch(/PM/i);
+  });
+
+  it('formats in 24-hour form when hour12 is false', () => {
+    const result = formatTime(at(14, 5), { hour12: false });
+    expect(result).toMatch(/^14:05/);
+    expect(result).not.toMatch(/PM/i);
+  });
+
+  it('omits seconds by default and includes them on request', () => {
+    expect(formatTime(at(14, 5, 9))).not.toMatch(/:09/);
+    expect(formatTime(at(14, 5, 9), { includeSeconds: true })).toMatch(/:09/);
+  });
+
+  it('accepts a date string as well as a Date', () => {
+    expect(formatTime('2024-01-15T14:05:00', { hour12: false })).toMatch(/^14:05/);
+  });
+
+  it('returns "Invalid Time" for an unparseable string', () => {
+    expect(formatTime('not-a-date')).toBe('Invalid Time');
+  });
+
+  it('returns "Invalid Time" for an invalid Date object', () => {
+    expect(formatTime(new Date(NaN))).toBe('Invalid Time');
+  });
+});
+
+describe('parseLocalDateString — non-numeric parts', () => {
+  // The `isNaN` guard, distinct from the range guard below it: "abcd-ef-gh"
+  // splits into three parts, so it reaches parseInt and returns NaN rather
+  // than being rejected on shape.
+  it.each(['abcd-ef-gh', '2024-xx-15', '2024-01-yy'])('rejects %j', input => {
+    expect(parseLocalDateString(input)).toBeUndefined();
+  });
+
+  it('rejects an out-of-range year without throwing', () => {
+    expect(parseLocalDateString('1800-01-15')).toBeUndefined();
   });
 });

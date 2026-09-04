@@ -211,6 +211,13 @@ describe('USER_ENTRIES_SELECT (getUserEntries PostgREST fallback shape)', () => 
     );
   });
 
+  // Asserted as a positioned regex, not a bare `toContain('status')` — the
+  // select already carries entry_status/payment_status, so a substring check
+  // would pass with the show embed's own status dropped.
+  it("selects the show's status so a cancelled future show is not offered at ringside", () => {
+    expect(USER_ENTRIES_SELECT).toMatch(/show:show_id\s*\([^)]*\bstatus\b/s);
+  });
+
   it("selects the show's full trial list for the primary-trial timezone", () => {
     // The amount-due deadline picks the PRIMARY trial's zone, which needs every
     // trial of the show — not just the one the entry is in.

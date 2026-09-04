@@ -8,9 +8,10 @@
  * (no hooks, no async) so the branch logic is unit-testable in isolation; the
  * `useRingsideEntryShows` hook wires the real data sources into it.
  *
- * Three role-self-gating sources feed in (non-applicable roles contribute empty
- * arrays): judge class assignments, the exhibitor "show today" list, and the
- * manager's own shows bucketed by phase.
+ * Four role-self-gating sources feed in (non-applicable roles contribute empty
+ * arrays): judge class assignments, the exhibitor "show today" list, the
+ * exhibitor's entered-but-not-yet-started shows, and the manager's own shows
+ * bucketed by phase.
  *
  * Note on names: judge assignments carry a showId but no show *name* (only the
  * class name), so a judge-only show may resolve with `showName: null`. This is
@@ -45,6 +46,13 @@ export interface NamedShowSource {
 export interface ResolveRingsideEntryInput {
   judgeClasses: JudgeClassSource[];
   exhibitorToday: NamedShowSource[];
+  /**
+   * Shows the exhibitor is entered in that have not started yet. Without this
+   * source an exhibitor contributed only `exhibitorToday`, so on every day but
+   * show day the entry point resolved to zero shows and fell through to its
+   * empty state — where the passcode button was the only action left.
+   */
+  exhibitorUpcoming: NamedShowSource[];
   managerToday: NamedShowSource[];
   managerUpcoming: NamedShowSource[];
   /** Today's date as 'YYYY-MM-DD' in the viewer's local zone. */
@@ -77,10 +85,9 @@ function sortRefs(refs: RingsideShowRef[]): RingsideShowRef[] {
   });
 }
 
-export function resolveRingsideEntry(
-  input: ResolveRingsideEntryInput
-): ResolveRingsideEntryResult {
-  const { judgeClasses, exhibitorToday, managerToday, managerUpcoming, todayISO } = input;
+export function resolveRingsideEntry(input: ResolveRingsideEntryInput): ResolveRingsideEntryResult {
+  const { judgeClasses, exhibitorToday, exhibitorUpcoming, managerToday, managerUpcoming, todayISO } =
+    input;
 
   // ── Live (today / in-progress) — keyed by showId so the same show from
   //    multiple sources collapses to one entry, keeping the best-known name. ──
@@ -103,6 +110,7 @@ export function resolveRingsideEntry(
     upcoming.set(showId, mergeName(upcoming.get(showId) ?? null, name));
   };
 
+  for (const s of exhibitorUpcoming) addUpcoming(s.showId, s.showName);
   for (const s of managerUpcoming) addUpcoming(s.showId, s.showName);
   for (const jc of judgeClasses) {
     if (jc.status !== 'completed' && jc.trialDate > todayISO) addUpcoming(jc.showId, null);

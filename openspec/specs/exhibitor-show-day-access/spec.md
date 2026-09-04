@@ -38,10 +38,17 @@ The exhibitor sidebar item linking to `/at-show` SHALL be labeled "Ringside", ma
 
 An authenticated user navigating to ringside from in-app navigation SHALL NOT be shown the passcode entry form. Authenticated users with a grant, staff role, or an entry for the show SHALL pass the access gate as today; authenticated users without any of these SHALL see a signed-in explanatory state (e.g., "Ringside isn't open yet" or no-live-show guidance) instead of the passcode prompt. The passcode form SHALL remain available to anonymous visitors and to the explicit `?passcode=1` flow. The gate SHALL wait for RBAC role resolution before deciding, so staff never flash the restricted state.
 
+A secondary, clearly-labelled LINK into the explicit `?passcode=1` flow is not the passcode form and SHALL be offered on every signed-in no-access state, entered or not. A signed-in exhibitor volunteering as a steward at a show they have no entry in is the case this serves: the passcode is their only route in, and withholding the link because they are signed in dead-ends the person most likely to need it — at a ring, on show day. The requirement above governs what is *rendered in the gate* (never the form itself), not whether the opt-in path is reachable from it.
+
 #### Scenario: Authenticated exhibitor without entry sees guidance, not passcode
 
 - **WHEN** a signed-in exhibitor with no entry, grant, or staff role opens `/at-show/:showId` from the sidebar
 - **THEN** they see the signed-in explanatory state and no passcode input is rendered
+
+#### Scenario: Signed-in volunteer working a show they are not entered in
+
+- **WHEN** a signed-in user with no entry, grant, or staff role for the show opens `/at-show/:showId` from a QR code or a link the secretary sent
+- **THEN** the explanatory state offers a secondary link into the `?passcode=1` flow, so a steward holding a show-day passcode can redeem it without leaving the page and hunting for the sidebar entry point
 
 #### Scenario: Anonymous passcode path unchanged
 

@@ -137,9 +137,18 @@ describe('RingsideEntryPage', () => {
     expect(screen.queryByText(/IN THE RING/)).not.toBeInTheDocument();
   });
 
+  // The empty state must not read as a login wall: the user is already signed
+  // in, and the passcode button below it is an opt-in path for working a show,
+  // not a credential they are being asked for.
   it('renders the empty home when nothing is live or upcoming', () => {
     renderPage();
-    expect(screen.getByText('No show is live right now.')).toBeInTheDocument();
+    expect(screen.getByText("You're signed in — nothing is running yet.")).toBeInTheDocument();
+    expect(screen.getByText(/there is nothing to sign in to/i)).toBeInTheDocument();
+  });
+
+  it('explains who the passcode is for on the empty home', () => {
+    renderPage();
+    expect(screen.getByText(/isn't on your account/i)).toBeInTheDocument();
   });
 
   it('reveals the passcode flow from the home', () => {

@@ -110,11 +110,19 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
   }
 
   // exhibitor-show-day-access (D9): a signed-in user with no grant, staff role,
-  // or entry for this show is never shown the passcode form — that prompt is
+  // or entry for this show is never shown the passcode FORM — that prompt is
   // reserved for anonymous / explicit `?passcode=1` flows. Signed-in visitors
   // get an explanatory, account-voiced state pointing them at My Shows. (Any
   // anonymous visitor was already redirected to sign-in above, so everyone
   // reaching this branch is authenticated.)
+  //
+  // The secondary passcode LINK below is not that form. Arriving here by deep
+  // link — a QR at the ring, a link from the secretary — is exactly how a
+  // signed-in exhibitor volunteering as a steward reaches ringside, and a
+  // passcode is their only way in. D9 withheld the link on this branch while
+  // the entered-exhibitor branch above offered it, so the person most likely to
+  // be holding a passcode was the one person never offered somewhere to use it.
+  // See the spec's "Signed-in volunteer working a show they are not entered in".
   return (
     <FullScreen>
       <div className="max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
@@ -124,7 +132,8 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
         </p>
         <p className="text-sm text-muted-foreground">
           Ringside opens on show day for entered exhibitors and show workers. If you&apos;re entered
-          in this show, your entries and check-in are under My Shows.
+          in this show, your entries and check-in are under My Shows. If you&apos;re working this
+          show, the secretary can give you a passcode.
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <Link
@@ -135,12 +144,18 @@ export function AtShowAccessGate({ children }: { children: ReactNode }) {
             Go to My Shows
           </Link>
           <Link
-            to="/"
+            to="/at-show?passcode=1"
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-input px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Back to dashboard
+            <KeyRound className="h-4 w-4" aria-hidden />I have a show-day passcode
           </Link>
         </div>
+        <Link
+          to="/"
+          className="mt-4 inline-flex items-center gap-1 rounded text-sm text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Back to dashboard
+        </Link>
       </div>
     </FullScreen>
   );

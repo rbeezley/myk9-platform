@@ -126,10 +126,10 @@ describe('AtShowAccessGate', () => {
   });
 
   // exhibitor-show-day-access (D9): a signed-in user with no grant, staff role,
-  // or entry is never shown the passcode form — they get an account-voiced
-  // explanatory state pointing at My Shows. The passcode prompt is reserved for
+  // or entry is never shown the passcode FORM — they get an account-voiced
+  // explanatory state pointing at My Shows. The form itself stays reserved for
   // anonymous / explicit `?passcode=1` flows (handled outside this gate).
-  it('gives a signed-in visitor with no entry an explanatory state, never a passcode prompt', () => {
+  it('gives a signed-in visitor with no entry an explanatory state, never the passcode form', () => {
     mockUser = { id: 'user-1' };
     mockRoles = [UserRole.EXHIBITOR];
     mockHasAnyEntry.hasAnyEntryForShow = false;
@@ -138,10 +138,38 @@ describe('AtShowAccessGate', () => {
 
     expect(screen.getByText("You don't have ringside access for this show.")).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /go to my shows/i })).toBeInTheDocument();
-    // No passcode affordance for authenticated users on this path.
-    expect(screen.queryByText(/enter passcode/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/passcode/i)).not.toBeInTheDocument();
-    expect(document.querySelector('a[href="/at-show?passcode=1"]')).not.toBeInTheDocument();
+    // The gate itself never renders a passcode INPUT — only a link into the
+    // explicit `?passcode=1` flow, asserted separately below.
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  // A signed-in exhibitor volunteering as a steward at a show they have no
+  // entry in lands on THIS branch (deep link from a ring QR or the secretary),
+  // and a passcode is their only route in. D9 originally withheld the link
+  // here while offering it on the entered-exhibitor branch, dead-ending the
+  // person most likely to be holding one.
+  it('offers a signed-in visitor with no entry a link into the passcode flow', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.hasAnyEntryForShow = false;
+
+    renderGate();
+
+    const passcodeLink = screen.getByRole('link', { name: /show-day passcode/i });
+    expect(passcodeLink).toHaveAttribute('href', '/at-show?passcode=1');
+  });
+
+  it('still offers the passcode link to an entered exhibitor visiting early', () => {
+    mockUser = { id: 'user-1' };
+    mockRoles = [UserRole.EXHIBITOR];
+    mockHasAnyEntry.hasAnyEntryForShow = true;
+
+    renderGate();
+
+    expect(screen.getByRole('link', { name: /show-day passcode/i })).toHaveAttribute(
+      'href',
+      '/at-show?passcode=1'
+    );
   });
 
   // Codex review round 3 (PR #1217): must not flash the deny copy while the

@@ -102,10 +102,7 @@ describe('SupportInboxPage', () => {
       'href',
       '/at-show/show-1'
     );
-    expect(screen.getByRole('link', { name: /Open sync monitoring/i })).toHaveAttribute(
-      'href',
-      '/admin/sync'
-    );
+    expect(screen.queryByRole('link', { name: /Open sync monitoring/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Open user access/i })).toHaveAttribute(
       'href',
       '/admin/users?userId=owner-1'

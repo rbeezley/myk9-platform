@@ -34,6 +34,10 @@ function isSafeInternalRoute(route: string | null): route is string {
   return route.startsWith('/') && !route.startsWith('//') && !route.includes('javascript:');
 }
 
+function isRetiredRoute(route: string): boolean {
+  return route === '/admin/sync';
+}
+
 function hasSyncIssue(ticket: SupportTicket): boolean {
   const replication = ticket.diagnostics.connectivity.replication;
   return (
@@ -84,7 +88,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
   const entryId = diagnostics.context.entryId;
   const userId = diagnostics.user.databaseUserId ?? diagnostics.user.authUserId;
 
-  if (isSafeInternalRoute(diagnostics.route)) {
+  if (isSafeInternalRoute(diagnostics.route) && !isRetiredRoute(diagnostics.route)) {
     addUnique(actions, {
       id: 'reported-route',
       label: 'Open reported page',
@@ -96,6 +100,8 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       label: 'Open reported route',
       href: diagnostics.route,
     });
+    addUnique(nextChecks, { id: 'health', label: 'Check system health', href: '/admin/health' });
+  } else if (diagnostics.route && isRetiredRoute(diagnostics.route)) {
     addUnique(nextChecks, { id: 'health', label: 'Check system health', href: '/admin/health' });
   }
 
@@ -127,13 +133,6 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
   }
 
   if (hasSyncIssue(ticket)) {
-    addUnique(actions, {
-      id: 'sync-monitoring',
-      label: 'Open sync monitoring',
-      description: 'Review device queues, conflicts, and sync errors.',
-      href: '/admin/sync',
-    });
-    addUnique(nextChecks, { id: 'sync', label: 'Review sync monitoring', href: '/admin/sync' });
     addUnique(nextChecks, { id: 'health', label: 'Check system health', href: '/admin/health' });
   }
 

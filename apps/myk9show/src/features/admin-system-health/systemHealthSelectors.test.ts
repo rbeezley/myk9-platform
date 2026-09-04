@@ -193,7 +193,7 @@ describe('statusToBadgeVariant', () => {
 });
 
 describe('getHealthCheckRemediation', () => {
-  it('routes sync checks to sync monitoring', () => {
+  it('routes sync checks to the existing support surface', () => {
     const remediation = getHealthCheckRemediation({
       key: 'replication_queue',
       label: 'Replication queue',
@@ -204,9 +204,9 @@ describe('getHealthCheckRemediation', () => {
     });
 
     expect(remediation).toMatchObject({
-      ownerLabel: 'Sync Monitoring',
-      actionLabel: 'Open Sync',
-      href: '/admin/sync',
+      ownerLabel: 'Support Inbox',
+      actionLabel: 'Open Support',
+      href: '/admin/support',
     });
   });
 

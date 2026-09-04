@@ -83,7 +83,7 @@ For reference — these support actions have working UI and don't need this docu
 | See shows & users         | `/admin/dashboard`, `/admin/users`                                                                                                                                |
 | Roles / access fixes      | `/admin/permissions/*`, `/admin/role-requests`                                                                                                                    |
 | Payments / payouts        | `/admin/payouts` (+ Stripe dashboard for failed-charge detail, per [`stripe-platform-setup.md`](stripe-platform-setup.md))                                        |
-| Sync / replication health | `/admin/sync`                                                                                                                                                     |
-| App health                | `/admin/health`, `/admin/sync`, `/admin/support`                                                                                                                  |
+| Sync / replication health | `/admin/support`                                                                                                                                                  |
+| App health                | `/admin/health`, `/admin/support`                                                                                                                                |
 | Deploy / migration health | [`ci-vercel-deploys.md`](ci-vercel-deploys.md), [`edge-function-deploy-drift-2026-06-23.md`](edge-function-deploy-drift-2026-06-23.md), `supabase migration list` |
 | Soft-delete restore       | `/admin/deleted-items`                                                                                                                                            |

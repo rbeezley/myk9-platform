@@ -102,7 +102,7 @@ describe('SupportInboxPage', () => {
       'href',
       '/at-show/show-1'
     );
-    expect(screen.getByRole('link', { name: /Open sync monitoring/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Open system health/i })).toHaveAttribute(
       'href',
       '/admin/health'
     );

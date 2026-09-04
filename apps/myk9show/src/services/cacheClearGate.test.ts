@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { acquireCacheClearWriteLock, beginCacheClear } from './cacheClearGate';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { acquireCacheClearWriteLock, beginCacheClear, withCacheClearLock } from './cacheClearGate';
 
 describe('cache clear gate', () => {
   beforeEach(() => {
@@ -32,5 +32,31 @@ describe('cache clear gate', () => {
     cacheClear!.release();
     const releaseWriter = acquireCacheClearWriteLock();
     releaseWriter();
+  });
+
+  it('uses an atomic exclusive Web Lock when the browser provides one', async () => {
+    const request = vi.fn(
+      async (_name: string, _options: unknown, callback: (lock: object) => unknown) => callback({})
+    );
+    const previousDescriptor = Object.getOwnPropertyDescriptor(navigator, 'locks');
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request },
+    });
+
+    try {
+      await expect(withCacheClearLock(() => 'cleared')).resolves.toBe('cleared');
+      expect(request).toHaveBeenCalledWith(
+        'myk9-cache-clear-lock',
+        { mode: 'exclusive', ifAvailable: true },
+        expect.any(Function)
+      );
+    } finally {
+      if (previousDescriptor) {
+        Object.defineProperty(navigator, 'locks', previousDescriptor);
+      } else {
+        delete (navigator as Navigator & { locks?: unknown }).locks;
+      }
+    }
   });
 });

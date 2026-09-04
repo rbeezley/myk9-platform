@@ -1,31 +1,25 @@
-const CACHE_CLEAR_LOCK_KEY = 'myk9-cache-clear-lock';
-const CACHE_CLEAR_LOCK_TTL_MS = 60_000;
+const CACHE_CLEAR_LOCK_NAME = 'myk9-cache-clear-lock';
+
+type LockManagerLike = {
+  request: <T>(
+    name: string,
+    options: { mode: 'exclusive' | 'shared'; ifAvailable?: boolean },
+    callback: (lock: object | null) => Promise<T> | T
+  ) => Promise<T>;
+};
 
 let cacheClearInProgress = false;
 let activeWriters = 0;
 let writersDrained: Promise<void> | null = null;
 let resolveWritersDrained: (() => void) | null = null;
 
-function readForeignLock(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-
-  try {
-    const raw = localStorage.getItem(CACHE_CLEAR_LOCK_KEY);
-    if (!raw) return false;
-    const lock = JSON.parse(raw) as { expiresAt?: unknown };
-    if (typeof lock.expiresAt !== 'number' || lock.expiresAt <= Date.now()) {
-      localStorage.removeItem(CACHE_CLEAR_LOCK_KEY);
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+function getLockManager(): LockManagerLike | undefined {
+  if (typeof navigator === 'undefined') return undefined;
+  return (navigator as Navigator & { locks?: LockManagerLike }).locks;
 }
 
-/** Acquire a synchronous write slot for work that cache clearing must not interrupt. */
-export function acquireCacheClearWriteLock(): () => void {
-  if (cacheClearInProgress || readForeignLock()) {
+function acquireLocalWriteLock(): () => void {
+  if (cacheClearInProgress) {
     throw new Error('Cache clearing is in progress');
   }
 
@@ -43,27 +37,18 @@ export function acquireCacheClearWriteLock(): () => void {
   };
 }
 
-/**
- * Block new local writes and wait for writes already in flight to finish.
- * Returns null when another tab is already clearing its cache.
- */
-export function beginCacheClear(): {
+/** Acquire a synchronous write slot for a local write/queue pair. */
+export function acquireCacheClearWriteLock(): () => void {
+  return acquireLocalWriteLock();
+}
+
+function beginLocalCacheClear(): {
   waitForWriters: () => Promise<void>;
   release: () => void;
 } | null {
-  if (cacheClearInProgress || readForeignLock()) return null;
+  if (cacheClearInProgress) return null;
 
   cacheClearInProgress = true;
-  const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  try {
-    localStorage.setItem(
-      CACHE_CLEAR_LOCK_KEY,
-      JSON.stringify({ token, expiresAt: Date.now() + CACHE_CLEAR_LOCK_TTL_MS })
-    );
-  } catch {
-    // The in-memory gate still protects this tab when storage is unavailable.
-  }
-
   return {
     waitForWriters: () => {
       if (activeWriters === 0) return Promise.resolve();
@@ -76,13 +61,49 @@ export function beginCacheClear(): {
     },
     release: () => {
       cacheClearInProgress = false;
-      try {
-        const raw = localStorage.getItem(CACHE_CLEAR_LOCK_KEY);
-        const lock = raw ? (JSON.parse(raw) as { token?: unknown }) : null;
-        if (lock?.token === token) localStorage.removeItem(CACHE_CLEAR_LOCK_KEY);
-      } catch {
-        // Best-effort cleanup; the TTL prevents a stale cross-tab lock.
-      }
     },
   };
+}
+
+/**
+ * Run a cache clear while holding a browser-level exclusive lock. Web Locks
+ * makes the cross-tab acquisition atomic; the in-memory fallback covers test
+ * environments and browsers without the API.
+ */
+export async function withCacheClearLock<T>(action: () => Promise<T> | T): Promise<T | null> {
+  const locks = getLockManager();
+  if (locks) {
+    return locks.request(
+      CACHE_CLEAR_LOCK_NAME,
+      { mode: 'exclusive', ifAvailable: true },
+      async lock => {
+        if (!lock) return null;
+        const gate = beginLocalCacheClear();
+        if (!gate) return null;
+        try {
+          await gate.waitForWriters();
+          return await action();
+        } finally {
+          gate.release();
+        }
+      }
+    );
+  }
+
+  const gate = beginLocalCacheClear();
+  if (!gate) return null;
+  try {
+    await gate.waitForWriters();
+    return await action();
+  } finally {
+    gate.release();
+  }
+}
+
+/** Legacy synchronous entry point for short local-only coordination. */
+export function beginCacheClear(): {
+  waitForWriters: () => Promise<void>;
+  release: () => void;
+} | null {
+  return beginLocalCacheClear();
 }

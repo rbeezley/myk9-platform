@@ -41,6 +41,8 @@ let cachedUploadContext:
 
 export const mutationManager = new MutationManager(supabase, {
   logger: replicationLogger,
+  // ReplicatedTable owns this slot across the local write and its queue call;
+  // keeping the callback here lets the base class coordinate the pair.
   acquireQueueMutationLock: acquireCacheClearWriteLock,
   getCurrentUserId: async () => {
     const { data, error } = await supabase.auth.getSession();

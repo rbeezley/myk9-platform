@@ -197,6 +197,11 @@ export class MutationManager {
     }
   }
 
+  /** Acquire the app-level write slot for a local-write/queue pair. */
+  acquireMutationWriteLock(): (() => void) | undefined {
+    return this.acquireQueueMutationLock?.();
+  }
+
   /**
    * Public trigger for a debounced upload. Used by callers that queued a
    * mutation with `scheduleUploadNow: false` and have now finished the dependent

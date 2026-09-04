@@ -32,11 +32,13 @@ beforeEach(() => {
 
 describe('DogSelectionStep', () => {
   // The 252-dog case renders the full list three times (initial, filtered,
-  // cleared) and types nine characters through it, which is the point of the
-  // case — it is why the search has to survive a long roster. Measured at ~5.3s
-  // in isolation on this machine and ~16s under `--coverage` alongside the rest
-  // of the file, so the 10s default cap fails it on any loaded runner. CI hit
-  // it on `main` from the moment it landed (#2004).
+  // cleared), which is the point of the case — it is why the search has to
+  // survive a long roster. It reddened `main` from the moment it landed (#2004)
+  // by exceeding vitest's 10s default, and was first stabilised by raising the
+  // cap alone. The cap is still here, but it no longer has to absorb an
+  // avoidable 6.7s: see the two comments inside for the costs that were removed.
+  // Measured under the repo's load recipe (`taskpolicy -b … --coverage`):
+  // 14,665ms before, 5,873ms after.
   it.each([3, 252])(
     'finds the last of %i dogs and preserves hidden selections',
     { timeout: 45000 },
@@ -52,10 +54,16 @@ describe('DogSelectionStep', () => {
       const { user, rerender } = render(
         <DogSelectionStep selectedDogs={['dog-1']} onSelectionChange={onSelectionChange} />
       );
-      await user.type(
-        screen.getByRole('textbox', { name: /search dogs by call name/i }),
-        '  wILLo  '
-      );
+      // PASTE rather than type. The query string is deliberately awkward — it
+      // pins trimming, case-insensitivity and substring matching in one go — but
+      // `user.type` delivers it a keystroke at a time and each keystroke
+      // re-renders the whole list. At count=252 that is nine full re-renders.
+      // `paste` produces ONE input event with the identical value, so every
+      // assertion below is unchanged; the component filters on the input's value,
+      // not on keystroke count, so no coverage is lost.
+      const searchBox = screen.getByRole('textbox', { name: /search dogs by call name/i });
+      searchBox.focus();
+      await user.paste('  wILLo  ');
       expect(screen.getAllByRole('checkbox')).toHaveLength(1);
       const willow = screen.getByRole('checkbox', { name: 'Select Willow' });
       willow.focus();
@@ -68,7 +76,19 @@ describe('DogSelectionStep', () => {
         />
       );
       await user.click(screen.getByRole('button', { name: 'Clear search' }));
-      expect(screen.getAllByRole('checkbox')).toHaveLength(count);
+      // Count via the DOM, not `getAllByRole('checkbox')`.
+      //
+      // This one line was 6,723ms of a 12.8s test at count=252 and is what
+      // actually reddened main (measured under `taskpolicy -b … --coverage`).
+      // Testing Library's role query runs an accessibility-visibility check per
+      // element, which is ~26ms each in jsdom; the DOM query is 11ms for all 252
+      // and returns the same 252. `{ hidden: true }` is fast (60ms) but WRONG
+      // here — it returns 504, counting the hidden inputs behind the styled ones.
+      //
+      // The accessible-name assertions below are deliberately kept as role
+      // queries: they are two lookups, not 252, and they carry the semantics that
+      // matter. This is only about counting rows.
+      expect(document.querySelectorAll('input[type="checkbox"]')).toHaveLength(count);
       expect(screen.getByRole('checkbox', { name: 'Select Buddy 1' })).toBeChecked();
       expect(screen.getByRole('checkbox', { name: 'Select Willow' })).toBeChecked();
     }

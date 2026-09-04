@@ -216,6 +216,22 @@ async function sweepRoutes(
     health.consoleErrors.length = 0;
     health.pageErrors.length = 0;
     health.failedResponses.length = 0;
+    // Including the in-flight API requests, which used to be the one piece of
+    // per-route state this block forgot. `page.goto` below tears down the
+    // current document, and a request still in flight when that happens may
+    // never emit `requestfinished` or `requestfailed` — so it sat in `pending`
+    // for the rest of the sweep and failed the settle assertion on every
+    // REMAINING route, always naming the same stranded URLs.
+    //
+    // That is what made Nightly Health look like a product bug: the failing
+    // ROLE migrated between runs (exhibitor 2026-09-01 and 09-03, secretary
+    // 09-04 with exhibitor clean), and closing it on one role's symptom did not
+    // stop it recurring. Run 33865556960 reported the identical two URLs as
+    // unsettled on all five failing secretary routes, one of them a three-id
+    // `people` read that cannot take five seconds five times in a row.
+    //
+    // Resetting here means a slow route is reported ONCE, against itself.
+    pendingAppApiRequests.reset();
 
     let navigationError: string | null = null;
     try {

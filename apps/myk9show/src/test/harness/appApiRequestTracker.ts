@@ -6,6 +6,22 @@ const DEFAULT_TIMEOUT_MS = 5000;
 export interface AppApiRequestTracker {
   pending: Set<Request>;
   lastActivityAt: number;
+  /**
+   * Forget everything currently in flight.
+   *
+   * Call this at a NAVIGATION BOUNDARY. A request whose document is torn down
+   * by `page.goto` may never emit `requestfinished` OR `requestfailed`, so it
+   * stays in `pending` for the life of the tracker. Since one tracker spans a
+   * whole role sweep, a single such request made every LATER route in that
+   * sweep fail the settle assertion — reporting the same stranded URLs over
+   * and over as though each route were broken.
+   *
+   * Resets `lastActivityAt` too. Without that, a tracker whose last activity
+   * was seconds ago on the previous route already satisfies the idle window,
+   * so an empty `pending` would report "settled" before the new route had
+   * issued a single request — trading a false failure for a false pass.
+   */
+  reset(): void;
 }
 
 export interface AppApiRequestSettlement {
@@ -22,6 +38,10 @@ export function watchAppApiRequests(page: Page) {
   const tracker: AppApiRequestTracker = {
     pending: new Set<Request>(),
     lastActivityAt: Date.now(),
+    reset() {
+      tracker.pending.clear();
+      tracker.lastActivityAt = Date.now();
+    },
   };
 
   const recordActivity = () => {

@@ -8,13 +8,30 @@ export function migrationVersion(file: string): string | null {
 }
 
 export function changedMigrationVersions(files: string[]): string[] {
-  return [...new Set(files.map(migrationVersion).filter((version): version is string => version !== null))].sort();
+  return [
+    ...new Set(
+      files.map(migrationVersion).filter((version): version is string => version !== null)
+    ),
+  ].sort();
+}
+
+export function currentBranchName(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME || undefined;
+}
+
+export function isCurrentBranchRef(ref: string, branchName: string | undefined): boolean {
+  if (!branchName) return false;
+  return ref === `refs/remotes/origin/${branchName}` || ref === `refs/heads/${branchName}`;
 }
 
 function changedMigrationFiles(): string[] {
   const baseRef = process.env.GITHUB_BASE_REF;
   const pushBase = process.env.GITHUB_EVENT_BEFORE;
-  const range = baseRef ? `origin/${baseRef}...HEAD` : pushBase ? `${pushBase}...HEAD` : 'HEAD^...HEAD';
+  const range = baseRef
+    ? `origin/${baseRef}...HEAD`
+    : pushBase
+      ? `${pushBase}...HEAD`
+      : 'HEAD^...HEAD';
   const output = execFileSync('git', ['diff', '--name-only', range, '--', 'supabase/migrations'], {
     cwd: repoRoot,
     encoding: 'utf8',
@@ -23,17 +40,27 @@ function changedMigrationFiles(): string[] {
 }
 
 function refsContainingMigrationVersion(version: string): string[] {
-  const refs = execFileSync('git', ['for-each-ref', '--format=%(refname)', 'refs/remotes', 'refs/heads'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  }).split('\n').filter(Boolean);
-
-  return refs.filter((ref) => {
-    const files = execFileSync('git', ['ls-tree', '-r', '--name-only', ref, '--', 'supabase/migrations'], {
+  const refs = execFileSync(
+    'git',
+    ['for-each-ref', '--format=%(refname)', 'refs/remotes', 'refs/heads'],
+    {
       cwd: repoRoot,
       encoding: 'utf8',
-    });
-    return files.split('\n').some((file) => migrationVersion(file) === version);
+    }
+  )
+    .split('\n')
+    .filter(Boolean);
+
+  return refs.filter(ref => {
+    const files = execFileSync(
+      'git',
+      ['ls-tree', '-r', '--name-only', ref, '--', 'supabase/migrations'],
+      {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      }
+    );
+    return files.split('\n').some(file => migrationVersion(file) === version);
   });
 }
 
@@ -44,31 +71,46 @@ function liveMigrationCount(version: string): number {
   }
 
   const sql = `select count(*) from supabase_migrations.schema_migrations where version = '${version}';`;
-  const result = execFileSync('psql', [databaseUrl, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', sql], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit'],
-  }).trim();
+  const result = execFileSync(
+    'psql',
+    [databaseUrl, '-X', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', sql],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit'],
+    }
+  ).trim();
   const count = Number(result);
-  if (!Number.isInteger(count)) throw new Error(`Unexpected migration count for ${version}: ${result}`);
+  if (!Number.isInteger(count))
+    throw new Error(`Unexpected migration count for ${version}: ${result}`);
   return count;
 }
 
 export function runGuard(files: string[]): string[] {
   const versions = changedMigrationVersions(files);
   const errors: string[] = [];
-  const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+  const headSha = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  }).trim();
+  const branchName = currentBranchName();
 
   for (const version of versions) {
-    const refs = refsContainingMigrationVersion(version).filter((ref) => {
-      const refSha = execFileSync('git', ['rev-parse', ref], { cwd: repoRoot, encoding: 'utf8' }).trim();
+    const refs = refsContainingMigrationVersion(version).filter(ref => {
+      if (isCurrentBranchRef(ref, branchName)) return false;
+      const refSha = execFileSync('git', ['rev-parse', ref], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+      }).trim();
       return refSha !== headSha;
     });
     if (refs.length > 0) {
       errors.push(`migration version ${version} also exists on: ${refs.join(', ')}`);
     }
     if (liveMigrationCount(version) > 0) {
-      errors.push(`migration version ${version} already exists in supabase_migrations.schema_migrations`);
+      errors.push(
+        `migration version ${version} already exists in supabase_migrations.schema_migrations`
+      );
     }
   }
 
@@ -88,9 +130,13 @@ if (process.argv[1]?.endsWith('migration-version-guard.ts')) {
       console.error(['Migration version guard failed:', ...errors].join('\n'));
       process.exit(1);
     }
-    console.log(`Migration version guard passed for ${changedMigrationVersions(files).join(', ')}.`);
+    console.log(
+      `Migration version guard passed for ${changedMigrationVersions(files).join(', ')}.`
+    );
   } catch (error) {
-    console.error(`Migration version guard could not complete: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `Migration version guard could not complete: ${error instanceof Error ? error.message : String(error)}`
+    );
     process.exit(1);
   }
 }

@@ -28,6 +28,10 @@ describe('isExpectedEntry', () => {
     expect(isExpectedEntry({ entry_status: status })).toBe(false);
   });
 
+  it('excludes an entry whose lifecycle was marked absent', () => {
+    expect(isExpectedEntry({ entry_status: 'absent', is_scored: false })).toBe(false);
+  });
+
   // MYK9-330. A move-up leaves the SOURCE row live in its original class at
   // entry_status='moved' (showMapActionMutations creates the destination entry,
   // then marks the original — deliberately not soft-deleted). Counting it as

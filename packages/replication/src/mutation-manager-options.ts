@@ -18,4 +18,8 @@ export interface MutationManagerOptions {
   getCurrentUserId?: () => Promise<string | null>;
   /** Resolve a request client pinned to the same auth session as its owner id. */
   getCurrentUploadContext?: () => Promise<MutationUploadAuthContext | null>;
+  /** Acquire a synchronous app-level write slot before queueing a mutation. */
+  acquireQueueMutationLock?: () => () => void;
+  /** Acquire an async cross-tab-safe write slot before a local write/queue pair. */
+  acquireQueueMutationLockAsync?: () => Promise<() => void>;
 }

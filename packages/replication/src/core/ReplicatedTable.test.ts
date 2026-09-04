@@ -36,6 +36,14 @@ class TestReplicatedTable extends ReplicatedTable<TestEntity> {
   protected override getLegacyOmittedKeysServerWins(): readonly string[] | undefined {
     return this.legacyOmittedKeysServerWins;
   }
+
+  async queueTestMutation(rowId: string): Promise<string | null> {
+    return this.queueMutation('UPDATE', rowId, { id: rowId });
+  }
+
+  async queueDeferredTestMutation(rowId: string): Promise<string | null> {
+    return this.queueMutation('UPDATE', rowId, { id: rowId }, undefined, undefined, true);
+  }
 }
 
 describe('ReplicatedTable', () => {
@@ -106,6 +114,44 @@ describe('ReplicatedTable', () => {
       // Row should be retrievable (dirty rows don't expire)
       const result = await table.get('1');
       expect(result).not.toBeNull();
+    });
+
+    it('holds the write slot from a dirty cache write through queue persistence', async () => {
+      const release = vi.fn();
+      const manager = {
+        acquireMutationWriteLock: vi.fn(() => release),
+        queueMutation: vi.fn(async () => 'mutation-1'),
+      };
+      table.setMutationManager(manager as unknown as import('../MutationManager').MutationManager);
+
+      await table.set('1', { id: '1', name: 'Rex' }, true);
+      expect(release).not.toHaveBeenCalled();
+
+      await expect(table.queueTestMutation('1')).resolves.toBe('mutation-1');
+      expect(release).toHaveBeenCalledOnce();
+    });
+
+    it('matches concurrent deferred mutations with distinct retained write slots', async () => {
+      const releaseFirst = vi.fn();
+      const releaseSecond = vi.fn();
+      const manager = {
+        acquireMutationWriteLock: vi
+          .fn()
+          .mockReturnValueOnce(releaseFirst)
+          .mockReturnValueOnce(releaseSecond),
+        queueMutation: vi.fn(async () => 'mutation-1'),
+      };
+      table.setMutationManager(manager as unknown as import('../MutationManager').MutationManager);
+
+      await Promise.all([
+        table.queueDeferredTestMutation('1'),
+        table.queueDeferredTestMutation('1'),
+      ]);
+      await table.set('1', { id: '1', name: 'Rex' }, true);
+      await table.set('1', { id: '1', name: 'Rex Jr.' }, true);
+
+      expect(releaseFirst).toHaveBeenCalledOnce();
+      expect(releaseSecond).toHaveBeenCalledOnce();
     });
 
     // Regression: getReplicatedRow's access-tracking write must NOT clobber a

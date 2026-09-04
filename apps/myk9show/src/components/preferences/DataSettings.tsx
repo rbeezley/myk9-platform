@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { useOfflineScoringStore } from '@/store/offlineScoringStore';
+import { withCacheClearLock } from '@/services/cacheClearGate';
 import { decideClearCache } from './clearCacheGuard';
 
 const CACHE_KEYS_TO_CLEAR = [
@@ -92,15 +93,20 @@ export function DataSettings() {
     setIsChecking(true);
     setCheckError(null);
     try {
-      const decision = await inspectPendingWork();
+      const result = await withCacheClearLock(async () => {
+        const decision = await inspectPendingWork();
+        if (!decision.allowed) {
+          setIsConfirmOpen(false);
+          setPendingCount(decision.pendingCount);
+          return false;
+        }
 
-      if (!decision.allowed) {
-        setIsConfirmOpen(false);
-        setPendingCount(decision.pendingCount);
-        return;
+        clearCache();
+        return true;
+      });
+      if (result === null) {
+        setCheckError('Another cache clear is already in progress. Try again in a moment.');
       }
-
-      clearCache();
     } catch {
       setIsConfirmOpen(false);
       setPendingCount(0);

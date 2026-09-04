@@ -6,7 +6,7 @@
  * uses to auto-derive class completion:
  *
  *   expected  = entry_status NOT IN ('scratched','withdrawn','moved',
- *                                   'not_accepted')
+ *                                   'not_accepted','absent')
  *               AND check_in_status IS DISTINCT FROM 'pulled'
  *   accounted = is_scored = true OR result_status IN ('absent','excused')
  *   complete  = expected > 0 AND accounted = expected
@@ -29,6 +29,9 @@
  * original `moved` — deliberately not soft-deleted, so the exhibitor can still
  * see where the run came from), so it sat in the expected set forever, was
  * never scored, and the class could never reach `accounted === expected`.
+ *
+ * `absent` is also terminal when it appears in `entry_status`; the server
+ * rollup now excludes it from the expected denominator (MYK9-356).
  *
  * `cancelled` was dropped in the same change: `entries_entry_status_check` has
  * never permitted it, so it only made this list look longer than the rule.

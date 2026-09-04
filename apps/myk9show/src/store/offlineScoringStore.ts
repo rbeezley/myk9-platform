@@ -1,12 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
-import type { 
-  ScoringSession, 
-  JudgeScore
-} from '@/types/scoring-types';
+import type { ScoringSession, JudgeScore } from '@/types/scoring-types';
 import type { SyncQueueItem } from '@/services/sync/types';
 import { generateId } from '@/utils/idUtils';
+import { withCacheClearWriteLock } from '@/services/cacheClearGate';
 
 interface OfflineScoringStore {
   // State
@@ -64,93 +62,115 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
       error: null,
       warnings: [],
       entryOrder: [],
-      
+
       // Session management
-      createSession: (session) => set((state) => ({
-        sessions: { ...state.sessions, [session.id]: session }
-      })),
-      
-      updateSession: (sessionId, updates) => set((state) => ({
-        sessions: {
-          ...state.sessions,
-          [sessionId]: { ...state.sessions[sessionId], ...updates }
-        }
-      })),
-      
-      deleteSession: (sessionId) => set((state) => {
-        const { [sessionId]: _removed, ...sessions } = state.sessions;
-        void _removed; // Suppress unused variable warning
-        return { sessions };
-      }),
-      
+      createSession: session =>
+        set(state => ({
+          sessions: { ...state.sessions, [session.id]: session },
+        })),
+
+      updateSession: (sessionId, updates) =>
+        set(state => ({
+          sessions: {
+            ...state.sessions,
+            [sessionId]: { ...state.sessions[sessionId], ...updates },
+          },
+        })),
+
+      deleteSession: sessionId =>
+        set(state => {
+          const { [sessionId]: _removed, ...sessions } = state.sessions;
+          void _removed; // Suppress unused variable warning
+          return { sessions };
+        }),
+
       // Score management
-      addScore: (classId, score) => set((state) => ({
-        scores: {
-          ...state.scores,
-          [classId]: [...(state.scores[classId] || []), score]
-        }
-      })),
-      
-      updateScore: (classId, scoreId, updates) => set((state) => ({
-        scores: {
-          ...state.scores,
-          [classId]: (state.scores[classId] || []).map(score =>
-            score.id === scoreId ? { ...score, ...updates } : score
-          )
-        }
-      })),
-      
-      deleteScore: (classId, scoreId) => set((state) => ({
-        scores: {
-          ...state.scores,
-          [classId]: (state.scores[classId] || []).filter(score => score.id !== scoreId)
-        }
-      })),
-      
+      addScore: async (classId, score) => {
+        await withCacheClearWriteLock(() => {
+          set(state => ({
+            scores: {
+              ...state.scores,
+              [classId]: [...(state.scores[classId] || []), score],
+            },
+          }));
+        });
+      },
+
+      updateScore: async (classId, scoreId, updates) => {
+        await withCacheClearWriteLock(() => {
+          set(state => ({
+            scores: {
+              ...state.scores,
+              [classId]: (state.scores[classId] || []).map(score =>
+                score.id === scoreId ? { ...score, ...updates } : score
+              ),
+            },
+          }));
+        });
+      },
+
+      deleteScore: async (classId, scoreId) => {
+        await withCacheClearWriteLock(() => {
+          set(state => ({
+            scores: {
+              ...state.scores,
+              [classId]: (state.scores[classId] || []).filter(score => score.id !== scoreId),
+            },
+          }));
+        });
+      },
+
       // Sync queue management
-      addToSyncQueue: (item) => set((state) => ({
-        syncQueue: [...state.syncQueue, item]
-      })),
-      
-      removeFromSyncQueue: (itemId) => set((state) => ({
-        syncQueue: state.syncQueue.filter(item => item.id !== itemId)
-      })),
-      
-      updateSyncQueueItem: (itemId, updates) => set((state) => ({
-        syncQueue: state.syncQueue.map(item =>
-          item.id === itemId ? { ...item, ...updates } : item
-        )
-      })),
-      
+      addToSyncQueue: async item => {
+        await withCacheClearWriteLock(() => {
+          set(state => ({
+            syncQueue: [...state.syncQueue, item],
+          }));
+        });
+      },
+
+      removeFromSyncQueue: itemId =>
+        set(state => ({
+          syncQueue: state.syncQueue.filter(item => item.id !== itemId),
+        })),
+
+      updateSyncQueueItem: (itemId, updates) =>
+        set(state => ({
+          syncQueue: state.syncQueue.map(item =>
+            item.id === itemId ? { ...item, ...updates } : item
+          ),
+        })),
+
       // Utility actions
-      setOfflineMode: (isOffline) => set({ isOffline }),
-      
-      clearAllData: () => set({
-        sessions: {},
-        scores: {},
-        syncQueue: [],
-        isOffline: false,
-        error: null,
-        warnings: [],
-        entryOrder: [],
-      }),
-      
+      setOfflineMode: isOffline => set({ isOffline }),
+
+      clearAllData: () =>
+        set({
+          sessions: {},
+          scores: {},
+          syncQueue: [],
+          isOffline: false,
+          error: null,
+          warnings: [],
+          entryOrder: [],
+        }),
+
       // Selectors
-      getSessionsByJudge: (judgeId) => {
+      getSessionsByJudge: judgeId => {
         const state = get();
         return Object.values(state.sessions).filter(session => session.judgeId === judgeId);
       },
-      
-      getScoresByClass: (classId) => {
+
+      getScoresByClass: classId => {
         const state = get();
         return state.scores[classId] || [];
       },
-      
+
       getPendingSyncItems: () => {
         const state = get();
         return state.syncQueue.filter(item => item.status === 'pending');
       },
-      
+
       // Additional methods implementation
       startJudgingSession: (classId, judgeId) => {
         const session: ScoringSession = {
@@ -167,14 +187,14 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
           isOffline: get().isOffline,
           pendingSync: [],
         };
-        set((state) => ({
+        set(state => ({
           sessions: { ...state.sessions, [session.id]: session },
           error: null,
         }));
       },
-      
-      endJudgingSession: (sessionId) => {
-        set((state) => ({
+
+      endJudgingSession: sessionId => {
+        set(state => ({
           sessions: {
             ...state.sessions,
             [sessionId]: {
@@ -186,10 +206,10 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
           },
         }));
       },
-      
-      advanceWorkflowStep: (sessionId) => {
+
+      advanceWorkflowStep: sessionId => {
         const WORKFLOW_STEPS = ['setup', 'entry_list', 'scoring', 'review', 'completed'];
-        set((state) => {
+        set(state => {
           const session = state.sessions[sessionId];
           if (!session) return state;
           const currentIdx = WORKFLOW_STEPS.indexOf(session.workflowStep || 'setup');
@@ -202,20 +222,20 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
           };
         });
       },
-      
+
       setCurrentEntry: (sessionId, entryId) => {
-        set((state) => ({
+        set(state => ({
           sessions: {
             ...state.sessions,
             [sessionId]: {
               ...state.sessions[sessionId],
-              currentEntryId: entryId
-            }
-          }
+              currentEntryId: entryId,
+            },
+          },
         }));
       },
-      
-      getNextEntry: (currentEntryId) => {
+
+      getNextEntry: currentEntryId => {
         const state = get();
         const order = state.entryOrder;
         if (order.length === 0) return null;
@@ -223,45 +243,48 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         if (currentIdx === -1 || currentIdx >= order.length - 1) return null;
         return order[currentIdx + 1];
       },
-      
-      submitScore: (classId, score) => {
-        set((state) => {
-          // Add the score
-          const updatedScores = {
-            ...state.scores,
-            [classId]: [...(state.scores[classId] || []), score],
-          };
 
-          // Mark entry as completed in the active session
-          const updatedSessions = { ...state.sessions };
-          const activeSession = Object.values(updatedSessions).find(
-            s => s.status === 'active' && s.classId === classId,
-          );
-          if (activeSession && !activeSession.completedEntries.includes(score.entryId)) {
-            updatedSessions[activeSession.id] = {
-              ...activeSession,
-              completedEntries: [...activeSession.completedEntries, score.entryId],
+      submitScore: async (classId, score) => {
+        await withCacheClearWriteLock(() => {
+          set(state => {
+            // Add the score
+            const updatedScores = {
+              ...state.scores,
+              [classId]: [...(state.scores[classId] || []), score],
             };
-          }
 
-          return { scores: updatedScores, sessions: updatedSessions };
+            // Mark entry as completed in the active session
+            const updatedSessions = { ...state.sessions };
+            const activeSession = Object.values(updatedSessions).find(
+              s => s.status === 'active' && s.classId === classId
+            );
+            if (activeSession && !activeSession.completedEntries.includes(score.entryId)) {
+              updatedSessions[activeSession.id] = {
+                ...activeSession,
+                completedEntries: [...activeSession.completedEntries, score.entryId],
+              };
+            }
+
+            return { scores: updatedScores, sessions: updatedSessions };
+          });
         });
       },
-      
-      setError: (error) => set({ error }),
 
-      addWarning: (warning) => set((state) => ({
-        warnings: [...state.warnings, warning],
-      })),
+      setError: error => set({ error }),
+
+      addWarning: warning =>
+        set(state => ({
+          warnings: [...state.warnings, warning],
+        })),
 
       clearWarnings: () => set({ warnings: [] }),
 
-      setEntryOrder: (entryIds) => set({ entryOrder: entryIds })
+      setEntryOrder: entryIds => set({ entryOrder: entryIds }),
     }),
     {
       name: 'myk9show-offline-scoring-storage',
       storage: createJSONStorage(() => getOptimalStorage('offlineScoring')),
-      version: 1
+      version: 1,
     }
   )
 );

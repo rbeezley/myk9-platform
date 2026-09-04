@@ -122,6 +122,12 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   /** MutationManager reference (set by app at startup) */
   private mutationManager: MutationManager | null = null;
+  /** Locks acquired before dirty cache writes are released after queueing. */
+  private readonly pendingWriteLocks = new Map<string, Array<() => void>>();
+  /** Rows whose mutation was queued first with deferUpload=true. */
+  private readonly deferredMutationRows = new Map<string, number>();
+  /** Queue locks retained until the dependent deferred dirty writes complete. */
+  private readonly deferredWriteLocks = new Map<string, Array<() => void>>();
 
   /**
    * Connect this table to a MutationManager for mutation upload.
@@ -198,30 +204,59 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return null;
     }
 
-    // Capture the server-side version for OCC precondition on UPDATE — but only
-    // when conflict surfacing is enabled. When the flag is off, no precondition is
-    // attached and last-write-wins behavior is preserved end-to-end (the kill-switch
-    // contract documented in syncReplicatedTable.ts).
-    let serverVersion: number | undefined;
-    if (operation === 'UPDATE' && isConflictSurfacingEnabled()) {
-      const db = await databaseManager.getDatabase(this.tableName);
-      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
-        this.tableName,
-        String(rowId),
-      ])) as ReplicatedRow<unknown> | undefined;
-      serverVersion = row?.serverVersion;
+    const lockKey = String(rowId);
+    if (deferUpload) {
+      this.deferredMutationRows.set(lockKey, (this.deferredMutationRows.get(lockKey) ?? 0) + 1);
     }
+    const pendingLocks = this.pendingWriteLocks.get(lockKey);
+    const releaseLocalWriteLock = pendingLocks?.shift();
+    if (pendingLocks && pendingLocks.length === 0) this.pendingWriteLocks.delete(lockKey);
+    const releaseQueueLock =
+      releaseLocalWriteLock ?? (await this.mutationManager.acquireMutationWriteLock?.());
+    const retainQueueLockForDeferredWrite = deferUpload && releaseQueueLock !== undefined;
+    let queueSucceeded = false;
 
-    return this.mutationManager.queueMutation(
-      this.tableName,
-      operation,
-      rowId,
-      supabasePayload,
-      dependsOn,
-      serverVersion,
-      rpc,
-      !deferUpload
-    );
+    try {
+      // Capture the server-side version for OCC precondition on UPDATE — but only
+      // when conflict surfacing is enabled. When the flag is off, no precondition is
+      // attached and last-write-wins behavior is preserved end-to-end (the kill-switch
+      // contract documented in syncReplicatedTable.ts).
+      let serverVersion: number | undefined;
+      if (operation === 'UPDATE' && isConflictSurfacingEnabled()) {
+        const db = await databaseManager.getDatabase(this.tableName);
+        const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+          this.tableName,
+          String(rowId),
+        ])) as ReplicatedRow<unknown> | undefined;
+        serverVersion = row?.serverVersion;
+      }
+
+      const mutationId = await this.mutationManager.queueMutation(
+        this.tableName,
+        operation,
+        rowId,
+        supabasePayload,
+        dependsOn,
+        serverVersion,
+        rpc,
+        !deferUpload
+      );
+      queueSucceeded = true;
+      return mutationId;
+    } finally {
+      if (!queueSucceeded && deferUpload) {
+        const deferredCount = this.deferredMutationRows.get(lockKey) ?? 0;
+        if (deferredCount <= 1) this.deferredMutationRows.delete(lockKey);
+        else this.deferredMutationRows.set(lockKey, deferredCount - 1);
+      }
+      if (queueSucceeded && retainQueueLockForDeferredWrite) {
+        const locks = this.deferredWriteLocks.get(lockKey) ?? [];
+        locks.push(releaseQueueLock);
+        this.deferredWriteLocks.set(lockKey, locks);
+      } else {
+        releaseQueueLock?.();
+      }
+    }
   }
 
   /**
@@ -361,13 +396,38 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     expectedVersion?: number,
     incomingServerVersion?: number
   ): Promise<void> {
+    const lockKey = String(id);
+    const deferredCount = this.deferredMutationRows.get(lockKey) ?? 0;
+    const deferred = isDirty && deferredCount > 0;
+    if (deferred) {
+      if (deferredCount === 1) this.deferredMutationRows.delete(lockKey);
+      else this.deferredMutationRows.set(lockKey, deferredCount - 1);
+    }
+    const deferredLocks = this.deferredWriteLocks.get(lockKey);
+    const deferredWriteLock = deferred ? deferredLocks?.shift() : undefined;
+    if (deferredLocks && deferredLocks.length === 0) this.deferredWriteLocks.delete(lockKey);
+    const releaseWriteLock =
+      deferredWriteLock ??
+      (isDirty && !deferred ? await this.mutationManager?.acquireMutationWriteLock?.() : undefined);
     // Wrap the write so a storage-quota abort triggers eviction + one retry
     // rather than escaping as an unhandled "AbortError: QuotaExceededError".
-    await withQuotaEviction(
-      () => this.setOnce(id, data, isDirty, expectedVersion, incomingServerVersion),
-      () => this.relieveQuota(),
-      this.logger
-    );
+    try {
+      await withQuotaEviction(
+        () => this.setOnce(id, data, isDirty, expectedVersion, incomingServerVersion),
+        () => this.relieveQuota(),
+        this.logger
+      );
+      if (deferredWriteLock) {
+        deferredWriteLock();
+      } else if (releaseWriteLock) {
+        const locks = this.pendingWriteLocks.get(lockKey) ?? [];
+        locks.push(releaseWriteLock);
+        this.pendingWriteLocks.set(lockKey, locks);
+      }
+    } catch (error) {
+      releaseWriteLock?.();
+      throw error;
+    }
   }
 
   /** Single attempt of {@link set}; opens its own transaction so it is safe to retry. */

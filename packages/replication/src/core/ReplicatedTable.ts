@@ -125,9 +125,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   /** Locks acquired before dirty cache writes are released after queueing. */
   private readonly pendingWriteLocks = new Map<string, Array<() => void>>();
   /** Rows whose mutation was queued first with deferUpload=true. */
-  private readonly deferredMutationRows = new Set<string>();
-  /** Queue locks retained until the dependent deferred dirty write completes. */
-  private readonly deferredWriteLocks = new Map<string, () => void>();
+  private readonly deferredMutationRows = new Map<string, number>();
+  /** Queue locks retained until the dependent deferred dirty writes complete. */
+  private readonly deferredWriteLocks = new Map<string, Array<() => void>>();
 
   /**
    * Connect this table to a MutationManager for mutation upload.
@@ -205,7 +205,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
 
     const lockKey = String(rowId);
-    if (deferUpload) this.deferredMutationRows.add(lockKey);
+    if (deferUpload) {
+      this.deferredMutationRows.set(lockKey, (this.deferredMutationRows.get(lockKey) ?? 0) + 1);
+    }
     const pendingLocks = this.pendingWriteLocks.get(lockKey);
     const releaseLocalWriteLock = pendingLocks?.shift();
     if (pendingLocks && pendingLocks.length === 0) this.pendingWriteLocks.delete(lockKey);
@@ -242,9 +244,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       queueSucceeded = true;
       return mutationId;
     } finally {
-      if (!queueSucceeded && deferUpload) this.deferredMutationRows.delete(lockKey);
+      if (!queueSucceeded && deferUpload) {
+        const deferredCount = this.deferredMutationRows.get(lockKey) ?? 0;
+        if (deferredCount <= 1) this.deferredMutationRows.delete(lockKey);
+        else this.deferredMutationRows.set(lockKey, deferredCount - 1);
+      }
       if (queueSucceeded && retainQueueLockForDeferredWrite) {
-        this.deferredWriteLocks.set(lockKey, releaseQueueLock);
+        const locks = this.deferredWriteLocks.get(lockKey) ?? [];
+        locks.push(releaseQueueLock);
+        this.deferredWriteLocks.set(lockKey, locks);
       } else {
         releaseQueueLock?.();
       }
@@ -389,9 +397,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     incomingServerVersion?: number
   ): Promise<void> {
     const lockKey = String(id);
-    const deferred = isDirty && this.deferredMutationRows.delete(lockKey);
-    const deferredWriteLock = deferred ? this.deferredWriteLocks.get(lockKey) : undefined;
-    if (deferredWriteLock) this.deferredWriteLocks.delete(lockKey);
+    const deferredCount = this.deferredMutationRows.get(lockKey) ?? 0;
+    const deferred = isDirty && deferredCount > 0;
+    if (deferred) {
+      if (deferredCount === 1) this.deferredMutationRows.delete(lockKey);
+      else this.deferredMutationRows.set(lockKey, deferredCount - 1);
+    }
+    const deferredLocks = this.deferredWriteLocks.get(lockKey);
+    const deferredWriteLock = deferred ? deferredLocks?.shift() : undefined;
+    if (deferredLocks && deferredLocks.length === 0) this.deferredWriteLocks.delete(lockKey);
     const releaseWriteLock =
       deferredWriteLock ??
       (isDirty && !deferred ? await this.mutationManager?.acquireMutationWriteLock?.() : undefined);

@@ -11,7 +11,6 @@ import {
   CreditCard,
   Users,
 } from 'lucide-react';
-// import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import { useEntryStore } from '@/store/entryStore';
 // import type { SyncableShowEntry, EntryStatus } from '@/store/entryStore';
 

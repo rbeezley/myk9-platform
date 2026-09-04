@@ -70,13 +70,6 @@ export interface TrendPoint {
   qualificationRate: number;
 }
 
-export interface CleanSweepDog {
-  dogId: string;
-  dogCallName: string;
-  totalEntries: number;
-  qualifiedCount: number;
-}
-
 export function isScored(entry: StatsEntry): boolean {
   return entry.resultText !== 'pending';
 }
@@ -341,16 +334,4 @@ export function computeClassBreakdown(entries: StatsEntry[]): ClassBreakdownEntr
     if (elCompare !== 0) return elCompare;
     return (a.classLevel || '').localeCompare(b.classLevel || '');
   });
-}
-
-/** @deprecated Use `computePerDogStats(entries).filter(d => d.isCleanSweep)` instead */
-export function findCleanSweepDogs(entries: StatsEntry[]): CleanSweepDog[] {
-  return computePerDogStats(entries)
-    .filter(d => d.isCleanSweep)
-    .map(d => ({
-      dogId: d.dogId,
-      dogCallName: d.dogCallName,
-      totalEntries: d.entries,
-      qualifiedCount: d.qualifiedCount,
-    }));
 }

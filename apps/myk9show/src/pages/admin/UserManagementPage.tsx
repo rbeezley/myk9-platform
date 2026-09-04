@@ -124,10 +124,26 @@ const UserManagementPage: React.FC = () => {
     refetch,
     fetchStatus,
   } = useAdminUsersQuery(filters.showDeleted);
-  // Offline with nothing cached: React Query parks the request (`paused`)
-  // with isLoading true and error null, so without this the page shows a
-  // skeleton forever and neither the error state nor content can appear.
-  const isOfflineColdLoad = isLoading && fetchStatus === 'paused';
+  // The roster is unavailable for want of a network. TWO states mean that, and
+  // an admin should not be able to tell them apart:
+  //
+  //   fetchStatus 'paused'   connectivity dropped while this page was open
+  //   error while offline    the device had no signal when the request went out
+  //
+  // This was previously `isLoading && fetchStatus === 'paused'`, which is
+  // unsatisfiable: query-core derives `isFetching = fetchStatus === 'fetching'`
+  // and `isLoading = isPending && isFetching`, so `isLoading` and `paused` are
+  // mutually exclusive by construction. The calm state below could never render.
+  //
+  // The comment it carried ("React Query parks the request with isLoading true")
+  // was also wrong about the cold-boot case it named. `onlineManager` starts
+  // optimistic and only changes on a window online/offline EVENT, so a page that
+  // BOOTS with no signal never pauses — it fetches, fails, and errors. Measured
+  // on /admin/users: fetchStatus went 'fetching' → 'idle' with error set, and
+  // the admin got a raw "TypeError: Failed to fetch" (MYK9-365).
+  const hasNoRoster = users.length === 0;
+  const isDeviceOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+  const isRosterOffline = hasNoRoster && (fetchStatus === 'paused' || (!!error && isDeviceOffline));
   const updateUserMutation = useUpdateUserMutation();
 
   // Filter, sort, then paginate — in that order, so a sort covers every match
@@ -324,7 +340,7 @@ const UserManagementPage: React.FC = () => {
   return (
     <PageShell>
       {/* Error state */}
-      {error && !isLoading && (
+      {error && !isLoading && !isRosterOffline && (
         <ErrorState
           message="Failed to load users."
           description={getUserFriendlyError(error, 'Check your connection and try again.')}
@@ -333,7 +349,7 @@ const UserManagementPage: React.FC = () => {
       )}
 
       {/* Offline before the roster ever loaded — calm, not alarming */}
-      {!error && isOfflineColdLoad && (
+      {isRosterOffline && (
         <ErrorState
           message="Waiting for a connection"
           description="The user roster loads over the network. It will appear automatically once you're back online."
@@ -342,7 +358,7 @@ const UserManagementPage: React.FC = () => {
       )}
 
       {/* Normal content */}
-      {!error && !isOfflineColdLoad && (
+      {!error && !isRosterOffline && (
         <>
           <PageHeader
             breadcrumbs={breadcrumbs}

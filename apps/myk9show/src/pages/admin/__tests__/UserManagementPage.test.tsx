@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -26,6 +26,7 @@ let mockQueryReturn: {
   isLoading: boolean;
   error: Error | null;
   refetch: ReturnType<typeof vi.fn>;
+  fetchStatus?: 'fetching' | 'paused' | 'idle';
 } = {
   data: [makeUser()],
   isLoading: false,
@@ -205,5 +206,75 @@ describe('UserManagementPage (shared primitives migration)', () => {
 
     expect(screen.getByText('No users match your filters')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /clear filters/i })).toBeInTheDocument();
+  });
+  // MYK9-365. This block was unreachable before: the condition was
+  // `isLoading && fetchStatus === 'paused'`, and query-core derives
+  // `isFetching = fetchStatus === 'fetching'` with `isLoading = isPending &&
+  // isFetching`, so those two can never hold together. The calm offline state
+  // could not render, and a cold offline boot showed the admin a raw
+  // "TypeError: Failed to fetch" instead (measured on /admin/users).
+  describe('offline roster', () => {
+    const setOnLine = (value: boolean) =>
+      Object.defineProperty(window.navigator, 'onLine', {
+        get: () => value,
+        configurable: true,
+      });
+
+    afterEach(() => setOnLine(true));
+
+    it('shows the calm waiting state when the query is paused with no roster', () => {
+      mockQueryReturn = { ...mockQueryReturn, data: [], fetchStatus: 'paused' };
+
+      renderPage();
+
+      expect(screen.getByText('Waiting for a connection')).toBeInTheDocument();
+      expect(screen.queryByText('Failed to load users.')).not.toBeInTheDocument();
+    });
+
+    // The case that actually happens on a device with no signal: the request
+    // goes out, fails, and lands in `error` — `onlineManager` starts optimistic
+    // so nothing ever pauses on a cold boot.
+    it('shows the calm waiting state when the read failed and the device is offline', () => {
+      setOnLine(false);
+      mockQueryReturn = {
+        ...mockQueryReturn,
+        data: [],
+        error: new Error('TypeError: Failed to fetch'),
+        fetchStatus: 'idle',
+      };
+
+      renderPage();
+
+      expect(screen.getByText('Waiting for a connection')).toBeInTheDocument();
+      expect(screen.queryByText('Failed to load users.')).not.toBeInTheDocument();
+    });
+
+    // Positive control for the two above: an ONLINE failure must still read as a
+    // real error, or "calm state shown" would prove nothing about being offline.
+    it('still shows the real error when the read failed while online', () => {
+      setOnLine(true);
+      mockQueryReturn = {
+        ...mockQueryReturn,
+        data: [],
+        error: new Error('Boom'),
+        fetchStatus: 'idle',
+      };
+
+      renderPage();
+
+      expect(screen.getByText('Failed to load users.')).toBeInTheDocument();
+      expect(screen.queryByText('Waiting for a connection')).not.toBeInTheDocument();
+    });
+
+    // An offline blip must not hide a roster the admin can still read.
+    it('keeps the roster on screen when cached users exist', () => {
+      setOnLine(false);
+      mockQueryReturn = { ...mockQueryReturn, data: [makeUser()], fetchStatus: 'paused' };
+
+      renderPage();
+
+      expect(screen.queryByText('Waiting for a connection')).not.toBeInTheDocument();
+      expect(screen.getByTestId('user-table')).toBeInTheDocument();
+    });
   });
 });

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import type { Page, Request } from '@playwright/test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitForAppApiRequestsToSettle, watchAppApiRequests } from './appApiRequestTracker';
@@ -132,5 +135,149 @@ describe('app API request tracker', () => {
 
     expect(settlement).toEqual({ settled: true, pendingUrls: [] });
     expect(tracker.pending.size).toBe(0);
+  });
+
+  /**
+   * The navigation boundary — the case that made Nightly Health red on 5 of 7
+   * runs while containing no product bug.
+   *
+   * A request whose document is torn down by `page.goto` may emit NEITHER
+   * `requestfinished` NOR `requestfailed`. Since one tracker spans a whole
+   * role sweep, that request stayed in `pending` forever and failed the settle
+   * assertion on every later route, naming the same stranded URLs each time.
+   */
+  describe('reset at a navigation boundary', () => {
+    const stranded = 'https://example.supabase.co/rest/v1/dog_registrations?select=*';
+    const nextRoute = 'https://example.supabase.co/rest/v1/people?select=id';
+
+    it('a stranded request fails the NEXT route until the tracker is reset', async () => {
+      const harness = createPageHarness();
+      const tracker = watchAppApiRequests(harness.page);
+
+      // Route 1 issues a request that never completes — no finished, no failed.
+      harness.emit('request', createRequest(stranded));
+
+      const routeOne = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+        idleMs: 5,
+        timeoutMs: 20,
+      });
+      expect(routeOne.settled).toBe(false);
+      expect(routeOne.pendingUrls).toEqual([stranded]);
+
+      // Route 2's own request completes cleanly. WITHOUT a reset the route
+      // still fails, and blames route 1's URL — the exact false cascade.
+      const live = createRequest(nextRoute);
+      harness.emit('request', live);
+      harness.emit('requestfinished', live);
+
+      const routeTwoUnreset = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+        idleMs: 5,
+        timeoutMs: 20,
+      });
+      expect(routeTwoUnreset.settled).toBe(false);
+      expect(routeTwoUnreset.pendingUrls).toEqual([stranded]);
+
+      // The fix. Same tracker, same completed request, now settles.
+      tracker.reset();
+      const liveAgain = createRequest(nextRoute);
+      harness.emit('request', liveAgain);
+      harness.emit('requestfinished', liveAgain);
+
+      const routeTwoReset = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+        idleMs: 5,
+        timeoutMs: 20,
+      });
+      expect(routeTwoReset).toEqual({ settled: true, pendingUrls: [] });
+    });
+
+    it('still fails the route that OWNS a slow request', async () => {
+      // The reset must not turn every never-settling request into a pass. A
+      // request issued after the reset, on the route being measured, is that
+      // route's own problem and has to be reported.
+      const harness = createPageHarness();
+      const tracker = watchAppApiRequests(harness.page);
+
+      tracker.reset();
+      harness.emit('request', createRequest(stranded));
+
+      const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+        idleMs: 5,
+        timeoutMs: 20,
+      });
+
+      expect(settlement.settled).toBe(false);
+      expect(settlement.pendingUrls).toEqual([stranded]);
+    });
+
+    it('does not report settled on a stale idle window after a reset', async () => {
+      // `reset()` must clear `lastActivityAt` as well as `pending`. If it only
+      // cleared `pending`, a tracker last touched longer ago than `idleMs`
+      // would already satisfy the idle condition, so the very first poll would
+      // return settled — before the new route issued anything. That trades a
+      // false failure for a false pass, which is worse.
+      vi.useFakeTimers();
+      const harness = createPageHarness();
+      const tracker = watchAppApiRequests(harness.page);
+
+      // Let the clock run well past the idle window with nothing in flight.
+      await vi.advanceTimersByTimeAsync(500);
+      tracker.reset();
+
+      let resolved = false;
+      const settlementPromise = waitForAppApiRequestsToSettle(harness.page, tracker, {
+        idleMs: 50,
+        timeoutMs: 500,
+      }).then(settlement => {
+        resolved = true;
+        return settlement;
+      });
+
+      // Must still wait out a full idle window measured from the reset.
+      await vi.advanceTimersByTimeAsync(25);
+      expect(resolved).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(50);
+      await expect(settlementPromise).resolves.toEqual({ settled: true, pendingUrls: [] });
+    });
+  });
+});
+
+/**
+ * `reset()` existing is not the fix — CALLING it is. The sweep in
+ * `route-health-by-role.spec.ts` is its only consumer, and that spec runs only
+ * in Nightly Health against a live server, so deleting the call breaks nothing
+ * any local or PR check would notice. The cascade would simply come back, and
+ * would once again read as a product bug.
+ *
+ * This is a wiring assertion, which is fair as source text: deleting the wiring
+ * deletes the string. But comment lines are stripped first, because the block
+ * explaining that call necessarily says "reset" several times — a plain
+ * `includes('pendingAppApiRequests.reset()')` would be satisfied by the prose
+ * with the call itself removed.
+ */
+describe('the route sweep actually calls reset()', () => {
+  const sweepSource = readFileSync(
+    resolve(import.meta.dirname, '../e2e/route-health-by-role.spec.ts'),
+    'utf8'
+  );
+
+  /** Source lines with comment-only lines removed. */
+  const codeLines = sweepSource
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => !line.startsWith('//') && !line.startsWith('*') && !line.startsWith('/*'));
+
+  it('resets the tracker between routes, in code and not only in a comment', () => {
+    expect(codeLines).toContain('pendingAppApiRequests.reset();');
+  });
+
+  it('resets BEFORE navigating, so the new route is measured from zero', () => {
+    const resetAt = codeLines.indexOf('pendingAppApiRequests.reset();');
+    const gotoAt = codeLines.findIndex(line => line.startsWith('await page.goto(route.path'));
+    expect(resetAt).toBeGreaterThan(-1);
+    expect(gotoAt).toBeGreaterThan(-1);
+    // Resetting after the navigation would discard the very requests the route
+    // under test had just issued, turning the false failure into a false pass.
+    expect(resetAt).toBeLessThan(gotoAt);
   });
 });

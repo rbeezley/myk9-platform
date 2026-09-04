@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { acquireCacheClearWriteLock, beginCacheClear, withCacheClearLock } from './cacheClearGate';
+import {
+  acquireCacheClearWriteLock,
+  acquireCacheClearWriteLockSync,
+  beginCacheClear,
+  withCacheClearLock,
+} from './cacheClearGate';
 
 describe('cache clear gate', () => {
   beforeEach(() => {
@@ -7,7 +12,7 @@ describe('cache clear gate', () => {
   });
 
   it('waits for an in-flight writer before allowing cache clearing', async () => {
-    const releaseWriter = acquireCacheClearWriteLock();
+    const releaseWriter = acquireCacheClearWriteLockSync();
     const cacheClear = beginCacheClear();
     expect(cacheClear).not.toBeNull();
 
@@ -28,9 +33,9 @@ describe('cache clear gate', () => {
   it('rejects new writers while cache clearing is in progress', () => {
     const cacheClear = beginCacheClear();
     expect(cacheClear).not.toBeNull();
-    expect(() => acquireCacheClearWriteLock()).toThrow('Cache clearing is in progress');
+    expect(() => acquireCacheClearWriteLockSync()).toThrow('Cache clearing is in progress');
     cacheClear!.release();
-    const releaseWriter = acquireCacheClearWriteLock();
+    const releaseWriter = acquireCacheClearWriteLockSync();
     releaseWriter();
   });
 
@@ -55,7 +60,39 @@ describe('cache clear gate', () => {
       if (previousDescriptor) {
         Object.defineProperty(navigator, 'locks', previousDescriptor);
       } else {
-        delete (navigator as Navigator & { locks?: unknown }).locks;
+        Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined });
+      }
+    }
+  });
+
+  it('holds a shared Web Lock until the writer releases it', async () => {
+    const request = vi.fn(
+      async (
+        _name: string,
+        options: { mode: string },
+        callback: (lock: object) => Promise<unknown>
+      ) => {
+        expect(options).toEqual({ mode: 'shared' });
+        return callback({});
+      }
+    );
+    const previousDescriptor = Object.getOwnPropertyDescriptor(navigator, 'locks');
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request },
+    });
+
+    try {
+      const release = await acquireCacheClearWriteLock();
+      const requestFinished = request.mock.results[0]?.value as Promise<unknown>;
+      expect(requestFinished).toBeInstanceOf(Promise);
+      release();
+      await requestFinished;
+    } finally {
+      if (previousDescriptor) {
+        Object.defineProperty(navigator, 'locks', previousDescriptor);
+      } else {
+        Object.defineProperty(navigator, 'locks', { configurable: true, value: undefined });
       }
     }
   });

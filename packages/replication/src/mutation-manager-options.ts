@@ -20,4 +20,6 @@ export interface MutationManagerOptions {
   getCurrentUploadContext?: () => Promise<MutationUploadAuthContext | null>;
   /** Acquire a synchronous app-level write slot before queueing a mutation. */
   acquireQueueMutationLock?: () => () => void;
+  /** Acquire an async cross-tab-safe write slot before a local write/queue pair. */
+  acquireQueueMutationLockAsync?: () => Promise<() => void>;
 }

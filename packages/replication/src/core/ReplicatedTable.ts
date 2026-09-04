@@ -126,6 +126,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   private readonly pendingWriteLocks = new Map<string, Array<() => void>>();
   /** Rows whose mutation was queued first with deferUpload=true. */
   private readonly deferredMutationRows = new Set<string>();
+  /** Queue locks retained until the dependent deferred dirty write completes. */
+  private readonly deferredWriteLocks = new Map<string, () => void>();
 
   /**
    * Connect this table to a MutationManager for mutation upload.
@@ -208,7 +210,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     const releaseLocalWriteLock = pendingLocks?.shift();
     if (pendingLocks && pendingLocks.length === 0) this.pendingWriteLocks.delete(lockKey);
     const releaseQueueLock =
-      releaseLocalWriteLock ?? this.mutationManager.acquireMutationWriteLock?.();
+      releaseLocalWriteLock ?? (await this.mutationManager.acquireMutationWriteLock?.());
+    const retainQueueLockForDeferredWrite = deferUpload && releaseQueueLock !== undefined;
     let queueSucceeded = false;
 
     try {
@@ -240,7 +243,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       return mutationId;
     } finally {
       if (!queueSucceeded && deferUpload) this.deferredMutationRows.delete(lockKey);
-      releaseQueueLock?.();
+      if (queueSucceeded && retainQueueLockForDeferredWrite) {
+        this.deferredWriteLocks.set(lockKey, releaseQueueLock);
+      } else {
+        releaseQueueLock?.();
+      }
     }
   }
 
@@ -383,8 +390,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   ): Promise<void> {
     const lockKey = String(id);
     const deferred = isDirty && this.deferredMutationRows.delete(lockKey);
+    const deferredWriteLock = deferred ? this.deferredWriteLocks.get(lockKey) : undefined;
+    if (deferredWriteLock) this.deferredWriteLocks.delete(lockKey);
     const releaseWriteLock =
-      isDirty && !deferred ? this.mutationManager?.acquireMutationWriteLock?.() : undefined;
+      deferredWriteLock ??
+      (isDirty && !deferred ? await this.mutationManager?.acquireMutationWriteLock?.() : undefined);
     // Wrap the write so a storage-quota abort triggers eviction + one retry
     // rather than escaping as an unhandled "AbortError: QuotaExceededError".
     try {
@@ -393,7 +403,9 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         () => this.relieveQuota(),
         this.logger
       );
-      if (releaseWriteLock) {
+      if (deferredWriteLock) {
+        deferredWriteLock();
+      } else if (releaseWriteLock) {
         const locks = this.pendingWriteLocks.get(lockKey) ?? [];
         locks.push(releaseWriteLock);
         this.pendingWriteLocks.set(lockKey, locks);

@@ -37,9 +37,65 @@ function acquireLocalWriteLock(): () => void {
   };
 }
 
-/** Acquire a synchronous write slot for a local write/queue pair. */
-export function acquireCacheClearWriteLock(): () => void {
+/** Acquire a synchronous local write slot for legacy callers and tests. */
+export function acquireCacheClearWriteLockSync(): () => void {
   return acquireLocalWriteLock();
+}
+
+/** Acquire a shared browser lock for the full local write/queue operation. */
+export async function acquireCacheClearWriteLock(): Promise<() => void> {
+  const locks = getLockManager();
+  if (!locks) return acquireLocalWriteLock();
+
+  let resolveAcquired: ((release: () => void) => void) | undefined;
+  let rejectAcquired: ((error: unknown) => void) | undefined;
+  const acquired = new Promise<() => void>((resolve, reject) => {
+    resolveAcquired = resolve;
+    rejectAcquired = reject;
+  });
+  let resolveReleased: (() => void) | undefined;
+  const released = new Promise<void>(resolve => {
+    resolveReleased = resolve;
+  });
+
+  void locks
+    .request(CACHE_CLEAR_LOCK_NAME, { mode: 'shared' }, async lock => {
+      if (!lock) {
+        rejectAcquired?.(new Error('Unable to acquire cache write lock'));
+        return;
+      }
+      try {
+        const releaseLocal = acquireLocalWriteLock();
+        let releasedByCaller = false;
+        resolveAcquired?.(() => {
+          if (releasedByCaller) return;
+          releasedByCaller = true;
+          releaseLocal();
+          resolveReleased?.();
+        });
+        await released;
+      } catch (error) {
+        rejectAcquired?.(error);
+      }
+    })
+    .catch(error => rejectAcquired?.(error));
+
+  return acquired;
+}
+
+/** Run a local write while holding the shared cross-tab writer lock. */
+export function withCacheClearWriteLock<T>(action: () => Promise<T> | T): Promise<T> {
+  if (!getLockManager()) {
+    const release = acquireLocalWriteLock();
+    try {
+      return Promise.resolve(action()).finally(release);
+    } catch (error) {
+      release();
+      return Promise.reject(error);
+    }
+  }
+
+  return acquireCacheClearWriteLock().then(release => Promise.resolve(action()).finally(release));
 }
 
 function beginLocalCacheClear(): {
@@ -93,6 +149,7 @@ export async function withCacheClearLock<T>(action: () => Promise<T> | T): Promi
   const gate = beginLocalCacheClear();
   if (!gate) return null;
   try {
+    if (activeWriters === 0) return await action();
     await gate.waitForWriters();
     return await action();
   } finally {

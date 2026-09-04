@@ -49,6 +49,7 @@ export class MutationManager {
   private readonly getCurrentUserId: () => Promise<string | null>;
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
+  private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
@@ -56,6 +57,7 @@ export class MutationManager {
     this.getCurrentUserId = options.getCurrentUserId ?? (async () => null);
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.acquireQueueMutationLock = options.acquireQueueMutationLock;
+    this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
     this.queueStore = new MutationQueueStore(this.logger);
     this.backupStore = new MutationBackupStore(this.logger);
     this.uploadRunner = new MutationUploadRunner(
@@ -198,7 +200,8 @@ export class MutationManager {
   }
 
   /** Acquire the app-level write slot for a local-write/queue pair. */
-  acquireMutationWriteLock(): (() => void) | undefined {
+  async acquireMutationWriteLock(): Promise<(() => void) | undefined> {
+    if (this.acquireQueueMutationLockAsync) return this.acquireQueueMutationLockAsync();
     return this.acquireQueueMutationLock?.();
   }
 

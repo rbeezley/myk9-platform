@@ -4,7 +4,7 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 import type { ScoringSession, JudgeScore } from '@/types/scoring-types';
 import type { SyncQueueItem } from '@/services/sync/types';
 import { generateId } from '@/utils/idUtils';
-import { acquireCacheClearWriteLock } from '@/services/cacheClearGate';
+import { withCacheClearWriteLock } from '@/services/cacheClearGate';
 
 interface OfflineScoringStore {
   // State
@@ -85,23 +85,19 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         }),
 
       // Score management
-      addScore: (classId, score) => {
-        const release = acquireCacheClearWriteLock();
-        try {
+      addScore: async (classId, score) => {
+        await withCacheClearWriteLock(() => {
           set(state => ({
             scores: {
               ...state.scores,
               [classId]: [...(state.scores[classId] || []), score],
             },
           }));
-        } finally {
-          release();
-        }
+        });
       },
 
-      updateScore: (classId, scoreId, updates) => {
-        const release = acquireCacheClearWriteLock();
-        try {
+      updateScore: async (classId, scoreId, updates) => {
+        await withCacheClearWriteLock(() => {
           set(state => ({
             scores: {
               ...state.scores,
@@ -110,35 +106,27 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
               ),
             },
           }));
-        } finally {
-          release();
-        }
+        });
       },
 
-      deleteScore: (classId, scoreId) => {
-        const release = acquireCacheClearWriteLock();
-        try {
+      deleteScore: async (classId, scoreId) => {
+        await withCacheClearWriteLock(() => {
           set(state => ({
             scores: {
               ...state.scores,
               [classId]: (state.scores[classId] || []).filter(score => score.id !== scoreId),
             },
           }));
-        } finally {
-          release();
-        }
+        });
       },
 
       // Sync queue management
-      addToSyncQueue: item => {
-        const release = acquireCacheClearWriteLock();
-        try {
+      addToSyncQueue: async item => {
+        await withCacheClearWriteLock(() => {
           set(state => ({
             syncQueue: [...state.syncQueue, item],
           }));
-        } finally {
-          release();
-        }
+        });
       },
 
       removeFromSyncQueue: itemId =>
@@ -256,9 +244,8 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         return order[currentIdx + 1];
       },
 
-      submitScore: (classId, score) => {
-        const release = acquireCacheClearWriteLock();
-        try {
+      submitScore: async (classId, score) => {
+        await withCacheClearWriteLock(() => {
           set(state => {
             // Add the score
             const updatedScores = {
@@ -280,9 +267,7 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
 
             return { scores: updatedScores, sessions: updatedSessions };
           });
-        } finally {
-          release();
-        }
+        });
       },
 
       setError: error => set({ error }),

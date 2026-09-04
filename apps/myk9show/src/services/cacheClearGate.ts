@@ -95,7 +95,14 @@ export function withCacheClearWriteLock<T>(action: () => Promise<T> | T): Promis
     }
   }
 
-  return acquireCacheClearWriteLock().then(release => Promise.resolve(action()).finally(release));
+  return acquireCacheClearWriteLock().then(release => {
+    try {
+      return Promise.resolve(action()).finally(release);
+    } catch (error) {
+      release();
+      throw error;
+    }
+  });
 }
 
 function beginLocalCacheClear(): {
@@ -146,15 +153,10 @@ export async function withCacheClearLock<T>(action: () => Promise<T> | T): Promi
     );
   }
 
-  const gate = beginLocalCacheClear();
-  if (!gate) return null;
-  try {
-    if (activeWriters === 0) return await action();
-    await gate.waitForWriters();
-    return await action();
-  } finally {
-    gate.release();
-  }
+  // There is no atomic cross-tab primitive to safely clear persisted data in
+  // this browser. Refuse the destructive operation instead of racing another
+  // tab with the tab-local fallback used by tests/legacy callers.
+  return null;
 }
 
 /** Legacy synchronous entry point for short local-only coordination. */

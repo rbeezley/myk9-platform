@@ -20,6 +20,9 @@ vi.mock('@/store/offlineScoringStore', () => ({
 }));
 
 const mockReload = vi.fn();
+const mockWebLockRequest = vi.fn(
+  async (_name: string, _options: unknown, callback: (lock: object) => unknown) => callback({})
+);
 vi.spyOn(indexedDB, 'deleteDatabase');
 Object.defineProperty(window, 'location', {
   value: { ...window.location, reload: mockReload },
@@ -35,6 +38,11 @@ describe('DataSettings cache clear', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockWebLockRequest.mockImplementation(async (_name, _options, callback) => callback({}));
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: { request: mockWebLockRequest },
+    });
     localStorage.clear();
     mockCount.mockResolvedValue(0);
     mockGetState.mockReturnValue({ syncQueue: [] });

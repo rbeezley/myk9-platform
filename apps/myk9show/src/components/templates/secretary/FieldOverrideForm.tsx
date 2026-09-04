@@ -38,7 +38,7 @@ interface FieldOverrideFormProps {
   showAdvanced?: boolean;
 }
 
-type OverrideTab = 'basic' | 'financial' | 'timing' | 'personnel' | 'rules';
+type TabKey = 'basic' | 'financial' | 'timing' | 'personnel' | 'rules' | 'other';
 
 export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   template,
@@ -50,12 +50,12 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   showAdvanced = false,
 }) => {
   const [showAllFields, setShowAllFields] = useState(showAdvanced);
-  const [activeTab, setActiveTab] = useState<OverrideTab>('basic');
+  const [activeTab, setActiveTab] = useState<TabKey>('basic');
 
   const fields = template.fieldSpecifications || [];
 
   // Group fields by category
-  const categorizedFieldGroups: Record<string, FieldSpecification[]> = {
+  const fieldGroups: Record<string, FieldSpecification[]> = {
     basic: fields.filter(f =>
       ['organization', 'showType', 'element', 'level', 'section', 'className'].includes(f.fieldName)
     ),
@@ -86,12 +86,12 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
         f.fieldName.toLowerCase().includes('area')
     ),
   };
-  const fieldGroups: Record<string, FieldSpecification[]> = {
-    ...categorizedFieldGroups,
-    other: fields.filter(
-      field => !Object.values(categorizedFieldGroups).some(groupFields => groupFields.includes(field))
-    ),
-  };
+  fieldGroups.other = fields.filter(
+    (field: FieldSpecification) =>
+      !['basic', 'financial', 'timing', 'personnel', 'rules'].some((group: string) =>
+        fieldGroups[group]?.includes(field)
+      )
+  );
 
   // Filter editable fields
   const getEditableFields = (groupFields: FieldSpecification[]) => {
@@ -362,8 +362,8 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
       {/* Field Override Tabs */}
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as OverrideTab)}>
-            <TabsList className="grid w-full grid-cols-5">
+          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as TabKey)}>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
               <TabsTrigger value="basic" className="flex items-center gap-1">
                 {getTabIcon('basic')}
                 <span className="hidden sm:inline">Basic</span>
@@ -383,6 +383,10 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
               <TabsTrigger value="rules" className="flex items-center gap-1">
                 {getTabIcon('rules')}
                 <span className="hidden sm:inline">Rules</span>
+              </TabsTrigger>
+              <TabsTrigger value="other" className="flex items-center gap-1">
+                {getTabIcon('other')}
+                <span className="hidden sm:inline">Other</span>
               </TabsTrigger>
             </TabsList>
 
@@ -447,6 +451,19 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
                 <div className="text-center py-8 text-muted-foreground">
                   <Settings className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   No editable rule fields in this template
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Other Fields */}
+            <TabsContent value="other" className="space-y-4 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {getEditableFields(fieldGroups.other).filter(shouldShowField).map(renderFieldInput)}
+              </div>
+              {getEditableFields(fieldGroups.other).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Edit className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  No editable additional fields in this template
                 </div>
               )}
             </TabsContent>

@@ -542,8 +542,8 @@ export class SyncAnalyticsService {
    * Load persisted data from storage
    */
   private async loadPersistedData(): Promise<void> {
-    // Persisted event storage is not available yet. Keep the service empty until
-    // a real event source is connected; fabricated metrics are unsafe in support tooling.
+    // Persistent sync analytics are not available yet. Keep this service empty
+    // rather than presenting synthetic values as operational health data.
   }
 
   /**

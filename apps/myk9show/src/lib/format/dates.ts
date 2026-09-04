@@ -98,6 +98,12 @@ export function formatLongDate(value?: string | Date | null): string {
   });
 }
 
+/** A numeric date-only value: "8/1/2026". */
+export function formatDateOnly(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US');
+}
+
 /** A tight date label without year: "Aug 1". */
 export function formatMonthDay(value?: string | Date | null): string {
   if (!value || !isRenderableCalendarDate(value)) return '';

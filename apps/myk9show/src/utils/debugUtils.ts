@@ -1,5 +1,4 @@
 // Development utilities for resetting data
-// Used by ResetDataButton component (dev-only)
 
 import { useDogStore } from '../store/dogStore';
 import { useEntryStore } from '../store/entryStore';

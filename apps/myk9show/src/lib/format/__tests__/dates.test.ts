@@ -2,6 +2,7 @@ import { afterEach, describe, it, expect } from 'vitest';
 import {
   formatShowDateRange,
   formatEntryDate,
+  formatDateOnly,
   formatLongDate,
   formatMonthDay,
   formatWeekdayMonthDay,
@@ -117,6 +118,23 @@ describe('date-only supporting styles', () => {
     expect(formatLongDate('not-a-date')).toBe('');
     expect(formatMonthDay('not-a-date')).toBe('');
     expect(formatWeekdayMonthDay('not-a-date')).toBe('');
+  });
+});
+
+describe('formatDateOnly', () => {
+  it.each(['America/Chicago', 'America/New_York'])(
+    'renders a DATE-only value as its stored calendar day in %s',
+    timezone => {
+      process.env.TZ = timezone;
+
+      expect(formatDateOnly('2026-08-01')).toBe('8/1/2026');
+    }
+  );
+
+  it('returns an empty string for missing or unparseable input', () => {
+    expect(formatDateOnly(undefined)).toBe('');
+    expect(formatDateOnly(null)).toBe('');
+    expect(formatDateOnly('not-a-date')).toBe('');
   });
 });
 

@@ -192,10 +192,10 @@ export function getHealthCheckRemediation(check: HealthCheck): HealthCheckRemedi
 
   if (matches(check, /sync|replication|queue|conflict/)) {
     return {
-      ownerLabel: 'System Health',
-      actionLabel: 'Open Health',
-      href: '/admin/health',
-      nextStep: 'Review the system health checks and current replication status.',
+      ownerLabel: 'Support Inbox',
+      actionLabel: 'Open Support',
+      href: '/admin/support',
+      nextStep: 'Review the affected diagnostics and replication state.',
       coverageIncomplete,
     };
   }

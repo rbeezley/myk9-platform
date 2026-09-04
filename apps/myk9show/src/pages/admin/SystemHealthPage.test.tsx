@@ -266,9 +266,12 @@ describe('SystemHealthPage', () => {
     expect(screen.queryByText('Sync Monitoring')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Replication queue/i }));
 
-    expect(screen.getByText('System Health')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open Health/i })).toHaveAttribute('href', '/admin/health');
-    expect(screen.getByText(/Review the system health checks/i)).toBeInTheDocument();
+    expect(screen.getByText('Support Inbox')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Open Support/i })).toHaveAttribute(
+      'href',
+      '/admin/support'
+    );
+    expect(screen.getByText(/Review the affected diagnostics/i)).toBeInTheDocument();
   });
 
   it('renders coverage incomplete as a distinct state with a next action', () => {

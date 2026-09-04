@@ -14,6 +14,7 @@ import { useShowTodayBanner } from '@/features/show-today/useShowTodayBanner';
 import { useShowStore } from '@/store/showStore';
 import { useMyShows } from '@/hooks/useMyShows';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useExhibitorUpcomingShows } from './useExhibitorUpcomingShows';
 import {
   resolveRingsideEntry,
   type RingsideShowRef,
@@ -41,6 +42,10 @@ export function useRingsideEntryShows(): RingsideEntryShows {
     [hasRole, shows, userWithRoles]
   );
   const { today, upcoming } = useMyShows(managedShows);
+  // The exhibitor's own upcoming shows. `useShowTodayBanner` above covers only
+  // TODAY, so without this an exhibitor resolved to zero shows on every day but
+  // show day and the chooser fell through to its empty state.
+  const exhibitorUpcomingShows = useExhibitorUpcomingShows();
 
   return useMemo(() => {
     const todayISO = format(new Date(), 'yyyy-MM-dd');
@@ -62,6 +67,7 @@ export function useRingsideEntryShows(): RingsideEntryShows {
         trialDate: a.trialDate,
       })),
       exhibitorToday,
+      exhibitorUpcoming: exhibitorUpcomingShows.upcomingShows,
       managerToday,
       managerUpcoming,
       todayISO,
@@ -77,13 +83,16 @@ export function useRingsideEntryShows(): RingsideEntryShows {
     return {
       liveShows: resolved.liveShows.map(enrich),
       upcomingShows: resolved.upcomingShows.map(enrich),
-      isLoading: judge.isLoading || banner.isLoading || showsLoading,
+      isLoading:
+        judge.isLoading || banner.isLoading || showsLoading || exhibitorUpcomingShows.isLoading,
     };
   }, [
     judge.assignments,
     judge.isLoading,
     banner.items,
     banner.isLoading,
+    exhibitorUpcomingShows.upcomingShows,
+    exhibitorUpcomingShows.isLoading,
     today,
     upcoming,
     shows,

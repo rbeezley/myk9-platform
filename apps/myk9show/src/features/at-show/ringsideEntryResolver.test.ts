@@ -7,6 +7,7 @@ function input(overrides: Partial<ResolveRingsideEntryInput> = {}): ResolveRings
   return {
     judgeClasses: [],
     exhibitorToday: [],
+    exhibitorUpcoming: [],
     managerToday: [],
     managerUpcoming: [],
     todayISO: TODAY,
@@ -94,5 +95,37 @@ describe('resolveRingsideEntry', () => {
       })
     );
     expect(liveShows.map(s => s.showName)).toEqual(['Alpha Show', 'Bravo Show', null]);
+  });
+
+  // Ringside's exhibitor sources were TODAY-only, so an exhibitor entered in a
+  // show running next weekend resolved to zero shows and the entry point fell
+  // through to its empty state — where the passcode button was the only action.
+  it('lists an exhibitor upcoming show under upcoming, with its name', () => {
+    const { liveShows, upcomingShows } = resolveRingsideEntry(
+      input({ exhibitorUpcoming: [{ showId: 's5', showName: 'Autumn Classic' }] })
+    );
+    expect(liveShows).toEqual([]);
+    expect(upcomingShows).toEqual([{ showId: 's5', showName: 'Autumn Classic', phase: 'upcoming' }]);
+  });
+
+  it('does not list an exhibitor upcoming show that is already live today', () => {
+    const { liveShows, upcomingShows } = resolveRingsideEntry(
+      input({
+        exhibitorToday: [{ showId: 's5', showName: 'Autumn Classic' }],
+        exhibitorUpcoming: [{ showId: 's5', showName: 'Autumn Classic' }],
+      })
+    );
+    expect(liveShows.map(s => s.showId)).toEqual(['s5']);
+    expect(upcomingShows).toEqual([]);
+  });
+
+  it('merges an exhibitor and manager upcoming reference to the same show once', () => {
+    const { upcomingShows } = resolveRingsideEntry(
+      input({
+        exhibitorUpcoming: [{ showId: 's6', showName: 'Shared Show' }],
+        managerUpcoming: [{ showId: 's6', showName: 'Shared Show' }],
+      })
+    );
+    expect(upcomingShows).toEqual([{ showId: 's6', showName: 'Shared Show', phase: 'upcoming' }]);
   });
 });

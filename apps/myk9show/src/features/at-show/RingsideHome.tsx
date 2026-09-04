@@ -52,7 +52,9 @@ export function RingsideHome({ liveShows, upcomingShows, onEnterPasscode }: Ring
           </span>
           <h1 className="text-2xl font-bold text-foreground">Ringside</h1>
           <p className="mt-1 text-muted-foreground">
-            {hasShows ? 'Pick a show to step into the ring.' : 'No show is live right now.'}
+            {hasShows
+              ? 'Pick a show to step into the ring.'
+              : "You're signed in — nothing is running yet."}
           </p>
         </div>
 
@@ -90,14 +92,15 @@ export function RingsideHome({ liveShows, upcomingShows, onEnterPasscode }: Ring
 
         {!hasShows && (
           <div className="mb-6 rounded-lg border border-dashed border-input bg-background p-6 text-center text-muted-foreground">
-            When you have a show running, or an assignment, it&apos;ll show up here for one-tap
-            access.
+            Shows you&apos;ve entered and rings you&apos;re assigned to appear here on their own —
+            there is nothing to sign in to.
           </div>
         )}
 
-        {/* Passcode path — for staff physically at a show that isn't tied to
-            their account (QR / secretary-issued passcode). Reuses the shared
-            SmartSignInPage flow in the parent. */}
+        {/* Passcode path — for anyone physically at a show that isn't tied to
+            their account: a volunteer stewarding a show they aren't entered in,
+            or staff on a borrowed device (QR / secretary-issued passcode).
+            Reuses the shared SmartSignInPage flow in the parent. */}
         <button
           type="button"
           onClick={onEnterPasscode}
@@ -106,6 +109,10 @@ export function RingsideHome({ liveShows, upcomingShows, onEnterPasscode }: Ring
           <KeyRound className="h-4 w-4" aria-hidden />
           At a show? Enter a passcode
         </button>
+        <p className="mt-2 text-center text-sm text-muted-foreground">
+          For working a show that isn&apos;t on your account — stewarding, judging, or helping at
+          the gate.
+        </p>
 
         <div className="mt-6 text-center">
           <Link

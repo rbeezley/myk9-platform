@@ -10,8 +10,23 @@
 --   C. sampler — below threshold, above threshold, and while already contained
 --   D. rearm — non-admin denied, site admin succeeds, idempotent no-op
 --   E. RS429 gate — a CONFLICTING call is contained; a version-CORRECT one is not
+--   F. automatic release — the sampler re-arms after a calm window (MYK9-400)
 --
 -- Fixtures and claims are transaction-local and roll back.
+--
+-- ⚠ DO NOT RUN THIS FILE AGAINST A SHARED DATABASE. Its rows roll back; its
+-- SEQUENCE CONSUMPTION DOES NOT. nextval() is non-transactional, so the ~1000
+-- values this file burns off ringside_conflict_seq survive the ROLLBACK. The
+-- minutely pg_cron sampler then reads that delta as a real conflict storm and
+-- TRIPS THE LIVE BREAKER about a minute later, putting every ringside write on
+-- the 250ms backpressure path.
+--
+-- That is not hypothetical: it happened on staging on 2026-09-05 while this
+-- section was being written — "conflict rate 1730/min exceeded threshold
+-- 300/min", entirely self-inflicted. CI is fine because it runs against an
+-- ephemeral database. If you must verify against a shared one, re-arm
+-- afterwards AND resync last_seq to the current sequence value, or the next
+-- sample retrips it.
 
 begin;
 
@@ -386,6 +401,191 @@ begin
       end if;
   end;
   raise notice 'PASS armed: a conflict is an ordinary 40001, not a containment pause';
+end;
+$$;
+
+-- ===========================================================================
+-- F. Automatic release (MYK9-400).
+--
+-- The breaker used to be one-way: the sampler could trip it, but only a
+-- site admin calling ringside_containment_rearm() could release it. A real
+-- storm on 2026-08-25 tripped it, ended the same night, and left ringside
+-- scoring on the 250ms backpressure path for TEN DAYS because nobody made that
+-- call. On every day the storm is not happening, a breaker that cannot release
+-- itself is a worse failure than the storm.
+--
+-- The sampler now releases after rearm_after_calm_samples consecutive samples
+-- at or below the threshold. The trip arm is unchanged, so a storm that is
+-- genuinely still running re-trips on the very next sample.
+--
+-- Both directions are asserted. "It eventually releases" alone would pass on a
+-- sampler that releases immediately, or unconditionally — so the count is
+-- checked on the way up, the release is checked at exactly the threshold, and
+-- a single hot sample is proven to send the counter back to zero.
+-- ===========================================================================
+reset role;
+
+-- Known starting point: contained, counter clear, default threshold and window.
+update public.ringside_containment
+   set state = 'contained',
+       tripped_at = now(),
+       trip_conflict_delta = 755,
+       trip_reason = 'fixture: storm',
+       calm_samples = 0,
+       rearm_after_calm_samples = 5,
+       trip_conflicts_per_minute = 300,
+       last_seq = (select coalesce(last_value, 0) from pg_sequences
+                    where schemaname = 'public' and sequencename = 'ringside_conflict_seq'),
+       last_sample_at = now();
+
+create temporary table myk9_400_baseline on commit drop as
+select count(*) as rearm_rows from public.ringside_containment_audit where event = 'rearm';
+
+-- Four calm samples: the counter climbs, containment holds, nothing is audited.
+do $$
+declare
+  r public.ringside_containment;
+  i integer;
+begin
+  for i in 1..4 loop
+    update public.ringside_containment set last_sample_at = now() - interval '1 minute';
+    perform public.ringside_containment_sample();
+
+    select * into strict r from public.ringside_containment;
+    if r.state <> 'contained' then
+      raise exception 'FAIL breaker released after only % calm samples', i;
+    end if;
+    if r.calm_samples <> i then
+      raise exception 'FAIL calm_samples is % after % calm samples', r.calm_samples, i;
+    end if;
+  end loop;
+
+  if (select count(*) from public.ringside_containment_audit where event = 'rearm')
+     <> (select rearm_rows from myk9_400_baseline) then
+    raise exception 'FAIL a rearm was audited before the window elapsed';
+  end if;
+
+  raise notice 'PASS containment holds through 4 of 5 calm samples';
+end;
+$$;
+
+-- The fifth closes the window: armed, counter cleared, trip metadata cleared,
+-- cursor resynced, exactly one new audit row and it is attributed to nobody.
+do $$
+declare
+  r public.ringside_containment;
+  seq_now bigint;
+begin
+  update public.ringside_containment set last_sample_at = now() - interval '1 minute';
+  perform public.ringside_containment_sample();
+
+  select * into strict r from public.ringside_containment;
+  select coalesce(last_value, 0) into seq_now from pg_sequences
+   where schemaname = 'public' and sequencename = 'ringside_conflict_seq';
+
+  if r.state <> 'armed' then
+    raise exception 'FAIL breaker did not release after 5 calm samples';
+  end if;
+  if r.calm_samples <> 0 then
+    raise exception 'FAIL calm_samples not cleared on release: %', r.calm_samples;
+  end if;
+  if r.tripped_at is not null or r.trip_reason is not null or r.trip_conflict_delta is not null then
+    raise exception 'FAIL trip metadata survived the release';
+  end if;
+  -- Without this the next sample measures a delta accumulated during
+  -- containment and insta-retrips, which is how a release becomes a flap.
+  if r.last_seq <> seq_now then
+    raise exception 'FAIL cursor not resynced on release: % vs %', r.last_seq, seq_now;
+  end if;
+
+  if (select count(*) from public.ringside_containment_audit where event = 'rearm')
+     <> (select rearm_rows from myk9_400_baseline) + 1 then
+    raise exception 'FAIL automatic release did not write exactly one audit row';
+  end if;
+  if not exists (
+    select 1 from public.ringside_containment_audit
+    where event = 'rearm' and actor is null and reason like 'automatic:%'
+  ) then
+    raise exception 'FAIL the automatic release is not distinguishable from an operator rearm';
+  end if;
+
+  raise notice 'PASS the fifth calm sample releases the breaker and audits it as automatic';
+end;
+$$;
+
+-- Negative control: one hot sample mid-recovery must send the counter back to
+-- zero, so the release window restarts rather than resuming where it left off.
+do $$
+declare r public.ringside_containment;
+begin
+  update public.ringside_containment
+     set state = 'contained', tripped_at = now(), calm_samples = 0,
+         last_seq = (select coalesce(last_value, 0) from pg_sequences
+                      where schemaname = 'public' and sequencename = 'ringside_conflict_seq'),
+         last_sample_at = now();
+
+  -- Three calm samples...
+  for i in 1..3 loop
+    update public.ringside_containment set last_sample_at = now() - interval '1 minute';
+    perform public.ringside_containment_sample();
+  end loop;
+  select * into strict r from public.ringside_containment;
+  if r.calm_samples <> 3 then
+    raise exception 'FAIL expected 3 calm samples, got %', r.calm_samples;
+  end if;
+
+  -- ...then the storm comes back for one minute.
+  update public.ringside_containment set last_sample_at = now() - interval '1 minute';
+  perform nextval('public.ringside_conflict_seq') from generate_series(1, 301);
+  perform public.ringside_containment_sample();
+
+  select * into strict r from public.ringside_containment;
+  if r.state <> 'contained' then
+    raise exception 'FAIL an over-threshold sample released the breaker';
+  end if;
+  if r.calm_samples <> 0 then
+    raise exception 'FAIL a hot sample left calm_samples at %', r.calm_samples;
+  end if;
+
+  -- Two more calm samples must NOT be enough, which is what proves the reset
+  -- was real rather than the counter merely pausing.
+  for i in 1..2 loop
+    update public.ringside_containment set last_sample_at = now() - interval '1 minute';
+    perform public.ringside_containment_sample();
+  end loop;
+  select * into strict r from public.ringside_containment;
+  if r.state <> 'contained' then
+    raise exception 'FAIL breaker released 2 calm samples after the counter reset';
+  end if;
+
+  raise notice 'PASS one over-threshold sample restarts the release window';
+end;
+$$;
+
+-- The operator path must clear the counter too, so a manual release mid-recovery
+-- leaves nothing stale behind for the next trip.
+do $$
+declare r public.ringside_containment;
+begin
+  update public.ringside_containment
+     set state = 'contained', tripped_at = now(), calm_samples = 3;
+
+  set local role authenticated;
+  perform set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000115101', true);
+  perform set_config('request.jwt.claims',
+    '{"sub":"00000000-0000-0000-0000-000000115101","role":"authenticated"}', true);
+  perform public.ringside_containment_rearm('operator release mid-recovery');
+  reset role;
+
+  select * into strict r from public.ringside_containment;
+  if r.state <> 'armed' then
+    raise exception 'FAIL manual rearm did not release the breaker';
+  end if;
+  if r.calm_samples <> 0 then
+    raise exception 'FAIL manual rearm left calm_samples at %', r.calm_samples;
+  end if;
+
+  raise notice 'PASS a manual rearm also clears the recovery counter';
 end;
 $$;
 

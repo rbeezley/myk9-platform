@@ -46,11 +46,11 @@ describe('MYK9-289 dog rail title loading', () => {
   it('does not start 252 title queries before cards are visible', () => {
     render(<DogStrip dogs={dogs} />);
     expect(titleProgress).not.toHaveBeenCalled();
-    expect(screen.getAllByRole('button', { name: /No upcoming classes/ })).toHaveLength(252);
+    expect(screen.getAllByText(/^Dog \d+$/)).toHaveLength(252);
   });
 
   it('loads only intersecting cards and retains their titles after scrolling away', () => {
-    render(<DogStrip dogs={dogs} />);
+    render(<DogStrip dogs={dogs.filter((_, index) => index === 0 || index === 251)} />);
     const first = screen.getByRole('button', { name: /Dog 0 No upcoming classes/ });
     act(() => observers.get(first)?.(true));
     expect(titleProgress).toHaveBeenCalledWith('dog-0');

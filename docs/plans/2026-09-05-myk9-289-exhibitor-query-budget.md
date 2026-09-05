@@ -72,3 +72,14 @@ outside this change. No claim of CI closure is made from a local green run.
 The implementation/evidence comment to Linear failed with HTTP 502
 (`upstream_unavailable`); the issue was not marked Done. Repository evidence is
 saved here and in `docs/qa/findings.md` for the next tracker update.
+
+## PR verification follow-up
+
+PR #2051 / run `33975456681` passed quality, package tests, SQL tests, and app
+shards 1/3 and 3/3. Shard 2/3's sole failure was the new scrolling regression
+exceeding 10 seconds while resolving accessible names across 252 cards under
+coverage. The large-fixture regression still mounts all 252 dogs and asserts no
+title-hook calls; counting rendered names avoids unnecessary accessibility-tree
+work. The independent visibility/retention test now uses only the two cards it
+needs. No test or route timeout changed. All 19 dog-rail tests pass with coverage
+in 1.82 seconds (603ms test execution); the follow-up reviewer approved the change.

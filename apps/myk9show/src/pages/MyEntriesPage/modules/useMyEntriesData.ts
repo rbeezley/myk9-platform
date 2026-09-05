@@ -299,7 +299,9 @@ export function useMyEntriesData({
       refundAmount: entry.refund_amount == null ? null : Number(entry.refund_amount),
       refundedAt: entry.refunded_at ? new Date(entry.refunded_at) : undefined,
       confirmationNumber,
-      entryCloseDate: show?.entry_close_date ? new Date(show.entry_close_date) : undefined,
+      // A DATE column, not an instant: `new Date()` here read the midnight-UTC
+      // round-trip as the previous evening (MYK9-384 / E28).
+      entryCloseDate: parseShowDate(show?.entry_close_date),
       submittedAt: new Date((entry.submitted_at as string) || (entry.created_at as string)),
       lastUpdated: new Date(entry.updated_at as string),
     };

@@ -5,6 +5,7 @@ import { MyEntryCard } from './MyEntryCard';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { MyEntry, MyEntryDogGroup, EntryClass } from './my-entries-types';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
+import { parseShowDate } from './myEntriesStats.helpers';
 
 const NOW = new Date('2026-09-01T12:00:00Z');
 
@@ -1280,6 +1281,37 @@ describe('MyEntryCard progressive disclosure (exhibitor-my-shows-elderly-ux-reme
 
     expect(screen.getByText('Entries close')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /entered classes/i })).toBeInTheDocument();
+  });
+
+  // MYK9-384 (E28): the DATE column reaches this card through parseShowDate.
+  // Rendering it through new Date() dated a Jan 2 deadline to Jan 1 west of
+  // UTC, so My Shows disagreed with the show detail page and with the server
+  // guard, which keeps the show open through the END of Jan 2.
+  describe('renders the entry-close deadline on its written calendar day', () => {
+    const originalTimezone = process.env.TZ;
+
+    afterEach(() => {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    });
+
+    it.each(['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'])(
+      'shows "Jan 2, 2027" for entry_close_date 2027-01-02T00:00:00+00:00 in %s',
+      timezone => {
+        process.env.TZ = timezone;
+
+        renderCard(
+          makeEntry({
+            entryStatus: EntryStatus.ACCEPTED,
+            // Exactly what useMyEntriesData builds from the DB column.
+            entryCloseDate: parseShowDate('2027-01-02T00:00:00+00:00'),
+          })
+        );
+
+        expect(screen.getByText('Entries close')).toBeInTheDocument();
+        expect(screen.getByText('Jan 2, 2027')).toBeInTheDocument();
+      }
+    );
   });
 
   it('moves "Entries close" into details once editing is no longer possible', () => {

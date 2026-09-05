@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageShell } from '@/components/common/PageShell';
-import { formatShortDate } from '@/lib/format/dates';
+import { formatShortCalendarDate, formatShortDate } from '@/lib/format/dates';
 import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import {
@@ -315,7 +315,7 @@ export default function OnboardingInboxPage() {
                       {request.firstShowDate && (
                         <span className="inline-flex min-h-11 items-center gap-1.5 text-muted-foreground">
                           <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                          First show {formatShortDate(request.firstShowDate)}
+                          First show {formatShortCalendarDate(request.firstShowDate)}
                         </span>
                       )}
                     </div>

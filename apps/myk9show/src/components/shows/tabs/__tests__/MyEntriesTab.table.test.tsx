@@ -41,7 +41,7 @@ describe('MyEntriesTab copy variants', () => {
       isError: false,
     });
     render(<MyEntriesTab showId="s1" />);
-    expect(screen.getByText(/1 class across 1 dog/)).toBeInTheDocument();
+    expect(screen.getByText(/1 scheduled run across 1 dog/)).toBeInTheDocument();
   });
 
   it('uses plural for counts > 1', () => {
@@ -58,7 +58,7 @@ describe('MyEntriesTab copy variants', () => {
       isError: false,
     });
     render(<MyEntriesTab showId="s1" />);
-    expect(screen.getByText(/4 classes across 2 dogs/)).toBeInTheDocument();
+    expect(screen.getByText(/4 scheduled runs across 2 dogs/)).toBeInTheDocument();
   });
 
   it('passes the route canonical entry source through to the tab hook', () => {

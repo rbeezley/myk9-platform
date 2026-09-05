@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import {
   formatDateMMDDYYYY,
   formatDateLocal,
@@ -33,6 +33,51 @@ describe('formatDateMMDDYYYY', () => {
 
   it('should return empty string for unparseable date', () => {
     expect(formatDateMMDDYYYY('not a date at all')).toBe('');
+  });
+
+  // MYK9-384 (E26): shows.start_date / trials.trial_date are DATE columns that
+  // round-trip as midnight UTC. Rendering them through new Date().getDate()
+  // dated the Heartland Aug 1 trial to 7/31 for a Chicago viewer.
+  describe('midnight-UTC DATE round-trip is a calendar date, not an instant', () => {
+    const originalTimezone = process.env.TZ;
+
+    afterEach(() => {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    });
+
+    // Negative offset (the reported repro), UTC, and a POSITIVE offset — the
+    // last one shifts the naive parse forward across a month boundary.
+    it.each(['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'])(
+      'renders the Heartland Aug 1 trial as 8/1/2026 in %s',
+      timezone => {
+        process.env.TZ = timezone;
+
+        expect(formatDateMMDDYYYY('2026-08-01T00:00:00+00:00')).toBe('8/1/2026');
+        expect(formatDateMMDDYYYY('2026-08-01 00:00:00+00')).toBe('8/1/2026');
+        expect(formatDateMMDDYYYY('2026-08-01T00:00:00Z')).toBe('8/1/2026');
+        expect(formatDateMMDDYYYY('2026-08-01')).toBe('8/1/2026');
+      }
+    );
+
+    it.each(['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'])(
+      'holds a Jan 1 / Dec 31 year boundary in %s',
+      timezone => {
+        process.env.TZ = timezone;
+
+        expect(formatDateMMDDYYYY('2027-01-01T00:00:00+00:00')).toBe('1/1/2027');
+        expect(formatDateMMDDYYYY('2026-12-31T00:00:00+00:00')).toBe('12/31/2026');
+      }
+    );
+
+    it('still renders a genuine instant in the viewer timezone', () => {
+      process.env.TZ = 'America/Chicago';
+      // scoring_completed_at 09:15 UTC is 4:15 AM the same day in Chicago.
+      expect(formatDateMMDDYYYY('2026-08-01T09:15:00+00:00')).toBe('8/1/2026');
+      // …and 02:00 UTC is the previous evening locally, which is correct for
+      // an instant and is why this shape must NOT be treated as a calendar day.
+      expect(formatDateMMDDYYYY('2026-08-01T02:00:00+00:00')).toBe('7/31/2026');
+    });
   });
 });
 

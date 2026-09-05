@@ -25,22 +25,30 @@ import type { DataTableColumnMeta } from '@/components/ui/data-table';
 import { rbacService } from '@/services/rbac/RBACService';
 import type { PermissionAuditLog } from '@/types/rbac-types';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  classifyAuditAction,
+  getAuditActionTone,
+  summarizeAuditActions,
+} from './permissionAuditClassification';
 
+// Icons and badges are keyed off the same explicit action-code contract as the
+// summary (permissionAuditClassification.ts). They previously switched on codes
+// like 'assign_role' and 'grant_permission', which no writer emits — so every
+// real row fell through to the neutral default (MYK9-396).
 function getActionIcon(actionType: string) {
-  switch (actionType) {
-    case 'assign_role':
-    case 'create_role':
-      return <Shield className="h-4 w-4 text-primary" />;
-    case 'revoke_role':
-    case 'delete_role':
-      return <Shield className="h-4 w-4 text-destructive" />;
-    case 'grant_permission':
-      return <Settings className="h-4 w-4 text-primary" />;
-    case 'revoke_permission':
-      return <Settings className="h-4 w-4 text-warning" />;
-    default:
-      return <History className="h-4 w-4 text-muted-foreground" />;
+  const family = classifyAuditAction(actionType);
+  const tone = getAuditActionTone(actionType);
+
+  if (family === 'other' || tone === 'neutral') {
+    return <History className="h-4 w-4 text-muted-foreground" />;
   }
+
+  const Icon = family === 'role' ? Shield : Settings;
+  return (
+    <Icon
+      className={`h-4 w-4 ${tone === 'revoke' ? 'text-destructive' : 'text-primary'}`}
+    />
+  );
 }
 
 function formatAction(action: string) {
@@ -48,16 +56,11 @@ function formatAction(action: string) {
 }
 
 function getActionBadgeVariant(actionType: string) {
-  const variants = {
-    assign_role: 'default',
-    revoke_role: 'destructive',
-    grant_permission: 'default',
-    revoke_permission: 'secondary',
-    create_role: 'default',
-    delete_role: 'destructive',
-    update_role: 'secondary',
-  } as const;
-  return variants[actionType as keyof typeof variants] || 'outline';
+  if (classifyAuditAction(actionType) === 'other') return 'outline';
+  const tone = getAuditActionTone(actionType);
+  if (tone === 'grant') return 'default';
+  if (tone === 'revoke') return 'destructive';
+  return 'secondary';
 }
 
 function getAuditDetails(log: PermissionAuditLog): Record<string, unknown> | null {
@@ -242,11 +245,9 @@ const PermissionAuditPage: React.FC = () => {
     [auditLogs]
   );
 
-  const auditSummary = useMemo(() => {
-    const roleChanges = auditLogs.filter(log => log.action.includes('role')).length;
-    const permissionChanges = auditLogs.filter(log => log.action.includes('permission')).length;
-    return { roleChanges, permissionChanges };
-  }, [auditLogs]);
+  // Summarise the FILTERED rows, not every fetched row — the headline sits
+  // directly above the table and must agree with what it is summarising.
+  const auditSummary = useMemo(() => summarizeAuditActions(filteredLogs), [filteredLogs]);
 
   if (isLoading) {
     return (
@@ -307,7 +308,7 @@ const PermissionAuditPage: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-card px-4 py-3 text-sm">
             <span className="font-medium">
-              {auditLogs.length} {auditLogs.length === 1 ? 'change' : 'changes'}
+              {auditSummary.total} {auditSummary.total === 1 ? 'change' : 'changes'}
             </span>
             <span aria-hidden="true" className="text-border">
               •
@@ -323,6 +324,16 @@ const PermissionAuditPage: React.FC = () => {
               {auditSummary.permissionChanges}{' '}
               {auditSummary.permissionChanges === 1 ? 'permission change' : 'permission changes'}
             </span>
+            {auditSummary.otherChanges > 0 && (
+              <>
+                <span aria-hidden="true" className="text-border">
+                  •
+                </span>
+                <span className="text-muted-foreground">
+                  {auditSummary.otherChanges} other
+                </span>
+              </>
+            )}
           </div>
 
           <div>

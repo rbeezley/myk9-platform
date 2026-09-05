@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { format, isPast, isToday } from 'date-fns';
+import { isPast, isToday } from 'date-fns';
+import { formatMonthDay } from '@/lib/format/dates';
 import { Pencil, X } from 'lucide-react';
 import type { SecretaryTask, UpdateTaskInput } from './types';
 
@@ -137,7 +138,7 @@ export function TaskRow({
           {task.title}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          {task.dueDate ? `Due ${format(new Date(task.dueDate), 'MMM d')}` : 'No due date'}
+          {task.dueDate ? `Due ${formatMonthDay(task.dueDate)}` : 'No due date'}
         </p>
       </div>
       {!hideShowChip && (

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { shouldRenderOwnEntry, useMyEntriesData } from './useMyEntriesData';
 import { getUserEntries } from '@/services/database/entries';
@@ -77,6 +77,52 @@ describe('shouldRenderOwnEntry', () => {
       shouldRenderOwnEntry({ deleted_at: '2026-06-01T00:00:00Z', show: { deleted_at: null } })
     ).toBe(false);
   });
+});
+
+// MYK9-384 (E28): shows.entry_close_date is a DATE column that round-trips as a
+// midnight-UTC timestamp. Mapping it with `new Date()` put the deadline on the
+// previous evening west of UTC, so My Shows said "Entries close Jan 1, 2027"
+// while the show detail page and the server guard both said Jan 2.
+describe('useMyEntriesData — entry_close_date is a calendar date, not an instant', () => {
+  const originalTimezone = process.env.TZ;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-1', email: 'exhibitor@test.com' },
+      userWithRoles: { databaseUserId: 'person-1' },
+      isAuthenticated: true,
+    });
+    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
+  });
+
+  afterEach(() => {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  });
+
+  // The reported repro (negative offset), UTC, and two POSITIVE offsets.
+  it.each(['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'])(
+    'maps 2027-01-02T00:00:00+00:00 to local Jan 2 in %s',
+    async timezone => {
+      process.env.TZ = timezone;
+      const row = entryRow();
+      row.show.entry_close_date = '2027-01-02T00:00:00+00:00';
+      (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: [row],
+        error: null,
+      });
+
+      const { result } = renderData();
+      await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+      const closeDate = result.current.entries[0]?.entryCloseDate;
+      expect(closeDate).toBeInstanceOf(Date);
+      expect(closeDate!.getFullYear()).toBe(2027);
+      expect(closeDate!.getMonth()).toBe(0); // January — a month AND year boundary
+      expect(closeDate!.getDate()).toBe(2);
+    }
+  );
 });
 
 describe('useMyEntriesData — a failed reload must not discard loaded entries', () => {

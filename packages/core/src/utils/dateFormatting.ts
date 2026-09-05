@@ -6,21 +6,39 @@
  */
 
 /**
- * Formats a YYYY-MM-DD date string to M/D/YYYY.
- * Uses direct string manipulation to avoid timezone issues.
+ * A DATE column round-trips through PostgREST as midnight UTC — either
+ * "2026-08-01T00:00:00+00:00" or the space-separated "2026-08-01 00:00:00+00".
+ * The calendar day is the one written in the string; reading it through
+ * `new Date(...).getDate()` renders the previous day for every viewer west of
+ * UTC. Anything with a non-midnight time is a genuine instant and is left to
+ * local-time parsing.
+ */
+const UTC_MIDNIGHT_DATE = /^(\d{4}-\d{2}-\d{2})[T ]00:00:00(\.0+)?(Z|\+00(:?00)?)$/;
+
+/**
+ * Formats a calendar date to M/D/YYYY.
+ * Uses direct string manipulation to avoid timezone issues, both for a bare
+ * `YYYY-MM-DD` DATE column and for the midnight-UTC timestamp shape that same
+ * column round-trips as. Genuine instants (any non-midnight time component)
+ * still render in the viewer's local timezone.
  *
  * @param dateStr - Date string in YYYY-MM-DD format (or other parseable format)
  * @returns Formatted date string in M/D/YYYY format
  *
  * @example
  * formatDateMMDDYYYY("2024-01-05") // "1/5/2024"
+ * formatDateMMDDYYYY("2026-08-01T00:00:00+00:00") // "8/1/2026" in every timezone
  */
 export function formatDateMMDDYYYY(dateStr?: string): string {
   if (!dateStr) return '';
 
-  // Handle YYYY-MM-DD format directly
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    const [year, month, day] = dateStr.split('-');
+  // Handle YYYY-MM-DD format directly, including the midnight-UTC round-trip
+  // of a DATE column.
+  const calendarDay = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+    ? dateStr
+    : (UTC_MIDNIGHT_DATE.exec(dateStr)?.[1] ?? null);
+  if (calendarDay) {
+    const [year, month, day] = calendarDay.split('-');
     return `${parseInt(month ?? '0', 10)}/${parseInt(day ?? '0', 10)}/${year}`;
   }
 
@@ -228,7 +246,20 @@ export function formatTrialDate(dateStr: string, trialNumber?: number): string {
   const date = new Date(year, month - 1, day); // month is 0-indexed
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
   const dayName = days[date.getDay()];
   const monthName = months[date.getMonth()];

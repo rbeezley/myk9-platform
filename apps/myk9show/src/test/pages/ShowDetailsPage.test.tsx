@@ -487,6 +487,29 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('button', { name: 'Add Classes' })).toBeNull();
   });
 
+  // MYK9-387: the badge counts the exhibitor's whole entry HISTORY for this
+  // show — terminal states included — minus the dead move-up source row. The
+  // run-schedule header on the tab counts only runnable entries and says so;
+  // see MyEntriesTab.countReconciliation.test.tsx for both figures together.
+  it('counts withdrawn and promotion-expired entries in the My Entries badge, but not the dead move-up source', () => {
+    mockDogs = [{ id: 'dog-1', ownerId: 'person-1' }];
+    mockShowEntries = [
+      { id: 'e1', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-1', entry_status: 'confirmed' },
+      { id: 'e2', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-2', entry_status: 'withdrawn' },
+      {
+        id: 'e3',
+        show_id: 'show-1',
+        dog_id: 'dog-1',
+        class_id: 'class-3',
+        entry_status: 'promotion-expired',
+      },
+      { id: 'e4', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-4', entry_status: 'moved' },
+      { id: 'e5', show_id: 'show-1', dog_id: 'dog-1', class_id: 'class-5', entry_status: 'confirmed' },
+    ];
+    renderPage();
+    expect(screen.getByRole('tab', { name: /My Entries/ })).toHaveTextContent('4');
+  });
+
   it('renders the default public landing for unauthenticated users', () => {
     mockAuthContext.user = null;
     renderPage();

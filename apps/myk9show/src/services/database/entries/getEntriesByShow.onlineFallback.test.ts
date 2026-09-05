@@ -15,7 +15,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { mockEntriesTable, mockDogsTable, mockClassesTable, mockShowsTable, mockTrialsTable } =
   vi.hoisted(() => ({
-    mockEntriesTable: { getEntriesByShow: vi.fn(), getAll: vi.fn().mockResolvedValue([]) },
+    mockEntriesTable: {
+      sync: vi.fn(),
+      getEntriesByShow: vi.fn(),
+      getAll: vi.fn().mockResolvedValue([]),
+    },
     mockDogsTable: { getAllDogs: vi.fn().mockResolvedValue([]) },
     mockClassesTable: { getAll: vi.fn().mockResolvedValue([]) },
     mockShowsTable: { getAllShows: vi.fn().mockResolvedValue([]) },
@@ -63,7 +67,75 @@ import { getEntriesByShow } from '@/services/database/entries';
 
 describe('getEntriesByShow — cold local replica verifies online', () => {
   beforeEach(() => {
+    mockEntriesTable.sync.mockReset();
     onlineRows = [defaultOnlineRow];
+  });
+
+  it('syncs a populated but incomplete show replica before returning its entries', async () => {
+    const local = {
+      id: 'container',
+      dogId: null,
+      classId: null,
+      showId: 's1',
+      registrationId: null,
+      deletedAt: null,
+      entryStatus: 'completed',
+    };
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([local]);
+    mockEntriesTable.sync.mockImplementation(async () => {
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([
+        local,
+        { ...local, id: 'willow-interior-52-40' },
+      ]);
+      return { success: true };
+    });
+    const result = await getEntriesByShow('s1');
+    expect(result.data.map(row => row.id)).toContain('willow-interior-52-40');
+    expect(mockEntriesTable.sync).toHaveBeenCalledWith('s1');
+  });
+
+  it('retains cached entries when scoped sync throws offline', async () => {
+    mockEntriesTable.sync.mockRejectedValue(new Error('offline'));
+    mockEntriesTable.getEntriesByShow.mockResolvedValue([
+      {
+        id: 'offline-entry',
+        dogId: null,
+        classId: null,
+        showId: 's1',
+        registrationId: null,
+        deletedAt: null,
+        entryStatus: 'confirmed',
+      },
+    ]);
+    const result = await getEntriesByShow('s1');
+    expect(result.error).toBeNull();
+    expect(result.data.map(row => row.id)).toEqual(['offline-entry']);
+  });
+
+  it('returns cached entries after three seconds when scoped sync never settles', async () => {
+    vi.useFakeTimers();
+    try {
+      mockEntriesTable.sync.mockReturnValue(new Promise(() => {}));
+      mockEntriesTable.getEntriesByShow.mockResolvedValue([
+        {
+          id: 'cached-entry',
+          dogId: null,
+          classId: null,
+          showId: 's1',
+          registrationId: null,
+          deletedAt: null,
+          entryStatus: 'confirmed',
+        },
+      ]);
+      const pending = getEntriesByShow('s1');
+      await vi.advanceTimersByTimeAsync(3000);
+      const result = await pending;
+      expect(result.error).toBeNull();
+      expect(result.data.map(row => row.id)).toEqual(['cached-entry']);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('falls back to the online read when the local replica has zero rows for the show', async () => {

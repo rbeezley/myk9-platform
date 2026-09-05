@@ -75,3 +75,40 @@ and accessibility smoke. CI caught a test-local database error stub; the fixture
 now imports the real helper, and the guard plus both new suites pass (24 tests).
 The preview replay required Vercel login. The earlier named local replay remains
 valid, but its screenshot still needs attachment to Linear before issue closure.
+
+### Follow-up: partially populated replica — 2026-09-05
+
+The deployed browser showed only 18 My Entries and omitted Willow's Interior
+52.40 entry, while the same exhibitor's server reads included it (515 base rows;
+516 result-view rows). The base scored entry and its completed Interior class
+both exist and are not deleted. `getEntriesByShow` trusted any nonempty local
+replica without syncing the show; the empty-only online fallback cannot repair
+partial caches. This is a narrow continuation of the same read-path fix, using
+the existing plan rather than a new OpenSpec change or UI surface.
+
+- [x] Regression test: populated cache missing the Interior entry fails before
+  the fix (expected Interior ID, received Container ID only).
+- [x] Refresh the scoped entry replica before reading; preserve existing
+  conflict/tombstone handling and cached offline reads.
+- [x] Run scoped read, visibility, render, and tombstone tests plus type/lint checks.
+- [x] Replay the original named browser fixture and save screenshot evidence.
+- [ ] Publish the follow-up for delivery; close only after deployed evidence passes.
+
+Local replay of the follow-up: My Entries now has 515 rows and renders Willow
+Container Q · 0:38.50, Scout Container Q · 0:41.20, and Willow Interior
+Q · 0:52.40 with Test Judge. Screenshot saved as
+`/private/tmp/MYK9-381-scoped-sync-fixed.png`. This is local evidence, not a claim
+that the follow-up has deployed. The focused eight-file suite passes 80 tests;
+app TypeScript and changed-source lint pass. Full monorepo typecheck passes
+(including the existing E2E diagnostic ratchet), and lint passes with 18 existing
+warnings outside this change.
+
+Review identified an unbounded sync wait on unreliable Wi-Fi. The refresh now
+waits at most three seconds before continuing with the cache; normal sync may
+finish in the background. A never-settling sync regression verifies cached rows
+remain readable and the timer is cleared. Independent re-review approved the
+correction with no remaining blockers.
+
+Full app suite: 1,981 files and 19,007 tests passed; two native filesystem-watch
+assertions failed under the sandbox. The complete affected watcher file passed
+outside the sandbox (3 tests). Final test TypeScript also passes.

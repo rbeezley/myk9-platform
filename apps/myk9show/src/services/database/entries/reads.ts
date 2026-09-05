@@ -29,6 +29,7 @@ import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { DbEntryWithRelations } from '@/services/mappers/classMappers';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
 import { withReleasedShowResults } from './releasedShowResults';
+import { refreshShowEntriesForRead } from './refreshShowEntriesForRead';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -582,6 +583,10 @@ export const getEntryById = async (id: string) => {
 // empty-local-replica-verifies-online pattern used by getEntriesByDog above and
 // getUserEntries in search.ts.
 export const getEntriesByShow = async (showId: string) => {
+  // A populated replica may contain only individually hydrated entries. Refresh
+  // this show through the conflict-aware sync path before treating it as complete.
+  // Failed/offline sync must not discard the entries already available locally.
+  await refreshShowEntriesForRead(showId);
   const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([

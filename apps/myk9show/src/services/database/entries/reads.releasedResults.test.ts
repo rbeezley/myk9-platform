@@ -3,6 +3,9 @@ import { createDatabaseError } from '../databaseError';
 import { getEntriesByShow } from './reads';
 
 const mocks = vi.hoisted(() => ({ read: vi.fn(), from: vi.fn() }));
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: { sync: vi.fn().mockResolvedValue({ success: true }) },
+}));
 vi.mock('../_shared/read-shape', async importOriginal => ({
   ...(await importOriginal<typeof import('../_shared/read-shape')>()),
   readWithReplicationFallback: mocks.read,

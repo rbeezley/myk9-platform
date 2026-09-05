@@ -197,13 +197,27 @@ function deriveTableSecurityState(sources: MigrationSource[]): Map<string, Table
         `\\balter\\s+table\\s+(?:if\\s+exists\\s+)?(?:only\\s+)?(${tableReference})`,
         'gi'
       );
-      for (const match of sql.matchAll(alterPattern)) {
+      // Bound each ALTER's action scan to its OWN statement. Scanning to the end
+      // of the chunk lets a later table's ENABLE land on an earlier, unsecured
+      // one — which would make rlsDisabledTables report a naked table as
+      // protected, the exact false negative these invariants exist to prevent.
+      //
+      // Statements are normally split on `;` so two ALTERs rarely share a chunk,
+      // but `maskSqlNonCode` masks semicolons inside dollar-quoted bodies and
+      // quoted identifiers, and any such chunk would silently absorb the leak.
+      // Measured before the fix: two ALTERs in one chunk returned [] where
+      // ['unsecured'] was correct. Raised in review of #2045.
+      const alterMatches = [...sql.matchAll(alterPattern)];
+      for (const [position, match] of alterMatches.entries()) {
         const table = publicTableName(match[1]);
         if (!table) continue;
         const actionOffset = match.index + match[0].length;
+        const nextAlterOffset = alterMatches[position + 1]?.index ?? sql.length;
         const actionPattern = /\b(enable|disable|force|no\s+force)\s+row\s+level\s+security\b/gi;
 
-        for (const actionMatch of sql.slice(actionOffset).matchAll(actionPattern)) {
+        for (const actionMatch of sql
+          .slice(actionOffset, nextAlterOffset)
+          .matchAll(actionPattern)) {
           const action = actionMatch[1].replace(/\s+/g, ' ').toLowerCase();
           operations.push({
             index: actionOffset + actionMatch.index,
@@ -453,6 +467,26 @@ describe('FORCE RLS migration invariant', () => {
     ];
 
     expect(rlsDisabledTables(sources)).toEqual(['never_enabled']);
+  });
+
+  it('does not let one statement chunk leak an RLS action between tables', () => {
+    // Two ALTERs in one chunk — what a masked semicolon produces. Before the
+    // scan was bounded, `unsecured` absorbed `secured`'s ENABLE and both
+    // invariants reported the naked table as protected.
+    const sources: MigrationSource[] = [
+      {
+        name: '999_leak.sql',
+        sql: `
+          CREATE TABLE public.unsecured (id uuid);
+          CREATE TABLE public.secured (id uuid);
+          ALTER TABLE public.unsecured ADD COLUMN note text
+          ALTER TABLE public.secured ENABLE ROW LEVEL SECURITY;
+        `,
+      },
+    ];
+
+    expect(rlsDisabledTables(sources)).toEqual(['unsecured']);
+    expect(unforcedRlsTables(sources)).toEqual(['secured']);
   });
 
   it('leaves no repository-owned public table with RLS disabled', () => {

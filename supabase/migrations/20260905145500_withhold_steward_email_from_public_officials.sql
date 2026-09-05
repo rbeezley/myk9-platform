@@ -45,11 +45,26 @@ AS $$
       -- Secretary and chairman are the paperwork contacts the premium list
       -- publishes. Unchanged, deliberately public.
       WHEN so.role <> 'steward' THEN pe.email
-      -- A steward's address is operational, not published. Managers only.
-      WHEN (SELECT public.is_site_admin())
-        OR (s.club_id IS NOT NULL AND (SELECT public.is_club_admin(s.club_id)))
-        OR (SELECT public.is_show_secretary(s.id))
-        THEN pe.email
+      -- A steward's address is operational, not published. Managers only, via
+      -- the CANONICAL predicate rather than a hand-rolled arm list.
+      --
+      -- The first draft spelled this out as
+      --   is_site_admin() OR is_club_admin(s.club_id) OR is_show_secretary(s.id)
+      -- which silently excluded a whole supported role. is_show_secretary
+      -- matches r.name = 'secretary' only, while is_trial_secretary — and so
+      -- can_manage_show — matches ('secretary', 'trial_secretary'). A
+      -- club-scoped TRIAL_SECRETARY would therefore be a show manager everywhere
+      -- else in this schema while losing the steward's address here.
+      --
+      -- Measured before changing it: no such role is SEEDED. public.roles holds
+      -- exactly chairman, club_admin, exhibitor, judge, secretary, site_admin,
+      -- steward — so is_trial_secretary's 'trial_secretary' arm is dead and the
+      -- two predicates select the same people today. This is hardening against
+      -- a role name the schema already believes in, not a live exposure, and it
+      -- is not behaviourally testable until that role exists. Using the
+      -- canonical predicate is also simply less to get wrong. Raised in review
+      -- of #2045.
+      WHEN (SELECT public.can_manage_show(s.id)) THEN pe.email
       ELSE NULL
     END AS email,
     so.role

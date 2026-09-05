@@ -9,7 +9,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { Copy, ChevronsUpDown, Check, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
@@ -257,7 +257,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                       <span className="text-xs text-muted-foreground">
                         {show.organization}
                         {show.startDate
-                          ? ` · ${format(new Date(show.startDate), 'MMM d, yyyy')}`
+                          ? ` · ${formatShortCalendarDate(show.startDate)}`
                           : ''}
                         {show.location ? ` · ${show.location.split('\n')[0].split(',')[0]}` : ''}
                       </span>

@@ -128,6 +128,22 @@ export function formatWeekdayMonthDay(value?: string | Date | null): string {
 }
 
 /**
+ * A CALENDAR month and year: "Aug 2026".
+ *
+ * Calendar-safe by construction, for DATE-typed columns whose day is not
+ * shown but still decides the month — `club_officers.term_start` /
+ * `term_end`. A bare `YYYY-MM-01` read as an instant lands in the PREVIOUS
+ * month west of UTC, so the label is wrong for a whole term, not by a day.
+ */
+export function formatMonthYear(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+/**
  * Compact CALENDAR date, no weekday: "Jan 2, 2027".
  *
  * The calendar-safe twin of {@link formatShortDate}. Use it for every

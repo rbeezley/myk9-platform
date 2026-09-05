@@ -9,7 +9,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Users, Plus, Shield, Trash2, KeyRound } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatMonthYear, formatShortCalendarDate } from '@/lib/format/dates';
 import {
   MEMBERSHIP_TYPE_LABELS,
   MEMBERSHIP_STATUS_LABELS,
@@ -93,7 +93,7 @@ export const MembersTable: React.FC<MembersTableProps> = ({
               </Badge>
             </td>
             <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
-              {member.joinedDate ? format(new Date(member.joinedDate), 'MMM d, yyyy') : EMPTY_CELL}
+              {member.joinedDate ? formatShortCalendarDate(member.joinedDate) : EMPTY_CELL}
             </td>
             <td className="px-4 py-3 text-right">
               <MemberActionMenu
@@ -180,9 +180,9 @@ export const OfficersTable: React.FC<OfficersTableProps> = ({
             </td>
             <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
               {officer.termStart && officer.termEnd
-                ? `${format(new Date(officer.termStart), 'MMM yyyy')} - ${format(new Date(officer.termEnd), 'MMM yyyy')}`
+                ? `${formatMonthYear(officer.termStart)} - ${formatMonthYear(officer.termEnd)}`
                 : officer.termStart
-                  ? `From ${format(new Date(officer.termStart), 'MMM yyyy')}`
+                  ? `From ${formatMonthYear(officer.termStart)}`
                   : EMPTY_CELL}
             </td>
             <td className="px-4 py-3 text-right">

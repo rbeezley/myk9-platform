@@ -20,7 +20,8 @@
 # Env:   CODEX_BIN  override the codex executable (tests use a stub)
 # Exit:  0 review ran and found nothing actionable
 #        1 review ran and reported findings (fix, re-run against the new head)
-#        2 review did NOT run (usage limit / interrupted) — not a verdict
+#        2 review did NOT complete (usage limit, interrupted, cli failure, or
+#          unrecognized output) — not a verdict, never post evidence
 set -uo pipefail
 
 BASE_REF="${1:-origin/main}"
@@ -52,6 +53,22 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."
   exit 1
+fi
+
+# Clean is a POSITIVE match, never the absence of findings: a verdict block
+# that says "Unable to complete the review" has no [P*] bullets either, and the
+# first version of this wrapper certified exactly that as clean (Codex review
+# of #2063, P1). The CLI must also have exited 0 — a non-zero exit with any
+# text is a failed run, not a verdict.
+if [ "$CLI_EXIT" -ne 0 ]; then
+  echo
+  echo "codex-review: cli exited ${CLI_EXIT}; treating the run as NOT completed (exit 2). No evidence emitted."
+  exit 2
+fi
+if ! echo "$VERDICT" | grep -Eiq '^\s*no actionable (defects|regressions|issues)'; then
+  echo
+  echo "codex-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
+  exit 2
 fi
 
 echo

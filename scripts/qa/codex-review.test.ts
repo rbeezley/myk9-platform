@@ -108,6 +108,40 @@ describe('codex-review.sh', () => {
     expect(readFileSync(stub.log, 'utf8')).toContain('No actionable defects');
   });
 
+  it.each([
+    [
+      'cli failure with prose in the verdict block',
+      'codex\nUnable to complete the review because the connection failed.',
+      1,
+    ],
+    [
+      'cli exit 0 but no explicit clean verdict',
+      'codex\nUnable to complete the review because the connection failed.',
+      0,
+    ],
+    ['explicit clean verdict but cli exit 1', 'codex\nNo actionable defects found.', 1],
+    ['partial output with no findings bullets', 'codex\nReviewing... 3 of 12 files read so far', 0],
+  ])(
+    'exits 2 without evidence on %s — clean is a positive match, not the absence of findings',
+    (_, output, exitCode) => {
+      // Codex review of #2063, P1: the first wrapper certified any verdict block
+      // without a [P*] bullet as clean, including a connection failure.
+      const r = run(stubCodex(output, exitCode));
+      expect(r.code).toBe(2);
+      expect(r.out).not.toContain('Review gate: codex reviewed');
+    }
+  );
+
+  it.each([
+    'No actionable defects found in the diff.',
+    'No actionable regressions were identified in the changes.',
+    'no actionable issues',
+  ])('accepts the explicit clean verdict %j', verdict => {
+    const r = run(stubCodex(`codex\n${verdict}`));
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('Review gate: codex reviewed');
+  });
+
   it('exits 2 when there is no verdict block at all', () => {
     const stub = stubCodex('nothing useful here');
     expect(run(stub).code).toBe(2);

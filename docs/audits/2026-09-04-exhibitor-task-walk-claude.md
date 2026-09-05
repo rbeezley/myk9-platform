@@ -10,8 +10,8 @@
 | Baseline SHA | `44c6c153d` (`fix(admin): resolve component audit findings (#2025)`) |
 | Surface | deployed staging `myk9-platform-myk9show.vercel.app` (auto-deploys from `main`), real Chromium 1440×1000, tz America/Chicago |
 | Accounts | `exhibitor@myk9t.com` (252 dogs / 1235 live entries). `exhibitor2@myk9t.com` **sign-in rejected — credential drift, 2nd consecutive walk** |
-| Stripe | **no payment made** — no show is both open and Stripe-capable. See the precondition below |
-| Findings | 7 new (E24–E30), 5 prior findings unchanged, **9 prior findings confirmed resolved in the browser** |
+| Stripe | **payment completed in sandbox on 2026-09-05**, `cs_test_` asserted before any digits. Required a fixture fix first — see the addendum |
+| Findings | 8 new (E24–E31), 5 prior findings unchanged, **9 prior findings confirmed resolved in the browser** |
 | Artefacts | 53 screenshots + network captures in the session scratchpad |
 | Mutations | 1 dog + 1 registration created and **fully undone**; counts asserted before and after |
 
@@ -79,7 +79,7 @@ The closed-show path itself is **correct**: `/shows/<closed>/register` dead-ends
 | --- | --- | --- | --- | --- |
 | 1 | Manage dog records | **Yes** | `exhibitor@` | Created a dog, added an AKC registration, edited it, deleted it — all through the UI, all verified in the DB. **Empty-state half not covered** (gap 1) |
 | 2 | Find and enter shows | **Yes** | signed-out + `exhibitor@` | Signed-out discovery **broken at the click-through** (E27). Wizard walked to the payment step. Closed-show path correct |
-| 3 | Pay entry fees | **No** | — | **Coverage gap** — no Stripe-capable show is open. MYK9-294 unverified |
+| 3 | Pay entry fees | **Yes** (2026-09-05) | `exhibitor@` | Walked end to end after the fixture fix. Money correct at every step; **confirmation fails — E31** |
 | 4 | View entry status | **Yes** | `exhibitor@` | The strongest area this run. Counts now reconcile exactly to the database |
 | 5 | Running order / ring assignments | **Yes** | `exhibitor@` | Judge never resolves (E19 → MYK9-381). No published times in the fixtures, so ordering itself is untested |
 | 6 | Announcements inbox | **Partial** | `exhibitor@` | `/notifications` renders a correct empty state. **The DB holds 0 announcements platform-wide**, so the empty state is truthful and nothing else can be tested |
@@ -95,7 +95,7 @@ The closed-show path itself is **correct**: `/shows/<closed>/register` dead-ends
    app bug. **Consequence: the genuine first-run empty state has now gone unverified twice.**
    It is the screen every real new user sees first and the only part of this role nobody has
    looked at. Rolled into MYK9-388.
-2. **Payment (task 3)** — see the precondition above.
+2. ~~**Payment (task 3)**~~ — **closed on 2026-09-05**; see the addendum. It required a source change to the seed (PR #2032) before it could be walked at all.
 3. **Show-day check-in (task 7)** — no show is running today.
 4. **Announcements (task 6)** — zero announcements exist in the database.
 
@@ -119,6 +119,7 @@ E-series continuing from **E23** (2026-09-01 walk).
 | **E20** | P2 | Card payment offered end to end for a club that cannot accept it | **unchanged** | [MYK9-386](https://linear.app/myk9-platform/issue/MYK9-386) |
 | **E9** | P2 | My Shows fires 389 requests, 252 of them one per dog | **unchanged** | commented on MYK9-289 |
 | **E30** | P3 | Show page states one entry count three ways: tab 485, header 482, DB 486 | new | [MYK9-387](https://linear.app/myk9-platform/issue/MYK9-387) |
+| **E31** | **P1** | Confirmation can never find the payment — Stripe is sent a percent-encoded placeholder | new; **MYK9-294 reopened** | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) |
 
 ---
 
@@ -458,3 +459,185 @@ is enterable.
 | E15, E16, E20, E30 | **High** | Browser counts reconciled to SQL; source line named for each |
 | E25 | **High** on the copy, **medium** on impact | Dialog text captured verbatim; the harm is inferred from the vocabulary collision, not observed |
 | E9 | **High** | Two independent measurements, four routes, fresh context each |
+
+---
+
+# Addendum — 2026-09-05: the payment walk, completed
+
+The walk above recorded role task 3 (**pay entry fees**) as a coverage gap because no show
+was both open for entry and hosted by a club that could take money. Richard asked for the
+fixture to be fixed so the task could be tested properly. This addendum records that walk.
+
+**The blocker was not the show's dates.** `MYK9-109 Load Show 1` was already open. What was
+missing was a single `club_stripe_accounts` row for `MYK9-109 Load Club 1`, and the
+`stripe-checkout` gate reads only `payouts_enabled` and `livemode` — it never validates the
+account id (`index.ts:547-563`). Heartland's own id is a placeholder, and `seed-demo.sql`
+already says why that is safe: *"The session itself doesn't use Connect (no transfer_data),
+so a sandbox placeholder account id is safe for testing."* Fixed in
+[PR #2032](https://github.com/rbeezley/myk9-platform/pull/2032), merged as `36ba17858`, which
+declares the row for Load Club 1 only — clubs 2 and 3 stay unpayable on purpose, because
+MYK9-386 needs a club that genuinely cannot take money — and asserts *exactly one* payable
+load club so either direction fails a reseed loudly.
+
+## The money is correct at every step
+
+| Step | Amount |
+| --- | --- |
+| Wizard step 3 — "Amount Due" | **$32.10** |
+| Cart — "Total" and the pay button | **$32.10** |
+| Stripe's own Checkout page | **$32.10** ($30.00 + $2.10) |
+| `stripe_orders.amount_cents` | **3210** |
+
+Four surfaces, one number. **E13 / MYK9-367 is confirmed fixed end to end** — the defect the
+2026-09-01 walk found (wizard quoting $30.00 against a $32.10 charge) is gone, and this is the
+MYK9-265 class of check passing. The sandbox gate was asserted mechanically before any card
+digits were typed: session `cs_test_b132JUQpCwfrCaTDyF6g6ai6xEyMgIzxKbqv7gkwJzE1xS9m…`.
+
+Everything downstream of payment is also correct. My Shows showed the entry within seconds
+(`ZZ Walk Dog 2026-09-05 · Load 1 Class 1 · Pending review · Paid`) and its count moved
+253 → 254. My Payments gained
+`Sep 4, 2026 · MYK9-109 Load Show 1 · Online entry fees · $32.10 · Paid · Receipt`, and the
+arithmetic reconciles exactly: gross `$321.00 + $32.10 = $353.10`, net
+`$353.10 − $112.35 = $240.75`, "9 payments" up from 8.
+
+*(The "Sep 4" date is correct, not an instance of E26/E28: `paid_at` is `2026-09-05 00:58 UTC`,
+which is Sep 4 19:58 in America/Chicago. It is a genuine instant, correctly rendered local.)*
+
+---
+
+### E31 — The confirmation page can never find the payment: Stripe is sent a percent-encoded placeholder · **P0-adjacent, filed P1** · MYK9-294 reopened
+
+**The one thing `docs/roles/exhibitor.md` says must never happen, happening, with a proven
+one-line cause.**
+
+MYK9-294 was closed Done on 2026-09-02. It still fires. After a successful payment the browser
+is returned to:
+
+```
+/checkout/success?session_id=%7BCHECKOUT_SESSION_ID%7D
+```
+
+That is the literal Stripe placeholder, percent-encoded. `apps/myk9show/src/lib/stripe.ts:93-94`:
+
+```ts
+const successUrl = new URL(`${window.location.origin}/checkout/success`);
+successUrl.searchParams.set('session_id', '{CHECKOUT_SESSION_ID}');
+```
+
+`URLSearchParams` encodes the braces on `toString()`. Proven:
+
+```
+searchParams.set  ->  ...?session_id=%7BCHECKOUT_SESSION_ID%7D
+string concat     ->  ...?session_id={CHECKOUT_SESSION_ID}
+```
+
+Stripe substitutes only the **literal** token, so it returns the URL verbatim. The page then
+queries `stripe_orders` for a session id of literally `{CHECKOUT_SESSION_ID}` and finds
+nothing — **forever**. It is not a race, not webhook lag, not an ownership problem. The 2026-09-01
+walk ruled all three out correctly and could not name the cause; this is it.
+
+Observed timeline:
+
+```
+t = 0.0s   clicked Pay (cs_test_ asserted first)
+t = 9.3s   returned to /checkout/success?session_id=%7BCHECKOUT_SESSION_ID%7D
+t = 13.4s  "Checking your payment status..."
+t = 37.4s  "Payment Not Found Yet"     <- terminal, still there at t = 100s
+```
+
+while the payment had already succeeded before the page loaded:
+
+```
+stripe_orders dd1bb1c7-…  status = succeeded  amount_cents = 3210
+  paid_at    2026-09-05 00:58:51.150+00
+  created_at 2026-09-05 00:58:51.204+00     <- 54 ms later
+entries       98c0df55-…  entry_status = paid  payment_status = paid
+```
+
+**A/B proof, same page and same order, one parameter apart:**
+
+| `session_id` | Result |
+| --- | --- |
+| `%7BCHECKOUT_SESSION_ID%7D` (what Stripe returns) | "Payment Not Found Yet", never recovers |
+| `cs_test_b132…EfrI` (the real id) | **"Entry Submitted Successfully!"** immediately — confirmation #, $32.10, dog, class |
+
+The confirmation page is correct. It is only ever handed the wrong parameter. `stripe.ts:93-94`
+is the **only** call site using the placeholder; the other four client `success_url` builders
+use static query params and are unaffected.
+
+Two prior PRs — [#1941](https://github.com/rbeezley/myk9-platform/pull/1941) and
+[#1951](https://github.com/rbeezley/myk9-platform/pull/1951), both titled around a "delayed
+order visibility gap" — were aimed at a race that never existed.
+
+The assertion that would have caught this: the generated `success_url` must contain the literal
+`{CHECKOUT_SESSION_ID}` and not `%7B`.
+
+---
+
+## A reseed ran mid-walk, and it was instructive
+
+At **01:07:41 UTC**, between the payment and the cleanup, a reseed ran. Three consequences
+worth recording, because each is a fact about the fixtures rather than about the app:
+
+1. **It deleted the manually-applied Stripe row** — `payable_load_clubs` went 1 → 0. The
+   load-fixture cleanup drops the whole `…-0013-*` club range and the FK is `ON DELETE
+   CASCADE`. This is exactly why the fix belonged in `seed-demo.sql` rather than in a one-off
+   INSERT, and merging #2032 is what makes the walk repeatable.
+2. **It reset the show's dates to the seed formula** — `CURRENT_DATE + 45` / `+ 76`. So the
+   "make the demo window relative to `now()`" request in MYK9-388 was **already satisfied in
+   the seed**; the fixed Jan 2027 dates were hand-edited drift on the live database, not a
+   seed defect. That correction matters: I had assumed the seed carried fixed dates.
+3. **It orphaned a paid order.** The reseed hard-deletes entries and leaves `stripe_orders`
+   intact, so my order survived while the entry it paid for did not. Across the table,
+   **14 of 15 orders reference an entry that no longer exists.** This is the real explanation
+   for the "Historical payment / Historical receipt unavailable" rows that MYK9-370 addressed —
+   they are not a migration gap, they are the residue of successive reseeds, and every reseed
+   adds more. Staging-only: the application soft-deletes entries, so only the seed's hard
+   `DELETE` produces this.
+
+## Safe-mutation accounting for this addendum
+
+| Object | State |
+| --- | --- |
+| Dog `ZZ Walk Dog 2026-09-05` (`28718a3b-…`) | **soft-deleted through the app**, 01:10:13 UTC |
+| Its AKC registration `ZZWALK0905` | removed with the dog |
+| Entry `98c0df55-…` (paid $32.10) | hard-deleted by the reseed before I could reach it |
+| `stripe_orders dd1bb1c7-…` ($32.10, succeeded) | **persists** — by design, now orphaned |
+| Stripe sandbox payment intent `pi_3UC7wQ…` | persists by design |
+
+The planned cleanup was "secretary soft-deletes the entry, then the exhibitor deletes the dog".
+Two corrections to that plan, both discovered rather than assumed:
+
+- **The secretary could not have done it.** `secretary@myk9t.com` holds `secretary` scoped to
+  `dededede-…-0001` (Heartland) only, so it cannot manage a Load Club show at all — which is
+  the per-club scoping MYK9-137 deliberately created. The site admin is the correct actor.
+- **The entry was already gone**, so only the dog needed deleting; with no live entries,
+  `soft_delete_dog` returned `204` cleanly. That does still confirm the mechanism the
+  2026-09-01 walk reported as impossible: the `MK002` guard inspects only entries where
+  `deleted_at IS NULL`, so clearing the entry first is a real cleanup path and no refund is
+  required.
+
+## Corrections to my own measurement (addendum)
+
+1. **"The wizard's dog picker doesn't match `ZZ Walk`."** It does — my probe read the DOM
+   before the search debounce settled. Same class of error as correction 4 in the main report.
+2. **"The class-selection control is a checkbox."** My first three attempts clicked a
+   visually-hidden `<input aria-hidden="true">` sitting behind the Base UI control, which
+   reports as `:visible` to Playwright. The real target is the `[role="checkbox"]` span. This
+   is the third variant of the same trap in two walks — the lesson is to target the ARIA role,
+   never a raw `input[type=checkbox]`.
+3. **"The dog has three registrations but I added one."** Nearly filed as a duplicate-write
+   bug. The two extra rows are timestamped `01:07:41.617714` — the exact reseed moment. The
+   app created exactly one, at `00:50:56`.
+4. **"The admin's entry page shows the wrong dates and count."** It showed Oct 20–22 / 252
+   where I expected Jan 2027 / 253, and my first instinct was a stale-cache defect. The
+   database agreed with the page; the reseed had moved the show under me.
+
+## What the wizard got right
+
+Recording this because the walk is otherwise a defect list. When I tried to enter a dog with no
+AKC registration into an AKC show, the wizard blocked each class with
+*"Add this dog's AKC registration before selecting this class."* and an **"Add required
+registration"** button beside it. Specific, actionable, and placed at the point of the
+decision — the opposite of E20, where the impossibility is disclosed only after the job is
+done. That is the pattern E20 should copy.

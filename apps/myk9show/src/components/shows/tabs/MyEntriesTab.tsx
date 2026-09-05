@@ -25,11 +25,18 @@ export function MyEntriesTab({
 }: MyEntriesTabProps) {
   const navigate = useNavigate();
   const loadEntries = useEntryStore(s => s.loadEntries);
-  const { dogGroups, allEntries, scheduleEntries, totalClasses, scheduleDogCount, isLoading, isError } =
-    useShowEntriesForUser(
-      showId,
-      canonicalEntries ? { rows: canonicalEntries, state: entryDataState } : undefined
-    );
+  const {
+    dogGroups,
+    allEntries,
+    scheduleEntries,
+    totalClasses,
+    scheduleDogCount,
+    isLoading,
+    isError,
+  } = useShowEntriesForUser(
+    showId,
+    canonicalEntries ? { rows: canonicalEntries, state: entryDataState } : undefined
+  );
 
   if (isLoading) {
     return <LoadingSkeleton variant="cards" count={3} />;
@@ -73,9 +80,9 @@ export function MyEntriesTab({
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-foreground">My run schedule</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              {totalClasses} {totalClasses === 1 ? 'class' : 'classes'} across {scheduleDogCount}{' '}
-              {scheduleDogCount === 1 ? 'dog' : 'dogs'}. Times, armbands, judges, and results
-              stay together here.
+              {totalClasses} scheduled {totalClasses === 1 ? 'run' : 'runs'} across{' '}
+              {scheduleDogCount} {scheduleDogCount === 1 ? 'dog' : 'dogs'}. Times, armbands, judges,
+              and results stay together here.
             </p>
           </div>
         </div>

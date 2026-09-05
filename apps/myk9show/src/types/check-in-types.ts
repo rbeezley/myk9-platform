@@ -91,5 +91,5 @@ export const EXHIBITOR_STATUS_LABELS: Partial<Record<CheckInStatus, string>> = {
   'no-status': 'I am not there yet',
   'checked-in': 'I am here',
   conflict: 'I have a conflict — tell the secretary',
-  pulled: 'I need to withdraw from this class',
+  pulled: "I won't be running this class",
 };

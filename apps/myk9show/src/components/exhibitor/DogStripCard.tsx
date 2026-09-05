@@ -68,7 +68,7 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
               </span>
             ) : (
               <span className="inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                Not entered
+                No upcoming classes
               </span>
             )}
           </div>

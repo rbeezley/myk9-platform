@@ -34,7 +34,7 @@ import {
 import { formatConfirmationNumberLabel } from '@/features/registration/confirmationNumberDisplay';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import { formatTrialLabel } from './myEntriesUtils';
-import { formatMonthDay, formatShortDate } from '@/lib/format/dates';
+import { formatMonthDay, formatShowDateRange } from '@/lib/format/dates';
 import { toDogEntryView } from './myEntryDogView';
 import { isClassCheckInEligible } from './entryNextAction';
 import { getSharedClassFacts } from './classGroupFacts';
@@ -121,7 +121,7 @@ export const MyEntryCardDetails: React.FC<MyEntryCardDetailsProps> = ({
           <CalendarClock className="h-4 w-4" />
           <span>
             <span className="text-sm text-muted-foreground">Entries close </span>
-            {formatShortDate(entry.entryCloseDate)}
+            {formatShowDateRange(entry.entryCloseDate)}
           </span>
         </div>
       )}

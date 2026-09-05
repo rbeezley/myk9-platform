@@ -17,6 +17,7 @@ import { PaymentSummaryCard } from './PaymentSummaryCard';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
 import { removeClassFromSelections } from '../ClassSelectionStep.helpers';
+import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
 
 /**
  * Top-level PaymentStep component that composes the sub-components for
@@ -53,6 +54,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const isOnBehalf = isSecretary || isClubAdmin || isSiteAdmin;
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
+  const { data: stripeAccount } = useClubStripeAccount(show?.clubId);
   const cartItems = useCartItems();
   const removeItem = useCartStore(state => state.removeItem);
   const [removingLineKey, setRemovingLineKey] = useState<string | null>(null);
@@ -61,6 +63,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     check: show?.acceptCheckPayments ?? true,
     cash: show?.acceptCashPayments ?? true,
   };
+  const clubHasUsableStripe = Boolean(
+    stripeAccount?.onboarding_complete && stripeAccount.payouts_enabled
+  );
+  const cardCheckoutAvailable = Boolean(show?.clubId ? clubHasUsableStripe : true);
 
   // Shared state: fee override and waiver (used by both SecretaryPaymentManagement and PaymentSummaryCard)
   const [feeOverride, setFeeOverride] = useState<number | null>(null);
@@ -175,7 +181,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         onPaymentMethodChange={onPaymentMethodChange}
         onPaymentDetailsChange={onPaymentDetailsChange}
         acceptedMethods={acceptedMethods}
-        allowCardCheckout={!isOnBehalf}
+        allowCardCheckout={!isOnBehalf && cardCheckoutAvailable}
+        cardCheckoutUnavailableReason={
+          !isOnBehalf && show?.clubId && !cardCheckoutAvailable
+            ? 'Online card payment is not available for this club. Choose check or cash to complete your entry.'
+            : undefined
+        }
       />
 
       {/* Secretary Features */}

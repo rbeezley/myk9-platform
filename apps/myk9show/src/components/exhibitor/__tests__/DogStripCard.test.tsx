@@ -75,7 +75,9 @@ describe('DogStripCard', () => {
       'https://example.test/rosie.jpg'
     );
     unmount();
-    render(<DogStripCard dogId="d1" dogName="Rosie" registrations={sameBreed} upcomingClassCount={2} />);
+    render(
+      <DogStripCard dogId="d1" dogName="Rosie" registrations={sameBreed} upcomingClassCount={2} />
+    );
     expect(document.querySelector('img')).toBeNull();
     expect(screen.getByText('R')).toBeInTheDocument();
   });
@@ -90,9 +92,9 @@ describe('DogStripCard', () => {
     expect(screen.getByText('1 upcoming class')).toBeInTheDocument();
   });
 
-  it('shows amber Not entered badge when upcomingClassCount is 0', () => {
+  it('shows amber no-upcoming-classes badge when upcomingClassCount is 0', () => {
     render(<DogStripCard dogId="d1" dogName="Max" registrations={[]} upcomingClassCount={0} />);
-    expect(screen.getByText('Not entered')).toBeInTheDocument();
+    expect(screen.getByText('No upcoming classes')).toBeInTheDocument();
   });
 
   it('shows title abbreviations when earned', () => {

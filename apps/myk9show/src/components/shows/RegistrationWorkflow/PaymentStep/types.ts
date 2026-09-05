@@ -100,6 +100,8 @@ export interface PaymentMethodSelectorProps {
    * (secretary/club admin/site admin) must use check/cash/secretary_paid/waived.
    */
   allowCardCheckout?: boolean | undefined;
+  /** Explains why card checkout is unavailable for an exhibitor's club. */
+  cardCheckoutUnavailableReason?: string | undefined;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */

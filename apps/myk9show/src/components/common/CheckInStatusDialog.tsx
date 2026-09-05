@@ -52,7 +52,8 @@ const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
   'no-status': "I haven't checked in yet",
   'checked-in': "I've checked in and I'm ready",
   conflict: "I'll let the secretary know about this conflict",
-  pulled: "The secretary will see that this dog won't run in this class",
+  pulled:
+    "This only tells the secretary that this dog won't run in this class; it does not withdraw the entry or change its fee",
   'at-gate': "I'm at the gate and ready",
 };
 

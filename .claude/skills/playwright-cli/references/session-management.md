@@ -38,16 +38,22 @@ playwright-cli list
 playwright-cli close                # stop the default browser
 playwright-cli -s=mysession close   # stop a named browser
 
-# Stop all browser sessions
+# Stop all browser sessions -- see the ownership warning below
 playwright-cli close-all
 
-# Forcefully kill all daemon processes (for stale/zombie processes)
+# Forcefully kill all daemon processes -- see the ownership warning below
 playwright-cli kill-all
 
 # Delete browser session user data (profile directory)
 playwright-cli delete-data                # delete default browser data
 playwright-cli -s=mysession delete-data   # delete named browser data
 ```
+
+> **Not in this repo.** `close-all` and `kill-all` reach every session on the
+> machine, including ones concurrent agents own. `AGENTS.md` § Browser
+> automation session ownership forbids them as routine cleanup: close the
+> exact session you opened, by name. Reach for `kill-all` only after
+> confirming with the user that nothing else is running.
 
 ## Environment Variable
 
@@ -77,8 +83,10 @@ playwright-cli -s=site1 snapshot
 playwright-cli -s=site2 snapshot
 playwright-cli -s=site3 snapshot
 
-# Cleanup
-playwright-cli close-all
+# Cleanup -- close exactly the sessions this script opened, never close-all
+playwright-cli -s=site1 close
+playwright-cli -s=site2 close
+playwright-cli -s=site3 close
 ```
 
 ### A/B Testing Sessions
@@ -149,17 +157,24 @@ playwright-cli -s=s1 open https://github.com
 
 ### 2. Always Clean Up
 
+Close the sessions **you** opened, by name. A task owns its sessions and
+nothing else's.
+
 ```bash
-# Stop browsers when done
+# Stop browsers when done -- one close per session this task opened
 playwright-cli -s=auth close
 playwright-cli -s=scrape close
 
-# Or stop all at once
-playwright-cli close-all
-
-# If browsers become unresponsive or zombie processes remain
-playwright-cli kill-all
+# Confirm your sessions are gone (and that you left everyone else's alone)
+playwright-cli list
 ```
+
+Do **not** finish with `close-all`, and do not reach for `kill-all` when a
+browser stops responding: both take out every session on the machine, and a
+concurrent agent's browser looks exactly like a stale one. An old process
+with no CPU is not evidence that it is abandoned. If your own session is
+wedged, close it by name; if that fails, say which session is stuck and ask
+before killing anything wider.
 
 ### 3. Delete Stale Browser Data
 

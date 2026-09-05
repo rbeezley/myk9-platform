@@ -1,3 +1,7 @@
+import {
+  routeTarget,
+  type RemediationTarget,
+} from '@/features/admin-system-health/remediationTarget';
 /**
  * "Needs a look" — the admin dashboard's triage queue.
  *
@@ -39,7 +43,7 @@ export interface TriageItem {
   /** One line of context — what was actually seen. */
   detail: string;
   openedAt: string | null;
-  action: { label: string; href: string };
+  action: { label: string; target: RemediationTarget };
 }
 
 const MONEY = /payout|payment|stripe|refund|invoice|money|ledger/i;
@@ -125,7 +129,7 @@ export function deriveTriage(
       detail:
         'The snapshot query failed, so no check below is known to be passing. This is not an all-clear.',
       openedAt: null,
-      action: { label: 'Open system health', href: '/admin/health' },
+      action: { label: 'Open system health', target: routeTarget('/admin/health') },
     });
   } else if (sources.healthMissing) {
     items.push({
@@ -135,7 +139,7 @@ export function deriveTriage(
       title: 'No health run has ever been recorded',
       detail: 'The nightly runner has never written a snapshot.',
       openedAt: null,
-      action: { label: 'Open system health', href: '/admin/health' },
+      action: { label: 'Open system health', target: routeTarget('/admin/health') },
     });
   } else if (sources.healthStale) {
     items.push({
@@ -146,7 +150,7 @@ export function deriveTriage(
       detail:
         'The last run is older than the window it covers, so a failure since then would not appear here.',
       openedAt: sources.lastRunAt ?? null,
-      action: { label: 'Open system health', href: '/admin/health' },
+      action: { label: 'Open system health', target: routeTarget('/admin/health') },
     });
   }
 
@@ -158,7 +162,7 @@ export function deriveTriage(
       title: 'Unresolved alerts could not be read',
       detail: 'The alerts query failed. An empty alert list here would be a guess, not a fact.',
       openedAt: null,
-      action: { label: 'Open system health', href: '/admin/health' },
+      action: { label: 'Open system health', target: routeTarget('/admin/health') },
     });
   }
 
@@ -173,7 +177,7 @@ export function deriveTriage(
       title: check.label,
       detail: check.detail || 'The runner recorded no detail for this check.',
       openedAt: check.checkedAt,
-      action: { label: remediation.actionLabel, href: remediation.href },
+      action: { label: remediation.actionLabel, target: remediation.target },
     });
   }
 
@@ -186,7 +190,7 @@ export function deriveTriage(
       title: alert.title,
       detail: summarizeAlertDetail(alert.detail),
       openedAt: alert.createdAt,
-      action: { label: 'Open system health', href: '/admin/health' },
+      action: { label: 'Open system health', target: routeTarget('/admin/health') },
     });
   }
 

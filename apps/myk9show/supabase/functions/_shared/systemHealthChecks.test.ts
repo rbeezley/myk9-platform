@@ -114,6 +114,27 @@ describe('buildSnapshot — contract shape', () => {
     expect(find(continuous, 'migrations').detail).toContain('newer');
     expect(find(continuous, 'anon_grants')).toEqual(previousDeepCheck);
     expect(find(continuous, 'applied_acl_grants')).toEqual(find(full, 'applied_acl_grants'));
+    for (const key of ['anon_grants', 'applied_acl_grants', 'public_schema_create_acl']) {
+      expect(find(full, key).stale_after_ms).toBe(48 * 60 * 60 * 1000);
+      expect(find(continuous, key)).toEqual(find(full, key));
+    }
+  });
+
+  it('upgrades the carried public-schema window without refreshing its measurement', () => {
+    const full = buildSnapshot(facts(), { now: NOW });
+    const previous = {
+      ...find(full, 'public_schema_create_acl'),
+      stale_after_ms: 26 * 60 * 60 * 1000,
+    };
+    const continuous = buildSnapshot(facts(), {
+      now: NOW + 5 * MIN,
+      mode: 'continuous',
+      previousChecks: [previous],
+    });
+    expect(find(continuous, 'public_schema_create_acl')).toEqual({
+      ...previous,
+      stale_after_ms: 48 * 60 * 60 * 1000,
+    });
   });
 
   it('marks deep checks unverified until the first full run', () => {

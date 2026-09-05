@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PaymentStep } from '../index';
 import { useShowStore } from '@/store/showStore';
-import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
 
 // Mock hooks used by PaymentStep
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -27,14 +27,8 @@ vi.mock('@/store/showStore', () => ({
   })),
 }));
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
-  useClubStripeAccount: vi.fn(() => ({
-    data: {
-      id: 'stripe-row-1',
-      club_id: 'club-1',
-      stripe_account_id: 'acct_1',
-      onboarding_complete: true,
-      payouts_enabled: true,
-    },
+  useClubStripePaymentReadiness: vi.fn(() => ({
+    data: true,
     isPending: false,
     isFetching: false,
     isError: false,
@@ -79,19 +73,13 @@ const baseProps = {
 describe('PaymentStep — entry agreement integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useClubStripeAccount).mockReturnValue({
-      data: {
-        id: 'stripe-row-1',
-        club_id: 'club-1',
-        stripe_account_id: 'acct_1',
-        onboarding_complete: true,
-        payouts_enabled: true,
-      },
+    vi.mocked(useClubStripePaymentReadiness).mockReturnValue({
+      data: true,
       isPending: false,
       isFetching: false,
       isError: false,
       isSuccess: true,
-    } as ReturnType<typeof useClubStripeAccount>);
+    } as ReturnType<typeof useClubStripePaymentReadiness>);
     vi.mocked(useShowStore).mockReturnValue({
       shows: [
         {
@@ -169,13 +157,13 @@ describe('PaymentStep — entry agreement integration', () => {
     render(<PaymentStep {...baseProps} />);
     expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
 
-    vi.mocked(useClubStripeAccount).mockReturnValue({
+    vi.mocked(useClubStripePaymentReadiness).mockReturnValue({
       data: null,
       isPending: false,
       isFetching: false,
       isError: false,
       isSuccess: true,
-    } as ReturnType<typeof useClubStripeAccount>);
+    } as ReturnType<typeof useClubStripePaymentReadiness>);
     vi.mocked(useShowStore).mockReturnValue({
       shows: [
         {

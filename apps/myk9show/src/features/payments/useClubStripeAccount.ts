@@ -39,6 +39,25 @@ export function useClubStripeAccount(clubId: string | undefined) {
   });
 }
 
+export async function fetchClubStripePaymentReadiness(clubId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('can_accept_online_entry_payment', {
+    p_club_id: clubId,
+    p_livemode: stripeLivemode,
+  });
+
+  if (error) throw error;
+  return data === true;
+}
+
+export function useClubStripePaymentReadiness(clubId: string | undefined) {
+  return useQuery({
+    queryKey: ['club-stripe-payment-readiness', clubId, stripeLivemode],
+    queryFn: () => fetchClubStripePaymentReadiness(clubId!),
+    enabled: !!clubId,
+    ...cacheStrategies.moderate,
+  });
+}
+
 /**
  * One `public.show_payouts` row.
  *

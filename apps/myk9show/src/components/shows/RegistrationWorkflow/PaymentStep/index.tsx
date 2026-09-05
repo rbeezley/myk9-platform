@@ -17,8 +17,7 @@ import { PaymentSummaryCard } from './PaymentSummaryCard';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
 import { removeClassFromSelections } from '../ClassSelectionStep.helpers';
-import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
-import { canEnableOnlineEntries } from '@/features/payments/onlineEntryGate';
+import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
 
 /**
  * Top-level PaymentStep component that composes the sub-components for
@@ -56,11 +55,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const isOnBehalf = isSecretary || isClubAdmin || isSiteAdmin;
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
-  const clubStripeAccountQuery = useClubStripeAccount(show?.clubId);
+  const clubStripeAccountQuery = useClubStripePaymentReadiness(show?.clubId);
   const cardCheckoutAvailable =
-    !isOnBehalf &&
-    clubStripeAccountQuery.isSuccess &&
-    canEnableOnlineEntries(clubStripeAccountQuery.data);
+    !isOnBehalf && clubStripeAccountQuery.isSuccess && clubStripeAccountQuery.data === true;
   const cartItems = useCartItems();
   const removeItem = useCartStore(state => state.removeItem);
   const [removingLineKey, setRemovingLineKey] = useState<string | null>(null);

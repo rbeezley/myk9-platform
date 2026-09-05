@@ -10790,6 +10790,10 @@ export type Database = {
         }[]
       }
       can_manage_show: { Args: { check_show_id: string }; Returns: boolean }
+      can_accept_online_entry_payment: {
+        Args: { p_club_id: string; p_livemode?: boolean }
+        Returns: boolean
+      }
       can_manage_show_dog: { Args: { check_dog_id: string }; Returns: boolean }
       can_manage_show_lifecycle_email: {
         Args: { p_show_id: string }

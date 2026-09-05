@@ -199,6 +199,14 @@ jobs:
       - name: Review gate contract
         run: pnpm qa:review-gate:test
 
+      # Executable forms of two CLAUDE.md lessons: the codex-review wrapper
+      # (exit 0 is not a verdict; always --base) and the package-dist freshness
+      # check the app's `test` script runs before vitest.
+      - name: Codex review wrapper + dist freshness contracts
+        run: |
+          pnpm qa:codex-review:test
+          pnpm qa:dist-fresh:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 

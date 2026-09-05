@@ -68,6 +68,15 @@ export default defineConfig({
       '../../supabase/functions/send-email/recipientResolution.test.ts',
       '../../supabase/functions/send-registration-email/*.test.ts',
       '../../supabase/functions/validate-passcode/*.test.ts',
+      // Eight files below sat on disk unrun until 2026-09-05 — the allowlist
+      // trap, caught by the on-disk guard in edgeFunctionTestsAreTypechecked.
+      '../../supabase/functions/_shared/fanoutCoverage.test.ts',
+      '../../supabase/functions/_shared/fanoutErrors.test.ts',
+      '../../supabase/functions/revoke-self-auth-identity/*.test.ts',
+      '../../supabase/functions/send-auth-email/actionUrl.test.ts',
+      '../../supabase/functions/send-auth-email/template.test.ts',
+      '../../supabase/functions/send-targeted-message/targeting.test.ts',
+      '../../supabase/functions/send-waitlist-invite/auth.test.ts',
       '../../supabase/functions/generate-premium/*.test.ts',
       '../../supabase/functions/admin-delete-user/*.test.ts',
       '../../supabase/functions/admin-generate-reset-link/*.test.ts',

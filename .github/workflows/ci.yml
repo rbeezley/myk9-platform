@@ -206,6 +206,7 @@ jobs:
         run: |
           pnpm qa:codex-review:test
           pnpm qa:dist-fresh:test
+          pnpm qa:git-guardrails:test
 
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet

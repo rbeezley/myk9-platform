@@ -43,6 +43,7 @@
     "qa:codex-review:test": "vitest run scripts/qa/codex-review.test.ts",
     "qa:dist-fresh": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/check-dist-fresh.ts",
     "qa:dist-fresh:test": "vitest run scripts/qa/check-dist-fresh.test.ts",
+    "qa:git-guardrails:test": "vitest run scripts/qa/git-guardrails-hook.test.ts",
     "qa:code-quality-ratchet": "tsx scripts/qa/code-quality-ratchet.ts",
     "qa:code-quality-ratchet:update": "pnpm qa:code-quality-ratchet -- --update-baseline",
     "qa:ci-coverage-gate:test": "vitest run scripts/qa/ci-coverage-gate.test.ts",

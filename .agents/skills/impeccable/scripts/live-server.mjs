@@ -53,6 +53,16 @@ async function findOpenPort(start = 8400) {
 // Session state
 // ---------------------------------------------------------------------------
 
+/** LOCAL PATCH (#2064): a page may bootstrap the live token only from a localhost origin. */
+function isLocalOrigin(value) {
+  try {
+    const host = new URL(value).hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+  } catch {
+    return false;
+  }
+}
+
 const state = {
   token: null,
   port: null,
@@ -187,7 +197,18 @@ function validateEvent(msg) {
 function createRequestHandler({ detectScript, livePath }) {
   return (req, res) => {
     const url = new URL(req.url, `http://localhost:${state.port}`);
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // LOCAL PATCH (myk9-platform #2064, Codex P1): upstream answered every
+    // origin with `Access-Control-Allow-Origin: *` and served the session token
+    // inside /live.js to anyone, so a page on any site could <script src> the
+    // token off localhost and then read project files through /source. Only a
+    // localhost/127.0.0.1 page may read responses or bootstrap the token.
+    const requestOrigin = req.headers.origin;
+    const requestReferer = req.headers.referer;
+    if (requestOrigin && isLocalOrigin(requestOrigin)) {
+      res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+      res.setHeader('Vary', 'Origin');
+    }
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -196,6 +217,14 @@ function createRequestHandler({ detectScript, livePath }) {
 
     // --- Scripts ---
     if (p === '/live.js') {
+      // LOCAL PATCH (#2064): the token bootstrap is only for pages served
+      // from localhost — a script tag from any other site gets a 403.
+      const requester = requestOrigin || requestReferer;
+      if (!requester || !isLocalOrigin(requester)) {
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('live.js is only served to localhost pages');
+        return;
+      }
       // Re-read from disk each request so edits to live-browser.js land on
       // the next tab reload. No-store headers prevent browser caching across
       // sessions — during iteration, a cached old script silently breaks

@@ -175,7 +175,7 @@ The separate current security audit already tracks its findings in MYK9-398–40
 
 - Documentation maintenance / CI coverage gap; source Low. First/last seen 2026-09-04/2026-09-05;
   2 observations; ownership gap: documentation/CI maintainer unassigned.
-- The named `docs/plan-myk9-354-qualification-contract.md:1`, `docs/plan-myk9-366.md:1`, and
+- The named `docs/archive/plan-myk9-354-qualification-contract.md:1`, `docs/plan-myk9-366.md:1`, and
   `docs/plan-myk9-369.md:1` still lack both the required status marker and README index reference.
   Current inventory: **24 of 77** top-level plans lack the marker (supersedes prior 22/78 count).
 - The existing strict doc checker covers route/guide changes, not these metadata rules.

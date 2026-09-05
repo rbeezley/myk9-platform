@@ -95,38 +95,49 @@ confirm() {
 }
 
 # _existing KEY — current value of KEY in ENV_FILE, if any.
+# _quoted_body VALUE — dotenv's grammar for a quoted value: returns 0 and sets
+# REPLY to the body when VALUE starts with a quote that is closed by the first
+# UNESCAPED matching quote (a backslash-escaped quote stays in the body, as
+# dotenv keeps it). Backticks take no escapes. (LOCAL PATCH, myk9-platform #2064.)
+_quoted_body() {
+  local v="$1" re
+  case "${v:0:1}" in
+    '"') re='^"((\\.|[^"\\])*)"' ;;
+    "'") re="^'((\\\\.|[^'\\\\])*)'" ;;
+    '`') re='^`([^`]*)`' ;;
+    *) return 1 ;;
+  esac
+  [[ "$v" =~ $re ]] || return 1
+  REPLY="${BASH_REMATCH[1]}"
+}
+
 _existing() {
-  # LOCAL PATCH (myk9-platform #2064): write_env quotes values the way the
-  # dotenv parser (v17) actually reads them. Single quotes and backticks are
-  # literal and may span lines; double quotes expand only the two-character
-  # sequence backslash-n. Read the same three forms back, across lines when a
-  # quote opens without closing, so a re-run offers the exact value.
-  local key="$1" line val="" q="" found=0 inval=0 acc="" nl
+  # LOCAL PATCH (myk9-platform #2064): read values exactly as the dotenv parser
+  # (v17) does. Quoted values end at the first unescaped matching quote and may
+  # span lines; double quotes expand only backslash-n; unquoted values end at
+  # the first `#` and are trimmed. A trailing comment after the closing quote
+  # is ignored even when it contains quote characters.
+  local key="$1" line val="" found=0 inval=0 acc="" nl
   [[ -f "$ENV_FILE" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     if (( inval )); then
       acc+=$'\n'"$line"
-      if [[ "$line" == *"$q"* ]]; then inval=0; val="$acc"; fi
+      if _quoted_body "$acc"; then inval=0; val="$acc"; fi
       continue
     fi
     if [[ "$line" == "$key="* ]]; then
-      found=1; val="${line#"$key"=}"; q="${val:0:1}"
-      if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${val:1}" != *"$q"* ]]; then
-        inval=1; acc="$val"
-      fi
+      found=1; val="${line#"$key"=}"
+      case "${val:0:1}" in
+        "'"|'"'|'`') if ! _quoted_body "$val"; then inval=1; acc="$val"; fi ;;
+      esac
     fi
   done < "$ENV_FILE"
   (( found )) || return 1
   [[ -z "$val" ]] && return 1
-  q="${val:0:1}"
-  if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${val:1}" == *"$q"* ]]; then
-    val="${val:1}"; val="${val%%"$q"*}"  # body up to the FIRST closing quote, as dotenv reads it; a trailing comment (even one containing quotes) is dropped
+  if _quoted_body "$val"; then
+    local q="${val:0:1}"; val="$REPLY"
     if [[ "$q" == '"' ]]; then nl=$'\n'; val=${val//\\n/$nl}; fi
-  else
-    # Unquoted, as dotenv (v17) reads it: the value ends at the first `#`
-    # (even without a space before it) and surrounding whitespace is trimmed.
-    # write_env never writes unquoted, so a `#` inside a wizard-written value
-    # is always inside quotes (Codex, #2064 rounds 9-10).
+  elif [[ "${val:0:1}" != "'" && "${val:0:1}" != '"' && "${val:0:1}" != '`' ]]; then
     val="${val%%#*}"
     val="${val#"${val%%[! ]*}"}"; val="${val%"${val##*[! ]}"}"
   fi
@@ -166,7 +177,7 @@ ask_secret() {
 # write_env KEY VALUE — upsert KEY=VALUE into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
 write_env() {
-  local key="$1" value="$2" tmp quoted line v q="" skip=0 nl
+  local key="$1" value="$2" tmp quoted line v skip=0 acc="" nl
   touch "$ENV_FILE"
   tmp=$(mktemp)
   # LOCAL PATCH (myk9-platform #2064): drop the previous assignment INCLUDING
@@ -174,17 +185,17 @@ write_env() {
   # left the tail behind as ghost variables), then append the new one.
   while IFS= read -r line || [[ -n "$line" ]]; do
     if (( skip )); then
-      [[ "$line" == *"$q"* ]] && skip=0
+      acc+=$'\n'"$line"
+      _quoted_body "$acc" && skip=0
       continue
     fi
     if [[ "$line" == "$key="* ]]; then
-      v="${line#"$key"=}"; q="${v:0:1}"
-      # Closed when the quote recurs anywhere after the opener — a trailing
-      # comment or whitespace after the closing quote is still one line
-      # (Codex, #2064 round 8: `TOKEN="old" # c` swallowed the lines below).
-      if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${v:1}" != *"$q"* ]]; then
-        skip=1
-      fi
+      v="${line#"$key"=}"
+      # Skip continuation lines only when the old value opens a quote that the
+      # first line does not close (dotenv grammar, escaped quotes included).
+      case "${v:0:1}" in
+        "'"|'"'|'`') if ! _quoted_body "$v"; then skip=1; acc="$v"; fi ;;
+      esac
       continue
     fi
     printf '%s\n' "$line"

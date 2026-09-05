@@ -48,14 +48,27 @@ vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
   }),
 }));
 
-// MYK9-395: the page reads the overview's charge-derived collected total to
-// choose the ledger's empty-state copy. Mutable so a test can drive the three
-// states the copy must distinguish (known-zero, known-nonzero, unknown).
+// MYK9-395: the page reads the overview's charge activity to choose the
+// ledger's empty-state copy. Mutable so a test can drive the states the copy
+// must distinguish (nothing-ever-charged, charged, unknown).
+//
+// All three refund-bearing fields are mocked because the page derives GROSS
+// charged from them — `collected + refunded + makeWholeRefunded` — rather than
+// discriminating on the net collected figure. A fully refunded history has
+// collected 0 with a non-zero gross, and those are different facts.
 const overviewState: {
   collectedCents: number;
+  refundedCents: number;
+  makeWholeRefundedCents: number;
   isLoading: boolean;
   isError: boolean;
-} = { collectedCents: 0, isLoading: false, isError: false };
+} = {
+  collectedCents: 0,
+  refundedCents: 0,
+  makeWholeRefundedCents: 0,
+  isLoading: false,
+  isError: false,
+};
 vi.mock('@/features/financial/components/usePlatformFinancialOverview', () => ({
   usePlatformFinancialOverview: () => ({
     data:
@@ -63,7 +76,11 @@ vi.mock('@/features/financial/components/usePlatformFinancialOverview', () => ({
         ? undefined
         : {
             summary: {
-              platformIncome: { onlineCollectedCents: overviewState.collectedCents },
+              platformIncome: {
+                onlineCollectedCents: overviewState.collectedCents,
+                refundedCents: overviewState.refundedCents,
+                makeWholeRefundedCents: overviewState.makeWholeRefundedCents,
+              },
             },
           },
     isLoading: overviewState.isLoading,
@@ -107,6 +124,8 @@ describe('PayoutLedgerPage', () => {
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
     overviewState.collectedCents = 0;
+    overviewState.refundedCents = 0;
+    overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
   });
@@ -273,6 +292,8 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
     overviewState.collectedCents = 0;
+    overviewState.refundedCents = 0;
+    overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
   });
@@ -291,6 +312,20 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     expect(screen.getByText(/built from online entries/i)).toBeInTheDocument();
     expect(screen.getByText(/can legitimately differ/i)).toBeInTheDocument();
     expect(screen.getByText(/how this is calculated/i)).toBeInTheDocument();
+  });
+
+  it('does not deny payments when every charge was refunded (Codex review, PR #2040)', () => {
+    // Collected is NET of both refund kinds, so a fully refunded history reports
+    // $0.00 collected while payments demonstrably happened. Discriminating on
+    // the net figure would print "No online payments yet" over them.
+    ledgerState.data = [];
+    overviewState.collectedCents = 0;
+    overviewState.refundedCents = 49_515;
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.queryByText(/no online payments yet/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/no club liabilities to show/i)).toBeInTheDocument();
   });
 
   it('keeps the plain first-payment empty state when nothing has been collected', () => {
@@ -517,6 +552,8 @@ describe('PayoutLedgerPage — says which situation a row is actually in', () =>
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
     overviewState.collectedCents = 0;
+    overviewState.refundedCents = 0;
+    overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
   });
@@ -647,6 +684,8 @@ describe('PayoutLedgerPage — the majors fixes do not misfire', () => {
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
     overviewState.collectedCents = 0;
+    overviewState.refundedCents = 0;
+    overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
   });
@@ -700,6 +739,8 @@ describe('PayoutLedgerPage — the fee field never contradicts the save', () => 
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
     overviewState.collectedCents = 0;
+    overviewState.refundedCents = 0;
+    overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
   });
@@ -750,6 +791,8 @@ describe('PayoutLedgerPage — an unreadable show makes no claims about itself',
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
     overviewState.collectedCents = 0;
+    overviewState.refundedCents = 0;
+    overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
   });
@@ -818,6 +861,8 @@ describe('PayoutLedgerPage — the flat component and the floor are editable', (
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
     overviewState.collectedCents = 0;
+    overviewState.refundedCents = 0;
+    overviewState.makeWholeRefundedCents = 0;
     overviewState.isLoading = false;
     overviewState.isError = false;
   });

@@ -6,21 +6,21 @@ describe('resolvePayoutLedgerEmptyState', () => {
     expect(
       resolvePayoutLedgerEmptyState({
         rowCount: 3,
-        overviewCollected: { status: 'known', collectedCents: 0 },
+        overviewCharges: { status: 'known', grossChargedCents: 0 },
       })
     ).toBeNull();
     expect(
       resolvePayoutLedgerEmptyState({
         rowCount: 1,
-        overviewCollected: { status: 'unknown' },
+        overviewCharges: { status: 'unknown' },
       })
     ).toBeNull();
   });
 
-  it('keeps the plain first-payment copy when the overview also collected nothing', () => {
+    it('keeps the plain first-payment copy when nothing was ever charged', () => {
     const state = resolvePayoutLedgerEmptyState({
       rowCount: 0,
-      overviewCollected: { status: 'known', collectedCents: 0 },
+      overviewCharges: { status: 'known', grossChargedCents: 0 },
     });
 
     expect(state?.variant).toBe('no-payments-yet');
@@ -29,10 +29,10 @@ describe('resolvePayoutLedgerEmptyState', () => {
     expect(state?.guidance).toBeUndefined();
   });
 
-  it('never claims there have been no payments when the overview reports money collected', () => {
+  it('never claims there have been no payments when the overview reports charge activity', () => {
     const state = resolvePayoutLedgerEmptyState({
       rowCount: 0,
-      overviewCollected: { status: 'known', collectedCents: 49_515 },
+      overviewCharges: { status: 'known', grossChargedCents: 49_515 },
     });
 
     expect(state?.variant).toBe('reconciliation-boundary');
@@ -49,10 +49,10 @@ describe('resolvePayoutLedgerEmptyState', () => {
     expect(text).not.toMatch(/\bis owed\b|\bowe[sd]? to\b|\bhas been paid\b/i);
   });
 
-  it('uses neutral language while the overview total is unknown', () => {
+  it('uses neutral language while the overview figures are unknown', () => {
     const state = resolvePayoutLedgerEmptyState({
       rowCount: 0,
-      overviewCollected: { status: 'unknown' },
+      overviewCharges: { status: 'unknown' },
     });
 
     expect(state?.variant).toBe('unconfirmed');
@@ -64,17 +64,32 @@ describe('resolvePayoutLedgerEmptyState', () => {
   });
 
   it('treats a zero-cent known total as zero, not as unknown', () => {
-    // Guards the discriminated state: `{status:'known', collectedCents: 0}` and
-    // `{status:'unknown'}` are different facts and must not share copy.
+    // Guards the discriminated state: `{status:'known', grossChargedCents: 0}`
+    // and `{status:'unknown'}` are different facts and must not share copy.
     const zero = resolvePayoutLedgerEmptyState({
       rowCount: 0,
-      overviewCollected: { status: 'known', collectedCents: 0 },
+      overviewCharges: { status: 'known', grossChargedCents: 0 },
     });
     const unknown = resolvePayoutLedgerEmptyState({
       rowCount: 0,
-      overviewCollected: { status: 'unknown' },
+      overviewCharges: { status: 'unknown' },
     });
 
     expect(zero?.variant).not.toBe(unknown?.variant);
+  });
+
+  it('does not deny payments when every charge was refunded (Codex review, PR #2040)', () => {
+    // The discriminator is GROSS charged, not the displayed "Online collected".
+    // Collected is net of both refund kinds, so a history whose charges were all
+    // refunded nets to exactly zero. Discriminating on the net figure would fall
+    // through to "No online payments yet" over payments that demonstrably
+    // happened and were handed back — the very false claim this module removes.
+    const state = resolvePayoutLedgerEmptyState({
+      rowCount: 0,
+      overviewCharges: { status: 'known', grossChargedCents: 49_515 },
+    });
+
+    expect(state?.variant).toBe('reconciliation-boundary');
+    expect(`${state?.headline} ${state?.detail}`).not.toMatch(/no online payments/i);
   });
 });

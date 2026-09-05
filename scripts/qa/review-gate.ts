@@ -26,6 +26,9 @@
  * satisfies a text scan. And the verdict must match the documented grammar
  * exactly: substring tests accepted "2 findings, not all addressed" and
  * "no findings yet; review still running" as green (Codex review of #2058).
+ * The repo is public, so evidence counts only from an OWNER, MEMBER or
+ * COLLABORATOR — anyone can comment on a public PR, and the workflow that
+ * reads these comments publishes a status with a write-capable token.
  */
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
@@ -38,6 +41,19 @@ export interface GateComment {
   /** Last edit time; an edited older comment must outrank a newer unedited one. */
   updatedAt?: string;
   author?: string;
+  /** GitHub's author_association for the comment; only trusted values count. */
+  authorAssociation?: string;
+}
+
+/** Associations whose comments may carry evidence. CONTRIBUTOR and NONE cannot. */
+export const TRUSTED_ASSOCIATIONS: ReadonlySet<string> = new Set([
+  'OWNER',
+  'MEMBER',
+  'COLLABORATOR',
+]);
+
+export function commentTrusted(comment: GateComment): boolean {
+  return TRUSTED_ASSOCIATIONS.has((comment.authorAssociation ?? '').toUpperCase());
 }
 
 export interface GateEvidence {
@@ -74,6 +90,9 @@ export const CLEAN_VERDICT = /^(no findings|\d+ findings?, all (addressed|fixed)
 export function parseGateComments(comments: readonly GateComment[]): GateEvidence[] {
   const out: GateEvidence[] = [];
   for (const comment of comments) {
+    // Untrusted authors are dropped BEFORE ordering, so an outsider's newer
+    // clean line can never outrank a trusted withdrawal (Codex, #2058 P1).
+    if (!commentTrusted(comment)) continue;
     const firstLine = comment.body.split(/\r?\n/, 1)[0] ?? '';
     const match = REVIEW_GATE_LINE.exec(firstLine);
     if (!match) continue;
@@ -131,6 +150,12 @@ export function clampDescription(text: string): string {
   return text.length <= 140 ? text : `${text.slice(0, 137)}...`;
 }
 
+/** Parse `gh api --paginate --slurp` output: an array of pages, each an array. */
+export function flattenPages<T>(slurped: string): T[] {
+  const pages = JSON.parse(slurped) as T[][] | T[];
+  return (pages as unknown[]).flatMap(page => (Array.isArray(page) ? (page as T[]) : [page as T]));
+}
+
 function gh(args: string[]): string {
   return execFileSync('gh', args, { encoding: 'utf8' });
 }
@@ -145,6 +170,7 @@ interface RestComment {
   body: string;
   created_at: string;
   updated_at: string;
+  author_association?: string;
   user?: { login: string };
 }
 
@@ -165,9 +191,12 @@ export function runCli(
     console.log(`review-gate: PR #${prNumber} is a draft — no status posted`);
     return 0;
   }
-  const comments = JSON.parse(
-    gh(['api', '--paginate', `repos/${repo}/issues/${prNumber}/comments?per_page=100`])
-  ) as RestComment[];
+  // --paginate alone concatenates one JSON array per page, which JSON.parse
+  // rejects on any PR past 100 comments (Codex, #2058). --slurp wraps the
+  // pages in one outer array; flattenPages unwraps it.
+  const comments = flattenPages<RestComment>(
+    gh(['api', '--paginate', '--slurp', `repos/${repo}/issues/${prNumber}/comments?per_page=100`])
+  );
   const result = evaluateReviewGate({
     headSha: view.headRefOid,
     comments: comments.map(c => ({
@@ -175,6 +204,7 @@ export function runCli(
       createdAt: c.created_at,
       updatedAt: c.updated_at,
       author: c.user?.login,
+      authorAssociation: c.author_association,
     })),
   });
   const description = clampDescription(result.description);

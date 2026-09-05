@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 import {
   clampDescription,
   evaluateReviewGate,
+  flattenPages,
   parseGateComments,
   REVIEW_GATE_LINE,
+  TRUSTED_ASSOCIATIONS,
   verdictAccepted,
   type GateComment,
 } from './review-gate';
@@ -17,9 +19,10 @@ const H9 = HEAD.slice(0, 9);
 function comment(
   body: string,
   createdAt = '2026-09-05T16:00:00Z',
-  updatedAt?: string
+  updatedAt?: string,
+  authorAssociation = 'OWNER'
 ): GateComment {
-  return { body, createdAt, updatedAt, author: 'rbeezley' };
+  return { body, createdAt, updatedAt, author: 'rbeezley', authorAssociation };
 }
 
 describe('evaluateReviewGate', () => {
@@ -139,6 +142,64 @@ describe('evaluateReviewGate', () => {
     expect(r.evidence?.verdict).toBe('1 finding unaddressed');
   });
 
+  it.each(['NONE', 'CONTRIBUTOR', 'FIRST_TIMER', 'FIRST_TIME_CONTRIBUTOR', 'MANNEQUIN', ''])(
+    'ignores a clean line from an untrusted author (%j) — anyone can comment on a public PR',
+    association => {
+      // Codex, #2058 P1: the workflow publishes with a write-capable token,
+      // so a comment from an outsider must never become a green status.
+      const r = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [
+          comment(
+            `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
+            undefined,
+            undefined,
+            association
+          ),
+        ],
+      });
+      expect(r.state).toBe('failure');
+      expect(r.description).toMatch(/no independent review recorded/);
+    }
+  );
+
+  it.each([...TRUSTED_ASSOCIATIONS])(
+    'accepts a clean line from a trusted author (%s)',
+    association => {
+      const r = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [
+          comment(
+            `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
+            undefined,
+            undefined,
+            association
+          ),
+        ],
+      });
+      expect(r.state).toBe('success');
+    }
+  );
+
+  it("an outsider's NEWER clean line cannot outrank a trusted withdrawal", () => {
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          `Review gate: codex reviewed 0a2020c7a..${H9} — 1 finding unaddressed`,
+          '2026-09-05T16:00:00Z'
+        ),
+        comment(
+          `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
+          '2026-09-05T17:00:00Z',
+          undefined,
+          'NONE'
+        ),
+      ],
+    });
+    expect(r.state).toBe('failure');
+  });
+
   it('ignores the format when it is quoted, indented, or backticked — prose is not evidence', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
@@ -241,6 +302,19 @@ describe('workflow wiring', () => {
 
   it('re-evaluates on every push', () => {
     expect(workflow).toMatch(/pull_request_target:\n\s+types: \[[^\]]*synchronize[^\]]*\]/);
+  });
+});
+
+describe('flattenPages', () => {
+  it('unwraps gh api --paginate --slurp output (one array per page)', () => {
+    // Plain --paginate concatenates arrays, which JSON.parse rejects past
+    // 100 comments (Codex, #2058). Slurped output is an array of pages.
+    expect(flattenPages<number>('[[1,2],[3]]')).toEqual([1, 2, 3]);
+    expect(flattenPages<number>('[[]]')).toEqual([]);
+  });
+
+  it('tolerates a single un-slurped page', () => {
+    expect(flattenPages<{ a: number }>('[{"a":1}]')).toEqual([{ a: 1 }]);
   });
 });
 

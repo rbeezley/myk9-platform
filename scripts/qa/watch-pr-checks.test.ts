@@ -14,7 +14,7 @@ afterAll(() => {
   for (const dir of scratchDirs) rmSync(dir, { recursive: true, force: true });
 });
 
-/** Copy the real script, apply one edit, and run it. */
+/** Copy the real script, apply one edit, run its self-test. */
 function runMutated(replace: string, withText: string) {
   expect(
     source.includes(replace),
@@ -31,60 +31,71 @@ function runMutated(replace: string, withText: string) {
   return spawnSync('bash', [copy, '--self-test'], { encoding: 'utf8' });
 }
 
+/** Call the script's own verdict() with a fixture, via a sourcing shim. */
+function verdict(rollup: unknown, required: string[]) {
+  const shim = `
+    set -uo pipefail
+    # Source the script without running its main path.
+    eval "$(sed -n '/^JQ_ANSWERED_NAMES=/,/^}/p' ${JSON.stringify(watcher)})"
+    verdict ${JSON.stringify(JSON.stringify(rollup))} ${JSON.stringify(JSON.stringify(required))}
+  `;
+  return spawnSync('bash', ['-c', shim], { encoding: 'utf8' }).stdout.trim();
+}
+
 describe('watch-pr-checks harness', () => {
-  // The script is the thing under test, not a re-implementation of its jq.
-  // A copy of the expression in this file would drift and certify the copy.
+  // The script is the thing under test, not a re-implementation of its jq. A
+  // copy of the expression here would drift and certify the copy.
   it('passes its own known-answer self-test', () => {
     const result = spawnSync('bash', [watcher, '--self-test'], { encoding: 'utf8' });
 
     expect(result.status, result.stdout + result.stderr).toBe(0);
-    expect(result.stdout).toContain('self-test 5/5');
+    expect(result.stdout).toContain('self-test 8/8');
   });
 
-  // The point of the self-test is that it catches THE bug that shipped. If it
+  // The point of a self-test is that it catches THE bug that shipped. If it
   // cannot, it is decoration. This restores the original two-arm jq verbatim.
   it('rejects the two-arm jq that missed Vercel failures on #2045', () => {
-    const correct = `JQ_FAILED='[.statusCheckRollup[]
+    const correct = `JQ_FAILED_NAMES='[.statusCheckRollup[]
   | select(
       ((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED"))
       or ((.state // "") | IN("FAILURE","ERROR"))
     )
-  | .name // .context] | unique | join(", ")'`;
+  | .name // .context]'`;
 
-    const originalBug = `JQ_FAILED='[.statusCheckRollup[]
+    const originalBug = `JQ_FAILED_NAMES='[.statusCheckRollup[]
   | select((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED"))
-  , (.statusCheckRollup[]? | select((.state // "") | IN("FAILURE","ERROR")))
-  | .name // .context] | unique | join(", ")'`;
+  | .name // .context]'`;
 
     const result = runMutated(correct, originalBug);
 
     expect(result.status, 'the harness must refuse to run when it cannot see a failure').toBe(4);
-    expect(result.stdout).toContain('vercel state failure not detected');
-    expect(result.stdout).toContain('refusing to report on real CI');
+    expect(result.stdout).toContain('SELF-TEST FAIL [vercel-state]');
   });
 
   // Guards the opposite failure mode: a detector that flags a green board would
   // block every merge, and "it caught the red" alone does not rule that out.
   it('rejects a failure filter that matches everything', () => {
     const result = runMutated(
-      '((.state // "") | IN("FAILURE","ERROR"))',
-      '((.state // "") | IN("FAILURE","ERROR","SUCCESS"))'
+      '((.state // "") | IN("FAILURE","ERROR"))\n    )\n  | .name // .context]',
+      '((.state // "") | IN("FAILURE","ERROR","SUCCESS"))\n    )\n  | .name // .context]'
     );
 
     expect(result.status).toBe(4);
-    expect(result.stdout).toContain('green rollup reported failures');
+    expect(result.stdout).toContain('SELF-TEST FAIL [all-green]');
   });
 
-  // The answered-count is what decides "settled", so a filter that reads an
-  // in-flight run as done would let the poll exit on a partial board.
-  it('rejects an answered-count that treats an in-flight run as done', () => {
+  // Codex found this on #2053: "nothing unanswered" is not settled when nothing
+  // has registered. Dropping the required-set wait must make the harness refuse.
+  it('rejects a green verdict that ignores checks which have not registered', () => {
+    // The anchor carries the script's own shell-escaping verbatim (`\$pending`,
+    // `\"waiting:\"`), because that is what is on disk.
     const result = runMutated(
-      '((.conclusion // "") == "")\n      and (((.state // "") | IN("SUCCESS","FAILURE","ERROR")) | not)',
-      'false'
+      'elif (\\$pending    | length) > 0 then \\"waiting:\\"',
+      'elif false then \\"waiting:\\"'
     );
 
     expect(result.status).toBe(4);
-    expect(result.stdout).toContain('in-flight run not counted unanswered');
+    expect(result.stdout).toContain('SELF-TEST FAIL [partial-rollup]');
   });
 
   it('refuses to poll without a PR number', () => {
@@ -94,15 +105,77 @@ describe('watch-pr-checks harness', () => {
     expect(result.stderr).toContain('usage');
   });
 
+  describe('verdict()', () => {
+    const required = ['Quality Checks', 'Test'];
+
+    it('waits when a required check has not registered yet', () => {
+      // The exact shape Codex reproduced: one fast status context, nothing else.
+      expect(
+        verdict(
+          { statusCheckRollup: [{ context: 'Vercel Preview Comments', state: 'SUCCESS' }] },
+          required
+        )
+      ).toBe('waiting:Quality Checks, Test');
+    });
+
+    it('is green when every required check answered, ignoring extras', () => {
+      expect(
+        verdict(
+          {
+            statusCheckRollup: [
+              { name: 'Quality Checks', conclusion: 'SUCCESS' },
+              { name: 'Test', conclusion: 'SKIPPED' },
+              { context: 'Vercel - app', state: 'SUCCESS' },
+            ],
+          },
+          required
+        )
+      ).toBe('green');
+    });
+
+    // AGENTS.md § Vercel Hobby quota: preview contexts are deliberately not
+    // required, so a quota-limited preview must not read as a blocking failure.
+    it('separates a non-required failure from a required one', () => {
+      expect(
+        verdict(
+          {
+            statusCheckRollup: [
+              { name: 'Quality Checks', conclusion: 'SUCCESS' },
+              { name: 'Test', conclusion: 'SUCCESS' },
+              { context: 'Vercel - app', state: 'FAILURE' },
+            ],
+          },
+          required
+        )
+      ).toBe('preview-failed:Vercel - app');
+    });
+
+    it('reports the blocking failure when both kinds are present', () => {
+      expect(
+        verdict(
+          {
+            statusCheckRollup: [
+              { name: 'Quality Checks', conclusion: 'FAILURE' },
+              { name: 'Test', conclusion: 'SUCCESS' },
+              { context: 'Vercel - app', state: 'FAILURE' },
+            ],
+          },
+          required
+        )
+      ).toBe('required-failed:Quality Checks');
+    });
+  });
+
   // Exit codes are the contract every caller reads. 3 in particular must never
   // be mistaken for 0 — a timeout is the absence of a verdict, not a green one.
   it('documents every exit code it can return', () => {
     for (const code of [
-      '0  settled',
-      '1  at least one check failed',
+      '0  every REQUIRED check answered green',
+      '1  a REQUIRED check failed',
       '2  aborted',
       '3  timed out',
       '4  self-test failed',
+      '5  required checks are green but a NON-required check failed',
     ]) {
       expect(source).toContain(code);
     }

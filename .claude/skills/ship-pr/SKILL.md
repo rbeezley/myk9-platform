@@ -136,11 +136,12 @@ Otherwise apply findings (critical + high required; medium if straightforward), 
 
 ```bash
 # 1. Establish the check verdict. Do NOT eyeball statusCheckRollup: "no pending"
-#    fires in the gap before a new run registers, an unfinished run carries a
-#    null conclusion, and Vercel reports through `state` and never sets
-#    `conclusion` at all. This exits 0 only when every check has ANSWERED on the
-#    pinned SHA with zero failures.
-#      0 green · 1 a check failed · 2 head moved · 3 timeout (NOT a verdict)
+#    fires before the CI jobs even register, an unfinished run carries a null
+#    conclusion, and Vercel reports through `state` and never sets `conclusion`.
+#    This reads the repo's own main-required-checks ruleset and waits for exactly
+#    those contexts on the pinned SHA.
+#      0 green · 1 REQUIRED check failed · 2 head moved
+#      3 timeout (NOT a verdict) · 5 required green, non-required failed
 bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
 
 # 2. Switch to main repo BEFORE merging
@@ -171,7 +172,14 @@ gh pr merge $PR_NUMBER --squash --auto
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-**Exit 1 (a check failed) or exit 2 (head moved) is a STOP, not a slower Path B.** Report the named failure; never arm auto-merge to get past a red.
+**Exit 1 (a REQUIRED check failed) or exit 2 (head moved) is a STOP, not a slower Path B.** Report the named failure; never arm auto-merge to get past a red.
+
+**Exit 5 — required checks green, a non-required one failed — is a judgement call, not a stop.** Vercel preview contexts are deliberately outside the `main-required-checks` ruleset because this Hobby account hits the daily deployment limit (AGENTS.md § _Vercel Hobby quota / preview deploy discipline_, runbook in [`docs/operations/vercel-preview-quota.md`](../../../docs/operations/vercel-preview-quota.md)). Before treating it as non-blocking, confirm **both**:
+
+1. the failure is the quota — the check's `targetUrl` contains `upgradeToPro=build-rate-limit`, not a build error; and
+2. this PR does not need the preview for visual QA — a diff touching no browser code does not.
+
+If either is false, treat it as exit 1. Say which of the two you checked when you report the merge.
 
 After arming auto-merge, tell the user: "Auto-merge armed — GitHub will merge when required checks (Quality Checks + Test) pass. Run `/cleanup` after it merges to delete the local branch and worktree." Then **STOP — do not proceed to Step 6.**
 
@@ -214,7 +222,8 @@ reaps merged branches and reports the rest. This is also why Step 5 drops
 - NEVER remove the worktree before merge is confirmed AND main is updated
 - Worktree removal is ALWAYS the final command
 - NEVER pass `--delete-branch`, and never run `git branch -D` / `-d` — both are denied by this repo's permission rules and stall an unattended run. Leave local branches for `branch-janitor`.
-- NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh`, which pins the SHA and requires every check to have ANSWERED — Vercel reports through `state`, never `conclusion`, so a hand-rolled filter reading one field misses the other.
+- NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh`, which pins the SHA and waits for the `main-required-checks` ruleset's contexts specifically. Two ways a hand-rolled filter gets this wrong: Vercel reports through `state` and never `conclusion`, so reading one field misses the other; and seconds after a push a lone fast status context has nothing pending and nothing failed while no CI job has registered at all.
+- NEVER collapse a non-required failure into a blocking one, or into silence. Exit 5 exists for that case and requires the two checks above it.
 - NEVER accept a merged PR's `headRefName` as proof a branch merged. Compare the tip SHA against that PR's `headRefOid`.
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
 - Use `pnpm`, not `npm` or `npx`

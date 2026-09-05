@@ -1636,6 +1636,47 @@ SELECT
   1
 FROM generate_series(1, 3) AS load_clubs(s);
 
+-- Stripe Connect sandbox account for Load Club 1 ONLY.
+--
+-- Why club 1 and not all three: the load shows' entry window is open
+-- (CURRENT_DATE + 76), so this is the only show in the fixture set that an
+-- exhibitor can both enter AND pay for -- Heartland's window closes at
+-- CURRENT_DATE + 1. Without this row the recurring exhibitor task walk cannot
+-- reach checkout at all, and role task 3 ("pay entry fees") goes unwalked; it
+-- did on 2026-09-04. See MYK9-388.
+--
+-- Why NOT clubs 2 and 3: a club with no payment account is itself a fixture.
+-- The registration wizard currently offers card payment regardless and only
+-- refuses at the cart (MYK9-386), and that path needs a club that genuinely
+-- cannot take money. Leaving two of the three without an account keeps both
+-- states reachable. Do not "tidy" this into a generate_series(1, 3).
+--
+-- The placeholder account id is safe for the same reason it is safe for
+-- Heartland above: stripe-checkout gates only on payouts_enabled + livemode
+-- (index.ts:547-563) and the session carries no transfer_data, so no real
+-- Connect account is contacted at checkout time.
+--
+-- No explicit cleanup needed: club_stripe_accounts.club_id is ON DELETE
+-- CASCADE and the load-fixture block above deletes the whole
+-- a1090000-...-0013-* club range on every reseed. That is why this differs
+-- from the demo clubs, which are upserted rather than deleted and therefore
+-- need their own DELETE in section 0.
+INSERT INTO public.club_stripe_accounts (
+  club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode
+)
+VALUES (
+  'a1090000-0000-0000-0013-100000000001'::uuid,
+  'acct_test_myk9109_load1_sandbox',
+  true,
+  true,
+  false
+)
+ON CONFLICT (club_id, livemode) DO UPDATE
+SET stripe_account_id   = EXCLUDED.stripe_account_id,
+    onboarding_complete = EXCLUDED.onboarding_complete,
+    payouts_enabled     = EXCLUDED.payouts_enabled,
+    updated_at          = now();
+
 INSERT INTO public.shows (
   id, name, organization, description,
   start_date, end_date, entry_open_date, entry_close_date,
@@ -2078,6 +2119,23 @@ BEGIN
   -- 504 on the eight-ring show plus 252 on each of three four-ring shows.
   IF v_total <> 1260 THEN
     RAISE EXCEPTION 'MYK9-109 expected 1260 generated load entries platform-wide, found %', v_total;
+  END IF;
+
+  -- Exactly one of the three load clubs may take an online payment. Asserted
+  -- rather than assumed: both directions of this number are a silent fixture
+  -- failure. Zero, and the exhibitor walk cannot reach checkout at all (the
+  -- state on 2026-09-04, MYK9-388). Three, and there is no longer a club that
+  -- genuinely cannot take money, which is the fixture MYK9-386 needs.
+  SELECT count(*) INTO v_total
+  FROM public.club_stripe_accounts csa
+  WHERE csa.club_id >= 'a1090000-0000-0000-0013-000000000000'::uuid
+    AND csa.club_id <  'a1090000-0000-0000-0014-000000000000'::uuid
+    AND csa.payouts_enabled
+    AND NOT csa.livemode;
+
+  IF v_total <> 1 THEN
+    RAISE EXCEPTION
+      'MYK9-109 expected exactly 1 payable load club (sandbox), found %', v_total;
   END IF;
 END $$;
 

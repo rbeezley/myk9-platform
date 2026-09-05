@@ -36,7 +36,10 @@ function verdict(rollup: unknown, required: string[]) {
   const shim = `
     set -uo pipefail
     # Source the script without running its main path.
-    eval "$(sed -n '/^JQ_ANSWERED_NAMES=/,/^}/p' ${JSON.stringify(watcher)})"
+    # Source from JQ_DEFS, not JQ_ANSWERED_NAMES: verdict() depends on the
+    # shared jq definitions above it, and a shim that starts too late compiles
+    # to "answered/0 is not defined" rather than testing anything.
+    eval "$(sed -n '/^JQ_DEFS=/,/^}/p' ${JSON.stringify(watcher)})"
     verdict ${JSON.stringify(JSON.stringify(rollup))} ${JSON.stringify(JSON.stringify(required))}
   `;
   return spawnSync('bash', ['-c', shim], { encoding: 'utf8' }).stdout.trim();
@@ -49,35 +52,40 @@ describe('watch-pr-checks harness', () => {
     const result = spawnSync('bash', [watcher, '--self-test'], { encoding: 'utf8' });
 
     expect(result.status, result.stdout + result.stderr).toBe(0);
-    expect(result.stdout).toContain('self-test 8/8');
+    expect(result.stdout).toContain('self-test 11/11');
   });
 
   // The point of a self-test is that it catches THE bug that shipped. If it
-  // cannot, it is decoration. This restores the original two-arm jq verbatim.
-  it('rejects the two-arm jq that missed Vercel failures on #2045', () => {
-    const correct = `JQ_FAILED_NAMES='[.statusCheckRollup[]
-  | select(
-      ((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED"))
-      or ((.state // "") | IN("FAILURE","ERROR"))
-    )
-  | .name // .context]'`;
-
-    const originalBug = `JQ_FAILED_NAMES='[.statusCheckRollup[]
-  | select((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED"))
-  | .name // .context]'`;
-
-    const result = runMutated(correct, originalBug);
+  // cannot, it is decoration. This restores the original conclusion-only
+  // denylist, which could not see a Vercel `state` failure at all.
+  it('rejects the conclusion-only filter that missed Vercel failures on #2045', () => {
+    const result = runMutated(
+      `JQ_FAILED_NAMES='[.statusCheckRollup[] | select(answered and (passing | not)) | .name // .context]'`,
+      `JQ_FAILED_NAMES='[.statusCheckRollup[] | select((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED")) | .name // .context]'`
+    );
 
     expect(result.status, 'the harness must refuse to run when it cannot see a failure').toBe(4);
     expect(result.stdout).toContain('SELF-TEST FAIL [vercel-state]');
   });
 
+  // The denylist's other victim: STALE is answered and is not a pass, but was
+  // absent from the failure list, so a required check with it read as green.
+  it('rejects a classifier that lets STALE through as passing', () => {
+    const result = runMutated(
+      'then (.conclusion | IN("SUCCESS","NEUTRAL","SKIPPED"))',
+      'then (.conclusion | IN("SUCCESS","NEUTRAL","SKIPPED","STALE"))'
+    );
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [stale-conclusion]');
+  });
+
   // Guards the opposite failure mode: a detector that flags a green board would
   // block every merge, and "it caught the red" alone does not rule that out.
-  it('rejects a failure filter that matches everything', () => {
+  it('rejects a classifier that treats every answered check as failing', () => {
     const result = runMutated(
-      '((.state // "") | IN("FAILURE","ERROR"))\n    )\n  | .name // .context]',
-      '((.state // "") | IN("FAILURE","ERROR","SUCCESS"))\n    )\n  | .name // .context]'
+      'then (.conclusion | IN("SUCCESS","NEUTRAL","SKIPPED"))',
+      'then false'
     );
 
     expect(result.status).toBe(4);
@@ -150,6 +158,39 @@ describe('watch-pr-checks harness', () => {
       ).toBe('preview-failed:Vercel - app');
     });
 
+    // Classification is an allowlist of PASSING, not a denylist of failing.
+    // The denylist version returned green for both of these.
+    it.each([
+      ['STALE', 'a real GitHub conclusion the denylist missed'],
+      ['SOME_FUTURE_VALUE', 'a value GitHub has not shipped yet'],
+    ])('fails closed on a required check whose conclusion is %s (%s)', conclusion => {
+      expect(
+        verdict(
+          {
+            statusCheckRollup: [
+              { name: 'Quality Checks', conclusion: 'SUCCESS' },
+              { name: 'Test', conclusion },
+            ],
+          },
+          required
+        )
+      ).toBe('required-failed:Test');
+    });
+
+    it('accepts NEUTRAL and SKIPPED as genuine passes', () => {
+      expect(
+        verdict(
+          {
+            statusCheckRollup: [
+              { name: 'Quality Checks', conclusion: 'NEUTRAL' },
+              { name: 'Test', conclusion: 'SKIPPED' },
+            ],
+          },
+          required
+        )
+      ).toBe('green');
+    });
+
     it('reports the blocking failure when both kinds are present', () => {
       expect(
         verdict(
@@ -171,6 +212,7 @@ describe('watch-pr-checks harness', () => {
   it('documents every exit code it can return', () => {
     for (const code of [
       '0  every REQUIRED check answered green',
+      '5  required checks are green but a NON-required check failed',
       '1  a REQUIRED check failed',
       '2  aborted',
       '3  timed out',

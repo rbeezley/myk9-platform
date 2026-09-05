@@ -64,20 +64,30 @@ set -uo pipefail
 REPO="${MYK9_PR_REPO:-rbeezley/myk9-platform}"
 RULESET_NAME="${MYK9_PR_RULESET:-main-required-checks}"
 
-# A check has ANSWERED when either field carries a terminal value.
-JQ_ANSWERED_NAMES='[.statusCheckRollup[]
-  | select(
-      ((.conclusion // "") != "")
-      or ((.state // "") | IN("SUCCESS","FAILURE","ERROR"))
-    )
-  | .name // .context]'
+# Classification is an ALLOWLIST OF PASSING, not a denylist of failing.
+#
+# The first version listed the failure conclusions — FAILURE, TIMED_OUT,
+# CANCELLED, ACTION_REQUIRED — and treated everything else answered as green.
+# That is fail-OPEN: GitHub's `STALE` conclusion sailed through it, and so did
+# any value GitHub might add later. Measured on the previous commit: a required
+# check with conclusion STALE returned `green`, and so did the invented
+# `SOME_NEW_STATE`. Raised in review of #2053.
+#
+# Only SUCCESS, NEUTRAL and SKIPPED pass. Anything else that has ANSWERED is a
+# failure, including conclusions that do not exist yet.
+JQ_DEFS='
+  def answered:
+    ((.conclusion // "") != "")
+    or ((.state // "") | IN("SUCCESS","FAILURE","ERROR"));
+  def passing:
+    if (.conclusion // "") != ""
+    then (.conclusion | IN("SUCCESS","NEUTRAL","SKIPPED"))
+    else ((.state // "") == "SUCCESS")
+    end;
+'
 
-JQ_FAILED_NAMES='[.statusCheckRollup[]
-  | select(
-      ((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED"))
-      or ((.state // "") | IN("FAILURE","ERROR"))
-    )
-  | .name // .context]'
+JQ_ANSWERED_NAMES='[.statusCheckRollup[] | select(answered) | .name // .context]'
+JQ_FAILED_NAMES='[.statusCheckRollup[] | select(answered and (passing | not)) | .name // .context]'
 
 # verdict <rollup-json> <required-json-array>
 #
@@ -92,6 +102,7 @@ JQ_FAILED_NAMES='[.statusCheckRollup[]
 verdict() {
   local rollup="$1" required="$2"
   jq -rn --argjson r "$rollup" --argjson req "$required" "
+    $JQ_DEFS
     (\$r | $JQ_ANSWERED_NAMES) as \$answered
     | (\$r | $JQ_FAILED_NAMES) as \$failed
     | (\$req - \$answered) as \$pending
@@ -153,11 +164,26 @@ self_test() {
   check answered-red 'required-failed:Test' \
     '{"statusCheckRollup":[{"name":"Quality Checks","conclusion":"SUCCESS"},{"name":"Test","conclusion":"FAILURE"}]}'
 
+  # 9. STALE is answered and is NOT a pass. A denylist of failure conclusions
+  #    let it through as green.
+  check stale-conclusion 'required-failed:Test' \
+    '{"statusCheckRollup":[{"name":"Quality Checks","conclusion":"SUCCESS"},{"name":"Test","conclusion":"STALE"}]}'
+
+  # 10. The general form, and the reason this is an allowlist: a conclusion
+  #     value nobody has seen yet must fail closed, not green.
+  check unknown-conclusion 'required-failed:Test' \
+    '{"statusCheckRollup":[{"name":"Quality Checks","conclusion":"SUCCESS"},{"name":"Test","conclusion":"SOME_FUTURE_VALUE"}]}'
+
+  # 11. NEUTRAL and SKIPPED are genuine passes — an allowlist that forgot them
+  #     would block on checks GitHub considers satisfied.
+  check neutral-and-skipped 'green' \
+    '{"statusCheckRollup":[{"name":"Quality Checks","conclusion":"NEUTRAL"},{"name":"Test","conclusion":"SKIPPED"}]}'
+
   if [ "$ok" -ne 0 ]; then
     echo "Harness self-test FAILED — refusing to report on real CI."
     exit 4
   fi
-  echo "self-test 8/8: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red"
+  echo "self-test 11/11: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red, stale-conclusion, unknown-conclusion, neutral-and-skipped"
 }
 
 if [ "${1:-}" = "--self-test" ]; then
@@ -190,15 +216,27 @@ echo "watching PR #$PR pinned to $PINNED"
 DEADLINE=$(( $(date +%s) + TIMEOUT_SECONDS ))
 
 while :; do
-  HEAD=$(gh pr view "$PR" --json headRefOid --jq .headRefOid 2>/dev/null)
+  # ONE request for both fields. Querying the head and the rollup separately
+  # leaves a window where a push lands between them: the checks then belong to
+  # the NEW head while the verdict is reported against $PINNED, and the script
+  # can exit green before it ever notices the move. Validating the SHA that came
+  # back in the SAME response closes it. Raised in review of #2053.
+  RESPONSE=$(gh pr view "$PR" --json headRefOid,statusCheckRollup 2>/dev/null)
+  HEAD=$(printf '%s' "$RESPONSE" | jq -r '.headRefOid // ""')
+
+  if [ -z "$HEAD" ]; then
+    echo "WARN: could not read PR state; retrying"
+    sleep "$POLL_SECONDS"
+    continue
+  fi
+
   if [ "$HEAD" != "$PINNED" ]; then
     echo "ABORT: head moved $PINNED -> $HEAD; a verdict here would describe a different commit"
     exit 2
   fi
 
-  ROLLUP=$(gh pr view "$PR" --json statusCheckRollup 2>/dev/null)
-  RESULT=$(verdict "$ROLLUP" "$REQUIRED")
-  TOTAL=$(printf '%s' "$ROLLUP" | jq '.statusCheckRollup | length')
+  RESULT=$(verdict "$RESPONSE" "$REQUIRED")
+  TOTAL=$(printf '%s' "$RESPONSE" | jq '.statusCheckRollup | length')
 
   echo "$(date +%H:%M:%S) total=$TOTAL $RESULT"
 

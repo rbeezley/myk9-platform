@@ -208,7 +208,15 @@ if [ -z "$REQUIRED" ] || [ "$REQUIRED" = "[]" ]; then
 fi
 echo "required checks: $(printf '%s' "$REQUIRED" | jq -r 'join(", ")')"
 
-PINNED="${2:-$(gh pr view "$PR" --json headRefOid --jq .headRefOid)}"
+# --repo on every PR query, so the checks being read and the ruleset defining
+# "required" always come from the SAME repository. Without it the ruleset used
+# $REPO while `gh pr view` used the checkout's default remote, which could
+# evaluate an unrelated PR against the wrong requirements.
+PINNED="${2:-$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)}"
+if [ -z "$PINNED" ]; then
+  echo "ABORT: could not read the head SHA for PR #$PR on $REPO."
+  exit 4
+fi
 POLL_SECONDS="${MYK9_PR_POLL_SECONDS:-60}"
 TIMEOUT_SECONDS="${MYK9_PR_TIMEOUT_SECONDS:-2400}"
 echo "watching PR #$PR pinned to $PINNED"
@@ -221,10 +229,18 @@ while :; do
   # the NEW head while the verdict is reported against $PINNED, and the script
   # can exit green before it ever notices the move. Validating the SHA that came
   # back in the SAME response closes it. Raised in review of #2053.
-  RESPONSE=$(gh pr view "$PR" --json headRefOid,statusCheckRollup 2>/dev/null)
+  RESPONSE=$(gh pr view "$PR" --repo "$REPO" --json headRefOid,statusCheckRollup 2>/dev/null)
   HEAD=$(printf '%s' "$RESPONSE" | jq -r '.headRefOid // ""')
 
   if [ -z "$HEAD" ]; then
+    # The deadline is checked HERE too, not only on the polling path below. An
+    # outage, a rate limit or an expired token makes every read fail, and a bare
+    # `continue` would retry forever — hanging the shipping workflow instead of
+    # returning "no verdict". Raised in review of #2053.
+    if [ "$(date +%s)" -gt "$DEADLINE" ]; then
+      echo "TIMEOUT after ${TIMEOUT_SECONDS}s: could not read PR state from $REPO — NOT a verdict"
+      exit 3
+    fi
     echo "WARN: could not read PR state; retrying"
     sleep "$POLL_SECONDS"
     continue

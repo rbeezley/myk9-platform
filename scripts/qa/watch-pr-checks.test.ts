@@ -106,6 +106,45 @@ describe('watch-pr-checks harness', () => {
     expect(result.stdout).toContain('SELF-TEST FAIL [partial-rollup]');
   });
 
+  // A watcher that hangs is worse than one that errors: it stalls the shipping
+  // workflow with no verdict and no signal. `gh api` succeeds so the run reaches
+  // its polling loop; `gh pr view` then fails, which is what an outage, a rate
+  // limit or an expired token looks like mid-run. Raised in review of #2053,
+  // where the retry path skipped the deadline entirely.
+  it('honours the deadline when PR reads keep failing', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-stub-'));
+    scratchDirs.push(dir);
+    writeFileSync(
+      join(dir, 'gh'),
+      [
+        '#!/bin/bash',
+        'case "${1:-}" in',
+        '  api)',
+        '    if [[ "$*" == *"/rulesets/"* ]]; then echo \'["Quality Checks"]\'; else echo 17085332; fi',
+        '    exit 0 ;;',
+        '  *) exit 1 ;;',
+        'esac',
+      ].join('\n')
+    );
+    chmodSync(join(dir, 'gh'), 0o755);
+
+    const startedAt = Date.now();
+    const result = spawnSync('bash', [watcher, '2053', 'deadbeefdeadbeef'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${dir}:${process.env.PATH ?? ''}`,
+        MYK9_PR_TIMEOUT_SECONDS: '0',
+        MYK9_PR_POLL_SECONDS: '1',
+      },
+      timeout: 30_000,
+    });
+
+    expect(result.status, `stdout: ${result.stdout}`).toBe(3);
+    expect(result.stdout).toContain('NOT a verdict');
+    expect(Date.now() - startedAt).toBeLessThan(20_000);
+  });
+
   it('refuses to poll without a PR number', () => {
     const result = spawnSync('bash', [watcher], { encoding: 'utf8' });
 

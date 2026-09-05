@@ -26,6 +26,8 @@ Install as devDependencies:
 husky lint-staged prettier
 ```
 
+> **LOCAL PATCH (myk9-platform #2064):** in this repository do **not** run `npx husky init` or point `core.hooksPath` anywhere else. `.githooks/pre-commit` is the concurrent-agent commit guard, wired by `scripts/bootstrap-worktree.sh` into every worktree (see `AGENTS.md` and `.githooks/README.md`). To add lint-staged here, call it from `.githooks/pre-commit` instead of replacing that hook. The steps below are the upstream instructions for repositories without an existing hook path.
+
 ### 3. Initialize Husky
 
 ```bash

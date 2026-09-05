@@ -106,12 +106,12 @@ _existing() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     if (( inval )); then
       acc+=$'\n'"$line"
-      if [[ "$line" == *"$q" ]]; then inval=0; val="$acc"; fi
+      if [[ "$line" == *"$q"* ]]; then inval=0; val="$acc"; fi
       continue
     fi
     if [[ "$line" == "$key="* ]]; then
       found=1; val="${line#"$key"=}"; q="${val:0:1}"
-      if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && ( ${#val} -lt 2 || "${val: -1}" != "$q" ) ]]; then
+      if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${val:1}" != *"$q"* ]]; then
         inval=1; acc="$val"
       fi
     fi
@@ -119,11 +119,9 @@ _existing() {
   (( found )) || return 1
   [[ -z "$val" ]] && return 1
   q="${val:0:1}"
-  if [[ ${#val} -ge 2 && "${val: -1}" == "$q" ]]; then
-    case "$q" in
-      "'"|'`') val="${val:1:${#val}-2}" ;;
-      '"') val="${val:1:${#val}-2}"; nl=$'\n'; val=${val//\\n/$nl} ;;
-    esac
+  if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${val:1}" == *"$q"* ]]; then
+    val="${val:1}"; val="${val%"$q"*}"   # body up to the LAST quote; a trailing comment is dropped
+    if [[ "$q" == '"' ]]; then nl=$'\n'; val=${val//\\n/$nl}; fi
   fi
   printf '%s' "$val"
 }
@@ -169,12 +167,15 @@ write_env() {
   # left the tail behind as ghost variables), then append the new one.
   while IFS= read -r line || [[ -n "$line" ]]; do
     if (( skip )); then
-      [[ "$line" == *"$q" ]] && skip=0
+      [[ "$line" == *"$q"* ]] && skip=0
       continue
     fi
     if [[ "$line" == "$key="* ]]; then
       v="${line#"$key"=}"; q="${v:0:1}"
-      if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && ( ${#v} -lt 2 || "${v: -1}" != "$q" ) ]]; then
+      # Closed when the quote recurs anywhere after the opener — a trailing
+      # comment or whitespace after the closing quote is still one line
+      # (Codex, #2064 round 8: `TOKEN="old" # c` swallowed the lines below).
+      if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${v:1}" != *"$q"* ]]; then
         skip=1
       fi
       continue

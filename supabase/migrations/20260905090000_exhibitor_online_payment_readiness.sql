@@ -24,6 +24,7 @@ as $$
 $$;
 
 revoke all on function public.can_accept_online_entry_payment(uuid, boolean) from public;
+revoke execute on function public.can_accept_online_entry_payment(uuid, boolean) from anon;
 grant execute on function public.can_accept_online_entry_payment(uuid, boolean) to authenticated;
 
 commit;

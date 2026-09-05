@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 /**
  * Executes the notifier's shell against a stubbed `gh` and asserts the calls it
@@ -21,6 +21,11 @@ import { beforeAll, describe, expect, it } from 'vitest';
  *
  * So this runs the thing. Every assertion below fails if the corresponding
  * behaviour is removed.
+ *
+ * MYK9-412: the original CI failure has no captured stderr, so its cause is
+ * unconfirmed. Each invocation now owns and cleans its fixture directory;
+ * captured status/signal/output and ERR line context make future failures
+ * diagnosable. Only fixture environment values reach bash (no real tokens).
  */
 
 const actionPath = resolve(
@@ -60,23 +65,21 @@ interface RunResult {
   calls: string[];
 }
 
-let scriptPath: string;
-let binDir: string;
-let logPath: string;
-
-beforeAll(() => {
+function run(outcome: string, openIssues: string[], fail = false, silent = false): RunResult {
   const dir = mkdtempSync(join(tmpdir(), 'notifier-'));
-  scriptPath = join(dir, 'notify.sh');
-  writeFileSync(scriptPath, extractScript());
+  const scriptPath = join(dir, 'notify.sh');
+  const script = `set -E\ntrap 'echo "notify.sh line $LINENO: $BASH_COMMAND" >&2' ERR\n${extractScript()}`;
+  writeFileSync(scriptPath, script);
 
-  binDir = join(dir, 'bin');
-  execFileSync('mkdir', ['-p', binDir]);
-  logPath = join(dir, 'calls.log');
+  const binDir = join(dir, 'bin');
+  mkdirSync(binDir);
+  const logPath = join(dir, 'calls.log');
 
   // Stub gh: records each invocation and replays a scripted `issue list`.
   const stub = [
     '#!/bin/bash',
     'echo "$*" >> "$STUB_LOG"',
+    'if [ "$1 $2" = "issue list" ] && [ "${STUB_FAIL:-}" = "yes" ]; then [ "${STUB_SILENT:-}" = "yes" ] || echo "fixture list failed" >&2; exit 23; fi',
     'case "$1 $2" in',
     '  "issue list") printf \'%s\' "${STUB_OPEN_ISSUES:-}" ;;',
     '  *) exit 0 ;;',
@@ -85,32 +88,61 @@ beforeAll(() => {
   const ghPath = join(binDir, 'gh');
   writeFileSync(ghPath, stub);
   chmodSync(ghPath, 0o755);
-});
-
-function run(outcome: string, openIssues: string[]): RunResult {
   writeFileSync(logPath, '');
-  const stdout = execFileSync('bash', [scriptPath], {
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      PATH: `${binDir}:${process.env.PATH}`,
-      STUB_LOG: logPath,
-      STUB_OPEN_ISSUES: openIssues.join('\n'),
-      WORKFLOW_NAME: 'Playwright Regression',
-      OUTCOME: outcome,
-      EXTRA: 'A curated journey broke.',
-      RUN_URL: 'https://github.com/o/r/actions/runs/9',
-      REPO: 'o/r',
-    },
-  });
-  const calls = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
-  return { stdout, calls };
+  try {
+    const stdout = execFileSync('bash', [scriptPath], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        PATH: `${binDir}:/usr/bin:/bin`,
+        STUB_LOG: logPath,
+        STUB_FAIL: fail ? 'yes' : 'no',
+        STUB_SILENT: silent ? 'yes' : 'no',
+        STUB_OPEN_ISSUES: openIssues.join('\n'),
+        WORKFLOW_NAME: 'Playwright Regression',
+        OUTCOME: outcome,
+        EXTRA: 'A curated journey broke.',
+        RUN_URL: 'https://github.com/o/r/actions/runs/9',
+        REPO: 'o/r',
+      },
+    });
+    const calls = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
+    return { stdout, calls };
+  } catch (error: unknown) {
+    const failure = error as Error & {
+      status?: number | null;
+      signal?: string | null;
+      stderr?: string | Buffer;
+      stdout?: string | Buffer;
+    };
+    throw new Error(
+      `Notifier failed: status=${failure.status ?? 'unknown'} signal=${failure.signal ?? 'none'}\n` +
+        `stderr: ${String(failure.stderr ?? '').slice(-4000)}\n` +
+        `stdout: ${String(failure.stdout ?? '').slice(-4000)}\n` +
+        `script: ${scriptPath}\n${script
+          .split('\n')
+          .map((line, index) => `${index + 1}: ${line}`)
+          .join('\n')}`,
+      { cause: error }
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 const verbs = (calls: string[]) =>
   calls.filter(c => c.startsWith('issue ')).map(c => c.split(' ').slice(0, 2).join(' '));
 
 describe('scheduled-failure notifier', () => {
+  it('reports a shell line when the failed stub produces no stderr', () => {
+    expect(() => run('failure', [], true, true)).toThrow(/status=23[\s\S]*notify.sh line \d+/);
+  });
+  it('reports command exit status, stderr and script context without swallowing failure', () => {
+    expect(() => run('failure', [], true)).toThrow(
+      /status=23[\s\S]*fixture list failed[\s\S]*notify.sh/
+    );
+  });
+
   it('opens an issue when a workflow goes red', () => {
     expect(verbs(run('failure', []).calls)).toEqual(['issue list', 'issue create']);
   });

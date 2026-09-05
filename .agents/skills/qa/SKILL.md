@@ -44,9 +44,11 @@ Keep as a single issue when:
 - It's one behavior that's wrong in one place
 - The symptoms are all caused by the same root behavior
 
-### 4. File the GitHub issue(s)
+### 4. File the issue(s)
 
-Create issues with `gh issue create`. Do NOT ask the user to review first — just file and share URLs.
+> LOCAL PATCH (myk9-platform #2064): this repository tracks work in **Linear**, not GitHub issues. Read `docs/agents/issue-tracker.md` and file there (the `todo-add` skill wraps it); the templates below still apply to the issue body. Upstream said `gh issue create`.
+
+Do NOT ask the user to review first — just file and share URLs.
 
 Issues must be **durable** — they should still make sense after major refactors. Write from the user's perspective.
 

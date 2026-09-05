@@ -96,9 +96,22 @@ confirm() {
 
 # _existing KEY — current value of KEY in ENV_FILE, if any.
 _existing() {
-  [[ -f "$ENV_FILE" ]] || return 1
-  local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
-  printf '%s' "${line#*=}"
+  # LOCAL PATCH (myk9-platform #2064, Codex P2): write_env stores values
+  # double-quoted with backslash, double-quote, dollar and newline escaped, so
+  # an unquoted `#` or surrounding whitespace survives dotenv-compatible
+  # readers. Decode that form here so a re-run offers the exact value back.
+  local key="$1" raw
+  raw=$(grep -E "^${key}=" "$ENV_FILE" 2>/dev/null | tail -n1 | cut -d= -f2-) || return 1
+  [[ -z "$raw" ]] && return 1
+  if [[ "$raw" == \"*\" && ${#raw} -ge 2 ]]; then
+    raw="${raw:1:${#raw}-2}"
+    raw="${raw//\n/$'
+'}"
+    raw="${raw//\\"/\"}"
+    raw="${raw//\\$/\$}"
+    raw="${raw//\\/\}"
+  fi
+  printf '%s' "$raw"
 }
 
 # ask KEY "Prompt" — read a value into $KEY. Offers the existing .env value as
@@ -138,7 +151,14 @@ write_env() {
   touch "$ENV_FILE"
   tmp=$(mktemp)
   grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
-  printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  # LOCAL PATCH (#2064): quote and escape so `#`, whitespace and newlines
+  # round-trip through dotenv-compatible readers and through _existing.
+  local esc="$value"
+  esc="${esc//\\/\\\\}"
+  esc="${esc//\"/\\\"}"
+  esc="${esc//\$/\\\$}"
+  esc="${esc//$'\n'/\\n}"
+  printf '%s="%s"\n' "$key" "$esc" >> "$tmp"
   mv "$tmp" "$ENV_FILE"
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"

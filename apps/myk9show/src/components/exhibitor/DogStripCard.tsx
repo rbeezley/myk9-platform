@@ -3,8 +3,16 @@
  *
  * Avatar, call name, breed (once when every registry agrees), date of birth
  * with age, and a small table of registry → number. Upcoming-class count
- * (green) or "Not entered" (amber) sits beside the name, with earned title
+ * (green) or "No upcoming classes" (amber) sits beside the name, with earned
+ * title
  * abbreviations beneath the table. Clicking navigates to the dog's detail page.
+ *
+ * The badge is derived from `upcomingClassCount` ALONE, so its copy must speak
+ * only about upcoming classes. It used to read "Not entered", a claim about
+ * entered-ness that the count cannot support: a dog whose show already ran has
+ * zero upcoming classes and plenty of entries, so 191 of 252 cards denied
+ * entries that were listed directly beneath them — one of them immediately
+ * after two successful payments (MYK9-385).
  */
 
 import React from 'react';
@@ -68,7 +76,7 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
               </span>
             ) : (
               <span className="inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                Not entered
+                No upcoming classes
               </span>
             )}
           </div>

@@ -16,6 +16,13 @@ import type {
   SystemHealthSnapshotRow,
 } from './systemHealthTypes';
 import { healthCheckStaleAfterMs, LEGACY_HEALTH_CHECK_STALE_AFTER_MS } from './healthCheckCadence';
+import {
+  HEALTH_CHECK_REMEDIATION,
+  inferRemediationFromText,
+  PAYOUT_CRON_DISPATCH_ONLY,
+  UNKNOWN_HEALTH_CHECK_REMEDIATION,
+  type HealthCheckRemediationRoute,
+} from './healthCheckRemediationMap';
 
 // INTENT: a health run older than this is treated as a *failure*, not merely
 // stale data — a missing run can hide a broken cron, and the operator whose
@@ -25,11 +32,7 @@ import { healthCheckStaleAfterMs, LEGACY_HEALTH_CHECK_STALE_AFTER_MS } from './h
 /** Compatibility export for callers that still reason about the old daily run. */
 export const STALE_AFTER_MS = LEGACY_HEALTH_CHECK_STALE_AFTER_MS;
 
-export interface HealthCheckRemediation {
-  ownerLabel: string;
-  actionLabel: string;
-  href: string;
-  nextStep: string;
+export interface HealthCheckRemediation extends HealthCheckRemediationRoute {
   coverageIncomplete: boolean;
 }
 
@@ -176,87 +179,29 @@ export function isCoverageIncomplete(check: HealthCheck): boolean {
   return matches(check, COVERAGE_INCOMPLETE_PATTERN);
 }
 
+/**
+ * Owner + recovery route for a check.
+ *
+ * MYK9-394: routing is decided by the stable check KEY, never by the diagnostic
+ * text. `HEALTH_CHECK_REMEDIATION` is authoritative for every key the runner
+ * emits; the only refinement applied on top of it is keyed on the runner's
+ * structured `verification` field, and text inference is reachable only for a
+ * key the map has never heard of.
+ */
 export function getHealthCheckRemediation(check: HealthCheck): HealthCheckRemediation {
   const coverageIncomplete = isCoverageIncomplete(check);
+  const mapped = HEALTH_CHECK_REMEDIATION[check.key];
 
-  if (check.key === 'payout_cron' && check.verification === 'unprovable') {
-    return {
-      ownerLabel: 'Payout Scheduling',
-      actionLabel: 'Open Payouts',
-      href: '/admin/payouts',
-      nextStep:
-        'This confirms the scheduled request was sent; the ledger covers only payout attempts that were recorded.',
-      coverageIncomplete,
-    };
+  if (mapped) {
+    const route =
+      check.key === 'payout_cron' && check.verification === 'unprovable'
+        ? PAYOUT_CRON_DISPATCH_ONLY
+        : mapped;
+    return { ...route, coverageIncomplete };
   }
 
-  if (matches(check, /sync|replication|queue|conflict/)) {
-    return {
-      ownerLabel: 'Support Inbox',
-      actionLabel: 'Open Support',
-      href: '/admin/support',
-      nextStep: 'Review the affected diagnostics and replication state.',
-      coverageIncomplete,
-    };
-  }
-
-  if (matches(check, /support|ticket|inbox/)) {
-    return {
-      ownerLabel: 'Support Inbox',
-      actionLabel: 'Open Support',
-      href: '/admin/support',
-      nextStep: 'Review the support queue and affected diagnostics.',
-      coverageIncomplete,
-    };
-  }
-
-  if (matches(check, /deleted|restore|recovery|trash/)) {
-    return {
-      ownerLabel: 'Deleted Items',
-      actionLabel: 'Open Deleted Items',
-      href: '/admin/deleted-items',
-      nextStep: 'Check whether missing data can be restored.',
-      coverageIncomplete,
-    };
-  }
-
-  if (matches(check, /permission|access|rbac|role|user role/)) {
-    return {
-      ownerLabel: 'Permissions',
-      actionLabel: 'Open Permissions',
-      href: '/admin/permissions',
-      nextStep: 'Review role assignments and access repair surfaces.',
-      coverageIncomplete,
-    };
-  }
-
-  if (matches(check, /payout|payment|stripe|money/)) {
-    return {
-      ownerLabel: 'Payout Ledger',
-      actionLabel: 'Open Payouts',
-      href: '/admin/payouts',
-      nextStep: 'Review payout/payment status and the money-path runbook.',
-      coverageIncomplete,
-    };
-  }
-
-  if (matches(check, /migration|deploy|cron|scheduler|background|edge|manual|job/)) {
-    return {
-      ownerLabel: 'Operations Runbook',
-      actionLabel: 'Open Admin Help',
-      href: '/admin/help',
-      nextStep: 'Use the operations runbook or admin help to assign the manual recovery owner.',
-      coverageIncomplete,
-    };
-  }
-
-  return {
-    ownerLabel: 'Owner incomplete',
-    actionLabel: 'Open Admin Help',
-    href: '/admin/help',
-    nextStep: 'No owner is mapped yet; use admin help or the operations runbook to triage.',
-    coverageIncomplete,
-  };
+  const inferred = inferRemediationFromText(checkText(check));
+  return { ...(inferred ?? UNKNOWN_HEALTH_CHECK_REMEDIATION), coverageIncomplete };
 }
 
 const MINUTE_MS = 60 * 1000;

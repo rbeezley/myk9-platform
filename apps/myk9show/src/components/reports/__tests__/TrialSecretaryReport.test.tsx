@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import { TrialSecretaryReport } from '../TrialSecretaryReport';
 import type { ReportProps } from '@/lib/reports/types';
 
@@ -44,7 +44,7 @@ describe('TrialSecretaryReport', () => {
 
   it('shows entry count', () => {
     render(<TrialSecretaryReport {...baseProps} />);
-    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getAllByText('12').length).toBeGreaterThan(0);
   });
 
   it('shows judge name', () => {
@@ -65,8 +65,65 @@ describe('TrialSecretaryReport', () => {
   it('shows fee calculation', () => {
     render(<TrialSecretaryReport {...baseProps} />);
     expect(
-      screen.getByText(/\$3\.50 per entry × 12 entries = \$42\.00 Total Service Charge/)
+      screen.getByText(/\$4\.50 per run × 12 paid runs = \$54\.00 Total Service Fees/)
     ).toBeInTheDocument();
+  });
+
+  it('uses the historical $3.50 rate through the end of 2025', () => {
+    render(
+      <TrialSecretaryReport {...baseProps} trial={{ ...baseProps.trial!, date: '2025-12-31' }} />
+    );
+
+    expect(
+      screen.getByText(/\$3\.50 per run × 12 paid runs = \$42\.00 Total Service Fees/)
+    ).toBeInTheDocument();
+  });
+
+  it('uses the same 2026 eligible-run calculation as the official PDF builder', () => {
+    const entries = Array.from({ length: 136 }, (_, index) => ({
+      ...baseProps.entries[0],
+      id: `entry-${index}`,
+      entryStatus: index === 134 ? 'withdrawn' : index === 135 ? 'scratched' : 'entered',
+    }));
+
+    render(<TrialSecretaryReport {...baseProps} entries={entries} />);
+
+    expect(screen.getByText('136')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('134')).toBeInTheDocument();
+    expect(
+      screen.getByText(/\$4\.50 per run × 134 paid runs = \$603\.00 Total Service Fees/)
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    [undefined, 'Set a valid trial date before generating this report.'],
+    ['not-a-date', 'Set a valid trial date before generating this report.'],
+    [
+      '2027-01-01',
+      'This fee schedule covers 2025 and 2026 events only. Confirm the current AKC rate before generating this report.',
+    ],
+  ] as const)('blocks fee output for date %s and states recovery', (date, recovery) => {
+    render(
+      <TrialSecretaryReport
+        {...baseProps}
+        trial={date ? { ...baseProps.trial!, date } : undefined}
+      />
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(recovery);
+    expect(screen.queryByText(/Total Service Fees/)).not.toBeInTheDocument();
+  });
+
+  it('matches the timing and address on canonical form JSW001 (11/25)', () => {
+    render(<TrialSecretaryReport {...baseProps} />);
+
+    expect(
+      screen.getByText(/within seven \(7\) days after the close of the event/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/PO Box 900051, Raleigh, NC 27675-9051/)).toBeInTheDocument();
+    expect(screen.queryByText(/within 15 days/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/8051 Arco Corporate Dr/i)).not.toBeInTheDocument();
   });
 
   it('leaves the compliance Yes/No boxes blank instead of pre-checking No', () => {

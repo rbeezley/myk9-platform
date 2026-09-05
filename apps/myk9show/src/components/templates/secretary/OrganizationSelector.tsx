@@ -191,9 +191,12 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
             <div className="space-y-4">
               <div className="grid gap-4">
                 {availableTemplates.map(template => (
-                  <div
+                  <button
+                    type="button"
                     key={template.id}
-                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                    aria-label={`Select ${template.templateName}`}
+                    aria-pressed={selectedTemplate?.id === template.id}
+                    className={`w-full border rounded-lg p-4 cursor-pointer text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                       selectedTemplate?.id === template.id
                         ? 'ring-2 ring-primary bg-primary/5'
                         : 'hover:bg-muted/50'
@@ -245,7 +248,7 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
 

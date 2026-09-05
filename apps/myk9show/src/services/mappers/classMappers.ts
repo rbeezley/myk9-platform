@@ -219,6 +219,9 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
   const judgeAssignments = (dbClass as unknown as Record<string, unknown>).judge_assignments as
     Array<{ person_id: string; people: { first_name: string; last_name: string } }> | undefined;
   const firstJudge = judgeAssignments?.[0];
+  const assignmentJudgeName = firstJudge?.people
+    ? `${firstJudge.people.first_name} ${firstJudge.people.last_name}`.trim()
+    : undefined;
 
   return {
     id: dbClass.id,
@@ -231,9 +234,7 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     is_scoring_finalized: dbClass.is_scoring_finalized ?? null,
     scored_count: dbClass.scored_count ?? null,
     reopened_after_closeout_at: dbClass.reopened_after_closeout_at ?? null,
-    judge: firstJudge
-      ? `${firstJudge.people.first_name} ${firstJudge.people.last_name}`.trim()
-      : 'TBD',
+    judge: assignmentJudgeName || dbClass.judge_name || 'TBD',
     judgeId: firstJudge?.person_id || '',
 
     // Class details
@@ -473,6 +474,7 @@ export const mapReplicatedClassToDbRow = (
       status: 'classStatus',
       class_order: 'classOrder',
       display_order: 'displayOrder',
+      judge_name: 'judgeName',
     }),
     is_completed: cls.isCompleted ?? false,
     is_scoring_finalized: cls.isScoringFinalized ?? false,

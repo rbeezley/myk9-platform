@@ -57,7 +57,9 @@ export function deriveMyEntryCardState(
     differenceInDays
   );
   const isPastShow = isPastShowEntry(entry, currentTime);
-  const paymentHref = buildOrderPaymentHref(entry);
+  // The checkout endpoint rejects past-show entries. Keep the balance and its
+  // Payment Due status visible, but never leave a cart link on the card.
+  const paymentHref = isPastShow ? null : buildOrderPaymentHref(entry);
   const isPaid = [
     PaymentStatus.PAID_ONLINE,
     PaymentStatus.PAID_BY_CHECK,

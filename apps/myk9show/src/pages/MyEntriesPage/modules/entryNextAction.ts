@@ -102,7 +102,7 @@ export function deriveEntryNextAction(
   // action can never disagree with the amount shown (exhibitor-money-clarity).
   const paymentPrompt = canPayStatus ? getOrderOnlinePrompt(entry) : ({ kind: 'none' } as const);
 
-  if (paymentPrompt.kind === 'finish-online') {
+  if (paymentPrompt.kind === 'finish-online' && !isPastShowEntry(entry, now)) {
     return { kind: 'finish-payment' };
   }
 

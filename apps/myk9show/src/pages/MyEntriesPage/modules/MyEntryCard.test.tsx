@@ -171,6 +171,24 @@ describe('MyEntryCard current status summary', () => {
 });
 
 describe('MyEntryCard payment recovery', () => {
+  it('keeps a past unpaid balance visible without linking to the closed cart', () => {
+    renderCard(
+      makeEntry({
+        showDate: new Date('2026-08-01T12:00:00Z'),
+        showEndDate: new Date('2026-08-02T12:00:00Z'),
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+        totalFee: 85,
+        classes: [makeClass({ id: 'entry-1' })],
+      })
+    );
+
+    expect(screen.queryByRole('link', { name: /Finish Payment/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Please contact the club to settle this outstanding balance.')
+    ).toBeInTheDocument();
+  });
+
   it('shows a Finish Payment action for pending paid-fee entries', () => {
     renderCard(
       makeEntry({

@@ -142,6 +142,9 @@ jobs:
         env:
           LOAD_TEST_MODE: discovery
 
+      - name: Browser session lifecycle
+        run: pnpm qa:browser-session:test
+
       - name: Nightly health workflow contract
         run: pnpm qa:nightly:workflow:test
 

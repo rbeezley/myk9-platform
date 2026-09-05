@@ -114,10 +114,23 @@ describe('inflight CLI', () => {
     return { main, other, bin };
   }
 
-  function stubGh(bin: string, prs: unknown[]) {
-    const file = join(bin, 'prs.json');
-    writeFileSync(file, JSON.stringify(prs));
-    writeFileSync(join(bin, 'gh'), `#!/usr/bin/env bash\ncat "${file}"\n`);
+  /** Stub gh: `pr list --state open` -> prs, `--state merged` -> merged; `fail` makes every call exit 1. */
+  function stubGh(bin: string, prs: unknown[], merged: string[] = [], fail = false) {
+    writeFileSync(join(bin, 'open.json'), JSON.stringify(prs));
+    writeFileSync(
+      join(bin, 'merged.json'),
+      JSON.stringify(merged.map(headRefName => ({ headRefName })))
+    );
+    const body = fail
+      ? ['#!/usr/bin/env bash', 'echo "gh: not logged in" >&2', 'exit 1', ''].join(
+          String.fromCharCode(10)
+        )
+      : [
+          '#!/usr/bin/env bash',
+          `case "$*" in *"--state merged"*) cat "${join(bin, 'merged.json')}";; *) cat "${join(bin, 'open.json')}";; esac`,
+          '',
+        ].join(String.fromCharCode(10));
+    writeFileSync(join(bin, 'gh'), body);
     chmodSync(join(bin, 'gh'), 0o755);
   }
 
@@ -189,6 +202,37 @@ describe('inflight CLI', () => {
     const { main, bin } = repo();
     stubGh(bin, [{ number: 7, headRefName: 'mine', files: [{ path: 'src/b.ts' }] }]);
     expect(runCli(main, bin).code).toBe(0);
+  });
+
+  it('exits 2, not 0, when gh cannot list PRs — an unknown PR list is never a clean result', () => {
+    const { main, bin } = repo();
+    stubGh(bin, [], [], true);
+    const r = runCli(main, bin);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('NOT a clean result');
+  });
+
+  it('ignores a local branch whose PR already squash-merged', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'finished');
+    writeFileSync(join(main, 'src', 'b.ts'), 'finished elsewhere');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'finished');
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, [], ['finished']);
+    expect(runCli(main, bin).code).toBe(0);
+    stubGh(bin, [], []);
+    const r = runCli(main, bin);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch finished');
+  });
+
+  it('counts both sides of a rename in another worktree', () => {
+    const { main, other, bin } = repo();
+    git(other, 'mv', 'src/a.ts', 'src/renamed.ts');
+    stubGh(bin, []);
+    expect(runCli(main, bin, 'src/a.ts').code).toBe(1);
+    expect(runCli(main, bin, 'src/renamed.ts').code).toBe(1);
   });
 
   it('--warn reports but exits 0', () => {

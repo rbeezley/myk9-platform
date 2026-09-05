@@ -129,7 +129,7 @@ export function statusPaths(cwd?: string): string[] {
   return run('git', ['status', '--porcelain', '--untracked-files=all'], { cwd, allowFail: true })
     .split('\n')
     .filter(l => l.length > 3)
-    .map(l => l.slice(3).replace(/^.* -> /, ''));
+    .flatMap(l => l.slice(3).split(' -> ')); // a rename `old -> new` touches both
 }
 
 export function currentBranch(cwd?: string): string {
@@ -153,9 +153,23 @@ interface GhPr {
   files?: { path: string }[];
 }
 
+export class InflightQueryError extends Error {}
+
+function ghJson<T>(args: string[], what: string): T {
+  try {
+    const raw = execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    const e = error as { stderr?: string; message?: string };
+    throw new InflightQueryError(
+      `could not list ${what}: ${(e.stderr || e.message || '').trim().split('\n')[0]}`
+    );
+  }
+}
+
+/** Throws when `gh` cannot answer — an unknown PR list must never read as clean. */
 export function openPullRequests(): ChangeSource[] {
-  const raw = run(
-    'gh',
+  const prs = ghJson<GhPr[]>(
     [
       'pr',
       'list',
@@ -166,12 +180,8 @@ export function openPullRequests(): ChangeSource[] {
       '--json',
       'number,headRefName,url,author,files',
     ],
-    {
-      allowFail: true,
-    }
+    'open PRs'
   );
-  if (!raw.trim()) return [];
-  const prs = JSON.parse(raw) as GhPr[];
   return prs.map(pr => ({
     kind: 'pr',
     id: `#${pr.number}`,
@@ -180,6 +190,15 @@ export function openPullRequests(): ChangeSource[] {
     url: pr.url,
     files: (pr.files ?? []).map(f => f.path),
   }));
+}
+
+/** Branch names whose PR already merged — a squash merge leaves the branch a non-ancestor of main. */
+export function mergedPrBranches(): Set<string> {
+  const prs = ghJson<{ headRefName: string }[]>(
+    ['pr', 'list', '--state', 'merged', '--limit', '300', '--json', 'headRefName'],
+    'merged PRs'
+  );
+  return new Set(prs.map(pr => pr.headRefName));
 }
 
 export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
@@ -266,12 +285,24 @@ export function runCli(argv = process.argv.slice(2), cwd = process.cwd()): numbe
   const worktrees = otherWorktrees(base, cwd);
   const wtBranches = new Set(worktrees.map(w => w.branch).filter((b): b is string => !!b));
   wtBranches.add(branch);
-  const sources = [
-    ...openPullRequests(),
-    ...worktrees,
-    ...unmergedLocalBranches(base, wtBranches, cwd),
-  ];
-  const ownPr = openPullRequests().find(p => p.branch === branch);
+  let prs: ChangeSource[];
+  let merged: Set<string>;
+  try {
+    prs = openPullRequests();
+    merged = mergedPrBranches();
+  } catch (error) {
+    console.error(`inflight: ${(error as Error).message}`);
+    console.error(
+      'inflight: cannot see in-flight PRs, so this is NOT a clean result (exit 2). Fix gh auth or network and re-run.'
+    );
+    return 2;
+  }
+  // A squash-merged branch is no ancestor of main but is finished: skip it,
+  // and skip other worktrees whose branch already merged for the same reason.
+  for (const b of merged) wtBranches.add(b);
+  const liveWorktrees = worktrees.filter(w => !w.branch || !merged.has(w.branch));
+  const sources = [...prs, ...liveWorktrees, ...unmergedLocalBranches(base, wtBranches, cwd)];
+  const ownPr = prs.find(p => p.branch === branch);
   const overlaps = findOverlaps(paths, sources, {
     branch,
     prNumber: ownPr ? Number(ownPr.id.slice(1)) : undefined,

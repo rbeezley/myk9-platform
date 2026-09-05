@@ -61,7 +61,9 @@ const DECLARED_INSTANT_CALL_SITES: Record<string, string[]> = {
 
 const SRC = join(__dirname, '..');
 const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
-const LINE_COMMENT = /^[^\n]*?\/\/[^\n]*$/gm;
+// Strip from `//` to end of line, NOT the whole line: a call carrying a
+// trailing comment must stay visible to the scan.
+const LINE_COMMENT = /\/\/[^\n]*$/gm;
 const CALL = /format\(\s*new Date\(([^)]*)\)/g;
 
 function sourceFiles(dir: string, acc: string[] = []): string[] {

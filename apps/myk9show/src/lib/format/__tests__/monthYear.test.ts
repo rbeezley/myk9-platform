@@ -16,7 +16,14 @@ const ORIGINAL_TZ = process.env.TZ;
 const ZONES = ['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'] as const;
 
 afterEach(() => {
-  process.env.TZ = ORIGINAL_TZ;
+  // Assigning `undefined` would store the STRING "undefined" and leave this
+  // reused worker in an invalid zone for every later date test — the
+  // order-dependent leak that only shows up under CI's --sequence.shuffle.
+  if (ORIGINAL_TZ === undefined) {
+    delete process.env.TZ;
+  } else {
+    process.env.TZ = ORIGINAL_TZ;
+  }
 });
 
 describe.each(ZONES)('calendar formatters in %s', zone => {

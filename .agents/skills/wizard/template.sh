@@ -94,54 +94,18 @@ confirm() {
   [[ "$reply" =~ ^[Yy] ]]
 }
 
-# _existing KEY — current value of KEY in ENV_FILE, if any.
-# _quoted_body VALUE — dotenv's grammar for a quoted value: returns 0 and sets
-# REPLY to the body when VALUE starts with a quote that is closed by the first
-# UNESCAPED matching quote (a backslash-escaped quote stays in the body, as
-# dotenv keeps it). Backticks take no escapes. (LOCAL PATCH, myk9-platform #2064.)
-_quoted_body() {
-  local v="$1" re
-  case "${v:0:1}" in
-    '"') re='^"((\\.|[^"\\])*)"' ;;
-    "'") re="^'((\\\\.|[^'\\\\])*)'" ;;
-    '`') re='^`([^`]*)`' ;;
-    *) return 1 ;;
-  esac
-  [[ "$v" =~ $re ]] || return 1
-  REPLY="${BASH_REMATCH[1]}"
-}
-
+# _existing KEY — current value of KEY in ENV_FILE, if any. Strips whichever
+# quote character write_env chose, so a re-run offers back the value that was
+# stored rather than one wrapped in a fresh pair of quotes each time. Nothing
+# is unescaped, because nothing was escaped.
 _existing() {
-  # LOCAL PATCH (myk9-platform #2064): read values exactly as the dotenv parser
-  # (v17) does. Quoted values end at the first unescaped matching quote and may
-  # span lines; double quotes expand only backslash-n; unquoted values end at
-  # the first `#` and are trimmed. A trailing comment after the closing quote
-  # is ignored even when it contains quote characters.
-  local key="$1" line val="" found=0 inval=0 acc="" nl
   [[ -f "$ENV_FILE" ]] || return 1
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    if (( inval )); then
-      acc+=$'\n'"$line"
-      if _quoted_body "$acc"; then inval=0; val="$acc"; fi
-      continue
-    fi
-    if [[ "$line" == "$key="* ]]; then
-      found=1; val="${line#"$key"=}"
-      case "${val:0:1}" in
-        "'"|'"'|'`') if ! _quoted_body "$val"; then inval=1; acc="$val"; fi ;;
-      esac
-    fi
-  done < "$ENV_FILE"
-  (( found )) || return 1
-  [[ -z "$val" ]] && return 1
-  if _quoted_body "$val"; then
-    local q="${val:0:1}"; val="$REPLY"
-    if [[ "$q" == '"' ]]; then nl=$'\n'; val=${val//\\n/$nl}; fi
-  elif [[ "${val:0:1}" != "'" && "${val:0:1}" != '"' && "${val:0:1}" != '`' ]]; then
-    val="${val%%#*}"
-    val="${val#"${val%%[! ]*}"}"; val="${val%"${val##*[! ]}"}"
-  fi
-  printf '%s' "$val"
+  local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
+  local value="${line#*=}"
+  case "$value" in
+    \'*\' | \"*\" | '`'*'`') value="${value:1:${#value}-2}" ;;
+  esac
+  printf '%s' "$value"
 }
 
 # ask KEY "Prompt" — read a value into $KEY. Offers the existing .env value as
@@ -174,51 +138,43 @@ ask_secret() {
   printf -v "$key" '%s' "$input"
 }
 
-# write_env KEY VALUE — upsert KEY=VALUE into ENV_FILE (creates it; replaces
+# write_env KEY VALUE — upsert KEY="VALUE" into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
+#
+# The value is ALWAYS quoted. Writing it bare corrupts exactly the values that
+# matter most: dotenv readers treat an unquoted `#` as the start of a comment,
+# so a generated secret containing one is silently truncated there.
+# `TEST_SECRET=abc#def` loads as "abc" under `node --env-file` — while
+# `set_secret` sends the whole value to GitHub, so CI and local disagree about
+# a credential and nothing says why.
+#
+# Quote CHARACTER is chosen by content rather than escaping the value, because
+# this loader does not process backslash escapes inside quotes: `K="a\"b"`
+# reads back as `a\`, and `K="a\\b"` as `a\\b`. Both quote styles are literal,
+# and only the matching quote terminates — so the rule is simply to pick one
+# the value does not contain. (Measured against `node --env-file`; a value
+# holding all three quote characters is refused rather than mangled.)
 write_env() {
-  local key="$1" value="$2" tmp quoted line v skip=0 acc="" nl
+  local key="$1" value="$2" tmp q
   touch "$ENV_FILE"
   tmp=$(mktemp)
-  # LOCAL PATCH (myk9-platform #2064): drop the previous assignment INCLUDING
-  # its continuation lines when the old value spanned lines (a one-line grep
-  # left the tail behind as ghost variables), then append the new one.
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    if (( skip )); then
-      acc+=$'\n'"$line"
-      _quoted_body "$acc" && skip=0
-      continue
-    fi
-    if [[ "$line" == "$key="* ]]; then
-      v="${line#"$key"=}"
-      # Skip continuation lines only when the old value opens a quote that the
-      # first line does not close (dotenv grammar, escaped quotes included).
-      case "${v:0:1}" in
-        "'"|'"'|'`') if ! _quoted_body "$v"; then skip=1; acc="$v"; fi ;;
-      esac
-      continue
-    fi
-    printf '%s\n' "$line"
-  done < "$ENV_FILE" > "$tmp"
-  # Pick the quoting the dotenv parser reads back verbatim. Single quotes are
-  # fully literal (safe for #, quotes, $, backslash, whitespace, newlines);
-  # double quotes expand only backslash-n and unescape nothing else, so they
-  # are used only when the value has no double quote or backslash; backticks
-  # are the last literal option. A value containing all three quote characters
-  # cannot be represented losslessly: warn and write it single-quoted with the
-  # apostrophes dropped rather than corrupt silently.
-  if [[ "$value" != *"'"* ]]; then
-    quoted="'${value}'"
-  elif [[ "$value" != *'"'* && "$value" != *'\'* ]]; then
-    nl=$'\n'
-    quoted="\"${value//$nl/\\n}\""
-  elif [[ "$value" != *'`'* ]]; then
-    quoted="\`${value}\`"
-  else
-    warn "value for $key contains all three quote characters; written without apostrophes, set it by hand"
-    quoted="'${value//\'/}'"
-  fi
-  printf '%s=%s\n' "$key" "$quoted" >> "$tmp"
+  grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
+  case "$value" in
+    *"'"*) case "$value" in
+      *'"'*) case "$value" in
+        *'`'*)
+          rm -f "$tmp"
+          printf '  %sxx cannot write%s %s: value contains all of  '"'"'  "  `\n' \
+            "${RED:-}" "$RESET" "$key" >&2
+          return 1
+          ;;
+        *) q='`' ;;
+      esac ;;
+      *) q='"' ;;
+    esac ;;
+    *) q="'" ;;
+  esac
+  printf '%s=%s%s%s\n' "$key" "$q" "$value" "$q" >> "$tmp"
   mv "$tmp" "$ENV_FILE"
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"

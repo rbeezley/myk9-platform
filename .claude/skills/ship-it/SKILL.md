@@ -33,6 +33,24 @@ git worktree list | grep "$WORKTREE"
 
 If not inside a worktree under `.claude/worktrees/`, invoke `superpowers:using-git-worktrees` to create one before proceeding. Never implement on `main`.
 
+**Then re-capture `BRANCH` and `WORKTREE`, and do not skip this.** Step 0 read
+them from wherever you started — usually the primary checkout on `main`. If a
+worktree was created just now, those variables still name the OLD checkout, and
+Step 8 resolves `$BRANCH` to decide what to `git worktree remove --force`. That
+is a force-remove of somebody else's checkout, with their uncommitted work in
+it. Re-read after every worktree transition:
+
+```bash
+BRANCH=$(git branch --show-current)
+WORKTREE=$(git rev-parse --show-toplevel)
+# dirname "$(...)", never `| xargs dirname` — xargs splits on spaces, so under
+# "AI Projects" it returns two mangled paths and the test silently passes.
+PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+test "$WORKTREE" != "$PRIMARY" \
+  || { echo "Refusing to continue: still in the primary checkout"; exit 1; }
+echo "implementing $BRANCH in $WORKTREE"
+```
+
 ---
 
 ## Step 2: Implement Per Plan
@@ -340,11 +358,30 @@ git fetch --prune
 git checkout main
 git pull --ff-only
 
-# Identify worktree path
-WORKTREE_PATH=$(git worktree list | grep "$BRANCH" | awk '{print $1}')
+# Identify worktree path. `git worktree list | awk '{print $1}'` TRUNCATES
+# at the first space, so a checkout under "AI Projects" resolves to
+# /Users/<you>/AI and the remove below targets a path that does not exist.
+# Porcelain output puts the full path on its own line.
+WORKTREE_PATH=$(git worktree list --porcelain | awk -v b="refs/heads/$BRANCH" '
+  /^worktree /   { p = substr($0, 10) }
+  $0 == "branch " b { print p; exit }
+')
+PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 
-# LAST COMMAND — nothing runs after this line
-git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
+# LAST COMMAND — nothing runs after this line. No `2>/dev/null || true`:
+# a swallowed failure reports the ship as complete with the worktree still
+# on disk, which is the one outcome this step exists to prevent.
+if [ -z "$WORKTREE_PATH" ]; then
+  echo "No worktree registered for $BRANCH — nothing to remove."
+elif [ "$WORKTREE_PATH" = "$PRIMARY" ]; then
+  # $BRANCH resolved to the primary checkout, which means it was never
+  # re-captured in Step 1 and names the branch you STARTED on. Removing a
+  # checkout on that evidence is how unrelated uncommitted work disappears.
+  echo "Refusing: \$BRANCH ($BRANCH) resolves to the primary checkout — Step 1 did not re-capture it." >&2
+  exit 1
+else
+  git worktree remove "$WORKTREE_PATH" --force
+fi
 ```
 
 ---

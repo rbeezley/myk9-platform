@@ -1,11 +1,11 @@
 ---
 name: qa
-description: Interactive QA session where user reports bugs or issues conversationally, and the agent files GitHub issues. Explores the codebase in the background for context and domain language. Use when user wants to report bugs, do QA, file issues conversationally, or mentions "QA session".
+description: Interactive QA session where user reports bugs or issues conversationally, and the agent files them in the project's configured issue tracker. Explores the codebase in the background for context and domain language. Use when user wants to report bugs, do QA, file issues conversationally, or mentions "QA session".
 ---
 
 # QA Session
 
-Run an interactive QA session. The user describes problems they're encountering. You clarify, explore the codebase for context, and file GitHub issues that are durable, user-focused, and use the project's domain language.
+Run an interactive QA session. The user describes problems they're encountering. You clarify, explore the codebase for context, and file issues in the project's configured tracker that are durable, user-focused, and use the project's domain language.
 
 ## For each issue the user raises
 
@@ -44,9 +44,11 @@ Keep as a single issue when:
 - It's one behavior that's wrong in one place
 - The symptoms are all caused by the same root behavior
 
-### 4. File the GitHub issue(s)
+### 4. File the issue(s)
 
-Create issues with `gh issue create`. Do NOT ask the user to review first — just file and share URLs.
+**Read `docs/agents/issue-tracker.md` first and file into the tracker it names — do not assume GitHub Issues.** In this repo that is Linear (team `MyK9-platform`, `MYK9-*`), reached through the Linear MCP tools; `gh issue create` would put the report outside the backlog the work is actually scheduled from. Do NOT ask the user to review first — just file and share URLs.
+
+Where the templates below write `#<number>`, use whatever identifier that tracker issues (`MYK9-123` here).
 
 Issues must be **durable** — they should still make sense after major refactors. Write from the user's perspective.
 
@@ -76,14 +78,14 @@ Use this template:
 
 #### For a breakdown (multiple issues)
 
-Create issues in dependency order (blockers first) so you can reference real issue numbers.
+Create issues in dependency order (blockers first) so you can reference real issue identifiers.
 
 Use this template for each sub-issue:
 
 ```
 ## Parent issue
 
-#<parent-issue-number> (if you created a tracking issue) or "Reported during QA session"
+<parent issue identifier> (if you created a tracking issue) or "Reported during QA session"
 
 ## What's wrong
 
@@ -99,7 +101,7 @@ Use this template for each sub-issue:
 
 ## Blocked by
 
-- #<issue-number> (if this issue can't be fixed until another is resolved)
+- <issue identifier> (if this issue can't be fixed until another is resolved)
 
 Or "None — can start immediately" if no blockers.
 
@@ -112,7 +114,7 @@ When creating a breakdown:
 
 - **Prefer many thin issues over few thick ones** — each should be independently fixable and verifiable
 - **Mark blocking relationships honestly** — if issue B genuinely can't be tested until issue A is fixed, say so. If they're independent, mark both as "None — can start immediately"
-- **Create issues in dependency order** so you can reference real issue numbers in "Blocked by"
+- **Create issues in dependency order** so you can reference real issue identifiers in "Blocked by"
 - **Maximize parallelism** — the goal is that multiple people (or agents) can grab different issues simultaneously
 
 #### Rules for all issue bodies

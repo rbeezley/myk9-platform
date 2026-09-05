@@ -1,3 +1,4 @@
+import { RemediationLink } from '@/features/admin-system-health/RemediationLink';
 /**
  * "Needs a look" — the triage queue, read-only.
  *
@@ -9,7 +10,6 @@
  * There is no owner column and no assignment control, on purpose — see
  * triageSelectors. Do not add one without a backend concept behind it.
  */
-import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { formatCheckedAgo } from '@/features/admin-system-health/systemHealthSelectors';
 import {
@@ -107,12 +107,12 @@ export function NeedsALookSection({
               {formatCheckedAgo(item.openedAt, now)}
             </span>
 
-            <Link
-              to={item.action.href}
+            <RemediationLink
+              target={item.action.target}
               className="inline-flex min-h-10 shrink-0 items-center self-start rounded-[9px] border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:self-auto"
             >
               {item.action.label}
-            </Link>
+            </RemediationLink>
           </div>
         ))}
       </div>

@@ -251,6 +251,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | Spec                                                                        | Feature                                                                                                 |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `apps/myk9show/src/test/e2e/a11y-smoke.spec.ts`                             | Public landing-page accessibility smoke.                                                                |
+| `apps/myk9show/src/test/e2e/admin/health-remediation.spec.ts` | Real admin health/dashboard keyboard recovery links with fixture-backed reads. |
 | `apps/myk9show/src/test/e2e/admin/sportRules.spec.ts`                       | Admin sport-rules read-only surface and authoring-control absence.                                      |
 | `apps/myk9show/src/test/e2e/club-roster-alignment.spec.ts`                  | Club profile and roster count alignment.                                                                |
 | `apps/myk9show/src/test/e2e/browse-clubs-page.spec.ts`                      | Public club browse/detail.                                                                              |

@@ -1,3 +1,4 @@
+import { RemediationLink } from '@/features/admin-system-health/RemediationLink';
 /**
  * One check row, collapsed or expanded.
  *
@@ -141,12 +142,12 @@ export function HealthCheckRow({
           </dl>
 
           <div className="mt-4">
-            <a
-              href={remediation.href}
+            <RemediationLink
+              target={remediation.target}
               className="inline-flex min-h-10 items-center rounded-[9px] bg-foreground px-4 text-xs font-medium text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {remediation.actionLabel}
-            </a>
+            </RemediationLink>
           </div>
         </div>
       )}

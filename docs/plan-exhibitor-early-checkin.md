@@ -79,3 +79,12 @@ effective role so an exhibitor-role user writes through `self_checkin_entry`.
 ## Out of scope
 - Letting exhibitors into the staff `/at-show` ringside surface.
 - Changing `ringside_update_entry` authz (staff-only by design).
+
+## Pulled status vocabulary decision
+
+Early exhibitor self-check-in remains intentional, including the ability to
+signal that a dog will not run a particular class before the trial date. This
+is a ringside availability signal, not self-service withdrawal: the exhibitor
+label is **"I won't be running this class"**, and its description states that
+the entry and fee are unaffected. Actual entry withdrawal and refunds remain
+deferred post-fall features.

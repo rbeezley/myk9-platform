@@ -116,17 +116,14 @@ Wait for all three agents to complete. Aggregate findings into a single table:
 |---|----------|-------|-----------|---------|---------------|
 ```
 
-**Pass/fail threshold:**
+**Confirm before counting.** Adversarial agents overclaim. Before a critical or high finding counts toward the verdict, confirm it: a failing test, a reproduction, or a traced call path that reaches the bad state. A finding you cannot confirm is downgraded to medium with the reason written in the table — never silently dropped, never counted on the agent's word alone.
 
-- Any **critical** finding → FAIL — must fix before proceeding
-- 3+ **high** findings → FAIL — must fix before proceeding
-- High/medium findings → fix what's auto-fixable, note the rest
-- Low findings → note them, don't fix unless trivial
+**What each severity obliges (the verdict itself is decided in Phase 5, after fixes):**
 
-Report the score:
-
-- **PASS** — no critical, fewer than 3 high, all auto-fixable issues addressed
-- **FAIL** — critical or 3+ high findings remain after auto-fix
+- **Critical** (confirmed) → must be fixed in Phase 4. Blocks PASS while it remains.
+- **High** (confirmed) → must be fixed in Phase 4. Blocks PASS while it remains — **one** is enough. The only way a high leaves the table unfixed is the USER explicitly accepting the risk; the agent may not accept risk on the user's behalf, and "only two of them" is not acceptance.
+- **Medium** → fix if straightforward; otherwise note it, and register user-facing ones in Phase 4.5.
+- **Low** → note; fix only if trivial.
 
 ## Phase 4: Auto-Fix
 
@@ -148,16 +145,22 @@ For every confirmed user-facing issue that is not fully fixed and proven in this
 - `Proof required:` the exact unit, component, Playwright, or manual command needed before closure
 - `Suite category:` from `docs/qa/e2e-suite-map.md` when a Playwright spec is involved
 
-## Phase 5: Summary
+## Phase 5: Verdict and Summary
+
+**Verdict**, decided now, after Phase 4:
+
+- **PASS** — no confirmed critical remains, no confirmed high remains (fixed and verified, or risk explicitly accepted by the user and recorded below), and every auto-fixable finding was applied.
+- **FAIL** — anything else. A single unresolved confirmed high is a FAIL. There is no count threshold.
 
 Output a brief summary:
 
 ```
 ## Harden Results: [PASS|FAIL]
 
-**Findings:** X critical, Y high, Z medium, W low
-**Fixed:** N issues auto-fixed
-**Remaining:** List any unfixed high/medium findings that need manual attention
+**Findings:** X critical, Y high, Z medium, W low (confirmed counts; downgraded findings listed with reasons)
+**Fixed:** N issues fixed — each with the test or reproduction that verifies it
+**Risk accepted by user:** none | [file:line] what and why, as the user stated it
+**Remaining:** unfixed confirmed high → this is a FAIL; medium/low needing attention
 
 ### What was fixed
 - [file:line] Brief description of fix

@@ -115,14 +115,13 @@ PR_NUMBER=$(gh pr view --json number -q '.number')
 LOG=/tmp/review-gate-$PR_NUMBER-$HEAD_SHA.log
 ```
 
-**Author is Claude Code → Codex reviews.** Run from the worktree, foreground, with stdin closed:
+**Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:
 
 ```bash
-codex review --base origin/main < /dev/null > "$LOG" 2>&1; echo "EXIT=$?"
-grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" && echo "GATE DID NOT RUN"
+pnpm qa:codex-review            # scripts/qa/codex-review.sh, always --base origin/main
 ```
 
-The pattern is anchored to line start on purpose: the log echoes the diff, and a diff that mentions those phrases (this skill does) matched an unanchored grep on 2026-09-05.
+Exit 0 = clean (it prints the exact evidence line to post), 1 = findings printed (fix, commit, re-run for the NEW head), 2 = the review did NOT run (usage limit / interrupted) — not a verdict, never post evidence. The wrapper closes stdin, logs to `/tmp/codex-review-<head>.log`, and detects an abort with a line-anchored grep because the log echoes the diff. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
 
 **Author is Codex → Claude Code reviews:**
 

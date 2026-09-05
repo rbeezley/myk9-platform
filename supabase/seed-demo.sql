@@ -1636,31 +1636,8 @@ SELECT
   1
 FROM generate_series(1, 3) AS load_clubs(s);
 
--- Stripe Connect sandbox account for Load Club 1 ONLY.
---
--- Why club 1 and not all three: the load shows' entry window is open
--- (CURRENT_DATE + 76), so this is the only show in the fixture set that an
--- exhibitor can both enter AND pay for -- Heartland's window closes at
--- CURRENT_DATE + 1. Without this row the recurring exhibitor task walk cannot
--- reach checkout at all, and role task 3 ("pay entry fees") goes unwalked; it
--- did on 2026-09-04. See MYK9-388.
---
--- Why NOT clubs 2 and 3: a club with no payment account is itself a fixture.
--- The registration wizard currently offers card payment regardless and only
--- refuses at the cart (MYK9-386), and that path needs a club that genuinely
--- cannot take money. Leaving two of the three without an account keeps both
--- states reachable. Do not "tidy" this into a generate_series(1, 3).
---
--- The placeholder account id is safe for the same reason it is safe for
--- Heartland above: stripe-checkout gates only on payouts_enabled + livemode
--- (index.ts:547-563) and the session carries no transfer_data, so no real
--- Connect account is contacted at checkout time.
---
--- No explicit cleanup needed: club_stripe_accounts.club_id is ON DELETE
--- CASCADE and the load-fixture block above deletes the whole
--- a1090000-...-0013-* club range on every reseed. That is why this differs
--- from the demo clubs, which are upserted rather than deleted and therefore
--- need their own DELETE in section 0.
+-- Seed this after recreating the load clubs; the reset deletes the entire
+-- load-club range before this insert runs.
 INSERT INTO public.club_stripe_accounts (
   club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode
 )

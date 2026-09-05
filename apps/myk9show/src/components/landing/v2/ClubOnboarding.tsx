@@ -177,6 +177,8 @@ export function ClubOnboarding() {
         </p>
         <a
           href="/training/sign-up-and-sign-in.mp4"
+          target="_blank"
+          rel="noopener"
           className="l-btn-text inline-flex min-h-11 items-center"
         >
           Watch how to create an account (55 sec)

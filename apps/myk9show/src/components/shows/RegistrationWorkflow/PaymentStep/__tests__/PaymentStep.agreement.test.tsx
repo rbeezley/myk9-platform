@@ -1,9 +1,10 @@
 import React from 'react';
-import { render, screen } from '@/test/utils/testUtils';
+import { cleanup, render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PaymentStep } from '../index';
 import { useShowStore } from '@/store/showStore';
+import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
 
 // Mock hooks used by PaymentStep
 vi.mock('@/hooks/useDogStoreCompat', () => ({
@@ -17,11 +18,27 @@ vi.mock('@/store/showStore', () => ({
     shows: [
       {
         id: 'show-1',
+        clubId: 'club-1',
         organization: 'AKC',
         acceptCheckPayments: true,
         acceptCashPayments: true,
       },
     ],
+  })),
+}));
+vi.mock('@/features/payments/useClubStripeAccount', () => ({
+  useClubStripeAccount: vi.fn(() => ({
+    data: {
+      id: 'stripe-row-1',
+      club_id: 'club-1',
+      stripe_account_id: 'acct_1',
+      onboarding_complete: true,
+      payouts_enabled: true,
+    },
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    isSuccess: true,
   })),
 }));
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
@@ -62,6 +79,30 @@ const baseProps = {
 describe('PaymentStep — entry agreement integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useClubStripeAccount).mockReturnValue({
+      data: {
+        id: 'stripe-row-1',
+        club_id: 'club-1',
+        stripe_account_id: 'acct_1',
+        onboarding_complete: true,
+        payouts_enabled: true,
+      },
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+    } as ReturnType<typeof useClubStripeAccount>);
+    vi.mocked(useShowStore).mockReturnValue({
+      shows: [
+        {
+          id: 'show-1',
+          clubId: 'club-1',
+          organization: 'AKC',
+          acceptCheckPayments: true,
+          acceptCashPayments: true,
+        },
+      ],
+    } as ReturnType<typeof useShowStore>);
   });
 
   it('renders the EntryAgreementSection', () => {
@@ -122,5 +163,38 @@ describe('PaymentStep — entry agreement integration', () => {
 
     render(<PaymentStep {...baseProps} showId="show-no-org" />);
     expect(screen.queryByText(/Entry Agreement/)).not.toBeInTheDocument();
+  });
+
+  it('offers card payment only when the hosting club has a usable Stripe account', () => {
+    render(<PaymentStep {...baseProps} />);
+    expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
+
+    vi.mocked(useClubStripeAccount).mockReturnValue({
+      data: null,
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      isSuccess: true,
+    } as ReturnType<typeof useClubStripeAccount>);
+    vi.mocked(useShowStore).mockReturnValue({
+      shows: [
+        {
+          id: 'show-no-stripe',
+          clubId: 'club-without-stripe',
+          organization: 'AKC',
+          acceptCheckPayments: true,
+          acceptCashPayments: true,
+        },
+      ],
+    } as ReturnType<typeof useShowStore>);
+
+    cleanup();
+    render(<PaymentStep {...baseProps} showId="show-no-stripe" />);
+    expect(screen.queryByText('Credit/Debit Card (Online Payment)')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Online card payment isn't available for this club/)
+    ).toBeInTheDocument();
+    expect(screen.getByText('Check (pay at show)')).toBeInTheDocument();
+    expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
   });
 });

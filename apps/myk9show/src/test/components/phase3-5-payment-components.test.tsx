@@ -53,6 +53,22 @@ vi.mock('@/store/showStore', () => ({
   }),
 }));
 
+vi.mock('@/features/payments/useClubStripeAccount', () => ({
+  useClubStripeAccount: () => ({
+    data: {
+      id: 'stripe-row-1',
+      club_id: 'club-1',
+      stripe_account_id: 'acct_1',
+      onboarding_complete: true,
+      payouts_enabled: true,
+    },
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    isSuccess: true,
+  }),
+}));
+
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: () => ({}),
   REGISTRATION_PERMISSIONS: {

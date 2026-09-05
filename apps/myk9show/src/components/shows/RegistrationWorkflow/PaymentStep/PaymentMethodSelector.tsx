@@ -93,6 +93,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   onPaymentDetailsChange,
   acceptedMethods,
   allowCardCheckout = true,
+  cardCheckoutUnavailableReason,
 }) => {
   const [checkNumber, setCheckNumber] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
@@ -179,6 +180,13 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   </div>
                 )}
               </>
+            )}
+
+            {!allowCardCheckout && cardCheckoutUnavailableReason && (
+              <Alert>
+                <CreditCard className="h-4 w-4" />
+                <AlertDescription>{cardCheckoutUnavailableReason}</AlertDescription>
+              </Alert>
             )}
 
             {showCheck && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ import { PaymentSummaryCard } from './PaymentSummaryCard';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
 import { removeClassFromSelections } from '../ClassSelectionStep.helpers';
+import { useClubStripeAccount } from '@/features/payments/useClubStripeAccount';
+import { canEnableOnlineEntries } from '@/features/payments/onlineEntryGate';
 
 /**
  * Top-level PaymentStep component that composes the sub-components for
@@ -53,6 +55,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const isOnBehalf = isSecretary || isClubAdmin || isSiteAdmin;
 
   const show = showId ? shows.find(s => s.id === showId) : undefined;
+  const clubStripeAccountQuery = useClubStripeAccount(show?.clubId);
+  const cardCheckoutAvailable =
+    !isOnBehalf &&
+    clubStripeAccountQuery.isSuccess &&
+    canEnableOnlineEntries(clubStripeAccountQuery.data);
   const cartItems = useCartItems();
   const removeItem = useCartStore(state => state.removeItem);
   const [removingLineKey, setRemovingLineKey] = useState<string | null>(null);
@@ -61,6 +68,30 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     check: show?.acceptCheckPayments ?? true,
     cash: show?.acceptCashPayments ?? true,
   };
+
+  const fallbackPaymentMethod = acceptedMethods.check
+    ? 'check'
+    : acceptedMethods.cash
+      ? 'cash'
+      : '';
+  const effectivePaymentMethod =
+    !cardCheckoutAvailable && paymentMethod === 'credit_card'
+      ? fallbackPaymentMethod
+      : paymentMethod;
+
+  useEffect(() => {
+    if (effectivePaymentMethod !== paymentMethod && effectivePaymentMethod) {
+      onPaymentMethodChange(effectivePaymentMethod);
+    }
+  }, [effectivePaymentMethod, onPaymentMethodChange, paymentMethod]);
+
+  const cardCheckoutUnavailableReason = isOnBehalf
+    ? undefined
+    : !show?.clubId
+      ? "Online card payment isn't available because this show has no hosting club payment account. Choose check or cash instead."
+      : clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching
+        ? 'Checking online payment availability for this club.'
+        : "Online card payment isn't available for this club. Choose check or cash instead.";
 
   // Shared state: fee override and waiver (used by both SecretaryPaymentManagement and PaymentSummaryCard)
   const [feeOverride, setFeeOverride] = useState<number | null>(null);
@@ -171,11 +202,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
       {/* Payment Method Selection */}
       <PaymentMethodSelector
-        paymentMethod={paymentMethod}
+        paymentMethod={effectivePaymentMethod}
         onPaymentMethodChange={onPaymentMethodChange}
         onPaymentDetailsChange={onPaymentDetailsChange}
         acceptedMethods={acceptedMethods}
-        allowCardCheckout={!isOnBehalf}
+        allowCardCheckout={cardCheckoutAvailable}
+        cardCheckoutUnavailableReason={cardCheckoutUnavailableReason}
       />
 
       {/* Secretary Features */}
@@ -195,7 +227,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
       {/* Payment Summary */}
       <PaymentSummaryCard
-        paymentMethod={paymentMethod}
+        paymentMethod={effectivePaymentMethod}
         feeCalculation={feeCalculation}
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDatabaseError } from '../databaseError';
 import { getEntriesByShow } from './reads';
 
 const mocks = vi.hoisted(() => ({ read: vi.fn(), from: vi.fn() }));
@@ -8,7 +9,7 @@ vi.mock('../_shared/read-shape', async importOriginal => ({
 }));
 vi.mock('../supabaseClient', () => ({
   supabase: { from: mocks.from },
-  createDatabaseError: vi.fn(),
+  createDatabaseError,
   logQuery: vi.fn(),
 }));
 

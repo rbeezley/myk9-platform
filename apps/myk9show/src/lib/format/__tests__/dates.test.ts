@@ -6,6 +6,7 @@ import {
   formatLongDate,
   formatMonthDay,
   formatWeekdayMonthDay,
+  formatShortCalendarDate,
   formatShortDate,
   formatEntryDateTime,
   formatRecordDateTime,
@@ -222,5 +223,49 @@ describe('formatTime', () => {
     expect(formatTime(null)).toBe('');
     expect(formatTime('')).toBe('');
     expect(formatTime('not-a-time', 'America/Chicago')).toBe('');
+  });
+});
+
+// MYK9-384 (E28): shows.entry_close_date is a DATE column that round-trips as a
+// midnight-UTC timestamp. Rendering it through the INSTANT formatter
+// (formatShortDate) put "Entries close Jan 1, 2027" on the My Shows card for a
+// show the server keeps open through the whole of Jan 2.
+describe('formatShortCalendarDate', () => {
+  // The reported repro (negative offset), UTC, and two POSITIVE offsets — the
+  // last of which shifts a naive parse forward instead of back.
+  const ZONES = ['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'];
+
+  it.each(ZONES)('renders the Jan 2 entry-close deadline as Jan 2, 2027 in %s', timezone => {
+    process.env.TZ = timezone;
+
+    for (const raw of [
+      '2027-01-02T00:00:00+00:00',
+      '2027-01-02 00:00:00+00',
+      '2027-01-02T00:00:00Z',
+      '2027-01-02',
+    ]) {
+      expect(formatShortCalendarDate(raw)).toBe('Jan 2, 2027');
+    }
+  });
+
+  it.each(ZONES)('holds a month boundary (Aug 1 / Jul 31) in %s', timezone => {
+    process.env.TZ = timezone;
+
+    expect(formatShortCalendarDate('2026-08-01T00:00:00+00:00')).toBe('Aug 1, 2026');
+    expect(formatShortCalendarDate('2026-07-31T00:00:00+00:00')).toBe('Jul 31, 2026');
+  });
+
+  it('returns an empty string for missing or unparseable input', () => {
+    expect(formatShortCalendarDate(undefined)).toBe('');
+    expect(formatShortCalendarDate(null)).toBe('');
+    expect(formatShortCalendarDate('')).toBe('');
+    expect(formatShortCalendarDate('not a date')).toBe('');
+  });
+
+  it('diverges from the instant formatter exactly where the bug lived', () => {
+    process.env.TZ = 'America/Chicago';
+    // Documents WHY the two helpers exist: the same input, read two ways.
+    expect(formatShortDate('2027-01-02T00:00:00+00:00')).toBe('Jan 1, 2027');
+    expect(formatShortCalendarDate('2027-01-02T00:00:00+00:00')).toBe('Jan 2, 2027');
   });
 });

@@ -32,9 +32,9 @@ describe('DogStrip', () => {
     expect(screen.getByText('2 upcoming classes')).toBeInTheDocument();
   });
 
-  it('shows Not entered for dog with no future classes', () => {
+  it('shows No upcoming classes for dog with no future classes', () => {
     render(<DogStrip dogs={dogs} upcomingClassCountByDog={{ d1: 2 }} />);
-    expect(screen.getByText('Not entered')).toBeInTheDocument();
+    expect(screen.getByText('No upcoming classes')).toBeInTheDocument();
   });
 
   it('renders nothing when dogs array is empty', () => {

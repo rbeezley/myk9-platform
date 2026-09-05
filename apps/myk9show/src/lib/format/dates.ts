@@ -13,8 +13,12 @@
  * - Date-only supporting text, no weekday: "August 1, 2026" via
  *   {@link formatLongDate}, "Aug 1" via {@link formatMonthDay}, or
  *   "Sat, Aug 1" via {@link formatWeekdayMonthDay}.
+ * - Compact CALENDAR date (a DATE-typed column with no weekday: entry
+ *   open/close, a show's start day in a list): "Jan 2, 2027" — via
+ *   {@link formatShortCalendarDate}.
  * - Compact table/record date (e.g. a row's created/submitted date, no
  *   competition-day significance): "Jul 3, 2026" — via {@link formatShortDate}.
+ *   INSTANTS ONLY; a DATE column renders a day early through it.
  * - Record date + time together (e.g. a row's created/submitted instant):
  *   "Jul 3, 2:00 PM" — via {@link formatEntryDateTime}.
  * - Full record date + time where the year matters (printable receipts,
@@ -124,8 +128,30 @@ export function formatWeekdayMonthDay(value?: string | Date | null): string {
 }
 
 /**
+ * Compact CALENDAR date, no weekday: "Jan 2, 2027".
+ *
+ * The calendar-safe twin of {@link formatShortDate}. Use it for every
+ * DATE-typed column — `shows.start_date` / `end_date` / `entry_open_date` /
+ * `entry_close_date`, `trials.trial_date` — which round-trip as midnight-UTC
+ * timestamps and render a day early through any instant formatter west of
+ * UTC. Reserve {@link formatShortDate} for genuine instants (`created_at`,
+ * `reviewed_at`, …).
+ */
+export function formatShortCalendarDate(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
  * Compact record date, no weekday, no competition-day significance
  * (e.g. an entry's created/submitted date in a table row): "Jul 3, 2026".
+ *
+ * This is an INSTANT formatter — for a DATE-typed column use
+ * {@link formatShortCalendarDate} instead.
  */
 export function formatShortDate(value?: string | Date | null): string {
   if (!value) return '';

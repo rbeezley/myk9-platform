@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { ClubShow } from './types';
 import { getShowStatus } from './utils';
-import { formatShortDate } from '@/lib/format/dates';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 
 interface UpcomingShowsTabProps {
   shows: ClubShow[];
@@ -100,7 +100,7 @@ export const UpcomingShowsTab: React.FC<UpcomingShowsTabProps> = ({
             <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                {formatShortDate(show.date)}
+                {formatShortCalendarDate(show.date)}
               </div>
               <div className="flex items-center gap-1">
                 <MapPin className="w-3 h-3" />

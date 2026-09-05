@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CalendarDays, MapPin } from 'lucide-react';
-import { formatShortDate } from '@/lib/format/dates';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 import { useShowsByClubQuery } from '@/hooks/queries/useShowsDatabase';
 
 // Approximate height of the rendered "More from <club>" row.
@@ -84,7 +84,7 @@ export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubPr
                 <div className="flex items-center gap-1.5">
                   <CalendarDays className="h-3.5 w-3.5" />
                   {show.startDate
-                    ? formatShortDate(show.startDate.includes('T') ? show.startDate : show.startDate + 'T00:00:00')
+                    ? formatShortCalendarDate(show.startDate)
                     : 'Date TBD'}
                 </div>
                 {show.location && (

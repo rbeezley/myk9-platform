@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import { RouterProvider } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { router } from './router';
 import './index.css';
 // Ringside page styles — required by the @myk9/ringside EntryList mount at
@@ -17,6 +18,10 @@ import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 import { monitoring } from './services/MonitoringService';
 import { setupRouterPageViewTracking } from './services/RouterPageViewTracking';
 import { installSupportErrorCapture } from './features/support/supportDiagnostics';
+import {
+  scrubAnalyticsEvent,
+  shouldMountVercelAnalytics,
+} from './services/observability/vercelAnalytics';
 
 // Keep the diagnostic ring available to support tickets in the browser, but
 // avoid touching browser globals during SSR or module-loading tests.
@@ -81,5 +86,12 @@ createRoot(document.getElementById('root')!, {
         <RouterProvider router={router} />
       </ThemeProvider>
     </QueryProvider>
+    {/* Vercel Web Analytics: cookieless page views, same-origin script and
+        beacon so the CSP needs no change. Route changes are tracked by the
+        script itself; the URL is scrubbed of query and fragment first. Not
+        mounted on localhost, where the script 404s and reddens E2E. */}
+    {shouldMountVercelAnalytics(window.location.hostname) && (
+      <Analytics mode="production" beforeSend={scrubAnalyticsEvent} />
+    )}
   </StrictMode>
 );

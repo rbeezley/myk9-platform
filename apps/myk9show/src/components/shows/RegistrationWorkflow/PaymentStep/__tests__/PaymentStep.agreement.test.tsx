@@ -158,7 +158,7 @@ describe('PaymentStep — entry agreement integration', () => {
     expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
 
     vi.mocked(useClubStripePaymentReadiness).mockReturnValue({
-      data: null,
+      data: false,
       isPending: false,
       isFetching: false,
       isError: false,

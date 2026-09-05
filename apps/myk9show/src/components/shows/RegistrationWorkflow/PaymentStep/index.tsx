@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
+import { PaymentStatus, EntryStatus, type PaymentMethod } from '@/types/show-registration-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useShowStore } from '@/store/showStore';
@@ -73,6 +73,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       ? 'cash'
       : '';
   const pendingCardSelection = useRef(false);
+  const handlePaymentMethodSelect = (method: PaymentMethod) => {
+    pendingCardSelection.current = false;
+    onPaymentMethodChange(method);
+  };
   const effectivePaymentMethod =
     !cardCheckoutAvailable && paymentMethod === 'credit_card'
       ? fallbackPaymentMethod
@@ -227,7 +231,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       {/* Payment Method Selection */}
       <PaymentMethodSelector
         paymentMethod={effectivePaymentMethod}
-        onPaymentMethodChange={onPaymentMethodChange}
+        onPaymentMethodChange={handlePaymentMethodSelect}
         onPaymentDetailsChange={onPaymentDetailsChange}
         acceptedMethods={acceptedMethods}
         allowCardCheckout={cardCheckoutAvailable}

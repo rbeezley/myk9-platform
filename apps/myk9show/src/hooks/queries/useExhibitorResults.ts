@@ -70,36 +70,37 @@ async function fetchExhibitorResults(dogIds: string[]) {
     if (page.length < PAGE_SIZE) break;
   }
 
-  return rows.map(
-    (row: Record<string, unknown>): ExhibitorResult => ({
-      id: row.id as string,
-      dogId: row.dog_id as string,
-      dogName: row.dog_name as string,
-      dogCallName: (row.dog_call_name as string) || (row.dog_name as string),
-      showId: row.show_id as string,
-      classId: row.class_id as string,
-      className: (row.class_name as string) || 'Unknown Class',
-      classLevel: row.class_level as string | null,
-      classElement: row.class_element as string | null,
-      resultText: row.result_text as ExhibitorResult['resultText'],
-      resultStatus: row.result_status as ResultStatus,
-      searchTimeSeconds: row.search_time_seconds as number | null,
-      totalFaults: row.total_faults as number | null,
-      finalPlacement: row.final_placement as number | null,
-      scoringCompletedAt: row.scoring_completed_at as string | null,
-      showName: (row.show_name as string) || 'Unknown Show',
-      showDate: (row.show_start_date as string) || '',
-    })
-  );
+  return rows.map((row: Record<string, unknown>): ExhibitorResult => ({
+    id: row.id as string,
+    dogId: row.dog_id as string,
+    dogName: row.dog_name as string,
+    dogCallName: (row.dog_call_name as string) || (row.dog_name as string),
+    showId: row.show_id as string,
+    classId: row.class_id as string,
+    className: (row.class_name as string) || 'Unknown Class',
+    classLevel: row.class_level as string | null,
+    classElement: row.class_element as string | null,
+    resultText: row.result_text as ExhibitorResult['resultText'],
+    resultStatus: row.result_status as ResultStatus,
+    searchTimeSeconds: row.search_time_seconds as number | null,
+    totalFaults: row.total_faults as number | null,
+    finalPlacement: row.final_placement as number | null,
+    scoringCompletedAt: row.scoring_completed_at as string | null,
+    showName: (row.show_name as string) || 'Unknown Show',
+    showDate: (row.show_start_date as string) || '',
+  }));
 }
 
 /**
- * Fetches scored results for all dogs owned by the current user.
+ * Fetches scored results for dogs owned by the current user. A title card can
+ * narrow this to one dog without loading every owned dog's career history.
  * Returns results ordered by most recent scoring date.
  */
-export function useExhibitorResults() {
+export function useExhibitorResults(dogId?: string) {
   const { data: dogs = [] } = useDogsQuery();
-  const dogIds = dogs.map((d: Record<string, unknown>) => d.id as string);
+  const dogIds = dogs
+    .map((d: Record<string, unknown>) => d.id as string)
+    .filter(id => dogId === undefined || id === dogId);
   const sortedIds = dogIds.slice().sort();
 
   return useQuery({

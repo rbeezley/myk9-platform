@@ -13,7 +13,7 @@
 
 - [x] 3.1 Update the repository role-journey audit skill to resolve the secretary identity from `testUsers.ts` and private environment configuration, and verify contradictory fixture-domain guidance is absent.
 - [x] 3.2 Add or update source-contract coverage for valid and missing/invalid fixture instructions, verifying the recovery gap is precise and committed output contains no secret values.
-- [ ] 3.3 After explicit shared-system approval, update the existing weekly secretary automation prompt to the same fixture convention and verify its saved configuration matches the skill.
+- [x] 3.3 After explicit shared-system approval, update the existing weekly secretary automation prompt to the same fixture convention and verify its saved configuration matches the skill.
 - [x] 3.4 Run a fresh read-only two-step secretary sign-in preflight, recording actual roles and verifying no password/token is present in logs or evidence.
 
 ## 4. MYK9-392 club show card actions
@@ -38,8 +38,8 @@
 ## 7. PR, CI, merge, and archive
 
 - [x] 7.1 Commit accepted implementation, push the feature branch, open one PR with all five Linear issues and `Tracked in openspec change: resolve-september-secretary-todo-batch`, then verify required CI/review checks.
-- [ ] 7.2 Obtain explicit approval before merge, merge only after checks and evidence gates pass, then move satisfied Linear issues to Done with PR and merge-commit evidence.
-- [ ] 7.3 Archive the OpenSpec change only after the PR is merged and required evidence is recorded; sync main, prune refs, delete the branch, and remove the worktree last.
+- [x] 7.2 Obtain explicit approval before merge, merge only after checks and evidence gates pass, then move satisfied Linear issues to Done with PR and merge-commit evidence.
+- [x] 7.3 Archive the OpenSpec change only after the PR is merged and required evidence is recorded; sync main, prune refs, delete the branch, and remove the worktree last.
 
 ## Validation Profile
 

@@ -9,6 +9,43 @@
 - **Finding contract:** `quality-finding-lifecycle`
 - **Verification target:** applied staging database, project ref `sojmvhhwsjxmfistvzbe`
 
+> ## Correction — 2026-09-05, during remediation
+>
+> **Two of this report's eight findings were WRONG and are withdrawn.** Both were found while
+> implementing the fixes, before any change shipped. The remediation PR is
+> [#2045](https://github.com/rbeezley/myk9-platform/pull/2045).
+>
+> **SA-2026-09-05-02 (HIGH/P1, MYK9-399) — withdrawn, no defect.** The claim was that
+> `cron-health-check` and `cron-process-payouts` fail open on an unset secret. Both already guard
+> at module load, 25 lines above the `secretMatches` this audit read:
+> `if (!supabaseUrl || !supabaseServiceKey || !cronSecret) { throw new Error(...) }`
+> (`cron-health-check/index.ts:35-37`, `cron-process-payouts/index.ts:29-31`). The module never
+> finishes loading, `Deno.serve` is never registered, and the `encode(undefined)` path is
+> unreachable. The audit compared `secretMatches` against `cron-waitlist-expiration`'s inline
+> `|| !cronSecret` and concluded the guard was missing, without checking whether it existed
+> elsewhere in the module. `cronHealthCheck.source.test.ts:51-56` had been pinning that guard the
+> whole time.
+>
+> **SA-2026-09-05-05 (MEDIUM/P2, MYK9-403) — withdrawn, approved design.**
+> `replace_judge_qualifications` letting any secretary clear any judge's list platform-wide is an
+> owner decision dated **2026-09-03 (MYK9-354)**, recorded in `docs/roles/judge.md` §
+> "Qualification management authorization" with a permission table, and pinned by
+> `judge_qualification_rpc_authorization_test.sql` (which asserts `FAIL secretary RPC could not
+clear the full qualification list` — the behaviour the finding proposed to remove). The doc calls
+> the platform-wide reach "the approved boundary for the shared judge directory". The audit
+> inferred intent from the RPC-versus-policy mismatch without grepping `supabase/tests/` for a test
+> naming the function or reading the doc that both the migration comment and the test header point
+> at — a check that exists as a written rule in CLAUDE.md LESSONS.
+>
+> **Corrected counts:** 6 active findings (1 P0 security, 1 P0 availability, 2 P2, 3 P3 —
+> see the corrected ledger at the end), not 8. The severity table and per-finding sections below
+> are left as originally written, with each withdrawn finding marked in place, so the error and its
+> cause stay legible rather than being edited out.
+>
+> **Common cause.** Both errors are the same shape: a defect inferred from a local reading, with the
+> surrounding context that would have refuted it one screen away. The applied-database evidence in
+> this report is sound; the _intent_ judgements were not, and intent is what these two turned on.
+
 **Method.** Live-database verification first, source second. Every ACL claim comes from
 `pg_class.relacl`, `pg_attribute.attacl`, `pg_policy`, `pg_proc.proacl` and
 `has_*_privilege()` against the applied database — not from migration text. Anon behaviour was
@@ -24,33 +61,33 @@ recorded rather than papered over.
 
 ### Active findings
 
-| Source severity | Count |
-| --- | ---: |
-| CRITICAL | 0 |
-| HIGH | 3 |
-| MEDIUM | 2 |
-| LOW | 3 |
-| INFO | 1 |
+| Source severity  | Count |
+| ---------------- | ----: |
+| CRITICAL         |     0 |
+| HIGH             |     3 |
+| MEDIUM           |     2 |
+| LOW              |     3 |
+| INFO             |     1 |
 | **Total active** | **9** |
 
 | Canonical launch severity | Count |
-| --- | ---: |
-| P0 | 2 |
-| P1 | 2 |
-| P2 | 2 |
-| P3 | 3 |
+| ------------------------- | ----: |
+| P0                        |     2 |
+| P1                        |     2 |
+| P2                        |     2 |
+| P3                        |     3 |
 
 ### Transition set
 
-| Lifecycle status | Count | Records |
-| --- | ---: | --- |
-| new | 8 | SA-2026-09-05-01 … -08 |
-| unchanged | 1 | SA-027 |
-| resolved | 6 | SA-2026-07-31-01, SA-2026-07-29-03, -05, -06, -08, -12, SA-2026-07-30-02 |
-| blocked | 1 | SA-2026-07-29-11 |
-| rejected (re-confirmed) | 1 | "23 `/admin/*` routes unguarded" |
-| superseded | 1 | SA-2026-07-29-07 rejection → reopened as SA-2026-09-05-01 |
-| corrected | 1 | SA-2026-07-29-04 rejection premise no longer holds — see SA-2026-09-05-04 |
+| Lifecycle status        | Count | Records                                                                   |
+| ----------------------- | ----: | ------------------------------------------------------------------------- |
+| new                     |     8 | SA-2026-09-05-01 … -08                                                    |
+| unchanged               |     1 | SA-027                                                                    |
+| resolved                |     6 | SA-2026-07-31-01, SA-2026-07-29-03, -05, -06, -08, -12, SA-2026-07-30-02  |
+| blocked                 |     1 | SA-2026-07-29-11                                                          |
+| rejected (re-confirmed) |     1 | "23 `/admin/*` routes unguarded"                                          |
+| superseded              |     1 | SA-2026-07-29-07 rejection → reopened as SA-2026-09-05-01                 |
+| corrected               |     1 | SA-2026-07-29-04 rejection premise no longer holds — see SA-2026-09-05-04 |
 
 Auto-fixable: **5 of 9** (SA-2026-09-05-01, -06, -07, -08, and the guard half of -02). The other
 four need a policy or product decision.
@@ -145,7 +182,11 @@ AND ( can_manage_show(((storage.foldername(objects.name))[2])::uuid) OR is_platf
 
 ---
 
-### [HIGH] SA-2026-09-05-02: Two cron edge functions authenticate everyone when their secret is unset
+### ~~[HIGH] SA-2026-09-05-02: Two cron edge functions authenticate everyone when their secret is unset~~ — WITHDRAWN
+
+> **This finding is wrong.** Both functions guard at module load; the path described below is
+> unreachable. See the correction at the top of this report. Retained verbatim so the mistake and
+> its cause stay legible.
 
 - **Category:** Edge Function Auth
 - **Canonical severity:** P1 · **Source severity:** HIGH · **Status:** new · **Confidence:** high
@@ -252,7 +293,7 @@ outside that rationale:
 1. **Stewards.** `show_officials_role_check` permits `steward`, and the RPC and card treat all three
    roles identically. The same migration says "Only the secretary and chairman arms move to
    show_officials." A ring steward's personal email is not premium-list content.
-2. **No consent step**, and the address is the person's *account* email from `people` — a table anon
+2. **No consent step**, and the address is the person's _account_ email from `people` — a table anon
    cannot otherwise read at all (`people_select` is `TO authenticated`).
 3. **Silent re-grant.** The migration comments that "the live database has since lost this grant
    outside of any migration" and restores it. An anon grant that had been removed came back as a
@@ -269,7 +310,12 @@ decision in `docs/security/` alongside the CORS-origin policy.
 
 ---
 
-### [MEDIUM] SA-2026-09-05-05: `replace_judge_qualifications` is unscoped across clubs and grants a DELETE the table withholds
+### ~~[MEDIUM] SA-2026-09-05-05: `replace_judge_qualifications` is unscoped across clubs and grants a DELETE the table withholds~~ — WITHDRAWN
+
+> **This is an approved design decision** (owner, 2026-09-03, MYK9-354), recorded in
+> `docs/roles/judge.md` and pinned by `judge_qualification_rpc_authorization_test.sql`. See the
+> correction at the top of this report. Retained verbatim so the mistake and its cause stay
+> legible.
 
 - **Category:** RBAC & Privilege Escalation
 - **Canonical severity:** P2 · **Source severity:** MEDIUM · **Status:** new · **Confidence:** high
@@ -286,11 +332,11 @@ AND (scope_club_id IS NULL OR ur.club_id = scope_club_id OR ur.club_id IS NULL)
 It then runs `DELETE FROM public.judge_qualifications WHERE person_id = p_person_id` followed by an
 INSERT of the caller's payload. The table's own applied policies split write from destroy:
 
-| Policy | Predicate |
-| --- | --- |
+| Policy                        | Predicate                                         |
+| ----------------------------- | ------------------------------------------------- |
 | `judge_qualifications_insert` | `has_role('secretary') OR has_role('site_admin')` |
 | `judge_qualifications_update` | `has_role('secretary') OR has_role('site_admin')` |
-| `judge_qualifications_delete` | `has_role('site_admin')` |
+| `judge_qualifications_delete` | `has_role('site_admin')`                          |
 
 **Risk.** Any secretary of any club can wipe or forge any judge's AKC/UKC credentials
 platform-wide. A replace with an empty payload is an unrestricted delete. The migration's own
@@ -380,20 +426,20 @@ with no `search_path` at all.
 
 Each closed on applied evidence, never on a merge.
 
-| ID | Linear | Closure proof |
-| --- | --- | --- |
-| SA-2026-07-31-01 | MYK9-145 (Done) | All 23 `from('user_roles')` call sites across every edge function pass through `applyActiveRoleValidity`; the **live deployed** `admin-delete-user` v52 bundle carries `ACTIVE_ROLE_NOT_EXPIRED = 'expires_at.is.null,expires_at.gt.now()'`, read via `get_edge_function`. |
-| SA-2026-07-29-03 | MYK9-146 (Done) | `has_column_privilege` is **false** for both `anon` and `authenticated` on `judge_assignments.fee` and `.notes`; cold-anon `select=id,fee,notes` → `42501`. |
-| SA-2026-07-29-08 | MYK9-149 (Done) | `entries_anon_select_for_tv` USING now reads `(deleted_at IS NULL) AND (show_id IN …)`. |
-| SA-2026-07-29-12 | MYK9-148 (Done) | `reserve_askq_query` raises `real account required` on `is_anonymous`, and serialises the count-then-insert under `pg_advisory_xact_lock(hashtextextended('askq:'||uid))`. |
+| ID               | Linear          | Closure proof                                                                                                                                                                                                                                                                                                           |
+| ---------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SA-2026-07-31-01 | MYK9-145 (Done) | All 23 `from('user_roles')` call sites across every edge function pass through `applyActiveRoleValidity`; the **live deployed** `admin-delete-user` v52 bundle carries `ACTIVE_ROLE_NOT_EXPIRED = 'expires_at.is.null,expires_at.gt.now()'`, read via `get_edge_function`.                                              |
+| SA-2026-07-29-03 | MYK9-146 (Done) | `has_column_privilege` is **false** for both `anon` and `authenticated` on `judge_assignments.fee` and `.notes`; cold-anon `select=id,fee,notes` → `42501`.                                                                                                                                                             |
+| SA-2026-07-29-08 | MYK9-149 (Done) | `entries_anon_select_for_tv` USING now reads `(deleted_at IS NULL) AND (show_id IN …)`.                                                                                                                                                                                                                                 |
+| SA-2026-07-29-12 | MYK9-148 (Done) | `reserve_askq_query` raises `real account required` on `is_anonymous`, and serialises the count-then-insert under `pg_advisory_xact_lock(hashtextextended('askq:'                                                                                                                                                       |     | uid))`. |
 | SA-2026-07-30-02 | MYK9-132 (Done) | Real scheduled healthy snapshot, full run 2026-09-05T07:00:04Z: `anon_grants: ok` ("19 table grants (1 write), 89 column grants, all on the allowlist"); `applied_acl_grants: ok` ("131 authenticated and 131 service_role table grants, 4 public sequences; no forbidden table privileges or sequence default drift"). |
-| SA-2026-07-29-06 | MYK9-147 (Done) | All three `judge_assignments` write policies now gate on `is_show_office_manager(show_id)`, whose body admits only site admin, club admin and trial secretary — steward excluded. `is_show_official` retains its steward arm, documented as MYK9-114 intent. |
-| SA-2026-07-29-05 | MYK9-150 (Done) | Resolved as an accepted-risk decision, not a code change: the preview regex `^https://myk9-platform-myk9show-[a-z0-9-]+\.vercel\.app$` remains, now scoped and documented in `supabase/functions/_shared/http/cors.ts:16-19` and `docs/security/cors-origin-policy.md`. |
+| SA-2026-07-29-06 | MYK9-147 (Done) | All three `judge_assignments` write policies now gate on `is_show_office_manager(show_id)`, whose body admits only site admin, club admin and trial secretary — steward excluded. `is_show_official` retains its steward arm, documented as MYK9-114 intent.                                                            |
+| SA-2026-07-29-05 | MYK9-150 (Done) | Resolved as an accepted-risk decision, not a code change: the preview regex `^https://myk9-platform-myk9show-[a-z0-9-]+\.vercel\.app$` remains, now scoped and documented in `supabase/functions/_shared/http/cors.ts:16-19` and `docs/security/cors-origin-policy.md`.                                                 |
 
 ## Still blocked
 
-| ID | Linear | Why |
-| --- | --- | --- |
+| ID               | Linear          | Why                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | SA-2026-07-29-11 | MYK9-125 (Todo) | The authorization half is closed and provable: `generate-premium/authz.ts` rejects `is_anonymous` explicitly and requires `can_manage_show OR is_show_secretary`, failing closed on a check error, evaluated **before** the show fetch and the model call. The stated remaining proof — an authorized paid smoke and an account-wide generation budget decision — still has no evidence. Unchanged from 2026-07-31. |
 
 ## Not re-raised
@@ -406,7 +452,7 @@ Each closed on applied evidence, never on a merge.
   `adminGuard()`. Route diffs since 2026-08-08 add `/secretary/tasks` (wrapped in
   `<ProtectedRoute requiredRole={[SECRETARY, SITE_ADMIN]}>`) and `/sms` + `/fees`, both
   deliberately public with in-file rationale.
-- **SA-2026-07-29-04** as a *direct-read* finding: cold-anon `people?select=id,email` returns
+- **SA-2026-07-29-04** as a _direct-read_ finding: cold-anon `people?select=id,email` returns
   `HTTP 200 []` — the column grant exists but no RLS policy admits `anon`. The rejection of the
   direct-read path stands; the reachable path is SA-2026-09-05-04.
 - **SA-2026-07-29-10** (advisor disposition COMMENTs). Cosmetic; the 6 `rls_enabled_no_policy`
@@ -416,16 +462,16 @@ Each closed on applied evidence, never on a merge.
 
 ## Categories checked
 
-| Category | Scope examined | Findings |
-| --- | --- | --- |
-| RLS Policy Integrity | 131 tables, 12 views, all `pg_policy` rows, 15 `storage.objects` policies, 3 buckets, 4 sequences | 3 (SA-…-01, -06, -07) |
-| Edge Function Auth | 45 deployed functions (all `verify_jwt: false`), 33 repo + 12 app-level, plus `_shared` gates | 2 (SA-…-02, -08) |
-| RBAC & Privilege Escalation | `user_roles`/`roles`/`permissions`/`role_permissions` policies; 199 `SECURITY DEFINER` functions; 60 volatile definer functions granted to `authenticated`; 14 anon-executable definer functions | 2 (SA-…-05, SA-027) |
-| Client Auth Patterns | route diffs since 2026-08-08, `ProtectedRoute` coverage, hardcoded-secret grep across `apps/myk9show/src` + `packages` | 0 |
-| Data Exposure | `pg_attribute.attacl` (89 anon column grants), 3 owner-run views, 41 cold-anon endpoint probes | 1 (SA-…-04) |
-| Payment Security (Stripe) | `stripe-webhook`, `-checkout`, `-customer-portal`, `-connect-onboard`, `-payment-link`, `-refund-entry`, `-refund-show`, `-upgrade-subscription`, `cron-process-payouts` | 1 (SA-…-02, shared with Edge Auth) |
-| Input Validation | `dangerouslySetInnerHTML` sites, redirect-URL validation, PostgREST embed probes | 0 |
-| *(incidental)* Availability | health board + `ringside_containment` live state | 1 (SA-…-03) |
+| Category                    | Scope examined                                                                                                                                                                                   | Findings                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| RLS Policy Integrity        | 131 tables, 12 views, all `pg_policy` rows, 15 `storage.objects` policies, 3 buckets, 4 sequences                                                                                                | 3 (SA-…-01, -06, -07)              |
+| Edge Function Auth          | 45 deployed functions (all `verify_jwt: false`), 33 repo + 12 app-level, plus `_shared` gates                                                                                                    | 2 (SA-…-02, -08)                   |
+| RBAC & Privilege Escalation | `user_roles`/`roles`/`permissions`/`role_permissions` policies; 199 `SECURITY DEFINER` functions; 60 volatile definer functions granted to `authenticated`; 14 anon-executable definer functions | 2 (SA-…-05, SA-027)                |
+| Client Auth Patterns        | route diffs since 2026-08-08, `ProtectedRoute` coverage, hardcoded-secret grep across `apps/myk9show/src` + `packages`                                                                           | 0                                  |
+| Data Exposure               | `pg_attribute.attacl` (89 anon column grants), 3 owner-run views, 41 cold-anon endpoint probes                                                                                                   | 1 (SA-…-04)                        |
+| Payment Security (Stripe)   | `stripe-webhook`, `-checkout`, `-customer-portal`, `-connect-onboard`, `-payment-link`, `-refund-entry`, `-refund-show`, `-upgrade-subscription`, `cron-process-payouts`                         | 1 (SA-…-02, shared with Edge Auth) |
+| Input Validation            | `dangerouslySetInnerHTML` sites, redirect-URL validation, PostgREST embed probes                                                                                                                 | 0                                  |
+| _(incidental)_ Availability | health board + `ringside_containment` live state                                                                                                                                                 | 1 (SA-…-03)                        |
 
 ### Verified good — re-proved this run, not assumed
 
@@ -482,7 +528,7 @@ Each closed on applied evidence, never on a merge.
 
 1. **Composed anonymous-session replay.** Creating a bare anonymous identity is an un-rollback-able
    auth write. The anonymous blast radius above is derived statically from the policy set, not
-   replayed. *(Carried from 2026-07-29 and 2026-07-31.)*
+   replayed. _(Carried from 2026-07-29 and 2026-07-31.)_
 2. **Authenticated-role live probing.** No signed-in session was established, so every
    `authenticated`-role claim rests on policy and ACL inspection rather than a live request.
 3. **The SA-2026-09-05-01 exploit path was not executed.** Renaming a show and writing to storage
@@ -499,7 +545,7 @@ Each closed on applied evidence, never on a merge.
    always their first real run.
 7. **`images` / `premium-published` are `public = true` buckets.** Whether user profile and dog
    photos should be world-readable by URL is a product decision that has still not been recorded.
-   *(Carried from 2026-07-31.)*
+   _(Carried from 2026-07-31.)_
 
 ## Notes on process
 
@@ -524,10 +570,10 @@ now uniform and deployed, and the ACL monitor produced its first real healthy sn
 
 ```text
 SA-2026-09-05-01 | P0 | HIGH   | new       | 2026-09-05/2026-09-05 | 1 | MYK9-398 | storage show-branding policies test shows.name, not objects.name; uncorrelated EXISTS ⇒ blanket images/shows/** write once a show is renamed x/<own uuid>; 0/10 shows armed today | secretary denied 42501 on another club's prefix, before AND after the rename
-SA-2026-09-05-02 | P1 | HIGH   | new       | 2026-09-05/2026-09-05 | 1 | MYK9-399 | cron-health-check + cron-process-payouts hash Deno.env.get(...)! with no null guard; encode(undefined)=="undefined" ⇒ open on unset secret; secrets set today (289 snapshots/24h) | unit test with getEnv->undefined returns non-2xx and no side effect, mutation-checked
+SA-2026-09-05-02 | --  | --     | REJECTED  | 2026-09-05/2026-09-05 | 1 | MYK9-399 canc. | WRONG. Both functions guard at module load (`if (!supabaseUrl || !supabaseServiceKey || !cronSecret) throw`), so Deno.serve never registers and the encode(undefined) path is unreachable. Audit read secretMatches in isolation | none — no defect. Residual shipped: moneyPathCloseout.source.test.ts pins the payout twin's guard
 SA-2026-09-05-03 | P0 | HIGH   | new       | 2026-09-05/2026-09-05 | 1 | MYK9-400 | ringside_containment state=contained for 10d09h since 2026-08-25T23:25Z; 0 conflicts/min; 250ms backpressure on every write; no auto-rearm | live state=armed + ringside_conflicts ok, plus a test proving unaided recovery
 SA-2026-09-05-04 | P2 | MEDIUM | new       | 2026-09-05/2026-09-05 | 1 | MYK9-402 | cold-anon rpc/get_show_officials returned chairman+secretary names and emails, HTTP 200; steward role eligible and outside the migration's stated rationale | cold-anon call showing the agreed projection, plus a contract test on the anon column set
-SA-2026-09-05-05 | P2 | MEDIUM | new       | 2026-09-05/2026-09-05 | 1 | MYK9-403 | replace_judge_qualifications gates on unscoped has_role('secretary') and DELETEs, while judge_qualifications_delete is site_admin-only | rolled-back psql: club-A secretary denied for an unrelated judge; authorized caller still succeeds
+SA-2026-09-05-05 | --  | --     | REJECTED  | 2026-09-05/2026-09-05 | 1 | MYK9-403 canc. | APPROVED DESIGN, not drift. docs/roles/judge.md § Qualification management authorization (owner, 2026-09-03, MYK9-354) permits secretaries to clear the list with [] and states the platform-wide reach is "the approved boundary for the shared judge directory"; judge_qualification_rpc_authorization_test.sql pins it | none — narrowing it later is a product decision on MYK9-354, not a security fix
 SA-2026-09-05-06 | P3 | LOW    | new       | 2026-09-05/2026-09-05 | 1 | MYK9-404 | ringside_containment + _audit are the only 2 of 131 public tables without ENABLE/FORCE RLS; no client grants so unreachable | relrowsecurity and relforcerowsecurity true on both, sampler still writing
 SA-2026-09-05-07 | P3 | LOW    | new       | 2026-09-05/2026-09-05 | 1 | MYK9-404 | view_public_entry_results top-level WHERE omits classes.deleted_at IS NULL; owner-run view, its WHERE is the only guard | cold-anon read excludes a soft-deleted class; reloptions still security_invoker=false after push
 SA-2026-09-05-08 | P3 | LOW    | new       | 2026-09-05/2026-09-05 | 1 | MYK9-404 | send-confirmation-email/auth.ts:13 uses !== where every sibling gate uses the shared timingSafeEqual | source uses timingSafeEqual

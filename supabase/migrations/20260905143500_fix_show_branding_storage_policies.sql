@@ -45,11 +45,43 @@
 -- nibble — and lock every one of them out of branding. The only job here is to
 -- stop ::uuid raising.
 
+-- One more gap, found in review of this migration and confirmed on the applied
+-- database: there is NO SELECT policy covering shows/<id>/... . 20260712130000
+-- removed the blanket public SELECT on the images bucket, and the surviving
+-- image SELECT policy covers only profiles/<uid> and dogs/<uid>. Postgres
+-- requires the source row to pass a SELECT policy for an UPDATE with a WHERE
+-- clause, so replacing an existing logo matched zero rows however the UPDATE
+-- policy read. Probed as a club-A secretary against their OWN show's object:
+-- 0 rows visible, 0 rows updated.
+--
+-- That also means a cross-tenant UPDATE denial proves nothing on its own —
+-- everything is invisible, so zero-rows-affected is the answer whatever the
+-- policy says. The behavioural test gained a positive control for exactly this.
+
 BEGIN;
 
 DROP POLICY IF EXISTS "Secretaries can upload show branding" ON storage.objects;
 DROP POLICY IF EXISTS "Secretaries can update show branding" ON storage.objects;
 DROP POLICY IF EXISTS "Secretaries can delete show branding" ON storage.objects;
+DROP POLICY IF EXISTS "Show managers can read show branding" ON storage.objects;
+
+-- Same predicate as the write policies, so read and write cannot drift apart.
+-- Object bytes in this bucket are already world-readable over the public
+-- Storage endpoint (images is public = true); this grants no new disclosure,
+-- it makes the row addressable in SQL so the write policies can operate.
+CREATE POLICY "Show managers can read show branding"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'images'
+  AND (storage.foldername(objects.name))[1] = 'shows'
+  AND (storage.foldername(objects.name))[2] ~*
+      '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  AND (
+    (SELECT can_manage_show((storage.foldername(objects.name))[2]::uuid))
+    OR (SELECT is_platform_admin())
+  )
+);
 
 CREATE POLICY "Secretaries can upload show branding"
 ON storage.objects FOR INSERT

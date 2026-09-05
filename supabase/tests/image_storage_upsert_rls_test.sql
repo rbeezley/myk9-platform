@@ -185,15 +185,63 @@ BEGIN
       'FAIL secretary of club A planted an object under club B''s show prefix';
   END IF;
 
-  -- 4. ...for UPDATE (the rename-into-another-tenant verb)...
+  -- 4. UPDATE needs a POSITIVE CONTROL before its denial means anything.
+  --
+  --    Postgres requires the source row of an UPDATE ... WHERE to pass a SELECT
+  --    policy. Until this change there was none covering shows/<id>/..., so the
+  --    row was invisible and EVERY update matched zero rows — including the
+  --    cross-tenant one below, which would therefore have "passed" against a
+  --    wide-open UPDATE policy. Assert the authorized update works first.
+  SELECT count(*) INTO affected
+  FROM storage.objects
+  WHERE bucket_id = 'images'
+    AND name = 'shows/' || own_show || '/rls-test-a-logo.webp';
+  IF affected <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL secretary cannot even see their own club''s show branding: % rows', affected;
+  END IF;
+
   UPDATE storage.objects
-     SET name = 'shows/' || other_show || '/rls-test-moved.webp'
+     SET name = 'shows/' || own_show || '/rls-test-a-renamed.webp'
    WHERE bucket_id = 'images'
      AND name = 'shows/' || own_show || '/rls-test-a-logo.webp';
   GET DIAGNOSTICS affected = ROW_COUNT;
-  IF affected <> 0 THEN
+  IF affected <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL secretary cannot replace their own club''s show branding: % rows', affected;
+  END IF;
+
+  --    ...and only now is the denial meaningful: the same caller, the same
+  --    verb, a different tenant's prefix. Note the SHAPE of the denial changed
+  --    with the read policy above, for the better. The row is now visible and
+  --    passes USING, so Postgres reaches the WITH CHECK on the NEW path and
+  --    raises 42501 outright. Before, the row was invisible, the update matched
+  --    nothing, and a silent zero-rows was indistinguishable from success
+  --    against a wide-open policy.
+  BEGIN
+    UPDATE storage.objects
+       SET name = 'shows/' || other_show || '/rls-test-moved.webp'
+     WHERE bucket_id = 'images'
+       AND name = 'shows/' || own_show || '/rls-test-a-renamed.webp';
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    denied := false;
+  EXCEPTION WHEN insufficient_privilege THEN
+    denied := true;
+    affected := 0;
+  END;
+  IF NOT denied AND affected <> 0 THEN
     RAISE EXCEPTION
       'FAIL secretary of club A moved an object into club B''s show prefix';
+  END IF;
+
+  --    Club B's object must also stay invisible, not merely unwritable.
+  SELECT count(*) INTO affected
+  FROM storage.objects
+  WHERE bucket_id = 'images'
+    AND name = 'shows/' || other_show || '/rls-test-b-logo.webp';
+  IF affected <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL secretary of club A can read club B''s show branding rows: %', affected;
   END IF;
 
   RAISE NOTICE 'PASS show branding INSERT/UPDATE are scoped to the object path, before and after the self-referential rename';

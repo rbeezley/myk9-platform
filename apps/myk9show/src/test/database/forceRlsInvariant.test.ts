@@ -14,10 +14,7 @@ type MigrationSource = {
 
 const repoRoot = resolve(__dirname, '../../../../..');
 const migrationsDir = resolve(repoRoot, 'supabase/migrations');
-const remediationMigration = resolve(
-  migrationsDir,
-  '20260711170000_force_rls_go_live_gap.sql'
-);
+const remediationMigration = resolve(migrationsDir, '20260711170000_force_rls_go_live_gap.sql');
 const liveVerifier = resolve(repoRoot, 'scripts/qa/db-security/force-rls-live.sql');
 
 function maskSqlNonCode(sql: string): string {
@@ -72,11 +69,7 @@ function maskSqlNonCode(sql: string): string {
         if (sql[index] === "'" && sql[index + 1] === "'") {
           masked += '  ';
           index += 2;
-        } else if (
-          allowsBackslashEscapes &&
-          sql[index] === '\\' &&
-          index + 1 < sql.length
-        ) {
+        } else if (allowsBackslashEscapes && sql[index] === '\\' && index + 1 < sql.length) {
           masked += '  ';
           index += 2;
         } else if (sql[index] === "'") {
@@ -159,10 +152,7 @@ function executableSqlStatements(sql: string): string[] {
 }
 
 function publicTableName(reference: string): string | null {
-  const parts = reference
-    .replaceAll('"', '')
-    .toLowerCase()
-    .split('.');
+  const parts = reference.replaceAll('"', '').toLowerCase().split('.');
 
   if (parts.length === 1) return parts[0];
   return parts[0] === 'public' ? parts[1] : null;
@@ -239,6 +229,19 @@ function deriveTableSecurityState(sources: MigrationSource[]): Map<string, Table
 function unforcedRlsTables(sources: MigrationSource[]): string[] {
   return [...deriveTableSecurityState(sources)]
     .filter(([, state]) => state.rlsEnabled && !state.rlsForced)
+    .map(([table]) => table)
+    .sort();
+}
+
+// SA-2026-09-05-06. The invariant above is "enabled implies forced", which says
+// nothing about a table that never enables RLS at all — such a table is simply
+// invisible to it. ringside_containment and ringside_containment_audit spent
+// five weeks in exactly that blind spot, and the 2026-07-31 audit's standing
+// baseline ("RLS enabled AND forced on all 119 public tables") kept reading true
+// because it was asserted rather than re-measured.
+function rlsDisabledTables(sources: MigrationSource[]): string[] {
+  return [...deriveTableSecurityState(sources)]
+    .filter(([, state]) => !state.rlsEnabled)
     .map(([table]) => table)
     .sort();
 }
@@ -434,6 +437,26 @@ describe('FORCE RLS migration invariant', () => {
     ];
 
     expect(unforcedRlsTables(sources)).toEqual(['standard_string_table']);
+  });
+
+  it('detects a future public table that never enables RLS at all', () => {
+    const sources: MigrationSource[] = [
+      {
+        name: '999_never_enabled.sql',
+        sql: `
+          CREATE TABLE public.never_enabled (id uuid);
+          CREATE TABLE public.properly_secured (id uuid);
+          ALTER TABLE public.properly_secured ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.properly_secured FORCE ROW LEVEL SECURITY;
+        `,
+      },
+    ];
+
+    expect(rlsDisabledTables(sources)).toEqual(['never_enabled']);
+  });
+
+  it('leaves no repository-owned public table with RLS disabled', () => {
+    expect(rlsDisabledTables(repositoryMigrations())).toEqual([]);
   });
 
   it('leaves no repository-owned RLS-enabled public table unforced', () => {

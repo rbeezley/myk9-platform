@@ -1,5 +1,5 @@
 ---
-name: "OPSX: Ship"
+name: 'OPSX: Ship'
 description: End-to-end OpenSpec pipeline - propose, verify artifacts, implement, verify implementation, PR, review, merge, archive, cleanup (Experimental)
 category: Workflow
 tags: [workflow, artifacts, experimental, orchestrator]
@@ -76,7 +76,9 @@ Only after the PR is confirmed MERGED (`gh pr view --json state`):
 
 ## Phase 7: Cleanup
 
-Invoke the **Skill tool** with `skill: cleanup`. It handles the deferred branch hygiene from Phase 5: sync `main` (`git pull --ff-only`), `git fetch --prune`, delete the local feature branch (`git branch -D` — `--delete-branch` on the merge only removed the remote), and remove the worktree.
+Invoke the **Skill tool** with `skill: cleanup`. It handles the deferred branch hygiene from Phase 5: sync `main` (`git pull --ff-only`), `git fetch --prune`, and remove the worktree.
+
+**It does NOT delete the local branch, and neither should you.** `git branch -D` / `-d` are denied by this repo's permission rules — interactively a prompt, in an unattended run a silent stall that hangs the pipeline. The weekly `branch-janitor` reaps merged branches and reports the rest. The merge in Phase 5 correspondingly does not pass `--delete-branch`, whose local half would fail here anyway.
 
 **Worktree removal is the absolute last command of the pipeline** — nothing runs after it. If the shell's cwd is inside the worktree being removed, this is why it must come last.
 

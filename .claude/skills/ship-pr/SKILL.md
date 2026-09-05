@@ -135,34 +135,43 @@ Otherwise apply findings (critical + high required; medium if straightforward), 
 **CRITICAL: Never run `gh pr merge` from inside the feature worktree.**
 
 ```bash
-# 1. Verify PR state and current check status
-gh pr view $PR_NUMBER --json state,mergedAt,statusCheckRollup
+# 1. Establish the check verdict. Do NOT eyeball statusCheckRollup: "no pending"
+#    fires in the gap before a new run registers, an unfinished run carries a
+#    null conclusion, and Vercel reports through `state` and never sets
+#    `conclusion` at all. This exits 0 only when every check has ANSWERED on the
+#    pinned SHA with zero failures.
+#      0 green · 1 a check failed · 2 head moved · 3 timeout (NOT a verdict)
+bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
 
 # 2. Switch to main repo BEFORE merging
 cd "/Users/richardbeezley/AI Projects/myk9-platform"
 ```
 
-**Choose the merge path based on check status:**
+**Choose the merge path based on that exit code:**
 
-**Path A — checks already green (all required checks passed):** merge immediately.
+**Path A — the watcher exited 0:** merge immediately.
 
 ```bash
-# 3a. Squash-merge directly
-gh pr merge $PR_NUMBER --squash --delete-branch
+# 3a. Squash-merge. NO --delete-branch: its local half fails while a worktree
+#     still has the branch checked out, and `git branch -D` is denied by this
+#     repo's permission rules anyway (see Step 6).
+gh pr merge $PR_NUMBER --squash
 
 # 4a. Confirm
 gh pr view $PR_NUMBER --json state,mergedAt
 ```
 
-**Path B — checks still pending:** arm auto-merge and return immediately. GitHub will squash-merge as soon as all required checks pass.
+**Path B — checks still pending (exit 3, or you do not want to wait):** arm auto-merge and return immediately. GitHub will squash-merge as soon as all required checks pass.
 
 ```bash
 # 3b. Arm auto-merge (returns immediately — do NOT poll or wait)
-gh pr merge $PR_NUMBER --squash --auto --delete-branch
+gh pr merge $PR_NUMBER --squash --auto
 
 # 4b. Confirm auto-merge is armed
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
+
+**Exit 1 (a check failed) or exit 2 (head moved) is a STOP, not a slower Path B.** Report the named failure; never arm auto-merge to get past a red.
 
 After arming auto-merge, tell the user: "Auto-merge armed — GitHub will merge when required checks (Quality Checks + Test) pass. Run `/cleanup` after it merges to delete the local branch and worktree." Then **STOP — do not proceed to Step 6.**
 
@@ -178,16 +187,23 @@ git checkout main
 git pull --ff-only
 git fetch --prune
 
-# Delete the local feature branch.
-# `gh pr merge --delete-branch` only deletes the REMOTE branch — the local ref persists
-# until explicitly deleted, which is the #1 source of "hanging branches" at weekly cleanup.
-# Squash-merge rewrites SHAs, so `git branch -d` may refuse — use -D after verifying merge.
-gh pr list --state merged --head <branch-name> --json number -q '.[].number'  # must return $PR_NUMBER
-git branch -D <branch-name>
+# Prove the merge by SHA, not by name. A PR matching this branch's headRefName
+# only means a PR with that NAME merged: commits pushed after the merge, or a
+# re-created branch reusing a template name, leave the tip ahead of what landed.
+# This deleted a remote branch carrying an unmerged commit on 2026-08-03.
+git rev-parse <branch-name>                                          # local tip
+gh pr view $PR_NUMBER --json headRefOid --jq .headRefOid             # must be IDENTICAL
 
-# git worktree remove is the ABSOLUTE LAST command — nothing runs after this
+# Worktree removal comes BEFORE any branch deletion — git refuses to delete a
+# branch that any worktree still has checked out, including this one.
 git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.claude/worktrees/<branch-name>" --force 2>/dev/null || true
 ```
+
+**Leave the local branch alone.** `git branch -D` / `-d` are DENIED by this repo's
+permission rules: interactively that is a prompt, and in a scheduled or unattended
+run it is a silent stall that hangs the whole task. The weekly `branch-janitor`
+reaps merged branches and reports the rest. This is also why Step 5 drops
+`--delete-branch` — its local half would fail here regardless.
 
 ---
 
@@ -197,7 +213,9 @@ git worktree remove "/Users/richardbeezley/AI Projects/myk9-platform/.claude/wor
 - NEVER run `gh pr merge` from inside a worktree directory
 - NEVER remove the worktree before merge is confirmed AND main is updated
 - Worktree removal is ALWAYS the final command
-- ALWAYS delete the local feature branch (`git branch -D`) after merge — `--delete-branch` on `gh pr merge` only removes the REMOTE; the local ref must be deleted separately
+- NEVER pass `--delete-branch`, and never run `git branch -D` / `-d` — both are denied by this repo's permission rules and stall an unattended run. Leave local branches for `branch-janitor`.
+- NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh`, which pins the SHA and requires every check to have ANSWERED — Vercel reports through `state`, never `conclusion`, so a hand-rolled filter reading one field misses the other.
+- NEVER accept a merged PR's `headRefName` as proof a branch merged. Compare the tip SHA against that PR's `headRefOid`.
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
 - Use `pnpm`, not `npm` or `npx`
 - Max 5 verify iterations, max 5 review rounds — escalate if limits hit

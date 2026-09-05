@@ -362,6 +362,27 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### Codex commit-review reconciliation — 2026-09-05
+
+`source: codex`; baseline `a25d9967139d1499d657af25d8947e41269dd063`. Full evidence,
+first/last-seen dates, owner, severity rationale and proof gates are in
+[the review report](codex-daily-commit-review-2026-09-05.md) and the canonical Linear records.
+This table is an evidence index, not a separate queue. No application code changed.
+
+| Stable ID / alias | Canonical priority | Registry status / lifecycle | Canonical work |
+| --- | --- | --- | --- |
+| MYK9-294 | P1 / High | in-progress / blocked for payment replay | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) — deployed build green; actual checkout replay unrecorded |
+| MYK9-381 | P2 / source High | open / unchanged, reopened | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) — canonical results dropped for existing local entries; 2 failing probes |
+| NCR-2026-09-04-02 | P2 / source High | open / unchanged, newly filed | [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) — migration guard rejects inherited/deployed versions; 2 failing probes |
+| MYK9-356 | P2 / Medium | open / blocked for focused SQL proof | [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) — source parity passes; lifecycle-absent behavioral/mutation and applied proof missing |
+| NCR-2026-09-04-04 | P2 / Medium | in-progress / blocked for Nightly proof | [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289) — existing detailed record below; no post-fix Nightly run yet |
+| MYK9-358 | P3 / Low | open / unchanged, reopened | [MYK9-358](https://linear.app/myk9-platform/issue/MYK9-358) — claimed migration-header fix absent from main |
+| NCR-2026-09-04-03 | P3 / Low | open / unchanged, newly filed | [MYK9-406](https://linear.app/myk9-platform/issue/MYK9-406) — 24/77 plans missing status markers; named plans also unindexed |
+
+Resolved with focused proof in the report: MYK9-348 (cache/outbox protection) and
+NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were closed by this run.
+
+
 ### NCR-2026-09-04-04
 
 - **Status:** in-progress

@@ -120,7 +120,7 @@ _existing() {
   [[ -z "$val" ]] && return 1
   q="${val:0:1}"
   if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${val:1}" == *"$q"* ]]; then
-    val="${val:1}"; val="${val%"$q"*}"   # body up to the LAST quote; a trailing comment is dropped
+    val="${val:1}"; val="${val%%"$q"*}"  # body up to the FIRST closing quote, as dotenv reads it; a trailing comment (even one containing quotes) is dropped
     if [[ "$q" == '"' ]]; then nl=$'\n'; val=${val//\\n/$nl}; fi
   else
     # Unquoted, as dotenv (v17) reads it: the value ends at the first `#`

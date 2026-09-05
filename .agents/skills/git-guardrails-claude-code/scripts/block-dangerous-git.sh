@@ -18,8 +18,13 @@ block() {
 
 # One git invocation per segment: split on && || ; | and newlines.
 echo "$COMMAND" | sed -E 's/(&&|\|\||;|\|)/\n/g' | while IFS= read -r segment; do
-  # Tokenize (good enough for hook input; quoted paths with spaces are rare here).
-  read -r -a words <<< "$segment"
+  # Quote-aware tokenization: `read -a` split `-C "/Users/x/AI Projects/repo"`
+  # at the space and took the path fragment as the subcommand (Codex, #2064
+  # round 2). xargs honours quotes and never executes anything; on malformed
+  # quoting it fails, and we fall back to whitespace splitting.
+  words=()
+  while IFS= read -r tok; do words+=("$tok"); done < <(printf '%s' "$segment" | xargs printf '%s\n' 2>/dev/null)
+  [ ${#words[@]} -eq 0 ] && read -r -a words <<< "$segment"
   i=0
   # Skip leading env assignments and sudo/command wrappers.
   while [ $i -lt ${#words[@]} ] && [[ "${words[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= || "${words[$i]}" == "sudo" || "${words[$i]}" == "command" || "${words[$i]}" == "env" ]]; do i=$((i+1)); done

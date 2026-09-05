@@ -225,6 +225,11 @@ function createRequestHandler({ detectScript, livePath }) {
         res.end('live.js is only served to localhost pages');
         return;
       }
+      // A page on 127.0.0.1 loading the script from localhost is cross-site to
+      // the browser, so the same-site resource policy would block the classic
+      // <script> tag even though the check above passed (Codex, #2064 round
+      // 2). The Origin/Referer gate is what protects the token; drop CORP here.
+      res.removeHeader('Cross-Origin-Resource-Policy');
       // Re-read from disk each request so edits to live-browser.js land on
       // the next tab reload. No-store headers prevent browser caching across
       // sessions — during iteration, a cached old script silently breaks

@@ -280,9 +280,15 @@ function insertTag(content, config, port) {
   const idx = content.indexOf(config.insertAfter);
   if (idx === -1) return content;
   const after = idx + config.insertAfter.length;
-  // Preserve a single trailing newline if the anchor didn't end with one
-  const prefix = content[after] === '\n' ? content.slice(0, after + 1) : content.slice(0, after) + '\n';
-  return prefix + block + content.slice(prefix.length);
+  // Preserve a single trailing newline if the anchor didn't end with one.
+  // LOCAL PATCH (myk9-platform #2064, Codex P2): the consumed source offset is
+  // tracked separately from the generated prefix — when the anchor was not
+  // followed by a newline, slicing at prefix.length ate the next character
+  // (`<body><main>` became `<body>\n…main>`), and removal did not restore it.
+  const hasNewline = content[after] === '\n';
+  const prefix = hasNewline ? content.slice(0, after + 1) : content.slice(0, after) + '\n';
+  const consumed = hasNewline ? after + 1 : after;
+  return prefix + block + content.slice(consumed);
 }
 
 /**

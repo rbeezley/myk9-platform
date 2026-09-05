@@ -33,6 +33,19 @@ function entry(overrides: Partial<ReplicatedEntry>): ReplicatedEntry {
 }
 
 describe('at-show class completion intent', () => {
+  it('completes with lifecycle absent excluded but active result absent accounted', async () => {
+    const entries = [
+      entry({ id: 'scored', isScored: true, resultStatus: 'qualified' }),
+      entry({ id: 'lifecycle-absent', entryStatus: 'absent' }),
+      entry({ id: 'result-absent', resultStatus: 'absent' }),
+    ];
+    expect(isClassAccountedFor(entries)).toBe(true);
+    getEntriesByClass.mockResolvedValue(entries);
+    await recordCompletionIntentIfConfirmed('class-1', true);
+    expect(markClassCompletionPending).toHaveBeenCalledWith('class-1');
+    expect(isClassAccountedFor([entry({ entryStatus: 'absent' })])).toBe(false);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

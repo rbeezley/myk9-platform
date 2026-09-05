@@ -226,6 +226,12 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         </p>
       )}
 
+      {isPastShow && onlinePrompt.kind === 'finish-online' && (
+        <p className="text-sm text-muted-foreground">
+          Please contact the club to settle this outstanding balance.
+        </p>
+      )}
+
       {/* INTENT: single next action, precedence finish payment > check-in >
           view show (deriveEntryNextAction). Check-in MUST reuse the same
           onCheckInClick(entry, cls) handler the per-class details control

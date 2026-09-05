@@ -240,3 +240,9 @@ naturally be a descendant for the next reviewer.
 | 696235319 | fix(checkout): send Stripe the literal session-id token (MYK9-294) (#2036) |
 | e8a410f6e | fix(dates): sweep the date-fns calendar-date family (MYK9-384 follow-up) (#2039) |
 | a25d99671 | docs(security): full-surface security audit 2026-09-05 |
+
+## MYK9-294 closure addendum — 2026-09-05 13:00 UTC
+
+The audit above records the evidence available at its original cutoff. Its MYK9-294 payment-replay gate is now satisfied. Claude's 12:56 UTC deployed sandbox replay captured the literal session token in the checkout request, a real `cs_test_…` return parameter matching the persisted succeeded order, and automatic **Entry Submitted Successfully!** at 10.0 seconds. Confirmation `pi_3UCJ9NAIej2Q9UtX0OeaKcQW`, total $32.10. Test dog and entry cleanup was recorded. Linear closure evidence: comment `95cb1983-9966-409d-b129-6cca4caec523`; issue is Done as of 12:59 UTC.
+
+In response to “fix myk9-294”, Codex independently checked the merged builder and green Vercel status at `c159da719980194ff1e2049fade05857b8b37cbb`. Four focused suites passed (35 tests): `stripe.test.ts`, `checkoutSuccess.autoRecheck.test.tsx`, `checkoutSuccess.terminalState.test.tsx`, and `checkoutSuccess.splitCheckout.test.tsx`. Temporarily restoring the pre-#2036 builder in an isolated worktree produced three failing token tests, including direct `%7B` and literal-token assertions. Restoring current source passed all five token tests. Codex inspected Claude's saved confirmation screenshot and text plus the detailed Linear closure evidence; Codex did not submit a second payment. No additional application fix or OpenSpec change was needed. The original audit cursor and historical counts remain unchanged.

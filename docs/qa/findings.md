@@ -85,6 +85,8 @@ Copy this block for each new finding.
 
 ### MYK9-294
 
+- **Current closure — 2026-09-05:** fixed / resolved after PR #2036 (`696235319`) and the deployed sandbox replay at 12:56 UTC. The original September 2 closure below was superseded by recurrence: the actual root cause was `URLSearchParams` encoding the Stripe session token. The deployed request now preserves literal `{CHECKOUT_SESSION_ID}`; Stripe returned a real `cs_test_…` matching the succeeded order, and the page reached **Entry Submitted Successfully!** automatically at 10.0 seconds. Confirmation `pi_3UCJ9NAIej2Q9UtX0OeaKcQW`, total $32.10. Claude recorded the browser/network/order evidence in Linear comment `95cb1983-9966-409d-b129-6cca4caec523` and cleaned its test dog/entry. Codex independently verified 35 focused checkout tests on `c159da719`, reproduced encoded-token assertion failures with the pre-fix builder, then restored current source and passed all five token tests. Linear is Done. No further application change was needed.
+- **Historical September 2 evidence (superseded by the closure above):**
 - **Status:** fixed (2026-09-02 — PR #1951 / commit `0c9981e1e`; deployed-migration verification)
 - **Lifecycle status:** resolved
 - **Classification:** Confirmed payment-status visibility defect
@@ -371,7 +373,7 @@ This table is an evidence index, not a separate queue. No application code chang
 
 | Stable ID / alias | Canonical priority | Registry status / lifecycle | Canonical work |
 | --- | --- | --- | --- |
-| MYK9-294 | P1 / High | in-progress / blocked for payment replay | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) — deployed build green; actual checkout replay unrecorded |
+| MYK9-294 | P1 / High | fixed / resolved at 12:59 UTC | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) — deployed sandbox replay returned a real session ID and success at 10.0 seconds; see Closed Findings |
 | MYK9-381 | P2 / source High | open / unchanged, reopened | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) — canonical results dropped for existing local entries; 2 failing probes |
 | NCR-2026-09-04-02 | P2 / source High | open / unchanged, newly filed | [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) — migration guard rejects inherited/deployed versions; 2 failing probes |
 | MYK9-356 | P2 / Medium | open / blocked for focused SQL proof | [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) — source parity passes; lifecycle-absent behavioral/mutation and applied proof missing |
@@ -501,8 +503,9 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 - **Proof required:** A test spying on `window.onunhandledrejection` (or asserting `captureError` is not called) across a refused delete, failing if the catch is removed.
 ### MYK9-294
 
-- **Status:** in-progress
-- **Lifecycle status:** blocked
+- **Status:** fixed (2026-09-05; see canonical MYK9-294 in Closed Findings)
+- **Lifecycle status:** resolved
+- **Historical record:** The September 2 blocker below is retained as history. The September 5 deployed replay and regression evidence in Closed Findings supersede its outstanding-proof claims.
 - **Classification:** Confirmed payment-status visibility defect with deployment proof outstanding
 - **Severity:** high
 - **Canonical priority:** P1

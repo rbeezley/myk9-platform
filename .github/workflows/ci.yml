@@ -288,13 +288,18 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
-  # myK9Show is sharded across 3 parallel runners to cut wall-clock from ~9 min
-  # to ~3 min. Sharding bypasses turbo (turbo's cache key excludes extra args,
-  # so shard 2 would incorrectly return shard 1's cached result). Turbo's
-  # affected-only skipping is therefore not available here; all 3 shards always
-  # run on a cache miss. Runs in parallel with quality and test-packages-and-q.
+  # myK9Show is sharded across 6 parallel runners. Sharding bypasses turbo
+  # (turbo's cache key excludes extra args, so shard 2 would incorrectly return
+  # shard 1's cached result). Turbo's affected-only skipping is therefore not
+  # available here; all shards always run on a cache miss. Runs in parallel
+  # with quality, test-packages, sql-tests and the build/smoke chain.
+  #
+  # Shard count history: 3 shards measured 11m / 11m / 7m on 2026-09-05 and
+  # were the whole critical path (vitest splits by file COUNT, not duration,
+  # hence the imbalance). Six halves the longest shard; the repo is public, so
+  # runner minutes are free and the extra runners cost nothing.
   test-show:
-    name: Test myK9Show (${{ matrix.shard }}/3)
+    name: Test myK9Show (${{ matrix.shard }}/6)
     runs-on: ubuntu-latest
     # Coverage-enabled shards can exceed the normal test budget on a cold
     # runner. Keep the job alive long enough to report the actual test result.
@@ -302,7 +307,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.draft == false
     strategy:
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
 
     steps:
       - uses: actions/checkout@v7
@@ -324,21 +329,21 @@ jobs:
       # data, not a rendered report) — cheap to add, and it's what the
       # coverage-merge job below combines via `vitest --mergeReports` to
       # recover whole-app coverage numbers despite the suite being split
-      # across 3 runners. See MYK9-40.
-      - name: Test myK9Show (shard ${{ matrix.shard }}/3)
+      # across 6 runners. See MYK9-40.
+      - name: Test myK9Show (shard ${{ matrix.shard }}/6)
         working-directory: apps/myk9show
-        run: pnpm exec vitest run --reporter=default --reporter=blob --outputFile.blob=.vitest-reports/shard-${{ matrix.shard }}.json --exclude '**/integration/**' --exclude '**/debug-*.test.*' --sequence.shuffle --shard=${{ matrix.shard }}/3 --coverage
+        run: pnpm exec vitest run --reporter=default --reporter=blob --outputFile.blob=.vitest-reports/shard-${{ matrix.shard }}.json --exclude '**/integration/**' --exclude '**/debug-*.test.*' --sequence.shuffle --shard=${{ matrix.shard }}/6 --coverage
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
-      - name: Upload coverage blob (shard ${{ matrix.shard }}/3)
+      - name: Upload coverage blob (shard ${{ matrix.shard }}/6)
         uses: actions/upload-artifact@v7
         with:
           name: coverage-blob-${{ matrix.shard }}
           path: apps/myk9show/.vitest-reports/shard-${{ matrix.shard }}.json
           retention-days: 1
 
-  # Merges the 3 shards' coverage blobs into one whole-app coverage report,
+  # Merges the 6 shards' coverage blobs into one whole-app coverage report,
   # then gates the PR on two things in the same vitest invocation:
   #   1. The per-directory floors declared in apps/myk9show/vitest.config.ts
   #      (`coverage.thresholds`) — vitest itself fails the run if a
@@ -449,11 +454,16 @@ jobs:
         run: pnpm coverage:ratchet
         continue-on-error: true
 
+  # Build no longer waits for the Test umbrella: it needs only an install, and
+  # gating it on tests put the whole build -> smoke-build -> E2E/a11y chain
+  # (~4 min) serially AFTER the 11-minute unit shards. Running it from t=0 lets
+  # that chain finish while the shards are still going. The repo is public, so
+  # a build that runs on a PR whose tests then fail costs nothing but a runner.
   build:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [test]
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
 
     steps:
       - uses: actions/checkout@v7

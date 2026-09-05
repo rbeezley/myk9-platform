@@ -71,14 +71,14 @@ function runLineForStep(stepName: string): string {
  * like it is guarding. Do not collapse these two into one assertion.
  */
 describe('CI collects coverage on pull requests, not only on push', () => {
-  it.each(['Test packages', 'Test myK9Show (shard ${{ matrix.shard }}/3)'])(
+  it.each(['Test packages', 'Test myK9Show (shard ${{ matrix.shard }}/6)'])(
     '%s passes --coverage',
     stepName => {
       expect(runLineForStep(stepName)).toContain('--coverage');
     }
   );
 
-  it.each(['Test packages', 'Test myK9Show (shard ${{ matrix.shard }}/3)'])(
+  it.each(['Test packages', 'Test myK9Show (shard ${{ matrix.shard }}/6)'])(
     '%s does not make coverage conditional on the event',
     stepName => {
       // The exact regression this file exists to prevent, which shipped as:

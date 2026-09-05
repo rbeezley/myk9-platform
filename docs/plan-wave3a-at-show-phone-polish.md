@@ -1,5 +1,9 @@
 # Wave 3A At-Show Phone Polish Plan
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
+
+
 > **Status:** Implemented locally on branch `codex/wave3a-at-show-phone-polish`
 
 **Goal:** Tighten the exhibitor phone-at-ringside experience without adding new surfaces.

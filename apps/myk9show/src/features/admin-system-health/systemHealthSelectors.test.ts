@@ -193,7 +193,7 @@ describe('statusToBadgeVariant', () => {
 });
 
 describe('getHealthCheckRemediation', () => {
-  it('routes sync checks to the existing support surface', () => {
+  it('routes an unmapped sync-shaped key to support, marked as inferred', () => {
     const remediation = getHealthCheckRemediation({
       key: 'replication_queue',
       label: 'Replication queue',
@@ -208,6 +208,9 @@ describe('getHealthCheckRemediation', () => {
       actionLabel: 'Open Support',
       href: '/admin/support',
     });
+    // MYK9-394: inference survives only for keys the runner does not emit, and
+    // it must say so rather than reading like an assigned owner.
+    expect(remediation.nextStep).toContain('Unmapped check key');
   });
 
   it('explains the dispatch boundary for an unprovable payout schedule', () => {

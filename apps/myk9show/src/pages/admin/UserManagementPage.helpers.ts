@@ -28,9 +28,31 @@ function endOfDay(date: Date): number {
 }
 
 /**
+ * Everything one row is searchable by, lower-cased and whitespace-collapsed.
+ *
+ * The full name is included as its own phrase because that is what the table
+ * renders — testing the whole query against firstName and lastName separately
+ * meant the exact displayed name ("Test Secretary") matched neither field and
+ * emptied the roster, while "Secretary" alone worked (MYK9-397). Phone is kept
+ * verbatim (formatting and all), matching what the row shows.
+ */
+function searchHaystack(user: User): string {
+  const first = user.firstName ?? '';
+  const last = user.lastName ?? '';
+  return [`${first} ${last}`, first, last, user.email ?? '', user.phone ?? '']
+    .join(' ')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Filter users based on search term and filter settings.
  *
  * Search covers the fields the table actually renders: name, email, phone.
+ * Every whitespace-separated token must appear somewhere in the row's
+ * searchable text — ANDed, so a second word narrows the list instead of
+ * broadening it.
  */
 export function filterUsers<T extends User>(
   users: T[],
@@ -40,15 +62,12 @@ export function filterUsers<T extends User>(
   let filtered = users;
 
   // Apply search filter
-  if (searchTerm.trim()) {
-    const search = searchTerm.toLowerCase();
-    filtered = filtered.filter(
-      user =>
-        user.firstName?.toLowerCase().includes(search) ||
-        user.lastName?.toLowerCase().includes(search) ||
-        user.email?.toLowerCase().includes(search) ||
-        user.phone?.toLowerCase().includes(search)
-    );
+  const tokens = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length > 0) {
+    filtered = filtered.filter(user => {
+      const haystack = searchHaystack(user);
+      return tokens.every(token => haystack.includes(token));
+    });
   }
 
   // Apply role filter

@@ -48,6 +48,29 @@ vi.mock('@/features/payments/usePlatformPayoutLedger', () => ({
   }),
 }));
 
+// MYK9-395: the page reads the overview's charge-derived collected total to
+// choose the ledger's empty-state copy. Mutable so a test can drive the three
+// states the copy must distinguish (known-zero, known-nonzero, unknown).
+const overviewState: {
+  collectedCents: number;
+  isLoading: boolean;
+  isError: boolean;
+} = { collectedCents: 0, isLoading: false, isError: false };
+vi.mock('@/features/financial/components/usePlatformFinancialOverview', () => ({
+  usePlatformFinancialOverview: () => ({
+    data:
+      overviewState.isLoading || overviewState.isError
+        ? undefined
+        : {
+            summary: {
+              platformIncome: { onlineCollectedCents: overviewState.collectedCents },
+            },
+          },
+    isLoading: overviewState.isLoading,
+    isError: overviewState.isError,
+  }),
+}));
+
 // PlatformIncomeCard has its own colocated tests (features/financial/components) —
 // stub it here so this page's tests aren't exercising the shared financial RPC.
 vi.mock('@/features/financial/components/PlatformIncomeCard', () => ({
@@ -83,6 +106,9 @@ describe('PayoutLedgerPage', () => {
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
+    overviewState.collectedCents = 0;
+    overviewState.isLoading = false;
+    overviewState.isError = false;
   });
 
   it('renders the platform fee card with the current rate', () => {
@@ -246,6 +272,45 @@ describe('PayoutLedgerPage — never reports an unknown as a fact', () => {
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
+    overviewState.collectedCents = 0;
+    overviewState.isLoading = false;
+    overviewState.isError = false;
+  });
+
+  it('does not deny online payments when the overview reports money collected (MYK9-395)', () => {
+    // The overview is charge-derived; this ledger is entry-derived. An empty
+    // ledger is evidence about the ledger's own scope, never about whether an
+    // exhibitor has ever paid.
+    ledgerState.data = [];
+    overviewState.collectedCents = 49_515;
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.queryByText(/no online payments yet/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/no club liabilities to show/i)).toBeInTheDocument();
+    expect(screen.getByText(/built from online entries/i)).toBeInTheDocument();
+    expect(screen.getByText(/can legitimately differ/i)).toBeInTheDocument();
+    expect(screen.getByText(/how this is calculated/i)).toBeInTheDocument();
+  });
+
+  it('keeps the plain first-payment empty state when nothing has been collected', () => {
+    ledgerState.data = [];
+    overviewState.collectedCents = 0;
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.getByText(/no online payments yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/can legitimately differ/i)).not.toBeInTheDocument();
+  });
+
+  it('asserts neither variant while the overview total has not loaded', () => {
+    ledgerState.data = [];
+    overviewState.isError = true;
+
+    render(<PayoutLedgerPage />);
+
+    expect(screen.queryByText(/no online payments yet/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/platform income above has not loaded/i)).toBeInTheDocument();
   });
 
   it('a PAUSED ledger query is not a platform that owes nothing', () => {
@@ -451,6 +516,9 @@ describe('PayoutLedgerPage — says which situation a row is actually in', () =>
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
+    overviewState.collectedCents = 0;
+    overviewState.isLoading = false;
+    overviewState.isError = false;
   });
 
   it('distinguishes a payout past its settle date from one merely scheduled', () => {
@@ -578,6 +646,9 @@ describe('PayoutLedgerPage — the majors fixes do not misfire', () => {
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
+    overviewState.collectedCents = 0;
+    overviewState.isLoading = false;
+    overviewState.isError = false;
   });
 
   it('does not call a fully refunded show past due', () => {
@@ -628,6 +699,9 @@ describe('PayoutLedgerPage — the fee field never contradicts the save', () => 
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
+    overviewState.collectedCents = 0;
+    overviewState.isLoading = false;
+    overviewState.isError = false;
   });
 
   it('does not flash the pre-save rate while the refetch is in flight', () => {
@@ -675,6 +749,9 @@ describe('PayoutLedgerPage — an unreadable show makes no claims about itself',
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
+    overviewState.collectedCents = 0;
+    overviewState.isLoading = false;
+    overviewState.isError = false;
   });
 
   const orphan: LedgerRow = {
@@ -740,6 +817,9 @@ describe('PayoutLedgerPage — the flat component and the floor are editable', (
     ledgerState.isError = false;
     feeState.rates = { percent: 7, flatCents: 0, minCents: 0 };
     feeState.state = 'ready';
+    overviewState.collectedCents = 0;
+    overviewState.isLoading = false;
+    overviewState.isError = false;
   });
 
   it('seeds all three fields from the live settings', () => {

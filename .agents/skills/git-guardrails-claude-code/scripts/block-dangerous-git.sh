@@ -125,7 +125,11 @@ tokenize() {
           started=0
         fi
         ;;
-      ';' | '|' | '&' | "$NL")
+      # Parentheses are grouping, not part of the word. Without this,
+      # `(git -C /tmp push ...)` tokenizes its first word as `(git`, which is
+      # not `git`, so the segment was never inspected at all. Treating them as
+      # boundaries also makes `$(git push ...)` visible for free.
+      ';' | '|' | '&' | '(' | ')' | "$NL")
         if [ "$started" -eq 1 ]; then
           printf '%s\n' "${token//$NL/ }"
           token=''
@@ -271,7 +275,10 @@ inspect_git_invocation() {
 inspect_segment() {
   while [ $# -gt 0 ]; do
     case "$1" in
-      *=* | env | sudo | nohup | command | time | exec | xargs) shift ;;
+      # `{` and `}` are brace grouping. They are NOT tokenizer separators —
+      # making them so would split `${DIR}` and hand the parser rubble — so
+      # they are skipped here instead, where `{ git push; }` still resolves.
+      *=* | env | sudo | nohup | command | time | exec | xargs | '{' | '}') shift ;;
       *) break ;;
     esac
   done
@@ -413,6 +420,10 @@ git push;ls	block
 git -C "/tmp/unterminated clean -fd	block
 git --exec-path push origin main	block
 git --config-env user.name=USER push origin main	block
+(git -C /tmp push origin main)	block
+$(git -C /tmp push origin main)	block
+{ git -C /tmp push origin main; }	block
+git -C "${HOME}/repo" push origin main	block
 git --config-env user.name=USER clean -fd	block
 git --config-env=user.name=USER clean -fd	block
 git commit -m push	block

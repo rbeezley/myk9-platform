@@ -31,13 +31,35 @@ Read the plan file in full. Create a TodoWrite with one item per plan task — m
 git worktree list | grep "$WORKTREE"
 ```
 
-If not inside a worktree under `.Codex/worktrees/`, invoke `superpowers:using-git-worktrees` to create one before proceeding. Never implement on `main`.
+If not inside a linked worktree (this repo uses `.claude/worktrees/`; other
+agents use `.codex/worktrees/` or `.worktrees/`), invoke
+`superpowers:using-git-worktrees` to create one before proceeding. Never
+implement on `main`.
+
+**Then re-capture `BRANCH` and `WORKTREE`, and do not skip this.** Step 0 read
+them from wherever you started — usually the primary checkout on `main`. If a
+worktree was created just now, those variables still name the OLD checkout, and
+Step 8 resolves `$BRANCH` to decide what to `git worktree remove --force`. That
+is a force-remove of somebody else's checkout, with their uncommitted work in
+it. Re-read after every worktree transition:
+
+```bash
+BRANCH=$(git branch --show-current)
+WORKTREE=$(git rev-parse --show-toplevel)
+# dirname "$(...)", never `| xargs dirname` — xargs splits on spaces, so under
+# "AI Projects" it returns two mangled paths and the test silently passes.
+PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+test "$WORKTREE" != "$PRIMARY" \
+  || { echo "Refusing to continue: still in the primary checkout"; exit 1; }
+echo "implementing $BRANCH in $WORKTREE"
+```
 
 ---
 
 ## Step 2: Implement Per Plan
 
 Work through todos in order. For each task:
+
 - Mark `in_progress`
 - Read affected files before editing
 - Make only the changes the task requires — no scope creep
@@ -125,6 +147,7 @@ Note `$PR_NUMBER` and `$BASE_SHA` / `$HEAD_SHA` — needed for review.
 Spawn a code-review subagent using the Agent tool with `subagent_type: superpowers:code-reviewer`:
 
 **Subagent prompt template:**
+
 ```
 Review the following implementation.
 
@@ -157,6 +180,7 @@ If subagent returns `APPROVED` → skip to Step 7.
 ## Step 6: Fix Loop (until clean)
 
 Apply each finding (critical and high required; medium if straightforward):
+
 - Read file before editing
 - Minimal fix — do not refactor surrounding code
 
@@ -179,8 +203,9 @@ gh pr view $PR_NUMBER --json state,mergedAt
 # 2. cd to MAIN REPO before merging
 cd "/Users/richardbeezley/AI Projects/myk9-platform"
 
-# 3. Merge
-gh pr merge $PR_NUMBER --squash --delete-branch
+# 3. Merge. NO --delete-branch: its local half fails while a worktree still
+#    holds the branch, and the weekly branch-janitor reaps merged remotes.
+gh pr merge $PR_NUMBER --squash
 
 # 4. Confirm
 gh pr view $PR_NUMBER --json state,mergedAt
@@ -210,8 +235,15 @@ WORKTREE_PATH=$(git worktree list --porcelain | awk -v b="refs/heads/$BRANCH" '
 # LAST COMMAND — nothing runs after this line. No `2>/dev/null || true`:
 # a swallowed failure reports the ship as complete with the worktree still
 # on disk, which is the one outcome this step exists to prevent.
+PRIMARY=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 if [ -z "$WORKTREE_PATH" ]; then
   echo "No worktree registered for $BRANCH — nothing to remove."
+elif [ "$WORKTREE_PATH" = "$PRIMARY" ]; then
+  # $BRANCH resolved to the primary checkout, which means it was never
+  # re-captured in Step 1 and names the branch you STARTED on. Removing a
+  # checkout on that evidence is how unrelated uncommitted work disappears.
+  echo "Refusing: \$BRANCH ($BRANCH) resolves to the primary checkout — Step 1 did not re-capture it." >&2
+  exit 1
 else
   git worktree remove "$WORKTREE_PATH" --force
 fi

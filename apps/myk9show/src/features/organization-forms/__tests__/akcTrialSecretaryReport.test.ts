@@ -61,12 +61,64 @@ describe('buildAKCTrialSecretaryReportValues', () => {
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.club]: 'Demo Scent Work Club',
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.eventNumber]: '2026123401',
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]: 2,
-        [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: '7.00',
+        [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: '9.00',
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalRunsAtClosing]: 3,
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate]: '6/12/2026',
         [AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]: 1,
       },
     });
+  });
+
+  it('fills the 2026 136-total/2-excluded fixture with 134 × $4.50 = $603.00', () => {
+    const entries = Array.from({ length: 136 }, (_, index) =>
+      makeEntry({
+        id: `entry-${index}`,
+        entryStatus: index === 134 ? 'withdrawn' : index === 135 ? 'scratched' : 'entered',
+      })
+    );
+
+    expect(buildAKCTrialSecretaryReportValues({ ...reportProps, entries })).toMatchObject({
+      text: {
+        [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalRunsAtClosing]: 136,
+        [AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]: 2,
+        [AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]: 134,
+        [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: '603.00',
+      },
+    });
+  });
+
+  it('uses the historical $3.50 rate through the end of 2025', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      trial: { ...reportProps.trial, date: '2025-12-31' },
+    });
+
+    expect(values.text).toMatchObject({
+      [AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]: 2,
+      [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: '7.00',
+    });
+  });
+
+  it.each([undefined, 'not-a-date', '2027-01-01'])(
+    'omits fee values for unsupported date %s',
+    date => {
+      const values = buildAKCTrialSecretaryReportValues({
+        ...reportProps,
+        trial: date ? { ...reportProps.trial, date } : undefined,
+      });
+
+      expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid);
+      expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee);
+    }
+  );
+
+  it('does not write an Invalid Date value for a blank trial date', () => {
+    const values = buildAKCTrialSecretaryReportValues({
+      ...reportProps,
+      trial: { ...reportProps.trial, date: '   ' },
+    });
+
+    expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate);
   });
 
   it('counts canonical non-running and supported day-of no-show statuses', () => {
@@ -138,6 +190,6 @@ describe('buildAKCTrialSecretaryReportValues', () => {
     );
     expect(form.getTextField(AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn).getText()).toBe('1');
     expect(form.getTextField(AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid).getText()).toBe('2');
-    expect(form.getTextField(AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee).getText()).toBe('7.00');
+    expect(form.getTextField(AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee).getText()).toBe('9.00');
   });
 });

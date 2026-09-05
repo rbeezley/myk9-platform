@@ -151,7 +151,14 @@ export function getEntryStatusBadge(
 }
 
 /**
- * Returns a styled badge for payment status
+ * Returns a styled badge for payment status.
+ *
+ * Every `PaymentStatus` member must have a case here: the `default` arm exists
+ * only for a value that is not a member at all, and anything reaching it reads
+ * as "Unknown" to the exhibitor. WAIVED fell through for exactly that reason,
+ * badging a $0.00 confirmed entry as "Accepted - Unknown" (MYK9-385).
+ * `paymentStatusBadgeCoverage.test.tsx` enumerates the enum and fails on any
+ * member that falls through, so a newly added status cannot repeat it.
  */
 export function getPaymentStatusBadge(
   status: PaymentStatus,
@@ -168,6 +175,8 @@ export function getPaymentStatusBadge(
           {options.isPastShow ? 'Payment unresolved' : 'Payment Due'}
         </Badge>
       );
+    case PaymentStatus.WAIVED:
+      return <Badge className="bg-primary/10 text-primary border-border border">Fee waived</Badge>;
     case PaymentStatus.REFUNDED:
       return <Badge className="bg-primary/10 text-primary border-border border">Refunded</Badge>;
     case PaymentStatus.PARTIAL_REFUND:

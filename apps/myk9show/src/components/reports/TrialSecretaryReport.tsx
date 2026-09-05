@@ -1,10 +1,10 @@
 import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
-import { AKC_SCENT_WORK_REPORT_FEE_PER_RUN } from '@/lib/reports/reportConstants';
-
-const AKC_ADDRESS =
-  'The American Kennel Club, Event Operations, 8051 Arco Corporate Dr, Suite 100, Raleigh, NC 27617-3390';
+import {
+  AKC_TRIAL_SECRETARY_CANONICAL_FORM,
+  resolveAKCTrialSecretaryReportPolicy,
+} from '@/features/organization-forms/akcTrialSecretaryReportPolicy';
 
 export const TrialSecretaryReport: React.FC<ReportProps> = ({
   showName,
@@ -14,8 +14,7 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
 }) => {
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
-  const entryCount = entries.length;
-  const totalFee = (entryCount * AKC_SCENT_WORK_REPORT_FEE_PER_RUN).toFixed(2);
+  const policy = resolveAKCTrialSecretaryReportPolicy(trial?.date, entries);
 
   return (
     <div className="report-page">
@@ -26,13 +25,16 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
       </div>
 
       <div className="form-section">
-        <p style={{ fontSize: '10px' }}>
-          Upon completion of a Scent Work Trial, the Superintendent/Event Secretary shall complete a
-          copy of this form for each event (one event per form) and mail the marked and signed
-          original and judge copies to AKC Event Operations within 15 days of the event.
-        </p>
-        <p className="form-address">Send to: {AKC_ADDRESS}</p>
+        <p style={{ fontSize: '10px' }}>{AKC_TRIAL_SECRETARY_CANONICAL_FORM.timing}</p>
+        <p className="form-address">Send to: {AKC_TRIAL_SECRETARY_CANONICAL_FORM.address}</p>
+        <p style={{ fontSize: '10px' }}>Form {AKC_TRIAL_SECRETARY_CANONICAL_FORM.revision}</p>
       </div>
+
+      {!policy.ok && (
+        <div className="form-section" role="alert">
+          {policy.recovery}
+        </div>
+      )}
 
       <table className="form-table">
         <tbody>
@@ -49,18 +51,32 @@ export const TrialSecretaryReport: React.FC<ReportProps> = ({
             <td className="form-value">Trial {trial?.trialNumber ?? '___'}</td>
           </tr>
           <tr>
-            <td className="form-label">Number of Entries:</td>
-            <td className="form-value">{entryCount}</td>
+            <td className="form-label">Total # of Entries at closing:</td>
+            <td className="form-value">{entries.length}</td>
           </tr>
+          {policy.ok && (
+            <>
+              <tr>
+                <td className="form-label"># Withdrawn Entries after closing:</td>
+                <td className="form-value">{policy.excludedRuns}</td>
+              </tr>
+              <tr>
+                <td className="form-label"># of Entries for which service fees are due:</td>
+                <td className="form-value">{policy.paidRuns}</td>
+              </tr>
+            </>
+          )}
           <tr>
             <td className="form-label">Judge Name:</td>
             <td className="form-value">{judgeName}</td>
           </tr>
-          <tr>
-            <td className="form-label" colSpan={2}>
-              {`$${AKC_SCENT_WORK_REPORT_FEE_PER_RUN.toFixed(2)} per entry × ${entryCount} entries = $${totalFee} Total Service Charge`}
-            </td>
-          </tr>
+          {policy.ok && (
+            <tr>
+              <td className="form-label" colSpan={2}>
+                {`$${policy.formattedRate} per run × ${policy.paidRuns} paid runs = $${policy.formattedTotal} Total Service Fees`}
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
 

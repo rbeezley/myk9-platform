@@ -84,6 +84,28 @@ describe('DogEntriesSection', () => {
     expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
   });
 
+  it('renders a released qualification and time in the entry row', () => {
+    render(
+      <DogEntriesSection
+        group={{
+          ...group,
+          entries: [
+            {
+              ...group.entries[0],
+              hasResult: true,
+              result: { qualified: true, time: '0:38.50' },
+            },
+          ],
+        }}
+        showId="show-1"
+      />
+    );
+
+    expect(screen.getByText('Qualified')).toBeInTheDocument();
+    expect(screen.getByText('0:38.50')).toBeInTheDocument();
+    expect(screen.queryByText('Awaiting results')).not.toBeInTheDocument();
+  });
+
   it('uses the canonical pending-review label for an entry awaiting review', () => {
     render(
       <DogEntriesSection

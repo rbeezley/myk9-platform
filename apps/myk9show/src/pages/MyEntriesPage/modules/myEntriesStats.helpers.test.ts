@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import {
   startOfLocalDay,
@@ -57,10 +57,51 @@ describe('parseShowDate', () => {
     expect(isPastShowEntry(entry, NOW)).toBe(true);
   });
 
-  it('passes through a full timestamp and returns undefined for empty', () => {
-    expect(parseShowDate('2026-06-02T08:30:00-05:00')?.getFullYear()).toBe(2026);
+  it('keeps the written calendar day of a timestamped DATE column', () => {
+    // Callers only ever feed this calendar-date columns, so the day written in
+    // the string is the intended one regardless of the offset it carries.
+    const d = parseShowDate('2026-06-02T08:30:00-05:00')!;
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(5);
+    expect(d.getDate()).toBe(2);
+  });
+
+  it('returns undefined for empty input', () => {
     expect(parseShowDate(null)).toBeUndefined();
     expect(parseShowDate('')).toBeUndefined();
+  });
+
+  // MYK9-384 (E28): shows.entry_close_date round-trips as a midnight-UTC
+  // timestamp. new Date() read 2027-01-02T00:00:00+00:00 as the evening of
+  // Jan 1 in Chicago, so My Shows said "Entries close Jan 1, 2027" for a show
+  // the server keeps open through the whole of Jan 2.
+  describe('midnight-UTC DATE round-trip', () => {
+    const originalTimezone = process.env.TZ;
+
+    afterEach(() => {
+      if (originalTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimezone;
+    });
+
+    // Negative offset (the reported repro), UTC, and two POSITIVE offsets.
+    it.each(['America/Chicago', 'UTC', 'Asia/Tokyo', 'Pacific/Kiritimati'])(
+      'reads the entry-close date as Jan 2 across a month boundary in %s',
+      timezone => {
+        process.env.TZ = timezone;
+
+        for (const raw of [
+          '2027-01-02T00:00:00+00:00',
+          '2027-01-02 00:00:00+00',
+          '2027-01-02T00:00:00Z',
+          '2027-01-02',
+        ]) {
+          const d = parseShowDate(raw)!;
+          expect(d.getFullYear()).toBe(2027);
+          expect(d.getMonth()).toBe(0);
+          expect(d.getDate()).toBe(2);
+        }
+      }
+    );
   });
 });
 
@@ -307,7 +348,7 @@ describe('getPartiallyScoredState', () => {
 
   // A reset row is outstanding, so its leftover 'completed' status must not
   // reach the summary — that would pair a completed icon with "still to run".
-  it('does not carry a reset class\'s stale completed status into the summary', () => {
+  it("does not carry a reset class's stale completed status into the summary", () => {
     const entry = makeEntry({
       entryStatus: EntryStatus.COMPLETED,
       entryStatusKind: 'completed',
@@ -350,7 +391,11 @@ describe('computeMyEntriesShowProgressStats — one verdict per show', () => {
       entryStatus: EntryStatus.COMPLETED,
       entryStatusKind: 'completed',
     });
-    const unfinished = makeEntry({ ...shared, id: 'unfinished', entryStatus: EntryStatus.ACCEPTED });
+    const unfinished = makeEntry({
+      ...shared,
+      id: 'unfinished',
+      entryStatus: EntryStatus.ACCEPTED,
+    });
 
     const stats = computeMyEntriesShowProgressStats([finished, unfinished], NOW);
 

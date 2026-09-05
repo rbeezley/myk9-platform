@@ -1,6 +1,8 @@
 /** Parse a YYYY-MM-DD or ISO timestamp as local midnight to avoid UTC-offset surprises. */
 export function toLocalDate(isoStr: string): Date {
-  const dateOnly = isoStr.split('T')[0] ?? isoStr;
+  // A DATE column round-trips as either "2026-08-01T00:00:00+00:00" or the
+  // space-separated "2026-08-01 00:00:00+00" — split on both separators.
+  const dateOnly = isoStr.split(/[T ]/)[0] ?? isoStr;
   return new Date(dateOnly + 'T00:00:00');
 }
 

@@ -56,6 +56,11 @@ export function MyEntriesTab({
     );
   }
 
+  // Entries the exhibitor holds that are not on the run schedule (withdrawn,
+  // scratched, not-accepted, moved-up sources, promotion-expired). This is the
+  // exact gap between the "My Entries" tab badge and the schedule figure.
+  const offScheduleCount = allEntries.length - scheduleEntries.length;
+
   if (allEntries.length === 0) {
     return (
       <EmptyState
@@ -79,10 +84,30 @@ export function MyEntriesTab({
           </div>
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-foreground">My run schedule</h2>
+            {/*
+              MYK9-387: this figure and the "My Entries" tab badge measure
+              DIFFERENT sets and must not be read as the same number. The badge
+              counts every entry the exhibitor holds in this show (its history,
+              terminal states included); this line counts only the entries that
+              actually run — `isRunnableScheduleStatus` drops withdrawn,
+              scratched, not-accepted, moved and promotion-expired rows. Both
+              said "classes" before, so a withdrawal made the screen look wrong.
+              The label now says "scheduled runs", and the sentence below states
+              the remainder outright rather than leaving it to be inferred.
+            */}
             <p className="mt-1 text-sm text-muted-foreground">
               {totalClasses} scheduled {totalClasses === 1 ? 'run' : 'runs'} across{' '}
-              {scheduleDogCount} {scheduleDogCount === 1 ? 'dog' : 'dogs'}. Times, armbands, judges,
-              and results stay together here.
+              {scheduleDogCount} {scheduleDogCount === 1 ? 'dog' : 'dogs'}. Times, armbands,
+              judges, and results stay together here.
+              {offScheduleCount > 0 && (
+                <>
+                  {' '}
+                  {offScheduleCount} other {offScheduleCount === 1 ? 'entry' : 'entries'}{' '}
+                  (withdrawn, scratched, moved up, or expired){' '}
+                  {offScheduleCount === 1 ? 'is' : 'are'} listed below but{' '}
+                  {offScheduleCount === 1 ? 'does' : 'do'} not run.
+                </>
+              )}
             </p>
           </div>
         </div>

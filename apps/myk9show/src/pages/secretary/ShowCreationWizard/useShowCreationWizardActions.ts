@@ -247,6 +247,9 @@ export function useShowCreationWizardActions({
           finishShowSave({
             status,
             shouldShowCompletion,
+            // Create-only path: this whole branch is gated on
+            // `!editMode?.showId && isOnline` above.
+            editMode,
             showId: realShowId,
             showName: savedShow.name,
             passcodes,
@@ -378,6 +381,7 @@ export function useShowCreationWizardActions({
         finishShowSave({
           status,
           shouldShowCompletion,
+          editMode,
           showId: realShowId,
           showName: savedShow.name,
           passcodes: null,
@@ -386,8 +390,11 @@ export function useShowCreationWizardActions({
           navigate,
         });
 
-        // Show success toast (skip for non-draft when the success overlay is shown instead)
-        if (status === 'draft' && !shouldShowCompletion) {
+        // Edit saves return to the existing show; creation saves may use the
+        // overlay instead of a toast so one-time passcodes remain visible.
+        if (editMode?.showId) {
+          notifications.success(`"${savedShow.name}" updated successfully`);
+        } else if (status === 'draft' && !shouldShowCompletion) {
           notifications.success(`"${savedShow.name}" saved as draft`);
         } else if (!onCreatedRef.current) {
           notifications.success(`"${savedShow.name}" created successfully`);

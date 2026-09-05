@@ -89,6 +89,73 @@ describe('filterUsers search', () => {
   it('matches on phone, which the table renders and the placeholder promises', () => {
     expect(filterUsers(users, '555-0199', DEFAULT_USER_FILTER)).toHaveLength(1);
   });
+
+  it('matches a first name alone and a last name alone', () => {
+    expect(filterUsers(users, 'alice', DEFAULT_USER_FILTER).map(u => u.id)).toEqual(['1']);
+    expect(filterUsers(users, 'Jones', DEFAULT_USER_FILTER).map(u => u.id)).toEqual(['2']);
+  });
+
+  it('returns nothing for a query that matches no row', () => {
+    expect(filterUsers(users, 'zebra', DEFAULT_USER_FILTER)).toHaveLength(0);
+  });
+
+  it('returns every row for an empty or whitespace-only query', () => {
+    expect(filterUsers(users, '', DEFAULT_USER_FILTER)).toHaveLength(2);
+    expect(filterUsers(users, '   ', DEFAULT_USER_FILTER)).toHaveLength(2);
+  });
+});
+
+// MYK9-397: the search tested the whole query against firstName and lastName
+// separately, so typing the exact name the table displays ("Alice Smith")
+// matched neither field, the roster counters went to zero, and the page said
+// "No users match your filters" — while "Smith" alone worked fine.
+describe('filterUsers search by displayed full name', () => {
+  const users = [
+    {
+      id: '1',
+      firstName: 'Alice',
+      lastName: 'Smith',
+      email: 'alice@example.com',
+      phone: '555-0100',
+    },
+    { id: '2', firstName: 'Bob', lastName: 'Jones', email: 'bob@example.com', phone: '555-0199' },
+    { id: '3', firstName: 'Alice', lastName: 'Jones', email: 'aj@example.com', phone: '555-0123' },
+  ] as User[];
+
+  it('finds a user by their exact first+last displayed name', () => {
+    expect(filterUsers(users, 'Alice Smith', DEFAULT_USER_FILTER).map(u => u.id)).toEqual(['1']);
+  });
+
+  it('ignores case in the full name', () => {
+    expect(filterUsers(users, 'alice smith', DEFAULT_USER_FILTER).map(u => u.id)).toEqual(['1']);
+    expect(filterUsers(users, 'ALICE SMITH', DEFAULT_USER_FILTER).map(u => u.id)).toEqual(['1']);
+  });
+
+  it('tolerates leading, trailing, and internal extra whitespace', () => {
+    expect(filterUsers(users, '  Alice   Smith  ', DEFAULT_USER_FILTER).map(u => u.id)).toEqual([
+      '1',
+    ]);
+  });
+
+  it('ANDs the tokens — every one must match, so a second word narrows', () => {
+    // "Alice" alone matches two rows; adding "Jones" must leave only one, and
+    // adding a word nobody has must leave none. An ORed search would return
+    // three rows for the second case.
+    expect(filterUsers(users, 'Alice', DEFAULT_USER_FILTER)).toHaveLength(2);
+    expect(filterUsers(users, 'Alice Jones', DEFAULT_USER_FILTER).map(u => u.id)).toEqual(['3']);
+    expect(filterUsers(users, 'Alice Zebra', DEFAULT_USER_FILTER)).toHaveLength(0);
+  });
+
+  it('still matches a full name combined with another field', () => {
+    expect(
+      filterUsers(users, 'Alice Smith alice@example.com', DEFAULT_USER_FILTER).map(u => u.id)
+    ).toEqual(['1']);
+  });
+
+  it('does not match a reversed name across the row boundary', () => {
+    // "Smith Bob" must not match: the two tokens come from different rows.
+    expect(filterUsers(users, 'Smith Bob', DEFAULT_USER_FILTER)).toHaveLength(0);
+  });
 });
 
 // The created-date pickers collected dates, rendered "From:"/"To:" chips, and

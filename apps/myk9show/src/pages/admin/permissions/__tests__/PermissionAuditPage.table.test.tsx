@@ -6,7 +6,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
     getAuditLogs: vi.fn().mockResolvedValue([
       {
         id: 'log-1',
-        action: 'assign_role',
+        action: 'role_assigned',
         user_id: 'user-abc-123',
         target_type: 'role',
         target_id: 'role-xyz',
@@ -35,7 +35,7 @@ vi.mock('@/services/rbac/RBACService', () => ({
       },
       {
         id: 'log-3',
-        action: 'grant_permission',
+        action: 'permission_granted',
         user_id: null,
         target_type: 'user',
         target_id: 'user-ghi',

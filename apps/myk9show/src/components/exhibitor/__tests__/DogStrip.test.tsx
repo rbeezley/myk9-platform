@@ -32,7 +32,7 @@ describe('DogStrip', () => {
     expect(screen.getByText('2 upcoming classes')).toBeInTheDocument();
   });
 
-  it('shows no upcoming classes for dog with no future classes', () => {
+  it('shows No upcoming classes for dog with no future classes', () => {
     render(<DogStrip dogs={dogs} upcomingClassCountByDog={{ d1: 2 }} />);
     expect(screen.getByText('No upcoming classes')).toBeInTheDocument();
   });

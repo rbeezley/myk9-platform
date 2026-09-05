@@ -58,7 +58,7 @@ const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
 };
 
 // The owner-scoped self_checkin_entry RPC permits exhibitors to report their
-// own availability, including a conflict or withdrawal. Staff surfaces retain
+// own availability, including a conflict or pulled class. Staff surfaces retain
 // the operational labels from the shared status grammar.
 const EXHIBITOR_SELECTABLE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
   'no-status',

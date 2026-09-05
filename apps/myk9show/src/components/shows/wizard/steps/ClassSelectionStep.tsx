@@ -18,8 +18,12 @@ import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { prewarmClassRulesCache } from '@/services/sportTemplateService';
 import {
+  buildRetainedClassDefinition,
   buildWizardClassItem,
+  getClassIdentityKey,
+  getWizardClassIdentityKey,
   mergeSelectedClassesWithExisting,
+  mergeTemplateWithRetainedClassDefinitions,
 } from './ClassSelectionStep.helpers';
 
 interface ExistingClassInfo {
@@ -101,20 +105,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         const templateId = trial.classes[0]?.templateId;
         if (templateId) {
           selectedTemplate = templates.find(t => t.id === templateId) || null;
-          if (selectedTemplate) {
-            selectedClasses = trial.classes.map(cls => {
-              const templateClass = selectedTemplate!.classDefinitions?.find(
-                def => def.className === (cls.customizations?.className as string)
-              );
-              return (
-                templateClass || {
-                  className: (cls.customizations?.className as string) || 'Unknown Class',
-                  element: (cls.customizations?.element as string) || 'Unknown Element',
-                  displayOrder: 0,
-                }
-              );
-            });
-          }
+          selectedClasses = trial.classes.map(cls => {
+            const templateClass = selectedTemplate?.classDefinitions?.find(
+              def => getClassIdentityKey(def) === getWizardClassIdentityKey(cls)
+            );
+            return buildRetainedClassDefinition(cls, templateClass);
+          });
         }
       }
 
@@ -165,6 +161,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         // Fill in missing trials with defaults
         states[trial.id] = { selectedTemplate: null, selectedClasses: [] };
       }
+      // Template data normally arrives after the cloned trial state. Reconnect the
+      // saved template in derived state without clearing retained class selections.
+      const savedTemplateId = trial.classes[0]?.templateId;
+      const savedTemplate = activeTemplates.find(template => template.id === savedTemplateId);
+      if (savedTemplate && !states[trial.id].selectedTemplate) {
+        states[trial.id] = {
+          ...states[trial.id],
+          selectedTemplate: savedTemplate,
+        };
+      }
       // Auto-select single template for trials with no template set
       if (autoSelectTemplate && !states[trial.id].selectedTemplate) {
         states[trial.id] = {
@@ -183,6 +189,17 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     selectedTemplate: null,
     selectedClasses: [],
   };
+
+  const currentTemplateWithRetainedClasses = useMemo(
+    () =>
+      currentTrialState.selectedTemplate
+        ? mergeTemplateWithRetainedClassDefinitions(
+            currentTrialState.selectedTemplate,
+            currentTrialState.selectedClasses
+          )
+        : null,
+    [currentTrialState.selectedClasses, currentTrialState.selectedTemplate]
+  );
 
   // Filter DB existing classes to the current trial for the SimpleClassSelector prop
   const existingClassesForTrial = useMemo(() => {
@@ -264,9 +281,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const handleTemplateSelected = (templateId: string) => {
     const template = activeTemplates.find(t => t.id === templateId);
     if (template) {
+      const savedTemplateId = currentTrial?.classes[0]?.templateId;
+      const retainsCurrentClasses =
+        currentTrialState.selectedTemplate?.id === template.id || savedTemplateId === template.id;
       updateTrialState(currentTrialId, {
         selectedTemplate: template,
-        selectedClasses: [], // Reset classes when template changes
+        selectedClasses: retainsCurrentClasses ? currentTrialState.selectedClasses : [],
       });
     }
   };
@@ -292,9 +312,23 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
               templateId,
               judgeAssignments
             )
-          : selectedClasses.map(cls =>
-              buildWizardClassItem(cls, templateId, judgeAssignments[cls.className])
-            );
+          : selectedClasses.map(cls => {
+              const previousClass = currentTrial.classes.find(
+                classItem => getWizardClassIdentityKey(classItem) === getClassIdentityKey(cls)
+              );
+              const nextClass = buildWizardClassItem(
+                cls,
+                templateId,
+                judgeAssignments[cls.className] || previousClass?.judgeId
+              );
+              return {
+                ...nextClass,
+                customizations: {
+                  ...previousClass?.customizations,
+                  ...nextClass.customizations,
+                },
+              };
+            });
 
       updateTrial(currentTrial.id, { classes: classItems });
     }
@@ -477,14 +511,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                   )}
 
                   {/* Class Selection */}
-                  {currentTrialState.selectedTemplate ? (
+                  {currentTemplateWithRetainedClasses ? (
                     <Card>
                       <CardHeader>
                         <CardTitle>Select Classes for {trial.name}</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <SimpleClassSelector
-                          template={currentTrialState.selectedTemplate}
+                          template={currentTemplateWithRetainedClasses}
                           selectedClasses={currentTrialState.selectedClasses}
                           onSelectionChange={handleClassSelectionChange}
                           existingClasses={existingClassesForTrial}

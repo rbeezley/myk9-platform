@@ -1,43 +1,21 @@
-import type { ReportEntry, ReportProps } from '@/lib/reports/types';
-import { AKC_SCENT_WORK_REPORT_FEE_PER_RUN } from '@/lib/reports/reportConstants';
+import type { ReportProps } from '@/lib/reports/types';
 import { AKC_TRIAL_SECRETARY_REPORT_FIELDS } from './akcTrialSecretaryReportFields';
 import type { PdfFormFillValues } from './pdfForm';
 import { formattedTrialDate, textOrUndefined, trialEventNumber } from './reportValueHelpers';
-import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
-
-const WITHDRAWN_RUN_STATUS_CODES = new Set([
-  'pulled',
-  'scratch',
-  'scratched',
-  'no show',
-  'no-show',
-  'wd',
-  'withdrawn',
-  'abs',
-]);
-
-function isWithdrawn(entry: ReportEntry): boolean {
-  if (isNonRunningEntry({ entryStatus: entry.entryStatus })) return true;
-  const statuses = [entry.checkInStatus, entry.resultText]
-    .map(status => status?.trim().toLowerCase())
-    .filter((status): status is string => Boolean(status));
-
-  return statuses.some(
-    status => WITHDRAWN_RUN_STATUS_CODES.has(status) || isNonRunningEntry({ entryStatus: status })
-  );
-}
+import { resolveAKCTrialSecretaryReportPolicy } from './akcTrialSecretaryReportPolicy';
 
 export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormFillValues {
   const trialDate = formattedTrialDate(props);
-  const withdrawn = props.entries.filter(isWithdrawn).length;
-  const runsPaid = Math.max(0, props.entries.length - withdrawn);
-  const totalFee = (runsPaid * AKC_SCENT_WORK_REPORT_FEE_PER_RUN).toFixed(2);
+  const policy = resolveAKCTrialSecretaryReportPolicy(props.trial?.date, props.entries);
   const text: NonNullable<PdfFormFillValues['text']> = {
     [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalRunsAtClosing]: props.entries.length,
-    [AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]: withdrawn,
-    [AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]: runsPaid,
-    [AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee]: totalFee,
   };
+
+  if (policy.ok) {
+    text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn] = policy.excludedRuns;
+    text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid] = policy.paidRuns;
+    text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.totalFee] = policy.formattedTotal;
+  }
 
   const clubName = textOrUndefined(props.clubName);
   if (clubName) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.club] = clubName;
@@ -45,7 +23,10 @@ export function buildAKCTrialSecretaryReportValues(props: ReportProps): PdfFormF
   const eventNumber = trialEventNumber(props);
   if (eventNumber) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.eventNumber] = eventNumber;
 
-  if (trialDate) text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate] = trialDate;
+  const hasUsableDate = policy.ok || policy.reason === 'unsupported';
+  if (trialDate && hasUsableDate) {
+    text[AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate] = trialDate;
+  }
 
   return {
     text,

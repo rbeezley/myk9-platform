@@ -62,6 +62,17 @@ describe('deriveEntryNextAction', () => {
     expect(deriveEntryNextAction(entry, { now: NOW })).toEqual({ kind: 'finish-payment' });
   });
 
+  it('does not offer online payment after the show has ended', () => {
+    const pastEntry = makeEntry({
+      showDate: new Date('2026-08-01T12:00:00Z'),
+      showEndDate: new Date('2026-08-02T12:00:00Z'),
+      paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: 'online',
+    });
+
+    expect(deriveEntryNextAction(pastEntry, { now: NOW })).toEqual({ kind: 'view-show' });
+  });
+
   it('returns check-in for a paid entry with a check-in-eligible class, over view-show', () => {
     const entry = makeEntry({
       paymentStatus: PaymentStatus.PAID_ONLINE,

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { ClubShow } from './types';
 import { getShowStatus } from './utils';
-import { formatShortDate } from '@/lib/format/dates';
+import { formatShortCalendarDate } from '@/lib/format/dates';
 
 interface PastShowsTabProps {
   shows: ClubShow[];
@@ -39,55 +39,58 @@ export const PastShowsTab: React.FC<PastShowsTabProps> = ({ shows, onViewShowDet
         return (
           <div
             key={show.id}
-            className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 cursor-pointer"
+            className="relative bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 cursor-pointer"
             style={accentBorderStyle(show.accentColor)}
-            onClick={() => onViewShowDetails(show.id)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onViewShowDetails(show.id);
-              }
-            }}
           >
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="text-lg font-semibold text-foreground">{show.name}</div>
-                <div className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide bg-purple-500/10 text-purple-500 border border-purple-500/20">
-                  {showStatus.label}
+            <button
+              type="button"
+              aria-label={`View ${show.name}`}
+              className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              onClick={() => onViewShowDetails(show.id)}
+            />
+            <div className="pointer-events-none relative z-[1]">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="text-lg font-semibold text-foreground">{show.name}</div>
+                  <div className="px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide bg-purple-500/10 text-purple-500 border border-purple-500/20">
+                    {showStatus.label}
+                  </div>
+                </div>
+                <div className="pointer-events-auto flex items-start flex-shrink-0">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-11 w-11 p-0"
+                        aria-label={`Actions for ${show.name}`}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onViewShowDetails(show.id)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Results
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
-              <div className="flex items-start flex-shrink-0" onClick={e => e.stopPropagation()}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onViewShowDetails(show.id)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Results
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  {formatShortCalendarDate(show.date)}
+                </div>
+                <div className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {show.location}
+                </div>
               </div>
+              {show.description && (
+                <div className="text-sm text-foreground leading-relaxed">{show.description}</div>
+              )}
             </div>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
-              <div className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                {formatShortDate(show.date)}
-              </div>
-              <div className="flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                {show.location}
-              </div>
-            </div>
-
-            {show.description && (
-              <div className="text-sm text-foreground leading-relaxed">{show.description}</div>
-            )}
           </div>
         );
       })}

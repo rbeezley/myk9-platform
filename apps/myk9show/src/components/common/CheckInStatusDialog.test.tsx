@@ -32,7 +32,7 @@ describe('CheckInStatusDialog', () => {
 // first-person copy, only self-service statuses, and a correctly-labeled
 // identifier — not staff voice, staff-only statuses, or a mislabeled number.
 describe('CheckInStatusDialog — exhibitor voice', () => {
-  it('shows plainly worded self-service choices, including withdrawal', () => {
+  it('shows plainly worded self-service choices, including a pulled class signal', () => {
     render(
       <CheckInStatusDialog
         open={true}
@@ -48,6 +48,11 @@ describe('CheckInStatusDialog — exhibitor voice', () => {
     expect(screen.getByText('I am not there yet')).toBeInTheDocument();
     expect(screen.getByText('I have a conflict — tell the secretary')).toBeInTheDocument();
     expect(screen.getByText("I won't be running this class")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This only tells the secretary that this dog won't run in this class; it does not withdraw the entry or change its fee"
+      )
+    ).toBeInTheDocument();
     expect(screen.getByText('At Gate')).toBeInTheDocument();
   });
 

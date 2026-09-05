@@ -38,8 +38,18 @@ describe('Class Creation Store', () => {
     vi.clearAllMocks();
   });
 
-  // Use setTemplateData() to bypass the require('./templateStore') circular dependency
   describe('Template Selection', () => {
+    test('selects a template through the typed template store API', () => {
+      const template = createMockTemplate();
+      useTemplateStore.setState({ templates: [template] });
+
+      useClassCreationStore.getState().selectTemplate(template.id);
+
+      const state = useClassCreationStore.getState();
+      expect(state.selectedTemplate?.id).toBe(template.id);
+      expect(state.selectedClasses).toHaveLength(template.classDefinitions.length);
+    });
+
     test('selects a template by providing data directly', () => {
       const template = createMockTemplate();
       const creationStore = useClassCreationStore.getState();

@@ -82,6 +82,30 @@ describe('money-path closeout source contracts', () => {
     expect(refundEntrySource).toContain(".or('refund_amount.is.null,refund_amount.eq.0')");
   });
 
+  // SA-2026-09-05-02 was raised against this function and was WRONG: the audit
+  // read secretMatches() in isolation and concluded that an unset
+  // PAYOUT_CRON_SECRET would let `x-function-secret: undefined` authenticate,
+  // because TextEncoder.encode(undefined) encodes the string "undefined". The
+  // module-load guard below makes that unreachable — Deno.serve is never
+  // registered, so every request fails. cron-health-check has the identical
+  // guard and cronHealthCheck.source.test.ts already pins it; this is the same
+  // assertion for the money-moving twin, which had none.
+  //
+  // The regex requires the guard as a real `if` on the four required names.
+  // A comment mentioning them does not satisfy it, and deleting the guard makes
+  // this test red rather than merely un-asserted.
+  it('refuses to start when any required secret is unset, including the cron secret', () => {
+    const requiredEnvironmentGuard = payoutSource.match(
+      /if \(!supabaseUrl \|\| !supabaseServiceKey \|\| !stripeSecret \|\| !cronSecret\) \{[\s\S]*?\}/
+    )?.[0];
+
+    expect(
+      requiredEnvironmentGuard,
+      'cron-process-payouts must fail closed at module load on a missing secret'
+    ).toBeDefined();
+    expect(requiredEnvironmentGuard).toContain('throw new Error');
+  });
+
   it('scopes go-live Stripe ID purge to sandbox rows after livemode columns exist', () => {
     expect(runbookSource).toContain('delete from stripe_customers where livemode = false');
     expect(runbookSource).toContain('delete from club_stripe_accounts where livemode = false');

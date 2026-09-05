@@ -32,6 +32,11 @@ import {
   type LedgerRow,
 } from '@/features/payments/payoutLedger';
 import { PlatformIncomeCard } from '@/features/financial/components/PlatformIncomeCard';
+import { usePlatformFinancialOverview } from '@/features/financial/components/usePlatformFinancialOverview';
+import {
+  resolvePayoutLedgerEmptyState,
+  type OverviewChargeActivity,
+} from './payoutLedgerEmptyState';
 import { getPayoutStatusPresentation } from './adminStatusPresentation';
 
 /* Warning tone for a payout past its settle date. Uses the shared admin status
@@ -611,12 +616,32 @@ function PayoutLedgerRow({ row, today }: { row: LedgerRow; today: string }) {
   );
 }
 
-function LedgerTable({ rows, today }: { rows: LedgerRow[]; today: string }) {
-  if (rows.length === 0) {
+function LedgerTable({
+  rows,
+  today,
+  overviewCharges,
+}: {
+  rows: LedgerRow[];
+  today: string;
+  /* MYK9-395: the overview's charge-derived total is a DIFFERENT source from
+     these rows, so an empty ledger is only evidence about the ledger. The state
+     is threaded in explicitly (never re-derived here) purely to decide which
+     empty sentence is defensible — no amount on this page comes from it. */
+  overviewCharges: OverviewChargeActivity;
+}) {
+  const emptyState = resolvePayoutLedgerEmptyState({
+    rowCount: rows.length,
+    overviewCharges,
+  });
+  if (emptyState) {
     return (
       <Card>
-        <CardContent className="py-10 text-center text-muted-foreground">
-          No online payments yet. Club liabilities appear here once exhibitors pay online.
+        <CardContent className="space-y-2 py-10 text-center text-muted-foreground">
+          <p className="text-foreground">{emptyState.headline}</p>
+          <p className="mx-auto max-w-prose text-sm">{emptyState.detail}</p>
+          {emptyState.guidance && (
+            <p className="mx-auto max-w-prose text-sm">{emptyState.guidance}</p>
+          )}
         </CardContent>
       </Card>
     );
@@ -731,6 +756,30 @@ export default function PayoutLedgerPage() {
   const { data: ledger, isLoading, isError, refetch } = usePlatformPayoutLedger();
   const rows = ledger?.rows;
 
+  /* Same query key as PlatformIncomeCard above, so this shares that card's
+     cache entry rather than issuing a second reconciliation read. Loading, a
+     failed read and a paused (offline) query all collapse to 'unknown' — an
+     unread total must never be spoken of as zero.
+
+     GROSS, not the displayed "Online collected". Collected is net of both
+     refund kinds (financialSummary.ts `derivePlatformIncome`), so a fully
+     refunded history nets to zero and would be reported as "no online payments
+     yet" — a false claim about money that was charged and handed back. Gross is
+     reconstructed by re-adding exactly what that line subtracts; both addends
+     are already on this object, so nothing new is fetched or derived. */
+  const overview = usePlatformFinancialOverview();
+  const platformIncome = overview.data?.summary.platformIncome;
+  const overviewCharges: OverviewChargeActivity =
+    overview.isLoading || overview.isError || !platformIncome
+      ? { status: 'unknown' }
+      : {
+          status: 'known',
+          grossChargedCents:
+            platformIncome.onlineCollectedCents +
+            platformIncome.refundedCents +
+            platformIncome.makeWholeRefundedCents,
+        };
+
   // Surface load failures without leaving the page blank (often RLS — only site
   // admins may read the cross-club entries/payouts this ledger joins).
   useEffect(() => {
@@ -779,7 +828,7 @@ export default function PayoutLedgerPage() {
               rows={rows}
               refundDecisionChecked={ledger.refundDecisionChecked}
             />
-            <LedgerTable rows={rows} today={todayIso()} />
+            <LedgerTable rows={rows} today={todayIso()} overviewCharges={overviewCharges} />
           </>
         )}
       </section>

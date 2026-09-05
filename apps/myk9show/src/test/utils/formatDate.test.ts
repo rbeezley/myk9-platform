@@ -74,17 +74,14 @@ describe('formatDate utilities', () => {
     });
 
     it('should handle Date objects passed as strings', () => {
-      // new Date('2024-01-15') is UTC midnight; toISOString produces
-      // '2024-01-15T00:00:00.000Z'. In timezones behind UTC, the local
-      // date will be Jan 14. Use the Date constructor path to get the
-      // expected local result.
+      // MYK9-384: this asserted '01/15/2024' when it was written (35c3a1d4b) and
+      // was later weakened to compute the expected value from LOCAL time, which
+      // pinned the very shift this helper now fixes: a DATE column round-trips as
+      // '2024-01-15T00:00:00.000Z', and reading that as an instant renders Jan 14
+      // for every viewer west of UTC. The calendar day written in the string is
+      // the intended one, so the original expectation is restored.
       const date = new Date('2024-01-15');
-      const isoStr = date.toISOString();
-      const localDate = new Date(isoStr);
-      const expectedMonth = localDate.getMonth() + 1;
-      const expectedDay = localDate.getDate();
-      const expectedYear = localDate.getFullYear();
-      expect(formatDateMMDDYYYY(isoStr)).toBe(`${expectedMonth}/${expectedDay}/${expectedYear}`);
+      expect(formatDateMMDDYYYY(date.toISOString())).toBe('1/15/2024');
     });
 
     it('should be consistent across different timezones for date-only strings', () => {

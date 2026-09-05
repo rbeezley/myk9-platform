@@ -100,6 +100,6 @@ describe('MyEntriesTab', () => {
       })
     );
     render(<MyEntriesTab showId="s1" />);
-    expect(screen.getByText(/3 classes across 2 dogs/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 scheduled runs across 2 dogs/i)).toBeInTheDocument();
   });
 });

@@ -234,4 +234,97 @@ BEGIN
 END;
 $$;
 
+-- ===========================================================================
+-- MYK9-404 / SA-2026-09-05-07: the same tombstone rule, one and two levels up.
+--
+-- view_public_entry_results guarded the ENTRY and the SHOW but not the CLASS or
+-- the TRIAL between them, so soft-deleting a class left its entries publicly
+-- readable with their released results. The view is security_invoker = false and
+-- owned by a BYPASSRLS role, so its WHERE clause is the only guard — no policy
+-- was ever going to catch this.
+--
+-- Each level is asserted against a POSITIVE CONTROL on the same row: the live
+-- entry must be visible first, then vanish when its parent is tombstoned, then
+-- come back when the tombstone is lifted. An absence assertion on its own
+-- cannot tell "correctly filtered" from "never visible in the first place".
+-- ===========================================================================
+
+RESET ROLE;
+SET LOCAL ROLE service_role;
+
+DO $$
+DECLARE
+  live_entry CONSTANT uuid := '00000000-0000-0000-0000-000000149007';
+  the_class  CONSTANT uuid := '00000000-0000-0000-0000-000000149004';
+  the_trial  CONSTANT uuid := '00000000-0000-0000-0000-000000149003';
+  visible boolean;
+BEGIN
+  SELECT EXISTS (SELECT 1 FROM public.view_public_entry_results WHERE id = live_entry)
+    INTO visible;
+  IF NOT visible THEN
+    RAISE EXCEPTION 'FAIL positive control: the live entry is not publicly visible to begin with';
+  END IF;
+
+  UPDATE public.classes SET deleted_at = now() WHERE id = the_class;
+  SELECT EXISTS (SELECT 1 FROM public.view_public_entry_results WHERE id = live_entry)
+    INTO visible;
+  IF visible THEN
+    RAISE EXCEPTION 'FAIL an entry of a soft-deleted CLASS is still publicly readable';
+  END IF;
+
+  UPDATE public.classes SET deleted_at = NULL WHERE id = the_class;
+  SELECT EXISTS (SELECT 1 FROM public.view_public_entry_results WHERE id = live_entry)
+    INTO visible;
+  IF NOT visible THEN
+    RAISE EXCEPTION 'FAIL restoring the class did not restore the entry — the predicate is not the class tombstone';
+  END IF;
+
+  UPDATE public.trials SET deleted_at = now() WHERE id = the_trial;
+  SELECT EXISTS (SELECT 1 FROM public.view_public_entry_results WHERE id = live_entry)
+    INTO visible;
+  IF visible THEN
+    RAISE EXCEPTION 'FAIL an entry of a soft-deleted TRIAL is still publicly readable';
+  END IF;
+
+  UPDATE public.trials SET deleted_at = NULL WHERE id = the_trial;
+  SELECT EXISTS (SELECT 1 FROM public.view_public_entry_results WHERE id = live_entry)
+    INTO visible;
+  IF NOT visible THEN
+    RAISE EXCEPTION 'FAIL restoring the trial did not restore the entry';
+  END IF;
+
+  RAISE NOTICE 'PASS the public results view follows class and trial tombstones, both directions';
+END;
+$$;
+
+-- The guard above is only the guard while the view stays owner-run. A bare
+-- CREATE OR REPLACE VIEW wipes reloptions and security_invoker silently reverts
+-- to its default — which is the value this view wants, so the mistake would look
+-- harmless here and did not elsewhere (20260817170000's sibling handed every
+-- authenticated user judge_notes and payment_status that way). Assert the
+-- metadata, folding a NULL reloptions to false rather than skipping it.
+DO $$
+DECLARE
+  invoker text;
+BEGIN
+  SELECT coalesce(
+           (SELECT option_value
+              FROM pg_options_to_table(c.reloptions)
+             WHERE option_name = 'security_invoker'),
+           'false')
+    INTO invoker
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relname = 'view_public_entry_results';
+
+  IF invoker IS DISTINCT FROM 'false' THEN
+    RAISE EXCEPTION
+      'FAIL view_public_entry_results is no longer owner-run (security_invoker = %)', invoker;
+  END IF;
+
+  RAISE NOTICE 'PASS view_public_entry_results kept security_invoker = false';
+END;
+$$;
+
+RESET ROLE;
 ROLLBACK;

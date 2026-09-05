@@ -1,4 +1,4 @@
-import { ClassDefinition } from '@/types/template.types';
+import { ClassDefinition, ClassTemplate } from '@/types/template.types';
 
 export interface ExistingClassIdentity {
   element: string;
@@ -40,6 +40,37 @@ export const buildWizardClassItem = (
   },
   judgeId,
 });
+
+export const buildRetainedClassDefinition = (
+  classItem: WizardClassItem,
+  templateDefinition?: ClassDefinition
+): ClassDefinition => ({
+  ...templateDefinition,
+  ...classItem.customizations,
+  className: normalizeClassPart(classItem.customizations.className) || 'Unknown Class',
+  element: normalizeClassPart(classItem.customizations.element) || 'Unknown Element',
+  displayOrder:
+    typeof classItem.customizations.displayOrder === 'number'
+      ? classItem.customizations.displayOrder
+      : (templateDefinition?.displayOrder ?? 0),
+});
+
+export const mergeTemplateWithRetainedClassDefinitions = (
+  template: ClassTemplate,
+  retainedClasses: ClassDefinition[]
+): ClassTemplate => {
+  const retainedKeys = new Set(retainedClasses.map(getClassIdentityKey));
+
+  return {
+    ...template,
+    classDefinitions: [
+      ...template.classDefinitions.filter(
+        definition => !retainedKeys.has(getClassIdentityKey(definition))
+      ),
+      ...retainedClasses,
+    ],
+  };
+};
 
 export const mergeSelectedClassesWithExisting = (
   existingTrialClasses: WizardClassItem[],

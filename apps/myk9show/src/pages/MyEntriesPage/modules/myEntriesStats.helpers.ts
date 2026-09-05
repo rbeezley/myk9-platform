@@ -31,12 +31,25 @@ import type { EntryClass, MyEntry } from './my-entries-types';
  * `new Date("2026-06-02")` parses as **UTC** midnight, which in a negative-offset
  * zone (e.g. America/Chicago) becomes the *previous* local day — so a show
  * ending today would be read as yesterday and wrongly bucketed "past". For
- * date-only strings we build a local-midnight Date instead; full timestamps
- * (which already carry an offset) fall through to the native parser.
+ * date-only strings we build a local-midnight Date instead.
+ *
+ * MYK9-384 (E28): the same DATE column also round-trips as a midnight-UTC
+ * *timestamp* ("2027-01-02T00:00:00+00:00" / "2027-01-02 00:00:00+00"), which
+ * the native parser turned into the evening of Jan 1 in Chicago — so My Shows
+ * rendered "Entries close Jan 1" for a show open through Jan 2. Every caller
+ * of this helper feeds it a calendar-date column (`shows.start_date` /
+ * `end_date` / `entry_close_date`, `trials.date`), so the calendar day written
+ * in the string is always the intended one. Anything else falls through to the
+ * native parser.
  */
 export function parseShowDate(value: string | null | undefined): Date | undefined {
   if (!value) return undefined;
-  const local = parseLocalDateString(value); // only matches bare YYYY-MM-DD
+  // Take the calendar day WRITTEN in the string, whatever follows it, and build
+  // it as a local midnight. Handing the whole value to parseLocalDateString
+  // happened to work for the "+00:00" form only because parseInt tolerates the
+  // trailing time — an accident, not a contract.
+  const calendarDay = /^\d{4}-\d{2}-\d{2}/.exec(value)?.[0];
+  const local = calendarDay ? parseLocalDateString(calendarDay) : undefined;
   if (local) return local;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;

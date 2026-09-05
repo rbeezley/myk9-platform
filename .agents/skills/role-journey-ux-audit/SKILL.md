@@ -28,9 +28,21 @@ including safe show and entry CRUD.”
    If `audit-pages` lacks the role (including steward) or an `/at-show` surface, derive coverage
    from the current router and role E2E specs; list the resulting routes and any uncertainty.
 2. Start the documented dev server only if needed; record whether the run used current main.
-3. Resolve credentials from `apps/myk9show/src/test/e2e/helpers/testUsers.ts` and `.env.local`.
-   Never print credentials and never use legacy `*@myk9t.com` fixtures as login accounts.
-4. Follow the real two-step sign-in flow. Verify the active role and scope after authentication.
+3. Resolve the requested role through the exported `TEST_USERS` entry in
+   `apps/myk9show/src/test/e2e/helpers/testUsers.ts` and its documented private environment
+   variables. For a secretary walk, use `TEST_USERS.SECRETARY`, which resolves
+   `E2E_SECRETARY_EMAIL` and `E2E_SECRETARY_PASSWORD` (including the helper's canonical fallback)
+   rather than copying an address into the audit prompt. Never print, log, or copy resolved
+   credential values into commands, reports, screenshots, or automation memory.
+4. Export the private app environment without echoing it, then run the existing executable preflight
+   for the requested role before opening the browser. For a secretary walk, run
+   `pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary` from `apps/myk9show`; do not
+   reproduce its credential resolution in audit prose or shell arguments.
+5. If the helper resolves no password, rejects an unsupported override, or the real sign-in fails,
+   record an `environment coverage gap` naming the missing variable or failed preflight without
+   exposing its value. Do not substitute another identity, recreate an account, rotate credentials,
+   or diagnose the product flow from that failed authentication.
+6. Follow the real two-step sign-in flow. Verify the active role and scope after authentication.
 
 The canonical admin account can carry both site-admin and club-admin capabilities. Never use global
 site-admin access as proof of club-admin authorization or isolation. Mark contaminated checks

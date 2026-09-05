@@ -83,6 +83,22 @@ describe('deriveMyEntryCardState', () => {
     expect(state.nextAction).toEqual({ kind: 'view-show' });
   });
 
+  it('does not retain a dead cart link for a past unpaid entry', () => {
+    const state = deriveMyEntryCardState(
+      makeEntry({
+        showDate: new Date('2026-08-01'),
+        showEndDate: new Date('2026-08-02'),
+        paymentStatus: PaymentStatus.PENDING,
+        paymentMethod: 'online',
+      }),
+      NOW
+    );
+
+    expect(state.isPastShow).toBe(true);
+    expect(state.paymentHref).toBeNull();
+    expect(state.nextAction).toEqual({ kind: 'view-show' });
+  });
+
   it('derives deadline, receipt, and run-order affordances from one snapshot', () => {
     const entryClass = makeClass({ runOrder: 4 });
     const state = deriveMyEntryCardState(

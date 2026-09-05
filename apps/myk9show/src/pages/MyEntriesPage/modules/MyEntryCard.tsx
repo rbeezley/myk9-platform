@@ -27,7 +27,7 @@ import {
 } from './myEntriesUtils';
 import { MyEntryDogFace } from './MyEntryDogFace';
 import { dogGroupsForFace } from './dogFaceSummary';
-import { formatEntryDate, formatShortDate } from '@/lib/format/dates';
+import { formatEntryDate, formatShortCalendarDate } from '@/lib/format/dates';
 import { PENDING_REVIEW_REASSURANCE } from './myShowsCopy';
 import { MyEntryCardDetails } from './MyEntryCardDetails';
 import { AddToCalendarDialog } from '@/features/calendar-subscribe';
@@ -185,7 +185,7 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
             <CalendarClock className="h-4 w-4" />
             <span>
               <span className="text-sm text-muted-foreground">Entries close </span>
-              {formatShortDate(entry.entryCloseDate)}
+              {formatShortCalendarDate(entry.entryCloseDate)}
             </span>
           </div>
         )}
@@ -223,6 +223,12 @@ const MyEntryCardComponent: React.FC<MyEntryCardProps> = ({
         <p className="flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground">
           <Wallet className="h-4 w-4 flex-shrink-0" />
           {payAtShowPrompt.text}
+        </p>
+      )}
+
+      {isPastShow && onlinePrompt.kind === 'finish-online' && (
+        <p className="text-sm text-muted-foreground">
+          Please contact the club to settle this outstanding balance.
         </p>
       )}
 

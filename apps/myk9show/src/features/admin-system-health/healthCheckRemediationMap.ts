@@ -42,10 +42,16 @@ const PAYOUT_LEDGER: HealthCheckRemediationRoute = {
  */
 const DATABASE_ACCESS_CONTRACT: HealthCheckRemediationRoute = {
   ownerLabel: 'Database Access Contract',
-  actionLabel: 'Re-run full health check',
+  /* NAVIGATION wording, not "Re-run full health check". `actionLabel` renders
+     as a plain <Link> to `href` (HealthCheckRow.tsx) — it never invokes the
+     page's Run now handler, and from /admin/health itself it is a self-link
+     that re-renders the same route. A label promising a run would claim the
+     check had been started when nothing was. The run is a manual step, and
+     `nextStep` below is where it is asked for. */
+  actionLabel: 'Open System Health',
   href: '/admin/health',
   nextStep:
-    'SQL grant drift, not RBAC — role assignments cannot repair this. Follow the grants runbook (docs/operations/START-HERE.md, "Missing GRANTs"), land a grants migration, then use Run now here: only a full run re-measures this check, and closure is two consecutive passing snapshots.',
+    'SQL grant drift, not RBAC — role assignments cannot repair this. Follow the grants runbook (docs/operations/START-HERE.md, "Missing GRANTs"), land a grants migration, then press "Run now" on the System Health page: only a full run re-measures this check, and closure is two consecutive passing snapshots.',
 };
 
 const HEALTH_RUNNER: HealthCheckRemediationRoute = {

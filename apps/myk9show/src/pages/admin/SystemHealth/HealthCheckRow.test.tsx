@@ -39,10 +39,14 @@ describe('HealthCheckRow remediation', () => {
     );
 
     expect(ownerText()).toBe('Database Access Contract');
-    const link = screen.getByRole('link', { name: /Re-run full health check/i });
+    const link = screen.getByRole('link', { name: /Open System Health/i });
     expect(link).toHaveAttribute('href', '/admin/health');
     // The role editor cannot repair SQL grant drift.
     expect(screen.queryByRole('link', { name: /Open Permissions/i })).not.toBeInTheDocument();
+    // The control is a LINK, so its label must not promise an executed run
+    // (Codex review, PR #2040) — it navigates, and the operator presses Run now
+    // there. Asserted on every wording so the promise cannot creep back in.
+    expect(link).not.toHaveAccessibleName(/re-run|run now|start|execute/i);
   });
 
   it('renders the generic fallback for an unknown key without crashing', () => {

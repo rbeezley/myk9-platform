@@ -23,6 +23,7 @@ describe('createDraftShow', () => {
     finishShowSave({
       status: 'draft',
       shouldShowCompletion: true,
+      editMode: undefined,
       showId: 'show-1',
       showName: 'Spring Classic',
       passcodes,
@@ -33,5 +34,25 @@ describe('createDraftShow', () => {
 
     expect(onCreated).toHaveBeenCalledWith('show-1', 'Spring Classic', passcodes, null);
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('navigates to the existing show after an edit instead of showing creation completion', () => {
+    const onCreated = vi.fn();
+    const navigate = vi.fn();
+
+    finishShowSave({
+      status: 'draft',
+      shouldShowCompletion: true,
+      editMode: { showId: 'show-1', mode: 'add-classes' },
+      showId: 'show-1',
+      showName: 'Spring Classic',
+      passcodes: null,
+      passcodeError: null,
+      onCreated,
+      navigate,
+    });
+
+    expect(navigate).toHaveBeenCalledWith('/shows/show-1');
+    expect(onCreated).not.toHaveBeenCalled();
   });
 });

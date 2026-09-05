@@ -193,6 +193,12 @@ jobs:
           pnpm qa:bulk-pii:test
           pnpm qa:bulk-pii
 
+      # The Review gate workflow (review-gate.yml) posts a status computed by
+      # scripts/qa/review-gate.ts; its unit tests run here so a change to the
+      # evidence format cannot land without the checker's tests agreeing.
+      - name: Review gate contract
+        run: pnpm qa:review-gate:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 

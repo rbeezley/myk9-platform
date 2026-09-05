@@ -64,14 +64,15 @@ Own-entry pagination did not produce a remaining failure after these changes;
 its query was left intact. No blocking source findings remain in the local diff.
 The all-dog results-page caller retains its existing query and pagination.
 
-Integration closure remains pending until this fix is merged and deployed.
+PR [#2051](https://github.com/rbeezley/myk9-platform/pull/2051) merged on
+2026-09-05 at 16:13 UTC as `cca3d7f72e0ec34b87c588639f71bcb02c8ccec1`.
+Integration closure remains pending post-merge Nightly verification.
 Keep MYK9-289 In Review until post-merge Nightly evidence establishes route-origin
 attribution and the remaining Chromium failures are cleared. WebKit/MYK9-244 is
 outside this change. No claim of CI closure is made from a local green run.
 
-The implementation/evidence comment to Linear failed with HTTP 502
-(`upstream_unavailable`); the issue was not marked Done. Repository evidence is
-saved here and in `docs/qa/findings.md` for the next tracker update.
+The first Linear write failed with HTTP 502; subsequent implementation and merge
+comments succeeded. The issue remains In Review pending the Nightly evidence gate.
 
 ## PR verification follow-up
 
@@ -83,3 +84,9 @@ title-hook calls; counting rendered names avoids unnecessary accessibility-tree
 work. The independent visibility/retention test now uses only the two cards it
 needs. No test or route timeout changed. All 19 dog-rail tests pass with coverage
 in 1.82 seconds (603ms test execution); the follow-up reviewer approved the change.
+
+Replacement CI run [33976128922](https://github.com/rbeezley/myk9-platform/actions/runs/33976128922)
+passed quality checks, all three app test shards, package tests, SQL tests,
+coverage gate/ratchet, builds, accessibility smoke, and E2E PR Smoke. Auto-merge
+completed after all required checks passed. Vercel previews were quota-limited
+and non-blocking; deployment is not asserted here.

@@ -417,6 +417,8 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 
 - **2026-09-05 follow-up (Codex, local fix):** Run `33960229924` confirms #2018 stopped the cascade: only `exhibitor/sign-in-target` and `exhibitor/my-entries` failed, with different pending requests. The dog rail still eagerly mounted every title hook. Branch `codex/myk9-289-exhibitor-queries` defers off-screen title hooks until visibility/focus and scopes title-history reads to the card's dog. A staging-backed Chromium probe measured 258 cards with only 3 initial manual-results requests (6 after focusing the last card), all scored-history reads scoped to one dog. The existing five-route exhibitor sweep passed with zero retries and unchanged timeout; 43 focused unit tests, app/test TypeScript, and targeted lint passed. Keep In Review pending merge and post-fix Nightly evidence; WebKit remains separate. Details: [verification plan](../plans/2026-09-05-myk9-289-exhibitor-query-budget.md).
 
+- **Merge verification — 2026-09-05:** [#2051](https://github.com/rbeezley/myk9-platform/pull/2051) merged as `cca3d7f72`; replacement CI run `33976128922` passed all required checks, including app test shards, coverage, accessibility smoke, and E2E PR Smoke. The initial CI-only timeout in the new scrolling regression was fixed by minimizing its fixture; no timeout changed. Linear has implementation and merge evidence. Keep MYK9-289 In Review pending post-merge Nightly route-origin/Chromium proof.
+
 ### NCR-2026-09-02-02
 
 - **Status:** open

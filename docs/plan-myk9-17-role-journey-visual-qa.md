@@ -1,5 +1,9 @@
 # Plan: MYK9-17 Role-Journey Visual QA Matrix
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
+
+
 ## Goal
 
 Create one typed, data-driven Playwright matrix for the four highest-risk myK9Show

@@ -1,5 +1,9 @@
 # Exhibitor Elderly UX Remediation Plan
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Open remediation and verification phases remain in the existing plan.
+
+
 **Date:** 2026-07-06  
 **Owner:** Codex  
 **Source audits:** `docs/audits/2026-07-06-exhibitor-elderly-browser-ux-audit.md`; `docs/ux-audits/exhibitor-entry-journey-elderly-ux-audit-2026-07-10.md`

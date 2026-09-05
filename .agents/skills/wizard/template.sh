@@ -97,17 +97,15 @@ confirm() {
 # _existing KEY — current value of KEY in ENV_FILE, if any.
 _existing() {
   # LOCAL PATCH (myk9-platform #2064): write_env quotes values the way the
-  # dotenv parser (v17) actually reads them — single quotes and backticks are
-  # literal (and may span lines), double quotes expand only 
-. Read the same
-  # three forms back, across lines when a quote opens without closing, so a
-  # re-run offers the exact value.
+  # dotenv parser (v17) actually reads them. Single quotes and backticks are
+  # literal and may span lines; double quotes expand only the two-character
+  # sequence backslash-n. Read the same three forms back, across lines when a
+  # quote opens without closing, so a re-run offers the exact value.
   local key="$1" line val="" q="" found=0 inval=0 acc="" nl
   [[ -f "$ENV_FILE" ]] || return 1
   while IFS= read -r line || [[ -n "$line" ]]; do
     if (( inval )); then
-      acc+=$'
-'"$line"
+      acc+=$'\n'"$line"
       if [[ "$line" == *"$q" ]]; then inval=0; val="$acc"; fi
       continue
     fi
@@ -163,35 +161,48 @@ ask_secret() {
 # write_env KEY VALUE — upsert KEY=VALUE into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
 write_env() {
-  local key="$1" value="$2" tmp quoted
+  local key="$1" value="$2" tmp quoted line v q="" skip=0 nl
   touch "$ENV_FILE"
   tmp=$(mktemp)
-  grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
-  # LOCAL PATCH (myk9-platform #2064): pick the quoting the dotenv parser
-  # reads back verbatim. Single quotes are fully literal (safe for #, ", $,
-  # backslash, whitespace, newlines); double quotes expand only 
- and do not
-  # unescape anything else, so they are used only when the value has no " or
-  # backslash; backticks are the last literal option. A value containing all
-  # three quote characters cannot be represented losslessly — warn and write
-  # it single-quoted with the apostrophes dropped rather than corrupt silently.
+  # LOCAL PATCH (myk9-platform #2064): drop the previous assignment INCLUDING
+  # its continuation lines when the old value spanned lines (a one-line grep
+  # left the tail behind as ghost variables), then append the new one.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if (( skip )); then
+      [[ "$line" == *"$q" ]] && skip=0
+      continue
+    fi
+    if [[ "$line" == "$key="* ]]; then
+      v="${line#"$key"=}"; q="${v:0:1}"
+      if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && ( ${#v} -lt 2 || "${v: -1}" != "$q" ) ]]; then
+        skip=1
+      fi
+      continue
+    fi
+    printf '%s\n' "$line"
+  done < "$ENV_FILE" > "$tmp"
+  # Pick the quoting the dotenv parser reads back verbatim. Single quotes are
+  # fully literal (safe for #, quotes, $, backslash, whitespace, newlines);
+  # double quotes expand only backslash-n and unescape nothing else, so they
+  # are used only when the value has no double quote or backslash; backticks
+  # are the last literal option. A value containing all three quote characters
+  # cannot be represented losslessly: warn and write it single-quoted with the
+  # apostrophes dropped rather than corrupt silently.
   if [[ "$value" != *"'"* ]]; then
     quoted="'${value}'"
   elif [[ "$value" != *'"'* && "$value" != *'\'* ]]; then
-    quoted="\"${value//$'
-'/\n}\""
+    nl=$'\n'
+    quoted="\"${value//$nl/\\n}\""
   elif [[ "$value" != *'`'* ]]; then
     quoted="\`${value}\`"
   else
-    warn "value for $key contains ', \" and \` — written without apostrophes; set it by hand"
+    warn "value for $key contains all three quote characters; written without apostrophes, set it by hand"
     quoted="'${value//\'/}'"
   fi
-  printf '%s=%s
-' "$key" "$quoted" >> "$tmp"
+  printf '%s=%s\n' "$key" "$quoted" >> "$tmp"
   mv "$tmp" "$ENV_FILE"
   WRITTEN_ENV+=("$key")
-  printf '  %s✓ wrote%s %s → %s
-' "$GREEN" "$RESET" "$key" "$ENV_FILE"
+  printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }
 
 # set_secret NAME VALUE — set a GitHub Actions repo secret via gh. Falls back

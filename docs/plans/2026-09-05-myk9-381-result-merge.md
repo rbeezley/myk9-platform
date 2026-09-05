@@ -1,6 +1,6 @@
 # MYK9-381: preserve canonical results in the exhibitor schedule
 
-> **Status:** Active — PR #2044 merged; closure evidence attachment pending.
+> **Status:** Complete — PRs #2044 and #2049 merged; deployed screenshot attached to Linear.
 
 User request: “proceed” with the recommended MYK9-381 result-merge fix.
 
@@ -92,7 +92,7 @@ the existing plan rather than a new OpenSpec change or UI surface.
   conflict/tombstone handling and cached offline reads.
 - [x] Run scoped read, visibility, render, and tombstone tests plus type/lint checks.
 - [x] Replay the original named browser fixture and save screenshot evidence.
-- [ ] Publish the follow-up for delivery; close only after deployed evidence passes.
+- [x] Publish the follow-up for delivery; close only after deployed evidence passes.
 
 Local replay of the follow-up: My Entries now has 515 rows and renders Willow
 Container Q · 0:38.50, Scout Container Q · 0:41.20, and Willow Interior
@@ -112,3 +112,19 @@ correction with no remaining blockers.
 Full app suite: 1,981 files and 19,007 tests passed; two native filesystem-watch
 assertions failed under the sandbox. The complete affected watcher file passed
 outside the sandbox (3 tests). Final test TypeScript also passes.
+
+### Closure — 2026-09-05
+
+[PR #2049](https://github.com/rbeezley/myk9-platform/pull/2049) merged as
+`3bcb171dcf0258eb105554a6b57eb0e193f0165f` at 15:34 UTC. All required GitHub
+checks passed, and the staging deployment completed. After updating the deployed
+browser, the existing 18-entry partial cache recovered to the current 525-entry
+fixture. Willow Container Q 38.50, Scout Container Q 41.20, and Willow Interior
+Q 52.40 all render with Test Judge. No browser storage reset or shared-data write
+was needed.
+
+The deployed screenshot is attached to [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381)
+as **Deployed verification after PR #2049** (attachment
+`cb5f3e9d-52bb-4854-9738-06c0d779e031`). Completion comment
+`3cca939f-c5e9-4195-89cf-50244c3bc9b9` records the merge and verification.
+The issue is Done; its remaining execution contract and evidence gate are satisfied.

@@ -374,7 +374,7 @@ This table is an evidence index, not a separate queue. No application code chang
 | Stable ID / alias | Canonical priority | Registry status / lifecycle | Canonical work |
 | --- | --- | --- | --- |
 | MYK9-294 | P1 / High | fixed / resolved at 12:59 UTC | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) — deployed sandbox replay returned a real session ID and success at 10.0 seconds; see Closed Findings |
-| MYK9-381 | P2 / source High | in progress / implemented locally | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) — canonical result merge and release-gated per-show read repaired; 86 focused tests and named Heartland browser replay pass. [Evidence](../plans/2026-09-05-myk9-381-result-merge.md); PR/delivery pending. |
+| MYK9-381 | P2 / source High | merged / closure evidence pending | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) — [#2044](https://github.com/rbeezley/myk9-platform/pull/2044) merged as `9e29197e0`; all required CI checks pass. [Named local replay evidence](../plans/2026-09-05-myk9-381-result-merge.md) recorded; screenshot attachment to Linear remains. |
 | NCR-2026-09-04-02 | P2 / source High | open / unchanged, newly filed | [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) — migration guard rejects inherited/deployed versions; 2 failing probes |
 | MYK9-356 | P2 / Medium | open / blocked for focused SQL proof | [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) — source parity passes; lifecycle-absent behavioral/mutation and applied proof missing |
 | NCR-2026-09-04-04 | P2 / Medium | in-progress / blocked for Nightly proof | [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289) — existing detailed record below; no post-fix Nightly run yet |

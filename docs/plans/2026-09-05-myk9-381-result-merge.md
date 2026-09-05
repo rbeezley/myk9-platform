@@ -1,6 +1,6 @@
 # MYK9-381: preserve canonical results in the exhibitor schedule
 
-> **Status:** Active — implemented locally; PR and delivery pending.
+> **Status:** Active — PR #2044 merged; closure evidence attachment pending.
 
 User request: “proceed” with the recommended MYK9-381 result-merge fix.
 
@@ -28,7 +28,7 @@ add no new page or affordance. Preserve the exhibitor's trust in released result
 - [x] Replay the named Heartland rows as the exhibitor against the local fix;
       record Q/time and judge evidence without changing shared fixtures.
 - [x] Prepare the verified fix and PR description for review.
-- [ ] Publish the PR and update Linear after confirmation; keep it open until
+- [x] Publish the PR and update Linear after confirmation; keep it open until
   required verification and delivery gates are satisfied.
 
 ## Scope and evidence
@@ -65,3 +65,13 @@ entry list with scores masked. No replicated-table or policy changes are needed.
   not changed during this work.
 - Local evidence does not imply deployment. Keep MYK9-381 open until the fix is
   delivered and its closure evidence is attached to the issue.
+
+### Merge — 2026-09-05
+
+[PR #2044](https://github.com/rbeezley/myk9-platform/pull/2044) merged at
+14:02 UTC as `9e29197e0c2343839765399201514d03401dc02f`. All required CI
+checks passed, including all three app shards, coverage, builds, browser smoke,
+and accessibility smoke. CI caught a test-local database error stub; the fixture
+now imports the real helper, and the guard plus both new suites pass (24 tests).
+The preview replay required Vercel login. The earlier named local replay remains
+valid, but its screenshot still needs attachment to Linear before issue closure.

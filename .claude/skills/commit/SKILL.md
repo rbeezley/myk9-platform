@@ -17,6 +17,14 @@ This file is shared by Claude Code and Codex (`.agents/skills/commit` is a symli
 
 ## Workflow
 
+### Step 0: In-flight check — is someone already doing this?
+
+```bash
+pnpm qa:inflight            # exit 1 if an open PR, another worktree (even uncommitted), or an unmerged local branch touches the paths this branch changes
+```
+
+Stop on a hit and coordinate: read the named PR or branch, and either take over that work, rebase onto it, or drop yours. Then the two checks the script cannot do from a shell: Linear issues **In Progress** that name these paths, and (Claude Code) `list_sessions` for another session on the same area. On 2026-09-05 #2062 was open for 43 minutes before #2064 started on the same directories; both then paid a dozen review rounds.
+
 ### Step 1: Choose Validation Level
 
 Classify the change before running checks. Use `git diff --name-only` and `git diff --stat`. If unsure, choose the higher level.

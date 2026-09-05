@@ -39,6 +39,8 @@ Note the branch name, the MAIN REPO path (always `/Users/richardbeezley/AI Proje
 
 **Branch check:** Never run on `main`. If the current branch is `main`, stop and tell the user.
 
+**In-flight check:** `pnpm qa:inflight` — exit 1 means an open PR, another worktree, or an unmerged branch already touches what this branch changes. Do not open a second PR on it; coordinate first (see `/commit` Step 0).
+
 ---
 
 ### If NO PR exists → Steps A–C first

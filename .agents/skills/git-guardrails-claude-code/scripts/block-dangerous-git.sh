@@ -26,6 +26,18 @@
 # Run `block-dangerous-git.sh --self-test` to replay the known-answer fixtures
 # at the bottom, which include every bypass named above. A guard nobody tested
 # against a command it is supposed to block reports its own holes as safety.
+#
+# WHAT THIS IS AND IS NOT. It is a speed bump against the destructive command
+# you did not mean to run — a reflex `git push`, a `clean -df` in the wrong
+# directory. It is NOT a security boundary, and it cannot become one: deciding
+# what a shell will execute is undecidable in general, and every review round
+# of this file found a new spelling (a path with a space, a line continuation,
+# `$(…)` inside quotes, a subshell inside that, `bash -c '…'`). Each was fixed
+# because each is something an ordinary script legitimately does. What is out
+# of scope is deliberate evasion — `bash script.sh`, a here-doc piped to a
+# shell, a command assembled at runtime — because a caller who wants around
+# this always can. Judge changes here by whether an ORDINARY command is caught,
+# not by whether a determined one is.
 
 set -f # never let a pathspec like '*' glob while we tokenize
 
@@ -302,9 +314,60 @@ inspect_git_invocation() {
   return 1
 }
 
+# If this segment invokes a shell with -c, echo the script it was handed.
+# Accepts clustered forms (`-lc`, `-ec`) and an absolute path to the shell.
+shell_c_argument() {
+  local arg is_shell=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      *=*) shift ;;
+      env | sudo | nohup | command | exec) shift ;;
+      *) break ;;
+    esac
+  done
+  [ $# -eq 0 ] && return 1
+  case "$1" in
+    sh | bash | zsh | dash | ksh | */sh | */bash | */zsh | */dash | */ksh) is_shell=1 ;;
+    *) return 1 ;;
+  esac
+  [ "$is_shell" -eq 1 ] || return 1
+  shift
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --) shift ;;
+      -*c)
+        shift
+        [ $# -eq 0 ] && return 1
+        printf '%s' "$1"
+        return 0
+        ;;
+      -*) shift ;;
+      *) return 1 ;; # a script path, not an inline command: nothing to read
+    esac
+  done
+  return 1
+}
+
 # One shell command: step past env assignments and wrappers, require git,
 # then inspect.
 inspect_segment() {
+  # `bash -c '<script>'` carries its whole script in one quoted token, so the
+  # scan below never sees the git call inside it. Recurse into the script.
+  # Depth-limited: a shell wrapping a shell wrapping a shell is not a case
+  # worth chasing, and unbounded recursion inside a hook is its own hazard.
+  local wrapper_reason
+  if [ "${GUARD_DEPTH:-0}" -lt 3 ] && wrapper_reason=$(shell_c_argument "$@"); then
+    local nested
+    if nested=$(GUARD_DEPTH=$((${GUARD_DEPTH:-0} + 1)); verdict "$wrapper_reason"); then
+      case "$nested" in
+        block:*)
+          printf '%s (inside a shell -c argument)' "${nested#block:}"
+          return 0
+          ;;
+      esac
+    fi
+  fi
+
   # Find `git` ANYWHERE in the segment rather than maintaining a list of things
   # that may precede it. The list approach lost to every prefix nobody thought
   # of: `if git ... push` (shell keyword), `sudo -u richard git ... push` (a
@@ -463,6 +526,10 @@ VAR="$(git -C /tmp push origin main)"	block
 echo "$( (true); git -C /tmp clean -df )"	block
 echo "$( (cd /tmp) && git -C /tmp push origin main )"	block
 echo "$(echo `git -C /tmp clean -df`)"	block
+bash -c 'git -C /tmp clean -df'	block
+sh -c "git -C /tmp clean -df"	block
+/bin/bash -lc 'git -C /tmp clean -df'	block
+sudo bash -c 'git -C /tmp clean -df'	block
 { git -C /tmp push origin main; }	block
 if git -C /tmp push origin main; then echo done; fi	block
 sudo -u richard git -C /tmp push origin main	block
@@ -486,6 +553,9 @@ cd /tmp	allow
 echo hello world	allow
 echo "$(git -C /tmp status)"	allow
 echo "a plain # string with spaces"	allow
+bash -c 'echo hello'	allow
+bash -c 'git -C /tmp status'	allow
+bash deploy.sh	allow
 if git -C /tmp status; then echo clean; fi	allow
 FIX
   if [ "$failures" -gt 0 ]; then

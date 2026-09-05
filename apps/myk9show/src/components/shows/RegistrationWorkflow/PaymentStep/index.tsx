@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -72,19 +72,42 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     : acceptedMethods.cash
       ? 'cash'
       : '';
+  const pendingCardSelection = useRef(false);
   const effectivePaymentMethod =
     !cardCheckoutAvailable && paymentMethod === 'credit_card'
       ? fallbackPaymentMethod
       : paymentMethod;
+  const accountCheckPending =
+    !isOnBehalf && (clubStripeAccountQuery.isPending || clubStripeAccountQuery.isFetching);
 
   useEffect(() => {
+    if (cardCheckoutAvailable && pendingCardSelection.current) {
+      pendingCardSelection.current = false;
+      onPaymentMethodChange('credit_card');
+      return;
+    }
+
     if (effectivePaymentMethod === paymentMethod) return;
+    if (accountCheckPending && paymentMethod === 'credit_card') {
+      pendingCardSelection.current = true;
+      return;
+    }
     if (effectivePaymentMethod) {
       onPaymentMethodChange(effectivePaymentMethod);
     } else {
       onPaymentMethodClear?.();
     }
-  }, [effectivePaymentMethod, onPaymentMethodChange, onPaymentMethodClear, paymentMethod]);
+  }, [
+    accountCheckPending,
+    cardCheckoutAvailable,
+    clubStripeAccountQuery.isFetching,
+    clubStripeAccountQuery.isPending,
+    effectivePaymentMethod,
+    isOnBehalf,
+    onPaymentMethodChange,
+    onPaymentMethodClear,
+    paymentMethod,
+  ]);
 
   const cardCheckoutUnavailableReason = isOnBehalf
     ? undefined

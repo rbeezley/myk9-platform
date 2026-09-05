@@ -273,20 +273,23 @@ inspect_git_invocation() {
 # One shell command: step past env assignments and wrappers, require git,
 # then inspect.
 inspect_segment() {
+  # Find `git` ANYWHERE in the segment rather than maintaining a list of things
+  # that may precede it. The list approach lost to every prefix nobody thought
+  # of: `if git ... push` (shell keyword), `sudo -u richard git ... push` (a
+  # wrapper option that takes a value), `{ git push; }` (brace grouping). Each
+  # was a separate bypass and the next one would have been too. Scanning
+  # forward covers all of them at once and can only ever block MORE: the cost
+  # is treating `man git push` as a push, which is a rephrase, not a loss.
   while [ $# -gt 0 ]; do
     case "$1" in
-      # `{` and `}` are brace grouping. They are NOT tokenizer separators —
-      # making them so would split `${DIR}` and hand the parser rubble — so
-      # they are skipped here instead, where `{ git push; }` still resolves.
-      *=* | env | sudo | nohup | command | time | exec | xargs | '{' | '}') shift ;;
-      *) break ;;
+      git | */git)
+        shift
+        break
+        ;;
+      *) shift ;;
     esac
   done
   [ $# -eq 0 ] && return 1
-  case "$1" in
-    git | */git) shift ;;
-    *) return 1 ;;
-  esac
 
   local reason arg
   if reason=$(inspect_git_invocation "$@"); then
@@ -423,6 +426,10 @@ git --config-env user.name=USER push origin main	block
 (git -C /tmp push origin main)	block
 $(git -C /tmp push origin main)	block
 { git -C /tmp push origin main; }	block
+if git -C /tmp push origin main; then echo done; fi	block
+sudo -u richard git -C /tmp push origin main	block
+while true; do git -C /tmp clean -fd; done	block
+env FOO=bar sudo -n -u rb git -C /tmp reset --hard	block
 git -C "${HOME}/repo" push origin main	block
 git --config-env user.name=USER clean -fd	block
 git --config-env=user.name=USER clean -fd	block
@@ -437,6 +444,9 @@ git checkout main	allow
 git restore src/foo.ts	allow
 git reset HEAD~1	allow
 git -C /tmp status	allow
+cd /tmp	allow
+echo hello world	allow
+if git -C /tmp status; then echo clean; fi	allow
 FIX
   if [ "$failures" -gt 0 ]; then
     echo "self-test: $failures/$total FAILED" >&2

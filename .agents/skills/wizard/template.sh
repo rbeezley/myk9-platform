@@ -94,11 +94,18 @@ confirm() {
   [[ "$reply" =~ ^[Yy] ]]
 }
 
-# _existing KEY — current value of KEY in ENV_FILE, if any.
+# _existing KEY — current value of KEY in ENV_FILE, if any. Strips whichever
+# quote character write_env chose, so a re-run offers back the value that was
+# stored rather than one wrapped in a fresh pair of quotes each time. Nothing
+# is unescaped, because nothing was escaped.
 _existing() {
   [[ -f "$ENV_FILE" ]] || return 1
   local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
-  printf '%s' "${line#*=}"
+  local value="${line#*=}"
+  case "$value" in
+    \'*\' | \"*\" | '`'*'`') value="${value:1:${#value}-2}" ;;
+  esac
+  printf '%s' "$value"
 }
 
 # ask KEY "Prompt" — read a value into $KEY. Offers the existing .env value as
@@ -131,14 +138,43 @@ ask_secret() {
   printf -v "$key" '%s' "$input"
 }
 
-# write_env KEY VALUE — upsert KEY=VALUE into ENV_FILE (creates it; replaces
+# write_env KEY VALUE — upsert KEY="VALUE" into ENV_FILE (creates it; replaces
 # any existing line). Idempotent.
+#
+# The value is ALWAYS quoted. Writing it bare corrupts exactly the values that
+# matter most: dotenv readers treat an unquoted `#` as the start of a comment,
+# so a generated secret containing one is silently truncated there.
+# `TEST_SECRET=abc#def` loads as "abc" under `node --env-file` — while
+# `set_secret` sends the whole value to GitHub, so CI and local disagree about
+# a credential and nothing says why.
+#
+# Quote CHARACTER is chosen by content rather than escaping the value, because
+# this loader does not process backslash escapes inside quotes: `K="a\"b"`
+# reads back as `a\`, and `K="a\\b"` as `a\\b`. Both quote styles are literal,
+# and only the matching quote terminates — so the rule is simply to pick one
+# the value does not contain. (Measured against `node --env-file`; a value
+# holding all three quote characters is refused rather than mangled.)
 write_env() {
-  local key="$1" value="$2" tmp
+  local key="$1" value="$2" tmp q
   touch "$ENV_FILE"
   tmp=$(mktemp)
   grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
-  printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  case "$value" in
+    *"'"*) case "$value" in
+      *'"'*) case "$value" in
+        *'`'*)
+          rm -f "$tmp"
+          printf '  %sxx cannot write%s %s: value contains all of  '"'"'  "  `\n' \
+            "${RED:-}" "$RESET" "$key" >&2
+          return 1
+          ;;
+        *) q='`' ;;
+      esac ;;
+      *) q='"' ;;
+    esac ;;
+    *) q="'" ;;
+  esac
+  printf '%s=%s%s%s\n' "$key" "$q" "$value" "$q" >> "$tmp"
   mv "$tmp" "$ENV_FILE"
   WRITTEN_ENV+=("$key")
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"

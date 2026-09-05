@@ -83,8 +83,51 @@ function typecheckedFiles(): Set<string> {
   return new Set(parsed.fileNames.map(file => path.resolve(file)));
 }
 
+/**
+ * Edge-function tests that exist on disk but are DELIBERATELY not run by
+ * vitest, each with the reason. Every entry must still exist — a stale entry
+ * fails — so this list cannot quietly outlive the file it excuses. Empty on
+ * 2026-09-05: the eight files that were unrun then all pass once registered.
+ */
+const DELIBERATELY_UNRUN: Readonly<Record<string, string>> = {};
+
+function edgeTestFilesOnDisk(): Set<string> {
+  return new Set(
+    ['supabase/functions/**/*.test.ts', '../../supabase/functions/**/*.test.ts']
+      .flatMap(pattern => globSync(pattern, { cwd: APP_ROOT }))
+      .filter(file => !file.includes('node_modules'))
+      .map(file => path.resolve(APP_ROOT, file))
+  );
+}
+
 const rel = (files: Iterable<string>) =>
   [...files].map(file => path.relative(APP_ROOT, file)).sort();
+
+describe('every edge-function test on disk is run', () => {
+  it('runs every *.test.ts under both edge trees, or lists it with a reason', () => {
+    // The two-list agreement checks below catch a test REMOVED from one list.
+    // They cannot catch one that was never added: a file absent from both lists
+    // keeps them equal. Eight files sat that way on 2026-09-05 (fanout*,
+    // revoke-self-auth-identity/*, send-auth-email/actionUrl+template,
+    // send-targeted-message/targeting, send-waitlist-invite/auth). This reads
+    // the directories so an omission — or a MOVE, which deregisters a file from
+    // both lists at once — fails loudly.
+    const run = vitestEdgeTestFiles();
+    const excused = new Set(Object.keys(DELIBERATELY_UNRUN).map(f => path.resolve(APP_ROOT, f)));
+    const unrun = [...edgeTestFilesOnDisk()].filter(file => !run.has(file) && !excused.has(file));
+    expect(rel(unrun)).toEqual([]);
+  });
+
+  it('has no stale DELIBERATELY_UNRUN entry', () => {
+    const onDisk = edgeTestFilesOnDisk();
+    const stale = Object.keys(DELIBERATELY_UNRUN)
+      .map(f => path.resolve(APP_ROOT, f))
+      .filter(f => !onDisk.has(f));
+    expect(rel(stale)).toEqual([]);
+    for (const reason of Object.values(DELIBERATELY_UNRUN))
+      expect(reason.trim().length).toBeGreaterThan(10);
+  });
+});
 
 describe('edge-function tests are typechecked', () => {
   it('typechecks every edge-function test vitest runs', () => {

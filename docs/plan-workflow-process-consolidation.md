@@ -100,7 +100,7 @@ Codex's 2026-09-05 process review found `ship-pr`, `cleanup`, `commit`, `harden`
 2. The six divergent skills were merged (union of both sides), and `ship-pr` was rewritten: independent review by the other harness at Step 4 before merge, no `--delete-branch`, auto-merge only after the gate, close-out gated on the production build.
 3. CLAUDE.md hard rules 3–4 and `docs/reference/git-workflow.md` now agree with the LESSONS entry that `git branch -D` is denied.
 
-Remaining from the same review, one PR each: a CI check for review evidence pinned to the PR head SHA; the harden PASS threshold (one confirmed high must block); moving tooling-detectable LESSONS into checks.
+All four landed the same day (MYK9-410): #2054 (this phase), #2058 (`Review gate` commit status pinned to the PR head, now a required check), #2061 (harden: one confirmed high blocks PASS), #2063 (`pnpm qa:codex-review` wrapper, `pnpm qa:dist-fresh`, and an on-disk guard that found eight edge-function test files that had never run). #2056 separately cut CI wall clock from 17 to 8 minutes.
 
 ## Execution notes
 

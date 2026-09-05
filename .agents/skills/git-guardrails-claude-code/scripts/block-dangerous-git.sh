@@ -317,20 +317,18 @@ inspect_git_invocation() {
 # If this segment invokes a shell with -c, echo the script it was handed.
 # Accepts clustered forms (`-lc`, `-ec`) and an absolute path to the shell.
 shell_c_argument() {
-  local arg is_shell=0
+  # Scan FORWARD for the shell, the same way inspect_segment scans forward for
+  # git. A fixed list of things that may precede it cannot cover
+  # `sudo -u root bash -c '…'`: after skipping `sudo` it meets `-u` and gives
+  # up. That is the identical defect inspect_segment already had and already
+  # fixed — this function simply did not inherit the lesson.
   while [ $# -gt 0 ]; do
     case "$1" in
-      *=*) shift ;;
-      env | sudo | nohup | command | exec) shift ;;
-      *) break ;;
+      sh | bash | zsh | dash | ksh | */sh | */bash | */zsh | */dash | */ksh) break ;;
+      *) shift ;;
     esac
   done
   [ $# -eq 0 ] && return 1
-  case "$1" in
-    sh | bash | zsh | dash | ksh | */sh | */bash | */zsh | */dash | */ksh) is_shell=1 ;;
-    *) return 1 ;;
-  esac
-  [ "$is_shell" -eq 1 ] || return 1
   shift
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -538,6 +536,8 @@ sudo bash -c 'git -C /tmp clean -df'	block
 bash -ceu 'git -C /tmp clean -df'	block
 bash -euc 'git -C /tmp clean -df'	block
 bash -x -c 'git -C /tmp clean -df'	block
+sudo -u root bash -c "git -C /tmp clean -df"	block
+env FOO=bar sudo -n -u rb bash -lc 'git -C /tmp clean -df'	block
 { git -C /tmp push origin main; }	block
 if git -C /tmp push origin main; then echo done; fi	block
 sudo -u richard git -C /tmp push origin main	block
@@ -566,6 +566,7 @@ bash -c 'git -C /tmp status'	allow
 bash deploy.sh	allow
 bash -eu deploy.sh	allow
 bash -ceu 'git -C /tmp status'	allow
+sudo -u root bash -c 'echo hi'	allow
 if git -C /tmp status; then echo clean; fi	allow
 FIX
   if [ "$failures" -gt 0 ]; then

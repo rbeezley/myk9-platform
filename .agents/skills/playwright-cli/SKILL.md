@@ -208,11 +208,17 @@ playwright-cli -s=mysession close  # stop a named browser
 playwright-cli -s=mysession delete-data  # delete user data for persistent session
 
 playwright-cli list
-# Close all browsers
+# Close all browsers -- see the ownership warning below
 playwright-cli close-all
-# Forcefully kill all browser processes
+# Forcefully kill all browser processes -- see the ownership warning below
 playwright-cli kill-all
 ```
+
+> **Not in this repo.** `close-all` and `kill-all` reach every session on the
+> machine, including ones concurrent agents own. `AGENTS.md` § Browser
+> automation session ownership forbids them as routine cleanup: close the
+> exact session you opened, by name. Reach for `kill-all` only after
+> confirming with the user that nothing else is running.
 
 ## Local installation
 

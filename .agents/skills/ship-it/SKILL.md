@@ -198,11 +198,23 @@ git fetch --prune
 git checkout main
 git pull --ff-only
 
-# Identify worktree path
-WORKTREE_PATH=$(git worktree list | grep "$BRANCH" | awk '{print $1}')
+# Identify worktree path. `git worktree list | awk '{print $1}'` TRUNCATES
+# at the first space, so a checkout under "AI Projects" resolves to
+# /Users/<you>/AI and the remove below targets a path that does not exist.
+# Porcelain output puts the full path on its own line.
+WORKTREE_PATH=$(git worktree list --porcelain | awk -v b="refs/heads/$BRANCH" '
+  /^worktree /   { p = substr($0, 10) }
+  $0 == "branch " b { print p; exit }
+')
 
-# LAST COMMAND — nothing runs after this line
-git worktree remove "$WORKTREE_PATH" --force 2>/dev/null || true
+# LAST COMMAND — nothing runs after this line. No `2>/dev/null || true`:
+# a swallowed failure reports the ship as complete with the worktree still
+# on disk, which is the one outcome this step exists to prevent.
+if [ -z "$WORKTREE_PATH" ]; then
+  echo "No worktree registered for $BRANCH — nothing to remove."
+else
+  git worktree remove "$WORKTREE_PATH" --force
+fi
 ```
 
 ---

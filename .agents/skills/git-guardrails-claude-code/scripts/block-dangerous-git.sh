@@ -5,23 +5,34 @@
 # substrings. That reads as a denylist of *operations* and is actually a
 # denylist of *spellings*: `git push` does not appear in `git -C /tmp push
 # origin main`, and `git clean -f` does not appear in `git clean -df`. Both
-# are ordinary git syntax, both were allowed, and the hook exited 0 with no
-# sign anything had been missed.
+# are ordinary git syntax, both exited 0, and nothing said the check had been
+# skipped. A safety hook that fails open silently is worse than no hook.
 #
-# So there are two layers now.
+# Three layers now, each one covering a hole the layer above it left.
 #
 #   1. The original literal patterns, unchanged, over the raw string. Keeping
-#      them means this script can only ever block a SUPERSET of what it used
-#      to, including sloppy cases a parser would clear.
-#   2. A parser that splits the command on shell separators, strips git's
-#      global options, and then matches on subcommand + flag SET rather than
-#      on adjacency and flag order.
+#      them means this script can only ever block a SUPERSET of what it did
+#      before, including sloppy cases the parser would clear.
+#   2. A quote-aware tokenizer. Splitting on whitespace is not good enough:
+#      `git -C "/Users/me/AI Projects/repo" push origin main` word-splits into
+#      `-C` `"/Users/me/AI` `Projects/repo"` `push`, so the value-skip eats the
+#      wrong token, `Projects/repo"` reads as the subcommand, and the push
+#      sails through. Any repository under a path with a space in it turns the
+#      guard off. The tokenizer honours single quotes, double quotes and
+#      backslash escapes, and it never executes the input.
+#   3. A parser over those tokens that strips git's global options and matches
+#      on subcommand + flag SET rather than on adjacency and flag order.
 #
 # Run `block-dangerous-git.sh --self-test` to replay the known-answer fixtures
 # at the bottom, which include every bypass named above. A guard nobody tested
 # against a command it is supposed to block reports its own holes as safety.
 
 set -f # never let a pathspec like '*' glob while we tokenize
+
+NL=$'\n'
+TAB=$'\t'
+SEP=$'\037' # unit separator: marks a shell command boundary between tokens
+INCOMPLETE_MARK="${SEP}INCOMPLETE"
 
 # --- Layer 1: the original literal patterns -------------------------------
 
@@ -48,7 +59,85 @@ literal_hit() {
   return 1
 }
 
-# --- Layer 2 helpers ------------------------------------------------------
+# --- Layer 2: quote-aware tokenizer ---------------------------------------
+
+# Emits one token per line. Unquoted `;`, `|`, `&` and newline become a lone
+# $SEP token so command boundaries survive into the parser; the same
+# characters inside quotes stay part of their token. A trailing
+# $INCOMPLETE_MARK means the input ended inside a quote, i.e. this tokenizer
+# does not actually understand the string and the caller must be conservative.
+tokenize() {
+  # Two statements on purpose. The shell expands every word of a command
+  # before running it, so `local s="$1" n=${#s}` measures whatever `s` was in
+  # the CALLER's scope — empty here — and the loop below never runs. Silent:
+  # the tokenizer just emits nothing and every parsed check reads as allow.
+  local s="$1"
+  local i=0 n c state=none token='' started=0
+  n=${#s}
+  while [ "$i" -lt "$n" ]; do
+    c=${s:$i:1}
+    i=$((i + 1))
+
+    if [ "$state" = single ]; then
+      if [ "$c" = "'" ]; then state=none; else token="$token$c"; fi
+      continue
+    fi
+    if [ "$state" = double ]; then
+      if [ "$c" = '"' ]; then
+        state=none
+      elif [ "$c" = '\' ] && [ "$i" -lt "$n" ]; then
+        token="$token${s:$i:1}"
+        i=$((i + 1))
+      else
+        token="$token$c"
+      fi
+      continue
+    fi
+
+    case "$c" in
+      "'")
+        state=single
+        started=1
+        ;;
+      '"')
+        state=double
+        started=1
+        ;;
+      '\')
+        if [ "$i" -lt "$n" ]; then
+          token="$token${s:$i:1}"
+          i=$((i + 1))
+          started=1
+        fi
+        ;;
+      ' ' | "$TAB")
+        if [ "$started" -eq 1 ]; then
+          printf '%s\n' "${token//$NL/ }"
+          token=''
+          started=0
+        fi
+        ;;
+      ';' | '|' | '&' | "$NL")
+        if [ "$started" -eq 1 ]; then
+          printf '%s\n' "${token//$NL/ }"
+          token=''
+          started=0
+        fi
+        printf '%s\n' "$SEP"
+        ;;
+      *)
+        token="$token$c"
+        started=1
+        ;;
+    esac
+  done
+
+  [ "$started" -eq 1 ] && printf '%s\n' "${token//$NL/ }"
+  [ "$state" != none ] && printf '%s\n' "$INCOMPLETE_MARK"
+  return 0
+}
+
+# --- Layer 3 helpers ------------------------------------------------------
 
 # True when any single-dash cluster among the arguments carries $1 as a short
 # flag: -f, -df and -xdf all count for `f`. Stops at `--`.
@@ -133,8 +222,8 @@ inspect_git_invocation() {
         printf 'git branch -D'
         return 0
       fi
-      # -d is allowed on its own (it refuses unmerged branches); -d --force is
-      # -D by another name.
+      # -d alone is allowed (it refuses unmerged branches); -d --force is -D
+      # by another name.
       if { has_short_flag d "$@" || has_long_flag --delete "$@"; } &&
         { has_short_flag f "$@" || has_long_flag --force "$@"; }; then
         printf 'git branch --delete --force'
@@ -157,34 +246,62 @@ inspect_git_invocation() {
   return 1
 }
 
+# One shell command: step past env assignments and wrappers, require git,
+# then inspect.
+inspect_segment() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      *=* | env | sudo | nohup | command | time | exec | xargs) shift ;;
+      *) break ;;
+    esac
+  done
+  [ $# -eq 0 ] && return 1
+  case "$1" in
+    git | */git) shift ;;
+    *) return 1 ;;
+  esac
+  inspect_git_invocation "$@"
+}
+
 # Echoes a reason and returns 0 when any segment of the command is destructive.
 parsed_hit() {
-  local segment reason
-  # Separators become newlines so each element of a list or pipeline is judged
-  # on its own. Splitting inside a quoted string can only ever produce EXTRA
-  # segments, which risks over-blocking, never under-blocking.
-  while IFS= read -r segment; do
-    # shellcheck disable=SC2086 # word splitting IS the tokenizer here
-    set -- $segment
-    # Step past environment assignments and command wrappers.
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        *=* | env | sudo | nohup | command | time | exec | xargs) shift ;;
-        *) break ;;
-      esac
-    done
-    [ $# -eq 0 ] && continue
-    case "$1" in
-      git | */git) shift ;;
-      *) continue ;;
-    esac
-    if reason=$(inspect_git_invocation "$@"); then
-      printf '%s' "$reason"
-      return 0
-    fi
+  local command="$1" line reason incomplete=0
+  local tokens=() seg=()
+
+  while IFS= read -r line; do
+    tokens[${#tokens[@]}]="$line"
   done <<EOF
-$(printf '%s' "$1" | tr ';|&' '\n\n\n')
+$(tokenize "$command")
 EOF
+
+  for line in ${tokens[@]+"${tokens[@]}"}; do
+    if [ "$line" = "$INCOMPLETE_MARK" ]; then
+      incomplete=1
+      continue
+    fi
+    if [ "$line" = "$SEP" ]; then
+      if reason=$(inspect_segment ${seg[@]+"${seg[@]}"}); then
+        printf '%s' "$reason"
+        return 0
+      fi
+      seg=()
+      continue
+    fi
+    seg[${#seg[@]}]="$line"
+  done
+  if reason=$(inspect_segment ${seg[@]+"${seg[@]}"}); then
+    printf '%s' "$reason"
+    return 0
+  fi
+
+  # The input ended inside a quote, so the token stream above is a guess. Fail
+  # towards blocking rather than towards a silent allow.
+  if [ "$incomplete" -eq 1 ] &&
+    printf '%s' "$command" | grep -qE '(^|[^a-zA-Z])git([^a-zA-Z]|$)' &&
+    printf '%s' "$command" | grep -qE '(push|reset|clean|branch|checkout|restore)'; then
+    printf 'unbalanced quoting around a git command'
+    return 0
+  fi
   return 1
 }
 
@@ -205,7 +322,7 @@ verdict() {
 
 self_test() {
   local failures=0 total=0 command expected actual
-  while IFS='	' read -r command expected; do
+  while IFS="$TAB" read -r command expected; do
     [ -z "$command" ] && continue
     total=$((total + 1))
     case "$(verdict "$command")" in
@@ -219,6 +336,9 @@ self_test() {
   done <<'FIX'
 git push origin main	block
 git -C /tmp push origin main	block
+git -C "/Users/rb/AI Projects/myk9-platform" push origin main	block
+git -C '/tmp/a b' clean -fd	block
+git --work-tree "/tmp/a b" checkout -- .	block
 git clean -df	block
 git clean -f	block
 git -c user.name=x clean -xdf	block
@@ -233,9 +353,13 @@ git checkout -- .	block
 git restore .	block
 git restore -- .	block
 cd /tmp && git push	block
+git push;ls	block
 /usr/bin/git -C /tmp clean -fdx	block
+git -C "/tmp/unterminated clean -fd	block
 git status	allow
 git commit -m wip	allow
+git commit -m "push to main"	allow
+git -C "/Users/rb/AI Projects/myk9-platform" status	allow
 git clean -n	allow
 git branch -d merged	allow
 git checkout main	allow

@@ -15,7 +15,7 @@
  * after two successful payments (MYK9-385).
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTitleProgress } from '@/hooks/useTitleProgress';
 import { BrowseCardAvatar } from '@/components/common/BrowseCard';
@@ -45,7 +45,18 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
   upcomingClassCount,
 }) => {
   const navigate = useNavigate();
-  const { earnedAbbreviations, isLoading: titlesLoading } = useTitleProgress(dogId);
+  const cardRef = useRef<HTMLButtonElement>(null);
+  const [loadTitles, setLoadTitles] = useState(false);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || loadTitles) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) setLoadTitles(true);
+    });
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [loadTitles]);
   const registry = buildDogCardRegistryModel(registrations);
   const age = formatDogAge({ dateOfBirth });
   const bornLine = dateOfBirth
@@ -54,7 +65,9 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
 
   return (
     <button
+      ref={cardRef}
       type="button"
+      onFocus={() => setLoadTitles(true)}
       onClick={() => navigate(`/dogs/${dogId}`)}
       className="flex w-80 flex-shrink-0 flex-col gap-2.5 rounded-xl border border-border bg-card p-3 text-left hover:bg-accent hover:shadow-sm active:scale-[0.98] transition-all duration-state focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
@@ -85,16 +98,24 @@ export const DogStripCard: React.FC<DogStripCardProps> = ({
 
       <DogRegistryTable registry={registry} />
 
-      {!titlesLoading && earnedAbbreviations.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {earnedAbbreviations.slice(0, 3).join(', ')}
-            {earnedAbbreviations.length > 3 && ' …'}
-          </span>
-        </div>
-      )}
+      {/* MYK9-289: off-screen cards must not fetch a dog's complete title history.
+          Keep the card itself reachable and retain titles once loaded. */}
+      {loadTitles && <DogStripTitles dogId={dogId} />}
     </button>
   );
 };
+
+function DogStripTitles({ dogId }: { dogId: string }) {
+  const { earnedAbbreviations, isLoading } = useTitleProgress(dogId);
+  if (isLoading || earnedAbbreviations.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+        {earnedAbbreviations.slice(0, 3).join(', ')}
+        {earnedAbbreviations.length > 3 && ' …'}
+      </span>
+    </div>
+  );
+}
 
 export default DogStripCard;

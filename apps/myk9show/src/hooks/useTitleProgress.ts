@@ -20,7 +20,7 @@ export function useTitleProgress(dogId: string) {
     isLoading: loadingResults,
     isError: errorResults,
     refetch: refetchResults,
-  } = useExhibitorResults();
+  } = useExhibitorResults(dogId);
   const {
     data: manualResults = [],
     isLoading: loadingManual,

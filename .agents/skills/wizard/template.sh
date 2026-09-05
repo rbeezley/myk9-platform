@@ -122,6 +122,13 @@ _existing() {
   if [[ ( "$q" == "'" || "$q" == '"' || "$q" == '`' ) && "${val:1}" == *"$q"* ]]; then
     val="${val:1}"; val="${val%"$q"*}"   # body up to the LAST quote; a trailing comment is dropped
     if [[ "$q" == '"' ]]; then nl=$'\n'; val=${val//\\n/$nl}; fi
+  else
+    # Unquoted, as dotenv (v17) reads it: the value ends at the first `#`
+    # (even without a space before it) and surrounding whitespace is trimmed.
+    # write_env never writes unquoted, so a `#` inside a wizard-written value
+    # is always inside quotes (Codex, #2064 rounds 9-10).
+    val="${val%%#*}"
+    val="${val#"${val%%[! ]*}"}"; val="${val%"${val##*[! ]}"}"
   fi
   printf '%s' "$val"
 }

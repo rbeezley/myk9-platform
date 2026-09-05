@@ -50,6 +50,9 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     createClasses,
     resetCreation,
   } = useClassCreationStore();
+  const selectedClassDefinitions = selectedClasses
+    .filter(item => item.selected)
+    .map(item => item.classDefinition);
 
   const effectiveTrialId = trialId || paramTrialId;
   const manageClassesHref =
@@ -81,7 +84,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
         break;
 
       case 'classes':
-        if (selectedClasses.length === 0) {
+        if (selectedClassDefinitions.length === 0) {
           errors.push('Please select at least one class');
         }
         break;
@@ -380,17 +383,13 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
           <div className="space-y-6">
             <ClassSelectionGrid
               template={selectedTemplate}
-              selectedClasses={selectedClasses
-                .filter(item => item.selected)
-                .map(item => item.classDefinition)}
+              selectedClasses={selectedClassDefinitions}
               onSelectionChange={handleClassSelectionChange}
             />
 
-            {selectedClasses.length > 0 && (
+            {selectedClassDefinitions.length > 0 && (
               <ClassBatchActions
-                selectedClasses={selectedClasses
-                  .filter(item => item.selected)
-                  .map(item => item.classDefinition)}
+                selectedClasses={selectedClassDefinitions}
                 availableFields={selectedTemplate.fieldSpecifications}
                 onBatchEdit={handleBatchEdit}
                 onBatchCopy={handleBatchCopy}
@@ -402,12 +401,10 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
         )}
 
         {/* Step 3: Field Overrides */}
-        {currentStep === 'overrides' && selectedTemplate && selectedClasses.length > 0 && (
+        {currentStep === 'overrides' && selectedTemplate && selectedClassDefinitions.length > 0 && (
           <FieldOverrideForm
             template={selectedTemplate}
-            selectedClasses={selectedClasses
-              .filter(item => item.selected)
-              .map(item => item.classDefinition)}
+            selectedClasses={selectedClassDefinitions}
             fieldOverrides={fieldOverrides}
             onOverrideChange={updateFieldOverride}
             onResetField={resetFieldOverride}
@@ -442,15 +439,17 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
                 {/* Selected Classes Summary */}
                 <div>
-                  <h4 className="font-medium mb-2">Selected Classes ({selectedClasses.length})</h4>
+                  <h4 className="font-medium mb-2">
+                    Selected Classes ({selectedClassDefinitions.length})
+                  </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {selectedClasses.map((cls, index) => (
+                    {selectedClassDefinitions.map((classDefinition, index) => (
                       <div key={index} className="bg-muted p-2 rounded text-sm">
-                        <div className="font-medium">{cls.classDefinition.className}</div>
+                        <div className="font-medium">{classDefinition.className}</div>
                         <div className="text-muted-foreground">
-                          {cls.classDefinition.element}
-                          {cls.classDefinition.level ? ` ${cls.classDefinition.level}` : ''}
-                          {cls.classDefinition.section ? ` ${cls.classDefinition.section}` : ''}
+                          {classDefinition.element}
+                          {classDefinition.level ? ` ${classDefinition.level}` : ''}
+                          {classDefinition.section ? ` ${classDefinition.section}` : ''}
                         </div>
                       </div>
                     ))}
@@ -482,12 +481,14 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{selectedClasses.length}</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {selectedClassDefinitions.length}
+                    </div>
                     <div className="text-sm text-muted-foreground">Classes</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-teal-600">
-                      {selectedClasses.length *
+                      {selectedClassDefinitions.length *
                         (selectedTemplate.defaults?.judgingTimeEstimate || 15)}
                     </div>
                     <div className="text-sm text-muted-foreground">Minutes</div>
@@ -495,7 +496,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                   <div className="text-center">
                     <div className="text-2xl font-bold text-violet-600">
                       $
-                      {selectedClasses.length *
+                      {selectedClassDefinitions.length *
                         (selectedTemplate.defaults?.entryFees?.preEntry || 25)}
                     </div>
                     <div className="text-sm text-muted-foreground">Revenue</div>
@@ -556,7 +557,8 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
             <div className="text-sm text-muted-foreground">
               {selectedTemplate && `Template: ${selectedTemplate.templateName}`}
-              {selectedClasses.length > 0 && ` • ${selectedClasses.length} classes selected`}
+              {selectedClassDefinitions.length > 0 &&
+                ` • ${selectedClassDefinitions.length} classes selected`}
             </div>
 
             {currentStep === 'review' ? (

@@ -335,7 +335,12 @@ shell_c_argument() {
   while [ $# -gt 0 ]; do
     case "$1" in
       --) shift ;;
-      -*c)
+      --*) shift ;;
+      # `c` ANYWHERE in a short-option cluster, not just at the end: `bash -ceu`
+      # and `bash -euc` both take the next argument as the script. Matching only
+      # `-*c` is the same flag-ORDER mistake this file corrects for git's own
+      # options two functions down.
+      -*c*)
         shift
         [ $# -eq 0 ] && return 1
         printf '%s' "$1"
@@ -530,6 +535,9 @@ bash -c 'git -C /tmp clean -df'	block
 sh -c "git -C /tmp clean -df"	block
 /bin/bash -lc 'git -C /tmp clean -df'	block
 sudo bash -c 'git -C /tmp clean -df'	block
+bash -ceu 'git -C /tmp clean -df'	block
+bash -euc 'git -C /tmp clean -df'	block
+bash -x -c 'git -C /tmp clean -df'	block
 { git -C /tmp push origin main; }	block
 if git -C /tmp push origin main; then echo done; fi	block
 sudo -u richard git -C /tmp push origin main	block
@@ -556,6 +564,8 @@ echo "a plain # string with spaces"	allow
 bash -c 'echo hello'	allow
 bash -c 'git -C /tmp status'	allow
 bash deploy.sh	allow
+bash -eu deploy.sh	allow
+bash -ceu 'git -C /tmp status'	allow
 if git -C /tmp status; then echo clean; fi	allow
 FIX
   if [ "$failures" -gt 0 ]; then

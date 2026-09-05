@@ -1642,7 +1642,7 @@ INSERT INTO public.club_stripe_accounts (
   club_id, stripe_account_id, onboarding_complete, payouts_enabled, livemode
 )
 VALUES (
-  'a1090000-0000-0000-0013-100000000001'::uuid,
+  'a1090000-0000-0000-0013-111111111111'::uuid,
   'acct_test_myk9109_load1_sandbox',
   true,
   true,

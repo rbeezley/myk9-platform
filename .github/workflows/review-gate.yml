@@ -1,0 +1,52 @@
+# Review gate — posts a `Review gate` commit status on the PR head that is
+# green only when an independent review has been recorded against THAT SHA
+# (scripts/qa/review-gate.ts explains the format and the #2040 incident).
+#
+# Two triggers, on purpose. `pull_request` re-evaluates on every push, which is
+# what turns the gate red the moment the head moves past the reviewed commit.
+# `issue_comment` re-evaluates when the review evidence is posted, so the
+# status flips green without another push; it is filtered to PR comments that
+# start with the evidence line so the job is a no-op for ordinary discussion.
+# Both paths post a commit status by SHA rather than relying on the run's own
+# check, because an issue_comment run is not attached to the PR head.
+name: Review gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  statuses: write
+
+concurrency:
+  group: review-gate-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    name: Evaluate review evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && startsWith(github.event.comment.body, 'Review gate:'))
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+
+      # No install: the script has no dependencies, so Node's type stripping
+      # runs it directly and the job stays under half a minute.
+      - name: Post Review gate status for the PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-gate.ts

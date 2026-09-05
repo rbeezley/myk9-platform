@@ -37,6 +37,8 @@
     "qa:migrations:guard:test": "vitest run scripts/qa/migration-version-guard.test.ts",
     "qa:bulk-pii": "tsx scripts/qa/check-bulk-pii.ts",
     "qa:bulk-pii:test": "vitest run scripts/qa/check-bulk-pii.test.ts",
+    "qa:review-gate": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-gate.ts",
+    "qa:review-gate:test": "vitest run scripts/qa/review-gate.test.ts",
     "qa:code-quality-ratchet": "tsx scripts/qa/code-quality-ratchet.ts",
     "qa:code-quality-ratchet:update": "pnpm qa:code-quality-ratchet -- --update-baseline",
     "qa:ci-coverage-gate:test": "vitest run scripts/qa/ci-coverage-gate.test.ts",
@@ -116,5 +118,8 @@
       "@hono/node-server": "2.0.5"
     }
   },
-  "workspaces": ["apps/*", "packages/*"]
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

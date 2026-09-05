@@ -130,11 +130,21 @@ The pattern is anchored to line start on purpose: the log echoes the diff, and a
 claude -p "/code-review $PR_NUMBER" > "$LOG" 2>&1; echo "EXIT=$?"
 ```
 
-**The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings. Read the log: it must contain either findings or an explicit no-findings statement for THIS head SHA. Then record the gate on the PR so it is visible to whoever merges:
+**The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings. Read the log: it must contain either findings or an explicit no-findings statement for THIS head SHA. Then record the gate on the PR as a comment whose FIRST line has exactly this shape — `.github/workflows/review-gate.yml` parses it into the `Review gate` commit status on the head:
 
 ```bash
-gh pr comment $PR_NUMBER --body "Review gate: <codex|claude> reviewed $BASE_SHA..$HEAD_SHA — <N findings, all addressed | no findings>."
+gh pr comment $PR_NUMBER --body "Review gate: codex reviewed $BASE_SHA..$HEAD_SHA — no findings"
+# or, after fixing what it found and re-running:
+gh pr comment $PR_NUMBER --body "Review gate: codex reviewed $BASE_SHA..$HEAD_SHA — 2 findings, all addressed"
 ```
+
+Concrete example — this exact line is what the checker's contract test parses, so keep one here:
+
+```text
+Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
+```
+
+Write `claude` as the reviewer when Codex authored. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point.
 
 **If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow): use the § 4 fallback — adversarial subagents, plural, prompted to find bugs rather than approve — label the PR body with what ran instead, keep the PR a draft when nothing is time-pressured, and re-run the real gate once it is available.
 

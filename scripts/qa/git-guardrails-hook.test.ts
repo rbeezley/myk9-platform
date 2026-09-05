@@ -47,6 +47,12 @@ describe('block-dangerous-git.sh', () => {
     'git branch -d -f feature',
     'git checkout .',
     'git restore .',
+    'sh -c "git push origin main"',
+    'echo ok; $(git push)',
+    'pnpm build || git clean -fd',
+    'git   push',
+    'git\npush',
+    '/usr/bin/git push',
   ])('blocks %j', command => {
     expect(verdict(command)).toBe(2);
   });
@@ -60,13 +66,18 @@ describe('block-dangerous-git.sh', () => {
     'git branch --delete merged-branch',
     'git checkout main',
     'git -C "/tmp/a b" status',
-    'git commit -m "git push is mentioned in this message"',
     'git restore src/file.ts',
-    'echo "git push" > notes.txt',
     'ls',
   ])('allows %j', command => {
     expect(verdict(command)).toBe(0);
   });
+
+  it.each(['echo "git push" > notes.txt', 'git commit -m "git push is mentioned in this message"'])(
+    'fails CLOSED on prose that mentions a dangerous form (%j) — a guardrail prefers a false positive',
+    command => {
+      expect(verdict(command)).toBe(2);
+    }
+  );
 
   it('allows an empty command payload', () => {
     expect(verdict('')).toBe(0);

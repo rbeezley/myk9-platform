@@ -201,14 +201,18 @@ function createRequestHandler({ detectScript, livePath }) {
     // origin with `Access-Control-Allow-Origin: *` and served the session token
     // inside /live.js to anyone, so a page on any site could <script src> the
     // token off localhost and then read project files through /source. Only a
-    // localhost/127.0.0.1 page may read responses or bootstrap the token.
+    // localhost/127.0.0.1 page may read responses or bootstrap the token. No
+    // Cross-Origin-Resource-Policy header: a page on 127.0.0.1 loading a script
+    // from localhost is cross-site to the browser, and CORP blocked the classic
+    // <script> tags (/live.js, the screenshot script) even after the gate below
+    // passed. The gate is the protection — a request with no local Origin or
+    // Referer gets 403, which also covers a page that suppresses its referrer.
     const requestOrigin = req.headers.origin;
     const requestReferer = req.headers.referer;
     if (requestOrigin && isLocalOrigin(requestOrigin)) {
       res.setHeader('Access-Control-Allow-Origin', requestOrigin);
       res.setHeader('Vary', 'Origin');
     }
-    res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -225,11 +229,6 @@ function createRequestHandler({ detectScript, livePath }) {
         res.end('live.js is only served to localhost pages');
         return;
       }
-      // A page on 127.0.0.1 loading the script from localhost is cross-site to
-      // the browser, so the same-site resource policy would block the classic
-      // <script> tag even though the check above passed (Codex, #2064 round
-      // 2). The Origin/Referer gate is what protects the token; drop CORP here.
-      res.removeHeader('Cross-Origin-Resource-Policy');
       // Re-read from disk each request so edits to live-browser.js land on
       // the next tab reload. No-store headers prevent browser caching across
       // sessions — during iteration, a cached old script silently breaks

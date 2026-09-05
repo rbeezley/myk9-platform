@@ -105,9 +105,17 @@ tokenize() {
         ;;
       '\')
         if [ "$i" -lt "$n" ]; then
-          token="$token${s:$i:1}"
-          i=$((i + 1))
-          started=1
+          if [ "${s:$i:1}" = "$NL" ]; then
+            # Line continuation: the backslash and the newline both vanish and
+            # the token CONTINUES. Appending the newline instead turned
+            # `git \<newline>push` into the token " push", which is not the
+            # subcommand `push`, and the guard waved it through.
+            i=$((i + 1))
+          else
+            token="$token${s:$i:1}"
+            i=$((i + 1))
+            started=1
+          fi
         fi
         ;;
       ' ' | "$TAB")
@@ -182,10 +190,22 @@ inspect_git_invocation() {
   # that are a single token.
   while [ $# -gt 0 ]; do
     case "$1" in
-      -C | -c | --git-dir | --work-tree | --namespace | --exec-path | --super-prefix)
+      # These genuinely take a SEPARATE value. `--exec-path` and
+      # `--super-prefix` do not (they are `--opt=<v>` only), and listing them
+      # here made the parser swallow the following word: `git --exec-path push`
+      # lost `push` to the value-skip and came out clean.
+      -C | -c | --config-env | --git-dir | --work-tree | --namespace)
         shift 2 || return 1
         ;;
+      # A token in subcommand position that looks like `key=value` is not a
+      # subcommand — it is the orphaned value of a global option nobody listed
+      # here. Skipping it generalises past the specific options above, which
+      # is the fix that keeps working when git grows the next one.
+      *=*)
+        shift
+        ;;
       --git-dir=* | --work-tree=* | --namespace=* | --exec-path=* | --super-prefix=* | \
+        --exec-path | --super-prefix | \
         -p | -P | --paginate | --no-pager | --bare | --no-replace-objects | \
         --literal-pathspecs | --glob-pathspecs | --noglob-pathspecs | --icase-pathspecs | \
         --no-optional-locks | --html-path | --man-path | --info-path | --version | --help)
@@ -260,7 +280,27 @@ inspect_segment() {
     git | */git) shift ;;
     *) return 1 ;;
   esac
-  inspect_git_invocation "$@"
+
+  local reason arg
+  if reason=$(inspect_git_invocation "$@"); then
+    printf '%s' "$reason"
+    return 0
+  fi
+
+  # Backstop. Every hole found in this parser so far has been the option-strip
+  # walking past the subcommand — a global option that takes a value when it
+  # should not, or one nobody listed. The consequence is always the same shape:
+  # `push` is sitting right there in the tokens and the parser never looked at
+  # it. So look. This deliberately over-blocks `git commit -m push` and
+  # `git log --grep push`; the message says which pattern fired, and a false
+  # refusal costs a rephrase while a false allow costs a force-push.
+  for arg in "$@"; do
+    if [ "$arg" = "push" ]; then
+      printf 'a bare `push` argument the option parser never reached'
+      return 0
+    fi
+  done
+  return 1
 }
 
 # Echoes a reason and returns 0 when any segment of the command is destructive.
@@ -322,6 +362,21 @@ verdict() {
 
 self_test() {
   local failures=0 total=0 command expected actual
+
+  # A backslash-newline continuation cannot live in the line-oriented fixture
+  # table below, and it is exactly the case that regressed: appending the
+  # newline to the token made `git \<newline>push` parse as the subcommand
+  # " push", which matched nothing.
+  local continuation="git \\${NL}push origin main"
+  total=$((total + 1))
+  case "$(verdict "$continuation")" in
+    block:*) ;;
+    *)
+      echo "FAIL: backslash-newline continuation before push expected block, got allow" >&2
+      failures=$((failures + 1))
+      ;;
+  esac
+
   while IFS="$TAB" read -r command expected; do
     [ -z "$command" ] && continue
     total=$((total + 1))
@@ -356,6 +411,11 @@ cd /tmp && git push	block
 git push;ls	block
 /usr/bin/git -C /tmp clean -fdx	block
 git -C "/tmp/unterminated clean -fd	block
+git --exec-path push origin main	block
+git --config-env user.name=USER push origin main	block
+git --config-env user.name=USER clean -fd	block
+git --config-env=user.name=USER clean -fd	block
+git commit -m push	block
 git status	allow
 git commit -m wip	allow
 git commit -m "push to main"	allow

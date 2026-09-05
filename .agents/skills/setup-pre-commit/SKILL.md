@@ -28,6 +28,22 @@ husky lint-staged prettier
 
 ### 3. Initialize Husky
 
+**First, look at what the repo already runs on commit.** `husky init` sets
+`core.hooksPath` to `.husky/_`, and a hooks path is not additive — whatever
+was there stops running, silently, with no error and no mention in the husky
+output. A repo with its own `.githooks` is the common case, and those hooks
+are usually the load-bearing ones (this repo's `.githooks/pre-commit`
+enforces the worktree rule that keeps concurrent agents from committing to
+the primary checkout).
+
+```bash
+git config --get core.hooksPath   # empty, .githooks, or something else?
+ls -la .githooks/ 2>/dev/null     # what would stop running?
+```
+
+If either turns up an existing hook, say so before continuing and chain it in
+step 4 rather than replacing it.
+
 ```bash
 npx husky init
 ```
@@ -39,12 +55,20 @@ This creates `.husky/` dir and adds `prepare: "husky"` to package.json.
 Write this file (no shebang needed for Husky v9+):
 
 ```
+# Chain any pre-existing hook FIRST — husky's hooks path displaced it, and
+# it has to keep failing the commit exactly as it used to. `|| exit $?`,
+# never `|| true`: a swallowed exit code here turns the guard into a no-op
+# that still looks installed.
+if [ -x .githooks/pre-commit ]; then
+  .githooks/pre-commit || exit $?
+fi
+
 npx lint-staged
 npm run typecheck
 npm run test
 ```
 
-**Adapt**: Replace `npm` with detected package manager. If repo has no `typecheck` or `test` script in package.json, omit those lines and tell the user.
+**Adapt**: Replace `npm` with detected package manager. If repo has no `typecheck` or `test` script in package.json, omit those lines and tell the user. Drop the chaining block only if step 3 found no existing hook — and if the displaced hook lives somewhere other than `.githooks/pre-commit`, point it at that path instead.
 
 ### 5. Create `.lintstagedrc`
 

@@ -8,19 +8,30 @@ allowed-tools: Bash(playwright-cli:*)
 
 ## Quick start
 
+**Name your session first.** Every command below without `-s=` drives the
+shared *default* browser, and concurrent agents share this machine — one of
+them navigating or closing that browser mid-task looks like your page
+spontaneously changing. Pick a name unique to this task and carry it through
+to cleanup. For scripted runs use the wrapper instead, which supplies a
+unique `PLAYWRIGHT_CLI_SESSION` and closes only its own session:
+`pnpm qa:browser-session sh path/to/browser-work.sh`.
+
 ```bash
+SESSION=dogs-crud-walk   # unique to this task; never a generic name
+
 # open new browser
-playwright-cli open
+playwright-cli -s=$SESSION open
 # navigate to a page
-playwright-cli goto https://playwright.dev
+playwright-cli -s=$SESSION goto https://playwright.dev
 # interact with the page using refs from the snapshot
-playwright-cli click e15
-playwright-cli type "page.click"
-playwright-cli press Enter
+playwright-cli -s=$SESSION click e15
+playwright-cli -s=$SESSION type "page.click"
+playwright-cli -s=$SESSION press Enter
 # take a screenshot (rarely used, as snapshot is more common)
-playwright-cli screenshot
-# close the browser
-playwright-cli close
+playwright-cli -s=$SESSION screenshot
+# close the browser you opened, by name
+playwright-cli -s=$SESSION close
+playwright-cli list   # confirm yours is gone and nobody else's is
 ```
 
 ## Commands

@@ -26,16 +26,20 @@ permissions:
   issues: read
   statuses: write
 
-concurrency:
-  group: review-gate-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
   evaluate:
     name: Evaluate review evidence
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event_name == 'pull_request' || (github.event.issue.pull_request && (startsWith(github.event.comment.body, 'Review gate:') || startsWith(github.event.changes.body.from, 'Review gate:')))
+    # Concurrency lives on the JOB, not the workflow: a workflow-level group
+    # is claimed by every run, including the ones whose only job is skipped
+    # by the filter above, so an ordinary PR comment landing mid-evaluation
+    # cancelled the evaluation and left the status missing or stale (Codex
+    # review of #2058). A skipped job never enters a job-level group.
+    concurrency:
+      group: review-gate-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
 
     steps:
       - uses: actions/checkout@v7

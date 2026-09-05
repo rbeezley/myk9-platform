@@ -196,6 +196,13 @@ describe('workflow wiring', () => {
     expect(workflow).toContain("startsWith(github.event.changes.body.from, 'Review gate:')");
   });
 
+  it('scopes concurrency to the job, so a skipped run cannot cancel an evaluation', () => {
+    // A workflow-level group is claimed even by runs whose only job the `if`
+    // skips — an ordinary comment then cancels an in-flight evaluation.
+    expect(workflow).not.toMatch(/^concurrency:/m);
+    expect(workflow).toMatch(/^    concurrency:\n\s+group: review-gate-/m);
+  });
+
   it('re-evaluates on every push', () => {
     expect(workflow).toMatch(/pull_request:\n\s+types: \[[^\]]*synchronize[^\]]*\]/);
   });

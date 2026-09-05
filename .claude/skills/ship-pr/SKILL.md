@@ -144,7 +144,7 @@ Concrete example — this exact line is what the checker's contract test parses,
 Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
 ```
 
-Write `claude` as the reviewer when Codex authored. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point.
+Write `claude` as the reviewer when Codex authored. The verdict is the whole remainder of the line and must be exactly `no findings` or `<N> finding(s), all addressed|fixed` — anything else (a parenthetical, "not all addressed", "no findings yet") is red by design; put detail on the comment's later lines. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point. Editing or deleting the evidence comment re-evaluates it too.
 
 **If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow): use the § 4 fallback — adversarial subagents, plural, prompted to find bugs rather than approve — label the PR body with what ran instead, keep the PR a draft when nothing is time-pressured, and re-run the real gate once it is available.
 

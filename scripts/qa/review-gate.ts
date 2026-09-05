@@ -20,9 +20,12 @@
  * Deliberate limits: the comment is written by the agent that ran the review,
  * so this proves a review was CLAIMED for this SHA, not that its log was read.
  * It closes the "merged before the review finished" and "reviewed an older
- * head" holes, which are the two that have actually fired. Only lines that
- * START with `Review gate:` count — a quoted or indented copy of the format
- * in prose is not evidence, because prose about code satisfies a text scan.
+ * head" holes, which are the two that have actually fired. Only a comment
+ * whose FIRST line is the evidence line counts — a quoted, indented or
+ * mid-comment copy of the format is not evidence, because prose about code
+ * satisfies a text scan. And the verdict must match the documented grammar
+ * exactly: substring tests accepted "2 findings, not all addressed" and
+ * "no findings yet; review still running" as green (Codex review of #2058).
  */
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
@@ -49,32 +52,41 @@ export interface GateResult {
   evidence?: GateEvidence;
 }
 
-/** One evidence line. Anchored to line start; the dash accepts em, en or hyphen. */
+/**
+ * The evidence line. Must be the FIRST line of the comment (the workflow's
+ * trigger filter uses the same rule); the dash accepts em, en or hyphen.
+ */
 export const REVIEW_GATE_LINE =
-  /^Review gate: (codex|claude) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/gm;
+  /^Review gate: (codex|claude) reviewed ([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})\s+[—–-]\s+(.+?)\s*$/m;
 
-const ACCEPTED_VERDICT = /\b(no findings|all addressed|all fixed|nothing to address)\b/i;
-const REJECTED_VERDICT = /\b(did not run|interrupted|usage limit|unaddressed|not addressed)\b/i;
+/**
+ * The ONLY verdicts that are green, matched against the whole remainder of
+ * the line. Anything else — a parenthetical, "not all addressed", "no findings
+ * yet", a log excerpt — is red by default. Extra detail belongs on the
+ * comment's later lines, not in the verdict.
+ */
+export const CLEAN_VERDICT = /^(no findings|\d+ findings?, all (addressed|fixed))\.?$/i;
 
 export function parseGateComments(comments: readonly GateComment[]): GateEvidence[] {
   const out: GateEvidence[] = [];
   for (const comment of comments) {
-    for (const match of comment.body.matchAll(REVIEW_GATE_LINE)) {
-      const [, reviewer, base, head, verdict] = match;
-      out.push({
-        reviewer: reviewer as GateEvidence['reviewer'],
-        base,
-        head,
-        verdict,
-        createdAt: comment.createdAt,
-      });
-    }
+    const firstLine = comment.body.split(/\r?\n/, 1)[0] ?? '';
+    const match = REVIEW_GATE_LINE.exec(firstLine);
+    if (!match) continue;
+    const [, reviewer, base, head, verdict] = match;
+    out.push({
+      reviewer: reviewer as GateEvidence['reviewer'],
+      base,
+      head,
+      verdict,
+      createdAt: comment.createdAt,
+    });
   }
   return out;
 }
 
 export function verdictAccepted(verdict: string): boolean {
-  return ACCEPTED_VERDICT.test(verdict) && !REJECTED_VERDICT.test(verdict);
+  return CLEAN_VERDICT.test(verdict.trim());
 }
 
 export function evaluateReviewGate(input: {

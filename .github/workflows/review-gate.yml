@@ -4,18 +4,21 @@
 #
 # Two triggers, on purpose. `pull_request` re-evaluates on every push, which is
 # what turns the gate red the moment the head moves past the reviewed commit.
-# `issue_comment` re-evaluates when the review evidence is posted, so the
-# status flips green without another push; it is filtered to PR comments that
-# start with the evidence line so the job is a no-op for ordinary discussion.
-# Both paths post a commit status by SHA rather than relying on the run's own
-# check, because an issue_comment run is not attached to the PR head.
+# `issue_comment` re-evaluates when the review evidence is posted, EDITED or
+# DELETED, so the status flips green without another push and cannot stay
+# green after an attestation is corrected or withdrawn. It is filtered to PR
+# comments whose body starts with the evidence line — or whose PREVIOUS body
+# did, so an edit that removes the line still triggers — and is a no-op for
+# ordinary discussion. Both paths post a commit status by SHA rather than
+# relying on the run's own check, because an issue_comment run is not attached
+# to the PR head.
 name: Review gate
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
-    types: [created]
+    types: [created, edited, deleted]
 
 permissions:
   contents: read
@@ -32,7 +35,7 @@ jobs:
     name: Evaluate review evidence
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && startsWith(github.event.comment.body, 'Review gate:'))
+    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && (startsWith(github.event.comment.body, 'Review gate:') || startsWith(github.event.changes.body.from, 'Review gate:')))
 
     steps:
       - uses: actions/checkout@v7

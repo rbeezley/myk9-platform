@@ -145,6 +145,64 @@ describe('watch-pr-checks harness', () => {
     expect(Date.now() - startedAt).toBeLessThan(20_000);
   });
 
+  // Green reports the REQUIRED set, not a finished board. If the caller cannot
+  // see what is still outstanding, an identical non-required failure blocks
+  // shipping when it lands early and is ignored when it lands late — purely on
+  // timing. Raised in review of #2053.
+  it.each([
+    [
+      'names what is still outstanding on green',
+      [
+        { name: 'Quality Checks', conclusion: 'SUCCESS' },
+        { name: 'Test', conclusion: 'SUCCESS' },
+        { name: 'A11y smoke', conclusion: 'SUCCESS' },
+        { name: 'E2E PR Smoke', conclusion: 'SUCCESS' },
+        { context: 'Vercel - app', state: 'PENDING' },
+      ],
+      'STILL OUTSTANDING (non-required, may yet fail): Vercel - app',
+    ],
+    [
+      'says so plainly when the board is finished',
+      [
+        { name: 'Quality Checks', conclusion: 'SUCCESS' },
+        { name: 'Test', conclusion: 'SUCCESS' },
+        { name: 'A11y smoke', conclusion: 'SUCCESS' },
+        { name: 'E2E PR Smoke', conclusion: 'SUCCESS' },
+        { context: 'Vercel - app', state: 'SUCCESS' },
+      ],
+      'Nothing outstanding',
+    ],
+  ])('%s', (_label, rollup, expected) => {
+    const dir = mkdtempSync(join(tmpdir(), 'watch-pr-checks-green-'));
+    scratchDirs.push(dir);
+    const payload = JSON.stringify({ headRefOid: 'deadbeef', statusCheckRollup: rollup });
+    writeFileSync(
+      join(dir, 'gh'),
+      [
+        '#!/bin/bash',
+        'case "${1:-}" in',
+        '  api)',
+        '    if [[ "$*" == *"/rulesets/"* ]]; then',
+        `      echo '["Quality Checks","Test","A11y smoke","E2E PR Smoke"]'`,
+        '    else echo 17085332; fi',
+        '    exit 0 ;;',
+        `  pr) cat <<'JSON'\n${payload}\nJSON\n    exit 0 ;;`,
+        '  *) exit 1 ;;',
+        'esac',
+      ].join('\n')
+    );
+    chmodSync(join(dir, 'gh'), 0o755);
+
+    const result = spawnSync('bash', [watcher, '2053', 'deadbeef'], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH ?? ''}` },
+      timeout: 30_000,
+    });
+
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.stdout).toContain(expected);
+  });
+
   it('refuses to poll without a PR number', () => {
     const result = spawnSync('bash', [watcher], { encoding: 'utf8' });
 

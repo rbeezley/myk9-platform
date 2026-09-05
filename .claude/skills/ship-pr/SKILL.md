@@ -150,7 +150,10 @@ cd "/Users/richardbeezley/AI Projects/myk9-platform"
 
 **Choose the merge path based on that exit code:**
 
-**Path A — the watcher exited 0:** merge immediately.
+**Path A — the watcher exited 0.** Green means the REQUIRED set passed, **not** that the board is finished. Read the watcher's last two lines before merging:
+
+- `Nothing outstanding` → merge.
+- `STILL OUTSTANDING (non-required, may yet fail): …` → apply the **same two confirmations as exit 5** to each name listed. Those checks can still turn red after the required set goes green — CI's `Build` depends on `Test`, and a preview can report a genuine build failure late. Without this, an identical Vercel failure blocks shipping when it arrives early and is ignored when it arrives late, purely on timing.
 
 ```bash
 # 3a. Squash-merge. NO --delete-branch: its local half fails while a worktree

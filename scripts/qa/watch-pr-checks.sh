@@ -259,6 +259,22 @@ while :; do
   case "$RESULT" in
     green)
       echo "GREEN on $PINNED: every required check answered green ($TOTAL checks seen)"
+      # Green means the REQUIRED set passed, not that the board is finished.
+      # Anything still unanswered here is non-required by definition — but it can
+      # still turn red afterwards, and CI's Build depends on Test, so a preview
+      # or downstream job may report later. Without this line the caller cannot
+      # tell "nothing else outstanding" from "the slow ones have not landed yet",
+      # which makes an identical failure blocking or ignored purely on timing.
+      # Raised in review of #2053.
+      OUTSTANDING=$(printf '%s' "$RESPONSE" |
+        jq -r "$JQ_DEFS [.statusCheckRollup[] | select(answered | not) | .name // .context] | join(\", \")")
+      if [ -n "$OUTSTANDING" ]; then
+        echo "STILL OUTSTANDING (non-required, may yet fail): $OUTSTANDING"
+        echo "Apply the same judgement as exit 5 before merging: is any of these needed"
+        echo "for visual QA, and would a late failure in one matter for this diff?"
+      else
+        echo "Nothing outstanding: every check on the board has answered."
+      fi
       exit 0
       ;;
     required-failed:*)

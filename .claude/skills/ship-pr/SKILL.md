@@ -149,8 +149,14 @@ Never report the PR as ready, arm auto-merge, or merge while a review is running
 **CRITICAL: Never run `gh pr merge` from inside the feature worktree.** And never pass `--delete-branch`: its local half fails while a worktree holds the branch, and the weekly branch-janitor reaps merged remotes.
 
 ```bash
-# 1. Verify PR state and current check status
-gh pr view $PR_NUMBER --json state,mergedAt,mergeStateStatus,statusCheckRollup
+# 1. Establish the check verdict. Do NOT eyeball statusCheckRollup: "no pending"
+#    fires before the CI jobs even register, an unfinished run carries a null
+#    conclusion, and Vercel reports through `state` and never sets `conclusion`.
+#    This reads the repo's own main-required-checks ruleset and waits for exactly
+#    those contexts on the pinned SHA.
+#      0 green · 1 REQUIRED check failed · 2 head moved
+#      3 timeout (NOT a verdict) · 5 required green, non-required failed
+bash scripts/qa/watch-pr-checks.sh $PR_NUMBER
 
 # 2. Switch to main repo BEFORE merging
 cd "/Users/richardbeezley/AI Projects/myk9-platform"
@@ -160,9 +166,23 @@ Reading the rollup — three traps from the instruction file's LESSONS:
 
 - A red `Vercel – …` context whose `targetUrl` ends `?upgradeToPro=build-rate-limit` is an account quota, not a verdict on the diff; GitHub leaves the PR `MERGEABLE`/`UNSTABLE`, not `BLOCKED`. Merge on the Actions jobs plus the app's own Vercel context and say which check you ignored.
 - A red check is a verdict on the base it ran against: if its run predates the `main` commit that fixed that failure, merge `origin/main` in and push — a rerun keeps the stale merge ref. **That push is a new head:** go back to Step 3 and Step 4, and record the gate for the new SHA before merging. Conflict resolutions and integration changes must not skip the review.
-- "No pending checks" is not "settled": require every check to have reported a conclusion for the current head SHA.
+- "No pending checks" is not "settled" — and neither is "nothing failed". Seconds after a push a
+  lone fast status context has nothing pending and nothing red while no CI job has registered at
+  all. The watcher encodes all three traps: it pins the SHA, waits for the
+  `main-required-checks` ruleset's contexts specifically, and classifies with an allowlist of
+  passing conclusions so `STALE` and any future value fail closed.
 
-**Path A — checks green (`mergeStateStatus` is `CLEAN`, or `UNSTABLE` only from the quota context):**
+**Exit 1 (a REQUIRED check failed) or exit 2 (head moved) is a STOP, not a slower Path B.** Never
+arm auto-merge to get past a red. **Exit 5** — required green, a non-required check red — is the
+quota case above: confirm the `targetUrl` says `upgradeToPro=build-rate-limit` AND that this diff
+does not need the preview for visual QA, then say which you checked.
+
+**Path A — the watcher exited 0.** Green means the REQUIRED set passed, **not** that the board is
+finished. Read its last two lines: `Nothing outstanding` -> merge; `STILL OUTSTANDING
+(non-required, may yet fail): ...` -> apply the exit-5 judgement below to each name. Those can
+still turn red after the required set goes green (CI's `Build` depends on `Test`), and without
+this an identical Vercel failure blocks shipping when it lands early and is ignored when it
+lands late, purely on timing.
 
 ```bash
 gh pr merge $PR_NUMBER --squash
@@ -171,7 +191,8 @@ gh pr view $PR_NUMBER --json state,mergedAt
 
 Do not proceed until `state == "MERGED"`.
 
-**Path B — checks still pending:** arm auto-merge (only after Step 4 has passed) and return immediately. GitHub will squash-merge when required checks pass.
+**Path B — the watcher exited 3 (timeout — NOT a verdict), or you do not want to wait:** arm
+auto-merge (only after Step 4 has passed) and return immediately. GitHub will squash-merge when required checks pass.
 
 ```bash
 gh pr merge $PR_NUMBER --squash --auto
@@ -202,6 +223,13 @@ git checkout main
 git pull --ff-only
 git fetch --prune
 
+# Prove the merge by SHA, not by name: a PR matching this branch's headRefName only means a PR
+# with that NAME merged. Commits pushed after the merge, or a re-created branch reusing a
+# template name, leave the tip ahead of what landed — that deleted an unmerged commit's branch
+# on 2026-08-03.
+git rev-parse <branch-name>                               # must equal
+gh pr view $PR_NUMBER --json headRefOid --jq .headRefOid  # this
+
 # git worktree remove is the ABSOLUTE LAST command — nothing runs after this
 git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 ```
@@ -221,6 +249,9 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 - Any push that changes the head after the gate — including a merge from `main` — re-runs the gate
 - Worktree removal is ALWAYS the final command
 - If checks are pending, arm `gh pr merge --squash --auto` instead of stopping with manual instructions; never poll unless asked
+- NEVER treat "no pending checks" as green. Use `scripts/qa/watch-pr-checks.sh` — it pins the SHA, waits for the ruleset's required contexts, and fails closed on unknown conclusions.
+- NEVER collapse a non-required failure into a blocking one, or into silence. Exit 5 is that case, and it carries two required confirmations.
+- NEVER accept a merged PR's `headRefName` as proof a branch merged. Compare the tip SHA against its `headRefOid`.
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)
 - Use `pnpm`, not `npm` or `npx`
 - Max 5 verify iterations, max 5 review rounds — escalate if limits hit

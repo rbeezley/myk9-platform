@@ -160,6 +160,16 @@ jobs:
       - name: Behavioral SQL harness contract
         run: pnpm qa:sql:behavioral:test
 
+      # The merge gate's own detector. An untested CI watcher reports its own
+      # bugs as good news: on #2045 a jq error made every Vercel failure
+      # invisible, and it printed failed=[] for forty minutes on a red board.
+      # `--self-test` needs no network — it replays known-answer rollups,
+      # including the shapes that broke it.
+      - name: PR check-watcher contract
+        run: |
+          pnpm qa:pr-checks:test
+          pnpm qa:pr-checks --self-test
+
       - name: CI coverage gate contract
         run: pnpm qa:ci-coverage-gate:test
 

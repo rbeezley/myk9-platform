@@ -38,6 +38,7 @@ If not inside a worktree under `.claude/worktrees/`, invoke `superpowers:using-g
 ## Step 2: Implement Per Plan
 
 Work through todos in order. For each task:
+
 - Mark `in_progress`
 - Read affected files before editing
 - Make only the changes the task requires — no scope creep
@@ -65,12 +66,14 @@ Fix failures. Repeat until all pass. **Max 10 iterations** — stop and report i
 If the diff contains any `.sql` files under `supabase/migrations/`, compile-check them against a Supabase-compatible shadow database BEFORE the JS-focused passes run. `pnpm typecheck` does not parse SQL, and the harden agent in Step 3c reads files but does not execute them — both blind spots that have shipped `db push`-failing migrations to PR review.
 
 The most common failures this catches:
+
 - **`%ROWTYPE` against a function** — only resolves against relations/composites; functions that `RETURNS TABLE (...)` produce anonymous result rows, not registered types. Use `record` instead.
 - **Function/column references to objects that don't exist yet** in the migration sequence
 - **Missing `;` terminators, malformed DO blocks, plpgsql syntax errors**
 
 What this check does NOT catch — these still need the harden audit in Step 3c:
-- **Stale GRANT/REVOKE on a prior signature when a new overload is added.** A second `validate_passcode(text, text)` next to the existing `validate_passcode(text)` gets a new OID; a copy-pasted `GRANT EXECUTE ON FUNCTION validate_passcode(text)` succeeds (it targets the *old* signature) and the new overload remains ungranted. The migration applies cleanly — the bug surfaces at call time. The harden prompt in Step 3c includes the signature-audit check; do not rely on the compile step alone.
+
+- **Stale GRANT/REVOKE on a prior signature when a new overload is added.** A second `validate_passcode(text, text)` next to the existing `validate_passcode(text)` gets a new OID; a copy-pasted `GRANT EXECUTE ON FUNCTION validate_passcode(text)` succeeds (it targets the _old_ signature) and the new overload remains ungranted. The migration applies cleanly — the bug surfaces at call time. The harden prompt in Step 3c includes the signature-audit check; do not rely on the compile step alone.
 
 **Strategy:** use `supabase db reset --local`, which spins up the Supabase-flavored Postgres in Docker (with `auth.users`, `authenticated`/`anon`/`service_role` roles, `auth.*` helpers, `extensions` schema, `supabase_vault`, `pg_net`, `pg_cron`, etc.) and replays every migration in `supabase/migrations/` from scratch. A plain `createdb` + `psql` shadow DB does NOT work here — this repo's migrations reference Supabase cluster objects (`authenticated`, `anon`, `auth.users`, `supabase_vault`, `pg_net`, `pg_cron`) that don't exist in a vanilla Postgres cluster, and the check would fail before reaching the new migration.
 
@@ -259,6 +262,7 @@ Note `$PR_NUMBER` and `$BASE_SHA` / `$HEAD_SHA` — needed for review.
 Spawn a code-review subagent using the Agent tool with `subagent_type: superpowers:code-reviewer`:
 
 **Subagent prompt template:**
+
 ```
 Review the following implementation.
 
@@ -291,6 +295,7 @@ If subagent returns `APPROVED` → skip to Step 7.
 ## Step 6: Fix Loop (until clean)
 
 Apply each finding (critical and high required; medium if straightforward):
+
 - Read file before editing
 - Minimal fix — do not refactor surrounding code
 
@@ -313,8 +318,11 @@ gh pr view $PR_NUMBER --json state,mergedAt
 # 2. cd to MAIN REPO before merging
 cd "/Users/richardbeezley/AI Projects/myk9-platform"
 
-# 3. Merge
-gh pr merge $PR_NUMBER --squash --delete-branch
+# 3. Merge. NO --delete-branch: its local half fails while a worktree still has
+#    the branch checked out, and `git branch -D` is denied by this repo's
+#    permission rules — which stalls an unattended run rather than failing it.
+#    branch-janitor reaps merged branches weekly.
+gh pr merge $PR_NUMBER --squash
 
 # 4. Confirm
 gh pr view $PR_NUMBER --json state,mergedAt

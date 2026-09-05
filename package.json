@@ -53,6 +53,8 @@
     "qa:sql:financial": "bash scripts/qa/run-financial-sql-tests.sh",
     "qa:sql:behavioral": "bash scripts/qa/run-behavioral-sql-tests.sh",
     "qa:sql:behavioral:test": "vitest run scripts/qa/run-behavioral-sql-tests.test.ts",
+    "qa:pr-checks": "bash scripts/qa/watch-pr-checks.sh",
+    "qa:pr-checks:test": "vitest run scripts/qa/watch-pr-checks.test.ts",
     "qa:rls-smoke": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/rls-smoke/rls-recursion-smoke.ts",
     "qa:rls-smoke:test": "vitest run scripts/qa/rls-smoke/*.test.ts",
     "support:triage": "tsx scripts/support-triage/run.ts",
@@ -116,5 +118,8 @@
       "@hono/node-server": "2.0.5"
     }
   },
-  "workspaces": ["apps/*", "packages/*"]
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

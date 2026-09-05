@@ -34,7 +34,7 @@ Collect the full list of changed files and their contents. Read each changed fil
 
 ## Phase 2: Launch Three Adversarial Agents in Parallel
 
-Use the Agent tool to launch all three agents concurrently in a single message. Pass each agent:
+Launch all three agents concurrently (Claude Code: the Agent tool, one message; Codex: three sub-agents). Pass each agent:
 
 - The full diff
 - The full content of every changed file
@@ -138,6 +138,15 @@ For each fix:
 - Do not refactor surrounding code
 - Do not add comments explaining the fix (the code should be self-evident)
 - Do not add defensive code for theoretical scenarios that the finding didn't identify
+
+## Phase 4.5: QA Registry Update
+
+For every confirmed user-facing issue that is not fully fixed and proven in this harden run, append an entry to `docs/qa/findings.md` using its template. Include:
+
+- `Detected by: harden`
+- `Pattern:` one of the shared pattern values such as `silent-no-op`, `hidden-validation`, `mutation-stale-cache`, `role-rls-mismatch`, or `swallowed-error`
+- `Proof required:` the exact unit, component, Playwright, or manual command needed before closure
+- `Suite category:` from `docs/qa/e2e-suite-map.md` when a Playwright spec is involved
 
 ## Phase 5: Summary
 

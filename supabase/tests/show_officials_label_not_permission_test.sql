@@ -307,4 +307,107 @@ END;
 $$;
 
 RESET ROLE;
+
+-- ===========================================================================
+-- 6. MYK9-402 / SA-2026-09-05-04: a steward's email is not premium-list content.
+--
+-- get_show_officials is SECURITY DEFINER with EXECUTE granted to anon, so the
+-- public show overview can render the officials card. Publishing the SECRETARY
+-- and CHAIRMAN contact address is the documented, accepted decision (SA-006
+-- follow-up, restated in 20260830240000) and is asserted here so a future
+-- tightening cannot silently break the public card.
+--
+-- The steward arm was never part of that decision. show_officials_role_check
+-- permits 'steward' (section 4b above — a ring assignment, deliberately), and
+-- the RPC used to hand a volunteer's ACCOUNT email to any unauthenticated
+-- caller who knows a show id. Show ids are anon-enumerable, so that was a
+-- harvestable list.
+--
+-- Both directions are asserted: anon gets NULL for the steward, a manager still
+-- gets the address (the officials editor needs it). Asserting only the denial
+-- would pass against an RPC that returned NULL to everybody.
+-- ===========================================================================
+
+SELECT public.grant_show_official(
+  '00000000-0000-0000-0000-000000240013',
+  'chairman',
+  '00000000-0000-0000-0000-000000240003'
+);
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000240101', true);
+SELECT public.grant_show_official(
+  '00000000-0000-0000-0000-000000240013',
+  'steward',
+  '00000000-0000-0000-0000-000000240003'
+);
+
+RESET ROLE;
+SET LOCAL ROLE anon;
+SELECT set_config('request.jwt.claim.sub', NULL, true);
+SELECT set_config('request.jwt.claims', NULL, true);
+
+DO $$
+DECLARE
+  chairman_email text;
+  steward_email text;
+  row_count integer;
+BEGIN
+  SELECT count(*) INTO row_count
+  FROM public.get_show_officials('00000000-0000-0000-0000-000000240003');
+  IF row_count = 0 THEN
+    RAISE EXCEPTION 'FAIL anon cannot read the officials card at all — fixture or grant regressed';
+  END IF;
+
+  SELECT o.email INTO chairman_email
+  FROM public.get_show_officials('00000000-0000-0000-0000-000000240003') o
+  WHERE o.role = 'chairman' AND o.user_id = '00000000-0000-0000-0000-000000240013';
+
+  IF chairman_email IS DISTINCT FROM 'officials-named-only@example.test' THEN
+    RAISE EXCEPTION
+      'FAIL the public officials card lost the chairman contact address: %',
+      coalesce(chairman_email, '<null>');
+  END IF;
+
+  SELECT o.email INTO steward_email
+  FROM public.get_show_officials('00000000-0000-0000-0000-000000240003') o
+  WHERE o.role = 'steward' AND o.user_id = '00000000-0000-0000-0000-000000240013';
+
+  IF steward_email IS NOT NULL THEN
+    RAISE EXCEPTION
+      'FAIL a cold anonymous caller read a steward''s email address: %', steward_email;
+  END IF;
+
+  RAISE NOTICE 'PASS anon reads the chairman contact but not the steward''s address';
+END;
+$$;
+
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000240101', true);
+SELECT set_config(
+  'request.jwt.claims',
+  jsonb_build_object('sub', '00000000-0000-0000-0000-000000240101', 'role', 'authenticated')::text,
+  true
+);
+
+DO $$
+DECLARE
+  steward_email text;
+BEGIN
+  SELECT o.email INTO steward_email
+  FROM public.get_show_officials('00000000-0000-0000-0000-000000240003') o
+  WHERE o.role = 'steward' AND o.user_id = '00000000-0000-0000-0000-000000240013';
+
+  IF steward_email IS DISTINCT FROM 'officials-named-only@example.test' THEN
+    RAISE EXCEPTION
+      'FAIL the club admin lost the steward''s address they need to reach them: %',
+      coalesce(steward_email, '<null>');
+  END IF;
+
+  RAISE NOTICE 'PASS a show manager still reads the steward''s address';
+END;
+$$;
+
+RESET ROLE;
 ROLLBACK;

@@ -52,12 +52,13 @@ const EXHIBITOR_STATUS_DESCRIPTIONS: Partial<Record<CheckInStatus, string>> = {
   'no-status': "I haven't checked in yet",
   'checked-in': "I've checked in and I'm ready",
   conflict: "I'll let the secretary know about this conflict",
-  pulled: "The secretary will see that this dog won't run in this class",
+  pulled:
+    "This tells the secretary that this dog won't run this class. It does not withdraw your entry or change your fee.",
   'at-gate': "I'm at the gate and ready",
 };
 
 // The owner-scoped self_checkin_entry RPC permits exhibitors to report their
-// own availability, including a conflict or withdrawal. Staff surfaces retain
+// own availability, including a conflict or pulled class. Staff surfaces retain
 // the operational labels from the shared status grammar.
 const EXHIBITOR_SELECTABLE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
   'no-status',

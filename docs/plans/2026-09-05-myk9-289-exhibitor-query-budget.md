@@ -106,7 +106,7 @@ Continue the bounded bug workflow; no timeout, tracking, DB, or WebKit changes.
 - [x] Prove settings request fan-out red, then batch bounded reads while preserving per-class caching and fail-closed behavior.
 - [x] Test overlapping entry syncs and coalesce only if confirmed; preserve later refreshes and show isolation.
 - [x] Run focused regression tests, TypeScript/lint, and Chromium exhibitor/secretary health checks.
-- [ ] Review and ship the fix, then rerun Nightly; retain the issue until the Chromium evidence gate passes.
+- [x] Review and ship the fix, then rerun Nightly; retain the issue until the Chromium evidence gate passes.
 
 Follow-up verification:
 
@@ -125,3 +125,27 @@ Follow-up verification:
   following its nonblocking suggestion. No DB, fixture, timeout, or tracker changes.
 
 Nightly CI remains the closure gate; local passing sweeps do not close MYK9-289.
+
+## Completion — 2026-09-05
+
+Follow-up PR [#2057](https://github.com/rbeezley/myk9-platform/pull/2057) merged as
+`6f9b353b526add2f8e34457d93fb075d2e743917`. All required checks in CI
+`33978998886` passed, including all app shards, coverage, SQL, packages, quality,
+builds, E2E PR smoke and eight accessibility tests. There are 131 focused passing
+tests across the changed hooks, batching, entry sync, and entry reads.
+
+Post-merge [Nightly 33980080362](https://github.com/rbeezley/myk9-platform/actions/runs/33980080362)
+ran on that merge commit. Its completed Chromium job `101343635119` reports
+**5 passed, 1 skipped**: public, exhibitor (22.9s), secretary (27.3s), judge,
+and admin pass; club-admin alone is skipped. The job's 18 deterministic tests
+also pass. No route reports an unsettled request.
+
+Attribution proof combines the post-#2018 route-specific failures in runs
+33960229924 and 33977583516 (different pending requests confined to their origin
+routes), tracker regression coverage, and this final passing Chromium run after
+#2051/#2057 reduced query workload. Closure is not inferred from a green badge
+alone. The five-second settle budget remains unchanged.
+
+MYK9-289 is Done with PR, commit, and job evidence recorded in Linear. Main is
+synced and the merged branch/worktree removed. Advisory WebKit is separate from
+this closure gate; no WebKit fix is claimed.

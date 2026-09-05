@@ -387,8 +387,8 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 
 ### NCR-2026-09-04-04
 
-- **Status:** in-progress
-- **Lifecycle status:** new
+- **Status:** fixed (2026-09-05 — #2018, #2051, #2057; Nightly 33980080362 Chromium proof)
+- **Lifecycle status:** resolved
 - **Classification:** Confirmed HARNESS defect — not a product bug
 - **Severity:** medium
 - **Canonical priority:** P2
@@ -418,6 +418,8 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 - **2026-09-05 follow-up (Codex, local fix):** Run `33960229924` confirms #2018 stopped the cascade: only `exhibitor/sign-in-target` and `exhibitor/my-entries` failed, with different pending requests. The dog rail still eagerly mounted every title hook. Branch `codex/myk9-289-exhibitor-queries` defers off-screen title hooks until visibility/focus and scopes title-history reads to the card's dog. A staging-backed Chromium probe measured 258 cards with only 3 initial manual-results requests (6 after focusing the last card), all scored-history reads scoped to one dog. The existing five-route exhibitor sweep passed with zero retries and unchanged timeout; 43 focused unit tests, app/test TypeScript, and targeted lint passed. Keep In Review pending merge and post-fix Nightly evidence; WebKit remains separate. Details: [verification plan](../plans/2026-09-05-myk9-289-exhibitor-query-budget.md).
 
 - **Merge verification — 2026-09-05:** [#2051](https://github.com/rbeezley/myk9-platform/pull/2051) merged as `cca3d7f72`; replacement CI run `33976128922` passed all required checks, including app test shards, coverage, accessibility smoke, and E2E PR Smoke. The initial CI-only timeout in the new scrolling regression was fixed by minimizing its fixture; no timeout changed. Linear has implementation and merge evidence. Keep MYK9-289 In Review pending post-merge Nightly route-origin/Chromium proof.
+
+- **Closure verification — 2026-09-05:** MYK9-289 moved to Done after [Nightly 33980080362](https://github.com/rbeezley/myk9-platform/actions/runs/33980080362/job/101343635119) passed Chromium on #2057 merge `6f9b353b526add2f8e34457d93fb075d2e743917`. Verified the actual job log: public, exhibitor, secretary, judge and admin pass; club-admin alone skipped (5 passed, 1 skipped); 18 deterministic tests pass. Attribution proof also includes post-#2018 runs 33960229924/33977583516 reporting distinct pending URLs only on their originating routes, rather than cascading them. #2051 bounded title loading; #2057 reduced 20 classes from 80 settings reads to four and coalesced concurrent same-show entry syncs. Five-second budget unchanged. All required #2057 CI checks passed. Earlier pending-status notes above are historical; this evidence satisfies the closure gate. WebKit/MYK9-244 remains separate.
 
 ### NCR-2026-09-02-02
 

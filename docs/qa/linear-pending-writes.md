@@ -11,7 +11,8 @@ before filing, since Done issues auto-archive.
 
 ## 2026-09-05 — Editing a show ends on a "Show Created!" overlay that denies its existing access codes
 
-**Status:** unfiled. **Uncertain whether a duplicate exists** — see "Filing note" below.
+**Status:** unfiled, but **FIXED AND VERIFIED DEPLOYED** — see "Resolution" at the end.
+**Uncertain whether a duplicate exists** — see "Filing note" below.
 Source: branch-hygiene sweep, 2026-09-05. Confirmed in the browser on deployed
 staging at `main` = `15377b1e3`. Canonical **P2**. Labels to apply: `Claude`, `Bug`.
 Priority: High (2).
@@ -145,3 +146,36 @@ A `save_issue` call carrying this exact body was attempted at ~13:4x UTC on 2026
 the issue was created before the timeout or not at all. **Search Linear for
 "Show Created" / "access codes" / the wizard files above (with `includeArchived: true`)
 before filing, and delete this entry once reconciled.**
+
+### Resolution — 2026-09-05
+
+Fixed by **#2047**, merged as `17d53f9e3`, and **verified against the deployed app** at
+15:5x UTC once a `main` production build succeeded (`3bcb171dc`, 15:37:40Z — a descendant of
+the fix; the fix's own merge commit had failed on the Vercel build rate limit, which is why
+deployment had to be confirmed separately. That trap is now CLAUDE.md's build-rate-limit
+LESSON, `3169f7725`).
+
+Replaying the exact reproduction above — site admin, `?showId=75e078e9-…&mode=add-classes`,
+Review → **Add Classes** with no new classes selected:
+
+```
+url                       : /shows/75e078e9-81c3-46f0-aedd-94acfe15d353   <- lands on the show
+"Show Created!"           : false
+"No access codes ... yet" : false
+"Generate new codes"      : false
+"Review & Publish Show"   : false
+toast "updated successfully" : seen at t=0.5s
+```
+
+All four false statements are gone, the destructive regenerate CTA is unreachable from this
+path, and the save confirms itself. Database unchanged across both verification runs
+(1 trial, 2 classes with the same names, still `published`, 2 entries, 4 passcodes).
+
+The fix carried the abandoned `codex/fix-edit-completion-overlay` work with one change:
+`finishShowSave` takes the `editMode` object rather than a pre-derived boolean, so the
+derivation has one source of truth instead of two that must agree.
+
+**Still to do when Linear is reachable:** determine whether the timed-out `save_issue`
+created an issue; if it did, close it citing `17d53f9e3` and this evidence, and delete this
+entry. If it did not, no issue need be filed — the defect is fixed and verified — but record
+it somewhere durable if you want the history.

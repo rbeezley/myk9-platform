@@ -72,7 +72,7 @@ tokenize() {
   # the CALLER's scope — empty here — and the loop below never runs. Silent:
   # the tokenizer just emits nothing and every parsed check reads as allow.
   local s="$1"
-  local i=0 n c state=none token='' started=0
+  local i=0 n c state=none token='' started=0 dq_pending=0
   n=${#s}
   while [ "$i" -lt "$n" ]; do
     c=${s:$i:1}
@@ -83,7 +83,32 @@ tokenize() {
       continue
     fi
     if [ "$state" = double ]; then
-      if [ "$c" = '"' ]; then
+      # Double quotes are literal for most things but NOT for substitution:
+      # the shell still runs `$(...)` and backticks inside them, so
+      # `echo "$(git clean -df)"` really does clean. Treating the whole quoted
+      # run as one opaque token meant the nested command was never inspected.
+      # Drop back to normal tokenizing for the substitution's body and
+      # remember to return here when it closes.
+      if [ "$c" = '$' ] && [ "${s:$i:1}" = '(' ]; then
+        if [ "$started" -eq 1 ]; then
+          printf '%s\n' "${token//$NL/ }"
+          token=''
+          started=0
+        fi
+        printf '%s\n' "$SEP"
+        i=$((i + 1))
+        dq_pending=$((dq_pending + 1))
+        state=none
+      elif [ "$c" = '`' ]; then
+        if [ "$started" -eq 1 ]; then
+          printf '%s\n' "${token//$NL/ }"
+          token=''
+          started=0
+        fi
+        printf '%s\n' "$SEP"
+        dq_pending=$((dq_pending + 1))
+        state=none
+      elif [ "$c" = '"' ]; then
         state=none
       elif [ "$c" = '\' ] && [ "$i" -lt "$n" ]; then
         token="$token${s:$i:1}"
@@ -129,13 +154,23 @@ tokenize() {
       # `(git -C /tmp push ...)` tokenizes its first word as `(git`, which is
       # not `git`, so the segment was never inspected at all. Treating them as
       # boundaries also makes `$(git push ...)` visible for free.
-      ';' | '|' | '&' | '(' | ')' | "$NL")
+      ';' | '|' | '&' | '(' | ')' | '`' | "$NL")
         if [ "$started" -eq 1 ]; then
           printf '%s\n' "${token//$NL/ }"
           token=''
           started=0
         fi
         printf '%s\n' "$SEP"
+        # Closing a substitution that began inside double quotes puts us back
+        # inside those quotes, not at top level.
+        case "$c" in
+          ')' | '`')
+            if [ "$dq_pending" -gt 0 ]; then
+              dq_pending=$((dq_pending - 1))
+              state=double
+            fi
+            ;;
+        esac
         ;;
       *)
         token="$token$c"
@@ -425,6 +460,9 @@ git --exec-path push origin main	block
 git --config-env user.name=USER push origin main	block
 (git -C /tmp push origin main)	block
 $(git -C /tmp push origin main)	block
+echo "$(git -C /tmp clean -df)"	block
+echo "`git -C /tmp clean -df`"	block
+VAR="$(git -C /tmp push origin main)"	block
 { git -C /tmp push origin main; }	block
 if git -C /tmp push origin main; then echo done; fi	block
 sudo -u richard git -C /tmp push origin main	block
@@ -446,6 +484,8 @@ git reset HEAD~1	allow
 git -C /tmp status	allow
 cd /tmp	allow
 echo hello world	allow
+echo "$(git -C /tmp status)"	allow
+echo "a plain # string with spaces"	allow
 if git -C /tmp status; then echo clean; fi	allow
 FIX
   if [ "$failures" -gt 0 ]; then

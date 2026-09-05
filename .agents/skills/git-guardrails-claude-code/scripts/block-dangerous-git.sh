@@ -72,7 +72,7 @@ tokenize() {
   # the CALLER's scope — empty here — and the loop below never runs. Silent:
   # the tokenizer just emits nothing and every parsed check reads as allow.
   local s="$1"
-  local i=0 n c state=none token='' started=0 dq_pending=0
+  local i=0 n c state=none token='' started=0
   n=${#s}
   while [ "$i" -lt "$n" ]; do
     c=${s:$i:1}
@@ -87,8 +87,17 @@ tokenize() {
       # the shell still runs `$(...)` and backticks inside them, so
       # `echo "$(git clean -df)"` really does clean. Treating the whole quoted
       # run as one opaque token meant the nested command was never inspected.
-      # Drop back to normal tokenizing for the substitution's body and
-      # remember to return here when it closes.
+      # So drop back to normal tokenizing for the substitution's body — and
+      # then STAY there for the rest of the string.
+      #
+      # Not returning to quoted mode is deliberate. The first attempt tracked a
+      # pending depth and restored double-quote mode on `)`, which the inner
+      # `)` of a nested subshell closed early: `echo "$( (true); git clean -df )"`
+      # hid the clean behind `(true)`. Every fix for that is a paren-matching
+      # problem with another nesting case behind it. Staying in normal mode
+      # can only SPLIT the remaining text into more tokens, never merge a git
+      # command out of sight — so the failure direction is a false refusal,
+      # not a silent execution.
       if [ "$c" = '$' ] && [ "${s:$i:1}" = '(' ]; then
         if [ "$started" -eq 1 ]; then
           printf '%s\n' "${token//$NL/ }"
@@ -97,7 +106,6 @@ tokenize() {
         fi
         printf '%s\n' "$SEP"
         i=$((i + 1))
-        dq_pending=$((dq_pending + 1))
         state=none
       elif [ "$c" = '`' ]; then
         if [ "$started" -eq 1 ]; then
@@ -106,7 +114,6 @@ tokenize() {
           started=0
         fi
         printf '%s\n' "$SEP"
-        dq_pending=$((dq_pending + 1))
         state=none
       elif [ "$c" = '"' ]; then
         state=none
@@ -161,16 +168,6 @@ tokenize() {
           started=0
         fi
         printf '%s\n' "$SEP"
-        # Closing a substitution that began inside double quotes puts us back
-        # inside those quotes, not at top level.
-        case "$c" in
-          ')' | '`')
-            if [ "$dq_pending" -gt 0 ]; then
-              dq_pending=$((dq_pending - 1))
-              state=double
-            fi
-            ;;
-        esac
         ;;
       *)
         token="$token$c"
@@ -463,6 +460,9 @@ $(git -C /tmp push origin main)	block
 echo "$(git -C /tmp clean -df)"	block
 echo "`git -C /tmp clean -df`"	block
 VAR="$(git -C /tmp push origin main)"	block
+echo "$( (true); git -C /tmp clean -df )"	block
+echo "$( (cd /tmp) && git -C /tmp push origin main )"	block
+echo "$(echo `git -C /tmp clean -df`)"	block
 { git -C /tmp push origin main; }	block
 if git -C /tmp push origin main; then echo done; fi	block
 sudo -u richard git -C /tmp push origin main	block

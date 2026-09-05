@@ -5,10 +5,15 @@
  * (routes, hooks, services) without pulling in heavy deps.
  */
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Returns `true` when `value` is a valid UUID (v1-v5).
+ * Returns `true` when `value` is a valid UUID-shaped identifier.
+ *
+ * The database also contains deterministic UUID-shaped IDs whose version and
+ * variant nibbles are intentionally outside the RFC 4122 ranges (for example,
+ * seeded load-test fixtures). Route validation must accept those IDs so they
+ * can still reach the database query.
  *
  * Use this to validate route params extracted via `useParams()` before
  * passing them into Supabase `.eq()` or similar DB queries. Rejecting

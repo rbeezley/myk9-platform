@@ -66,7 +66,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     check: show?.acceptCheckPayments ?? true,
     cash: show?.acceptCashPayments ?? true,
   };
-
   const fallbackPaymentMethod = acceptedMethods.check
     ? 'check'
     : acceptedMethods.cash

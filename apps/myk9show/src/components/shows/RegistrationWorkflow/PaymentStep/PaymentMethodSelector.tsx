@@ -154,6 +154,12 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       <CardContent>
         <div role="group" aria-label="Payment method">
           <div className="space-y-3">
+            {!allowCardCheckout && cardCheckoutUnavailableReason && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{cardCheckoutUnavailableReason}</AlertDescription>
+              </Alert>
+            )}
             {/* Card checkout is exhibitor-self-service only: Stripe-hosted
                 checkout runs under the logged-in user's account and
                 stripe-checkout 403s any cart they don't own, so on-behalf modes
@@ -180,13 +186,6 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   </div>
                 )}
               </>
-            )}
-
-            {!allowCardCheckout && cardCheckoutUnavailableReason && (
-              <Alert>
-                <CreditCard className="h-4 w-4" />
-                <AlertDescription>{cardCheckoutUnavailableReason}</AlertDescription>
-              </Alert>
             )}
 
             {showCheck && (

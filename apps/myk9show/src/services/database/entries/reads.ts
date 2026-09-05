@@ -28,6 +28,7 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { EntryStatus } from '@/types/entry-lifecycle';
 import type { DbEntryWithRelations } from '@/services/mappers/classMappers';
 import { AUTHENTICATED_ENTRY_READ_COLUMNS } from './entrySelects';
+import { withReleasedShowResults } from './releasedShowResults';
 
 // ---------------------------------------------------------------------------
 // Helpers — batch-load related data into Maps to avoid N+1 reads
@@ -581,7 +582,7 @@ export const getEntryById = async (id: string) => {
 // empty-local-replica-verifies-online pattern used by getEntriesByDog above and
 // getUserEntries in search.ts.
 export const getEntriesByShow = async (showId: string) => {
-  return readWithReplicationFallback({
+  const result = await readWithReplicationFallback({
     replication: async () => {
       const [entries, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
@@ -615,6 +616,8 @@ export const getEntriesByShow = async (showId: string) => {
     errorData: [],
     verifyOnlineWhenEmpty: true,
   });
+  if (result.error) return result;
+  return { ...result, data: await withReleasedShowResults(showId, result.data) };
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)

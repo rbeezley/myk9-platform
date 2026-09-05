@@ -199,6 +199,9 @@ export function mergeCanonicalEntry(
   return {
     ...stored,
     status: canonical.status,
+    // Replace the complete released result, including undefined when withheld.
+    // Merging fields would retain stale local times or placements.
+    competitionData: canonical.competitionData,
     // The canonical per-show read is authoritative. A null status explicitly
     // clears a stale local status such as `pulled`.
     checkInStatus: canonical.checkInStatus ?? 'no-status',

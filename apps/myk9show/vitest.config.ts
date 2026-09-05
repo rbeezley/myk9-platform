@@ -2,10 +2,10 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-// Coverage thresholds must NOT apply to an individual `--shard=N/3` collection
+// Coverage thresholds must NOT apply to an individual `--shard=N/6` collection
 // run (see .github/workflows/ci.yml "test-show" job). Vitest checks
 // `coverage.thresholds` against whatever files that single process happened to
-// cover — for a 1/3 shard that's an arbitrary partial slice, so the global and
+// cover — for a 1/6 shard that's an arbitrary partial slice, so the global and
 // per-directory floors below would fail unpredictably depending on which shard
 // a directory's tests land in. Thresholds are only meaningful — and only
 // enforced here — against a run that saw the whole suite: a plain

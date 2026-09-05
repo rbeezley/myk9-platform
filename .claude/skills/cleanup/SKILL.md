@@ -7,6 +7,8 @@ description: Use when finishing a work session, after committing, or when asked 
 
 Run all checks, report findings, and fix what can be auto-fixed. Ask before destructive actions.
 
+This file is shared by Claude Code and Codex (`.agents/skills/cleanup` is a symlink to it).
+
 ## Checks
 
 Run all checks in parallel where possible.
@@ -17,7 +19,7 @@ Run all checks in parallel where possible.
 git worktree list
 ```
 
-- Worktrees under `.claude/worktrees/` are agent leftovers.
+- Worktrees under `.claude/worktrees/` (Claude Code) and `.codex/worktrees/` (Codex) are agent leftovers.
 - A worktree is _stale_ if its branch has been merged into `main` OR its remote tracking branch is gone (`git rev-parse --abbrev-ref <branch>@{u}` fails or prints "(gone)"). The remote-branch-gone signal is reliable because the repo auto-deletes branches on PR merge.
 - **Squash-merge detection:** `git log` comparisons will show a squash-merged branch as "unmerged" because the SHA is rewritten. Before flagging any branch as having unpushed work, run BOTH checks:
   ```bash
@@ -25,14 +27,13 @@ git worktree list
   gh pr list --state merged | grep -F "$(git log <branch> --not main --oneline | head -1 | cut -d' ' -f2-)"
   ```
   Only flag as truly unpushed if both checks return empty.
-- **Self-unmount case:** if cwd is inside a stale worktree, **do not run the removal yet** — removing the directory breaks Claude Code's CWD tracking and blocks all subsequent Bash calls. Collect all stale worktrees to remove, then execute the removal as the very **last** Bash call of the entire cleanup run, after all other checks are complete. Chain everything into one command so no further calls are needed after the directory disappears:
+- **Self-unmount case:** if cwd is inside a stale worktree, **do not run the removal yet** — removing the directory breaks the harness's CWD tracking and blocks all subsequent Bash calls. Collect all stale worktrees to remove, then execute the removal as the very **last** Bash call of the entire cleanup run, after all other checks are complete. Chain everything into one command so no further calls are needed after the directory disappears:
   ```bash
   MAIN="/absolute/path/to/main/repo"
-  # Delete the branch BEFORE removing the worktree — worktree remove is the last command
-  git -C "$MAIN" branch -D <stale-branch> \
-    && git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree"
+  # worktree remove is the last command
+  git -C "$MAIN" worktree remove --force "/absolute/path/to/stale-worktree"
   ```
-  Claude Code will automatically recover the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
+  Leave the local branch: `git branch -D` is a denied command in this repo's Claude Code permissions (Codex may run it per `AGENTS.md`, before the worktree removal). The harness recovers the session CWD to the main repo after the call. The user's terminal CWD will be stale — note that in the report.
 - **Always ask before removing any worktree** — another agent may be actively using it even if the branch looks merged or clean. List all stale candidates and ask the user to confirm which (if any) to remove. Never auto-remove.
 - **Reap dev servers first.** Before removing a worktree, run §2 scoped to that worktree path and kill any survivors — otherwise they keep listening on their ports as zombies after the directory is gone.
 - Report how many were found; only remove after explicit user confirmation.
@@ -41,18 +42,18 @@ git worktree list
 
 Dev servers spawned from a worktree don't get killed when `git worktree remove` runs — they keep their sockets bound with no live files behind them. Symptom: a dev server URL that returns 404 for every path (including `/@vite/client`), or "port already in use" when you start a fresh server. They also confuse `localhost` resolution: an IPv4-bound zombie and an IPv6-bound fresh Vite can both claim the same port, and the browser silently routes to whichever family the OS prefers.
 
-Scan for `node`/`vite`/`next`/`tsx`/`nodemon` processes whose `cwd` lives under `.claude/worktrees/`:
+Scan for `node`/`vite`/`next`/`tsx`/`nodemon` processes whose `cwd` lives under `.claude/worktrees/` or `.codex/worktrees/`:
 
 ```bash
 for pid in $(pgrep -f 'vite|next|webpack|tsx|nodemon' 2>/dev/null); do
   cwd=$(lsof -p "$pid" -d cwd -Fn 2>/dev/null | awk '/^n/{print substr($0,2)}' | head -1)
   case "$cwd" in
-    *"/.claude/worktrees/"*) echo "$pid	$cwd";;
+    *"/.claude/worktrees/"*|*"/.codex/worktrees/"*) echo "$pid	$cwd";;
   esac
 done
 ```
 
-For each match, extract the worktree name (the segment after `.claude/worktrees/`) and check whether it still appears in `git worktree list`. If it doesn't, the process is orphaned. Confirm the port it's holding before reporting:
+For each match, extract the worktree name (the segment after `.claude/worktrees/` or `.codex/worktrees/`) and check whether it still appears in `git worktree list`. If it doesn't, the process is orphaned. Confirm the port it's holding before reporting:
 
 ```bash
 lsof -nP -p <pid> -iTCP -sTCP:LISTEN
@@ -110,12 +111,11 @@ Also scan for staleness:
 git branch --merged main | grep -v '^\*\|main' | head -10
 ```
 
-- Report branches already merged into main that can be deleted
-- Ask user before deleting: `git branch -d <branch>`
+- Report branches already merged into main. `git branch -D` is denied for Claude Code and `-d` refuses squash-merged history, so Claude Code only reports; the weekly branch-janitor reaps merged remotes. Codex may delete after the user confirms, per `AGENTS.md`.
 
 ### 8. Edge Function Deploys
 
-**Verify actual deploy state — do not just diff recent commits.** Merging a PR never deploys functions (see the `feedback_merge_is_not_deploy` memory). A `git diff HEAD~N` window misses functions committed long ago but never deployed, and a root-only path glob misses the second function location entirely. Compare each function's source last-commit date against its *deployed* `UPDATED_AT`.
+**Verify actual deploy state — do not just diff recent commits.** Merging a PR never deploys functions (see the `feedback_merge_is_not_deploy` memory). A `git diff HEAD~N` window misses functions committed long ago but never deployed, and a root-only path glob misses the second function location entirely. Compare each function's source last-commit date against its _deployed_ `UPDATED_AT`.
 
 **Functions live in TWO directories** — check both:
 
@@ -143,11 +143,11 @@ source supabase/.env && supabase functions list --project-ref sojmvhhwsjxmfistvz
 
 Step 3 — reason over the two lists and flag:
 
-- **Stale deploy:** a function whose source last-commit (Step 1) is *newer* than its deployed `UPDATED_AT` (Step 2) → its deployed bundle predates its current source. This is the class a commit-window diff misses. Two calibration rules before you act on a flag:
+- **Stale deploy:** a function whose source last-commit (Step 1) is _newer_ than its deployed `UPDATED_AT` (Step 2) → its deployed bundle predates its current source. This is the class a commit-window diff misses. Two calibration rules before you act on a flag:
   - **Flags are candidates, not proof.** `git log -- <dir>` dates any file touch in the dir — a comment, a sibling test, a formatting sweep — not just deployable change. Confirm a real behavioral diff before deploying: `git show <last-commit> -- <dir>/index.ts` (did the entry file substantively change?), or `supabase functions download <name>` into a temp dir and diff against source.
-  - **Sub-day gaps are usually false positives.** A squash-merge stamps its commit time at *merge*, which can land minutes *after* a deploy that ran from the feature branch — so source-newer-by-an-hour usually means the deploy already contains it. Treat weeks/months gaps as real drift; treat sub-day gaps as ordering noise unless a diff proves otherwise.
+  - **Sub-day gaps are usually false positives.** A squash-merge stamps its commit time at _merge_, which can land minutes _after_ a deploy that ran from the feature branch — so source-newer-by-an-hour usually means the deploy already contains it. Treat weeks/months gaps as real drift; treat sub-day gaps as ordering noise unless a diff proves otherwise.
 - **Never deployed:** a source function absent from the deployed list.
-- **Dual-location fork:** the *same* function name appears in BOTH source dirs. Only one is the deployed slug — do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
+- **Dual-location fork:** the _same_ function name appears in BOTH source dirs. Only one is the deployed slug — do NOT guess. Determine canonical by which copy handles a type/route the app actually invokes (e.g. `send-email`'s `entry_decision` case → root is canonical; the `apps/myk9show` copy was a drift-magnet fork, deleted in PR #937). Editing or deploying the wrong copy ships nothing.
 
 - For each stale/never-deployed function, report it and include the deploy command. Root functions deploy from the repo root; Stripe/cron functions need `--workdir apps/myk9show`:
   ```bash

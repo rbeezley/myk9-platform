@@ -1,6 +1,13 @@
+---
+name: commit
+description: Use when the user wants to commit changes, push to GitHub, save work, run git commit, or invokes /commit. Picks a risk-appropriate validation level, runs the scoped tests, commits with a conventional message, and pushes.
+---
+
 # Commit and Push
 
 This skill should be used when the user wants to commit changes, push to GitHub, or asks to "save my work" or "commit this".
+
+This file is shared by Claude Code and Codex (`.agents/skills/commit` is a symlink to it). Merging a PR is **not** part of this skill — that is `/ship-pr`, which owns the review gate, the merge, and the cleanup order.
 
 ## Trigger Phrases
 
@@ -10,14 +17,41 @@ This skill should be used when the user wants to commit changes, push to GitHub,
 
 ## Workflow
 
-### Step 1: Quality Checks
+### Step 1: Choose Validation Level
 
-Run both in parallel.
+Classify the change before running checks. Use `git diff --name-only` and `git diff --stat`. If unsure, choose the higher level.
+
+- **Micro review follow-up**: comments/docs, test-only changes, helper tests, copy tweaks, or a very small review nit that does not alter production behavior.
+- **Low-risk focused change**: ≤3 production source files in one app/module, no DB/auth/payment/offline/cross-app behavior.
+- **High-risk change**: shared helpers used across modules, entry submission, payment, auth/RLS, database migrations, offline/replication, cross-app changes, or >3 production source files.
+
+### Step 1a: Quality Checks
+
+Run the narrowest checks that match the level.
+
+**Micro review follow-up** — related tests only (Step 1b, focused). Skip local typecheck/lint unless production TypeScript changed; if it did, run the app-local typecheck:
 
 ```bash
-pnpm typecheck
-pnpm lint
+cd apps/myk9show && npx tsc --noEmit -p tsconfig.app.json
 ```
+
+Never `-p tsconfig.json` — that file is solution-style and typechecks nothing while exiting 0.
+
+**Low-risk focused change** — app-local typecheck and lint:
+
+```bash
+pnpm --filter @myk9/show typecheck
+pnpm --filter @myk9/show lint
+```
+
+**High-risk change** — the full gates, redirected so the real exit status is visible (a pipe through `tail`/`grep` reports the filter's exit code):
+
+```bash
+pnpm typecheck > /tmp/typecheck.log 2>&1; echo "EXIT=$?"
+pnpm lint > /tmp/lint.log 2>&1; echo "EXIT=$?"
+```
+
+If the change ADDS lines to an existing file, also run `pnpm qa:code-quality-ratchet` from the worktree — CI's Quality Checks job runs it and nothing in typecheck, lint, or the test suite approximates it.
 
 **Handling failures:**
 
@@ -27,7 +61,9 @@ pnpm lint
 
 ### Step 1b: Run Tests
 
-Test scope is decided in two passes: **path-based overrides first**, then **count-based fallback**. Overrides exist because file count is a poor proxy for blast radius — a 1-file change to a shared package or RBAC context can break everything, while a 10-file dashboard refactor is well-contained.
+For **micro** follow-ups, run only the focused tests the change touches and let CI provide the broad signal after push.
+
+For **low-risk** and **high-risk** changes, test scope is decided in two passes: **path-based overrides first**, then **count-based fallback**. Overrides exist because file count is a poor proxy for blast radius — a 1-file change to a shared package or RBAC context can break everything, while a 10-file dashboard refactor is well-contained.
 
 List changed source files (excluding test files AND prose/data files that have no executable surface):
 
@@ -38,20 +74,19 @@ TESTS='\.(test|spec)\.(ts|tsx|js|jsx)$'
 CHANGED=$(git diff --name-only HEAD | grep -vE "$TESTS" | grep -vE "$PROSE")
 ```
 
-If `CHANGED` is empty (the diff is entirely prose, test edits, or low-stakes data), skip Step 1b with a logged note: "docs/data-only diff, no test run needed." This matches the Step 3c skip-list philosophy in `/ship-it`: same prose set, same fail-safe principle.
+If `CHANGED` is empty (the diff is entirely prose, test edits, or low-stakes data), skip Step 1b with a logged note: "docs/data-only diff, no test run needed."
 
 #### Pass 1: Path-based overrides (apply BEFORE counting)
 
 Walk `$CHANGED` and classify. If any file matches an override, run that scope; multiple overrides combine (union of scopes).
 
-| Path pattern | Run | Why |
-|--------------|-----|-----|
-| `packages/*/src/**` | **Both** apps' full suites | Shared monorepo packages are consumed cross-app; consumer-side breakage isn't covered by the package's own tests |
-| `apps/myk9show/src/{lib,contexts}/**` | myK9Show full suite | Cross-cutting utilities and React contexts ripple through every screen |
-| `apps/myk9q/src/{lib,contexts}/**` | myK9Q full suite | Same |
-| `apps/*/vite.config.*`, `apps/*/tsconfig*.json`, root `tsconfig*.json`, root `*.config.{ts,js,mjs,cjs}` | That app's full suite (or both, if root config) | Build/type-system config affects every compilation unit |
-| `supabase/migrations/**` | Both apps' full suites **AND** warn | Schema changes can break either app's queries. Note: no SQL-level test convention exists in this repo — flag the gap explicitly. |
-| `supabase/functions/**` | Both apps' full suites if the function is called from client code; warn | Edge functions are an API boundary; affected callers may live in either app. |
+| Path pattern                                                                                            | Run                                                                           | Why                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/*/src/**`                                                                                     | The package's suite AND the myK9Show full suite                               | Shared packages are consumed by the app; consumer-side breakage isn't covered by the package's own tests. Rebuild first (`pnpm --filter @myk9/<pkg> build`) — app tests import the built `dist`. |
+| `apps/myk9show/src/{lib,contexts}/**`                                                                   | myK9Show full suite                                                           | Cross-cutting utilities and React contexts ripple through every screen                                                                                                                           |
+| `apps/*/vite.config.*`, `apps/*/tsconfig*.json`, root `tsconfig*.json`, root `*.config.{ts,js,mjs,cjs}` | myK9Show full suite                                                           | Build/type-system config affects every compilation unit                                                                                                                                          |
+| `supabase/migrations/**`                                                                                | `apps/myk9show/src/test/database/` contract suite AND the myK9Show full suite | Schema changes break queries silently. Behavioral SQL tests run only in CI (no local container runtime), so registering one is not the same as having run it.                                    |
+| `supabase/functions/**`                                                                                 | The function's tests AND the myK9Show full suite if client code calls it      | Edge functions are an API boundary. A new edge-function test must be registered in BOTH `vitest.config.ts` `include` and `tsconfig.edge-tests.json`.                                             |
 
 If an override fires, log which one and skip Pass 2. Example log line:
 
@@ -63,29 +98,23 @@ Test scope: myK9Show full suite (override: apps/myk9show/src/contexts/AuthContex
 
 Count `$CHANGED` files.
 
-**If >3 source files → run the full app suite(s) for the affected app(s):**
+**If >3 source files → run the full app suite**, redirected so the real exit status is visible:
 
 ```bash
-# myK9Show
-cd apps/myk9show && pnpm vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*'
-
-# myK9Q
-cd apps/myk9q && pnpm vitest run --reporter=default
+cd apps/myk9show && pnpm vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' > /tmp/suite.log 2>&1; echo "EXIT=$?"
+grep -E '^ (Test Files|Tests) ' /tmp/suite.log
 ```
 
-**If ≤3 source files → run related tests only:**
-
-Identify test files related to the modified source files:
+**If ≤3 source files → run related tests only.** Identify test files related to the modified source files:
 
 - For `src/components/Foo.tsx` → look for `Foo.test.tsx`, `Foo.test.ts`
 - For `src/services/Bar.ts` → look for `Bar.test.ts`
 - For `src/hooks/useBaz.ts` → look for `useBaz.test.ts`
 
-If related test files exist, run them:
+If related test files exist, run them (at most two positional path filters per invocation — vitest 4 finds **no files** with three or more):
 
 ```bash
 cd apps/myk9show && pnpm vitest run <test-file> --reporter=verbose
-cd apps/myk9q && pnpm vitest run <test-file> --reporter=verbose
 ```
 
 **If no related test files exist** for a changed source file — do NOT silently skip. Log it as a visible coverage gap before proceeding:
@@ -99,6 +128,16 @@ Commit will proceed without test coverage for these files.
 
 Don't create new tests during a commit — but surface the gap so the user can decide whether to add tests in a follow-up.
 
+For UI/state bugs, prefer extracting pure state helpers and testing those directly when the component harness is slow or flaky — but keep at least one test on the real caller when the fix adds a field a projection could drop (a unit test on the pure function cannot see a last-hop `.map(...)` that discards it).
+
+#### Shuffled runs for any test you added or touched
+
+CI runs vitest with `--sequence.shuffle`; local runs do not. Run the **whole** suite shuffled 6+ times before pushing a new or changed test — a subset cannot show a leak between files, and `pnpm test --sequence.shuffle` never reaches vitest (pnpm claims the flag):
+
+```bash
+cd apps/myk9show && pnpm vitest run --sequence.shuffle > /tmp/shuffle.log 2>&1; echo "EXIT=$?"
+```
+
 #### Failure handling (both passes)
 
 If tests fail:
@@ -107,8 +146,6 @@ If tests fail:
 2. Fix the root cause (not just symptoms)
 3. Re-run the failing tests
 4. Maximum 5 fix iterations — stop and report if still failing
-
-**Known flaky tests to ignore:** PresenceService.test.ts, PerformanceService.test.ts (see MEMORY.md for details).
 
 ### Step 2: Review Changes
 
@@ -130,16 +167,17 @@ git add <specific-files>
 
 - Stage files relevant to the current work
 - Do NOT stage `.env`, credentials, or secrets — warn if detected
-- Prefer specific files over `git add .` when possible
+- Prefer specific files over `git add .` — in a shared checkout a blind `git add -A` sweeps another agent's WIP
 
 ### Step 4: Commit
 
 Draft a conventional commit message:
 
 - Prefix: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
-- Scope: affected area (e.g., `myk9q`, `scoring`, `ui`)
+- Scope: affected area (e.g., `entries`, `scoring`, `ui`)
 - Summary: concise, present tense, under 70 chars
 - Body: bullet points explaining WHY, not what
+- Trailer: the `Co-Authored-By` line the instruction file (`CLAUDE.md` / `AGENTS.md`) prescribes for your harness
 
 ```bash
 git commit -m "$(cat <<'EOF'
@@ -148,14 +186,14 @@ type(scope): summary
 - Why this change matters
 - Impact on users/developers
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+Co-Authored-By: <harness trailer from the instruction file>
 EOF
 )"
 ```
 
 ### Step 5: Push
 
-Always push after committing. Do not ask — just push.
+Push after committing. A push to a feature branch needs no confirmation; a push to `main`, or any `--force`, is a shared-system mutation that does (Auto Mode rules in the instruction file).
 
 ```bash
 git push
@@ -169,11 +207,11 @@ git push -u origin HEAD
 
 ### Step 5b: Migration Deploy Check
 
-After pushing, check if this commit touched a migration file. If so, remind the user to deploy to Supabase — `git push` does NOT deploy DB migrations.
+After pushing, check if this commit touched a migration file. If so, remind the user to deploy to Supabase — `git push` does NOT deploy DB migrations, and `supabase db push` must not run from an unmerged branch.
 
 ```bash
 if git diff HEAD~1 --name-only | grep -q '^supabase/migrations/'; then
-  echo "⚠️  Migration changed — run: source supabase/.env && supabase db push --password \"\$SUPABASE_DB_PASSWORD\""
+  echo "⚠️  Migration changed — after merge, run: source supabase/.env && supabase db push --password \"\$SUPABASE_DB_PASSWORD\""
 fi
 ```
 
@@ -188,11 +226,11 @@ Report the commit hash and confirm push succeeded.
 
 ## Rules
 
-- NEVER skip quality checks
+- NEVER skip validation, but choose the risk-appropriate level above
 - NEVER commit if checks fail — fix first
 - Maximum 5 fix iterations per check (typecheck, lint, tests) — if still failing, stop and report
-- ALWAYS push after committing (per project convention)
+- Push after committing; confirm only for `main` or `--force`
 - Use HEREDOC for commit messages
-- Include `Co-Authored-By` trailer for AI-assisted commits
+- Include the harness `Co-Authored-By` trailer for AI-assisted commits
 - Do NOT create new test files during a commit — only run existing ones
-- Ignore known flaky tests (see MEMORY.md pre-existing failures list)
+- Do NOT merge from this skill — hand off to `/ship-pr`

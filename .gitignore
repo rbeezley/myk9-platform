@@ -93,6 +93,10 @@ tmpclaude-*-cwd
 .agents/*
 !.agents/agents/
 !.agents/agents/**
+# Codex reads its skills from here; the eight already tracked were force-added
+# past the rule above, and a new one would go untracked silently.
+!.agents/skills/
+!.agents/skills/**
 
 # Local support-triage pass state (regenerated every run; safe to delete)
 .support-triage/

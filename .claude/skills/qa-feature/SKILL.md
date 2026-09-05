@@ -1,11 +1,13 @@
 ---
 name: qa-feature
-description: Use when the user wants a real-browser audit of an existing feature — "QA the clubs section", "walk the secretary journey", "audit dogs CRUD", `/qa-feature <area>`. Drives the live app with playwright-cli, fixes bugs at the root cause mid-walk, and leaves behind a committed Playwright spec plus unit tests for any pure logic extracted.
+description: Use when the user wants a real-browser audit of an existing feature — "QA the clubs section", "walk the secretary journey", "audit dogs CRUD", `/qa-feature <area>`. Drives the live app with the harness's in-app Browser or playwright-cli, fixes bugs at the root cause mid-walk, and leaves behind a committed Playwright spec plus unit tests for any pure logic extracted.
 ---
 
 # QA Feature
 
-Use when the user wants a real-browser audit of an existing feature — "QA the clubs section", "walk the secretary journey", "audit dogs CRUD", `/qa-feature <area>`. This skill drives the live app with `playwright-cli`, finds bugs from real interaction, fixes them at the root cause, and leaves behind a committed Playwright spec plus unit tests for any pure logic extracted along the way.
+This file is shared by Claude Code and Codex (`.agents/skills/qa-feature` is a symlink to it).
+
+Use when the user wants a real-browser audit of an existing feature — "QA the clubs section", "walk the secretary journey", "audit dogs CRUD", `/qa-feature <area>`. This skill drives the live app with the harness's in-app Browser (the Claude Code Browser pane or the Codex Browser) when available, or `playwright-cli` when that binary is callable. It finds bugs from real interaction, fixes them at the root cause, and leaves behind a committed Playwright spec plus unit tests for any pure logic extracted along the way.
 
 This is the engine for **Phase 2 — Walk the Golden Paths** (see `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`). Every role-journey audit should run through this skill so the pattern stays consistent and the artifacts compound.
 
@@ -43,6 +45,11 @@ If any of these are unclear, ask once before recording.
 if [ ! -x apps/myk9show/node_modules/.bin/vite ]; then
   bash scripts/bootstrap-worktree.sh
 fi
+if [ ! -x apps/myk9show/node_modules/.bin/vite ]; then
+  echo "Missing apps/myk9show/node_modules/.bin/vite after bootstrap"
+  exit 1
+fi
+
 # Dev server on :5173
 curl -sf http://localhost:5173 >/dev/null || echo "NOT_RUNNING"
 # If not running:
@@ -55,7 +62,20 @@ Confirm the linked Supabase project matches the dev DB. Real-bug fixes that touc
 
 ### Step 1 — Sign in
 
-Use `playwright-cli` for the recording session. Pull the credentials for the chosen role from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`:
+Use the harness's in-app Browser for local app recording when it is available. If the Browser plugin is not available but `playwright-cli` is callable, use `playwright-cli` for the recording session instead.
+
+Do not use the Playwright MCP/test driver from the monorepo root for this live walk. The root config has dependency/version coupling that can fail before the app is even opened; this workflow records with Browser/`playwright-cli`, then writes and runs the project Playwright spec from `apps/myk9show`.
+
+Pull the credentials for the chosen role from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`.
+
+Browser flow:
+
+- Navigate to `http://localhost:5173/sign-in`
+- Fill the chosen role email and `Test123!`
+- Submit the form
+- Capture a snapshot before starting the walk
+
+`playwright-cli` flow:
 
 ```bash
 playwright-cli open http://localhost:5173/sign-in
@@ -65,7 +85,7 @@ playwright-cli click <submit-ref>
 playwright-cli snapshot
 ```
 
-Optionally save storage state so you can resume mid-recording without re-typing credentials:
+With `playwright-cli`, optionally save storage state so you can resume mid-recording without re-typing credentials:
 
 ```bash
 playwright-cli state-save .playwright-cli/<role>-state.json
@@ -83,7 +103,7 @@ Walk every visible feature in the area, snapshot after each meaningful interacti
 4. **Edit** — change fields, save; change fields, cancel
 5. **Delete** — confirmation cancel path, then confirmation accept path on ONE entity
 
-After every step, run:
+After every step, inspect the browser console and failed network requests. In Browser, use the available console/network inspection affordances. In `playwright-cli`, run:
 
 ```bash
 playwright-cli console        # JS errors → app bug
@@ -101,7 +121,21 @@ For each unexpected behavior, decide before continuing:
 | UI shows the wrong state after a save                  | App bug — missing invalidation / stale cache | Fix in source                        |
 | Console error on page load                             | App bug                                      | Fix in source                        |
 
+Use the finding patterns from `docs/qa/findings.md` when logging app bugs. Every confirmed app bug needs a finding entry unless it is fixed immediately and fully covered by a focused test in the same change.
+
 Don't queue app bugs for later — fixing mid-walk is the whole point. Each fix gets a real commit; don't mash them into one.
+
+### Silent action checklist
+
+For every visible save, submit, delete, assign, invite, upload, import, or checkout action:
+
+1. Confirm the click reaches the intended handler.
+2. Trace every early `return` before the mutation or navigation.
+3. Confirm each blocked path shows visible validation, disabled-state explanation, or user feedback.
+4. Confirm loading, success, and failure states are visible and calm.
+5. Confirm React Query/Zustand invalidation or local state update makes the saved result visible without reload.
+6. Check console and network output for swallowed errors, 4xx/5xx responses, and RLS/UI mismatches.
+7. Log durable issues in `docs/qa/findings.md` with the reusable template.
 
 ### Step 4 — Fix root causes, not symptoms
 
@@ -117,6 +151,9 @@ For permission logic that lives in a hook: extract a pure helper (e.g. `computeX
 
 Target file: `apps/myk9show/src/test/e2e/entities/<area>UI.spec.ts`. Conventions (match the pattern from `clubsUI.spec.ts` shipped in PR #88):
 
+- Check `docs/qa/e2e-suite-map.md` first. If a relevant spec exists, extend it instead of creating a duplicate.
+- Any new or changed Playwright spec must have a suite category: `pr-smoke`, `nightly`, `feature-audit`, `manual-debug`, or `candidate-delete`.
+- Most feature-walk specs should be `feature-audit` until proven fast and stable enough for `pr-smoke`.
 - Define local `signIn(page, email, password)` plus thin `signInAs<Role>(page)` wrappers near the top of the spec, importing credentials (`SECRETARY_EMAIL`, `ADMIN_EMAIL`, etc.) from `apps/myk9show/src/test/e2e/helpers/testUsers.ts`. Do **not** invent a `TestSetup.signIn(role)` — no such helper exists today.
 - Sign in inside each `test()` (or in a `test.beforeEach`), not `test.beforeAll`. Playwright's parallel workers each get a fresh page; `beforeAll` doesn't share auth across them. The clubs spec sign-ins per test for this reason.
 - One `describe` per UI surface (Browse, Create, Detail, Edit, Delete)
@@ -132,7 +169,7 @@ cd apps/myk9show && pnpm test:e2e <area>UI.spec.ts
 
 Iterate until green. If a step fails:
 
-- **Locator drift:** regenerate from a fresh `playwright-cli snapshot`
+- **Locator drift:** regenerate from a fresh Browser snapshot or `playwright-cli snapshot`
 - **Timing:** swap the wait for a `waitForResponse` on the actual XHR
 - **App regression:** classify as Step 3 and fix at the source
 
@@ -150,7 +187,7 @@ All cases must pass before commit.
 
 ### Step 8 — Hand off to ship-pr
 
-Once spec + unit tests are green, invoke `/ship-pr`. The ship-pr workflow handles simplify → commit → PR → self-review → merge → cleanup. Don't reinvent it here.
+Once spec + unit tests are green, invoke `/ship-pr`. The ship-pr workflow handles simplify → commit → PR → independent review gate → merge → cleanup. Don't reinvent it here.
 
 ## Output Artifacts
 
@@ -160,7 +197,9 @@ A successful run produces:
 2. Zero or more sibling `*.test.ts` for extracted pure helpers
 3. Zero or more source-code fixes for app bugs found during the walk (each its own commit when feasible)
 4. Zero or one new RLS migration (if a real policy gap was found)
-5. A PR description that lists: bugs found, files touched, migration number (if any), and a checkbox for the user to apply the migration to staging
+5. Finding entries in `docs/qa/findings.md` for confirmed durable issues, with proof commands filled in before closing
+6. An updated `docs/qa/e2e-suite-map.md` entry for any new, renamed, or reclassified spec
+7. A PR description that lists: bugs found, files touched, migration number (if any), suite category, and a checkbox for the user to apply the migration to staging
 
 ## Rules
 
@@ -168,18 +207,19 @@ A successful run produces:
 - **Never use `waitForTimeout` in the committed spec.** It's a flake factory. The recording session can use it, the spec cannot.
 - **Never reuse a migration number.** Always run `supabase migration list` against the linked project before picking one.
 - **Never commit `.playwright-cli/` artifacts.** It's gitignored; storage state for a role belongs in CI secrets, not the repo.
-- **Never run `supabase db push` without explicit confirmation** (per `CLAUDE.md` Auto Mode rule for shared-system writes).
-- **Don't wander.** If you spot a bug outside the area being audited, use `mcp__ccd_session__spawn_task` to flag it; don't fix it in this PR. Phase 2 has a "no wandering" rule for a reason.
+- **Never run `supabase db push` without explicit confirmation** (per the Auto Mode rule for shared-system writes in `CLAUDE.md` / `AGENTS.md`).
+- **Don't wander.** If you spot a bug outside the area being audited, flag it for a separate session (Claude Code: a `spawn_task` chip; Codex: a Linear issue via `todo-add`); don't fix it in this PR. Phase 2 has a "no wandering" rule for a reason.
 
 ## When NOT to Use
 
-- Greenfield throwaway prototypes — use `playwright-cli` directly without the spec/unit-test ceremony
+- Greenfield throwaway prototypes — use Browser or `playwright-cli` directly without the spec/unit-test ceremony
 - Pure-logic refactors with no UI surface — vitest unit tests are enough
 - One-off "does this button work" checks — just open the browser
 
 ## Related Skills / Agents
 
-- `playwright-cli` — the recording tool used in Steps 1–3
+- The harness's in-app Browser — preferred recording tool for local app walks
+- `playwright-cli` — fallback recording tool used in Steps 1–3 when callable
 - `playwright-test-healer` agent — dispatch when an existing spec starts flaking after merge
 - `playwright-test-generator` agent — alternative path if the user wants the spec generated from a structured plan rather than a free-form recording
 - `ship-pr` — handoff target in Step 8

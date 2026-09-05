@@ -37,7 +37,7 @@
 
 ## 7. PR, CI, merge, and archive
 
-- [ ] 7.1 Commit accepted implementation, push the feature branch, open one PR with all five Linear issues and `Tracked in openspec change: resolve-september-secretary-todo-batch`, then verify required CI/review checks.
+- [x] 7.1 Commit accepted implementation, push the feature branch, open one PR with all five Linear issues and `Tracked in openspec change: resolve-september-secretary-todo-batch`, then verify required CI/review checks.
 - [ ] 7.2 Obtain explicit approval before merge, merge only after checks and evidence gates pass, then move satisfied Linear issues to Done with PR and merge-commit evidence.
 - [ ] 7.3 Archive the OpenSpec change only after the PR is merged and required evidence is recorded; sync main, prune refs, delete the branch, and remove the worktree last.
 

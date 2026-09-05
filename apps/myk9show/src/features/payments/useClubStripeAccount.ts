@@ -6,17 +6,24 @@ export interface ClubStripeAccount {
   id: string;
   club_id: string;
   stripe_account_id: string;
+  livemode?: boolean;
   onboarding_complete: boolean;
   payouts_enabled: boolean;
 }
+
+// The client must inspect the same mode-scoped account row as the checkout
+// edge function. Staging defaults to Stripe test mode; production can opt into
+// live mode with VITE_STRIPE_LIVEMODE=true.
+const stripeLivemode = import.meta.env.VITE_STRIPE_LIVEMODE === 'true';
 
 /** Exported for save-time (imperative) gate checks — e.g. ShowEditPanel,
  * where a hook subscription can't see the form's possibly-changed clubId. */
 export async function fetchClubStripeAccount(clubId: string): Promise<ClubStripeAccount | null> {
   const { data, error } = await supabase
     .from('club_stripe_accounts')
-    .select('id, club_id, stripe_account_id, onboarding_complete, payouts_enabled')
+    .select('id, club_id, stripe_account_id, livemode, onboarding_complete, payouts_enabled')
     .eq('club_id', clubId)
+    .eq('livemode', stripeLivemode)
     .maybeSingle();
 
   if (error) throw error;
@@ -74,8 +81,7 @@ const CONNECT_ERROR_PATTERNS: Array<{ test: RegExp; message: string }> = [
   {
     // 401s: getUser failed / missing token — the session lapsed mid-flow.
     test: /authentication failed|authorization header/i,
-    message:
-      'Your sign-in session has expired. Please sign in again, then restart payment setup.',
+    message: 'Your sign-in session has expired. Please sign in again, then restart payment setup.',
   },
   {
     // 403: caller genuinely isn't a club admin for this club. This is the only
@@ -91,7 +97,7 @@ const CONNECT_ERROR_PATTERNS: Array<{ test: RegExp; message: string }> = [
     // send an admin chasing access they already have. Retry, then support.
     test: /authorization check failed/i,
     message:
-      "Something went wrong while checking your permissions. Please try again in a moment — if it keeps happening, contact support.",
+      'Something went wrong while checking your permissions. Please try again in a moment — if it keeps happening, contact support.',
   },
   {
     // Stripe account isn't ready yet — a capability (card_payments/transfers)

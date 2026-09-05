@@ -14,6 +14,8 @@ export interface PaymentStepProps {
   paymentStatus?: PaymentStatus | undefined;
   entryStatus?: EntryStatus | undefined;
   onPaymentMethodChange: (method: PaymentMethod) => void;
+  /** Clears an invalid preselected method when no payment method remains available. */
+  onPaymentMethodClear?: (() => void) | undefined;
   /** Fired whenever any payment-detail field changes (check number, date, reference, notes). */
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;

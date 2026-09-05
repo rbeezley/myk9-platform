@@ -31,6 +31,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   paymentStatus = PaymentStatus.PENDING,
   entryStatus = EntryStatus.PENDING,
   onPaymentMethodChange,
+  onPaymentMethodClear,
   onPaymentDetailsChange,
   onPaymentStatusChange,
   onEntryStatusChange,
@@ -80,10 +81,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       : paymentMethod;
 
   useEffect(() => {
-    if (effectivePaymentMethod !== paymentMethod && effectivePaymentMethod) {
+    if (effectivePaymentMethod === paymentMethod) return;
+    if (effectivePaymentMethod) {
       onPaymentMethodChange(effectivePaymentMethod);
+    } else {
+      onPaymentMethodClear?.();
     }
-  }, [effectivePaymentMethod, onPaymentMethodChange, paymentMethod]);
+  }, [effectivePaymentMethod, onPaymentMethodChange, onPaymentMethodClear, paymentMethod]);
 
   const cardCheckoutUnavailableReason = isOnBehalf
     ? undefined

@@ -31,9 +31,9 @@
 
 - [x] 6.1 Run focused unit/interaction suites for all touched components, stores, report helpers, and instruction contracts; record pass/fail counts in the change and Linear issues.
 - [x] 6.2 Run app-local typecheck, lint for touched files, production build, `git diff --check`, and strict OpenSpec validation; resolve actionable failures.
-- [ ] 6.3 Replay MYK9-389, MYK9-390, MYK9-392, and MYK9-393 at 1440×1000, 768×1024, and 390×844, including the Create Classes production preview and Trial Secretary PDF field/visible-output inspection; attach sanitized evidence.
+- [x] 6.3 Replay MYK9-389, MYK9-390, MYK9-392, and MYK9-393 at 1440×1000, 768×1024, and 390×844, including the Create Classes production preview and Trial Secretary PDF field/visible-output inspection; attach sanitized evidence.
 - [x] 6.4 Review the combined diff against each Linear execution contract, repository intent, consolidation, accessibility, offline-read, and money-path requirements; fix critical/warning findings and re-run affected checks.
-- [ ] 6.5 Update each Linear issue with files changed, tests/checks, branch/PR, risks, remaining work, and acceptance-criteria evidence; leave any issue with an unmet gate open.
+- [x] 6.5 Update each Linear issue with files changed, tests/checks, branch/PR, risks, remaining work, and acceptance-criteria evidence; leave any issue with an unmet gate open.
 
 ## 7. PR, CI, merge, and archive
 

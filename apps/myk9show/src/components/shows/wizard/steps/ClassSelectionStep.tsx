@@ -161,6 +161,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         // Fill in missing trials with defaults
         states[trial.id] = { selectedTemplate: null, selectedClasses: [] };
       }
+      // Template data normally arrives after the cloned trial state. Reconnect the
+      // saved template in derived state without clearing retained class selections.
+      const savedTemplateId = trial.classes[0]?.templateId;
+      const savedTemplate = activeTemplates.find(template => template.id === savedTemplateId);
+      if (savedTemplate && !states[trial.id].selectedTemplate) {
+        states[trial.id] = {
+          ...states[trial.id],
+          selectedTemplate: savedTemplate,
+        };
+      }
       // Auto-select single template for trials with no template set
       if (autoSelectTemplate && !states[trial.id].selectedTemplate) {
         states[trial.id] = {
@@ -271,9 +281,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const handleTemplateSelected = (templateId: string) => {
     const template = activeTemplates.find(t => t.id === templateId);
     if (template) {
+      const savedTemplateId = currentTrial?.classes[0]?.templateId;
+      const retainsCurrentClasses =
+        currentTrialState.selectedTemplate?.id === template.id || savedTemplateId === template.id;
       updateTrialState(currentTrialId, {
         selectedTemplate: template,
-        selectedClasses: [], // Reset classes when template changes
+        selectedClasses: retainsCurrentClasses ? currentTrialState.selectedClasses : [],
       });
     }
   };

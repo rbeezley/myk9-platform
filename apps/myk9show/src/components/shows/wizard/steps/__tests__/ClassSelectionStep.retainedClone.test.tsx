@@ -7,9 +7,19 @@ import { ClassSelectionStep } from '../ClassSelectionStep';
 import { ReviewStep } from '../ReviewStep';
 
 const template = createMockTemplate();
+const alternateTemplate = {
+  ...createMockTemplate(),
+  id: 'alternate-template',
+  templateName: 'Alternate AKC template',
+};
+let availableTemplates = [template];
 
 vi.mock('@/hooks/useTemplates', () => ({
-  useTemplates: () => ({ templates: [template], isLoading: false, isInitialized: true }),
+  useTemplates: () => ({
+    templates: availableTemplates,
+    isLoading: availableTemplates.length === 0,
+    isInitialized: availableTemplates.length > 0,
+  }),
 }));
 vi.mock('@/services/sportTemplateService', () => ({ prewarmClassRulesCache: vi.fn() }));
 vi.mock('@/features/payments/useClubStripeAccount', () => ({
@@ -24,6 +34,7 @@ vi.mock('@/store/clubStore', () => ({
 
 describe('ClassSelectionStep retained cloned classes', () => {
   beforeEach(() => {
+    availableTemplates = [template];
     useWizardStore.getState().resetWizard();
     useWizardStore.setState(state => ({
       show: {
@@ -106,5 +117,19 @@ describe('ClassSelectionStep retained cloned classes', () => {
     const judgesTile = screen.getByText(/classes with a judge/i).closest('div') as HTMLElement;
     expect(within(judgesTile).getByText('1')).toBeInTheDocument();
     expect(within(judgesTile).getByText('/1')).toBeInTheDocument();
+  });
+
+  it('hydrates an asynchronously loaded saved template without clearing retained classes', async () => {
+    availableTemplates = [];
+    const classes = render(<ClassSelectionStep />);
+
+    availableTemplates = [template, alternateTemplate];
+    classes.rerender(<ClassSelectionStep />);
+
+    await classes.user.type(screen.getByPlaceholderText('Search classes...'), 'Renamed Container');
+    expect(
+      await screen.findByRole('checkbox', { name: 'Deselect Renamed Container Special' })
+    ).toBeChecked();
+    expect(useWizardStore.getState().trials[0]?.classes).toHaveLength(2);
   });
 });

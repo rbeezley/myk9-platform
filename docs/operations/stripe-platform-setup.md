@@ -94,7 +94,9 @@ retries from scratch — `insufficient available balance` is the benign, self-he
 >   (`acct_1GgAdNAtHgBcw875` — the hardcoded premium price id carries the same
 >   account fingerprint). LIVE mode had a real self-subscription billing
 >   $4.99/mo to Richard's own card since Apr 2025 (the April attempt against
->   the old Supabase project) — cancel via Customers → beezley@cox.net.
+>   the old Supabase project) — cancel via Customers → the owner's personal
+>   billing email (the card on file). Look it up in the dashboard rather than
+>   recording it here: this repo is public.
 >   Account display name is "Myk9t" — fix to "myK9Show" in the branding step.
 
 The subscription functions deployed in February already use `STRIPE_SECRET_KEY` and

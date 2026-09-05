@@ -4,6 +4,8 @@
   "private": true,
   "description": "Monorepo for the myK9 platform",
   "scripts": {
+    "qa:browser-session": "tsx scripts/qa/browser-session.ts",
+    "qa:browser-session:test": "tsx --test scripts/qa/browser-session.test.ts",
     "dev:show": "turbo dev --filter=@myk9/show",
     "build": "turbo build",
     "build:show": "turbo build --filter=@myk9/show",

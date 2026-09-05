@@ -57,6 +57,22 @@ describe('PaymentMethodSelector — acceptedMethods filtering', () => {
     expect(screen.queryByText('Credit/Debit Card (Online Payment)')).not.toBeInTheDocument();
   });
 
+  it('explains when online card payment is unavailable', () => {
+    render(
+      <PaymentMethodSelector
+        {...baseProps}
+        allowCardCheckout={false}
+        cardCheckoutUnavailableReason="Online card payment isn't available for this club. Choose check or cash instead."
+      />
+    );
+
+    expect(
+      screen.getByText(/Online card payment isn't available for this club/)
+    ).toBeInTheDocument();
+    expect(screen.getByText('Check (pay at show)')).toBeInTheDocument();
+    expect(screen.getByText('Cash (pay at show)')).toBeInTheDocument();
+  });
+
   it('hides the secure-checkout redirect notice when allowCardCheckout is false', () => {
     render(
       <PaymentMethodSelector {...baseProps} paymentMethod="credit_card" allowCardCheckout={false} />

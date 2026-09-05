@@ -17,8 +17,8 @@ Immediately after a PR merge, while the branch name is still known:
 
 1. Switch to the main repo directory and sync `main`: `git checkout main && git pull --ff-only`.
 2. `git fetch --prune` to drop remote-tracking refs for auto-deleted PR branches.
-3. Verify whether the local feature branch survived: `git branch --list <branch>`. On recent `gh` versions, `gh pr merge --delete-branch` deletes the remote branch, and also the local branch **if no worktree has it checked out** — observed 2026-05-24. If the branch still exists, confirm the squash-merge via `gh pr list --state merged --head <branch>` before deleting.
-4. **If the branch has a worktree, remove the worktree FIRST, then delete the branch** — git refuses `git branch -D <branch>` while any worktree (including the current one) is checked out on it; `gh pr merge --delete-branch` hits the same wall and silently fails the local-delete step, leaving the branch behind with no error surfaced beyond a one-line stderr message. Order: `git worktree remove <path> --force` → `git branch -D <branch>` (not `-d` — squash rewrites SHAs, so `-d` may refuse). If the branch has no worktree, just delete it directly.
+3. Merge with `gh pr merge --squash` and **no `--delete-branch`**: its local half silently fails while any worktree (including the merging session's own) holds the branch, and the weekly branch-janitor reaps merged remotes.
+4. Remove the worktree (`git worktree remove <path> --force`) and **leave the local branch**. `git branch -D` is a denied command for Claude Code in this repo and `-d` refuses squash-merged history; branch-janitor reports merged locals. Codex may delete the branch after the worktree is gone, per `AGENTS.md`.
 5. Do worktree removal as the FINAL command of the cleanup sequence if the current shell is inside that worktree — don't run further commands from a path that no longer exists.
 
 Branches named `pr-###`, scratch branches, or temporary review branches should be deleted immediately after the corresponding PR/review work is merged or abandoned — don't leave them for weekly cleanup unless explicitly marked active.

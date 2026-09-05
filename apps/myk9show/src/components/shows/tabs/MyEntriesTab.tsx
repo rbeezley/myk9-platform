@@ -25,11 +25,18 @@ export function MyEntriesTab({
 }: MyEntriesTabProps) {
   const navigate = useNavigate();
   const loadEntries = useEntryStore(s => s.loadEntries);
-  const { dogGroups, allEntries, scheduleEntries, totalClasses, scheduleDogCount, isLoading, isError } =
-    useShowEntriesForUser(
-      showId,
-      canonicalEntries ? { rows: canonicalEntries, state: entryDataState } : undefined
-    );
+  const {
+    dogGroups,
+    allEntries,
+    scheduleEntries,
+    totalClasses,
+    scheduleDogCount,
+    isLoading,
+    isError,
+  } = useShowEntriesForUser(
+    showId,
+    canonicalEntries ? { rows: canonicalEntries, state: entryDataState } : undefined
+  );
 
   if (isLoading) {
     return <LoadingSkeleton variant="cards" count={3} />;

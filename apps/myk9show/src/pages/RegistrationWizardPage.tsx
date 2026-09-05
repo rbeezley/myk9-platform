@@ -84,6 +84,7 @@ function RegistrationWizardContent() {
     handleClassSelectionChange,
     handleHandlerAssignmentChange,
     handlePaymentMethodChange,
+    handlePaymentMethodClear,
     handlePaymentDetailsChange,
     handlePaymentStatusChange,
     handleEntryStatusChange,
@@ -325,6 +326,7 @@ function RegistrationWizardContent() {
               onClassSelectionChange={handleClassSelectionChange}
               onHandlerAssignmentChange={handleHandlerAssignmentChange}
               onPaymentMethodChange={(method: PaymentMethod) => handlePaymentMethodChange(method)}
+              onPaymentMethodClear={handlePaymentMethodClear}
               onPaymentDetailsChange={(details: PaymentDetails) =>
                 handlePaymentDetailsChange(details)
               }

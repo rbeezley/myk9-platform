@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { DogStripCard } from '../DogStripCard';
 
@@ -103,6 +103,7 @@ describe('DogStripCard', () => {
 
   it('shows title abbreviations when earned', () => {
     render(<DogStripCard dogId="d1" dogName="Rosie" registrations={[]} upcomingClassCount={1} />);
+    act(() => screen.getByRole('button').focus());
     expect(screen.getByText('SWN, SWA')).toBeInTheDocument();
   });
 });

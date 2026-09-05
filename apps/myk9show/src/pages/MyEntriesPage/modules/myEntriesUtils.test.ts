@@ -279,6 +279,12 @@ describe('My Entries terminal status display', () => {
       React.createElement(React.Fragment, null, getPaymentStatusBadge(PaymentStatus.PARTIAL_REFUND))
     );
     expect(screen.getByText(/Partial refund/i)).toBeInTheDocument();
+
+    rerender(
+      React.createElement(React.Fragment, null, getPaymentStatusBadge(PaymentStatus.WAIVED))
+    );
+    expect(screen.getByText('Fee waived')).toBeInTheDocument();
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
   });
 
   it('labels scored and move-up-requested entries instead of falling through to Unknown', () => {

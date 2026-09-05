@@ -269,3 +269,12 @@ When Auto Mode is active, the "execute immediately" guidance does NOT extend to 
 - Posting to Slack, email, or any external service
 
 Adding rows to a shared DB is not "destructive" but is still shared-system mutation. One up-front confirmation covers a sequence of related pushes in the same session; re-confirm when switching to a new system or operation type.
+
+## Browser automation session ownership
+
+- Each task/run must own a unique Playwright CLI session. Never reuse a generic name such as `myk9-todo`, the default session, or another task's session.
+- For scripted browser work, run `pnpm qa:browser-session sh path/to/browser-work.sh`. The wrapper supplies a unique `PLAYWRIGHT_CLI_SESSION`; commands inside the script must inherit it and must not override it with `-s` or another environment value. Keep the script in the foreground and wait for all browser work before returning.
+- The wrapper closes only its session on success, failure, SIGINT, or SIGTERM. Failed or timed-out cleanup fails the run and prints the exact session to inspect. It cannot clean up after SIGKILL, a runtime crash, or power loss.
+- For interactive agent work spanning separate tool calls, choose a unique task/run name, pass `-s=<name>` on every command, and close that exact session before finishing, handing off, or abandoning the task. A one-command wrapper cannot preserve a browser across separate tool calls.
+- Check `playwright-cli list` before starting and after cleanup. Do not use `close-all`, `kill-all`, or blanket Chrome process termination as routine cleanup: concurrent agents may own other sessions. Do not delete browser profiles to resolve a hung session.
+- If an owner is interrupted before cleanup, verify that its task has ended before closing the recorded session. Process age or low CPU alone is not evidence that a session is abandoned.

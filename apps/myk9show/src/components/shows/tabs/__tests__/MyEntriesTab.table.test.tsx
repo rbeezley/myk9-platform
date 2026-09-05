@@ -76,11 +76,7 @@ describe('MyEntriesTab copy variants', () => {
     ];
 
     render(
-      <MyEntriesTab
-        showId="show-1"
-        canonicalEntries={canonicalEntries}
-        entryDataState="loading"
-      />
+      <MyEntriesTab showId="show-1" canonicalEntries={canonicalEntries} entryDataState="loading" />
     );
 
     expect(useShowEntriesForUser).toHaveBeenCalledWith('show-1', {

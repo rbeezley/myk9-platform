@@ -21,9 +21,7 @@ describe('CheckInStatusDialog', () => {
       />
     );
 
-    const description = screen
-      .getByText('Armband #42')
-      .closest('[class*="text-muted-foreground"]');
+    const description = screen.getByText('Armband #42').closest('[class*="text-muted-foreground"]');
 
     expect(description).not.toBeNull();
     expect(description?.querySelector('div')).toBeNull();
@@ -52,7 +50,7 @@ describe('CheckInStatusDialog — exhibitor voice', () => {
     expect(screen.getByText("I won't be running this class")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "This tells the secretary that this dog won't run this class. It does not withdraw your entry or change your fee."
+        "This only tells the secretary that this dog won't run in this class; it does not withdraw the entry or change its fee"
       )
     ).toBeInTheDocument();
     expect(screen.getByText('At Gate')).toBeInTheDocument();

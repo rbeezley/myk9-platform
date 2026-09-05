@@ -44,22 +44,23 @@ This is the canonical 8-step loop: implement → simplify → commit → PR → 
 
 ## 4. Which review, when
 
-| Situation | Use |
-| --- | --- |
-| Uncommitted working diff, pre-commit | `/code-review` (cleanup order: `/simplify` → `/harden` → commit) |
-| Open GitHub PR | `/review` |
-| Commits already on `main` / a finished phase, no PR | `phase-review` skill |
-| High-stakes or user-visible behavior change | Add `/codex:review` (non-Claude second opinion) — default ON for RLS/migrations/payment/auth/RBAC/gates/state/ranking/hook-shape changes |
-| Whole-branch, multi-agent deep review | `/code-review ultra` (user-triggered, billed) |
-| PR touches `package.json` / auth / RLS / migrations / list views | Also load `code-review-extensions` checklists (dependency, security, migration, performance sections) |
-| New/changed Supabase migration before `db push` | `migration-auditor` agent — checks missing GRANTs, missing RLS, O(N) policy anti-patterns, missing pre-queries, enum/CHECK mismatches |
-| Pre-launch or major release | `security-audit` skill (full mode) |
+| Situation                                                        | Use                                                                                                                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Uncommitted working diff, pre-commit                             | `/code-review` (cleanup order: `/simplify` → `/harden` → commit)                                                                                                    |
+| Open GitHub PR                                                   | `/review`                                                                                                                                                           |
+| Shipping a branch or PR to `main`                                | `ship-pr` — runs the independent gate (Codex for Claude-authored, Claude for Codex-authored) at Step 4, **before** merge; a same-harness subagent is never the gate |
+| Commits already on `main` / a finished phase, no PR              | `phase-review` skill                                                                                                                                                |
+| High-stakes or user-visible behavior change                      | Add `/codex:review` (non-Claude second opinion) — default ON for RLS/migrations/payment/auth/RBAC/gates/state/ranking/hook-shape changes                            |
+| Whole-branch, multi-agent deep review                            | `/code-review ultra` (user-triggered, billed)                                                                                                                       |
+| PR touches `package.json` / auth / RLS / migrations / list views | Also load `code-review-extensions` checklists (dependency, security, migration, performance sections)                                                               |
+| New/changed Supabase migration before `db push`                  | `migration-auditor` agent — checks missing GRANTs, missing RLS, O(N) policy anti-patterns, missing pre-queries, enum/CHECK mismatches                               |
+| Pre-launch or major release                                      | `security-audit` skill (full mode)                                                                                                                                  |
 
 Run Codex review **before** merging, not after — it's a gate, not a follow-up.
 
 **If Codex is genuinely unavailable** (usage limit, outage, auth failure — not merely
 slow or inconvenient), the sanctioned fallback is **adversarial subagents, plural**,
-one per PR or per lens, run in parallel and prompted to *find bugs, not approve*
+one per PR or per lens, run in parallel and prompted to _find bugs, not approve_
 ("assume the author was overconfident"; "report only defects with a concrete failure
 scenario"). A skill's built-in `code-reviewer` step is **not** the fallback — that
 substitution is a recorded lapse and stays banned.
@@ -84,19 +85,20 @@ missed a P1 that Codex caught.
 
 Read [`docs/INTENT.md`](INTENT.md) first — every UX change must preserve the target feeling for that role. Don't remove/change behavior behind an `// INTENT:` comment without explicit approval.
 
-| Situation | Use |
-| --- | --- |
-| Deep-dive a single role's end-to-end journey, multi-viewport, persona-driven, regression-diffed against prior run | `role-journey-ux-audit` |
+| Situation                                                                                                           | Use                                                       |
+| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Deep-dive a single role's end-to-end journey, multi-viewport, persona-driven, regression-diffed against prior run   | `role-journey-ux-audit`                                   |
 | General UX review of a page/feature — mental model, IA, affordances, cognitive load, state coverage, flow integrity | `UX-Audit` (6-pass, produces severity-rated findings doc) |
-| Navigation/routes/tabs feel fragmented, "why are there 3 places to do X" | `IA-Review` (structural audit + phased remediation plan) |
-| Real-browser walk of an existing feature, fixing bugs at the root cause mid-walk, leaves a Playwright spec behind | `qa-feature` |
-| Sweep for console/network errors after a refactor, before release | `audit-pages` |
+| Navigation/routes/tabs feel fragmented, "why are there 3 places to do X"                                            | `IA-Review` (structural audit + phased remediation plan)  |
+| Real-browser walk of an existing feature, fixing bugs at the root cause mid-walk, leaves a Playwright spec behind   | `qa-feature`                                              |
+| Sweep for console/network errors after a refactor, before release                                                   | `audit-pages`                                             |
 
 `role-journey-ux-audit` and `UX-Audit` overlap (both persona/6-pass style) — prefer `role-journey-ux-audit` when the ask names a specific role and wants viewport + regression diffing; use `UX-Audit` for a single page/feature review.
 
 ## 7. Docs-only change
 
 **In scope for direct-to-`main`, no PR:**
+
 - `docs/**/*.md` (including `docs/plans/`, `docs/superpowers/`, `docs/ux-audits/`, etc.)
 - `apps/*/docs/**/*.md`
 - Top-level tracking docs: `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only)
@@ -110,7 +112,7 @@ Flow: commit on `main` (or fast-forward a feature commit into `main`), push dire
 
 1. `cleanup` skill — checks stale worktrees, uncommitted changes, unpushed migrations, stale todos.
 2. Worktree + branch teardown order matters: **remove the worktree before `git branch -D`** (reverse order orphans the shell cwd or fails).
-3. Defer worktree removal to the *final* cleanup command if the current shell is inside that worktree.
+3. Defer worktree removal to the _final_ cleanup command if the current shell is inside that worktree.
 4. Always run `gh pr merge` from the main repo directory, never from inside a feature worktree.
 5. After a merge: `git checkout main && git pull --ff-only`, `git fetch --prune`, then `git branch --list <branch>` to check if the local survived (recent `gh` deletes both remote+local on `--delete-branch`; older versions/manual merges don't — use `git branch -D` in that case, not `-d`, since squash rewrites SHAs).
 6. Update tracking after completing each task, not in a batch at the end: move the Linear issue (team **MyK9-platform**) to its new state. See CLAUDE.md § Workflow for when a finding also belongs in `docs/qa/findings.md` or `TECHNICAL_DEBT.md`.

@@ -4,7 +4,7 @@ import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import PastResultViewDialog from './PastResultViewDialog';
 import PastResultEditDialog from './PastResultEditDialog';
 import StandardDialog from '@/components/common/StandardDialog';
-import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { formatLongDate } from '@/lib/format/dates';
 import type { PastResult } from '@/types/results-types';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import {
@@ -157,7 +157,7 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
                 )}
               </div>
               <div className="myk9-record-meta">
-                {result.showDate ? formatDateMMDDYYYY(result.showDate) : ''}
+                {result.showDate ? formatLongDate(result.showDate) : ''}
               </div>
             </div>
           </div>
@@ -216,7 +216,7 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
                   </span>
                 </div>
                 <div className="myk9-record-meta">
-                  {result.trial_date ? formatDateMMDDYYYY(result.trial_date) : ''}
+                  {result.trial_date ? formatLongDate(result.trial_date) : ''}
                 </div>
               </div>
             </div>

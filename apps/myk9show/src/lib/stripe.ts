@@ -77,6 +77,26 @@ async function readEdgeFunctionError(
 }
 
 /**
+ * Stripe substitutes the checkout session id into `success_url` wherever it
+ * finds this token — and ONLY in its literal, unencoded form.
+ *
+ * It must never be routed through `URLSearchParams`, which percent-encodes the
+ * braces to `%7BCHECKOUT_SESSION_ID%7D`. Stripe does not recognise that and
+ * returns the URL verbatim, so the confirmation page queries `stripe_orders`
+ * for a session id of literally `{CHECKOUT_SESSION_ID}`, finds nothing, and
+ * tells an exhibitor whose card has already been charged that their payment
+ * cannot be found — permanently, since no re-check can ever match.
+ *
+ * MYK9-294: reproduced 2026-09-05 with a real sandbox payment. The order row
+ * was committed 54 ms after the charge; the page still read "Payment Not Found
+ * Yet" 100 s later. `docs/roles/exhibitor.md` calls silence after payment the
+ * scariest state for this role, and this is worse than silence.
+ *
+ * Pinned by `stripe.test.ts`.
+ */
+export const STRIPE_CHECKOUT_SESSION_ID_TOKEN = '{CHECKOUT_SESSION_ID}';
+
+/**
  * Create a Stripe checkout session for entry cart payment
  *
  * @param cartId - The ID of the entry cart to checkout
@@ -90,18 +110,27 @@ export async function createEntryCheckoutSession(
     throw new Error('Cart ID is required');
   }
 
-  const successUrl = new URL(`${window.location.origin}/checkout/success`);
-  successUrl.searchParams.set('session_id', '{CHECKOUT_SESSION_ID}');
+  // Every real value goes through URLSearchParams so it stays correctly
+  // encoded; the session-id token is concatenated separately so its braces
+  // survive. Do not fold the two together — see
+  // STRIPE_CHECKOUT_SESSION_ID_TOKEN for what that costs.
+  const extraParams = new URLSearchParams();
 
   if (options?.splitCheckoutId) {
-    successUrl.searchParams.set('split', options.splitCheckoutId);
+    extraParams.set('split', options.splitCheckoutId);
   }
+
+  const extraQuery = extraParams.toString();
+  const successUrl =
+    `${window.location.origin}/checkout/success` +
+    `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}` +
+    (extraQuery ? `&${extraQuery}` : '');
 
   const { data, error } = await supabase.functions.invoke('stripe-checkout', {
     body: {
       mode: 'entry',
       cart_id: cartId,
-      success_url: successUrl.toString(),
+      success_url: successUrl,
       cancel_url: `${window.location.origin}/checkout/cancel`,
     },
   });

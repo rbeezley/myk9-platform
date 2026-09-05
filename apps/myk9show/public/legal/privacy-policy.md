@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated: August 16, 2026**
+**Last Updated: September 5, 2026**
 
 This Privacy Policy describes how RyKris LLC, an Oklahoma limited liability company ("RyKris," "Company," "we," "us," or "our"), collects, uses, discloses, and protects your personal information when you use the myK9 platform, including the myK9Show web application, the built-in Ringside experience, and all related services (collectively, the "Service").
 
@@ -33,6 +33,7 @@ When you access or use the Service, we automatically collect:
 - **Usage Data:** Pages visited, features used, actions taken, time spent on pages, click patterns, and navigation paths
 - **Log Data:** IP address, access times, referring URLs, and error logs
 - **Local Storage Data:** Preferences, settings, and cached data stored in your browser's local storage to support offline functionality and improve performance
+- **Traffic Analytics:** We use Vercel Web Analytics, a cookieless analytics service, to count visits and page views. It records the page path, referring site, country, and device and browser type. It does not set cookies, does not store your IP address, and does not identify you across websites or from one day to the next. Query strings and URL fragments are removed before a page view is recorded, so search terms, payment session identifiers, and sign-in tokens are never included
 
 ### 1.3 Information from Third-Party Services
 
@@ -47,7 +48,7 @@ We use cookies and similar technologies (such as local storage) to:
 
 - Maintain your authentication session
 - Remember your preferences and settings
-- Analyze usage patterns to improve the Service
+- Analyze usage patterns to improve the Service (our traffic analytics described in Section 1.2 do not use cookies)
 - Support offline functionality
 
 You can control cookie settings through your browser preferences. Disabling cookies may limit your ability to use certain features of the Service.
@@ -120,7 +121,7 @@ We share information with third-party service providers who perform services on 
 | ------------------ | ------------------------------------------------ | ------------------------------------------------------ |
 | **Supabase, Inc.** | Database hosting, authentication, real-time data | Account data, competition data, all Service data       |
 | **Stripe, Inc.**   | Payment processing                               | Payment details, billing information, transaction data |
-| **Vercel, Inc.**   | Application hosting, content delivery            | Usage data, log data, IP addresses                     |
+| **Vercel, Inc.**   | Application hosting, content delivery, analytics | Usage data, log data, IP addresses, page-view counts   |
 
 These service providers are contractually obligated to use your information only as necessary to perform services for us and in accordance with this Privacy Policy.
 

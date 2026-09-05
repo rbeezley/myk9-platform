@@ -199,7 +199,9 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
           people: { first_name: string; last_name: string };
         }>) || [];
       const first = ja[0];
-      return first ? `${first.people.first_name} ${first.people.last_name}`.trim() : undefined;
+      return first
+        ? `${first.people.first_name} ${first.people.last_name}`.trim()
+        : ((dbRow.judge_name as string | undefined) ?? undefined);
     })(),
     judgeId: (() => {
       const ja = (dbRow.judge_assignments as Array<{ person_id: string }>) || [];

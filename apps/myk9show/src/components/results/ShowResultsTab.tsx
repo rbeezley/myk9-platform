@@ -105,7 +105,7 @@ function getResultsEmptyStateCopy(showEntries: StatsEntry[] = []): ResultsEmptyS
   }
 
   return {
-    title: 'Results are being reviewed',
+    title: 'Placements are being reviewed',
     description: 'Placements will appear here after the secretary releases them.',
   };
 }

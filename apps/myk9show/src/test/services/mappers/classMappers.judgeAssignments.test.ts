@@ -127,4 +127,14 @@ describe('mapReplicatedClassToDbRow — judge data round-trip', () => {
     expect(classData.judge).toBe('Richard Beezley');
     expect(classData.judgeId).toBe('judge-uuid-1');
   });
+
+  it('uses the denormalized class judge when no assignment relation exists', () => {
+    const classData = mapDatabaseToClass({
+      ...makeReplicatedClass(),
+      judge_name: 'Test Judge',
+      judge_assignments: [],
+    } as never);
+
+    expect(classData.judge).toBe('Test Judge');
+  });
 });

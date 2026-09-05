@@ -84,7 +84,7 @@ describe('ShowResultsTab empty-state clarity', () => {
 
     render(<ShowResultsTab showId="show-1" />);
 
-    expect(screen.getByText('Results are being reviewed')).toBeInTheDocument();
+    expect(screen.getByText('Placements are being reviewed')).toBeInTheDocument();
     expect(screen.getByText(/after the secretary releases them/i)).toBeInTheDocument();
   });
 });

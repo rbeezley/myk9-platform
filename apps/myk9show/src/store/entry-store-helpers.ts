@@ -8,6 +8,7 @@
 import type { CheckInStatus } from '@myk9/core';
 import type { ReplicatedEntry } from '@/services/replication';
 import type { EntryStatus, SyncableShowEntry } from './entry-store-types';
+import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 
 export const generateEntryId = () =>
   `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -22,6 +23,25 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
     replicated.updated_at ||
     replicated._lastModified?.toISOString() ||
     new Date().toISOString();
+  const resultStatus = replicated.resultStatus ?? replicated.result_status;
+  const hasReleasedResult =
+    (replicated.isScored ?? replicated.is_scored) === true &&
+    !!resultStatus &&
+    resultStatus !== 'pending';
+  const competitionData = hasReleasedResult
+    ? {
+        ...(replicated.searchTimeSeconds != null
+          ? { time: dbSecondsToInputFormat(replicated.searchTimeSeconds) }
+          : {}),
+        ...(replicated.finalPlacement != null
+          ? { placement: String(replicated.finalPlacement) }
+          : {}),
+        qualified: resultStatus === 'qualified',
+        ...(replicated.totalFaults != null ? { faults: replicated.totalFaults } : {}),
+        recordedBy: '',
+        recordedAt: replicated.scoringCompletedAt ?? timestamp,
+      }
+    : undefined;
 
   return {
     id: replicated.id,
@@ -29,6 +49,7 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
     classId: replicated.classId || '',
     dogId: replicated.dogId || '',
     status,
+    ...(competitionData ? { competitionData } : {}),
     registrationData: {
       submittedAt: replicated.submittedAt || new Date().toISOString(),
       handler: replicated.handler || '',

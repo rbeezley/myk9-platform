@@ -25,6 +25,7 @@ import type {
   SubmittedEntryReadState,
 } from '@/features/exhibitor-entry/submittedEntryProjection';
 import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
+import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 
 export interface EnrichedShowEntry {
   entryId: string;
@@ -129,7 +130,7 @@ function canonicalPaymentStatus(
   return value === 'paid' || value === 'refunded' ? value : 'pending';
 }
 
-function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowEntry | null {
+export function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowEntry | null {
   const id = stringValue(row.id);
   const showId = stringValue(row.show_id);
   const classId = stringValue(row.class_id);
@@ -144,6 +145,22 @@ function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowEntry | 
   const handlerId = stringValue(row.handler_id);
   const registrationId = stringValue(row.registration_id);
   const runOrder = numberValue(row.run_order);
+  const resultStatus = stringValue(row.result_status);
+  const hasReleasedResult =
+    row.is_scored === true && resultStatus !== undefined && resultStatus !== 'pending';
+  const searchTime = dbSecondsToInputFormat(numberValue(row.search_time_seconds));
+  const finalPlacement = numberValue(row.final_placement);
+  const totalFaults = numberValue(row.total_faults);
+  const competitionData = hasReleasedResult
+    ? {
+        ...(searchTime ? { time: searchTime } : {}),
+        ...(finalPlacement !== undefined ? { placement: String(finalPlacement) } : {}),
+        qualified: resultStatus === 'qualified',
+        ...(totalFaults !== undefined ? { faults: totalFaults } : {}),
+        recordedBy: '',
+        recordedAt: stringValue(row.scoring_completed_at) ?? updatedAt,
+      }
+    : undefined;
 
   return {
     id,
@@ -170,6 +187,7 @@ function normalizeCanonicalEntry(row: SubmittedEntryDbRow): SyncableShowEntry | 
     _lastModified: new Date(updatedAt || 0),
     _lastModifiedBy: 'canonical-show-entry-read',
     _syncStatus: 'synced',
+    ...(competitionData ? { competitionData } : {}),
   };
 }
 

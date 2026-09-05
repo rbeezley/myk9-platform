@@ -5,7 +5,7 @@ description: Use when shipping or merging an existing PR/branch through review-c
 
 # Ship PR
 
-Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → **independent review gate** → squash-merge → worktree cleanup, in that order.
+Use when a feature branch is ready to ship — whether it has an open PR or not. Bundles simplify → commit → PR creation (if needed) → review-comment fixes → **independent review gate** → squash-merge → close-out → worktree cleanup, in that order.
 
 This file is shared by Claude Code and Codex (`.agents/skills/ship-pr` is a symlink to it). Where the two harnesses differ, both paths are spelled out. "The instruction file" means `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex.
 
@@ -119,8 +119,10 @@ LOG=/tmp/review-gate-$PR_NUMBER-$HEAD_SHA.log
 
 ```bash
 codex review --base origin/main < /dev/null > "$LOG" 2>&1; echo "EXIT=$?"
-grep -Ei 'Review was interrupted|usage limit' "$LOG" && echo "GATE DID NOT RUN"
+grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" && echo "GATE DID NOT RUN"
 ```
+
+The pattern is anchored to line start on purpose: the log echoes the diff, and a diff that mentions those phrases (this skill does) matched an unanchored grep on 2026-09-05.
 
 **Author is Codex → Claude Code reviews:**
 
@@ -157,7 +159,7 @@ cd "/Users/richardbeezley/AI Projects/myk9-platform"
 Reading the rollup — three traps from the instruction file's LESSONS:
 
 - A red `Vercel – …` context whose `targetUrl` ends `?upgradeToPro=build-rate-limit` is an account quota, not a verdict on the diff; GitHub leaves the PR `MERGEABLE`/`UNSTABLE`, not `BLOCKED`. Merge on the Actions jobs plus the app's own Vercel context and say which check you ignored.
-- A red check is a verdict on the base it ran against: if its run predates the `main` commit that fixed that failure, merge `origin/main` in and push — a rerun keeps the stale merge ref.
+- A red check is a verdict on the base it ran against: if its run predates the `main` commit that fixed that failure, merge `origin/main` in and push — a rerun keeps the stale merge ref. **That push is a new head:** go back to Step 3 and Step 4, and record the gate for the new SHA before merging. Conflict resolutions and integration changes must not skip the review.
 - "No pending checks" is not "settled": require every check to have reported a conclusion for the current head SHA.
 
 **Path A — checks green (`mergeStateStatus` is `CLEAN`, or `UNSTABLE` only from the quota context):**
@@ -176,11 +178,21 @@ gh pr merge $PR_NUMBER --squash --auto
 gh pr view $PR_NUMBER --json autoMergeRequest
 ```
 
-Then tell the user: "Auto-merge armed — GitHub will merge when required checks pass. Run `/cleanup` after it merges." Leave the Linear issue **In Progress** and **STOP — do not proceed to Step 6.** Do not poll; use `gh pr checks $PR_NUMBER --watch` only when the user asks to wait.
+Then tell the user: "Auto-merge armed — GitHub will merge when required checks pass. Run `/cleanup` after it merges." Leave the Linear issue **In Progress** and **STOP — do not proceed to Steps 6–7.** Do not poll; use `gh pr checks $PR_NUMBER --watch` only when the user asks to wait.
 
 ---
 
-### Step 6: Cleanup — LAST STEP ONLY
+### Step 6: Close out — while the worktree still exists
+
+Do this **before** Step 7: once the worktree is removed the harness keeps its CWD there, and later shell calls fail.
+
+1. Confirm the merge: `gh pr view $PR_NUMBER --json state,mergeCommit`.
+2. A merge is not a deploy. Check the production build for a `main` commit at or after the merge commit (`gh api repos/<owner>/<repo>/commits/<sha>/status`); a Vercel build-rate-limit failure on `main` leaves staging serving the previous bundle.
+3. Move the Linear issue to Done only after reading its **full** description with `get_issue` (list results truncate acceptance criteria) and checking every criterion. If the production build has not gone green yet, leave the issue **In Progress**, say so, and tell the user what to re-check.
+
+---
+
+### Step 7: Cleanup — LAST STEP ONLY
 
 Only after `state == "MERGED"` and `main` is updated:
 
@@ -198,12 +210,6 @@ git worktree remove "<worktree path from Step 0>" --force 2>/dev/null || true
 
 ---
 
-### Step 7: Close out
-
-Move the Linear issue to Done only after the merge, only after reading its **full** description with `get_issue` (list results truncate acceptance criteria), and only once the production build for a `main` commit at or after the merge commit is green — a merge is not a deploy, and a Vercel build-rate-limit failure on `main` leaves staging serving the previous bundle.
-
----
-
 ## Rules
 
 - NEVER run on `main` directly
@@ -211,7 +217,8 @@ Move the Linear issue to Done only after the merge, only after reading its **ful
 - NEVER merge, arm auto-merge, or call the PR ready while the independent review is running or unread
 - NEVER substitute a same-harness subagent for the review gate
 - NEVER pass `--delete-branch`; leave local branches for the branch-janitor
-- NEVER remove the worktree before merge is confirmed AND main is updated
+- NEVER remove the worktree before merge is confirmed, main is updated, AND close-out (Step 6) is done
+- Any push that changes the head after the gate — including a merge from `main` — re-runs the gate
 - Worktree removal is ALWAYS the final command
 - If checks are pending, arm `gh pr merge --squash --auto` instead of stopping with manual instructions; never poll unless asked
 - Verify merge via `gh pr view --json state`, not `git log` (squash-merges rewrite SHAs)

@@ -47,6 +47,13 @@ function makeWrapper() {
 function makeQueryChain(resolved: { data: unknown; error: unknown }) {
   const handler: ProxyHandler<object> = {
     get(_t, prop) {
+      if (prop === 'in') {
+        return (key: string, ids: string[]) =>
+          makeQueryChain({
+            ...resolved,
+            data: resolved.data ? ids.map(id => ({ ...Object(resolved.data), [key]: id })) : [],
+          });
+      }
       if (prop === 'then') {
         return (resolve: (v: unknown) => void) => resolve(resolved);
       }
@@ -107,6 +114,24 @@ const CLASS_ROW = { trial_id: 'trial-1', trials: { show_id: 'show-1' } };
 describe('useSelfCheckinEnabled', () => {
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('loads twenty classes with four bounded reads and retains individual query keys', async () => {
+    setupMockFrom({
+      classRow: CLASS_ROW,
+      showCheckin: false,
+      trialCheckin: null,
+      classCheckin: null,
+    });
+    const ids = Array.from({ length: 20 }, (_, i) => `class-${i}`);
+    const { queryClient, Wrapper } = makeWrapper();
+    const { result } = renderHook(() => useSelfCheckinMap(ids), { wrapper: Wrapper });
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    expect(mockFrom).toHaveBeenCalledTimes(4);
+    for (const id of ids) {
+      expect(result.current[id]).toBe(false);
+      expect(queryClient.getQueryData(['classes', id, 'selfCheckin'])).toBe(false);
+    }
   });
 
   describe('null classId', () => {

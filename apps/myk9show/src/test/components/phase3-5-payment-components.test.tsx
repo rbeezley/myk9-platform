@@ -53,6 +53,16 @@ vi.mock('@/store/showStore', () => ({
   }),
 }));
 
+vi.mock('@/features/payments/useClubStripeAccount', () => ({
+  useClubStripePaymentReadiness: () => ({
+    data: true,
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    isSuccess: true,
+  }),
+}));
+
 vi.mock('@/hooks/useRegistrationPermissions', () => ({
   useRegistrationPermissions: () => ({}),
   REGISTRATION_PERMISSIONS: {

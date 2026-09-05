@@ -72,6 +72,7 @@ interface WorkflowStepContentProps {
   onClassSelectionChange: (selections: ClassSelectionData[]) => void | Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void | Promise<void>;
   onPaymentMethodChange: (method: PaymentMethod) => void;
+  onPaymentMethodClear?: (() => void) | undefined;
   onPaymentDetailsChange?: ((details: PaymentDetails) => void) | undefined;
   onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => void | Promise<unknown>;
   onEntryStatusChange: (
@@ -113,6 +114,7 @@ export function WorkflowStepContent({
   onClassSelectionChange,
   onHandlerAssignmentChange,
   onPaymentMethodChange,
+  onPaymentMethodClear,
   onPaymentDetailsChange,
   onPaymentStatusChange,
   onEntryStatusChange,
@@ -374,6 +376,7 @@ export function WorkflowStepContent({
             paymentStatus={optimisticState.paymentStatus}
             entryStatus={optimisticState.entryStatus}
             onPaymentMethodChange={onPaymentMethodChange}
+            onPaymentMethodClear={onPaymentMethodClear}
             onPaymentDetailsChange={onPaymentDetailsChange}
             onPaymentStatusChange={async (status: PaymentStatus) => {
               setPaymentStatus(status);

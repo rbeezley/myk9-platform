@@ -295,6 +295,10 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     setRegistrationData(prev => ({ ...prev, paymentMethod: method }));
   };
 
+  const handlePaymentMethodClear = () => {
+    setRegistrationData(prev => ({ ...prev, paymentMethod: undefined }));
+  };
+
   const handlePaymentDetailsChange = (details: PaymentDetails) => {
     paymentDetailsRef.current = details;
   };
@@ -317,6 +321,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     handleExit,
     handleStepClick,
     handlePaymentMethodChange,
+    handlePaymentMethodClear,
     handlePaymentDetailsChange,
     handlePaymentStatusChange,
     handleEntryStatusChange,

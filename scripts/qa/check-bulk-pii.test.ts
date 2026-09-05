@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import {
   BULK_PII_THRESHOLD,
   GRANDFATHERED_PREFIXES,
@@ -7,6 +11,8 @@ import {
   isGrandfathered,
   isScannable,
   isSyntheticAddress,
+  resolveDiffRange,
+  resolveFilesToScan,
   scanForBulkPii,
 } from './check-bulk-pii';
 
@@ -67,7 +73,7 @@ describe('scanForBulkPii', () => {
 
   it('flags a file at export scale', () => {
     const files = { 'docs/qa/findings.md': exportOf(BULK_PII_THRESHOLD) };
-    const findings = scanForBulkPii(Object.keys(files), read(files));
+    const { findings } = scanForBulkPii(Object.keys(files), read(files));
 
     expect(findings).toHaveLength(1);
     expect(findings[0].file).toBe('docs/qa/findings.md');
@@ -78,12 +84,12 @@ describe('scanForBulkPii', () => {
     // The boundary is the whole design: a runbook or a fixture naming a few
     // real contacts is normal, and a guard that fires on it would be turned off.
     const files = { 'docs/operations/runbook.md': exportOf(BULK_PII_THRESHOLD - 1) };
-    expect(scanForBulkPii(Object.keys(files), read(files))).toEqual([]);
+    expect(scanForBulkPii(Object.keys(files), read(files)).findings).toEqual([]);
   });
 
   it('ignores a grandfathered path', () => {
     const files = { 'docs/mySWT/tbl_History.txt': exportOf(72) };
-    expect(scanForBulkPii(Object.keys(files), read(files))).toEqual([]);
+    expect(scanForBulkPii(Object.keys(files), read(files)).findings).toEqual([]);
   });
 
   it('still flags a NEW file placed beside a grandfathered one', () => {
@@ -93,7 +99,7 @@ describe('scanForBulkPii', () => {
       'docs/mySWT/tbl_History.txt': exportOf(72),
       'docs/imported/2026-new-export.txt': exportOf(30),
     };
-    const findings = scanForBulkPii(Object.keys(files), read(files));
+    const { findings } = scanForBulkPii(Object.keys(files), read(files));
 
     expect(findings.map(f => f.file)).toEqual(['docs/imported/2026-new-export.txt']);
   });
@@ -103,34 +109,39 @@ describe('scanForBulkPii', () => {
       'a.md': exportOf(12),
       'b.md': exportOf(40),
     };
-    expect(scanForBulkPii(Object.keys(files), read(files)).map(f => f.file)).toEqual([
+    expect(scanForBulkPii(Object.keys(files), read(files)).findings.map(f => f.file)).toEqual([
       'b.md',
       'a.md',
     ]);
   });
 
-  it('does not fail the run on an unreadable file', () => {
-    // A path can vanish between `git diff` and the read; that is not a finding.
-    expect(scanForBulkPii(['deleted.md'], read({}))).toEqual([]);
+  it('REPORTS an unreadable file instead of silently skipping it', () => {
+    // Swallowing this is what hid the quoted-filename bypass: git named the
+    // file, the open failed, and the guard called it clean. An unscanned file
+    // is not a clean file.
+    const scan = scanForBulkPii(['deleted.md'], read({}));
+
+    expect(scan.findings).toEqual([]);
+    expect(scan.unreadable).toEqual(['deleted.md']);
   });
 
   it('does not flag a unit test full of fixture clubs', () => {
     // The real false positive this rule was written for: 33 made-up club
     // addresses in a replication test.
     const files = { 'src/services/__tests__/ReplicatedClubsTable.test.ts': exportOf(33, 'club.com') };
-    expect(scanForBulkPii(Object.keys(files), read(files))).toEqual([]);
+    expect(scanForBulkPii(Object.keys(files), read(files)).findings).toEqual([]);
   });
 
   it('flags a data fixture inside a test directory', () => {
     const files = { 'src/services/__tests__/fixtures/people.json': exportOf(33, 'gmail.com') };
-    expect(scanForBulkPii(Object.keys(files), read(files)).map(f => f.file)).toEqual([
+    expect(scanForBulkPii(Object.keys(files), read(files)).findings.map(f => f.file)).toEqual([
       'src/services/__tests__/fixtures/people.json',
     ]);
   });
 
   it('skips binaries rather than scanning bytes as text', () => {
     const files = { 'docs/scan.pdf': exportOf(50) };
-    expect(scanForBulkPii(Object.keys(files), read(files))).toEqual([]);
+    expect(scanForBulkPii(Object.keys(files), read(files)).findings).toEqual([]);
   });
 });
 
@@ -183,5 +194,80 @@ describe('grandfathered exemptions', () => {
   it('matches by path prefix', () => {
     expect(isGrandfathered('docs/mySWT/tbl_History.txt')).toBe(true);
     expect(isGrandfathered('docs/qa/findings.md')).toBe(false);
+  });
+});
+
+
+/**
+ * Both regressions below were real bypasses in the first version of this guard,
+ * found by review after it had already merged. They are exercised against a
+ * REAL throwaway git repository rather than a mock, because both bugs lived in
+ * how git was invoked — a mocked git would have reproduced neither.
+ */
+describe('file resolution against a real repository', () => {
+  function repoWith(files: Record<string, string>): string {
+    const root = mkdtempSync(join(tmpdir(), 'bulk-pii-'));
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+    git('init', '-q', '.');
+    git('config', 'user.email', 'test@example.com');
+    git('config', 'user.name', 'Test');
+    for (const [name, content] of Object.entries(files)) {
+      const target = join(root, name);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, content);
+    }
+    git('add', '.');
+    git('commit', '-qm', 'initial');
+    return root;
+  }
+
+  it('reads a non-ASCII filename git would otherwise quote', () => {
+    // Without `-z`, git returns "r\303\251sum\303\251.csv" — a name that
+    // cannot be opened, so the read failed and the file reported clean. A
+    // tracked résumé.csv holding 12 addresses was a complete bypass.
+    const root = repoWith({ 'résumé.csv': 'a@gmail.com\n' });
+
+    expect(resolveFilesToScan(root, true, {})).toContain('résumé.csv');
+  });
+
+  it('scans everything on a push run whose base equals HEAD', () => {
+    // THE bug this guard could least afford. On a push to main the workflow
+    // checks out main itself, so origin/main === HEAD, the merge base equals
+    // HEAD, and the diff is empty — every direct-to-main commit passed without
+    // scanning a single file.
+    const root = repoWith({ 'docs/note.md': 'hello' });
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: root });
+
+    expect(resolveDiffRange(root, {})).toBeNull();
+    expect(resolveFilesToScan(root, false, {})).toContain('docs/note.md');
+  });
+
+  it('uses the push event base when one is supplied', () => {
+    const root = repoWith({ 'a.md': 'one' });
+    const git = (...args: string[]) =>
+      execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+    const before = git('rev-parse', 'HEAD');
+    writeFileSync(join(root, 'b.md'), 'two');
+    git('add', '.');
+    git('commit', '-qm', 'second');
+    git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+
+    const files = resolveFilesToScan(root, false, { GITHUB_EVENT_BEFORE: before });
+
+    expect(files).toEqual(['b.md']);
+  });
+
+  it('ignores a push base that is absent, null, or equal to HEAD', () => {
+    const root = repoWith({ 'a.md': 'one' });
+    execFileSync('git', ['update-ref', 'refs/remotes/origin/main', 'HEAD'], { cwd: root });
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+
+    // A force-push can name a commit this clone does not have; a branch's first
+    // push sends the null SHA. Neither may silently produce an empty scan.
+    for (const before of ['0'.repeat(40), 'a'.repeat(40), head]) {
+      expect(resolveDiffRange(root, { GITHUB_EVENT_BEFORE: before })).toBeNull();
+      expect(resolveFilesToScan(root, false, { GITHUB_EVENT_BEFORE: before })).toContain('a.md');
+    }
   });
 });

@@ -27,7 +27,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -118,6 +118,20 @@ export type BulkPiiFinding = {
   distinctAddresses: number;
 };
 
+export type BulkPiiScan = {
+  findings: BulkPiiFinding[];
+  /**
+   * Files git listed that could not be read.
+   *
+   * Reported rather than swallowed. A silent `catch` here is what hid the
+   * quoted-filename bypass: git named a file, the open failed, and the guard
+   * counted it as clean. Anything git lists at HEAD should be readable, so an
+   * entry in here means the scan did NOT cover that file and someone should
+   * look.
+   */
+  unreadable: string[];
+};
+
 /** True when an address's domain is synthetic and therefore not a person. */
 export function isSyntheticAddress(address: string): boolean {
   const domain = address.slice(address.lastIndexOf('@') + 1).toLowerCase();
@@ -157,20 +171,23 @@ export function scanForBulkPii(
   files: readonly string[],
   readFile: (file: string) => string,
   threshold: number = BULK_PII_THRESHOLD
-): BulkPiiFinding[] {
+): BulkPiiScan {
   const findings: BulkPiiFinding[] = [];
+  const unreadable: string[] = [];
   for (const file of files) {
     if (!isScannable(file) || isGrandfathered(file)) continue;
     let content: string;
     try {
       content = readFile(file);
     } catch {
-      continue; // deleted between diff and read, or unreadable — not our failure
+      unreadable.push(file);
+      continue;
     }
     const distinctAddresses = countDistinctRealAddresses(content);
     if (distinctAddresses >= threshold) findings.push({ file, distinctAddresses });
   }
-  return findings.sort((a, b) => b.distinctAddresses - a.distinctAddresses);
+  findings.sort((a, b) => b.distinctAddresses - a.distinctAddresses);
+  return { findings, unreadable };
 }
 
 /**
@@ -186,32 +203,111 @@ export function assertGrandfatheredPathsExist(
 }
 
 function git(args: string[], repoRoot: string): string {
-  return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
+  return execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
 }
 
 /**
- * Files added or modified relative to the merge base with origin/main.
+ * Split git's `-z` output.
  *
- * Diff-scoped on purpose: the guard is about what a change INTRODUCES, so it
- * neither re-litigates history nor slows down as the repo grows. Falls back to
- * every tracked file when there is no usable base (a fresh clone, a detached
- * checkout), because scanning too much is a safe failure and scanning nothing
- * is not.
+ * `-z` is not optional. Git QUOTES any path containing non-ASCII bytes by
+ * default (`docs/résumé.csv` comes back as `"docs/r\303\251sum\303\251.csv"`),
+ * and a quoted path cannot be opened — so the read failed, the failure was
+ * swallowed, and the file reported clean. A tracked `résumé.csv` holding twelve
+ * addresses was a complete bypass, `--all` included.
  */
-export function resolveFilesToScan(repoRoot: string, scanAll: boolean): string[] {
+function splitNul(output: string): string[] {
+  return output.split('\0').filter(Boolean);
+}
+
+/** True when `ref` names a commit that exists in this clone. */
+function commitExists(ref: string, repoRoot: string): boolean {
+  try {
+    execFileSync('git', ['cat-file', '-e', `${ref}^{commit}`], { cwd: repoRoot, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** git's "no parent" sentinel, sent on a branch's first push. */
+const NULL_SHA = '0000000000000000000000000000000000000000';
+
+/**
+ * Files added or modified by the change under test.
+ *
+ * THREE bases, because getting this wrong makes the guard pass vacuously:
+ *
+ *  - A PR: diff against the merge base with the target branch.
+ *  - A PUSH: diff against `github.event.before`. This arm is why the guard is
+ *    worth anything. On a push run the workflow checks out main itself, so
+ *    `origin/main` IS `HEAD`, the merge base equals `HEAD`, and the diff is
+ *    empty — the guard scanned zero files and reported clean on every
+ *    direct-to-main commit. That is precisely the path it was built to watch:
+ *    this repo has a docs-only direct-to-main flow, and the unattended report
+ *    updates it targets travel it.
+ *  - Neither resolvable: scan every tracked file. Scanning too much is a safe
+ *    failure; scanning nothing is not.
+ *
+ * The same reasoning covers a base that equals HEAD or names a commit this
+ * clone does not have (a force-push, a shallow fetch): fall back to the full
+ * scan rather than silently comparing a commit against itself.
+ */
+export function resolveFilesToScan(
+  repoRoot: string,
+  scanAll: boolean,
+  env: NodeJS.ProcessEnv = process.env
+): string[] {
   if (!scanAll) {
-    try {
-      const base = git(['merge-base', 'origin/main', 'HEAD'], repoRoot);
-      if (base) {
-        const out = git(['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], repoRoot);
-        return out ? out.split('\n').filter(Boolean) : [];
-      }
-    } catch {
-      // fall through to the full scan
+    const range = resolveDiffRange(repoRoot, env);
+    if (range) {
+      return splitNul(
+        git(['diff', '--name-only', '-z', '--diff-filter=ACMR', range, '--'], repoRoot)
+      );
     }
   }
-  const tracked = git(['ls-files'], repoRoot);
-  return tracked ? tracked.split('\n').filter(Boolean) : [];
+  return splitNul(git(['ls-files', '-z'], repoRoot));
+}
+
+/** The git range to diff, or null when no usable base exists. */
+export function resolveDiffRange(repoRoot: string, env: NodeJS.ProcessEnv): string | null {
+  const head = safeGit(['rev-parse', 'HEAD'], repoRoot);
+  if (!head) return null;
+
+  const baseRef = env.GITHUB_BASE_REF;
+  if (baseRef) {
+    const base = safeGit(['merge-base', `origin/${baseRef}`, 'HEAD'], repoRoot);
+    if (base && base !== head) return `${base}...HEAD`;
+  }
+
+  const pushBase = env.GITHUB_EVENT_BEFORE;
+  if (pushBase && pushBase !== NULL_SHA && pushBase !== head && commitExists(pushBase, repoRoot)) {
+    // Two-dot: what actually changed between the pushed commits, not what the
+    // branch accumulated since some shared ancestor.
+    return `${pushBase}..HEAD`;
+  }
+
+  const localBase = safeGit(['merge-base', 'origin/main', 'HEAD'], repoRoot);
+  if (localBase && localBase !== head) return `${localBase}...HEAD`;
+
+  return null;
+}
+
+function safeGit(args: string[], repoRoot: string): string | null {
+  try {
+    const out = git(args, repoRoot).trim();
+    return out || null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when the tracked path resolves to a directory (a symlink to one, or a gitlink). */
+export function isDirectoryEntry(repoRoot: string, file: string): boolean {
+  try {
+    return statSync(join(repoRoot, file)).isDirectory();
+  } catch {
+    return false; // unreadable for some other reason — let the scan report it
+  }
 }
 
 export function main(argv: readonly string[] = process.argv.slice(2)): number {
@@ -226,8 +322,25 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
     return 1;
   }
 
-  const files = resolveFilesToScan(repoRoot, scanAll);
-  const findings = scanForBulkPii(files, file => readFileSync(join(repoRoot, file), 'utf8'));
+  // Some tracked entries are symlinks to directories (the shared skill trees at
+  // .claude/skills/*, mode 120000). Reading one is EISDIR — a legitimate miss,
+  // not a bypass, and their contents are tracked elsewhere. Excluded by an
+  // explicit test rather than by loosening the unreadable check below, which
+  // has to stay strict: that check is what surfaces a real read failure instead
+  // of counting it as clean.
+  const files = resolveFilesToScan(repoRoot, scanAll).filter(file => !isDirectoryEntry(repoRoot, file));
+  const { findings, unreadable } = scanForBulkPii(files, file =>
+    readFileSync(join(repoRoot, file), 'utf8')
+  );
+
+  if (unreadable.length > 0) {
+    console.error(
+      `Bulk-PII guard: ${unreadable.length} file(s) git listed could not be read, so they were NOT scanned:`
+    );
+    for (const file of unreadable) console.error(`  - ${file}`);
+    console.error('Investigate before trusting this run — an unscanned file is not a clean file.');
+    return 1;
+  }
 
   if (findings.length === 0) {
     console.log(

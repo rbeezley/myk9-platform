@@ -170,6 +170,12 @@ jobs:
       # the unattended path in particular - scheduled QA walks and audits write
       # their output back into the repo with nobody reading the diff.
       - name: Bulk-PII guard
+        env:
+          # Required on push runs. The workflow checks out main itself, so
+          # `origin/main` IS `HEAD` and a merge-base diff is empty — without
+          # this the guard scanned zero files and passed on every
+          # direct-to-main commit, which is the path it most needs to watch.
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: |
           pnpm qa:bulk-pii:test
           pnpm qa:bulk-pii

@@ -18,6 +18,14 @@ describe('isNonRunningEntry', () => {
 });
 
 describe('isExpectedEntry', () => {
+  it('separates replicated lifecycle absent from active result absent', () => {
+    const scored = { entryStatus: 'accepted', isScored: true, resultStatus: 'qualified' };
+    const absent = { entryStatus: 'absent', isScored: false, resultStatus: 'pending' };
+    const resultAbsent = { entryStatus: 'accepted', isScored: false, resultStatus: 'absent' };
+    expect(expectedEntries([scored, absent, resultAbsent])).toEqual([scored, resultAbsent]);
+    expect(outstandingEntries([scored, absent, resultAbsent])).toEqual([]);
+  });
+
   it('counts an ordinary confirmed entry', () => {
     expect(isExpectedEntry({ entry_status: 'confirmed', check_in_status: 'checked-in' })).toBe(
       true

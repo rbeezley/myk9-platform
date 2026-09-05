@@ -14,8 +14,12 @@ const HEAD = '5af9af1585c4376ffbb648600ba5a22c8e009743';
 const OLD_HEAD = '4100e2f8daf6ac70a043aeb9eb9370e9cbce95f9';
 const H9 = HEAD.slice(0, 9);
 
-function comment(body: string, createdAt = '2026-09-05T16:00:00Z'): GateComment {
-  return { body, createdAt, author: 'rbeezley' };
+function comment(
+  body: string,
+  createdAt = '2026-09-05T16:00:00Z',
+  updatedAt?: string
+): GateComment {
+  return { body, createdAt, updatedAt, author: 'rbeezley' };
 }
 
 describe('evaluateReviewGate', () => {
@@ -114,6 +118,27 @@ describe('evaluateReviewGate', () => {
     expect(r.state).toBe('success');
   });
 
+  it('an older attestation EDITED to withdraw outranks a newer-created clean one', () => {
+    // Codex, #2058 round 3: sorting by creation time let a correction made
+    // by editing the earlier comment lose to a later clean comment.
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          `Review gate: codex reviewed 0a2020c7a..${H9} — 1 finding unaddressed`,
+          '2026-09-05T16:00:00Z',
+          '2026-09-05T16:30:00Z'
+        ),
+        comment(
+          `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
+          '2026-09-05T16:20:00Z'
+        ),
+      ],
+    });
+    expect(r.state).toBe('failure');
+    expect(r.evidence?.verdict).toBe('1 finding unaddressed');
+  });
+
   it('ignores the format when it is quoted, indented, or backticked — prose is not evidence', () => {
     const r = evaluateReviewGate({
       headSha: HEAD,
@@ -196,6 +221,17 @@ describe('workflow wiring', () => {
     expect(workflow).toContain("startsWith(github.event.changes.body.from, 'Review gate:')");
   });
 
+  it('runs in the base-branch context so forks and Dependabot get a write-capable token', () => {
+    // `pull_request` hands fork/Dependabot runs a read-only token, so the
+    // status POST fails exactly where it is needed. `pull_request_target`
+    // runs from the base with the base checkout; the script only reads PR
+    // metadata, so no PR-controlled code executes (Codex, #2058 round 3).
+    expect(workflow).toMatch(/^  pull_request_target:/m);
+    expect(workflow).not.toMatch(/^  pull_request:/m);
+    // And the checkout must NOT be pointed at the PR head.
+    expect(workflow).not.toMatch(/ref:\s*\$\{\{\s*github\.event\.pull_request\.head/);
+  });
+
   it('scopes concurrency to the job, so a skipped run cannot cancel an evaluation', () => {
     // A workflow-level group is claimed even by runs whose only job the `if`
     // skips — an ordinary comment then cancels an in-flight evaluation.
@@ -204,7 +240,7 @@ describe('workflow wiring', () => {
   });
 
   it('re-evaluates on every push', () => {
-    expect(workflow).toMatch(/pull_request:\n\s+types: \[[^\]]*synchronize[^\]]*\]/);
+    expect(workflow).toMatch(/pull_request_target:\n\s+types: \[[^\]]*synchronize[^\]]*\]/);
   });
 });
 

@@ -35,6 +35,8 @@ export const REVIEW_GATE_CONTEXT = 'Review gate';
 export interface GateComment {
   body: string;
   createdAt: string;
+  /** Last edit time; an edited older comment must outrank a newer unedited one. */
+  updatedAt?: string;
   author?: string;
 }
 
@@ -44,6 +46,8 @@ export interface GateEvidence {
   head: string;
   verdict: string;
   createdAt: string;
+  /** createdAt when the comment was never edited. */
+  updatedAt: string;
 }
 
 export interface GateResult {
@@ -80,6 +84,7 @@ export function parseGateComments(comments: readonly GateComment[]): GateEvidenc
       head,
       verdict,
       createdAt: comment.createdAt,
+      updatedAt: comment.updatedAt ?? comment.createdAt,
     });
   }
   return out;
@@ -95,9 +100,11 @@ export function evaluateReviewGate(input: {
 }): GateResult {
   const head = input.headSha.toLowerCase();
   const short = head.slice(0, 9);
+  // Latest by UPDATE, not creation: an older attestation edited to withdraw
+  // a clean verdict must outrank a newer-created clean one (Codex, #2058).
   const forHead = parseGateComments(input.comments)
     .filter(e => head.startsWith(e.head.toLowerCase()))
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
   const latest = forHead.at(-1);
   if (!latest) {
     return {
@@ -131,7 +138,14 @@ function gh(args: string[]): string {
 interface PrView {
   headRefOid: string;
   isDraft: boolean;
-  comments: { body: string; createdAt: string; author: { login: string } }[];
+}
+
+/** REST shape — `gh pr view --json comments` carries no edit timestamp. */
+interface RestComment {
+  body: string;
+  created_at: string;
+  updated_at: string;
+  user?: { login: string };
 }
 
 export function runCli(
@@ -145,18 +159,22 @@ export function runCli(
     return 2;
   }
   const view = JSON.parse(
-    gh(['pr', 'view', prNumber, '--repo', repo, '--json', 'headRefOid,isDraft,comments'])
+    gh(['pr', 'view', prNumber, '--repo', repo, '--json', 'headRefOid,isDraft'])
   ) as PrView;
   if (view.isDraft) {
     console.log(`review-gate: PR #${prNumber} is a draft — no status posted`);
     return 0;
   }
+  const comments = JSON.parse(
+    gh(['api', '--paginate', `repos/${repo}/issues/${prNumber}/comments?per_page=100`])
+  ) as RestComment[];
   const result = evaluateReviewGate({
     headSha: view.headRefOid,
-    comments: view.comments.map(c => ({
+    comments: comments.map(c => ({
       body: c.body,
-      createdAt: c.createdAt,
-      author: c.author?.login,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+      author: c.user?.login,
     })),
   });
   const description = clampDescription(result.description);

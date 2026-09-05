@@ -2,8 +2,14 @@
 # green only when an independent review has been recorded against THAT SHA
 # (scripts/qa/review-gate.ts explains the format and the #2040 incident).
 #
-# Two triggers, on purpose. `pull_request` re-evaluates on every push, which is
-# what turns the gate red the moment the head moves past the reviewed commit.
+# Two triggers, on purpose. `pull_request_target` re-evaluates on every push,
+# which is what turns the gate red the moment the head moves past the reviewed
+# commit. It is the _target variant so fork and Dependabot PRs get a token that
+# can write a status (plain `pull_request` hands them a read-only one and the
+# POST fails exactly where it matters). That is safe here because the job
+# checks out the BASE branch (the default for this event) and only reads PR
+# metadata — no PR-controlled code ever executes. Keep it that way: never add
+# `ref: github.event.pull_request.head.*` to the checkout in this file.
 # `issue_comment` re-evaluates when the review evidence is posted, EDITED or
 # DELETED, so the status flips green without another push and cannot stay
 # green after an attestation is corrected or withdrawn. It is filtered to PR
@@ -15,7 +21,7 @@
 name: Review gate
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
   issue_comment:
     types: [created, edited, deleted]
@@ -31,7 +37,7 @@ jobs:
     name: Evaluate review evidence
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && (startsWith(github.event.comment.body, 'Review gate:') || startsWith(github.event.changes.body.from, 'Review gate:')))
+    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && (startsWith(github.event.comment.body, 'Review gate:') || startsWith(github.event.changes.body.from, 'Review gate:')))
     # Concurrency lives on the JOB, not the workflow: a workflow-level group
     # is claimed by every run, including the ones whose only job is skipped
     # by the filter above, so an ordinary PR comment landing mid-evaluation

@@ -121,6 +121,11 @@ describe('codex-review.sh', () => {
     ],
     ['explicit clean verdict but cli exit 1', 'codex\nNo actionable defects found.', 1],
     ['partial output with no findings bullets', 'codex\nReviewing... 3 of 12 files read so far', 0],
+    [
+      'a sentence that merely CONTAINS the phrase',
+      'codex\nThe run stopped before reaching a no actionable verdict.',
+      0,
+    ],
   ])(
     'exits 2 without evidence on %s — clean is a positive match, not the absence of findings',
     (_, output, exitCode) => {
@@ -136,6 +141,9 @@ describe('codex-review.sh', () => {
     'No actionable defects found in the diff.',
     'No actionable regressions were identified in the changes.',
     'no actionable issues',
+    // Real wording from /tmp/codex-review-2045.log — the noun phrase varies,
+    // only the "No actionable" opening is stable (Codex review of #2063, P2).
+    'No actionable correctness, security, or data-flow regressions were found. The focused migration contract tests passed.',
   ])('accepts the explicit clean verdict %j', verdict => {
     const r = run(stubCodex(`codex\n${verdict}`));
     expect(r.code).toBe(0);

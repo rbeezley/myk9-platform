@@ -65,7 +65,10 @@ if [ "$CLI_EXIT" -ne 0 ]; then
   echo "codex-review: cli exited ${CLI_EXIT}; treating the run as NOT completed (exit 2). No evidence emitted."
   exit 2
 fi
-if ! echo "$VERDICT" | grep -Eiq '^\s*no actionable (defects|regressions|issues)'; then
+# The stable part of a clean verdict is its opening "No actionable ..."; the
+# noun varies ("defects", "regressions", "correctness, security, or data-flow
+# regressions"), so match only the prefix (Codex review of #2063, P2).
+if ! echo "$VERDICT" | grep -Eiq '^\s*no actionable\b'; then
   echo
   echo "codex-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
   exit 2

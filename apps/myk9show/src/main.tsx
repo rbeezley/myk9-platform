@@ -18,7 +18,10 @@ import { setupPwa, applyPwaUpdate } from '@/services/pwa/pwaUpdate';
 import { monitoring } from './services/MonitoringService';
 import { setupRouterPageViewTracking } from './services/RouterPageViewTracking';
 import { installSupportErrorCapture } from './features/support/supportDiagnostics';
-import { scrubAnalyticsEvent } from './services/observability/vercelAnalytics';
+import {
+  scrubAnalyticsEvent,
+  shouldMountVercelAnalytics,
+} from './services/observability/vercelAnalytics';
 
 // Keep the diagnostic ring available to support tickets in the browser, but
 // avoid touching browser globals during SSR or module-loading tests.
@@ -85,10 +88,10 @@ createRoot(document.getElementById('root')!, {
     </QueryProvider>
     {/* Vercel Web Analytics: cookieless page views, same-origin script and
         beacon so the CSP needs no change. Route changes are tracked by the
-        script itself; the URL is scrubbed of query and fragment first. */}
-    <Analytics
-      mode={import.meta.env.DEV ? 'development' : 'production'}
-      beforeSend={scrubAnalyticsEvent}
-    />
+        script itself; the URL is scrubbed of query and fragment first. Not
+        mounted on localhost, where the script 404s and reddens E2E. */}
+    {shouldMountVercelAnalytics(window.location.hostname) && (
+      <Analytics mode="production" beforeSend={scrubAnalyticsEvent} />
+    )}
   </StrictMode>
 );

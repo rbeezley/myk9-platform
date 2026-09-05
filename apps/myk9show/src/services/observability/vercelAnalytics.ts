@@ -22,3 +22,19 @@ export function scrubAnalyticsUrl(url: string): string {
 export function scrubAnalyticsEvent(event: BeforeSendEvent): BeforeSendEvent {
   return { ...event, url: scrubAnalyticsUrl(event.url) };
 }
+
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+
+/**
+ * `/_vercel/insights/script.js` only exists on a Vercel-served origin. Under
+ * `vite dev`, `vite preview` (the E2E PR Smoke target on :4173) or a LAN IP
+ * it 404s, and the secretary QA-regression spec fails the run on any failed
+ * response. Mount only where the script can load.
+ */
+export function shouldMountVercelAnalytics(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (LOCAL_HOSTNAMES.has(host)) return false;
+  if (host.endsWith('.local') || host.endsWith('.localhost')) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return false;
+  return true;
+}

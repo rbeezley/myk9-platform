@@ -90,3 +90,38 @@ passed quality checks, all three app test shards, package tests, SQL tests,
 coverage gate/ratchet, builds, accessibility smoke, and E2E PR Smoke. Auto-merge
 completed after all required checks passed. Vercel previews were quota-limited
 and non-blocking; deployment is not asserted here.
+
+## Nightly follow-up — run 33977583516
+
+The post-merge Chromium run still failed: exhibitor/sign-in-target retained
+60 settings requests (20 each show/trial/class), and secretary/reports retained
+an entry replication count and download. My Entries and manual-results cleared.
+Linear auto-closed on merge; explicitly reopened In Progress for this evidence gate.
+
+Ranked hypotheses: (1) the per-class check-in map repeats shared settings reads;
+(2) overlapping same-show entry syncs duplicate expensive view reads;
+(3) sequential report loading contributes independent latency.
+Continue the bounded bug workflow; no timeout, tracking, DB, or WebKit changes.
+
+- [x] Prove settings request fan-out red, then batch bounded reads while preserving per-class caching and fail-closed behavior.
+- [x] Test overlapping entry syncs and coalesce only if confirmed; preserve later refreshes and show isolation.
+- [x] Run focused regression tests, TypeScript/lint, and Chromium exhibitor/secretary health checks.
+- [ ] Review and ship the fix, then rerun Nightly; retain the issue until the Chromium evidence gate passes.
+
+Follow-up verification:
+
+- Settings regression failed red: expected four reads, observed 80 for 20 classes.
+  Green coverage verifies four reads, per-class cache keys, 100-class filter bounds,
+  per-show/trial cascades, missing classes, read failures, and recovery.
+- Concurrent entry-sync regression failed red: two engine calls for the same show.
+  Green coverage verifies one overlapping operation, fresh later refreshes,
+  concurrent different shows, failure recovery, and existing entry replication behavior.
+- Full repository TypeScript and lint checks pass (lint retains 18 existing warnings);
+  code-quality ratchet passes. App and test TypeScript checks also passed separately.
+- Chromium exhibitor and secretary route sweeps both pass, 40.7 seconds total,
+  unchanged five-second settle budget and no retries. Same local command as above,
+  with the selector expanded to include secretary routes.
+- Independent review approved; added explicit simultaneous distinct-show coverage
+  following its nonblocking suggestion. No DB, fixture, timeout, or tracker changes.
+
+Nightly CI remains the closure gate; local passing sweeps do not close MYK9-289.

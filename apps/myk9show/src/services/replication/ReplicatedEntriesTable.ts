@@ -36,6 +36,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
   private _hasWarnedMissingShowScope = false;
+  private readonly _syncsByShow = new Map<string, Promise<SyncResult>>();
 
   /**
    * IDs deleted locally this session. The download sync skips these
@@ -72,6 +73,18 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       };
     }
 
+    // Background replication and report reads can request the same show together.
+    // Share only the active operation; the next refresh must still contact the server.
+    const inFlight = this._syncsByShow.get(showScopeId);
+    if (inFlight) return inFlight;
+    const sync = this.syncShow(showScopeId).finally(() => {
+      this._syncsByShow.delete(showScopeId);
+    });
+    this._syncsByShow.set(showScopeId, sync);
+    return sync;
+  }
+
+  private async syncShow(showScopeId: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting sync`);
 
     const adapter: SyncReplicatedTableAdapter<EntryRow, ReplicatedEntry> = {

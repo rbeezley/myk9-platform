@@ -8,6 +8,7 @@
  * generated Supabase types, so we use `untypedSupabase` to bypass codegen.
  */
 import { useMemo } from 'react';
+import { createSelfCheckinBatchLoader } from './selfCheckinBatch';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { resolveCheckinCascade } from '@myk9/secretary';
@@ -81,10 +82,11 @@ async function fetchSelfCheckinEnabled(classId: string): Promise<boolean> {
  * Uses useQueries so each class gets its own cached query (shared with useSelfCheckinEnabled).
  */
 export function useSelfCheckinMap(classIds: string[]): Record<string, boolean> {
+  const loadSettings = useMemo(createSelfCheckinBatchLoader, []);
   const results = useQueries({
     queries: classIds.map(classId => ({
       queryKey: ['classes', classId, 'selfCheckin'],
-      queryFn: () => fetchSelfCheckinEnabled(classId),
+      queryFn: () => loadSettings(classId),
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
     })),

@@ -114,7 +114,7 @@ describe('deriveTriage', () => {
   it('carries a real destination for every row', () => {
     const items = deriveTriage([check({ key: 'payout_cron' })], [alert()], NOW);
     for (const item of items) {
-      expect(item.action.href).toMatch(/^\/admin\//);
+      expect(item.action.target.href).toMatch(/^\/admin\//);
       expect(item.action.label.length).toBeGreaterThan(0);
     }
   });

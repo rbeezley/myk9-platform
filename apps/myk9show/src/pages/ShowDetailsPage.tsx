@@ -196,10 +196,12 @@ const ShowDetailsPage: React.FC = () => {
 
   // The Results badge counts what the Results tab renders: result groups from
   // view_public_entry_results, which withholds unreleased placements (MYK9-419).
-  // Only the tabbed surfaces have a Results tab, so the public landing never
-  // pays for this read; the Results tab itself reuses the same query key.
+  // Only the two tabbed surfaces have a Results tab — a 'public' landing or a
+  // still-'pending' visitor (who may yet land on it) pays nothing; the Results
+  // tab itself reuses the same query key.
+  const hasResultsTab = audience === 'exhibitor' || audience === 'management';
   const showResultsQuery = useShowResults(
-    audience !== 'public' && id && isValidUUID(id) ? id : undefined
+    hasResultsTab && id && isValidUUID(id) ? id : undefined
   );
   const resultsCount = resolveResultsTabCount(showResultsQuery);
 

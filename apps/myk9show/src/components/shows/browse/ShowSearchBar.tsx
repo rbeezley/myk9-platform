@@ -43,6 +43,11 @@ export function ShowSearchBar({
   const [error, setError] = useState<string | null>(null);
 
   const label = location ? location.label : isResolvingLocation ? 'Finding you…' : 'Anywhere';
+  // The city came from the visitor's connection, so it is a guess they may want
+  // to correct. The word rides in the accessible name at every width, because
+  // the visible tag is dropped on phones to leave the city room to be read.
+  const isApproximate = location?.source === 'ip';
+  const accessibleName = isApproximate ? `Near: ${label} (approximate)` : `Near: ${label}`;
 
   const submitTyped = async (event: FormEvent) => {
     event.preventDefault();
@@ -83,15 +88,17 @@ export function ShowSearchBar({
         <PopoverTrigger asChild nativeButton>
           <button
             type="button"
-            aria-label={`Near: ${label}`}
+            aria-label={accessibleName}
             data-testid="near-field"
-            className="inline-flex h-11 w-full items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm shadow-card transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:max-w-[16rem]"
+            className="inline-flex h-11 w-full items-center gap-2 rounded-lg border border-border bg-card px-3 text-sm shadow-card transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
           >
             <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="text-muted-foreground">Near</span>
-            <span className="truncate font-medium text-foreground">{label}</span>
-            {location?.source === 'ip' && (
-              <span className="ml-auto shrink-0 text-xs text-muted-foreground">approximate</span>
+            <span className="max-w-56 truncate font-medium text-foreground">{label}</span>
+            {isApproximate && (
+              <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                approximate
+              </span>
             )}
           </button>
         </PopoverTrigger>

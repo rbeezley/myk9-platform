@@ -9,7 +9,7 @@ begin;
 update public.entry_carts
 set status = 'expired'
 where status = 'active'
-  and expires_at <= now();
+  and (expires_at is null or expires_at <= now());
 
 with ranked_active_carts as (
   select

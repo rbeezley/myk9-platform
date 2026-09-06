@@ -167,10 +167,11 @@ export const useCartStore = create<CartState>()(
             cartLookupQuery = cartLookupQuery.eq('show_id', options.showId);
           }
 
-          let { data, error } = await cartLookupQuery
+          const { data: initialData, error } = await cartLookupQuery
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
+          let data = initialData;
 
           if (error) {
             logger.error('Error finding active cart', 'cartStore', { exhibitorId }, error);
@@ -363,11 +364,30 @@ export const useCartStore = create<CartState>()(
                   .eq('show_id', showId)
                   .eq('exhibitor_id', exhibitorId)
                   .eq('status', 'active')
-                  .gt('expires_at', new Date().toISOString())
                   .limit(1)
                   .maybeSingle();
 
                 if (!existingCartError && existingCart) {
+                  const { error: reclaimError } = await supabase
+                    .from('entry_carts')
+                    .update({
+                      expires_at: new Date(
+                        Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
+                      ).toISOString(),
+                      stripe_checkout_session_id: null,
+                    })
+                    .eq('id', existingCart.id)
+                    .eq('status', 'active');
+
+                  if (reclaimError) {
+                    logger.error(
+                      'Error reclaiming stale cart after unique conflict',
+                      'cartStore',
+                      { showId, exhibitorId, cartId: existingCart.id },
+                      reclaimError
+                    );
+                    throw reclaimError;
+                  }
                   return get().loadCart(showId, exhibitorId);
                 }
               }

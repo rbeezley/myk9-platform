@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -7,6 +7,11 @@ const webhookSource = readFileSync(
   resolve(root, 'apps/myk9show/supabase/functions/stripe-webhook/index.ts'),
   'utf8'
 );
+const allMigrationSql = readdirSync(resolve(root, 'supabase/migrations'))
+  .filter(file => file.endsWith('.sql'))
+  .sort()
+  .map(file => readFileSync(resolve(root, 'supabase/migrations', file), 'utf8'))
+  .join('\n');
 
 const capacityGateMigration = readFileSync(
   resolve(root, 'supabase/migrations/20260628202146_create_online_paid_entry_capacity_gate.sql'),
@@ -118,7 +123,7 @@ describe('stripe webhook online cart capacity gate', () => {
       'GRANT EXECUTE ON FUNCTION public.create_online_paid_entry'
     );
     expect(capacityGateMigration).toContain('TO service_role');
-    expect(capacityGateMigration).not.toContain(
+    expect(allMigrationSql).not.toContain(
       'GRANT EXECUTE ON FUNCTION public.create_online_paid_entry(uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid, uuid) TO authenticated'
     );
   });

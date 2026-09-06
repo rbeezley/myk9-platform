@@ -2065,7 +2065,7 @@ async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) 
 async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: string) {
   const { data: links, error: linksError } = await supabase
     .from('entry_payment_links')
-    .select('id, stripe_checkout_session_id')
+    .select('id, stripe_checkout_session_id, entry_ids')
     .eq('status', 'open')
     .overlaps('entry_ids', [entryId]);
 
@@ -2081,6 +2081,27 @@ async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: stri
 
   for (const link of links ?? []) {
     try {
+      const { count: unpaidEntryCount, error: unpaidEntriesError } = await supabase
+        .from('entries')
+        .select('id', { count: 'exact', head: true })
+        .in('id', link.entry_ids)
+        .eq('payment_status', 'pending')
+        .is('deleted_at', null);
+
+      if (unpaidEntriesError) {
+        await alertAdmin(
+          'Recovered entry payment link status could not be verified',
+          `<p>Entry <code>${entryId}</code> was paid from cart session <code>${sessionId}</code>,
+           but unpaid entries on link <code>${link.id}</code> could not be checked:</p>
+           <pre>${unpaidEntriesError.message}</pre>`,
+          { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-unpaid-check-${link.id}` }
+        );
+        continue;
+      }
+
+      // Keep a multi-entry link open while any sibling entry is unpaid.
+      if ((unpaidEntryCount ?? 0) > 0) continue;
+
       const linkSession = await stripe.checkout.sessions.retrieve(link.stripe_checkout_session_id);
       if (linkSession.payment_status === 'paid') {
         await alertAdmin(

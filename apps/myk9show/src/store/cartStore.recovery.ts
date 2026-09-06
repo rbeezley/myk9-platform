@@ -30,7 +30,7 @@ const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
   const showStartDate = entry.show_start_date?.slice(0, 10);
   const todayUtc = new Date().toISOString().slice(0, 10);
 
-  if (showStartDate && todayUtc >= showStartDate && dayOfShowFee != null && dayOfShowFee > 0) {
+  if (showStartDate && todayUtc >= showStartDate && dayOfShowFee != null) {
     return Math.round(dayOfShowFee * 100);
   }
   if (preEntryFee != null) return Math.round(preEntryFee * 100);

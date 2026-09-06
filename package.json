@@ -38,6 +38,8 @@
     "qa:migrations:guard": "tsx scripts/qa/migration-version-guard.ts",
     "qa:migrations:guard:test": "vitest run scripts/qa/migration-version-guard.test.ts scripts/qa/migration-version-guard.provenance.test.ts",
     "qa:bulk-pii": "tsx scripts/qa/check-bulk-pii.ts",
+    "qa:prompt-parity": "tsx scripts/qa/check-prompt-parity.ts",
+    "qa:prompt-parity:test": "vitest run scripts/qa/check-prompt-parity.test.ts",
     "qa:bulk-pii:test": "vitest run scripts/qa/check-bulk-pii.test.ts",
     "qa:review-gate": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/qa/review-gate.ts",
     "qa:review-gate:test": "vitest run scripts/qa/review-gate.test.ts",

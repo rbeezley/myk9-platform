@@ -259,6 +259,7 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 | `apps/myk9show/src/test/e2e/club-admin/clubAdminJourney.spec.ts`            | Club-admin membership, officer, and payments journey.                                                   |
 | `apps/myk9show/src/test/e2e/club-surface-integrity.spec.ts`                 | Read-only MYK9-62 club browse/detail, tabs, validated navigation, payment checklist, and 375px re-walk. |
 | `apps/myk9show/src/test/e2e/entry-intent-sign-in-redirect.spec.ts`          | Signed-out entry intent sign-in redirect.                                                               |
+| `apps/myk9show/src/test/e2e/sign-in-fits-one-screen.spec.ts`               | Sign-in front door fits the viewport without scrolling, with and without the PWA install banner.        |
 | `apps/myk9show/src/test/e2e/exhibitor/postPaymentLifecycle.spec.ts`         | Exhibitor post-payment and secretary withdrawal/refund lifecycle audit.                                 |
 | `apps/myk9show/src/test/e2e/entities/classCRUD.spec.ts`                     | Class CRUD.                                                                                             |
 | `apps/myk9show/src/test/e2e/entities/classesUI.spec.ts`                     | Classes UI.                                                                                             |

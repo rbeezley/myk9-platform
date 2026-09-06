@@ -74,12 +74,12 @@ export const PasswordSubForm: React.FC<PasswordSubFormProps> = ({
         type="submit"
         data-testid="sign-in-button"
         disabled={isLoading || submitDisabled}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary/90 dark:text-white dark:hover:bg-primary/80"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary/90 dark:hover:bg-primary/80"
       >
         {isLoading ? (
           <>
             <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+              className="animate-spin -ml-1 mr-2 h-4 w-4"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"

@@ -32,8 +32,9 @@ the table.
 `components/shows/browse/ShowsTableView.tsx` renders five columns: Show (name;
 organization and disciplines in the subline), Dates, Location (venue line, then
 city/state, wrapping), Entries (the existing `EntryStatusBadge`), Host Club.
-Organization and Status columns are removed from the display; both stay in the
-CSV export through a hidden export-only column so secretaries lose nothing.
+Organization and Status start hidden (DataTable `defaultColumnVisibility`)
+and stay in the Columns menu; `exportHidden` column meta keeps both in every
+CSV export so secretaries lose nothing.
 A `splitShowLocation` helper in `ShowsTableView.helpers.ts` breaks the single
 `location` string at its first comma.
 
@@ -79,23 +80,26 @@ the ceiling. Run `pnpm qa:code-quality-ratchet` from the worktree before push.
 
 ### Testing (PR 1 is not complete until these pass)
 
-- [ ] `monthScrubber.helpers.test.ts`: tile range, counts, dot order, past
+- [x] `monthScrubber.helpers.test.ts`: tile range, counts, dot order, past
       flag, a show on the 1st and the 31st, empty list.
-- [ ] `useBrowseShowsFilters.test.ts`: `?month=` keeps shows in that month
+- [x] `useBrowseShowsFilters.test.ts`: `?month=` keeps shows in that month
       including past ones; malformed month falls back; the `dateRange` tests
       are replaced.
-- [ ] `ShowsTableView.test.tsx`: five visible headers, no Organization or
+- [x] `ShowsTableView.test.tsx`: five visible headers, no Organization or
       Status header, location split into two lines, export columns still six.
-- [ ] `BrowseShowsPage.test.tsx`: guests and multi-role users default to cards;
+- [x] `BrowseShowsPage.test.tsx`: guests and multi-role users default to cards;
       `managing` defaults to table; no Past Shows tab for any role; tab row
       hidden for guests; `?tab=past` falls back.
-- [ ] `showsUI.spec.ts` and any spec naming Past Shows on `/shows` updated
-      (the Club Details Past Shows tab is a different surface and stays).
-- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`, one
+- [x] `showsUI.spec.ts` and `cross-browser-compatibility.spec.ts` updated to the
+      scrubber (the Club Details Past Shows tab is a different surface and
+      stays). E2E runs in CI only; not executed locally.
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`, one
       whole-suite `pnpm vitest run --sequence.shuffle` (no module-scope state
       added).
-- [ ] Browser check at 1440 and 1024: table has no horizontal scrollbar;
-      scrubber scrolls; guest lands on cards.
+- [x] Browser check at 1440 and 1024 on the dev server: table has no
+      horizontal scrollbar (scrollWidth == clientWidth at 1024); guest lands on
+      cards with no tab strip; a month tile filters and writes `?month=`;
+      arrow keys move the selection.
 
 ## PR 2 — location-aware search bar
 

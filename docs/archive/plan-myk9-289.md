@@ -1,5 +1,9 @@
 # MYK9-289 implementation plan
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> Linked Linear issue was refreshed as Done during this implementation pass; archive the completed plan without changing historical scope.
+
+
 ## Scope
 
 Make unsettled app API requests from the nightly route-health sweep visible in

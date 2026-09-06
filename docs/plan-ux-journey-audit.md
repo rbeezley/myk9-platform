@@ -1,5 +1,9 @@
 # Plan: UX Journey Audit — Exhibitor & Secretary
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Existing Phase 4 in progress retained.
+
+
 **Created:** 2026-06-12 · **Status:** Phase 4 in progress
 **Goal:** Audit the two highest-stakes role experiences as *end-to-end journeys*, not pages. The April 2026 sprint audited 11 pages in isolation (Tier 1 exhibitor + Tier 2 secretary, `docs/ux-audits/phase-1-summary.md` / `phase-2-summary.md`); since then the surfaces changed underneath it — myK9Q was absorbed into `/at-show`, the workbench collapse landed, and the secretary show-day consolidation plan reshaped day-of flows. This audit scores the *current* app against INTENT.md's role feelings: Exhibitor "This respects my time", Secretary "That was easy".
 

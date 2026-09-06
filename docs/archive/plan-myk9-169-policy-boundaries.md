@@ -1,5 +1,9 @@
 # MYK9-169 Policy Boundaries Plan
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> MYK9-169 refreshed Done; no authorization changes in this metadata pass.
+
+
 ## Policy decision
 
 - Club-wide secretary/show-manager access requires an `active` row in

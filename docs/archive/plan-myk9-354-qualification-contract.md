@@ -1,5 +1,9 @@
 # MYK9-354: qualification save authorization contract
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> MYK9-354 Done in authoritative inventory; PR #1994 freshly verified MERGED, 648a0619ba3d0a25638b01bc878ced3beaa7fc09; full SQL evidence in plan.
+
+
 ## Scope and owner decision
 
 On 2026-09-03, the owner approved secretaries managing the full qualification

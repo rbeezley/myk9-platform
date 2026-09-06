@@ -1,5 +1,9 @@
 # MYK9-125 Premium Generation Account Quota
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> MYK9-125 refreshed Done; account quota acceptance is closed.
+
+
 ## Scope
 
 Complete the remaining acceptance gap in `generate-premium`: a manager must not multiply the paid-generation budget by changing public show IDs. Preserve the existing per-show rolling limiter and add an account-wide rolling limiter for the authenticated user.

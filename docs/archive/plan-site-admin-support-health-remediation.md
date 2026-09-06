@@ -1,8 +1,12 @@
 # Site Admin Support And Health Remediation Plan
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> Existing explicit Complete 2026-07-07 and implementation update; residual health contracts separately tracked by MYK9-407/409.
+
+
 **Date:** 2026-07-06
 **Status:** Complete as of 2026-07-07
-**Source audit:** [`docs/audits/2026-07-06-site-admin-support-health-ux-audit.md`](audits/2026-07-06-site-admin-support-health-ux-audit.md)
+**Source audit:** [`docs/audits/2026-07-06-site-admin-support-health-ux-audit.md`](../audits/2026-07-06-site-admin-support-health-ux-audit.md)
 **Role intent:** Site Admin — "The platform is healthy"
 **Launch frame:** Fall 2026 launch readiness; admin work supports troubleshooting and recovery, while secretary/show-day reliability remains the top product priority.
 

@@ -1,5 +1,9 @@
 # Exhibitor Onboarding Remediation Plan
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
+
+
 **Date:** 2026-07-07
 **Owner:** Codex
 **Source audit:** `docs/exhibitor-onboarding-ux-audit.md`

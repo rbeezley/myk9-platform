@@ -1,5 +1,9 @@
 # MYK9-10 Auth Identity Revocation Plan
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> MYK9-10 refreshed Done; self-service identity revocation contract is closed.
+
+
 ## Scope
 
 Complete the existing self-service account deletion flow by banning the authenticated

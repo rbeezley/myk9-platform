@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -306,6 +314,49 @@ describe('inflight CLI', () => {
     expect(runCli(main, bin, 'src/b.ts').out).not.toContain('branch finished');
   });
 
+  it('resolves a symlinked path to the file a PR actually edits', () => {
+    const { main, bin } = repo();
+    // This repository symlinks .agents/skills/<x> and .codex/skills/<x> onto
+    // .claude/skills/<x>, so one file has three spellings and a diff shows one.
+    mkdirSync(join(main, '.claude', 'skills', 'commit'), { recursive: true });
+    writeFileSync(join(main, '.claude', 'skills', 'commit', 'SKILL.md'), 'real');
+    mkdirSync(join(main, '.agents', 'skills'), { recursive: true });
+    symlinkSync('../../.claude/skills/commit', join(main, '.agents', 'skills', 'commit'));
+    stubGh(bin, [
+      {
+        number: 2100,
+        headRefName: 'someone-else',
+        files: [{ path: '.claude/skills/commit/SKILL.md' }],
+      },
+    ]);
+    const r = runCli(main, bin, '.agents/skills/commit/SKILL.md');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('pr #2100');
+  });
+
+  it('exits 2 when the local branch inventory cannot be read', () => {
+    const { main, bin } = repo();
+    stubGh(bin, []);
+    // Fail only `for-each-ref`; everything else reaches the real git.
+    const realGit = execFileSync('bash', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+    const NL = String.fromCharCode(10);
+    writeFileSync(
+      join(bin, 'git'),
+      [
+        '#!/usr/bin/env bash',
+        'case "$*" in',
+        '  *for-each-ref*) echo "git: cannot read refs" >&2; exit 128;;',
+        `  *) exec ${realGit} "$@";;`,
+        'esac',
+        '',
+      ].join(NL)
+    );
+    chmodSync(join(bin, 'git'), 0o755);
+    const r = runCli(main, bin, 'src/a.ts');
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('NOT a clean result');
+  });
+
   it('counts both sides of a rename in another worktree', () => {
     const { main, other, bin } = repo();
     git(other, 'mv', 'src/a.ts', 'src/renamed.ts');
@@ -357,18 +408,26 @@ describe('inflight CLI', () => {
       env: { ...process.env, GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z' },
       stdio: 'ignore',
     });
-    for (let i = 0; i < 44; i += 1) {
-      git(main, 'checkout', '-q', '-b', `newer-${i}`, 'origin/main');
-      writeFileSync(join(main, `n${i}.txt`), 'x');
-      git(main, 'add', `n${i}.txt`);
-      git(main, 'commit', '-q', '-m', `n${i}`);
-    }
+    // 44 filler branches sorting between `mine` and `oldest`. What is under
+    // test is that every ref is enumerated, so they need no commits of their
+    // own, and one batched update-ref writes them all: a commit apiece cost
+    // ~130 subprocesses in setup and another ~90 in the walk, and ran 81s on
+    // efficiency cores against vitest's 5s default (Codex, #2073 round 12).
+    const baseSha = git(main, 'rev-parse', 'origin/main').trim();
+    const NL = String.fromCharCode(10);
+    execFileSync('git', ['update-ref', '--stdin'], {
+      cwd: main,
+      input:
+        Array.from({ length: 44 }, (_, i) => `create refs/heads/newer-${i} ${baseSha}`).join(NL) +
+        NL,
+      stdio: ['pipe', 'ignore', 'ignore'],
+    });
     git(main, 'checkout', '-q', 'mine');
     stubGh(bin, []);
     const r = runCli(main, bin, 'src/b.ts');
     expect(r.code).toBe(1);
     expect(r.out).toContain('branch oldest');
-  });
+  }, 60_000);
 
   it('exits 2 when a git comparison cannot run (unknown base) — never a clean result', () => {
     const { main, bin } = repo();

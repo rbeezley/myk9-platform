@@ -23,8 +23,8 @@
  * and stay as the skill's manual steps.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export interface ChangeSource {
@@ -51,6 +51,19 @@ export function normalizePath(p: string): string {
   return p.replace(/^\.\//, '').replace(/\/+$/, '');
 }
 
+/** Resolve symlinked ancestors of a path, keeping any suffix that does not exist yet. */
+function canonicalize(abs: string): string {
+  const tail: string[] = [];
+  let head = abs;
+  for (;;) {
+    if (existsSync(head)) return join(realpathSync(head), ...tail);
+    const parent = dirname(head);
+    if (parent === head) return abs; // nothing on this path exists: leave it alone
+    tail.unshift(basename(head));
+    head = parent;
+  }
+}
+
 /**
  * Turn an explicit argument into a repository-relative path. `.` (or the
  * repository root) becomes '' and matches everything; `..` segments are
@@ -58,8 +71,13 @@ export function normalizePath(p: string): string {
  * round 10: `pnpm qa:inflight .` read as clean because '.' matched nothing).
  */
 export function toRepoRelative(arg: string, repoRoot: string, cwd: string): string {
-  const abs = resolve(cwd, arg);
-  const rel = relative(repoRoot, abs);
+  // Resolve symlinked ancestors, keeping any not-yet-existing suffix so a path
+  // to a file you are about to create still resolves. This repository symlinks
+  // `.agents/skills/<x>` and `.codex/skills/<x>` onto `.claude/skills/<x>`, so
+  // one file has three spellings and only the canonical one appears in a diff
+  // (Codex, #2073 round 12).
+  const abs = canonicalize(resolve(cwd, arg));
+  const rel = relative(canonicalize(repoRoot), abs);
   if (rel === '') return '';
   if (rel.startsWith('..') || isAbsolute(rel))
     throw new InflightQueryError(`path is outside the repository: ${arg}`);
@@ -439,26 +457,33 @@ export function unmergedLocalBranches(
   cwd?: string,
   merged: MergedHeads = new MergedHeads(base, cwd)
 ): ChangeSource[] {
+  // No allowFail: an inventory that could not be read is unknown, not empty,
+  // and must reach the exit-2 handler (Codex, #2073 round 12).
   const names = lines(
-    run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], {
-      cwd,
-      allowFail: true,
-    })
+    run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], { cwd })
+  );
+  // Every branch already contained in the base, in ONE call. Asking per branch
+  // cost a subprocess apiece — 45 of them made the enumeration test a timeout
+  // liability, and a real run pays the same on every local branch (Codex,
+  // #2073 round 12). A bad base fails here, which is an exit-2 answer.
+  const inBase = new Set(
+    lines(
+      run('git', ['for-each-ref', '--format=%(refname:short)', '--merged', base, 'refs/heads'], {
+        cwd,
+      })
+    )
   );
   const out: ChangeSource[] = [];
   for (const name of names) {
     if (name === 'main' || skip.has(name)) continue;
-    // Merged per its PR AND nothing committed since: finished. A reused name
-    // with new commits past the merged head is in flight again.
+    // Contained in the base means merged (or empty): nothing in flight. Ask this
+    // first — it is already answered, and it spares a `gh` round trip for every
+    // branch already in the base.
+    if (inBase.has(name)) continue;
+    // Squash-merged per its PR AND nothing committed since: also finished. A
+    // reused name with new commits past the merged head is in flight again.
     const mergedHead = merged.get(name);
     if (mergedHead && finishedSinceMerge(name, mergedHead, cwd)) continue;
-    // Ancestor of the base means merged (or empty): nothing in flight.
-    try {
-      execFileSync('git', ['merge-base', '--is-ancestor', name, base], { cwd, stdio: 'ignore' });
-      continue;
-    } catch {
-      /* not an ancestor: has commits past base */
-    }
     const files = committedPaths(name, commitExcludes(name, base, mergedHead, cwd), cwd);
     if (files.length) out.push({ kind: 'branch', id: name, branch: name, files });
   }

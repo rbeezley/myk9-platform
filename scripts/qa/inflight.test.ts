@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  committedPaths,
   findOverlaps,
   pathsOverlap,
   renderOverlaps,
@@ -233,6 +234,39 @@ describe('inflight CLI', () => {
     stubGh(bin, []);
     expect(runCli(main, bin, 'src/a.ts').code).toBe(1);
     expect(runCli(main, bin, 'src/renamed.ts').code).toBe(1);
+  });
+
+  it('keeps the UNCOMMITTED files of a worktree whose branch already merged', () => {
+    const { main, bin } = repo();
+    stubGh(bin, [], ['other-branch']);
+    const r = runCli(main, bin, 'src/a.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('worktree');
+  });
+
+  it('counts both sides of a COMMITTED rename on another branch', () => {
+    const { main, bin } = repo();
+    // Cut from origin/main, not from `mine`, so only the rename is past the base.
+    git(main, 'checkout', '-q', '-b', 'renamer', 'origin/main');
+    git(main, 'mv', 'src/a.ts', 'src/moved.ts');
+    git(main, 'commit', '-q', '-m', 'rename');
+    git(main, 'checkout', '-q', 'mine');
+    expect(committedPaths('origin/main', 'renamer', main).sort()).toEqual([
+      'src/a.ts',
+      'src/moved.ts',
+    ]);
+    stubGh(bin, []);
+    expect(runCli(main, bin, 'src/a.ts').code).toBe(1);
+    expect(runCli(main, bin, 'src/moved.ts').code).toBe(1);
+  });
+
+  it('reads a path containing a space and a non-ASCII character verbatim', () => {
+    const { main, other, bin } = repo();
+    mkdirSync(join(other, 'docs'), { recursive: true });
+    writeFileSync(join(other, 'docs', 'show day café.md'), 'x');
+    expect(statusPaths(other)).toContain('docs/show day café.md');
+    stubGh(bin, []);
+    expect(runCli(main, bin, 'docs/show day café.md').code).toBe(1);
   });
 
   it('--warn reports but exits 0', () => {

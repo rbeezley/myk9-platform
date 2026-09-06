@@ -25,6 +25,8 @@ import { pathToFileURL } from 'node:url';
 
 export interface ChangeSource {
   kind: 'pr' | 'worktree' | 'branch';
+  /** For a worktree: its uncommitted/untracked files alone — kept even when its branch already merged. */
+  dirty?: string[];
   /** "#2062", a worktree path, or a branch name. */
   id: string;
   branch?: string;
@@ -126,23 +128,63 @@ function lines(s: string): string[] {
  * `slice(3)` eat the first character of the path (`rc/a.ts`).
  */
 export function statusPaths(cwd?: string): string[] {
-  return run('git', ['status', '--porcelain', '--untracked-files=all'], { cwd, allowFail: true })
-    .split('\n')
-    .filter(l => l.length > 3)
-    .flatMap(l => l.slice(3).split(' -> ')); // a rename `old -> new` touches both
+  // -z: NUL-separated records with NO display quoting, so a path containing a
+  // space or a non-ASCII character comes back verbatim (porcelain v1 without
+  // -z prints it as "quoted\\escaped"). A rename/copy record is followed by
+  // the old path as its own record; both sides are touched.
+  const raw = run('git', ['status', '--porcelain', '-z', '--untracked-files=all'], {
+    cwd,
+    allowFail: true,
+  });
+  const records = raw.split(String.fromCharCode(0)).filter(r => r.length > 0);
+  const out: string[] = [];
+  for (let i = 0; i < records.length; i += 1) {
+    const rec = records[i];
+    if (rec.length < 4) continue;
+    out.push(rec.slice(3));
+    if (rec[0] === 'R' || rec[0] === 'C') {
+      const old = records[i + 1];
+      if (old) {
+        out.push(old);
+        i += 1;
+      }
+    }
+  }
+  return out;
 }
 
 export function currentBranch(cwd?: string): string {
   return run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd }).trim();
 }
 
+/** Committed paths past `base` on `ref`, counting BOTH sides of a rename. */
+export function committedPaths(base: string, ref: string, cwd?: string): string[] {
+  const raw = run('git', ['diff', '--name-status', '-M', '-z', `${base}...${ref}`], {
+    cwd,
+    allowFail: true,
+  });
+  const records = raw.split(String.fromCharCode(0)).filter(r => r.length > 0);
+  const out: string[] = [];
+  for (let i = 0; i < records.length; i += 1) {
+    const status = records[i];
+    const path = records[i + 1];
+    if (path === undefined) break;
+    out.push(path);
+    i += 1;
+    if (status.startsWith('R') || status.startsWith('C')) {
+      const newPath = records[i + 1];
+      if (newPath !== undefined) {
+        out.push(newPath);
+        i += 1;
+      }
+    }
+  }
+  return out;
+}
+
 /** Paths this checkout would bring to a PR: committed past base, modified, and untracked. */
 export function localChangedPaths(base: string, cwd?: string): string[] {
-  const committed = lines(
-    run('git', ['diff', '--name-only', `${base}...HEAD`], { cwd, allowFail: true })
-  );
-  const dirty = statusPaths(cwd);
-  return [...new Set([...committed, ...dirty])];
+  return [...new Set([...committedPaths(base, 'HEAD', cwd), ...statusPaths(cwd)])];
 }
 
 interface GhPr {
@@ -208,12 +250,11 @@ export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
   let branch = '';
   const flush = () => {
     if (!path || path === here) return;
-    const committed = branch
-      ? lines(run('git', ['diff', '--name-only', `${base}...${branch}`], { cwd, allowFail: true }))
-      : [];
+    const committed = branch ? committedPaths(base, branch, cwd) : [];
     const dirty = statusPaths(path);
     const files = [...new Set([...committed, ...dirty])];
-    if (files.length) out.push({ kind: 'worktree', id: path, branch: branch || undefined, files });
+    if (files.length)
+      out.push({ kind: 'worktree', id: path, branch: branch || undefined, files, dirty });
   };
   for (const line of run('git', ['worktree', 'list', '--porcelain'], { cwd }).split('\n')) {
     if (line.startsWith('worktree ')) {
@@ -263,9 +304,7 @@ export function unmergedLocalBranches(
     } catch {
       /* not an ancestor: has commits past base */
     }
-    const files = lines(
-      run('git', ['diff', '--name-only', `${base}...${name}`], { cwd, allowFail: true })
-    );
+    const files = committedPaths(base, name, cwd);
     if (files.length) out.push({ kind: 'branch', id: name, branch: name, files });
   }
   return out;
@@ -300,7 +339,13 @@ export function runCli(argv = process.argv.slice(2), cwd = process.cwd()): numbe
   // A squash-merged branch is no ancestor of main but is finished: skip it,
   // and skip other worktrees whose branch already merged for the same reason.
   for (const b of merged) wtBranches.add(b);
-  const liveWorktrees = worktrees.filter(w => !w.branch || !merged.has(w.branch));
+  // A worktree whose branch already merged still counts for whatever is
+  // UNCOMMITTED in it — that is new work with no PR yet (Codex, #2073 round 2).
+  const liveWorktrees = worktrees.flatMap(w => {
+    if (!w.branch || !merged.has(w.branch)) return [w];
+    const dirty = w.dirty ?? [];
+    return dirty.length ? [{ ...w, files: dirty }] : [];
+  });
   const sources = [...prs, ...liveWorktrees, ...unmergedLocalBranches(base, wtBranches, cwd)];
   const ownPr = prs.find(p => p.branch === branch);
   const overlaps = findOverlaps(paths, sources, {

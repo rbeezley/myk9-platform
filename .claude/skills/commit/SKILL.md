@@ -142,7 +142,12 @@ For UI/state bugs, prefer extracting pure state helpers and testing those direct
 
 #### Shuffled runs for any test you added or touched
 
-CI runs vitest with `--sequence.shuffle`; local runs do not. Run the **whole** suite shuffled 6+ times before pushing a new or changed test — a subset cannot show a leak between files, and `pnpm test --sequence.shuffle` never reaches vitest (pnpm claims the flag):
+CI runs vitest with `--sequence.shuffle`; local runs do not. Run the **whole** suite shuffled before pushing a new or changed test — a subset cannot show a leak between files, and `pnpm test --sequence.shuffle` never reaches vitest (pnpm claims the flag).
+
+**How many times: scope it to the risk.** Detection is `1 - 0.5^n` per ordered file pair, so one run 50%, three 88%, six 98%.
+
+- **1 run** when the change adds no module-scope mutable state — the extra runs are testing other people's leaks.
+- **6+ runs** when it adds or touches one (a memo, cache, singleton, module-scope `let`), and add an O(1) `beforeEach` reset. CI will not cover you here: `--shard=i/6` partitions files by `sha1(path)` deterministically, so files in different shards never share a process and CI can never see a leak between them.
 
 ```bash
 cd apps/myk9show && pnpm vitest run --sequence.shuffle > /tmp/shuffle.log 2>&1; echo "EXIT=$?"

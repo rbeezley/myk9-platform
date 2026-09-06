@@ -50,8 +50,8 @@ function getStatusBadge(status: string) {
 }
 
 // Organization sits in the Show subline and Status is a secretary concern, so
-// both start hidden. They stay in the Columns menu (and in the CSV once shown),
-// which is what keeps the public table at five columns with no horizontal
+// both start hidden. They stay in the Columns menu and in every CSV export
+// (`exportHidden`), which is what keeps the public table at five columns with no horizontal
 // scroll (MYK9-427).
 const DEFAULT_COLUMN_VISIBILITY = { organization: false, status: false } as const;
 
@@ -146,6 +146,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     meta: {
       exportHeader: 'Organization',
       exportValue: (show: unknown) => (show as EnhancedShow).organization || '',
+      exportHidden: true,
     },
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">
@@ -160,6 +161,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     meta: {
       exportHeader: 'Status',
       exportValue: (show: unknown) => (show as EnhancedShow).status || '',
+      exportHidden: true,
     },
     cell: ({ row }) => getStatusBadge(row.original.status),
   },

@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { pickExportColumns } from './exportColumns';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import {
   type VisibilityState,
@@ -170,10 +171,7 @@ function getExportColumnLabel<TData>(column: Column<TData, unknown>): string {
 }
 
 function exportTableCsv<TData>(table: TanstackTable<TData>, tableId: string) {
-  const columns = table.getVisibleLeafColumns().filter(column => {
-    const meta = column.columnDef.meta as DataTableColumnMeta | undefined;
-    return column.id !== '_select' && !meta?.exportDisabled;
-  });
+  const columns = pickExportColumns(table.getAllLeafColumns());
   const rows = table.getFilteredRowModel().rows;
 
   const header = columns.map(column => escapeCsvValue(getExportColumnLabel(column))).join(',');

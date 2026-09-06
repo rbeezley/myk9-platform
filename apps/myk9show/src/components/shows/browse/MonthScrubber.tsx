@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 import type { Show } from '@/types/show-types';
 import {
@@ -50,6 +50,22 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
     selectedRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }, []);
 
+  // Roving arrow keys, as a radio group expects: the strip is one tab stop
+  // and Left/Right move the selection.
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const delta = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    const next = tiles[(index + delta + tiles.length) % tiles.length];
+    if (!next) return;
+    onChange(next.key);
+    const buttons =
+      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+        'button[role="radio"]'
+      );
+    buttons?.[(index + delta + tiles.length) % tiles.length]?.focus();
+  };
+
   return (
     <div
       role="radiogroup"
@@ -60,7 +76,7 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
         className
       )}
     >
-      {tiles.map(tile => {
+      {tiles.map((tile, index) => {
         const selected = tile.key === value;
         return (
           <button
@@ -71,7 +87,9 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
             aria-checked={selected}
             aria-label={tileAriaLabel(tile)}
             data-past={tile.isPast ? 'true' : undefined}
+            tabIndex={selected ? 0 : -1}
             onClick={() => onChange(tile.key)}
+            onKeyDown={event => handleKeyDown(event, index)}
             className={cn(
               'flex min-h-[64px] min-w-[76px] flex-none flex-col items-center justify-center gap-1 rounded-xl border bg-card px-3 py-2 text-foreground shadow-card transition-[transform,box-shadow] duration-150',
               'hover:-translate-y-px hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',

@@ -30,9 +30,13 @@ async function setupPage(page: Page) {
 
 // Helper function to check basic page functionality
 async function checkBasicFunctionality(page: Page) {
-  // Check that tabs are visible
-  await expect(page.getByRole('tab', { name: /browse all/i })).toBeVisible();
-  await expect(page.getByRole('tab', { name: /past shows/i })).toBeVisible();
+  // Guests have a single tab, so the strip is hidden; the month scrubber is
+  // the navigation they get (MYK9-427).
+  await expect(page.getByRole('radiogroup', { name: 'Filter shows by month' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /all upcoming/i })).toHaveAttribute(
+    'aria-checked',
+    'true'
+  );
 
   // Check that search is functional
   const searchBox = page.getByRole('searchbox');
@@ -87,16 +91,17 @@ test.describe('Cross-Browser Compatibility Tests', () => {
       test(`should handle tab navigation in ${browser.name}`, async ({ page }) => {
         await setupPage(page);
 
-        // Test keyboard navigation
-        const allShowsTab = page.getByRole('tab', { name: /browse all/i });
-        const pastShowsTab = page.getByRole('tab', { name: /past shows/i });
+        // Test keyboard navigation on the month scrubber: one tab stop, arrows
+        // move the selection (the Past Shows tab it replaced is gone).
+        const allUpcoming = page.getByRole('radio', { name: /all upcoming/i });
+        const scrubber = page.getByRole('radiogroup', { name: 'Filter shows by month' });
+        const firstMonth = scrubber.getByRole('radio').nth(1);
 
-        await allShowsTab.focus();
+        await allUpcoming.focus();
         await page.keyboard.press('ArrowRight');
-        await expect(pastShowsTab).toBeFocused();
-
-        await page.keyboard.press('Enter');
-        await expect(pastShowsTab).toHaveAttribute('aria-selected', 'true');
+        await expect(firstMonth).toBeFocused();
+        await expect(firstMonth).toHaveAttribute('aria-checked', 'true');
+        await expect(page).toHaveURL(/month=\d{4}-\d{2}/);
       });
 
       test(`should support CSS features in ${browser.name}`, async ({ page }) => {
@@ -184,11 +189,12 @@ test.describe('Device Compatibility Tests', () => {
           await devicePage.waitForLoadState('networkidle');
           await devicePage.waitForSelector('[data-testid="shows-page"]', { timeout: 10000 });
 
-          // Test touch navigation
-          const pastShowsTab = devicePage.getByRole('tab', { name: /past shows/i });
-          if (await pastShowsTab.isVisible()) {
-            await pastShowsTab.tap();
-            await expect(pastShowsTab).toHaveAttribute('aria-selected', 'true');
+          // Test touch navigation on the month scrubber
+          const scrubber = devicePage.getByRole('radiogroup', { name: 'Filter shows by month' });
+          const firstMonth = scrubber.getByRole('radio').nth(1);
+          if (await firstMonth.isVisible()) {
+            await firstMonth.tap();
+            await expect(firstMonth).toHaveAttribute('aria-checked', 'true');
           }
 
           // Test touch targets are large enough

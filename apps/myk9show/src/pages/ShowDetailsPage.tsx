@@ -64,11 +64,6 @@ const ShowDetailsPage: React.FC = () => {
   } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id)));
   const { dogs } = useDogStoreCompat();
 
-  // The Results badge counts what the Results tab renders: result groups from
-  // view_public_entry_results, which withholds unreleased placements (MYK9-419).
-  const showResultsQuery = useShowResults(id && isValidUUID(id) ? id : undefined);
-  const resultsCount = resolveResultsTabCount(showResultsQuery);
-
   // Use fast show details loading with cache optimization
   const {
     showId,
@@ -183,6 +178,31 @@ const ShowDetailsPage: React.FC = () => {
   const requestedTab = searchParams.get('tab');
   const isWaitingForExhibitorEntryDefault =
     isAuthenticated && !canManageShow && !requestedTab && exhibitorEntryDataState === 'loading';
+
+  // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
+  // and management-section URLs reach the tabbed/management UI; non-staff visitors
+  // with no entries get the styled marketing landing; an authenticated visitor whose
+  // entries are still loading is held ('pending') to avoid flashing the landing.
+  const audience = resolveShowAudience({
+    isManagementSection,
+    forcePublicPreview: searchParams.get('preview') === 'public',
+    isSecretary,
+    isAdmin,
+    isClubAdmin: hasRole('club_admin'),
+    isAuthenticated,
+    userEntriesLoading: exhibitorEntryDataState === 'loading',
+    hasUserEntries: hasOwnedEntryHistory,
+  });
+
+  // The Results badge counts what the Results tab renders: result groups from
+  // view_public_entry_results, which withholds unreleased placements (MYK9-419).
+  // Only the tabbed surfaces have a Results tab, so the public landing never
+  // pays for this read; the Results tab itself reuses the same query key.
+  const showResultsQuery = useShowResults(
+    audience !== 'public' && id && isValidUUID(id) ? id : undefined
+  );
+  const resultsCount = resolveResultsTabCount(showResultsQuery);
+
 
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;
@@ -384,21 +404,6 @@ const ShowDetailsPage: React.FC = () => {
       </PageShell>
     );
   }
-
-  // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
-  // and management-section URLs reach the tabbed/management UI; non-staff visitors
-  // with no entries get the styled marketing landing; an authenticated visitor whose
-  // entries are still loading is held ('pending') to avoid flashing the landing.
-  const audience = resolveShowAudience({
-    isManagementSection,
-    forcePublicPreview: searchParams.get('preview') === 'public',
-    isSecretary,
-    isAdmin,
-    isClubAdmin: hasRole('club_admin'),
-    isAuthenticated,
-    userEntriesLoading: exhibitorEntryDataState === 'loading',
-    hasUserEntries: hasOwnedEntryHistory,
-  });
 
   if (audience === 'pending') {
     return (

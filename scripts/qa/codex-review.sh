@@ -65,6 +65,20 @@ if [ "$CLI_EXIT" -ne 0 ]; then
   echo "codex-review: cli exited ${CLI_EXIT}; treating the run as NOT completed (exit 2). No evidence emitted."
   exit 2
 fi
+# Failure wording in the verdict overrides a clean assertion. Limit this scan
+# to the verdict so quoted source/diff output cannot abort a completed review.
+if echo "$VERDICT" | grep -Eiq '\b(did not run|interrupted)\b'; then
+  echo
+  echo "codex-review: GATE DID NOT RUN (verdict reports an incomplete review). No evidence emitted."
+  exit 2
+fi
+
+# Only the first non-empty paragraph can certify the review (MYK9-415).
+# Join wrapped lines so sentence matching behaves the same across line wraps.
+FIRST_PARAGRAPH="$(echo "$VERDICT" | awk '
+  /^[[:space:]]*$/ { if (started) exit; next }
+  { printf "%s%s", started ? " " : "", $0; started=1 }
+')"
 # The stable part of a clean verdict is the SENTENCE "No actionable ..."; the
 # noun varies ("defects", "regressions", "correctness, security, or data-flow
 # regressions"), so match only the prefix (Codex review of #2063, P2).
@@ -79,8 +93,8 @@ fi
 # capitalised "No" is a sentence opening; accepting lowercase after any [.!?]
 # would let an ellipsis in "the run stopped... no actionable verdict" read as
 # clean, which is the exact class of false pass the block below guards.
-if ! { echo "$VERDICT" | grep -Eiq '^[[:space:]]*no actionable\b' ||
-  echo "$VERDICT" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
+if ! { echo "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*no actionable\b' ||
+  echo "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
   echo
   echo "codex-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
   exit 2

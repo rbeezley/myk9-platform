@@ -134,6 +134,21 @@ describe('codex-review.sh', () => {
       'codex\nThe run stopped... no actionable verdict was ever reached.',
       0,
     ],
+    [
+      'clean wording only in a later paragraph',
+      'codex\nThe review could not finish.\n \t\nNo actionable defects found.',
+      0,
+    ],
+    [
+      'a review that did not run despite clean wording',
+      'codex\nThe review did not run. No actionable defects found.',
+      0,
+    ],
+    [
+      'an interrupted review despite clean wording',
+      'codex\nThe review was interrupted. No actionable defects found.',
+      0,
+    ],
   ])(
     'exits 2 without evidence on %s — clean is a positive match, not the absence of findings',
     (_, output, exitCode) => {
@@ -147,6 +162,9 @@ describe('codex-review.sh', () => {
 
   it.each([
     'No actionable defects found in the diff.',
+    // Exact verdict from #2064 (MYK9-415).
+    'The diff adds nine relative skill symlinks, all resolving to tracked directories containing SKILL.md. No actionable defects found; git diff --check passes.',
+    '\n\nThe diff adds skill symlinks.\nNo actionable defects found.\n\nVerification passed.',
     'No actionable regressions were identified in the changes.',
     'no actionable issues',
     // Real wording from /tmp/codex-review-2045.log — the noun phrase varies,
@@ -165,6 +183,12 @@ describe('codex-review.sh', () => {
   it('exits 2 when there is no verdict block at all', () => {
     const stub = stubCodex('nothing useful here');
     expect(run(stub).code).toBe(2);
+  });
+
+  it('rejects findings even when the first paragraph asserts a clean verdict', () => {
+    const r = run(stubCodex('codex\nNo actionable defects found.\n\n- [P1] A defect'));
+    expect(r.code).toBe(1);
+    expect(r.out).not.toContain('Review gate: codex reviewed');
   });
 
   it('always reviews the branch against a base, never a single commit', () => {

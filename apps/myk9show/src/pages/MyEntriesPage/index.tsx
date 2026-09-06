@@ -36,6 +36,7 @@ import {
   EntriesLoadErrorCard,
   EntriesIdentityPendingCard,
   EntryScopeBanner,
+  ScopedPaymentSummary,
   MyEntriesDialogGroup,
   WaitListSection,
   EntryFilterStrip,
@@ -446,6 +447,26 @@ const MyEntriesPage: React.FC = () => {
 
   return (
     <>
+      {/* The receipt half of an inbound `?orderId=` link: the amount, date and
+        reference the exhibitor came here for.
+
+        Mounted here, OUTSIDE `renderBody()`, because all three of its branches
+        can be the one an arriving exhibitor sees. A cold or offline boot is the
+        loading skeleton; a failed first load with nothing cached is the error
+        card; a not-yet-replicated order is the zero state. Those are precisely
+        the cases `useDeepLinkedReceiptOrder` exists to serve — the payment read
+        is keyed off the URL and RLS-scoped by the session, not by
+        `databaseUserId` or by the entries query — so a mount inside any single
+        branch is invisible in the states that matter most. It renders nothing
+        without an `?orderId=`, so the ordinary visit is untouched. */}
+      <div className="bg-background">
+        {/* The page's container width, so the panel lines up with whichever
+          body branch renders beneath it. */}
+        <div className="container mx-auto px-6 pt-6 max-w-7xl">
+          <ScopedPaymentSummary viewerId={user?.id ?? null} />
+        </div>
+      </div>
+
       {renderBody()}
 
       <MyEntriesDialogGroup

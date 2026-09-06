@@ -1,6 +1,6 @@
 # MYK9-427 — Find Shows redesign (direction D)
 
-> **Status:** Active
+> **Status:** Complete — PR 1 #2087 (fe7395706), PR 2 #2090 (9579c09cf), both verified on staging 2026-09-06.
 
 Design canvas: <https://claude.ai/code/artifact/21c5d363-1a22-41e5-a1fa-d78836f93b7c>
 (artboard "D · Refined + month scrubber"). Linear: MYK9-427.
@@ -158,5 +158,7 @@ location and is the only thing that hides shows.
 - [x] `ShowSearchBar.test.tsx` and page test: Anywhere / label / approximate
       states, typed miss message, device location only from its button, no
       geolocation call on load, Distance chip absent without a location.
-- [ ] Browser check signed out on the Vercel preview: Near shows a city, one
-      click to change, typed city geocodes; no geolocation prompt on load.
+- [x] Browser check signed out on staging after merge (the Vercel preview is
+      login-walled): Near reads "Broken Arrow, OK · approximate", cards show
+      miles, the Distance chip appears; `/api/geo` and `/api/geo?q=` answer;
+      no geolocation prompt on load.

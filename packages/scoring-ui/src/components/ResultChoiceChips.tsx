@@ -3,6 +3,10 @@ import { cn } from '@myk9/ui';
 import { haptic } from '../hooks/useHapticFeedback';
 import type { QualifyingResult, ScoresheetSportType } from '../types/scoreData';
 
+// Each option carries its own label colour beside its own fill. A blanket
+// `text-white` on the active branch would work only by twMerge ordering — the
+// accent option overrides it back to the token — which is invisible to a
+// reader and to any scan that looks for a fill and a label in one string.
 const RESULT_OPTIONS: { value: QualifyingResult; label: string; activeClass: string }[] = [
   {
     value: 'Q',
@@ -14,18 +18,20 @@ const RESULT_OPTIONS: { value: QualifyingResult; label: string; activeClass: str
   {
     value: 'NQ',
     label: 'NQ',
-    activeClass: 'bg-red-600 hover:bg-red-700 border-red-600 shadow-lg shadow-red-600/20',
+    activeClass:
+      'bg-red-600 hover:bg-red-700 border-red-600 text-white shadow-lg shadow-red-600/20',
   },
   {
     value: 'ABS',
     label: 'Absent',
     activeClass:
-      'bg-purple-600 hover:bg-purple-700 border-purple-600 shadow-lg shadow-purple-600/20',
+      'bg-purple-600 hover:bg-purple-700 border-purple-600 text-white shadow-lg shadow-purple-600/20',
   },
   {
     value: 'EX',
     label: 'Excused',
-    activeClass: 'bg-red-700 hover:bg-red-800 border-red-700 shadow-lg shadow-red-700/20',
+    activeClass:
+      'bg-red-700 hover:bg-red-800 border-red-700 text-white shadow-lg shadow-red-700/20',
   },
 ];
 
@@ -135,7 +141,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
               className={cn(
                 chipBase,
                 isActive
-                  ? `text-white -translate-y-px ${opt.activeClass}`
+                  ? `-translate-y-px ${opt.activeClass}`
                   : chipInactive
               )}
               onClick={() => {
@@ -207,7 +213,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
                 className={cn(
                   reasonChipBase,
                   nqReason === reason
-                    ? 'bg-primary text-white border-primary shadow-md'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
                     : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground'
                 )}
                 onClick={() => {
@@ -232,7 +238,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
                 className={cn(
                   reasonChipBase,
                   excusedReason === reason
-                    ? 'bg-primary text-white border-primary shadow-md'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
                     : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground'
                 )}
                 onClick={() => {

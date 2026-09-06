@@ -202,7 +202,7 @@ const CreateRolePage: React.FC = () => {
                 step === 'basic' ? 'text-primary' : 'text-muted-foreground'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'basic' ? 'bg-primary text-white' : 'bg-muted'
+                  step === 'basic' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 }`}>
                   1
                 </div>
@@ -213,7 +213,7 @@ const CreateRolePage: React.FC = () => {
                 step === 'permissions' ? 'text-primary' : 'text-muted-foreground'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'permissions' ? 'bg-primary text-white' : 'bg-muted'
+                  step === 'permissions' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 }`}>
                   2
                 </div>
@@ -224,7 +224,7 @@ const CreateRolePage: React.FC = () => {
                 step === 'review' ? 'text-primary' : 'text-muted-foreground'
               }`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'review' ? 'bg-primary text-white' : 'bg-muted'
+                  step === 'review' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 }`}>
                   3
                 </div>

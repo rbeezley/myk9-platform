@@ -10,6 +10,7 @@ import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { getTypeBadge } from '@/utils/browseShowsUtils';
 import { getShowCardStatus } from '@/utils/showCardUtils';
 import { formatShowDateRange } from '@/lib/format/dates';
+import { formatMiles } from '@/features/location/distance';
 import type { Show } from '@/types/show-types';
 
 export interface ShowCardHorizontalProps {
@@ -17,6 +18,8 @@ export interface ShowCardHorizontalProps {
   userHasEntries?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  /** Miles from the visitor's chosen location; omitted when unknown. */
+  distanceMiles?: number | null;
 }
 
 /**
@@ -28,6 +31,7 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
   userHasEntries = false,
   isSelected = false,
   onToggleSelect,
+  distanceMiles = null,
 }) => {
   const entryStatus = getEntryStatus(show, userHasEntries);
   const showCardStatus = getShowCardStatus(show, entryStatus.status);
@@ -92,6 +96,14 @@ export const ShowCardHorizontal: React.FC<ShowCardHorizontalProps> = ({
               <div className="flex items-center gap-1.5 min-w-0">
                 <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="truncate">{show.location}</span>
+                {distanceMiles !== null && (
+                  <span
+                    className="flex-shrink-0 font-medium text-foreground"
+                    data-testid="show-distance"
+                  >
+                    · {formatMiles(distanceMiles)}
+                  </span>
+                )}
               </div>
             )}
             {show.preEntryFee && (

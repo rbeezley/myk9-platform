@@ -67,7 +67,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-fix-nightly-review-2026-07-20.md](plan-fix-nightly-review-2026-07-20.md)                                   | Active    | Plan: Fix nightly review findings                                                  |
 | [plan-linear-todo-2026-09-05.md](plan-linear-todo-2026-09-05.md)                                                 | Active    | Current Linear Todo implementation plan — 2026-09-05                               |
 | [plan-myk9-17-role-journey-visual-qa.md](plan-myk9-17-role-journey-visual-qa.md)                                 | Active    | Plan: MYK9-17 Role-Journey Visual QA Matrix                                        |
-| [plan-find-shows-redesign.md](plan-find-shows-redesign.md)                                                       | Active    | MYK9-427 — Find Shows redesign (direction D)                                       |
 | [plan-myk9-366.md](plan-myk9-366.md)                                                                             | Active    | MYK9-366 — Career show calendar dates                                              |
 | [plan-myk9-369.md](plan-myk9-369.md)                                                                             | Active    | MYK9-369 — registration dog picker search                                          |
 | [plan-myk9-65-class-entry-count-consistency.md](plan-myk9-65-class-entry-count-consistency.md)                   | Active    | MYK9-65: Class Entry Count Consistency                                             |

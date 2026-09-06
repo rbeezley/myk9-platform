@@ -1,6 +1,6 @@
 # MYK9-427 — Find Shows redesign (direction D)
 
-> **Status:** Active
+> **Status:** Complete — PR 1 #2087 (fe7395706), PR 2 #2090 (9579c09cf), both verified on staging 2026-09-06.
 
 Design canvas: <https://claude.ai/code/artifact/21c5d363-1a22-41e5-a1fa-d78836f93b7c>
 (artboard "D · Refined + month scrubber"). Linear: MYK9-427.
@@ -109,41 +109,56 @@ the ceiling. Run `pnpm qa:code-quality-ratchet` from the worktree before push.
 `{ label, lat, lng, source: 'profile' | 'remembered' | 'ip' | 'none' }`, first
 match wins:
 
-1. Signed in: `people.city` / `state` / `zip_code`, geocoded once and cached in
-   React Query keyed by the address string.
-2. A location the visitor typed or picked before, in `localStorage`.
+1. A location the visitor typed, picked, or an explicit Anywhere, remembered
+   in `localStorage` (`myk9.findShows.location`). Anywhere is remembered too,
+   so the profile does not reassert itself after the visitor clears it.
+2. Signed in: `people.city` / `state` / `zip_code`, geocoded once through
+   `/api/geo?q=` and cached in React Query for a day.
 3. Signed out: `GET /api/geo` (new `apps/myk9show/api/geo.ts`, a Vercel
    function reading `x-vercel-ip-city`, `x-vercel-ip-country-region`,
-   `x-vercel-ip-latitude`, `x-vercel-ip-longitude`). Labelled "approximate".
-   Returns 204 locally where the headers are absent.
-4. `Anywhere`: date sort only.
+   `x-vercel-ip-latitude`, `x-vercel-ip-longitude`). Labelled "approximate",
+   served `private, no-store`. 204 locally where the headers are absent.
+4. Nothing known: `Anywhere`, date sort only.
 
-"Use my location" inside the Near dropdown calls `navigator.geolocation` on
-click only. Typed cities go through the existing Places autocomplete when
-configured, else `geocodeAddress`. CSP `connect-src` must admit whichever host
-is used; verify before merge.
+"Use my location" inside the Near popover calls `navigator.geolocation` on
+click only. Typed places are geocoded server-side by the same function
+(`/api/geo?q=`, Nominatim with a proper User-Agent, edge-cached a day), so the
+browser only ever talks to `'self'` and the CSP is untouched. The Vite dev
+server does not run `api/`, so locally the field reads Anywhere and typed
+places report a miss; the Vercel preview deployment is where this is checked.
 
 ### Search bar
 
 `components/shows/browse/ShowSearchBar.tsx` replaces the `SearchBar` slot in
-`ListControls` on this page only: search text, Near field, Search button.
-`ListControls` gains an optional `searchSlot` prop so other browse pages are
-untouched.
+`ListControls` on this page only: the search box plus a Near popover (typed
+place, Use my location, Anywhere). No Search button: the list already filters
+live, so a button would be a fake step. `ListControls` gains an optional
+`searchSlot` prop so other browse pages are untouched.
 
 ### Distance
 
 `distanceMiles(a, b)` (haversine) in `features/location/distance.ts`. When a
-location is known, `applyFilters` sorts nearest-first within the chosen month and
-`ShowCardHorizontal` shows "N mi" after the venue. Shows without coordinates sort
-last with no label. A radius chip (50 / 100 / 250 / 500 mi) is the only thing
-that hides shows.
+location is known, `applyFilters` sorts nearest-first within a chosen month
+(All upcoming keeps date order) and `ShowCardHorizontal` shows "N mi" after the
+venue. Shows without coordinates sort last with no label and are never hidden.
+A Distance chip (50 / 100 / 250 / 500 mi, `?radius=`) appears only with a
+location and is the only thing that hides shows.
 
 ### Testing
 
-- [ ] `resolveViewerLocation.test.ts`: precedence, each source alone, none.
-- [ ] `distance.test.ts`: known pairs, same point, antimeridian.
-- [ ] `api/geo.test.ts` (node environment): headers present, absent.
-- [ ] Page test: distance label appears only with a location; nothing hidden
-      until a radius is picked.
-- [ ] Browser check signed out on staging: Near shows a city, one click to
-      change; no geolocation prompt on load.
+- [x] `viewerLocation.test.ts`: precedence, each source alone, none, storage
+      round-trip and garbage.
+- [x] `distance.test.ts`: known pairs, same point, antimeridian.
+- [x] `api/geo.test.ts` (node environment): headers present, absent, typed
+      geocode hit/miss/error, method guard. `api/*.test.ts` added to the vitest
+      include.
+- [x] `useBrowseShowsFilters.test.ts`: radius inert without a location; All
+      upcoming keeps date order; a month sorts nearest-first with unpinned
+      last; a radius hides only measurable shows beyond it.
+- [x] `ShowSearchBar.test.tsx` and page test: Anywhere / label / approximate
+      states, typed miss message, device location only from its button, no
+      geolocation call on load, Distance chip absent without a location.
+- [x] Browser check signed out on staging after merge (the Vercel preview is
+      login-walled): Near reads "Broken Arrow, OK · approximate", cards show
+      miles, the Distance chip appears; `/api/geo` and `/api/geo?q=` answer;
+      no geolocation prompt on load.

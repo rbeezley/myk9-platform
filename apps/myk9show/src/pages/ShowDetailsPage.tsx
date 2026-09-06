@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
-import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, ListTree } from 'lucide-react';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
@@ -26,6 +25,8 @@ import { ShowManagementShell } from '@/components/shows/ShowDetails/ShowManageme
 import { ShowExhibitorView } from '@/components/shows/ShowDetails/ShowExhibitorView';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { resolveShowAudience } from './ShowDetailsPage.audience';
+import { buildShowDetailTabDefs, resolveResultsTabCount } from './ShowDetailsPage.tabDefs';
+import { useShowResults } from '@/hooks/queries/useShowResults';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { features } from '@/config/features';
@@ -178,6 +179,33 @@ const ShowDetailsPage: React.FC = () => {
   const isWaitingForExhibitorEntryDefault =
     isAuthenticated && !canManageShow && !requestedTab && exhibitorEntryDataState === 'loading';
 
+  // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
+  // and management-section URLs reach the tabbed/management UI; non-staff visitors
+  // with no entries get the styled marketing landing; an authenticated visitor whose
+  // entries are still loading is held ('pending') to avoid flashing the landing.
+  const audience = resolveShowAudience({
+    isManagementSection,
+    forcePublicPreview: searchParams.get('preview') === 'public',
+    isSecretary,
+    isAdmin,
+    isClubAdmin: hasRole('club_admin'),
+    isAuthenticated,
+    userEntriesLoading: exhibitorEntryDataState === 'loading',
+    hasUserEntries: hasOwnedEntryHistory,
+  });
+
+  // The Results badge counts what the Results tab renders: result groups from
+  // view_public_entry_results, which withholds unreleased placements (MYK9-419).
+  // Only the two tabbed surfaces have a Results tab — a 'public' landing or a
+  // still-'pending' visitor (who may yet land on it) pays nothing; the Results
+  // tab itself reuses the same query key.
+  const hasResultsTab = audience === 'exhibitor' || audience === 'management';
+  const showResultsQuery = useShowResults(
+    hasResultsTab && id && isValidUUID(id) ? id : undefined
+  );
+  const resultsCount = resolveResultsTabCount(showResultsQuery);
+
+
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;
   const allowedTabs = useMemo(() => {
@@ -321,35 +349,19 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab definitions for PrimaryTabs (must be before early returns — rules of hooks)
   const tabDefs: PrimaryTabDef[] = useMemo(
-    () => [
-      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-      ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
-      { id: 'trials', label: 'Trials', icon: Trophy, count: effectiveTrials.length },
-      ...(!canManageShow && isAuthenticated
-        ? [
-            {
-              id: 'my-entries',
-              label: 'My Entries',
-              icon: ClipboardList,
-              ...(submittedEntryProjection.isReady
-                ? { count: submittedEntryProjection.historyCount }
-                : {}),
-            },
-          ]
-        : []),
-      { id: 'classes', label: 'Classes', icon: ListChecks, count: effectiveShowClasses.length },
-      ...(canManageShow && isAuthenticated
-        ? [
-            {
-              id: 'my-entries',
-              label: 'Entries',
-              icon: ClipboardList,
-              ...(managerEntryDataUnavailable ? {} : { count: catalogEntryCount }),
-            },
-          ]
-        : []),
-      { id: 'results', label: 'Results', icon: Medal, count: 0 },
-    ],
+    () =>
+      buildShowDetailTabDefs({
+        isAuthenticated,
+        canShowMap,
+        canManageShow,
+        trialCount: effectiveTrials.length,
+        classCount: effectiveShowClasses.length,
+        catalogEntryCount,
+        managerEntryDataUnavailable,
+        submittedEntryHistoryCount: submittedEntryProjection.historyCount,
+        submittedEntryProjectionIsReady: submittedEntryProjection.isReady,
+        resultsCount,
+      }),
     [
       isAuthenticated,
       canShowMap,
@@ -360,6 +372,7 @@ const ShowDetailsPage: React.FC = () => {
       managerEntryDataUnavailable,
       submittedEntryProjection.historyCount,
       submittedEntryProjection.isReady,
+      resultsCount,
     ]
   );
 
@@ -393,21 +406,6 @@ const ShowDetailsPage: React.FC = () => {
       </PageShell>
     );
   }
-
-  // Decide which surface this visitor sees. Staff (secretary / admin / club_admin)
-  // and management-section URLs reach the tabbed/management UI; non-staff visitors
-  // with no entries get the styled marketing landing; an authenticated visitor whose
-  // entries are still loading is held ('pending') to avoid flashing the landing.
-  const audience = resolveShowAudience({
-    isManagementSection,
-    forcePublicPreview: searchParams.get('preview') === 'public',
-    isSecretary,
-    isAdmin,
-    isClubAdmin: hasRole('club_admin'),
-    isAuthenticated,
-    userEntriesLoading: exhibitorEntryDataState === 'loading',
-    hasUserEntries: hasOwnedEntryHistory,
-  });
 
   if (audience === 'pending') {
     return (

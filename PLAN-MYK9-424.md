@@ -1,6 +1,6 @@
 # MYK9-424
 
-Status: implemented and locally verified; shipping review and repeated shuffle checks in progress. Not merged or deployed. Request: “fix myk9-424”. Baseline: f47c47ed7.
+Status: implemented and locally verified; all six full shuffled runs passed; independent review awaiting transfer approval. Not merged or deployed. Request: “fix myk9-424”. Baseline: f47c47ed7.
 
 Use the issue's existing finding contract rather than a new OpenSpec proposal for this bounded regression fix.
 
@@ -31,8 +31,10 @@ Checks:
 - Targeted ESLint and `git diff --check` pass.
 - `qa:dist-fresh` passes. Code-quality ratchet passes via `node --import tsx scripts/qa/code-quality-ratchet.ts`; the pnpm/tsx CLI invocation could not open its sandboxed IPC socket.
 
-All issue acceptance criteria have local rendered evidence. Remaining delivery work: commit/PR, independent pre-merge review, CI, merge and deployment. No shared fixtures, RBAC policy, database rows, or deployments were changed. Linear remains In Progress until delivery. Full-suite repeated shuffle and hosted browser checks were not performed; the issue explicitly permits an isolated rendered replay.
+All issue acceptance criteria have local rendered evidence. Remaining delivery work: commit/PR, independent pre-merge review, CI, merge and deployment. No shared fixtures, RBAC policy, database rows, or deployments were changed. Linear remains In Progress until delivery. Hosted browser checks were not performed; the issue explicitly permits an isolated rendered replay. Full-suite repeated shuffle was subsequently completed during shipping (below).
 
 ## Shipping verification
 
-The branch includes docs-only main update `ae05bbb60`. Full monorepo typecheck passes (including the existing E2E diagnostic baseline); full lint passes with 18 existing warnings and no errors. First full shuffled suite: 2,000 passed files, 19,133 passed tests, 9 skipped tests. Five further shuffled runs are required before push; record their final evidence in the PR. Native file-watcher tests and the tsx E2E typecheck need execution outside the desktop sandbox; both pass there.
+The branch includes docs-only main update `ae05bbb60`. Full monorepo typecheck passes (including the existing E2E diagnostic baseline); full lint passes with 18 existing warnings and no errors. First full shuffled suite: 2,000 passed files, 19,133 passed tests, 9 skipped tests. All six full shuffled runs passed: each run had 2,000 passed test files and 19,133 passed tests (9 skipped tests). Native file-watcher tests and the tsx E2E typecheck need execution outside the desktop sandbox; both pass there.
+
+Independent review blocker: automatic approval review rejected the Claude invocation because it transfers private repository code and issue context to the external Claude service. Specific transfer approval was requested and remains pending; no independent-review verdict is claimed. Open the PR as a draft and do not merge.

@@ -46,10 +46,12 @@ test.describe('Shows UI — Browse (secretary)', () => {
       await expect(page.getByRole('button', { name: `${view} view`, exact: true })).toBeVisible();
     }
 
-    // Tabs
-    for (const tab of ['Managing', 'Browse All', 'Past Shows']) {
+    // Tabs — Past Shows is gone; its months live in the scrubber (MYK9-427)
+    for (const tab of ['Managing', 'Browse All']) {
       await expect(page.getByRole('tab', { name: new RegExp(`^${tab}`) })).toBeVisible();
     }
+    await expect(page.getByRole('tab', { name: /^Past Shows/ })).toHaveCount(0);
+    await expect(page.getByRole('radiogroup', { name: 'Filter shows by month' })).toBeVisible();
   });
 
   test('Browse All tab shows seeded shows', async ({ page }) => {

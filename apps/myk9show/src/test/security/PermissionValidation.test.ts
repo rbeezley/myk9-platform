@@ -101,7 +101,7 @@ describe('Permission Validation Security Tests', () => {
 
     it('should provide correct accessible tabs for guests', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(null);
-      expect(accessibleTabs).toEqual(['all', 'past']);
+      expect(accessibleTabs).toEqual(['all']);
     });
   });
 
@@ -123,7 +123,7 @@ describe('Permission Validation Security Tests', () => {
 
     it('should provide basic tabs plus My Shows for exhibitors', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(exhibitor);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries']);
+      expect(accessibleTabs).toEqual(['all', 'entries']);
     });
   });
 
@@ -164,7 +164,7 @@ describe('Permission Validation Security Tests', () => {
 
     it('should provide management tabs for secretaries (no entries tab)', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(secretary);
-      expect(accessibleTabs).toEqual(['all', 'past', 'managing']);
+      expect(accessibleTabs).toEqual(['all', 'managing']);
     });
   });
 
@@ -208,7 +208,7 @@ describe('Permission Validation Security Tests', () => {
 
     it('should provide judge-specific tabs (no entries tab)', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(judge);
-      expect(accessibleTabs).toEqual(['all', 'past', 'assignments']);
+      expect(accessibleTabs).toEqual(['all', 'assignments']);
     });
   });
 
@@ -236,7 +236,7 @@ describe('Permission Validation Security Tests', () => {
 
     it('should provide management tabs for site admins (no entries tab)', () => {
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(siteAdmin);
-      expect(accessibleTabs).toEqual(['all', 'past', 'managing']);
+      expect(accessibleTabs).toEqual(['all', 'managing']);
     });
   });
 
@@ -250,7 +250,7 @@ describe('Permission Validation Security Tests', () => {
       exhibitorSecretary.roles = [UserRole.EXHIBITOR, UserRole.SECRETARY];
 
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(exhibitorSecretary);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'managing']);
+      expect(accessibleTabs).toEqual(['all', 'entries', 'managing']);
 
       expect(ShowPermissionValidator.canCreate(exhibitorSecretary)).toBe(true);
     });
@@ -260,7 +260,7 @@ describe('Permission Validation Security Tests', () => {
       judgeExhibitor.roles = [UserRole.EXHIBITOR, UserRole.JUDGE];
 
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(judgeExhibitor);
-      expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'assignments']);
+      expect(accessibleTabs).toEqual(['all', 'entries', 'assignments']);
     });
 
     it('should handle secretary + judge combination (no entries tab)', () => {
@@ -272,7 +272,7 @@ describe('Permission Validation Security Tests', () => {
       secretaryJudge.roles = [UserRole.SECRETARY, UserRole.JUDGE];
 
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(secretaryJudge);
-      expect(accessibleTabs).toEqual(['all', 'past', 'managing', 'assignments']);
+      expect(accessibleTabs).toEqual(['all', 'managing', 'assignments']);
     });
   });
 
@@ -360,7 +360,7 @@ describe('Permission Validation Security Tests', () => {
       userWithoutRoles.roles = [];
 
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(userWithoutRoles);
-      expect(accessibleTabs).toEqual(['all', 'past']);
+      expect(accessibleTabs).toEqual(['all']);
     });
 
     it('should handle users without permissions', () => {

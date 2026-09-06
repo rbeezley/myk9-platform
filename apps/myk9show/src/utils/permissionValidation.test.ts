@@ -392,23 +392,15 @@ describe('canEnterResults', () => {
 
 describe('getAccessibleTabs / canAccessTab', () => {
   it.each<[string, UserWithRoles | null, string[]]>([
-    ['guest -> only all/past', null, ['all', 'past']],
-    ['exhibitor -> all/past/entries', EXHIBITOR, ['all', 'past', 'entries']],
-    [
-      'secretary -> all/past/managing',
-      buildUser([UserRole.SECRETARY]),
-      ['all', 'past', 'managing'],
-    ],
-    [
-      'club_admin -> all/past/managing',
-      buildUser([UserRole.CLUB_ADMIN]),
-      ['all', 'past', 'managing'],
-    ],
-    ['judge -> all/past/assignments', JUDGE, ['all', 'past', 'assignments']],
+    ['guest -> only all', null, ['all']],
+    ['exhibitor -> all/entries', EXHIBITOR, ['all', 'entries']],
+    ['secretary -> all/managing', buildUser([UserRole.SECRETARY]), ['all', 'managing']],
+    ['club_admin -> all/managing', buildUser([UserRole.CLUB_ADMIN]), ['all', 'managing']],
+    ['judge -> all/assignments', JUDGE, ['all', 'assignments']],
     [
       'user with exhibitor + secretary + judge roles gets every tab',
       buildUser([UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.JUDGE]),
-      ['all', 'past', 'entries', 'managing', 'assignments'],
+      ['all', 'entries', 'managing', 'assignments'],
     ],
   ])('%s', (_label, user, expectedTabs) => {
     expect(getAccessibleTabs(user)).toEqual(expectedTabs);

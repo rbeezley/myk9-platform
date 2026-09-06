@@ -169,57 +169,25 @@ describe('useBrowseShowsFilters — upcoming filter (UTC/local boundary regressi
   });
 });
 
-describe('useBrowseShowsFilters — date range filter', () => {
-  it('next_month returns only shows starting in the next calendar month', async () => {
+describe('useBrowseShowsFilters — month filter (scrubber)', () => {
+  function monthKey(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  it('a chosen month keeps only shows starting in that month, including the 1st', async () => {
     const now = new Date();
-    const midNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
-    const midMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 15);
-    const nextMonthPrefix = `${midNextMonth.getFullYear()}-${String(midNextMonth.getMonth() + 1).padStart(2, '0')}`;
-    const impossibleNextMonthShow = makeShow({
-      id: 'impossible-next-month',
-      startDate: `${nextMonthPrefix}-32`,
-    });
-
-    const shows = [
-      makeShow({ id: 'this-month', startDate: isoDate(now), endDate: isoDate(now) }),
-      makeShow({
-        id: 'next-month',
-        startDate: isoDate(midNextMonth),
-        endDate: isoDate(midNextMonth),
-      }),
-      makeShow({
-        id: 'month-after',
-        startDate: isoDate(midMonthAfter),
-        endDate: isoDate(midMonthAfter),
-      }),
-      impossibleNextMonthShow,
-    ];
-
-    const { result } = renderHook(
-      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
-      { wrapper }
-    );
-
-    await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
-
-    act(() => {
-      result.current.setFilters(prev => ({ ...prev, dateRange: 'next_month' }));
-    });
-
-    await waitFor(() => {
-      expect(result.current.filteredShows.map(s => s.id)).toEqual(['next-month']);
-    });
-  });
-
-  it('next_month includes the 1st of next month (UTC/local boundary regression)', async () => {
-    const now = new Date();
-    // Day 1 of next month as an ISO string — historically parsed as UTC midnight,
-    // which falls before local midnight in US time zones and was excluded.
     const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const midNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
     const firstOfMonthAfter = new Date(now.getFullYear(), now.getMonth() + 2, 1);
 
     const shows = [
+      makeShow({ id: 'this-month', startDate: isoDate(now), endDate: isoDate(now) }),
       makeShow({ id: 'first-of-next', startDate: isoDate(firstOfNextMonth) }),
+      makeShow({
+        id: 'mid-next',
+        startDate: isoDate(midNextMonth),
+        endDate: isoDate(midNextMonth),
+      }),
       makeShow({ id: 'first-of-after', startDate: isoDate(firstOfMonthAfter) }),
     ];
 
@@ -231,13 +199,91 @@ describe('useBrowseShowsFilters — date range filter', () => {
     await waitFor(() => expect(result.current.filteredShows.length).toBeGreaterThan(0));
 
     act(() => {
-      result.current.setFilters(prev => ({ ...prev, dateRange: 'next_month' }));
+      result.current.setFilters(prev => ({ ...prev, month: monthKey(firstOfNextMonth) }));
     });
 
     await waitFor(() => {
-      const ids = result.current.filteredShows.map(s => s.id);
-      expect(ids).toContain('first-of-next');
-      expect(ids).not.toContain('first-of-after');
+      expect(result.current.filteredShows.map(s => s.id)).toEqual(['first-of-next', 'mid-next']);
+    });
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
+  it('a past month shows past shows — the scrubber replaced the Past Shows tab', async () => {
+    const now = new Date();
+    const midLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+    const shows = [
+      makeShow({
+        id: 'last-month',
+        startDate: isoDate(midLastMonth),
+        endDate: isoDate(midLastMonth),
+      }),
+      ANCHOR,
+    ];
+
+    const { result } = renderHook(
+      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
+      { wrapper }
+    );
+
+    // Default (All upcoming) hides it …
+    await waitFor(() => expect(result.current.filteredShows.map(s => s.id)).toEqual(['anchor']));
+    // … but the scrubber still counts it on its month.
+    expect(result.current.monthScopedShows.map(s => s.id)).toEqual(['last-month', 'anchor']);
+
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, month: monthKey(midLastMonth) }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.filteredShows.map(s => s.id)).toEqual(['last-month']);
+    });
+  });
+
+  it('a malformed ?month= reads as All upcoming instead of leaking past shows', async () => {
+    const now = new Date();
+    const midLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+    const shows = [
+      makeShow({
+        id: 'last-month',
+        startDate: isoDate(midLastMonth),
+        endDate: isoDate(midLastMonth),
+      }),
+      ANCHOR,
+    ];
+    const routed = ({ children }: { children: ReactNode }) =>
+      createElement(MemoryRouter, { initialEntries: ['/shows?month=garbage'] }, children);
+
+    const { result } = renderHook(
+      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
+      { wrapper: routed }
+    );
+
+    await waitFor(() => expect(result.current.filteredShows.map(s => s.id)).toEqual(['anchor']));
+    expect(result.current.filters.month).toBe('all');
+    expect(result.current.hasActiveFilters).toBe(false);
+  });
+
+  it('monthScopedShows reflects the other filters so the tiles count what the list shows', async () => {
+    const now = new Date();
+    const midNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
+    const shows = [
+      makeShow({ id: 'scent', startDate: isoDate(midNextMonth), events: ['Scent Work'] }),
+      makeShow({ id: 'agility', startDate: isoDate(midNextMonth), events: ['Agility'] }),
+    ];
+
+    const { result } = renderHook(
+      () => useBrowseShowsFilters({ shows, entries: [], userContext: null, selectedTab: 'all' }),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(result.current.monthScopedShows).toHaveLength(2));
+
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, discipline: 'agility' }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.monthScopedShows.map(s => s.id)).toEqual(['agility']);
     });
   });
 });

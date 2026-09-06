@@ -29,6 +29,8 @@ export interface DataTableColumnMeta {
   exportValue?: (row: unknown) => string | number | boolean | null | undefined;
   /** Exclude this column from CSV export. */
   exportDisabled?: boolean;
+  /** Export this column even while it is hidden on screen. */
+  exportHidden?: boolean;
   /** Set true when this column renders buttons, links, inputs, or menus. */
   interactive?: boolean;
   /** Enable inline editing for this column */
@@ -112,8 +114,7 @@ export const STICKY_LEFT_HEADER_CLASSES = `${STICKY_LEFT_BASE} z-20`;
  * selection on does not discover that an opaque pinned cell covers the row
  * highlight. Delete it with that feature, not before.
  */
-export const STICKY_LEFT_BODY_CLASSES =
-  `${STICKY_LEFT_BASE} z-10 group-data-[state=selected]/row:bg-muted`;
+export const STICKY_LEFT_BODY_CLASSES = `${STICKY_LEFT_BASE} z-10 group-data-[state=selected]/row:bg-muted`;
 
 /**
  * Resolve the layout utilities a DataTable cell gets from its column meta.

@@ -16,7 +16,7 @@ import {
 } from './show-relationships';
 import { ShowPermissionValidator } from './permissionValidation';
 import { showDateRangeStatus } from './date-format';
-import { Globe, History, Settings, Gavel } from 'lucide-react';
+import { Globe, Settings, Gavel } from 'lucide-react';
 
 /**
  * Generate tab configuration based on user roles and permissions
@@ -36,24 +36,6 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
           description: 'Browse all available shows',
           getCount: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)).length,
           filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)),
-        },
-        {
-          id: 'past',
-          label: 'Past Shows',
-          icon: History,
-          description: 'Historical shows for reference',
-          getCount: shows =>
-            shows.filter(
-              s =>
-                showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
-                ShowPermissionValidator.canView(null, s)
-            ).length,
-          filterShows: shows =>
-            shows.filter(
-              s =>
-                showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
-                ShowPermissionValidator.canView(null, s)
-            ),
         },
       ],
       defaultTab: 'all',
@@ -119,27 +101,8 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
     });
   }
 
-  // --- Past Shows tab ---
-  if (accessibleTabs.includes('past')) {
-    tabs.push({
-      id: 'past',
-      label: 'Past Shows',
-      icon: History,
-      description: 'Historical shows for reference',
-      getCount: shows =>
-        shows.filter(
-          s =>
-            showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
-            ShowPermissionValidator.canView(user, s)
-        ).length,
-      filterShows: shows =>
-        shows.filter(
-          s =>
-            showDateRangeStatus(s.startDate, s.endDate) === 'past' &&
-            ShowPermissionValidator.canView(user, s)
-        ),
-    });
-  }
+  // The Past Shows tab is deliberately absent: past months live in the month
+  // scrubber above the list, dimmed to the left of All upcoming (MYK9-427).
 
   // The "Entered as exhibitor" tab is deliberately absent.
   //
@@ -272,20 +235,13 @@ export function filterShowsForTab(
 ): Show[] {
   if (!context) {
     // Guest filtering
-    switch (tabId) {
-      case 'past':
-        return shows.filter(s => showDateRangeStatus(s.startDate, s.endDate) === 'past');
-      case 'all':
-      default:
-        return shows;
-    }
+    // Guests have one tab; a month picks past shows now, not a tab.
+    return shows;
   }
 
   const enhancedShows = enhanceShowsWithRelationships(shows, context);
 
   switch (tabId) {
-    case 'past':
-      return enhancedShows.filter(s => s.relationship.includes('past'));
     case 'entries':
       return enhancedShows.filter(s => s.relationship.includes('entries'));
     case 'managing':

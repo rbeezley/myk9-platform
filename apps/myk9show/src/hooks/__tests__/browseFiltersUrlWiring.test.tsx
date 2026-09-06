@@ -285,14 +285,23 @@ describe('useBrowseShowsFilters URL filters', () => {
     expect(params.get('view')).toBe('cards');
   });
 
-  it('falls back to the default for a dateRange the app cannot act on', () => {
-    // The dangerous one: `garbage` passes the `!== 'all'` test in applyFilters
-    // but matches none of the date branches, so the date filter would be
-    // skipped entirely and past shows would appear on the default view.
-    const { wrapper } = setupWrapper('/shows?dateRange=garbage');
+  it('falls back to the default for a month the app cannot act on', () => {
+    // The dangerous one: `garbage` would pass the `!== 'all'` test in
+    // applyFilters and match no show, so the list would read as empty — or,
+    // worse, skip the upcoming rule and leak past shows onto the default view.
+    // `month` is open-ended (any YYYY-MM), so the hook shape-checks it.
+    const { wrapper } = setupWrapper('/shows?month=garbage');
     const { result } = renderHook(() => useBrowseShowsFilters({ ...props }), { wrapper });
 
-    expect(result.current.filters.dateRange).toBe('upcoming');
+    expect(result.current.filters.month).toBe('all');
+    expect(result.current.hasActiveFilters).toBe(false);
+  });
+
+  it('ignores a stale ?dateRange= link from before the month scrubber', () => {
+    const { wrapper } = setupWrapper('/shows?dateRange=next_month');
+    const { result } = renderHook(() => useBrowseShowsFilters({ ...props }), { wrapper });
+
+    expect(result.current.filters.month).toBe('all');
     expect(result.current.hasActiveFilters).toBe(false);
   });
 
@@ -313,18 +322,18 @@ describe('useBrowseShowsFilters URL filters', () => {
     expect(result.current.filters.club).toBe('any-uuid-here');
   });
 
-  it('keeps dateRange out of the URL at its non-empty default of "upcoming"', () => {
+  it('keeps month out of the URL at its default of "all"', () => {
     const { wrapper, probe } = setupWrapper('/shows');
     const { result } = renderHook(() => useBrowseShowsFilters({ ...props }), { wrapper });
 
     act(() => {
-      result.current.setFilters(prev => ({ ...prev, dateRange: 'this_month' }));
+      result.current.setFilters(prev => ({ ...prev, month: '2026-10' }));
     });
-    expect(new URLSearchParams(probe.search).get('dateRange')).toBe('this_month');
+    expect(new URLSearchParams(probe.search).get('month')).toBe('2026-10');
 
     act(() => {
-      result.current.setFilters(prev => ({ ...prev, dateRange: 'upcoming' }));
+      result.current.setFilters(prev => ({ ...prev, month: 'all' }));
     });
-    expect(new URLSearchParams(probe.search).has('dateRange')).toBe(false);
+    expect(new URLSearchParams(probe.search).has('month')).toBe(false);
   });
 });

@@ -3,25 +3,29 @@ import type { VisibilityState } from '@tanstack/react-table';
 
 const STORAGE_PREFIX = 'datatable-cols-';
 
-function readStored(tableId: string): VisibilityState {
+function readStored(tableId: string, defaults: VisibilityState): VisibilityState {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${tableId}`);
-    if (!raw) return {};
+    if (!raw) return defaults;
     const parsed = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as VisibilityState;
+      // Stored choices win, but a preference saved before a column gained a
+      // hidden default is a partial object; without the merge that column
+      // would surface as soon as the default was introduced.
+      return { ...defaults, ...(parsed as VisibilityState) };
     }
-    return {};
+    return defaults;
   } catch {
-    return {};
+    return defaults;
   }
 }
 
 export function useColumnVisibility(
-  tableId?: string
+  tableId?: string,
+  defaults: VisibilityState = {}
 ): [VisibilityState, (state: VisibilityState) => void] {
   const [visibility, setVisibilityState] = useState<VisibilityState>(() =>
-    tableId ? readStored(tableId) : {}
+    tableId ? readStored(tableId, defaults) : defaults
   );
 
   const setVisibility = useCallback(

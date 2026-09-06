@@ -188,7 +188,35 @@ interface GhPr {
   headRefName: string;
   url?: string;
   author?: { login?: string };
-  files?: { path: string }[];
+}
+
+interface GhPrFile {
+  filename: string;
+  previous_filename?: string;
+}
+
+/** owner/repo for the REST calls below. */
+export function repoSlug(): string {
+  return ghJson<{ nameWithOwner: string }>(['repo', 'view', '--json', 'nameWithOwner'], 'repo')
+    .nameWithOwner;
+}
+
+/**
+ * Every file of one PR, both sides of a rename included. The list query's
+ * `files` field stops at 100 entries per PR and carries no previous path, so
+ * the REST endpoint is paged instead (Codex, #2073 round 4).
+ */
+export function pullRequestFiles(slug: string, number: number): string[] {
+  const pages = ghJson<GhPrFile[][] | GhPrFile[]>(
+    ['api', '--paginate', '--slurp', `repos/${slug}/pulls/${number}/files?per_page=100`],
+    `files of PR #${number}`
+  );
+  const flat = (pages as unknown[]).flatMap(page =>
+    Array.isArray(page) ? (page as GhPrFile[]) : [page as GhPrFile]
+  );
+  return flat.flatMap(f =>
+    f.previous_filename ? [f.filename, f.previous_filename] : [f.filename]
+  );
 }
 
 export class InflightQueryError extends Error {}
@@ -207,17 +235,9 @@ function ghJson<T>(args: string[], what: string): T {
 
 /** Throws when `gh` cannot answer — an unknown PR list must never read as clean. */
 export function openPullRequests(): ChangeSource[] {
+  const slug = repoSlug();
   const prs = ghJson<GhPr[]>(
-    [
-      'pr',
-      'list',
-      '--state',
-      'open',
-      '--limit',
-      '100',
-      '--json',
-      'number,headRefName,url,author,files',
-    ],
+    ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,headRefName,url,author'],
     'open PRs'
   );
   return prs.map(pr => ({
@@ -226,17 +246,34 @@ export function openPullRequests(): ChangeSource[] {
     branch: pr.headRefName,
     owner: pr.author?.login,
     url: pr.url,
-    files: (pr.files ?? []).map(f => f.path),
+    files: pullRequestFiles(slug, pr.number),
   }));
 }
 
-/** Branch names whose PR already merged — a squash merge leaves the branch a non-ancestor of main. */
-export function mergedPrBranches(): Set<string> {
-  const prs = ghJson<{ headRefName: string }[]>(
-    ['pr', 'list', '--state', 'merged', '--limit', '300', '--json', 'headRefName'],
+/**
+ * Merged PRs by branch name → the head SHA that merged. A squash merge leaves
+ * the branch a non-ancestor of main, so "merged" must be decided by the PR;
+ * but a branch name can be REUSED after its PR merged (this repo's LESSONS
+ * record exactly that), so a local tip past the merged head is new work.
+ */
+export function mergedPrBranches(): Map<string, string> {
+  const prs = ghJson<{ headRefName: string; headRefOid: string }[]>(
+    ['pr', 'list', '--state', 'merged', '--limit', '300', '--json', 'headRefName,headRefOid'],
     'merged PRs'
   );
-  return new Set(prs.map(pr => pr.headRefName));
+  const out = new Map<string, string>();
+  for (const pr of prs) if (!out.has(pr.headRefName)) out.set(pr.headRefName, pr.headRefOid);
+  return out;
+}
+
+/** True when `ref`'s tip is the merged head or an ancestor of it — i.e. nothing new since the merge. */
+export function finishedSinceMerge(ref: string, mergedHead: string, cwd?: string): boolean {
+  try {
+    execFileSync('git', ['merge-base', '--is-ancestor', ref, mergedHead], { cwd, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
@@ -278,7 +315,8 @@ export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
 export function unmergedLocalBranches(
   base: string,
   skip: ReadonlySet<string>,
-  cwd?: string
+  cwd?: string,
+  merged: ReadonlyMap<string, string> = new Map()
 ): ChangeSource[] {
   const names = lines(
     run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], {
@@ -289,6 +327,10 @@ export function unmergedLocalBranches(
   const out: ChangeSource[] = [];
   for (const name of names) {
     if (name === 'main' || skip.has(name)) continue;
+    // Merged per its PR AND nothing committed since: finished. A reused name
+    // with new commits past the merged head is in flight again.
+    const mergedHead = merged.get(name);
+    if (mergedHead && finishedSinceMerge(name, mergedHead, cwd)) continue;
     // Ancestor of the base means merged (or empty): nothing in flight.
     try {
       execFileSync('git', ['merge-base', '--is-ancestor', name, base], { cwd, stdio: 'ignore' });
@@ -327,7 +369,7 @@ function runCliInner(argv: string[], cwd: string): number {
   const wtBranches = new Set(worktrees.map(w => w.branch).filter((b): b is string => !!b));
   wtBranches.add(branch);
   let prs: ChangeSource[];
-  let merged: Set<string>;
+  let merged: Map<string, string>;
   try {
     prs = openPullRequests();
     merged = mergedPrBranches();
@@ -340,15 +382,19 @@ function runCliInner(argv: string[], cwd: string): number {
   }
   // A squash-merged branch is no ancestor of main but is finished: skip it,
   // and skip other worktrees whose branch already merged for the same reason.
-  for (const b of merged) wtBranches.add(b);
   // A worktree whose branch already merged still counts for whatever is
   // UNCOMMITTED in it — that is new work with no PR yet (Codex, #2073 round 2).
   const liveWorktrees = worktrees.flatMap(w => {
-    if (!w.branch || !merged.has(w.branch)) return [w];
+    const mergedHead = w.branch ? merged.get(w.branch) : undefined;
+    if (!mergedHead || !finishedSinceMerge(w.branch!, mergedHead, cwd)) return [w];
     const dirty = w.dirty ?? [];
     return dirty.length ? [{ ...w, files: dirty }] : [];
   });
-  const sources = [...prs, ...liveWorktrees, ...unmergedLocalBranches(base, wtBranches, cwd)];
+  const sources = [
+    ...prs,
+    ...liveWorktrees,
+    ...unmergedLocalBranches(base, wtBranches, cwd, merged),
+  ];
   const ownPr = prs.find(p => p.branch === branch);
   const overlaps = findOverlaps(paths, sources, {
     branch,

@@ -115,22 +115,57 @@ describe('inflight CLI', () => {
     return { main, other, bin };
   }
 
-  /** Stub gh: `pr list --state open` -> prs, `--state merged` -> merged; `fail` makes every call exit 1. */
-  function stubGh(bin: string, prs: unknown[], merged: string[] = [], fail = false) {
-    writeFileSync(join(bin, 'open.json'), JSON.stringify(prs));
+  /**
+   * Stub gh. `prs` entries carry `files` (with optional previous_filename) served
+   * through the REST files endpoint; `merged` maps branch -> merged head sha
+   * (a bare string means "any sha"); `fail` makes every call exit 1.
+   */
+  function stubGh(
+    bin: string,
+    prs: {
+      number: number;
+      headRefName: string;
+      url?: string;
+      author?: { login: string };
+      files: { path: string; previous?: string }[];
+    }[],
+    merged: (string | [string, string])[] = [],
+    fail = false
+  ) {
+    const list = prs.map(({ files: _files, ...rest }) => rest);
+    writeFileSync(join(bin, 'open.json'), JSON.stringify(list));
     writeFileSync(
       join(bin, 'merged.json'),
-      JSON.stringify(merged.map(headRefName => ({ headRefName })))
-    );
-    const body = fail
-      ? ['#!/usr/bin/env bash', 'echo "gh: not logged in" >&2', 'exit 1', ''].join(
-          String.fromCharCode(10)
+      JSON.stringify(
+        merged.map(m =>
+          typeof m === 'string'
+            ? { headRefName: m, headRefOid: '0'.repeat(40) }
+            : { headRefName: m[0], headRefOid: m[1] }
         )
+      )
+    );
+    for (const pr of prs) {
+      const files = pr.files.map(f => ({ filename: f.path, previous_filename: f.previous }));
+      const pages: unknown[][] = [];
+      for (let i = 0; i < files.length; i += 100) pages.push(files.slice(i, i + 100));
+      writeFileSync(
+        join(bin, `files-${pr.number}.json`),
+        JSON.stringify(pages.length ? pages : [[]])
+      );
+    }
+    const NL = String.fromCharCode(10);
+    const body = fail
+      ? ['#!/usr/bin/env bash', 'echo "gh: not logged in" >&2', 'exit 1', ''].join(NL)
       : [
           '#!/usr/bin/env bash',
-          `case "$*" in *"--state merged"*) cat "${join(bin, 'merged.json')}";; *) cat "${join(bin, 'open.json')}";; esac`,
+          'case "$*" in',
+          `  *"repo view"*) echo '{"nameWithOwner":"o/r"}';;`,
+          `  *"--state merged"*) cat "${join(bin, 'merged.json')}";;`,
+          `  *"/pulls/"*"/files"*) n=$(printf '%s' "$*" | sed -E 's#.*/pulls/([0-9]+)/files.*#\\1#'); cat "${bin}/files-$n.json";;`,
+          `  *) cat "${join(bin, 'open.json')}";;`,
+          'esac',
           '',
-        ].join(String.fromCharCode(10));
+        ].join(NL);
     writeFileSync(join(bin, 'gh'), body);
     chmodSync(join(bin, 'gh'), 0o755);
   }
@@ -219,8 +254,10 @@ describe('inflight CLI', () => {
     writeFileSync(join(main, 'src', 'b.ts'), 'finished elsewhere');
     git(main, 'add', 'src/b.ts');
     git(main, 'commit', '-q', '-m', 'finished');
+    const finishedTip = git(main, 'rev-parse', 'finished').trim();
     git(main, 'checkout', '-q', 'mine');
-    stubGh(bin, [], ['finished']);
+    // The merged PR's head IS this tip: nothing new since the merge.
+    stubGh(bin, [], [['finished', finishedTip]]);
     expect(runCli(main, bin).code).toBe(0);
     stubGh(bin, [], []);
     const r = runCli(main, bin);
@@ -311,6 +348,43 @@ describe('inflight CLI', () => {
     const r = runCli(main, bin, 'src/a.ts');
     expect(r.code).toBe(1);
     expect(r.out).toContain('worktree');
+  });
+
+  it('reads every file of a PR with more than 100 files', () => {
+    const { main, bin } = repo();
+    const files = Array.from({ length: 149 }, (_, i) => ({ path: `docs/f${i}.md` }));
+    files.push({ path: 'src/b.ts' });
+    stubGh(bin, [{ number: 9, headRefName: 'big', files }]);
+    const r = runCli(main, bin);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('pr #9');
+  });
+
+  it("counts a PR rename's ORIGINAL path", () => {
+    const { main, bin } = repo();
+    stubGh(bin, [
+      { number: 4, headRefName: 'mover', files: [{ path: 'src/moved.ts', previous: 'src/b.ts' }] },
+    ]);
+    expect(runCli(main, bin).code).toBe(1);
+  });
+
+  it('treats a merged branch name with NEW commits past the merged head as in flight again', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'reused', 'origin/main');
+    writeFileSync(join(main, 'src', 'b.ts'), 'first, merged');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'merged work');
+    const mergedHead = git(main, 'rev-parse', 'HEAD').trim();
+    writeFileSync(join(main, 'src', 'b.ts'), 'second, after the merge');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'new work on a reused name');
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, [], [['reused', mergedHead]]);
+    const r = runCli(main, bin);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch reused');
+    git(main, 'branch', '-f', 'reused', mergedHead);
+    expect(runCli(main, bin).code).toBe(0);
   });
 
   it('--warn reports but exits 0', () => {

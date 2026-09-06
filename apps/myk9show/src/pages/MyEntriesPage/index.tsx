@@ -273,9 +273,15 @@ const MyEntriesPage: React.FC = () => {
                  exhibitor on a cold offline boot that they had never entered a
                  show, with their entries sitting in IndexedDB. */
               <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
-            ) : entries.length === 0 ? (
+            ) : entries.length === 0 && !waitlistSurface.hasPositions ? (
+              /* `entries.length === 0` is not the same as "no standing". An
+                 exhibitor can hold a `waitlist_entries` row with no entry row
+                 at all, and "Welcome! Let's get you set up" printed above a
+                 live #1 position is the same contradiction MYK9-417 is about,
+                 one branch up. With a position on file the section below is the
+                 whole body; the header still carries "Enter a Show". */
               <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
-            ) : (
+            ) : entries.length === 0 ? null : (
               <>
                 <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
                   <CompactStatsRow

@@ -1119,6 +1119,28 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     expect(screen.getByText('My Wait List Positions')).toBeInTheDocument();
   });
 
+  it('does not greet an exhibitor who holds a position as brand new', async () => {
+    // `add_to_waitlist` needs no entry row, so a position can be an
+    // exhibitor's ONLY standing. "Welcome! Let's get you set up" printed above
+    // a live #1 is the same contradiction, one branch up.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    renderWithProviders(<MyEntriesPage />);
+
+    expect(await screen.findByText('My Wait List Positions')).toBeInTheDocument();
+    expect(screen.getByText('Juni')).toBeInTheDocument();
+    expect(screen.queryByText(/Welcome! Let’s get you set up/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You haven’t entered any shows yet/)).not.toBeInTheDocument();
+  });
+
+  it('still greets a genuinely brand-new exhibitor as brand new', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    seedPosition([]);
+    renderWithProviders(<MyEntriesPage />);
+
+    expect(await screen.findByText(/Welcome! Let’s get you set up/)).toBeInTheDocument();
+    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+  });
+
   it('hides the positions section behind a status filter that excludes them', async () => {
     const user = userEvent.setup();
     renderWithProviders(<MyEntriesPage />);

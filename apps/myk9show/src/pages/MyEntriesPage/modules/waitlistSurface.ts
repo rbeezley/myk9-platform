@@ -69,6 +69,14 @@ export interface WaitlistSurface {
    */
   showPositions: boolean;
   /**
+   * The exhibitor has wait-list standing at all, regardless of the active
+   * filters — so the page must not tell them they have never entered a show.
+   * Deliberately NOT filter-aware, unlike `showPositions`: a `?status=pending`
+   * link would otherwise hide the section AND restore the first-run copy over
+   * a live position, which is the MYK9-417 contradiction wearing a hat.
+   */
+  hasPositions: boolean;
+  /**
    * Whether an empty filtered list may show the "No waitlisted entries"
    * copy. False while positions are on screen or still loading — that copy
    * ends "Nothing to do here right now", which is a claim about the whole
@@ -110,6 +118,7 @@ export function resolveWaitlistSurface({
     // says the rest is still arriving.
     chipCount: waitlistEntryCount + (inScope ? activePositionCount : 0),
     showPositions,
+    hasPositions: isLoadingPositions || displayedPositionCount > 0,
     allowEmptyState: !showPositions,
   };
 }

@@ -96,6 +96,17 @@ describe('resolveWaitlistSurface', () => {
     expect(result.allowEmptyState).toBe(false);
   });
 
+  it('reports standing regardless of the active filters', () => {
+    // `hasPositions` gates the first-run zero state, which must never claim
+    // "you haven't entered any shows yet" over a live position — not even when
+    // a `?status=pending` link has hidden the section.
+    expect(surface({ selectedStatus: 'pending' }).showPositions).toBe(false);
+    expect(surface({ selectedStatus: 'pending' }).hasPositions).toBe(true);
+    expect(surface({ selectedTab: 'completed' }).hasPositions).toBe(true);
+    expect(surface({ isScoped: true }).hasPositions).toBe(true);
+    expect(surface({ activePositionCount: 0, displayedPositionCount: 0 }).hasPositions).toBe(false);
+  });
+
   it('leaves positions out of a My Payments receipt scope', () => {
     // `?showId=&entryIds=` names entry rows. A position is not one of them and
     // carries no show id here, so counting it would widen a list the scope

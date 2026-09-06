@@ -207,7 +207,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
                 className={cn(
                   reasonChipBase,
                   nqReason === reason
-                    ? 'bg-primary text-white border-primary shadow-md'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
                     : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground'
                 )}
                 onClick={() => {
@@ -232,7 +232,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
                 className={cn(
                   reasonChipBase,
                   excusedReason === reason
-                    ? 'bg-primary text-white border-primary shadow-md'
+                    ? 'bg-primary text-primary-foreground border-primary shadow-md'
                     : 'bg-muted border-border text-muted-foreground hover:bg-accent hover:border-primary hover:text-foreground'
                 )}
                 onClick={() => {

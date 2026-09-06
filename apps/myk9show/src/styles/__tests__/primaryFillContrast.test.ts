@@ -26,6 +26,9 @@ import { block, contrastRatio, resolveColorValue } from './contrast-test-utils';
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const appSrc = resolve(here, '..', '..');
+// scoring-ui composes the same utilities and inherits the host app's tokens,
+// so it is in scope for this guard too.
+const scanRoots = [appSrc, resolve(appSrc, '..', '..', '..', 'packages')];
 const css = readFileSync(resolve(appSrc, 'index.css'), 'utf8');
 
 const AA_SMALL_TEXT = 4.5;
@@ -67,7 +70,12 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const CLASS_ATTR = /(?:className|class)\s*=\s*\{?\s*[`"']([^`"']{0,2000})[`"']/g;
+// ANY string literal, not just className attributes: cva/variant maps and
+// template-literal fragments hold these utilities too, and an attribute-only
+// scan reported CLEAN while badgeVariants.ts (the default badge, used in ~292
+// files), three CreateRolePage step indicators and two ringside result chips
+// all shipped the defect. Found by review, not by this test.
+const STRING_LITERAL = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/gs;
 const PRIMARY_FILL = /\bbg-primary(?:\/\d+)?\b/;
 const WHITE_LABEL = /(?:^|[\s:])(?:dark:)?text-white\b/;
 
@@ -94,13 +102,15 @@ describe('bg-primary label contrast', () => {
 
   it('no bg-primary control anywhere hardcodes a white label', () => {
     const offenders: string[] = [];
-    for (const file of sourceFiles(appSrc)) {
-      const source = readFileSync(file, 'utf8');
-      for (const m of source.matchAll(CLASS_ATTR)) {
-        const classes = m[1];
-        if (PRIMARY_FILL.test(classes) && WHITE_LABEL.test(classes)) {
-          const line = source.slice(0, m.index).split('\n').length;
-          offenders.push(`${relative(appSrc, file)}:${line}`);
+    for (const root of scanRoots) {
+      for (const file of sourceFiles(root)) {
+        const source = readFileSync(file, 'utf8');
+        for (const m of source.matchAll(STRING_LITERAL)) {
+          const classes = m[2];
+          if (PRIMARY_FILL.test(classes) && WHITE_LABEL.test(classes)) {
+            const line = source.slice(0, m.index).split('\n').length;
+            offenders.push(`${relative(root, file)}:${line}`);
+          }
         }
       }
     }

@@ -372,7 +372,7 @@ This section supersedes pending status claims in the September 5 index below.
 
 | Stable ID / alias            | Canonical priority | Registry status / lifecycle | Canonical work                                                                                                                                                                                                             |
 | ---------------------------- | ------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| NCR-2026-09-06-01            | P1 / High          | implemented / local proof   | [MYK9-424](https://linear.app/myk9-platform/issue/MYK9-424) — local fix on `codex/myk9-424` preserves staff report scores and bounds exhibitor enrichment; 481 focused tests pass. Awaiting PR/merge/deployment; evidence: [`docs/plan-myk9-424.md`](../plan-myk9-424.md).                   |
+| NCR-2026-09-06-01            | P1 / High          | done / verified             | [MYK9-424](https://linear.app/myk9-platform/issue/MYK9-424) — shipped 2026-09-06 as #2081 (merge `7ccc08f9a`); frontend-only, live via the green `main` production build on that commit. Evidence: [`docs/archive/plan-myk9-424.md`](../archive/plan-myk9-424.md).                   |
 | MYK9-407                     | P3 / Low           | done / verified             | [MYK9-407](https://linear.app/myk9-platform/issue/MYK9-407) — deployed v33 matches source; full/continuous snapshots preserve 48h windows and daily timestamps/verdicts; both admin pages verified. [Closure evidence](myk9-407-hosted-verification-2026-09-06.md). |
 | MYK9-408 / NCR-2026-09-05-01 | P3 / Low           | in-progress / unchanged     | [MYK9-408](https://linear.app/myk9-platform/issue/MYK9-408) — installed prompt still asserts Codex is paused. Reopened original parity gate; prior Claude-disabled owner decision preserved.                               |
 
@@ -381,6 +381,35 @@ MYK9-289, MYK9-356, MYK9-405 (P2), MYK9-358 and MYK9-406 (P3).
 Exact closure evidence is in the report; new SQL/migration CI evidence was also appended
 to MYK9-356 and MYK9-405. No issue closed by this audit. Counts: new 1, unchanged 1,
 resolved 7, duplicate 0, rejected 0, blocked 1. No application code changed.
+
+### NCR-2026-09-06-02
+
+- **Status:** open
+- **Lifecycle status:** new
+- **Classification:** Confirmed HARNESS defect — not a product bug
+- **Severity:** low
+- **Canonical priority:** P3
+- **Source label:** Low
+- **Source:** claude
+- **Role/workflow:** all — unit suite, no role surface involved
+- **Surface:** `apps/myk9show/src/test/harness/appApiRequestTracker.test.ts:160-190` ("a stranded request fails the NEXT route until the tracker is reset")
+- **Suite category:** none (app unit suite)
+- **Pattern:** timing-flake
+- **Detected by:** claude — MYK9-420 pre-merge verification
+- **First seen:** 2026-09-06
+- **Last seen:** 2026-09-06
+- **Consecutive-run count:** 1 (1 failure in 7 full shuffled runs the same day)
+- **Baseline SHA:** `1145aebac77d47c60abd0c45dbe35b07e6c4bca7`
+- **Linear issue:** none, deliberately. Recorded here as evidence only — a single load-induced failure with a known mechanism does not yet meet the Flake Budget bar (two failures for the same spec within 14 days). Promote it if it recurs.
+- **Evidence:** Failed once under `pnpm vitest run --sequence.shuffle` (seed `1788723296711`) with `expected { settled: false, pendingUrls: [] } to deeply equal { settled: true, pendingUrls: [] }` at `:190`. A `pnpm qa:codex-review` was running concurrently on the same machine. The assertion calls `waitForAppApiRequestsToSettle` with `idleMs: 5, timeoutMs: 20` on REAL timers, so it needs the event loop to observe 5ms of quiet inside a 20ms budget; under CPU contention it cannot, and the tracker reports `settled: false` with nothing pending — the shape of a starved timer, not of a stranded request.
+- **Expected behavior:** The test asserts a property of `tracker.reset()`, which is independent of wall-clock speed, and should pass on a loaded runner.
+- **Observed behavior:** Passes 5/5 in isolation and in 6 of 7 full shuffled runs; fails when the host is saturated.
+- **User impact:** None — no product code involved. The cost is a false red on a green branch, and the standing risk that a real regression in the reset logic gets waved through as "that flake again".
+- **Intent check:** n/a — test harness.
+- **Confidence:** high on the mechanism (5/5 clean in isolation, diff touches nothing in this path, 5 prior full runs green); not reproduced deliberately under load.
+- **Fix owner:** `apps/myk9show/src/test/harness/appApiRequestTracker.test.ts`
+- **Proof required:** Reproduce under load with `taskpolicy -b pnpm vitest run src/test/harness/appApiRequestTracker.test.ts --coverage --sequence.shuffle` (the documented recipe for timeout-class flakes), then make the assertion independent of wall-clock speed — fake timers, or a budget that is not 20ms — and show the same command passing 8/8.
+- **Notes:** This test is the regression guard for **NCR-2026-09-04-04** (the tracker `pending`-set leak, fixed 2026-09-05). The product fix is sound; it is the guard that is timing-fragile. Distinct finding, not a recurrence — that one was a stale-state leak in the E2E sweep, this is a real-timer budget in the unit test that pins its fix. A flaky guard on a defect that already recurred once is worth more than its severity suggests.
 
 ### Codex commit-review reconciliation — 2026-09-05
 

@@ -58,6 +58,8 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(recoveredCartMigration.toLowerCase()).toContain(
       'old.entry_id is distinct from new.entry_id'
     );
+    expect(recoveredCartMigration).toContain("TG_OP = 'DELETE'");
+    expect(recoveredCartMigration).toContain('RETURN OLD');
   });
 
   it('locks each judge-day before reading capacity and inserting the online entry', () => {
@@ -123,8 +125,8 @@ describe('stripe webhook online cart capacity gate', () => {
       'GRANT EXECUTE ON FUNCTION public.create_online_paid_entry'
     );
     expect(capacityGateMigration).toContain('TO service_role');
-    expect(allMigrationSql).not.toContain(
-      'GRANT EXECUTE ON FUNCTION public.create_online_paid_entry(uuid, uuid, uuid, numeric, text, text, text, timestamptz, uuid, uuid, uuid) TO authenticated'
+    expect(allMigrationSql).not.toMatch(
+      /GRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.create_online_paid_entry\([^;]+\)\s+TO\s+authenticated/i
     );
   });
 });

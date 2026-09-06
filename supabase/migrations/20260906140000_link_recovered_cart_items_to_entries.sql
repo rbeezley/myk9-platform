@@ -16,11 +16,17 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_cart_id uuid;
 BEGIN
+  v_cart_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.cart_id ELSE NEW.cart_id END;
   UPDATE public.entry_carts
   SET stripe_checkout_session_id = NULL
-  WHERE id = NEW.cart_id
+  WHERE id = v_cart_id
     AND stripe_checkout_session_id IS NOT NULL;
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
   RETURN NEW;
 END;
 $$;

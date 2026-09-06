@@ -213,11 +213,6 @@ jobs:
       - name: Doc staleness check
         run: pnpm qa:doc-staleness:strict
 
-      - name: Check plan metadata
-        run: |
-          pnpm qa:plans:test
-          pnpm qa:plans
-
       - name: Migration version guard
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:

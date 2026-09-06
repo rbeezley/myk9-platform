@@ -31,6 +31,10 @@ BEGIN
 END;
 $$;
 
+-- Trigger-only helper: callers must not invoke it directly.
+REVOKE EXECUTE ON FUNCTION public.cart_item_identity_change_sever_session() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.cart_item_identity_change_sever_session() FROM authenticated;
+
 DROP TRIGGER IF EXISTS trg_cart_item_identity_sever_session ON public.entry_cart_items;
 
 CREATE TRIGGER trg_cart_item_identity_sever_session

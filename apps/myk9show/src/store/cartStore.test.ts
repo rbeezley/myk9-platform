@@ -15,6 +15,7 @@ interface QueryCall {
   updatePayload?: Record<string, unknown>;
   upsertPayload?: unknown;
   upsertOptions?: unknown;
+  insertPayload?: unknown;
 }
 
 interface QueryResult {
@@ -85,6 +86,15 @@ class MockQueryBuilder {
     this.call.upsertPayload = payload;
     this.call.upsertOptions = options;
     return this;
+  }
+
+  insert(payload: unknown) {
+    this.call.insertPayload = payload;
+    return this;
+  }
+
+  single() {
+    return Promise.resolve(this.resultFor(this.call));
   }
 
   maybeSingle() {
@@ -570,5 +580,87 @@ describe('cartStore payment recovery', () => {
     expect(queryCalls.some(call => call.table === 'entry_cart_items' && call.deleteCalled)).toBe(
       false
     );
+  });
+
+  it('creates a recovery cart when an unpaid balance has no existing cart shell', async () => {
+    queryCalls.length = 0;
+    let cartLookupCount = 0;
+    let itemLoadCount = 0;
+    mockFrom.mockImplementation(
+      (table: string) =>
+        new MockQueryBuilder(table, call => {
+          if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
+            cartLookupCount += 1;
+            return cartLookupCount === 1
+              ? { data: null, error: null }
+              : { data: expiredCartLookup, error: null };
+          }
+
+          if (call.table === 'entry_carts' && call.insertPayload) {
+            return { data: hydratedCart, error: null };
+          }
+
+          if (call.table === 'entry_carts' && call.updatePayload) {
+            return { data: null, error: null };
+          }
+
+          if (call.table === 'entry_carts') {
+            return { data: hydratedCart, error: null };
+          }
+
+          if (call.table === 'entry_cart_items' && call.upsertPayload) {
+            return { data: null, error: null };
+          }
+
+          if (call.table === 'entry_cart_items') {
+            itemLoadCount += 1;
+            return { data: itemLoadCount === 1 ? [] : [hydratedItem], error: null };
+          }
+
+          if (call.table === 'exhibitor_profiles') {
+            return { data: { person_id: 'person-1' }, error: null };
+          }
+
+          if (call.table === 'dogs') {
+            return { data: [{ id: 'dog-1' }], error: null };
+          }
+
+          if (call.table === 'entries') {
+            return {
+              data: [
+                {
+                  dog_id: 'dog-1',
+                  class_id: 'class-1',
+                  handler_id: 'person-1',
+                  entry_fee: 25,
+                  jump_height: '16',
+                  special_requests: null,
+                  payment_status: 'pending',
+                },
+              ],
+              error: null,
+            };
+          }
+
+          return { data: null, error: null };
+        })
+    );
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', {
+      showId: 'show-1',
+      recoveryEntryIds: ['entry-1'],
+    });
+
+    expect(cart?.items).toHaveLength(1);
+    expect(cart?.total_cents).toBe(2675);
+    expect(queryCalls.find(call => call.insertPayload)?.insertPayload).toEqual({
+      show_id: 'show-1',
+      exhibitor_id: 'exhibitor-1',
+      status: 'active',
+      expires_at: '2026-06-14T20:30:00.000Z',
+      subtotal_cents: 0,
+      platform_fee_cents: 0,
+      total_cents: 0,
+    });
   });
 });

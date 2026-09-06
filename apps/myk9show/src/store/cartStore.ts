@@ -171,6 +171,17 @@ export const useCartStore = create<CartState>()(
             return null;
           }
           if (!data) {
+            // A submitted unpaid entry may no longer have the cart shell that
+            // originally created it. Deep-linked Finish Payment recovery is
+            // scoped to explicit entry ids, so create a fresh shell and let
+            // the normal exact-entry recovery path hydrate it below.
+            if (options.showId && options.recoveryEntryIds?.length) {
+              const recoveryCart = await get().createCart(options.showId, exhibitorId);
+              if (recoveryCart) {
+                return get().loadActiveCart(exhibitorId, options);
+              }
+            }
+
             set({ cart: null, isLoading: false });
             return null;
           }

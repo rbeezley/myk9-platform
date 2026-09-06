@@ -7,3 +7,32 @@ ALTER TABLE public.entry_cart_items
 CREATE INDEX IF NOT EXISTS entry_cart_items_entry_id_idx
   ON public.entry_cart_items(entry_id)
   WHERE entry_id IS NOT NULL;
+
+-- entry_id is also an identity field. A direct owner PATCH must sever any
+-- checkout session just like dog_id/class_id changes do.
+CREATE OR REPLACE FUNCTION public.cart_item_identity_change_sever_session()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.entry_carts
+  SET stripe_checkout_session_id = NULL
+  WHERE id = NEW.cart_id
+    AND stripe_checkout_session_id IS NOT NULL;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cart_item_identity_sever_session ON public.entry_cart_items;
+
+CREATE TRIGGER trg_cart_item_identity_sever_session
+  AFTER UPDATE OF dog_id, class_id, entry_id ON public.entry_cart_items
+  FOR EACH ROW
+  WHEN (
+    OLD.dog_id IS DISTINCT FROM NEW.dog_id
+    OR OLD.class_id IS DISTINCT FROM NEW.class_id
+    OR OLD.entry_id IS DISTINCT FROM NEW.entry_id
+  )
+  EXECUTE FUNCTION public.cart_item_identity_change_sever_session();

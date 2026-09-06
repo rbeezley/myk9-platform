@@ -361,22 +361,12 @@ export const useCartStore = create<CartState>()(
                   .eq('show_id', showId)
                   .eq('exhibitor_id', exhibitorId)
                   .eq('status', 'active')
+                  .gt('expires_at', new Date().toISOString())
                   .limit(1)
                   .maybeSingle();
 
                 if (!existingCartError && existingCart) {
-                  const cartWithDetails: CartWithDetails = {
-                    ...existingCart,
-                    items: [],
-                    show: existingCart.show as CartWithDetails['show'],
-                  };
-                  set({
-                    cart: cartWithDetails,
-                    isLoading: false,
-                    lastSyncedAt: new Date().toISOString(),
-                    expirationWarning: false,
-                  });
-                  return cartWithDetails;
+                  return get().loadCart(showId, exhibitorId);
                 }
               }
               logger.error('Error creating cart', 'cartStore', { showId, exhibitorId }, cartError);

@@ -12,7 +12,31 @@ export interface RecoverableEntryRow {
   entry_fee: number | string | null;
   jump_height: string | null;
   special_requests: string | null;
+  class_entry_fee: number | string | null;
+  show_pre_entry_fee: number | string | null;
+  show_day_of_show_fee: number | string | null;
+  show_start_date: string | null;
 }
+
+const parseFeeDollars = (value: number | string | null): number | null => {
+  if (value == null) return null;
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
+const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
+  const preEntryFee = parseFeeDollars(entry.show_pre_entry_fee);
+  const dayOfShowFee = parseFeeDollars(entry.show_day_of_show_fee);
+  const showStartDate = entry.show_start_date?.slice(0, 10);
+  const todayUtc = new Date().toISOString().slice(0, 10);
+
+  if (showStartDate && todayUtc >= showStartDate && dayOfShowFee != null && dayOfShowFee > 0) {
+    return Math.round(dayOfShowFee * 100);
+  }
+  if (preEntryFee != null) return Math.round(preEntryFee * 100);
+
+  return Math.round((parseFeeDollars(entry.class_entry_fee) ?? 25) * 100);
+};
 
 export const findRecoverableEntries = async ({
   showId,
@@ -59,7 +83,10 @@ export const findRecoverableEntries = async ({
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('id, class_id, dog_id, handler_id, entry_fee, jump_height, special_requests')
+    .select(
+      `id, class_id, dog_id, handler_id, entry_fee, jump_height, special_requests,
+       class:classes(entry_fee), show:shows(pre_entry_fee, day_of_show_fee, start_date)`
+    )
     .in('id', explicitEntryIds)
     .eq('show_id', showId)
     .eq('payment_status', 'pending')
@@ -78,7 +105,17 @@ export const findRecoverableEntries = async ({
     return [];
   }
 
-  return (entries || []) as RecoverableEntryRow[];
+  return (entries || []).map(entry => {
+    const classRow = Array.isArray(entry.class) ? entry.class[0] : entry.class;
+    const showRow = Array.isArray(entry.show) ? entry.show[0] : entry.show;
+    return {
+      ...entry,
+      class_entry_fee: classRow?.entry_fee ?? null,
+      show_pre_entry_fee: showRow?.pre_entry_fee ?? null,
+      show_day_of_show_fee: showRow?.day_of_show_fee ?? null,
+      show_start_date: showRow?.start_date ?? null,
+    } as RecoverableEntryRow;
+  });
 };
 
 export const loadCartItemsByCartId = async (cartId: string): Promise<CartItemWithDetails[]> => {
@@ -121,7 +158,7 @@ export const recoverCartItemsFromEntryIds = async ({
       class_id: entry.class_id!,
       dog_id: entry.dog_id!,
       handler_id: entry.handler_id,
-      entry_fee_cents: Math.round(Number(entry.entry_fee ?? 0) * 100),
+      entry_fee_cents: getAuthoritativeEntryFeeCents(entry),
       jump_height: entry.jump_height,
       special_requests: entry.special_requests,
     }));

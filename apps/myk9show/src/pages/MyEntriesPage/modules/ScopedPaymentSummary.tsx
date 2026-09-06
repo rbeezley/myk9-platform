@@ -46,7 +46,7 @@ function PanelShell({ children }: { children: React.ReactNode }) {
 export function ScopedPaymentSummary() {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get(ENTRY_SCOPE_ORDER_PARAM)?.trim() || null;
-  const order = useDeepLinkedReceiptOrder(orderId);
+  const receipt = useDeepLinkedReceiptOrder(orderId);
 
   // No deep link, no panel. The unscoped visit is the common one and must cost
   // nothing.
@@ -55,7 +55,7 @@ export function ScopedPaymentSummary() {
   // `isPending` is true forever for a DISABLED query, so require an in-flight
   // fetch before showing a spinner — otherwise a panel that will never load
   // parks on one.
-  if (order.isPending && order.fetchStatus !== 'idle') {
+  if (receipt.isPending && receipt.fetchStatus !== 'idle') {
     return (
       <PanelShell>
         <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -66,7 +66,7 @@ export function ScopedPaymentSummary() {
     );
   }
 
-  if (order.isError) {
+  if (receipt.isError) {
     return (
       <PanelShell>
         <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -77,7 +77,7 @@ export function ScopedPaymentSummary() {
             variant="outline"
             size="sm"
             className="min-h-11 self-start sm:self-auto"
-            onClick={() => void order.refetch()}
+            onClick={() => void receipt.refetch()}
           >
             Try again
           </Button>
@@ -89,7 +89,7 @@ export function ScopedPaymentSummary() {
   // A resolved null is a different claim from a failed read: the row is not
   // readable by this exhibitor, or no longer exists. Say that plainly rather
   // than offering a retry that cannot change the answer.
-  if (!order.data) {
+  if (!receipt.data) {
     return (
       <PanelShell>
         <p className="mt-2 text-sm text-foreground">
@@ -99,7 +99,7 @@ export function ScopedPaymentSummary() {
     );
   }
 
-  const facts = buildScopedPaymentFacts(order.data);
+  const facts = buildScopedPaymentFacts(receipt.data.order, receipt.data.entryRefundedCents);
 
   return (
     <PanelShell>

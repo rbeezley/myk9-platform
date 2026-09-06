@@ -15,12 +15,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
-const { maybeSingle, eq, from } = vi.hoisted(() => {
+const { maybeSingle, eq, entriesIn, from } = vi.hoisted(() => {
   const maybeSingle = vi.fn();
   const eq = vi.fn(() => ({ maybeSingle }));
-  const select = vi.fn(() => ({ eq }));
+  // The receipt makes TWO reads: the order by id, then the order's entries for
+  // the app-recorded refund the order columns may not carry yet.
+  const entriesIn = vi.fn();
+  const select = vi.fn(() => ({ eq, in: entriesIn }));
   const from = vi.fn(() => ({ select }));
-  return { maybeSingle, eq, from };
+  return { maybeSingle, eq, entriesIn, from };
 });
 
 vi.mock('@/lib/supabase', () => ({ supabase: { from } }));
@@ -67,6 +70,8 @@ function renderAt(href: string): ReactNode {
 describe('ScopedPaymentSummary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // No app-recorded entry refund unless a test says otherwise.
+    entriesIn.mockResolvedValue({ data: [], error: null });
   });
 
   it('states the amount paid on the destination of a real Receipt link', async () => {
@@ -140,6 +145,21 @@ describe('ScopedPaymentSummary', () => {
 
     expect(await screen.findByText('Sep 9, 2026')).toBeInTheDocument();
     expect(screen.queryByText('Sep 6, 2026')).not.toBeInTheDocument();
+  });
+
+  it('shows an entry refund the order columns have not caught up with', async () => {
+    // `stripe-refund-entry` writes entries.refund_amount synchronously; the
+    // order's refunded_cents waits for Stripe to deliver charge.refunded. In
+    // that window the My Payments row already shows the refund, so a receipt
+    // reading only the order columns would contradict it.
+    maybeSingle.mockResolvedValue({ data: paidRow(), error: null });
+    entriesIn.mockResolvedValue({ data: [{ id: ENTRY_ID, refund_amount: 10 }], error: null });
+
+    renderAt(buildEntryReceiptHref(SHOW_ID, [ENTRY_ID], ORDER_ID));
+
+    expect(await screen.findByText('$22.10')).toBeInTheDocument();
+    expect(screen.getByText('Partially refunded')).toBeInTheDocument();
+    expect(screen.getByText('-$10.00')).toBeInTheDocument();
   });
 
   it('distinguishes an unreadable order from a failed read', async () => {

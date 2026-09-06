@@ -20,7 +20,7 @@ import {
   formatPaymentDate,
   paymentStatusLabel,
 } from '@/features/payments/moneyPresentation';
-import { orderHasRefund } from './orderScopedReceipt';
+
 
 export interface ScopedPaymentFactRow {
   label: string;
@@ -44,12 +44,36 @@ export interface ScopedPaymentFacts {
  *
  * `status` alone cannot answer this: `_shared/orderSnapshot.ts` records that a
  * PARTIALLY refunded order keeps `status = 'succeeded'`, so reading the column
- * would print "Paid" over money that was handed back. Same derivation the
- * receipt dialog already uses (`MyEntriesDialogs.receiptPaymentStatus`).
+ * would print "Paid" over money that was handed back. Driven off the resolved
+ * refund total rather than the order columns, so a refund the webhook has not
+ * booked yet still reads as refunded.
  */
-function scopedPaymentStatus(order: EntryReceiptOrder, netCents: number): string {
-  if (!orderHasRefund(order)) return paymentStatusLabel(order.status);
+function scopedPaymentStatus(
+  order: EntryReceiptOrder,
+  refundedCents: number,
+  netCents: number
+): string {
+  if (refundedCents <= 0) return paymentStatusLabel(order.status);
   return netCents <= 0 ? 'Refunded' : 'Partially refunded';
+}
+
+/**
+ * Post-hoc refunds, resolved across the two writers that record them.
+ *
+ * `stripe_orders.refunded_cents` and the sum of `entries.refund_amount`
+ * describe the SAME money and disagree in both directions:
+ *
+ *  - An app refund writes the entries synchronously; `refunded_cents` waits
+ *    for Stripe to deliver `charge.refunded`.
+ *  - A Stripe DASHBOARD refund writes `refunded_cents` and never touches the
+ *    entries — the webhook alerts an admin to reconcile it by hand.
+ *
+ * Taking the larger means the receipt can be early but never understates what
+ * came back. Understating is the harmful direction: it tells an exhibitor they
+ * paid more than they kept.
+ */
+function resolvePostHocRefundCents(order: EntryReceiptOrder, entryRefundedCents: number): number {
+  return Math.max(order.refundedCents, entryRefundedCents);
 }
 
 /**
@@ -66,13 +90,17 @@ function scopedPaymentStatus(order: EntryReceiptOrder, netCents: number): string
  *    reversed — so gross and refund are always printed alongside it and the
  *    headline switches label rather than silently changing meaning.
  */
-export function buildScopedPaymentFacts(order: EntryReceiptOrder): ScopedPaymentFacts {
+export function buildScopedPaymentFacts(
+  order: EntryReceiptOrder,
+  entryRefundedCents: number
+): ScopedPaymentFacts {
   const currency = order.currency;
-  // Both refund columns. `make_whole_refunded_cents` is the cart-overflow
-  // auto-refund, which `amount_cents` is deliberately NOT netted by, so
-  // omitting it overstates what the exhibitor kept by exactly the amount that
-  // was handed straight back.
-  const refundedCents = order.refundedCents + order.makeWholeRefundedCents;
+  // Post-hoc refunds plus the cart-overflow auto-refund. `amount_cents` is
+  // deliberately NOT netted by `make_whole_refunded_cents`, so omitting it
+  // overstates what the exhibitor kept by exactly the amount that was handed
+  // straight back. The two are separate money and always add.
+  const refundedCents =
+    resolvePostHocRefundCents(order, entryRefundedCents) + order.makeWholeRefundedCents;
   const netCents = order.amountCents - refundedCents;
   const refunded = refundedCents > 0;
 
@@ -93,7 +121,7 @@ export function buildScopedPaymentFacts(order: EntryReceiptOrder): ScopedPayment
   return {
     headlineLabel: refunded ? 'Net paid' : 'Amount paid',
     headlineValue: formatPaymentCents(netCents, currency),
-    statusLabel: scopedPaymentStatus(order, netCents),
+    statusLabel: scopedPaymentStatus(order, refundedCents, netCents),
     rows,
     entriesCovered: order.entryIds.length,
   };

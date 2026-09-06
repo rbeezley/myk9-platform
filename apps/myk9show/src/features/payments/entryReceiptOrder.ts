@@ -131,10 +131,46 @@ async function fetchEntryReceiptOrdersForEntries(entryIds: string[]): Promise<En
  * caller's own `stripe_customers.person_id` (or a platform admin), so someone
  * else's order id returns no row rather than another exhibitor's money.
  */
+export interface DeepLinkedReceipt {
+  order: EntryReceiptOrder;
+  /**
+   * Post-hoc refunds as the APP recorded them, summed over the order's entries.
+   *
+   * The same money `stripe_orders.refunded_cents` describes, written by a
+   * different actor at a different time: `stripe-refund-entry` sets
+   * `entries.refund_amount` synchronously, while `refunded_cents` is only ever
+   * written by the webhook's `recordOrderRefundCents` when Stripe delivers the
+   * event. A receipt read inside that window would state a gross with no
+   * refund while the My Payments row that linked to it — which derives from
+   * `entries.refund_amount` — already shows one.
+   */
+  entryRefundedCents: number;
+}
+
+async function fetchDeepLinkedReceipt(orderId: string): Promise<DeepLinkedReceipt | null> {
+  const order = await fetchEntryReceiptOrder(orderId);
+  if (!order) return null;
+  if (order.entryIds.length === 0) return { order, entryRefundedCents: 0 };
+
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id, refund_amount')
+    .in('id', order.entryIds);
+  if (error) throw error;
+
+  // Same cents conversion useMyPayments applies, so the two screens round a
+  // fractional-dollar refund the same way.
+  const entryRefundedCents = ((data ?? []) as Array<{ refund_amount: number | null }>).reduce(
+    (sum, row) => sum + Math.round((row.refund_amount ?? 0) * 100),
+    0
+  );
+  return { order, entryRefundedCents };
+}
+
 export function useDeepLinkedReceiptOrder(orderId: string | null) {
   return useQuery({
     queryKey: ['exhibitor', 'deep-linked-receipt-order', orderId],
-    queryFn: () => fetchEntryReceiptOrder(orderId!),
+    queryFn: () => fetchDeepLinkedReceipt(orderId!),
     enabled: Boolean(orderId),
     ...cacheStrategies.moderate,
   });

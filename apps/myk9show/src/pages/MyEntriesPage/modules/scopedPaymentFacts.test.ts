@@ -160,6 +160,42 @@ describe('buildScopedPaymentFacts', () => {
       );
     });
 
+    it('treats a legacy refunded order with no refund columns as fully refunded', () => {
+      // Predates the snapshot columns: status says refunded, no figure anywhere.
+      // Without the fallback the panel printed the full gross as "Amount paid"
+      // beside the word "Refunded".
+      const facts = buildScopedPaymentFacts(
+        order({ status: 'refunded', refundedCents: 0, makeWholeRefundedCents: 0 }),
+        0
+      );
+
+      expect(facts.statusLabel).toBe('Refunded');
+      expect(facts.headlineLabel).toBe('Net paid');
+      expect(facts.headlineValue).toBe('$0.00');
+      expect(valueFor(facts, 'Amount charged')).toBe('$32.10');
+      expect(valueFor(facts, 'Refunded')).toBe('-$32.10');
+    });
+
+    it('does not double-count a cart-overflow order that is also status refunded', () => {
+      // The four such orders on staging. The whole gross already sits in
+      // make_whole_refunded_cents; adding the legacy fallback on top would
+      // report twice the money back and a negative net.
+      const facts = buildScopedPaymentFacts(
+        order({ status: 'refunded', refundedCents: 0, makeWholeRefundedCents: 3210 }),
+        0
+      );
+
+      expect(valueFor(facts, 'Refunded')).toBe('-$32.10');
+      expect(facts.headlineValue).toBe('$0.00');
+    });
+
+    it('leaves a settled order alone — the fallback is keyed on refunded status', () => {
+      const facts = buildScopedPaymentFacts(order({ status: 'succeeded' }), 0);
+      expect(facts.headlineLabel).toBe('Amount paid');
+      expect(facts.headlineValue).toBe('$32.10');
+      expect(facts.rows.map(row => row.label)).toEqual(['Paid on', 'Reference']);
+    });
+
     it('still adds the cart-overflow refund on top of the resolved post-hoc one', () => {
       // Separate money: the overflow was never part of the accepted lines.
       const facts = buildScopedPaymentFacts(

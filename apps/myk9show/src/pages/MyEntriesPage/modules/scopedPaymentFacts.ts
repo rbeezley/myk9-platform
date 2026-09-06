@@ -18,6 +18,7 @@ import type { EntryReceiptOrder } from '@/features/payments/entryReceiptOrder';
 import {
   formatPaymentCents,
   formatPaymentDate,
+  isRefundedPaymentStatus,
   paymentStatusLabel,
 } from '@/features/payments/moneyPresentation';
 
@@ -73,7 +74,23 @@ function scopedPaymentStatus(
  * paid more than they kept.
  */
 function resolvePostHocRefundCents(order: EntryReceiptOrder, entryRefundedCents: number): number {
-  return Math.max(order.refundedCents, entryRefundedCents);
+  const recorded = Math.max(order.refundedCents, entryRefundedCents);
+  if (recorded > 0) return recorded;
+
+  // Legacy fallback, matching `buildPaymentDisplayRows`: an order that predates
+  // the snapshot columns can be `status = 'refunded'` with no refund figure
+  // anywhere. My Payments treats that as a full refund, so without this the
+  // receipt would print "Amount paid $37.45" beside the word "Refunded" — a
+  // document that contradicts itself and its own source row.
+  //
+  // Netting the overflow out keeps the two kinds of refund from double-counting
+  // when they are the same money: a cart-overflow order is also
+  // `status = 'refunded'`, and its whole gross already sits in
+  // `make_whole_refunded_cents`.
+  if (isRefundedPaymentStatus(order.status)) {
+    return Math.max(0, order.amountCents - order.makeWholeRefundedCents);
+  }
+  return 0;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export interface PlanDiagnostic {
@@ -26,6 +26,7 @@ export function checkPlanMetadata(root: string): PlanDiagnostic[] {
       .filter(href => !/^[a-z][a-z\d+.-]*:|^\/\//i.test(href))
       .map(href => resolveIndexLink(docs, href))
       .filter((href): href is string => href !== undefined)
+      .filter(href => existsSync(href))
   );
   const diagnostics: PlanDiagnostic[] = [];
   for (const file of readdirSync(docs)

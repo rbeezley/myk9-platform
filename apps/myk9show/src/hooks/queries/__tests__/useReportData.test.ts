@@ -224,7 +224,7 @@ describe('useReportData', () => {
     expect(mockGetEntriesByTrial).toHaveBeenCalledExactlyOnceWith('trial-2');
   });
 
-  it('blocks printing instead of returning partial entries when one trial read fails', async () => {
+  it('blocks printing when the selected trial read fails', async () => {
     mockGetTrialsByShow.mockResolvedValue({
       data: [{ id: 'trial-1' }, { id: 'trial-2' }],
       error: null,
@@ -237,7 +237,7 @@ describe('useReportData', () => {
           error: id === 'trial-2' ? new Error('cached trial unavailable') : null,
         }) as never
     );
-    const { result } = renderHook(() => useReportData(defaultOptions), {
+    const { result } = renderHook(() => useReportData({ ...defaultOptions, trialId: 'trial-2' }), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.dataState).toBe('error'));

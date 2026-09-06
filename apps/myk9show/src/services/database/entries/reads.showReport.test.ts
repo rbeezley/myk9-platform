@@ -27,12 +27,18 @@ vi.mock('../_shared/read-shape', async importOriginal => ({
 }));
 
 describe('getEntriesByShowFromReplication', () => {
-  it('uses the guarded fallback contract for a cold replica', async () => {
-    mocks.fallback.mockResolvedValue({ data: [], error: null });
+  it('executes the replicated arm and opts into the guarded fallback contract', async () => {
+    mocks.entries.mockResolvedValue([]);
+    mocks.dogs.mockResolvedValue([]);
+    mocks.classes.mockResolvedValue([]);
+    mocks.fallback.mockImplementation(async ({ replication }) => replication());
 
     const result = await getEntriesByShowFromReplication('show-1');
 
-    expect(result).toEqual({ data: [], error: null });
+    expect(result).toEqual(expect.objectContaining({ data: [], error: null }));
+    expect(mocks.entries).toHaveBeenCalledWith('show-1');
+    expect(mocks.dogs).toHaveBeenCalledOnce();
+    expect(mocks.classes).toHaveBeenCalledOnce();
     expect(mocks.fallback).toHaveBeenCalledWith(
       expect.objectContaining({ verifyOnlineWhenEmpty: true })
     );

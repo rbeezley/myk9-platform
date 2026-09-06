@@ -29,6 +29,8 @@ export default defineConfig({
       // Coverage-ratchet CLI (MYK9-40) — colocated with scripts/coverage-ratchet.ts,
       // mirrors the root scripts/qa/code-quality-ratchet.test.ts pattern.
       'scripts/*.test.ts',
+      // Vercel functions under api/ (MYK9-427 /api/geo); node environment per file.
+      'api/*.test.ts',
       // Pure (Deno-free) helper modules colocated with edge functions
       'supabase/functions/_shared/*.test.ts',
       // Same, but for the askq tool layer, which lives in the repo-root

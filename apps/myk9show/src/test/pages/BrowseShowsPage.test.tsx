@@ -26,6 +26,12 @@ vi.mock('@/hooks/useBrowseShowsFilters', () => ({
   useBrowseShowsFilters: (...args: unknown[]) => mockUseBrowseShowsFilters(...args),
 }));
 
+// Mock the viewer-location hook: no network, no geolocation prompt.
+const mockUseViewerLocation = vi.fn();
+vi.mock('@/features/location/useViewerLocation', () => ({
+  useViewerLocation: (...args: unknown[]) => mockUseViewerLocation(...args),
+}));
+
 // Mock services
 vi.mock('@/services/NotificationService', () => ({
   useStatusUpdates: () => ({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
@@ -214,6 +220,7 @@ const defaultFilters: ShowFilters = {
   discipline: 'all',
   entryStatus: 'all',
   month: 'all',
+  radius: 'all',
   organization: 'all',
   club: 'all',
 };
@@ -307,9 +314,20 @@ const renderWithProviders = (ui: React.ReactElement, { route = '/shows' } = {}) 
 // Tests
 // ---------------------------------------------------------------------------
 
+function mockViewerLocation(location: { label: string; lat: number; lng: number } | null) {
+  mockUseViewerLocation.mockReturnValue({
+    location: location ? { ...location, source: 'remembered' } : null,
+    isResolving: false,
+    chooseTyped: vi.fn(async () => true),
+    useDeviceLocation: vi.fn(async () => true),
+    chooseAnywhere: vi.fn(),
+  });
+}
+
 describe('BrowseShowsPage - Tab Rendering Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockViewerLocation(null);
   });
 
   describe('View Mode Defaults', () => {
@@ -424,6 +442,46 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       expect(screen.getByRole('button', { name: 'Export CSV' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Compact' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Reset table view' })).toBeInTheDocument();
+    });
+  });
+
+  describe('Near field and distance (MYK9-427 PR 2)', () => {
+    beforeEach(() => {
+      setupMocks({ user: null });
+    });
+
+    it('reads Anywhere and offers no Distance chip when no location is known', async () => {
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('near-field')).toHaveTextContent('Anywhere');
+      });
+      // Chips are mocked, so assert the definition the page hands them.
+      expect(mockUseViewerLocation).toHaveBeenCalledWith(undefined);
+      expect(screen.queryByText(/within 50 mi/i)).not.toBeInTheDocument();
+    });
+
+    it('shows the location in the Near field once one is known', async () => {
+      mockViewerLocation({ label: 'Tulsa, OK', lat: 36.15, lng: -95.99 });
+
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('near-field')).toHaveTextContent('Tulsa, OK');
+      });
+    });
+
+    it('never asks the browser for a position on load', async () => {
+      const getCurrentPosition = vi.fn();
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: { getCurrentPosition },
+      });
+
+      renderWithProviders(<BrowseShowsPage />);
+      await waitFor(() => expect(screen.getByTestId('near-field')).toBeInTheDocument());
+
+      expect(getCurrentPosition).not.toHaveBeenCalled();
     });
   });
 

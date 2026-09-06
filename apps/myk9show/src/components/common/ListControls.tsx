@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { SearchBar } from './SearchBar';
 import { FilterChips, type FilterDefinition } from './FilterChips';
@@ -19,6 +19,11 @@ export interface ListControlsProps {
   search: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
+  /**
+   * Replaces the standard search box. Find Shows uses it to pair the search
+   * with a Near field; every other browse page keeps the default.
+   */
+  searchSlot?: ReactNode;
 
   /** Filter chip definitions, active values, and change handler (FilterChips contract). */
   filters: FilterDefinition[];
@@ -61,6 +66,7 @@ export function ListControls({
   search,
   onSearchChange,
   searchPlaceholder = 'Search…',
+  searchSlot,
   filters,
   filterValues,
   onFilterChange,
@@ -85,13 +91,15 @@ export function ListControls({
       )}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <SearchBar
-          size="sm"
-          value={search}
-          onChange={onSearchChange}
-          placeholder={searchPlaceholder}
-          className="w-full shrink-0 sm:w-52"
-        />
+        {searchSlot ?? (
+          <SearchBar
+            size="sm"
+            value={search}
+            onChange={onSearchChange}
+            placeholder={searchPlaceholder}
+            className="w-full shrink-0 sm:w-52"
+          />
+        )}
 
         {filters.length > 0 && (
           <>

@@ -167,9 +167,15 @@ async function fetchDeepLinkedReceipt(orderId: string): Promise<DeepLinkedReceip
   return { order, entryRefundedCents };
 }
 
-export function useDeepLinkedReceiptOrder(orderId: string | null) {
+export function useDeepLinkedReceiptOrder(orderId: string | null, viewerId: string | null) {
   return useQuery({
-    queryKey: ['exhibitor', 'deep-linked-receipt-order', orderId],
+    // `viewerId` is part of the key, not decoration. The QueryClient is a
+    // module singleton (`lib/queryClient.ts`) that nothing clears on sign-out,
+    // and this data is cached for 5 minutes. Without the viewer in the key, one
+    // exhibitor signing in after another in the same tab could be served the
+    // previous account's amount and payment reference from cache, with no
+    // request made and therefore no RLS check.
+    queryKey: ['exhibitor', 'deep-linked-receipt-order', viewerId, orderId],
     queryFn: () => fetchDeepLinkedReceipt(orderId!),
     enabled: Boolean(orderId),
     ...cacheStrategies.moderate,
@@ -180,16 +186,19 @@ interface UseEntryReceiptOrdersInput {
   requestedOrderId: string | null;
   entryIds: string[];
   enabled: boolean;
+  /** The signed-in viewer, for cache scoping — see `useDeepLinkedReceiptOrder`. */
+  viewerId: string | null;
 }
 
 export function useEntryReceiptOrders({
   requestedOrderId,
   entryIds,
   enabled,
+  viewerId,
 }: UseEntryReceiptOrdersInput) {
   const stableEntryIds = [...entryIds].sort();
   return useQuery({
-    queryKey: ['exhibitor', 'entry-receipt-orders', requestedOrderId, stableEntryIds],
+    queryKey: ['exhibitor', 'entry-receipt-orders', viewerId, requestedOrderId, stableEntryIds],
     queryFn: async () => {
       if (!requestedOrderId) return fetchEntryReceiptOrdersForEntries(stableEntryIds);
 

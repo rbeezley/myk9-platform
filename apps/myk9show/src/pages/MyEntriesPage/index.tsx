@@ -463,7 +463,7 @@ const MyEntriesPage: React.FC = () => {
         {/* The page's container width, so the panel lines up with whichever
           body branch renders beneath it. */}
         <div className="container mx-auto px-6 pt-6 max-w-7xl">
-          <ScopedPaymentSummary />
+          <ScopedPaymentSummary viewerId={user?.id ?? null} />
         </div>
       </div>
 

@@ -222,6 +222,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
   const receiptOrders = useEntryReceiptOrders({
     requestedOrderId: receiptOrderId,
+    viewerId: (user as { id?: string } | null)?.id ?? null,
     entryIds: dialog.entry?.classes.map(classEntry => classEntry.id) ?? [],
     enabled: dialog.open && Boolean(dialog.entry),
   });

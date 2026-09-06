@@ -58,6 +58,7 @@ describe('useEntryReceiptOrders', () => {
           requestedOrderId: 'order-2025',
           entryIds: ['entry-a'],
           enabled: true,
+          viewerId: 'viewer-1',
         }),
       { wrapper: createWrapper() }
     );
@@ -118,6 +119,7 @@ describe('useEntryReceiptOrders', () => {
           requestedOrderId: null,
           entryIds: ['entry-b', 'entry-a'],
           enabled: true,
+          viewerId: 'viewer-1',
         }),
       { wrapper: createWrapper() }
     );

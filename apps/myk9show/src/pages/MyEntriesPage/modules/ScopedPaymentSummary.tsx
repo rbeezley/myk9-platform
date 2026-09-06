@@ -43,10 +43,20 @@ function PanelShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ScopedPaymentSummary() {
+interface ScopedPaymentSummaryProps {
+  /**
+   * The signed-in viewer. A PROP, unlike the order id: the URL wiring is the
+   * thing worth reading from context here, while identity threaded from the
+   * page keeps auth out of this component's test surface — and the page
+   * already holds `user` for the dialog group.
+   */
+  viewerId: string | null;
+}
+
+export function ScopedPaymentSummary({ viewerId }: ScopedPaymentSummaryProps) {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get(ENTRY_SCOPE_ORDER_PARAM)?.trim() || null;
-  const receipt = useDeepLinkedReceiptOrder(orderId);
+  const receipt = useDeepLinkedReceiptOrder(orderId, viewerId);
 
   // No deep link, no panel. The unscoped visit is the common one and must cost
   // nothing.

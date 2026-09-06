@@ -61,7 +61,7 @@ function renderAt(href: string): ReactNode {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[href]}>
-        <ScopedPaymentSummary />
+        <ScopedPaymentSummary viewerId="viewer-1" />
       </MemoryRouter>
     </QueryClientProvider>
   ) as unknown as ReactNode;
@@ -113,7 +113,7 @@ describe('ScopedPaymentSummary', () => {
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <MemoryRouter initialEntries={[buildEntryReceiptHref(SHOW_ID, [ENTRY_ID])]}>
-          <ScopedPaymentSummary />
+          <ScopedPaymentSummary viewerId="viewer-1" />
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -145,6 +145,42 @@ describe('ScopedPaymentSummary', () => {
 
     expect(await screen.findByText('Sep 9, 2026')).toBeInTheDocument();
     expect(screen.queryByText('Sep 6, 2026')).not.toBeInTheDocument();
+  });
+
+  it('does not serve one viewer the cached receipt of another', async () => {
+    // The QueryClient is a module singleton nothing clears on sign-out, and
+    // this data is cached for five minutes. A shared tab must not hand the
+    // next account the previous one's amount and payment reference.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const href = buildEntryReceiptHref(SHOW_ID, [ENTRY_ID], ORDER_ID);
+
+    maybeSingle.mockResolvedValue({ data: paidRow(), error: null });
+    const first = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[href]}>
+          <ScopedPaymentSummary viewerId="viewer-1" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+    first.unmount();
+
+    // Same tab, same client, same order — a different signed-in viewer.
+    maybeSingle.mockClear();
+    maybeSingle.mockResolvedValue({ data: paidRow({ amount_cents: 9999 }), error: null });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[href]}>
+          <ScopedPaymentSummary viewerId="viewer-2" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // A fresh read happened, so RLS was re-applied; the first viewer's cached
+    // figure is nowhere on screen.
+    expect(await screen.findByText('$99.99')).toBeInTheDocument();
+    expect(maybeSingle).toHaveBeenCalled();
+    expect(screen.queryByText('$32.10')).not.toBeInTheDocument();
   });
 
   it('shows an entry refund the order columns have not caught up with', async () => {

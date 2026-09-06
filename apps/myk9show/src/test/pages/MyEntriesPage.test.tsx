@@ -1058,6 +1058,39 @@ describe('Receipt deep-link scope from My Payments', () => {
     expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument();
   });
 
+  /**
+   * Every branch of `renderBody()`, because an arriving exhibitor can land on
+   * any of them and the first fix for this covered only one. Loading is the
+   * cold/offline boot, error is a failed first load with nothing cached, and
+   * the zero state is an order whose rows have not replicated. The payment read
+   * depends on none of them.
+   */
+  it('states the payment while the entries list is still loading', async () => {
+    // A never-settling entries read holds renderBody on the skeleton.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+  });
+
+  it('states the payment when the entries list fails to load', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: new Error('offline'),
+    });
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+  });
+
   it('shows no payment panel when the scope link carries no order', async () => {
     seedStripeOrder(stripeOrderRow);
     renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=show-1&entryIds=entry-1');

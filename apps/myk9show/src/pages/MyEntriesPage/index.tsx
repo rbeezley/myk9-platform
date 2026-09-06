@@ -262,21 +262,6 @@ const MyEntriesPage: React.FC = () => {
               since HomeRedirect keeps them off Home (where the banner also mounts). */}
             <ShowTodayBanner />
 
-            {/* The receipt half of an inbound `?orderId=` link: the amount,
-              date and reference the exhibitor came here for.
-
-              Mounted OUTSIDE the identity/zero-state ternary below, which is
-              the whole point. A receipt link opened before any entry row has
-              replicated — a cold or offline boot — takes the
-              `entries.length === 0` branch and renders FirstRunZeroState, so a
-              panel inside it would be invisible in precisely the case
-              `useDeepLinkedReceiptOrder` exists to serve. The payment read is
-              keyed off the URL and RLS-scoped by the session, not by
-              `databaseUserId`, so it does not need identity to resolve first.
-              It renders nothing at all without an `?orderId=`, so every
-              ordinary visit is unchanged. */}
-            <ScopedPaymentSummary />
-
             {/* First-run zero-state: a brand-new exhibitor with no entries would
               otherwise see all-zero stat cards, an empty dog-strip gap, and an
               empty tab — noise that reads as a data-entry chore. Suppress the
@@ -462,6 +447,26 @@ const MyEntriesPage: React.FC = () => {
 
   return (
     <>
+      {/* The receipt half of an inbound `?orderId=` link: the amount, date and
+        reference the exhibitor came here for.
+
+        Mounted here, OUTSIDE `renderBody()`, because all three of its branches
+        can be the one an arriving exhibitor sees. A cold or offline boot is the
+        loading skeleton; a failed first load with nothing cached is the error
+        card; a not-yet-replicated order is the zero state. Those are precisely
+        the cases `useDeepLinkedReceiptOrder` exists to serve — the payment read
+        is keyed off the URL and RLS-scoped by the session, not by
+        `databaseUserId` or by the entries query — so a mount inside any single
+        branch is invisible in the states that matter most. It renders nothing
+        without an `?orderId=`, so the ordinary visit is untouched. */}
+      <div className="bg-background">
+        {/* The page's container width, so the panel lines up with whichever
+          body branch renders beneath it. */}
+        <div className="container mx-auto px-6 pt-6 max-w-7xl">
+          <ScopedPaymentSummary />
+        </div>
+      </div>
+
       {renderBody()}
 
       <MyEntriesDialogGroup

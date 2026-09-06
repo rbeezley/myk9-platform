@@ -31,8 +31,19 @@ export interface WaitlistSurfaceInput {
    * and scope — the number the chip used to show on its own.
    */
   waitlistEntryCount: number;
-  /** Active `waitlist_entries` rows (status `waiting` or `offered`). */
-  waitlistPositionCount: number;
+  /**
+   * Positions the exhibitor HOLDS: `waitlist_entries` rows at `waiting` or
+   * `offered`. This is the number the chip promises.
+   */
+  activePositionCount: number;
+  /**
+   * Rows the section would RENDER, which is the active list plus any terminal
+   * offer a `?waitlistOffer=` deep link pulled in to explain. Larger than the
+   * active count only on that path — and a dead offer still deserves its
+   * explanation, so it keeps the section (and the empty-state suppression)
+   * without ever reaching the chip.
+   */
+  displayedPositionCount: number;
   /** The positions query has not settled yet, so the count proves nothing. */
   isLoadingPositions: boolean;
   selectedTab: EntryTabFilter;
@@ -82,22 +93,22 @@ function statusAdmitsPositions(status: EntryStatusFilter): boolean {
 
 export function resolveWaitlistSurface({
   waitlistEntryCount,
-  waitlistPositionCount,
+  activePositionCount,
+  displayedPositionCount,
   isLoadingPositions,
   selectedTab,
   selectedStatus,
   isScoped,
 }: WaitlistSurfaceInput): WaitlistSurface {
   const inScope = tabAdmitsPositions(selectedTab) && !isScoped;
-  const positionsInScope = inScope ? waitlistPositionCount : 0;
   const visible = inScope && statusAdmitsPositions(selectedStatus);
-  const showPositions = visible && (isLoadingPositions || positionsInScope > 0);
+  const showPositions = visible && (isLoadingPositions || (inScope && displayedPositionCount > 0));
 
   return {
     // While the query is in flight the count is genuinely unknown; showing the
     // entries-only number is the honest placeholder, and the skeleton below it
     // says the rest is still arriving.
-    chipCount: waitlistEntryCount + positionsInScope,
+    chipCount: waitlistEntryCount + (inScope ? activePositionCount : 0),
     showPositions,
     allowEmptyState: !showPositions,
   };

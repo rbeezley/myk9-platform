@@ -199,6 +199,14 @@ export function useMyWaitlistEntries(
 
   return {
     entries: combinedEntries,
+    /**
+     * Positions the exhibitor actually HOLDS — the active query alone, which is
+     * filtered to `waiting`/`offered`. Deliberately not `combinedEntries.length`:
+     * that list can carry a terminal offer pulled in by `?waitlistOffer=` purely
+     * so its expiry can be explained, and counting a dead offer as a position
+     * would put it on My Shows' Waitlist chip (MYK9-417).
+     */
+    activePositionCount: entries.length,
     isLoading: query.isLoading || focusedOfferQuery.isLoading,
     error: query.error?.message ?? focusedOfferQuery.error?.message ?? null,
     withdraw,

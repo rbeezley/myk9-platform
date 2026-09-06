@@ -73,6 +73,7 @@ const MyEntriesPage: React.FC = () => {
   const focusedWaitlistOfferId = searchParams.get('waitlistOffer');
   const {
     entries: waitlistEntries,
+    activePositionCount: activeWaitlistPositionCount,
     isLoading: waitlistLoading,
     withdraw,
     startPayment,
@@ -95,7 +96,11 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesFilters({
     entries,
     balanceSummary,
-    waitlistPositionCount: waitlistEntries.length,
+    // Active vs displayed: `waitlistEntries` can carry a terminal offer that a
+    // `?waitlistOffer=` deep link pulled in to explain. It earns the section,
+    // never a place on the chip.
+    activeWaitlistPositionCount,
+    displayedWaitlistPositionCount: waitlistEntries.length,
     waitlistPositionsLoading: waitlistLoading,
   });
 

@@ -95,6 +95,7 @@ vi.mock('@/components/panels/edit', () => ({
 const mockUseMyWaitlistEntries = vi.hoisted(() =>
   vi.fn(() => ({
     entries: [] as unknown[],
+    activePositionCount: 0,
     isLoading: false,
     error: null,
     withdraw: { mutate: vi.fn(), isPending: false },
@@ -1016,9 +1017,10 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     createdAt: '2026-09-01T12:00:00.000Z',
   };
 
-  const seedPosition = (entries: unknown[]) =>
+  const seedPosition = (entries: unknown[], activePositionCount = entries.length) =>
     mockUseMyWaitlistEntries.mockReturnValue({
       entries,
+      activePositionCount,
       isLoading: false,
       error: null,
       withdraw: { mutate: vi.fn(), isPending: false },
@@ -1097,6 +1099,24 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
 
     expect(await screen.findByText('No waitlisted entries')).toBeInTheDocument();
     expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+  });
+
+  it('explains a deep-linked expired offer without counting it on the chip', async () => {
+    // `?waitlistOffer=` pulls a terminal row into the display list so the
+    // section can say what happened to it. The exhibitor no longer holds that
+    // position, so the chip must not claim they do.
+    // jsdom implements no layout, so the focused-offer effect's scrollIntoView
+    // is undefined and throws through the whole render.
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    seedPosition([{ ...junisPosition, status: 'expired' }], 0);
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?waitlistOffer=waitlist-1');
+
+    await screen.findByRole('radiogroup', { name: /filter by entry status/i });
+    expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*0$/);
+    expect(screen.getByText('My Wait List Positions')).toBeInTheDocument();
   });
 
   it('hides the positions section behind a status filter that excludes them', async () => {

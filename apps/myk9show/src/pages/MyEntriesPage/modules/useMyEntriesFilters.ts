@@ -74,11 +74,17 @@ interface UseMyEntriesFiltersProps {
    */
   balanceSummary?: EntryBalanceSummary;
   /**
-   * Active rows in `waitlist_entries` for this exhibitor. A SECOND source of
-   * waitlist truth that the `entries` table knows nothing about — see
-   * `waitlistSurface` for why the chip counted only half of it (MYK9-417).
+   * Wait-list positions the exhibitor HOLDS (`waitlist_entries` at `waiting` or
+   * `offered`). A SECOND source of waitlist truth that the `entries` table
+   * knows nothing about — see `waitlistSurface` for why the chip counted only
+   * half of it (MYK9-417).
    */
-  waitlistPositionCount?: number;
+  activeWaitlistPositionCount?: number;
+  /**
+   * Rows the positions section would render. Equals the active count except on
+   * the `?waitlistOffer=` deep link, which adds a terminal offer to explain.
+   */
+  displayedWaitlistPositionCount?: number;
   /** The positions query is still in flight, so its count proves nothing yet. */
   waitlistPositionsLoading?: boolean;
 }
@@ -117,7 +123,8 @@ interface UseMyEntriesFiltersReturn {
 export function useMyEntriesFilters({
   entries,
   balanceSummary: externalBalanceSummary,
-  waitlistPositionCount = 0,
+  activeWaitlistPositionCount = 0,
+  displayedWaitlistPositionCount = activeWaitlistPositionCount,
   waitlistPositionsLoading = false,
 }: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
   // The active tab lives in the URL, not in local state.
@@ -357,7 +364,8 @@ export function useMyEntriesFilters({
     const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
     return resolveWaitlistSurface({
       waitlistEntryCount: inTab.filter(isWaitlistEntry).length,
-      waitlistPositionCount,
+      activePositionCount: activeWaitlistPositionCount,
+      displayedPositionCount: displayedWaitlistPositionCount,
       isLoadingPositions: waitlistPositionsLoading,
       selectedTab,
       selectedStatus,
@@ -368,7 +376,8 @@ export function useMyEntriesFilters({
     selectedTab,
     selectedStatus,
     scopeMatch,
-    waitlistPositionCount,
+    activeWaitlistPositionCount,
+    displayedWaitlistPositionCount,
     waitlistPositionsLoading,
   ]);
 

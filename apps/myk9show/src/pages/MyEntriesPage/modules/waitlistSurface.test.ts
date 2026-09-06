@@ -9,7 +9,8 @@ import { resolveWaitlistSurface, type WaitlistSurfaceInput } from './waitlistSur
 function surface(overrides: Partial<WaitlistSurfaceInput> = {}) {
   return resolveWaitlistSurface({
     waitlistEntryCount: 0,
-    waitlistPositionCount: 1,
+    activePositionCount: 1,
+    displayedPositionCount: 1,
     isLoadingPositions: false,
     selectedTab: 'all',
     selectedStatus: 'any',
@@ -25,7 +26,10 @@ describe('resolveWaitlistSurface', () => {
   });
 
   it('adds the two sources rather than picking one', () => {
-    expect(surface({ waitlistEntryCount: 2, waitlistPositionCount: 3 }).chipCount).toBe(5);
+    expect(
+      surface({ waitlistEntryCount: 2, activePositionCount: 3, displayedPositionCount: 3 })
+        .chipCount
+    ).toBe(5);
   });
 
   it('shows the positions section under the Waitlist filter', () => {
@@ -36,7 +40,11 @@ describe('resolveWaitlistSurface', () => {
   });
 
   it('allows the empty state only when both sources are genuinely empty', () => {
-    const result = surface({ selectedStatus: 'waitlist', waitlistPositionCount: 0 });
+    const result = surface({
+      selectedStatus: 'waitlist',
+      activePositionCount: 0,
+      displayedPositionCount: 0,
+    });
     expect(result.chipCount).toBe(0);
     expect(result.showPositions).toBe(false);
     expect(result.allowEmptyState).toBe(true);
@@ -46,7 +54,11 @@ describe('resolveWaitlistSurface', () => {
     // A settled zero and an unsettled unknown are different states; suppressing
     // the section on the unknown one would flash "nothing waitlisted" and then
     // contradict itself.
-    const result = surface({ waitlistPositionCount: 0, isLoadingPositions: true });
+    const result = surface({
+      activePositionCount: 0,
+      displayedPositionCount: 0,
+      isLoadingPositions: true,
+    });
     expect(result.showPositions).toBe(true);
     expect(result.allowEmptyState).toBe(false);
   });
@@ -66,6 +78,22 @@ describe('resolveWaitlistSurface', () => {
     const result = surface({ selectedTab: 'completed', waitlistEntryCount: 1 });
     expect(result.chipCount).toBe(1);
     expect(result.showPositions).toBe(false);
+  });
+
+  it('explains a deep-linked dead offer without counting it as a position', () => {
+    // `?waitlistOffer=` pulls an expired/declined row into the DISPLAY list so
+    // the section can say what happened. Counting it on the chip would tell the
+    // exhibitor they hold a position they have just lost.
+    const result = surface({
+      selectedStatus: 'waitlist',
+      activePositionCount: 0,
+      displayedPositionCount: 1,
+    });
+
+    expect(result.chipCount).toBe(0);
+    expect(result.showPositions).toBe(true);
+    // And the section's explanation must not sit under "Nothing to do here".
+    expect(result.allowEmptyState).toBe(false);
   });
 
   it('leaves positions out of a My Payments receipt scope', () => {

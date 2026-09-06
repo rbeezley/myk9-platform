@@ -1,4 +1,5 @@
 import { ClassTemplate, TemplateFilter } from '@/types/template.types';
+import { AKC_SCENT_WORK_FALLBACK_TEMPLATE_ID } from '@/data/templates/akcScentWorkTemplate';
 
 /**
  * Filters templates based on a TemplateFilter object.
@@ -91,6 +92,53 @@ export function applyActiveFilters(
 }
 
 /**
+ * Ids of the locally bundled templates the store injects only when the DB fetch
+ * fails (offline / transient PostgREST error). They are the ONLY templates
+ * `dropSupersededFallbacks` is allowed to remove: DB rows and user-created custom
+ * templates are never touched.
+ */
+export const LOCAL_FALLBACK_TEMPLATE_IDS: ReadonlySet<string> = new Set([
+  AKC_SCENT_WORK_FALLBACK_TEMPLATE_ID,
+]);
+
+/** Identity of a real-world official template, independent of its id. */
+function templateIdentityKey(template: ClassTemplate): string {
+  return `${template.organization}|${template.trialType}`;
+}
+
+/**
+ * Removes locally bundled fallback templates that an authoritative DB template has
+ * superseded (MYK9-432).
+ *
+ * The store is persisted, so a single failed fetch writes the hardcoded fallback to
+ * a browser forever. Because the DB row carries a different (uuid) id, a plain
+ * replace-by-id upsert appends it ALONGSIDE the fallback and that browser is offered
+ * two near-identically named AKC Scent Work templates from then on. A fallback is
+ * dropped only when the incoming DB batch actually contains a template for the same
+ * organization + trial type, so the offline path is untouched: with nothing incoming
+ * (fetch failed, or returned no rows) nothing is removed and the fallback keeps
+ * serving show-day traffic.
+ */
+export function dropSupersededFallbacks(
+  existing: ClassTemplate[],
+  incoming: ClassTemplate[]
+): ClassTemplate[] {
+  if (incoming.length === 0) return existing;
+
+  const incomingIds = new Set(incoming.map(t => t.id));
+  const incomingIdentities = new Set(incoming.map(templateIdentityKey));
+
+  return existing.filter(
+    t =>
+      !(
+        LOCAL_FALLBACK_TEMPLATE_IDS.has(t.id) &&
+        !incomingIds.has(t.id) &&
+        incomingIdentities.has(templateIdentityKey(t))
+      )
+  );
+}
+
+/**
  * Merges freshly-fetched DB templates into the existing (possibly persisted) list.
  *
  * Unlike a naive append, this REPLACES any existing template whose id matches an
@@ -98,19 +146,23 @@ export function applyActiveFilters(
  * what lets a stale client converge: e.g. a cached ASCA template holding 16 class
  * definitions is overwritten by the fresh 32-definition version (same id) rather
  * than being kept because "the id already exists". Templates not present in
- * `incoming` (user-created custom templates, hardcoded fallbacks) are preserved
- * untouched.
+ * `incoming` (user-created custom templates) are preserved untouched — except for
+ * the local fallbacks a DB template supersedes, see `dropSupersededFallbacks`.
  */
 export function upsertTemplates(
   existing: ClassTemplate[],
   incoming: ClassTemplate[]
 ): ClassTemplate[] {
+  // Retire any local fallback the incoming DB batch now supersedes, so the two
+  // never coexist in a browser that once took the offline path (MYK9-432).
+  const kept = dropSupersededFallbacks(existing, incoming);
+
   const incomingById = new Map(incoming.map(t => [t.id, t]));
   // Replace in place where a fresh version exists, preserving order + custom entries.
-  const merged = existing.map(t => incomingById.get(t.id) ?? t);
+  const merged = kept.map(t => incomingById.get(t.id) ?? t);
   // Append incoming templates that weren't already present.
-  const existingIds = new Set(existing.map(t => t.id));
-  const added = incoming.filter(t => !existingIds.has(t.id));
+  const keptIds = new Set(kept.map(t => t.id));
+  const added = incoming.filter(t => !keptIds.has(t.id));
   return [...merged, ...added];
 }
 

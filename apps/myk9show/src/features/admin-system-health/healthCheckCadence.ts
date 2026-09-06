@@ -18,6 +18,7 @@ export const HEALTH_CHECK_INTERVAL_MS = {
   sign_in_email_drift: 5 * 60 * 1000,
   anon_grants: 24 * 60 * 60 * 1000,
   applied_acl_grants: 24 * 60 * 60 * 1000,
+  public_schema_create_acl: 24 * 60 * 60 * 1000,
 } as const;
 
 /** Expected source-job windows used to judge whether a scheduled job is late.

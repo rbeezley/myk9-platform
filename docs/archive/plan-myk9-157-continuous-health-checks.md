@@ -1,5 +1,9 @@
 # MYK9-157 — Continuous health checks and Run now
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> MYK9-157 refreshed Done; residual cadence is separately tracked by MYK9-407.
+
+
 ## Goal
 
 Make `/admin/health` answer whether the platform is broken now by refreshing cheap checks continuously, retaining nightly deep checks, and adding a real site-admin-gated Run now action.

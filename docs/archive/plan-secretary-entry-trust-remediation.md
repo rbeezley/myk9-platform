@@ -1,7 +1,11 @@
 # Secretary Entry Trust Remediation Plan
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> Existing explicit Done 2026-07-07, PR #1189, tests/CI/OpenSpec closure recorded in plan.
+
+
 **Date:** 2026-07-06
-**Source audit:** [Secretary UX audit](secretary-ux-audit.md)
+**Source audit:** [Secretary UX audit](../secretary-ux-audit.md)
 **Priority frame:** Fall 2026 launch readiness, secretary/show-day reliability first
 **Primary user lens:** Retired trial secretary with low computer confidence
 

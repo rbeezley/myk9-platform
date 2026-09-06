@@ -1,5 +1,9 @@
 # MYK9-133 Offline Scoring Queue Warning Plan
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> MYK9-133 refreshed Done; warn-only policy retained.
+
+
 ## Policy decision
 
 - Use warn-only behavior for the offline scoring sync queue.

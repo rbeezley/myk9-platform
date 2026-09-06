@@ -1,5 +1,9 @@
 # MYK9-166: Replace hand-rolled popups
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> MYK9-166 refreshed Done; popup replacement contract is closed.
+
+
 ## Scope
 
 Replace the five `absolute top-full` popups with the existing portaled, collision-aware Popover primitive. Keep typed suggestion surfaces input-focused and expose their options as listbox suggestions; keep the conflict notification widget as a normal popover panel.

@@ -1,3 +1,4 @@
+import { DATABASE_ACCESS_RUNBOOK } from '@/features/admin-system-health/remediationTarget';
 /**
  * MYK9-394: the rendered row must show the keyed owner and link, not one
  * inferred from the diagnostic wording. Asserting the DOM here (not the pure
@@ -34,13 +35,11 @@ describe('HealthCheckRow remediation', () => {
     ['service_role wording', 'entries: service_role privileges diverge from the contract'],
     ['a different table name', 'show_eve_nudge_log: unexpected table in the applied grant set'],
   ])('renders the same owner and link for %s', (_name, detail) => {
-    render(
-      <HealthCheckRow check={aclCheck(detail)} now={NOW} isOpen onToggle={() => {}} />
-    );
+    render(<HealthCheckRow check={aclCheck(detail)} now={NOW} isOpen onToggle={() => {}} />);
 
     expect(ownerText()).toBe('Database Access Contract');
-    const link = screen.getByRole('link', { name: /Open System Health/i });
-    expect(link).toHaveAttribute('href', '/admin/health');
+    const link = screen.getByRole('link', { name: /Open Database Access Runbook/i });
+    expect(link).toHaveAttribute('href', DATABASE_ACCESS_RUNBOOK);
     // The role editor cannot repair SQL grant drift.
     expect(screen.queryByRole('link', { name: /Open Permissions/i })).not.toBeInTheDocument();
     // The control is a LINK, so its label must not promise an executed run

@@ -108,8 +108,11 @@ with its `cronExpression`, then `update_scheduled_task` with `enabled: false`. C
 "ad-hoc" instead (omitting the cron entirely) also prevents automatic runs, but throws away the
 schedule — prefer create-then-disable so unpausing is a single toggle.
 
-All three tasks are currently **paused** — tasks 1–2 for token cost, task 3 because a substitute is
-paused by definition until its Codex counterpart goes dark.
+Use the owning schedulers for current enablement: Claude `list_scheduled_tasks` and
+the Codex automation view. This document does not track live scheduler state.
+The 2026-09-05 owner decision was to disable `claude-daily-commit-review`, preserving
+Codex as the daily-review owner (MYK9-408). Do not repeat or reverse that decision
+without a new owner instruction; verify current state before a manual handoff.
 
 ### Failover discipline (task 3)
 
@@ -285,8 +288,14 @@ scheduled run is non-interactive and there is nobody to approve anything at 7 AM
 ```
 Review the commits merged into myk9-platform since the last recorded review boundary.
 
-You are the FAILOVER for the Codex daily commit review. Assume Codex has not run. Produce the
-ordinary regression review, not a second opinion — this is substitute coverage, not a differing view.
+You provide manual failover for the daily commit-review stream. Check coverage before choosing
+the review window; do not assume whether another reviewer has run. Produce the ordinary
+regression review of uncovered commits, not a second opinion of an already reviewed range.
+
+Read the boundary row, its stamp commit and matching report. Verify the report's reviewed range
+and coverage count against git rev-list for that range. A boundary-only stamp without a matching
+report does not prove coverage: report the evidence gap rather than silently accepting it or
+restamping the range. If no commits remain uncovered, report that fact without a duplicate stamp.
 
 Work in a dedicated git worktree off a clean checkout of `main`, never the primary checkout.
 
@@ -336,7 +345,8 @@ Output:
   recurring or worsening, in which case promote them to their own issue.
 - Stamp the `daily-commit-review` row in `docs/qa/audit-boundary.md` with the newest commit you
   actually reviewed, the window end, `claude-daily-commit-review`, and the run date. Stamp it even
-  on a clean run. Do not stamp a range you did not finish.
+  on a clean run that reviewed commits; an empty uncovered window creates no duplicate stamp.
+  Do not stamp a range you did not finish.
 - Append the compact lifecycle ledger to automation memory so the next run — Claude or Codex — can
   compare state.
 

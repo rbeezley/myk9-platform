@@ -1,5 +1,9 @@
 # Plan: Gated Operator Docs Portal
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
+
+
 > **Status:** Deferred (2026-06-27)
 >
 > **Interim decision:** the operator runbooks stay in the repo under `docs/operations/`,

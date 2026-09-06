@@ -30,8 +30,15 @@ BASE_SHA="$(git rev-parse "$BASE_REF")"
 HEAD_SHA="$(git rev-parse HEAD)"
 LOG="${CODEX_REVIEW_LOG:-/tmp/codex-review-${HEAD_SHA}.log}"
 
+# --base and a positional review prompt are mutually exclusive in the CLI.
+# Supply the verdict contract as session-only developer instructions instead;
+# never infer success from a summary of changes or passing tests (MYK9-416).
+# This overrides developer_instructions for this review, not the user's config
+# file, and leaves the built-in review prompt and repository instructions intact.
+REVIEW_INSTRUCTIONS='Review verdict contract: Only assert a clean verdict after completing the requested whole-branch review and finding no actionable defects. In that case, begin the final verdict with exactly: No actionable defects found. Put any summary or validation details after that sentence. If there are actionable findings, report each as a bullet beginning with - [P0], - [P1], - [P2], or - [P3], as appropriate; do not emit a clean assertion. If the review cannot be completed, begin with: Unable to complete the review. Explain the blocker and do not emit a clean assertion. Passing tests or a change summary alone is not a review verdict.'
+
 echo "codex-review: ${BASE_REF} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG}"
-"$CODEX" review --base "$BASE_REF" < /dev/null > "$LOG" 2>&1
+"$CODEX" review --base "$BASE_REF" -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
 if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"; then
@@ -65,10 +72,37 @@ if [ "$CLI_EXIT" -ne 0 ]; then
   echo "codex-review: cli exited ${CLI_EXIT}; treating the run as NOT completed (exit 2). No evidence emitted."
   exit 2
 fi
-# The stable part of a clean verdict is its opening "No actionable ..."; the
+# An incomplete review overrides a clean assertion. Scope this to the review:
+# tests that did not run or interrupted downloads do not invalidate a review.
+# Scan only the verdict, not the CLI's source/diff echo.
+if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b'; then
+  echo
+  echo "codex-review: GATE DID NOT RUN (verdict reports an incomplete review). No evidence emitted."
+  exit 2
+fi
+
+# Only the first non-empty paragraph can certify the review (MYK9-415).
+# Join wrapped lines so sentence matching behaves the same across line wraps.
+FIRST_PARAGRAPH="$(echo "$VERDICT" | awk '
+  /^[[:space:]]*$/ { if (started) exit; next }
+  { printf "%s%s", started ? " " : "", $0; started=1 }
+')"
+# The stable part of a clean verdict is the SENTENCE "No actionable ..."; the
 # noun varies ("defects", "regressions", "correctness, security, or data-flow
 # regressions"), so match only the prefix (Codex review of #2063, P2).
-if ! echo "$VERDICT" | grep -Eiq '^\s*no actionable\b'; then
+#
+# That sentence is not always the first thing Codex says. On #2074 it opened
+# with a summary — "The documentation-only change restores ... requirements.
+# No actionable defects found; git diff --check passed." — and a verdict
+# anchored to the start of the BLOCK rejected a review that had genuinely run
+# and genuinely found nothing. Anchor to a sentence boundary instead.
+#
+# Two arms, and the second is case-SENSITIVE on purpose. Mid-string, only a
+# capitalised "No" is a sentence opening; accepting lowercase after any [.!?]
+# would let an ellipsis in "the run stopped... no actionable verdict" read as
+# clean, which is the exact class of false pass the block below guards.
+if ! { echo "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*no actionable\b' ||
+  echo "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
   echo
   echo "codex-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
   exit 2

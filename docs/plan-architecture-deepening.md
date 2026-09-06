@@ -1,5 +1,9 @@
 # Architecture Deepening Plan
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
+
+
 Status: proposed (2026-05-30). Output of the `improve-codebase-architecture` skill.
 Phases reordered 2026-05-30 to a sunset-aware execution sequence (see
 "Relationship to the unify plan").

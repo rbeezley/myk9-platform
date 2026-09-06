@@ -214,6 +214,11 @@ jobs:
       - name: Doc staleness check
         run: pnpm qa:doc-staleness:strict
 
+      - name: Check plan metadata
+        run: |
+          pnpm qa:plans:test
+          pnpm qa:plans
+
       - name: Migration version guard
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:
@@ -258,6 +263,15 @@ jobs:
         env:
           MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: bash scripts/qa/run-behavioral-sql-tests.sh
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Lifecycle absent installed SQL mutation proof
+        env:
+          MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: node --experimental-strip-types scripts/qa/class-absent-mutation.ts
 
       - name: Stop local Supabase
         if: always()

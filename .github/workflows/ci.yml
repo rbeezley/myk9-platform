@@ -206,6 +206,7 @@ jobs:
         run: |
           pnpm qa:codex-review:test
           pnpm qa:dist-fresh:test
+          pnpm qa:inflight:test
 
       # Scheduled-task prompts live outside this repo, so the CLI itself can only
       # run on the machine that owns them. Its tests are repo-only and do run

@@ -125,6 +125,8 @@ A LESSON may be **retired** once the trap is structurally impossible — a guard
 
 - **`watch-pr-checks.sh` reports the FIRST required check to fail, not every one — so one red check hides all the others behind it.** It exits 1 the moment a required context answers FAILURE, before the slower jobs have even registered, and its one-line verdict (`required-failed:Review gate`) reads exactly like a complete list. On #2062 a red `Review gate` masked a red `Test` through four review rounds: every head reported `required-failed:Review gate`, and `Test myK9Show (5/6)` had been failing since the first push with `skillTrees.test.ts` rejecting the PR's whole premise. The exit code is a merge gate, not a diagnosis. Before concluding what is wrong, read the whole rollup — `gh pr view <n> --json statusCheckRollup --jq '.statusCheckRollup[] | "\(.name // .context)\t\(.conclusion // .state)"'` — and if the rollup is suspiciously short, check `merge_commit_sha`/`mergeable_state` before believing it (a `dirty` PR gets no runs at all). Companion trap: the local gate set people reach for here (`qa:bulk-pii`, `qa:doc-staleness:strict`, `qa:code-quality-ratchet`, `lint`, `typecheck`) does NOT run the unit suite, so "all gates green" locally says nothing about the `Test` job (#2062).
 
+- **A rule that says "check for in-flight work first" is worth nothing unless a program runs it.** On 2026-09-05 #2062 was open for 43 minutes, touching `.agents/skills`, when #2064 was started on the same directories; both then paid about a dozen review rounds on the same third-party files. The memory rule "list open PRs by file before any fix" existed and was skipped, because the second PR felt like a continuation rather than a start. `pnpm qa:inflight` (`scripts/qa/inflight.ts`) now fails when an open PR, another worktree — including its uncommitted files, which no PR list can show — or an unmerged local branch overlaps the paths on the current branch; `/commit` Step 0 and `ship-pr` Step 0 run it. The two checks a shell cannot make stay manual: Linear issues In Progress naming the paths, and `list_sessions`. And a forked audit session that meets housekeeping noise should file it, not fix it — that is how the first PR came to exist (#2065).
+
 ## Intent & Emotional Design
 
 **Before making UX-facing changes, read [`docs/INTENT.md`](docs/INTENT.md).** It defines the emotional intent behind each role's experience. Every optimization, refactoring, or "improvement" to user-facing code should preserve the target feeling for that role. If code has an `// INTENT:` comment, do not remove or change the described behavior without explicit approval.
@@ -232,7 +234,7 @@ For bug-fixing methodology (assertion-first testing, seed-data/RBAC survey-first
 
 ## Workflow
 
-Set the corresponding Linear issue (team **MyK9-platform**) to In Progress when starting work on it, and keep it there throughout implementation and PR review. When implementation finishes, post a comment on the issue with:
+Before starting work that will produce a PR, run `pnpm qa:inflight` (and check Linear In Progress issues and `list_sessions`) so two sessions do not build the same thing. Set the corresponding Linear issue (team **MyK9-platform**) to In Progress when starting work on it, and keep it there throughout implementation and PR review. When implementation finishes, post a comment on the issue with:
 
 - **What changed** — summary of the implementation
 - **Tests/checks run** — what was executed and the result

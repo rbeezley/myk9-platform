@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { FieldOverrideTabsList, type FieldOverrideTabKey } from './fieldOverrideTabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -38,7 +39,6 @@ interface FieldOverrideFormProps {
   showAdvanced?: boolean;
 }
 
-type TabKey = 'basic' | 'financial' | 'timing' | 'personnel' | 'rules' | 'other';
 
 export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   template,
@@ -50,7 +50,7 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   showAdvanced = false,
 }) => {
   const [showAllFields, setShowAllFields] = useState(showAdvanced);
-  const [activeTab, setActiveTab] = useState<TabKey>('basic');
+  const [activeTab, setActiveTab] = useState<FieldOverrideTabKey>('basic');
 
   const fields = template.fieldSpecifications || [];
 
@@ -298,20 +298,6 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
     );
   };
 
-  const getTabIcon = (tabName: string) => {
-    switch (tabName) {
-      case 'financial':
-        return <DollarSign className="h-4 w-4" />;
-      case 'timing':
-        return <Clock className="h-4 w-4" />;
-      case 'personnel':
-        return <Users className="h-4 w-4" />;
-      case 'rules':
-        return <Settings className="h-4 w-4" />;
-      default:
-        return <Edit className="h-4 w-4" />;
-    }
-  };
 
   const overrideCount = Object.keys(fieldOverrides).length;
 
@@ -362,33 +348,8 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
       {/* Field Override Tabs */}
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as TabKey)}>
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-              <TabsTrigger value="basic" className="flex items-center gap-1">
-                {getTabIcon('basic')}
-                <span className="hidden sm:inline">Basic</span>
-              </TabsTrigger>
-              <TabsTrigger value="financial" className="flex items-center gap-1">
-                {getTabIcon('financial')}
-                <span className="hidden sm:inline">Financial</span>
-              </TabsTrigger>
-              <TabsTrigger value="timing" className="flex items-center gap-1">
-                {getTabIcon('timing')}
-                <span className="hidden sm:inline">Timing</span>
-              </TabsTrigger>
-              <TabsTrigger value="personnel" className="flex items-center gap-1">
-                {getTabIcon('personnel')}
-                <span className="hidden sm:inline">Personnel</span>
-              </TabsTrigger>
-              <TabsTrigger value="rules" className="flex items-center gap-1">
-                {getTabIcon('rules')}
-                <span className="hidden sm:inline">Rules</span>
-              </TabsTrigger>
-              <TabsTrigger value="other" className="flex items-center gap-1">
-                {getTabIcon('other')}
-                <span className="hidden sm:inline">Other</span>
-              </TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as FieldOverrideTabKey)}>
+            <FieldOverrideTabsList />
 
             {/* Basic Fields */}
             <TabsContent value="basic" className="space-y-4 mt-6">

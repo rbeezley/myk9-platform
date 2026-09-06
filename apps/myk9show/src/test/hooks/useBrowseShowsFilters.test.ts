@@ -288,6 +288,110 @@ describe('useBrowseShowsFilters — month filter (scrubber)', () => {
   });
 });
 
+describe('useBrowseShowsFilters — location (MYK9-427 PR 2)', () => {
+  const TULSA = { lat: 36.154, lng: -95.9928 };
+  const now = new Date();
+  const midNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 15);
+  const monthKey = `${midNextMonth.getFullYear()}-${String(midNextMonth.getMonth() + 1).padStart(2, '0')}`;
+  const day = (d: number) => `${monthKey}-${String(d).padStart(2, '0')}`;
+  // Same month, dated so date order is far-first: far (1st), near (10th), unpinned (20th).
+  const located = [
+    makeShow({ id: 'far', startDate: day(1), endDate: day(1), latitude: 32.78, longitude: -96.8 }),
+    makeShow({
+      id: 'near',
+      startDate: day(10),
+      endDate: day(10),
+      latitude: 36.2,
+      longitude: -95.9,
+    }),
+    makeShow({
+      id: 'unpinned',
+      startDate: day(20),
+      endDate: day(20),
+      latitude: null,
+      longitude: null,
+    }),
+  ];
+
+  it('without a location nothing is sorted by distance and the radius is inert', async () => {
+    const routed = ({ children }: { children: ReactNode }) =>
+      createElement(MemoryRouter, { initialEntries: ['/shows?radius=50'] }, children);
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: located,
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+        }),
+      { wrapper: routed }
+    );
+    await waitFor(() => expect(result.current.filteredShows).toHaveLength(3));
+    expect(result.current.filteredShows.map(s => s.id)).toEqual(['far', 'near', 'unpinned']);
+    expect(result.current.hasActiveFilters).toBe(false);
+  });
+
+  it('with a location, All upcoming keeps date order and hides nothing', async () => {
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: located,
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+          origin: TULSA,
+        }),
+      { wrapper }
+    );
+    await waitFor(() => expect(result.current.filteredShows).toHaveLength(3));
+    expect(result.current.filteredShows.map(s => s.id)).toEqual(['far', 'near', 'unpinned']);
+  });
+
+  it('within a chosen month, sorts nearest first with unpinned shows last', async () => {
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: located,
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+          origin: TULSA,
+        }),
+      { wrapper }
+    );
+    await waitFor(() => expect(result.current.filteredShows).toHaveLength(3));
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, month: monthKey }));
+    });
+    await waitFor(() => {
+      expect(result.current.filteredShows.map(s => s.id)).toEqual(['near', 'far', 'unpinned']);
+    });
+  });
+
+  it('a radius hides only measurable shows beyond it', async () => {
+    const { result } = renderHook(
+      () =>
+        useBrowseShowsFilters({
+          shows: located,
+          entries: [],
+          userContext: null,
+          selectedTab: 'all',
+          origin: TULSA,
+        }),
+      { wrapper }
+    );
+    await waitFor(() => expect(result.current.filteredShows).toHaveLength(3));
+    act(() => {
+      result.current.setFilters(prev => ({ ...prev, radius: '50' }));
+    });
+    await waitFor(() => {
+      expect(result.current.filteredShows.map(s => s.id)).toEqual(['near', 'unpinned']);
+    });
+    expect(result.current.hasActiveFilters).toBe(true);
+    expect(result.current.monthScopedShows.map(s => s.id)).toEqual(['near', 'unpinned']);
+  });
+});
+
 describe('disciplineMatchesEvent — trial-type variant normalization', () => {
   it.each(['Scent Work', 'Scentwork', 'scent_work', 'AKC Scent Work'])(
     'matches "Scent Work" discipline against event %s',

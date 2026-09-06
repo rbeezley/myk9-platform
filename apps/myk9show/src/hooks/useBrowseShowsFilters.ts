@@ -10,6 +10,7 @@ import {
   isMonthKey,
   monthKeyOf,
 } from '@/components/shows/browse/monthScrubber.helpers';
+import { RADIUS_OPTIONS, showDistanceMiles, type LatLng } from '@/features/location/distance';
 
 /**
  * Filter state interface for browse shows page
@@ -22,6 +23,8 @@ export interface ShowFilters {
   month: string;
   organization: string;
   club: string;
+  /** `'all'` or a miles radius from the visitor's location; inert without one. */
+  radius: string;
 }
 
 /**
@@ -34,6 +37,7 @@ const DEFAULT_FILTERS: ShowFilters = {
   month: ALL_MONTHS_KEY,
   organization: 'all',
   club: 'all',
+  radius: 'all',
 };
 
 /**
@@ -60,6 +64,7 @@ const DISCIPLINE_MAP: Record<string, string> = {
 const ALLOWED_FILTER_VALUES = {
   discipline: Object.keys(DISCIPLINE_MAP),
   entryStatus: ['open', 'closing_soon', 'closed', 'waitlist'],
+  radius: RADIUS_OPTIONS,
 } as const;
 
 /**
@@ -114,6 +119,8 @@ interface UseBrowseShowsFiltersProps {
   entries: SyncableShowEntry[];
   userContext: UserShowContext | null;
   selectedTab: string;
+  /** The visitor's chosen location; enables the radius filter and nearest-first sort. */
+  origin?: LatLng | null;
 }
 
 interface UseBrowseShowsFiltersReturn {
@@ -136,6 +143,7 @@ export function useBrowseShowsFilters({
   entries,
   userContext,
   selectedTab,
+  origin = null,
 }: UseBrowseShowsFiltersProps): UseBrowseShowsFiltersReturn {
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
@@ -161,18 +169,20 @@ export function useBrowseShowsFilters({
       filters.entryStatus !== 'all' ||
       filters.month !== ALL_MONTHS_KEY ||
       filters.organization !== 'all' ||
-      filters.club !== 'all'
+      filters.club !== 'all' ||
+      (filters.radius !== 'all' && origin !== null)
     );
-  }, [filters]);
+  }, [filters, origin]);
 
   // Count active filters for badge display
   const activeFilterCount = useMemo(() => {
     return Object.entries(filters).filter(([key, value]) => {
       if (key === 'search') return value !== '';
       if (key === 'month') return value !== ALL_MONTHS_KEY;
+      if (key === 'radius') return value !== 'all' && origin !== null;
       return value !== 'all';
     }).length;
-  }, [filters]);
+  }, [filters, origin]);
 
   // Clear all filters to defaults
   const clearAllFilters = useCallback(() => {
@@ -237,6 +247,17 @@ export function useBrowseShowsFilters({
     // define their own time range ('managing', 'assignments'): applying it on
     // top of 'managing' would silently drop ongoing/past-start shows from the
     // admin view.
+    // Radius: the only thing a known location ever HIDES, and only once the
+    // visitor picked one. A show with no venue pin cannot be measured, so it
+    // stays in — hiding it would read as "no show there", which is false.
+    const radiusMiles = origin && filters.radius !== 'all' ? Number(filters.radius) : null;
+    if (radiusMiles !== null) {
+      filtered = filtered.filter(show => {
+        const miles = showDistanceMiles(origin, show);
+        return miles === null || miles <= radiusMiles;
+      });
+    }
+
     // Sort by start date before the month split so both lists share an order.
     filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
     setMonthScopedShows(filtered);
@@ -255,8 +276,23 @@ export function useBrowseShowsFilters({
       });
     }
 
+    // Within one month the question is "which is closest?"; across All
+    // upcoming it is still "which is soonest?", so date order stays there.
+    // Unmeasurable shows sort last, in date order, never mixed in.
+    if (origin && filters.month !== ALL_MONTHS_KEY) {
+      const distanceOf = new Map(filtered.map(show => [show.id, showDistanceMiles(origin, show)]));
+      filtered.sort((a, b) => {
+        const da = distanceOf.get(a.id) ?? null;
+        const db = distanceOf.get(b.id) ?? null;
+        if (da === null && db === null) return 0;
+        if (da === null) return 1;
+        if (db === null) return -1;
+        return da - db;
+      });
+    }
+
     setFilteredShows(filtered);
-  }, [shows, entries, userContext, selectedTab, filters]);
+  }, [shows, entries, userContext, selectedTab, filters, origin]);
 
   // Apply filters when dependencies change
   useEffect(() => {

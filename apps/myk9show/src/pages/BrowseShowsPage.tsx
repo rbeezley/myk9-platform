@@ -45,6 +45,8 @@ import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
+import { ShowSearchBar } from '@/components/shows/browse/ShowSearchBar';
+import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
 import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
@@ -54,6 +56,12 @@ const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { userWithRoles: authUser, isSecretary, isAdmin } = useAuthContext();
   const canManageShows = isSecretary || isAdmin;
+
+  // Where the visitor is, for the Near field, the miles label and the Distance
+  // chip. Resolved from a device choice, the profile, or the connection; never
+  // a permission prompt on load (MYK9-427 PR 2).
+  const viewer = useViewerLocation(authUser?.databaseUserId);
+  const origin = viewer.location;
 
   // Compute allowed tabs from user roles (needed before useUrlTab)
   const tabConfig = useMemo(() => getTabsForUser(authUser), [authUser]);
@@ -91,7 +99,7 @@ const BrowseShowsPage: React.FC = () => {
     monthScopedShows,
     hasActiveFilters,
     clearAllFilters,
-  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab, origin });
 
   // Sync filtered shows into state for the data hook (avoids second hook call)
   useEffect(() => {
@@ -111,7 +119,10 @@ const BrowseShowsPage: React.FC = () => {
       .map(([id, name]) => ({ label: name, value: id }));
   }, [shows]);
 
-  const chipFilters = useMemo(() => buildChipFilters(clubFilterOptions), [clubFilterOptions]);
+  const chipFilters = useMemo(
+    () => buildChipFilters(clubFilterOptions, { hasLocation: origin !== null }),
+    [clubFilterOptions, origin]
+  );
 
   // Bridge chip filter values from existing filters state
   const chipFilterValues = useMemo(() => {
@@ -119,8 +130,9 @@ const BrowseShowsPage: React.FC = () => {
     if (filters.discipline !== 'all') values.discipline = filters.discipline;
     if (filters.entryStatus !== 'all') values.entryStatus = filters.entryStatus;
     if (filters.club !== 'all') values.club = filters.club;
+    if (filters.radius !== 'all' && origin !== null) values.radius = filters.radius;
     return values;
-  }, [filters.discipline, filters.entryStatus, filters.club]);
+  }, [filters.discipline, filters.entryStatus, filters.club, filters.radius, origin]);
 
   const handleChipFilterChange = useCallback(
     (key: string, value: string | null) => {
@@ -377,6 +389,7 @@ const BrowseShowsPage: React.FC = () => {
             entries={entries}
             selectedTab={selectedTab}
             user={user}
+            origin={origin}
             {...(canManageShows && {
               isSelected: bulkSelection.isSelected,
               onToggleSelect: bulkSelection.toggleItem,
@@ -410,6 +423,18 @@ const BrowseShowsPage: React.FC = () => {
             search={filters.search}
             onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
             searchPlaceholder="Search shows by name, location, or club..."
+            searchSlot={
+              <ShowSearchBar
+                search={filters.search}
+                onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
+                searchPlaceholder="Search shows by name, location, or club..."
+                location={viewer.location}
+                isResolvingLocation={viewer.isResolving}
+                onChooseTyped={viewer.chooseTyped}
+                onUseDeviceLocation={viewer.useDeviceLocation}
+                onChooseAnywhere={viewer.chooseAnywhere}
+              />
+            }
             filters={chipFilters}
             filterValues={chipFilterValues}
             onFilterChange={handleChipFilterChange}

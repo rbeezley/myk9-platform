@@ -3,8 +3,6 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Mail, Pencil } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
-import { AppleIcon } from '@/components/icons/AppleIcon';
-import { GoogleIcon } from '@/components/icons/GoogleIcon';
 import {
   buildSignUpPathForRedirect,
   getShowEntryRedirectShowId,
@@ -13,6 +11,7 @@ import {
 } from './SignInPage.helpers';
 import { classifyCredential, normalizeCredential } from './SmartSignInPage.helpers';
 import { PasswordSubForm } from './PasswordSubForm';
+import { SocialSignInButtons } from './SocialSignInButtons';
 import { JoinShowConfirmation } from './JoinShowConfirmation';
 import { validatePasscode } from './validatePasscode';
 import { startAnonymousRingsideSession } from './ringsideAnonSession';
@@ -111,8 +110,11 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       : passcodeOnly
         ? 'Enter a show passcode'
         : step === 'password'
-          ? 'Sign in to your account'
-          : 'Sign in or join a show';
+          ? // Account language on the password step is Phase 5 of
+            // docs/plan-exhibitor-onboarding-remediation.md (Active), pinned by
+            // SmartSignInPage.test.tsx — do not collapse into the step-1 heading.
+            'Sign in to your account'
+          : 'Sign in';
 
   // Programmatic focus to the password field when the email branch reveals it.
   useEffect(() => {
@@ -275,19 +277,27 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-2 pt-20">
+    <div className="flex min-h-[calc(100vh-var(--app-header-height,3rem))] flex-col items-center justify-center bg-background px-3 py-6">
       <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex justify-center mb-4">
+        <div className="mb-3 flex justify-center">
           <Link
             to="/"
-            className="text-3xl font-bold text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring rounded transition"
+            className="flex items-center gap-2.5 rounded transition hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            myK9Show
+            <img
+              src="/brand-mark-128.png"
+              alt=""
+              aria-hidden="true"
+              width="40"
+              height="40"
+              className="h-10 w-10 shrink-0 object-contain"
+            />
+            <span className="text-lg font-bold text-primary">myK9Show</span>
           </Link>
         </div>
-        <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">{heading}</h2>
+        <h2 className="mb-1 text-center text-lg font-bold">{heading}</h2>
         {!passcodeOnly && (
-          <div className="text-muted-foreground text-center mb-6">
+          <div className="text-muted-foreground mb-5 text-center text-sm">
             Don't have an account?{' '}
             <Link to={signUpPath} className="text-primary hover:underline font-medium">
               Sign up
@@ -304,25 +314,12 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
           <>
             {!passcodeOnly && (
               <>
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
+                <SocialSignInButtons
+                  onGoogle={handleGoogleSignIn}
+                  onApple={handleAppleSignIn}
                   disabled={isLoading || googleLoading || appleLoading}
-                  className="flex h-11 w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <GoogleIcon className="h-5 w-5" />
-                  Continue with Google
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAppleSignIn}
-                  disabled={isLoading || googleLoading || appleLoading}
-                  className="mt-3 flex h-11 w-full items-center justify-center gap-3 rounded-md border border-input bg-background px-4 text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <AppleIcon className="h-5 w-5" />
-                  Continue with Apple
-                </button>
-                <div className="relative my-6">
+                />
+                <div className="relative my-5">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-input" />
                   </div>
@@ -412,23 +409,20 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                 data-testid="continue-button"
                 disabled={!canContinue || isLoading}
                 aria-disabled={!canContinue || isLoading}
-                className="h-11 w-full rounded-md bg-primary px-4 text-white transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-11 w-full rounded-md bg-primary px-4 text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? 'Checking…' : 'Continue'}
               </button>
             </form>
 
-            <div id="credential-help" className="mt-6 text-sm text-muted-foreground space-y-1">
-              {!passcodeOnly && <p>Have an account? Use your email.</p>}
-              <p>Working a show? Use the passcode your secretary gave you (5 characters).</p>
-            </div>
-            {!passcodeOnly && (
-              <div className="mt-3 text-sm">
+            <p id="credential-help" className="mt-5 text-sm text-muted-foreground">
+              Working a show? Use the 5-character passcode your secretary gave you.{' '}
+              {!passcodeOnly && (
                 <Link to="/help/credentials" className="text-primary hover:underline">
                   Learn how it works &rarr;
                 </Link>
-              </div>
-            )}
+              )}
+            </p>
           </>
         ) : (
           <>

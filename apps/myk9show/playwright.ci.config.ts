@@ -63,6 +63,15 @@ const REGRESSION_SPECS = [
 // atShowOfflineScoring stays regression-only (depends on staging seed data);
 // payment specs are excluded entirely (see REGRESSION_SPECS).
 //
+// sign-in-fits-one-screen.spec.ts is here for the same reason one layer out:
+// the sign-in card overflowed a 1440x760 laptop by 73px once Google and Apple
+// were added, putting the credential field below the fold, and nothing in CI
+// could see it (MYK9-430). It asserts rendered geometry, so it fails for
+// whatever reason the card grows again — a taller heading, a third provider, a
+// restored helper line — and any PR can regrow it, not only one touching
+// sign-in. Unauthenticated and ~3s for four cases; verified green under this
+// config before promotion (2026-09-06).
+//
 // my-entries-page-ui.spec.ts is here because a PR that rewrote that page's
 // entire status vocabulary (#1699) merged green while this spec was failing —
 // it was Nightly-only, so nothing caught a stale assertion until the page was
@@ -73,6 +82,7 @@ const PR_SMOKE_SPECS = [
   '**/uat/secretary/qa-regression-proof.spec.ts',
   '**/uat/secretary/critical-path.spec.ts',
   '**/my-entries-page-ui.spec.ts',
+  '**/sign-in-fits-one-screen.spec.ts',
 ];
 
 /**

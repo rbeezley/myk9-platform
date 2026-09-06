@@ -10,23 +10,27 @@ import type { DbClass, DbEntry, DbTrial } from '@/types/database-mappings';
 import type { Show } from '@/types/show-types';
 import { useReportData } from '../useReportData';
 
+vi.mock('@/services/database/entries/refreshShowEntriesForRead', () => ({
+  refreshShowEntriesForRead: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('@/services/database/trials', () => ({ getTrialsByShow: vi.fn() }));
 vi.mock('@/services/database/classes', () => ({ getClassesByTrialId: vi.fn() }));
 vi.mock('@/services/database/entries', () => ({
   getEntriesByClass: vi.fn(),
-  getEntriesByShow: vi.fn(),
+  getEntriesByTrial: vi.fn(),
 }));
 vi.mock('@/services/database/dogs/reads', () => ({ loadDogRegistrations: vi.fn() }));
 
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
-import { getEntriesByClass, getEntriesByShow } from '@/services/database/entries';
+import { getEntriesByClass, getEntriesByTrial } from '@/services/database/entries';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
 
 const mockGetTrialsByShow = vi.mocked(getTrialsByShow);
 const mockGetClassesByTrialId = vi.mocked(getClassesByTrialId);
 const mockGetEntriesByClass = vi.mocked(getEntriesByClass);
-const mockGetEntriesByShow = vi.mocked(getEntriesByShow);
+const mockGetEntriesByTrial = vi.mocked(getEntriesByTrial);
 const mockLoadDogRegistrations = vi.mocked(loadDogRegistrations);
 
 const show = {
@@ -149,7 +153,7 @@ describe('useReportData cached-row PDF integration', () => {
   it('renders a whole-show check-in PDF when the registration server is offline', async () => {
     mockGetTrialsByShow.mockResolvedValue({ data: [cachedTrial], error: null } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [cachedClass], error: null } as never);
-    mockGetEntriesByShow.mockResolvedValue({ data: [cachedEntry], error: null } as never);
+    mockGetEntriesByTrial.mockResolvedValue({ data: [cachedEntry], error: null } as never);
     mockLoadDogRegistrations.mockResolvedValue({
       byDog: new Map(),
       serverError: new Error('registration transport offline'),

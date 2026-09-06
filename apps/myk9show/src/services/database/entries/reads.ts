@@ -621,8 +621,9 @@ export const getEntriesByShow = async (showId: string) => {
     errorData: [],
     verifyOnlineWhenEmpty: true,
   });
-  if (result.error) return result;
-  return { ...result, data: await withReleasedShowResults(showId, result.data) };
+  if (result.error) return { ...result, resultsReadComplete: false };
+  const released = await withReleasedShowResults(showId, result.data);
+  return { ...result, data: released.entries, resultsReadComplete: released.resultsReadComplete };
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)

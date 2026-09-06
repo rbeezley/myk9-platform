@@ -415,10 +415,14 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
               </button>
             </form>
 
+            {/* The credentials link is underlined at rest, not just on hover:
+                it sits INSIDE this paragraph, and axe's link-in-text-block wants
+                a non-colour distinguisher — primary on muted-foreground is
+                1.01:1, far under the 3:1 it would otherwise require. */}
             <p id="credential-help" className="mt-5 text-sm text-muted-foreground">
               Working a show? Use the 5-character passcode your secretary gave you.{' '}
               {!passcodeOnly && (
-                <Link to="/help/credentials" className="text-primary hover:underline">
+                <Link to="/help/credentials" className="text-primary underline">
                   Learn how it works &rarr;
                 </Link>
               )}

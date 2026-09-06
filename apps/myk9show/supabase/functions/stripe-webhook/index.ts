@@ -915,6 +915,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       exhibitor:exhibitor_profiles(id, person_id),
       items:entry_cart_items(
         id,
+        entry_id,
         dog_id,
         class_id,
         handler_id,
@@ -1233,6 +1234,80 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const failedLines: CartOverflowLine[] = [];
   for (const item of cart.items) {
     const lineAmountCents = authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents;
+
+    // Finish Payment recovery lines point at entries that already exist. Mark
+    // those rows paid in place; calling create_online_paid_entry here would
+    // collide with entries_dog_class_unique_idx and refund the whole charge.
+    if (item.entry_id) {
+      const { data: existingEntry, error: existingEntryError } = await supabase
+        .from('entries')
+        .select('id, dog_id, class_id, show_id, payment_status, entry_status')
+        .eq('id', item.entry_id)
+        .eq('dog_id', item.dog_id)
+        .eq('class_id', item.class_id)
+        .eq('show_id', cart.show_id)
+        .maybeSingle();
+
+      const isInactiveExistingEntry = existingEntry
+        ? INACTIVE_ENTRY_STATUSES.has(existingEntry.entry_status ?? '')
+        : false;
+      if (
+        existingEntryError ||
+        !existingEntry ||
+        existingEntry.payment_status !== 'pending' ||
+        isInactiveExistingEntry
+      ) {
+        const errorMessage =
+          existingEntryError?.message ??
+          (!existingEntry
+            ? 'Recovered entry was not found in this show'
+            : existingEntry.payment_status !== 'pending'
+              ? 'Recovered entry is no longer unpaid'
+              : 'Recovered entry is no longer active');
+        console.error(`Error recovering existing entry for cart item ${item.id}:`, errorMessage);
+        noServiceLineIds.push(item.id);
+        lineAmountsById.set(item.id, lineAmountCents);
+        failedLines.push({
+          cartItemId: item.id,
+          classId: item.class_id,
+          dogId: item.dog_id,
+          errorMessage,
+        });
+        continue;
+      }
+
+      const { data: updatedEntryRows, error: updateEntryError } = await supabase
+        .from('entries')
+        .update({
+          payment_status: 'paid',
+          payment_method: 'online',
+          stripe_payment_intent_id: paymentIntentId,
+        })
+        .eq('id', existingEntry.id)
+        .eq('payment_status', 'pending')
+        .select('id');
+
+      if (updateEntryError || !updatedEntryRows || updatedEntryRows.length === 0) {
+        const errorMessage =
+          updateEntryError?.message ?? 'Recovered entry payment update was not applied';
+        console.error(`Error marking recovered entry paid for cart item ${item.id}:`, errorMessage);
+        noServiceLineIds.push(item.id);
+        lineAmountsById.set(item.id, lineAmountCents);
+        failedLines.push({
+          cartItemId: item.id,
+          classId: item.class_id,
+          dogId: item.dog_id,
+          errorMessage,
+        });
+        continue;
+      }
+
+      entryIds.push(existingEntry.id);
+      paidLineIds.push(existingEntry.id);
+      lineAmountsById.set(existingEntry.id, lineAmountCents);
+      continue;
+    }
+
     const entryInsert = buildEntryInsert(
       {
         ...item,

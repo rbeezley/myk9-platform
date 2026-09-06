@@ -27,6 +27,16 @@ describe('stripe webhook online cart capacity gate', () => {
     );
   });
 
+  it('marks recovered existing entries paid instead of inserting duplicate rows', () => {
+    expect(webhookSource).toContain('entry_id,');
+    expect(webhookSource).toContain('if (item.entry_id)');
+    expect(webhookSource).toContain("payment_status: 'paid'");
+    expect(webhookSource).toContain("payment_method: 'online'");
+    expect(webhookSource).toContain(".eq('payment_status', 'pending')");
+    expect(migrationSql).toContain('ADD COLUMN IF NOT EXISTS entry_id uuid');
+    expect(migrationSql).toContain('entry_cart_items_entry_id_idx');
+  });
+
   it('locks each judge-day before reading capacity and inserting the online entry', () => {
     expect(capacityGateMigration).toContain(
       'CREATE OR REPLACE FUNCTION public.create_online_paid_entry'
@@ -37,7 +47,9 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(compactCapacityGateMigration).toContain(
       "hashtext('judgeday:' || v_judge_id::text || ':' || v_trial_date::text)"
     );
-    expect(capacityGateMigration).toContain('CREATE OR REPLACE FUNCTION public.get_judge_day_capacity_live');
+    expect(capacityGateMigration).toContain(
+      'CREATE OR REPLACE FUNCTION public.get_judge_day_capacity_live'
+    );
     expect(capacityGateMigration).toContain('FROM public.get_judge_day_capacity_live');
     expect(capacityGateMigration).not.toContain('FROM public.get_judge_day_capacity(');
     expect(capacityGateMigration).toContain('SELECT COUNT(*)');

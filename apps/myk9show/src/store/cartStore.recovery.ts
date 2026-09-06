@@ -5,6 +5,7 @@ import { calculateCartTotals } from './cartStore.helpers';
 import type { CartItemWithDetails, EntryCartItemInsert } from './cartStore.types';
 
 interface RecoverableEntryRow {
+  id: string;
   class_id: string | null;
   dog_id: string | null;
   handler_id: string | null;
@@ -13,33 +14,15 @@ interface RecoverableEntryRow {
   special_requests: string | null;
 }
 
-export const loadCartItemsByCartId = async (cartId: string): Promise<CartItemWithDetails[]> => {
-  const { data, error } = await supabase
-    .from('entry_cart_items')
-    .select(
-      `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
-    )
-    .eq('cart_id', cartId);
-
-  if (error) {
-    logger.error('Error loading cart items', 'cartStore', { cartId }, error);
-    throw error;
-  }
-
-  return (data || []) as CartItemWithDetails[];
-};
-
-export const recoverCartItemsFromEntryIds = async ({
-  cartId,
+export const findRecoverableEntries = async ({
   showId,
   exhibitorId,
   entryIds,
 }: {
-  cartId: string;
   showId: string;
   exhibitorId: string;
   entryIds: string[];
-}): Promise<CartItemWithDetails[]> => {
+}): Promise<RecoverableEntryRow[]> => {
   const explicitEntryIds = Array.from(new Set(entryIds.filter(Boolean)));
   if (explicitEntryIds.length === 0) return [];
 
@@ -76,7 +59,7 @@ export const recoverCartItemsFromEntryIds = async ({
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('class_id, dog_id, handler_id, entry_fee, jump_height, special_requests')
+    .select('id, class_id, dog_id, handler_id, entry_fee, jump_height, special_requests')
     .in('id', explicitEntryIds)
     .eq('show_id', showId)
     .eq('payment_status', 'pending')
@@ -89,16 +72,49 @@ export const recoverCartItemsFromEntryIds = async ({
     logger.error(
       'Error loading exact pending entries for cart recovery',
       'cartStore',
-      { cartId },
+      { exhibitorId, showId },
       entriesError
     );
     return [];
   }
 
+  return (entries || []) as RecoverableEntryRow[];
+};
+
+export const loadCartItemsByCartId = async (cartId: string): Promise<CartItemWithDetails[]> => {
+  const { data, error } = await supabase
+    .from('entry_cart_items')
+    .select(
+      `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+    )
+    .eq('cart_id', cartId);
+
+  if (error) {
+    logger.error('Error loading cart items', 'cartStore', { cartId }, error);
+    throw error;
+  }
+
+  return (data || []) as CartItemWithDetails[];
+};
+
+export const recoverCartItemsFromEntryIds = async ({
+  cartId,
+  showId,
+  exhibitorId,
+  entryIds,
+}: {
+  cartId: string;
+  showId: string;
+  exhibitorId: string;
+  entryIds: string[];
+}): Promise<CartItemWithDetails[]> => {
+  const entries = await findRecoverableEntries({ showId, exhibitorId, entryIds });
+
   const itemInserts: EntryCartItemInsert[] = ((entries || []) as RecoverableEntryRow[])
     .filter(entry => entry.class_id && entry.dog_id)
     .map(entry => ({
       cart_id: cartId,
+      entry_id: entry.id,
       class_id: entry.class_id!,
       dog_id: entry.dog_id!,
       handler_id: entry.handler_id,
@@ -134,7 +150,12 @@ export const recoverCartItemsFromEntryIds = async ({
     .in('status', ['active', 'expired']);
 
   if (updateError) {
-    logger.error('Error updating exact recovered cart totals', 'cartStore', { cartId }, updateError);
+    logger.error(
+      'Error updating exact recovered cart totals',
+      'cartStore',
+      { cartId },
+      updateError
+    );
   }
 
   return recoveredItems;

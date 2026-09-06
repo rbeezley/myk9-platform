@@ -2199,6 +2199,7 @@ export type Database = {
           class_id: string
           created_at: string | null
           dog_id: string
+          entry_id: string | null
           entry_fee_cents: number
           handler_id: string | null
           id: string
@@ -2210,6 +2211,7 @@ export type Database = {
           class_id: string
           created_at?: string | null
           dog_id: string
+          entry_id?: string | null
           entry_fee_cents: number
           handler_id?: string | null
           id?: string
@@ -2221,6 +2223,7 @@ export type Database = {
           class_id?: string
           created_at?: string | null
           dog_id?: string
+          entry_id?: string | null
           entry_fee_cents?: number
           handler_id?: string | null
           id?: string
@@ -2228,6 +2231,13 @@ export type Database = {
           special_requests?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "entry_cart_items_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "entry_cart_items_cart_id_fkey"
             columns: ["cart_id"]

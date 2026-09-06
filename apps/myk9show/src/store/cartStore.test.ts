@@ -381,6 +381,7 @@ describe('cartStore payment recovery', () => {
             return {
               data: [
                 {
+                  id: 'entry-1',
                   class_id: 'class-1',
                   dog_id: 'dog-1',
                   handler_id: 'person-1',
@@ -437,6 +438,7 @@ describe('cartStore payment recovery', () => {
     expect(upsertCall?.upsertPayload).toEqual([
       {
         cart_id: 'cart-expired',
+        entry_id: 'entry-1',
         class_id: 'class-1',
         dog_id: 'dog-1',
         handler_id: 'person-1',
@@ -586,18 +588,30 @@ describe('cartStore payment recovery', () => {
     queryCalls.length = 0;
     let cartLookupCount = 0;
     let itemLoadCount = 0;
+    const createdRecoveryLookup = {
+      ...freshCartLookup,
+      id: 'cart-recovery',
+      expires_at: '2026-06-14T20:30:00.000Z',
+    };
+    const createdRecoveryCart = {
+      ...hydratedCart,
+      ...createdRecoveryLookup,
+      subtotal_cents: 0,
+      platform_fee_cents: 0,
+      total_cents: 0,
+    };
     mockFrom.mockImplementation(
       (table: string) =>
         new MockQueryBuilder(table, call => {
           if (call.table === 'entry_carts' && call.select === 'id, show_id, status, expires_at') {
             cartLookupCount += 1;
-            return cartLookupCount === 1
+            return cartLookupCount <= 2
               ? { data: null, error: null }
-              : { data: expiredCartLookup, error: null };
+              : { data: createdRecoveryLookup, error: null };
           }
 
           if (call.table === 'entry_carts' && call.insertPayload) {
-            return { data: hydratedCart, error: null };
+            return { data: createdRecoveryCart, error: null };
           }
 
           if (call.table === 'entry_carts' && call.updatePayload) {
@@ -629,6 +643,7 @@ describe('cartStore payment recovery', () => {
             return {
               data: [
                 {
+                  id: 'entry-1',
                   dog_id: 'dog-1',
                   class_id: 'class-1',
                   handler_id: 'person-1',
@@ -646,14 +661,23 @@ describe('cartStore payment recovery', () => {
         })
     );
 
-    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', {
-      showId: 'show-1',
-      recoveryEntryIds: ['entry-1'],
-    });
+    const [cart, concurrentCart] = await Promise.all([
+      useCartStore.getState().loadActiveCart('exhibitor-1', {
+        showId: 'show-1',
+        recoveryEntryIds: ['entry-1'],
+      }),
+      useCartStore.getState().loadActiveCart('exhibitor-1', {
+        showId: 'show-1',
+        recoveryEntryIds: ['entry-1'],
+      }),
+    ]);
 
     expect(cart?.items).toHaveLength(1);
+    expect(concurrentCart?.items).toHaveLength(1);
     expect(cart?.total_cents).toBe(2675);
-    expect(queryCalls.find(call => call.insertPayload)?.insertPayload).toEqual({
+    const recoveryInserts = queryCalls.filter(call => call.insertPayload);
+    expect(recoveryInserts).toHaveLength(1);
+    expect(recoveryInserts[0]?.insertPayload).toEqual({
       show_id: 'show-1',
       exhibitor_id: 'exhibitor-1',
       status: 'active',

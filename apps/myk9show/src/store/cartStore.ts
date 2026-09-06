@@ -30,7 +30,11 @@ import {
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
 } from './cartStore.helpers';
-import { loadCartItemsByCartId, recoverCartItemsFromEntryIds } from './cartStore.recovery';
+import {
+  findRecoverableEntries,
+  loadCartItemsByCartId,
+  recoverCartItemsFromEntryIds,
+} from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 
 // Re-export types so existing imports continue to work
@@ -42,6 +46,8 @@ export type {
   WaitlistEntryResult,
   CheckoutResult,
 } from './cartStore.types';
+
+const recoveryCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
 
 export const useCartStore = create<CartState>()(
   devtools(
@@ -160,7 +166,7 @@ export const useCartStore = create<CartState>()(
             cartLookupQuery = cartLookupQuery.eq('show_id', options.showId);
           }
 
-          const { data, error } = await cartLookupQuery
+          let { data, error } = await cartLookupQuery
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -176,14 +182,40 @@ export const useCartStore = create<CartState>()(
             // scoped to explicit entry ids, so create a fresh shell and let
             // the normal exact-entry recovery path hydrate it below.
             if (options.showId && options.recoveryEntryIds?.length) {
-              const recoveryCart = await get().createCart(options.showId, exhibitorId);
-              if (recoveryCart) {
-                return get().loadActiveCart(exhibitorId, options);
+              const recoverableEntries = await findRecoverableEntries({
+                showId: options.showId,
+                exhibitorId,
+                entryIds: options.recoveryEntryIds,
+              });
+              if (recoverableEntries.length > 0) {
+                const recoveryKey = `${exhibitorId}:${options.showId}:${options.recoveryEntryIds
+                  .slice()
+                  .sort()
+                  .join(',')}`;
+                let recoveryPromise = recoveryCartInFlight.get(recoveryKey);
+                if (!recoveryPromise) {
+                  recoveryPromise = get().createCart(options.showId, exhibitorId);
+                  recoveryCartInFlight.set(recoveryKey, recoveryPromise);
+                }
+                const recoveryCart = await recoveryPromise;
+                if (recoveryCartInFlight.get(recoveryKey) === recoveryPromise) {
+                  recoveryCartInFlight.delete(recoveryKey);
+                }
+                if (recoveryCart) {
+                  data = {
+                    id: recoveryCart.id,
+                    show_id: recoveryCart.show_id,
+                    status: recoveryCart.status,
+                    expires_at: recoveryCart.expires_at,
+                  };
+                }
               }
             }
 
-            set({ cart: null, isLoading: false });
-            return null;
+            if (!data) {
+              set({ cart: null, isLoading: false });
+              return null;
+            }
           }
 
           let recoveredExpiresAt = data.expires_at;
@@ -248,8 +280,9 @@ export const useCartStore = create<CartState>()(
             return null;
           }
 
-          // Exact-entry recovery only rebuilds into an existing empty cart shell;
-          // it does not recreate missing cart rows or backfill partially emptied carts.
+          // Exact-entry recovery rebuilds only the explicit unpaid entries. It
+          // never sweeps unrelated pending entries into checkout or backfills a
+          // partially emptied cart.
           if (items.length === 0 && options.recoveryEntryIds?.length) {
             items = await recoverCartItemsFromEntryIds({
               cartId: cartData.id,

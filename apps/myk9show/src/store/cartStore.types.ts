@@ -16,7 +16,9 @@ export type EntryCartItemInsert = Database['public']['Tables']['entry_cart_items
 export type CartStatus = 'active' | 'submitted' | 'abandoned' | 'expired';
 
 // Extended cart item with related data
-export interface CartItemWithDetails extends EntryCartItem {
+export interface CartItemWithDetails extends Omit<EntryCartItem, 'entry_id'> {
+  /** Set only when Finish Payment is recovering an existing unpaid entry. */
+  entry_id?: string | null;
   dog?:
     | {
         id: string;

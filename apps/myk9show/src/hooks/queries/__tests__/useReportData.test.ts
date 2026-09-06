@@ -174,7 +174,10 @@ describe('useReportData', () => {
     const mockEntries = [{ id: 'entry-1' }, { id: 'entry-2' }];
     mockGetTrialsByShow.mockResolvedValue({ data: mockTrials, error: null } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
-    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: mockEntries, error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({
+      data: mockEntries,
+      error: null,
+    } as never);
 
     const { result } = renderHook(() => useReportData(defaultOptions), {
       wrapper: createWrapper(),
@@ -257,7 +260,10 @@ describe('useReportData', () => {
     };
     mockGetTrialsByShow.mockResolvedValue({ data: mockTrials, error: null } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
-    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: mockEntries, error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({
+      data: mockEntries,
+      error: null,
+    } as never);
     mockLoadDogRegistrations.mockResolvedValue({
       byDog: new Map([['dog-1', [registration]]]),
       serverError: null,
@@ -380,7 +386,10 @@ describe('useReportData', () => {
         data: [{ id: 'class-1' }],
         error: null,
       } as never);
-      mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({
+        data: [{ id: 'entry-1' }],
+        error: null,
+      } as never);
 
       const { result } = renderHook(() => useReportData(defaultOptions), {
         wrapper: onlineWrapper(),
@@ -402,7 +411,10 @@ describe('useReportData', () => {
         data: [{ id: 'class-1' }],
         error: null,
       } as never);
-      mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({
+        data: [{ id: 'entry-1' }],
+        error: null,
+      } as never);
 
       const { result } = renderHook(() => useReportData(defaultOptions), {
         wrapper: onlineWrapper(),

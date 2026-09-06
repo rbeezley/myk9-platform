@@ -159,7 +159,10 @@ describe('useReportData cached-row PDF integration', () => {
   it('renders a whole-show check-in PDF when the registration server is offline', async () => {
     mockGetTrialsByShow.mockResolvedValue({ data: [cachedTrial], error: null } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [cachedClass], error: null } as never);
-    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [cachedEntry], error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({
+      data: [cachedEntry],
+      error: null,
+    } as never);
     mockLoadDogRegistrations.mockResolvedValue({
       byDog: new Map(),
       serverError: new Error('registration transport offline'),

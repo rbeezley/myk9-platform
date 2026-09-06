@@ -80,7 +80,7 @@ export async function withReleasedShowResults<T extends Record<string, unknown>>
       }),
     ]);
   } catch {
-    return unavailable;
+    return buildResult(false);
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
   }

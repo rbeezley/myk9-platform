@@ -633,24 +633,32 @@ export const getEntriesByShow = async (showId: string) => {
  * trial.
  */
 export const getEntriesByShowFromReplication = async (showId: string) => {
-  try {
-    const [rawEntries, dogsMap, classesMap] = await Promise.all([
-      replicatedEntriesTable.getEntriesByShow(showId),
-      loadDogsMap(),
-      loadClassesMap(),
-    ]);
-    const entries = sortedCopy(
-      rawEntries.filter(isLiveEntry),
-      compareDateDesc(getEntryCreatedSortValue)
-    );
-    const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
-    return {
-      data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, enrollmentsMap),
-      error: null,
-    };
-  } catch (error) {
-    return { data: [], error };
-  }
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [rawEntries, dogsMap, classesMap, showsMap] = await Promise.all([
+        replicatedEntriesTable.getEntriesByShow(showId),
+        loadDogsMap(),
+        loadClassesMap(),
+        loadShowsMap(),
+      ]);
+      const locallyDeletedIds = rawEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
+      const entries = sortedCopy(
+        rawEntries.filter(isLiveEntry),
+        compareDateDesc(getEntryCreatedSortValue)
+      );
+      const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
+      return {
+        data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, showsMap, enrollmentsMap),
+        error: null,
+        locallyDeletedIds,
+      };
+    },
+    postgrest: () => postgrestGetEntriesByShow(showId),
+    table: 'entries',
+    operation: 'select_by_show_report',
+    errorData: [],
+    verifyOnlineWhenEmpty: true,
+  });
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)

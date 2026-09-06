@@ -292,7 +292,7 @@ describe('inflight CLI', () => {
     git(main, 'mv', 'src/a.ts', 'src/moved.ts');
     git(main, 'commit', '-q', '-m', 'rename');
     git(main, 'checkout', '-q', 'mine');
-    expect(committedPaths('origin/main', 'renamer', main).sort()).toEqual([
+    expect(committedPaths('renamer', ['origin/main'], main).sort()).toEqual([
       'src/a.ts',
       'src/moved.ts',
     ]);
@@ -423,6 +423,30 @@ describe('inflight CLI', () => {
     stubGh(bin, [], [['reused', mergedHead]]);
     expect(runCli(main, bin, 'src/a.ts').code).toBe(0); // shipped, not in flight
     expect(runCli(main, bin, 'docs-new.md').code).toBe(1); // the new work is
+  });
+
+  it('does not attribute main content merged INTO a reused branch to that branch', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', 'main');
+    writeFileSync(join(main, 'main-only.md'), 'from main');
+    git(main, 'add', 'main-only.md');
+    git(main, 'commit', '-q', '-m', 'main moves on');
+    git(main, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    git(main, 'checkout', '-q', '-b', 'reused', 'origin/main~1');
+    writeFileSync(join(main, 'src', 'a.ts'), 'shipped');
+    git(main, 'add', 'src/a.ts');
+    git(main, 'commit', '-q', '-m', 'shipped');
+    const mergedHead = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'merge', '-q', '--no-edit', 'origin/main');
+    writeFileSync(join(main, 'docs-new.md'), 'new');
+    git(main, 'add', 'docs-new.md');
+    git(main, 'commit', '-q', '-m', 'new work');
+    git(main, 'checkout', '-q', 'mine');
+    writeFileSync(join(main, '..', 'other', 'src', 'a.ts'), 'a');
+    stubGh(bin, [], [['reused', mergedHead]]);
+    expect(runCli(main, bin, 'main-only.md').code).toBe(0);
+    expect(runCli(main, bin, 'src/a.ts').code).toBe(0);
+    expect(runCli(main, bin, 'docs-new.md').code).toBe(1);
   });
 
   it('--warn reports but exits 0', () => {

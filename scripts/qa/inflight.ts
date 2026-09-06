@@ -155,32 +155,50 @@ export function currentBranch(cwd?: string): string {
   return run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd }).trim();
 }
 
-/** Committed paths past `base` on `ref`, counting BOTH sides of a rename. */
-export function committedPaths(base: string, ref: string, cwd?: string): string[] {
-  // No allowFail: a comparison that cannot run is an UNKNOWN result, not an empty one.
-  const raw = run('git', ['diff', '--name-status', '-M', '-z', `${base}...${ref}`], { cwd });
-  const records = raw.split(String.fromCharCode(0)).filter(r => r.length > 0);
+/**
+ * Files touched by `ref`'s OWN commits: non-merge commits reachable from `ref`
+ * but from none of `excludes` (origin/main, and a reused branch's merged
+ * head). Counting commits rather than diffing against one base means
+ * `main` content merged INTO the branch is never reported as the branch's
+ * work, and a squash-merged branch reused without rebasing does not
+ * re-report what already shipped (Codex, #2073 rounds 5-6). Both sides of a
+ * rename count. Throws when git cannot answer — an unknown result is not
+ * an empty one.
+ */
+export function committedPaths(ref: string, excludes: readonly string[], cwd?: string): string[] {
+  const args = [
+    'log',
+    '--name-status',
+    '-M',
+    '-z',
+    '--format=',
+    '--no-merges',
+    ref,
+    ...excludes.map(e => `^${e}`),
+  ];
+  const tokens = run('git', args, { cwd }).split(String.fromCharCode(0));
   const out: string[] = [];
-  for (let i = 0; i < records.length; i += 1) {
-    const status = records[i];
-    const path = records[i + 1];
-    if (path === undefined) break;
+  for (let i = 0; i < tokens.length; i += 1) {
+    const tok = tokens[i];
+    if (!/^[ACDMRTUXB]\d*$/.test(tok)) continue; // not a status record
+    const path = tokens[i + 1];
+    if (path === undefined || path === '') continue;
     out.push(path);
     i += 1;
-    if (status.startsWith('R') || status.startsWith('C')) {
-      const newPath = records[i + 1];
-      if (newPath !== undefined) {
-        out.push(newPath);
+    if (tok.startsWith('R') || tok.startsWith('C')) {
+      const second = tokens[i + 1];
+      if (second) {
+        out.push(second);
         i += 1;
       }
     }
   }
-  return out;
+  return [...new Set(out)];
 }
 
 /** Paths this checkout would bring to a PR: committed past base, modified, and untracked. */
 export function localChangedPaths(base: string, cwd?: string): string[] {
-  return [...new Set([...committedPaths(base, 'HEAD', cwd), ...statusPaths(cwd)])];
+  return [...new Set([...committedPaths('HEAD', [base], cwd), ...statusPaths(cwd)])];
 }
 
 interface RestPr {
@@ -307,21 +325,14 @@ export function finishedSinceMerge(ref: string, mergedHead: string, cwd?: string
   return isAncestor(ref, mergedHead, cwd);
 }
 
-/**
- * What to diff `ref` against. A squash-merged branch reused WITHOUT rebasing
- * still has its shipped commits between origin/main's merge base and its tip;
- * diffing against `base` would re-report them and block a colleague on ghosts
- * (Codex, #2073 round 5). When the merged head is an ancestor of the tip, only
- * the commits past that head are new work.
- */
-export function effectiveBase(
+/** Exclusions for `ref`'s own-commit walk: main, plus the merged head when it is in `ref`'s history. */
+export function commitExcludes(
   ref: string,
   base: string,
   mergedHead: string | undefined,
   cwd?: string
-): string {
-  if (mergedHead && isAncestor(mergedHead, ref, cwd)) return mergedHead;
-  return base;
+): string[] {
+  return mergedHead && isAncestor(mergedHead, ref, cwd) ? [base, mergedHead] : [base];
 }
 
 export function otherWorktrees(
@@ -341,7 +352,7 @@ export function otherWorktrees(
     const ref = branch || head;
     const mergedHead = branch ? merged.get(branch) : undefined;
     const committed = ref
-      ? committedPaths(effectiveBase(ref, base, mergedHead, cwd), ref, cwd)
+      ? committedPaths(ref, commitExcludes(ref, base, mergedHead, cwd), cwd)
       : [];
     const dirty = statusPaths(path);
     const files = [...new Set([...committed, ...dirty])];
@@ -393,7 +404,7 @@ export function unmergedLocalBranches(
     } catch {
       /* not an ancestor: has commits past base */
     }
-    const files = committedPaths(effectiveBase(name, base, mergedHead, cwd), name, cwd);
+    const files = committedPaths(name, commitExcludes(name, base, mergedHead, cwd), cwd);
     if (files.length) out.push({ kind: 'branch', id: name, branch: name, files });
   }
   return out;

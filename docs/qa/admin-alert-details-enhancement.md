@@ -31,3 +31,9 @@ Code-quality ratchet passed using the same TypeScript entry point with Node's ts
 Final local shipping checks: app and test TypeScript compilations passed; edge-test compilation passed; E2E typecheck ratchet passed (59 existing diagnostics, 62 baseline, zero new); app-wide lint passed with 18 pre-existing warnings and zero errors. The E2E and code-quality ratchets were invoked with `pnpm exec node --import` / Node's tsx loader to avoid the sandbox-only tsx IPC failure. No application source or baseline was changed to make checks pass. Full-suite six-run waiver remains pending; PR body prepared at /private/tmp/admin-alert-pr-body.md. Independent review must run after publication and before merge.
 
 Owner approved publishing a draft PR and substituting CI plus independent Claude review for the six local full-suite shuffled runs. Approval: "approved" in response to that specific proposal. This exception does not waive CI or independent review, and does not authorize merge or deployment.
+
+## Independent review follow-up
+
+The owner supplied Claude's review: one finding that copied parser fixtures did not track the actual payout writer. Added a contract test importing cron-process-payouts source as text, extracting its current mismatch template and substituting only its parameter values. Both dashboard and health formatters must produce the amount-first summary from that actual template. Missing templates or unknown parameter expressions fail explicitly.
+
+Mutation proof: temporarily changed the writer phrase "was reconciled to existing transfer" to "was matched to prior transfer"; the new contract test failed while the three existing tests passed. Restored the writer byte-for-byte; all four formatter tests and focused ESLint pass. No production source changes. The previously approved full-suite waiver remains in force; the new head needs Claude re-review before the review gate can be marked complete.

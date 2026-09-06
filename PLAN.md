@@ -1,6 +1,6 @@
 # MYK9-416 — explicit Codex review verdict contract
 
-Status: Implemented; real-review evidence blocked pending authorization
+Status: Implemented and verified; awaiting PR/merge
 
 Use issue option 1: instruct the reviewer to emit the wording the gate already
 requires. Keep whole-branch review and positive-match, fail-closed parsing.
@@ -23,9 +23,13 @@ No product surfaces, parser broadening, or automatic clean inference.
   because the original wrapper supplied no verdict instruction.
 - After fix: all 60 wrapper and review-gate tests passed.
 - Shell syntax, Prettier checks, and `git diff --check` passed.
-- Three consecutive real reviews remain unverified. Automatic approval review
-  rejected the first attempt because sending branch changes and potentially
-  sensitive repository code to the external Codex service needs explicit user
-  authorization. No real-review evidence was emitted; do not close MYK9-416.
-- Linear write tools are unavailable in this session, so tracker state and a
-  completion comment have not been updated.
+- After explicit user authorization, three consecutive real wrapper runs on
+  2026-09-06 all exited 0, began their verdict with `No actionable defects found.`,
+  and emitted `Review gate: codex reviewed 331df1832..df0051884 — no findings`.
+- Raw logs: `/tmp/myk9-416-real-1.log`, `/tmp/myk9-416-real-2.log`, and
+  `/tmp/myk9-416-real-3.log`. Runs 2 and 3 independently reran all 60 focused
+  tests successfully; run 1 lacked local test dependencies, subsequently supplied.
+- The required three-run observation passed; a future reviewer can still ignore
+  instructions, in which case the unchanged parser fails closed.
+- Linear is In Progress pending PR/merge. Findings retain the documented exit 1,
+  rather than the issue's contradictory exit-2 wording; neither emits evidence.

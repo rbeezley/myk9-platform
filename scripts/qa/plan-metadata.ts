@@ -7,6 +7,15 @@ export interface PlanDiagnostic {
   message: string;
 }
 
+function resolveIndexLink(docs: string, href: string): string | undefined {
+  try {
+    return resolve(docs, decodeURIComponent(href));
+  } catch (error) {
+    if (error instanceof URIError) return undefined;
+    throw error;
+  }
+}
+
 /** Only living top-level docs/plan-*.md; archives and nested specs retain their formats. */
 export function checkPlanMetadata(root: string): PlanDiagnostic[] {
   const docs = resolve(root, 'docs');
@@ -15,7 +24,8 @@ export function checkPlanMetadata(root: string): PlanDiagnostic[] {
     [...index.matchAll(/\[[^\]]*\]\(<?([^\s)>]+)>?(?:\s+"[^"]*")?\)/g)]
       .map(match => match[1]!.split('#')[0]!)
       .filter(href => !/^[a-z][a-z\d+.-]*:|^\/\//i.test(href))
-      .map(href => resolve(docs, decodeURIComponent(href)))
+      .map(href => resolveIndexLink(docs, href))
+      .filter((href): href is string => href !== undefined)
   );
   const diagnostics: PlanDiagnostic[] = [];
   for (const file of readdirSync(docs)

@@ -31,6 +31,7 @@ describe('plan metadata', () => {
     'plan-example.md',
     '[Wrong](archive/plan-example.md)',
     '[Remote](https://example.test/plan-example.md)',
+    '[Malformed](./plan-%E0%A4%A.md)',
   ])('does not accept a substring or wrong target: %s', index => {
     expect(checkPlanMetadata(fixture(undefined, index))).toEqual([
       expect.objectContaining({ code: 'missing-index' }),

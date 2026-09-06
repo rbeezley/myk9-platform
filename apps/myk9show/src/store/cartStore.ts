@@ -368,6 +368,53 @@ export const useCartStore = create<CartState>()(
                   .maybeSingle();
 
                 if (!existingCartError && existingCart) {
+                  const existingCartExpired =
+                    existingCart.expires_at == null ||
+                    new Date(existingCart.expires_at).getTime() <= Date.now();
+
+                  if (existingCartExpired) {
+                    const { error: expireError } = await supabase
+                      .from('entry_carts')
+                      .update({ status: 'expired', stripe_checkout_session_id: null })
+                      .eq('id', existingCart.id)
+                      .eq('status', 'active');
+
+                    if (expireError) {
+                      logger.error(
+                        'Error expiring stale cart after unique conflict',
+                        'cartStore',
+                        { showId, exhibitorId, cartId: existingCart.id },
+                        expireError
+                      );
+                      throw expireError;
+                    }
+
+                    const { data: recreatedCart, error: recreateError } = await supabase
+                      .from('entry_carts')
+                      .insert(cartInsert)
+                      .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+                      .single();
+
+                    if (!recreateError && recreatedCart) {
+                      const cartWithDetails: CartWithDetails = {
+                        ...recreatedCart,
+                        items: [],
+                        show: recreatedCart.show as CartWithDetails['show'],
+                      };
+                      set({
+                        cart: cartWithDetails,
+                        isLoading: false,
+                        lastSyncedAt: new Date().toISOString(),
+                        expirationWarning: false,
+                      });
+                      return cartWithDetails;
+                    }
+
+                    if (recreateError?.code !== '23505') {
+                      throw recreateError ?? new Error('Failed to recreate cart');
+                    }
+                  }
+
                   const { error: reclaimError } = await supabase
                     .from('entry_carts')
                     .update({

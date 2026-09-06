@@ -1290,6 +1290,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         })
         .eq('id', existingEntry.id)
         .eq('payment_status', 'pending')
+        .not('entry_status', 'in', `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`)
         .select('id');
 
       if (updateEntryError || !updatedEntryRows || updatedEntryRows.length === 0) {

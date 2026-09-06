@@ -18,9 +18,14 @@ export interface RecoverableEntryRow {
   show_start_date: string | null;
 }
 
+const DEFAULT_ENTRY_FEE_DOLLARS = 25;
+
 const parseFeeDollars = (value: number | string | null): number | null => {
   if (value == null) return null;
-  const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value));
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : Number.parseFloat(String(value).replace(/[$,]/g, ''));
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
@@ -35,7 +40,7 @@ const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
   }
   if (preEntryFee != null) return Math.round(preEntryFee * 100);
 
-  return Math.round((parseFeeDollars(entry.class_entry_fee) ?? 25) * 100);
+  return Math.round((parseFeeDollars(entry.class_entry_fee) ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
 };
 
 export const findRecoverableEntries = async ({

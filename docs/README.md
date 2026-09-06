@@ -106,7 +106,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-myk9-100-entry-status-kind.md](plan-myk9-100-entry-status-kind.md)                                         | Active    | MYK9-100 — Preserve entry status kind for honest exhibitor badges             |
 | [plan-myk9-180-show-email-delivery-history.md](plan-myk9-180-show-email-delivery-history.md)                     | Active    | MYK9-180 — Show email delivery history in Communication History               |
 | [plan-myk9-269-279-batch.md](plan-myk9-269-279-batch.md)                                                         | Active    | MYK9-269–279 — Accessibility, E2E typecheck, and route cleanup (MYK9-277 deferred) |
-| [plan-myk9-424.md](plan-myk9-424.md)                                                                             | Active    | MYK9-424 — Preserve cached staff report results offline                                      |
 | [plan-p3-bug-and-dead-code-batch.md](plan-p3-bug-and-dead-code-batch.md)                                         | Active    | P3 reliability defects and dead-code batch remediation                         |
 | [plan-vacation-autopilot.md](plan-vacation-autopilot.md)                                                         | Active    | Vacation Autopilot — unattended 4×/day Linear-issue runs (2026-08-04→14)      |
 | [plan-operator-docs-portal.md](plan-operator-docs-portal.md)                                                     | Deferred  | Gated Operator Docs Portal — searchable runbooks (deferred 2026-06-27)        |

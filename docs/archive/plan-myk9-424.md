@@ -1,8 +1,8 @@
 # MYK9-424
 
-> **Status:** Active — implementation complete; PR review and delivery pending.
+> **Status:** Complete
 
-Status: implementation and review findings addressed; all six full shuffled runs passed; independent review awaiting transfer approval. Not merged or deployed. Request: “fix myk9-424”. Baseline: f47c47ed7.
+Status: shipped. Merged as #2081 (merge commit `7ccc08f9a`, 2026-09-06) and deployed — frontend-only change, live via the green `main` Vercel production build on that commit. No migrations or edge functions were involved. Request: “fix myk9-424”. Baseline: f47c47ed7.
 
 Use the issue's existing finding contract rather than a new OpenSpec proposal for this bounded regression fix.
 

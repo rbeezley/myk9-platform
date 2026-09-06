@@ -95,160 +95,158 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
     return () => window.clearTimeout(retry);
   }, [entries, now, onOfferDeadlineElapsed]);
 
+  // No container/width wrapper of its own: the section now sits INSIDE the page
+  // stack (it used to hang off the bottom of the page below the container), so
+  // owning its own gutters here would double the page's padding and nest a
+  // max-width inside a max-width.
+  // A neutral card, not an amber one. Two reasons, one measured and one from
+  // the design system. Measured: `text-muted-foreground` on a `bg-warning/10`
+  // fill reaches only 3.70:1 in dark mode against a 4.5:1 floor — the 10% tint
+  // lifts the surface just enough to break a token that passes everywhere else.
+  // On a plain card the same text clears AA. Design: amber means caution, and a
+  // wait-list position is not a problem — it is a normal queue state. Tinting
+  // the whole container amber spent a status colour on chrome, then rendered a
+  // green "Spot offered" badge inside it, which is what DESIGN.md's "The Status
+  // Is Sacred" rule forbids. The time-sensitive signal now lives on the title
+  // and the position chip, where it actually means something.
   return (
-    <div className="container mx-auto px-6 pb-4 max-w-7xl">
-      {/* A neutral card, not an amber one. Two reasons, one measured and one
-        from the design system. Measured: `text-muted-foreground` on a
-        `bg-warning/10` fill reaches only 3.70:1 in dark mode against a 4.5:1
-        floor — the 10% tint lifts the surface just enough to break a token that
-        passes everywhere else. On a plain card the same text clears AA.
-        Design: amber means caution, and a wait-list position is not a problem —
-        it is a normal queue state. Tinting the whole container amber spent a
-        status colour on chrome, then rendered a green "Spot offered" badge
-        inside it, which is what DESIGN.md's "The Status Is Sacred" rule
-        forbids. The time-sensitive signal now lives on the title and the
-        position chip, where it actually means something. */}
-      <Card className="border border-border bg-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold text-warning ">
-            <Users className="h-4 w-4" />
-            My Wait List Positions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map(i => (
-                <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : entries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active wait list positions.</p>
-          ) : (
-            <div className="space-y-3">
-              {entries.map(entry => {
-                const displayState = getOfferDisplayState(entry, now);
-                const isFocused = entry.id === focusedOfferId;
-                const isOfferActionable = displayState === 'offered' && entry.promotedEntryId;
-                const isPayingOffer = payingEntryId === entry.promotedEntryId;
-                const isDecliningOffer = decliningOfferId === entry.id;
-                const hasPaymentError = paymentErrorOfferId === entry.id && !!paymentError;
-                const hasDeclineError = declineErrorOfferId === entry.id && !!declineError;
+    <Card className="border border-border bg-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold text-warning ">
+          <Users className="h-4 w-4" />
+          My Wait List Positions
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map(i => (
+              <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : entries.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No active wait list positions.</p>
+        ) : (
+          <div className="space-y-3">
+            {entries.map(entry => {
+              const displayState = getOfferDisplayState(entry, now);
+              const isFocused = entry.id === focusedOfferId;
+              const isOfferActionable = displayState === 'offered' && entry.promotedEntryId;
+              const isPayingOffer = payingEntryId === entry.promotedEntryId;
+              const isDecliningOffer = decliningOfferId === entry.id;
+              const hasPaymentError = paymentErrorOfferId === entry.id && !!paymentError;
+              const hasDeclineError = declineErrorOfferId === entry.id && !!declineError;
 
-                return (
-                  <section
-                    key={entry.id}
-                    id={`waitlist-offer-${entry.id}`}
-                    role="region"
-                    aria-label={`Waitlist offer for ${entry.dogName}`}
-                    tabIndex={-1}
-                    className={`rounded-lg border bg-background px-4 py-3 outline-none transition-colors ${
-                      isFocused
-                        ? 'border-primary ring-2 ring-ring ring-offset-2 ring-offset-background'
-                        : 'border-border'
-                    }`}
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-warning/10 text-sm font-semibold text-warning">
-                          #{entry.position}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{entry.dogName}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {entry.className} <span aria-hidden="true">·</span> {entry.showName}
-                          </p>
-                          {displayState === 'offered' && entry.offerExpiresAt && (
-                            <p className="mt-1 text-sm font-medium text-success">
-                              {formatOfferDeadline(entry.offerExpiresAt, now)}
-                            </p>
-                          )}
-                          {displayState === 'checking' && (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              Checking whether this offer is still available.
-                            </p>
-                          )}
-                          {displayState === 'expired' && (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              This offer has expired.
-                            </p>
-                          )}
-                          {displayState === 'declined' && (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              You declined this spot.
-                            </p>
-                          )}
-                          {displayState === 'reconciled' && (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              Payment is being confirmed. Refresh My Entries shortly.
-                            </p>
-                          )}
-                        </div>
+              return (
+                <section
+                  key={entry.id}
+                  id={`waitlist-offer-${entry.id}`}
+                  role="region"
+                  aria-label={`Waitlist offer for ${entry.dogName}`}
+                  tabIndex={-1}
+                  className={`rounded-lg border bg-background px-4 py-3 outline-none transition-colors ${
+                    isFocused
+                      ? 'border-primary ring-2 ring-ring ring-offset-2 ring-offset-background'
+                      : 'border-border'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-warning/10 text-sm font-semibold text-warning">
+                        #{entry.position}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {displayState === 'offered' && (
-                          <Badge
-                            variant="outline"
-                            className="border-success/50 text-success text-xs"
-                          >
-                            Spot offered
-                          </Badge>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{entry.dogName}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {entry.className} <span aria-hidden="true">·</span> {entry.showName}
+                        </p>
+                        {displayState === 'offered' && entry.offerExpiresAt && (
+                          <p className="mt-1 text-sm font-medium text-success">
+                            {formatOfferDeadline(entry.offerExpiresAt, now)}
+                          </p>
                         )}
                         {displayState === 'checking' && (
-                          <Badge variant="outline" className="text-xs">
-                            Checking offer
-                          </Badge>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Checking whether this offer is still available.
+                          </p>
                         )}
-                        {isOfferActionable ? (
-                          <>
-                            <button
-                              onClick={() => onStartPayment(entry.promotedEntryId!, entry.id)}
-                              disabled={isPayingOffer || isDecliningOffer}
-                              className="inline-flex min-h-[44px] items-center justify-center rounded bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
-                            >
-                              {isPayingOffer
-                                ? 'Starting payment…'
-                                : hasPaymentError
-                                  ? 'Try payment again'
-                                  : 'Complete payment'}
-                            </button>
-                            <button
-                              onClick={() => onDecline(entry.id)}
-                              disabled={isPayingOffer || isDecliningOffer}
-                              className="inline-flex min-h-[44px] items-center justify-center rounded px-3 text-sm text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
-                            >
-                              {isDecliningOffer ? 'Declining…' : 'Decline'}
-                            </button>
-                          </>
-                        ) : displayState === 'waiting' ? (
-                          <button
-                            onClick={() => onWithdraw(entry.id)}
-                            disabled={isWithdrawing}
-                            className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
-                          >
-                            Withdraw
-                          </button>
-                        ) : null}
+                        {displayState === 'expired' && (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            This offer has expired.
+                          </p>
+                        )}
+                        {displayState === 'declined' && (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            You declined this spot.
+                          </p>
+                        )}
+                        {displayState === 'reconciled' && (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Payment is being confirmed. Refresh My Entries shortly.
+                          </p>
+                        )}
                       </div>
                     </div>
-                    {displayState === 'offered' && hasPaymentError && (
-                      <p className="mt-3 text-sm text-muted-foreground" role="status">
-                        Your spot is still held. Please try payment again.
-                      </p>
-                    )}
-                    {displayState === 'offered' && hasDeclineError && (
-                      <p className="mt-3 text-sm text-muted-foreground" role="status">
-                        We could not decline this spot. Please try again.
-                      </p>
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {displayState === 'offered' && (
+                        <Badge variant="outline" className="border-success/50 text-success text-xs">
+                          Spot offered
+                        </Badge>
+                      )}
+                      {displayState === 'checking' && (
+                        <Badge variant="outline" className="text-xs">
+                          Checking offer
+                        </Badge>
+                      )}
+                      {isOfferActionable ? (
+                        <>
+                          <button
+                            onClick={() => onStartPayment(entry.promotedEntryId!, entry.id)}
+                            disabled={isPayingOffer || isDecliningOffer}
+                            className="inline-flex min-h-[44px] items-center justify-center rounded bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
+                          >
+                            {isPayingOffer
+                              ? 'Starting payment…'
+                              : hasPaymentError
+                                ? 'Try payment again'
+                                : 'Complete payment'}
+                          </button>
+                          <button
+                            onClick={() => onDecline(entry.id)}
+                            disabled={isPayingOffer || isDecliningOffer}
+                            className="inline-flex min-h-[44px] items-center justify-center rounded px-3 text-sm text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
+                          >
+                            {isDecliningOffer ? 'Declining…' : 'Decline'}
+                          </button>
+                        </>
+                      ) : displayState === 'waiting' ? (
+                        <button
+                          onClick={() => onWithdraw(entry.id)}
+                          disabled={isWithdrawing}
+                          className="inline-flex min-h-[44px] items-center rounded px-2 text-xs text-muted-foreground transition-colors duration-150 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
+                        >
+                          Withdraw
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {displayState === 'offered' && hasPaymentError && (
+                    <p className="mt-3 text-sm text-muted-foreground" role="status">
+                      Your spot is still held. Please try payment again.
+                    </p>
+                  )}
+                  {displayState === 'offered' && hasDeclineError && (
+                    <p className="mt-3 text-sm text-muted-foreground" role="status">
+                      We could not decline this spot. Please try again.
+                    </p>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

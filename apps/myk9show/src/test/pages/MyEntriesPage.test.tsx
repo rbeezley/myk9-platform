@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -87,6 +87,40 @@ vi.mock('@/hooks/useRoleBasedData', () => ({
 }));
 vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: () => <div data-testid="add-dog-panel" />,
+}));
+
+// The wait-list section reads `waitlist_entries` — a table the entries axis
+// knows nothing about. Both hooks default to "no positions" so every existing
+// test in this file is unchanged; the MYK9-417 block below seeds a real one.
+const mockUseMyWaitlistEntries = vi.hoisted(() =>
+  vi.fn(() => ({
+    entries: [] as unknown[],
+    activePositionCount: 0,
+    isLoading: false,
+    error: null,
+    withdraw: { mutate: vi.fn(), isPending: false },
+    startPayment: {
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      variables: undefined,
+    },
+    decline: {
+      mutate: vi.fn(),
+      isPending: false,
+      isError: false,
+      error: null,
+      variables: undefined,
+    },
+    refetchWaitlistOffers: vi.fn(),
+  }))
+);
+vi.mock('@/hooks/queries/useMyWaitlistEntries', () => ({
+  useMyWaitlistEntries: () => mockUseMyWaitlistEntries(),
+}));
+vi.mock('@/hooks/useExhibitorProfile', () => ({
+  useExhibitorProfile: () => ({ profile: { id: 'exhibitor-1' }, isLoading: false }),
 }));
 
 // Mock entry data
@@ -451,9 +485,7 @@ describe('MyEntriesPage UI Improvements', () => {
       // The welcoming zero-state replaces the whole stat/dog/tab stack.
       expect(await screen.findByText(/Welcome!/i)).toBeInTheDocument();
       // No filters and no zeroed stat noise for a brand-new exhibitor.
-      expect(
-        screen.queryByRole('radiogroup', { name: /filter by time/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('radiogroup', { name: /filter by time/i })).not.toBeInTheDocument();
     });
 
     it('shows a syncing skeleton instead of the first-run welcome while entries are still syncing', async () => {
@@ -548,9 +580,7 @@ describe('MyEntriesPage UI Improvements', () => {
       // their entries sat in IndexedDB.
       expect(await screen.findByText(/Getting your shows ready/i)).toBeInTheDocument();
       expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /add your first dog/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add your first dog/i })).not.toBeInTheDocument();
       expect(getUserEntries).not.toHaveBeenCalled();
     });
 
@@ -943,5 +973,202 @@ describe('Receipt deep-link scope from My Payments', () => {
     await screen.findByText('Rocky Mountain Classic');
     expect(screen.getByText('Autumn Classic')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Show all entries' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * MYK9-417. My Shows read the wait list from two places that never spoke:
+ * the `Waitlist` chip and its list from `entries` (via `isWaitlistEntry`), the
+ * "My Wait List Positions" section from the `waitlist_entries` table. An
+ * exhibitor holding position #1 was shown a `Waitlist 0` chip and, on clicking
+ * it, "No waitlisted entries … Nothing to do here right now" — printed inches
+ * above the live position it denied.
+ *
+ * These render the PAGE, not the resolver, on purpose: the pure rule is pinned
+ * in waitlistSurface.test.ts, and a fix that never reaches the chip, the empty
+ * state or the section would pass that file and change nothing here.
+ */
+describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
+  /** The reproduction's shape: an entry that is NOT waitlisted... */
+  const submittedEntry = {
+    is_scored: false,
+    result_status: null,
+    final_placement: null,
+    class_results_released_at: null,
+    entry_status: 'submitted',
+  };
+
+  /** ...beside the exhibitor's one and only `waitlist_entries` row. */
+  const junisPosition = {
+    id: 'waitlist-1',
+    classId: 'class-32',
+    className: 'Interior Advanced',
+    showName: 'Heartland Scent Work Classic',
+    exhibitorId: 'exhibitor-1',
+    exhibitorName: 'Test User',
+    dogId: null,
+    dogName: 'Juni',
+    handlerId: null,
+    position: 1,
+    status: 'waiting',
+    offeredAt: null,
+    offerExpiresAt: null,
+    promotedEntryId: null,
+    createdAt: '2026-09-01T12:00:00.000Z',
+  };
+
+  const seedPosition = (entries: unknown[], activePositionCount = entries.length) =>
+    mockUseMyWaitlistEntries.mockReturnValue({
+      entries,
+      activePositionCount,
+      isLoading: false,
+      error: null,
+      withdraw: { mutate: vi.fn(), isPending: false },
+      startPayment: {
+        mutate: vi.fn(),
+        isPending: false,
+        isError: false,
+        error: null,
+        variables: undefined,
+      },
+      decline: {
+        mutate: vi.fn(),
+        isPending: false,
+        isError: false,
+        error: null,
+        variables: undefined,
+      },
+      refetchWaitlistOffers: vi.fn(),
+    });
+
+  const waitlistChip = () =>
+    within(screen.getByRole('radiogroup', { name: /filter by entry status/i })).getByRole('radio', {
+      name: /waitlist/i,
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockUseDogsByOwnerQuery.mockReturnValue({ data: [], isLoading: false });
+    mockUseCurrentUserPersonId.mockReturnValue(null);
+    seedAuthWithPerson();
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [makeResultRow(submittedEntry)],
+      error: null,
+    });
+    seedPosition([junisPosition]);
+  });
+
+  // `vi.clearAllMocks()` clears call history but NOT return-value overrides
+  // (see the note in the first describe), so a seeded position would otherwise
+  // follow this file into whichever describe runs next.
+  afterEach(() => seedPosition([]));
+
+  it('counts the position on the Waitlist chip', async () => {
+    renderWithProviders(<MyEntriesPage />);
+
+    await screen.findByRole('radiogroup', { name: /filter by entry status/i });
+    // The bug read "Waitlist 0" with Juni sitting at #1 below it.
+    expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*1$/);
+  });
+
+  it('shows the position — not the "nothing to do" empty state — under the Waitlist filter', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MyEntriesPage />);
+
+    await screen.findByRole('radiogroup', { name: /filter by entry status/i });
+    await user.click(waitlistChip());
+
+    expect(await screen.findByText('My Wait List Positions')).toBeInTheDocument();
+    expect(screen.getByText('Juni')).toBeInTheDocument();
+    // The sentence the page had no business saying.
+    expect(screen.queryByText('No waitlisted entries')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nothing to do here right now/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the empty state for an exhibitor who genuinely holds no position', async () => {
+    // The other half of the same rule: suppressing the copy unconditionally
+    // would trade one wrong answer for a blank space.
+    seedPosition([]);
+    const user = userEvent.setup();
+    renderWithProviders(<MyEntriesPage />);
+
+    await screen.findByRole('radiogroup', { name: /filter by entry status/i });
+    expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*0$/);
+    await user.click(waitlistChip());
+
+    expect(await screen.findByText('No waitlisted entries')).toBeInTheDocument();
+    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+  });
+
+  it('explains a deep-linked expired offer without counting it on the chip', async () => {
+    // `?waitlistOffer=` pulls a terminal row into the display list so the
+    // section can say what happened to it. The exhibitor no longer holds that
+    // position, so the chip must not claim they do.
+    // jsdom implements no layout, so the focused-offer effect's scrollIntoView
+    // is undefined and throws through the whole render.
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    seedPosition([{ ...junisPosition, status: 'expired' }], 0);
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?waitlistOffer=waitlist-1');
+
+    await screen.findByRole('radiogroup', { name: /filter by entry status/i });
+    expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*0$/);
+    expect(screen.getByText('My Wait List Positions')).toBeInTheDocument();
+  });
+
+  it('does not greet an exhibitor who holds a position as brand new', async () => {
+    // `add_to_waitlist` needs no entry row, so a position can be an
+    // exhibitor's ONLY standing. "Welcome! Let's get you set up" printed above
+    // a live #1 is the same contradiction, one branch up.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    renderWithProviders(<MyEntriesPage />);
+
+    expect(await screen.findByText('My Wait List Positions')).toBeInTheDocument();
+    expect(screen.getByText('Juni')).toBeInTheDocument();
+    expect(screen.queryByText(/Welcome! Let’s get you set up/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You haven’t entered any shows yet/)).not.toBeInTheDocument();
+  });
+
+  it('still greets a genuinely brand-new exhibitor as brand new', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    seedPosition([]);
+    renderWithProviders(<MyEntriesPage />);
+
+    expect(await screen.findByText(/Welcome! Let’s get you set up/)).toBeInTheDocument();
+    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+  });
+
+  it('explains itself rather than going blank when a filter hides the only position', async () => {
+    // Suppressing the first-run state for a wait-list-only exhibitor must not
+    // leave them with nothing: under `?status=accepted` the section is hidden
+    // by design, so the filters and the matching empty state have to be there.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?status=accepted');
+
+    expect(await screen.findByText('No accepted entries yet')).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: /filter by entry status/i })).toBeInTheDocument();
+    // The position is still countable from here, one click away.
+    expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*1$/);
+    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+  });
+
+  it('hides the positions section behind a status filter that excludes them', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<MyEntriesPage />);
+
+    await screen.findByRole('radiogroup', { name: /filter by entry status/i });
+    expect(screen.getByText('My Wait List Positions')).toBeInTheDocument();
+
+    const statusAxis = screen.getByRole('radiogroup', { name: /filter by entry status/i });
+    await user.click(within(statusAxis).getByRole('radio', { name: /accepted/i }));
+
+    // Leaving it up under Accepted is the same contradiction pointing the
+    // other way: a section the active filter says should not be there.
+    await waitFor(() =>
+      expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument()
+    );
   });
 });

@@ -12,8 +12,6 @@ import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
-import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
-import { DogStrip } from '@/components/exhibitor/DogStrip';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
 import {
   buildEntryBalanceRecoveryHref,
@@ -41,6 +39,8 @@ import {
   MyEntriesDialogGroup,
   WaitListSection,
   EntryFilterStrip,
+  MyEntriesOverview,
+  type OverviewDog,
   ALL_ENTRIES_LABEL,
   ALL_ENTRIES_SCOPE_NOTE,
 } from './modules';
@@ -63,6 +63,24 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Wait list. Resolved BEFORE the filters below, which need the position count:
+  // `waitlist_entries` is a second source of waitlist truth that the `entries`
+  // table cannot see, and the Waitlist chip counted only the half it could
+  // (MYK9-417). `waitlistSurface` reconciles them.
+  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const focusedWaitlistOfferId = searchParams.get('waitlistOffer');
+  const {
+    entries: waitlistEntries,
+    activePositionCount: activeWaitlistPositionCount,
+    isLoading: waitlistLoading,
+    withdraw,
+    startPayment,
+    decline,
+    refetchWaitlistOffers,
+  } = useMyWaitlistEntries(exhibitorProfile?.id, focusedWaitlistOfferId);
+
   const {
     filteredEntries,
     selectedTab,
@@ -74,9 +92,16 @@ const MyEntriesPage: React.FC = () => {
     tabCounts,
     scopeMatch,
     clearScope,
+    waitlistSurface,
   } = useMyEntriesFilters({
     entries,
     balanceSummary,
+    // Active vs displayed: `waitlistEntries` can carry a terminal offer that a
+    // `?waitlistOffer=` deep link pulled in to explain. It earns the section,
+    // never a place on the chip.
+    activeWaitlistPositionCount,
+    displayedWaitlistPositionCount: waitlistEntries.length,
+    waitlistPositionsLoading: waitlistLoading,
   });
 
   // Resolve the secretary's self-check-in cascade (class ?? trial ?? show ?? true)
@@ -101,7 +126,6 @@ const MyEntriesPage: React.FC = () => {
   const selfCheckinByClassId = useSelfCheckinMap(selfCheckinClassIds);
 
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   // Resolve the exhibitor's person id from the same source entry loading and the
   // AddDogPanel use (legacy lookup first, then the auth record). Deriving dog
@@ -142,18 +166,6 @@ const MyEntriesPage: React.FC = () => {
   // `useResultReveal` also owns the `?resultEntryId=` deep link.
   const dialogs = useMyEntriesDialogs({ updateEntryCheckIn, refreshEntries });
   const reveal = useResultReveal(entries);
-
-  // Waitlist
-  const { profile: exhibitorProfile } = useExhibitorProfile();
-  const focusedWaitlistOfferId = searchParams.get('waitlistOffer');
-  const {
-    entries: waitlistEntries,
-    isLoading: waitlistLoading,
-    withdraw,
-    startPayment,
-    decline,
-    refetchWaitlistOffers,
-  } = useMyWaitlistEntries(exhibitorProfile?.id, focusedWaitlistOfferId);
 
   const handleWaitlistOfferDeadlineElapsed = useCallback(() => {
     void refetchWaitlistOffers();
@@ -261,53 +273,43 @@ const MyEntriesPage: React.FC = () => {
                  exhibitor on a cold offline boot that they had never entered a
                  show, with their entries sitting in IndexedDB. */
               <EntriesIdentityPendingCard onRetry={refreshEntries} refreshing={refreshing} />
-            ) : entries.length === 0 ? (
+            ) : entries.length === 0 && !waitlistSurface.hasPositions ? (
+              /* `entries.length === 0` is not the same as "no standing". An
+                 exhibitor can hold a `waitlist_entries` row with no entry row
+                 at all, and "Welcome! Let's get you set up" printed above a
+                 live #1 position is the same contradiction MYK9-417 is about,
+                 one branch up. */
               <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
             ) : (
               <>
-                <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
-                  <CompactStatsRow
+                {/* A wait-list-only exhibitor skips these two: a stat row of
+                  zeros and an empty dog strip are the noise FirstRunZeroState
+                  exists to suppress, and they have no entries to summarise.
+                  The filter section below still renders for them, so the
+                  filters keep working and every filter that hides their
+                  position still explains itself — the alternative was a blank
+                  page under `?status=accepted`. */}
+                {entries.length > 0 && (
+                  <MyEntriesOverview
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
                     currentFeesHref={currentFeesHref}
                     onNavigate={navigate}
-                  />
-                </div>
-
-                {/* order-3 on mobile keeps the dog strip below the primary entry
-                  workflow. On desktop all three siblings are order-0, so source order
-                  keeps the balance and dog strip above the entries. */}
-                <div className="max-[720px]:order-3">
-                  <DogStrip
-                    dogs={
-                      (dogs ?? []) as {
-                        id: string;
-                        call_name?: string;
-                        name?: string;
-                        image_url?: string | null;
-                        date_of_birth?: string | null;
-                        registrations?: {
-                          breed?: string | null;
-                          organization?: string | null;
-                          registration_number?: string | null;
-                        }[];
-                      }[]
-                    }
+                    dogs={(dogs ?? []) as OverviewDog[]}
                     upcomingClassCountByDog={upcomingClassCountByDog}
                     onAddDog={dialogs.openAddDog}
                   />
-                </div>
+                )}
 
                 {/* Entries section — order-1 on mobile puts the primary filters directly
                   below the hero/today context. The balance card stays intact immediately
                   after the filtered list, while the dog strip remains secondary. Desktop
                   keeps source order (balance, dogs, entries). */}
                 <div data-testid="entries-filter-section" className="space-y-8 max-[720px]:order-1">
-                  {/* This branch only renders when entries.length > 0, so the count
-                    badge is always shown here. The scope note distinguishes this
-                    all-time count from the "Current entries" stat card above,
-                    which is scoped to upcoming/in-review only. */}
+                  {/* The scope note distinguishes this all-time count from the
+                    "Current entries" stat card above, which is scoped to
+                    upcoming/in-review only. */}
                   {/* A real heading, not a styled <p>. This and "My Dogs" were
                     the page's two section labels and neither was reachable by
                     heading navigation, so a screen-reader user had exactly one
@@ -359,7 +361,7 @@ const MyEntriesPage: React.FC = () => {
                         ? '1 entry'
                         : `${filteredEntries.length} entries`}
                     </p>
-                    {filteredEntries.length === 0 ? (
+                    {filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
                       <EntriesEmptyState
                         selectedTab={selectedTab}
                         selectedStatus={selectedStatus}
@@ -390,42 +392,54 @@ const MyEntriesPage: React.FC = () => {
                 </div>
               </>
             )}
+
+            {/* Wait List Queue. Part of the filtered surface, not page
+              furniture: `waitlistSurface` decides when it renders, so the
+              Waitlist chip's count, this section and the empty state below
+              always answer from the same rule (MYK9-417). It sits outside
+              the entries branch on purpose — `add_to_waitlist` can queue a
+              dog with no entry row at all, so an exhibitor whose only
+              standing on this page is a wait-list position still sees it. */}
+            {waitlistSurface.showPositions && (
+              /* order-4 keeps the phone stack as it was when this section hung
+                 off the bottom of the page: entries (1), balance (2), dogs (3),
+                 wait list (4). Its siblings carry explicit orders, so an
+                 unordered flex child would default to 0 and jump to the top. */
+              <div className="max-[720px]:order-4">
+                <WaitListSection
+                  entries={waitlistEntries}
+                  isLoading={waitlistLoading}
+                  onWithdraw={id => withdraw.mutate(id)}
+                  isWithdrawing={withdraw.isPending}
+                  onStartPayment={(entryId, waitlistEntryId) => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('waitlistOffer', waitlistEntryId);
+                    setSearchParams(next, { replace: true });
+                    startPayment.mutate({ entryId, waitlistEntryId });
+                  }}
+                  onDecline={id => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('waitlistOffer', id);
+                    setSearchParams(next, { replace: true });
+                    decline.mutate(id);
+                  }}
+                  payingEntryId={
+                    startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null
+                  }
+                  decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
+                  paymentError={startPayment.error?.message ?? null}
+                  paymentErrorOfferId={
+                    startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
+                  }
+                  declineError={decline.error?.message ?? null}
+                  declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
+                  focusedOfferId={focusedWaitlistOfferId}
+                  onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
+                />
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Wait List Queue */}
-        {(waitlistLoading || waitlistEntries.length > 0) && (
-          <WaitListSection
-            entries={waitlistEntries}
-            isLoading={waitlistLoading}
-            onWithdraw={id => withdraw.mutate(id)}
-            isWithdrawing={withdraw.isPending}
-            onStartPayment={(entryId, waitlistEntryId) => {
-              const next = new URLSearchParams(searchParams);
-              next.set('waitlistOffer', waitlistEntryId);
-              setSearchParams(next, { replace: true });
-              startPayment.mutate({ entryId, waitlistEntryId });
-            }}
-            onDecline={id => {
-              const next = new URLSearchParams(searchParams);
-              next.set('waitlistOffer', id);
-              setSearchParams(next, { replace: true });
-              decline.mutate(id);
-            }}
-            payingEntryId={
-              startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null
-            }
-            decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
-            paymentError={startPayment.error?.message ?? null}
-            paymentErrorOfferId={
-              startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
-            }
-            declineError={decline.error?.message ?? null}
-            declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
-            focusedOfferId={focusedWaitlistOfferId}
-            onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
-          />
-        )}
       </div>
     );
   };

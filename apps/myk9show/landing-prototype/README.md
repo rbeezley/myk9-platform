@@ -20,4 +20,4 @@ This isolated preview follows the user's request to leave the app unchanged. No 
 
 Decision: pending user review. Do not promote this throwaway code directly to production. Apply the selected structure using existing app components, established routes, tested onboarding behavior, verified claims, and real product evidence; then remove the prototype.
 
-See the worktree-root landing-page-ux-audit.md for findings and validation limits.
+See `docs/qa/landing-page-ux-audit-2026-09-05.md` for findings and validation limits.

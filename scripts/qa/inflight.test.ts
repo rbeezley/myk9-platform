@@ -449,6 +449,53 @@ describe('inflight CLI', () => {
     expect(runCli(main, bin, 'docs-new.md').code).toBe(1);
   });
 
+  it("counts a merge commit's own conflict resolution, but not what the merge brought in", () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', 'main');
+    writeFileSync(join(main, 'src', 'a.ts'), 'main version');
+    writeFileSync(join(main, 'main-only.md'), 'm');
+    git(main, 'add', '.');
+    git(main, 'commit', '-q', '-m', 'main edits a');
+    git(main, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    git(main, 'checkout', '-q', '-b', 'resolver', 'origin/main~1');
+    writeFileSync(join(main, 'src', 'a.ts'), 'branch version');
+    git(main, 'commit', '-q', '-am', 'branch edits a');
+    try {
+      git(main, 'merge', '-q', '--no-edit', 'origin/main');
+    } catch {
+      /* conflict expected */
+    }
+    writeFileSync(join(main, 'src', 'a.ts'), 'resolved by hand');
+    writeFileSync(join(main, 'resolution-note.md'), 'why');
+    git(main, 'add', '.');
+    execFileSync('git', ['commit', '-q', '--no-edit', '-m', 'merge main'], {
+      cwd: main,
+      stdio: 'ignore',
+    });
+    git(main, 'checkout', '-q', 'mine');
+    writeFileSync(join(main, '..', 'other', 'src', 'a.ts'), 'a');
+    stubGh(bin, []);
+    expect(committedPaths('resolver', ['origin/main'], main).sort()).toEqual([
+      'resolution-note.md',
+      'src/a.ts',
+    ]);
+    expect(runCli(main, bin, 'main-only.md').code).toBe(0);
+    expect(runCli(main, bin, 'resolution-note.md').code).toBe(1);
+  });
+
+  it('applies the merged-head exclusion to the CURRENT branch as well', () => {
+    const { main, bin } = repo();
+    const mergedHead = git(main, 'rev-parse', 'HEAD').trim();
+    writeFileSync(join(main, 'docs-new.md'), 'new');
+    git(main, 'add', 'docs-new.md');
+    git(main, 'commit', '-q', '-m', 'new work on mine');
+    writeFileSync(join(main, '..', 'other', 'src', 'b.ts'), 'their edit');
+    stubGh(bin, [], [['mine', mergedHead]]);
+    expect(runCli(main, bin).code).toBe(0);
+    stubGh(bin, [], []);
+    expect(runCli(main, bin).code).toBe(1);
+  });
+
   it('--warn reports but exits 0', () => {
     const { main, bin } = repo();
     stubGh(bin, [{ number: 2062, headRefName: 'someone-else', files: [{ path: 'src/b.ts' }] }]);

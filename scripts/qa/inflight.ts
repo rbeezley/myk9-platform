@@ -166,13 +166,16 @@ export function currentBranch(cwd?: string): string {
  * an empty one.
  */
 export function committedPaths(ref: string, excludes: readonly string[], cwd?: string): string[] {
+  // `-c`: a merge commit lists only files that differ from ALL its parents —
+  // i.e. conflict resolutions and evil-merge edits, never the content one side
+  // merely brought in (Codex, #2073 round 7). Non-merge commits list normally.
   const args = [
     'log',
     '--name-status',
     '-M',
     '-z',
     '--format=',
-    '--no-merges',
+    '-c',
     ref,
     ...excludes.map(e => `^${e}`),
   ];
@@ -180,7 +183,8 @@ export function committedPaths(ref: string, excludes: readonly string[], cwd?: s
   const out: string[] = [];
   for (let i = 0; i < tokens.length; i += 1) {
     const tok = tokens[i];
-    if (!/^[ACDMRTUXB]\d*$/.test(tok)) continue; // not a status record
+    // One letter per parent for a merge under `-c` (`AA`, `MM`), a rename score after R/C.
+    if (!/^[ACDMRTUXB]+\d*$/.test(tok)) continue; // not a status record
     const path = tokens[i + 1];
     if (path === undefined || path === '') continue;
     out.push(path);
@@ -197,8 +201,13 @@ export function committedPaths(ref: string, excludes: readonly string[], cwd?: s
 }
 
 /** Paths this checkout would bring to a PR: committed past base, modified, and untracked. */
-export function localChangedPaths(base: string, cwd?: string): string[] {
-  return [...new Set([...committedPaths('HEAD', [base], cwd), ...statusPaths(cwd)])];
+export function localChangedPaths(base: string, cwd?: string, mergedHead?: string): string[] {
+  return [
+    ...new Set([
+      ...committedPaths('HEAD', commitExcludes('HEAD', base, mergedHead, cwd), cwd),
+      ...statusPaths(cwd),
+    ]),
+  ];
 }
 
 interface RestPr {
@@ -426,12 +435,16 @@ function runCliInner(argv: string[], cwd: string): number {
   const explicit = argv.filter(a => !a.startsWith('--'));
   run('git', ['fetch', '-q', 'origin', 'main'], { cwd, allowFail: true });
   const branch = currentBranch(cwd);
-  const paths = explicit.length ? explicit : localChangedPaths(base, cwd);
+  const merged = new MergedHeads();
+  // The current branch may itself be a reused name: exclude its shipped work
+  // too, or its own ghosts would collide with everyone (Codex, #2073 round 7).
+  const paths = explicit.length
+    ? explicit
+    : localChangedPaths(base, cwd, branch === 'HEAD' ? undefined : merged.get(branch));
   if (paths.length === 0) {
     console.log('inflight: nothing to check — no changed paths on this branch and none given.');
     return 0;
   }
-  const merged = new MergedHeads();
   const worktrees = otherWorktrees(base, cwd, merged);
   const wtBranches = new Set(worktrees.map(w => w.branch).filter((b): b is string => !!b));
   wtBranches.add(branch);

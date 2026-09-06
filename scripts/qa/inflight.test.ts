@@ -24,7 +24,9 @@ describe('pathsOverlap', () => {
     ['a/b.ts', 'a/c.ts', false],
     ['ab', 'a/b.ts', false],
     ['a/b', 'a/bc/d.ts', false],
-    ['', 'a', false],
+    ['', 'a', true], // '' is the repository root: contains everything
+    ['a', '', true],
+    ['', '', false],
   ])('%j vs %j -> %s', (a, b, want) => {
     expect(pathsOverlap(a, b)).toBe(want);
   });
@@ -520,6 +522,18 @@ describe('inflight CLI', () => {
     expect(r.out).toContain('not a clean result');
     expect(runCli(main, bin, '--allow-empty').code).toBe(0);
     expect(runCli(main, bin, 'src/a.ts').code).toBe(1); // named path, other worktree edits it
+  });
+
+  it("treats '.' as the whole repository and resolves '..' and subdirectory-relative paths", () => {
+    const { main, other, bin } = repo();
+    stubGh(bin, []);
+    expect(runCli(main, bin, '.').code).toBe(1); // the other worktree's dirty src/a.ts is in the repo
+    expect(runCli(join(main, 'src'), bin, './a.ts').code).toBe(1); // from a subdirectory
+    expect(runCli(join(main, 'src'), bin, '../src/a.ts').code).toBe(1);
+    const r = runCli(main, bin, '../outside.txt');
+    expect(r.code).toBe(2); // outside the repository: not a clean result
+    expect(r.out).toContain('outside the repository');
+    void other;
   });
 
   it('--warn reports but exits 0', () => {

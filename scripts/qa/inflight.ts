@@ -24,6 +24,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export interface ChangeSource {
@@ -50,10 +51,26 @@ export function normalizePath(p: string): string {
   return p.replace(/^\.\//, '').replace(/\/+$/, '');
 }
 
+/**
+ * Turn an explicit argument into a repository-relative path. `.` (or the
+ * repository root) becomes '' and matches everything; `..` segments are
+ * resolved; a path that leaves the repository is rejected (Codex, #2073
+ * round 10: `pnpm qa:inflight .` read as clean because '.' matched nothing).
+ */
+export function toRepoRelative(arg: string, repoRoot: string, cwd: string): string {
+  const abs = resolve(cwd, arg);
+  const rel = relative(repoRoot, abs);
+  if (rel === '') return '';
+  if (rel.startsWith('..') || isAbsolute(rel))
+    throw new InflightQueryError(`path is outside the repository: ${arg}`);
+  return rel.split(sep).join('/');
+}
+
 /** Exact match, or one path is a directory containing the other. */
 export function pathsOverlap(a: string, b: string): boolean {
   const x = normalizePath(a);
   const y = normalizePath(b);
+  if ((x === '') !== (y === '')) return true; // the repository root contains every file, either side
   if (!x || !y) return false;
   return x === y || x.startsWith(y + '/') || y.startsWith(x + '/');
 }
@@ -450,8 +467,9 @@ function runCliInner(argv: string[], cwd: string): number {
   const merged = new MergedHeads();
   // The current branch may itself be a reused name: exclude its shipped work
   // too, or its own ghosts would collide with everyone (Codex, #2073 round 7).
+  const repoRoot = run('git', ['rev-parse', '--show-toplevel'], { cwd }).trim();
   const paths = explicit.length
-    ? explicit
+    ? explicit.map(a => toRepoRelative(a, repoRoot, cwd))
     : localChangedPaths(base, cwd, branch === 'HEAD' ? undefined : merged.get(branch));
   if (paths.length === 0) {
     // Run BEFORE any work exists — the pre-work use this tool is for — an

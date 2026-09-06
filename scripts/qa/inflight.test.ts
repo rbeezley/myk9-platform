@@ -511,6 +511,17 @@ describe('inflight CLI', () => {
     expect(findOverlaps(['src/b.ts'], [unknown], { branch: 'mine' })).toHaveLength(1);
   });
 
+  it('fails closed with nothing to check — a pre-work run must name its paths', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'fresh', 'origin/main'); // no commits, no dirty files
+    stubGh(bin, []);
+    const r = runCli(main, bin);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('not a clean result');
+    expect(runCli(main, bin, '--allow-empty').code).toBe(0);
+    expect(runCli(main, bin, 'src/a.ts').code).toBe(1); // named path, other worktree edits it
+  });
+
   it('--warn reports but exits 0', () => {
     const { main, bin } = repo();
     stubGh(bin, [{ number: 2062, headRefName: 'someone-else', files: [{ path: 'src/b.ts' }] }]);

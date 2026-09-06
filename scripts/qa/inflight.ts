@@ -15,7 +15,9 @@
  *   - unmerged local branches not checked out anywhere
  *
  * Overlap is exact path or directory prefix in either direction. The current
- * branch and its own PR are excluded. Exit 1 on any overlap so a chained
+ * branch and its own same-repository PR are excluded. With no paths given and
+ * no changes on the branch, the check fails closed (exit 2): before work
+ * starts, name the paths you intend to touch. Exit 1 on any overlap so a chained
  * `pnpm qa:inflight && …` stops; `--warn` reports without failing. Linear
  * "In Progress" issues and other Claude sessions are MCP tools, not shell,
  * and stay as the skill's manual steps.
@@ -452,8 +454,20 @@ function runCliInner(argv: string[], cwd: string): number {
     ? explicit
     : localChangedPaths(base, cwd, branch === 'HEAD' ? undefined : merged.get(branch));
   if (paths.length === 0) {
-    console.log('inflight: nothing to check — no changed paths on this branch and none given.');
-    return 0;
+    // Run BEFORE any work exists — the pre-work use this tool is for — an
+    // empty path set must not read as clean (Codex, #2073 round 9). Name the
+    // paths you intend to touch; `--allow-empty` is for a deliberate no-op.
+    if (argv.includes('--allow-empty')) {
+      console.log(
+        'inflight: no changed paths on this branch and none given; --allow-empty accepted.'
+      );
+      return 0;
+    }
+    console.error('inflight: nothing to check — no changed paths on this branch and none given.');
+    console.error(
+      'inflight: pass the paths you intend to change (e.g. `pnpm qa:inflight apps/myk9show/src/x`), or --allow-empty. Exit 2: not a clean result.'
+    );
+    return 2;
   }
   const worktrees = otherWorktrees(base, cwd, merged);
   const wtBranches = new Set(worktrees.map(w => w.branch).filter((b): b is string => !!b));

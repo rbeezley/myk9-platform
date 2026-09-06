@@ -1,10 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
-import { getEntriesByClass, getEntriesByShow } from '@/services/database/entries';
+import {
+  getEntriesByClass,
+  getEntriesByShowFromReplication,
+  getEntriesByTrial,
+} from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import type { Show } from '@/types/show-types';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
+import { refreshShowEntriesForRead } from '@/services/database/entries/refreshShowEntriesForRead';
 import type { ReportDbEntry } from '@/lib/reports/types';
 
 /**
@@ -76,7 +81,13 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   });
 
   const classesQuery = useQuery({
-    queryKey: [...queryKeys.showClasses(showId), trialId],
+    queryKey: [
+      ...queryKeys.showClasses(showId),
+      trialId,
+      trialId === 'all'
+        ? ((trialsQuery.data ?? []) as Array<{ id: string }>).map(trial => trial.id)
+        : [],
+    ],
     queryFn: async () => {
       if (trialId === 'all') {
         const trials = (trialsQuery.data ?? []) as Array<{ id: string }>;
@@ -101,7 +112,18 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
         if (error) throw error;
         return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
       }
-      const { data, error } = await getEntriesByShow(showId);
+      // Staff reports use the same replication-backed scoped reads as class
+      // reports. The exhibitor show read resolves release visibility online and
+      // must mask raw cached scores when that optional request is unavailable.
+      // Retain the bounded refresh that show reports used before selecting
+      // scoped reads, so an online partial cache still has a chance to fill.
+      await refreshShowEntriesForRead(showId);
+      if (trialId === 'all') {
+        const { data, error } = await getEntriesByShowFromReplication(showId);
+        if (error) throw error;
+        return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
+      }
+      const { data, error } = await getEntriesByTrial(trialId);
       if (error) throw error;
       return hydrateEntryRegistrations((data ?? []) as ReportDbEntry[]);
     },

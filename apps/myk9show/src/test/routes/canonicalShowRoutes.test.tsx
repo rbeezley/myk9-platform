@@ -34,11 +34,12 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 }));
 
 vi.mock('@/context/AuthContext', () => ({
-  ProtectedRoute: ({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) =>
+  ProtectedRoute: ({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) => (
     // ProtectedRoute is no longer used in ShowManagementSectionRoute, but is
     // still used in other routes (exhibitor gate). Treat as always-pass here
     // since the gate under test is ShowManagementSectionRoute's own logic.
-    <>{children ?? fallback}</>,
+    <>{children ?? fallback}</>
+  ),
 }));
 
 vi.mock('@/components/common/PageTransition', () => ({
@@ -195,7 +196,10 @@ describe('canonical show route redirects', () => {
   });
 
   it('preserves query strings on legacy secretary show redirects', async () => {
-    renderRedirect('/secretary/shows/show-1/reports?report=result-catalog&trialId=trial-7', 'reports');
+    renderRedirect(
+      '/secretary/shows/show-1/reports?report=result-catalog&trialId=trial-7',
+      'reports'
+    );
     expect(await screen.findByTestId('location')).toHaveTextContent(
       '/shows/show-1/reports?report=result-catalog&trialId=trial-7'
     );
@@ -203,15 +207,18 @@ describe('canonical show route redirects', () => {
 });
 
 describe('canonical account route redirects', () => {
-  it.each(['/profile', '/exhibitor/profile'])('redirects %s to the unified account page', async path => {
-    render(
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>{PublicRoutes()}</Routes>
-      </MemoryRouter>
-    );
+  it.each(['/profile', '/exhibitor/profile'])(
+    'redirects %s to the unified account page',
+    async path => {
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>{PublicRoutes()}</Routes>
+        </MemoryRouter>
+      );
 
-    expect(await screen.findByTestId('production-account-page')).toBeInTheDocument();
-  });
+      expect(await screen.findByTestId('production-account-page')).toBeInTheDocument();
+    }
+  );
 });
 
 describe('canonical show management routes', () => {
@@ -230,25 +237,27 @@ describe('canonical show management routes', () => {
   );
 
   it.each(
-    SHOW_MANAGEMENT_SECTIONS.map(({ path }) => [
-      `/shows/show-1/${path}`,
-      PRODUCTION_SECTION_TEST_IDS[path],
-    ] as const)
-  )('secretary renders %s through the production PublicRoutes tree', async (path, sectionTestId) => {
-    mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
-    mockAuth.userWithRoles = null;
-    mockShows.data = [];
-    mockShows.isLoading = false;
+    SHOW_MANAGEMENT_SECTIONS.map(
+      ({ path }) => [`/shows/show-1/${path}`, PRODUCTION_SECTION_TEST_IDS[path]] as const
+    )
+  )(
+    'secretary renders %s through the production PublicRoutes tree',
+    async (path, sectionTestId) => {
+      mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
+      mockAuth.userWithRoles = null;
+      mockShows.data = [];
+      mockShows.isLoading = false;
 
-    render(
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>{PublicRoutes()}</Routes>
-      </MemoryRouter>
-    );
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>{PublicRoutes()}</Routes>
+        </MemoryRouter>
+      );
 
-    expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
-    expect(screen.getByTestId(sectionTestId)).toBeInTheDocument();
-  });
+      expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
+      expect(screen.getByTestId(sectionTestId)).toBeInTheDocument();
+    }
+  );
 
   it('redirects an unauthenticated user from management URLs back to show overview', async () => {
     mockAuth.user = null;
@@ -272,10 +281,7 @@ describe('canonical show management routes', () => {
     render(
       <MemoryRouter initialEntries={['/shows/show-1/show-desk?from=dashboard']}>
         <Routes>
-          <Route
-            path="/shows/:id/show-desk"
-            element={<CanonicalAccessProbe canManage={false} />}
-          />
+          <Route path="/shows/:id/show-desk" element={<CanonicalAccessProbe canManage={false} />} />
           <Route path="/shows/:id" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDatabaseError } from '../databaseError';
 import { getEntriesByShow } from './reads';
 
@@ -31,6 +31,7 @@ function view(rows: Record<string, unknown>[], error: unknown = null) {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
+    abortSignal: vi.fn().mockReturnThis(),
     range: vi.fn().mockResolvedValue({ data: rows, error }),
   };
   mocks.from.mockReturnValue(query);
@@ -41,6 +42,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.read.mockResolvedValue({ data: [entry], error: null });
 });
+
+afterEach(() => vi.useRealTimers());
 
 describe('getEntriesByShow released result hydration', () => {
   it('reads released Q/time from the authenticated view while retaining entry identity', async () => {
@@ -92,8 +95,9 @@ describe('getEntriesByShow released result hydration', () => {
       });
       const query = view([], new Error('unavailable'));
       if (failure === 'throw') query.range.mockRejectedValue(new Error('offline'));
-      const { data, error } = await getEntriesByShow('show-1');
+      const { data, error, resultsReadComplete } = await getEntriesByShow('show-1');
       expect(error).toBeNull();
+      expect(resultsReadComplete).toBe(false);
       expect(data[0]).toMatchObject({ id: entry.id, result_status: null, final_placement: null });
     }
   );
@@ -121,5 +125,68 @@ describe('getEntriesByShow released result hydration', () => {
     expect(query.range).toHaveBeenNthCalledWith(1, 0, 99);
     expect(query.range).toHaveBeenNthCalledWith(2, 0, 0);
     expect(data[100]).toMatchObject({ id: 'entry-100', result_status: 'qualified' });
+  });
+  it('clears stale previously released scores after revocation', async () => {
+    const stale = {
+      ...entry,
+      result_status: 'qualified',
+      search_time_seconds: 38.5,
+      final_placement: 1,
+      total_faults: 0,
+    };
+    mocks.read.mockResolvedValue({ data: [stale], error: null });
+    view([stale]);
+    expect((await getEntriesByShow('show-1')).data[0]).toMatchObject({ final_placement: 1 });
+    view([{ id: entry.id, result_status: null, search_time_seconds: null, final_placement: null }]);
+    const result = await getEntriesByShow('show-1');
+    expect(result.resultsReadComplete).toBe(true);
+    expect(result.data[0]).toMatchObject({
+      result_status: null,
+      search_time_seconds: null,
+      final_placement: null,
+      total_faults: null,
+    });
+    expect(stale.final_placement).toBe(1);
+  });
+
+  it('treats an empty projection as a complete no-access read', async () => {
+    mocks.read.mockResolvedValue({
+      data: [{ ...entry, result_status: 'qualified', final_placement: 1 }],
+      error: null,
+    });
+    view([]);
+    const result = await getEntriesByShow('show-1');
+    expect(result.resultsReadComplete).toBe(true);
+    expect(result.data[0]).toMatchObject({ result_status: null, final_placement: null });
+  });
+
+  it('uses one deadline across batches and preserves released partial results on timeout', async () => {
+    vi.useFakeTimers();
+    const rows = Array.from({ length: 101 }, (_, index) => ({
+      ...entry,
+      id: `entry-${index}`,
+      result_status: 'qualified',
+    }));
+    mocks.read.mockResolvedValue({ data: rows, error: null });
+    const query = view([]);
+    query.range.mockImplementationOnce(
+      () =>
+        new Promise(resolve =>
+          setTimeout(() => resolve({ data: rows.slice(0, 100), error: null }), 2000)
+        )
+    );
+    query.range.mockImplementationOnce(() => new Promise(() => {}));
+    const completed = vi.fn();
+    const pending = getEntriesByShow('show-1').then(completed);
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(completed).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(completed).toHaveBeenCalledWith(expect.objectContaining({ resultsReadComplete: false }));
+    expect(completed.mock.calls[0][0].data[0].result_status).toBe('qualified');
+    expect(completed.mock.calls[0][0].data[100].result_status).toBeNull();
+    expect(query.abortSignal.mock.calls[0][0].aborted).toBe(true);
+    expect(query.range).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

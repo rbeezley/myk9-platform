@@ -621,8 +621,43 @@ export const getEntriesByShow = async (showId: string) => {
     errorData: [],
     verifyOnlineWhenEmpty: true,
   });
-  if (result.error) return result;
-  return { ...result, data: await withReleasedShowResults(showId, result.data) };
+  if (result.error) return { ...result, resultsReadComplete: false };
+  const released = await withReleasedShowResults(showId, result.data);
+  return { ...result, data: released.entries, resultsReadComplete: released.resultsReadComplete };
+};
+
+/**
+ * Read a show's replicated entries with standard joins, without the optional
+ * exhibitor release-view enrichment. Staff reports use this single scoped
+ * scan so an all-trials report does not fan out into one full-store scan per
+ * trial.
+ */
+export const getEntriesByShowFromReplication = async (showId: string) => {
+  return readWithReplicationFallback({
+    replication: async () => {
+      const [rawEntries, dogsMap, classesMap] = await Promise.all([
+        replicatedEntriesTable.getEntriesByShow(showId),
+        loadDogsMap(),
+        loadClassesMap(),
+      ]);
+      const locallyDeletedIds = rawEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
+      const entries = sortedCopy(
+        rawEntries.filter(isLiveEntry),
+        compareDateDesc(getEntryCreatedSortValue)
+      );
+      const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
+      return {
+        data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, new Map(), enrollmentsMap),
+        error: null,
+        locallyDeletedIds,
+      };
+    },
+    postgrest: () => postgrestGetEntriesByShow(showId),
+    table: 'entries',
+    operation: 'select_by_show_report',
+    errorData: [],
+    verifyOnlineWhenEmpty: true,
+  });
 };
 
 // Get entries by show ID with financial joins (promo_code, trial name)

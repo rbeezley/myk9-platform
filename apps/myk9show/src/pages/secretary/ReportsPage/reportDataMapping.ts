@@ -31,10 +31,9 @@ export function mapReportEntries(
  * Filter entries to the selected (trial, class) scope and enrich each with its
  * OWN trial + class, mirroring how ReportPreview pairs entries via buildPages.
  *
- * useReportData returns ALL show entries whenever `classId === 'all'`, so a
- * naive map with a single fallback trial/class would print cross-trial entries
- * under the wrong trial (and lose per-entry class text for All Trials). This
- * resolves each entry's real class/trial instead.
+ * Show-scoped reads contain multiple trials, so a single fallback trial/class
+ * would print entries under the wrong trial. Resolve each entry's own context
+ * and defensively enforce the selected scope before rendering or exporting.
  *
  * - `classId !== 'all'`: entries are already class-scoped by useReportData, so
  *   enrich them all with the selected class (no class_id dependency).

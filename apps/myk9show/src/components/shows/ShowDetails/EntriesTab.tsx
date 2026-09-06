@@ -23,7 +23,7 @@ interface EntriesTabProps {
  */
 export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries }) => {
   const {
-    data: entries = [],
+    data: entryResult,
     isLoading: loading,
     isError,
     error: queryError,
@@ -32,12 +32,14 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
     queryFn: async () => {
       const result = await getEntriesByShow(showId);
       if (result.error) throw result.error;
-      return result.data ?? [];
+      return { entries: result.data ?? [], resultsReadComplete: result.resultsReadComplete };
     },
     enabled: !!showId,
     ...cacheStrategies.dynamic,
   });
 
+  const entries = entryResult?.entries ?? [];
+  const resultsReadComplete = entryResult?.resultsReadComplete ?? true;
   const error = isError
     ? queryError instanceof Error
       ? queryError.message
@@ -91,6 +93,12 @@ export const EntriesTab: React.FC<EntriesTabProps> = ({ showId, onManageEntries 
   return (
     <Card className="border-0 bg-gradient-to-br from-gray-50/50 via-white to-slate-50/30 backdrop-blur-xl shadow-lg">
       <CardContent className="p-6">
+        {!resultsReadComplete && (
+          <p className="mb-4 text-sm text-muted-foreground" role="status">
+            Some released results are temporarily unavailable. Refresh when connected to verify
+            them.
+          </p>
+        )}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="text-2xl font-bold text-foreground">{entries.length}</div>

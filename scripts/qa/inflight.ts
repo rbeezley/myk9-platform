@@ -323,9 +323,17 @@ export function openPullRequests(): ChangeSource[] {
  */
 export class MergedHeads {
   private readonly cache = new Map<string, string | undefined>();
+  private readonly base: string;
+  private readonly cwd?: string;
+  // Plain fields, not parameter properties: this file runs under node's
+  // strip-only `--experimental-strip-types`, which rejects those outright.
+  constructor(base: string, cwd?: string) {
+    this.base = base;
+    this.cwd = cwd;
+  }
   get(branch: string): string | undefined {
     if (!this.cache.has(branch)) {
-      const prs = ghJson<{ headRefOid: string }[]>(
+      const prs = ghJson<{ headRefOid: string; mergeCommit?: { oid: string } | null }[]>(
         [
           'pr',
           'list',
@@ -336,11 +344,20 @@ export class MergedHeads {
           '--limit',
           '1',
           '--json',
-          'headRefOid',
+          'headRefOid,mergeCommit',
         ],
         `merged PRs for ${branch}`
       );
-      this.cache.set(branch, prs[0]?.headRefOid);
+      const pr = prs[0];
+      // Merged INTO SOMETHING ELSE is not shipped here. A PR squashed onto an
+      // integration branch, or merged after this checkout last fetched, leaves
+      // its work outside the selected base, so excluding its head would hide a
+      // real collision (Codex, #2073 round 11). Require the merge commit to be
+      // in the base; an absent or unreachable one reads as still in flight,
+      // which over-reports rather than passing work over in silence.
+      const mergeCommit = pr?.mergeCommit?.oid;
+      const shipped = Boolean(mergeCommit && isAncestor(mergeCommit, this.base, this.cwd));
+      this.cache.set(branch, shipped ? pr?.headRefOid : undefined);
     }
     return this.cache.get(branch);
   }
@@ -376,7 +393,7 @@ export function commitExcludes(
 export function otherWorktrees(
   base: string,
   cwd?: string,
-  merged: MergedHeads = new MergedHeads()
+  merged: MergedHeads = new MergedHeads(base, cwd)
 ): ChangeSource[] {
   const here = run('git', ['rev-parse', '--show-toplevel'], { cwd }).trim();
   const out: ChangeSource[] = [];
@@ -420,7 +437,7 @@ export function unmergedLocalBranches(
   base: string,
   skip: ReadonlySet<string>,
   cwd?: string,
-  merged: MergedHeads = new MergedHeads()
+  merged: MergedHeads = new MergedHeads(base, cwd)
 ): ChangeSource[] {
   const names = lines(
     run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], {
@@ -464,7 +481,7 @@ function runCliInner(argv: string[], cwd: string): number {
   const explicit = argv.filter(a => !a.startsWith('--'));
   run('git', ['fetch', '-q', 'origin', 'main'], { cwd, allowFail: true });
   const branch = currentBranch(cwd);
-  const merged = new MergedHeads();
+  const merged = new MergedHeads(base, cwd);
   // The current branch may itself be a reused name: exclude its shipped work
   // too, or its own ghosts would collide with everyone (Codex, #2073 round 7).
   const repoRoot = run('git', ['rev-parse', '--show-toplevel'], { cwd }).trim();

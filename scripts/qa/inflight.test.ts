@@ -90,10 +90,14 @@ describe('inflight CLI', () => {
     });
   }
 
+  /** The fixture repo most recently built, so the gh stub can read its base tip. */
+  let fixtureRepo = '';
+
   function repo(): { main: string; other: string; bin: string } {
     const root = mkdtempSync(join(tmpdir(), 'inflight-'));
     dirs.push(root);
     const main = join(root, 'repo');
+    fixtureRepo = main;
     mkdirSync(main);
     git(main, 'init', '-q', '-b', 'main');
     git(main, 'config', 'user.email', 't@t');
@@ -120,7 +124,9 @@ describe('inflight CLI', () => {
 
   /**
    * Stub gh. `prs` are open PRs (REST shape served paged through /pulls?state=open,
-   * files through /pulls/N/files); `merged` maps branch -> merged head sha,
+   * files through /pulls/N/files); `merged` maps branch -> merged head sha (and
+   * optionally the sha the PR merged AS — it defaults to the fixture's
+   * origin/main tip, i.e. a PR that landed in the base),
    * answered per branch via `pr list --state merged --head X`; `fail` makes
    * every call exit 1.
    */
@@ -134,7 +140,7 @@ describe('inflight CLI', () => {
       fork?: boolean;
       files: { path: string; previous?: string }[];
     }[],
-    merged: [string, string][] = [],
+    merged: [string, string, string?][] = [],
     fail = false
   ) {
     // A test may call stubGh twice; stale answer files from the first call must not survive.
@@ -149,8 +155,12 @@ describe('inflight CLI', () => {
     const openPages: unknown[][] = [];
     for (let i = 0; i < rest.length; i += 100) openPages.push(rest.slice(i, i + 100));
     writeFileSync(join(bin, 'open.json'), JSON.stringify(openPages.length ? openPages : [[]]));
-    for (const [branch, sha] of merged)
-      writeFileSync(join(bin, `merged-${branch}.json`), JSON.stringify([{ headRefOid: sha }]));
+    const baseTip = git(fixtureRepo, 'rev-parse', 'refs/remotes/origin/main').trim();
+    for (const [branch, sha, mergeCommit] of merged)
+      writeFileSync(
+        join(bin, `merged-${branch}.json`),
+        JSON.stringify([{ headRefOid: sha, mergeCommit: { oid: mergeCommit ?? baseTip } }])
+      );
     for (const pr of prs) {
       const files = pr.files.map(f => ({ filename: f.path, previous_filename: f.previous }));
       const pages: unknown[][] = [];
@@ -271,6 +281,29 @@ describe('inflight CLI', () => {
     const r = runCli(main, bin);
     expect(r.code).toBe(1);
     expect(r.out).toContain('branch finished');
+  });
+
+  it('still reports a branch whose PR merged somewhere OTHER than the base', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'finished');
+    writeFileSync(join(main, 'src', 'b.ts'), 'finished elsewhere');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'finished');
+    const finishedTip = git(main, 'rev-parse', 'finished').trim();
+    // The PR merged onto an integration branch, so its work is NOT in the base.
+    git(main, 'checkout', '-q', '-b', 'integration', 'origin/main');
+    writeFileSync(join(main, 'src', 'b.ts'), 'squashed onto integration');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'squash onto integration');
+    const integrationMerge = git(main, 'rev-parse', 'HEAD').trim();
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, [], [['finished', finishedTip, integrationMerge]]);
+    const r = runCli(main, bin, 'src/b.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch finished');
+    // Same PR, merged into the base: now it is shipped and drops out.
+    stubGh(bin, [], [['finished', finishedTip]]);
+    expect(runCli(main, bin, 'src/b.ts').out).not.toContain('branch finished');
   });
 
   it('counts both sides of a rename in another worktree', () => {

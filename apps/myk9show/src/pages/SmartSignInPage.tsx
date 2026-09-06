@@ -277,7 +277,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-var(--app-header-height,3rem))] flex-col items-center justify-center bg-background px-3 py-6">
+    <div className="flex min-h-[calc(100vh-var(--app-top-inset,3rem))] flex-col items-center justify-center bg-background px-3 py-6">
       <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="mb-3 flex justify-center">
           <Link

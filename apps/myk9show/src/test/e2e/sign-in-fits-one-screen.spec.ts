@@ -54,5 +54,37 @@ test.describe('sign-in fits one screen', () => {
         expect(box!.height).toBeGreaterThanOrEqual(44);
       }
     });
+
+    test(`no scrolling at ${vp.name} with the PWA install banner`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/sign-in', { waitUntil: 'commit', timeout: 60000 });
+      await expect(page.getByTestId('credential-input')).toBeVisible({ timeout: 30000 });
+
+      // Reproduce what PWAInstallBanner actually contributes to layout: the
+      // class on <html> (which drives --pwa-banner-height / --app-top-inset)
+      // AND the in-flow spacer it renders above the outlet
+      // (PWAInstallBanner.tsx:94). The class alone only shrinks the page's
+      // min-height, which can never overflow — the spacer is what grows it.
+      const spacerHeight = await page.evaluate(() => {
+        document.documentElement.classList.add('pwa-banner-visible');
+        // The banner mounts as the FIRST CHILD of the min-h-screen app shell
+        // (App.tsx:228), so its spacer competes with the page inside that
+        // shell's height. Prepending to <body> instead would sit outside the
+        // shell and invent overflow that the real app never has.
+        const shell = document.querySelector('.min-h-screen.transition-colors');
+        if (!shell) throw new Error('app shell not found — selector drifted');
+        const spacer = document.createElement('div');
+        spacer.setAttribute('data-test-pwa-spacer', '');
+        spacer.style.height = 'var(--pwa-banner-height, 0px)';
+        shell.prepend(spacer);
+        return spacer.getBoundingClientRect().height;
+      });
+      expect(spacerHeight, 'the banner spacer has no height').toBeGreaterThanOrEqual(52);
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollHeight - window.innerHeight
+      );
+      expect(overflow, 'page overflows once the install banner is shown').toBeLessThanOrEqual(0);
+    });
   }
 });

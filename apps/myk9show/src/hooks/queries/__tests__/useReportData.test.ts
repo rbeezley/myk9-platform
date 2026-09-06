@@ -148,6 +148,7 @@ describe('useReportData', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.classes).toBeUndefined();
+    expect(mockGetEntriesByShowFromReplication).not.toHaveBeenCalled();
     expect(mockGetEntriesByTrial).not.toHaveBeenCalled();
   });
 
@@ -166,6 +167,7 @@ describe('useReportData', () => {
 
     await waitFor(() => expect(result.current.entries).toEqual(mockEntries));
     expect(mockGetEntriesByClass).toHaveBeenCalledWith('class-1');
+    expect(mockGetEntriesByShowFromReplication).not.toHaveBeenCalled();
     expect(mockGetEntriesByTrial).not.toHaveBeenCalled();
   });
 

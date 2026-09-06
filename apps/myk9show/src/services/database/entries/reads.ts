@@ -635,11 +635,10 @@ export const getEntriesByShow = async (showId: string) => {
 export const getEntriesByShowFromReplication = async (showId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
-      const [rawEntries, dogsMap, classesMap, showsMap] = await Promise.all([
+      const [rawEntries, dogsMap, classesMap] = await Promise.all([
         replicatedEntriesTable.getEntriesByShow(showId),
         loadDogsMap(),
         loadClassesMap(),
-        loadShowsMap(),
       ]);
       const locallyDeletedIds = rawEntries.filter(e => !isLiveEntry(e)).map(e => e.id);
       const entries = sortedCopy(
@@ -648,7 +647,7 @@ export const getEntriesByShowFromReplication = async (showId: string) => {
       );
       const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
       return {
-        data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, showsMap, enrollmentsMap),
+        data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, new Map(), enrollmentsMap),
         error: null,
         locallyDeletedIds,
       };

@@ -23,7 +23,6 @@ export async function withReleasedShowResults<T extends Record<string, unknown>>
     withholdScoredResultColumns(row);
     return row;
   });
-  const unavailable = { entries: safeEntries, resultsReadComplete: false };
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const results = new Map<string, Record<string, unknown>>();
@@ -72,7 +71,7 @@ export async function withReleasedShowResults<T extends Record<string, unknown>>
     // not settle on abort; no partial release result may escape after timeout.
     return await Promise.race([
       loadResults(),
-      new Promise<typeof unavailable>(resolve => {
+      new Promise<{ entries: T[]; resultsReadComplete: boolean }>(resolve => {
         timeout = setTimeout(() => {
           controller.abort();
           resolve(buildResult(false));

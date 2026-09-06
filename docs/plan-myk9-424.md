@@ -22,7 +22,7 @@ The isolated replay exercises the real `useReportData`, entry read functions, sc
 
 Network conditions: show refresh rejects offline; registration hydration is incomplete; results endpoint returns an error, throws, or never settles. Before the fix the error/throw replays printed `Qualified Entries: 0`, the stalled report never became ready, and the standalone show read did not settle. After the fix the report is ready/printable, the real markup has `Qualified Entries: 2`, placement `1`, and `00:38.50`; High in Trial names Ranger and totals `01:17.00`. Staff reports do not call the optional results view. The existing bounded show refresh is retained before trial reads.
 
-Exhibitor coverage preserves canonical released values, withheld nulls, absent rows, and stale previously released scores after revocation. Thrown/resolved failures and deadline expiry mask cached scores and report `resultsReadComplete: false`. The entire enrichment batch sequence shares a 3-second budget, aborts the request on expiry, discards partial results, and clears its timer. The separate preexisting show-refresh budget is also 3 seconds.
+Exhibitor coverage preserves canonical released values, withheld nulls, absent rows, and stale previously released scores after revocation. Thrown/resolved failures and deadline expiry mask cached scores and report `resultsReadComplete: false`. The entire enrichment batch sequence shares a 3-second budget, aborts the request on expiry, preserves batches that completed before expiry, and clears its timer. The separate preexisting show-refresh budget is also 3 seconds.
 
 Checks:
 

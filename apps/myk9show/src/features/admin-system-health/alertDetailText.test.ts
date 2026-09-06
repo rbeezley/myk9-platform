@@ -19,18 +19,22 @@ describe('payout mismatch summaries', () => {
       /function dollars\(cents: number\): string \{\s*return ([\s\S]*?);\s*\}/
     )?.[1];
     expect(dollarsExpression, 'The payout writer must still expose dollars()').toBeDefined();
-    // Evaluate only the extracted return expression; importing the edge function would start
-    // its server. Inject the formatter so a module-scope Intl refactor remains contract-safe.
-    const moneyFormatter = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    });
-    const writerDollars = new Function('cents', 'MONEY', `return ${dollarsExpression};`) as (
-      cents: number,
-      money: Intl.NumberFormat
-    ) => string;
-    const existingAmount = writerDollars(9000, moneyFormatter);
-    const recalculatedAmount = writerDollars(6000, moneyFormatter);
+    // Evaluate only the extracted pure return expression; importing the edge function would
+    // start its server and is intentionally avoided in this source contract test.
+    let writerDollars: (cents: number) => string;
+    try {
+      writerDollars = new Function('cents', `return ${dollarsExpression};`) as (
+        cents: number
+      ) => string;
+      writerDollars(1);
+    } catch (cause) {
+      throw new Error(
+        'cron-process-payouts dollars() is no longer a self-contained expression — update this contract test',
+        { cause }
+      );
+    }
+    const existingAmount = writerDollars(9000);
+    const recalculatedAmount = writerDollars(6000);
     const values: Record<string, string> = {
       'show.id': 'dededede-0000-0000-0000-000000000010',
       'priorTransfer.id': 'tr_example',

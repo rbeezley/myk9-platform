@@ -419,7 +419,7 @@ scratch PR. Do not close on the unit test alone — that is what missed this.
 the title and to register one row in `docs/README.md` **in the same edit**. Three plans added this
 window carry neither:
 
-- `docs/plan-myk9-354-qualification-contract.md`
+- `docs/archive/plan-myk9-354-qualification-contract.md`
 - `docs/plan-myk9-366.md` (added by `7bee19c4d`)
 - `docs/plan-myk9-369.md` (added by `1d4dcec8c`)
 
@@ -433,7 +433,7 @@ months because no check enforces it.
 ### Evidence
 
 ```
-docs/plan-myk9-354-qualification-contract.md   MISSING
+docs/archive/plan-myk9-354-qualification-contract.md   MISSING
 docs/plan-myk9-366.md                          MISSING
 docs/plan-myk9-369.md                          MISSING
 … 19 more

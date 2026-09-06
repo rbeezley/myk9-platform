@@ -309,8 +309,11 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
             {orders.map(order => {
               // Date and amount, because a raw UUID tells the exhibitor nothing
               // about which of their two payments this is.
-              const paidOn = order.createdAt
-                ? new Date(order.createdAt).toLocaleDateString('en-US', {
+              // `paidOn`, not `createdAt`: capture can lag creation, and this
+              // chooser sits one click from the My Payments row that shows
+              // `paid_at ?? created_at`.
+              const paidOn = order.paidOn
+                ? new Date(order.paidOn).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',

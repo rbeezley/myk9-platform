@@ -38,6 +38,7 @@ function paidRow(overrides: Record<string, unknown> = {}) {
   return {
     id: ORDER_ID,
     created_at: '2026-09-06T12:00:00Z',
+    paid_at: '2026-09-06T12:00:00Z',
     amount_cents: 3210,
     currency: 'usd',
     stripe_payment_intent_id: 'pi_3RwalkDog',
@@ -128,6 +129,17 @@ describe('ScopedPaymentSummary', () => {
     await userEvent.click(screen.getByRole('button', { name: /try again/i }));
 
     expect(await screen.findByText('$32.10')).toBeInTheDocument();
+  });
+
+  it('dates the receipt by capture, not by row creation', async () => {
+    maybeSingle.mockResolvedValue({
+      data: paidRow({ paid_at: '2026-09-09T12:00:00Z' }),
+      error: null,
+    });
+    renderAt(buildEntryReceiptHref(SHOW_ID, [ENTRY_ID], ORDER_ID));
+
+    expect(await screen.findByText('Sep 9, 2026')).toBeInTheDocument();
+    expect(screen.queryByText('Sep 6, 2026')).not.toBeInTheDocument();
   });
 
   it('distinguishes an unreadable order from a failed read', async () => {

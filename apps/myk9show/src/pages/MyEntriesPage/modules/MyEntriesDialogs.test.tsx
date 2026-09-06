@@ -44,6 +44,7 @@ const receiptOrders = [
   {
     id: 'order-1',
     createdAt: '2026-08-01T12:00:00Z',
+    paidOn: '2026-08-01T12:00:00Z',
     amountCents: 6500,
     currency: 'usd',
     reference: 'pi_order_1',
@@ -58,6 +59,7 @@ const receiptOrders = [
   {
     id: 'order-2',
     createdAt: '2026-08-09T12:00:00Z',
+    paidOn: '2026-08-09T12:00:00Z',
     amountCents: 7500,
     currency: 'usd',
     reference: 'pi_order_2',

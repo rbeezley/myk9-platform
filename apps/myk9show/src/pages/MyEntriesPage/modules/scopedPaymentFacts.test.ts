@@ -9,6 +9,7 @@ function order(overrides: Partial<EntryReceiptOrder> = {}): EntryReceiptOrder {
     // Payments row), so a midnight fixture reports the previous day west of
     // Greenwich and the test fails on the runner's zone rather than the code.
     createdAt: '2026-09-06T12:00:00Z',
+    paidOn: '2026-09-06T12:00:00Z',
     amountCents: 3210,
     currency: 'usd',
     reference: 'pi_3RwalkDog',
@@ -98,9 +99,19 @@ describe('buildScopedPaymentFacts', () => {
     expect(valueFor(facts, 'Reference')).toBe('ff08fa39-41c6-4ef7-bd8a-0195469b1bb8');
   });
 
-  it('renders a dash rather than an invented date when created_at is null', () => {
-    const facts = buildScopedPaymentFacts(order({ createdAt: null }));
+  it('renders a dash rather than an invented date when no date is known', () => {
+    const facts = buildScopedPaymentFacts(order({ createdAt: null, paidOn: null }));
     expect(valueFor(facts, 'Paid on')).toBe('-');
+  });
+
+  it('dates the receipt by capture, not by row creation', () => {
+    // Capture can lag creation on a delayed or previously pending payment, and
+    // the My Payments row that linked here shows `paid_at ?? created_at`. Using
+    // createdAt makes the receipt disagree with its own source row.
+    const facts = buildScopedPaymentFacts(
+      order({ createdAt: '2026-09-06T12:00:00Z', paidOn: '2026-09-09T12:00:00Z' })
+    );
+    expect(valueFor(facts, 'Paid on')).toBe('Sep 9, 2026');
   });
 
   it('formats in the order currency, not a hard-coded dollar sign', () => {

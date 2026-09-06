@@ -22,11 +22,12 @@ import { cacheStrategies } from '@/lib/queryClient';
 // literal text of the select; a concatenated expression widens to `string` and
 // every column comes back as GenericStringError.
 // prettier-ignore
-const RECEIPT_ORDER_SELECT = 'id, created_at, amount_cents, currency, stripe_payment_intent_id, status, entry_ids, entry_subtotal_cents, platform_fee_cents, refunded_cents, make_whole_refunded_cents, refunded_at';
+const RECEIPT_ORDER_SELECT = 'id, created_at, paid_at, amount_cents, currency, stripe_payment_intent_id, status, entry_ids, entry_subtotal_cents, platform_fee_cents, refunded_cents, make_whole_refunded_cents, refunded_at';
 
 interface EntryReceiptOrderRow {
   id: string;
   created_at: string | null;
+  paid_at: string | null;
   amount_cents: number;
   currency: string | null;
   stripe_payment_intent_id: string | null;
@@ -41,7 +42,16 @@ interface EntryReceiptOrderRow {
 
 export interface EntryReceiptOrder {
   id: string;
+  /** Row creation. Correct for ORDERING; wrong to print — see `paidOn`. */
   createdAt: string | null;
+  /**
+   * The date to show a human, always. Capture can lag creation (a delayed or
+   * previously pending payment), and `useMyPayments` displays
+   * `paid_at ?? created_at` — so printing `createdAt` makes a receipt disagree
+   * with the very row that linked to it. Derived here rather than left to each
+   * caller: two of them had already picked the wrong field.
+   */
+  paidOn: string | null;
   amountCents: number;
   currency: string;
   reference: string | null;
@@ -60,6 +70,7 @@ function mapReceiptOrder(row: EntryReceiptOrderRow): EntryReceiptOrder {
   return {
     id: row.id,
     createdAt: row.created_at,
+    paidOn: row.paid_at ?? row.created_at,
     amountCents: row.amount_cents,
     currency: row.currency ?? 'usd',
     reference: row.stripe_payment_intent_id,

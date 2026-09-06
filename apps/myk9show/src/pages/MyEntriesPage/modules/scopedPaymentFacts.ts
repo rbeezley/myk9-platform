@@ -81,7 +81,7 @@ export function buildScopedPaymentFacts(order: EntryReceiptOrder): ScopedPayment
     rows.push({ label: 'Amount charged', value: formatPaymentCents(order.amountCents, currency) });
     rows.push({ label: 'Refunded', value: `-${formatPaymentCents(refundedCents, currency)}` });
   }
-  rows.push({ label: 'Paid on', value: formatPaymentDate(order.createdAt) });
+  rows.push({ label: 'Paid on', value: formatPaymentDate(order.paidOn) });
   if (refunded && order.refundedAt) {
     rows.push({ label: 'Refunded on', value: formatPaymentDate(order.refundedAt) });
   }

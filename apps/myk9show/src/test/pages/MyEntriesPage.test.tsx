@@ -991,6 +991,7 @@ describe('Receipt deep-link scope from My Payments', () => {
   const stripeOrderRow = {
     id: 'order-1',
     created_at: '2026-09-06T12:00:00Z',
+    paid_at: '2026-09-06T12:00:00Z',
     amount_cents: 3210,
     currency: 'usd',
     stripe_payment_intent_id: 'pi_3RwalkDog',

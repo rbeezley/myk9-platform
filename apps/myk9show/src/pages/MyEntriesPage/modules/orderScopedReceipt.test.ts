@@ -28,6 +28,7 @@ function order(overrides: Partial<EntryReceiptOrder> = {}): EntryReceiptOrder {
   return {
     id: 'order-1',
     createdAt: '2026-08-01T12:00:00Z',
+    paidOn: '2026-08-01T12:00:00Z',
     amountCents: 6420,
     currency: 'usd',
     reference: 'pi_order_1',

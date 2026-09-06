@@ -162,6 +162,8 @@ describe('codex-review.sh', () => {
 
   it.each([
     'No actionable defects found in the diff.',
+    'No actionable defects found. Tests did not run because this change only updates documentation.',
+    'No actionable defects found. The change handles interrupted downloads correctly.',
     // Exact verdict from #2064 (MYK9-415).
     'The diff adds nine relative skill symlinks, all resolving to tracked directories containing SKILL.md. No actionable defects found; git diff --check passes.',
     '\n\nThe diff adds skill symlinks.\nNo actionable defects found.\n\nVerification passed.',

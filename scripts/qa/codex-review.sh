@@ -65,9 +65,10 @@ if [ "$CLI_EXIT" -ne 0 ]; then
   echo "codex-review: cli exited ${CLI_EXIT}; treating the run as NOT completed (exit 2). No evidence emitted."
   exit 2
 fi
-# Failure wording in the verdict overrides a clean assertion. Limit this scan
-# to the verdict so quoted source/diff output cannot abort a completed review.
-if echo "$VERDICT" | grep -Eiq '\b(did not run|interrupted)\b'; then
+# An incomplete review overrides a clean assertion. Scope this to the review:
+# tests that did not run or interrupted downloads do not invalidate a review.
+# Scan only the verdict, not the CLI's source/diff echo.
+if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b'; then
   echo
   echo "codex-review: GATE DID NOT RUN (verdict reports an incomplete review). No evidence emitted."
   exit 2

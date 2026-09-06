@@ -1141,6 +1141,20 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
   });
 
+  it('explains itself rather than going blank when a filter hides the only position', async () => {
+    // Suppressing the first-run state for a wait-list-only exhibitor must not
+    // leave them with nothing: under `?status=accepted` the section is hidden
+    // by design, so the filters and the matching empty state have to be there.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?status=accepted');
+
+    expect(await screen.findByText('No accepted entries yet')).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: /filter by entry status/i })).toBeInTheDocument();
+    // The position is still countable from here, one click away.
+    expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*1$/);
+    expect(screen.queryByText('My Wait List Positions')).not.toBeInTheDocument();
+  });
+
   it('hides the positions section behind a status filter that excludes them', async () => {
     const user = userEvent.setup();
     renderWithProviders(<MyEntriesPage />);

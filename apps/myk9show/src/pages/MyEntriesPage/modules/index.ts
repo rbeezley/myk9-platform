@@ -51,3 +51,5 @@ export {
   MyEntriesDialogGroup,
 } from './MyEntriesDialogs';
 export { WaitListSection } from './WaitListSection';
+export { MyEntriesOverview } from './MyEntriesOverview';
+export type { OverviewDog } from './MyEntriesOverview';

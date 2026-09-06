@@ -12,8 +12,6 @@ import { countUpcomingClassesByDog } from './modules/myEntriesStats.helpers';
 import { useDogsByOwnerQuery } from '@/hooks/queries/useDogsDatabase';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { ShowTodayBanner } from '@/features/show-today/ShowTodayBanner';
-import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
-import { DogStrip } from '@/components/exhibitor/DogStrip';
 import { FirstRunZeroState } from '@/components/exhibitor/FirstRunZeroState';
 import {
   buildEntryBalanceRecoveryHref,
@@ -41,6 +39,8 @@ import {
   MyEntriesDialogGroup,
   WaitListSection,
   EntryFilterStrip,
+  MyEntriesOverview,
+  type OverviewDog,
   ALL_ENTRIES_LABEL,
   ALL_ENTRIES_SCOPE_NOTE,
 } from './modules';
@@ -278,54 +278,38 @@ const MyEntriesPage: React.FC = () => {
                  exhibitor can hold a `waitlist_entries` row with no entry row
                  at all, and "Welcome! Let's get you set up" printed above a
                  live #1 position is the same contradiction MYK9-417 is about,
-                 one branch up. With a position on file the section below is the
-                 whole body; the header still carries "Enter a Show". */
+                 one branch up. */
               <FirstRunZeroState hasDogs={hasDogs} onAddDog={dialogs.openAddDog} />
-            ) : entries.length === 0 ? null : (
+            ) : (
               <>
-                <div data-testid="entry-fee-balance" className="max-[720px]:order-2">
-                  <CompactStatsRow
+                {/* A wait-list-only exhibitor skips these two: a stat row of
+                  zeros and an empty dog strip are the noise FirstRunZeroState
+                  exists to suppress, and they have no entries to summarise.
+                  The filter section below still renders for them, so the
+                  filters keep working and every filter that hides their
+                  position still explains itself — the alternative was a blank
+                  page under `?status=accepted`. */}
+                {entries.length > 0 && (
+                  <MyEntriesOverview
                     currentFees={entryStats.currentFees}
                     amountDue={entryStats.currentAmountDue}
                     hasPastBalance={balanceSummary.onlineShowBalances.some(show => show.isPastShow)}
                     currentFeesHref={currentFeesHref}
                     onNavigate={navigate}
-                  />
-                </div>
-
-                {/* order-3 on mobile keeps the dog strip below the primary entry
-                  workflow. On desktop all three siblings are order-0, so source order
-                  keeps the balance and dog strip above the entries. */}
-                <div className="max-[720px]:order-3">
-                  <DogStrip
-                    dogs={
-                      (dogs ?? []) as {
-                        id: string;
-                        call_name?: string;
-                        name?: string;
-                        image_url?: string | null;
-                        date_of_birth?: string | null;
-                        registrations?: {
-                          breed?: string | null;
-                          organization?: string | null;
-                          registration_number?: string | null;
-                        }[];
-                      }[]
-                    }
+                    dogs={(dogs ?? []) as OverviewDog[]}
                     upcomingClassCountByDog={upcomingClassCountByDog}
                     onAddDog={dialogs.openAddDog}
                   />
-                </div>
+                )}
 
                 {/* Entries section — order-1 on mobile puts the primary filters directly
                   below the hero/today context. The balance card stays intact immediately
                   after the filtered list, while the dog strip remains secondary. Desktop
                   keeps source order (balance, dogs, entries). */}
                 <div data-testid="entries-filter-section" className="space-y-8 max-[720px]:order-1">
-                  {/* This branch only renders when entries.length > 0, so the count
-                    badge is always shown here. The scope note distinguishes this
-                    all-time count from the "Current entries" stat card above,
-                    which is scoped to upcoming/in-review only. */}
+                  {/* The scope note distinguishes this all-time count from the
+                    "Current entries" stat card above, which is scoped to
+                    upcoming/in-review only. */}
                   {/* A real heading, not a styled <p>. This and "My Dogs" were
                     the page's two section labels and neither was reachable by
                     heading navigation, so a screen-reader user had exactly one

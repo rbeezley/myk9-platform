@@ -11,17 +11,23 @@ import { PawPrint } from 'lucide-react';
 import { DogStripCard } from './DogStripCard';
 import type { DogCardRegistration } from '@/components/dogs/common/dogRegistryModel';
 
-interface Dog {
+/**
+ * A type alias, not an interface, and exported on purpose. Callers cast the
+ * ownership query's raw `Record<string, unknown>[]` rows to this; an interface
+ * gets no implicit index signature, so that assertion fails to compile against
+ * one and passes against an alias.
+ */
+export type DogStripDog = {
   id: string;
   call_name?: string;
   name?: string;
   image_url?: string | null;
   date_of_birth?: string | null;
   registrations?: DogCardRegistration[];
-}
+};
 
 interface DogStripProps {
-  dogs: Dog[];
+  dogs: DogStripDog[];
   upcomingClassCountByDog?: Record<string, number>;
   onAddDog?: () => void;
 }

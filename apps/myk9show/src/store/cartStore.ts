@@ -296,7 +296,9 @@ export const useCartStore = create<CartState>()(
               showId: cartData.show_id,
               exhibitorId,
               entryIds: options.recoveryEntryIds,
-              recoverableEntries: recoverableEntriesForCart,
+              ...(recoverableEntriesForCart
+                ? { recoverableEntries: recoverableEntriesForCart }
+                : {}),
             });
           }
 

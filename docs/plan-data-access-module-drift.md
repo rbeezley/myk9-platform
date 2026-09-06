@@ -1,5 +1,9 @@
 # Data Access Module Drift Plan
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Existing inventory and phased consolidation remain unclosed.
+
+
 ## Goal
 
 Move myK9Show core data reads out of hooks, pages, routes, and components and

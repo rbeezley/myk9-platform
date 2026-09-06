@@ -23,6 +23,10 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
    cited as source-of-truth in `apps/myk9show/src/features/*/tokens.ts` — do not archive
    those while the styles ship.
 
+> Plan metadata is checked by `pnpm qa:plans` and fixture tests by `pnpm qa:plans:test`.
+> Scope: non-archived top-level `docs/plan-*.md`; nested plans and OpenSpec keep their existing formats.
+> [2026-09-05 reconciliation](qa/plan-metadata-reconciliation-2026-09-05.md) records dispositions and evidence gaps.
+
 > Last full reconciliation: 2026-06-14 (see [`archive/plan-docs-cleanup-2026-06-14.md`](archive/plan-docs-cleanup-2026-06-14.md)).
 > Reduced docs/ from 563 markdown files to 86 living docs (85 indexed below + this index); 484 retired to `archive/`.
 > Second-pass triage 2026-06-14 archived 30 shipped/superseded plans (see [`plan-active-docs-triage-2026-06-14.md`](plan-active-docs-triage-2026-06-14.md)).
@@ -55,6 +59,19 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [launch-milestone-qa-checklist.md](launch-milestone-qa-checklist.md)                                             | Reference | Launch-Milestone QA Checklist                                                 |
 | [launch/go-live-2026-07-11.md](launch/go-live-2026-07-11.md)                                                     | Active    | Go-Live Gate Review — 2026-07-11                                              |
 | [launch/go-live-2026-07-26.md](launch/go-live-2026-07-26.md)                                                     | Active    | Go-Live Gate Review — 2026-07-26 (delta: CI/advisor drift + owner gates)      |
+| [plan-admin-users-ux-fixes-2026-08-18.md](plan-admin-users-ux-fixes-2026-08-18.md) | Active | Admin Users UX Fixes |
+| [plan-ai-natural-language-access.md](plan-ai-natural-language-access.md) | Active | AI Natural-Language Access Plan |
+| [plan-docs-site.md](plan-docs-site.md) | Active | Plan: myK9Show Guides — public docs site |
+| [plan-exhibitor-elderly-ux-remediation.md](plan-exhibitor-elderly-ux-remediation.md) | Active | Exhibitor Elderly UX Remediation Plan |
+| [plan-exhibitor-onboarding-remediation.md](plan-exhibitor-onboarding-remediation.md) | Active | Exhibitor Onboarding Remediation Plan |
+| [plan-fix-nightly-review-2026-07-20.md](plan-fix-nightly-review-2026-07-20.md) | Active | Plan: Fix nightly review findings |
+| [plan-linear-todo-2026-09-05.md](plan-linear-todo-2026-09-05.md) | Active | Current Linear Todo implementation plan — 2026-09-05 |
+| [plan-myk9-17-role-journey-visual-qa.md](plan-myk9-17-role-journey-visual-qa.md) | Active | Plan: MYK9-17 Role-Journey Visual QA Matrix |
+| [plan-myk9-366.md](plan-myk9-366.md) | Active | MYK9-366 — Career show calendar dates |
+| [plan-myk9-369.md](plan-myk9-369.md) | Active | MYK9-369 — registration dog picker search |
+| [plan-myk9-65-class-entry-count-consistency.md](plan-myk9-65-class-entry-count-consistency.md) | Active | MYK9-65: Class Entry Count Consistency |
+| [plan-sidebar-account-footer.md](plan-sidebar-account-footer.md) | Active | Sidebar Account Footer Plan |
+| [plan-wave2-cross-role-seam-recovery.md](plan-wave2-cross-role-seam-recovery.md) | Active | Wave 2 Cross-Role Seam Recovery Implementation Plan |
 | [plan-secretary-walk-remediation.md](plan-secretary-walk-remediation.md)                                         | Active    | Secretary task-walk findings — remediation + task-card guide                  |
 | [plan-f29b-operational-actions-home.md](plan-f29b-operational-actions-home.md)                                   | Active    | F29b — move-up and run order have no reachable surface                        |
 | [plan-ai-support-triage.md](plan-ai-support-triage.md)                                                           | Active    | AI Support Triage — external scheduled agent (design spec)                    |

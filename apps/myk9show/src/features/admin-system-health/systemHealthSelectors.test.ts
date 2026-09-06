@@ -206,7 +206,7 @@ describe('getHealthCheckRemediation', () => {
     expect(remediation).toMatchObject({
       ownerLabel: 'Support Inbox',
       actionLabel: 'Open Support',
-      href: '/admin/support',
+      target: { kind: 'route', href: '/admin/support' },
     });
     // MYK9-394: inference survives only for keys the runner does not emit, and
     // it must say so rather than reading like an assigned owner.
@@ -226,7 +226,7 @@ describe('getHealthCheckRemediation', () => {
     expect(remediation).toMatchObject({
       ownerLabel: 'Payout Scheduling',
       actionLabel: 'Open Payouts',
-      href: '/admin/payouts',
+      target: { kind: 'route', href: '/admin/payouts' },
       nextStep: expect.stringContaining('payout attempts that were recorded'),
     });
   });
@@ -244,7 +244,7 @@ describe('getHealthCheckRemediation', () => {
     expect(remediation).toMatchObject({
       ownerLabel: 'Payout Ledger',
       actionLabel: 'Open Payouts',
-      href: '/admin/payouts',
+      target: { kind: 'route', href: '/admin/payouts' },
       nextStep: 'Review payout/payment status and the money-path runbook.',
     });
     expect(remediation.nextStep).not.toContain('request was sent');
@@ -262,7 +262,7 @@ describe('getHealthCheckRemediation', () => {
 
     expect(remediation).toMatchObject({
       ownerLabel: 'Owner incomplete',
-      href: '/admin/help',
+      target: { kind: 'route', href: '/admin/help' },
     });
   });
 

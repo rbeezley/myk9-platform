@@ -11,24 +11,31 @@
  * rendered as unowned. Changing a table name or a grant word in a diagnostic
  * must never change who owns the check.
  *
- * INTENT: every entry here points at a surface that exists in
- * `routeRegistry.ts`. Consumers render `href` through a react-router `<Link>`
- * (`AdminDashboard/NeedsALookSection.tsx`), so an off-site URL would not
- * navigate — name a repo runbook in `nextStep` prose instead of linking it.
+ * INTENT: recovery uses existing internal routes or owner-approved HTTPS operator
+ * runbooks. Both consumers distinguish targets, preserve in-app navigation, and
+ * announce external new-tab links. Owner approved this extension on 2026-09-05
+ * (MYK9-409); do not add a second recovery surface.
  */
+
+import {
+  routeTarget,
+  externalTarget,
+  DATABASE_ACCESS_RUNBOOK,
+  type RemediationTarget,
+} from './remediationTarget';
 
 /** Owner + recovery route for one check. `coverageIncomplete` is added by the selector. */
 export interface HealthCheckRemediationRoute {
   ownerLabel: string;
   actionLabel: string;
-  href: string;
+  target: RemediationTarget;
   nextStep: string;
 }
 
 const PAYOUT_LEDGER: HealthCheckRemediationRoute = {
   ownerLabel: 'Payout Ledger',
   actionLabel: 'Open Payouts',
-  href: '/admin/payouts',
+  target: routeTarget('/admin/payouts'),
   nextStep: 'Review payout/payment status and the money-path runbook.',
 };
 
@@ -42,14 +49,9 @@ const PAYOUT_LEDGER: HealthCheckRemediationRoute = {
  */
 const DATABASE_ACCESS_CONTRACT: HealthCheckRemediationRoute = {
   ownerLabel: 'Database Access Contract',
-  /* NAVIGATION wording, not "Re-run full health check". `actionLabel` renders
-     as a plain <Link> to `href` (HealthCheckRow.tsx) — it never invokes the
-     page's Run now handler, and from /admin/health itself it is a self-link
-     that re-renders the same route. A label promising a run would claim the
-     check had been started when nothing was. The run is a manual step, and
-     `nextStep` below is where it is asked for. */
-  actionLabel: 'Open System Health',
-  href: '/admin/health',
+  // Navigation opens the runbook; it does not execute the health check.
+  actionLabel: 'Open Database Access Runbook',
+  target: externalTarget(DATABASE_ACCESS_RUNBOOK),
   nextStep:
     'SQL grant drift, not RBAC — role assignments cannot repair this. Follow the grants runbook (docs/operations/START-HERE.md, "Missing GRANTs"), land a grants migration, then press "Run now" on the System Health page: only a full run re-measures this check, and closure is two consecutive passing snapshots.',
 };
@@ -57,7 +59,7 @@ const DATABASE_ACCESS_CONTRACT: HealthCheckRemediationRoute = {
 const HEALTH_RUNNER: HealthCheckRemediationRoute = {
   ownerLabel: 'Health Runner',
   actionLabel: 'Open Admin Help',
-  href: '/admin/help',
+  target: routeTarget('/admin/help'),
   nextStep:
     'The health runner itself could not report — check that cron-health-check is deployed and that system_health_probe() still returns facts before trusting any other row.',
 };
@@ -71,33 +73,33 @@ export const HEALTH_CHECK_REMEDIATION: Readonly<Record<string, HealthCheckRemedi
   payout_ledger: {
     ownerLabel: 'Payout Ledger',
     actionLabel: 'Open Payouts',
-    href: '/admin/payouts',
+    target: routeTarget('/admin/payouts'),
     nextStep: 'Review failed and stalled payout attempts in the ledger.',
   },
   background_jobs: {
     ownerLabel: 'Scheduled Jobs',
     actionLabel: 'Open Admin Help',
-    href: '/admin/help',
+    target: routeTarget('/admin/help'),
     nextStep:
       'Scheduled web requests are dispatched but their results are not read back — confirm the job ran from its own runbook before treating this as green.',
   },
   migrations: {
     ownerLabel: 'Database Migrations',
     actionLabel: 'Open Admin Help',
-    href: '/admin/help',
+    target: routeTarget('/admin/help'),
     nextStep:
       'Compare the newest applied migration version with supabase/migrations on main, then push the missing migration — a merge is not a deploy.',
   },
   ringside_conflicts: {
     ownerLabel: 'Support Inbox',
     actionLabel: 'Open Support',
-    href: '/admin/support',
+    target: routeTarget('/admin/support'),
     nextStep: 'Review ringside conflict volume and containment for the affected shows.',
   },
   sign_in_email_drift: {
     ownerLabel: 'User Management',
     actionLabel: 'Open Users',
-    href: '/admin/users',
+    target: routeTarget('/admin/users'),
     nextStep:
       'A person record disagrees with its auth identity; reconcile the drifted sign-in address before the user is locked out.',
   },
@@ -117,7 +119,7 @@ export const HEALTH_CHECK_REMEDIATION: Readonly<Record<string, HealthCheckRemedi
 export const PAYOUT_CRON_DISPATCH_ONLY: HealthCheckRemediationRoute = {
   ownerLabel: 'Payout Scheduling',
   actionLabel: 'Open Payouts',
-  href: '/admin/payouts',
+  target: routeTarget('/admin/payouts'),
   nextStep:
     'This confirms the scheduled request was sent; the ledger covers only payout attempts that were recorded.',
 };
@@ -130,7 +132,7 @@ export const PAYOUT_CRON_DISPATCH_ONLY: HealthCheckRemediationRoute = {
 export const UNKNOWN_HEALTH_CHECK_REMEDIATION: HealthCheckRemediationRoute = {
   ownerLabel: 'Owner incomplete',
   actionLabel: 'Open Admin Help',
-  href: '/admin/help',
+  target: routeTarget('/admin/help'),
   nextStep:
     'This check key is not mapped to an owner; use admin help or the operations runbook to triage, then add it to the remediation map.',
 };
@@ -150,7 +152,7 @@ const INFERRED_ROUTES: readonly { pattern: RegExp; route: HealthCheckRemediation
     route: {
       ownerLabel: 'Support Inbox',
       actionLabel: 'Open Support',
-      href: '/admin/support',
+      target: routeTarget('/admin/support'),
       nextStep: 'Review the affected diagnostics and replication state.',
     },
   },
@@ -159,7 +161,7 @@ const INFERRED_ROUTES: readonly { pattern: RegExp; route: HealthCheckRemediation
     route: {
       ownerLabel: 'Support Inbox',
       actionLabel: 'Open Support',
-      href: '/admin/support',
+      target: routeTarget('/admin/support'),
       nextStep: 'Review the support queue and affected diagnostics.',
     },
   },
@@ -168,7 +170,7 @@ const INFERRED_ROUTES: readonly { pattern: RegExp; route: HealthCheckRemediation
     route: {
       ownerLabel: 'Deleted Items',
       actionLabel: 'Open Deleted Items',
-      href: '/admin/deleted-items',
+      target: routeTarget('/admin/deleted-items'),
       nextStep: 'Check whether missing data can be restored.',
     },
   },
@@ -177,7 +179,7 @@ const INFERRED_ROUTES: readonly { pattern: RegExp; route: HealthCheckRemediation
     route: {
       ownerLabel: 'Permissions',
       actionLabel: 'Open Permissions',
-      href: '/admin/permissions',
+      target: routeTarget('/admin/permissions'),
       nextStep: 'Review role assignments and access repair surfaces.',
     },
   },
@@ -190,7 +192,7 @@ const INFERRED_ROUTES: readonly { pattern: RegExp; route: HealthCheckRemediation
     route: {
       ownerLabel: 'Operations Runbook',
       actionLabel: 'Open Admin Help',
-      href: '/admin/help',
+      target: routeTarget('/admin/help'),
       nextStep: 'Use the operations runbook or admin help to assign the manual recovery owner.',
     },
   },

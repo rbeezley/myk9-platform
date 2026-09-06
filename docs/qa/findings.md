@@ -364,6 +364,24 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### Codex commit-review reconciliation — 2026-09-06
+
+`source: codex`; baseline `8facd0017ccd4de5f9a28ae99ef1c58e2f89f910`.
+[Full report and proof](codex-daily-commit-review-2026-09-06.md). Linear remains the work queue.
+This section supersedes pending status claims in the September 5 index below.
+
+| Stable ID / alias            | Canonical priority | Registry status / lifecycle | Canonical work                                                                                                                                                                                                             |
+| ---------------------------- | ------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NCR-2026-09-06-01            | P1 / High          | open / new                  | [MYK9-424](https://linear.app/myk9-platform/issue/MYK9-424) — trial reports mask cached scores on result-enrichment failure, or hang on a stalled request; two actual-function/rendered assertions fail.                   |
+| MYK9-407                     | P3 / Low           | done / verified             | [MYK9-407](https://linear.app/myk9-platform/issue/MYK9-407) — deployed v33 matches source; full/continuous snapshots preserve 48h windows and daily timestamps/verdicts; both admin pages verified. [Closure evidence](myk9-407-hosted-verification-2026-09-06.md). |
+| MYK9-408 / NCR-2026-09-05-01 | P3 / Low           | in-progress / unchanged     | [MYK9-408](https://linear.app/myk9-platform/issue/MYK9-408) — installed prompt still asserts Codex is paused. Reopened original parity gate; prior Claude-disabled owner decision preserved.                               |
+
+Resolved with passing focused/CI or recorded deployed proof: MYK9-294 (P1), MYK9-381,
+MYK9-289, MYK9-356, MYK9-405 (P2), MYK9-358 and MYK9-406 (P3).
+Exact closure evidence is in the report; new SQL/migration CI evidence was also appended
+to MYK9-356 and MYK9-405. No issue closed by this audit. Counts: new 1, unchanged 1,
+resolved 7, duplicate 0, rejected 0, blocked 1. No application code changed.
+
 ### Codex commit-review reconciliation — 2026-09-05
 
 `source: codex`; baseline `a25d9967139d1499d657af25d8947e41269dd063`. Full evidence,
@@ -371,19 +389,18 @@ first/last-seen dates, owner, severity rationale and proof gates are in
 [the review report](codex-daily-commit-review-2026-09-05.md) and the canonical Linear records.
 This table is an evidence index, not a separate queue. No application code changed.
 
-| Stable ID / alias | Canonical priority | Registry status / lifecycle | Canonical work |
-| --- | --- | --- | --- |
-| MYK9-294 | P1 / High | fixed / resolved at 12:59 UTC | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) — deployed sandbox replay returned a real session ID and success at 10.0 seconds; see Closed Findings |
-| MYK9-381 | P2 / source High | Done / deployed evidence attached | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) — [#2049](https://github.com/rbeezley/myk9-platform/pull/2049) completes #2044; required CI passes. Deployed Willow 38.50/52.40 and Scout 41.20 show Test Judge; screenshot and completion comment attached to Linear. [Closure evidence](../plans/2026-09-05-myk9-381-result-merge.md). |
-| NCR-2026-09-04-02 | P2 / source High | open / unchanged, newly filed | [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) — migration guard rejects inherited/deployed versions; 2 failing probes |
-| MYK9-356 | P2 / Medium | open / blocked for focused SQL proof | [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) — source parity passes; lifecycle-absent behavioral/mutation and applied proof missing |
-| NCR-2026-09-04-04 | P2 / Medium | in-progress / blocked for Nightly proof | [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289) — existing detailed record below; no post-fix Nightly run yet |
-| MYK9-358 | P3 / Low | open / unchanged, reopened | [MYK9-358](https://linear.app/myk9-platform/issue/MYK9-358) — claimed migration-header fix absent from main |
-| NCR-2026-09-04-03 | P3 / Low | open / unchanged, newly filed | [MYK9-406](https://linear.app/myk9-platform/issue/MYK9-406) — 24/77 plans missing status markers; named plans also unindexed |
+| Stable ID / alias | Canonical priority | Registry status / lifecycle       | Canonical work                                                                                                                                                                                                                                                                                                                                       |
+| ----------------- | ------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MYK9-294          | P1 / High          | fixed / resolved at 12:59 UTC     | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) — deployed sandbox replay returned a real session ID and success at 10.0 seconds; see Closed Findings                                                                                                                                                                                    |
+| MYK9-381          | P2 / source High   | Done / deployed evidence attached | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) — [#2049](https://github.com/rbeezley/myk9-platform/pull/2049) completes #2044; required CI passes. Deployed Willow 38.50/52.40 and Scout 41.20 show Test Judge; screenshot and completion comment attached to Linear. [Closure evidence](../plans/2026-09-05-myk9-381-result-merge.md). |
+| NCR-2026-09-04-02 | P2 / source High   | fixed / resolved 2026-09-06       | [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) — current provenance tests and real migration CI pass; see September 6 report                                                                                                                                                                                                            |
+| MYK9-356          | P2 / Medium        | fixed / resolved 2026-09-06       | [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) — installed-function SQL mutation CI and recorded applied proof now satisfy the gate                                                                                                                                                                                                     |
+| NCR-2026-09-04-04 | P2 / Medium        | fixed / resolved 2026-09-05       | [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289) — existing detailed closure record below; Nightly 33980080362 passes                                                                                                                                                                                                                     |
+| MYK9-358          | P3 / Low           | fixed / resolved 2026-09-06       | [MYK9-358](https://linear.app/myk9-platform/issue/MYK9-358) — header corrected in #2070; executable body unchanged and real guard passes                                                                                                                                                                                                             |
+| NCR-2026-09-04-03 | P3 / Low           | fixed / resolved 2026-09-06       | [MYK9-406](https://linear.app/myk9-platform/issue/MYK9-406) — current metadata checker and nine fixture tests pass after #2071                                                                                                                                                                                                                       |
 
 Resolved with focused proof in the report: MYK9-348 (cache/outbox protection) and
 NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were closed by this run.
-
 
 ### NCR-2026-09-04-04
 

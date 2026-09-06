@@ -1,5 +1,5 @@
--- Keep the deployed qualification replacement function aligned with the
--- unified RBAC role name. The original migration predates role consolidation.
+-- No-op re-emission of 20260902170000_replace_judge_qualifications.sql.
+-- The executable body is identical; this version introduces no authorization change.
 CREATE OR REPLACE FUNCTION public.replace_judge_qualifications(
   p_person_id uuid,
   p_qualifications jsonb

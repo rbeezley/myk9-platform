@@ -1,5 +1,9 @@
 # Plan: Fix nightly review findings
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
+
+
 ## Scope
 
 Fix the three unresolved findings from the 2026-07-20 nightly commit review:

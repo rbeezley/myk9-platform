@@ -1,5 +1,9 @@
 # MYK9-165 Dirty-form route guard
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> Linked Linear issue was refreshed as Done during this implementation pass; archive the completed plan without changing historical scope.
+
+
 ## Decision
 
 Use option 1: migrate the app entry point to `createBrowserRouter` and

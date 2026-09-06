@@ -1,5 +1,9 @@
 # MYK9-64 — Secretary Show Desk Simplification
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
+
+
 > **Status:** Implementation complete; PR and review pending
 
 Linear: [MYK9-64](https://linear.app/myk9-platform/issue/MYK9-64/the-secretarys-show-details-page-looks-too-complicated) · Related: [MYK9-65](https://linear.app/myk9-platform/issue/MYK9-65) (count trust break), [MYK9-66](https://linear.app/myk9-platform/issue/MYK9-66) (inline status badge)

@@ -1,3 +1,4 @@
+import { DATABASE_ACCESS_RUNBOOK } from './remediationTarget';
 /**
  * MYK9-394 regression guard.
  *
@@ -37,9 +38,9 @@ describe('keyed health-check remediation', () => {
       const remediation = getHealthCheckRemediation(check({ key }));
 
       expect(remediation.ownerLabel).toBe('Database Access Contract');
-      expect(remediation.href).toBe('/admin/health');
+      expect(remediation.target).toEqual({ kind: 'external', href: DATABASE_ACCESS_RUNBOOK });
       // Triage must not be sent to the role editor: it cannot repair SQL grants.
-      expect(remediation.href).not.toBe('/admin/permissions');
+      expect(remediation.target.href).not.toBe('/admin/permissions');
       expect(remediation.ownerLabel).not.toBe('Permissions');
       // A concrete next proof step, not a shrug.
       expect(remediation.nextStep).toContain('grants migration');
@@ -74,14 +75,14 @@ describe('keyed health-check remediation', () => {
       );
 
       expect(serviceRole.ownerLabel).toBe(authenticatedOnly.ownerLabel);
-      expect(serviceRole.href).toBe(authenticatedOnly.href);
+      expect(serviceRole.target.href).toBe(authenticatedOnly.target.href);
       expect(serviceRole.actionLabel).toBe(authenticatedOnly.actionLabel);
       expect(differentTable.ownerLabel).toBe(authenticatedOnly.ownerLabel);
-      expect(differentTable.href).toBe(authenticatedOnly.href);
+      expect(differentTable.target.href).toBe(authenticatedOnly.target.href);
       expect(differentTable.actionLabel).toBe(authenticatedOnly.actionLabel);
       // And none of the three may drift to the RBAC surface.
       for (const r of [authenticatedOnly, serviceRole, differentTable]) {
-        expect(r.href).not.toBe('/admin/permissions');
+        expect(r.target.href).not.toBe('/admin/permissions');
       }
     }
   );
@@ -97,7 +98,7 @@ describe('keyed health-check remediation', () => {
     );
 
     expect(remediation.ownerLabel).toBe('Database Migrations');
-    expect(remediation.href).toBe('/admin/help');
+    expect(remediation.target.href).toBe('/admin/help');
   });
 
   it('routes the runner-level failure keys to the health runner owner', () => {
@@ -112,7 +113,7 @@ describe('keyed health-check remediation', () => {
     );
 
     expect(remediation.ownerLabel).toBe('Owner incomplete');
-    expect(remediation.href).toBe('/admin/help');
+    expect(remediation.target.href).toBe('/admin/help');
     expect(remediation.actionLabel).toBe('Open Admin Help');
     expect(remediation.coverageIncomplete).toBe(false);
   });
@@ -123,7 +124,7 @@ describe('keyed health-check remediation', () => {
       check({ key: 'replication_queue', label: 'Replication queue', detail: 'Queue is stale' })
     );
 
-    expect(remediation.href).toBe('/admin/support');
+    expect(remediation.target.href).toBe('/admin/support');
     expect(remediation.nextStep).toContain('Unmapped check key');
   });
 
@@ -139,7 +140,8 @@ describe('keyed health-check remediation', () => {
 
   it('points every mapped route at a route that exists in the app', () => {
     for (const [key, route] of Object.entries(HEALTH_CHECK_REMEDIATION)) {
-      expect(LIVE_ROUTES.has(route.href), `${key} -> ${route.href}`).toBe(true);
+      if (route.target.kind === 'route')
+        expect(LIVE_ROUTES.has(route.target.href), `${key} -> ${route.target.href}`).toBe(true);
       expect(route.ownerLabel.length).toBeGreaterThan(0);
       expect(route.nextStep.length).toBeGreaterThan(0);
     }

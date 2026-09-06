@@ -1,5 +1,9 @@
 # Plan: Result Reveal + Share Card
 
+> **Status:** Active — metadata reconciled 2026-09-05.
+> Proposed product work; no completion evidence recorded.
+
+
 Turn the qualifying result — the emotional peak of the exhibitor's weekend — from a row
 state into a moment: a celebratory reveal when results release, and a shareable card image
 the exhibitor posts to their dog-sport circles. The card is also the growth loop: every

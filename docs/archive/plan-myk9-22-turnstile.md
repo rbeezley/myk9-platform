@@ -1,5 +1,9 @@
 # MYK9-22 — Ringside CAPTCHA hardening
 
+> **Status:** Complete — metadata reconciled 2026-09-05.
+> Linked Linear issue was refreshed as Done during this implementation pass; archive the completed plan without changing historical scope.
+
+
 ## Scope
 
 - Treat the existing scheduled cleanup in migrations `20260625000100` and

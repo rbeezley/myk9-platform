@@ -26,7 +26,7 @@ import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
-import { hasScopedClubRole } from '@/utils/roleScopes';
+import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
   return enabled ? (
@@ -115,20 +115,19 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
   const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
-  if (isSiteAdmin) {
-    return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
-  }
   if (showsLoading) return null;
 
   const show = shows.find(s => s.id === id);
   const isSecretary = hasRole(UserRole.SECRETARY);
   const isScopedSecretary =
-    isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId);
+    isSecretary &&
+    (hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId) ||
+      hasScopedShowRole(userWithRoles, UserRole.SECRETARY, id));
 
   // Management routes must be scoped to this show for secretaries and club
   // admins. Site admins remain platform-wide. This keeps raw staff report
   // reads behind the same show-scoped authorization as the route itself.
-  if (isScopedSecretary) {
+  if (isSiteAdmin || isScopedSecretary) {
     return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
   }
 

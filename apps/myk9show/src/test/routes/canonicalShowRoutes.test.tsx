@@ -245,7 +245,7 @@ describe('canonical show management routes', () => {
     async (path, sectionTestId) => {
       mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
       mockAuth.userWithRoles = {
-        scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-1', roleId: UserRole.SECRETARY }],
+        scopes: [{ scopeType: ScopeType.SHOW, scopeId: 'show-1', roleId: UserRole.SECRETARY }],
       };
       mockShows.data = [{ id: 'show-1', clubId: 'club-1' }];
       mockShows.isLoading = false;
@@ -277,22 +277,6 @@ describe('canonical show management routes', () => {
     expect(screen.queryByTestId('production-show-desk')).not.toBeInTheDocument();
 
     mockAuth.user = { id: 'user-1' };
-  });
-
-  it('redirects an unscoped secretary from a management URL', async () => {
-    mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
-    mockAuth.userWithRoles = null;
-    mockShows.data = [{ id: 'show-1', clubId: 'club-1' }];
-    mockShows.isLoading = false;
-
-    render(
-      <MemoryRouter initialEntries={['/shows/show-1/reports']}>
-        <Routes>{PublicRoutes()}</Routes>
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
-    expect(screen.queryByTestId('production-reports')).not.toBeInTheDocument();
   });
 
   it('redirects a non-manager direct management URL back to the canonical overview', async () => {

@@ -126,6 +126,14 @@ describe('codex-review.sh', () => {
       'codex\nThe run stopped before reaching a no actionable verdict.',
       0,
     ],
+    [
+      // The sentence-boundary arm added for #2074 is case-sensitive so an
+      // ellipsis cannot manufacture a sentence opening out of mid-sentence
+      // prose. Lowercase after "..." is still mid-sentence.
+      'an ellipsis followed by the lowercase phrase',
+      'codex\nThe run stopped... no actionable verdict was ever reached.',
+      0,
+    ],
   ])(
     'exits 2 without evidence on %s — clean is a positive match, not the absence of findings',
     (_, output, exitCode) => {
@@ -144,6 +152,10 @@ describe('codex-review.sh', () => {
     // Real wording from /tmp/codex-review-2045.log — the noun phrase varies,
     // only the "No actionable" opening is stable (Codex review of #2063, P2).
     'No actionable correctness, security, or data-flow regressions were found. The focused migration contract tests passed.',
+    // Real wording from #2074: Codex led with a summary sentence, so the clean
+    // assertion is not at the start of the block. Anchoring there rejected a
+    // review that had run and found nothing.
+    'The documentation-only change restores validation-profile guidance while preserving existing plan-hygiene requirements. No actionable defects found; git diff --check passed.',
   ])('accepts the explicit clean verdict %j', verdict => {
     const r = run(stubCodex(`codex\n${verdict}`));
     expect(r.code).toBe(0);

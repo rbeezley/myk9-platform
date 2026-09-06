@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useMatch } from 'react-router-dom';
-import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, ListTree } from 'lucide-react';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
@@ -26,6 +25,8 @@ import { ShowManagementShell } from '@/components/shows/ShowDetails/ShowManageme
 import { ShowExhibitorView } from '@/components/shows/ShowDetails/ShowExhibitorView';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { resolveShowAudience } from './ShowDetailsPage.audience';
+import { buildShowDetailTabDefs, resolveResultsTabCount } from './ShowDetailsPage.tabDefs';
+import { useShowResults } from '@/hooks/queries/useShowResults';
 import { getEntryStatus } from '@/utils/entryStatusUtils';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
 import { features } from '@/config/features';
@@ -62,6 +63,11 @@ const ShowDetailsPage: React.FC = () => {
     isError: showEntriesIsError,
   } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id)));
   const { dogs } = useDogStoreCompat();
+
+  // The Results badge counts what the Results tab renders: result groups from
+  // view_public_entry_results, which withholds unreleased placements (MYK9-419).
+  const showResultsQuery = useShowResults(id && isValidUUID(id) ? id : undefined);
+  const resultsCount = resolveResultsTabCount(showResultsQuery);
 
   // Use fast show details loading with cache optimization
   const {
@@ -321,35 +327,19 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab definitions for PrimaryTabs (must be before early returns — rules of hooks)
   const tabDefs: PrimaryTabDef[] = useMemo(
-    () => [
-      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-      ...(canShowMap ? [{ id: 'map', label: 'Show Map', icon: ListTree }] : []),
-      { id: 'trials', label: 'Trials', icon: Trophy, count: effectiveTrials.length },
-      ...(!canManageShow && isAuthenticated
-        ? [
-            {
-              id: 'my-entries',
-              label: 'My Entries',
-              icon: ClipboardList,
-              ...(submittedEntryProjection.isReady
-                ? { count: submittedEntryProjection.historyCount }
-                : {}),
-            },
-          ]
-        : []),
-      { id: 'classes', label: 'Classes', icon: ListChecks, count: effectiveShowClasses.length },
-      ...(canManageShow && isAuthenticated
-        ? [
-            {
-              id: 'my-entries',
-              label: 'Entries',
-              icon: ClipboardList,
-              ...(managerEntryDataUnavailable ? {} : { count: catalogEntryCount }),
-            },
-          ]
-        : []),
-      { id: 'results', label: 'Results', icon: Medal, count: 0 },
-    ],
+    () =>
+      buildShowDetailTabDefs({
+        isAuthenticated,
+        canShowMap,
+        canManageShow,
+        trialCount: effectiveTrials.length,
+        classCount: effectiveShowClasses.length,
+        catalogEntryCount,
+        managerEntryDataUnavailable,
+        submittedEntryHistoryCount: submittedEntryProjection.historyCount,
+        submittedEntryProjectionIsReady: submittedEntryProjection.isReady,
+        resultsCount,
+      }),
     [
       isAuthenticated,
       canShowMap,
@@ -360,6 +350,7 @@ const ShowDetailsPage: React.FC = () => {
       managerEntryDataUnavailable,
       submittedEntryProjection.historyCount,
       submittedEntryProjection.isReady,
+      resultsCount,
     ]
   );
 

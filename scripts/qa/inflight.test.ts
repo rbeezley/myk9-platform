@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -116,9 +116,10 @@ describe('inflight CLI', () => {
   }
 
   /**
-   * Stub gh. `prs` entries carry `files` (with optional previous_filename) served
-   * through the REST files endpoint; `merged` maps branch -> merged head sha
-   * (a bare string means "any sha"); `fail` makes every call exit 1.
+   * Stub gh. `prs` are open PRs (REST shape served paged through /pulls?state=open,
+   * files through /pulls/N/files); `merged` maps branch -> merged head sha,
+   * answered per branch via `pr list --state merged --head X`; `fail` makes
+   * every call exit 1.
    */
   function stubGh(
     bin: string,
@@ -129,21 +130,23 @@ describe('inflight CLI', () => {
       author?: { login: string };
       files: { path: string; previous?: string }[];
     }[],
-    merged: (string | [string, string])[] = [],
+    merged: [string, string][] = [],
     fail = false
   ) {
-    const list = prs.map(({ files: _files, ...rest }) => rest);
-    writeFileSync(join(bin, 'open.json'), JSON.stringify(list));
-    writeFileSync(
-      join(bin, 'merged.json'),
-      JSON.stringify(
-        merged.map(m =>
-          typeof m === 'string'
-            ? { headRefName: m, headRefOid: '0'.repeat(40) }
-            : { headRefName: m[0], headRefOid: m[1] }
-        )
-      )
-    );
+    // A test may call stubGh twice; stale answer files from the first call must not survive.
+    for (const f of readdirSync(bin))
+      if (/^(merged-|files-|open\.json)/.test(f)) rmSync(join(bin, f));
+    const rest = prs.map(pr => ({
+      number: pr.number,
+      head: { ref: pr.headRefName },
+      html_url: pr.url,
+      user: pr.author,
+    }));
+    const openPages: unknown[][] = [];
+    for (let i = 0; i < rest.length; i += 100) openPages.push(rest.slice(i, i + 100));
+    writeFileSync(join(bin, 'open.json'), JSON.stringify(openPages.length ? openPages : [[]]));
+    for (const [branch, sha] of merged)
+      writeFileSync(join(bin, `merged-${branch}.json`), JSON.stringify([{ headRefOid: sha }]));
     for (const pr of prs) {
       const files = pr.files.map(f => ({ filename: f.path, previous_filename: f.previous }));
       const pages: unknown[][] = [];
@@ -160,9 +163,10 @@ describe('inflight CLI', () => {
           '#!/usr/bin/env bash',
           'case "$*" in',
           `  *"repo view"*) echo '{"nameWithOwner":"o/r"}';;`,
-          `  *"--state merged"*) cat "${join(bin, 'merged.json')}";;`,
+          `  *"--state merged"*) b=$(printf '%s' "$*" | sed -E 's#.*--head ([^ ]+).*#\\1#'); f="${bin}/merged-$b.json"; if [ -f "$f" ]; then cat "$f"; else echo '[]'; fi;;`,
           `  *"/pulls/"*"/files"*) n=$(printf '%s' "$*" | sed -E 's#.*/pulls/([0-9]+)/files.*#\\1#'); cat "${bin}/files-$n.json";;`,
-          `  *) cat "${join(bin, 'open.json')}";;`,
+          `  *"/pulls?state=open"*) cat "${join(bin, 'open.json')}";;`,
+          `  *) echo "stub gh: unexpected args: $*" >&2; exit 1;;`,
           'esac',
           '',
         ].join(NL);
@@ -275,7 +279,7 @@ describe('inflight CLI', () => {
 
   it('keeps the UNCOMMITTED files of a worktree whose branch already merged', () => {
     const { main, bin } = repo();
-    stubGh(bin, [], ['other-branch']);
+    stubGh(bin, [], [['other-branch', git(main, 'rev-parse', 'other-branch').trim()]]);
     const r = runCli(main, bin, 'src/a.ts');
     expect(r.code).toBe(1);
     expect(r.out).toContain('worktree');
@@ -385,6 +389,40 @@ describe('inflight CLI', () => {
     expect(r.out).toContain('branch reused');
     git(main, 'branch', '-f', 'reused', mergedHead);
     expect(runCli(main, bin).code).toBe(0);
+  });
+
+  it('pages the open-PR inventory — the 150th open PR is still found', () => {
+    const { main, bin } = repo();
+    const prs = Array.from({ length: 149 }, (_, i) => ({
+      number: i + 1,
+      headRefName: `other-${i}`,
+      files: [{ path: `docs/f${i}.md` }],
+    }));
+    prs.push({ number: 150, headRefName: 'overlapper', files: [{ path: 'src/b.ts' }] });
+    stubGh(bin, prs);
+    const r = runCli(main, bin);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('pr #150');
+  });
+
+  it('does not re-report the already-shipped commits of a reused, unrebased branch', () => {
+    const { main, bin } = repo();
+    // First commit changed src/a.ts and was squash-merged; the branch was then
+    // reused for a commit touching only docs/new.md, without rebasing.
+    git(main, 'checkout', '-q', '-b', 'reused', 'origin/main');
+    writeFileSync(join(main, 'src', 'a.ts'), 'shipped');
+    git(main, 'add', 'src/a.ts');
+    git(main, 'commit', '-q', '-m', 'shipped');
+    const mergedHead = git(main, 'rev-parse', 'HEAD').trim();
+    writeFileSync(join(main, 'docs-new.md'), 'new');
+    git(main, 'add', 'docs-new.md');
+    git(main, 'commit', '-q', '-m', 'new work');
+    git(main, 'checkout', '-q', 'mine');
+    // Silence the other worktree's dirty src/a.ts for this case.
+    writeFileSync(join(main, '..', 'other', 'src', 'a.ts'), 'a');
+    stubGh(bin, [], [['reused', mergedHead]]);
+    expect(runCli(main, bin, 'src/a.ts').code).toBe(0); // shipped, not in flight
+    expect(runCli(main, bin, 'docs-new.md').code).toBe(1); // the new work is
   });
 
   it('--warn reports but exits 0', () => {

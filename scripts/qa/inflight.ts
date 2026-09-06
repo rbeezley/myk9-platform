@@ -183,11 +183,11 @@ export function localChangedPaths(base: string, cwd?: string): string[] {
   return [...new Set([...committedPaths(base, 'HEAD', cwd), ...statusPaths(cwd)])];
 }
 
-interface GhPr {
+interface RestPr {
   number: number;
-  headRefName: string;
-  url?: string;
-  author?: { login?: string };
+  head: { ref: string };
+  html_url?: string;
+  user?: { login?: string };
 }
 
 interface GhPrFile {
@@ -233,50 +233,102 @@ function ghJson<T>(args: string[], what: string): T {
   }
 }
 
-/** Throws when `gh` cannot answer — an unknown PR list must never read as clean. */
+/**
+ * Every open PR, paged — `gh pr list --limit` truncates silently and a
+ * truncated inventory must never read as clean (Codex, #2073 round 5).
+ * Throws when `gh` cannot answer.
+ */
 export function openPullRequests(): ChangeSource[] {
   const slug = repoSlug();
-  const prs = ghJson<GhPr[]>(
-    ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,headRefName,url,author'],
+  const pages = ghJson<RestPr[][] | RestPr[]>(
+    ['api', '--paginate', '--slurp', `repos/${slug}/pulls?state=open&per_page=100`],
     'open PRs'
+  );
+  const prs = (pages as unknown[]).flatMap(page =>
+    Array.isArray(page) ? (page as RestPr[]) : [page as RestPr]
   );
   return prs.map(pr => ({
     kind: 'pr',
     id: `#${pr.number}`,
-    branch: pr.headRefName,
-    owner: pr.author?.login,
-    url: pr.url,
+    branch: pr.head.ref,
+    owner: pr.user?.login,
+    url: pr.html_url,
     files: pullRequestFiles(slug, pr.number),
   }));
 }
 
 /**
- * Merged PRs by branch name → the head SHA that merged. A squash merge leaves
- * the branch a non-ancestor of main, so "merged" must be decided by the PR;
- * but a branch name can be REUSED after its PR merged (this repo's LESSONS
- * record exactly that), so a local tip past the merged head is new work.
+ * The head SHA of the most recent MERGED PR for a branch name, looked up per
+ * branch on demand so no global list cap can hide old history (Codex, #2073
+ * round 5). A squash merge leaves the branch a non-ancestor of main, so
+ * "merged" must be decided by the PR; a branch name can be REUSED after its
+ * PR merged (this repo's LESSONS record exactly that), so callers compare the
+ * local tip against this head rather than trusting the name.
  */
-export function mergedPrBranches(): Map<string, string> {
-  const prs = ghJson<{ headRefName: string; headRefOid: string }[]>(
-    ['pr', 'list', '--state', 'merged', '--limit', '300', '--json', 'headRefName,headRefOid'],
-    'merged PRs'
-  );
-  const out = new Map<string, string>();
-  for (const pr of prs) if (!out.has(pr.headRefName)) out.set(pr.headRefName, pr.headRefOid);
-  return out;
+export class MergedHeads {
+  private readonly cache = new Map<string, string | undefined>();
+  get(branch: string): string | undefined {
+    if (!this.cache.has(branch)) {
+      const prs = ghJson<{ headRefOid: string }[]>(
+        [
+          'pr',
+          'list',
+          '--state',
+          'merged',
+          '--head',
+          branch,
+          '--limit',
+          '1',
+          '--json',
+          'headRefOid',
+        ],
+        `merged PRs for ${branch}`
+      );
+      this.cache.set(branch, prs[0]?.headRefOid);
+    }
+    return this.cache.get(branch);
+  }
 }
 
-/** True when `ref`'s tip is the merged head or an ancestor of it — i.e. nothing new since the merge. */
-export function finishedSinceMerge(ref: string, mergedHead: string, cwd?: string): boolean {
+function isAncestor(maybeAncestor: string, ref: string, cwd?: string): boolean {
   try {
-    execFileSync('git', ['merge-base', '--is-ancestor', ref, mergedHead], { cwd, stdio: 'ignore' });
+    execFileSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], {
+      cwd,
+      stdio: 'ignore',
+    });
     return true;
   } catch {
     return false;
   }
 }
 
-export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
+/** True when `ref`'s tip is the merged head or an ancestor of it — i.e. nothing new since the merge. */
+export function finishedSinceMerge(ref: string, mergedHead: string, cwd?: string): boolean {
+  return isAncestor(ref, mergedHead, cwd);
+}
+
+/**
+ * What to diff `ref` against. A squash-merged branch reused WITHOUT rebasing
+ * still has its shipped commits between origin/main's merge base and its tip;
+ * diffing against `base` would re-report them and block a colleague on ghosts
+ * (Codex, #2073 round 5). When the merged head is an ancestor of the tip, only
+ * the commits past that head are new work.
+ */
+export function effectiveBase(
+  ref: string,
+  base: string,
+  mergedHead: string | undefined,
+  cwd?: string
+): string {
+  if (mergedHead && isAncestor(mergedHead, ref, cwd)) return mergedHead;
+  return base;
+}
+
+export function otherWorktrees(
+  base: string,
+  cwd?: string,
+  merged: MergedHeads = new MergedHeads()
+): ChangeSource[] {
   const here = run('git', ['rev-parse', '--show-toplevel'], { cwd }).trim();
   const out: ChangeSource[] = [];
   let path = '';
@@ -287,7 +339,10 @@ export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
     if (!existsSync(path)) return; // prunable entry: nothing is happening in a directory that is gone
     // A detached worktree has commits too — compare its HEAD sha, not a branch.
     const ref = branch || head;
-    const committed = ref ? committedPaths(base, ref, cwd) : [];
+    const mergedHead = branch ? merged.get(branch) : undefined;
+    const committed = ref
+      ? committedPaths(effectiveBase(ref, base, mergedHead, cwd), ref, cwd)
+      : [];
     const dirty = statusPaths(path);
     const files = [...new Set([...committed, ...dirty])];
     if (files.length)
@@ -316,7 +371,7 @@ export function unmergedLocalBranches(
   base: string,
   skip: ReadonlySet<string>,
   cwd?: string,
-  merged: ReadonlyMap<string, string> = new Map()
+  merged: MergedHeads = new MergedHeads()
 ): ChangeSource[] {
   const names = lines(
     run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], {
@@ -338,7 +393,7 @@ export function unmergedLocalBranches(
     } catch {
       /* not an ancestor: has commits past base */
     }
-    const files = committedPaths(base, name, cwd);
+    const files = committedPaths(effectiveBase(name, base, mergedHead, cwd), name, cwd);
     if (files.length) out.push({ kind: 'branch', id: name, branch: name, files });
   }
   return out;
@@ -365,14 +420,13 @@ function runCliInner(argv: string[], cwd: string): number {
     console.log('inflight: nothing to check — no changed paths on this branch and none given.');
     return 0;
   }
-  const worktrees = otherWorktrees(base, cwd);
+  const merged = new MergedHeads();
+  const worktrees = otherWorktrees(base, cwd, merged);
   const wtBranches = new Set(worktrees.map(w => w.branch).filter((b): b is string => !!b));
   wtBranches.add(branch);
   let prs: ChangeSource[];
-  let merged: Map<string, string>;
   try {
     prs = openPullRequests();
-    merged = mergedPrBranches();
   } catch (error) {
     console.error(`inflight: ${(error as Error).message}`);
     console.error(

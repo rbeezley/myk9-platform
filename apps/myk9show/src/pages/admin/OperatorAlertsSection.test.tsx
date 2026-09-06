@@ -88,6 +88,59 @@ describe('OperatorAlertsSection', () => {
     expect(mutateAsync).toHaveBeenCalledWith('alert-42');
   });
 
+  it('leads with payout amounts and reveals complete diagnostics without resolving', async () => {
+    mockedUseOperatorAlerts.mockReturnValue(
+      queryState({
+        data: [
+          alert({
+            title: 'Reconciled payout amount mismatch: Heartland Scent Work Classic',
+            detail: {
+              html: `<p>Show <code>dededede-0000-0000-0000-000000000010</code> was reconciled to existing transfer
+        <code>tr_example</code> for $90.00, but today's recompute from entries says $60.00 is owed.</p>
+        <p>Review the transfer before resolving.</p>`,
+            },
+          }),
+        ],
+      })
+    );
+    const { user } = render(<OperatorAlertsSection />);
+    expect(screen.getByText(/Reconciled payout amount mismatch: Heartland/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Existing payout: $90.00. Recalculated amount owed: $60.00. Review this payout before resolving.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/dededede/)).not.toBeInTheDocument();
+    const toggle = screen.getByRole('button', { name: 'Technical details' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(
+      screen.getByText(/dededede.*tr_example.*Review the transfer before resolving\./)
+    ).toBeInTheDocument();
+    expect(mutateAsync).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Hide technical details' }));
+    expect(screen.queryByText(/dededede/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resolve' })).toBeEnabled();
+  });
+
+  it('retains full unknown diagnostics inside a repeated occurrence as plain text', async () => {
+    const html = `<p>${'Diagnostic '.repeat(20)}<code>last_identifier</code></p><img src=x onerror=alert(1)>`;
+    mockedUseOperatorAlerts.mockReturnValue(
+      queryState({ data: [alert({ id: 'a', detail: { html } }), alert({ id: 'b', detail: null })] })
+    );
+    const { user, container } = render(<OperatorAlertsSection />);
+    await user.click(screen.getByRole('button', { name: 'Show 2 occurrences' }));
+    expect(screen.queryByText(/last_identifier/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Technical details' }));
+    expect(screen.getByText(/last_identifier/)).toBeInTheDocument();
+    expect(container.querySelector('img[src="x"]')).toBeNull();
+    expect(screen.getByText('No further detail recorded.')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Resolve' })).toHaveLength(2);
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
   it('shows an error toast (and does not leave an unhandled rejection) when the resolve RPC fails', async () => {
     mutateAsync.mockRejectedValueOnce(new Error('resolve failed'));
     mockedUseOperatorAlerts.mockReturnValue(queryState({ data: [alert({ id: 'alert-42' })] }));

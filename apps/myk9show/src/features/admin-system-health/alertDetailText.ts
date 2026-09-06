@@ -45,10 +45,26 @@ function toPlainText(value: unknown): string {
  * One detail entry as display text, or null when there is nothing to show
  * (null values, or values that strip to nothing).
  */
-export function detailEntryToText(key: string, value: unknown): string | null {
+export function detailEntryToText(
+  key: string,
+  value: unknown,
+  options: { full?: boolean } = {}
+): string | null {
   if (value === null) return null;
   const text = toPlainText(value);
   if (!text) return null;
+  if (options.full) return MESSAGE_KEYS.test(key) ? text : `${key}: ${text}`;
+  // Existing alerts store the payout writer's HTML, not structured amounts.
+  // Recognize only its complete sentence; never infer amounts from arbitrary
+  // diagnostics. Keep the original available through the full-text path.
+  const mismatch = MESSAGE_KEYS.test(key)
+    ? text.match(
+        /^Show [\da-f-]{36} was reconciled to existing transfer tr_\w+ for (\$[\d,]+\.\d{2}), but today's recompute from entries says (\$[\d,]+\.\d{2}) is owed\./i
+      )
+    : null;
+  if (mismatch) {
+    return `Existing payout: ${mismatch[1]}. Recalculated amount owed: ${mismatch[2]}. Review this payout before resolving.`;
+  }
   const capped =
     text.length > DETAIL_VALUE_MAX_CHARS ? `${text.slice(0, DETAIL_VALUE_MAX_CHARS)}…` : text;
   return MESSAGE_KEYS.test(key) ? capped : `${key}: ${capped}`;

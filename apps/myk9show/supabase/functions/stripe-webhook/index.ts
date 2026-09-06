@@ -1246,6 +1246,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         .eq('dog_id', item.dog_id)
         .eq('class_id', item.class_id)
         .eq('show_id', cart.show_id)
+        .is('deleted_at', null)
         .maybeSingle();
 
       const isInactiveExistingEntry = existingEntry
@@ -1310,25 +1311,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       paidLineIds.push(existingEntry.id);
       lineAmountsById.set(existingEntry.id, lineAmountCents);
 
-      const { error: openLinkError } = await supabase
-        .from('entry_payment_links')
-        .update({ status: 'paid', updated_at: new Date().toISOString() })
-        .overlaps('entry_ids', [existingEntry.id])
-        .eq('status', 'open');
-      if (openLinkError) {
-        console.error(
-          `Recovered entry ${existingEntry.id} was paid but its open payment link could not be closed:`,
-          openLinkError
-        );
-        await alertAdmin(
-          'Recovered entry payment link could not be closed',
-          `<p>Entry <code>${existingEntry.id}</code> was marked paid from a recovered cart,
-           but an open <code>entry_payment_links</code> row could not be closed:</p>
-           <pre>${openLinkError.message}</pre>
-           <p>Verify the entry and close any remaining link before it is reused.</p>`,
-          { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-latch-${existingEntry.id}` }
-        );
-      }
+      await expireRecoveredEntryPaymentLinks(existingEntry.id, session.id);
       continue;
     }
 
@@ -1401,6 +1384,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       deniedLines.push({ cartItemId: item.id, classId: item.class_id, dogId: item.dog_id });
     }
   }
+
+  await resolvePaidWaitlistOffers(paidLineIds, session.id);
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).
   await stampWithdrawalSnapshot(entryIds, cart.show_id);
@@ -2074,6 +2059,59 @@ async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) 
        cascade does not offer the spot again.</p>`,
       { source: 'stripe-webhook', dedupeKey: `waitlist-offer-not-resolved-${sessionId}` }
     );
+  }
+}
+
+async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: string) {
+  const { data: links, error: linksError } = await supabase
+    .from('entry_payment_links')
+    .select('id, stripe_checkout_session_id')
+    .eq('status', 'open')
+    .overlaps('entry_ids', [entryId]);
+
+  if (linksError) {
+    await alertAdmin(
+      'Recovered entry payment links could not be checked',
+      `<p>Entry <code>${entryId}</code> was paid from cart session <code>${sessionId}</code>,
+       but its open payment links could not be checked:</p><pre>${linksError.message}</pre>`,
+      { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-check-${entryId}` }
+    );
+    return;
+  }
+
+  for (const link of links ?? []) {
+    try {
+      const linkSession = await stripe.checkout.sessions.retrieve(link.stripe_checkout_session_id);
+      if (linkSession.payment_status === 'paid') {
+        await alertAdmin(
+          'Recovered entry was paid by more than one checkout',
+          `<p>Entry <code>${entryId}</code> was paid by cart session <code>${sessionId}</code>
+           while payment-link session <code>${link.stripe_checkout_session_id}</code> was also paid.
+           The payment-link webhook must reconcile and refund the duplicate.</p>`,
+          { source: 'stripe-webhook', dedupeKey: `recovered-entry-double-payment-${entryId}` }
+        );
+        continue;
+      }
+
+      if (linkSession.status === 'open') {
+        await stripe.checkout.sessions.expire(link.stripe_checkout_session_id);
+      }
+
+      await supabase
+        .from('entry_payment_links')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .eq('id', link.id)
+        .eq('status', 'open');
+    } catch (error) {
+      console.error(`Could not expire recovered entry payment link ${link.id}:`, error);
+      await alertAdmin(
+        'Recovered entry payment link could not be expired',
+        `<p>Entry <code>${entryId}</code> was paid from cart session <code>${sessionId}</code>,
+         but payment-link session <code>${link.stripe_checkout_session_id}</code> could not be expired.</p>
+         <pre>${error instanceof Error ? error.message : String(error)}</pre>`,
+        { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-expire-${link.id}` }
+      );
+    }
   }
 }
 

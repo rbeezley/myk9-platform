@@ -354,6 +354,31 @@ export const useCartStore = create<CartState>()(
               .single();
 
             if (cartError) {
+              if (cartError.code === '23505') {
+                const { data: existingCart, error: existingCartError } = await supabase
+                  .from('entry_carts')
+                  .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+                  .eq('show_id', showId)
+                  .eq('exhibitor_id', exhibitorId)
+                  .eq('status', 'active')
+                  .limit(1)
+                  .maybeSingle();
+
+                if (!existingCartError && existingCart) {
+                  const cartWithDetails: CartWithDetails = {
+                    ...existingCart,
+                    items: [],
+                    show: existingCart.show as CartWithDetails['show'],
+                  };
+                  set({
+                    cart: cartWithDetails,
+                    isLoading: false,
+                    lastSyncedAt: new Date().toISOString(),
+                    expirationWarning: false,
+                  });
+                  return cartWithDetails;
+                }
+              }
               logger.error('Error creating cart', 'cartStore', { showId, exhibitorId }, cartError);
               throw cartError;
             }

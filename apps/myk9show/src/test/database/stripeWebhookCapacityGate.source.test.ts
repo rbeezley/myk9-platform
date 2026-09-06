@@ -17,7 +17,16 @@ const capacityGateMigration = readFileSync(
   resolve(root, 'supabase/migrations/20260628202146_create_online_paid_entry_capacity_gate.sql'),
   'utf8'
 );
+const recoveredCartMigration = readFileSync(
+  resolve(root, 'supabase/migrations/20260906140000_link_recovered_cart_items_to_entries.sql'),
+  'utf8'
+);
 const compactCapacityGateMigration = capacityGateMigration.replace(/\s+/g, ' ');
+const recoveredBranchStart = webhookSource.indexOf('if (item.entry_id)');
+const recoveredBranch = webhookSource.slice(
+  recoveredBranchStart,
+  webhookSource.indexOf('const entryInsert', recoveredBranchStart)
+);
 
 describe('stripe webhook online cart capacity gate', () => {
   it('routes paid cart entry creation through the atomic capacity RPC', () => {
@@ -28,20 +37,21 @@ describe('stripe webhook online cart capacity gate', () => {
   });
 
   it('marks recovered existing entries paid instead of inserting duplicate rows', () => {
-    expect(webhookSource).toContain('entry_id,');
-    expect(webhookSource).toContain('if (item.entry_id)');
-    expect(webhookSource).toContain("payment_status: 'paid'");
-    expect(webhookSource).toContain("payment_method: 'online'");
-    expect(webhookSource).toContain("entry_status: 'confirmed'");
-    expect(webhookSource).toContain('entry_fee: lineAmountCents / 100');
-    expect(webhookSource).toContain(".eq('payment_status', 'pending')");
-    expect(webhookSource).toContain(".eq('dog_id', item.dog_id)");
-    expect(webhookSource).toContain(".eq('class_id', item.class_id)");
-    expect(webhookSource).toContain(".eq('show_id', cart.show_id)");
-    expect(webhookSource).toContain('INACTIVE_ENTRY_STATUSES.has');
-    expect(webhookSource).toContain(".overlaps('entry_ids', [existingEntry.id])");
-    expect(migrationSql).toContain('ADD COLUMN IF NOT EXISTS entry_id uuid');
-    expect(migrationSql).toContain('entry_cart_items_entry_id_idx');
+    expect(recoveredBranch).toContain('if (item.entry_id)');
+    expect(recoveredBranch).toContain("payment_status: 'paid'");
+    expect(recoveredBranch).toContain("payment_method: 'online'");
+    expect(recoveredBranch).toContain("entry_status: 'confirmed'");
+    expect(recoveredBranch).toContain('entry_fee: lineAmountCents / 100');
+    expect(recoveredBranch).toContain(".eq('payment_status', 'pending')");
+    expect(recoveredBranch).toContain(".eq('dog_id', item.dog_id)");
+    expect(recoveredBranch).toContain(".eq('class_id', item.class_id)");
+    expect(recoveredBranch).toContain(".eq('show_id', cart.show_id)");
+    expect(recoveredBranch).toContain(".is('deleted_at', null)");
+    expect(recoveredBranch).toContain('INACTIVE_ENTRY_STATUSES.has');
+    expect(recoveredBranch).toContain('expireRecoveredEntryPaymentLinks');
+    expect(webhookSource).toContain('await resolvePaidWaitlistOffers(paidLineIds, session.id)');
+    expect(recoveredCartMigration).toContain('ADD COLUMN IF NOT EXISTS entry_id uuid');
+    expect(recoveredCartMigration).toContain('entry_cart_items_entry_id_idx');
     expect(migrationSql).toContain('after update of dog_id, class_id, entry_id');
     expect(migrationSql).toContain('old.entry_id is distinct from new.entry_id');
   });

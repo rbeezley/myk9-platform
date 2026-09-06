@@ -1041,6 +1041,23 @@ describe('Receipt deep-link scope from My Payments', () => {
     expect(screen.getByText('-$10.00')).toBeInTheDocument();
   });
 
+  it('states the payment even when no entry row has replicated yet', async () => {
+    // The cold/offline arrival. `entries.length === 0` takes the
+    // FirstRunZeroState branch, so a panel mounted inside the entries section
+    // would be invisible in exactly the case the deep-linked read exists for —
+    // and the exhibitor would be told they have never entered a show, over a
+    // payment they just made.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument();
+  });
+
   it('shows no payment panel when the scope link carries no order', async () => {
     seedStripeOrder(stripeOrderRow);
     renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=show-1&entryIds=entry-1');

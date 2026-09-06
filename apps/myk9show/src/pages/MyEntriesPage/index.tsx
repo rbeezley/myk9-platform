@@ -262,6 +262,21 @@ const MyEntriesPage: React.FC = () => {
               since HomeRedirect keeps them off Home (where the banner also mounts). */}
             <ShowTodayBanner />
 
+            {/* The receipt half of an inbound `?orderId=` link: the amount,
+              date and reference the exhibitor came here for.
+
+              Mounted OUTSIDE the identity/zero-state ternary below, which is
+              the whole point. A receipt link opened before any entry row has
+              replicated — a cold or offline boot — takes the
+              `entries.length === 0` branch and renders FirstRunZeroState, so a
+              panel inside it would be invisible in precisely the case
+              `useDeepLinkedReceiptOrder` exists to serve. The payment read is
+              keyed off the URL and RLS-scoped by the session, not by
+              `databaseUserId`, so it does not need identity to resolve first.
+              It renders nothing at all without an `?orderId=`, so every
+              ordinary visit is unchanged. */}
+            <ScopedPaymentSummary />
+
             {/* First-run zero-state: a brand-new exhibitor with no entries would
               otherwise see all-zero stat cards, an empty dog-strip gap, and an
               empty tab — noise that reads as a data-entry chore. Suppress the
@@ -327,13 +342,6 @@ const MyEntriesPage: React.FC = () => {
                       {ALL_ENTRIES_SCOPE_NOTE}
                     </span>
                   </h2>
-
-                  {/* The receipt half of an inbound `?orderId=` link: the
-                    amount, date and reference the exhibitor came here for.
-                    Above the banner because it answers "what did I pay?",
-                    which is the question that sent them; the banner then
-                    explains why the list beneath it is short. */}
-                  <ScopedPaymentSummary />
 
                   {/* Inbound scope from My Payments' Receipt link. Sits above
                     the filters, not inside the list: it describes the whole

@@ -30,8 +30,15 @@ BASE_SHA="$(git rev-parse "$BASE_REF")"
 HEAD_SHA="$(git rev-parse HEAD)"
 LOG="${CODEX_REVIEW_LOG:-/tmp/codex-review-${HEAD_SHA}.log}"
 
+# --base and a positional review prompt are mutually exclusive in the CLI.
+# Supply the verdict contract as session-only developer instructions instead;
+# never infer success from a summary of changes or passing tests (MYK9-416).
+# This overrides developer_instructions for this review, not the user's config
+# file, and leaves the built-in review prompt and repository instructions intact.
+REVIEW_INSTRUCTIONS='Review verdict contract: Only assert a clean verdict after completing the requested whole-branch review and finding no actionable defects. In that case, begin the final verdict with exactly: No actionable defects found. Put any summary or validation details after that sentence. If there are actionable findings, report each as a bullet beginning with - [P0], - [P1], - [P2], or - [P3], as appropriate; do not emit a clean assertion. If the review cannot be completed, begin with: Unable to complete the review. Explain the blocker and do not emit a clean assertion. Passing tests or a change summary alone is not a review verdict.'
+
 echo "codex-review: ${BASE_REF} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> ${LOG}"
-"$CODEX" review --base "$BASE_REF" < /dev/null > "$LOG" 2>&1
+"$CODEX" review --base "$BASE_REF" -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
 if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"; then

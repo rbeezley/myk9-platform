@@ -63,6 +63,23 @@ const MyEntriesPage: React.FC = () => {
   } = useMyEntriesData({
     persistCheckInStatus: checkInMutation.mutateAsync,
   });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Wait list. Resolved BEFORE the filters below, which need the position count:
+  // `waitlist_entries` is a second source of waitlist truth that the `entries`
+  // table cannot see, and the Waitlist chip counted only the half it could
+  // (MYK9-417). `waitlistSurface` reconciles them.
+  const { profile: exhibitorProfile } = useExhibitorProfile();
+  const focusedWaitlistOfferId = searchParams.get('waitlistOffer');
+  const {
+    entries: waitlistEntries,
+    isLoading: waitlistLoading,
+    withdraw,
+    startPayment,
+    decline,
+    refetchWaitlistOffers,
+  } = useMyWaitlistEntries(exhibitorProfile?.id, focusedWaitlistOfferId);
+
   const {
     filteredEntries,
     selectedTab,
@@ -74,9 +91,12 @@ const MyEntriesPage: React.FC = () => {
     tabCounts,
     scopeMatch,
     clearScope,
+    waitlistSurface,
   } = useMyEntriesFilters({
     entries,
     balanceSummary,
+    waitlistPositionCount: waitlistEntries.length,
+    waitlistPositionsLoading: waitlistLoading,
   });
 
   // Resolve the secretary's self-check-in cascade (class ?? trial ?? show ?? true)
@@ -101,7 +121,6 @@ const MyEntriesPage: React.FC = () => {
   const selfCheckinByClassId = useSelfCheckinMap(selfCheckinClassIds);
 
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   // Resolve the exhibitor's person id from the same source entry loading and the
   // AddDogPanel use (legacy lookup first, then the auth record). Deriving dog
@@ -142,18 +161,6 @@ const MyEntriesPage: React.FC = () => {
   // `useResultReveal` also owns the `?resultEntryId=` deep link.
   const dialogs = useMyEntriesDialogs({ updateEntryCheckIn, refreshEntries });
   const reveal = useResultReveal(entries);
-
-  // Waitlist
-  const { profile: exhibitorProfile } = useExhibitorProfile();
-  const focusedWaitlistOfferId = searchParams.get('waitlistOffer');
-  const {
-    entries: waitlistEntries,
-    isLoading: waitlistLoading,
-    withdraw,
-    startPayment,
-    decline,
-    refetchWaitlistOffers,
-  } = useMyWaitlistEntries(exhibitorProfile?.id, focusedWaitlistOfferId);
 
   const handleWaitlistOfferDeadlineElapsed = useCallback(() => {
     void refetchWaitlistOffers();
@@ -359,7 +366,7 @@ const MyEntriesPage: React.FC = () => {
                         ? '1 entry'
                         : `${filteredEntries.length} entries`}
                     </p>
-                    {filteredEntries.length === 0 ? (
+                    {filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
                       <EntriesEmptyState
                         selectedTab={selectedTab}
                         selectedStatus={selectedStatus}
@@ -390,42 +397,54 @@ const MyEntriesPage: React.FC = () => {
                 </div>
               </>
             )}
+
+            {/* Wait List Queue. Part of the filtered surface, not page
+              furniture: `waitlistSurface` decides when it renders, so the
+              Waitlist chip's count, this section and the empty state below
+              always answer from the same rule (MYK9-417). It sits outside
+              the entries branch on purpose — `add_to_waitlist` can queue a
+              dog with no entry row at all, so an exhibitor whose only
+              standing on this page is a wait-list position still sees it. */}
+            {waitlistSurface.showPositions && (
+              /* order-4 keeps the phone stack as it was when this section hung
+                 off the bottom of the page: entries (1), balance (2), dogs (3),
+                 wait list (4). Its siblings carry explicit orders, so an
+                 unordered flex child would default to 0 and jump to the top. */
+              <div className="max-[720px]:order-4">
+                <WaitListSection
+                  entries={waitlistEntries}
+                  isLoading={waitlistLoading}
+                  onWithdraw={id => withdraw.mutate(id)}
+                  isWithdrawing={withdraw.isPending}
+                  onStartPayment={(entryId, waitlistEntryId) => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('waitlistOffer', waitlistEntryId);
+                    setSearchParams(next, { replace: true });
+                    startPayment.mutate({ entryId, waitlistEntryId });
+                  }}
+                  onDecline={id => {
+                    const next = new URLSearchParams(searchParams);
+                    next.set('waitlistOffer', id);
+                    setSearchParams(next, { replace: true });
+                    decline.mutate(id);
+                  }}
+                  payingEntryId={
+                    startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null
+                  }
+                  decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
+                  paymentError={startPayment.error?.message ?? null}
+                  paymentErrorOfferId={
+                    startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
+                  }
+                  declineError={decline.error?.message ?? null}
+                  declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
+                  focusedOfferId={focusedWaitlistOfferId}
+                  onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
+                />
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Wait List Queue */}
-        {(waitlistLoading || waitlistEntries.length > 0) && (
-          <WaitListSection
-            entries={waitlistEntries}
-            isLoading={waitlistLoading}
-            onWithdraw={id => withdraw.mutate(id)}
-            isWithdrawing={withdraw.isPending}
-            onStartPayment={(entryId, waitlistEntryId) => {
-              const next = new URLSearchParams(searchParams);
-              next.set('waitlistOffer', waitlistEntryId);
-              setSearchParams(next, { replace: true });
-              startPayment.mutate({ entryId, waitlistEntryId });
-            }}
-            onDecline={id => {
-              const next = new URLSearchParams(searchParams);
-              next.set('waitlistOffer', id);
-              setSearchParams(next, { replace: true });
-              decline.mutate(id);
-            }}
-            payingEntryId={
-              startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null
-            }
-            decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
-            paymentError={startPayment.error?.message ?? null}
-            paymentErrorOfferId={
-              startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
-            }
-            declineError={decline.error?.message ?? null}
-            declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
-            focusedOfferId={focusedWaitlistOfferId}
-            onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
-          />
-        )}
       </div>
     );
   };

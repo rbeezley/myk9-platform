@@ -26,12 +26,8 @@ import {
   parseEntryScope,
   type EntryScopeMatch,
 } from './entryScopeFilter';
-import type {
-  MyEntry,
-  MyEntryStats,
-  EntryStatusFilter,
-  EntryTabFilter,
-} from './my-entries-types';
+import { resolveWaitlistSurface, type WaitlistSurface } from './waitlistSurface';
+import type { MyEntry, MyEntryStats, EntryStatusFilter, EntryTabFilter } from './my-entries-types';
 
 /**
  * Exhibitor-facing "your dog is in" predicate: a confirmed entry, including one
@@ -77,6 +73,14 @@ interface UseMyEntriesFiltersProps {
    * shares one payment status.
    */
   balanceSummary?: EntryBalanceSummary;
+  /**
+   * Active rows in `waitlist_entries` for this exhibitor. A SECOND source of
+   * waitlist truth that the `entries` table knows nothing about — see
+   * `waitlistSurface` for why the chip counted only half of it (MYK9-417).
+   */
+  waitlistPositionCount?: number;
+  /** The positions query is still in flight, so its count proves nothing yet. */
+  waitlistPositionsLoading?: boolean;
 }
 
 interface UseMyEntriesFiltersReturn {
@@ -98,6 +102,13 @@ interface UseMyEntriesFiltersReturn {
   scopeMatch: EntryScopeMatch;
   /** Drop the scope params, returning the page to the exhibitor's full list. */
   clearScope: () => void;
+  /**
+   * The single answer to "what does this page say about wait lists" — the chip
+   * count above, whether the positions section renders, and whether an empty
+   * list may claim there is nothing waitlisted. Derived here rather than in the
+   * page so those three can never be computed from different inputs.
+   */
+  waitlistSurface: WaitlistSurface;
 }
 
 /**
@@ -106,6 +117,8 @@ interface UseMyEntriesFiltersReturn {
 export function useMyEntriesFilters({
   entries,
   balanceSummary: externalBalanceSummary,
+  waitlistPositionCount = 0,
+  waitlistPositionsLoading = false,
 }: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
   // The active tab lives in the URL, not in local state.
   //
@@ -333,6 +346,32 @@ export function useMyEntriesFilters({
   // ...and status counts describe the list within the ACTIVE tab, so a chip
   // never promises rows the current tab would hide. The two counts read each
   // other's axis on purpose: each answers "how many will I see if I click this".
+  //
+  // The `waitlist` chip is the one count that is NOT derived from `entries`
+  // alone: `waitlist_entries` is a separate table with its own rows, and a
+  // position there need not have a waitlisted entry (often has no entry at
+  // all). Both halves go through `resolveWaitlistSurface`, which also decides
+  // whether the positions section renders — one rule, three readers.
+  const waitlistSurface = useMemo<WaitlistSurface>(() => {
+    const now = new Date();
+    const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
+    return resolveWaitlistSurface({
+      waitlistEntryCount: inTab.filter(isWaitlistEntry).length,
+      waitlistPositionCount,
+      isLoadingPositions: waitlistPositionsLoading,
+      selectedTab,
+      selectedStatus,
+      isScoped: scopeMatch.kind !== 'none' && scopeMatch.kind !== 'unmatched',
+    });
+  }, [
+    scopedEntries,
+    selectedTab,
+    selectedStatus,
+    scopeMatch,
+    waitlistPositionCount,
+    waitlistPositionsLoading,
+  ]);
+
   const statusCounts = useMemo<Record<EntryStatusFilter, number>>(() => {
     const now = new Date();
     const inTab = scopedEntries.filter(entry => TAB_PREDICATES[selectedTab](entry, now));
@@ -340,9 +379,9 @@ export function useMyEntriesFilters({
       any: inTab.length,
       pending: inTab.filter(isPendingEntry).length,
       accepted: inTab.filter(isExhibitorInEntry).length,
-      waitlist: inTab.filter(isWaitlistEntry).length,
+      waitlist: waitlistSurface.chipCount,
     };
-  }, [scopedEntries, selectedTab]);
+  }, [scopedEntries, selectedTab, waitlistSurface]);
 
   return {
     filteredEntries,
@@ -355,5 +394,6 @@ export function useMyEntriesFilters({
     statusCounts,
     scopeMatch,
     clearScope,
+    waitlistSurface,
   };
 }

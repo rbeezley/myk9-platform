@@ -674,3 +674,55 @@ describe('My Shows filters on one axis (time) with status composed', () => {
     expect(result.current.filteredEntries).toHaveLength(mixed.length);
   });
 });
+
+/**
+ * MYK9-417. `waitlist_entries` is a second source of waitlist truth, and the
+ * hook is where the two are joined. The rule itself is pinned in
+ * waitlistSurface.test.ts and its effect on screen in MyEntriesPage.test.tsx;
+ * these cover the wiring in between — which inputs the hook actually hands the
+ * resolver, and that the chip reads the joined answer rather than half of it.
+ */
+describe('useMyEntriesFilters wait-list positions', () => {
+  const oneEntry = [makeEntry({ id: 'submitted', showId: 's1', showDate: new Date(2026, 5, 20) })];
+
+  it('adds positions to the Waitlist chip count', () => {
+    const { result } = renderFilters({ entries: oneEntry, waitlistPositionCount: 1 });
+
+    // No entry here is waitlisted; the position is the whole count.
+    expect(result.current.statusCounts.waitlist).toBe(1);
+    expect(result.current.waitlistSurface.showPositions).toBe(true);
+  });
+
+  it('reads zero positions the same as before the fix', () => {
+    const { result } = renderFilters({ entries: oneEntry });
+
+    expect(result.current.statusCounts.waitlist).toBe(0);
+    expect(result.current.waitlistSurface.showPositions).toBe(false);
+    expect(result.current.waitlistSurface.allowEmptyState).toBe(true);
+  });
+
+  it('leaves positions out of a receipt-scoped list', () => {
+    // The scope names entry rows; a position is not one, and the banner has
+    // just promised the list is narrowed to that payment.
+    const { result } = renderFilters(
+      { entries: oneEntry, waitlistPositionCount: 1 },
+      '/exhibitor/entries?showId=s1&entryIds=submitted'
+    );
+
+    expect(result.current.scopeMatch.kind).not.toBe('none');
+    expect(result.current.statusCounts.waitlist).toBe(0);
+    expect(result.current.waitlistSurface.showPositions).toBe(false);
+  });
+
+  it('still counts positions when the scope link matched nothing', () => {
+    // 'unmatched' shows the full list rather than an empty page, so it is not
+    // a narrowing and must not suppress the positions either.
+    const { result } = renderFilters(
+      { entries: oneEntry, waitlistPositionCount: 1 },
+      '/exhibitor/entries?showId=gone&entryIds=gone'
+    );
+
+    expect(result.current.scopeMatch.kind).toBe('unmatched');
+    expect(result.current.statusCounts.waitlist).toBe(1);
+  });
+});

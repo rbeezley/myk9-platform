@@ -34,6 +34,8 @@ export {
   isEntryTabFilter,
   legacyTabAsStatusFilter,
 } from './entryTabDefs';
+export { resolveWaitlistSurface } from './waitlistSurface';
+export type { WaitlistSurface, WaitlistSurfaceInput } from './waitlistSurface';
 export { ALL_ENTRIES_LABEL, ALL_ENTRIES_SCOPE_NOTE } from './myShowsCopy';
 
 // Components

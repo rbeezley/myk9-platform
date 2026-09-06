@@ -2,7 +2,7 @@
 
 > **Status:** Active — implementation complete; PR review and delivery pending.
 
-Status: implemented and locally verified; all six full shuffled runs passed; independent review awaiting transfer approval. Not merged or deployed. Request: “fix myk9-424”. Baseline: f47c47ed7.
+Status: implementation and review findings addressed; all six full shuffled runs passed; independent review awaiting transfer approval. Not merged or deployed. Request: “fix myk9-424”. Baseline: f47c47ed7.
 
 Use the issue's existing finding contract rather than a new OpenSpec proposal for this bounded regression fix.
 
@@ -34,6 +34,10 @@ Checks:
 - `qa:dist-fresh` passes. Code-quality ratchet passes via `node --import tsx scripts/qa/code-quality-ratchet.ts`; the pnpm/tsx CLI invocation could not open its sandboxed IPC socket.
 
 All issue acceptance criteria have local rendered evidence. Remaining delivery work: commit/PR, independent pre-merge review, CI, merge and deployment. No shared fixtures, RBAC policy, database rows, or deployments were changed. Linear remains In Progress until delivery. Hosted browser checks were not performed; the issue explicitly permits an isolated rendered replay. Full-suite repeated shuffle was subsequently completed during shipping (below).
+
+## Review follow-up — 2026-09-06
+
+Addressed five confirmed review findings in commit `c5448f59f`: released-result enrichment now preserves batches completed before its deadline and recognizes a complete empty no-access projection; all-trial staff reports use one show-scoped replicated scan; the entries query key includes the current synced trial IDs; and this plan now follows the `docs/` lifecycle with status metadata and an index row. Focused follow-up verification passes (28 tests, app/test TypeScript, and diff check). The completeness flag remains part of the exhibitor show-read contract; staff reports intentionally bypass optional enrichment and therefore do not need to gate on that flag.
 
 ## Shipping verification
 

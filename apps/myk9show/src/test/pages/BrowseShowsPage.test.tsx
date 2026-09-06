@@ -213,7 +213,7 @@ const defaultFilters: ShowFilters = {
   search: '',
   discipline: 'all',
   entryStatus: 'all',
-  dateRange: 'upcoming',
+  month: 'all',
   organization: 'all',
   club: 'all',
 };
@@ -281,6 +281,7 @@ function setupMocks(options: {
     filters: defaultFilters,
     setFilters: vi.fn(),
     filteredShows: shows,
+    monthScopedShows: shows,
     hasActiveFilters: false,
     clearAllFilters: vi.fn(),
     activeFilterCount: 0,
@@ -316,8 +317,17 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: null });
     });
 
-    it('renders shows table view by default', async () => {
+    it('renders cards by default for guests — the table needed a horizontal scroll', async () => {
       renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    it('honors an explicit table view URL for guests', async () => {
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?view=table' });
 
       await waitFor(() => {
         expect(screen.getByTestId('shows-table')).toBeInTheDocument();
@@ -325,8 +335,43 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
     });
 
+    it('renders cards by default for multi-role users on Browse All', async () => {
+      setupMocks({ user: createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY]) });
+
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=all' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    it('keeps the table as the default on the Managing tab', async () => {
+      setupMocks({ user: createMockUser(UserRole.SECRETARY, 'secretary-1') });
+
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-table')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('shows-cards')).not.toBeInTheDocument();
+    });
+
+    it('renders the month scrubber with All upcoming selected', async () => {
+      renderWithProviders(<BrowseShowsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('month-scrubber')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('radio', { name: /all upcoming/i })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      );
+    });
+
     it('honors an explicit cards view URL', async () => {
-      renderWithProviders(<BrowseShowsPage />, { route: '/shows?view=cards' });
+      setupMocks({ user: createMockUser(UserRole.SECRETARY, 'secretary-1') });
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing&view=cards' });
 
       await waitFor(() => {
         expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
@@ -360,8 +405,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       // useUrlTab drops an unknown id and uses the default tab, so the link
       // still lands on a real list instead of an empty page.
       await waitFor(() => {
-        const list =
-          screen.queryByTestId('shows-cards') ?? screen.queryByTestId('shows-table');
+        const list = screen.queryByTestId('shows-cards') ?? screen.queryByTestId('shows-table');
         expect(list).toBeInTheDocument();
       });
       expect(screen.queryByRole('tab', { name: /entered as exhibitor/i })).not.toBeInTheDocument();
@@ -388,16 +432,16 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: null });
     });
 
-    it('should render only Browse All and Past Shows tabs for guests', async () => {
+    it('hides the tab strip for guests — Browse All is their only tab', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
       });
+      // A one-item strip is a label with nothing to switch to; past shows
+      // live in the month scrubber now (MYK9-427).
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /past shows/i })).not.toBeInTheDocument();
     });
 
     it('should not show New Show button for guests', async () => {
@@ -414,21 +458,18 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: createMockUser(UserRole.EXHIBITOR) });
     });
 
-    it('gives exhibitors the find-only tabs, with no "entered" duplicate of My Shows', async () => {
+    it('gives exhibitors no tab strip, with no "entered" duplicate of My Shows', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
-        expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
-        // "Entered as exhibitor" answered the question My Shows exists to
-        // answer, and described itself in that page's own sidebar words.
-        // /shows is for FINDING shows; the sidebar already links My Shows.
-        expect(
-          screen.queryByRole('tab', { name: /entered as exhibitor/i })
-        ).not.toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
       });
+      // "Entered as exhibitor" answered the question My Shows exists to
+      // answer, and described itself in that page's own sidebar words.
+      // /shows is for FINDING shows; the sidebar already links My Shows.
+      // With Past Shows folded into the scrubber, Browse All is the only tab
+      // left, so the strip hides entirely.
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     });
 
     it('should not show New Show button for exhibitors', async () => {
@@ -453,13 +494,14 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         userHasEntries: false,
       }));
 
+      // A secretary, because an exhibitor has no tab strip to carry a badge.
       setupMocks({
-        user: createMockUser(UserRole.EXHIBITOR),
+        user: createMockUser(UserRole.SECRETARY, 'secretary-1'),
         shows,
         enhancedShows,
       });
 
-      renderWithProviders(<BrowseShowsPage />);
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=all' });
 
       await waitFor(() => {
         const browseAllTab = screen.getByRole('tab', { name: /browse all/i });
@@ -482,7 +524,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /past shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
@@ -536,7 +578,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /past shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /managing/i })).not.toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /my assignments/i })).toBeInTheDocument();
@@ -558,13 +600,13 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({ user: createMockUser(UserRole.SITE_ADMIN) });
     });
 
-    it('should render Managing, Browse All, Past Shows for site admins (no My Shows or Assignments)', async () => {
+    it('should render Managing and Browse All for site admins (no Past Shows, My Shows or Assignments)', async () => {
       renderWithProviders(<BrowseShowsPage />);
 
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /past shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my assignments/i })).not.toBeInTheDocument();
       });
@@ -592,7 +634,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /past shows/i })).not.toBeInTheDocument();
         expect(
           screen.queryByRole('tab', { name: /entered as exhibitor/i })
         ).not.toBeInTheDocument();
@@ -600,7 +642,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       });
     });
 
-    it('should render Managing, Browse All, Past Shows, My Assignments for secretary + judge (no My Shows)', async () => {
+    it('should render Managing, Browse All, My Assignments for secretary + judge (no Past Shows, My Shows)', async () => {
       const multiRoleUser = createMockUser([UserRole.SECRETARY, UserRole.JUDGE], 'multi-user');
       setupMocks({ user: multiRoleUser });
 
@@ -609,7 +651,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       await waitFor(() => {
         expect(screen.getByRole('tab', { name: /managing/i })).toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /browse all/i })).toBeInTheDocument();
-        expect(screen.getByRole('tab', { name: /past shows/i })).toBeInTheDocument();
+        expect(screen.queryByRole('tab', { name: /past shows/i })).not.toBeInTheDocument();
         expect(screen.queryByRole('tab', { name: /my shows/i })).not.toBeInTheDocument();
         expect(screen.getByRole('tab', { name: /my assignments/i })).toBeInTheDocument();
       });
@@ -641,13 +683,27 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
     });
 
     it('should persist tab selection on page load', async () => {
-      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=past' });
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=all' });
 
       // Base UI tabs use aria-selected for the active state
       await waitFor(() => {
-        const pastTab = screen.getByRole('tab', { name: /past shows/i });
-        expect(pastTab).toHaveAttribute('aria-selected', 'true');
+        const browseAllTab = screen.getByRole('tab', { name: /browse all/i });
+        expect(browseAllTab).toHaveAttribute('aria-selected', 'true');
       });
+    });
+
+    it('falls back to the default tab on a stale ?tab=past link', async () => {
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=past' });
+
+      // Past Shows is gone (its months live in the scrubber); the link must
+      // still land on a real list, not a blank panel.
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /managing/i })).toHaveAttribute(
+          'aria-selected',
+          'true'
+        );
+      });
+      expect(screen.queryByRole('tab', { name: /past shows/i })).not.toBeInTheDocument();
     });
 
     it('should handle invalid tab in URL gracefully', async () => {

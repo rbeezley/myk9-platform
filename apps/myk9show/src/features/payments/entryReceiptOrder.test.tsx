@@ -37,6 +37,7 @@ describe('useEntryReceiptOrders', () => {
       data: {
         id: 'order-2025',
         created_at: '2025-06-01T00:00:00Z',
+        paid_at: '2025-06-01T00:00:00Z',
         amount_cents: 6500,
         currency: 'usd',
         stripe_payment_intent_id: 'pi_order_2025',
@@ -57,6 +58,7 @@ describe('useEntryReceiptOrders', () => {
           requestedOrderId: 'order-2025',
           entryIds: ['entry-a'],
           enabled: true,
+          viewerId: 'viewer-1',
         }),
       { wrapper: createWrapper() }
     );
@@ -64,7 +66,7 @@ describe('useEntryReceiptOrders', () => {
 
     expect(from).toHaveBeenCalledWith('stripe_orders');
     expect(select).toHaveBeenCalledWith(
-      'id, created_at, amount_cents, currency, stripe_payment_intent_id, status, entry_ids, entry_subtotal_cents, platform_fee_cents, refunded_cents, make_whole_refunded_cents, refunded_at'
+      'id, created_at, paid_at, amount_cents, currency, stripe_payment_intent_id, status, entry_ids, entry_subtotal_cents, platform_fee_cents, refunded_cents, make_whole_refunded_cents, refunded_at'
     );
     expect(eq).toHaveBeenCalledWith('id', 'order-2025');
     expect(range).not.toHaveBeenCalled();
@@ -72,6 +74,7 @@ describe('useEntryReceiptOrders', () => {
       {
         id: 'order-2025',
         createdAt: '2025-06-01T00:00:00Z',
+        paidOn: '2025-06-01T00:00:00Z',
         amountCents: 6500,
         currency: 'usd',
         reference: 'pi_order_2025',
@@ -116,6 +119,7 @@ describe('useEntryReceiptOrders', () => {
           requestedOrderId: null,
           entryIds: ['entry-b', 'entry-a'],
           enabled: true,
+          viewerId: 'viewer-1',
         }),
       { wrapper: createWrapper() }
     );

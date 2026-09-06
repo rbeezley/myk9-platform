@@ -11,6 +11,7 @@ import { getUserEntries, updateCheckInStatus } from '@/services/database/entries
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
 import { fromAny } from '@total-typescript/shoehorn';
+import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
 // Mock dependencies
 const mockCheckInMutateAsync = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -973,6 +974,130 @@ describe('Receipt deep-link scope from My Payments', () => {
     await screen.findByText('Rocky Mountain Classic');
     expect(screen.getByText('Autumn Classic')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Show all entries' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * MYK9-420. The link already narrowed the list correctly; what it did not do
+   * was state the payment. A walk searched the whole rendered destination for
+   * the amount, the order id, a payment date and even the word "Receipt", and
+   * found none of them — so a control labelled Receipt produced a filtered
+   * list and no proof of payment.
+   *
+   * These render the PAGE, not the panel. `ScopedPaymentSummary.test.tsx`
+   * already proves the component turns an order into figures; deleting its one
+   * line from `index.tsx` would leave that file green and this surface exactly
+   * as broken as it was found.
+   */
+  const stripeOrderRow = {
+    id: 'order-1',
+    created_at: '2026-09-06T12:00:00Z',
+    paid_at: '2026-09-06T12:00:00Z',
+    amount_cents: 3210,
+    currency: 'usd',
+    stripe_payment_intent_id: 'pi_3RwalkDog',
+    status: 'succeeded',
+    entry_ids: ['entry-1'],
+    entry_subtotal_cents: 3000,
+    platform_fee_cents: 210,
+    refunded_cents: null,
+    make_whole_refunded_cents: null,
+    refunded_at: null,
+  };
+
+  const seedStripeOrder = (row: Record<string, unknown> | null) => {
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === 'stripe_orders'
+        ? createChainableQuery({ data: row, error: null })
+        : createChainableQuery()
+    );
+  };
+
+  it('states the amount, date and reference when the link names an order', async () => {
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    // The figure the My Payments row that linked here showed.
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+    expect(screen.getByText('Amount paid')).toBeInTheDocument();
+    expect(screen.getByText('Sep 6, 2026')).toBeInTheDocument();
+    expect(screen.getByText('pi_3RwalkDog')).toBeInTheDocument();
+    // The word the walk searched for and could not find anywhere on the page.
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument();
+  });
+
+  it('states the refund rather than the gross alone', async () => {
+    seedStripeOrder({ ...stripeOrderRow, refunded_cents: 1000 });
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    expect(await screen.findByText('$22.10')).toBeInTheDocument();
+    expect(screen.getByText('Net paid')).toBeInTheDocument();
+    expect(screen.getByText('Partially refunded')).toBeInTheDocument();
+    expect(screen.getByText('-$10.00')).toBeInTheDocument();
+  });
+
+  it('states the payment even when no entry row has replicated yet', async () => {
+    // The cold/offline arrival. `entries.length === 0` takes the
+    // FirstRunZeroState branch, so a panel mounted inside the entries section
+    // would be invisible in exactly the case the deep-linked read exists for —
+    // and the exhibitor would be told they have never entered a show, over a
+    // payment they just made.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Receipt' })).toBeInTheDocument();
+  });
+
+  /**
+   * Every branch of `renderBody()`, because an arriving exhibitor can land on
+   * any of them and the first fix for this covered only one. Loading is the
+   * cold/offline boot, error is a failed first load with nothing cached, and
+   * the zero state is an order whose rows have not replicated. The payment read
+   * depends on none of them.
+   */
+  it('states the payment while the entries list is still loading', async () => {
+    // A never-settling entries read holds renderBody on the skeleton.
+    (getUserEntries as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+  });
+
+  it('states the payment when the entries list fails to load', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: null,
+      error: new Error('offline'),
+    });
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(
+      <MyEntriesPage />,
+      '/exhibitor/entries?orderId=order-1&showId=show-1&entryIds=entry-1'
+    );
+
+    expect(await screen.findByText('$32.10')).toBeInTheDocument();
+  });
+
+  it('shows no payment panel when the scope link carries no order', async () => {
+    seedStripeOrder(stripeOrderRow);
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?showId=show-1&entryIds=entry-1');
+
+    await screen.findByText('Rocky Mountain Classic');
+    expect(screen.queryByRole('heading', { name: 'Receipt' })).not.toBeInTheDocument();
+    expect(screen.queryByText('$32.10')).not.toBeInTheDocument();
   });
 });
 

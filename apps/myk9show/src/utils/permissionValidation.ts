@@ -179,10 +179,10 @@ export function canEnterResults(user: UserWithRoles | null, show: ShowWithRelati
  */
 export function getAccessibleTabs(user: UserWithRoles | null): string[] {
   if (!user) {
-    return ['all', 'past']; // Guests can only see public tabs
+    return ['all']; // Guests can only see public tabs
   }
 
-  const tabs = ['all', 'past']; // Base tabs for authenticated users
+  const tabs = ['all']; // Base tab for authenticated users
   const roles = user.roles || [];
 
   // My Shows tab only for exhibitor/handler roles

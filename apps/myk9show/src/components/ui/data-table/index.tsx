@@ -1,7 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { pickExportColumns } from './exportColumns';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import {
+  type VisibilityState,
   type ColumnDef,
   type DisplayColumnDef,
   type SortingState,
@@ -69,6 +71,11 @@ interface DataTableProps<TData> {
   selectable?: 'single' | 'multi';
   onSelectionChange?: (selectedRows: TData[]) => void;
   getRowId?: (row: TData) => string;
+  /**
+   * Columns hidden until the user shows them from the Columns menu. A stored
+   * per-table choice wins over this default.
+   */
+  defaultColumnVisibility?: VisibilityState;
   toolbar?: (props: { table: TanstackTable<TData> }) => ReactNode;
   /**
    * Whether the default toolbar renders its built-in global-filter search box.
@@ -164,10 +171,7 @@ function getExportColumnLabel<TData>(column: Column<TData, unknown>): string {
 }
 
 function exportTableCsv<TData>(table: TanstackTable<TData>, tableId: string) {
-  const columns = table.getVisibleLeafColumns().filter(column => {
-    const meta = column.columnDef.meta as DataTableColumnMeta | undefined;
-    return column.id !== '_select' && !meta?.exportDisabled;
-  });
+  const columns = pickExportColumns(table.getAllLeafColumns());
   const rows = table.getFilteredRowModel().rows;
 
   const header = columns.map(column => escapeCsvValue(getExportColumnLabel(column))).join(',');
@@ -240,12 +244,16 @@ export function DataTable<TData>({
   className,
   getRowClassName,
   density: controlledDensity,
+  defaultColumnVisibility,
 }: DataTableProps<TData>) {
   const resolvedPageSizeOptions = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const [internalSorting, setInternalSorting] = useState<SortingState>(initialSorting ?? []);
   const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useColumnVisibility(tableId);
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(
+    tableId,
+    defaultColumnVisibility
+  );
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -366,7 +374,7 @@ export function DataTable<TData>({
     if (!controlledSorting) setInternalSorting(resetSorting);
     onSortingChange?.(resetSorting);
     setColumnFilters([]);
-    setColumnVisibility({});
+    setColumnVisibility(defaultColumnVisibility ?? {});
     setRowSelection({});
     setGlobalFilterValue('');
     setPagination({ pageIndex: 0, pageSize });

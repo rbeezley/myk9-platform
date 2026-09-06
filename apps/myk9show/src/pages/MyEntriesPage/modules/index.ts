@@ -37,11 +37,14 @@ export {
 export { resolveWaitlistSurface } from './waitlistSurface';
 export type { WaitlistSurface, WaitlistSurfaceInput } from './waitlistSurface';
 export { ALL_ENTRIES_LABEL, ALL_ENTRIES_SCOPE_NOTE } from './myShowsCopy';
+export { buildScopedPaymentFacts } from './scopedPaymentFacts';
+export type { ScopedPaymentFacts, ScopedPaymentFactRow } from './scopedPaymentFacts';
 
 // Components
 export { MyEntryCard } from './MyEntryCard';
 export { EntriesEmptyState } from './EntriesEmptyState';
 export { EntryScopeBanner } from './EntryScopeBanner';
+export { ScopedPaymentSummary } from './ScopedPaymentSummary';
 export { EntriesLoadErrorCard } from './EntriesLoadErrorCard';
 export { EntriesIdentityPendingCard } from './EntriesIdentityPendingCard';
 export {

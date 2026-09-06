@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   committedPaths,
   findOverlaps,
@@ -21,6 +21,14 @@ import {
 } from './inflight';
 
 const SCRIPT = resolve(import.meta.dirname, 'inflight.ts');
+
+// Every test here spawns the real CLI, which spawns git and a gh stub of its
+// own — tens of subprocesses per test. Against vitest's 5s default that is a
+// flake waiting for a loaded machine: `fails closed with nothing to check`
+// normally runs in 272ms and timed out at 5s under concurrent load on
+// 2026-09-06. Bound the file generously; the enumeration test, which is an
+// order of magnitude heavier, carries its own (Codex, #2073 round 12).
+vi.setConfig({ testTimeout: 30_000 });
 
 describe('pathsOverlap', () => {
   it.each([

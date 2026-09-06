@@ -149,18 +149,18 @@ describe('getEntriesByShow released result hydration', () => {
     expect(stale.final_placement).toBe(1);
   });
 
-  it('distinguishes a missing result row from confirmed withheld columns', async () => {
+  it('treats an empty projection as a complete no-access read', async () => {
     mocks.read.mockResolvedValue({
       data: [{ ...entry, result_status: 'qualified', final_placement: 1 }],
       error: null,
     });
     view([]);
     const result = await getEntriesByShow('show-1');
-    expect(result.resultsReadComplete).toBe(false);
+    expect(result.resultsReadComplete).toBe(true);
     expect(result.data[0]).toMatchObject({ result_status: null, final_placement: null });
   });
 
-  it('uses one deadline across batches and discards partial results on timeout', async () => {
+  it('uses one deadline across batches and preserves released partial results on timeout', async () => {
     vi.useFakeTimers();
     const rows = Array.from({ length: 101 }, (_, index) => ({
       ...entry,
@@ -183,11 +183,8 @@ describe('getEntriesByShow released result hydration', () => {
     await vi.advanceTimersByTimeAsync(1);
     await pending;
     expect(completed).toHaveBeenCalledWith(expect.objectContaining({ resultsReadComplete: false }));
-    expect(
-      completed.mock.calls[0][0].data.every(
-        (row: Record<string, unknown>) => row.result_status === null
-      )
-    ).toBe(true);
+    expect(completed.mock.calls[0][0].data[0].result_status).toBe('qualified');
+    expect(completed.mock.calls[0][0].data[100].result_status).toBeNull();
     expect(query.abortSignal.mock.calls[0][0].aborted).toBe(true);
     expect(query.range).toHaveBeenCalledTimes(2);
     expect(vi.getTimerCount()).toBe(0);

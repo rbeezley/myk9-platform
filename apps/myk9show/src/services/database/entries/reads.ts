@@ -626,6 +626,33 @@ export const getEntriesByShow = async (showId: string) => {
   return { ...result, data: released.entries, resultsReadComplete: released.resultsReadComplete };
 };
 
+/**
+ * Read a show's replicated entries with standard joins, without the optional
+ * exhibitor release-view enrichment. Staff reports use this single scoped
+ * scan so an all-trials report does not fan out into one full-store scan per
+ * trial.
+ */
+export const getEntriesByShowFromReplication = async (showId: string) => {
+  try {
+    const [rawEntries, dogsMap, classesMap] = await Promise.all([
+      replicatedEntriesTable.getEntriesByShow(showId),
+      loadDogsMap(),
+      loadClassesMap(),
+    ]);
+    const entries = sortedCopy(
+      rawEntries.filter(isLiveEntry),
+      compareDateDesc(getEntryCreatedSortValue)
+    );
+    const enrollmentsMap = await loadEnrollmentFinancialsMap(entries);
+    return {
+      data: mapEntriesWithStandardJoins(entries, dogsMap, classesMap, enrollmentsMap),
+      error: null,
+    };
+  } catch (error) {
+    return { data: [], error };
+  }
+};
+
 // Get entries by show ID with financial joins (promo_code, trial name)
 export const getEntriesByShowForFinancials = async (showId: string) => {
   return readWithReplicationFallback({

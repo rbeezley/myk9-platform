@@ -18,18 +18,24 @@ vi.mock('@/services/database/trials', () => ({ getTrialsByShow: vi.fn() }));
 vi.mock('@/services/database/classes', () => ({ getClassesByTrialId: vi.fn() }));
 vi.mock('@/services/database/entries', () => ({
   getEntriesByClass: vi.fn(),
+  getEntriesByShowFromReplication: vi.fn(),
   getEntriesByTrial: vi.fn(),
 }));
 vi.mock('@/services/database/dogs/reads', () => ({ loadDogRegistrations: vi.fn() }));
 
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
-import { getEntriesByClass, getEntriesByTrial } from '@/services/database/entries';
+import {
+  getEntriesByClass,
+  getEntriesByShowFromReplication,
+  getEntriesByTrial,
+} from '@/services/database/entries';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
 
 const mockGetTrialsByShow = vi.mocked(getTrialsByShow);
 const mockGetClassesByTrialId = vi.mocked(getClassesByTrialId);
 const mockGetEntriesByClass = vi.mocked(getEntriesByClass);
+const mockGetEntriesByShowFromReplication = vi.mocked(getEntriesByShowFromReplication);
 const mockGetEntriesByTrial = vi.mocked(getEntriesByTrial);
 const mockLoadDogRegistrations = vi.mocked(loadDogRegistrations);
 
@@ -153,7 +159,7 @@ describe('useReportData cached-row PDF integration', () => {
   it('renders a whole-show check-in PDF when the registration server is offline', async () => {
     mockGetTrialsByShow.mockResolvedValue({ data: [cachedTrial], error: null } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [cachedClass], error: null } as never);
-    mockGetEntriesByTrial.mockResolvedValue({ data: [cachedEntry], error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [cachedEntry], error: null } as never);
     mockLoadDogRegistrations.mockResolvedValue({
       byDog: new Map(),
       serverError: new Error('registration transport offline'),

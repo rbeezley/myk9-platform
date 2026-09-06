@@ -18,6 +18,7 @@ vi.mock('@/services/database/classes', () => ({
 
 vi.mock('@/services/database/entries', () => ({
   getEntriesByClass: vi.fn(),
+  getEntriesByShowFromReplication: vi.fn(),
   getEntriesByTrial: vi.fn(),
 }));
 
@@ -27,12 +28,17 @@ vi.mock('@/services/database/dogs/reads', () => ({
 
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
-import { getEntriesByClass, getEntriesByTrial } from '@/services/database/entries';
+import {
+  getEntriesByClass,
+  getEntriesByShowFromReplication,
+  getEntriesByTrial,
+} from '@/services/database/entries';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
 
 const mockGetTrialsByShow = vi.mocked(getTrialsByShow);
 const mockGetClassesByTrialId = vi.mocked(getClassesByTrialId);
 const mockGetEntriesByClass = vi.mocked(getEntriesByClass);
+const mockGetEntriesByShowFromReplication = vi.mocked(getEntriesByShowFromReplication);
 const mockGetEntriesByTrial = vi.mocked(getEntriesByTrial);
 const mockLoadDogRegistrations = vi.mocked(loadDogRegistrations);
 
@@ -168,14 +174,14 @@ describe('useReportData', () => {
     const mockEntries = [{ id: 'entry-1' }, { id: 'entry-2' }];
     mockGetTrialsByShow.mockResolvedValue({ data: mockTrials, error: null } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
-    mockGetEntriesByTrial.mockResolvedValue({ data: mockEntries, error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: mockEntries, error: null } as never);
 
     const { result } = renderHook(() => useReportData(defaultOptions), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.entries).toEqual(mockEntries));
-    expect(mockGetEntriesByTrial).toHaveBeenCalledWith('trial-1');
+    expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledWith('show-1');
   });
 
   it('combines all trial reads for show scope', async () => {
@@ -184,9 +190,10 @@ describe('useReportData', () => {
       error: null,
     } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
-    mockGetEntriesByTrial.mockImplementation(
-      async id => ({ data: [{ id: `entry-${id}` }], error: null }) as never
-    );
+    mockGetEntriesByShowFromReplication.mockResolvedValue({
+      data: [{ id: 'entry-trial-1' }, { id: 'entry-trial-2' }],
+      error: null,
+    } as never);
     const { result } = renderHook(() => useReportData(defaultOptions), {
       wrapper: createWrapper(),
     });
@@ -195,8 +202,7 @@ describe('useReportData', () => {
       'entry-trial-1',
       'entry-trial-2',
     ]);
-    expect(mockGetEntriesByTrial).toHaveBeenCalledWith('trial-1');
-    expect(mockGetEntriesByTrial).toHaveBeenCalledWith('trial-2');
+    expect(mockGetEntriesByShowFromReplication).toHaveBeenCalledWith('show-1');
   });
 
   it('reads only the selected trial', async () => {
@@ -251,7 +257,7 @@ describe('useReportData', () => {
     };
     mockGetTrialsByShow.mockResolvedValue({ data: mockTrials, error: null } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
-    mockGetEntriesByTrial.mockResolvedValue({ data: mockEntries, error: null } as never);
+    mockGetEntriesByShowFromReplication.mockResolvedValue({ data: mockEntries, error: null } as never);
     mockLoadDogRegistrations.mockResolvedValue({
       byDog: new Map([['dog-1', [registration]]]),
       serverError: null,
@@ -283,7 +289,7 @@ describe('useReportData', () => {
       error: null,
     } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
-    mockGetEntriesByTrial.mockResolvedValue({
+    mockGetEntriesByShowFromReplication.mockResolvedValue({
       data: [{ id: 'entry-1', dog_id: 'dog-1', dog: null }],
       error: null,
     } as never);
@@ -311,7 +317,7 @@ describe('useReportData', () => {
       error: null,
     } as never);
     mockGetClassesByTrialId.mockResolvedValue({ data: [], error: null } as never);
-    mockGetEntriesByTrial.mockResolvedValue({
+    mockGetEntriesByShowFromReplication.mockResolvedValue({
       data: [{ id: 'entry-1', dog_id: 'dog-1', dog: { id: 'dog-1' } }],
       error: null,
     } as never);
@@ -374,7 +380,7 @@ describe('useReportData', () => {
         data: [{ id: 'class-1' }],
         error: null,
       } as never);
-      mockGetEntriesByTrial.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
 
       const { result } = renderHook(() => useReportData(defaultOptions), {
         wrapper: onlineWrapper(),
@@ -396,7 +402,7 @@ describe('useReportData', () => {
         data: [{ id: 'class-1' }],
         error: null,
       } as never);
-      mockGetEntriesByTrial.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
+      mockGetEntriesByShowFromReplication.mockResolvedValue({ data: [{ id: 'entry-1' }], error: null } as never);
 
       const { result } = renderHook(() => useReportData(defaultOptions), {
         wrapper: onlineWrapper(),

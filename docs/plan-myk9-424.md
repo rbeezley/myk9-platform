@@ -1,5 +1,7 @@
 # MYK9-424
 
+> **Status:** Active — implementation complete; PR review and delivery pending.
+
 Status: implemented and locally verified; all six full shuffled runs passed; independent review awaiting transfer approval. Not merged or deployed. Request: “fix myk9-424”. Baseline: f47c47ed7.
 
 Use the issue's existing finding contract rather than a new OpenSpec proposal for this bounded regression fix.

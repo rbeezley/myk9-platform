@@ -5,9 +5,9 @@ const RESULT_BATCH_SIZE = 100;
 const RESULTS_WAIT_MS = 3000;
 
 /**
- * Replicated entries keep show identity/schedule available offline, but their
- * raw scores cannot resolve the release cascade. As with getUserEntries, only
- * the authenticated result view may supply the released values online.
+ * The authenticated result view supplies the release state for exhibitor
+ * reads. Replication already carries the cascade-aware result projection, so
+ * rows returned by the view may be merged into the cached entry shape.
  */
 export async function withReleasedShowResults<T extends Record<string, unknown>>(
   showId: string,
@@ -26,11 +26,24 @@ export async function withReleasedShowResults<T extends Record<string, unknown>>
   const unavailable = { entries: safeEntries, resultsReadComplete: false };
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
+  const results = new Map<string, Record<string, unknown>>();
+
+  const buildResult = (complete: boolean) => ({
+    resultsReadComplete: complete,
+    entries: safeEntries.map(entry => {
+      const result = results.get(String(entry.id));
+      if (!result) return entry;
+      const releasedFields = Object.fromEntries(
+        WITHHELD_SCORED_COLUMNS.map(column => [column, result[column] ?? null])
+      );
+      return { ...entry, ...releasedFields };
+    }),
+  });
 
   async function loadResults() {
-    const results = new Map<string, Record<string, unknown>>();
+    let sawAnyRows = false;
     for (let offset = 0; offset < scoredIds.length; offset += RESULT_BATCH_SIZE) {
-      if (controller.signal.aborted) return unavailable;
+      if (controller.signal.aborted) return buildResult(false);
       const ids = scoredIds.slice(offset, offset + RESULT_BATCH_SIZE);
       const { data, error } = await supabase
         .from('view_authenticated_entry_results')
@@ -41,26 +54,17 @@ export async function withReleasedShowResults<T extends Record<string, unknown>>
         .in('id', ids)
         .abortSignal(controller.signal)
         .range(0, ids.length - 1);
-      if (error || !data) return unavailable;
+      if (error || !data) return buildResult(false);
+      sawAnyRows ||= data.length > 0;
       for (const row of data) {
         if (typeof row.id === 'string') results.set(row.id, row);
       }
     }
 
-    return {
-      // An absent row cannot distinguish withheld access from an incomplete
-      // response. Preserve masking and expose that uncertainty to consumers.
-      resultsReadComplete: scoredIds.every(id => results.has(id)),
-      entries: safeEntries.map(entry => {
-        const result = results.get(String(entry.id));
-        if (!result) return entry;
-        // Nulls explicitly clear withheld values; never fall back to raw scores.
-        const releasedFields = Object.fromEntries(
-          WITHHELD_SCORED_COLUMNS.map(column => [column, result[column] ?? null])
-        );
-        return { ...entry, ...releasedFields };
-      }),
-    };
+    // A successful empty projection is the complete no-access case: the view
+    // omits rows when no access arm matches. A partial non-empty projection is
+    // still incomplete and remains masked for the missing rows.
+    return buildResult(!sawAnyRows || scoredIds.every(id => results.has(id)));
   }
 
   try {
@@ -71,7 +75,7 @@ export async function withReleasedShowResults<T extends Record<string, unknown>>
       new Promise<typeof unavailable>(resolve => {
         timeout = setTimeout(() => {
           controller.abort();
-          resolve(unavailable);
+          resolve(buildResult(false));
         }, RESULTS_WAIT_MS);
       }),
     ]);

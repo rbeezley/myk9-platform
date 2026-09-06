@@ -1241,7 +1241,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     if (item.entry_id) {
       const { data: existingEntry, error: existingEntryError } = await supabase
         .from('entries')
-        .select('id, dog_id, class_id, show_id, payment_status, entry_status')
+        .select('id, dog_id, class_id, show_id, payment_status, entry_status, entry_fee')
         .eq('id', item.entry_id)
         .eq('dog_id', item.dog_id)
         .eq('class_id', item.class_id)
@@ -1282,6 +1282,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
           payment_status: 'paid',
           payment_method: 'online',
           stripe_payment_intent_id: paymentIntentId,
+          entry_fee: lineAmountCents / 100,
+          ...(existingEntry.entry_status === 'pending-payment'
+            ? { entry_status: 'confirmed' }
+            : {}),
         })
         .eq('id', existingEntry.id)
         .eq('payment_status', 'pending')
@@ -1305,6 +1309,26 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       entryIds.push(existingEntry.id);
       paidLineIds.push(existingEntry.id);
       lineAmountsById.set(existingEntry.id, lineAmountCents);
+
+      const { error: openLinkError } = await supabase
+        .from('entry_payment_links')
+        .update({ status: 'paid', updated_at: new Date().toISOString() })
+        .overlaps('entry_ids', [existingEntry.id])
+        .eq('status', 'open');
+      if (openLinkError) {
+        console.error(
+          `Recovered entry ${existingEntry.id} was paid but its open payment link could not be closed:`,
+          openLinkError
+        );
+        await alertAdmin(
+          'Recovered entry payment link could not be closed',
+          `<p>Entry <code>${existingEntry.id}</code> was marked paid from a recovered cart,
+           but an open <code>entry_payment_links</code> row could not be closed:</p>
+           <pre>${openLinkError.message}</pre>
+           <p>Verify the entry and close any remaining link before it is reused.</p>`,
+          { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-latch-${existingEntry.id}` }
+        );
+      }
       continue;
     }
 

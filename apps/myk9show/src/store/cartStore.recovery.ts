@@ -4,7 +4,7 @@ import { logger } from '@/services/LoggingService';
 import { calculateCartTotals } from './cartStore.helpers';
 import type { CartItemWithDetails, EntryCartItemInsert } from './cartStore.types';
 
-interface RecoverableEntryRow {
+export interface RecoverableEntryRow {
   id: string;
   class_id: string | null;
   dog_id: string | null;
@@ -102,13 +102,16 @@ export const recoverCartItemsFromEntryIds = async ({
   showId,
   exhibitorId,
   entryIds,
+  recoverableEntries,
 }: {
   cartId: string;
   showId: string;
   exhibitorId: string;
   entryIds: string[];
+  recoverableEntries?: RecoverableEntryRow[];
 }): Promise<CartItemWithDetails[]> => {
-  const entries = await findRecoverableEntries({ showId, exhibitorId, entryIds });
+  const entries =
+    recoverableEntries ?? (await findRecoverableEntries({ showId, exhibitorId, entryIds }));
 
   const itemInserts: EntryCartItemInsert[] = ((entries || []) as RecoverableEntryRow[])
     .filter(entry => entry.class_id && entry.dog_id)

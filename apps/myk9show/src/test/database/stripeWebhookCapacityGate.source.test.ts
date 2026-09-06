@@ -32,9 +32,18 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(webhookSource).toContain('if (item.entry_id)');
     expect(webhookSource).toContain("payment_status: 'paid'");
     expect(webhookSource).toContain("payment_method: 'online'");
+    expect(webhookSource).toContain("entry_status: 'confirmed'");
+    expect(webhookSource).toContain('entry_fee: lineAmountCents / 100');
     expect(webhookSource).toContain(".eq('payment_status', 'pending')");
+    expect(webhookSource).toContain(".eq('dog_id', item.dog_id)");
+    expect(webhookSource).toContain(".eq('class_id', item.class_id)");
+    expect(webhookSource).toContain(".eq('show_id', cart.show_id)");
+    expect(webhookSource).toContain('INACTIVE_ENTRY_STATUSES.has');
+    expect(webhookSource).toContain(".overlaps('entry_ids', [existingEntry.id])");
     expect(migrationSql).toContain('ADD COLUMN IF NOT EXISTS entry_id uuid');
     expect(migrationSql).toContain('entry_cart_items_entry_id_idx');
+    expect(migrationSql).toContain('after update of dog_id, class_id, entry_id');
+    expect(migrationSql).toContain('old.entry_id is distinct from new.entry_id');
   });
 
   it('locks each judge-day before reading capacity and inserting the online entry', () => {

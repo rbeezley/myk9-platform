@@ -35,6 +35,7 @@ import {
   loadCartItemsByCartId,
   recoverCartItemsFromEntryIds,
 } from './cartStore.recovery';
+import type { RecoverableEntryRow } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 
 // Re-export types so existing imports continue to work
@@ -176,6 +177,7 @@ export const useCartStore = create<CartState>()(
             set({ cart: null, isLoading: false });
             return null;
           }
+          let recoverableEntriesForCart: RecoverableEntryRow[] | undefined;
           if (!data) {
             // A submitted unpaid entry may no longer have the cart shell that
             // originally created it. Deep-linked Finish Payment recovery is
@@ -188,6 +190,7 @@ export const useCartStore = create<CartState>()(
                 entryIds: options.recoveryEntryIds,
               });
               if (recoverableEntries.length > 0) {
+                recoverableEntriesForCart = recoverableEntries;
                 const recoveryKey = `${exhibitorId}:${options.showId}:${options.recoveryEntryIds
                   .slice()
                   .sort()
@@ -197,9 +200,13 @@ export const useCartStore = create<CartState>()(
                   recoveryPromise = get().createCart(options.showId, exhibitorId);
                   recoveryCartInFlight.set(recoveryKey, recoveryPromise);
                 }
-                const recoveryCart = await recoveryPromise;
-                if (recoveryCartInFlight.get(recoveryKey) === recoveryPromise) {
-                  recoveryCartInFlight.delete(recoveryKey);
+                let recoveryCart: CartWithDetails | null;
+                try {
+                  recoveryCart = await recoveryPromise;
+                } finally {
+                  if (recoveryCartInFlight.get(recoveryKey) === recoveryPromise) {
+                    recoveryCartInFlight.delete(recoveryKey);
+                  }
                 }
                 if (recoveryCart) {
                   data = {
@@ -289,6 +296,7 @@ export const useCartStore = create<CartState>()(
               showId: cartData.show_id,
               exhibitorId,
               entryIds: options.recoveryEntryIds,
+              recoverableEntries: recoverableEntriesForCart,
             });
           }
 

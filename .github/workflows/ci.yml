@@ -258,6 +258,15 @@ jobs:
           MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
         run: bash scripts/qa/run-behavioral-sql-tests.sh
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Lifecycle absent installed SQL mutation proof
+        env:
+          MYK9_BEHAVIORAL_SQL_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: node --experimental-strip-types scripts/qa/class-absent-mutation.ts
+
       - name: Stop local Supabase
         if: always()
         run: supabase stop --no-backup

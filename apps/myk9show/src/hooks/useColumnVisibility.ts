@@ -9,7 +9,10 @@ function readStored(tableId: string, defaults: VisibilityState): VisibilityState
     if (!raw) return defaults;
     const parsed = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as VisibilityState;
+      // Stored choices win, but a preference saved before a column gained a
+      // hidden default is a partial object; without the merge that column
+      // would surface as soon as the default was introduced.
+      return { ...defaults, ...(parsed as VisibilityState) };
     }
     return defaults;
   } catch {

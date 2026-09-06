@@ -244,10 +244,8 @@ describe('canonical show management routes', () => {
     'secretary renders %s through the production PublicRoutes tree',
     async (path, sectionTestId) => {
       mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
-      mockAuth.userWithRoles = {
-        scopes: [{ scopeType: ScopeType.SHOW, scopeId: 'show-1', roleId: UserRole.SECRETARY }],
-      };
-      mockShows.data = [{ id: 'show-1', clubId: 'club-1' }];
+      mockAuth.userWithRoles = null;
+      mockShows.data = [];
       mockShows.isLoading = false;
 
       render(

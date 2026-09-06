@@ -5,24 +5,19 @@
  * `view_public_entry_results`, and the AUTHENTICATED own-entry view
  * `view_authenticated_entry_results` applies the same per-field visibility
  * cascade (placement / qualification / time / faults, resolved show -> trial ->
- * class). But the offline replication store syncs the RAW scored columns
- * (`final_placement`, `result_status`, `search_time_seconds`, `total_faults`,
- * `total_score`) with no cascade applied — and `getUserEntries` PREFERS the
- * replication store. Without this guard, a logged-in exhibitor could see a
- * placement/qualification/time before the class's release rules expose it.
+ * class). The offline replication store is populated from the cascade-aware
+ * results view, but this helper remains a defensive boundary for any rows
+ * that may contain scored columns before release rules have been applied.
  *
- * The per-class visibility config (`show_visibility_settings`,
- * `trial_visibility_overrides`, `class_visibility_overrides`) is NOT in the
- * replication scope, so the cascade cannot be resolved at replication-to-row
- * mapping time. The safe-by-default behavior is therefore:
+ * The per-class visibility config is resolved by the server view before rows
+ * reach the replica. The safe-by-default behavior is therefore:
  *
  *   - On the replication-mapped path, NULL every withheld-until-released scored
  *     column. The exhibitor still gets full offline entry identity / status /
  *     where-when; only the result fields are withheld.
- *   - When any own entry is scored, `getUserEntries` prefers the cascade-aware
- *     server view (`view_authenticated_entry_results`) so correctly-released
- *     results still appear online. The nulled replication rows are the offline
- *     fallback when that view is unreachable.
+ *   - When any own entry is scored, the cascade-aware server view remains the
+ *     online authority; nulled replication rows are the safe fallback if it is
+ *     unreachable.
  *
  * This keeps both read paths consistent: the server view nulls withheld fields
  * in SQL; this helper nulls them on the replicated row.
@@ -49,9 +44,7 @@ export const WITHHELD_SCORED_COLUMNS = [
  * is intentionally preserved so callers can still detect that a result EXISTS
  * (and route to the cascade-aware server view) without exposing its value.
  */
-export function withholdScoredResultColumns(
-  row: Record<string, unknown>
-): Record<string, unknown> {
+export function withholdScoredResultColumns(row: Record<string, unknown>): Record<string, unknown> {
   for (const column of WITHHELD_SCORED_COLUMNS) {
     if (column in row) {
       row[column] = null;

@@ -105,12 +105,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   });
 
   const entriesQuery = useQuery({
-    queryKey: [
-      ...queryKeys.reportData(showId, trialId, classId),
-      trialId === 'all'
-        ? ((trialsQuery.data ?? []) as Array<{ id: string }>).map(trial => trial.id)
-        : [],
-    ],
+    queryKey: queryKeys.reportData(showId, trialId, classId),
     queryFn: async () => {
       if (classId !== 'all') {
         const { data, error } = await getEntriesByClass(classId);

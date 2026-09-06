@@ -25,18 +25,13 @@ vi.mock('@/services/database/dogs/reads', () => ({ loadDogRegistrations: vi.fn()
 
 import { getTrialsByShow } from '@/services/database/trials';
 import { getClassesByTrialId } from '@/services/database/classes';
-import {
-  getEntriesByClass,
-  getEntriesByShowFromReplication,
-  getEntriesByTrial,
-} from '@/services/database/entries';
+import { getEntriesByClass, getEntriesByShowFromReplication } from '@/services/database/entries';
 import { loadDogRegistrations } from '@/services/database/dogs/reads';
 
 const mockGetTrialsByShow = vi.mocked(getTrialsByShow);
 const mockGetClassesByTrialId = vi.mocked(getClassesByTrialId);
 const mockGetEntriesByClass = vi.mocked(getEntriesByClass);
 const mockGetEntriesByShowFromReplication = vi.mocked(getEntriesByShowFromReplication);
-const mockGetEntriesByTrial = vi.mocked(getEntriesByTrial);
 const mockLoadDogRegistrations = vi.mocked(loadDogRegistrations);
 
 const show = {

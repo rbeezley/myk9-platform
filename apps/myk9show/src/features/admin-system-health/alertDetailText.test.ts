@@ -15,11 +15,22 @@ describe('payout mismatch summaries', () => {
       /`Reconciled payout amount mismatch:[\s\S]*?`,\s*`([\s\S]*?)`,/
     )?.[1];
     expect(template, 'The payout writer must still expose its mismatch message').toBeDefined();
+    const dollarsExpression = payoutWriterSource.match(
+      /function dollars\(cents: number\): string \{\s*return ([\s\S]*?);\s*\}/
+    )?.[1];
+    expect(dollarsExpression, 'The payout writer must still expose dollars()').toBeDefined();
+    // Evaluate only the extracted pure return expression; importing the edge function would
+    // start its server and is intentionally avoided in this source contract test.
+    const writerDollars = new Function('cents', `return ${dollarsExpression};`) as (
+      cents: number
+    ) => string;
+    const existingAmount = writerDollars(9000);
+    const recalculatedAmount = writerDollars(6000);
     const values: Record<string, string> = {
       'show.id': 'dededede-0000-0000-0000-000000000010',
       'priorTransfer.id': 'tr_example',
-      'dollars(priorTransfer.amount)': '$90.00',
-      'dollars(finalAmountCents)': '$60.00',
+      'dollars(priorTransfer.amount)': existingAmount,
+      'dollars(finalAmountCents)': recalculatedAmount,
     };
     const message = template!.replace(/\$\{([^}]+)\}/g, (_, expression: string) => {
       expect(
@@ -29,7 +40,7 @@ describe('payout mismatch summaries', () => {
       return values[expression];
     });
     const expected =
-      'Existing payout: $90.00. Recalculated amount owed: $60.00. Review this payout before resolving.';
+      `Existing payout: ${existingAmount}. Recalculated amount owed: ${recalculatedAmount}. Review this payout before resolving.`;
     expect(formatAlertDetail({ html: message })).toBe(expected);
     expect(summarizeAlertDetail({ html: message })).toBe(expected);
   });

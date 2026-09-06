@@ -16,21 +16,23 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-function stubCodex(output: string, exitCode = 0): { bin: string; log: string } {
+function stubCodex(output: string, exitCode = 0): { bin: string; log: string; args: string } {
   const dir = mkdtempSync(join(tmpdir(), 'codex-stub-'));
   dirs.push(dir);
   const bin = join(dir, 'codex');
   const canned = join(dir, 'canned.log');
+  const args = join(dir, 'args.log');
   writeFileSync(canned, output);
   writeFileSync(
     bin,
     `#!/usr/bin/env bash
+printf '%s\\n' "$@" > '${args}'
 cat ${JSON.stringify(canned)}
 exit ${exitCode}
 `
   );
   chmodSync(bin, 0o755);
-  return { bin, log: join(dir, 'review.log') };
+  return { bin, log: join(dir, 'review.log'), args };
 }
 
 function run(stub: { bin: string; log: string }): { code: number; out: string } {
@@ -48,6 +50,19 @@ function run(stub: { bin: string; log: string }): { code: number; out: string } 
 }
 
 describe('codex-review.sh', () => {
+  it('instructs an explicit verdict while retaining whole-branch review', () => {
+    const stub = stubCodex('codex\nNo actionable defects found.');
+    expect(run(stub).code).toBe(0);
+    const args = readFileSync(stub.args, 'utf8').trimEnd().split('\n');
+    expect(args.slice(0, 4)).toEqual(['review', '--base', 'HEAD', '-c']);
+    expect(args).toHaveLength(5);
+    expect(args[4]).toMatch(/^developer_instructions=/);
+    expect(args[4]).toContain('No actionable defects found.');
+    expect(args[4]).toContain('- [P0]');
+    expect(args[4]).toContain('Unable to complete the review');
+    expect(args[4]).toContain('Only assert a clean verdict after completing');
+  });
+
   it('exits 2 and says GATE DID NOT RUN on a usage-limit abort, even though codex exited 0', () => {
     const stub = stubCodex(
       [
@@ -121,6 +136,11 @@ describe('codex-review.sh', () => {
     ],
     ['explicit clean verdict but cli exit 1', 'codex\nNo actionable defects found.', 1],
     ['partial output with no findings bullets', 'codex\nReviewing... 3 of 12 files read so far', 0],
+    [
+      'the MYK9-416 summary-only verdict remains unrecognized',
+      'codex\nThe change accepts summary-prefixed clean verdicts while preserving existing failure and findings checks. All 17 focused tests passed, as did shell syntax and diff whitespace checks.',
+      0,
+    ],
     [
       'a sentence that merely CONTAINS the phrase',
       'codex\nThe run stopped before reaching a no actionable verdict.',

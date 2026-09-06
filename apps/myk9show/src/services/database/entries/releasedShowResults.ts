@@ -40,35 +40,39 @@ export async function withReleasedShowResults<T extends Record<string, unknown>>
   });
 
   async function loadResults() {
-    let sawAnyRows = false;
-    for (let offset = 0; offset < scoredIds.length; offset += RESULT_BATCH_SIZE) {
-      if (controller.signal.aborted) return buildResult(false);
-      const ids = scoredIds.slice(offset, offset + RESULT_BATCH_SIZE);
-      const { data, error } = await supabase
-        .from('view_authenticated_entry_results')
-        .select(
-          'id,final_placement,result_status,search_time_seconds,total_faults,total_score,result_text'
-        )
-        .eq('show_id', showId)
-        .in('id', ids)
-        .abortSignal(controller.signal)
-        .range(0, ids.length - 1);
-      if (error || !data) return buildResult(false);
-      sawAnyRows ||= data.length > 0;
-      for (const row of data) {
-        if (typeof row.id === 'string') results.set(row.id, row);
-      }
-    }
+    const batches = Array.from(
+      { length: Math.ceil(scoredIds.length / RESULT_BATCH_SIZE) },
+      (_, index) => scoredIds.slice(index * RESULT_BATCH_SIZE, (index + 1) * RESULT_BATCH_SIZE)
+    );
+    const responses = await Promise.all(
+      batches.map(async ids => {
+        const response = await supabase
+          .from('view_authenticated_entry_results')
+          .select(
+            'id,final_placement,result_status,search_time_seconds,total_faults,total_score,result_text'
+          )
+          .eq('show_id', showId)
+          .in('id', ids)
+          .abortSignal(controller.signal)
+          .range(0, ids.length - 1);
+        for (const row of response.data ?? []) {
+          if (typeof row.id === 'string') results.set(row.id, row);
+        }
+        return response;
+      })
+    );
+    if (responses.some(response => response.error || !response.data)) return buildResult(false);
 
     // A successful empty projection is the complete no-access case: the view
     // omits rows when no access arm matches. A partial non-empty projection is
     // still incomplete and remains masked for the missing rows.
-    return buildResult(!sawAnyRows || scoredIds.every(id => results.has(id)));
+    return buildResult(results.size === 0 || scoredIds.every(id => results.has(id)));
   }
 
   try {
-    // One budget for ALL batches. Promise.race also bounds transports that do
-    // not settle on abort; no partial release result may escape after timeout.
+    // One budget covers concurrent batches. Promise.race also bounds transports
+    // that do not settle on abort; completed batches remain visible after
+    // timeout and rows still in flight remain masked.
     return await Promise.race([
       loadResults(),
       new Promise<{ entries: T[]; resultsReadComplete: boolean }>(resolve => {

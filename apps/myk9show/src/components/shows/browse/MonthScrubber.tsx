@@ -94,7 +94,9 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
               'flex min-h-[64px] min-w-[76px] flex-none flex-col items-center justify-center gap-1 rounded-xl border bg-card px-3 py-2 text-foreground shadow-card transition-[transform,box-shadow] duration-150',
               'hover:-translate-y-px hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               selected ? 'border-primary ring-1 ring-primary' : 'border-border',
-              tile.isPast && !selected && 'opacity-60'
+              // Past months read as past by a dashed border and muted count, never
+              // by opacity: opacity took the year label to 3.09:1 (a11y smoke).
+              tile.isPast && !selected && 'border-dashed'
             )}
           >
             <span
@@ -105,13 +107,20 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
             >
               {tile.label}
               {tile.year !== null && tile.key !== ALL_MONTHS_KEY && (
-                <span className="ml-1 font-semibold tracking-normal opacity-70">
+                <span className="ml-1 font-semibold tracking-normal">
                   {'\u2019'}
                   {String(tile.year).slice(2)}
                 </span>
               )}
             </span>
-            <span className="text-lg font-extrabold leading-none">{tile.count}</span>
+            <span
+              className={cn(
+                'text-lg font-extrabold leading-none',
+                tile.isPast && !selected && 'text-muted-foreground'
+              )}
+            >
+              {tile.count}
+            </span>
             {tile.key === ALL_MONTHS_KEY ? (
               <span className="text-[10px] font-semibold text-primary">upcoming</span>
             ) : (

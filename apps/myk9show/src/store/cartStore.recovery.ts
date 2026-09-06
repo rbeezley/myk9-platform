@@ -4,42 +4,54 @@ import { logger } from '@/services/LoggingService';
 import { calculateCartTotals } from './cartStore.helpers';
 import type { CartItemWithDetails, EntryCartItemInsert } from './cartStore.types';
 
-interface RecoverableEntryRow {
+export interface RecoverableEntryRow {
+  id: string;
   class_id: string | null;
   dog_id: string | null;
   handler_id: string | null;
   entry_fee: number | string | null;
   jump_height: string | null;
   special_requests: string | null;
+  class_entry_fee: number | string | null;
+  show_pre_entry_fee: number | string | null;
+  show_day_of_show_fee: number | string | null;
+  show_start_date: string | null;
 }
 
-export const loadCartItemsByCartId = async (cartId: string): Promise<CartItemWithDetails[]> => {
-  const { data, error } = await supabase
-    .from('entry_cart_items')
-    .select(
-      `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
-    )
-    .eq('cart_id', cartId);
+const DEFAULT_ENTRY_FEE_DOLLARS = 25;
 
-  if (error) {
-    logger.error('Error loading cart items', 'cartStore', { cartId }, error);
-    throw error;
-  }
-
-  return (data || []) as CartItemWithDetails[];
+const parseFeeDollars = (value: number | string | null): number | null => {
+  if (value == null) return null;
+  const parsed =
+    typeof value === 'number'
+      ? value
+      : Number.parseFloat(String(value).replace(/[$,]/g, ''));
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 
-export const recoverCartItemsFromEntryIds = async ({
-  cartId,
+const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): number => {
+  const preEntryFee = parseFeeDollars(entry.show_pre_entry_fee);
+  const dayOfShowFee = parseFeeDollars(entry.show_day_of_show_fee);
+  const showStartDate = entry.show_start_date?.slice(0, 10);
+  const todayUtc = new Date().toISOString().slice(0, 10);
+
+  if (showStartDate && todayUtc >= showStartDate && dayOfShowFee != null) {
+    return Math.round(dayOfShowFee * 100);
+  }
+  if (preEntryFee != null) return Math.round(preEntryFee * 100);
+
+  return Math.round((parseFeeDollars(entry.class_entry_fee) ?? DEFAULT_ENTRY_FEE_DOLLARS) * 100);
+};
+
+export const findRecoverableEntries = async ({
   showId,
   exhibitorId,
   entryIds,
 }: {
-  cartId: string;
   showId: string;
   exhibitorId: string;
   entryIds: string[];
-}): Promise<CartItemWithDetails[]> => {
+}): Promise<RecoverableEntryRow[]> => {
   const explicitEntryIds = Array.from(new Set(entryIds.filter(Boolean)));
   if (explicitEntryIds.length === 0) return [];
 
@@ -76,7 +88,10 @@ export const recoverCartItemsFromEntryIds = async ({
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('class_id, dog_id, handler_id, entry_fee, jump_height, special_requests')
+    .select(
+      `id, class_id, dog_id, handler_id, entry_fee, jump_height, special_requests,
+       class:classes(entry_fee), show:shows(pre_entry_fee, day_of_show_fee, start_date)`
+    )
     .in('id', explicitEntryIds)
     .eq('show_id', showId)
     .eq('payment_status', 'pending')
@@ -89,20 +104,66 @@ export const recoverCartItemsFromEntryIds = async ({
     logger.error(
       'Error loading exact pending entries for cart recovery',
       'cartStore',
-      { cartId },
+      { exhibitorId, showId },
       entriesError
     );
     return [];
   }
 
+  return (entries || []).map(entry => {
+    const classRow = Array.isArray(entry.class) ? entry.class[0] : entry.class;
+    const showRow = Array.isArray(entry.show) ? entry.show[0] : entry.show;
+    return {
+      ...entry,
+      class_entry_fee: classRow?.entry_fee ?? null,
+      show_pre_entry_fee: showRow?.pre_entry_fee ?? null,
+      show_day_of_show_fee: showRow?.day_of_show_fee ?? null,
+      show_start_date: showRow?.start_date ?? null,
+    } as RecoverableEntryRow;
+  });
+};
+
+export const loadCartItemsByCartId = async (cartId: string): Promise<CartItemWithDetails[]> => {
+  const { data, error } = await supabase
+    .from('entry_cart_items')
+    .select(
+      `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+    )
+    .eq('cart_id', cartId);
+
+  if (error) {
+    logger.error('Error loading cart items', 'cartStore', { cartId }, error);
+    throw error;
+  }
+
+  return (data || []) as CartItemWithDetails[];
+};
+
+export const recoverCartItemsFromEntryIds = async ({
+  cartId,
+  showId,
+  exhibitorId,
+  entryIds,
+  recoverableEntries,
+}: {
+  cartId: string;
+  showId: string;
+  exhibitorId: string;
+  entryIds: string[];
+  recoverableEntries?: RecoverableEntryRow[];
+}): Promise<CartItemWithDetails[]> => {
+  const entries =
+    recoverableEntries ?? (await findRecoverableEntries({ showId, exhibitorId, entryIds }));
+
   const itemInserts: EntryCartItemInsert[] = ((entries || []) as RecoverableEntryRow[])
     .filter(entry => entry.class_id && entry.dog_id)
     .map(entry => ({
       cart_id: cartId,
+      entry_id: entry.id,
       class_id: entry.class_id!,
       dog_id: entry.dog_id!,
       handler_id: entry.handler_id,
-      entry_fee_cents: Math.round(Number(entry.entry_fee ?? 0) * 100),
+      entry_fee_cents: getAuthoritativeEntryFeeCents(entry),
       jump_height: entry.jump_height,
       special_requests: entry.special_requests,
     }));
@@ -134,7 +195,12 @@ export const recoverCartItemsFromEntryIds = async ({
     .in('status', ['active', 'expired']);
 
   if (updateError) {
-    logger.error('Error updating exact recovered cart totals', 'cartStore', { cartId }, updateError);
+    logger.error(
+      'Error updating exact recovered cart totals',
+      'cartStore',
+      { cartId },
+      updateError
+    );
   }
 
   return recoveredItems;

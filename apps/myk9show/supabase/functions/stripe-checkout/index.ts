@@ -423,6 +423,13 @@ async function handleEntryCheckout(
 
     if (recoverError || !recovered) {
       console.error(`Could not recover cart ${cart_id}:`, recoverError);
+      if (recoverError?.code === '23505') {
+        await supabase
+          .from('entry_carts')
+          .update({ status: 'abandoned', stripe_checkout_session_id: null })
+          .eq('id', cart_id)
+          .eq('status', cart.status);
+      }
       return corsResponse(
         corsHeaders,
         { error: 'Could not recover this cart. Please try again.' },

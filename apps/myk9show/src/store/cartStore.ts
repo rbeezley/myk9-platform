@@ -30,7 +30,12 @@ import {
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
 } from './cartStore.helpers';
-import { loadCartItemsByCartId, recoverCartItemsFromEntryIds } from './cartStore.recovery';
+import {
+  findRecoverableEntries,
+  loadCartItemsByCartId,
+  recoverCartItemsFromEntryIds,
+} from './cartStore.recovery';
+import type { RecoverableEntryRow } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 
 // Re-export types so existing imports continue to work
@@ -42,6 +47,8 @@ export type {
   WaitlistEntryResult,
   CheckoutResult,
 } from './cartStore.types';
+
+const recoveryCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
 
 export const useCartStore = create<CartState>()(
   devtools(
@@ -160,19 +167,63 @@ export const useCartStore = create<CartState>()(
             cartLookupQuery = cartLookupQuery.eq('show_id', options.showId);
           }
 
-          const { data, error } = await cartLookupQuery
+          const { data: initialData, error } = await cartLookupQuery
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
+          let data = initialData;
 
           if (error) {
             logger.error('Error finding active cart', 'cartStore', { exhibitorId }, error);
             set({ cart: null, isLoading: false });
             return null;
           }
+          let recoverableEntriesForCart: RecoverableEntryRow[] | undefined;
           if (!data) {
-            set({ cart: null, isLoading: false });
-            return null;
+            // A submitted unpaid entry may no longer have the cart shell that
+            // originally created it. Deep-linked Finish Payment recovery is
+            // scoped to explicit entry ids, so create a fresh shell and let
+            // the normal exact-entry recovery path hydrate it below.
+            if (options.showId && options.recoveryEntryIds?.length) {
+              const recoverableEntries = await findRecoverableEntries({
+                showId: options.showId,
+                exhibitorId,
+                entryIds: options.recoveryEntryIds,
+              });
+              if (recoverableEntries.length > 0) {
+                recoverableEntriesForCart = recoverableEntries;
+                const recoveryKey = `${exhibitorId}:${options.showId}:${options.recoveryEntryIds
+                  .slice()
+                  .sort()
+                  .join(',')}`;
+                let recoveryPromise = recoveryCartInFlight.get(recoveryKey);
+                if (!recoveryPromise) {
+                  recoveryPromise = get().createCart(options.showId, exhibitorId);
+                  recoveryCartInFlight.set(recoveryKey, recoveryPromise);
+                }
+                let recoveryCart: CartWithDetails | null;
+                try {
+                  recoveryCart = await recoveryPromise;
+                } finally {
+                  if (recoveryCartInFlight.get(recoveryKey) === recoveryPromise) {
+                    recoveryCartInFlight.delete(recoveryKey);
+                  }
+                }
+                if (recoveryCart) {
+                  data = {
+                    id: recoveryCart.id,
+                    show_id: recoveryCart.show_id,
+                    status: recoveryCart.status,
+                    expires_at: recoveryCart.expires_at,
+                  };
+                }
+              }
+            }
+
+            if (!data) {
+              set({ cart: null, isLoading: false });
+              return null;
+            }
           }
 
           let recoveredExpiresAt = data.expires_at;
@@ -237,14 +288,18 @@ export const useCartStore = create<CartState>()(
             return null;
           }
 
-          // Exact-entry recovery only rebuilds into an existing empty cart shell;
-          // it does not recreate missing cart rows or backfill partially emptied carts.
+          // Exact-entry recovery rebuilds only the explicit unpaid entries. It
+          // never sweeps unrelated pending entries into checkout or backfills a
+          // partially emptied cart.
           if (items.length === 0 && options.recoveryEntryIds?.length) {
             items = await recoverCartItemsFromEntryIds({
               cartId: cartData.id,
               showId: cartData.show_id,
               exhibitorId,
               entryIds: options.recoveryEntryIds,
+              ...(recoverableEntriesForCart
+                ? { recoverableEntries: recoverableEntriesForCart }
+                : {}),
             });
           }
 
@@ -302,6 +357,87 @@ export const useCartStore = create<CartState>()(
               .single();
 
             if (cartError) {
+              if (cartError.code === '23505') {
+                const { data: existingCart, error: existingCartError } = await supabase
+                  .from('entry_carts')
+                  .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+                  .eq('show_id', showId)
+                  .eq('exhibitor_id', exhibitorId)
+                  .eq('status', 'active')
+                  .limit(1)
+                  .maybeSingle();
+
+                if (!existingCartError && existingCart) {
+                  const existingCartExpired =
+                    existingCart.expires_at == null ||
+                    new Date(existingCart.expires_at).getTime() <= Date.now();
+
+                  if (existingCartExpired) {
+                    const { error: expireError } = await supabase
+                      .from('entry_carts')
+                      .update({ status: 'expired', stripe_checkout_session_id: null })
+                      .eq('id', existingCart.id)
+                      .eq('status', 'active');
+
+                    if (expireError) {
+                      logger.error(
+                        'Error expiring stale cart after unique conflict',
+                        'cartStore',
+                        { showId, exhibitorId, cartId: existingCart.id },
+                        expireError
+                      );
+                      throw expireError;
+                    }
+
+                    const { data: recreatedCart, error: recreateError } = await supabase
+                      .from('entry_carts')
+                      .insert(cartInsert)
+                      .select(`*, show:shows(id, name, start_date, entry_close_date)`)
+                      .single();
+
+                    if (!recreateError && recreatedCart) {
+                      const cartWithDetails: CartWithDetails = {
+                        ...recreatedCart,
+                        items: [],
+                        show: recreatedCart.show as CartWithDetails['show'],
+                      };
+                      set({
+                        cart: cartWithDetails,
+                        isLoading: false,
+                        lastSyncedAt: new Date().toISOString(),
+                        expirationWarning: false,
+                      });
+                      return cartWithDetails;
+                    }
+
+                    if (recreateError?.code !== '23505') {
+                      throw recreateError ?? new Error('Failed to recreate cart');
+                    }
+                  }
+
+                  const { error: reclaimError } = await supabase
+                    .from('entry_carts')
+                    .update({
+                      expires_at: new Date(
+                        Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
+                      ).toISOString(),
+                      stripe_checkout_session_id: null,
+                    })
+                    .eq('id', existingCart.id)
+                    .eq('status', 'active');
+
+                  if (reclaimError) {
+                    logger.error(
+                      'Error reclaiming stale cart after unique conflict',
+                      'cartStore',
+                      { showId, exhibitorId, cartId: existingCart.id },
+                      reclaimError
+                    );
+                    throw reclaimError;
+                  }
+                  return get().loadCart(showId, exhibitorId);
+                }
+              }
               logger.error('Error creating cart', 'cartStore', { showId, exhibitorId }, cartError);
               throw cartError;
             }

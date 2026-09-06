@@ -915,6 +915,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       exhibitor:exhibitor_profiles(id, person_id),
       items:entry_cart_items(
         id,
+        entry_id,
         dog_id,
         class_id,
         handler_id,
@@ -1233,6 +1234,88 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const failedLines: CartOverflowLine[] = [];
   for (const item of cart.items) {
     const lineAmountCents = authoritativeByClass.get(item.class_id) ?? item.entry_fee_cents;
+
+    // Finish Payment recovery lines point at entries that already exist. Mark
+    // those rows paid in place; calling create_online_paid_entry here would
+    // collide with entries_dog_class_unique_idx and refund the whole charge.
+    if (item.entry_id) {
+      const { data: existingEntry, error: existingEntryError } = await supabase
+        .from('entries')
+        .select('id, dog_id, class_id, show_id, payment_status, entry_status, entry_fee')
+        .eq('id', item.entry_id)
+        .eq('dog_id', item.dog_id)
+        .eq('class_id', item.class_id)
+        .eq('show_id', cart.show_id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      const isInactiveExistingEntry = existingEntry
+        ? INACTIVE_ENTRY_STATUSES.has(existingEntry.entry_status ?? '')
+        : false;
+      if (
+        existingEntryError ||
+        !existingEntry ||
+        existingEntry.payment_status !== 'pending' ||
+        isInactiveExistingEntry
+      ) {
+        const errorMessage =
+          existingEntryError?.message ??
+          (!existingEntry
+            ? 'Recovered entry was not found in this show'
+            : existingEntry.payment_status !== 'pending'
+              ? 'Recovered entry is no longer unpaid'
+              : 'Recovered entry is no longer active');
+        console.error(`Error recovering existing entry for cart item ${item.id}:`, errorMessage);
+        noServiceLineIds.push(item.id);
+        lineAmountsById.set(item.id, lineAmountCents);
+        failedLines.push({
+          cartItemId: item.id,
+          classId: item.class_id,
+          dogId: item.dog_id,
+          errorMessage,
+        });
+        continue;
+      }
+
+      const { data: updatedEntryRows, error: updateEntryError } = await supabase
+        .from('entries')
+        .update({
+          payment_status: 'paid',
+          payment_method: 'online',
+          stripe_payment_intent_id: paymentIntentId,
+          entry_fee: lineAmountCents / 100,
+          ...(existingEntry.entry_status === 'pending-payment'
+            ? { entry_status: 'confirmed' }
+            : {}),
+        })
+        .eq('id', existingEntry.id)
+        .eq('payment_status', 'pending')
+        .not('entry_status', 'in', `(${[...INACTIVE_ENTRY_STATUSES].join(',')})`)
+        .select('id');
+
+      if (updateEntryError || !updatedEntryRows || updatedEntryRows.length === 0) {
+        const errorMessage =
+          updateEntryError?.message ?? 'Recovered entry payment update was not applied';
+        console.error(`Error marking recovered entry paid for cart item ${item.id}:`, errorMessage);
+        noServiceLineIds.push(item.id);
+        lineAmountsById.set(item.id, lineAmountCents);
+        failedLines.push({
+          cartItemId: item.id,
+          classId: item.class_id,
+          dogId: item.dog_id,
+          errorMessage,
+        });
+        continue;
+      }
+
+      entryIds.push(existingEntry.id);
+      paidLineIds.push(existingEntry.id);
+      lineAmountsById.set(existingEntry.id, lineAmountCents);
+
+      await expireRecoveredEntryPaymentLinks(existingEntry.id, session.id);
+      continue;
+    }
+
     const entryInsert = buildEntryInsert(
       {
         ...item,
@@ -1302,6 +1385,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       deniedLines.push({ cartItemId: item.id, classId: item.class_id, dogId: item.dog_id });
     }
   }
+
+  await resolvePaidWaitlistOffers(paidLineIds, session.id);
 
   // Freeze the withdrawal policy these entries were paid under (best-effort).
   await stampWithdrawalSnapshot(entryIds, cart.show_id);
@@ -1975,6 +2060,80 @@ async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) 
        cascade does not offer the spot again.</p>`,
       { source: 'stripe-webhook', dedupeKey: `waitlist-offer-not-resolved-${sessionId}` }
     );
+  }
+}
+
+async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: string) {
+  const { data: links, error: linksError } = await supabase
+    .from('entry_payment_links')
+    .select('id, stripe_checkout_session_id, entry_ids')
+    .eq('status', 'open')
+    .overlaps('entry_ids', [entryId]);
+
+  if (linksError) {
+    await alertAdmin(
+      'Recovered entry payment links could not be checked',
+      `<p>Entry <code>${entryId}</code> was paid from cart session <code>${sessionId}</code>,
+       but its open payment links could not be checked:</p><pre>${linksError.message}</pre>`,
+      { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-check-${entryId}` }
+    );
+    return;
+  }
+
+  for (const link of links ?? []) {
+    try {
+      const { count: unpaidEntryCount, error: unpaidEntriesError } = await supabase
+        .from('entries')
+        .select('id', { count: 'exact', head: true })
+        .in('id', link.entry_ids)
+        .eq('payment_status', 'pending')
+        .is('deleted_at', null);
+
+      if (unpaidEntriesError) {
+        await alertAdmin(
+          'Recovered entry payment link status could not be verified',
+          `<p>Entry <code>${entryId}</code> was paid from cart session <code>${sessionId}</code>,
+           but unpaid entries on link <code>${link.id}</code> could not be checked:</p>
+           <pre>${unpaidEntriesError.message}</pre>`,
+          { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-unpaid-check-${link.id}` }
+        );
+        continue;
+      }
+
+      // Keep a multi-entry link open while any sibling entry is unpaid.
+      if ((unpaidEntryCount ?? 0) > 0) continue;
+
+      const linkSession = await stripe.checkout.sessions.retrieve(link.stripe_checkout_session_id);
+      if (linkSession.payment_status === 'paid') {
+        await alertAdmin(
+          'Recovered entry was paid by more than one checkout',
+          `<p>Entry <code>${entryId}</code> was paid by cart session <code>${sessionId}</code>
+           while payment-link session <code>${link.stripe_checkout_session_id}</code> was also paid.
+           The payment-link webhook must reconcile and refund the duplicate.</p>`,
+          { source: 'stripe-webhook', dedupeKey: `recovered-entry-double-payment-${entryId}` }
+        );
+        continue;
+      }
+
+      if (linkSession.status === 'open') {
+        await stripe.checkout.sessions.expire(link.stripe_checkout_session_id);
+      }
+
+      await supabase
+        .from('entry_payment_links')
+        .update({ status: 'expired', updated_at: new Date().toISOString() })
+        .eq('id', link.id)
+        .eq('status', 'open');
+    } catch (error) {
+      console.error(`Could not expire recovered entry payment link ${link.id}:`, error);
+      await alertAdmin(
+        'Recovered entry payment link could not be expired',
+        `<p>Entry <code>${entryId}</code> was paid from cart session <code>${sessionId}</code>,
+         but payment-link session <code>${link.stripe_checkout_session_id}</code> could not be expired.</p>
+         <pre>${error instanceof Error ? error.message : String(error)}</pre>`,
+        { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-expire-${link.id}` }
+      );
+    }
   }
 }
 

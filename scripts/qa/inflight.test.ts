@@ -35,6 +35,7 @@ describe('findOverlaps', () => {
     kind: 'pr',
     id: '#2062',
     branch: 'worktree-track-agents-skills',
+    sameRepo: true,
     files: ['.agents/skills/qa/SKILL.md', '.agents/skills/wizard/template.sh'],
   };
   const wt: ChangeSource = {
@@ -128,6 +129,7 @@ describe('inflight CLI', () => {
       headRefName: string;
       url?: string;
       author?: { login: string };
+      fork?: boolean;
       files: { path: string; previous?: string }[];
     }[],
     merged: [string, string][] = [],
@@ -138,7 +140,7 @@ describe('inflight CLI', () => {
       if (/^(merged-|files-|open\.json)/.test(f)) rmSync(join(bin, f));
     const rest = prs.map(pr => ({
       number: pr.number,
-      head: { ref: pr.headRefName },
+      head: { ref: pr.headRefName, repo: { full_name: pr.fork ? 'someone/fork' : 'o/r' } },
       html_url: pr.url,
       user: pr.author,
     }));
@@ -494,6 +496,19 @@ describe('inflight CLI', () => {
     expect(runCli(main, bin).code).toBe(0);
     stubGh(bin, [], []);
     expect(runCli(main, bin).code).toBe(1);
+  });
+
+  it('does not mistake a FORK PR with the same branch name for our own PR', () => {
+    const { main, bin } = repo();
+    stubGh(bin, [{ number: 7, headRefName: 'mine', fork: true, files: [{ path: 'src/b.ts' }] }]);
+    const r = runCli(main, bin);
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('pr #7');
+  });
+
+  it('does not exclude a PR whose ownership is unknown', () => {
+    const unknown: ChangeSource = { kind: 'pr', id: '#1', branch: 'mine', files: ['src/b.ts'] };
+    expect(findOverlaps(['src/b.ts'], [unknown], { branch: 'mine' })).toHaveLength(1);
   });
 
   it('--warn reports but exits 0', () => {

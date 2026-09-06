@@ -28,6 +28,8 @@ export interface ChangeSource {
   kind: 'pr' | 'worktree' | 'branch';
   /** For a worktree: its uncommitted/untracked files alone — kept even when its branch already merged. */
   dirty?: string[];
+  /** For a PR: true when its head lives in THIS repository, not a fork. Only such a PR can be "our own". */
+  sameRepo?: boolean;
   /** "#2062", a worktree path, or a branch name. */
   id: string;
   branch?: string;
@@ -61,7 +63,14 @@ export function findOverlaps(
 ): Overlap[] {
   const out: Overlap[] = [];
   for (const source of sources) {
-    if (exclude.branch && source.branch === exclude.branch) continue;
+    // A fork can carry a branch with the same name as ours; only a PR whose
+    // head is in this repository is "our own" (Codex, #2073 round 8).
+    if (
+      exclude.branch &&
+      source.branch === exclude.branch &&
+      (source.kind !== 'pr' || source.sameRepo)
+    )
+      continue;
     if (exclude.prNumber && source.kind === 'pr' && source.id === `#${exclude.prNumber}`) continue;
     for (const path of paths) {
       for (const file of source.files) {
@@ -212,7 +221,7 @@ export function localChangedPaths(base: string, cwd?: string, mergedHead?: strin
 
 interface RestPr {
   number: number;
-  head: { ref: string };
+  head: { ref: string; repo?: { full_name?: string } | null };
   html_url?: string;
   user?: { login?: string };
 }
@@ -280,6 +289,7 @@ export function openPullRequests(): ChangeSource[] {
     branch: pr.head.ref,
     owner: pr.user?.login,
     url: pr.html_url,
+    sameRepo: (pr.head.repo?.full_name ?? '').toLowerCase() === slug.toLowerCase(),
     files: pullRequestFiles(slug, pr.number),
   }));
 }
@@ -473,7 +483,7 @@ function runCliInner(argv: string[], cwd: string): number {
     ...liveWorktrees,
     ...unmergedLocalBranches(base, wtBranches, cwd, merged),
   ];
-  const ownPr = prs.find(p => p.branch === branch);
+  const ownPr = prs.find(p => p.branch === branch && p.sameRepo);
   const overlaps = findOverlaps(paths, sources, {
     branch,
     prNumber: ownPr ? Number(ownPr.id.slice(1)) : undefined,

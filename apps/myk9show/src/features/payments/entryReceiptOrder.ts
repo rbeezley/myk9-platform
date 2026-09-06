@@ -105,6 +105,30 @@ async function fetchEntryReceiptOrdersForEntries(entryIds: string[]): Promise<En
     );
 }
 
+/**
+ * The exact order a `?orderId=` deep link names, and nothing else.
+ *
+ * Deliberately NOT `useEntryReceiptOrders`: that hook exists to pick a receipt
+ * for one CARD, so it falls back to entry-id discovery whenever the requested
+ * order does not cover that card's rows. The arrival panel has no card — it
+ * describes the order in the URL — and it has to keep working in exactly the
+ * case discovery cannot serve: when none of the order's entry rows have
+ * replicated yet, the list shows the whole show and the payment facts are the
+ * only thing on screen that is still certain.
+ *
+ * Safe to key off a URL param: `stripe_orders_select` scopes reads to the
+ * caller's own `stripe_customers.person_id` (or a platform admin), so someone
+ * else's order id returns no row rather than another exhibitor's money.
+ */
+export function useDeepLinkedReceiptOrder(orderId: string | null) {
+  return useQuery({
+    queryKey: ['exhibitor', 'deep-linked-receipt-order', orderId],
+    queryFn: () => fetchEntryReceiptOrder(orderId!),
+    enabled: Boolean(orderId),
+    ...cacheStrategies.moderate,
+  });
+}
+
 interface UseEntryReceiptOrdersInput {
   requestedOrderId: string | null;
   entryIds: string[];

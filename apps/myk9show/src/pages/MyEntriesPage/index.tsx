@@ -36,6 +36,7 @@ import {
   EntriesLoadErrorCard,
   EntriesIdentityPendingCard,
   EntryScopeBanner,
+  ScopedPaymentSummary,
   MyEntriesDialogGroup,
   WaitListSection,
   EntryFilterStrip,
@@ -326,6 +327,13 @@ const MyEntriesPage: React.FC = () => {
                       {ALL_ENTRIES_SCOPE_NOTE}
                     </span>
                   </h2>
+
+                  {/* The receipt half of an inbound `?orderId=` link: the
+                    amount, date and reference the exhibitor came here for.
+                    Above the banner because it answers "what did I pay?",
+                    which is the question that sent them; the banner then
+                    explains why the list beneath it is short. */}
+                  <ScopedPaymentSummary />
 
                   {/* Inbound scope from My Payments' Receipt link. Sits above
                     the filters, not inside the list: it describes the whole

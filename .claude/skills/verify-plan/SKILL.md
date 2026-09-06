@@ -99,6 +99,29 @@ Before the plan is considered verified, confirm it is **born tagged** per CLAUDE
 
 A plan that fails any of these is not verified until patched.
 
+### Step 7: Add Risk Tags
+
+Every patched or verified implementation plan must carry a validation metadata
+block. Add it if missing:
+
+```markdown
+## Validation Profile
+
+- Risk: low | medium | high
+- Validation: focused | app | full
+- Rationale: <one sentence explaining why this level is enough>
+```
+
+Use:
+
+- **Risk low / Validation focused** for isolated helpers, docs, tests, copy, or one-module UI/state changes with focused unit coverage.
+- **Risk medium / Validation app** for small production TypeScript changes in one app that affect user flow but not shared systems.
+- **Risk high / Validation full** for auth/RLS, DB migrations, payment, entry submission, offline/replication, cross-app changes, or shared utilities with broad call sites.
+
+This profile governs how much LOCAL testing is expected before the PR. CI still
+provides broad verification after push, so the tag is a floor on effort, not a
+substitute for it.
+
 ## Output Format
 
 ```markdown
@@ -133,6 +156,7 @@ A plan that fails any of these is not verified until patched.
 | Audit       | Mark Covered/Partial/Missing with citations | Table                  |
 | Score       | Weight by impact, calculate coverage        | 0-100 + rationale      |
 | Patch       | Add/expand sections, preserve structure     | Updated plan           |
+| Tag         | Add risk/validation profile                 | Validation metadata    |
 
 ## Common Mistakes
 

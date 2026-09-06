@@ -18,7 +18,6 @@ import { BoardCard, Eyebrow } from './SystemHealth/HealthBoardPrimitives';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import { formatCheckedAgo } from '@/features/admin-system-health/systemHealthSelectors';
 import {
-  formatAlertDetail,
   groupOperatorAlerts,
   severityToBadgeVariant,
   type AlertGroup,
@@ -29,6 +28,7 @@ import {
   useResolveOperatorAlert,
 } from '@/features/admin-system-health/useOperatorAlerts';
 import type { OperatorAlert } from '@/features/admin-system-health/operatorAlertsTypes';
+import { OperatorAlertDetail } from './OperatorAlertDetail';
 
 const SEVERITY_LABEL: Record<OperatorAlert['severity'], string> = {
   info: 'Info',
@@ -98,14 +98,13 @@ function AlertIdentity({ alert }: { alert: OperatorAlert }) {
   );
 }
 
-/** A type that occurred once: nothing to collapse, so no count and no expander. */
+/** A type that occurred once: no occurrence count or grouping expander. */
 function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
-  const detailText = formatAlertDetail(alert.detail);
   return (
     <div className="border-b border-border py-3 last:border-b-0">
       <AlertIdentity alert={alert} />
       <p className="mt-1 font-medium">{alert.title}</p>
-      {detailText && <p className="mt-0.5 text-sm text-muted-foreground">{detailText}</p>}
+      <OperatorAlertDetail detail={alert.detail} />
       <AlertActions alert={alert} now={now} />
     </div>
   );
@@ -117,12 +116,9 @@ function AlertRow({ alert, now }: { alert: OperatorAlert; now: number }) {
  * session id, is what distinguishes this row from its siblings.
  */
 function OccurrenceRow({ alert, now }: { alert: OperatorAlert; now: number }) {
-  const detailText = formatAlertDetail(alert.detail);
   return (
     <div className="border-t border-border py-2.5 pl-3">
-      <p className="text-sm text-muted-foreground">
-        {detailText || 'No further detail recorded.'}
-      </p>
+      <OperatorAlertDetail detail={alert.detail} />
       <AlertActions alert={alert} now={now} />
     </div>
   );

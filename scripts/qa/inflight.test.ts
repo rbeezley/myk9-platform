@@ -269,6 +269,50 @@ describe('inflight CLI', () => {
     expect(runCli(main, bin, 'docs/show day café.md').code).toBe(1);
   });
 
+  it('enumerates every local branch — the 45th, oldest branch is still found', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'oldest', 'origin/main');
+    writeFileSync(join(main, 'src', 'b.ts'), 'old work');
+    git(main, 'add', 'src/b.ts');
+    execFileSync('git', ['commit', '-q', '-m', 'old'], {
+      cwd: main,
+      env: { ...process.env, GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z' },
+      stdio: 'ignore',
+    });
+    for (let i = 0; i < 44; i += 1) {
+      git(main, 'checkout', '-q', '-b', `newer-${i}`, 'origin/main');
+      writeFileSync(join(main, `n${i}.txt`), 'x');
+      git(main, 'add', `n${i}.txt`);
+      git(main, 'commit', '-q', '-m', `n${i}`);
+    }
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, []);
+    const r = runCli(main, bin, 'src/b.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch oldest');
+  });
+
+  it('exits 2 when a git comparison cannot run (unknown base) — never a clean result', () => {
+    const { main, bin } = repo();
+    stubGh(bin, []);
+    const r = runCli(main, bin, '--base=refs/remotes/origin/does-not-exist');
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('NOT a clean result');
+  });
+
+  it('inspects commits in a DETACHED worktree', () => {
+    const { main, bin } = repo();
+    const detached = join(main, '..', 'detached');
+    git(main, 'worktree', 'add', '-q', '--detach', detached, 'origin/main');
+    writeFileSync(join(detached, 'src', 'a.ts'), 'detached work');
+    git(detached, 'add', 'src/a.ts');
+    git(detached, 'commit', '-q', '-m', 'detached');
+    stubGh(bin, []);
+    const r = runCli(main, bin, 'src/a.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('worktree');
+  });
+
   it('--warn reports but exits 0', () => {
     const { main, bin } = repo();
     stubGh(bin, [{ number: 2062, headRefName: 'someone-else', files: [{ path: 'src/b.ts' }] }]);

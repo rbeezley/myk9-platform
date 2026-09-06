@@ -21,6 +21,7 @@
  * and stay as the skill's manual steps.
  */
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export interface ChangeSource {
@@ -132,10 +133,7 @@ export function statusPaths(cwd?: string): string[] {
   // space or a non-ASCII character comes back verbatim (porcelain v1 without
   // -z prints it as "quoted\\escaped"). A rename/copy record is followed by
   // the old path as its own record; both sides are touched.
-  const raw = run('git', ['status', '--porcelain', '-z', '--untracked-files=all'], {
-    cwd,
-    allowFail: true,
-  });
+  const raw = run('git', ['status', '--porcelain', '-z', '--untracked-files=all'], { cwd });
   const records = raw.split(String.fromCharCode(0)).filter(r => r.length > 0);
   const out: string[] = [];
   for (let i = 0; i < records.length; i += 1) {
@@ -159,10 +157,8 @@ export function currentBranch(cwd?: string): string {
 
 /** Committed paths past `base` on `ref`, counting BOTH sides of a rename. */
 export function committedPaths(base: string, ref: string, cwd?: string): string[] {
-  const raw = run('git', ['diff', '--name-status', '-M', '-z', `${base}...${ref}`], {
-    cwd,
-    allowFail: true,
-  });
+  // No allowFail: a comparison that cannot run is an UNKNOWN result, not an empty one.
+  const raw = run('git', ['diff', '--name-status', '-M', '-z', `${base}...${ref}`], { cwd });
   const records = raw.split(String.fromCharCode(0)).filter(r => r.length > 0);
   const out: string[] = [];
   for (let i = 0; i < records.length; i += 1) {
@@ -248,9 +244,13 @@ export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
   const out: ChangeSource[] = [];
   let path = '';
   let branch = '';
+  let head = '';
   const flush = () => {
     if (!path || path === here) return;
-    const committed = branch ? committedPaths(base, branch, cwd) : [];
+    if (!existsSync(path)) return; // prunable entry: nothing is happening in a directory that is gone
+    // A detached worktree has commits too — compare its HEAD sha, not a branch.
+    const ref = branch || head;
+    const committed = ref ? committedPaths(base, ref, cwd) : [];
     const dirty = statusPaths(path);
     const files = [...new Set([...committed, ...dirty])];
     if (files.length)
@@ -261,6 +261,9 @@ export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
       flush();
       path = line.slice('worktree '.length).trim();
       branch = '';
+      head = '';
+    } else if (line.startsWith('HEAD ')) {
+      head = line.slice('HEAD '.length).trim();
     } else if (line.startsWith('branch ')) {
       branch = line
         .slice('branch '.length)
@@ -275,24 +278,13 @@ export function otherWorktrees(base: string, cwd?: string): ChangeSource[] {
 export function unmergedLocalBranches(
   base: string,
   skip: ReadonlySet<string>,
-  cwd?: string,
-  limit = 40
+  cwd?: string
 ): ChangeSource[] {
   const names = lines(
-    run(
-      'git',
-      [
-        'for-each-ref',
-        '--sort=-committerdate',
-        `--count=${limit}`,
-        '--format=%(refname:short)',
-        'refs/heads',
-      ],
-      {
-        cwd,
-        allowFail: true,
-      }
-    )
+    run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], {
+      cwd,
+      allowFail: true,
+    })
   );
   const out: ChangeSource[] = [];
   for (const name of names) {
@@ -311,6 +303,16 @@ export function unmergedLocalBranches(
 }
 
 export function runCli(argv = process.argv.slice(2), cwd = process.cwd()): number {
+  try {
+    return runCliInner(argv, cwd);
+  } catch (error) {
+    console.error(`inflight: ${(error as Error).message.split(String.fromCharCode(10))[0]}`);
+    console.error('inflight: a git or gh query failed, so this is NOT a clean result (exit 2).');
+    return 2;
+  }
+}
+
+function runCliInner(argv: string[], cwd: string): number {
   const warn = argv.includes('--warn');
   const base = argv.find(a => a.startsWith('--base='))?.slice('--base='.length) ?? 'origin/main';
   const explicit = argv.filter(a => !a.startsWith('--'));

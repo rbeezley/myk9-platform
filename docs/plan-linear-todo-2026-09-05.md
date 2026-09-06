@@ -110,6 +110,8 @@ Continue the [cadence plan](archive/plan-myk9-157-continuous-health-checks.md), 
 
 ### C1a — MYK9-407
 
+**Complete 2026-09-06:** PR #2069 and deployed v33 verified; daily/continuous hosted records preserve 48h windows, timestamps and verdicts; authenticated health/dashboard re-walk passed. [Closure evidence](qa/myk9-407-hosted-verification-2026-09-06.md). No additional deployment needed.
+
 1. Add `public_schema_create_acl: 24 * 60 * 60 * 1000` beside sibling ACL entries in [healthCheckCadence.ts](../apps/myk9show/src/features/admin-system-health/healthCheckCadence.ts).
 2. Test that all three ACL stale windows are **48h**, each defined coverage-registry `checkKey` has cadence metadata, and genuinely legacy/unknown keys retain **26h**. [Coverage surfaces](../apps/myk9show/src/features/admin-system-health/healthCoverage.ts) without `checkKey` are not invented scheduled checks.
 3. Keep ACL checks outside continuous measurement. Exercise full snapshots and continuous carry-forward in [_shared/systemHealthChecks.test.ts](../apps/myk9show/supabase/functions/_shared/systemHealthChecks.test.ts), preserving timestamps/verdicts and asserting persisted `stale_after_ms` is 48h.

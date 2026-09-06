@@ -208,6 +208,14 @@ jobs:
           pnpm qa:dist-fresh:test
           pnpm qa:inflight:test
 
+      # Scheduled-task prompts live outside this repo, so the CLI itself can only
+      # run on the machine that owns them. Its tests are repo-only and do run
+      # here: they pin the registry against the docs (an unregistered task is
+      # never compared) and pin MYK9-408's rule that no prompt may assert
+      # another automation's live/dark state as fact.
+      - name: Scheduled-task prompt parity contract
+        run: pnpm qa:prompt-parity:test
+
       - name: Code-quality ratchets
         run: pnpm qa:code-quality-ratchet
 

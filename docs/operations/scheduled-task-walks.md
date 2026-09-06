@@ -8,6 +8,11 @@ the two drift. That is not hypothetical: the judge scoring replay sat in
 `scheduled-audits-claude.md` for weeks while the live prompt had no trace of it, so the strongest
 reason to keep that task was documented but not running.
 
+The fenced block for each walk below is the installed file minus its YAML frontmatter, byte for
+byte. `pnpm qa:prompt-parity` checks that for these three walks and the three audit tasks in
+[`scheduled-audits-claude.md`](scheduled-audits-claude.md); it is local-only, since the installed
+files never reach CI.
+
 ## Why these are a separate file
 
 [`scheduled-audits-claude.md`](scheduled-audits-claude.md) holds the Claude tasks paired against the

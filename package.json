@@ -18,6 +18,8 @@
     "qa:doc-staleness": "node scripts/check-doc-staleness.js",
     "qa:doc-staleness:strict": "node scripts/check-doc-staleness.js --strict",
     "qa:doc-staleness:test": "node --test scripts/check-doc-staleness.test.js",
+    "qa:plans": "node --import tsx scripts/qa/plan-metadata.ts",
+    "qa:plans:test": "vitest run scripts/qa/plan-metadata.test.ts",
     "qa:nightly:prepare": "bash scripts/qa/run-nightly-isolated.sh",
     "qa:nightly:run": "bash scripts/qa/run-nightly.sh",
     "qa:nightly:health": "bash scripts/qa/run-nightly-health.sh",

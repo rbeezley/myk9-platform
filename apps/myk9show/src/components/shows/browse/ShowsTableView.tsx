@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
-import { formatShowsTableDateRange } from './ShowsTableView.helpers';
+import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
+import { getEntryStatus } from '@/utils/entryStatusUtils';
+import { formatShowsTableDateRange, splitShowLocation } from './ShowsTableView.helpers';
 
 interface ShowsTableViewProps {
   shows: EnhancedShow[];
@@ -47,25 +49,36 @@ function getStatusBadge(status: string) {
   }
 }
 
+// Organization sits in the Show subline and Status is a secretary concern, so
+// both start hidden. They stay in the Columns menu (and in the CSV once shown),
+// which is what keeps the public table at five columns with no horizontal
+// scroll (MYK9-427).
+const DEFAULT_COLUMN_VISIBILITY = { organization: false, status: false } as const;
+
 const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
   {
     accessorKey: 'name',
-    header: 'Name',
+    header: 'Show',
     accessorFn: show => (show.name ?? '').toLowerCase(),
     meta: {
-      exportHeader: 'Name',
+      exportHeader: 'Show',
       exportValue: (show: unknown) => (show as EnhancedShow).name || '',
     },
-    cell: ({ row }) => (
-      <div className="min-w-0">
-        <div className="font-medium truncate">{row.original.name}</div>
-        {row.original.events.length > 0 && (
-          <div className="text-xs text-muted-foreground truncate">
-            {row.original.events.join(', ')}
-          </div>
-        )}
-      </div>
-    ),
+    cell: ({ row }) => {
+      // events can repeat the organization (seed data does); say it once.
+      const subline = [
+        row.original.organization,
+        ...row.original.events.filter(e => e !== row.original.organization),
+      ].filter(Boolean);
+      return (
+        <div className="min-w-0">
+          <div className="font-medium">{row.original.name}</div>
+          {subline.length > 0 && (
+            <div className="text-xs text-muted-foreground">{subline.join(' · ')}</div>
+          )}
+        </div>
+      );
+    },
   },
   {
     id: 'dateRange',
@@ -79,7 +92,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
       },
     },
     cell: ({ row }) => (
-      <span className="text-muted-foreground">
+      <span className="whitespace-nowrap text-muted-foreground">
         {row.original.startDate
           ? formatShowsTableDateRange(row.original.startDate, row.original.endDate)
           : '\u2014'}
@@ -94,8 +107,36 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
       exportHeader: 'Location',
       exportValue: (show: unknown) => (show as EnhancedShow).location || '',
     },
+    cell: ({ row }) => {
+      // Two lines (venue / city) instead of one truncated string, so the column
+      // needs no horizontal scroll to be readable (MYK9-427).
+      const { venue, locality } = splitShowLocation(row.original.location);
+      if (!venue) return <span className="text-muted-foreground">{'\u2014'}</span>;
+      return (
+        <div className="min-w-0 leading-snug">
+          <div>{venue}</div>
+          {locality && <div className="text-xs text-muted-foreground">{locality}</div>}
+        </div>
+      );
+    },
+  },
+  {
+    id: 'entries',
+    header: 'Entries',
+    accessorFn: show => getEntryStatus(show, show.userHasEntries).label,
+    meta: {
+      exportHeader: 'Entries',
+      exportValue: (show: unknown) => {
+        const row = show as EnhancedShow;
+        return getEntryStatus(row, row.userHasEntries).label;
+      },
+    },
     cell: ({ row }) => (
-      <span className="text-muted-foreground truncate">{row.original.location || '\u2014'}</span>
+      <EntryStatusBadge
+        show={row.original}
+        userHasEntries={row.original.userHasEntries}
+        className="whitespace-nowrap"
+      />
     ),
   },
   {
@@ -183,6 +224,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
         tableId="showsBrowse"
         data={shows}
         columns={columns}
+        defaultColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
         // Page-level ListControls owns search; table keeps only its Columns control.
         showSearch={false}
         getRowId={show => show.id}

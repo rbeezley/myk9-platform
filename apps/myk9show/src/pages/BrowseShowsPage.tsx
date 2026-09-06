@@ -23,7 +23,6 @@ import { EntryClosedNotice } from '@/components/shows/browse/EntryClosedNotice';
 import { ShowCalendar, ShowsMapView } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import '@/styles/myk9-show-details.css';
-import { UserRole, type UserWithRoles } from '@/types/auth-types';
 
 import {
   ShowsPageSkeleton,
@@ -36,7 +35,6 @@ import { ShowPermissionValidator } from '@/utils/permissionValidation';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ListControls } from '@/components/common/ListControls';
-import type { FilterDefinition as ChipFilterDefinition } from '@/components/common/FilterChips';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -46,19 +44,11 @@ import { getTabsForUser } from '@/utils/unified-shows-config';
 import { useBrowseShowsFilters } from '@/hooks/useBrowseShowsFilters';
 import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
+import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
 import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
-
-function isExhibitorOnlyUser(user: UserWithRoles | null): boolean {
-  const roles = user?.roles ?? [];
-  return roles.length > 0 && roles.every(role => role === UserRole.EXHIBITOR);
-}
-
-function getDefaultViewMode(selectedTab: string, user: UserWithRoles | null): ViewMode {
-  if (selectedTab === 'entries' || isExhibitorOnlyUser(user)) return 'cards';
-  return 'table';
-}
+import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers';
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,7 +61,7 @@ const BrowseShowsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useUrlTab(allowedTabIds, tabConfig.defaultTab);
 
   // View mode state (still URL-synced manually — useUrlTab only manages ?tab=)
-  const defaultViewMode = getDefaultViewMode(selectedTab, authUser);
+  const defaultViewMode = getDefaultViewMode(selectedTab);
   const initialViewMode = parseViewMode(searchParams.get('view')) ?? defaultViewMode;
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
   const [isTabSwitching, setIsTabSwitching] = useState(false);
@@ -94,8 +84,14 @@ const BrowseShowsPage: React.FC = () => {
   } = useBrowseShowsData({ filteredShows: filteredShowsState, selectedTab });
 
   // Use extracted filter hook
-  const { filters, setFilters, filteredShows, hasActiveFilters, clearAllFilters } =
-    useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
+  const {
+    filters,
+    setFilters,
+    filteredShows,
+    monthScopedShows,
+    hasActiveFilters,
+    clearAllFilters,
+  } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
 
   // Sync filtered shows into state for the data hook (avoids second hook call)
   useEffect(() => {
@@ -115,62 +111,26 @@ const BrowseShowsPage: React.FC = () => {
       .map(([id, name]) => ({ label: name, value: id }));
   }, [shows]);
 
-  // FilterChips definitions
-  const chipFilters: ChipFilterDefinition[] = useMemo(
-    () => [
-      {
-        key: 'discipline',
-        label: 'Discipline',
-        options: [
-          { label: 'Agility', value: 'agility' },
-          { label: 'Scent Work', value: 'scent_work' },
-          { label: 'Rally', value: 'rally' },
-          { label: 'Obedience', value: 'obedience' },
-        ],
-      },
-      {
-        key: 'entryStatus',
-        label: 'Entry Status',
-        options: [
-          { label: 'Open', value: 'open' },
-          { label: 'Closing Soon', value: 'closing_soon' },
-          { label: 'Waitlist', value: 'waitlist' },
-          { label: 'Closed', value: 'closed' },
-        ],
-      },
-      {
-        key: 'dateRange',
-        label: 'Date Range',
-        options: [
-          { label: 'Upcoming', value: 'upcoming' },
-          { label: 'This Month', value: 'this_month' },
-          { label: 'Next Month', value: 'next_month' },
-        ],
-      },
-      {
-        key: 'club',
-        label: 'Club',
-        options: clubFilterOptions,
-      },
-    ],
-    [clubFilterOptions]
-  );
+  const chipFilters = useMemo(() => buildChipFilters(clubFilterOptions), [clubFilterOptions]);
 
   // Bridge chip filter values from existing filters state
   const chipFilterValues = useMemo(() => {
     const values: Record<string, string> = {};
     if (filters.discipline !== 'all') values.discipline = filters.discipline;
     if (filters.entryStatus !== 'all') values.entryStatus = filters.entryStatus;
-    if (filters.dateRange !== 'all' && filters.dateRange !== 'upcoming')
-      values.dateRange = filters.dateRange;
     if (filters.club !== 'all') values.club = filters.club;
     return values;
-  }, [filters.discipline, filters.entryStatus, filters.dateRange, filters.club]);
+  }, [filters.discipline, filters.entryStatus, filters.club]);
 
   const handleChipFilterChange = useCallback(
     (key: string, value: string | null) => {
       setFilters(prev => ({ ...prev, [key]: value || 'all' }));
     },
+    [setFilters]
+  );
+
+  const handleMonthChange = useCallback(
+    (month: string) => setFilters(prev => ({ ...prev, month })),
     [setFilters]
   );
 
@@ -262,7 +222,7 @@ const BrowseShowsPage: React.FC = () => {
     if (viewFromUrl !== viewMode) {
       queueMicrotask(() => setViewMode(viewFromUrl));
     }
-  }, [defaultViewMode, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [defaultViewMode, searchParams]);
 
   // Breadcrumb items for PageHeader
   const breadcrumbs = useMemo(() => {
@@ -472,8 +432,21 @@ const BrowseShowsPage: React.FC = () => {
             />
           )}
 
-          {/* Tabs */}
-          <PrimaryTabs tabs={tabDefs} value={selectedTab} onValueChange={handleTabChange}>
+          {/* Month scrubber — counts reflect every filter except the month, so
+              the tiles answer "when?" for the list the visitor is looking at. */}
+          <MonthScrubber
+            shows={monthScopedShows}
+            value={filters.month}
+            onChange={handleMonthChange}
+          />
+
+          {/* Tabs — hidden for guests and exhibitors, who only have Browse All */}
+          <PrimaryTabs
+            tabs={tabDefs}
+            value={selectedTab}
+            onValueChange={handleTabChange}
+            hideWhenSingle
+          >
             <TabsContent value={selectedTab}>
               {isTabSwitching || isViewModeChanging ? (
                 <TabContentSkeleton viewMode={viewMode} count={4} />

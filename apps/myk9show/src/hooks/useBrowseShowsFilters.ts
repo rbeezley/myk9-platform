@@ -5,6 +5,11 @@ import type { SyncableShowEntry } from '@/store/entryStore';
 import { filterShowsForTab } from '@/utils/unified-shows-config';
 import type { UserShowContext } from '@/types/unified-shows-types';
 import { getEntryStatus, userHasEntriesForShow } from '@/utils/entryStatusUtils';
+import {
+  ALL_MONTHS_KEY,
+  isMonthKey,
+  monthKeyOf,
+} from '@/components/shows/browse/monthScrubber.helpers';
 
 /**
  * Filter state interface for browse shows page
@@ -13,7 +18,8 @@ export interface ShowFilters {
   search: string;
   discipline: string;
   entryStatus: string;
-  dateRange: string;
+  /** `'all'` (upcoming shows) or a `YYYY-MM` month key from the scrubber. */
+  month: string;
   organization: string;
   club: string;
 }
@@ -25,7 +31,7 @@ const DEFAULT_FILTERS: ShowFilters = {
   search: '',
   discipline: 'all',
   entryStatus: 'all',
-  dateRange: 'upcoming',
+  month: ALL_MONTHS_KEY,
   organization: 'all',
   club: 'all',
 };
@@ -42,9 +48,9 @@ const DISCIPLINE_MAP: Record<string, string> = {
 
 /**
  * Closed vocabularies, so a hand-edited URL cannot put a filter into a state no
- * chip can represent. `?dateRange=garbage` is the dangerous one: it passes the
- * `!== 'all'` test in applyFilters but matches none of the branches, silently
- * skipping the date filter and leaking past shows onto the default view.
+ * chip can represent. `month` is open-ended (any `YYYY-MM`), so it is shape-
+ * checked with `isMonthKey` in the hook instead: a malformed value reads as
+ * `'all'`, which keeps the upcoming rule rather than leaking past shows.
  * `club` and `organization` are data-derived and deliberately absent.
  *
  * WARNING: a value missing from a list here is ERASED, not ignored — the param
@@ -54,7 +60,6 @@ const DISCIPLINE_MAP: Record<string, string> = {
 const ALLOWED_FILTER_VALUES = {
   discipline: Object.keys(DISCIPLINE_MAP),
   entryStatus: ['open', 'closing_soon', 'closed', 'waitlist'],
-  dateRange: ['all', 'upcoming', 'this_month', 'next_month'],
 } as const;
 
 /**
@@ -115,6 +120,8 @@ interface UseBrowseShowsFiltersReturn {
   filters: ShowFilters;
   setFilters: React.Dispatch<React.SetStateAction<ShowFilters>>;
   filteredShows: Show[];
+  /** `filteredShows` before the month filter — what the month scrubber counts. */
+  monthScopedShows: Show[];
   hasActiveFilters: boolean;
   clearAllFilters: () => void;
   activeFilterCount: number;
@@ -132,10 +139,19 @@ export function useBrowseShowsFilters({
 }: UseBrowseShowsFiltersProps): UseBrowseShowsFiltersReturn {
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
-  const [filters, setFilters] = useUrlFilters<ShowFilters>(DEFAULT_FILTERS, {
+  const [rawFilters, setFilters] = useUrlFilters<ShowFilters>(DEFAULT_FILTERS, {
     allowedValues: ALLOWED_FILTER_VALUES,
   });
+  // A `?month=` outside the `YYYY-MM` shape falls back to the upcoming rule.
+  const filters = useMemo<ShowFilters>(
+    () =>
+      isMonthKey(rawFilters.month) || rawFilters.month === ALL_MONTHS_KEY
+        ? rawFilters
+        : { ...rawFilters, month: ALL_MONTHS_KEY },
+    [rawFilters]
+  );
   const [filteredShows, setFilteredShows] = useState<Show[]>([]);
+  const [monthScopedShows, setMonthScopedShows] = useState<Show[]>([]);
 
   // Check if filters are active (different from defaults)
   const hasActiveFilters = useMemo(() => {
@@ -143,7 +159,7 @@ export function useBrowseShowsFilters({
       filters.search !== '' ||
       filters.discipline !== 'all' ||
       filters.entryStatus !== 'all' ||
-      (filters.dateRange !== 'all' && filters.dateRange !== 'upcoming') ||
+      filters.month !== ALL_MONTHS_KEY ||
       filters.organization !== 'all' ||
       filters.club !== 'all'
     );
@@ -153,7 +169,7 @@ export function useBrowseShowsFilters({
   const activeFilterCount = useMemo(() => {
     return Object.entries(filters).filter(([key, value]) => {
       if (key === 'search') return value !== '';
-      if (key === 'dateRange') return value !== 'upcoming' && value !== 'all';
+      if (key === 'month') return value !== ALL_MONTHS_KEY;
       return value !== 'all';
     }).length;
   }, [filters]);
@@ -215,44 +231,29 @@ export function useBrowseShowsFilters({
       });
     }
 
-    // Date range filter — skip for role-scoped tabs that already define their own
-    // time range ('past', 'managing', 'assignments').  Applying 'upcoming' on top
-    // of 'managing' would silently drop ongoing/past-start shows from the admin view.
-    const skipDateFilter =
-      selectedTab === 'past' || selectedTab === 'managing' || selectedTab === 'assignments';
-    if (!skipDateFilter && filters.dateRange !== 'all') {
+    // Month filter. A chosen month keeps every show starting in it, past or
+    // future, on every tab — it replaced the Past Shows tab (MYK9-427). With no
+    // month, the default is "upcoming", skipped for role-scoped tabs that
+    // define their own time range ('managing', 'assignments'): applying it on
+    // top of 'managing' would silently drop ongoing/past-start shows from the
+    // admin view.
+    // Sort by start date before the month split so both lists share an order.
+    filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    setMonthScopedShows(filtered);
+
+    if (filters.month !== ALL_MONTHS_KEY) {
+      filtered = filtered.filter(show => monthKeyOf(show.startDate) === filters.month);
+    } else if (selectedTab !== 'managing' && selectedTab !== 'assignments') {
       const now = new Date();
       // Compare against local midnight so shows starting today aren't hidden.
       // ISO date-only strings parse as UTC midnight, which falls before the
       // current moment in any negative-offset timezone.
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      if (filters.dateRange === 'upcoming') {
-        filtered = filtered.filter(show => {
-          const showDate = parseLocalShowDate(show.endDate || show.startDate);
-          return showDate !== null && showDate >= startOfToday;
-        });
-      } else if (filters.dateRange === 'this_month') {
-        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-        filtered = filtered.filter(show => {
-          const showDate = parseLocalShowDate(show.startDate);
-          return showDate !== null && showDate >= startOfToday && showDate <= nextMonth;
-        });
-      } else if (filters.dateRange === 'next_month') {
-        // Compare local date components to avoid UTC-vs-local boundary issues.
-        const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        filtered = filtered.filter(show => {
-          const showDate = parseLocalShowDate(show.startDate);
-          return (
-            showDate !== null &&
-            showDate.getFullYear() === nextMonthDate.getFullYear() &&
-            showDate.getMonth() === nextMonthDate.getMonth()
-          );
-        });
-      }
+      filtered = filtered.filter(show => {
+        const showDate = parseLocalShowDate(show.endDate || show.startDate);
+        return showDate !== null && showDate >= startOfToday;
+      });
     }
-
-    // Sort by start date
-    filtered.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
     setFilteredShows(filtered);
   }, [shows, entries, userContext, selectedTab, filters]);
@@ -268,6 +269,7 @@ export function useBrowseShowsFilters({
     filters,
     setFilters,
     filteredShows,
+    monthScopedShows,
     hasActiveFilters,
     clearAllFilters,
     activeFilterCount,

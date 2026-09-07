@@ -4,7 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { ShowsMapView } from '../ShowsMapView';
 import { partitionMappableShows } from '../ShowsMapView.helpers';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
-import { US_CENTER } from '@/features/maps/tiles';
+import { US_CENTER, MISSING_TILE_URL } from '@/features/maps/tiles';
 
 const mapMocks = vi.hoisted(() => ({
   fitBounds: vi.fn(),
@@ -14,10 +14,20 @@ const mapMocks = vi.hoisted(() => ({
 // jsdom can't lay out a real Leaflet map; render structural stand-ins so the
 // view's own logic (partitioning, popups, legend, empty state) is testable.
 vi.mock('react-leaflet', () => ({
-  MapContainer: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="map-container">{children}</div>
+  MapContainer: ({
+    children,
+    style,
+  }: {
+    children?: React.ReactNode;
+    style?: React.CSSProperties;
+  }) => (
+    <div data-testid="map-container" style={style}>
+      {children}
+    </div>
   ),
-  TileLayer: () => <div data-testid="tile-layer" />,
+  TileLayer: (props: Record<string, unknown>) => (
+    <div data-testid="tile-layer" data-error-tile-url={String(props.errorTileUrl ?? '')} />
+  ),
   Marker: ({ children }: { children?: React.ReactNode }) => (
     <div data-testid="map-marker">{children}</div>
   ),
@@ -106,6 +116,29 @@ describe('ShowsMapView', () => {
       'href',
       '/shows/show-42'
     );
+  });
+
+  it('hands the tile layer a placeholder for tiles that fail to load', () => {
+    // Blocked tiles never throw (leaflet 1.9.4 `_tileOnError` handles the image
+    // error event), so the error boundary around this view cannot see them.
+    // Passing errorTileUrl is the only thing that puts anything on screen.
+    render(<ShowsMapView shows={[makeShow({ id: 'a' })]} onSwitchToCards={vi.fn()} />);
+
+    expect(screen.getByTestId('tile-layer')).toHaveAttribute(
+      'data-error-tile-url',
+      MISSING_TILE_URL
+    );
+  });
+
+  it('paints the surface behind a failed tile itself, rather than leaving it to leaflet', () => {
+    // MISSING_TILE_URL is a translucent hatch, so the container's own background
+    // is half of what a blocked-tile map looks like. It has to be inline: leaflet's
+    // stylesheet carries `.leaflet-container { background: #ddd }` at the same
+    // specificity and wins on source order, so a utility class here is inert —
+    // which in the dark theme is a light grey rectangle.
+    render(<ShowsMapView shows={[makeShow({})]} onSwitchToCards={vi.fn()} />);
+
+    expect(screen.getByTestId('map-container')).toHaveStyle({ background: 'var(--muted)' });
   });
 
   it('shows the legend when pins exist', () => {

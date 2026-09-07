@@ -20,6 +20,8 @@ export type RawAdvisorResult = {
   lints?: RawAdvisorLint[];
 };
 
+export type RawAdvisorPayload = RawAdvisorResult | RawAdvisorLint[];
+
 export type AdvisorEntry = {
   code: string;
   level: AdvisorLevel;
@@ -67,11 +69,11 @@ export const DEFAULT_CONFIG: AdvisorInventoryConfig = {
 };
 
 /**
- * Normalizes raw advisor CLI/MCP output (either `{ lints: [...] }` or
- * `{ result: { lints: [...] } }`) into a flat, stably-sortable entry list.
+ * Normalizes raw advisor CLI/MCP output (a top-level lint array, `{ lints: [...] }`,
+ * or `{ result: { lints: [...] } }`) into a flat, stably-sortable entry list.
  */
-export function normalizeAdvisorLints(raw: RawAdvisorResult): AdvisorEntry[] {
-  const lints = raw.result?.lints ?? raw.lints ?? [];
+export function normalizeAdvisorLints(raw: RawAdvisorPayload): AdvisorEntry[] {
+  const lints = Array.isArray(raw) ? raw : (raw.result?.lints ?? raw.lints ?? []);
 
   return lints
     .map(normalizeLint)
@@ -250,8 +252,8 @@ export function readAdvisorSnapshot(path: string): AdvisorSnapshot {
   return JSON.parse(readFileSync(path, 'utf8')) as AdvisorSnapshot;
 }
 
-export function loadRawAdvisorFile(path: string): RawAdvisorResult {
-  return JSON.parse(readFileSync(path, 'utf8')) as RawAdvisorResult;
+export function loadRawAdvisorFile(path: string): RawAdvisorPayload {
+  return JSON.parse(readFileSync(path, 'utf8')) as RawAdvisorPayload;
 }
 
 /**

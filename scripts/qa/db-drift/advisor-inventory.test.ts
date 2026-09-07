@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { fileURLToPath } from 'node:url';
 
 import {
   buildAdvisorSnapshot,
   classifyAdvisorEntries,
   findUnclassifiedRepositoryOwned,
+  loadRawAdvisorFile,
   normalizeAdvisorLints,
   summarizeAdvisorEntries,
   type AdvisorInventoryConfig,
@@ -11,6 +13,24 @@ import {
 } from './advisor-inventory';
 
 describe('normalizeAdvisorLints', () => {
+  it('normalizes a top-level lint array payload from the advisor export fixture', () => {
+    const fixturePath = fileURLToPath(
+      new URL('./fixtures/advisor/top-level-lints.json', import.meta.url)
+    );
+
+    expect(normalizeAdvisorLints(loadRawAdvisorFile(fixturePath))).toEqual([
+      {
+        code: 'unindexed_foreign_keys',
+        level: 'INFO',
+        schema: 'public',
+        objectName: 'analytics_events',
+        identity: 'public.analytics_events#analytics_events_user_id_fkey',
+        detail:
+          'Table `public.analytics_events` has a foreign key `analytics_events_user_id_fkey` without a covering index.',
+      },
+    ]);
+  });
+
   it('normalizes a table-object lint into a schema.name identity', () => {
     const raw: RawAdvisorResult = {
       result: {

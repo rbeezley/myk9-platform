@@ -1,0 +1,17 @@
+[
+  {
+    "name": "unindexed_foreign_keys",
+    "title": "Unindexed foreign keys",
+    "level": "INFO",
+    "categories": ["PERFORMANCE"],
+    "detail": "Table `public.analytics_events` has a foreign key `analytics_events_user_id_fkey` without a covering index.",
+    "metadata": {
+      "name": "analytics_events",
+      "type": "table",
+      "schema": "public",
+      "fkey_name": "analytics_events_user_id_fkey",
+      "fkey_columns": [2]
+    },
+    "cache_key": "unindexed_foreign_keys_public_analytics_events_analytics_events_user_id_fkey"
+  }
+]

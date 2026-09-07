@@ -23,7 +23,7 @@ export function OperatorAlertDetail({ detail }: Pick<OperatorAlert, 'detail'>) {
             aria-expanded={isOpen}
             aria-controls={panelId}
             onClick={() => setIsOpen(open => !open)}
-            className="mt-1 inline-flex min-h-10 items-center rounded-[9px] px-2 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-1 inline-flex min-h-11 items-center rounded-[9px] px-2 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {isOpen ? 'Hide technical details' : 'Technical details'}
           </button>

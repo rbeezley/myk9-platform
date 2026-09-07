@@ -41,7 +41,7 @@ function tileAriaLabel(tile: MonthTile): string {
  * the strip also replaces the old Past Shows tab (MYK9-427).
  */
 export function MonthScrubber({ shows, value, onChange, className }: MonthScrubberProps) {
-  const tiles = useMemo(() => buildMonthTiles(shows), [shows]);
+  const tiles = useMemo(() => buildMonthTiles(shows, new Date(), value), [shows, value]);
   const selectedRef = useRef<HTMLButtonElement>(null);
 
   // Land with the selected tile in view (past months sit to its left).
@@ -101,7 +101,7 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
           >
             <span
               className={cn(
-                'text-[11px] font-bold tracking-[0.06em]',
+                'text-xs font-bold tracking-[0.06em]',
                 selected ? 'text-primary' : 'text-muted-foreground'
               )}
             >
@@ -122,7 +122,7 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
               {tile.count}
             </span>
             {tile.key === ALL_MONTHS_KEY ? (
-              <span className="text-[10px] font-semibold text-primary">upcoming</span>
+              <span className="text-xs font-semibold text-primary">upcoming</span>
             ) : (
               <span className="flex h-1.5 gap-[3px]" aria-hidden="true">
                 {tile.dots.map((dot, i) => (

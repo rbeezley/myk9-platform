@@ -151,16 +151,23 @@ describe('app API request tracker', () => {
     const nextRoute = 'https://example.supabase.co/rest/v1/people?select=id';
 
     it('a stranded request fails the NEXT route until the tracker is reset', async () => {
+      vi.useFakeTimers();
       const harness = createPageHarness();
       const tracker = watchAppApiRequests(harness.page);
+
+      const settle = async () => {
+        const settlementPromise = waitForAppApiRequestsToSettle(harness.page, tracker, {
+          idleMs: 5,
+          timeoutMs: 20,
+        });
+        await vi.advanceTimersByTimeAsync(20);
+        return settlementPromise;
+      };
 
       // Route 1 issues a request that never completes — no finished, no failed.
       harness.emit('request', createRequest(stranded));
 
-      const routeOne = await waitForAppApiRequestsToSettle(harness.page, tracker, {
-        idleMs: 5,
-        timeoutMs: 20,
-      });
+      const routeOne = await settle();
       expect(routeOne.settled).toBe(false);
       expect(routeOne.pendingUrls).toEqual([stranded]);
 
@@ -170,10 +177,7 @@ describe('app API request tracker', () => {
       harness.emit('request', live);
       harness.emit('requestfinished', live);
 
-      const routeTwoUnreset = await waitForAppApiRequestsToSettle(harness.page, tracker, {
-        idleMs: 5,
-        timeoutMs: 20,
-      });
+      const routeTwoUnreset = await settle();
       expect(routeTwoUnreset.settled).toBe(false);
       expect(routeTwoUnreset.pendingUrls).toEqual([stranded]);
 
@@ -183,10 +187,7 @@ describe('app API request tracker', () => {
       harness.emit('request', liveAgain);
       harness.emit('requestfinished', liveAgain);
 
-      const routeTwoReset = await waitForAppApiRequestsToSettle(harness.page, tracker, {
-        idleMs: 5,
-        timeoutMs: 20,
-      });
+      const routeTwoReset = await settle();
       expect(routeTwoReset).toEqual({ settled: true, pendingUrls: [] });
     });
 
@@ -194,16 +195,19 @@ describe('app API request tracker', () => {
       // The reset must not turn every never-settling request into a pass. A
       // request issued after the reset, on the route being measured, is that
       // route's own problem and has to be reported.
+      vi.useFakeTimers();
       const harness = createPageHarness();
       const tracker = watchAppApiRequests(harness.page);
 
       tracker.reset();
       harness.emit('request', createRequest(stranded));
 
-      const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+      const settlementPromise = waitForAppApiRequestsToSettle(harness.page, tracker, {
         idleMs: 5,
         timeoutMs: 20,
       });
+      await vi.advanceTimersByTimeAsync(20);
+      const settlement = await settlementPromise;
 
       expect(settlement.settled).toBe(false);
       expect(settlement.pendingUrls).toEqual([stranded]);

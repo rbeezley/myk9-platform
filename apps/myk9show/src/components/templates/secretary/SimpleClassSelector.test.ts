@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ClassDefinition } from '@/types/template.types';
 import {
   compareClassesForGrid,
+  findAmbiguousClassNames,
   formatJudgeName,
   groupClassesByElement,
 } from './SimpleClassSelector.helpers';
@@ -25,7 +26,8 @@ function def(
     element: partial.element ?? 'Container',
     level: partial.level,
     section: partial.section,
-    className: `${partial.element ?? 'Container'} ${partial.level ?? ''} ${partial.section ?? ''}`.trim(),
+    className:
+      `${partial.element ?? 'Container'} ${partial.level ?? ''} ${partial.section ?? ''}`.trim(),
     displayOrder: partial.displayOrder,
   };
 }
@@ -121,5 +123,52 @@ describe('groupClassesByElement', () => {
       'Excellent',
       'Master',
     ]);
+  });
+});
+
+describe('findAmbiguousClassNames', () => {
+  const named = (
+    className: string,
+    identity: Pick<ClassDefinition, 'element' | 'level' | 'section'>
+  ): ClassDefinition => ({ ...identity, className, displayOrder: 1 });
+
+  it('flags both names when a cloned class shares a level with a template class', () => {
+    const result = findAmbiguousClassNames([
+      named('Interior Advanced', { element: 'Interior', level: 'Advanced' }),
+      named('Interior Advanced Preliminary', { element: 'Interior', level: 'Advanced' }),
+    ]);
+
+    expect([...result].sort()).toEqual(['Interior Advanced', 'Interior Advanced Preliminary']);
+  });
+
+  it('flags nothing across a standard AKC catalog', () => {
+    expect(
+      findAmbiguousClassNames([
+        named('Container Novice A', { element: 'Container', level: 'Novice', section: 'A' }),
+        named('Container Novice B', { element: 'Container', level: 'Novice', section: 'B' }),
+        named('Container Advanced', { element: 'Container', level: 'Advanced' }),
+        named('Detective', { element: 'Detective' }),
+      ]).size
+    ).toBe(0);
+  });
+
+  it('leaves ASCA Level C alone — its section already separates it on the card', () => {
+    // "Container Novice Level C" is not element+level+section verbatim, but the
+    // card still renders a distinct `Novice C`, so it needs no second line.
+    expect(
+      findAmbiguousClassNames([
+        named('Container Novice', { element: 'Container', level: 'Novice' }),
+        named('Container Novice Level C', { element: 'Container', level: 'Novice', section: 'C' }),
+      ]).size
+    ).toBe(0);
+  });
+
+  it('separates same-level classes that belong to different elements', () => {
+    expect(
+      findAmbiguousClassNames([
+        named('Interior Advanced', { element: 'Interior', level: 'Advanced' }),
+        named('Exterior Advanced', { element: 'Exterior', level: 'Advanced' }),
+      ]).size
+    ).toBe(0);
   });
 });

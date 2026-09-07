@@ -10,7 +10,11 @@ import {
 } from '@/components/ui/select';
 import { logger } from '@/services/LoggingService';
 import { Search, CheckSquare, Square, Filter, User } from 'lucide-react';
-import { formatJudgeName, groupClassesByElement } from './SimpleClassSelector.helpers';
+import {
+  findAmbiguousClassNames,
+  formatJudgeName,
+  groupClassesByElement,
+} from './SimpleClassSelector.helpers';
 import '@/styles/myk9-class-selection.css';
 import { countLabel } from '@/utils/pluralize';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
@@ -56,6 +60,10 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   }, [selectedClasses]);
 
   const classes = useMemo(() => template.classDefinitions || [], [template.classDefinitions]);
+
+  // Over the whole catalog, not the filtered view: a search that hides one of two
+  // look-alike cards must not take the surviving card's full name away with it.
+  const ambiguousClassNames = useMemo(() => findAmbiguousClassNames(classes), [classes]);
 
   // Sync element-level judge dropdown when judgeAssignments change externally (e.g. auto-assign).
   // If every class in an element group shares the same judge, reflect that in the group dropdown.
@@ -415,7 +423,9 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                     <h3 className="myk9-class-element-title" onClick={toggleAllElementClasses}>
                       {element}
                     </h3>
-                    <div className="myk9-class-element-count">{countLabel(elementClasses.length, 'class', 'classes')}</div>
+                    <div className="myk9-class-element-count">
+                      {countLabel(elementClasses.length, 'class', 'classes')}
+                    </div>
 
                     {/* Judge Assignment for Element - moved here */}
                     {availableJudges.length > 0 && (
@@ -507,6 +517,18 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                               </span>
                             )}
                           </div>
+
+                          {/* MYK9-389: a level alone cannot tell a cloned, renamed class
+                              apart from the template class it shares a level with. Spell
+                              out the full name on both, visibly — the aria-label already
+                              carried it, which is exactly why the clash was invisible. */}
+                          {ambiguousClassNames.has(classDefinition.className) && (
+                            <div
+                              className={`myk9-class-card-full-name ${isExisting ? 'disabled' : ''}`}
+                            >
+                              {classDefinition.className}
+                            </div>
+                          )}
 
                           {/* Judge Assignment for Individual Class - Compact Display */}
                           {judgeAssignments[classDefinition.className] && !isExisting && (

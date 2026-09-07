@@ -7,7 +7,7 @@ import { MapPinOff, ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import type { ShowMarkerStatus } from '@/features/maps/markerStatus';
-import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER } from '@/features/maps/tiles';
+import { OSM_TILE_URL, OSM_ATTRIBUTION, US_CENTER, MISSING_TILE_URL } from '@/features/maps/tiles';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { partitionMappableShows, type LocatedShow } from './ShowsMapView.helpers';
 
@@ -126,13 +126,29 @@ export function ShowsMapView({ shows, onSwitchToCards }: ShowsMapViewProps) {
         )}
       </div>
       <div className="overflow-hidden rounded-lg border border-border">
+        {/*
+          The background is inline, not a `bg-muted` class: leaflet's own stylesheet
+          carries `.leaflet-container { background: #ddd }` at the same specificity
+          and wins on source order, so a class here is silently inert. It matters
+          because MISSING_TILE_URL is a translucent hatch — whatever sits behind it
+          is what a blocked-tile map actually looks like, and leaflet's grey is a
+          glaring light rectangle in the dark theme.
+        */}
         <MapContainer
           center={US_CENTER}
           zoom={US_ZOOM}
-          style={{ height: 'min(70vh, 640px)', width: '100%' }}
+          style={{
+            height: 'min(70vh, 640px)',
+            width: '100%',
+            background: 'var(--muted)',
+          }}
           scrollWheelZoom
         >
-          <TileLayer url={OSM_TILE_URL} attribution={OSM_ATTRIBUTION} />
+          <TileLayer
+            url={OSM_TILE_URL}
+            attribution={OSM_ATTRIBUTION}
+            errorTileUrl={MISSING_TILE_URL}
+          />
           <FitToPins located={located} />
           {located.map(({ show, lat, lng, status }) => (
             <Marker key={show.id} position={[lat, lng]} icon={STATUS_ICONS[status]}>

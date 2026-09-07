@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import {
   ALL_MONTHS_KEY,
@@ -13,11 +13,13 @@ import {
 // A fixed "now" so the fixture never drifts: Sunday 2026-09-06, local time.
 const NOW = new Date(2026, 8, 6, 12, 0, 0);
 
-function localISODate(offsetDays: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+// getEntryStatus does not take a `now` — it reads the WALL CLOCK and converts it
+// to a calendar date in the show's trial timezone (America/New_York by default,
+// via currentEntryWindowDate). A test computing its dates in the runner's own
+// timezone therefore disagrees with the code whenever the two straddle midnight,
+// which reddened CI under TZ=UTC while passing locally. Pin the instant so both
+// halves land on 2026-09-06: 17:00Z is 13:00 in New York the same day.
+const PINNED_INSTANT = new Date('2026-09-06T17:00:00Z');
 
 function makeShow(overrides: Partial<Show> = {}): Show {
   return {
@@ -65,6 +67,15 @@ describe('monthKeyOf / isMonthKey', () => {
 });
 
 describe('buildMonthTiles', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(PINNED_INSTANT);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('returns the All tile plus one tile per month in the window, oldest first', () => {
     const tiles = buildMonthTiles([], NOW);
     expect(tiles).toHaveLength(1 + MONTHS_BACK + MONTHS_AHEAD + 1);
@@ -119,24 +130,24 @@ describe('buildMonthTiles', () => {
   });
 
   it('draws one dot per show in date order, colored by entry status, capped', () => {
-    // Entry status reads the wall clock, not `now`, so close dates are relative
-    // to today and the shows sit in next month, which is always in the window.
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    const key = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+    // Absolute close dates, not offsets from the runner's clock, and each one kept
+    // well clear of the 7-day closing_soon boundary so that a one-day disagreement
+    // between timezones cannot reclassify a dot. Relative to the pinned 2026-09-06:
+    // closed is 10 days past, open is 60 days out, closing is 3 days out.
+    const key = '2026-10';
     const day = (d: number) => `${key}-${String(d).padStart(2, '0')}`;
     const shows = [
-      makeShow({ id: 'closed', startDate: day(25), entryCloseDate: localISODate(-1) }),
-      makeShow({ id: 'open', startDate: day(5), entryCloseDate: localISODate(60) }),
-      makeShow({ id: 'closing', startDate: day(15), entryCloseDate: localISODate(3) }),
+      makeShow({ id: 'closed', startDate: day(25), entryCloseDate: '2026-08-27' }),
+      makeShow({ id: 'open', startDate: day(5), entryCloseDate: '2026-11-05' }),
+      makeShow({ id: 'closing', startDate: day(15), entryCloseDate: '2026-09-09' }),
     ];
-    const byKey = Object.fromEntries(buildMonthTiles(shows, today).map(t => [t.key, t]));
+    const byKey = Object.fromEntries(buildMonthTiles(shows, NOW).map(t => [t.key, t]));
     expect(byKey[key].dots).toEqual(['open', 'closing', 'muted']);
 
     const many = Array.from({ length: MAX_DOTS + 4 }, (_, i) =>
       makeShow({ id: `m${i}`, startDate: day(i + 1) })
     );
-    const tile = buildMonthTiles(many, today).find(t => t.key === key);
+    const tile = buildMonthTiles(many, NOW).find(t => t.key === key);
     expect(tile?.count).toBe(MAX_DOTS + 4);
     expect(tile?.dots).toHaveLength(MAX_DOTS);
   });

@@ -16,7 +16,11 @@ loadEnv({ path: '.env', override: false });
 function worktreeDefaultPort(): string {
   if (process.env.CI) return '5173';
   const digest = createHash('sha1').update(process.cwd()).digest();
-  return String(5200 + (digest.readUInt16BE(0) % 600));
+  // 4000 slots, not 600: with ~17 worktrees the birthday odds of ANY collision
+  // are ~20% at 600 and ~3% at 4000. Odds alone are not enough for a guard whose
+  // failure mode is silently testing another tree, which is why reuse is also
+  // off below — a collision then fails loudly on --strictPort instead.
+  return String(5200 + (digest.readUInt32BE(0) % 4000));
 }
 
 const defaultPort = worktreeDefaultPort();
@@ -102,7 +106,12 @@ export default defineConfig({
   webServer: {
     command: `VITE_HMR_PORT=${webServerHmrPort} pnpm run dev --host 127.0.0.1 --port ${webServerPort} --strictPort`,
     port: webServerPort,
-    reuseExistingServer: !process.env.CI,
+    // Never reuse outside CI. The derived port makes a clash unlikely; this makes
+    // one harmless. Reusing a server we did not start is the trap being fixed —
+    // it cannot be distinguished from our own, so a hash collision would put us
+    // straight back to testing another worktree's code and believing the result.
+    // With --strictPort, an occupied port now fails the run instead.
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });

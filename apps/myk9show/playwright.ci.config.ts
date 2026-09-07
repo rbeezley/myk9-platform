@@ -55,6 +55,9 @@ const REGRESSION_SPECS = [
   // Admin-authed: Nightly supplies every E2E_* credential, PR smoke only gets
   // E2E_SECRETARY_*, so this cannot live in PR_SMOKE_SPECS.
   '**/admin/userRosterDrilldown.spec.ts',
+  // Admin-authed for the same reason. Fixture-backed reads, so it measures a
+  // constant string rather than staging's live verdict: ~15s for five cases.
+  '**/admin/health-verdict-responsive.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

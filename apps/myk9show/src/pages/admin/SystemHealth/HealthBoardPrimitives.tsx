@@ -227,10 +227,17 @@ export function BoardError({ message, onRetry }: { message: string; onRetry: () 
   );
 }
 
-/** The three verdict chips, all derived from one summary. */
+/** The three verdict chips, all derived from one summary.
+ *
+ * `flex-wrap` rather than `shrink-0`: the chips are a fixed 250px block, and
+ * pinning them against shrink meant the prose beside them absorbed every pixel
+ * the container was short. The caller wraps this whole block onto its own line
+ * before that happens, so the only job left here is the narrowest phones, where
+ * even 250px is more than the card has — there the third chip drops down
+ * instead of pushing the card into horizontal overflow. */
 export function VerdictChips({ summary }: { summary: CheckSummary }) {
   return (
-    <div className="flex shrink-0 gap-2">
+    <div data-testid="health-verdict-chips" className="flex flex-wrap gap-2">
       <CountChip label="failing" value={summary.failing} status="fail" />
       <CountChip label="unverified" value={summary.unverified} status="warn" />
       <CountChip label="passing" value={summary.passing} status="ok" />

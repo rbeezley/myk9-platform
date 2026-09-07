@@ -14,7 +14,7 @@ concurrency:
 jobs:
   export:
     name: Export and verify database
-    if: vars.MYK9_EXPORTS_ENABLED == 'true'
+    if: vars.MYK9_EXPORTS_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -36,6 +36,7 @@ jobs:
       - name: Export, encrypt, upload, and verify
         run: pnpm exec tsx scripts/backup/export-cli.ts
         env:
+          BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
           BACKUP_DATABASE_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
           BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe

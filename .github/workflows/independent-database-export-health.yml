@@ -12,7 +12,7 @@ concurrency:
 jobs:
   verify:
     name: Verify latest export freshness
-    if: vars.MYK9_EXPORTS_ENABLED == 'true'
+    if: vars.MYK9_EXPORTS_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -38,6 +38,7 @@ jobs:
           BACKUP_GRACE_MINUTES: '30'
           BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
           BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
+          BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}
           BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}
           AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}

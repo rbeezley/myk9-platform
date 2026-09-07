@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { redactError } from './export-model';
+import { retentionCandidates } from './retention-model';
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -39,23 +40,7 @@ function main(): void {
     Contents?: Array<{ Key?: string; LastModified?: string }>;
   };
   const cutoff = Date.now() - days * 86_400_000;
-  const objects = listed.Contents || [];
-  const groups = new Map<string, Array<{ key: string; modified: number }>>();
-  for (const item of objects) {
-    if (!item.Key || !item.LastModified) continue;
-    const group = item.Key.slice(0, item.Key.lastIndexOf('/'));
-    const entries = groups.get(group) || [];
-    entries.push({ key: item.Key, modified: Date.parse(item.LastModified) });
-    groups.set(group, entries);
-  }
-  const selected = [...groups.values()]
-    .filter(group =>
-      ['manifest.json', 'database.dump.enc', 'globals.sql.enc'].every(name =>
-        group.some(item => item.key.endsWith(`/${name}`))
-      )
-    )
-    .filter(group => group.every(item => item.modified < cutoff))
-    .flatMap(group => group.map(item => item.key));
+  const selected = retentionCandidates(listed.Contents || [], cutoff);
   const apply = process.env.BACKUP_RETENTION_APPLY === 'true';
   if (apply && process.env.BACKUP_RETENTION_CONFIRM !== `DELETE ${bucket}/${prefix}`) {
     throw new Error(

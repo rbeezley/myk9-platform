@@ -49,17 +49,17 @@ reporter, but its schedule is only an attempt: the job must verify freshness in 
    dependency and lock-in) and GitHub artifact storage (short retention and unsuitable disaster
    recovery boundary).
 
-4. **Schedule in UTC with two cron entries.** `0 2 * * 1-4` is the nightly attempt and
-   `0 * * * 5,6,0` is hourly Friday through Sunday. Show-date exceptions cannot safely be
-   inferred from a repository cron; activation must document the show calendar/timezone policy
-   and use manual dispatch or an approved calendar-driven follow-up. Freshness checks use the
-   latest successful manifest timestamp, not GitHub's nominal cron time.
+4. **Wake hourly in UTC and apply one local schedule model.** Export selection and monitoring
+   share timezone, weekend days and nightly hour (default UTC, Friday–Sunday and 03:00).
+   Manual dispatch forces an export. The due-slot search scans absolute hours across DST;
+   monitoring applies grace before selecting the required slot. Show-calendar exceptions
+   need an explicit policy change or manual export.
 
-5. **Verify freshness and retention in the same run.** A successful upload writes an immutable
-   manifest after the encrypted payload is verified. A separate verification mode lists recent
-   manifests, rejects missing/duplicate/invalid digests, and fails when age exceeds the cadence
-   plus a bounded grace period. Retention is an explicit deletion command and/or provider
-   lifecycle rule; no destructive lifecycle is activated by this change.
+5. **Verify freshness independently of export success.** Export publishes a manifest after
+   both payloads are downloaded and their bytes verified. An independently scheduled health
+   job verifies the latest payloads and due slot. Shared GitHub outages remain a limitation.
+   Retention selects whole sets and always preserves the newest complete set. Deletion requires
+   explicit confirmation; no retention job or provider lifecycle is activated by this change.
 
 ## Risks / Trade-offs
 

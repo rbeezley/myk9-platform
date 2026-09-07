@@ -13,8 +13,12 @@ describe('scheduled export workflow contract', () => {
     );
     expect(exportWorkflow).toContain("cron: '0 * * * *'");
     expect(exportWorkflow).toContain('issues: write');
+    expect(exportWorkflow).toContain(
+      "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}"
+    );
     expect(healthWorkflow).toContain("cron: '15 * * * *'");
     expect(healthWorkflow).toContain('issues: write');
+    expect(healthWorkflow).toContain('BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}');
     expect(healthWorkflow).not.toContain('needs:');
   });
 });

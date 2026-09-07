@@ -41,6 +41,17 @@ coverage. Follow-up review also identified mismatched export/monitor timezone se
 transition allowance that could hide missed weekend backups. Final code review and tests must
 confirm these corrections before shipping.
 
+Final local verification: 17 tests across six files passed in each of six shuffled runs (seeds
+101, 202, 303, 404, 505, 606). Added direct orchestration assertions that dump failure, upload
+failure, and corrupted stored bytes never publish a success manifest. Verified manual-dispatch
+override and matching nightly-hour configuration in both workflows. Retention tests preserve the
+newest complete set and keep incomplete/boundary sets intact. Targeted TypeScript checks,
+Prettier, diff whitespace, strict OpenSpec change validation, and code-quality ratchet passed.
+
+Both local PostgreSQL servers were stopped after the rehearsal. The repository overlap check
+remains unresolved: the network-enabled retry stalled and was interrupted without a verdict.
+No PR, push, or activation was performed. The other-harness PR review gate is still required.
+
 ## Limits and remaining gates
 
 - This proves local PostgreSQL mechanics; it is not a successful restore of a real Supabase export.

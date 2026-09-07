@@ -17,11 +17,18 @@ for those cases; do not claim zero score loss.
 
 ## Cadence
 
-The workflow attempts at `02:00 UTC` Monday–Thursday and at the top of every UTC hour Friday,
-Saturday, and Sunday. GitHub Actions cron is best effort, so a nominal schedule is not evidence
-of a successful export. Each run must produce a verified manifest, and an operator must treat a
-missing or stale manifest as an incident. Show dates in another timezone require a reviewed
-calendar policy or a manual dispatch; they are not inferred from the fixed weekend cron.
+The export workflow wakes hourly in UTC. The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
+(default UTC), `MYK9_EXPORT_WEEKEND_DAYS` (default `0,5,6`), and `MYK9_EXPORT_NIGHTLY_HOUR`
+(default `3`) to export hourly on selected show days and once overnight otherwise. Manual
+dispatch forces an export regardless of the time. America/Chicago and 30-day R2 retention
+are proposed options, not approved settings. Extra show days require changing the reviewed
+day policy or manual dispatch; no show calendar is automatically consulted.
+
+The separate health workflow wakes hourly at minute 15 and validates the newest stored payloads
+against the latest due slot whose 30-minute grace has elapsed. Thus detection can take until
+the next health run after grace, plus scheduler delays. A GitHub outage can hide both jobs;
+operator checks remain necessary. Both scheduled jobs stay disabled until
+`MYK9_EXPORTS_ENABLED=true`; explicit manual dispatch is available for activation testing.
 
 ## Activation checklist
 
@@ -40,7 +47,9 @@ calendar policy or a manual dispatch; they are not inferred from the fixed weeke
    restore-access procedure, and monthly cost ceiling. Estimate monthly storage as
    `measured encrypted export size × retained successful exports`; hourly weekends yield about
    72 attempts/week before failures and retries, so do not assume a daily-copy cost.
-4. Create a private bucket and least-privilege CI credential that can put/list/head objects in
+   Include GitHub Actions runtime, storage API operations, download verification traffic and
+   source egress in the estimate; free object-storage capacity does not imply free operation.
+4. Create a private bucket and least-privilege CI credential that can put/list/head/get objects in
    the export prefix and delete only after an approved retention review. Do not grant public
    access. Create a random 32-byte encryption key and store it as
    `MYK9_EXPORT_ENCRYPTION_KEY`; keep a separately controlled recovery copy.
@@ -61,6 +70,11 @@ must be dry-run reviewed against the documented policy and must never delete Sup
 data. Rotate CI credentials and the encryption key through an owner-reviewed procedure; old
 exports remain undecryptable after key loss, so retain the recovery key with the incident plan.
 
+`scripts/backup/retention.ts` inventories whole three-object sets and preserves the newest complete
+set even if it exceeds retention. Incomplete sets are kept for operator inspection. Dry-run is the
+default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix
+confirmation. No automatic deletion schedule or provider lifecycle rule is activated by this branch.
+
 ## Rollback and recovery
 
 Set `MYK9_EXPORTS_ENABLED=false` and revoke the object-store credential to stop new uploads.
@@ -68,8 +82,9 @@ Keep existing private objects until the owner approves deletion. Recovery uses a
 database and the selected export's manifest/checksum; source writes remain stopped until the
 operator has compared newer data and reconciled offline tablet queues.
 
-The current implementation has no live provider credentials and no measured production dump or
-isolated restore evidence. Those are activation gates, not assumptions satisfied by this PR.
+The current implementation has no live provider credentials or measured source dump/provider
+restore. A [synthetic two-cluster local restore passed](independent-database-exports-local-test.md).
+The real Supabase/provider rehearsal remains an activation gate.
 
 ## Local decrypt and validation
 
@@ -83,10 +98,10 @@ BACKUP_ENCRYPTION_KEY='base64-32-byte-key' pnpm exec tsx scripts/backup/decrypt.
   --out-dir ./decrypted-export
 ```
 
-This checks the manifest format, future timestamp, ciphertext sizes, and SHA-256 digests before
+This checks the manifest format, future timestamp, nonempty ciphertext, and SHA-256 digests before
 authenticated decryption. It only writes the requested local output directory. The dump still
-does not contain Supabase's encryption root key or Vault secrets; those must be recovered through
-the provider's separately approved secret/key procedure. Supabase's logical restore guidance also
+does not contain Supabase's encryption root key. Encrypted Vault rows may be present but cannot
+be assumed decryptable without the separately approved key-recovery procedure. Supabase's logical restore guidance also
 warns that custom-role passwords may need resetting and managed-role ownership/grants can fail;
 the isolated restore gate must record those limitations rather than claim a complete project
 reconstruction. See [Supabase backup and restore](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore).

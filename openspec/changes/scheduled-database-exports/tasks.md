@@ -14,7 +14,7 @@
 
 ## 3. Verification and handoff
 
-- [ ] Run focused tests, TypeScript checks, formatting, OpenSpec validation, and review the diff for secret/data leakage.
-- [ ] Run `qa:code-quality-ratchet` if existing files gain lines and record any unrelated blocker.
-- [ ] Obtain stronger-model review before shipping; update this change and the tracking runbook with findings/evidence.
+- [x] Run focused tests, TypeScript checks, formatting, OpenSpec validation, and review the diff for secret/data leakage. Parent verification: 17 tests across six files, six shuffled seeds; targeted TypeScript check and strict OpenSpec validation passed.
+- [x] Run `qa:code-quality-ratchet` if existing files gain lines and record any unrelated blocker. Passed via `node --import tsx scripts/qa/code-quality-ratchet.ts` after the tsx CLI hit sandbox IPC restrictions.
+- [x] Obtain stronger-model review before shipping; update this change and the tracking runbook with findings/evidence. Parent review fixed dump arguments, byte verification, success publication, alert permissions, scheduling/grace, manual dispatch and retention safety. This is not the repository's other-harness PR review gate.
 - [ ] Open the PR and complete the independent review gate, CI, and merge before archive; leave MYK9-110 open until owner activation evidence exists.

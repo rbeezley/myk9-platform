@@ -364,17 +364,39 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### Codex commit-review reconciliation — 2026-09-07
+
+`source: codex`; baseline `96edbabdcf81b819842fb236c7130b48b9564c0a`.
+[Full report and replay evidence](codex-daily-commit-review-2026-09-07.md).
+This section supersedes pending status claims below; Linear is the sole active work queue.
+
+| Stable ID / alias | Priority                     | Status / lifecycle            | Canonical action                                                                                                                                                                           |
+| ----------------- | ---------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| NCR-2026-09-07-01 | P2 / Medium                  | Todo / new                    | [MYK9-435](https://linear.app/myk9-platform/issue/MYK9-435): retain keyboard entry into the month scrubber for valid old/future month URLs.                                                |
+| MYK9-423          | P2 / Medium; High historical | In Progress / blocked proof   | [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423): attach original fee-card-to-paid-entry closure evidence; source fix and focused tests pass. No new runtime defect claimed.    |
+| MYK9-427          | P3 / Low                     | Todo / new residual           | [MYK9-427](https://linear.app/myk9-platform/issue/MYK9-427): enable promised IP fallback after a signed-in profile has no usable location; preserve completed redesign scope.              |
+| NCR-2026-09-07-02 | P3 / Low                     | Todo / new                    | [MYK9-436](https://linear.app/myk9-platform/issue/MYK9-436): restore INTENT font/control sizing floors on new month labels and alert detail toggle.                                        |
+| NCR-2026-09-06-02 | P3 / Low                     | Todo / unchanged, newly filed | [MYK9-437](https://linear.app/myk9-platform/issue/MYK9-437): remove the reset test's real-clock timing dependency; historical natural failure plus current deterministic mechanism replay. |
+
+Resolved with required evidence: **MYK9-424** (P1, real offline rendered report replay),
+**MYK9-407** (P3, recorded deployed cadence/snapshot/admin proof), and **MYK9-408**
+(P3, six installed prompts byte-identical, recorded owning scheduler proof, complete subsequent-day single boundary).
+Counts: new 3, unchanged 1, resolved 3, blocked 1, duplicate/rejected 0. Five outstanding:
+P0 0 / P1 0 / P2 2 / P3 3. Created three issues and reopened two original contracts;
+no issues closed by this review. 756 existing tests pass; four deliberate audit probes
+fail as documented. No application changes. Exact evidence and verification limits are in the report.
+
 ### Codex commit-review reconciliation — 2026-09-06
 
 `source: codex`; baseline `8facd0017ccd4de5f9a28ae99ef1c58e2f89f910`.
 [Full report and proof](codex-daily-commit-review-2026-09-06.md). Linear remains the work queue.
 This section supersedes pending status claims in the September 5 index below.
 
-| Stable ID / alias            | Canonical priority | Registry status / lifecycle | Canonical work                                                                                                                                                                                                             |
-| ---------------------------- | ------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| NCR-2026-09-06-01            | P1 / High          | done / verified             | [MYK9-424](https://linear.app/myk9-platform/issue/MYK9-424) — shipped 2026-09-06 as #2081 (merge `7ccc08f9a`); frontend-only, live via the green `main` production build on that commit. Evidence: [`docs/archive/plan-myk9-424.md`](../archive/plan-myk9-424.md).                   |
+| Stable ID / alias            | Canonical priority | Registry status / lifecycle | Canonical work                                                                                                                                                                                                                                                      |
+| ---------------------------- | ------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NCR-2026-09-06-01            | P1 / High          | done / verified             | [MYK9-424](https://linear.app/myk9-platform/issue/MYK9-424) — shipped 2026-09-06 as #2081 (merge `7ccc08f9a`); frontend-only, live via the green `main` production build on that commit. Evidence: [`docs/archive/plan-myk9-424.md`](../archive/plan-myk9-424.md).  |
 | MYK9-407                     | P3 / Low           | done / verified             | [MYK9-407](https://linear.app/myk9-platform/issue/MYK9-407) — deployed v33 matches source; full/continuous snapshots preserve 48h windows and daily timestamps/verdicts; both admin pages verified. [Closure evidence](myk9-407-hosted-verification-2026-09-06.md). |
-| MYK9-408 / NCR-2026-09-05-01 | P3 / Low           | in-progress / unchanged     | [MYK9-408](https://linear.app/myk9-platform/issue/MYK9-408) — installed prompt still asserts Codex is paused. Reopened original parity gate; prior Claude-disabled owner decision preserved.                               |
+| MYK9-408 / NCR-2026-09-05-01 | P3 / Low           | done / resolved             | [MYK9-408](https://linear.app/myk9-platform/issue/MYK9-408) — resolved September 7: six installed prompts now pass byte parity; recorded scheduler and completed-day boundary proof satisfy the remaining gate.                                                     |
 
 Resolved with passing focused/CI or recorded deployed proof: MYK9-294 (P1), MYK9-381,
 MYK9-289, MYK9-356, MYK9-405 (P2), MYK9-358 and MYK9-406 (P3).
@@ -385,7 +407,7 @@ resolved 7, duplicate 0, rejected 0, blocked 1. No application code changed.
 ### NCR-2026-09-06-02
 
 - **Status:** open
-- **Lifecycle status:** new
+- **Lifecycle status:** unchanged (newly filed September 7)
 - **Classification:** Confirmed HARNESS defect — not a product bug
 - **Severity:** low
 - **Canonical priority:** P3
@@ -397,10 +419,10 @@ resolved 7, duplicate 0, rejected 0, blocked 1. No application code changed.
 - **Pattern:** timing-flake
 - **Detected by:** claude — MYK9-420 pre-merge verification
 - **First seen:** 2026-09-06
-- **Last seen:** 2026-09-06
-- **Consecutive-run count:** 1 (1 failure in 7 full shuffled runs the same day)
+- **Last seen:** 2026-09-07
+- **Consecutive-run count:** 2 dated observations (September 6 natural failure; September 7 deterministic mechanism replay, not a second natural load failure)
 - **Baseline SHA:** `1145aebac77d47c60abd0c45dbe35b07e6c4bca7`
-- **Linear issue:** none, deliberately. Recorded here as evidence only — a single load-induced failure with a known mechanism does not yet meet the Flake Budget bar (two failures for the same spec within 14 days). Promote it if it recurs.
+- **Linear issue:** [MYK9-437](https://linear.app/myk9-platform/issue/MYK9-437), created September 7. The user’s automatic all-severity first-occurrence filing policy supersedes the earlier recurrence-based decision to leave this unfiled. Current proof and closure contract are in Linear and the September 7 report.
 - **Evidence:** Failed once under `pnpm vitest run --sequence.shuffle` (seed `1788723296711`) with `expected { settled: false, pendingUrls: [] } to deeply equal { settled: true, pendingUrls: [] }` at `:190`. A `pnpm qa:codex-review` was running concurrently on the same machine. The assertion calls `waitForAppApiRequestsToSettle` with `idleMs: 5, timeoutMs: 20` on REAL timers, so it needs the event loop to observe 5ms of quiet inside a 20ms budget; under CPU contention it cannot, and the tracker reports `settled: false` with nothing pending — the shape of a starved timer, not of a stranded request.
 - **Expected behavior:** The test asserts a property of `tracker.reset()`, which is independent of wall-clock speed, and should pass on a loaded runner.
 - **Observed behavior:** Passes 5/5 in isolation and in 6 of 7 full shuffled runs; fails when the host is saturated.

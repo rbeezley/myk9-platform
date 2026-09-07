@@ -404,7 +404,7 @@ describe('claude-review.sh', () => {
       expect(existsSync(stub.args)).toBe(false);
     });
 
-    it('skips the network probe when a Bedrock or Vertex provider is configured', () => {
+    it('skips both preflights when auth comes from the environment (Bedrock here; API key and bearer token likewise)', () => {
       const stub = stubClaude('No actionable defects found.');
       const gh = stubGh();
       const prevProbe = process.env.CLAUDE_REVIEW_NET_PROBE_TEST;
@@ -418,6 +418,19 @@ describe('claude-review.sh', () => {
         else process.env.CLAUDE_REVIEW_NET_PROBE_TEST = prevProbe;
         if (prevBedrock === undefined) delete process.env.CLAUDE_CODE_USE_BEDROCK;
         else process.env.CLAUDE_CODE_USE_BEDROCK = prevBedrock;
+      }
+    });
+
+    it('a bearer token (ANTHROPIC_AUTH_TOKEN) skips the Keychain check that would otherwise refuse', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 0, 1); // auth status says logged out
+      const gh = stubGh();
+      const prev = process.env.ANTHROPIC_AUTH_TOKEN;
+      process.env.ANTHROPIC_AUTH_TOKEN = 'test-token';
+      try {
+        expect(run(stub, gh, ['7']).code).toBe(0);
+      } finally {
+        if (prev === undefined) delete process.env.ANTHROPIC_AUTH_TOKEN;
+        else process.env.ANTHROPIC_AUTH_TOKEN = prev;
       }
     });
 

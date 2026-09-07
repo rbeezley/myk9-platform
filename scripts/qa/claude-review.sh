@@ -64,7 +64,18 @@ if [ "$expect_wait" = 1 ]; then
   echo "claude-review: --wait needs a number of seconds (usage: --wait <seconds> [pr-number])" >&2
   exit 2
 fi
-if [ -z "$WAIT" ]; then
+# The preflight exists for ONE case: first-party claude.ai login, whose
+# credentials live in the macOS Keychain that Codex's sandbox denies. Any auth
+# configured through the environment (API key, bearer token, Bedrock, Vertex)
+# neither uses the Keychain nor calls a host the wrapper can name, so both
+# probes are skipped and the review itself is the check (Codex review of
+# #2127, rounds 5-7).
+ENV_AUTH=0
+for v in ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX; do
+  eval "val=\${$v:-}"
+  [ -n "$val" ] && ENV_AUTH=1
+done
+if [ -z "$WAIT" ] && [ "$ENV_AUTH" = 0 ]; then
   # Preflight (before ANY gh/network call, which would hang the same way — Codex
   # review of #2127): the review needs the macOS Keychain (Claude's credentials) and the
   # network. Codex's workspace-write sandbox denies both, and the symptoms are
@@ -94,12 +105,6 @@ if [ -z "$WAIT" ]; then
   # inherit it from the sandboxed parent while actually having network, and
   # trusting it alone would block the documented escalation path (Codex review
   # of #2127, round 3).
-  # Only probe when the endpoint is knowable. Bedrock/Vertex call AWS/Google
-  # hosts the wrapper cannot infer, so the probe is skipped there and the review
-  # itself is the network check (Codex review of #2127, round 6).
-  if [ "${CLAUDE_CODE_USE_BEDROCK:-}" = "1" ] || [ "${CLAUDE_CODE_USE_VERTEX:-}" = "1" ]; then
-    NET_PROBE="echo provider-managed"
-  fi
   if [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
     MARKER=""; [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] && MARKER=" (Codex sandbox marker present)"
     echo "claude-review: no network from this shell${MARKER} — ${ANTHROPIC_BASE_URL:-https://api.anthropic.com} unreachable, so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2

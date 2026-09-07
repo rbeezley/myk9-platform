@@ -52,3 +52,81 @@ export function groupClassesByElement(
 
   return grouped;
 }
+
+/**
+ * The label a class card actually paints in its body: the level (falling back to
+ * the element for standalone classes such as AKC Detective) plus the section.
+ * Deliberately mirrors the card markup — a class's on-screen identity is only
+ * ever these parts, never its full `className`.
+ */
+function getCardVisibleLabel(cls: ClassDefinition): string {
+  return [cls.element, cls.level || cls.element, cls.section || ''].join('|');
+}
+
+/**
+ * Class names whose card must ALSO spell out the full name to stay tellable apart.
+ *
+ * The card body renders only the level (plus section), so two classes that share a
+ * level paint the identical string — a template class beside a cloned, renamed one
+ * carried into the show wizard, e.g. "Interior Advanced" and "Interior Advanced
+ * Preliminary" both reading just `Advanced`. The distinguishing name lived only in
+ * the card's aria-label, so a sighted secretary could not tell which one to remove
+ * (MYK9-389).
+ *
+ * Computed over the WHOLE catalog rather than the filtered view, so a card keeps
+ * its full name even once a search has hidden the twin that made it ambiguous.
+ * Classes with a unique visible label are left alone, which is why standard
+ * template cards are unchanged.
+ */
+export function findAmbiguousClassNames(classes: ClassDefinition[]): Set<string> {
+  const namesByLabel = new Map<string, Set<string>>();
+
+  for (const cls of classes) {
+    const label = getCardVisibleLabel(cls);
+    let names = namesByLabel.get(label);
+    if (!names) {
+      names = new Set<string>();
+      namesByLabel.set(label, names);
+    }
+    names.add(cls.className);
+  }
+
+  const ambiguous = new Set<string>();
+  for (const names of namesByLabel.values()) {
+    if (names.size > 1) {
+      for (const name of names) ambiguous.add(name);
+    }
+  }
+
+  return ambiguous;
+}
+
+/**
+ * Every class name whose card must spell itself out in full.
+ *
+ * Two independent reasons, and the second one is easy to miss. A class is
+ * ambiguous (above) when some OTHER card paints the same string. But a cloned,
+ * renamed class can also arrive with no twin at all: the wizard's
+ * `mergeTemplateWithRetainedClassDefinitions` keys on element|level|section and
+ * ignores the name, so a retained "Interior Advanced Preliminary" DISPLACES the
+ * template's own "Interior Advanced" and is then the only Interior/Advanced entry
+ * in the catalog. Nothing is ambiguous, and the card still reads a bare `Advanced`
+ * — silently presenting a custom class as the standard one.
+ *
+ * `customClassNames` is the caller's list of selections that are not part of the
+ * template's own catalog. Callers with no such concept pass nothing and every
+ * standard label is left exactly as it was.
+ */
+export function findClassNamesNeedingFullLabel(
+  classes: ClassDefinition[],
+  customClassNames: readonly string[] = []
+): Set<string> {
+  const needsFullLabel = findAmbiguousClassNames(classes);
+  const custom = new Set(customClassNames);
+
+  for (const cls of classes) {
+    if (custom.has(cls.className)) needsFullLabel.add(cls.className);
+  }
+
+  return needsFullLabel;
+}

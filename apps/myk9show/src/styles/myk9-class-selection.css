@@ -474,6 +474,26 @@
   border: 0.5px solid var(--border/30);
 }
 
+/*
+ * Full class name, shown only when the level above cannot tell two cards apart
+ * (MYK9-389 — a cloned "Interior Advanced Preliminary" beside the template's
+ * "Interior Advanced"). It is the distinguishing text, so it takes the full
+ * foreground colour rather than the muted one: this line is the thing being
+ * read, not a decoration.
+ */
+.myk9-class-card-full-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 1.25;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+}
+
+.myk9-class-card-full-name.disabled {
+  opacity: 0.7;
+}
+
 .myk9-class-card-order {
   font-size: 14px;
   font-weight: 500;

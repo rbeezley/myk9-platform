@@ -35,7 +35,7 @@ Branches named `pr-###`, scratch branches, or temporary review branches should b
 
 - `docs/**/*.md` (including `docs/plans/`, `docs/superpowers/`, `docs/ux-audits/`, etc.)
 - `apps/*/docs/**/*.md`
-- Top-level tracking/reference docs: `OPEN-TODOS.md`, `TO-DOS.md`, `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only — substantive intent changes still PR)
+- Top-level tracking/reference docs: `README.md`, `CONTEXT.md`, `DESIGN.md`, `PRODUCT.md`, `TECHNICAL_DEBT.md`, `DEFERRED-WORK.md`, `INTENT.md` (additions/clarifications only — substantive intent changes still PR)
 - `packages/*/README.md`, `supabase/functions/*/README.md` (reference docs, not deployment configs)
 
 **Out of scope — still requires a PR:**

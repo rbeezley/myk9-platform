@@ -1,0 +1,58 @@
+name: Mutation tests
+
+# Weekly Stryker run over the four money / scoring / replication targets in
+# stryker.config.mjs (cart, score-validator, placement, replication-conflict).
+# The targets have existed since #719 but nothing scheduled them; a mutation
+# score that drifts down is a test suite that stopped biting, and the only way
+# to see the drift is to run it. Not a PR gate.
+
+on:
+  schedule:
+    - cron: '0 8 * * 0' # Sundays 08:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-tests
+  cancel-in-progress: false
+
+jobs:
+  mutation:
+    name: Stryker mutation targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm -r --filter='./packages/*' build
+
+      - name: Run mutation targets
+        run: pnpm test:mutation
+
+      # A scheduled workflow's result reaches nobody unless someone opens the
+      # Actions tab; this keeps ONE tracking issue mirroring the workflow state.
+      - name: Report status to the tracking issue
+        if: always()
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Mutation tests
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: 'A mutation target dropped below its Stryker threshold, or the runner itself broke.'

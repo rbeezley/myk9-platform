@@ -58,7 +58,9 @@ const ci = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/ci
 describe('CI concurrency', () => {
   it('cancels superseded PR runs but never a main run', () => {
     const block = ci.match(/^concurrency:\n((?:  .*\n)+)/m)?.[1] ?? '';
-    expect(block).toContain('group: ${{ github.workflow }}-${{ github.ref }}');
+    expect(block).toContain(
+      "group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}"
+    );
     expect(block).toContain("cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}");
   });
 });
@@ -82,12 +84,16 @@ concurrency:
 with
 
 ```yaml
-# PR runs are superseded by the next push. A `main` run is never cancelled:
-# merges land minutes apart and the push-only coverage job takes ~25 min, so
-# cancelling on push left 25 of 30 consecutive main runs without a verdict
-# (2026-09-06/07). scripts/qa/ci-concurrency.test.ts pins this.
+# PR runs are superseded by the next push (one group per ref, cancel on push).
+# A `main` run is never cancelled OR replaced: merges land minutes apart and
+# the push-only coverage job takes ~25 min, so a ref-keyed group left 25 of 30
+# consecutive main runs without a verdict (2026-09-06/07) -- and GitHub keeps
+# only ONE queued run per group, so `cancel-in-progress: false` alone would
+# still let a third merge replace the second's pending run (Codex review of
+# #2110). Keying main's group by SHA gives every main commit its own run.
+# scripts/qa/ci-concurrency.test.ts pins both halves.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 ```
 
@@ -968,7 +974,9 @@ cd "$(git rev-parse --show-toplevel)"
 FILES="$(git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard)"
 FILES="$(printf '%s\n' "$FILES" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|css|md|yml|yaml|html)$' | sort -u)"
 [ -z "$FILES" ] && exit 0
-printf '%s\n' "$FILES" | xargs ./node_modules/.bin/prettier --write --ignore-unknown --log-level warn
+# One argument per line: the tree has paths with spaces
+# (docs/design/.../Field Guide Landing Page.html), which a bare xargs would split.
+printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 ./node_modules/.bin/prettier --write --ignore-unknown --log-level warn
 ```
 
 `.codex/hooks.json`: add to the `PostToolUse` array

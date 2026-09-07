@@ -21,7 +21,8 @@ afterEach(() => {
 function stubClaude(
   output: string,
   exitCode = 0,
-  delaySeconds = 0
+  delaySeconds = 0,
+  authExit = 0
 ): { bin: string; log: string; args: string; stateDir: string } {
   const dir = mkdtempSync(join(tmpdir(), 'claude-stub-'));
   dirs.push(dir);
@@ -34,6 +35,8 @@ function stubClaude(
   writeFileSync(
     bin,
     `#!/usr/bin/env bash
+# 'claude auth status' is the wrapper's preflight; only -p runs count as a review.
+if [ "$1" = "auth" ]; then exit ${authExit}; fi
 printf '%s\\n' "$@" > '${args}'
 sleep ${delaySeconds}
 cat ${JSON.stringify(canned)}
@@ -116,6 +119,7 @@ function run(
         CLAUDE_BIN: stub.bin,
         CLAUDE_REVIEW_LOG: stub.log,
         GH_BIN: gh.bin,
+        CLAUDE_REVIEW_NET_PROBE: process.env.CLAUDE_REVIEW_NET_PROBE_TEST ?? 'echo 200',
         ...(stub.stateDir ? { CLAUDE_REVIEW_STATE_DIR: stub.stateDir } : {}),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -303,7 +307,13 @@ describe('claude-review.sh', () => {
     try {
       out = execFileSync('bash', [copy, '7'], {
         encoding: 'utf8',
-        env: { ...process.env, CLAUDE_BIN: stub.bin, CLAUDE_REVIEW_LOG: stub.log, GH_BIN: gh.bin },
+        env: {
+          ...process.env,
+          CLAUDE_BIN: stub.bin,
+          CLAUDE_REVIEW_LOG: stub.log,
+          GH_BIN: gh.bin,
+          CLAUDE_REVIEW_NET_PROBE: process.env.CLAUDE_REVIEW_NET_PROBE_TEST ?? 'echo 200',
+        },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (error) {
@@ -346,6 +356,34 @@ describe('claude-review.sh', () => {
     expect(r.code).toBe(2);
     expect(r.out).toContain('--wait needs a number');
     expect(existsSync(stub.args)).toBe(false); // claude was never invoked
+  });
+
+  describe('sandbox preflight (Codex denies the Keychain and the network)', () => {
+    it('exits 2 in seconds with the escalation hint when claude reports not logged in', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 0, 1);
+      const gh = stubGh();
+      const r = run(stub, gh, ['7']);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('not logged in HERE');
+      expect(r.out).toContain('escalated permissions');
+      expect(existsSync(stub.args)).toBe(false); // the review itself never started
+    });
+
+    it('exits 2 with the escalation hint when the network probe reports 000', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const prev = process.env.CLAUDE_REVIEW_NET_PROBE_TEST;
+      process.env.CLAUDE_REVIEW_NET_PROBE_TEST = 'echo 000';
+      try {
+        const r = run(stub, gh, ['7']);
+        expect(r.code).toBe(2);
+        expect(r.out).toContain('no network');
+        expect(existsSync(stub.args)).toBe(false);
+      } finally {
+        if (prev === undefined) delete process.env.CLAUDE_REVIEW_NET_PROBE_TEST;
+        else process.env.CLAUDE_REVIEW_NET_PROBE_TEST = prev;
+      }
+    });
   });
 
   describe('--detach / --wait (a per-command timeout must never kill the review)', () => {

@@ -77,7 +77,8 @@ Redirect check output to a file and echo the real exit status — a pipe through
 
 ## Deployment
 
-- **myK9Show staging:** myk9-platform-myk9show.vercel.app (auto-deploys from `main`)
+- **What ships today:** Vercel builds every push to `main` and serves it at myk9-platform-myk9show.vercel.app and the public domain. That build starts before CI finishes and is not gated by it. A Vercel build-rate-limit failure on `main` leaves the previous bundle live (LESSONS `vercel-rate-limit`).
+- **Dormant until MYK9-44:** the CI-gated path in `deploy-staging.yml` / `deploy-production.yml`. `STAGING_RELEASE_ENABLED` is unset, so every run is skipped and the `staging-release` / `guides-release` refs are frozen at `5975adadb` (2026-07-27), 700+ commits behind `main`. Do not reason from it, fix it, or gate on it until that issue is In Progress; it is sequenced with the Stripe live cutover (MYK9-11). Runbook: `docs/operations/ci-vercel-deploys.md`.
 - **Legacy production myK9Qv3:** myk9q.com (separate repo, untouched)
 
 ### Vercel Hobby quota / preview deploy discipline

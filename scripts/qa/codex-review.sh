@@ -16,15 +16,36 @@
 # the exact evidence line `scripts/qa/review-gate.ts` accepts, but only when the
 # verdict is clean; with findings it prints them and tells you to re-run.
 #
-# Usage: scripts/qa/codex-review.sh [base-ref]      (default: origin/main)
+# With --post it also WRITES to the PR: findings go up as a `Codex findings for
+# <head>` comment (never evidence — it does not begin `Review gate:`), and a
+# clean verdict is posted by scripts/qa/post-review-gate.sh, the only writer of
+# evidence comments. Nobody types an evidence line by hand.
+#
+# Usage: scripts/qa/codex-review.sh [base-ref] [--post]   (default: origin/main)
+#        pnpm qa:codex-review --post                      (no `--`: see the parser)
 # Env:   CODEX_BIN  override the codex executable (tests use a stub)
+#        GH_BIN     override the gh executable (tests use a stub)
 # Exit:  0 review ran and found nothing actionable
 #        1 review ran and reported findings (fix, re-run against the new head)
 #        2 review did NOT complete (usage limit, interrupted, cli failure, or
 #          unrecognized output) — not a verdict, never post evidence
 set -uo pipefail
 
-BASE_REF="${1:-origin/main}"
+# `--post` is a flag, not a base ref, and pnpm forwards a bare `--` to the
+# script — `pnpm qa:codex-review -- --post` would otherwise review base `--`
+# and die in `git rev-parse`. Parse instead of indexing $1.
+BASE_REF="origin/main"
+for arg in "$@"; do
+  case "$arg" in --post | --) ;; *) BASE_REF="$arg" ;; esac
+done
+POST=0
+for arg in "$@"; do [ "$arg" = "--post" ] && POST=1; done
+GH="${GH_BIN:-gh}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+POSTER="$HERE/post-review-gate.sh"
+# One definition of "clean verdict" for both wrappers and the poster.
+# shellcheck source=scripts/qa/review-verdict.sh
+. "$HERE/review-verdict.sh"
 CODEX="${CODEX_BIN:-codex}"
 BASE_SHA="$(git rev-parse "$BASE_REF")"
 HEAD_SHA="$(git rev-parse HEAD)"
@@ -41,25 +62,67 @@ echo "codex-review: ${BASE_REF} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> $
 "$CODEX" review --base "$BASE_REF" -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
-if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"; then
-  echo "codex-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
-  grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" | head -3
-  exit 2
-fi
+abort_lines() {
+  grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"
+}
 
 # The verdict is everything after the CLI's own "codex" marker line.
 VERDICT="$(awk '/^codex$/{f=1; next} f' "$LOG")"
 if [ -z "$VERDICT" ]; then
+  if abort_lines > /dev/null; then
+    echo "codex-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
+    abort_lines | head -3
+    exit 2
+  fi
   echo "codex-review: no verdict block found in the log (cli exit ${CLI_EXIT}); treat as not run."
   tail -5 "$LOG"
   exit 2
 fi
 
+# FINDINGS ARE PROCESSED BEFORE EVERY INCOMPLETENESS GUARD. A review that
+# reported a defect and then hit a blocker has still reported a defect, and
+# exiting 2 here would leave an already-green gate green over it (Codex review
+# of #2115, round 5). It also removes a false abort of the wrapper's own
+# making: the log echoes commands the reviewer ran, and on round 5 a reproduction
+# printed this wrapper's own "Review was interrupted" line at column 0, which
+# the anchored grep read as a real abort and threw away a completed review.
+
 echo "$VERDICT"
 if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."
+  # Findings belong ON the PR: without this they existed only in a local log,
+  # and the PR carried nothing but "12 findings, all addressed". This comment
+  # never begins with `Review gate:`, so review-gate.ts never reads it as
+  # evidence — and the clean re-run counts its [P*] bullets for the N.
+  if [ "$POST" = 1 ]; then
+    PR="$("$GH" pr view --json number -q .number)"
+    # A lost findings comment is not a cosmetic failure: the next clean run
+    # counts N from these comments, so a silently dropped one makes the
+    # evidence read "no findings" for a head that had them (Codex, #2115 P2).
+    if ! "$GH" pr comment "$PR" --body "$(printf 'Codex findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"; then
+      echo "codex-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
+      exit 2
+    fi
+    # If this head already carries clean evidence, the findings comment alone
+    # leaves the gate GREEN — review-gate.ts only reads `Review gate:` lines,
+    # and the old clean one is still the latest (Codex review of #2115, round
+    # 3). Withdraw it with an evidence line the checker rejects.
+    FOUND="$(echo "$VERDICT" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+    if ! bash "$POSTER" --withdraw "$PR" codex "$BASE_SHA" "$HEAD_SHA" "${FOUND} findings, not addressed" "$LOG"; then
+      echo "codex-review: findings posted, but the earlier clean evidence for this head could NOT be withdrawn. Exit 2 — check the gate status by hand." >&2
+      exit 2
+    fi
+  fi
   exit 1
+fi
+
+# No findings — now the incompleteness guards decide, and they are strict:
+# nothing below may certify a review that did not finish.
+if abort_lines > /dev/null; then
+  echo "codex-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
+  abort_lines | head -3
+  exit 2
 fi
 
 # Clean is a POSITIVE match, never the absence of findings: a verdict block
@@ -81,34 +144,42 @@ if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted
   exit 2
 fi
 
-# Only the first non-empty paragraph can certify the review (MYK9-415).
-# Join wrapped lines so sentence matching behaves the same across line wraps.
-FIRST_PARAGRAPH="$(echo "$VERDICT" | awk '
-  /^[[:space:]]*$/ { if (started) exit; next }
-  { printf "%s%s", started ? " " : "", $0; started=1 }
-')"
-# The stable part of a clean verdict is the SENTENCE "No actionable ..."; the
-# noun varies ("defects", "regressions", "correctness, security, or data-flow
-# regressions"), so match only the prefix (Codex review of #2063, P2).
-#
-# That sentence is not always the first thing Codex says. On #2074 it opened
-# with a summary — "The documentation-only change restores ... requirements.
-# No actionable defects found; git diff --check passed." — and a verdict
-# anchored to the start of the BLOCK rejected a review that had genuinely run
-# and genuinely found nothing. Anchor to a sentence boundary instead.
-#
-# Two arms, and the second is case-SENSITIVE on purpose. Mid-string, only a
-# capitalised "No" is a sentence opening; accepting lowercase after any [.!?]
-# would let an ellipsis in "the run stopped... no actionable verdict" read as
-# clean, which is the exact class of false pass the block below guards.
-if ! { echo "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*no actionable\b' ||
-  echo "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
+# Only the first non-empty paragraph can certify the review (MYK9-415), and it
+# must carry a whole clean-verdict SENTENCE, not just its opening. That rule
+# lives in scripts/qa/review-verdict.sh, shared with the poster and the Claude
+# wrapper — see its header for why the sentence is not anchored to the start of
+# the block (#2074 opened with a summary and a block-anchored match rejected a
+# review that had genuinely run).
+if ! review_verdict_is_clean "$VERDICT"; then
   echo
   echo "codex-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
   exit 2
 fi
 
-echo
-echo "codex-review: clean. Post this as the FIRST line of a PR comment:"
-echo "Review gate: codex reviewed ${BASE_SHA:0:9}..${HEAD_SHA:0:9} — no findings"
+VERDICT_LINE="no findings"
+if [ "$POST" = 1 ]; then
+  PR="$("$GH" pr view --json number -q .number)"
+  # N comes from the wrapper's OWN earlier findings comments on this PR, so
+  # "N findings, all addressed" is counted from what was posted, not typed.
+  # Fail closed: a transient API failure here returns an empty history, which
+  # would post "no findings" over a head that had them (Codex, #2115 round 2).
+  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Codex findings for"))] | join("\n")')"; then
+    echo "codex-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
+    exit 2
+  fi
+  N="$(printf '%s' "$PRIOR" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+  [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
+  # The wrapper runs without errexit; a poster failure (grammar refusal, gh
+  # error) must not fall through to exit 0 as if evidence had been posted.
+  if ! bash "$POSTER" "$PR" codex "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
+    echo "codex-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
+    exit 2
+  fi
+else
+  echo
+  echo "codex-review: clean. Do NOT type the evidence by hand — re-run with --post, or:"
+  echo "  bash scripts/qa/post-review-gate.sh <pr> codex ${BASE_SHA:0:9} ${HEAD_SHA:0:9} \"$VERDICT_LINE\" $LOG"
+  # The line the poster will write, printed so a human can see what is claimed.
+  echo "Review gate: codex reviewed ${BASE_SHA:0:9}..${HEAD_SHA:0:9} — no findings"
+fi
 exit 0

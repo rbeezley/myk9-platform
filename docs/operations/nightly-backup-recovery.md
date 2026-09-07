@@ -76,10 +76,32 @@ access was revoked from PUBLIC, anon and authenticated. No cross-project export/
 Verification compared full rows for unaffected entities and all non-scoring columns for entries,
 excluding derived placement and replication markers. No hard-delete path was exercised.
 
+### Dogs, people and clubs — operator-assisted verification
+
+On 2026-09-07, browser control was unavailable. Richard ran the same read-only aggregate query
+in the temporary restore and `myK9-platform`, identified each project, and supplied both results.
+All six counts and fingerprints matched. Fingerprints used
+`md5(string_agg(to_jsonb(t)::text, '' ORDER BY id))`, covering every column in each row.
+
+| Table | Rows in each project | Matching fingerprint |
+| --- | --- | --- |
+| dogs | 266 | `ca05243eeb8da96fac7ea31275ac67b9` |
+| people | 17 | `1ed139d9908c1c856c23dbc4cde27c14` |
+| clubs | 5 | `6e04a8a44a9493c783ca86028903a905` |
+| club_members | 9 | `1a648e68267b48014a6220724beb41c2` |
+| club_officers | 0 | NULL in both (empty tables) |
+| exhibitor_profiles | 15 | `c0a4b78a63e14834c14555ef84480fce` |
+
+This verifies the stored rows, including their relationship-ID values, match the source.
+It does not independently establish absence of pre-existing orphan references, validate separate
+relationship tables, or test login, role permissions, or application behavior. Empty officer tables
+confirm parity but do not exercise restoration of populated officer records.
+
 ## Remaining evidence gates
 
 - Rehearse transfer of selected backup records into a separate recovery destination.
 - Verify authenticated/anonymous app behavior and actual tablet synchronization after repair.
+- Check remaining ownership/handler relationship tables and explicit referential-integrity queries.
 - Test any additional damaged columns and hard/soft-delete paths before calling them proven.
 - Record actual retention and accepted RPO/RTO; resolve copied-job startup handling before launch.
 - Plan independent Storage-file protection; database backups exclude uploaded file contents.

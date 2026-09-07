@@ -226,5 +226,15 @@ export function runCli(
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  // `--verdict "<text>"`: exit 0 when CLEAN_VERDICT accepts the text, 2 when it
+  // does not. scripts/qa/post-review-gate.sh calls this instead of carrying its
+  // own copy of the grammar — a hand-copied regex drifts from the parser that
+  // actually judges the comment, which is how `finding(s)` came to be documented
+  // as accepted while CLEAN_VERDICT rejected it. One grammar, one owner.
+  const verdictFlag = process.argv.indexOf('--verdict');
+  if (verdictFlag >= 0) {
+    const text = (process.argv[verdictFlag + 1] ?? '').trim();
+    process.exit(CLEAN_VERDICT.test(text) ? 0 : 2);
+  }
   process.exitCode = runCli();
 }

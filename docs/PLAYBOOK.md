@@ -61,18 +61,30 @@ This is the canonical 8-step loop: implement → simplify → commit → PR → 
 
 Run Codex review **before** merging, not after — it's a gate, not a follow-up.
 
-**If Codex is genuinely unavailable** (usage limit, outage, auth failure — not merely
-slow or inconvenient), the sanctioned fallback is **adversarial subagents, plural**,
-one per PR or per lens, run in parallel and prompted to _find bugs, not approve_
-("assume the author was overconfident"; "report only defects with a concrete failure
-scenario"). A skill's built-in `code-reviewer` step is **not** the fallback — that
-substitution is a recorded lapse and stays banned.
+**If the required harness is genuinely unavailable** (usage limit, outage, auth failure
+— not merely slow or inconvenient), use the **human-fallback** path instead of
+silently treating same-harness agents as equivalent:
 
-The fallback is second-best and must be labelled as such: say in the PR body that the
-gate did not run and what ran instead, keep the PR a draft when nothing is
-time-pressured, and re-run Codex once it is available — against the merge commit, with
-a follow-up issue, if the PR already landed. On #1536 two clean subagent rounds still
-missed a P1 that Codex caught.
+1. Run at least two adversarial subagent reviews in parallel, using separate lenses and
+   prompts that say to _find bugs, not approve_ ("assume the author was overconfident";
+   "report only defects with a concrete failure scenario").
+2. Fix every finding and wait for the repository's required checks to pass.
+3. A repository OWNER or MEMBER posts a first-line attestation in this exact form,
+   pinned to the current head SHA, followed by the required detail lines:
+
+   ```text
+   Review gate: human-fallback reviewed <base>..<head> — 2 adversarial subagent reviews, all findings addressed
+   Fallback reason: Claude unavailable — <reason>
+   Adversarial subagent review: <lens one>
+   Adversarial subagent review: <lens two>
+   Required checks: passing
+   ```
+
+This is an explicitly labelled, second-best gate. Keep the PR a draft when nothing is
+time-pressured; when a maintainer authorizes the fallback, mark it ready so the status
+can be evaluated. Re-run the real independent gate once the harness is available and
+record that follow-up. On #1536 two clean subagent rounds still missed a P1 that Codex
+caught.
 
 ## 5. Database change
 

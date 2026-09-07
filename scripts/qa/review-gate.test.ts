@@ -8,6 +8,9 @@ import {
   flattenPages,
   parseGateComments,
   REVIEW_GATE_LINE,
+  HUMAN_FALLBACK_ASSOCIATIONS,
+  humanFallbackAccepted,
+  requiredChecksResult,
   TRUSTED_ASSOCIATIONS,
   verdictAccepted,
   type GateComment,
@@ -66,6 +69,46 @@ describe('evaluateReviewGate', () => {
     });
     expect(r.state).toBe('success');
   });
+
+  it('passes the documented human fallback with two adversarial reviews', () => {
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          [
+            `Review gate: human-fallback reviewed 0a2020c7a..${H9} — 2 adversarial subagent reviews, all findings addressed`,
+            'Fallback reason: Claude unavailable — authentication failure',
+            'Adversarial subagent review: correctness and data flow',
+            'Adversarial subagent review: security and migration safety',
+            'Required checks: passing',
+          ].join('\n')
+        ),
+      ],
+    });
+    expect(r.state).toBe('success');
+    expect(r.evidence?.reviewer).toBe('human-fallback');
+  });
+
+  it.each(['one adversarial review', 'missing required checks', 'untrusted maintainer claim'])(
+    'rejects an incomplete human fallback: %s',
+    scenario => {
+      const lines = [
+        `Review gate: human-fallback reviewed 0a2020c7a..${H9} — 2 adversarial subagent reviews, all findings addressed`,
+        'Fallback reason: Claude unavailable — authentication failure',
+        'Adversarial subagent review: correctness and data flow',
+        'Adversarial subagent review: security and migration safety',
+        'Required checks: passing',
+      ];
+      if (scenario === 'one adversarial review') lines.splice(3, 1);
+      if (scenario === 'missing required checks') lines.splice(4, 1);
+      const association = scenario === 'untrusted maintainer claim' ? 'COLLABORATOR' : 'OWNER';
+      const r = evaluateReviewGate({
+        headSha: HEAD,
+        comments: [comment(lines.join('\n'), undefined, undefined, association)],
+      });
+      expect(r.state).toBe('failure');
+    }
+  );
 
   it('fails when the review did not actually run, even if a line was posted', () => {
     const r = evaluateReviewGate({
@@ -256,9 +299,77 @@ describe('contract with the ship-pr skill', () => {
       'ship-pr must document at least one concrete Review gate line'
     ).toBeGreaterThan(0);
     for (const ex of examples) {
-      const r = evaluateReviewGate({ headSha: ex[3].padEnd(40, '0'), comments: [comment(ex[0])] });
+      const body =
+        ex[1] === 'human-fallback'
+          ? [
+              ex[0],
+              'Fallback reason: Claude unavailable — authentication failure',
+              'Adversarial subagent review: correctness',
+              'Adversarial subagent review: security',
+              'Required checks: passing',
+            ].join('\n')
+          : ex[0];
+      const r = evaluateReviewGate({
+        headSha: ex[3].padEnd(40, '0'),
+        comments: [comment(body)],
+      });
       expect(r.state, ex[0]).toBe('success');
     }
+  });
+});
+
+describe('human fallback policy', () => {
+  it('limits fallback authorization to owners and members', () => {
+    expect([...HUMAN_FALLBACK_ASSOCIATIONS]).toEqual(['OWNER', 'MEMBER']);
+  });
+
+  it('does not treat a normal clean review as a human fallback', () => {
+    const evidence = parseGateComments([
+      comment(`Review gate: claude reviewed 0a2020c7a..${H9} — no findings`),
+    ])[0];
+    expect(humanFallbackAccepted(evidence)).toBe(false);
+  });
+});
+
+describe('required check verification', () => {
+  it('accepts passing check runs and status contexts', () => {
+    expect(
+      requiredChecksResult(
+        [
+          { name: 'Quality Checks', conclusion: 'SUCCESS' },
+          { context: 'Test', state: 'SUCCESS' },
+          { name: 'Review gate', conclusion: 'FAILURE' },
+        ],
+        ['Quality Checks', 'Test', 'Review gate']
+      )
+    ).toEqual({ pending: [], failed: [] });
+  });
+
+  it('does not treat the review gate itself as a required prerequisite', () => {
+    expect(
+      requiredChecksResult([{ name: 'Review gate', conclusion: 'FAILURE' }], ['Review gate'])
+    ).toEqual({ pending: [], failed: [] });
+  });
+
+  it('reports missing and in-flight checks as pending', () => {
+    expect(
+      requiredChecksResult(
+        [{ name: 'Quality Checks', conclusion: null, state: 'IN_PROGRESS' }],
+        ['Quality Checks', 'Test']
+      )
+    ).toEqual({ pending: ['Quality Checks', 'Test'], failed: [] });
+  });
+
+  it('fails closed on failed or unknown conclusions', () => {
+    expect(
+      requiredChecksResult(
+        [
+          { name: 'Quality Checks', conclusion: 'FAILURE' },
+          { name: 'Test', conclusion: 'SOME_FUTURE_VALUE' },
+        ],
+        ['Quality Checks', 'Test']
+      )
+    ).toEqual({ pending: [], failed: ['Quality Checks', 'Test'] });
   });
 });
 

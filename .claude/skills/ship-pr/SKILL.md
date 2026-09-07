@@ -148,7 +148,17 @@ Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
 
 The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The verdict is the whole remainder of the line and must be exactly `no findings` or `<N> findings, all addressed` / `<N> findings, all fixed` — `finding(s)` is **not** accepted, and neither is a parenthetical, "not all addressed", or "no findings yet"; `1 findings, all addressed` is the singular, ugly but green. `scripts/qa/review-gate.ts --verdict "<text>"` answers 0/2 for any candidate, and the poster asks it rather than carrying its own copy of the grammar. Put detail on the comment's later lines. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point. Editing or deleting the evidence comment re-evaluates it too.
 
-**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow): use the § 4 fallback — adversarial subagents, plural, prompted to find bugs rather than approve — label the PR body with what ran instead, keep the PR a draft when nothing is time-pressured, and re-run the real gate once it is available.
+**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), use the documented `human-fallback` path: run two adversarial subagent reviews in parallel, fix every finding, wait for required checks to pass, and have a repository OWNER or MEMBER post this exact first line against the current head, followed by the detail lines shown in `docs/PLAYBOOK.md`:
+
+```text
+Review gate: human-fallback reviewed 0a2020c7a..5af9af158 — 2 adversarial subagent reviews, all findings addressed
+Fallback reason: Claude unavailable — authentication failure
+Adversarial subagent review: correctness
+Adversarial subagent review: security
+Required checks: passing
+```
+
+The fallback is explicitly labelled and second-best. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes it, mark the PR ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
 
 **Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward. Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
 

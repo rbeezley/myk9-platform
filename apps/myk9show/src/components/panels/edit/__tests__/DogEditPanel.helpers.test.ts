@@ -83,7 +83,12 @@ describe('dogFormSchema — dog identity fields', () => {
     } as unknown as Partial<DogType>);
 
     expect(dogFormSchema.safeParse(formData).success).toBe(true);
-    expect(dogFormSchema.safeParse({ ...formData, registrations: [{ ...formData.registrations[0], registeredName: '' }] }).success).toBe(true);
+    expect(
+      dogFormSchema.safeParse({
+        ...formData,
+        registrations: [{ ...formData.registrations[0], registeredName: '' }],
+      }).success
+    ).toBe(true);
   });
 
   it('still requires a call name — it is the identifier now', () => {

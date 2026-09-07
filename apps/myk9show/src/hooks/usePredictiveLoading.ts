@@ -34,7 +34,7 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
     enableShowPredictions = true,
     trackNavigation = true,
     trackRelationships = true,
-    preloadThreshold = 0.3
+    preloadThreshold = 0.3,
   } = options;
 
   const location = useLocation();
@@ -42,7 +42,7 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
     isActive: enablePreloading,
     preloadingCount: 0,
     lastPreloadTime: null,
-    showEntryPredictions: []
+    showEntryPredictions: [],
   });
 
   const [routeStartTime, setRouteStartTime] = useState<Date>(new Date());
@@ -57,17 +57,17 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
 
     if (previousRoute && previousRoute !== currentRoute) {
       const loadTime = currentTime.getTime() - routeStartTime.getTime();
-      
+
       // Track navigation pattern
       predictiveLoader.trackNavigationPattern(previousRoute, currentRoute, loadTime);
-      
+
       // Trigger preloading for next likely views
       predictiveLoader.preloadLikelyViews(currentRoute);
 
       queueMicrotask(() => {
         setState(prev => ({
           ...prev,
-          lastPreloadTime: currentTime
+          lastPreloadTime: currentTime,
         }));
       });
     }
@@ -81,80 +81,87 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
   /**
    * Track entity access and relationships
    */
-  const trackEntityAccess = useCallback((
-    entityType: 'club' | 'person' | 'dog' | 'show' | 'entry',
-    entityId: string,
-    relatedEntities?: Array<{ type: 'club' | 'person' | 'dog' | 'show' | 'entry'; ids: string[] }>
-  ) => {
-    if (!trackRelationships || !enablePreloading) return;
+  const trackEntityAccess = useCallback(
+    (
+      entityType: 'club' | 'person' | 'dog' | 'show' | 'entry',
+      entityId: string,
+      relatedEntities?: Array<{ type: 'club' | 'person' | 'dog' | 'show' | 'entry'; ids: string[] }>
+    ) => {
+      if (!trackRelationships || !enablePreloading) return;
 
-    // Track each relationship
-    if (relatedEntities) {
-      for (const related of relatedEntities) {
-        predictiveLoader.trackRelationshipAccess(
-          entityType,
-          entityId,
-          related.type,
-          related.ids
-        );
+      // Track each relationship
+      if (relatedEntities) {
+        for (const related of relatedEntities) {
+          predictiveLoader.trackRelationshipAccess(entityType, entityId, related.type, related.ids);
+        }
       }
-    }
-  }, [enablePreloading, trackRelationships]);
+    },
+    [enablePreloading, trackRelationships]
+  );
 
   /**
    * Generate show entry predictions for a dog
    */
-  const generateShowPredictions = useCallback((dogId?: string) => {
-    if (!enableShowPredictions) return [];
+  const generateShowPredictions = useCallback(
+    (dogId?: string) => {
+      if (!enableShowPredictions) return [];
 
-    const predictions = predictiveLoader.generateShowEntryPredictions(dogId);
-    
-    setState(prev => ({
-      ...prev,
-      showEntryPredictions: predictions.map(pred => ({
-        showId: pred.showId,
-        showName: pred.showName,
-        dogId: pred.dogId,
-        dogName: pred.dogName,
-        confidence: pred.confidence
-      }))
-    }));
+      const predictions = predictiveLoader.generateShowEntryPredictions(dogId);
 
-    return predictions;
-  }, [enableShowPredictions]);
+      setState(prev => ({
+        ...prev,
+        showEntryPredictions: predictions.map(pred => ({
+          showId: pred.showId,
+          showName: pred.showName,
+          dogId: pred.dogId,
+          dogName: pred.dogName,
+          confidence: pred.confidence,
+        })),
+      }));
+
+      return predictions;
+    },
+    [enableShowPredictions]
+  );
 
   /**
    * Get show entry predictions for a specific dog
    */
-  const getShowPredictions = useCallback((dogId: string) => {
-    if (!enableShowPredictions) return [];
-    
-    const predictions = predictiveLoader.getShowEntryPredictions(dogId);
-    return predictions.filter(pred => pred.confidence >= preloadThreshold);
-  }, [enableShowPredictions, preloadThreshold]);
+  const getShowPredictions = useCallback(
+    (dogId: string) => {
+      if (!enableShowPredictions) return [];
+
+      const predictions = predictiveLoader.getShowEntryPredictions(dogId);
+      return predictions.filter(pred => pred.confidence >= preloadThreshold);
+    },
+    [enableShowPredictions, preloadThreshold]
+  );
 
   /**
    * Manually trigger preloading for a specific route or entity
    */
-  const triggerPreload = useCallback((target: string, type: 'route' | 'entity' = 'route') => {
-    if (!enablePreloading) return;
+  const triggerPreload = useCallback(
+    (target: string, type: 'route' | 'entity' = 'route') => {
+      if (!enablePreloading) return;
 
-    logger.debug(`Manual preload triggered for ${type}: ${target}`, 'hooks', {});
-    
-    setState(prev => ({
-      ...prev,
-      preloadingCount: prev.preloadingCount + 1,
-      lastPreloadTime: new Date()
-    }));
+      logger.debug(`Manual preload triggered for ${type}: ${target}`, 'hooks', {});
 
-    // Simulate preload completion
-    setTimeout(() => {
       setState(prev => ({
         ...prev,
-        preloadingCount: Math.max(0, prev.preloadingCount - 1)
+        preloadingCount: prev.preloadingCount + 1,
+        lastPreloadTime: new Date(),
       }));
-    }, 1500);
-  }, [enablePreloading]);
+
+      // Simulate preload completion
+      setTimeout(() => {
+        setState(prev => ({
+          ...prev,
+          preloadingCount: Math.max(0, prev.preloadingCount - 1),
+        }));
+      }, 1500);
+    },
+    [enablePreloading]
+  );
 
   /**
    * Get analytics about predictive loading performance
@@ -170,11 +177,11 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
    */
   const resetPredictiveData = useCallback(() => {
     predictiveLoader.resetPredictiveData();
-    
+
     setState(prev => ({
       ...prev,
       showEntryPredictions: [],
-      lastPreloadTime: null
+      lastPreloadTime: null,
     }));
   }, []);
 
@@ -184,7 +191,7 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
   const togglePredictiveLoading = useCallback((enabled: boolean) => {
     setState(prev => ({
       ...prev,
-      isActive: enabled
+      isActive: enabled,
     }));
   }, []);
 
@@ -196,7 +203,7 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
       const analytics = predictiveLoader.getAnalytics();
       setState(prev => ({
         ...prev,
-        preloadingCount: analytics.preloadQueue.pending + analytics.preloadQueue.loading
+        preloadingCount: analytics.preloadQueue.pending + analytics.preloadQueue.loading,
       }));
     }, 2000);
 
@@ -221,7 +228,7 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
 
     // Tracking methods
     trackEntityAccess,
-    
+
     // Prediction methods
     generateShowPredictions,
     getShowPredictions,
@@ -230,7 +237,7 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
     // Analytics and control
     getAnalytics,
     resetPredictiveData,
-    togglePredictiveLoading
+    togglePredictiveLoading,
   };
 }
 
@@ -243,26 +250,31 @@ export function useRoutePreloading() {
     enablePreloading: true,
     enableShowPredictions: false,
     trackNavigation: true,
-    trackRelationships: false
+    trackRelationships: false,
   });
 
-  const preloadRoute = useCallback((route: string) => {
-    triggerPreload(route, 'route');
-  }, [triggerPreload]);
+  const preloadRoute = useCallback(
+    (route: string) => {
+      triggerPreload(route, 'route');
+    },
+    [triggerPreload]
+  );
 
   const getPreloadStats = useCallback(() => {
     const analytics = getAnalytics();
-    return analytics ? {
-      navigationPatterns: analytics.navigationPatterns,
-      successRate: analytics.successRate,
-      queueSize: analytics.preloadQueue.total
-    } : null;
+    return analytics
+      ? {
+          navigationPatterns: analytics.navigationPatterns,
+          successRate: analytics.successRate,
+          queueSize: analytics.preloadQueue.total,
+        }
+      : null;
   }, [getAnalytics]);
 
   return {
     isActive,
     preloadRoute,
-    getPreloadStats
+    getPreloadStats,
   };
 }
 
@@ -271,16 +283,13 @@ export function useRoutePreloading() {
  * Specialized for predicting likely show entries
  */
 export function useShowEntryPredictions(dogId?: string) {
-  const { 
-    generateShowPredictions, 
-    getShowPredictions, 
-    showEntryPredictions 
-  } = usePredictiveLoading({
-    enablePreloading: false,
-    enableShowPredictions: true,
-    trackNavigation: false,
-    trackRelationships: false
-  });
+  const { generateShowPredictions, getShowPredictions, showEntryPredictions } =
+    usePredictiveLoading({
+      enablePreloading: false,
+      enableShowPredictions: true,
+      trackNavigation: false,
+      trackRelationships: false,
+    });
 
   const predictions = dogId ? getShowPredictions(dogId) : showEntryPredictions;
 
@@ -288,15 +297,18 @@ export function useShowEntryPredictions(dogId?: string) {
     generateShowPredictions(dogId);
   }, [generateShowPredictions, dogId]);
 
-  const getHighConfidencePredictions = useCallback((minConfidence = 0.5) => {
-    return predictions.filter(pred => pred.confidence >= minConfidence);
-  }, [predictions]);
+  const getHighConfidencePredictions = useCallback(
+    (minConfidence = 0.5) => {
+      return predictions.filter(pred => pred.confidence >= minConfidence);
+    },
+    [predictions]
+  );
 
   return {
     predictions,
     refreshPredictions,
     getHighConfidencePredictions,
-    hasPredictions: predictions.length > 0
+    hasPredictions: predictions.length > 0,
   };
 }
 
@@ -309,63 +321,83 @@ export function useRelationshipPreloading() {
     enablePreloading: true,
     enableShowPredictions: false,
     trackNavigation: false,
-    trackRelationships: true
+    trackRelationships: true,
   });
 
-  const trackDogRelationships = useCallback((dogId: string, ownerId?: string, showIds?: string[]) => {
-    const relatedEntities: Array<{ type: 'dog' | 'club' | 'show' | 'entry' | 'person'; ids: string[] }> = [];
+  const trackDogRelationships = useCallback(
+    (dogId: string, ownerId?: string, showIds?: string[]) => {
+      const relatedEntities: Array<{
+        type: 'dog' | 'club' | 'show' | 'entry' | 'person';
+        ids: string[];
+      }> = [];
 
-    if (ownerId) {
-      relatedEntities.push({ type: 'person', ids: [ownerId] });
-    }
+      if (ownerId) {
+        relatedEntities.push({ type: 'person', ids: [ownerId] });
+      }
 
-    if (showIds && showIds.length > 0) {
-      relatedEntities.push({ type: 'show', ids: showIds });
-    }
+      if (showIds && showIds.length > 0) {
+        relatedEntities.push({ type: 'show', ids: showIds });
+      }
 
-    trackEntityAccess('dog', dogId, relatedEntities);
-  }, [trackEntityAccess]);
+      trackEntityAccess('dog', dogId, relatedEntities);
+    },
+    [trackEntityAccess]
+  );
 
-  const trackPersonRelationships = useCallback((personId: string, dogIds?: string[], clubIds?: string[]) => {
-    const relatedEntities: Array<{ type: 'dog' | 'club' | 'show' | 'entry' | 'person'; ids: string[] }> = [];
+  const trackPersonRelationships = useCallback(
+    (personId: string, dogIds?: string[], clubIds?: string[]) => {
+      const relatedEntities: Array<{
+        type: 'dog' | 'club' | 'show' | 'entry' | 'person';
+        ids: string[];
+      }> = [];
 
-    if (dogIds && dogIds.length > 0) {
-      relatedEntities.push({ type: 'dog', ids: dogIds });
-    }
+      if (dogIds && dogIds.length > 0) {
+        relatedEntities.push({ type: 'dog', ids: dogIds });
+      }
 
-    if (clubIds && clubIds.length > 0) {
-      relatedEntities.push({ type: 'club', ids: clubIds });
-    }
+      if (clubIds && clubIds.length > 0) {
+        relatedEntities.push({ type: 'club', ids: clubIds });
+      }
 
-    trackEntityAccess('person', personId, relatedEntities);
-  }, [trackEntityAccess]);
+      trackEntityAccess('person', personId, relatedEntities);
+    },
+    [trackEntityAccess]
+  );
 
-  const trackShowRelationships = useCallback((showId: string, clubId?: string, entryIds?: string[]) => {
-    const relatedEntities: Array<{ type: 'dog' | 'club' | 'show' | 'entry' | 'person'; ids: string[] }> = [];
+  const trackShowRelationships = useCallback(
+    (showId: string, clubId?: string, entryIds?: string[]) => {
+      const relatedEntities: Array<{
+        type: 'dog' | 'club' | 'show' | 'entry' | 'person';
+        ids: string[];
+      }> = [];
 
-    if (clubId) {
-      relatedEntities.push({ type: 'club', ids: [clubId] });
-    }
+      if (clubId) {
+        relatedEntities.push({ type: 'club', ids: [clubId] });
+      }
 
-    if (entryIds && entryIds.length > 0) {
-      relatedEntities.push({ type: 'entry', ids: entryIds });
-    }
+      if (entryIds && entryIds.length > 0) {
+        relatedEntities.push({ type: 'entry', ids: entryIds });
+      }
 
-    trackEntityAccess('show', showId, relatedEntities);
-  }, [trackEntityAccess]);
+      trackEntityAccess('show', showId, relatedEntities);
+    },
+    [trackEntityAccess]
+  );
 
   const getRelationshipStats = useCallback(() => {
     const analytics = getAnalytics();
-    return analytics ? {
-      relationshipHints: analytics.relationshipHints,
-      successRate: analytics.successRate
-    } : null;
+    return analytics
+      ? {
+          relationshipHints: analytics.relationshipHints,
+          successRate: analytics.successRate,
+        }
+      : null;
   }, [getAnalytics]);
 
   return {
     trackDogRelationships,
     trackPersonRelationships,
     trackShowRelationships,
-    getRelationshipStats
+    getRelationshipStats,
   };
 }

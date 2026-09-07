@@ -16,10 +16,12 @@
 There are three ways in. Use whichever fits you.
 
 **If you signed in with a myK9Show account** (assigned judges, secretaries):
+
 1. Tap **Ringside** in the sidebar — it takes you straight to today's show.
 2. You're in. No passcode needed.
 
 **If the secretary gave you a show passcode or QR code** (guest judges, stewards, volunteers):
+
 1. Open myK9Show in your browser.
 2. Enter the **show passcode**, or scan the **QR code**.
 3. You're in. No account needed.
@@ -94,13 +96,13 @@ Show venues often have weak signal. The app is built for it.
 
 ## If something goes wrong
 
-| What you see | What to do |
-|---|---|
-| You can't find your class | Check with the secretary — the class may not be published yet |
-| The passcode doesn't work | Ask the secretary for the current code; they can regenerate it |
-| Your scores aren't reaching the secretary | Check the **Offline** banner — scores sync when the connection returns |
-| The timer reset itself | Restart timing, then tap **Save** — scores are saved by hand, not automatically |
-| The app stops responding | Close the browser tab and reopen it. If you came in by QR code, scan it again |
+| What you see                              | What to do                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------- |
+| You can't find your class                 | Check with the secretary — the class may not be published yet                   |
+| The passcode doesn't work                 | Ask the secretary for the current code; they can regenerate it                  |
+| Your scores aren't reaching the secretary | Check the **Offline** banner — scores sync when the connection returns          |
+| The timer reset itself                    | Restart timing, then tap **Save** — scores are saved by hand, not automatically |
+| The app stops responding                  | Close the browser tab and reopen it. If you came in by QR code, scan it again   |
 
 ---
 
@@ -114,12 +116,12 @@ Find the trial secretary at the show desk. They control access codes, the run or
 
 Shots from `docs/training/screenshot-shot-list.md`. All captured 2026-06-25 against staging.
 
-| Shot ID | Section | Description | Viewport | Status |
-|---|---|---|---|---|
-| J-01 | Get into ringside | Passcode entry screen | Mobile | captured 2026-06-25 |
-| J-02 | Find your class | Class list by trial | Tablet | captured 2026-06-25 |
-| J-03 | See the run order | Entry list in run order | Tablet | captured 2026-06-25 |
-| J-04 | Score a dog | Scoresheet — timer running | Tablet | captured 2026-06-25 |
-| J-05 | Score a dog | Q / NQ / Absent buttons | Tablet | captured 2026-06-25 |
-| J-06 | Score a dog | Entry list with a saved result | Tablet | captured 2026-06-25 |
-| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside | — | drawn 2026-06-25 |
+| Shot ID                          | Section           | Description                    | Viewport | Status              |
+| -------------------------------- | ----------------- | ------------------------------ | -------- | ------------------- |
+| J-01                             | Get into ringside | Passcode entry screen          | Mobile   | captured 2026-06-25 |
+| J-02                             | Find your class   | Class list by trial            | Tablet   | captured 2026-06-25 |
+| J-03                             | See the run order | Entry list in run order        | Tablet   | captured 2026-06-25 |
+| J-04                             | Score a dog       | Scoresheet — timer running     | Tablet   | captured 2026-06-25 |
+| J-05                             | Score a dog       | Q / NQ / Absent buttons        | Tablet   | captured 2026-06-25 |
+| J-06                             | Score a dog       | Entry list with a saved result | Tablet   | captured 2026-06-25 |
+| `at-show-access-paths` (diagram) | Get into ringside | The two ways into ringside     | —        | drawn 2026-06-25    |

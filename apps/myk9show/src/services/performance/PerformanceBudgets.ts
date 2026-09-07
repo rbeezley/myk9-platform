@@ -2,7 +2,7 @@ import { logger } from '@/services/LoggingService';
 
 /**
  * Performance Budgets System
- * 
+ *
  * Defines and enforces performance budgets for build-time and runtime
  * metrics to prevent performance regressions.
  */
@@ -49,7 +49,7 @@ export interface BudgetRule {
   environment: 'build' | 'runtime' | 'both';
 }
 
-export type BudgetMetric = 
+export type BudgetMetric =
   // Bundle size metrics
   | 'bundle_size_total'
   | 'bundle_size_js'
@@ -57,10 +57,10 @@ export type BudgetMetric =
   | 'bundle_size_images'
   | 'chunk_size_max'
   | 'chunk_count'
-  
+
   // Runtime performance metrics
   | 'lcp'
-  | 'fcp' 
+  | 'fcp'
   | 'cls'
   | 'fid'
   | 'ttfb'
@@ -68,7 +68,7 @@ export type BudgetMetric =
   | 'long_task_duration'
   | 'memory_usage'
   | 'dom_nodes'
-  
+
   // Custom app metrics
   | 'store_load_time'
   | 'component_render_time'
@@ -297,11 +297,9 @@ export class PerformanceBudgetService {
    * Get all rules for a specific environment
    */
   public getRulesForEnvironment(environment: 'build' | 'runtime'): BudgetRule[] {
-    return Array.from(this.rules.values())
-      .filter(rule => 
-        rule.enabled && 
-        (rule.environment === environment || rule.environment === 'both')
-      );
+    return Array.from(this.rules.values()).filter(
+      rule => rule.enabled && (rule.environment === environment || rule.environment === 'both')
+    );
   }
 
   /**
@@ -314,8 +312,9 @@ export class PerformanceBudgetService {
     context?: Record<string, unknown>
   ): BudgetViolation[] {
     const violations: BudgetViolation[] = [];
-    const applicableRules = this.getRulesForEnvironment(environment)
-      .filter(rule => rule.metric === metric);
+    const applicableRules = this.getRulesForEnvironment(environment).filter(
+      rule => rule.metric === metric
+    );
 
     for (const rule of applicableRules) {
       if (value > rule.threshold) {
@@ -336,7 +335,11 @@ export class PerformanceBudgetService {
 
         // Log violation
         const emoji = rule.severity === 'error' ? '🚨' : rule.severity === 'warning' ? '⚠️' : 'ℹ️';
-        logger.warn(`${emoji} Budget violation: ${rule.name} (${value} ${rule.unit} > ${rule.threshold} ${rule.unit})`, 'performance', {});
+        logger.warn(
+          `${emoji} Budget violation: ${rule.name} (${value} ${rule.unit} > ${rule.threshold} ${rule.unit})`,
+          'performance',
+          {}
+        );
       }
     }
 
@@ -366,7 +369,7 @@ export class PerformanceBudgetService {
    */
   public generateReport(environment: 'build' | 'runtime'): BudgetReport {
     const relevantViolations = this.violations.filter(v => v.environment === environment);
-    
+
     const report: BudgetReport = {
       timestamp: Date.now(),
       environment,
@@ -403,7 +406,7 @@ export class PerformanceBudgetService {
       let imageSize = 0;
       let maxChunkSize = 0;
 
-      stats.assets.forEach((asset) => {
+      stats.assets.forEach(asset => {
         const size = asset.size / 1024; // Convert to KB
         totalSize += size;
         maxChunkSize = Math.max(maxChunkSize, size);

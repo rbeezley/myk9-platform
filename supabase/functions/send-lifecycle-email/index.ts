@@ -14,4 +14,3 @@ handle<SendLifecycleEmailPayload>(
     resendApiKey: Deno.env.get('RESEND_API_KEY'),
   })
 );
-

@@ -68,9 +68,9 @@ describe('push reachability — the number L4/L6 hinge on', () => {
 
   it('is unreachable when permission is denied or unsupported, on any platform', () => {
     expect(isPushReachable(env({ standalone: true, pushPermission: 'denied' }))).toBe(false);
-    expect(
-      isPushReachable(env({ platform: 'android', pushPermission: 'unsupported' }))
-    ).toBe(false);
+    expect(isPushReachable(env({ platform: 'android', pushPermission: 'unsupported' }))).toBe(
+      false
+    );
   });
 });
 

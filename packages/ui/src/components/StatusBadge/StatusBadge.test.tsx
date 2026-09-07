@@ -87,14 +87,14 @@ describe('StatusBadge', () => {
       'warning',
       'error',
       'info',
-    ] as const)('should render %s variant', (variant) => {
+    ] as const)('should render %s variant', variant => {
       render(<StatusBadge label={variant} variant={variant} />);
       expect(screen.getByText(variant)).toBeInTheDocument();
     });
   });
 
   describe('sizes', () => {
-    it.each(['sm', 'default', 'lg'] as const)('should render %s size', (size) => {
+    it.each(['sm', 'default', 'lg'] as const)('should render %s size', size => {
       render(<StatusBadge label="Test" size={size} />);
       expect(screen.getByText('Test')).toBeInTheDocument();
     });

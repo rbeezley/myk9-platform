@@ -127,10 +127,7 @@ Deno.serve(async request => {
         terminalStatus: 'expired',
       });
       if (lapsedResult === 'paid') {
-        return response(
-          { error: 'Payment is being reconciled; refresh My Entries shortly.' },
-          409
-        );
+        return response({ error: 'Payment is being reconciled; refresh My Entries shortly.' }, 409);
       }
       if (lapsedResult === 'error') {
         return response({ error: 'We could not expire this offer. Please try again.' }, 500);
@@ -162,10 +159,7 @@ Deno.serve(async request => {
       terminalStatus: 'declined',
     });
     if (result === 'paid') {
-      return response(
-        { error: 'Payment is being reconciled; refresh My Entries shortly.' },
-        409
-      );
+      return response({ error: 'Payment is being reconciled; refresh My Entries shortly.' }, 409);
     }
     if (result === 'error') {
       return response({ error: 'We could not decline this offer. Please try again.' }, 500);

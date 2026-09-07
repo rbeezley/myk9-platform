@@ -22,9 +22,7 @@ const ListPageLayout: React.FC<ListPageLayoutProps> = ({
             {actions}
           </div>
         )}
-        <main className="container mx-auto px-4 py-8 flex-1">
-          {children}
-        </main>
+        <main className="container mx-auto px-4 py-8 flex-1">{children}</main>
       </div>
       {footer && <div className="w-full">{footer}</div>}
     </AppShellPage>

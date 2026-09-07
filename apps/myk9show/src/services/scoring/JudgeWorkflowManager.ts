@@ -34,25 +34,25 @@ import type {
   EntryAssignment,
   WorkflowTemplate,
   JudgePerformanceMetrics,
-  JudgeWorkflowStatistics
+  JudgeWorkflowStatistics,
 } from './judge-workflow-types';
 import {
   getAssignmentsByStrategy,
   filterAssignmentsForJudge,
-  getEntryIdsFromAssignments
+  getEntryIdsFromAssignments,
 } from './entryAssignmentStrategies';
 import {
   getAllDefaultWorkflowTemplates,
   getWorkflowTemplate,
   arePrerequisitesMet,
-  getNextStep
+  getNextStep,
 } from './workflowTemplates';
 import {
   loadPersistedData,
   persistSessions,
   persistCredentials,
   persistAssignments,
-  persistMetrics
+  persistMetrics,
 } from './judgeWorkflowPersistence';
 
 // Re-export types for backward compatibility
@@ -66,7 +66,7 @@ export type {
   EntryAssignment,
   WorkflowTemplate,
   WorkflowStepDefinition,
-  JudgePerformanceMetrics
+  JudgePerformanceMetrics,
 } from './judge-workflow-types';
 
 // ============================================================================
@@ -151,7 +151,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       judgeName,
       role,
       certifications,
-      authorizedFormats
+      authorizedFormats,
     };
 
     this.judgeCredentials.set(judgeId, credentials);
@@ -204,7 +204,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       isOffline: !navigator.onLine,
       pendingActions: [],
       syncStatus: 'synced',
-      ...options
+      ...options,
     };
 
     this.activeSessions.set(sessionId, session);
@@ -216,7 +216,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       judgeId,
       classId,
       format,
-      role: credentials.role
+      role: credentials.role,
     });
 
     return session;
@@ -241,7 +241,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       judgeId: session.judgeId,
       classId: session.classId,
       duration: session.endTime.getTime() - session.startTime.getTime(),
-      totalScored: session.totalEntriesScored
+      totalScored: session.totalEntriesScored,
     });
   }
 
@@ -282,7 +282,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       sessionId,
       judgeId: session.judgeId,
       previousStep,
-      currentStep: nextStep
+      currentStep: nextStep,
     });
   }
 
@@ -295,7 +295,7 @@ export class JudgeWorkflowManager extends EventEmitter {
         await this.assignEntriesToJudge(session);
         this.logAction(session.id, 'entry_assignment', {
           strategy: session.entryAssignmentStrategy,
-          entryCount: session.assignedEntries.length
+          entryCount: session.assignedEntries.length,
         });
         break;
       case 'scoring':
@@ -338,7 +338,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       judgeId: session.judgeId,
       classId: session.classId,
       entryCount: session.assignedEntries.length,
-      strategy: session.entryAssignmentStrategy
+      strategy: session.entryAssignmentStrategy,
     });
   }
 
@@ -390,7 +390,7 @@ export class JudgeWorkflowManager extends EventEmitter {
         judgeId: session.judgeId,
         entryId,
         completedCount: session.completedEntries.length,
-        totalAssigned: session.assignedEntries.length
+        totalAssigned: session.assignedEntries.length,
       });
     }
   }
@@ -410,7 +410,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       timestamp: new Date(),
       data: { classId, entryId, resolution },
       status: 'completed',
-      attempts: 1
+      attempts: 1,
     };
 
     this.logAction(`conflict-${classId}-${entryId}`, 'conflict_resolution', action.data);
@@ -419,7 +419,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       classId,
       entryId,
       resolution: resolution.strategy,
-      resolvedBy: resolution.resolvedBy
+      resolvedBy: resolution.resolvedBy,
     });
   }
 
@@ -449,7 +449,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       averageSessionDuration: sessionDuration,
       stepSkipRate: 0,
       periodStart: existing?.periodStart || session.startTime,
-      periodEnd: session.endTime!
+      periodEnd: session.endTime!,
     };
 
     this.performanceMetrics.set(judgeId, metrics);
@@ -520,7 +520,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       judgeId: session.judgeId,
       classId: session.classId,
       totalScores: scores.length,
-      summary: 'Review summary generated'
+      summary: 'Review summary generated',
     });
   }
 
@@ -528,7 +528,7 @@ export class JudgeWorkflowManager extends EventEmitter {
     this.emit('scores_finalized', {
       sessionId: session.id,
       judgeId: session.judgeId,
-      classId: session.classId
+      classId: session.classId,
     });
   }
 
@@ -543,7 +543,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       timestamp: new Date(),
       data,
       status: 'completed',
-      attempts: 1
+      attempts: 1,
     };
 
     this.activityLog.push(action);
@@ -595,7 +595,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       activeSessions: activeSessions.length,
       totalJudges: this.judgeCredentials.size,
       totalEntriesScored,
-      averageSessionDuration: avgDuration
+      averageSessionDuration: avgDuration,
     };
   }
 

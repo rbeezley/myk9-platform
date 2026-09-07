@@ -246,7 +246,9 @@ describe('buildOrderPaymentHref', () => {
   it('refuses recovery when every unreplicated row is pay-at-show', () => {
     const entry = makeEntry({
       paymentMethod: 'check',
-      classes: [makeClass({ id: 'c1', paymentStatus: PaymentStatus.PENDING, paymentMethod: 'check' })],
+      classes: [
+        makeClass({ id: 'c1', paymentStatus: PaymentStatus.PENDING, paymentMethod: 'check' }),
+      ],
     });
 
     expect(buildOrderPaymentHref(entry)).toBeNull();

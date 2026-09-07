@@ -84,11 +84,25 @@ export interface AllergyRecord {
 // Combined health timeline entry
 export interface HealthTimelineEntry {
   id: string;
-  type: 'vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'health_record' | 'ofa_screening' | 'genetic_screening';
+  type:
+    | 'vaccination'
+    | 'medication'
+    | 'allergy'
+    | 'vet_visit'
+    | 'health_record'
+    | 'ofa_screening'
+    | 'genetic_screening';
   date: string;
   title: string;
   description?: string | undefined;
-  details: VaccinationRecord | MedicationRecord | AllergyRecord | VetVisitRecord | HealthRecord | OFAScreeningRecord | GeneticScreeningRecord;
+  details:
+    | VaccinationRecord
+    | MedicationRecord
+    | AllergyRecord
+    | VetVisitRecord
+    | HealthRecord
+    | OFAScreeningRecord
+    | GeneticScreeningRecord;
   dog_id: string;
   urgent?: boolean | undefined;
   status?: 'completed' | 'scheduled' | 'overdue' | 'upcoming' | undefined;
@@ -190,11 +204,22 @@ export interface HealthOverview {
 
 // Health search filters
 export interface HealthFilters {
-  record_type?: ('vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'ofa_screening' | 'genetic_screening')[] | undefined;
-  date_range?: {
-    start: string;
-    end: string;
-  } | undefined;
+  record_type?:
+    | (
+        | 'vaccination'
+        | 'medication'
+        | 'allergy'
+        | 'vet_visit'
+        | 'ofa_screening'
+        | 'genetic_screening'
+      )[]
+    | undefined;
+  date_range?:
+    | {
+        start: string;
+        end: string;
+      }
+    | undefined;
   severity?: ('mild' | 'moderate' | 'severe' | 'life_threatening')[] | undefined;
   is_active?: boolean | undefined;
   vet_name?: string | undefined;

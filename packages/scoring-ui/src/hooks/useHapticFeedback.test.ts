@@ -100,18 +100,14 @@ describe('useHapticFeedback', () => {
     });
 
     it('should respect isEnabled check', () => {
-      const { result } = renderHook(() =>
-        useHapticFeedback(() => false)
-      );
+      const { result } = renderHook(() => useHapticFeedback(() => false));
 
       result.current.light();
       expect(mockVibrate).not.toHaveBeenCalled();
     });
 
     it('should vibrate when isEnabled returns true', () => {
-      const { result } = renderHook(() =>
-        useHapticFeedback(() => true)
-      );
+      const { result } = renderHook(() => useHapticFeedback(() => true));
 
       result.current.light();
       expect(mockVibrate).toHaveBeenCalled();

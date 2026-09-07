@@ -1,21 +1,50 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Production Readiness Bug Report</title>
-<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;max-width:736px;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
-</head>
-<body>
-<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Production Readiness Bug Report" srcdoc="&lt;!doctype html&gt;
-&lt;html lang=&quot;en&quot;&gt;
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Production Readiness Bug Report</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        background: light-dark(rgb(255 255 255), rgb(24 24 24));
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      body {
+        box-sizing: border-box;
+        padding: 1rem;
+        background: inherit;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        max-width: 736px;
+        height: calc(100vh - 2rem);
+        margin: 0 auto;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      sandbox="allow-scripts"
+      referrerpolicy="no-referrer"
+      title="Production Readiness Bug Report"
+      srcdoc='&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
 &lt;head&gt;
-&lt;meta charset=&quot;utf-8&quot;&gt;
-&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
-&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
-&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+&lt;meta name="referrer" content="no-referrer"&gt;
+&lt;meta http-equiv="Content-Security-Policy" content="default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;"&gt;
 &lt;title&gt;Production Readiness Bug Report&lt;/title&gt;
 &lt;style&gt;:root {
   color-scheme: light dark;
@@ -55,9 +84,9 @@
   --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
 
   /* Internal implementation variables; not part of the agent contract. */
-  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-sans: -apple-system, system-ui, "Segoe UI", sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
     monospace;
   --font-size-normal: max(11px, var(--font-size-base));
   --font-size-tooltip: calc(var(--font-size-base) - 1px);
@@ -77,7 +106,7 @@
   --radius-2xl: calc(var(--radius) * 1.6);
   --radius-full: 9999px;
   --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
-  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+  --checkmark-image: url("data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E");
 
   /* Legacy aliases; not part of the current agent contract. */
   --viz-bg: transparent;
@@ -95,11 +124,11 @@
   --color-border-secondary: var(--border);
 }
 
-:root[data-theme=&quot;light&quot;] {
+:root[data-theme="light"] {
   color-scheme: light;
 }
 
-:root[data-theme=&quot;dark&quot;] {
+:root[data-theme="dark"] {
   color-scheme: dark;
 }
 
@@ -431,13 +460,13 @@ a.btn {
   color: var(--muted-foreground);
 }
 
-.form-control[type=&quot;file&quot;] {
+.form-control[type="file"] {
   padding: 0;
   overflow: hidden;
   cursor: var(--cursor-interaction, pointer);
 }
 
-.form-control[type=&quot;file&quot;]::file-selector-button {
+.form-control[type="file"]::file-selector-button {
   min-height: 26px;
   margin-right: 8px;
   padding: 0 8px;
@@ -449,22 +478,22 @@ a.btn {
   font: inherit;
 }
 
-.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+.form-control[type="file"]:not(:disabled):hover::file-selector-button {
   background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
 }
 
-.form-control-color[type=&quot;color&quot;] {
+.form-control-color[type="color"] {
   width: 40px;
   height: 28px;
   padding: 3px;
   cursor: var(--cursor-interaction, pointer);
 }
 
-.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+.form-control-color[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+.form-control-color[type="color"]::-webkit-color-swatch {
   border: 0;
   border-radius: calc(var(--radius-lg) - 4px);
   corner-shape: superellipse(1.5);
@@ -544,7 +573,7 @@ textarea.form-control {
     box-shadow 150ms;
 }
 
-.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+.form-check:not(.form-switch) .form-check-input[type="checkbox"] {
   border-color: var(--input);
   border-radius: var(--radius-sm);
   corner-shape: superellipse(1.5);
@@ -557,28 +586,28 @@ textarea.form-control {
   background-color: var(--card);
 }
 
-.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+.form-check:not(.form-switch) .form-check-input[type="checkbox"]:checked {
   border-color: var(--primary);
   background-color: var(--primary);
 }
 
 .form-check:not(.form-switch)
-  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  .form-check-input[type="checkbox"]:checked::before {
   display: block;
   width: 100%;
   height: 100%;
   background: var(--primary-foreground);
-  content: &quot;&quot;;
+  content: "";
   mask: var(--checkmark-image) center / 12px 12px no-repeat;
 }
 
-.form-check-input[type=&quot;radio&quot;] {
+.form-check-input[type="radio"] {
   width: 14px;
   height: 14px;
   border-radius: var(--radius-full);
 }
 
-.form-check-input[type=&quot;radio&quot;]:checked {
+.form-check-input[type="radio"]:checked {
   border: 2px solid var(--primary);
   background:
     radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
@@ -632,7 +661,7 @@ textarea.form-control {
   border-radius: var(--radius-full);
   background: light-dark(var(--primary-foreground), var(--foreground));
   box-shadow: var(--shadow-sm);
-  content: &quot;&quot;;
+  content: "";
   transform: translate(2px, -50%);
   transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
 }
@@ -711,8 +740,8 @@ textarea.form-control {
 }
 
 .btn:not(.btn-primary, .viz-tile):is(
-    [aria-pressed=&quot;true&quot;],
-    [aria-selected=&quot;true&quot;],
+    [aria-pressed="true"],
+    [aria-selected="true"],
     .is-selected
   ) {
   border-color: var(--primary);
@@ -720,7 +749,7 @@ textarea.form-control {
   background: var(--primary);
 }
 
-.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+.btn.viz-tile:is([aria-pressed="true"], [aria-selected="true"], .is-selected) {
   border-color: var(--primary);
   box-shadow: inset 0 0 0 1px var(--primary);
 }
@@ -748,7 +777,7 @@ svg {
 html&gt;body{padding:0}&lt;/style&gt;
 &lt;/head&gt;
 &lt;body&gt;
-&lt;div id=&quot;myk9-production-readiness&quot;&gt;
+&lt;div id="myk9-production-readiness"&gt;
   &lt;style&gt;
     #myk9-production-readiness {
       color: var(--foreground);
@@ -872,122 +901,122 @@ html&gt;body{padding:0}&lt;/style&gt;
     }
   &lt;/style&gt;
 
-  &lt;section class=&quot;section&quot; aria-labelledby=&quot;decision-heading&quot;&gt;
-    &lt;h2 id=&quot;decision-heading&quot;&gt;Executive decision&lt;/h2&gt;
-    &lt;p class=&quot;lead&quot;&gt;&lt;strong&gt;Do not invite a club to pilot yet.&lt;/strong&gt; The codebase has no currently tracked open P0/P1 defect and its core automated gates are strong, but production confidence is incomplete: 6 of 10 launch dimensions remain Yellow because real show-day, offline/reconnect, printing, rollback, reconciliation, and non-technical-user evidence is still missing.&lt;/p&gt;
+  &lt;section class="section" aria-labelledby="decision-heading"&gt;
+    &lt;h2 id="decision-heading"&gt;Executive decision&lt;/h2&gt;
+    &lt;p class="lead"&gt;&lt;strong&gt;Do not invite a club to pilot yet.&lt;/strong&gt; The codebase has no currently tracked open P0/P1 defect and its core automated gates are strong, but production confidence is incomplete: 6 of 10 launch dimensions remain Yellow because real show-day, offline/reconnect, printing, rollback, reconciliation, and non-technical-user evidence is still missing.&lt;/p&gt;
   &lt;/section&gt;
 
-  &lt;div class=&quot;stat-grid&quot; aria-label=&quot;Readiness summary&quot;&gt;
-    &lt;div class=&quot;card viz-stat&quot;&gt;&lt;span class=&quot;text-muted&quot;&gt;Green dimensions&lt;/span&gt;&lt;span class=&quot;viz-stat-value&quot;&gt;4 / 10&lt;/span&gt;&lt;span class=&quot;text-small&quot;&gt;Secretary, exhibitor, admin, test/CI&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;card viz-stat&quot;&gt;&lt;span class=&quot;text-muted&quot;&gt;Yellow dimensions&lt;/span&gt;&lt;span class=&quot;viz-stat-value&quot;&gt;6 / 10&lt;/span&gt;&lt;span class=&quot;text-small&quot;&gt;Evidence or recovery gaps remain&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;card viz-stat&quot;&gt;&lt;span class=&quot;text-muted&quot;&gt;Open P0/P1&lt;/span&gt;&lt;span class=&quot;viz-stat-value&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;text-small&quot;&gt;According to current tracked audits&lt;/span&gt;&lt;/div&gt;
-    &lt;div class=&quot;card viz-stat&quot;&gt;&lt;span class=&quot;text-muted&quot;&gt;Core package tests&lt;/span&gt;&lt;span class=&quot;viz-stat-value&quot;&gt;1,951&lt;/span&gt;&lt;span class=&quot;text-small&quot;&gt;Passed locally on 2026-07-09&lt;/span&gt;&lt;/div&gt;
+  &lt;div class="stat-grid" aria-label="Readiness summary"&gt;
+    &lt;div class="card viz-stat"&gt;&lt;span class="text-muted"&gt;Green dimensions&lt;/span&gt;&lt;span class="viz-stat-value"&gt;4 / 10&lt;/span&gt;&lt;span class="text-small"&gt;Secretary, exhibitor, admin, test/CI&lt;/span&gt;&lt;/div&gt;
+    &lt;div class="card viz-stat"&gt;&lt;span class="text-muted"&gt;Yellow dimensions&lt;/span&gt;&lt;span class="viz-stat-value"&gt;6 / 10&lt;/span&gt;&lt;span class="text-small"&gt;Evidence or recovery gaps remain&lt;/span&gt;&lt;/div&gt;
+    &lt;div class="card viz-stat"&gt;&lt;span class="text-muted"&gt;Open P0/P1&lt;/span&gt;&lt;span class="viz-stat-value"&gt;0&lt;/span&gt;&lt;span class="text-small"&gt;According to current tracked audits&lt;/span&gt;&lt;/div&gt;
+    &lt;div class="card viz-stat"&gt;&lt;span class="text-muted"&gt;Core package tests&lt;/span&gt;&lt;span class="viz-stat-value"&gt;1,951&lt;/span&gt;&lt;span class="text-small"&gt;Passed locally on 2026-07-09&lt;/span&gt;&lt;/div&gt;
   &lt;/div&gt;
 
-  &lt;section class=&quot;section&quot; aria-labelledby=&quot;readiness-heading&quot;&gt;
-    &lt;h2 id=&quot;readiness-heading&quot;&gt;Launch scorecard&lt;/h2&gt;
-    &lt;div class=&quot;bar&quot; role=&quot;img&quot; aria-label=&quot;Four of ten launch dimensions Green and six Yellow&quot;&gt;
-      &lt;span class=&quot;bar-ready&quot;&gt;&lt;/span&gt;&lt;span class=&quot;bar-yellow&quot;&gt;&lt;/span&gt;
+  &lt;section class="section" aria-labelledby="readiness-heading"&gt;
+    &lt;h2 id="readiness-heading"&gt;Launch scorecard&lt;/h2&gt;
+    &lt;div class="bar" role="img" aria-label="Four of ten launch dimensions Green and six Yellow"&gt;
+      &lt;span class="bar-ready"&gt;&lt;/span&gt;&lt;span class="bar-yellow"&gt;&lt;/span&gt;
     &lt;/div&gt;
-    &lt;div class=&quot;legend text-small&quot;&gt;
-      &lt;span class=&quot;legend-item&quot;&gt;&lt;span class=&quot;swatch swatch-ready&quot;&gt;&lt;/span&gt;Green: 4&lt;/span&gt;
-      &lt;span class=&quot;legend-item&quot;&gt;&lt;span class=&quot;swatch swatch-yellow&quot;&gt;&lt;/span&gt;Yellow: 6&lt;/span&gt;
+    &lt;div class="legend text-small"&gt;
+      &lt;span class="legend-item"&gt;&lt;span class="swatch swatch-ready"&gt;&lt;/span&gt;Green: 4&lt;/span&gt;
+      &lt;span class="legend-item"&gt;&lt;span class="swatch swatch-yellow"&gt;&lt;/span&gt;Yellow: 6&lt;/span&gt;
       &lt;span&gt;Red: 0&lt;/span&gt;
     &lt;/div&gt;
-    &lt;div class=&quot;table-wrap&quot;&gt;
+    &lt;div class="table-wrap"&gt;
       &lt;table&gt;
         &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Dimension&lt;/th&gt;&lt;th&gt;Status&lt;/th&gt;&lt;th&gt;What keeps it from full confidence&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
         &lt;tbody&gt;
-          &lt;tr&gt;&lt;td&gt;Secretary golden path&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Internal walk passed; final non-technical user gate remains.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Exhibitor golden path&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Internal walk passed; final non-technical user gate remains.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Show-day reliability&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Judge/steward end-to-end walk and full show rehearsal are incomplete.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Offline-first behavior&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;No live offline → queue → reconnect → conflict/recovery rehearsal.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Data correctness&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;No broad cross-app staging fixture reconciliation.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Reports and forms&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Representative label and laser printer testing remains open.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;UX clarity&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Silent task-based testing with 2–3 non-technical people has not run.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Operational readiness&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Stripe live-mode, deploy rollback, and recovery procedures are not rehearsed.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Admin minimum&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Code/docs walk passed; a live SITE_ADMIN spot-check is still advisable.&lt;/td&gt;&lt;/tr&gt;
-          &lt;tr&gt;&lt;td&gt;Test and CI health&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;viz-badge&quot;&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Historical main gate is strong; current local full-suite bootstrap issue is listed below.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Secretary golden path&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Internal walk passed; final non-technical user gate remains.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Exhibitor golden path&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Internal walk passed; final non-technical user gate remains.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Show-day reliability&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Judge/steward end-to-end walk and full show rehearsal are incomplete.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Offline-first behavior&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;No live offline → queue → reconnect → conflict/recovery rehearsal.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Data correctness&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;No broad cross-app staging fixture reconciliation.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Reports and forms&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Representative label and laser printer testing remains open.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;UX clarity&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Silent task-based testing with 2–3 non-technical people has not run.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Operational readiness&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Yellow&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Stripe live-mode, deploy rollback, and recovery procedures are not rehearsed.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Admin minimum&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Code/docs walk passed; a live SITE_ADMIN spot-check is still advisable.&lt;/td&gt;&lt;/tr&gt;
+          &lt;tr&gt;&lt;td&gt;Test and CI health&lt;/td&gt;&lt;td&gt;&lt;span class="viz-badge"&gt;Green&lt;/span&gt;&lt;/td&gt;&lt;td&gt;Historical main gate is strong; current local full-suite bootstrap issue is listed below.&lt;/td&gt;&lt;/tr&gt;
         &lt;/tbody&gt;
       &lt;/table&gt;
     &lt;/div&gt;
   &lt;/section&gt;
 
-  &lt;section class=&quot;section&quot; aria-labelledby=&quot;findings-heading&quot;&gt;
-    &lt;h2 id=&quot;findings-heading&quot;&gt;Open defects and proof gaps&lt;/h2&gt;
-    &lt;div class=&quot;viz-controls&quot; role=&quot;group&quot; aria-label=&quot;Filter findings&quot;&gt;
-      &lt;button class=&quot;btn btn-primary&quot; type=&quot;button&quot; data-filter=&quot;all&quot; aria-pressed=&quot;true&quot;&gt;All&lt;/button&gt;
-      &lt;button class=&quot;btn&quot; type=&quot;button&quot; data-filter=&quot;medium&quot; aria-pressed=&quot;false&quot;&gt;Medium&lt;/button&gt;
-      &lt;button class=&quot;btn&quot; type=&quot;button&quot; data-filter=&quot;low&quot; aria-pressed=&quot;false&quot;&gt;Low&lt;/button&gt;
-      &lt;button class=&quot;btn&quot; type=&quot;button&quot; data-filter=&quot;evidence&quot; aria-pressed=&quot;false&quot;&gt;Evidence gaps&lt;/button&gt;
+  &lt;section class="section" aria-labelledby="findings-heading"&gt;
+    &lt;h2 id="findings-heading"&gt;Open defects and proof gaps&lt;/h2&gt;
+    &lt;div class="viz-controls" role="group" aria-label="Filter findings"&gt;
+      &lt;button class="btn btn-primary" type="button" data-filter="all" aria-pressed="true"&gt;All&lt;/button&gt;
+      &lt;button class="btn" type="button" data-filter="medium" aria-pressed="false"&gt;Medium&lt;/button&gt;
+      &lt;button class="btn" type="button" data-filter="low" aria-pressed="false"&gt;Low&lt;/button&gt;
+      &lt;button class="btn" type="button" data-filter="evidence" aria-pressed="false"&gt;Evidence gaps&lt;/button&gt;
     &lt;/div&gt;
-    &lt;div class=&quot;table-wrap&quot;&gt;
-      &lt;table id=&quot;findings-table&quot;&gt;
+    &lt;div class="table-wrap"&gt;
+      &lt;table id="findings-table"&gt;
         &lt;thead&gt;&lt;tr&gt;&lt;th&gt;ID / severity&lt;/th&gt;&lt;th&gt;Bug or gap&lt;/th&gt;&lt;th&gt;Fix&lt;/th&gt;&lt;th&gt;Proof required&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
         &lt;tbody&gt;
-          &lt;tr data-category=&quot;medium&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;MP-08&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Medium&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;Payment failures are not durably visible to operators&lt;/span&gt;&lt;code&gt;alertAdmin&lt;/code&gt; is email-only; failures can be lost or unqueryable.&lt;/td&gt;
+          &lt;tr data-category="medium"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;MP-08&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Medium&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;Payment failures are not durably visible to operators&lt;/span&gt;&lt;code&gt;alertAdmin&lt;/code&gt; is email-only; failures can be lost or unqueryable.&lt;/td&gt;
             &lt;td&gt;Persist alerts in one existing admin support/health surface. Avoid a second standalone monitoring page.&lt;/td&gt;
             &lt;td&gt;Failure-injection test creates one unresolved alert; admin can view and resolve it; retry and dedupe are verified.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;low&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;MP-11&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Low&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;Bulk-refund results hide skipped and failed entry detail&lt;/span&gt;A secretary can see a summary without knowing which entries need action.&lt;/td&gt;
+          &lt;tr data-category="low"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;MP-11&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Low&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;Bulk-refund results hide skipped and failed entry detail&lt;/span&gt;A secretary can see a summary without knowing which entries need action.&lt;/td&gt;
             &lt;td&gt;Render grouped skipped/failed reasons and entry links in the existing refund card.&lt;/td&gt;
             &lt;td&gt;Component test plus staging run with one success, one skip, and one forced failure; every result is actionable.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;low&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;MP-12&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Low&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;An unmatched out-of-order refund only logs&lt;/span&gt;The condition may never reach the operator who must reconcile it.&lt;/td&gt;
+          &lt;tr data-category="low"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;MP-12&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Low&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;An unmatched out-of-order refund only logs&lt;/span&gt;The condition may never reach the operator who must reconcile it.&lt;/td&gt;
             &lt;td&gt;Route it through the durable operator-alert path with payment identifiers and recovery instructions.&lt;/td&gt;
             &lt;td&gt;Assertion-first webhook test proves exactly one alert; staging event proves it appears in the admin surface.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;low&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;MP-13&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Low&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;Online entries can receive duplicate confirmation email types&lt;/span&gt;The webhook path does not stamp the confirmation fields used by the scheduled sender.&lt;/td&gt;
+          &lt;tr data-category="low"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;MP-13&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Low&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;Online entries can receive duplicate confirmation email types&lt;/span&gt;The webhook path does not stamp the confirmation fields used by the scheduled sender.&lt;/td&gt;
             &lt;td&gt;Unify send-state semantics: stamp the webhook send or explicitly exclude online receipts from the scheduled confirmation audience.&lt;/td&gt;
             &lt;td&gt;Webhook + cron integration test proves exactly one intended message; Resend idempotency key is stable across retries.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;low&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;TZ-01&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Low&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;Invalid trial timezone silently falls back to device-local time&lt;/span&gt;Judge class bucketing/countdowns can differ by device when timezone data is malformed.&lt;/td&gt;
+          &lt;tr data-category="low"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;TZ-01&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Low&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;Invalid trial timezone silently falls back to device-local time&lt;/span&gt;Judge class bucketing/countdowns can differ by device when timezone data is malformed.&lt;/td&gt;
             &lt;td&gt;Validate IANA timezone at the boundary, surface telemetry, and use an explicit safe fallback rather than silent device-local behavior.&lt;/td&gt;
             &lt;td&gt;Unit tests for invalid zones and spring/fall DST boundaries on devices in different timezones; observable error event asserted.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;evidence&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;ENV-01&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Gate&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;The full repository test command is not reproducible in the current checkout&lt;/span&gt;&lt;code&gt;@myk9/admin-mcp&lt;/code&gt; could not resolve declared dependencies because this local install was not linked for the new workspace package.&lt;/td&gt;
+          &lt;tr data-category="evidence"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;ENV-01&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Gate&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;The full repository test command is not reproducible in the current checkout&lt;/span&gt;&lt;code&gt;@myk9/admin-mcp&lt;/code&gt; could not resolve declared dependencies because this local install was not linked for the new workspace package.&lt;/td&gt;
             &lt;td&gt;Bootstrap a clean worktree with the frozen lockfile; make workspace bootstrap part of the standard audit preflight.&lt;/td&gt;
             &lt;td&gt;Fresh clone/worktree → &lt;code&gt;pnpm install --frozen-lockfile&lt;/code&gt; → &lt;code&gt;pnpm test&lt;/code&gt; exits 0. If it still fails, reclassify as a source/lockfile defect.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;evidence&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;LIVE-01&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Gate&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;No full offline/reconnect show-day rehearsal&lt;/span&gt;Unit and chaos tests cannot prove the multi-device human workflow.&lt;/td&gt;
+          &lt;tr data-category="evidence"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;LIVE-01&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Gate&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;No full offline/reconnect show-day rehearsal&lt;/span&gt;Unit and chaos tests cannot prove the multi-device human workflow.&lt;/td&gt;
             &lt;td&gt;Run a scripted mock show with secretary, judge, and steward devices; cut network during scoring and mutations.&lt;/td&gt;
             &lt;td&gt;No lost/duplicate scores, queue drains, all devices converge, conflicts are recoverable, and the recovery log is retained.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;evidence&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;LIVE-02&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Gate&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;Cross-app data reconciliation is not proven&lt;/span&gt;Entries, payment, scores, placements, exports, and public results have not been reconciled from one staged fixture.&lt;/td&gt;
+          &lt;tr data-category="evidence"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;LIVE-02&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Gate&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;Cross-app data reconciliation is not proven&lt;/span&gt;Entries, payment, scores, placements, exports, and public results have not been reconciled from one staged fixture.&lt;/td&gt;
             &lt;td&gt;Create a deterministic “golden show” fixture and a reconciliation query/checklist across every consuming surface.&lt;/td&gt;
             &lt;td&gt;Expected values match DB, secretary, ringside, exhibitor, public results, exports, and payout calculations.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;evidence&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;LIVE-03&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Gate&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;Official reports are not proven on venue hardware&lt;/span&gt;Browser previews do not catch printer scaling, clipping, margins, or label alignment.&lt;/td&gt;
+          &lt;tr data-category="evidence"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;LIVE-03&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Gate&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;Official reports are not proven on venue hardware&lt;/span&gt;Browser previews do not catch printer scaling, clipping, margins, or label alignment.&lt;/td&gt;
             &lt;td&gt;Print representative AKC/UKC/ASCA artifacts on a label printer and ordinary laser printer.&lt;/td&gt;
             &lt;td&gt;Photographic evidence and a signed matrix for margins, scaling, duplex behavior, barcode/label alignment, and readability.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;evidence&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;LIVE-04&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Gate&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;Rollback and payment recovery are documented but not rehearsed&lt;/span&gt;A runbook is not proof that a stressful recovery works.&lt;/td&gt;
+          &lt;tr data-category="evidence"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;LIVE-04&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Gate&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;Rollback and payment recovery are documented but not rehearsed&lt;/span&gt;A runbook is not proof that a stressful recovery works.&lt;/td&gt;
             &lt;td&gt;Stage a bad deploy/config, webhook interruption, and failed migration scenario using reversible test data.&lt;/td&gt;
             &lt;td&gt;Timed recovery stays within the agreed objective; payments reconcile; rollback leaves no schema/app drift.&lt;/td&gt;
           &lt;/tr&gt;
-          &lt;tr data-category=&quot;evidence&quot;&gt;
-            &lt;td class=&quot;severity&quot;&gt;&lt;code&gt;UAT-01&lt;/code&gt;&lt;br&gt;&lt;span class=&quot;viz-badge&quot;&gt;Gate&lt;/span&gt;&lt;/td&gt;
-            &lt;td&gt;&lt;span class=&quot;finding-title&quot;&gt;No silent non-technical acceptance test yet&lt;/span&gt;The product has been internally audited, but “can use it without help” remains unproven.&lt;/td&gt;
+          &lt;tr data-category="evidence"&gt;
+            &lt;td class="severity"&gt;&lt;code&gt;UAT-01&lt;/code&gt;&lt;br&gt;&lt;span class="viz-badge"&gt;Gate&lt;/span&gt;&lt;/td&gt;
+            &lt;td&gt;&lt;span class="finding-title"&gt;No silent non-technical acceptance test yet&lt;/span&gt;The product has been internally audited, but “can use it without help” remains unproven.&lt;/td&gt;
             &lt;td&gt;Use 2–3 non-club volunteers matching secretary/exhibitor profiles. Give tasks, not instructions; observe silently.&lt;/td&gt;
             &lt;td&gt;Every hesitation, wrong turn, and request for help is logged; all P1/P2 confusion is fixed and the same tasks pass on re-test.&lt;/td&gt;
           &lt;/tr&gt;
@@ -996,9 +1025,9 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;/div&gt;
   &lt;/section&gt;
 
-  &lt;section class=&quot;section&quot; aria-labelledby=&quot;proof-heading&quot;&gt;
-    &lt;h2 id=&quot;proof-heading&quot;&gt;Definition of “fixed”&lt;/h2&gt;
-    &lt;ol class=&quot;proof-list&quot;&gt;
+  &lt;section class="section" aria-labelledby="proof-heading"&gt;
+    &lt;h2 id="proof-heading"&gt;Definition of “fixed”&lt;/h2&gt;
+    &lt;ol class="proof-list"&gt;
       &lt;li&gt;&lt;strong&gt;Reproduce:&lt;/strong&gt; a deterministic test or script fails for the reported behavior.&lt;/li&gt;
       &lt;li&gt;&lt;strong&gt;Repair:&lt;/strong&gt; the smallest fix lands on the existing product surface and preserves offline/data boundaries.&lt;/li&gt;
       &lt;li&gt;&lt;strong&gt;Regress:&lt;/strong&gt; the focused test flips red → green; nearby tests, typecheck, lint, and broad suites pass.&lt;/li&gt;
@@ -1008,19 +1037,19 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;/ol&gt;
   &lt;/section&gt;
 
-  &lt;section class=&quot;section&quot; aria-labelledby=&quot;sequence-heading&quot;&gt;
-    &lt;h2 id=&quot;sequence-heading&quot;&gt;Recommended sequence before any club pilot&lt;/h2&gt;
-    &lt;div class=&quot;timeline&quot;&gt;
-      &lt;div class=&quot;phase&quot;&gt;&lt;h3&gt;1. Close defects&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;MP-08/11/12/13&lt;/li&gt;&lt;li&gt;Timezone fallback&lt;/li&gt;&lt;li&gt;Restore full-suite reproducibility&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
-      &lt;div class=&quot;phase&quot;&gt;&lt;h3&gt;2. Technical dress rehearsal&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Golden show fixture&lt;/li&gt;&lt;li&gt;Offline/reconnect chaos&lt;/li&gt;&lt;li&gt;Printer and rollback drills&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
-      &lt;div class=&quot;phase&quot;&gt;&lt;h3&gt;3. Internal UAT&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;2–3 non-club volunteers&lt;/li&gt;&lt;li&gt;Silent task observation&lt;/li&gt;&lt;li&gt;Fix and re-test P1/P2 confusion&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
-      &lt;div class=&quot;phase&quot;&gt;&lt;h3&gt;4. Club pilot gate&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;10/10 dimensions Green&lt;/li&gt;&lt;li&gt;0 P0/P1; accepted P2 only&lt;/li&gt;&lt;li&gt;Named rollback owner on call&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
+  &lt;section class="section" aria-labelledby="sequence-heading"&gt;
+    &lt;h2 id="sequence-heading"&gt;Recommended sequence before any club pilot&lt;/h2&gt;
+    &lt;div class="timeline"&gt;
+      &lt;div class="phase"&gt;&lt;h3&gt;1. Close defects&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;MP-08/11/12/13&lt;/li&gt;&lt;li&gt;Timezone fallback&lt;/li&gt;&lt;li&gt;Restore full-suite reproducibility&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
+      &lt;div class="phase"&gt;&lt;h3&gt;2. Technical dress rehearsal&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Golden show fixture&lt;/li&gt;&lt;li&gt;Offline/reconnect chaos&lt;/li&gt;&lt;li&gt;Printer and rollback drills&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
+      &lt;div class="phase"&gt;&lt;h3&gt;3. Internal UAT&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;2–3 non-club volunteers&lt;/li&gt;&lt;li&gt;Silent task observation&lt;/li&gt;&lt;li&gt;Fix and re-test P1/P2 confusion&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
+      &lt;div class="phase"&gt;&lt;h3&gt;4. Club pilot gate&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;10/10 dimensions Green&lt;/li&gt;&lt;li&gt;0 P0/P1; accepted P2 only&lt;/li&gt;&lt;li&gt;Named rollback owner on call&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
     &lt;/div&gt;
   &lt;/section&gt;
 
-  &lt;section class=&quot;section&quot; aria-labelledby=&quot;baseline-heading&quot;&gt;
-    &lt;h2 id=&quot;baseline-heading&quot;&gt;Fresh local evidence on current main&lt;/h2&gt;
-    &lt;div class=&quot;table-wrap&quot;&gt;
+  &lt;section class="section" aria-labelledby="baseline-heading"&gt;
+    &lt;h2 id="baseline-heading"&gt;Fresh local evidence on current main&lt;/h2&gt;
+    &lt;div class="table-wrap"&gt;
       &lt;table&gt;
         &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Gate&lt;/th&gt;&lt;th&gt;Result&lt;/th&gt;&lt;th&gt;Evidence&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
         &lt;tbody&gt;
@@ -1034,19 +1063,19 @@ html&gt;body{padding:0}&lt;/style&gt;
         &lt;/tbody&gt;
       &lt;/table&gt;
     &lt;/div&gt;
-    &lt;p class=&quot;text-small text-muted&quot;&gt;Snapshot: commit &lt;code&gt;24ba71740&lt;/code&gt;, 2026-07-09. This consolidates current code checks and existing vetted audits; it is not a new line-by-line audit of every source file or every live external system.&lt;/p&gt;
+    &lt;p class="text-small text-muted"&gt;Snapshot: commit &lt;code&gt;24ba71740&lt;/code&gt;, 2026-07-09. This consolidates current code checks and existing vetted audits; it is not a new line-by-line audit of every source file or every live external system.&lt;/p&gt;
   &lt;/section&gt;
 
-  &lt;section class=&quot;section&quot; aria-labelledby=&quot;sources-heading&quot;&gt;
-    &lt;h2 id=&quot;sources-heading&quot;&gt;Canonical sources&lt;/h2&gt;
-    &lt;ul class=&quot;source-list&quot;&gt;
-      &lt;li&gt;&lt;a href=&quot;../goals/fall-2026-launch-readiness-scorecard.md&quot;&gt;Fall 2026 launch readiness scorecard&lt;/a&gt;&lt;/li&gt;
-      &lt;li&gt;&lt;a href=&quot;../improve-audit-2026-07/README.md&quot;&gt;July production-readiness bug audit&lt;/a&gt;&lt;/li&gt;
-      &lt;li&gt;&lt;a href=&quot;../security-audit-2026-07-03.md&quot;&gt;July security audit&lt;/a&gt;&lt;/li&gt;
-      &lt;li&gt;&lt;a href=&quot;../security-audit-2026-07-03-money-path.md&quot;&gt;Money-path red-team audit&lt;/a&gt;&lt;/li&gt;
-      &lt;li&gt;&lt;a href=&quot;../plan-money-path-hardening.md&quot;&gt;Money-path remediation plan&lt;/a&gt;&lt;/li&gt;
-      &lt;li&gt;&lt;a href=&quot;../launch-milestone-qa-checklist.md&quot;&gt;Launch milestone QA checklist&lt;/a&gt;&lt;/li&gt;
-      &lt;li&gt;&lt;a href=&quot;../../OPEN-TODOS.md&quot;&gt;Canonical backlog&lt;/a&gt;&lt;/li&gt;
+  &lt;section class="section" aria-labelledby="sources-heading"&gt;
+    &lt;h2 id="sources-heading"&gt;Canonical sources&lt;/h2&gt;
+    &lt;ul class="source-list"&gt;
+      &lt;li&gt;&lt;a href="../goals/fall-2026-launch-readiness-scorecard.md"&gt;Fall 2026 launch readiness scorecard&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="../improve-audit-2026-07/README.md"&gt;July production-readiness bug audit&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="../security-audit-2026-07-03.md"&gt;July security audit&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="../security-audit-2026-07-03-money-path.md"&gt;Money-path red-team audit&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="../plan-money-path-hardening.md"&gt;Money-path remediation plan&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="../launch-milestone-qa-checklist.md"&gt;Launch milestone QA checklist&lt;/a&gt;&lt;/li&gt;
+      &lt;li&gt;&lt;a href="../../OPEN-TODOS.md"&gt;Canonical backlog&lt;/a&gt;&lt;/li&gt;
     &lt;/ul&gt;
   &lt;/section&gt;
 
@@ -1072,8 +1101,8 @@ html&gt;body{padding:0}&lt;/style&gt;
   &lt;/script&gt;
 &lt;/div&gt;
 
-&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
-&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src="https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js"&gt;&lt;/script&gt;
 &lt;script&gt;
 (() =&gt; {
   if (window.FloatingUIDOM == null) {
@@ -1081,7 +1110,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   }
   const { autoUpdate, computePosition, flip, offset, shift, size } =
     window.FloatingUIDOM;
-  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipPlacements = new Set(["top", "right", "bottom", "left"]);
   const tooltipId = `codex-visualization-tooltip-${
     window.crypto?.randomUUID?.() ?? Date.now().toString(36)
   }`;
@@ -1098,28 +1127,28 @@ html&gt;body{padding:0}&lt;/style&gt;
 
   const getTrigger = (target) =&gt;
     target?.nodeType === Node.ELEMENT_NODE
-      ? target.closest(&quot;[data-tooltip]&quot;)
+      ? target.closest("[data-tooltip]")
       : null;
   const containsTarget = (trigger, target) =&gt;
     target?.nodeType != null &amp;&amp; trigger.contains(target);
   const getContent = (trigger) =&gt;
-    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+    trigger.getAttribute("data-tooltip")?.trim() ?? "";
   const getPlacement = (trigger) =&gt; {
-    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
-    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+    const placement = trigger.getAttribute("data-tooltip-placement");
+    return tooltipPlacements.has(placement) ? placement : "top";
   };
   const getTooltip = () =&gt; {
     if (tooltip == null) {
-      tooltip = document.createElement(&quot;div&quot;);
+      tooltip = document.createElement("div");
       tooltip.id = tooltipId;
-      tooltip.className = &quot;tooltip&quot;;
-      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+      tooltip.className = "tooltip";
+      tooltip.setAttribute("role", "tooltip");
     }
     return tooltip;
   };
   const setDescribedBy = (trigger, described) =&gt; {
     const ids = new Set(
-      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+      (trigger.getAttribute("aria-describedby") ?? "")
         .split(/\s+/)
         .filter(Boolean),
     );
@@ -1129,9 +1158,9 @@ html&gt;body{padding:0}&lt;/style&gt;
       ids.delete(tooltipId);
     }
     if (ids.size === 0) {
-      trigger.removeAttribute(&quot;aria-describedby&quot;);
+      trigger.removeAttribute("aria-describedby");
     } else {
-      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+      trigger.setAttribute("aria-describedby", [...ids].join(" "));
     }
   };
   const clearOpenTimeout = () =&gt; {
@@ -1167,18 +1196,18 @@ html&gt;body{padding:0}&lt;/style&gt;
           padding: tooltipGap,
           apply({ availableHeight, availableWidth, elements }) {
             elements.floating.style.setProperty(
-              &quot;--tooltip-available-width&quot;,
+              "--tooltip-available-width",
               `${Math.max(0, availableWidth)}px`,
             );
             elements.floating.style.setProperty(
-              &quot;--tooltip-available-height&quot;,
+              "--tooltip-available-height",
               `${Math.max(0, availableHeight)}px`,
             );
           },
         }),
       ],
       placement: getPlacement(trigger),
-      strategy: &quot;fixed&quot;,
+      strategy: "fixed",
     })
       .then(({ x, y }) =&gt; {
         if (activeTrigger !== trigger || request !== positionRequest) {
@@ -1186,7 +1215,7 @@ html&gt;body{padding:0}&lt;/style&gt;
         }
         const scale = window.devicePixelRatio || 1;
         floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
-        floating.style.visibility = &quot;visible&quot;;
+        floating.style.visibility = "visible";
       })
       .catch(() =&gt; {
         if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
@@ -1206,8 +1235,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     closeTooltip();
     const floating = getTooltip();
     floating.textContent = content;
-    floating.style.visibility = &quot;hidden&quot;;
-    floating.style.transform = &quot;translate(0, 0)&quot;;
+    floating.style.visibility = "hidden";
+    floating.style.transform = "translate(0, 0)";
     document.body.appendChild(floating);
     activeTrigger = trigger;
     setDescribedBy(trigger, true);
@@ -1240,7 +1269,7 @@ html&gt;body{padding:0}&lt;/style&gt;
     }, delay);
   };
   const handlePointerOpen = (event) =&gt; {
-    if (event.pointerType === &quot;touch&quot;) {
+    if (event.pointerType === "touch") {
       return;
     }
     const trigger = getTrigger(event.target);
@@ -1260,12 +1289,12 @@ html&gt;body{padding:0}&lt;/style&gt;
   };
   const handleFocusIn = (event) =&gt; {
     const trigger = getTrigger(event.target);
-    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+    if (trigger?.matches(":focus-visible")) {
       requestOpen(trigger, true);
     }
   };
   const handleKeyDown = (event) =&gt; {
-    if (event.key === &quot;Escape&quot;) {
+    if (event.key === "Escape") {
       closeTooltip();
     }
   };
@@ -1277,25 +1306,25 @@ html&gt;body{padding:0}&lt;/style&gt;
   };
   const destroy = () =&gt; {
     closeTooltip(false);
-    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
-    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
-    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
-    document.removeEventListener(&quot;focusout&quot;, handleLeave);
-    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
-    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    document.removeEventListener("pointerover", handlePointerOpen);
+    document.removeEventListener("pointerout", handleLeave);
+    document.removeEventListener("focusin", handleFocusIn);
+    document.removeEventListener("focusout", handleLeave);
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("contextmenu", handleContextMenu);
     tooltip = null;
   };
 
-  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
-  document.addEventListener(&quot;pointerout&quot;, handleLeave);
-  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
-  document.addEventListener(&quot;focusout&quot;, handleLeave);
-  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
-  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
-  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+  document.addEventListener("pointerover", handlePointerOpen);
+  document.addEventListener("pointerout", handleLeave);
+  document.addEventListener("focusin", handleFocusIn);
+  document.addEventListener("focusout", handleLeave);
+  document.addEventListener("keydown", handleKeyDown);
+  document.addEventListener("contextmenu", handleContextMenu);
+  window.addEventListener("pagehide", destroy, { once: true });
 })();
 &lt;/script&gt;
-&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script id="codex-visualization-lucide" async src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js"&gt;&lt;/script&gt;
 &lt;script&gt;
 (() =&gt; {
   const initialize = () =&gt; {
@@ -1306,13 +1335,14 @@ html&gt;body{padding:0}&lt;/style&gt;
     return;
   }
   document
-    .getElementById(&quot;codex-visualization-lucide&quot;)
-    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+    .getElementById("codex-visualization-lucide")
+    ?.addEventListener("load", initialize, { once: true });
 })();
 &lt;/script&gt;
 
 &lt;/body&gt;
 &lt;/html&gt;
-"></iframe>
-</body>
+'
+    ></iframe>
+  </body>
 </html>

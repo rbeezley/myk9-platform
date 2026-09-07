@@ -36,7 +36,7 @@ Only the key functions are documented in full below. The complete current invent
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Ringside / AI      | `validate-passcode` (ringside passcode auth for `/at-show`), `ask-myk9show` (show-app AI assistant)                                                                      |
 | Email senders      | `send-email`, `send-auth-email`, `send-confirmation-email`, `send-registration-email`, `send-targeted-message`, `send-results`, `send-waitlist-invite`, `resend-webhook` |
-| Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`, `push-trigger-waitlist`                 |
+| Push notifications | `send-push-notification`, `push-trigger-announcement`, `push-trigger-chat-message`, `push-trigger-class-status`, `push-trigger-scoring`, `push-trigger-waitlist`         |
 | Premium / admin    | `generate-premium`, `admin-delete-user`, `admin-generate-reset-link`                                                                                                     |
 
 **`apps/myk9show/supabase/functions/` (app-scoped)**
@@ -608,11 +608,11 @@ Scheduled job that expires overdue waitlist offers and auto-offers spots to the 
 
 Internal dispatcher for durable waitlist offer, halfway-reminder, and expiry notifications. It claims a `waitlist_notification_events` row with a renewable lease, revalidates the current unpaid offer cycle, then delivers email and Web Push independently. The cron retries bounded pending, failed, and stale-processing events; per-channel state and hashed successful push endpoints prevent normal retries from duplicating completed delivery.
 
-| Detail     | Value                                                                                 |
-| ---------- | ------------------------------------------------------------------------------------- |
-| **Source** | `supabase/functions/push-trigger-waitlist/index.ts`                                   |
-| **Method** | `POST`                                                                                |
-| **Auth**   | Bearer token must match the dedicated `PUSH_WEBHOOK_SECRET`; fail-closed if unset     |
+| Detail     | Value                                                                             |
+| ---------- | --------------------------------------------------------------------------------- |
+| **Source** | `supabase/functions/push-trigger-waitlist/index.ts`                               |
+| **Method** | `POST`                                                                            |
+| **Auth**   | Bearer token must match the dedicated `PUSH_WEBHOOK_SECRET`; fail-closed if unset |
 
 Notifications link to the existing filtered My Entries surface and format deadlines in the trial timezone. Mail-in waitlist rows do not create notification events. A recipient without an authenticated account still receives email; Web Push is skipped because no subscription owner can exist.
 

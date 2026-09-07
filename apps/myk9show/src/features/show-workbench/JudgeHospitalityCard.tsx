@@ -65,11 +65,7 @@ function JudgeHospitalityCardContent({ judges, showId }: JudgeHospitalityCardPro
           </p>
         </div>
         <Badge variant={reminders > 0 ? 'secondary' : 'default'}>
-          {judges.length === 0
-            ? 'No judges'
-            : reminders > 0
-              ? `${reminders} reminders`
-              : 'Handled'}
+          {judges.length === 0 ? 'No judges' : reminders > 0 ? `${reminders} reminders` : 'Handled'}
         </Badge>
       </div>
 

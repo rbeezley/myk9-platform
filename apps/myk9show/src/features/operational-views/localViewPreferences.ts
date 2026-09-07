@@ -99,10 +99,7 @@ export function saveLocalView(
   };
 
   try {
-    safeStorage.setItem(
-      buildSavedViewKey(userId, validated.surface),
-      JSON.stringify(record)
-    );
+    safeStorage.setItem(buildSavedViewKey(userId, validated.surface), JSON.stringify(record));
   } catch {
     // Quota exceeded or backend rejected the write — treat as unavailable.
   }

@@ -17,31 +17,54 @@ export const SANITIZE_CONFIGS = {
     ALLOWED_ATTR: [] as string[],
     ALLOW_DATA_ATTR: false,
   },
-  
+
   // Rich text content like training journal entries
   richText: {
     ALLOWED_TAGS: [
-      'p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'a', 'div', 'table',
-      'thead', 'tbody', 'tr', 'th', 'td', 'hr'
+      'p',
+      'br',
+      'strong',
+      'em',
+      'u',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'ul',
+      'ol',
+      'li',
+      'blockquote',
+      'pre',
+      'code',
+      'a',
+      'div',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'th',
+      'td',
+      'hr',
     ] as string[],
     ALLOWED_ATTR: ['class', 'href'] as string[],
     ALLOW_DATA_ATTR: false,
   },
-  
+
   // Very restrictive for user names, titles, etc.
   textOnly: {
     ALLOWED_TAGS: [] as string[],
     ALLOWED_ATTR: [] as string[],
     ALLOW_DATA_ATTR: false,
-  }
+  },
 };
 
 /**
  * Sanitizes HTML content to prevent XSS attacks
  */
 export function sanitizeHTML(
-  html: string, 
+  html: string,
   config: keyof typeof SANITIZE_CONFIGS = 'basic'
 ): string {
   if (!html || typeof html !== 'string') {
@@ -49,7 +72,7 @@ export function sanitizeHTML(
   }
 
   const sanitizeConfig = SANITIZE_CONFIGS[config];
-  
+
   return DOMPurify.sanitize(html, {
     ...sanitizeConfig,
     // Additional security settings
@@ -77,17 +100,12 @@ export interface SafeHTMLProps {
  */
 export function SafeHTML({ html, config = 'basic', className, fallback }: SafeHTMLProps) {
   const sanitized = sanitizeHTML(html, config);
-  
+
   if (!sanitized && fallback) {
     return <>{fallback}</>;
   }
-  
-  return (
-    <div 
-      className={className}
-      dangerouslySetInnerHTML={{ __html: sanitized }}
-    />
-  );
+
+  return <div className={className} dangerouslySetInnerHTML={{ __html: sanitized }} />;
 }
 
 /**
@@ -97,7 +115,7 @@ export function isContentSafe(html: string): boolean {
   if (!html || typeof html !== 'string') {
     return true;
   }
-  
+
   const sanitized = sanitizeHTML(html, 'richText');
   return sanitized === html;
 }

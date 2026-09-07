@@ -51,7 +51,5 @@ export function buildScheduleSlipAnnouncementTitle(input: Pick<ScheduleSlipScrip
 }
 
 export function buildScheduleSlipAnnouncementExpiresAt(now = new Date()): string {
-  return new Date(
-    now.getTime() + SCHEDULE_SLIP_ANNOUNCEMENT_EXPIRY_HOURS * HOUR_MS
-  ).toISOString();
+  return new Date(now.getTime() + SCHEDULE_SLIP_ANNOUNCEMENT_EXPIRY_HOURS * HOUR_MS).toISOString();
 }

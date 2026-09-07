@@ -64,86 +64,86 @@ export function JudgesSection({ judges, trialsCount, flag }: JudgesSectionProps)
                 paddingRight: i % 2 === 0 ? 32 : 0,
               }}
             >
-            {j.trialsLabel && (
-              <div
-                style={{
-                  fontFamily: BANNER_BODY_FAMILY,
-                  fontWeight: 500,
-                  fontSize: 10,
-                  letterSpacing: '0.28em',
-                  textTransform: 'uppercase',
-                  color: flag,
-                  marginBottom: 12,
-                }}
-              >
-                {j.trialsLabel}
-              </div>
-            )}
-            <h3
-              style={{
-                fontFamily: BANNER_DISPLAY_FAMILY,
-                fontWeight: 800,
-                fontSize: 28,
-                letterSpacing: '-0.025em',
-                lineHeight: 1.05,
-                color: bannerColors.ink,
-                margin: '0 0 6px',
-              }}
-            >
-              {j.name}
-            </h3>
-            {j.city && (
-              <div
-                style={{
-                  fontFamily: BANNER_BODY_FAMILY,
-                  fontSize: 13,
-                  color: bannerColors.mute,
-                  marginBottom: 16,
-                }}
-              >
-                {j.city}
-              </div>
-            )}
-            {j.elementPanel && (
-              <p
-                style={{
-                  fontFamily: BANNER_BODY_FAMILY,
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  color: bannerColors.soft,
-                  margin: 0,
-                }}
-              >
-                <span
+              {j.trialsLabel && (
+                <div
                   style={{
                     fontFamily: BANNER_BODY_FAMILY,
                     fontWeight: 500,
                     fontSize: 10,
-                    letterSpacing: '0.2em',
+                    letterSpacing: '0.28em',
                     textTransform: 'uppercase',
-                    color: bannerColors.mute,
-                    display: 'block',
-                    marginBottom: 6,
+                    color: flag,
+                    marginBottom: 12,
                   }}
                 >
-                  Element panel
-                </span>
-                {j.elementPanel}
-              </p>
-            )}
-            {j.bio && (
-              <p
+                  {j.trialsLabel}
+                </div>
+              )}
+              <h3
                 style={{
-                  marginTop: 16,
-                  fontFamily: BANNER_BODY_FAMILY,
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  color: bannerColors.soft,
+                  fontFamily: BANNER_DISPLAY_FAMILY,
+                  fontWeight: 800,
+                  fontSize: 28,
+                  letterSpacing: '-0.025em',
+                  lineHeight: 1.05,
+                  color: bannerColors.ink,
+                  margin: '0 0 6px',
                 }}
               >
-                {j.bio}
-              </p>
-            )}
+                {j.name}
+              </h3>
+              {j.city && (
+                <div
+                  style={{
+                    fontFamily: BANNER_BODY_FAMILY,
+                    fontSize: 13,
+                    color: bannerColors.mute,
+                    marginBottom: 16,
+                  }}
+                >
+                  {j.city}
+                </div>
+              )}
+              {j.elementPanel && (
+                <p
+                  style={{
+                    fontFamily: BANNER_BODY_FAMILY,
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: bannerColors.soft,
+                    margin: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: BANNER_BODY_FAMILY,
+                      fontWeight: 500,
+                      fontSize: 10,
+                      letterSpacing: '0.2em',
+                      textTransform: 'uppercase',
+                      color: bannerColors.mute,
+                      display: 'block',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Element panel
+                  </span>
+                  {j.elementPanel}
+                </p>
+              )}
+              {j.bio && (
+                <p
+                  style={{
+                    marginTop: 16,
+                    fontFamily: BANNER_BODY_FAMILY,
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: bannerColors.soft,
+                  }}
+                >
+                  {j.bio}
+                </p>
+              )}
             </article>
           );
         })}

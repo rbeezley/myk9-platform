@@ -7,9 +7,11 @@ This document provides an overview of the comprehensive test suite created for P
 ### 1. Service Tests
 
 #### `/src/test/services/offline-entry-system.test.ts`
+
 **Comprehensive tests for the offline entry creation system**
 
 **Key Test Scenarios:**
+
 - **OfflineEntryCreator Core Functionality**
   - Entry creation with validation
   - Capacity management and waitlisting
@@ -42,9 +44,11 @@ This document provides an overview of the comprehensive test suite created for P
   - Referential integrity validation
 
 #### `/src/test/services/offline-scoring-system.test.ts`
+
 **Comprehensive tests for the offline scoring system**
 
 **Key Test Scenarios:**
+
 - **OfflineScoringService Core Functionality**
   - Placement-based scoring
   - Time-based competition scoring (agility)
@@ -85,9 +89,11 @@ This document provides an overview of the comprehensive test suite created for P
   - Referential integrity between scores and entries
 
 #### `/src/test/services/offline-checkin-system.test.ts`
+
 **Comprehensive tests for the offline check-in system**
 
 **Key Test Scenarios:**
+
 - **OfflineCheckInService Core Functionality**
   - Basic check-in with armband assignment
   - Late check-in handling
@@ -134,9 +140,11 @@ This document provides an overview of the comprehensive test suite created for P
 ### 2. Store Tests
 
 #### `/src/test/stores/phase3-offline-stores.test.ts`
+
 **Comprehensive tests for Phase 3 offline store operations**
 
 **Key Test Scenarios:**
+
 - **TrialStore Offline Trial Management**
   - Trial creation, updates, deletion
   - Trial retrieval by ID and show
@@ -175,9 +183,11 @@ This document provides an overview of the comprehensive test suite created for P
 ### 3. Integration Tests
 
 #### `/src/test/integration/phase3-offline-workflows.test.ts`
+
 **Comprehensive integration tests for complete offline workflows**
 
 **Key Test Scenarios:**
+
 - **Complete Show Setup and Entry Management Workflow**
   - End-to-end show creation and entry processing
   - Multi-class entry processing
@@ -211,9 +221,11 @@ This document provides an overview of the comprehensive test suite created for P
 ### 4. Performance Tests
 
 #### `/src/test/performance/phase3-offline-performance.test.ts`
+
 **Performance tests for offline show operations**
 
 **Key Test Scenarios:**
+
 - **Entry Creation Performance**
   - Large-scale entry creation (1000 entries)
   - Concurrent entry creation across classes
@@ -241,6 +253,7 @@ This document provides an overview of the comprehensive test suite created for P
 ## Test Metrics and Benchmarks
 
 ### Performance Benchmarks
+
 - **Entry Creation**: > 500 entries/second
 - **Check-ins**: > 300 check-ins/second
 - **Scoring**: > 400 scores/second
@@ -248,12 +261,14 @@ This document provides an overview of the comprehensive test suite created for P
 - **Data Queries**: < 100ms for complex filters on large datasets
 
 ### Scalability Targets
+
 - **Maximum Entries per Class**: 2000+ entries
 - **Maximum Concurrent Operations**: 1000+ simultaneous operations
 - **Maximum Armband Range**: 10,000+ armbands per class
 - **Maximum Show Complexity**: 20+ classes, 10+ judges, 4+ rings
 
 ### Error Handling Coverage
+
 - **Network Failures**: Graceful offline operation continuation
 - **Storage Errors**: Proper error reporting and recovery
 - **Validation Failures**: Comprehensive error messaging
@@ -263,12 +278,14 @@ This document provides an overview of the comprehensive test suite created for P
 ## Test Data Scenarios
 
 ### Realistic Show Scenarios
+
 - **Small Local Show**: 5 classes, 50 entries per class
 - **Regional Show**: 20 classes, 100 entries per class
 - **National Specialty**: 50+ classes, 200+ entries per class
 - **Multi-Day Event**: Multiple trials, overlapping schedules
 
 ### Edge Cases Covered
+
 - **Capacity Limits**: Classes at maximum capacity
 - **Waitlist Management**: Full waitlists with promotion scenarios
 - **Conflict Resolution**: Armband conflicts, timing conflicts
@@ -278,11 +295,13 @@ This document provides an overview of the comprehensive test suite created for P
 ## Running the Tests
 
 ### Prerequisites
+
 ```bash
 npm install
 ```
 
 ### Run All Phase 3 Tests
+
 ```bash
 # Run all Phase 3 tests
 npm run test -- --testPathPattern="phase3|offline"
@@ -297,11 +316,13 @@ npm run test -- src/test/performance/phase3-offline-performance.test.ts
 ```
 
 ### Run Performance Tests
+
 ```bash
 npm run test:performance -- --testPathPattern="phase3"
 ```
 
 ### Run with Coverage
+
 ```bash
 npm run test:coverage -- --testPathPattern="phase3"
 ```
@@ -309,6 +330,7 @@ npm run test:coverage -- --testPathPattern="phase3"
 ## Test Coverage Goals
 
 ### Functional Coverage
+
 - ✅ **Entry Management**: 100% of entry lifecycle operations
 - ✅ **Check-in Operations**: 100% of check-in scenarios
 - ✅ **Scoring System**: 100% of scoring types and calculations
@@ -317,12 +339,14 @@ npm run test:coverage -- --testPathPattern="phase3"
 - ✅ **Integration Workflows**: 100% of end-to-end scenarios
 
 ### Performance Coverage
+
 - ✅ **Scalability Tests**: Large dataset operations
 - ✅ **Concurrency Tests**: Multi-user scenarios
 - ✅ **Memory Tests**: Memory usage and cleanup
 - ✅ **Query Performance**: Complex filtering and searches
 
 ### Edge Case Coverage
+
 - ✅ **Capacity Management**: Full classes and waitlists
 - ✅ **Conflict Resolution**: Various conflict scenarios
 - ✅ **Data Validation**: Invalid data handling
@@ -331,6 +355,7 @@ npm run test:coverage -- --testPathPattern="phase3"
 ## Key Testing Patterns Used
 
 ### 1. **Comprehensive Setup/Teardown**
+
 ```typescript
 beforeEach(() => {
   localStorage.clear();
@@ -343,6 +368,7 @@ beforeEach(() => {
 ```
 
 ### 2. **Realistic Data Generation**
+
 ```typescript
 const mockEntry: Entry = {
   id: 'entry-1',
@@ -354,13 +380,14 @@ const mockEntry: Entry = {
     submittedAt: '2024-07-01T10:00:00Z',
     handler: 'Handler 1',
     entryFee: 25,
-    paymentStatus: 'paid'
+    paymentStatus: 'paid',
   },
   // ... complete realistic data
 };
 ```
 
 ### 3. **Performance Measurement**
+
 ```typescript
 const startTime = performance.now();
 // ... operations
@@ -370,31 +397,32 @@ expect(duration).toBeLessThan(expectedThreshold);
 ```
 
 ### 4. **Error Scenario Testing**
+
 ```typescript
 // Mock storage failure
-vi.spyOn(useEntryStore.getState(), 'addEntry')
-  .mockImplementation(() => {
-    throw new Error('Storage quota exceeded');
-  });
+vi.spyOn(useEntryStore.getState(), 'addEntry').mockImplementation(() => {
+  throw new Error('Storage quota exceeded');
+});
 ```
 
 ### 5. **Concurrent Operation Testing**
+
 ```typescript
-const promises = Array.from({ length: 100 }, (_, i) =>
-  OfflineEntryCreator.createEntry(entryData)
-);
+const promises = Array.from({ length: 100 }, (_, i) => OfflineEntryCreator.createEntry(entryData));
 const results = await Promise.all(promises);
 ```
 
 ## Integration with CI/CD
 
 ### Automated Test Execution
+
 - Tests run on every commit to Phase 3 branches
 - Performance regression detection
 - Coverage reporting and enforcement
 - Cross-browser testing for offline functionality
 
 ### Test Report Generation
+
 - Detailed performance metrics
 - Coverage reports with trend analysis
 - Error scenario documentation

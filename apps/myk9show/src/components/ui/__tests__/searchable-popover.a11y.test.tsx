@@ -30,25 +30,25 @@ function Harness({ onSelect = vi.fn() }: { onSelect?: (item: Item) => void }) {
           current value. */}
       <label htmlFor="picker">Registered Breed</label>
       <SearchablePopover<Item>
-      id="picker"
-      open={open}
-      onOpenChange={next => {
-        setOpen(next);
-        if (!next) setTerm('');
-      }}
-      triggerLabel={selected || 'Select breed'}
-      searchPlaceholder="Search breeds…"
-      searchTerm={term}
-      onSearchChange={setTerm}
-      items={items}
-      emptyMessage="No breeds match your search"
-      listboxLabel="Breeds"
-      selectedItemIds={selected ? [selected] : []}
-      onSelect={item => {
-        setSelected(item.id);
-        setTerm('');
-        onSelect(item);
-      }}
+        id="picker"
+        open={open}
+        onOpenChange={next => {
+          setOpen(next);
+          if (!next) setTerm('');
+        }}
+        triggerLabel={selected || 'Select breed'}
+        searchPlaceholder="Search breeds…"
+        searchTerm={term}
+        onSearchChange={setTerm}
+        items={items}
+        emptyMessage="No breeds match your search"
+        listboxLabel="Breeds"
+        selectedItemIds={selected ? [selected] : []}
+        onSelect={item => {
+          setSelected(item.id);
+          setTerm('');
+          onSelect(item);
+        }}
         renderItem={item => <div className="p-3">{item.id}</div>}
       />
     </div>

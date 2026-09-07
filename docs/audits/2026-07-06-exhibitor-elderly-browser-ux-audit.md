@@ -20,15 +20,15 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 **Misalignment gaps:**
 
-| UI Element | User Expects | Actually Does | Severity |
-|------------|--------------|---------------|----------|
-| "Browse Shows" after onboarding | Leave onboarding and start using the app | Worked on second pass, but the page previously reset to Step 2 after reaching Step 5 | High |
-| Closed show detail with "Enter this show" links | If entries are closed, entry is unavailable | Lets user enter wizard, select classes, agree to terms, then blocks at submit | High |
-| My Shows "Current Fees $270 / Amount due $120" | My Payments will let me handle what I owe | My Payments shows total paid/history only, no amount due path | High |
-| Show-day "Go to show day" | Show me my dogs, armbands, ring, and what to do next | Lands on a ringside class list with `0 / 0`; class detail says "No Entries Yet" | High |
-| My Entries entry cards | I can fix or change an entry if allowed | No visible edit action because every entry is past deadline; user must infer "message the show team" | Medium |
-| Check-in status control | Simple "I am here" action | Opens staff-like statuses: Not Checked In, Checked In, At Gate, Conflict, Pulled | Medium |
-| Dog detail height/weight | Blank if unknown | Shows `NaN"` and `NaN lbs` after editing a dog with no height/weight | High |
+| UI Element                                      | User Expects                                         | Actually Does                                                                                        | Severity |
+| ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------- |
+| "Browse Shows" after onboarding                 | Leave onboarding and start using the app             | Worked on second pass, but the page previously reset to Step 2 after reaching Step 5                 | High     |
+| Closed show detail with "Enter this show" links | If entries are closed, entry is unavailable          | Lets user enter wizard, select classes, agree to terms, then blocks at submit                        | High     |
+| My Shows "Current Fees $270 / Amount due $120"  | My Payments will let me handle what I owe            | My Payments shows total paid/history only, no amount due path                                        | High     |
+| Show-day "Go to show day"                       | Show me my dogs, armbands, ring, and what to do next | Lands on a ringside class list with `0 / 0`; class detail says "No Entries Yet"                      | High     |
+| My Entries entry cards                          | I can fix or change an entry if allowed              | No visible edit action because every entry is past deadline; user must infer "message the show team" | Medium   |
+| Check-in status control                         | Simple "I am here" action                            | Opens staff-like statuses: Not Checked In, Checked In, At Gate, Conflict, Pulled                     | Medium   |
+| Dog detail height/weight                        | Blank if unknown                                     | Shows `NaN"` and `NaN lbs` after editing a dog with no height/weight                                 | High     |
 
 **Jargon found:** `Push (mobile)`, `Conflict`, `Pulled`, `More actions`, `Armband #1738A77B` where a confirmation number is shown as an armband, `AskQ`, `Command-K` search hint, "secure checkout" without saying no card has been charged yet.
 
@@ -44,14 +44,14 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 **IA issues:**
 
-| Issue | Location | Problem | Recommendation |
-|-------|----------|---------|----------------|
-| Closed-entry affordances remain primary | Show detail and wizard | User can start a task that cannot complete | Replace "Enter this show" with "Entries closed" and "Message show team about late entry" once closed |
-| Show-day role mix | `/at-show/:showId` | Exhibitor gets ringside structure instead of personal itinerary | Keep the existing show-day route, but default exhibitor view to "Your dogs today"; link to full class list secondarily |
-| Money split across My Shows and My Payments | My Shows/My Payments | Amount due appears in one place, payment history in another | Add "Amount due" section to My Payments and deep-link Current Fees there or to `/cart` with entries filtered |
-| Dog edit is more complex than dog add | Dog detail edit panel | Add dog asks essentials; edit dog exposes many optional fields at once | Keep same core/optional grouping as Add Dog; put advanced fields behind "More details" |
-| Registration add duplicates controls | Dog detail registrations tab | "Add New Registration", "Add Registrations", and sidebar "Add registration" all open similar/identical intent | Use one primary "Add registration" button per surface |
-| Premium tabs crowd core dog tasks | Dog detail | Title/Stats/Health/Training/Pedigree are visible beside Activity/Registrations for a basic user | Keep locked tabs, but group premium items under a single "More for this dog" section |
+| Issue                                       | Location                     | Problem                                                                                                       | Recommendation                                                                                                         |
+| ------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Closed-entry affordances remain primary     | Show detail and wizard       | User can start a task that cannot complete                                                                    | Replace "Enter this show" with "Entries closed" and "Message show team about late entry" once closed                   |
+| Show-day role mix                           | `/at-show/:showId`           | Exhibitor gets ringside structure instead of personal itinerary                                               | Keep the existing show-day route, but default exhibitor view to "Your dogs today"; link to full class list secondarily |
+| Money split across My Shows and My Payments | My Shows/My Payments         | Amount due appears in one place, payment history in another                                                   | Add "Amount due" section to My Payments and deep-link Current Fees there or to `/cart` with entries filtered           |
+| Dog edit is more complex than dog add       | Dog detail edit panel        | Add dog asks essentials; edit dog exposes many optional fields at once                                        | Keep same core/optional grouping as Add Dog; put advanced fields behind "More details"                                 |
+| Registration add duplicates controls        | Dog detail registrations tab | "Add New Registration", "Add Registrations", and sidebar "Add registration" all open similar/identical intent | Use one primary "Add registration" button per surface                                                                  |
+| Premium tabs crowd core dog tasks           | Dog detail                   | Title/Stats/Health/Training/Pedigree are visible beside Activity/Registrations for a basic user               | Keep locked tabs, but group premium items under a single "More for this dog" section                                   |
 
 **Visibility problems:**
 
@@ -62,16 +62,16 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 **Affordance audit:**
 
-| Element | Looks Like | Actually Is | Clear? |
-|---------|------------|-------------|--------|
-| "Enter this show" on closed show | Available action | Leads to blocked submission | No |
-| Entry status pill ("Checked In", "Not Checked In") | Static status | Button that opens check-in dialog | Partly |
-| Dog cards on My Shows | Summary cards | Navigate to dog detail | Partly |
-| Dog detail "More actions" | Generic overflow | Registration edit/delete or dog actions depending location | No |
-| Message Center icon | Icon-only tool | Opens notifications panel | Mostly, but only because aria label exists |
-| AskQ icon | Unknown assistant | Opens help panel | No, label is brand/internal |
-| Add Dog validation | Plain text alerts | Shows exactly what to fix | Yes |
-| Payment agreement gating | Disabled submit with status line | Clearly says what blocks progress | Yes |
+| Element                                            | Looks Like                       | Actually Is                                                | Clear?                                     |
+| -------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- | ------------------------------------------ |
+| "Enter this show" on closed show                   | Available action                 | Leads to blocked submission                                | No                                         |
+| Entry status pill ("Checked In", "Not Checked In") | Static status                    | Button that opens check-in dialog                          | Partly                                     |
+| Dog cards on My Shows                              | Summary cards                    | Navigate to dog detail                                     | Partly                                     |
+| Dog detail "More actions"                          | Generic overflow                 | Registration edit/delete or dog actions depending location | No                                         |
+| Message Center icon                                | Icon-only tool                   | Opens notifications panel                                  | Mostly, but only because aria label exists |
+| AskQ icon                                          | Unknown assistant                | Opens help panel                                           | No, label is brand/internal                |
+| Add Dog validation                                 | Plain text alerts                | Shows exactly what to fix                                  | Yes                                        |
+| Payment agreement gating                           | Disabled submit with status line | Clearly says what blocks progress                          | Yes                                        |
 
 **False affordances:** closed-show "Enter this show"; show-day "0 / 0" class rows that look valid but lead to empty/no-entry state.
 
@@ -88,15 +88,15 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 **Decision points:**
 
-| Screen/Step | Decisions Required | Can Be Reduced? |
-|-------------|--------------------|-----------------|
-| Sign in | Email/passcode, then password | Good; keep the staged flow |
-| Onboarding Dogs | Add/skip dog, then required dog fields | Good, but reset-to-Step-2 behavior damages confidence |
-| Add Dog | Call name, gender, DOB, optional color/photo | Good |
-| Edit Dog | Required names, breed, gender, DOB, color, weight, height, microchip, spay/neuter, notes, special needs, health tab | Yes: preserve Add Dog's simpler grouping |
-| Add Registration | Organization, breed, registered name, number, status, optional date | Yes: explain which org to pick for mixed-breed dogs |
-| Registration wizard | Dog tabs, trial accordions, class checkboxes, draft buttons, cart summary, payment, agreement | Partly: block closed shows before Step 1 |
-| My Shows | Interpret stats, dog strip, entry cards, tabs, fees, statuses | Yes: collapse into "Needs action", "Upcoming", "Done" for low-tech mode |
+| Screen/Step         | Decisions Required                                                                                                  | Can Be Reduced?                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Sign in             | Email/passcode, then password                                                                                       | Good; keep the staged flow                                              |
+| Onboarding Dogs     | Add/skip dog, then required dog fields                                                                              | Good, but reset-to-Step-2 behavior damages confidence                   |
+| Add Dog             | Call name, gender, DOB, optional color/photo                                                                        | Good                                                                    |
+| Edit Dog            | Required names, breed, gender, DOB, color, weight, height, microchip, spay/neuter, notes, special needs, health tab | Yes: preserve Add Dog's simpler grouping                                |
+| Add Registration    | Organization, breed, registered name, number, status, optional date                                                 | Yes: explain which org to pick for mixed-breed dogs                     |
+| Registration wizard | Dog tabs, trial accordions, class checkboxes, draft buttons, cart summary, payment, agreement                       | Partly: block closed shows before Step 1                                |
+| My Shows            | Interpret stats, dog strip, entry cards, tabs, fees, statuses                                                       | Yes: collapse into "Needs action", "Upcoming", "Done" for low-tech mode |
 
 **Missing defaults:**
 
@@ -106,12 +106,12 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 **Unnecessary complexity:**
 
-| Complexity | Who Needs It | Recommendation |
-|------------|--------------|----------------|
-| Staff check-in statuses | Secretary/gate steward | Give exhibitors simplified language and map internally |
-| Premium dog tabs | Engaged/premium users | Group behind a single premium section |
-| Draft buttons in closed-show wizard | Returning users | Hide wizard entirely when self-service entry is closed |
-| Global search `Command-K` hint | Power users | Keep as secondary; never rely on it |
+| Complexity                          | Who Needs It           | Recommendation                                         |
+| ----------------------------------- | ---------------------- | ------------------------------------------------------ |
+| Staff check-in statuses             | Secretary/gate steward | Give exhibitors simplified language and map internally |
+| Premium dog tabs                    | Engaged/premium users  | Group behind a single premium section                  |
+| Draft buttons in closed-show wizard | Returning users        | Hide wizard entirely when self-service entry is closed |
+| Global search `Command-K` hint      | Power users            | Keep as secondary; never rely on it                    |
 
 **Cognitive load score:** High for low-computer-skill exhibitors. Individual forms are often friendly, but the cross-page contradictions force the user to reason about system state.
 
@@ -119,65 +119,65 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 ### Sign-In
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| Empty | Yes | Good | Email/passcode field is clear |
-| Loading | Yes | Good | "Preparing your workspace" is calm |
-| Success | Yes | Mixed | Redirected to onboarding because profile was incomplete |
-| Error | Not tested | - | - |
+| State   | Implemented? | Quality | Issue                                                   |
+| ------- | ------------ | ------- | ------------------------------------------------------- |
+| Empty   | Yes          | Good    | Email/passcode field is clear                           |
+| Loading | Yes          | Good    | "Preparing your workspace" is calm                      |
+| Success | Yes          | Mixed   | Redirected to onboarding because profile was incomplete |
+| Error   | Not tested   | -       | -                                                       |
 
 ### Onboarding
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| Existing dogs | Yes | Good | Dog list made it clear there were already dogs |
-| Add dog success | Yes | Good | Toast said `Codex Maple added` |
-| Optional steps | Yes | Mixed | Address copy says optional, but "premium ribbons and awards" may make skipping feel risky |
-| Completion | Yes | Poor | Snapshot/reload returned to Step 2 after reaching Step 5 once |
+| State           | Implemented? | Quality | Issue                                                                                     |
+| --------------- | ------------ | ------- | ----------------------------------------------------------------------------------------- |
+| Existing dogs   | Yes          | Good    | Dog list made it clear there were already dogs                                            |
+| Add dog success | Yes          | Good    | Toast said `Codex Maple added`                                                            |
+| Optional steps  | Yes          | Mixed   | Address copy says optional, but "premium ribbons and awards" may make skipping feel risky |
+| Completion      | Yes          | Poor    | Snapshot/reload returned to Step 2 after reaching Step 5 once                             |
 
 ### My Dogs / Dog Detail
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| List | Yes | Good | Search/filter/cards are clear |
-| Detail empty upcoming | Yes | Good | "No upcoming entries" plus Find a show |
-| Edit success | Yes | Good | Toast and detail update appeared |
-| Missing numeric values | Yes | Poor | Blank height/weight render as `NaN"` and `NaN lbs` |
+| State                  | Implemented? | Quality | Issue                                              |
+| ---------------------- | ------------ | ------- | -------------------------------------------------- |
+| List                   | Yes          | Good    | Search/filter/cards are clear                      |
+| Detail empty upcoming  | Yes          | Good    | "No upcoming entries" plus Find a show             |
+| Edit success           | Yes          | Good    | Toast and detail update appeared                   |
+| Missing numeric values | Yes          | Poor    | Blank height/weight render as `NaN"` and `NaN lbs` |
 
 ### Registration Wizard
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| No class selected | Yes | Good | Footer says select at least one class |
-| Class selected | Yes | Good | Total and cart summary update |
-| Agreement missing | Yes | Good | Submit disabled with reason |
-| Closed entries | Yes | Poor | Block appears only after submit attempt, after user invested effort |
+| State             | Implemented? | Quality | Issue                                                               |
+| ----------------- | ------------ | ------- | ------------------------------------------------------------------- |
+| No class selected | Yes          | Good    | Footer says select at least one class                               |
+| Class selected    | Yes          | Good    | Total and cart summary update                                       |
+| Agreement missing | Yes          | Good    | Submit disabled with reason                                         |
+| Closed entries    | Yes          | Poor    | Block appears only after submit attempt, after user invested effort |
 
 ### My Shows / My Entries
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| Data loaded | Yes | Mixed | Rich but dense |
-| Existing entries | Yes | Mixed | Actionable edit is absent after close with no explanation |
-| Check-in dialog | Yes | Mixed | Functional, but exposes staff statuses |
-| Receipt | Not opened | - | Button visible on paid entries |
+| State            | Implemented? | Quality | Issue                                                     |
+| ---------------- | ------------ | ------- | --------------------------------------------------------- |
+| Data loaded      | Yes          | Mixed   | Rich but dense                                            |
+| Existing entries | Yes          | Mixed   | Actionable edit is absent after close with no explanation |
+| Check-in dialog  | Yes          | Mixed   | Functional, but exposes staff statuses                    |
+| Receipt          | Not opened   | -       | Button visible on paid entries                            |
 
 ### Show Day
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| Show selected | Yes | Poor | Shows ringside class list, not personal exhibitor itinerary |
-| Class empty | Yes | Poor | Says "No Entries Yet" despite My Shows saying the user has entries today |
-| Recovery | Yes | Basic | Go Back button exists |
+| State         | Implemented? | Quality | Issue                                                                    |
+| ------------- | ------------ | ------- | ------------------------------------------------------------------------ |
+| Show selected | Yes          | Poor    | Shows ringside class list, not personal exhibitor itinerary              |
+| Class empty   | Yes          | Poor    | Says "No Entries Yet" despite My Shows saying the user has entries today |
+| Recovery      | Yes          | Basic   | Go Back button exists                                                    |
 
 ### Payments
 
-| State | Implemented? | Quality | Issue |
-|-------|--------------|---------|-------|
-| Loading protected page | Yes | Mixed | Brief public nav/sign-in flash may look like logout |
-| Paid history | Yes | Good | Table is understandable |
-| Amount due | No | Missing | My Shows says $120 due, Payments does not show it |
-| Refunds | Yes | Mixed | Refund row appears, but total paid needs clearer net/gross wording |
+| State                  | Implemented? | Quality | Issue                                                              |
+| ---------------------- | ------------ | ------- | ------------------------------------------------------------------ |
+| Loading protected page | Yes          | Mixed   | Brief public nav/sign-in flash may look like logout                |
+| Paid history           | Yes          | Good    | Table is understandable                                            |
+| Amount due             | No           | Missing | My Shows says $120 due, Payments does not show it                  |
+| Refunds                | Yes          | Mixed   | Refund row appears, but total paid needs clearer net/gross wording |
 
 **Dead ends found:**
 
@@ -195,22 +195,22 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 **Step-by-step findings:**
 
-| Step | Action | Friction | Severity |
-|------|--------|----------|----------|
-| 1 | Sign in with email/password | Clear staged sign-in | None |
-| 2 | Continue onboarding from Dogs step | Clear, but unexpected for a returning test account | Low |
-| 3 | Add new dog | Short form, good validation | Low |
-| 4 | Edit dog | Works, but edit form is much more complex than add form | Medium |
-| 5 | Add dog registration | Works, but organization/breed choice is hard for mixed-breed novices | Medium |
-| 6 | Browse shows | Only two shows, both Entries Closed | Medium |
-| 7 | Click closed show's Enter CTA | User can begin impossible task | High |
-| 8 | Select class for new dog | Clear class selection and total | None |
-| 9 | Submit payment | Blocked with late-entry toast | High because block is too late |
-| 10 | Find existing entry edit | No edit action visible after close | Medium |
-| 11 | Update check-in | Dialog works but has staff statuses | Medium |
-| 12 | Go to show day | Leads to ringside list and empty class state | High |
-| 13 | Payments | Shows history but not amount due | High |
-| 14 | Message Center / AskQ | Empty/help states work | Low |
+| Step | Action                             | Friction                                                             | Severity                       |
+| ---- | ---------------------------------- | -------------------------------------------------------------------- | ------------------------------ |
+| 1    | Sign in with email/password        | Clear staged sign-in                                                 | None                           |
+| 2    | Continue onboarding from Dogs step | Clear, but unexpected for a returning test account                   | Low                            |
+| 3    | Add new dog                        | Short form, good validation                                          | Low                            |
+| 4    | Edit dog                           | Works, but edit form is much more complex than add form              | Medium                         |
+| 5    | Add dog registration               | Works, but organization/breed choice is hard for mixed-breed novices | Medium                         |
+| 6    | Browse shows                       | Only two shows, both Entries Closed                                  | Medium                         |
+| 7    | Click closed show's Enter CTA      | User can begin impossible task                                       | High                           |
+| 8    | Select class for new dog           | Clear class selection and total                                      | None                           |
+| 9    | Submit payment                     | Blocked with late-entry toast                                        | High because block is too late |
+| 10   | Find existing entry edit           | No edit action visible after close                                   | Medium                         |
+| 11   | Update check-in                    | Dialog works but has staff statuses                                  | Medium                         |
+| 12   | Go to show day                     | Leads to ringside list and empty class state                         | High                           |
+| 13   | Payments                           | Shows history but not amount due                                     | High                           |
+| 14   | Message Center / AskQ              | Empty/help states work                                               | Low                            |
 
 **Abandonment risks:**
 
@@ -234,38 +234,38 @@ Does this audit recommend duplicating existing pages? No. The recommendations ti
 
 ### Critical (Fix immediately)
 
-| Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
-| Show-day route contradicts My Shows and shows empty `0 / 0`/No Entries Yet states | 1, 5, 6 | User may believe their dog is not entered on show day | Medium |
-| Closed shows still advertise entry and block only at final submit | 1, 5, 6 | Wastes time and damages trust | Low-Medium |
-| My Payments omits current amount due despite My Shows saying $120 due | 1, 5 | User cannot find how to pay | Medium |
-| Dog detail renders missing height/weight as `NaN` | 1, 5 | Trust-breaking data bug | Low |
+| Finding                                                                           | Pass    | Impact                                                | Effort     |
+| --------------------------------------------------------------------------------- | ------- | ----------------------------------------------------- | ---------- |
+| Show-day route contradicts My Shows and shows empty `0 / 0`/No Entries Yet states | 1, 5, 6 | User may believe their dog is not entered on show day | Medium     |
+| Closed shows still advertise entry and block only at final submit                 | 1, 5, 6 | Wastes time and damages trust                         | Low-Medium |
+| My Payments omits current amount due despite My Shows saying $120 due             | 1, 5    | User cannot find how to pay                           | Medium     |
+| Dog detail renders missing height/weight as `NaN`                                 | 1, 5    | Trust-breaking data bug                               | Low        |
 
 ### High Priority (Fix soon)
 
-| Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
-| Onboarding can appear to reset from Step 5 back to Step 2 | 1, 5 | User thinks setup failed | Medium |
-| Existing entries hide edit after close without an explanatory replacement | 3, 6 | User does not know how to make changes | Low |
-| Exhibitor check-in dialog exposes staff statuses | 1, 4 | User may choose wrong operational state | Medium |
-| Dog edit form exposes too much optional data at once | 2, 4 | Makes simple correction feel risky | Medium |
+| Finding                                                                   | Pass | Impact                                  | Effort |
+| ------------------------------------------------------------------------- | ---- | --------------------------------------- | ------ |
+| Onboarding can appear to reset from Step 5 back to Step 2                 | 1, 5 | User thinks setup failed                | Medium |
+| Existing entries hide edit after close without an explanatory replacement | 3, 6 | User does not know how to make changes  | Low    |
+| Exhibitor check-in dialog exposes staff statuses                          | 1, 4 | User may choose wrong operational state | Medium |
+| Dog edit form exposes too much optional data at once                      | 2, 4 | Makes simple correction feel risky      | Medium |
 
 ### Medium Priority (Plan for)
 
-| Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
-| Mixed-breed registration path needs clearer guidance | 4 | Users choose wrong registry/breed | Low |
-| Premium dog tabs crowd core dog profile tasks | 2, 4 | Distracts from basic tasks | Low |
-| Protected route briefly flashes public sign-in nav | 5 | Looks like logout | Low |
-| AskQ label/quota may feel technical | 3, 4 | Help surface feels less human | Low |
+| Finding                                              | Pass | Impact                            | Effort |
+| ---------------------------------------------------- | ---- | --------------------------------- | ------ |
+| Mixed-breed registration path needs clearer guidance | 4    | Users choose wrong registry/breed | Low    |
+| Premium dog tabs crowd core dog profile tasks        | 2, 4 | Distracts from basic tasks        | Low    |
+| Protected route briefly flashes public sign-in nav   | 5    | Looks like logout                 | Low    |
+| AskQ label/quota may feel technical                  | 3, 4 | Help surface feels less human     | Low    |
 
 ### Low Priority (Nice to have)
 
-| Finding | Pass | Impact | Effort |
-|---------|------|--------|--------|
-| Address step says optional but mentions awards/ribbons | 4 | Skipping may feel unsafe | Low |
-| Date-of-birth field lacks explicit format example | 4 | Slows elderly users | Low |
-| Registration tab has duplicate add buttons | 2 | Minor confusion | Low |
+| Finding                                                | Pass | Impact                   | Effort |
+| ------------------------------------------------------ | ---- | ------------------------ | ------ |
+| Address step says optional but mentions awards/ribbons | 4    | Skipping may feel unsafe | Low    |
+| Date-of-birth field lacks explicit format example      | 4    | Slows elderly users      | Low    |
+| Registration tab has duplicate add buttons             | 2    | Minor confusion          | Low    |
 
 ### Quick Wins
 

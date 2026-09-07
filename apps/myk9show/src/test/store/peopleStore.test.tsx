@@ -230,9 +230,7 @@ describe('userStore (with database integration)', () => {
         await result.current.addUser(personInput);
       });
 
-      expect(mockMutateAsync).toHaveBeenCalledWith(
-        expect.objectContaining(personInput)
-      );
+      expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining(personInput));
     });
 
     it('should add person with emergency contact', async () => {

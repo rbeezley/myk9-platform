@@ -29,7 +29,9 @@ describe('FieldGuideDataGrid', () => {
   });
 
   it('honors a columns override (e.g. 4 for the entry-blank top strip)', () => {
-    const { container } = render(<FieldGuideDataGrid cells={SIX_CELL_HERO.slice(0, 4)} columns={4} />);
+    const { container } = render(
+      <FieldGuideDataGrid cells={SIX_CELL_HERO.slice(0, 4)} columns={4} />
+    );
     const grid = container.querySelector('.fg-quickref') as HTMLElement;
     expect(grid.style.gridTemplateColumns).toBe('repeat(4, 1fr)');
   });
@@ -51,7 +53,12 @@ describe('FieldGuideDataGrid', () => {
 
   it('shows the fallback string when a cell value is empty', () => {
     const { container } = render(
-      <FieldGuideDataGrid cells={[{ label: 'CONFIRM', value: '' }, { label: 'DRAW', value: 'JUN 04' }]} />
+      <FieldGuideDataGrid
+        cells={[
+          { label: 'CONFIRM', value: '' },
+          { label: 'DRAW', value: 'JUN 04' },
+        ]}
+      />
     );
     expect(container.textContent).toContain('—');
   });

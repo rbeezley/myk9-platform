@@ -8,7 +8,7 @@ import {
   useClubManagement,
   useClubsSearchQuery,
   useActiveClubsQuery,
-  useClubStatisticsQuery
+  useClubStatisticsQuery,
 } from './queries/useClubsDatabase';
 import { mapClubToClubInput } from '@/services/mappers/clubMappers';
 
@@ -17,7 +17,7 @@ export interface ClubStoreCompatState {
   selectedClubId: string;
   isLoading: boolean;
   error: Error | null;
-  
+
   // Club operations
   setClubs: (clubs: Club[]) => void;
   selectClub: (id: string) => void;
@@ -27,15 +27,15 @@ export interface ClubStoreCompatState {
   updateClubOptimistic: (clubId: string, updates: Partial<Club>) => Promise<void>;
   removeClub: (clubId: string) => void;
   removeClubOptimistic: (clubId: string) => Promise<void>;
-  
+
   // Search and filtering
   searchClubs: (term: string) => Club[];
   getActiveClubs: () => Club[];
   getClubById: (id: string) => Club | undefined;
-  
+
   // Statistics
   getClubStatistics: () => { total: number } | undefined;
-  
+
   // Sync status (compatibility methods)
   getSyncStatus: (clubId: string) => 'synced' | 'pending' | 'error' | 'conflict';
   hasPendingChanges: () => boolean;
@@ -50,112 +50,116 @@ export const useClubStoreCompat = (selectedClubId: string = ''): ClubStoreCompat
   const { data: clubs = [], isLoading, error } = useClubsQuery();
   const { data: activeClubs = [] } = useActiveClubsQuery();
   const { data: statistics } = useClubStatisticsQuery();
-  
+
   // Management operations
   const { createClub, updateClub, deleteClub } = useClubManagement();
 
   // Memoized operations to prevent unnecessary re-renders
-  const operations = useMemo(() => ({
-    // Basic operations (these are now no-ops since React Query manages state)
-    setClubs: () => {
-      // No-op: React Query manages state automatically
-    },
-    
-    selectClub: () => {
-      // No-op: selection is handled by component state, not store
-    },
-    
-    updateClub: () => {
-      // No-op: React Query handles optimistic updates
-    },
-    
-    addClub: () => {
-      // No-op: React Query handles optimistic updates
-    },
+  const operations = useMemo(
+    () => ({
+      // Basic operations (these are now no-ops since React Query manages state)
+      setClubs: () => {
+        // No-op: React Query manages state automatically
+      },
 
-    // Database operations
-    addClubOptimistic: async (clubInput: ClubInput): Promise<string> => {
-      const newClub = await createClub(clubInput);
-      return newClub.id;
-    },
+      selectClub: () => {
+        // No-op: selection is handled by component state, not store
+      },
 
-    updateClubOptimistic: async (clubId: string, updates: Partial<Club>): Promise<void> => {
-      // Convert Club updates to ClubInput format for database
-      const clubInputUpdates: Partial<ClubInput> = {};
-      
-      if (updates.name !== undefined) clubInputUpdates.name = updates.name;
-      if (updates.clubNumber !== undefined) clubInputUpdates.clubNumber = updates.clubNumber;
-      if (updates.email !== undefined) clubInputUpdates.email = updates.email;
-      if (updates.phone !== undefined) clubInputUpdates.phone = updates.phone;
-      if (updates.website !== undefined) clubInputUpdates.website = updates.website;
-      if (updates.description !== undefined) clubInputUpdates.description = updates.description;
-      if (updates.logo !== undefined) clubInputUpdates.logo = updates.logo;
-      if (updates.founded !== undefined) clubInputUpdates.founded = updates.founded;
-      if (updates.clubType !== undefined) clubInputUpdates.clubType = updates.clubType;
-      if (updates.memberIds !== undefined) clubInputUpdates.memberIds = updates.memberIds;
-      
-      // Handle address updates
-      if (updates.address) {
-        clubInputUpdates.street = updates.address.street;
-        clubInputUpdates.city = updates.address.city;
-        clubInputUpdates.state = updates.address.state;
-        clubInputUpdates.zipCode = updates.address.zipCode;
-        clubInputUpdates.country = updates.address.country;
-      }
+      updateClub: () => {
+        // No-op: React Query handles optimistic updates
+      },
 
-      await updateClub({ id: clubId, updates: clubInputUpdates });
-    },
+      addClub: () => {
+        // No-op: React Query handles optimistic updates
+      },
 
-    removeClub: () => {
-      // No-op: React Query handles optimistic updates
-    },
+      // Database operations
+      addClubOptimistic: async (clubInput: ClubInput): Promise<string> => {
+        const newClub = await createClub(clubInput);
+        return newClub.id;
+      },
 
-    removeClubOptimistic: async (clubId: string): Promise<void> => {
-      await deleteClub(clubId);
-    },
+      updateClubOptimistic: async (clubId: string, updates: Partial<Club>): Promise<void> => {
+        // Convert Club updates to ClubInput format for database
+        const clubInputUpdates: Partial<ClubInput> = {};
 
-    // Search and filtering operations
-    searchClubs: (term: string): Club[] => {
-      if (!term.trim()) return clubs;
-      const searchTerm = term.toLowerCase();
-      return clubs.filter(club => 
-        club.name.toLowerCase().includes(searchTerm) ||
-        club.email.toLowerCase().includes(searchTerm) ||
-        club.phone.includes(searchTerm) ||
-        club.clubNumber.toLowerCase().includes(searchTerm) ||
-        `${club.address.city} ${club.address.state}`.toLowerCase().includes(searchTerm)
-      );
-    },
+        if (updates.name !== undefined) clubInputUpdates.name = updates.name;
+        if (updates.clubNumber !== undefined) clubInputUpdates.clubNumber = updates.clubNumber;
+        if (updates.email !== undefined) clubInputUpdates.email = updates.email;
+        if (updates.phone !== undefined) clubInputUpdates.phone = updates.phone;
+        if (updates.website !== undefined) clubInputUpdates.website = updates.website;
+        if (updates.description !== undefined) clubInputUpdates.description = updates.description;
+        if (updates.logo !== undefined) clubInputUpdates.logo = updates.logo;
+        if (updates.founded !== undefined) clubInputUpdates.founded = updates.founded;
+        if (updates.clubType !== undefined) clubInputUpdates.clubType = updates.clubType;
+        if (updates.memberIds !== undefined) clubInputUpdates.memberIds = updates.memberIds;
 
-    getActiveClubs: (): Club[] => {
-      return activeClubs;
-    },
+        // Handle address updates
+        if (updates.address) {
+          clubInputUpdates.street = updates.address.street;
+          clubInputUpdates.city = updates.address.city;
+          clubInputUpdates.state = updates.address.state;
+          clubInputUpdates.zipCode = updates.address.zipCode;
+          clubInputUpdates.country = updates.address.country;
+        }
 
-    getClubById: (id: string): Club | undefined => {
-      return clubs.find(club => club.id === id);
-    },
+        await updateClub({ id: clubId, updates: clubInputUpdates });
+      },
 
-    // Statistics
-    getClubStatistics: () => {
-      return statistics;
-    },
+      removeClub: () => {
+        // No-op: React Query handles optimistic updates
+      },
 
-    // Sync status (compatibility - always returns 'synced' since we're using database)
-    getSyncStatus: (): 'synced' => {
-      return 'synced';
-    },
+      removeClubOptimistic: async (clubId: string): Promise<void> => {
+        await deleteClub(clubId);
+      },
 
-    hasPendingChanges: (): boolean => {
-      return false; // No pending changes when using database directly
-    }
-  }), [clubs, activeClubs, statistics, createClub, updateClub, deleteClub]);
+      // Search and filtering operations
+      searchClubs: (term: string): Club[] => {
+        if (!term.trim()) return clubs;
+        const searchTerm = term.toLowerCase();
+        return clubs.filter(
+          club =>
+            club.name.toLowerCase().includes(searchTerm) ||
+            club.email.toLowerCase().includes(searchTerm) ||
+            club.phone.includes(searchTerm) ||
+            club.clubNumber.toLowerCase().includes(searchTerm) ||
+            `${club.address.city} ${club.address.state}`.toLowerCase().includes(searchTerm)
+        );
+      },
+
+      getActiveClubs: (): Club[] => {
+        return activeClubs;
+      },
+
+      getClubById: (id: string): Club | undefined => {
+        return clubs.find(club => club.id === id);
+      },
+
+      // Statistics
+      getClubStatistics: () => {
+        return statistics;
+      },
+
+      // Sync status (compatibility - always returns 'synced' since we're using database)
+      getSyncStatus: (): 'synced' => {
+        return 'synced';
+      },
+
+      hasPendingChanges: (): boolean => {
+        return false; // No pending changes when using database directly
+      },
+    }),
+    [clubs, activeClubs, statistics, createClub, updateClub, deleteClub]
+  );
 
   return {
     clubs,
     selectedClubId,
     isLoading,
     error: error as Error | null,
-    ...operations
+    ...operations,
   };
 };
 
@@ -164,19 +168,22 @@ export const useClubStoreCompat = (selectedClubId: string = ''): ClubStoreCompat
  */
 export const useClubDetails = (clubId: string) => {
   const { data: club, isLoading, error } = useClubQuery(clubId);
-  
-  const operations = useMemo(() => ({
-    // Convert club to input format for editing
-    getClubInput: (): ClubInput | undefined => {
-      return club ? mapClubToClubInput(club) : undefined;
-    }
-  }), [club]);
+
+  const operations = useMemo(
+    () => ({
+      // Convert club to input format for editing
+      getClubInput: (): ClubInput | undefined => {
+        return club ? mapClubToClubInput(club) : undefined;
+      },
+    }),
+    [club]
+  );
 
   return {
     club,
     isLoading,
     error: error as Error | null,
-    ...operations
+    ...operations,
   };
 };
 
@@ -191,6 +198,6 @@ export const useClubSearch = (searchTerm: string) => {
     isLoading,
     error: error as Error | null,
     hasResults: clubs.length > 0,
-    resultCount: clubs.length
+    resultCount: clubs.length,
   };
 };

@@ -20,9 +20,7 @@ import { formatFee } from '@/utils/format';
  * unknown defaults to the online CTA rather than hiding a genuine balance.
  */
 export type EntryPaymentPrompt =
-  | { kind: 'finish-online' }
-  | { kind: 'pay-at-show'; text: string }
-  | { kind: 'none' };
+  { kind: 'finish-online' } | { kind: 'pay-at-show'; text: string } | { kind: 'none' };
 
 export interface EntryPaymentPromptInput {
   /** Raw `entries.payment_method` (DB vocabulary), or null/undefined if unset. */

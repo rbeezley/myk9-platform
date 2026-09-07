@@ -129,12 +129,7 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
       }
     >
       <form id="competition-edit-form" onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
-        <FormField
-          label="Competition Name"
-          fieldId="competitionName"
-          required
-          error={nameError}
-        >
+        <FormField label="Competition Name" fieldId="competitionName" required error={nameError}>
           <Input
             id="competitionName"
             name="name"
@@ -162,12 +157,7 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
               className={dateError ? 'border-destructive focus-visible:ring-destructive' : ''}
             />
           </FormField>
-          <FormField
-            label="Location"
-            fieldId="competitionLocation"
-            required
-            error={locationError}
-          >
+          <FormField label="Location" fieldId="competitionLocation" required error={locationError}>
             <Input
               id="competitionLocation"
               name="location"
@@ -181,12 +171,7 @@ const AddExternalShowDialog: React.FC<AddExternalShowDialogProps> = ({
             />
           </FormField>
         </div>
-        <FormField
-          label="Status"
-          fieldId="competitionStatus"
-          required
-          error={statusError}
-        >
+        <FormField label="Status" fieldId="competitionStatus" required error={statusError}>
           <Select
             value={''}
             onValueChange={value => {

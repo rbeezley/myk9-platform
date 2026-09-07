@@ -338,7 +338,6 @@ function renderCover(doc: jsPDF, model: EmergencyPacketModel, page: EmergencyPac
   }
 }
 
-
 function fitTextToWidth(doc: jsPDF, value: string, width: number): string {
   if (doc.getTextWidth(value) <= width) return value;
   let fitted = value;

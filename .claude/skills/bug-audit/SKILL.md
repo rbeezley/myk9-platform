@@ -1,8 +1,8 @@
 ---
 name: bug-audit
-description: "Use when asked to hunt for bugs, dead code, logic errors, broken buttons or links across the codebase, to re-run the whole-repo defect sweep, or to audit one area for correctness defects and file them as Linear issues. Distinct from codebase-health (maintainability debt) and security-audit (security posture)."
+description: 'Use when asked to hunt for bugs, dead code, logic errors, broken buttons or links across the codebase, to re-run the whole-repo defect sweep, or to audit one area for correctness defects and file them as Linear issues. Distinct from codebase-health (maintainability debt) and security-audit (security posture).'
 user-invocable: true
-argument-hint: "[scope-name | --resume | --scopes]"
+argument-hint: '[scope-name | --resume | --scopes]'
 ---
 
 # Bug Audit
@@ -28,20 +28,20 @@ and produced nothing** — every one was rate-limited before writing a single fi
 The brief forbids it; keep that line.
 
 **Reviewers write findings to disk incrementally**, one at a time as each is verified. A reviewer
-killed mid-scope then leaves its verified work behind — see *Resuming an interrupted reviewer* below.
+killed mid-scope then leaves its verified work behind — see _Resuming an interrupted reviewer_ below.
 
 **Budget per scope:** roughly 200k–350k subagent tokens, 8–35 minutes. Ten scopes is most of a
 window. Ask which scopes matter before running all ten.
 
 ## Model tiering — the point of the exercise
 
-Match the model to the *kind* of thinking the scope needs. Fable/Opus on a grep-and-count scope is
+Match the model to the _kind_ of thinking the scope needs. Fable/Opus on a grep-and-count scope is
 waste; Sonnet on a money-math scope misses things.
 
-| Model | Use for | Why |
-| --- | --- | --- |
-| **Sonnet** | routing and navigation, dead-export verification, allowlist/registry drift | Mechanical: resolve a target against a table, count importers. Little judgment, high volume. Measured: ~200k tokens, 7.5 min, 6 real findings on the routing sweep. |
-| **Fable / Opus** | show-day + registration logic, money and fees, hooks/state, services, packages, edge functions + migrations | Multi-file reasoning, and the judgment call that actually matters here: *is this a defect or a deliberate decision?* Sonnet is likelier to report intent as a bug. |
+| Model            | Use for                                                                                                     | Why                                                                                                                                                                 |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Sonnet**       | routing and navigation, dead-export verification, allowlist/registry drift                                  | Mechanical: resolve a target against a table, count importers. Little judgment, high volume. Measured: ~200k tokens, 7.5 min, 6 real findings on the routing sweep. |
+| **Fable / Opus** | show-day + registration logic, money and fees, hooks/state, services, packages, edge functions + migrations | Multi-file reasoning, and the judgment call that actually matters here: _is this a defect or a deliberate decision?_ Sonnet is likelier to report intent as a bug.  |
 
 Pass the model explicitly on the `Agent` call. If the window is tight, run the Sonnet scopes first —
 they are cheap and their findings are the least likely to be wrong.
@@ -56,8 +56,8 @@ are already on disk.
 2. **Try `SendMessage` first** — if the id resolves, the agent keeps its context and does not re-read
    what it already read. A failed send tells you it is gone; that is the test, so do not deliberate:
    `SendMessage(to: "<agentId>", message: "The limit has reset. Continue from where you stopped.
-   Your findings file already holds F1..F<n> — do not re-verify those, continue numbering from
-   F<n+1>, and cover the directories your Coverage section does not yet list.")`
+Your findings file already holds F1..F<n> — do not re-verify those, continue numbering from
+F<n+1>, and cover the directories your Coverage section does not yet list.")`
 3. **If it is gone** (session restarted, id lost), spawn a fresh agent with the same brief plus:
    "Your findings file ALREADY EXISTS with findings from an interrupted run. Read it first, keep
    those findings, spot-check each against the code, continue the numbering, and cover only what its
@@ -73,18 +73,18 @@ numbering.
 
 Run whichever the user asks for; default to the launch-critical four. `--scopes` lists them.
 
-| # | Scope | Model | Weight toward |
-| --- | --- | --- | --- |
-| 1 | routing, navigation, links, buttons (repo-wide) | Sonnet | unresolvable targets, param-shape mismatch, deep-link params nobody reads, registry-vs-route drift |
-| 2 | `features/` show-day + registration | Fable | offline correctness, run-queue ordering, status strings vs DB CHECK, wizard validation |
-| 3 | `hooks/`, `context/`, `providers/`, `store/` | Fable | queryKey omissions, `enabled:` gates rendered as zero, persisted auth-derived state |
-| 4 | `services/`, `utils/`, `lib/` | Fable | ignored `{ error }` results, column names vs generated types, date/timezone, money |
-| 5 | `pages/` | Fable | handlers that don't match their label, unmounted pages, stale invalidations |
-| 6 | `components/` show-ops | Fable | entry status transitions, placement math, report projections dropping fields |
-| 7 | `components/` rest | Fable | money paths, dead shared primitives, client-only gates |
-| 8 | `features/` rest | Fable | fee arithmetic, PDF field mapping, registry-helper bypasses, unmounted feature dirs |
-| 9 | `packages/*` | Fable | replication watermarks/conflicts, ringside authz, scoring math, dead exports |
-| 10 | edge functions + 40 newest migrations | Fable | webhook idempotency, cron auth, anon GRANTs, `security_invoker`, definer filters |
+| #   | Scope                                           | Model  | Weight toward                                                                                      |
+| --- | ----------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| 1   | routing, navigation, links, buttons (repo-wide) | Sonnet | unresolvable targets, param-shape mismatch, deep-link params nobody reads, registry-vs-route drift |
+| 2   | `features/` show-day + registration             | Fable  | offline correctness, run-queue ordering, status strings vs DB CHECK, wizard validation             |
+| 3   | `hooks/`, `context/`, `providers/`, `store/`    | Fable  | queryKey omissions, `enabled:` gates rendered as zero, persisted auth-derived state                |
+| 4   | `services/`, `utils/`, `lib/`                   | Fable  | ignored `{ error }` results, column names vs generated types, date/timezone, money                 |
+| 5   | `pages/`                                        | Fable  | handlers that don't match their label, unmounted pages, stale invalidations                        |
+| 6   | `components/` show-ops                          | Fable  | entry status transitions, placement math, report projections dropping fields                       |
+| 7   | `components/` rest                              | Fable  | money paths, dead shared primitives, client-only gates                                             |
+| 8   | `features/` rest                                | Fable  | fee arithmetic, PDF field mapping, registry-helper bypasses, unmounted feature dirs                |
+| 9   | `packages/*`                                    | Fable  | replication watermarks/conflicts, ringside authz, scoring math, dead exports                       |
+| 10  | edge functions + 40 newest migrations           | Fable  | webhook idempotency, cron auth, anon GRANTs, `security_invoker`, definer filters                   |
 
 ## Procedure
 
@@ -130,10 +130,10 @@ Run whichever the user asks for; default to the launch-critical four. `--scopes`
 
 ## Common mistakes
 
-| Mistake | What happens |
-| --- | --- |
-| Parallel reviewers | Window exhausted in minutes, zero findings written |
-| Fable on the routing scope | Same six findings, several times the cost |
+| Mistake                            | What happens                                               |
+| ---------------------------------- | ---------------------------------------------------------- |
+| Parallel reviewers                 | Window exhausted in minutes, zero findings written         |
+| Fable on the routing scope         | Same six findings, several times the cost                  |
 | Restarting a rate-limited reviewer | Discards verified findings already on disk; resume instead |
-| Filing from the summary | Findings that do not survive reading the code |
-| Stale known-deliberate list | A scope spent re-reporting settled decisions |
+| Filing from the summary            | Findings that do not survive reading the code              |
+| Stale known-deliberate list        | A scope spent re-reporting settled decisions               |

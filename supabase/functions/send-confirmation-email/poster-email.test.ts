@@ -57,14 +57,14 @@ describe('buildPosterHtml', () => {
 
   it('renders the ink top mono strip with the show abbreviation', () => {
     const html = buildPosterHtml(makeData());
-    expect(html).toContain("CONFIRMED");
+    expect(html).toContain('CONFIRMED');
     expect(html).toContain("SS'26");
   });
 
   it('renders the hero "You\'re in." headline', () => {
     const html = buildPosterHtml(makeData());
-    expect(html).toContain("You&apos;re ");
-    expect(html).toContain("in.");
+    expect(html).toContain('You&apos;re ');
+    expect(html).toContain('in.');
   });
 
   it('renders the armband line in the hero when armband is supplied', () => {

@@ -1,8 +1,11 @@
 # testing-money-path Specification
 
 ## Purpose
+
 TBD - created by archiving change test-coverage-money-path. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Money-path logic has behavioral unit tests
 
 App-side money logic (refund eligibility, payment-request eligibility, enrollment payment amounts, PaymentService, usePaymentProcessing) SHALL have colocated table-driven Vitest suites asserting intended behavior, including error and edge cases.
@@ -16,4 +19,3 @@ App-side money logic (refund eligibility, payment-request eligibility, enrollmen
 
 - **WHEN** a downstream payment call fails
 - **THEN** PaymentService surfaces the failure without reporting success
-

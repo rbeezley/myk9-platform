@@ -31,9 +31,7 @@ describe('print reminder ledger', () => {
   it('keeps the two slots independent', () => {
     // The morning send is the last moment paper can reach the box. If the
     // evening send suppressed it, a missed evening would cost the trial.
-    expect(sql).toMatch(
-      /unique \(show_id, trial_date, reminder_kind\)/
-    );
+    expect(sql).toMatch(/unique \(show_id, trial_date, reminder_kind\)/);
     expect(sql).toMatch(/reminder_kind in \('evening-before', 'morning-of'\)/);
   });
 
@@ -62,7 +60,9 @@ describe('print reminder cron', () => {
     expect(statements).toMatch(/window_start := 21; window_end := 22;/);
     expect(statements).toMatch(/window_start := 6; window_end := 8;/);
     expect(statements).toMatch(/local_now := timezone\(rec\.tz, now\(\)\)/);
-    expect(statements).toMatch(/extract\(hour from local_now\) not between window_start and window_end/);
+    expect(statements).toMatch(
+      /extract\(hour from local_now\) not between window_start and window_end/
+    );
   });
 
   it('puts the evening chase on the eve and the morning chase on the day', () => {

@@ -159,9 +159,7 @@ export function Field({
         {label}
       </Text>
       <View style={{ ...lineStyle, minHeight: 15, justifyContent: 'flex-end' }}>
-        {value ? (
-          <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{value}</Text>
-        ) : null}
+        {value ? <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{value}</Text> : null}
       </View>
       {hint ? (
         <Text style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 7.5, color: MUTE }}>

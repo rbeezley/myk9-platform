@@ -5,6 +5,7 @@
 Defines direct inline editing of frequent entry status from the status badge itself (rendered by the shared status icon grammar; this capability owns only the edit affordance), plus a time-boxed undo for simple single and bulk state changes. Undo reverts by dispatching the inverse transition through the same replication-backed mutation path — using recorded entry status history as the reference for the prior state, never as the revert mechanism — and is honest when it cannot be honored (superseded by another actor, or queued offline). Routine confirmation dialogs are removed only where this undo path covers the change; dialogs collecting a reason, note, or complex input are retained. Introduced by `inline-bulk-actions-and-editable-status` (MYK9-47).
 
 ## Requirements
+
 ### Requirement: Entry status is editable inline from its badge
 
 The system SHALL make the entry status badge on Entry Management a direct edit affordance: activating it opens a popover of the frequent, eligible transitions resolved from the shared entity-action definitions, and selecting one dispatches the same mutation as the equivalent row-menu action. The badge visual SHALL be rendered by the shared status icon grammar; this capability owns only the edit behavior. Check-in badges SHALL retain their existing click-to-change behavior.

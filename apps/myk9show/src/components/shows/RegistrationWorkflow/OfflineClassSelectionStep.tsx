@@ -490,7 +490,8 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
           <div>
             <h3 className="font-medium">{dog.name}</h3>
             <p className="text-sm text-muted-foreground">
-              {getDogBreedLabel(dog)} • {selectedCount} class{selectedCount !== 1 ? 'es' : ''} selected
+              {getDogBreedLabel(dog)} • {selectedCount} class{selectedCount !== 1 ? 'es' : ''}{' '}
+              selected
             </p>
           </div>
 

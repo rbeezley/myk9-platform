@@ -46,7 +46,9 @@ function ExEventInfo() {
       </div>
       <div>
         <div className="field-label">Location</div>
-        <div className="field-value">{D.city}, {D.state}</div>
+        <div className="field-value">
+          {D.city}, {D.state}
+        </div>
       </div>
       <div>
         <div className="field-label">Venue</div>
@@ -58,11 +60,15 @@ function ExEventInfo() {
       </div>
       <div>
         <div className="field-label">Closing Date</div>
-        <div className="field-value">{D.closingDate}, {D.closingTime}</div>
+        <div className="field-value">
+          {D.closingDate}, {D.closingTime}
+        </div>
       </div>
       <div>
         <div className="field-label">Entry Fee</div>
-        <div className="field-value">{D.entryFee} (first) · {D.additionalEntryFee} (additional)</div>
+        <div className="field-value">
+          {D.entryFee} (first) · {D.additionalEntryFee} (additional)
+        </div>
       </div>
     </div>
   );
@@ -75,9 +81,18 @@ function ExJudgesEvents() {
         <h2 className="section-title">Judges</h2>
         <div className="section-rule" />
         {D.judges.map((j, i) => (
-          <div key={i} style={{display:'flex', justifyContent:'space-between', padding:'14px 0', borderBottom:'1px solid #eee', fontSize:14}}>
-            <span style={{fontWeight:600}}>{j.name}</span>
-            <span style={{color:'#666'}}>{j.panel}</span>
+          <div
+            key={i}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '14px 0',
+              borderBottom: '1px solid #eee',
+              fontSize: 14,
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>{j.name}</span>
+            <span style={{ color: '#666' }}>{j.panel}</span>
           </div>
         ))}
       </div>
@@ -85,10 +100,23 @@ function ExJudgesEvents() {
         <h2 className="section-title">Events</h2>
         <div className="section-rule" />
         {D.events.map((e, i) => (
-          <div key={i} style={{display:'grid', gridTemplateColumns:'120px 100px 1fr', padding:'12px 0', borderBottom:'1px solid #eee', fontSize:14}}>
-            <span style={{color:'#666', fontFamily:'IBM Plex Mono, monospace', fontSize:12}}>{e.day}</span>
-            <span style={{color:'#666', fontFamily:'IBM Plex Mono, monospace', fontSize:12}}>{e.time}</span>
-            <span style={{fontWeight:500}}>{e.name}</span>
+          <div
+            key={i}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '120px 100px 1fr',
+              padding: '12px 0',
+              borderBottom: '1px solid #eee',
+              fontSize: 14,
+            }}
+          >
+            <span style={{ color: '#666', fontFamily: 'IBM Plex Mono, monospace', fontSize: 12 }}>
+              {e.day}
+            </span>
+            <span style={{ color: '#666', fontFamily: 'IBM Plex Mono, monospace', fontSize: 12 }}>
+              {e.time}
+            </span>
+            <span style={{ fontWeight: 500 }}>{e.name}</span>
           </div>
         ))}
       </div>
@@ -105,14 +133,14 @@ function ExContacts() {
         <div>
           <div className="field-label">Show Secretary</div>
           <div className="field-value">{D.showSecretary.name}</div>
-          <div style={{fontSize:12, color:'#666', marginTop:4}}>{D.showSecretary.email}</div>
-          <div style={{fontSize:12, color:'#666'}}>{D.showSecretary.phone}</div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{D.showSecretary.email}</div>
+          <div style={{ fontSize: 12, color: '#666' }}>{D.showSecretary.phone}</div>
         </div>
         <div>
           <div className="field-label">Trial Chair</div>
           <div className="field-value">{D.trialChair.name}</div>
-          <div style={{fontSize:12, color:'#666', marginTop:4}}>{D.trialChair.email}</div>
-          <div style={{fontSize:12, color:'#666'}}>{D.trialChair.phone}</div>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{D.trialChair.email}</div>
+          <div style={{ fontSize: 12, color: '#666' }}>{D.trialChair.phone}</div>
         </div>
       </div>
     </div>
@@ -144,7 +172,9 @@ function Style1Existing() {
           </div>
         </div>
         <ExStatRow />
-        <ExSection title="Event Information"><ExEventInfo /></ExSection>
+        <ExSection title="Event Information">
+          <ExEventInfo />
+        </ExSection>
         <ExFooter pg={1} />
       </div>
       <div className="sheet">
@@ -169,26 +199,28 @@ function Style2Existing() {
           <div>
             <div className="ex2-club">{D.club}</div>
             <h1>{D.showName}</h1>
-            <div style={{fontSize:13, color:'#444'}}>{D.city}, {D.state} · {D.venue}</div>
+            <div style={{ fontSize: 13, color: '#444' }}>
+              {D.city}, {D.state} · {D.venue}
+            </div>
           </div>
-          <div className="ex2-date">
-            {D.dateRange.toUpperCase()}
-          </div>
+          <div className="ex2-date">{D.dateRange.toUpperCase()}</div>
         </div>
         <ExStatRow />
-        <ExSection title="Event Information"><ExEventInfo /></ExSection>
+        <ExSection title="Event Information">
+          <ExEventInfo />
+        </ExSection>
         <ExFooter pg={1} />
       </div>
       <div className="sheet">
         <div className="ex2-bar" />
-        <div style={{padding:'48px 0 0'}}>
+        <div style={{ padding: '48px 0 0' }}>
           <ExJudgesEvents />
         </div>
         <ExFooter pg={2} />
       </div>
       <div className="sheet">
         <div className="ex2-bar" />
-        <div style={{padding:'48px 0 0'}}>
+        <div style={{ padding: '48px 0 0' }}>
           <ExContacts />
         </div>
         <ExFooter pg={3} />
@@ -208,13 +240,17 @@ function Style3Existing() {
           <div className="ex3-meta">
             <span>{D.dateRange}</span>
             <span>·</span>
-            <span>{D.city}, {D.state}</span>
+            <span>
+              {D.city}, {D.state}
+            </span>
             <span>·</span>
             <span>{D.showType}</span>
           </div>
         </div>
         <ExStatRow />
-        <ExSection title="Event Information"><ExEventInfo /></ExSection>
+        <ExSection title="Event Information">
+          <ExEventInfo />
+        </ExSection>
         <ExFooter pg={1} />
       </div>
       <div className="sheet">

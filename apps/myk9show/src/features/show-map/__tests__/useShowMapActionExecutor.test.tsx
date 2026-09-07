@@ -27,10 +27,9 @@ const { moveUpShowMapEntryMock, undoShowMapMoveUpMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../showMapActionMutations', async () => {
-  const actual =
-    await vi.importActual<typeof import('../showMapActionMutations')>(
-      '../showMapActionMutations'
-    );
+  const actual = await vi.importActual<typeof import('../showMapActionMutations')>(
+    '../showMapActionMutations'
+  );
   return {
     ...actual,
     moveUpShowMapEntry: moveUpShowMapEntryMock,
@@ -218,9 +217,7 @@ describe('useShowMapActionExecutor — move-up undo banner auto-dismiss', () => 
     expect(undoShowMapMoveUpMock).toHaveBeenCalledTimes(1);
     // The exact handle scheduled by the move-up must have been cancelled by undo,
     // not just any clearTimeout call (React Query may issue its own).
-    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(
-      true
-    );
+    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(true);
   });
 
   it('cancels the auto-dismiss timer even when the undo network call fails', async () => {
@@ -259,9 +256,7 @@ describe('useShowMapActionExecutor — move-up undo banner auto-dismiss', () => 
 
     // Banner stays so the user can retry; timer was already cancelled in onMutate.
     expect(result.current.lastMoveUp).not.toBeNull();
-    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(
-      true
-    );
+    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(true);
 
     // Confirm the cancelled timer can no longer auto-dismiss the banner.
     await act(async () => {
@@ -283,10 +278,9 @@ describe('useShowMapActionExecutor — move-up undo banner auto-dismiss', () => 
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
 
-    const { result, unmount } = renderHook(
-      () => useShowMapActionExecutor({ showId: 'show-1' }),
-      { wrapper: createWrapper() }
-    );
+    const { result, unmount } = renderHook(() => useShowMapActionExecutor({ showId: 'show-1' }), {
+      wrapper: createWrapper(),
+    });
 
     await triggerMoveUp(result, makeMoveUpAction('entry:entry-1', 'class-1'), 'class-2');
 
@@ -300,8 +294,6 @@ describe('useShowMapActionExecutor — move-up undo banner auto-dismiss', () => 
 
     unmount();
 
-    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(
-      true
-    );
+    expect(clearTimeoutSpy.mock.calls.some(([handle]) => handle === bannerTimerHandle)).toBe(true);
   });
 });

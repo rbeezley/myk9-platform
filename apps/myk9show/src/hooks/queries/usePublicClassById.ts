@@ -13,10 +13,7 @@ import { cacheStrategies } from '@/lib/queryClient';
  *
  * Mirrors the anon-vs-authed split already used by `useClassEntriesRaw`.
  */
-export function usePublicClassById(
-  classId: string | undefined,
-  options?: { enabled?: boolean }
-) {
+export function usePublicClassById(classId: string | undefined, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['public-class', classId],
     queryFn: () => getPublicClassById(classId as string),

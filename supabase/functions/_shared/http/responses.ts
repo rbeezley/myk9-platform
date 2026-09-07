@@ -12,7 +12,7 @@ export class HttpError extends Error {
     message: string,
     // Optional machine-readable code (e.g. a Postgres SQLSTATE like 'MK001')
     // surfaced in the response body so the client can map it to a message.
-    public readonly code?: string,
+    public readonly code?: string
   ) {
     super(message);
     this.name = 'HttpError';
@@ -26,7 +26,7 @@ export class HttpError extends Error {
 export function json(
   body: unknown,
   status: number,
-  headers: Record<string, string> = {},
+  headers: Record<string, string> = {}
 ): Response {
   return new Response(JSON.stringify(body), {
     status,

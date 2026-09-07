@@ -140,6 +140,6 @@ export function useClassCompletion(classId: string | undefined): UseClassComplet
 
   return {
     CelebrationModal: renderCelebrationModal(),
-    checkCompletion
+    checkCompletion,
   };
 }

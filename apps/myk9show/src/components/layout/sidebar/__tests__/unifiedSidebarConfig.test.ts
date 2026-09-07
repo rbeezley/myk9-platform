@@ -340,7 +340,9 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     ['chairman', [UserRole.CHAIRMAN]],
   ] as const)('labels the browse destination My Dogs for %s', (_label, roles) => {
     const config = buildUnifiedSidebarConfig(roles);
-    const browseDog = config.groups.flatMap(group => group.items).find(item => item.href === '/dogs');
+    const browseDog = config.groups
+      .flatMap(group => group.items)
+      .find(item => item.href === '/dogs');
 
     expect(browseDog?.title).toBe('My Dogs');
   });

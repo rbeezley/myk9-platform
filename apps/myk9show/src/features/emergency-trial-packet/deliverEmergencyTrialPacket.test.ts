@@ -89,7 +89,10 @@ describe('deliverEmergencyTrialPacket', () => {
         },
         supabase
       )
-    ).rejects.toMatchObject({ name: 'EmergencyPacketDeliveryError', storagePath: 'show-1/snapshot-1.pdf' });
+    ).rejects.toMatchObject({
+      name: 'EmergencyPacketDeliveryError',
+      storagePath: 'show-1/snapshot-1.pdf',
+    });
     expect(upload).toHaveBeenCalledOnce();
   });
 });

@@ -1,7 +1,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import type { CheckInValidationResult } from '@/types/offline-checkin-types';
 
 interface ValidationResultsDialogProps {
@@ -37,9 +43,7 @@ export const ValidationResultsDialog: React.FC<ValidationResultsDialogProps> = (
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

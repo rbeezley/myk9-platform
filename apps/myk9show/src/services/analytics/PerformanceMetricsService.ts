@@ -112,43 +112,43 @@ export class PerformanceMetricsService {
         target: 1500,
         warning: 2500,
         critical: 4000,
-        description: 'First Contentful Paint should be under 1.5s'
+        description: 'First Contentful Paint should be under 1.5s',
       },
       {
         metric: 'lcp',
         target: 2500,
         warning: 4000,
         critical: 6000,
-        description: 'Largest Contentful Paint should be under 2.5s'
+        description: 'Largest Contentful Paint should be under 2.5s',
       },
       {
         metric: 'fid',
         target: 100,
         warning: 200,
         critical: 300,
-        description: 'First Input Delay should be under 100ms'
+        description: 'First Input Delay should be under 100ms',
       },
       {
         metric: 'cls',
         target: 0.1,
         warning: 0.25,
         critical: 0.4,
-        description: 'Cumulative Layout Shift should be under 0.1'
+        description: 'Cumulative Layout Shift should be under 0.1',
       },
       {
         metric: 'componentRenderTime',
         target: 16,
         warning: 50,
         critical: 100,
-        description: 'Component render time should be under 16ms'
+        description: 'Component render time should be under 16ms',
       },
       {
         metric: 'dbQueryTime',
         target: 50,
         warning: 200,
         critical: 500,
-        description: 'Database query time should be under 50ms'
-      }
+        description: 'Database query time should be under 50ms',
+      },
     ];
   }
 
@@ -163,22 +163,22 @@ export class PerformanceMetricsService {
         threshold: 4000,
         severity: 'warning',
         message: 'Page load performance is degraded',
-        frequency: 'throttled'
+        frequency: 'throttled',
       },
       {
         metric: 'fid',
         threshold: 300,
         severity: 'error',
         message: 'User interaction responsiveness is poor',
-        frequency: 'immediate'
+        frequency: 'immediate',
       },
       {
         metric: 'dbQueryTime',
         threshold: 500,
         severity: 'warning',
         message: 'Database queries are slow',
-        frequency: 'throttled'
-      }
+        frequency: 'throttled',
+      },
     ];
   }
 
@@ -191,7 +191,7 @@ export class PerformanceMetricsService {
 
     try {
       // Largest Contentful Paint
-      const lcpObserver = new PerformanceObserver((entryList) => {
+      const lcpObserver = new PerformanceObserver(entryList => {
         const entries = entryList.getEntries();
         const lastEntry = entries[entries.length - 1] as PerformanceEntry & { startTime: number };
         this.webVitals.lcp = lastEntry.startTime;
@@ -201,10 +201,13 @@ export class PerformanceMetricsService {
       lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
 
       // First Input Delay
-      const fidObserver = new PerformanceObserver((entryList) => {
+      const fidObserver = new PerformanceObserver(entryList => {
         const entries = entryList.getEntries();
-        entries.forEach((entry) => {
-          const fidEntry = entry as PerformanceEntry & { processingStart: number; startTime: number };
+        entries.forEach(entry => {
+          const fidEntry = entry as PerformanceEntry & {
+            processingStart: number;
+            startTime: number;
+          };
           const fid = fidEntry.processingStart - fidEntry.startTime;
           this.webVitals.fid = fid;
           this.checkAlert('fid', fid);
@@ -214,11 +217,14 @@ export class PerformanceMetricsService {
       fidObserver.observe({ entryTypes: ['first-input'] });
 
       // Cumulative Layout Shift
-      const clsObserver = new PerformanceObserver((entryList) => {
+      const clsObserver = new PerformanceObserver(entryList => {
         let clsValue = 0;
         const entries = entryList.getEntries();
-        entries.forEach((entry) => {
-          const layoutShiftEntry = entry as PerformanceEntry & { value: number; hadRecentInput: boolean };
+        entries.forEach(entry => {
+          const layoutShiftEntry = entry as PerformanceEntry & {
+            value: number;
+            hadRecentInput: boolean;
+          };
           if (!layoutShiftEntry.hadRecentInput) {
             clsValue += layoutShiftEntry.value;
           }
@@ -228,9 +234,10 @@ export class PerformanceMetricsService {
         logger.logPerformance('CLS', clsValue, { type: 'web-vital' });
       });
       clsObserver.observe({ entryTypes: ['layout-shift'] });
-
     } catch (error) {
-      logger.warn('Failed to initialize Web Vitals tracking', 'performance', { error: error instanceof Error ? error.message : String(error) });
+      logger.warn('Failed to initialize Web Vitals tracking', 'performance', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -241,7 +248,9 @@ export class PerformanceMetricsService {
   private setupNavigationTiming(): void {
     window.addEventListener('load', () => {
       setTimeout(() => {
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+        const navigation = performance.getEntriesByType(
+          'navigation'
+        )[0] as PerformanceNavigationTiming;
         if (navigation) {
           // First Contentful Paint
           const paintEntries = performance.getEntriesByType('paint');
@@ -278,7 +287,7 @@ export class PerformanceMetricsService {
 
     logger.debug(`Performance measurement started: ${name}`, 'performance', {
       category,
-      ...metadata
+      ...metadata,
     });
   }
 
@@ -307,7 +316,7 @@ export class PerformanceMetricsService {
       startTime,
       endTime,
       category: 'general',
-      metadata
+      metadata,
     };
 
     // Store measurement
@@ -322,7 +331,7 @@ export class PerformanceMetricsService {
     // Log the measurement
     logger.logPerformance(name, duration, {
       category: measurement.category,
-      ...metadata
+      ...metadata,
     });
 
     return measurement;
@@ -343,16 +352,16 @@ export class PerformanceMetricsService {
     metadata?: Record<string, unknown>
   ): Promise<{ result: T; measurement: PerformanceMeasurement }> {
     this.startMeasurement(name, category, metadata);
-    
+
     try {
       const result = await fn();
       const measurement = this.endMeasurement(name, { success: true, ...metadata })!;
       return { result, measurement };
     } catch (error) {
-      this.endMeasurement(name, { 
-        success: false, 
+      this.endMeasurement(name, {
+        success: false,
         error: error instanceof Error ? error.message : String(error),
-        ...metadata 
+        ...metadata,
       });
       throw error;
     }
@@ -365,7 +374,12 @@ export class PerformanceMetricsService {
    * @param category - Metric category
    * @param metadata - Additional context
    */
-  recordMetric(name: string, value: number, category = 'custom', metadata?: Record<string, unknown>): void {
+  recordMetric(
+    name: string,
+    value: number,
+    category = 'custom',
+    metadata?: Record<string, unknown>
+  ): void {
     if (!this.isEnabled) return;
 
     const measurement: PerformanceMeasurement = {
@@ -374,7 +388,7 @@ export class PerformanceMetricsService {
       startTime: performance.now(),
       endTime: performance.now(),
       category,
-      metadata
+      metadata,
     };
 
     if (!this.measurements.has(name)) {
@@ -404,7 +418,7 @@ export class PerformanceMetricsService {
       value,
       threshold: alert.threshold,
       severity: alert.severity,
-      ...context
+      ...context,
     });
   }
 
@@ -434,7 +448,7 @@ export class PerformanceMetricsService {
       min: durations[0],
       max: durations[count - 1],
       p95: durations[Math.floor(count * 0.95)],
-      p99: durations[Math.floor(count * 0.99)]
+      p99: durations[Math.floor(count * 0.99)],
     };
   }
 
@@ -444,7 +458,7 @@ export class PerformanceMetricsService {
    */
   getAllMetrics() {
     const measurementStats: Record<string, ReturnType<typeof this.getMetricStats>> = {};
-    
+
     for (const [name] of this.measurements) {
       measurementStats[name] = this.getMetricStats(name);
     }
@@ -452,7 +466,7 @@ export class PerformanceMetricsService {
     return {
       webVitals: this.webVitals,
       customMetrics: this.customMetrics,
-      measurementStats
+      measurementStats,
     };
   }
 
@@ -491,12 +505,12 @@ export class PerformanceMetricsService {
     };
   } {
     const recommendations: string[] = [];
-    
+
     // Generate recommendations based on baselines
     this.baselines.forEach(baseline => {
       const metric = baseline.metric;
       let value: number | undefined;
-      
+
       if (metric in this.webVitals) {
         value = this.webVitals[metric as keyof WebVitalsMetrics];
       } else if (metric in this.customMetrics) {
@@ -505,7 +519,7 @@ export class PerformanceMetricsService {
         const stats = this.getMetricStats(metric);
         value = stats?.average;
       }
-      
+
       if (value && value > baseline.warning) {
         recommendations.push(
           `${baseline.description}. Current: ${value.toFixed(2)}${metric === 'cls' ? '' : 'ms'}`
@@ -523,8 +537,10 @@ export class PerformanceMetricsService {
     }
     slowestOperations.sort((a, b) => b.duration - a.duration);
 
-    const totalMeasurements = Array.from(this.measurements.values())
-      .reduce((sum, measurements) => sum + measurements.length, 0);
+    const totalMeasurements = Array.from(this.measurements.values()).reduce(
+      (sum, measurements) => sum + measurements.length,
+      0
+    );
 
     return {
       timestamp: new Date().toISOString(),
@@ -535,8 +551,8 @@ export class PerformanceMetricsService {
       summary: {
         totalMeasurements,
         averageLoadTime: this.webVitals.lcp || 0,
-        slowestOperations: slowestOperations.slice(0, 10)
-      }
+        slowestOperations: slowestOperations.slice(0, 10),
+      },
     };
   }
 }
@@ -550,7 +566,11 @@ export const performanceMetrics = PerformanceMetricsService.getInstance();
  * @param metadata - Additional metadata
  */
 export function measurePerformance(category = 'method', metadata?: Record<string, unknown>) {
-  return function (target: { constructor: { name: string } }, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (
+    target: { constructor: { name: string } },
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: unknown[]) {

@@ -97,8 +97,8 @@ export function MyEntriesTab({
             */}
             <p className="mt-1 text-sm text-muted-foreground">
               {totalClasses} scheduled {totalClasses === 1 ? 'run' : 'runs'} across{' '}
-              {scheduleDogCount} {scheduleDogCount === 1 ? 'dog' : 'dogs'}. Times, armbands,
-              judges, and results stay together here.
+              {scheduleDogCount} {scheduleDogCount === 1 ? 'dog' : 'dogs'}. Times, armbands, judges,
+              and results stay together here.
               {offScheduleCount > 0 && (
                 <>
                   {' '}

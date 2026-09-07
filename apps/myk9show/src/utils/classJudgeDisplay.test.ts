@@ -18,17 +18,14 @@ describe('classJudgeDisplay', () => {
   });
 
   it('uses show assignedJudges by class id before stale class text', () => {
-    const judgeName = resolveClassJudgeName(
-      { id: 'class-1', judge: 'TBD' },
-      [
-        {
-          judgeId: 'judge-1',
-          judgeName: 'Roster Judge',
-          assignedDate: '2026-05-01',
-          assignedClasses: ['class-1'],
-        },
-      ]
-    );
+    const judgeName = resolveClassJudgeName({ id: 'class-1', judge: 'TBD' }, [
+      {
+        judgeId: 'judge-1',
+        judgeName: 'Roster Judge',
+        assignedDate: '2026-05-01',
+        assignedClasses: ['class-1'],
+      },
+    ]);
 
     expect(judgeName).toBe('Roster Judge');
   });
@@ -40,7 +37,10 @@ describe('classJudgeDisplay', () => {
 
   it('does not collapse mixed class judges into the first trial judge', () => {
     expect(
-      resolveTrialJudgeName([{ id: 'class-1', judge_name: 'One' }, { id: 'class-2', judge: 'Two' }])
+      resolveTrialJudgeName([
+        { id: 'class-1', judge_name: 'One' },
+        { id: 'class-2', judge: 'Two' },
+      ])
     ).toBe('Multiple judges');
   });
 });

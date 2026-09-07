@@ -21,9 +21,7 @@ describe('pull refund decision persistence', () => {
   it('allows only show officials to deny an unresolved paid-online pull', () => {
     expect(migration).toContain('public.is_site_admin()');
     expect(migration).toContain('public.is_show_secretary(v_show_id)');
-    expect(migration).toContain(
-      'v_club_id IS NOT NULL AND public.is_club_admin(v_club_id)'
-    );
+    expect(migration).toContain('v_club_id IS NOT NULL AND public.is_club_admin(v_club_id)');
     expect(migration).toContain("COALESCE(v_entry_status, '') <> 'scratched'");
     expect(migration).toContain("COALESCE(v_payment_method, '') <> 'online'");
     expect(migration).toContain("COALESCE(v_payment_status, '') <> 'paid'");

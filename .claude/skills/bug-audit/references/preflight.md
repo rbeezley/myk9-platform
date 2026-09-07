@@ -29,8 +29,8 @@ gh pr list --state open --json number,title,files \
 ```
 
 Run this for any file you are about to change, and **re-run it right before pushing**. On
-2026-09-02 a PR titled *"fix(scoring): stop moved and not-accepted entries blocking class
-completion"* had already rewritten an E2E spec I then fixed independently; its title gave no hint.
+2026-09-02 a PR titled _"fix(scoring): stop moved and not-accepted entries blocking class
+completion"_ had already rewritten an E2E spec I then fixed independently; its title gave no hint.
 The window was about ten minutes.
 
 The same check catches the **migration-version collision**: two branches picking the same timestamp

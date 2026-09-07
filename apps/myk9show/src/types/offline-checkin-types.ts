@@ -1,6 +1,6 @@
 /**
  * Types for Offline Check-In System
- * 
+ *
  * Comprehensive types for managing offline check-in operations,
  * armband assignments, gate coordination, and conflict resolution
  */
@@ -170,7 +170,17 @@ export interface CheckInOperation {
 }
 
 export interface CheckInValidationResult {
-  check: 'entry_exists' | 'armband_unique' | 'time_window' | 'handler_eligible' | 'dog_eligible' | 'class_open' | 'duplicate_checkin' | 'status_transition' | 'special_requirements' | 'data_integrity';
+  check:
+    | 'entry_exists'
+    | 'armband_unique'
+    | 'time_window'
+    | 'handler_eligible'
+    | 'dog_eligible'
+    | 'class_open'
+    | 'duplicate_checkin'
+    | 'status_transition'
+    | 'special_requirements'
+    | 'data_integrity';
   status: 'pass' | 'warning' | 'error';
   message: string;
   details?: Record<string, unknown> | undefined;
@@ -294,7 +304,12 @@ export interface OfflineCheckInQueue extends SyncableEntity {
 
 export interface CheckInConflict {
   id: string;
-  type: 'duplicate_checkin' | 'armband_conflict' | 'time_conflict' | 'handler_conflict' | 'data_mismatch';
+  type:
+    | 'duplicate_checkin'
+    | 'armband_conflict'
+    | 'time_conflict'
+    | 'handler_conflict'
+    | 'data_mismatch';
   entryId: string;
   conflictingData: Record<string, unknown>;
   detectedAt: Date;
@@ -351,7 +366,7 @@ export interface GateCoordinatorConfig {
 }
 
 // Events and notifications
-export type CheckInEventType = 
+export type CheckInEventType =
   | 'check_in_completed'
   | 'check_in_failed'
   | 'conflict_detected'
@@ -401,18 +416,18 @@ export interface CheckInStatistics {
   conflictCount: number;
   averageCheckInTime: number;
   checkInRate: number; // entries per minute
-  
+
   // By gate
   gateStatistics: Record<string, GateStatistics>;
-  
+
   // Time-based
   timeSeriesData: TimeSeriesPoint[];
-  
+
   // Quality metrics
   errorRate: number;
   conflictRate: number;
   syncSuccessRate: number;
-  
+
   lastUpdated: Date;
 }
 
@@ -434,7 +449,4 @@ export interface TimeSeriesPoint {
 }
 
 // Export commonly used types
-export type {
-  CheckInStatus,
-  SyncableEntity
-};
+export type { CheckInStatus, SyncableEntity };

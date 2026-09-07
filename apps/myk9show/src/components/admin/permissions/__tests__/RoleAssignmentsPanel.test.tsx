@@ -217,10 +217,7 @@ describe('RoleAssignmentsPanel', () => {
       '/clubs/club-1'
     );
     // ur-4: show-scoped (show_id: 'show-9')
-    expect(screen.getByRole('link', { name: 'Show' })).toHaveAttribute(
-      'href',
-      '/shows/show-9'
-    );
+    expect(screen.getByRole('link', { name: 'Show' })).toHaveAttribute('href', '/shows/show-9');
     // ur-1 and ur-3: unscoped
     expect(screen.getAllByText('Global').length).toBeGreaterThanOrEqual(2);
   });

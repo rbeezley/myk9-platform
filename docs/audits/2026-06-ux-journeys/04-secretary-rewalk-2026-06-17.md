@@ -39,12 +39,12 @@ access this page."** The entire golden path is unreachable with the canonical de
 but **zero users hold them**. Every account that should be a secretary/club admin holds only
 `exhibitor`:
 
-| Account | Roles held | Should also hold |
-| --- | --- | --- |
-| `secretary@myk9t.com` | `exhibitor` | `secretary` |
-| `e2e-secretary@test.myk9.com` | `exhibitor` | `secretary` |
-| `club@myk9t.com` | `exhibitor` | `club_admin` |
-| `e2e-clubadmin@test.myk9.com` | `exhibitor` | `club_admin` |
+| Account                       | Roles held  | Should also hold |
+| ----------------------------- | ----------- | ---------------- |
+| `secretary@myk9t.com`         | `exhibitor` | `secretary`      |
+| `e2e-secretary@test.myk9.com` | `exhibitor` | `secretary`      |
+| `club@myk9t.com`              | `exhibitor` | `club_admin`     |
+| `e2e-clubadmin@test.myk9.com` | `exhibitor` | `club_admin`     |
 
 The Lane 1.1 reseed (PR #797) restored the protected **accounts** but not their **role grants**
 (`seed-demo.sql` explicitly "does NOT touch auth.users" and grants no roles). A trigger,
@@ -131,6 +131,7 @@ the registry rule is). Consolidation-safe: tighten the option list, no new UI.
 **RESOLVED:** the same-element + strictly-higher-level rule now lives in one place —
 `isEligibleMoveUpTarget` ([`moveUpEligibility.ts`](../../../apps/myk9show/src/utils/moveUpEligibility.ts),
 reusing the canonical level order in `classOrder.ts`) — and is enforced on every surface:
+
 - Entries Management approve dialog (`getAvailableMoveUpTargets`), with an empty-state Alert when no
   valid higher class exists;
 - Show Map + Show Desk move-up dialogs (deduped into one shared `buildMoveUpTargets`);
@@ -157,7 +158,7 @@ _(Data fidelity is good: the seeded Container Novice A placements export correct
 
 **Surface:** `/shows/:id/reports`. The "Select report" and "Select sort" comboboxes show their
 **raw values** — `check-in-sheet`, `run-order` — instead of "Check-in Sheet" / "Run Order".
-**Scope note (reconciled):** this is a *different* selector from the trial/class/dog UUID echoes
+**Scope note (reconciled):** this is a _different_ selector from the trial/class/dog UUID echoes
 fixed in #617/#737-era (those rendered UUIDs; `ReportControlsBar` now labels them). The
 **report-type** and **sort** selectors carry kebab-case string ids and still echo them raw. (The
 printable preview itself is clean: "AKC Container Check-in" etc.)
@@ -187,12 +188,12 @@ printable preview itself is clean: "AKC Container Check-in" etc.)
 
 ## Resolved / does-not-reproduce on the clean seed (good news)
 
-| Prior finding (02-/03-) | Status now | Evidence |
-| --- | --- | --- |
-| Dashboard attention count disagrees with target page (High) | **Resolved** | Dashboard "3 entries pending review" deep-links to the exactly-3 `submitted` entries. The over-count is now isolated to F2's Entry Management tab, not the attention list. |
-| "Send to AKC" stays enabled beside missing-registration warning (High) | **Resolved** | "Send to AKC" is now **`[disabled]`** beside "9 entries are missing AKC registration numbers…". The warning gates the risky action. |
+| Prior finding (02-/03-)                                                                 | Status now                    | Evidence                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard attention count disagrees with target page (High)                             | **Resolved**                  | Dashboard "3 entries pending review" deep-links to the exactly-3 `submitted` entries. The over-count is now isolated to F2's Entry Management tab, not the attention list.                                                                                                 |
+| "Send to AKC" stays enabled beside missing-registration warning (High)                  | **Resolved**                  | "Send to AKC" is now **`[disabled]`** beside "9 entries are missing AKC registration numbers…". The warning gates the risky action.                                                                                                                                        |
 | Refund/withdrawal disagrees across roles; "Partial Refund" for a full refund (High/Low) | **Resolved (secretary side)** | Maple / Exterior Excellent shows `Withdrawn` + **`Refunded $30.00`** + reason inline. The "Partial Refund for full amount" bug was data-driven (old `partial_refund` row) and the seed's `refunded` status renders the correct badge. Pairs with PR #800 (exhibitor side). |
-| Day-of announcement had "no direct CTA found" (Medium, baseline incomplete) | **Resolved** | See baseline below. |
+| Day-of announcement had "no direct CTA found" (Medium, baseline incomplete)             | **Resolved**                  | See baseline below.                                                                                                                                                                                                                                                        |
 
 ---
 
@@ -200,11 +201,11 @@ printable preview itself is clean: "AKC Container Check-in" etc.)
 
 Measured from anywhere in the secretary workbench (top-bar Message Center is global):
 
-| Path | Clicks | Notes |
-| --- | ---: | --- |
-| Reach the compose form | **2** | top-bar **Message Center** → **Compose** ("Compose show message") |
-| Send a **templated** announcement | **3–4** total | + one tap on a preset (**Lunch ready / Ring paused / Results posted / Report to gate / Class delayed**) which pre-fills Title+Message → **Send message** |
-| Send a **custom** announcement | **3** clicks + 2 typed fields | Message Center → Compose → type Title, type Message → Send message |
+| Path                              |                        Clicks | Notes                                                                                                                                                    |
+| --------------------------------- | ----------------------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reach the compose form            |                         **2** | top-bar **Message Center** → **Compose** ("Compose show message")                                                                                        |
+| Send a **templated** announcement |                 **3–4** total | + one tap on a preset (**Lunch ready / Ring paused / Results posted / Report to gate / Class delayed**) which pre-fills Title+Message → **Send message** |
+| Send a **custom** announcement    | **3** clicks + 2 typed fields | Message Center → Compose → type Title, type Message → Send message                                                                                       |
 
 **Baseline number: a day-of announcement is 2 clicks to compose and 3–4 clicks to send.**
 Recipient defaults to `all_show`; "Send push alert" defaults on with plain-English guidance

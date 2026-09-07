@@ -109,7 +109,10 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={onConfirm} disabled={!state.amountPaid || !(parseFloat(state.amountPaid) > 0)}>
+        <Button
+          onClick={onConfirm}
+          disabled={!state.amountPaid || !(parseFloat(state.amountPaid) > 0)}
+        >
           Record Payment
         </Button>
       </DialogFooter>

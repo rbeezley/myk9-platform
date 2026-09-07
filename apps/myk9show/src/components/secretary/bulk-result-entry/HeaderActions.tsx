@@ -13,7 +13,7 @@ export function HeaderActions({
   onDownloadTemplate,
   onImportClick,
   fileInputRef,
-  onCSVImport
+  onCSVImport,
 }: HeaderActionsProps) {
   return (
     <div className="myk9-show-info-card">
@@ -26,20 +26,12 @@ export function HeaderActions({
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={onDownloadTemplate}
-            className="myk9-action-button"
-          >
+          <Button variant="outline" onClick={onDownloadTemplate} className="myk9-action-button">
             <Download className="h-4 w-4" />
             <span>Download Template</span>
           </Button>
 
-          <Button
-            variant="outline"
-            onClick={onImportClick}
-            className="myk9-action-button"
-          >
+          <Button variant="outline" onClick={onImportClick} className="myk9-action-button">
             <Upload className="h-4 w-4" />
             <span>Import CSV</span>
           </Button>

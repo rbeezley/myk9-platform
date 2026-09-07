@@ -201,10 +201,7 @@ export function MessageCenterPanel() {
   const canSendTargetedShowMessages = isSecretary || isAdmin || hasRole('trial_secretary');
   const canComposeShowMessage = canPostShowWideMessage || canSendTargetedShowMessages;
   const composeAllowedRecipients: MessageShowRecipientType[] = canComposeShowMessage
-    ? [
-        'all_show',
-        ...(canSendTargetedShowMessages ? (['class', 'checked_in'] as const) : []),
-      ]
+    ? ['all_show', ...(canSendTargetedShowMessages ? (['class', 'checked_in'] as const) : [])]
     : [];
   const composeShowWideDeliveryLane: MessageShowDeliveryLane = canPostShowWideMessage
     ? 'announcement'
@@ -216,14 +213,14 @@ export function MessageCenterPanel() {
           const show = showsById.get(showId);
           return {
             id: showId,
-            name: show?.name ?? (currentShowIds.length === 1 ? 'Current show' : `Show ${index + 1}`),
+            name:
+              show?.name ?? (currentShowIds.length === 1 ? 'Current show' : `Show ${index + 1}`),
           };
         })
       : shows.map(show => ({ id: show.id, name: show.name }));
   const urlShowId = searchParams.get('showId') ?? '';
   const validUrlShowId = staffShows.some(show => show.id === urlShowId) ? urlShowId : '';
-  const selectedComposeShowId =
-    composeShowId || (staffShows.length === 1 ? staffShows[0].id : '');
+  const selectedComposeShowId = composeShowId || (staffShows.length === 1 ? staffShows[0].id : '');
   const {
     data: composeClasses = [],
     isError: composeClassesError,

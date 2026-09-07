@@ -30,7 +30,8 @@ test.describe('People Page UI Improvements', () => {
           expect(memberSinceText).not.toContain('January 2024');
 
           // Should match date pattern or "Not available"
-          const validPattern = /((January|February|March|April|May|June|July|August|September|October|November|December) \d{4})|Not available/;
+          const validPattern =
+            /((January|February|March|April|May|June|July|August|September|October|November|December) \d{4})|Not available/;
           expect(memberSinceText).toMatch(validPattern);
         }
       }
@@ -50,7 +51,9 @@ test.describe('People Page UI Improvements', () => {
         // Email Status should not exist
         await expect(page.locator('text=Email Status')).not.toBeVisible();
         // "Verified" badge in Account Summary context should not exist
-        const verifiedBadge = page.locator('.bg-gradient-to-r.from-green-500\\/10:has-text("Verified")');
+        const verifiedBadge = page.locator(
+          '.bg-gradient-to-r.from-green-500\\/10:has-text("Verified")'
+        );
         await expect(verifiedBadge).not.toBeVisible();
       }
     });
@@ -116,7 +119,9 @@ test.describe('People Page UI Improvements', () => {
       }
     });
 
-    test('should navigate back to people list when clicking People breadcrumb', async ({ page }) => {
+    test('should navigate back to people list when clicking People breadcrumb', async ({
+      page,
+    }) => {
       await testSetup.signIn('admin');
       await page.goto('/people');
       await page.waitForLoadState('networkidle');
@@ -228,7 +233,9 @@ test.describe('People Page UI Improvements', () => {
 
         // Settings tab should not exist
         await expect(page.locator('[role="tab"]:has-text("Settings")')).not.toBeVisible();
-        await expect(page.locator('button:has-text("Settings"):not([aria-label])')).not.toBeVisible();
+        await expect(
+          page.locator('button:has-text("Settings"):not([aria-label])')
+        ).not.toBeVisible();
       }
     });
   });
@@ -262,7 +269,9 @@ test.describe('People Page UI Improvements', () => {
       await page.waitForLoadState('networkidle');
 
       // Find a non-judge person (marked as Member in sidebar)
-      const memberItem = page.locator('.myk9-people-sidebar-item:has(.myk9-people-sidebar-role:has-text("Member"))').first();
+      const memberItem = page
+        .locator('.myk9-people-sidebar-item:has(.myk9-people-sidebar-role:has-text("Member"))')
+        .first();
 
       if (await memberItem.isVisible()) {
         await memberItem.click();

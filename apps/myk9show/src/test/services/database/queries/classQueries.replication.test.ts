@@ -372,7 +372,9 @@ describe('classQueries (replication)', () => {
   describe('getClassRouteContext', () => {
     it('returns class route context from replicated class and trial data', async () => {
       mockClassesTable.getClassById.mockResolvedValue(makeClass({ trialId: 'trial-1' }));
-      mockTrialsTable.getTrialById.mockResolvedValue(makeTrial({ id: 'trial-1', showId: 'show-1' }));
+      mockTrialsTable.getTrialById.mockResolvedValue(
+        makeTrial({ id: 'trial-1', showId: 'show-1' })
+      );
 
       const result = await getClassRouteContext('class-1');
 

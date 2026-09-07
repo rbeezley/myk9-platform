@@ -46,7 +46,9 @@ describe('ClassManagementRow density', () => {
 
       expect(screen.getByText('Novice A')).toBeInTheDocument();
       expect(screen.getByRole('checkbox', { name: /select novice a/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /more actions for novice a/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /more actions for novice a/i })
+      ).toBeInTheDocument();
       // Lifecycle status chip renders for a published show.
       expect(screen.getByText(/in progress/i)).toBeInTheDocument();
     }

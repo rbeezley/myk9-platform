@@ -3,7 +3,6 @@
 > **Status:** Active — metadata reconciled 2026-09-05.
 > Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
 
-
 Status: proposed (2026-05-30). Output of the `improve-codebase-architecture` skill.
 Phases reordered 2026-05-30 to a sunset-aware execution sequence (see
 "Relationship to the unify plan").
@@ -18,6 +17,7 @@ callers through a seam that already exists, closes one genuine depth gap, or
 deletes zero-leverage surface.
 
 Vocabulary follows two sources deliberately:
+
 - **Domain** terms (Entry, Class, Show, the entity data-access modules, the
   Replicated Table Sync workflow) from [`CONTEXT.md`](../CONTEXT.md).
 - **Architecture** terms (module, interface, seam, adapter, depth, leverage,
@@ -25,8 +25,8 @@ Vocabulary follows two sources deliberately:
 
 Phases are **numbered in recommended execution order** (sunset-aware — see
 "Relationship to the unify plan" below). They are independent enough to ship in
-other orders, but the numbering front-loads work that *shrinks what the
-myK9Q→myK9Show unification has to carry*, then the additive seam the unification
+other orders, but the numbering front-loads work that _shrinks what the
+myK9Q→myK9Show unification has to carry_, then the additive seam the unification
 can adopt, then the work that depends on it. Each phase is a separate worktree +
 PR (see [`CLAUDE.md`](../CLAUDE.md) worktree workflow). **No phase is complete
 until its tests are written and passing and `pnpm typecheck` is green.**
@@ -49,7 +49,7 @@ value (more callers behind the invalidation contract; the `packages/ringside`
 `apps/myk9q`, the shared `packages/*` (notably `packages/replication`) are still
 consumed by the live myK9Q app. Any phase that edits a shared package must keep
 its **interface** backward-compatible for the overlap — e.g. Phase 2 changes only
-myK9Show *adapter files* and must **not** alter the `syncReplicatedTable` /
+myK9Show _adapter files_ and must **not** alter the `syncReplicatedTable` /
 `SyncReplicatedTableAdapter` signature in a way that breaks myK9Q's adapters while
 they still exist. If a shared-interface change is unavoidable, sequence it after
 the myK9Q removal lands. Verify with `pnpm typecheck` at the **workspace** root
@@ -58,23 +58,23 @@ the myK9Q removal lands. Verify with `pnpm typecheck` at the **workspace** root
 ### Relationship to the unify plan
 
 This plan does **not** wait for the unify plan to finish. Most of it is
-consolidation/deletion — and consolidation done *before* an inward merge is
-leverage; done *after*, it is the same work plus reconciling whatever the merge
+consolidation/deletion — and consolidation done _before_ an inward merge is
+leverage; done _after_, it is the same work plus reconciling whatever the merge
 dragged in. The numbering encodes three buckets:
 
 - **Do now — shrinks what the unify has to carry (Phases 1–3).**
   - **Phase 1 (delete dead code)** — removes ~1,900 lines of noise the merge would
     otherwise navigate. Fully independent.
   - **Phase 2 (replication adapters)** — establishes the `syncReplicatedTable()`
-    pattern *so tables ringside ports in are born on the seam* (the forward
+    pattern _so tables ringside ports in are born on the seam_ (the forward
     principle). Doing it after the merge means more adapters to migrate, not fewer.
   - **Phase 3 (myK9Show store/context consolidation)** — collapsing the two
-    myK9Show `entryStore`s *now* shrinks the naming collision **before** the
+    myK9Show `entryStore`s _now_ shrinks the naming collision **before** the
     `packages/ringside` store arrives. Do the two-thirds resolvable today; defer
     the ringside reconciliation.
 - **Do now — additive seam the unify adopts (Phase 4).**
   - **Phase 4 (invalidation contract)** — build it (at least the `entries/` slice)
-    so new ringside-driven callers adopt it *at birth* rather than being
+    so new ringside-driven callers adopt it _at birth_ rather than being
     retrofitted. Purely additive; no conflict with merge work.
 - **Defer until a dependency lands (Phases 5–6 + one sliver of Phase 3).**
   - **Phase 5 (entry-management orchestration)** — depends on Phase 4 and is the
@@ -124,6 +124,7 @@ delete saved it).
 > principle" below for how unification-ported tables are handled.
 
 ### Goal
+
 Route every **myK9Show** replicated table's `sync()` through the existing
 [`syncReplicatedTable()`](../packages/replication/src/syncReplicatedTable.ts) seam,
 so each adapter declares only its remote query + field mapping and the package
@@ -132,6 +133,7 @@ preservation, conflict timing, metadata write-back). The `packages/replication`
 seam is shared and survives the myK9Q removal.
 
 ### Friction (deletion test)
+
 8 myK9Show adapters each inline the same ~110-line loop. Delete one adapter's
 inlined loop today and the same bug reappears in 7 siblings — the signal that the
 loop belongs behind one seam. `ReplicatedEntriesTable` already proves the
@@ -139,6 +141,7 @@ migration; this phase finishes it for myK9Show. Continues the in-flight
 [`plan-replication-sync-workflow.md`](archive/plan-replication-sync-workflow.md).
 
 ### Files
+
 **myK9Show adapters to migrate (8):**
 `ReplicatedArmbandsTable`, `ReplicatedClassesTable`, `ReplicatedClubsTable`,
 `ReplicatedDogsTable`, `ReplicatedJudgeAssignmentsTable`, `ReplicatedShowsTable`,
@@ -158,19 +161,21 @@ Seam: `packages/replication/src/syncReplicatedTable.ts` (+ the
 `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`.
 
 ### Forward principle (unification ports)
+
 If the ringside unification gives myK9Show offline parity for a capability myK9Q
 replicated (e.g. offline announcements/visibility on `/at-show`), build the new
 myK9Show adapter **on `syncReplicatedTable()` from day one** — port the
-*capability*, never copy myK9Q's hand-rolled loop. This keeps the seam universal
-as surface migrates in. (This is why Phase 2 runs *before* the merge completes —
+_capability_, never copy myK9Q's hand-rolled loop. This keeps the seam universal
+as surface migrates in. (This is why Phase 2 runs _before_ the merge completes —
 so the pattern is in place for the tables it brings.)
 
 ### Steps
+
 1. Read `ReplicatedEntriesTable` (myK9Show) as the canonical adapter shape.
 2. All 8 myK9Show adapters are mutable tables: preserve each adapter's current
    `resolveConflict` policy verbatim when passing it to `syncReplicatedTable()`.
    Do **not** "improve" conflict policy in this phase; behavior-preserving only.
-   (The read-only *view* tables that would have migrated first were all
+   (The read-only _view_ tables that would have migrated first were all
    myK9Q-only and are now out of scope.)
 3. Migrate one adapter per commit. For each: replace the inlined `sync()` loop
    with a `syncReplicatedTable(this, adapter, scope, options)` call, moving the
@@ -180,6 +185,7 @@ so the pattern is in place for the tables it brings.)
    numeric; do not "re-fix" those coercions.
 
 ### Tests
+
 - Reuse/extend `ReplicatedEntriesTable.test.ts` as the template per migrated
   adapter: assert dirty-row preservation (a pending local mutation survives a
   server snapshot), empty-cache full-sync path, and incremental-sync path.
@@ -188,12 +194,13 @@ so the pattern is in place for the tables it brings.)
 - Run `cd apps/myk9show && pnpm test` for the replication suite after each
   adapter.
 - **Offline-path check.** Unit tests mock IndexedDB; the workflow exists to
-  protect the *real* offline path. Before merging, run a manual offline smoke
+  protect the _real_ offline path. Before merging, run a manual offline smoke
   (DevTools offline → mutate a row → reload → confirm the local mutation survives
   a subsequent sync) or extend the Playwright E2E (`pnpm test:e2e`) for one
   representative table.
 
 ### Acceptance
+
 - All 8 myK9Show adapters delegate to `syncReplicatedTable()`; no inlined sync
   loop remains in myK9Show except the package workflow itself.
 - `grep -rL syncReplicatedTable` over the myK9Show adapter files returns only
@@ -204,6 +211,7 @@ so the pattern is in place for the tables it brings.)
   a migrated adapter that typechecks can still mis-map a field at runtime.
 
 ### Risk / notes
+
 Low–medium (was medium; halved scope and no longer touches the app being
 deleted). Conflict-resolution regressions are the residual hazard — mitigate by
 behavior-preserving migration and the dirty-row assertion in every adapter test.
@@ -218,18 +226,20 @@ interface while myK9Q still exists.
 **Merged:** PR #456 (2026-05-30). `stores/` collapsed into `store/`; `contexts/` collapsed into `context/`. One canonical home per state concern.
 
 ### Goal
+
 One predictable home per state concern; remove the `entryStore` name collision —
 **before** the ringside merge widens it.
 
 ### Friction
+
 `apps/myk9show/src/store/` (52 stores) **and** `stores/` (5) both exist; `context/`
 **and** `contexts/` both exist. No rule says which a new module belongs in — the
-seam's *location* is ambiguous, which hurts AI-navigability. Two modules named
+seam's _location_ is ambiguous, which hurts AI-navigability. Two modules named
 `entryStore.ts` export different `Entry` types (`store/entryStore.ts` →
 `SyncableShowEntry`, the show-entry domain store with 55 call sites;
 `stores/entryStore.ts` → a checkout `Entry`, reachable only via `stores/index.ts`).
 Autocomplete offers two incompatible `entryStore`s — an active import footgun.
-**[REVISED — myK9Q sunset]** A *third* `entryStore` lives in `packages/ringside`;
+**[REVISED — myK9Q sunset]** A _third_ `entryStore` lives in `packages/ringside`;
 as the ringside surface lands in myK9Show, it enters the same naming space. Settle
 the canonical-directory rule and the rename in this phase **before** the ringside
 merge widens the collision, and decide whether the ringside store is the canonical
@@ -241,12 +251,14 @@ rule; reconcile the `packages/ringside` store as a follow-up the moment its
 surface lands. Two-thirds of the collision is resolvable today.
 
 ### Files
+
 - `apps/myk9show/src/store/` ↔ `apps/myk9show/src/stores/`
 - `apps/myk9show/src/context/` ↔ `apps/myk9show/src/contexts/`
 - Collision: `store/entryStore.ts` vs `stores/entryStore.ts`
   (+ `stores/index.ts` re-export).
 
 ### Steps
+
 1. Pick the surviving directory per concern (recommend the higher-population
    `store/` and `context/` as canonical; confirm in grilling). Document the rule
    so future stores have one home.
@@ -256,12 +268,14 @@ surface lands. Two-thirds of the collision is resolvable today.
 4. Re-point `stores/index.ts` consumers.
 
 ### Tests
+
 - This is a move/rename refactor: `pnpm typecheck` is the primary gate (no
   dangling imports).
 - Run existing store tests; add none unless a rename changes a public type.
 - Smoke-verify the scoring/checkout surface that consumed `stores/*` in preview.
 
 ### Acceptance
+
 - One `store/` and one `context/` directory; the duplicates are gone.
 - Exactly one module named `entryStore` in myK9Show; `grep entryStore` returns one
   myK9Show answer (the `packages/ringside` store is reconciled separately when the
@@ -269,6 +283,7 @@ surface lands. Two-thirds of the collision is resolvable today.
 - `pnpm typecheck` green in myK9Show.
 
 ### Risk / notes
+
 Low (near-zero behavior change; the `/stores/entryStore` twin has effectively no
 direct callers). Pure locality/navigability win. Watch contention with active
 at-show PRs touching `store/` (Framing).
@@ -280,12 +295,14 @@ at-show PRs touching `store/` (Framing).
 **Merged:** PR #463 (2026-05-31). New `entries/invalidation.ts` exports `entryInvalidationKeys(change)` — a pure key-set helper. Migrated 6 callers: `useEntriesDatabase`, `useShowMapActionExecutor`, `useShowMapReorderMode`, `useShowMapRunOrderAutoSort`, and entry mutations in `useClassesDatabase`. 9 assertion-first tests. 25/25 typecheck green.
 
 ### Goal
+
 Make "what becomes stale when I write entity X" part of the entity module's
 **interface**, instead of knowledge re-derived in callers. Today `queryKeys`
 appears in 65 files and `invalidateQueries` in 83. Build it now so ringside-driven
 callers adopt it at birth.
 
 ### Friction (deletion test)
+
 The canonical entity modules own reads/writes but the invalidation ripple lives
 in 83 caller files. Change a write's downstream effects and you must re-audit all
 83 — complexity spread horizontally, the opposite of the locality the entity
@@ -293,6 +310,7 @@ modules exist to provide. Deleting any one caller's invalidation list does not
 concentrate the logic; it just silently drops invalidations.
 
 ### Files
+
 - [`apps/myk9show/src/services/database/queryClient.ts`](../apps/myk9show/src/services/database/queryClient.ts)
   (80+ `queryKeys` definitions) — the key factory.
 - The 83 `invalidateQueries` call sites (hooks under `hooks/`, `hooks/queries/`).
@@ -300,6 +318,7 @@ concentrate the logic; it just silently drops invalidations.
   `shows/writes.ts`, `classes/`, etc.
 
 ### Steps
+
 1. Inventory: for each entity, list which query keys its writes currently force
    callers to invalidate (grep `invalidateQueries` grouped by entity). Produce a
    table: write op → canonical key-set it should invalidate.
@@ -316,6 +335,7 @@ concentrate the logic; it just silently drops invalidations.
    dispositions) untouched if they are flagged as intentional exceptions.
 
 ### Tests
+
 - **Assertion-first** (per `CLAUDE.md`): for each migrated write, write
   `expect(invalidateQueries).toHaveBeenCalledWith(<canonical key-set>)` red
   first, then route through the module to make it green. This is the
@@ -326,6 +346,7 @@ concentrate the logic; it just silently drops invalidations.
   through the module.
 
 ### Acceptance
+
 - `entries/` (minimum) and ideally `shows/` + `classes/` route invalidation
   through the module; their callers no longer assemble `queryKeys.*` lists by
   hand.
@@ -333,6 +354,7 @@ concentrate the logic; it just silently drops invalidations.
 - `pnpm typecheck` + affected hook/module tests green.
 
 ### Risk / notes
+
 Medium. Over-invalidation (correct but slow) is acceptable interim; missed
 invalidation (stale UI) is the real risk — the assertion-first tests are the
 guard. Consider recording the final shape as an ADR if it sets a convention
@@ -351,21 +373,24 @@ invalidation paths alive as a compatibility shim; migrate callers outright.
 **Merged:** [PR #464](https://github.com/rbeezley/myk9-platform/pull/464) (2026-05-31). New `entries/management-actions.ts` exports `executeStatusChange`, `executeBulkStatusChange`, `executeRemoveEntry` — pure orchestration functions with injected adapters. Hook delegates all three workflows; `mapStatusToDb` import removed from hook. 13 module tests + 2 existing hook tests + 6 new `useEntryManagementData` ordering/cancellation tests. 25/25 typecheck green.
 
 ### Goal
+
 Move the optimistic-update → lifecycle-transition → invalidation → **rollback**
 orchestration out of the React hook into a plain module whose **interface is the
 workflow**, so the ordering and rollback logic become unit-testable.
 
 ### Friction
+
 [`useEntryManagementActions.ts`](../apps/myk9show/src/hooks/useEntryManagementActions.ts)
 is 722 lines orchestrating ~12 data-access calls + 6 mutation flows with
 optimistic rollback; its test asserts only 2 leaf calls.
 [`useEntryManagementData.ts`](../apps/myk9show/src/hooks/useEntryManagementData.ts)
 (350 lines) has no test at all. The interface is the test surface — and you can't
-test *past* a hook — so the real bugs (rollback ordering, conditional refetch,
+test _past_ a hook — so the real bugs (rollback ordering, conditional refetch,
 which queries invalidate) sit in untestable wiring. Classic "extracted leaves are
 tested, bugs hide in the orchestration" shape.
 
 ### Files
+
 - `apps/myk9show/src/hooks/useEntryManagementActions.ts`
 - `apps/myk9show/src/hooks/useEntryManagementData.ts`
 - `apps/myk9show/src/hooks/__tests__/useEntryManagementActions.test.ts` (currently
@@ -374,6 +399,7 @@ tested, bugs hide in the orchestration" shape.
   `entries/secretary.ts`, and the Phase 4 invalidation contract.
 
 ### Steps
+
 1. Identify the orchestration units inside the hook: status change + rollback,
    armband assign/auto-assign + reload, bulk status/check-in, comp/uncomp,
    delete, CSV export. Each is a candidate workflow function.
@@ -387,12 +413,13 @@ tested, bugs hide in the orchestration" shape.
      [`CONTEXT.md`](../CONTEXT.md) (the **Entry** section or a new
      "Entry management orchestration" note) once its name is settled in grilling,
      so future reviews don't treat it as drift.
-3. Keep optimistic UI state in the hook; move the *decision logic* (when to
+3. Keep optimistic UI state in the hook; move the _decision logic_ (when to
    roll back, what to invalidate, ordering) into the module.
 4. Coordinate with Phase 4: the module should consume the entity invalidation
    contract, not re-derive keys. (This is why Phase 5 runs after Phase 4.)
 
 ### Tests
+
 - Drive the extracted module directly with fake adapters:
   - mutation fails → prior state restored → **no** invalidation fired;
   - status change succeeds → reload fires only on the conditional status (the
@@ -404,11 +431,13 @@ tested, bugs hide in the orchestration" shape.
 - `cd apps/myk9show && pnpm test` for the entry-management suites.
 
 ### Acceptance
+
 - Rollback/ordering/invalidation logic lives in a module tested without React.
 - The hook shrinks to binding + local UI state.
 - Orchestration test coverage exists where there were only leaf assertions.
 
 ### Risk / notes
+
 Medium-high (touches a hot secretary surface). Behavior-preserving extraction;
 verify in the browser preview (secretary entries management) before merge. Honor
 any `// INTENT:` comments per `docs/INTENT.md`.
@@ -420,10 +449,12 @@ any `// INTENT:` comments per `docs/INTENT.md`.
 > **Status:** Complete — PR [#744](https://github.com/rbeezley/myk9-platform/pull/744), merged 2026-06-15.
 
 ### Goal
+
 Bring the largest remaining Shape-Y holdout into line with
 [ADR-008](adr/008-entity-module-export-shape.md).
 
 ### Friction
+
 [`judges/reads.ts`](../apps/myk9show/src/services/database/judges/reads.ts) (728L)
 exposed 5 nested query objects (`judgeQualificationQueries.create()`, …). ADR-008
 mandates flat named functions; it formerly listed `judges/` as pending. This was
@@ -432,10 +463,12 @@ sequencing. **Resolved by PR #744:** the objects are now flat entity-prefixed
 functions and ADR-008's migration record lists `judges/` as migrated.
 
 ### Files
+
 - `apps/myk9show/src/services/database/judges/reads.ts` + `judges/index.ts`
 - Call sites using `judge*Queries.*` (grep to enumerate).
 
 ### Steps
+
 1. Convert each nested-object method to a flat, entity-prefixed named export per
    ADR-008's naming rules (`getJudgeQualifications`, `createJudgeAvailability`,
    …), honoring the domain-clear bare-verb exception only where ADR-008 allows.
@@ -444,16 +477,19 @@ functions and ADR-008's migration record lists `judges/` as migrated.
 4. Append a line to ADR-008's migration record.
 
 ### Tests
+
 - Per ADR-008's reasoning: test assertions read as domain ops
   (`expect(getJudgeQualifications).toHaveBeenCalledWith(...)`).
 - Existing judges tests must pass against the new surface.
 - `pnpm typecheck` green.
 
 ### Acceptance
+
 - No `judge*Queries` object exports remain; `index.ts` is flat Shape-X.
 - ADR-008 migration record updated.
 
 ### Risk / notes
+
 Low-medium (mechanical but wide call-site fan-out). Lowest novelty; schedule when
 `judges/` is touched for another reason, per ADR-008's incremental-migration
 guidance.
@@ -492,7 +528,7 @@ guidance.
   Revert = `git revert` the squash-merge commit; no data migration to unwind
   because no phase writes schema or data.
 - **Replication regressions (Phase 2) are the one stateful risk.** A bad
-  conflict-policy migration can corrupt the *local* IndexedDB cache on a user's
+  conflict-policy migration can corrupt the _local_ IndexedDB cache on a user's
   device, not the server. Recovery is a client cache reset (the replication layer
   rehydrates from Supabase), but the guard is the dirty-row assertion test plus
   the staging offline smoke before merge — catch it before it ships.

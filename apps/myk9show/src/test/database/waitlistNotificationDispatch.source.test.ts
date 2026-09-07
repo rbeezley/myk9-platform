@@ -74,9 +74,7 @@ describe('waitlist notification dispatch contracts', () => {
     expect(dispatcher).toContain('beforeBody: requirePushWebhookSecret');
     expect(dispatcher).not.toContain("Deno.env.get('PUSH_WEBHOOK_SECRET')");
     expect(dispatcher).toContain('if (!input.authUserId) {');
-    expect(dispatcher).not.toContain(
-      '!exhibitor.person?.email || !exhibitor.person.auth_user_id'
-    );
+    expect(dispatcher).not.toContain('!exhibitor.person?.email || !exhibitor.person.auth_user_id');
     expect(dispatcher).not.toContain("throw new Error('notification_recipient_missing')");
     expect(dispatcher).toContain('if (!input.recipient) {');
     expect(content).toContain('/exhibitor/entries?waitlistOffer=');

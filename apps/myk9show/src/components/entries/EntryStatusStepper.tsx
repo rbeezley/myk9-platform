@@ -98,12 +98,7 @@ export const EntryStatusStepper: React.FC<EntryStatusStepperProps> = ({
               {/* Step indicator */}
               <div className="flex flex-col items-center">
                 <div className="flex h-6 w-6 items-center justify-center">
-                  <StatusIcon
-                    family="entry"
-                    status={indicatorStatus}
-                    size="lg"
-                    decorative
-                  />
+                  <StatusIcon family="entry" status={indicatorStatus} size="lg" decorative />
                 </div>
                 <span
                   className={cn(

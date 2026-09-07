@@ -35,43 +35,43 @@ export function PlanSection({ accommodations, flag }: PlanSectionProps) {
       <div ref={ref} className={`bn-reveal ${revealed ? 'in' : ''}`}>
         <BannerContentRow>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {accommodations.map((acc, i) => (
-            <li
-              key={`${acc.name}-${i}`}
-              style={{
-                padding: '20px 0',
-                borderBottom:
-                  i === accommodations.length - 1 ? 'none' : `1px solid ${bannerColors.hair}`,
-                display: 'grid',
-                gridTemplateColumns: '1fr 2fr',
-                gap: 24,
-                alignItems: 'baseline',
-              }}
-            >
-              <strong
+            {accommodations.map((acc, i) => (
+              <li
+                key={`${acc.name}-${i}`}
                 style={{
-                  fontFamily: BANNER_DISPLAY_FAMILY,
-                  fontWeight: 700,
-                  fontSize: 18,
-                  letterSpacing: '-0.02em',
-                  color: bannerColors.ink,
+                  padding: '20px 0',
+                  borderBottom:
+                    i === accommodations.length - 1 ? 'none' : `1px solid ${bannerColors.hair}`,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 2fr',
+                  gap: 24,
+                  alignItems: 'baseline',
                 }}
               >
-                {acc.name}
-              </strong>
-              <span
-                style={{
-                  fontFamily: BANNER_BODY_FAMILY,
-                  fontSize: 14,
-                  lineHeight: 1.55,
-                  color: bannerColors.soft,
-                }}
-              >
-                {formatLine(acc) || '—'}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <strong
+                  style={{
+                    fontFamily: BANNER_DISPLAY_FAMILY,
+                    fontWeight: 700,
+                    fontSize: 18,
+                    letterSpacing: '-0.02em',
+                    color: bannerColors.ink,
+                  }}
+                >
+                  {acc.name}
+                </strong>
+                <span
+                  style={{
+                    fontFamily: BANNER_BODY_FAMILY,
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: bannerColors.soft,
+                  }}
+                >
+                  {formatLine(acc) || '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
         </BannerContentRow>
       </div>
     </section>

@@ -313,8 +313,8 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                   <div className="text-sm text-muted-foreground bg-warning/10 p-4 rounded-xl">
                     <p className="mb-2">No qualified judges found for {data.organization} shows.</p>
                     <p className="text-xs">
-                      A person becomes selectable here once they hold an active{' '}
-                      {data.organization} judge qualification.
+                      A person becomes selectable here once they hold an active {data.organization}{' '}
+                      judge qualification.
                     </p>
                     {/*
                       This used to end at "add judge qualifications to people in the Users

@@ -60,8 +60,6 @@ describe('TAB_PREDICATES', () => {
     // `now` is a parameter precisely so one render cannot evaluate the boundary
     // twice. Same entry, same instant, same answer — every caller.
     const candidate = entry({ showDate: NOW });
-    expect(TAB_PREDICATES.completed(candidate, NOW)).toBe(
-      TAB_PREDICATES.completed(candidate, NOW)
-    );
+    expect(TAB_PREDICATES.completed(candidate, NOW)).toBe(TAB_PREDICATES.completed(candidate, NOW));
   });
 });

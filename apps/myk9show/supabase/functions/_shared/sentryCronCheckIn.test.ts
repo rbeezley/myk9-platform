@@ -143,9 +143,9 @@ describe('runWithBestEffortCronCheckIn', () => {
   it('runs snapshot work when no Sentry client is configured', async () => {
     const persistSnapshot = vi.fn(async () => 'persisted');
 
-    await expect(
-      runWithBestEffortCronCheckIn(null, MONITOR_SLUG, persistSnapshot)
-    ).resolves.toBe('persisted');
+    await expect(runWithBestEffortCronCheckIn(null, MONITOR_SLUG, persistSnapshot)).resolves.toBe(
+      'persisted'
+    );
     expect(persistSnapshot).toHaveBeenCalledOnce();
   });
 });

@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { 
+import {
   Search,
   CheckSquare2,
   Square,
@@ -19,7 +19,7 @@ import {
   Settings,
   Clock,
   Users,
-  DollarSign
+  DollarSign,
 } from 'lucide-react';
 
 interface ClassSelectionGridProps {
@@ -33,7 +33,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
   template,
   selectedClasses,
   onSelectionChange,
-  onPreviewClass
+  onPreviewClass,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterElement, setFilterElement] = useState<string>('');
@@ -41,31 +41,33 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const classes = template.classDefinitions || [];
-  
+
   // Get unique elements and levels for filtering
   const elements = Array.from(new Set(classes.map(c => c.element))).sort();
   const levels = Array.from(new Set(classes.map(c => c.level).filter(Boolean))).sort();
 
   // Filter classes based on search and filters
   const filteredClasses = classes.filter(cls => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       cls.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cls.element.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cls.level?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesElement = !filterElement || cls.element === filterElement;
     const matchesLevel = !filterLevel || cls.level === filterLevel;
-    
+
     return matchesSearch && matchesElement && matchesLevel;
   });
 
   // Check if a class is selected
   const isClassSelected = (classDefinition: ClassDefinition) => {
-    return selectedClasses.some(selected => 
-      selected.className === classDefinition.className &&
-      selected.element === classDefinition.element &&
-      selected.level === classDefinition.level &&
-      selected.section === classDefinition.section
+    return selectedClasses.some(
+      selected =>
+        selected.className === classDefinition.className &&
+        selected.element === classDefinition.element &&
+        selected.level === classDefinition.level &&
+        selected.section === classDefinition.section
     );
   };
 
@@ -73,11 +75,14 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
   const toggleClassSelection = (classDefinition: ClassDefinition) => {
     if (isClassSelected(classDefinition)) {
       // Remove from selection
-      const updated = selectedClasses.filter(selected => 
-        !(selected.className === classDefinition.className &&
-          selected.element === classDefinition.element &&
-          selected.level === classDefinition.level &&
-          selected.section === classDefinition.section)
+      const updated = selectedClasses.filter(
+        selected =>
+          !(
+            selected.className === classDefinition.className &&
+            selected.element === classDefinition.element &&
+            selected.level === classDefinition.level &&
+            selected.section === classDefinition.section
+          )
       );
       onSelectionChange(updated);
     } else {
@@ -94,13 +99,15 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
 
   // Deselect all filtered classes
   const deselectAllFiltered = () => {
-    const updated = selectedClasses.filter(selected => 
-      !filteredClasses.some(filtered => 
-        filtered.className === selected.className &&
-        filtered.element === selected.element &&
-        filtered.level === selected.level &&
-        filtered.section === selected.section
-      )
+    const updated = selectedClasses.filter(
+      selected =>
+        !filteredClasses.some(
+          filtered =>
+            filtered.className === selected.className &&
+            filtered.element === selected.element &&
+            filtered.level === selected.level &&
+            filtered.section === selected.section
+        )
     );
     onSelectionChange(updated);
   };
@@ -115,7 +122,8 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
     onSelectionChange([...classes]);
   };
 
-  const allFilteredSelected = filteredClasses.length > 0 && filteredClasses.every(cls => isClassSelected(cls));
+  const allFilteredSelected =
+    filteredClasses.length > 0 && filteredClasses.every(cls => isClassSelected(cls));
 
   return (
     <div className="space-y-6">
@@ -136,7 +144,9 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Settings className="h-4 w-4 text-blue-500" />
-              <span>{template.organization} • {template.trialType}</span>
+              <span>
+                {template.organization} • {template.trialType}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-green-500" />
@@ -164,7 +174,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
               <Input
                 placeholder="Search classes by name, element, or level..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -176,12 +186,14 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                 <Label className="text-sm">Element:</Label>
                 <select
                   value={filterElement}
-                  onChange={(e) => setFilterElement(e.target.value)}
+                  onChange={e => setFilterElement(e.target.value)}
                   className="px-2 py-1 border rounded text-sm"
                 >
                   <option value="">All Elements</option>
                   {elements.map(element => (
-                    <option key={element} value={element}>{element}</option>
+                    <option key={element} value={element}>
+                      {element}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -191,12 +203,14 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                 <Label className="text-sm">Level:</Label>
                 <select
                   value={filterLevel}
-                  onChange={(e) => setFilterLevel(e.target.value)}
+                  onChange={e => setFilterLevel(e.target.value)}
                   className="px-2 py-1 border rounded text-sm"
                 >
                   <option value="">All Levels</option>
                   {levels.map(level => (
-                    <option key={level} value={level}>{level}</option>
+                    <option key={level} value={level}>
+                      {level}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -243,11 +257,15 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                     </>
                   )}
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={selectedClasses.length === classes.length ? clearAllSelections : selectAllClasses}
+                  onClick={
+                    selectedClasses.length === classes.length
+                      ? clearAllSelections
+                      : selectAllClasses
+                  }
                 >
                   {selectedClasses.length === classes.length ? (
                     <>
@@ -276,21 +294,23 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
       <Card className="min-h-[400px]">
         <CardContent className="pt-6">
           {filteredClasses.length > 0 ? (
-            <div className={
-              viewMode === 'grid' 
-                ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4"
-                : "space-y-2"
-            }>
+            <div
+              className={
+                viewMode === 'grid'
+                  ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4'
+                  : 'space-y-2'
+              }
+            >
               {filteredClasses.map((classDefinition, index) => {
                 const isSelected = isClassSelected(classDefinition);
-                
+
                 return viewMode === 'grid' ? (
                   // Grid View
                   <div
                     key={index}
                     className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                      isSelected 
-                        ? 'ring-2 ring-primary bg-primary/5 border-primary' 
+                      isSelected
+                        ? 'ring-2 ring-primary bg-primary/5 border-primary'
                         : 'hover:bg-muted/50'
                     }`}
                     onClick={() => toggleClassSelection(classDefinition)}
@@ -312,7 +332,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               onPreviewClass(classDefinition);
                             }}
@@ -343,9 +363,12 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                       {/* Additional Info */}
                       <div className="text-xs text-muted-foreground space-y-1">
                         <div>Order: {classDefinition.displayOrder}</div>
-                        {classDefinition.fieldOverrides && Object.keys(classDefinition.fieldOverrides).length > 0 && (
-                          <div>{Object.keys(classDefinition.fieldOverrides).length} overrides</div>
-                        )}
+                        {classDefinition.fieldOverrides &&
+                          Object.keys(classDefinition.fieldOverrides).length > 0 && (
+                            <div>
+                              {Object.keys(classDefinition.fieldOverrides).length} overrides
+                            </div>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -354,8 +377,8 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                   <div
                     key={index}
                     className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                      isSelected 
-                        ? 'ring-2 ring-primary bg-primary/5 border-primary' 
+                      isSelected
+                        ? 'ring-2 ring-primary bg-primary/5 border-primary'
                         : 'hover:bg-muted/50'
                     }`}
                     onClick={() => toggleClassSelection(classDefinition)}
@@ -365,7 +388,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                         checked={isSelected}
                         onChange={() => {}} // Handled by parent click
                       />
-                      
+
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center">
                         <div className="md:col-span-2">
                           <span className="font-medium text-sm">{classDefinition.className}</span>
@@ -398,7 +421,7 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
                             onPreviewClass(classDefinition);
                           }}
@@ -418,10 +441,9 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
               <Filter className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Classes Found</h3>
               <p className="text-muted-foreground text-center">
-                {searchTerm || filterElement || filterLevel 
-                  ? "No classes match your current search and filter criteria."
-                  : "This template doesn't have any classes defined."
-                }
+                {searchTerm || filterElement || filterLevel
+                  ? 'No classes match your current search and filter criteria.'
+                  : "This template doesn't have any classes defined."}
               </p>
               {(searchTerm || filterElement || filterLevel) && (
                 <Button
@@ -451,7 +473,8 @@ export const ClassSelectionGrid: React.FC<ClassSelectionGridProps> = ({
                   {selectedClasses.length} class{selectedClasses.length !== 1 ? 'es' : ''} selected
                 </span>
                 <div className="text-sm text-muted-foreground">
-                  Estimated judging time: {(selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15))} minutes
+                  Estimated judging time:{' '}
+                  {selectedClasses.length * (template.defaults?.judgingTimeEstimate || 15)} minutes
                 </div>
               </div>
               <Button variant="outline" onClick={clearAllSelections}>

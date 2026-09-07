@@ -435,8 +435,7 @@ export function measurePage(limit: number): ProbeResult {
     document.body.appendChild(card);
 
     const style = document.createElement('style');
-    style.textContent =
-      '#probe-self-test a::after{content:"";position:absolute;inset:0;}';
+    style.textContent = '#probe-self-test a::after{content:"";position:absolute;inset:0;}';
     card.id = 'probe-self-test';
     document.head.appendChild(style);
 
@@ -685,7 +684,9 @@ export function measurePage(limit: number): ProbeResult {
   }
 
   contrast.sort((a, b) => a.ratio - b.ratio);
-  targets.sort((a, b) => Number(b.under24) - Number(a.under24) || a.width * a.height - b.width * b.height);
+  targets.sort(
+    (a, b) => Number(b.under24) - Number(a.under24) || a.width * a.height - b.width * b.height
+  );
 
   return {
     sanity,

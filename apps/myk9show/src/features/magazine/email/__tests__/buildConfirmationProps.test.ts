@@ -24,8 +24,20 @@ function makeOpts(
       { id: 't3', date: '2026-06-14', trial_number: 'III', display_order: 3 },
     ],
     allClasses: [
-      { id: 'c1', trial_id: 't1', name: 'Excellent Containers', level: 'Excellent', element: 'Containers' },
-      { id: 'c2', trial_id: 't2', name: 'Excellent Interiors', level: 'Excellent', element: 'Interiors' },
+      {
+        id: 'c1',
+        trial_id: 't1',
+        name: 'Excellent Containers',
+        level: 'Excellent',
+        element: 'Containers',
+      },
+      {
+        id: 'c2',
+        trial_id: 't2',
+        name: 'Excellent Interiors',
+        level: 'Excellent',
+        element: 'Interiors',
+      },
       { id: 'c3', trial_id: 't3', name: 'Excellent Buried', level: 'Excellent', element: 'Buried' },
     ],
     judges: [
@@ -139,9 +151,7 @@ describe('buildMagazineConfirmationProps', () => {
   it('returns null primaryArmband when no entries have an armband assigned', () => {
     const props = buildMagazineConfirmationProps(
       makeOpts({
-        entries: [
-          { id: 'e1', trial_id: 't1', class_id: 'c1', armband: null, entry_fee: 2500 },
-        ],
+        entries: [{ id: 'e1', trial_id: 't1', class_id: 'c1', armband: null, entry_fee: 2500 }],
       })
     );
     expect(props.primaryArmband).toBeNull();
@@ -205,7 +215,7 @@ describe('buildMagazineConfirmationProps', () => {
       makeOpts({
         officers: [
           { role: 'Treasurer', name: 'Marcia Liu' },
-          { role: 'Volunteers', name: 'Kevin O\'Brien' },
+          { role: 'Volunteers', name: "Kevin O'Brien" },
         ],
       })
     );
@@ -301,7 +311,13 @@ describe('buildMagazineConfirmationProps', () => {
     const props = buildMagazineConfirmationProps(
       makeOpts({
         entries: [
-          { id: 'orphan', trial_id: 'unknown-trial', class_id: null, armband: null, entry_fee: 2500 },
+          {
+            id: 'orphan',
+            trial_id: 'unknown-trial',
+            class_id: null,
+            armband: null,
+            entry_fee: 2500,
+          },
         ],
       })
     );

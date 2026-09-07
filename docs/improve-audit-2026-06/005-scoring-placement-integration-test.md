@@ -51,7 +51,7 @@ exact seam to test must be confirmed from the code first (Step 1).
 - **Convention**: app tests use vitest and the custom render/util helpers in
   `src/test/utils/testUtils.tsx` where React is involved; pure-service tests call
   the service directly. App vitest runs against built package `dist`, but
-  `PlacementCalculatorService` lives in the *app* (`apps/myk9show/src`), so no
+  `PlacementCalculatorService` lives in the _app_ (`apps/myk9show/src`), so no
   package rebuild is needed.
 - **Assertion-first rule** (`CLAUDE.md`): when a value goes to a specific place,
   write the `expect(...)` first and run it red. Here, assert the exact ranks and
@@ -59,23 +59,25 @@ exact seam to test must be confirmed from the code first (Step 1).
 
 ## Commands you will need
 
-| Purpose   | Command                                                                                          | Expected |
-|-----------|--------------------------------------------------------------------------------------------------|----------|
-| Install   | `pnpm install`                                                                                    | exit 0   |
-| Read pattern | `sed -n '1,80p' apps/myk9show/src/pages/scoring/__tests__/calculatePlacements.test.ts`         | prints   |
-| Run target test | `cd apps/myk9show && npx vitest run src/services/scoring/PlacementCalculatorService.integration.test.ts` | pass |
-| Typecheck | `cd apps/myk9show && pnpm typecheck`                                                              | exit 0   |
+| Purpose         | Command                                                                                                  | Expected |
+| --------------- | -------------------------------------------------------------------------------------------------------- | -------- |
+| Install         | `pnpm install`                                                                                           | exit 0   |
+| Read pattern    | `sed -n '1,80p' apps/myk9show/src/pages/scoring/__tests__/calculatePlacements.test.ts`                   | prints   |
+| Run target test | `cd apps/myk9show && npx vitest run src/services/scoring/PlacementCalculatorService.integration.test.ts` | pass     |
+| Typecheck       | `cd apps/myk9show && pnpm typecheck`                                                                     | exit 0   |
 
 ## Scope
 
 **In scope** (the only file you create):
+
 - `apps/myk9show/src/services/scoring/PlacementCalculatorService.integration.test.ts`
 
 **Out of scope** (do NOT touch):
+
 - `PlacementCalculatorService.ts` and all its siblings — production code is
   frozen for this plan. If a test reveals a bug, report it; do not fix here.
 - Any DB migration or trigger (e.g. `recalculate_class_placements`). This plan
-  tests the *client-side* calculator service, not the SQL trigger. If the
+  tests the _client-side_ calculator service, not the SQL trigger. If the
   authoritative placement is computed in SQL and the service only displays it,
   see STOP conditions.
 
@@ -106,11 +108,12 @@ Construct a fixture of one class with 4 entries scored so the correct order is
 unambiguous — e.g. three qualifying entries with distinct scores/times (clear
 1st/2nd/3rd) and one non-qualifying entry. Call the function from Step 1 and
 assert:
+
 - the 1st/2nd/3rd entries get placements 1, 2, 3 in the right order;
 - the NQ entry gets **no** qualifying placement (whatever the service uses to
   represent "not placed" — confirm from Step 1, do not assume `null`).
 
-Write these `expect(...)` lines to reflect the *intended* contract and run them;
+Write these `expect(...)` lines to reflect the _intended_ contract and run them;
 if they fail, first confirm your fixture matches the input shape from Step 1
 before suspecting the service.
 

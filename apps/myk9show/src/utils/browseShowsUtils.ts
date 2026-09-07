@@ -17,17 +17,29 @@ import type { SyncableShowEntry } from '@/store/entry-store-types';
 export function getStatusBadge(status: string): React.ReactNode {
   switch (status) {
     case 'Upcoming':
-      return React.createElement(Badge, {
-        className: 'bg-success/10 text-success border-success/20 border'
-      }, 'Upcoming');
+      return React.createElement(
+        Badge,
+        {
+          className: 'bg-success/10 text-success border-success/20 border',
+        },
+        'Upcoming'
+      );
     case 'Completed':
-      return React.createElement(Badge, {
-        className: 'bg-muted/10 text-muted-foreground border-muted/20 border'
-      }, 'Completed');
+      return React.createElement(
+        Badge,
+        {
+          className: 'bg-muted/10 text-muted-foreground border-muted/20 border',
+        },
+        'Completed'
+      );
     default:
-      return React.createElement(Badge, {
-        className: 'bg-muted text-muted-foreground border-border border'
-      }, status);
+      return React.createElement(
+        Badge,
+        {
+          className: 'bg-muted text-muted-foreground border-border border',
+        },
+        status
+      );
   }
 }
 
@@ -35,11 +47,11 @@ export function getStatusBadge(status: string): React.ReactNode {
  * Color mapping for show type badges
  */
 const TYPE_BADGE_COLORS: Record<string, string> = {
-  'Agility': 'bg-primary/10 text-primary border-primary/20',
+  Agility: 'bg-primary/10 text-primary border-primary/20',
   'Scent Work': 'bg-success/10 text-success border-success/20',
-  'Rally': chipClasses('purple', { border: true }),
-  'Obedience': 'bg-warning/10 text-warning border-warning/20',
-  'Nosework': 'bg-success/10 text-success border-success/20'
+  Rally: chipClasses('purple', { border: true }),
+  Obedience: 'bg-warning/10 text-warning border-warning/20',
+  Nosework: 'bg-success/10 text-success border-success/20',
 };
 
 /**
@@ -47,9 +59,13 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
  */
 export function getTypeBadge(type: string): React.ReactNode {
   const colorClass = TYPE_BADGE_COLORS[type] || 'bg-muted/10 text-muted-foreground border-muted/20';
-  return React.createElement(Badge, {
-    className: `${colorClass} border`
-  }, type.toUpperCase());
+  return React.createElement(
+    Badge,
+    {
+      className: `${colorClass} border`,
+    },
+    type.toUpperCase()
+  );
 }
 
 /**
@@ -71,44 +87,44 @@ export const ACTION_ICON_MAP = {
   ClipboardList: 'ClipboardList',
   Edit3: 'Edit3',
   FileOutput: 'FileOutput',
-  Plus: 'Plus'
+  Plus: 'Plus',
 } as const;
 
 /**
  * Discipline label mapping
  */
 export const DISCIPLINE_LABELS: Record<string, string> = {
-  'scent_work': 'Scent Work',
-  'agility': 'Agility',
-  'rally': 'Rally',
-  'obedience': 'Obedience'
+  scent_work: 'Scent Work',
+  agility: 'Agility',
+  rally: 'Rally',
+  obedience: 'Obedience',
 };
 
 /**
  * Entry status label mapping
  */
 export const ENTRY_STATUS_LABELS: Record<string, string> = {
-  'closing_soon': 'Closing Soon',
-  'open': 'Open',
-  'closed': 'Closed',
-  'waitlist': 'Waitlist'
+  closing_soon: 'Closing Soon',
+  open: 'Open',
+  closed: 'Closed',
+  waitlist: 'Waitlist',
 };
 
 /**
  * Location filter label mapping
  */
 export const LOCATION_LABELS: Record<string, string> = {
-  'local': 'Within 50 miles',
-  'regional': 'Within 200 miles',
-  'online': 'Online Only'
+  local: 'Within 50 miles',
+  regional: 'Within 200 miles',
+  online: 'Online Only',
 };
 
 /**
  * Date range label mapping
  */
 export const DATE_RANGE_LABELS: Record<string, string> = {
-  'this_month': 'This Month',
-  'next_month': 'Next Month'
+  this_month: 'This Month',
+  next_month: 'Next Month',
 };
 
 export function getBrowseShowsCountUserId(
@@ -180,10 +196,7 @@ export function mergeAccountEnteredShowStubs(
 
   const alreadyEntered = new Set(
     entries
-      .filter(
-        e =>
-          e.registrationData.handler === userId || e.registrationData.handlerId === userId
-      )
+      .filter(e => e.registrationData.handler === userId || e.registrationData.handlerId === userId)
       .map(e => e.showId)
   );
 

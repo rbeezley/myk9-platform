@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import {
-  MonogramSectionFolio,
-} from '../components/MonogramSectionFolio';
+import { MonogramSectionFolio } from '../components/MonogramSectionFolio';
 import { toLowerRoman } from '../utils/roman';
 
 describe('MonogramSectionFolio', () => {

@@ -86,8 +86,14 @@ function sortRefs(refs: RingsideShowRef[]): RingsideShowRef[] {
 }
 
 export function resolveRingsideEntry(input: ResolveRingsideEntryInput): ResolveRingsideEntryResult {
-  const { judgeClasses, exhibitorToday, exhibitorUpcoming, managerToday, managerUpcoming, todayISO } =
-    input;
+  const {
+    judgeClasses,
+    exhibitorToday,
+    exhibitorUpcoming,
+    managerToday,
+    managerUpcoming,
+    todayISO,
+  } = input;
 
   // ── Live (today / in-progress) — keyed by showId so the same show from
   //    multiple sources collapses to one entry, keeping the best-known name. ──

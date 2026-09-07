@@ -13,10 +13,10 @@ interface TabNavigationProps {
 }
 
 const TAB_TRIGGER_BASE = cn(
-  "flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-apple",
-  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5",
-  "data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]",
-  "hover:bg-muted/20 hover:scale-[1.01] active:scale-[0.98]"
+  'flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-apple',
+  'data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5',
+  'data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]',
+  'hover:bg-muted/20 hover:scale-[1.01] active:scale-[0.98]'
 );
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({
@@ -37,23 +37,27 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         value="basic"
         className={cn(
           TAB_TRIGGER_BASE,
-          !isBasicValid && "text-destructive/80 data-[state=active]:text-destructive"
+          !isBasicValid && 'text-destructive/80 data-[state=active]:text-destructive'
         )}
       >
         <Heart className="h-4 w-4" />
         <span className="font-medium">Essential</span>
-        {isBasicValid && <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />}
+        {isBasicValid && (
+          <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />
+        )}
       </TabsTrigger>
       <TabsTrigger
         value="registration"
         className={cn(
           TAB_TRIGGER_BASE,
-          showRegistrationError && "text-destructive/80 data-[state=active]:text-destructive"
+          showRegistrationError && 'text-destructive/80 data-[state=active]:text-destructive'
         )}
       >
         <FileText className="h-4 w-4" />
         <span className="font-medium">Registration</span>
-        {showRegistrationCheck && <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />}
+        {showRegistrationCheck && (
+          <CheckCircle className="h-4 w-4 text-emerald-500 animate-in zoom-in-0 duration-200" />
+        )}
       </TabsTrigger>
       <TabsTrigger value="optional" className={TAB_TRIGGER_BASE}>
         <Settings className="h-4 w-4" />

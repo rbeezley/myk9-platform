@@ -44,9 +44,7 @@ export function GazetteSectionHead({
           <span>
             SECTION {sectionLetter} · {pageRuleTitle}
           </span>
-          {typeof page === 'number' && (
-            <span>PAGE {String(page).padStart(2, '0')}</span>
-          )}
+          {typeof page === 'number' && <span>PAGE {String(page).padStart(2, '0')}</span>}
           {volume && <span>VOL. {volume}</span>}
         </div>
       )}

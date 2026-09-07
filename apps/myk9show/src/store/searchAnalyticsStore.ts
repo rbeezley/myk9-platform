@@ -11,7 +11,12 @@ import type {
 } from './search-analytics/types';
 
 // Re-export types and helpers for backward compatibility
-export type { SearchQuery, SearchResult, SearchSession, SearchAnalytics } from './search-analytics/types';
+export type {
+  SearchQuery,
+  SearchResult,
+  SearchSession,
+  SearchAnalytics,
+} from './search-analytics/types';
 export type { UserSearchBehavior } from './search-analytics/types';
 
 export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
@@ -40,18 +45,18 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           sessionId,
           filters,
           sortBy,
-          sortOrder
+          sortOrder,
         };
 
         set(state => ({
-          queries: [...state.queries, searchQuery]
+          queries: [...state.queries, searchQuery],
         }));
 
         // Update session statistics
         const session = get().sessions.find(s => s.id === sessionId);
         if (session) {
           get().updateSessionInfo(sessionId, {
-            totalQueries: session.totalQueries + 1
+            totalQueries: session.totalQueries + 1,
           });
         }
 
@@ -67,11 +72,11 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           executionTime,
           wasSuccessful,
           errorMessage,
-          clickedResults: []
+          clickedResults: [],
         };
 
         set(state => ({
-          results: [...state.results, searchResult]
+          results: [...state.results, searchResult],
         }));
 
         // Update session metrics
@@ -85,7 +90,7 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
             get().updateSessionInfo(query.sessionId, {
               totalExecutionTime: totalTime,
               averageExecutionTime: totalTime / session.totalQueries,
-              successfulQueries
+              successfulQueries,
             });
           }
         }
@@ -99,12 +104,12 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
             result.queryId === queryId
               ? { ...result, clickedResults: [...result.clickedResults, resultId] }
               : result
-          )
+          ),
         }));
       },
 
       // Session Management
-      startSearchSession: (userId) => {
+      startSearchSession: userId => {
         const sessionId = generateId('session');
 
         const session: SearchSession = {
@@ -117,25 +122,23 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           averageExecutionTime: 0,
           mostSearchedType: '',
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
-          deviceType: detectDeviceType()
+          deviceType: detectDeviceType(),
         };
 
         set(state => ({
           sessions: [...state.sessions, session],
-          currentSessionId: sessionId
+          currentSessionId: sessionId,
         }));
 
         return sessionId;
       },
 
-      endSearchSession: (sessionId) => {
+      endSearchSession: sessionId => {
         set(state => ({
           sessions: state.sessions.map(session =>
-            session.id === sessionId
-              ? { ...session, endTime: new Date() }
-              : session
+            session.id === sessionId ? { ...session, endTime: new Date() } : session
           ),
-          currentSessionId: state.currentSessionId === sessionId ? null : state.currentSessionId
+          currentSessionId: state.currentSessionId === sessionId ? null : state.currentSessionId,
         }));
       },
 
@@ -147,15 +150,13 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
       updateSessionInfo: (sessionId, info) => {
         set(state => ({
           sessions: state.sessions.map(session =>
-            session.id === sessionId
-              ? { ...session, ...info }
-              : session
-          )
+            session.id === sessionId ? { ...session, ...info } : session
+          ),
         }));
       },
 
       // Analytics Generation
-      generateAnalytics: (timeRange) => {
+      generateAnalytics: timeRange => {
         const { queries, results, sessions } = get();
 
         let filteredQueries = queries;
@@ -163,15 +164,15 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
         let filteredSessions = sessions;
 
         if (timeRange) {
-          filteredQueries = queries.filter(q =>
-            q.timestamp >= timeRange.start && q.timestamp <= timeRange.end
+          filteredQueries = queries.filter(
+            q => q.timestamp >= timeRange.start && q.timestamp <= timeRange.end
           );
 
           const queryIds = new Set(filteredQueries.map(q => q.id));
           filteredResults = results.filter(r => queryIds.has(r.queryId));
 
-          filteredSessions = sessions.filter(s =>
-            s.startTime >= timeRange.start && s.startTime <= timeRange.end
+          filteredSessions = sessions.filter(
+            s => s.startTime >= timeRange.start && s.startTime <= timeRange.end
           );
         }
 
@@ -194,7 +195,9 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
 
         // Performance metrics
         const fastQueries = filteredResults.filter(r => r.executionTime < 100).length;
-        const normalQueries = filteredResults.filter(r => r.executionTime >= 100 && r.executionTime <= 500).length;
+        const normalQueries = filteredResults.filter(
+          r => r.executionTime >= 100 && r.executionTime <= 500
+        ).length;
         const slowQueries = filteredResults.filter(r => r.executionTime > 500).length;
 
         return {
@@ -203,14 +206,15 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           averageQueriesPerSession: totalSessions > 0 ? totalSearches / totalSessions : 0,
           mostPopularSearchTypes: searchTypeCount,
           mostCommonQueries: queryCount,
-          averageExecutionTime: filteredResults.length > 0 ? totalExecutionTime / filteredResults.length : 0,
+          averageExecutionTime:
+            filteredResults.length > 0 ? totalExecutionTime / filteredResults.length : 0,
           successRate: totalSearches > 0 ? (successfulSearches / totalSearches) * 100 : 0,
           searchTrends: get().getSearchTrends(7),
           performanceMetrics: {
             fastQueries,
             normalQueries,
-            slowQueries
-          }
+            slowQueries,
+          },
         };
       },
 
@@ -221,11 +225,11 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
         let userSessions = sessions.filter(s => s.userId === userId);
 
         if (timeRange) {
-          userQueries = userQueries.filter(q =>
-            q.timestamp >= timeRange.start && q.timestamp <= timeRange.end
+          userQueries = userQueries.filter(
+            q => q.timestamp >= timeRange.start && q.timestamp <= timeRange.end
           );
-          userSessions = userSessions.filter(s =>
-            s.startTime >= timeRange.start && s.startTime <= timeRange.end
+          userSessions = userSessions.filter(
+            s => s.startTime >= timeRange.start && s.startTime <= timeRange.end
           );
         }
 
@@ -257,19 +261,24 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           userId,
           totalSearches: userQueries.length,
           favoriteSearchTypes: searchTypeCount,
-          averageSessionDuration: sessionDurations.length > 0
-            ? sessionDurations.reduce((sum, d) => sum + d, 0) / sessionDurations.length
-            : 0,
-          mostActiveTimeOfDay: Object.entries(hourCount).reduce((max, [hour, count]) =>
-            count > (hourCount[max] || 0) ? parseInt(hour, 10) : max, 0),
-          mostActiveDayOfWeek: Object.entries(dayCount).reduce((max, [day, count]) =>
-            count > (dayCount[max] || 0) ? parseInt(day, 10) : max, 0),
+          averageSessionDuration:
+            sessionDurations.length > 0
+              ? sessionDurations.reduce((sum, d) => sum + d, 0) / sessionDurations.length
+              : 0,
+          mostActiveTimeOfDay: Object.entries(hourCount).reduce(
+            (max, [hour, count]) => (count > (hourCount[max] || 0) ? parseInt(hour, 10) : max),
+            0
+          ),
+          mostActiveDayOfWeek: Object.entries(dayCount).reduce(
+            (max, [day, count]) => (count > (dayCount[max] || 0) ? parseInt(day, 10) : max),
+            0
+          ),
           searchEfficiency: userQueries.length > 0 ? totalClicks / userQueries.length : 0,
-          commonSearchPatterns: Object.keys(queryCount).slice(0, 10)
+          commonSearchPatterns: Object.keys(queryCount).slice(0, 10),
         };
       },
 
-      getSearchTrends: (days) => {
+      getSearchTrends: days => {
         const trends: SearchAnalytics['searchTrends'] = [];
         const { queries, results } = get();
 
@@ -278,13 +287,11 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           date.setDate(date.getDate() - i);
           const dateStr = date.toISOString().split('T')[0];
 
-          const dayQueries = queries.filter(q =>
-            q.timestamp.toISOString().split('T')[0] === dateStr
+          const dayQueries = queries.filter(
+            q => q.timestamp.toISOString().split('T')[0] === dateStr
           );
 
-          const dayResults = results.filter(r =>
-            dayQueries.some(q => q.id === r.queryId)
-          );
+          const dayResults = results.filter(r => dayQueries.some(q => q.id === r.queryId));
 
           const successfulResults = dayResults.filter(r => r.wasSuccessful);
           const totalTime = dayResults.reduce((sum, r) => sum + r.executionTime, 0);
@@ -293,7 +300,8 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
             date: dateStr,
             searches: dayQueries.length,
             averageTime: dayResults.length > 0 ? totalTime / dayResults.length : 0,
-            successRate: dayResults.length > 0 ? (successfulResults.length / dayResults.length) * 100 : 0
+            successRate:
+              dayResults.length > 0 ? (successfulResults.length / dayResults.length) * 100 : 0,
           });
         }
 
@@ -308,11 +316,14 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           filteredQueries = queries.filter(q => q.searchType === searchType);
         }
 
-        const queryStats: Record<string, {
-          count: number;
-          totalTime: number;
-          successfulCount: number;
-        }> = {};
+        const queryStats: Record<
+          string,
+          {
+            count: number;
+            totalTime: number;
+            successfulCount: number;
+          }
+        > = {};
 
         filteredQueries.forEach(q => {
           if (!queryStats[q.query]) {
@@ -334,21 +345,19 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
             query,
             count: stats.count,
             averageTime: stats.count > 0 ? stats.totalTime / stats.count : 0,
-            successRate: stats.count > 0 ? (stats.successfulCount / stats.count) * 100 : 0
+            successRate: stats.count > 0 ? (stats.successfulCount / stats.count) * 100 : 0,
           }))
           .sort((a, b) => b.count - a.count)
           .slice(0, limit);
       },
 
       // Performance Analysis
-      getPerformanceMetrics: (searchType) => {
+      getPerformanceMetrics: searchType => {
         const { queries, results } = get();
 
         let filteredResults = results;
         if (searchType) {
-          const typeQueryIds = queries
-            .filter(q => q.searchType === searchType)
-            .map(q => q.id);
+          const typeQueryIds = queries.filter(q => q.searchType === searchType).map(q => q.id);
           filteredResults = results.filter(r => typeQueryIds.includes(r.queryId));
         }
 
@@ -357,12 +366,18 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
 
         return {
           averageExecutionTime: executionTimes.length > 0 ? totalTime / executionTimes.length : 0,
-          medianExecutionTime: executionTimes.length > 0 ? executionTimes[Math.floor(executionTimes.length / 2)] : 0,
-          p95ExecutionTime: executionTimes.length > 0 ? executionTimes[Math.floor(executionTimes.length * 0.95)] : 0,
+          medianExecutionTime:
+            executionTimes.length > 0 ? executionTimes[Math.floor(executionTimes.length / 2)] : 0,
+          p95ExecutionTime:
+            executionTimes.length > 0
+              ? executionTimes[Math.floor(executionTimes.length * 0.95)]
+              : 0,
           fastQueries: filteredResults.filter(r => r.executionTime < 100).length,
-          normalQueries: filteredResults.filter(r => r.executionTime >= 100 && r.executionTime <= 500).length,
+          normalQueries: filteredResults.filter(
+            r => r.executionTime >= 100 && r.executionTime <= 500
+          ).length,
           slowQueries: filteredResults.filter(r => r.executionTime > 500).length,
-          totalQueries: filteredResults.length
+          totalQueries: filteredResults.length,
         };
       },
 
@@ -373,21 +388,23 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           .filter(r => !r.wasSuccessful || r.executionTime > 500)
           .map(r => {
             const query = queries.find(q => q.id === r.queryId);
-            return query ? {
-              query: query.query,
-              searchType: query.searchType,
-              executionTime: r.executionTime,
-              timestamp: query.timestamp
-            } : null;
+            return query
+              ? {
+                  query: query.query,
+                  searchType: query.searchType,
+                  executionTime: r.executionTime,
+                  timestamp: query.timestamp,
+                }
+              : null;
           })
           .filter(Boolean)
           .sort((a, b) => (b?.executionTime || 0) - (a?.executionTime || 0))
           .slice(0, limit) as Array<{
-            query: string;
-            searchType: string;
-            executionTime: number;
-            timestamp: Date;
-          }>;
+          query: string;
+          searchType: string;
+          executionTime: number;
+          timestamp: Date;
+        }>;
       },
 
       getFailedQueries: (limit = 10) => {
@@ -397,32 +414,37 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           .filter(r => !r.wasSuccessful)
           .map(r => {
             const query = queries.find(q => q.id === r.queryId);
-            return query && r.errorMessage ? {
-              query: query.query,
-              searchType: query.searchType,
-              errorMessage: r.errorMessage,
-              timestamp: query.timestamp
-            } : null;
+            return query && r.errorMessage
+              ? {
+                  query: query.query,
+                  searchType: query.searchType,
+                  errorMessage: r.errorMessage,
+                  timestamp: query.timestamp,
+                }
+              : null;
           })
           .filter(Boolean)
           .sort((a, b) => (b?.timestamp.getTime() || 0) - (a?.timestamp.getTime() || 0))
           .slice(0, limit) as Array<{
-            query: string;
-            searchType: string;
-            errorMessage: string;
-            timestamp: Date;
-          }>;
+          query: string;
+          searchType: string;
+          errorMessage: string;
+          timestamp: Date;
+        }>;
       },
 
       // User Insights
       getMostActiveUsers: (limit = 10) => {
         const { sessions } = get();
 
-        const userStats: Record<string, {
-          searchCount: number;
-          sessionCount: number;
-          totalDuration: number;
-        }> = {};
+        const userStats: Record<
+          string,
+          {
+            searchCount: number;
+            sessionCount: number;
+            totalDuration: number;
+          }
+        > = {};
 
         sessions.forEach(s => {
           if (!userStats[s.userId]) {
@@ -442,7 +464,8 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
             userId,
             searchCount: stats.searchCount,
             sessionCount: stats.sessionCount,
-            averageSessionDuration: stats.sessionCount > 0 ? stats.totalDuration / stats.sessionCount : 0
+            averageSessionDuration:
+              stats.sessionCount > 0 ? stats.totalDuration / stats.sessionCount : 0,
           }))
           .sort((a, b) => b.searchCount - a.searchCount)
           .slice(0, limit);
@@ -451,11 +474,14 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
       getSearchTypeDistribution: () => {
         const { queries, results } = get();
 
-        const typeStats: Record<string, {
-          count: number;
-          totalTime: number;
-          successfulCount: number;
-        }> = {};
+        const typeStats: Record<
+          string,
+          {
+            count: number;
+            totalTime: number;
+            successfulCount: number;
+          }
+        > = {};
 
         queries.forEach(q => {
           if (!typeStats[q.searchType]) {
@@ -481,14 +507,14 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
               count: stats.count,
               percentage: totalQueries > 0 ? (stats.count / totalQueries) * 100 : 0,
               averageTime: stats.count > 0 ? stats.totalTime / stats.count : 0,
-              successRate: stats.count > 0 ? (stats.successfulCount / stats.count) * 100 : 0
-            }
+              successRate: stats.count > 0 ? (stats.successfulCount / stats.count) * 100 : 0,
+            },
           ])
         );
       },
 
       // Data Management
-      cleanupOldData: (retentionDays) => {
+      cleanupOldData: retentionDays => {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
@@ -500,7 +526,7 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           sessions: state.sessions.filter(s => s.startTime >= cutoffDate),
           results: state.results.filter(r =>
             state.queries.some(q => q.id === r.queryId && q.timestamp >= cutoffDate)
-          )
+          ),
         }));
 
         return removedQueries.length + removedSessions.length;
@@ -515,9 +541,10 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           // Basic CSV export
           const lines = [
             'Date,Searches,Average Time,Success Rate',
-            ...analytics.searchTrends.map(trend =>
-              `${trend.date},${trend.searches},${trend.averageTime.toFixed(2)},${trend.successRate.toFixed(2)}`
-            )
+            ...analytics.searchTrends.map(
+              trend =>
+                `${trend.date},${trend.searches},${trend.averageTime.toFixed(2)},${trend.successRate.toFixed(2)}`
+            ),
           ];
           return lines.join('\n');
         }
@@ -534,9 +561,7 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
         const recentQueries = queries.filter(q => q.timestamp > oneHourAgo);
-        const recentResults = results.filter(r =>
-          recentQueries.some(q => q.id === r.queryId)
-        );
+        const recentResults = results.filter(r => recentQueries.some(q => q.id === r.queryId));
         const activeSessions = sessions.filter(s => !s.endTime || s.endTime > oneHourAgo);
 
         const failedResults = recentResults.filter(r => !r.wasSuccessful);
@@ -546,12 +571,13 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           activeUsers: new Set(activeSessions.map(s => s.userId)).size,
           queriesLastHour: recentQueries.length,
           averageResponseTime: recentResults.length > 0 ? totalTime / recentResults.length : 0,
-          errorRate: recentResults.length > 0 ? (failedResults.length / recentResults.length) * 100 : 0
+          errorRate:
+            recentResults.length > 0 ? (failedResults.length / recentResults.length) * 100 : 0,
         };
       },
 
       // Configuration
-      setTracking: (enabled) => {
+      setTracking: enabled => {
         set({ isTracking: enabled });
       },
 
@@ -565,28 +591,28 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           queries: [],
           results: [],
           sessions: [],
-          currentSessionId: null
+          currentSessionId: null,
         });
       },
 
-      clearUserData: (userId) => {
+      clearUserData: userId => {
         set(state => ({
           queries: state.queries.filter(q => q.userId !== userId),
           sessions: state.sessions.filter(s => s.userId !== userId),
-          results: state.results.filter(r =>
-            !state.queries.some(q => q.id === r.queryId && q.userId === userId)
-          )
+          results: state.results.filter(
+            r => !state.queries.some(q => q.id === r.queryId && q.userId === userId)
+          ),
         }));
       },
 
       resetMetrics: () => {
         get().clearAnalytics();
-      }
+      },
     }),
     {
       name: 'search-analytics-storage',
       storage: createJSONStorage(() => getOptimalStorage('searchAnalytics')),
-      partialize: (state) => ({
+      partialize: state => ({
         queries: state.queries,
         results: state.results,
         sessions: state.sessions,
@@ -605,8 +631,10 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
                 const q = query as Record<string, unknown>;
                 return {
                   ...q,
-                  timestamp: q.timestamp ? new Date(q.timestamp as string | number | Date) : new Date(),
-                  sessionId: q.sessionId || 'unknown-session'
+                  timestamp: q.timestamp
+                    ? new Date(q.timestamp as string | number | Date)
+                    : new Date(),
+                  sessionId: q.sessionId || 'unknown-session',
                 };
               });
             }
@@ -615,8 +643,10 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
                 const s = session as Record<string, unknown>;
                 return {
                   ...s,
-                  startTime: s.startTime ? new Date(s.startTime as string | number | Date) : new Date(),
-                  endTime: s.endTime ? new Date(s.endTime as string | number | Date) : undefined
+                  startTime: s.startTime
+                    ? new Date(s.startTime as string | number | Date)
+                    : new Date(),
+                  endTime: s.endTime ? new Date(s.endTime as string | number | Date) : undefined,
                 };
               });
             }

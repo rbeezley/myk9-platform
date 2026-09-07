@@ -189,8 +189,7 @@ export function classifyEntryCheckInStatus(
 
   return {
     value: status,
-    label:
-      status === 'checked-in' ? 'Checked in' : getStatusDescriptor('entry', status).label,
+    label: status === 'checked-in' ? 'Checked in' : getStatusDescriptor('entry', status).label,
     kind: status === 'in-ring' ? 'active' : 'complete',
   };
 }

@@ -14,7 +14,10 @@ export function WelcomeSection({ welcomeText, trialChairName, flag }: WelcomeSec
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (!welcomeText) return null;
 
-  const paragraphs = welcomeText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const paragraphs = welcomeText
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(Boolean);
 
   return (
     <section
@@ -27,8 +30,7 @@ export function WelcomeSection({ welcomeText, trialChairName, flag }: WelcomeSec
       }}
     >
       <BannerSectionHead number="01" label="Welcome" flag={flag}>
-        A note from{' '}
-        <span style={{ color: flag }}>the chair.</span>
+        A note from <span style={{ color: flag }}>the chair.</span>
       </BannerSectionHead>
 
       <div

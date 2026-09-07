@@ -15,8 +15,7 @@ interface HealthImportDialogProps {
   dogId: string;
   onOpenChange: (open: boolean) => void;
   onImportRecords?:
-    | ((records: ParsedHealthImportRow[]) => Promise<HealthImportOutcome>)
-    | undefined;
+    ((records: ParsedHealthImportRow[]) => Promise<HealthImportOutcome>) | undefined;
 }
 
 export function HealthImportDialog({

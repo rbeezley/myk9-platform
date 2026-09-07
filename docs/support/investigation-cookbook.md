@@ -10,17 +10,17 @@ Internal only. Concrete investigation recipes for issues that cannot be resolved
 
 ## Quick Lookup
 
-| Symptom | Recipe |
-|---|---|
-| Entry not showing after payment | [Payment processed, entry missing](#payment-processed-entry-missing) |
-| Confirmation email never arrived | [Confirmation email not received](#confirmation-email-not-received) |
-| Cannot sign in | [Cannot sign in](#cannot-sign-in) |
-| Club payout missing | [Club payout not received](#club-payout-not-received) |
-| Stripe account under review | [Stripe Connect account under review](#stripe-connect-account-under-review) |
-| App shows offline / stale data | [Offline or sync issue](#offline-or-sync-issue) |
-| Entry still shows Pending after days | [Entry stuck in Pending](#entry-stuck-in-pending) |
-| Secretary cannot see an entry the exhibitor sees | [Entry visibility mismatch](#entry-visibility-mismatch) |
-| AKC XML not generating | [AKC submission file missing or incomplete](#akc-submission-file-missing-or-incomplete) |
+| Symptom                                          | Recipe                                                                                  |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Entry not showing after payment                  | [Payment processed, entry missing](#payment-processed-entry-missing)                    |
+| Confirmation email never arrived                 | [Confirmation email not received](#confirmation-email-not-received)                     |
+| Cannot sign in                                   | [Cannot sign in](#cannot-sign-in)                                                       |
+| Club payout missing                              | [Club payout not received](#club-payout-not-received)                                   |
+| Stripe account under review                      | [Stripe Connect account under review](#stripe-connect-account-under-review)             |
+| App shows offline / stale data                   | [Offline or sync issue](#offline-or-sync-issue)                                         |
+| Entry still shows Pending after days             | [Entry stuck in Pending](#entry-stuck-in-pending)                                       |
+| Secretary cannot see an entry the exhibitor sees | [Entry visibility mismatch](#entry-visibility-mismatch)                                 |
+| AKC XML not generating                           | [AKC submission file missing or incomplete](#akc-submission-file-missing-or-incomplete) |
 
 ---
 
@@ -64,11 +64,11 @@ where person_id = (select id from people where email = '<exhibitor_email>');
 
 ### Resolution paths
 
-| Finding | Action |
-|---|---|
-| Stripe `failed`, exhibitor thinks they were charged | Check their card statement; may be a pending auth that dropped |
-| Webhook not delivered | Re-send from Stripe → Webhooks → failed event → Resend |
-| Entry row missing despite payment | **MUTATE** — requires engineering; do not manually insert entries |
+| Finding                                             | Action                                                            |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| Stripe `failed`, exhibitor thinks they were charged | Check their card statement; may be a pending auth that dropped    |
+| Webhook not delivered                               | Re-send from Stripe → Webhooks → failed event → Resend            |
+| Entry row missing despite payment                   | **MUTATE** — requires engineering; do not manually insert entries |
 
 ---
 
@@ -100,11 +100,11 @@ In [Resend Dashboard](https://resend.com) → Emails → search by `message_id` 
 
 ### Resolution paths
 
-| Finding | Action |
-|---|---|
-| Delivered, not in inbox | Guide exhibitor to check spam; whitelist `mail@myk9show.com` |
-| Bounced | Correct email in `people` table **MUTATE** (only if exhibitor confirms the right address) |
-| Not sent (P-01 gap) | Send manual confirmation from support email; log the path to backlog |
+| Finding                 | Action                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| Delivered, not in inbox | Guide exhibitor to check spam; whitelist `mail@myk9show.com`                              |
+| Bounced                 | Correct email in `people` table **MUTATE** (only if exhibitor confirms the right address) |
+| Not sent (P-01 gap)     | Send manual confirmation from support email; log the path to backlog                      |
 
 ---
 
@@ -128,11 +128,11 @@ In Resend → Emails → search by their email for Supabase-originated emails. I
 
 ### Resolution paths
 
-| Finding | Action |
-|---|---|
-| Account not confirmed | Resend confirmation from Supabase Auth UI |
-| Email not delivered | Check Resend → file bug if Supabase-Resend hook is broken |
-| User does not exist | Guide them to sign up; check if they used a different email |
+| Finding                                  | Action                                                         |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| Account not confirmed                    | Resend confirmation from Supabase Auth UI                      |
+| Email not delivered                      | Check Resend → file bug if Supabase-Resend hook is broken      |
+| User does not exist                      | Guide them to sign up; check if they used a different email    |
 | Account exists, confirmed, can't sign in | Reset password from Supabase Auth UI as last resort **MUTATE** |
 
 ---
@@ -168,11 +168,11 @@ Use the `stripe_transfer_id` from step 2 to look up the transfer directly in the
 
 ### Resolution paths
 
-| Finding | Action |
-|---|---|
-| Transfer sent, bank not received after 7 days | Club should contact their bank; provide transfer ID |
-| Transfer not initiated (status pending) | Confirm show was closed; initiate payout if all clear **MUTATE** (engineering) |
-| Account under review | See Stripe Connect recipe below |
+| Finding                                       | Action                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| Transfer sent, bank not received after 7 days | Club should contact their bank; provide transfer ID                            |
+| Transfer not initiated (status pending)       | Confirm show was closed; initiate payout if all clear **MUTATE** (engineering) |
+| Account under review                          | See Stripe Connect recipe below                                                |
 
 ---
 
@@ -195,10 +195,10 @@ Stripe's standard identity verification for Connect Express accounts. This is St
 
 ### Resolution path
 
-| Finding | Action |
-|---|---|
-| Requirements listed | Direct treasurer to Stripe Express email + KB: `stripe-onboarding.md` |
-| No requirements listed but still delayed | Contact Stripe support with the Connect account ID |
+| Finding                                  | Action                                                                |
+| ---------------------------------------- | --------------------------------------------------------------------- |
+| Requirements listed                      | Direct treasurer to Stripe Express email + KB: `stripe-onboarding.md` |
+| No requirements listed but still delayed | Contact Stripe support with the Connect account ID                    |
 
 ---
 
@@ -228,11 +228,11 @@ Go to [status.supabase.com](https://status.supabase.com) — confirm no active i
 
 ### Resolution paths
 
-| Finding | Action |
-|---|---|
-| Supabase incident active | Wait for resolution; communicate ETA from status page |
-| Data appeared after connectivity restored | Explain offline-first model; no action |
-| Persistent at home despite cache clear | Escalate to engineering with device/browser details |
+| Finding                                   | Action                                                |
+| ----------------------------------------- | ----------------------------------------------------- |
+| Supabase incident active                  | Wait for resolution; communicate ETA from status page |
+| Data appeared after connectivity restored | Explain offline-first model; no action                |
+| Persistent at home despite cache clear    | Escalate to engineering with device/browser details   |
 
 ---
 
@@ -288,11 +288,11 @@ where p.email = '<exhibitor_email>'
 
 ### Resolution path
 
-| Finding | Action |
-|---|---|
-| Entry soft-deleted, exhibitor sees it | RLS gap — file as bug; do not mutate without understanding scope |
-| Entry exists, secretary filtered it out | Guide secretary to clear filters |
-| Entry truly missing | Check stripe_orders for payment; see [Payment processed, entry missing](#payment-processed-entry-missing) |
+| Finding                                 | Action                                                                                                    |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Entry soft-deleted, exhibitor sees it   | RLS gap — file as bug; do not mutate without understanding scope                                          |
+| Entry exists, secretary filtered it out | Guide secretary to clear filters                                                                          |
+| Entry truly missing                     | Check stripe_orders for payment; see [Payment processed, entry missing](#payment-processed-entry-missing) |
 
 ---
 

@@ -7,10 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  notifyRunOrderPersistError,
-  RUN_ORDER_PERSIST_ERROR_MESSAGE,
-} from './runOrderErrorToast';
+import { notifyRunOrderPersistError, RUN_ORDER_PERSIST_ERROR_MESSAGE } from './runOrderErrorToast';
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn() },

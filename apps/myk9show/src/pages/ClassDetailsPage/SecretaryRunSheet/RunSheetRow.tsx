@@ -3,12 +3,7 @@ import { CHECKIN_STATUSES, type CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/base/Chip';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import type { RunSheetEntry } from './types';
@@ -100,12 +95,7 @@ export function RunSheetRow({
               aria-label={`Check-in status for ${entry.dogName}`}
               className="h-11 min-w-[148px] rounded-full border bg-background font-semibold text-foreground"
             >
-              <StatusIcon
-                family="entry"
-                status={entry.checkInStatus}
-                size="sm"
-                decorative
-              />
+              <StatusIcon family="entry" status={entry.checkInStatus} size="sm" decorative />
               <span>{statusLabel(entry.checkInStatus)}</span>
             </SelectTrigger>
             <SelectContent>

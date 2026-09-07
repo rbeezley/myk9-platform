@@ -15,7 +15,11 @@ export function detectDeviceType(): 'desktop' | 'tablet' | 'mobile' {
     return 'tablet';
   }
 
-  if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(userAgent)) {
+  if (
+    /mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(
+      userAgent
+    )
+  ) {
     return 'mobile';
   }
 

@@ -5,7 +5,7 @@ describe('E2E typecheck ratchet', () => {
   it('parses diagnostics without retaining volatile line numbers', () => {
     expect(
       parseDiagnostics(
-        'src/test/e2e/example.spec.ts(12,4): error TS2339: Property \'blur\' does not exist\n'
+        "src/test/e2e/example.spec.ts(12,4): error TS2339: Property 'blur' does not exist\n"
       )
     ).toEqual([
       {
@@ -21,10 +21,8 @@ describe('E2E typecheck ratchet', () => {
 
     expect(compareDiagnostics(baseline, baseline).newDiagnostics).toEqual([]);
     expect(
-      compareDiagnostics(
-        [...baseline, { file: 'b.ts', code: 'TS2', message: 'new' }],
-        baseline
-      ).newDiagnostics
+      compareDiagnostics([...baseline, { file: 'b.ts', code: 'TS2', message: 'new' }], baseline)
+        .newDiagnostics
     ).toEqual([{ file: 'b.ts', code: 'TS2', message: 'new' }]);
   });
 });

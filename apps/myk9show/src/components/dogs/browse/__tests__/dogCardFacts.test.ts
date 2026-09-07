@@ -28,10 +28,13 @@ describe('getDogCardFacts', () => {
   });
 
   it('drops the owner line when no owner is recorded, even for a secretary', () => {
-    const facts = getDogCardFacts({ ...registered, ownerName: undefined }, {
-      showOwner: true,
-      now: NOW,
-    });
+    const facts = getDogCardFacts(
+      { ...registered, ownerName: undefined },
+      {
+        showOwner: true,
+        now: NOW,
+      }
+    );
     expect(facts.map(f => f.kind)).toEqual(['breed', 'age']);
   });
 
@@ -42,10 +45,13 @@ describe('getDogCardFacts', () => {
   });
 
   it('omits age rather than guessing when no date of birth is recorded', () => {
-    const facts = getDogCardFacts({ ...registered, dateOfBirth: undefined }, {
-      showOwner: false,
-      now: NOW,
-    });
+    const facts = getDogCardFacts(
+      { ...registered, dateOfBirth: undefined },
+      {
+        showOwner: false,
+        now: NOW,
+      }
+    );
     expect(facts.map(f => f.kind)).toEqual(['breed']);
   });
 

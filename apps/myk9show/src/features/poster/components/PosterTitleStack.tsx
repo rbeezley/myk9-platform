@@ -93,11 +93,7 @@ export function PosterTitleStack({
         }
 
         return (
-          <span
-            key={`${word.text}-${i}`}
-            className="po-hero-title-word"
-            style={wordStyle}
-          >
+          <span key={`${word.text}-${i}`} className="po-hero-title-word" style={wordStyle}>
             {word.text}
           </span>
         );

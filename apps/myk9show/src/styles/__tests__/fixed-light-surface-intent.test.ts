@@ -24,10 +24,14 @@ describe('fixed-light and fixed-display literal color surfaces', () => {
     expect(creditCardVisual).toContain('INTENT: Credit-card artwork uses fixed issuer/chip colors');
     expect(creditCardVisual).toContain('from-slate-800 via-slate-900 to-slate-950');
 
-    expect(landingCss).toContain('INTENT: The page should always render in the editorial light palette');
+    expect(landingCss).toContain(
+      'INTENT: The page should always render in the editorial light palette'
+    );
     expect(landingCss).toContain('color-scheme: light');
 
-    expect(heritageLanding).toContain('INTENT: Heritage is a deliberately fixed-light public style');
+    expect(heritageLanding).toContain(
+      'INTENT: Heritage is a deliberately fixed-light public style'
+    );
     expect(heritageLanding).toContain("background: 'var(--hl-paper)'");
   });
 });

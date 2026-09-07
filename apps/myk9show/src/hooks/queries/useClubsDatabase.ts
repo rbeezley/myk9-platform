@@ -12,13 +12,13 @@ import {
   getActiveClubs,
   getClubsWithShowCounts,
   getClubStatistics,
-  checkClubNameExists
+  checkClubNameExists,
 } from '@/services/database/clubs';
 import {
   mapClubInputToInsert,
   mapClubInputToUpdate,
   mapDatabaseToClub,
-  mapDatabaseClubsArray
+  mapDatabaseClubsArray,
 } from '@/services/mappers/clubMappers';
 
 // Query Keys
@@ -33,7 +33,8 @@ export const clubQueryKeys = {
   active: () => [...clubQueryKeys.all, 'active'] as const,
   withShowCounts: () => [...clubQueryKeys.all, 'withShowCounts'] as const,
   statistics: () => [...clubQueryKeys.all, 'statistics'] as const,
-  nameExists: (name: string, excludeId?: string) => [...clubQueryKeys.all, 'nameExists', name, excludeId] as const,
+  nameExists: (name: string, excludeId?: string) =>
+    [...clubQueryKeys.all, 'nameExists', name, excludeId] as const,
 };
 
 // Cache strategies
@@ -163,7 +164,7 @@ export const useClubsWithShowCountsQuery = () => {
       if (error) throw error;
       return data.map(club => ({
         ...mapDatabaseToClub(club),
-        showCount: club.show_count || 0
+        showCount: club.show_count || 0,
       }));
     },
     ...cacheStrategies.moderate,
@@ -201,15 +202,15 @@ export const useCreateClubMutation = () => {
       if (error) throw error;
       return mapDatabaseToClub(data as Parameters<typeof mapDatabaseToClub>[0]);
     },
-    onSuccess: (newClub) => {
+    onSuccess: newClub => {
       // Update the clubs list cache
-      queryClient.setQueryData<Club[]>(clubQueryKeys.lists(), (old) => {
+      queryClient.setQueryData<Club[]>(clubQueryKeys.lists(), old => {
         if (!old) return [newClub];
         return [newClub, ...old];
       });
 
       // Update active clubs cache
-      queryClient.setQueryData<Club[]>(clubQueryKeys.active(), (old) => {
+      queryClient.setQueryData<Club[]>(clubQueryKeys.active(), old => {
         if (!old) return [newClub];
         return [newClub, ...old];
       });
@@ -234,20 +235,20 @@ export const useUpdateClubMutation = () => {
       if (error) throw error;
       return mapDatabaseToClub(data as Parameters<typeof mapDatabaseToClub>[0]);
     },
-    onSuccess: (updatedClub) => {
+    onSuccess: updatedClub => {
       // Update the specific club cache
       queryClient.setQueryData<Club>(clubQueryKeys.detail(updatedClub.id), updatedClub);
 
       // Update the clubs list cache
-      queryClient.setQueryData<Club[]>(clubQueryKeys.lists(), (old) => {
+      queryClient.setQueryData<Club[]>(clubQueryKeys.lists(), old => {
         if (!old) return [updatedClub];
-        return old.map(club => club.id === updatedClub.id ? updatedClub : club);
+        return old.map(club => (club.id === updatedClub.id ? updatedClub : club));
       });
 
       // Update active clubs cache
-      queryClient.setQueryData<Club[]>(clubQueryKeys.active(), (old) => {
+      queryClient.setQueryData<Club[]>(clubQueryKeys.active(), old => {
         if (!old) return [updatedClub];
-        return old.map(club => club.id === updatedClub.id ? updatedClub : club);
+        return old.map(club => (club.id === updatedClub.id ? updatedClub : club));
       });
 
       // Invalidate related queries
@@ -271,12 +272,12 @@ export const useDeleteClubMutation = () => {
     },
     onSuccess: ({ id }) => {
       // Remove from all caches
-      queryClient.setQueryData<Club[]>(clubQueryKeys.lists(), (old) => {
+      queryClient.setQueryData<Club[]>(clubQueryKeys.lists(), old => {
         if (!old) return [];
         return old.filter(club => club.id !== id);
       });
 
-      queryClient.setQueryData<Club[]>(clubQueryKeys.active(), (old) => {
+      queryClient.setQueryData<Club[]>(clubQueryKeys.active(), old => {
         if (!old) return [];
         return old.filter(club => club.id !== id);
       });

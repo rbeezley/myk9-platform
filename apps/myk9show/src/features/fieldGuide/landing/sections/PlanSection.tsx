@@ -1,7 +1,11 @@
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { FieldGuideChip } from '../../components/FieldGuideChip';
 import { FieldGuideSectionHead } from '../../components/FieldGuideSectionHead';
-import { FIELD_GUIDE_BODY_FAMILY, FIELD_GUIDE_DISPLAY_FAMILY, FIELD_GUIDE_MONO_FAMILY } from '../../fonts';
+import {
+  FIELD_GUIDE_BODY_FAMILY,
+  FIELD_GUIDE_DISPLAY_FAMILY,
+  FIELD_GUIDE_MONO_FAMILY,
+} from '../../fonts';
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
 import type { FieldGuideAccommodation } from '../types';
 

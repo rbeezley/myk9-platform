@@ -3,7 +3,9 @@
 ## Purpose
 
 Defines scoped multi-selection and contextual bulk actions across the secretary/admin management surfaces (Entry Management, Class Management, admin Users, dogs). Selection is uniform (select-all-visible, indeterminate header, filter pruning) and never spans entity types. Actions are shared typed definitions resolved into both the per-row `RowActionMenu` and the bulk menu, so single-object and bulk contexts cannot diverge in eligibility or dispatch. Bulk scope is explicit (all-selected vs eligible-subset with exact counts), dispatch is duplicate-safe and reports honest per-item success/partial-failure/retry outcomes, and core mutations stay on established replication-backed paths. Introduced by `inline-bulk-actions-and-editable-status` (MYK9-47).
+
 ## Requirements
+
 ### Requirement: Shared typed action definitions drive single-row and bulk menus
 
 The system SHALL define entity actions once as typed definitions (id, label, icon, variant, eligibility predicate, unavailable reason, handler binding) and SHALL resolve the same definition into both the per-row `RowActionMenu` actions and the bulk Actions menu items, so single-object and bulk contexts cannot diverge in eligibility or dispatch behavior.

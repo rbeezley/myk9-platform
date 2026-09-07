@@ -49,12 +49,10 @@ export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {classData ? classData.class_name : 'Class Options'}
-          </DialogTitle>
+          <DialogTitle>{classData ? classData.class_name : 'Class Options'}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-2">
           {!hideRequirements && onRequirements && (
@@ -112,13 +110,7 @@ export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
 // ClassStatusDialog — set a class's overall status.
 // ---------------------------------------------------------------------------
 
-const CLASS_STATUSES: readonly string[] = [
-  'none',
-  'briefing',
-  'scoring',
-  'break',
-  'completed',
-];
+const CLASS_STATUSES: readonly string[] = ['none', 'briefing', 'scoring', 'break', 'completed'];
 
 export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
   isOpen,
@@ -131,19 +123,15 @@ export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Status</DialogTitle>
         </DialogHeader>
         <p>Current: {currentStatus}</p>
         <div className="flex flex-col gap-2">
-          {CLASS_STATUSES.map((status) => (
-            <Button
-              key={status}
-              variant="outline"
-              onClick={() => onStatusChange(status)}
-            >
+          {CLASS_STATUSES.map(status => (
+            <Button key={status} variant="outline" onClick={() => onStatusChange(status)}>
               {status}
             </Button>
           ))}
@@ -176,14 +164,13 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
   if (!isOpen) return null;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Requirements</DialogTitle>
         </DialogHeader>
         <p>
-          {classData.element} {classData.level} · {classData.entry_count}{' '}
-          entries
+          {classData.element} {classData.level} · {classData.entry_count} entries
         </p>
         <DialogFooter>
           {onSetMaxTime && (
@@ -213,7 +200,7 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Settings</DialogTitle>
@@ -247,7 +234,7 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Max Time</DialogTitle>
@@ -287,13 +274,13 @@ export const AreaCountSelectionDialog: React.FC<AreaCountSelectionDialogProps> =
   }
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Select Areas</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-2">
-          {counts.map((count) => (
+          {counts.map(count => (
             <Button key={count} variant="outline" onClick={onSave}>
               {count} {count === 1 ? 'Area' : 'Areas'}
             </Button>

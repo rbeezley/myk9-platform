@@ -89,7 +89,9 @@ describe('recovery controls are readable in every accent and theme', () => {
     // Scan Button TAGS, not raw text: the files explain in comments why
     // `variant="link"` was removed, and a whole-file `toContain` matches the
     // explanation as readily as the defect.
-    const buttons = (read(rel).match(/<Button[\s>][^>]*>/gs) ?? []).map(t => t.replace(/\s+/g, ' '));
+    const buttons = (read(rel).match(/<Button[\s>][^>]*>/gs) ?? []).map(t =>
+      t.replace(/\s+/g, ' ')
+    );
     for (const tag of buttons) {
       expect(tag, `link-variant control (4.40:1 under heather+dark): ${tag}`).not.toContain(
         'variant="link"'
@@ -115,7 +117,7 @@ describe('every colour class actually compiles', () => {
   const CSS_VAR_WITH_ALPHA = /\[color:var\(--[a-z0-9-]+\)\]\/\d/;
 
   it.each(SURFACE)('%s never puts an opacity modifier on a CSS-var colour', rel => {
-    const offenders = (read(rel).match(new RegExp(CSS_VAR_WITH_ALPHA, 'g')) ?? []);
+    const offenders = read(rel).match(new RegExp(CSS_VAR_WITH_ALPHA, 'g')) ?? [];
     expect(offenders, `dropped by Tailwind at build time: ${offenders.join(', ')}`).toEqual([]);
   });
 });

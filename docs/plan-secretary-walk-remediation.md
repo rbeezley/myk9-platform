@@ -36,23 +36,23 @@ here.
 
 Each is a contained change with an observable before/after. No product decision.
 
-| # | Finding | Change |
-| --- | --- | --- |
-| 1.1 | F9 | "1 classes" → singular form on the Detective element — **DONE** — shared `utils/pluralize` (extracted the only existing copy) |
-| 1.2 | F13 | Judge option renders `Test Judge( - )`; drop the empty separator/parens — **DONE** — `formatJudgeAvailabilityWindow`, both call sites |
-| 1.3 | F17 | Secretary entry wizard's Help link points at the exhibitor guide — **DONE** — follows `currentWorkflowMode` |
-| 1.4 | F28 | Manage Classes shows the judge's raw UUID instead of their name — **DONE**; root cause is Base UI needing `items` on the Select root, which turned out to be systemic (see **F34**, Phase 3) |
-| 1.5 | F20 | Waitlist capacity cards title a judge-day with a bare person name — **DONE** — labelled as a judge; entry count pluralized |
-| 1.6 | F32 | Volunteers empty state names a sidebar picker that does not exist — **DONE** — names the Show Desk path that works, links to the shows list |
-| 1.7 | F5 | "Judges Assigned n/n" counts judges used/added, not classes covered — **DONE** — tile now counts classes covered, not judges used (mutation-checked) |
-| 1.8 | F19 | Filter chips expose no pressed state (Entry Management queues, Show Map filters); Manage Classes already does it correctly — copy that — **DONE** — 4 filter groups (3 Show Map + Entry Management queues), mutation-checked |
-| 1.9 | F7 | Judge/chairman picker rows are bare `<div>`s: no option/listitem role, name not a leaf node — **DONE (residual only)** — #1845 had already added the list roles the same day; added the missing `aria-selected` |
-| 1.10 | F27 | Cold replication store reports "Class not found" for a class that exists — **DONE** — hydrates trials+classes via replication, then re-reads, before reporting absence |
-| 1.11 | F31 | `classifyEmptyUpdateResult` calls an unreadable row a deleted one; the re-read is filtered by the same policy that denied the write — **DONE** — no longer asserts deletion for an unreadable row |
-| 1.12 | F6 | Entry-close picker defaults to 11:59 PM, so choosing the show's own start date is always invalid — **DONE** — `toLocalDateOnly`; tested across 6 timezones; surfaced **F35** |
-| 1.13 | F2 | `.env.local` `E2E_SECRETARY_EMAIL` points at a deleted account, breaking every local secretary e2e run — **DONE** — canonical `@myk9t.com` defaults in `testUsers.ts` (audit was wrong: the default was `''`, not the named account) |
-| 1.14 | F10 | Playwright `error-context.md` captures the password field's value in plaintext — **DONE** — `globalTeardown` scrubs secrets from artifacts; pure half in `src/utils` so vitest actually runs it |
-| 1.15 | F11 | Root `playwright.config.ts` cannot load from a worktree (`@playwright/test` undeclared at root) — **DONE** — root declares `@playwright/test` |
+| #    | Finding | Change                                                                                                                                                                                                                               |
+| ---- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1.1  | F9      | "1 classes" → singular form on the Detective element — **DONE** — shared `utils/pluralize` (extracted the only existing copy)                                                                                                        |
+| 1.2  | F13     | Judge option renders `Test Judge( - )`; drop the empty separator/parens — **DONE** — `formatJudgeAvailabilityWindow`, both call sites                                                                                                |
+| 1.3  | F17     | Secretary entry wizard's Help link points at the exhibitor guide — **DONE** — follows `currentWorkflowMode`                                                                                                                          |
+| 1.4  | F28     | Manage Classes shows the judge's raw UUID instead of their name — **DONE**; root cause is Base UI needing `items` on the Select root, which turned out to be systemic (see **F34**, Phase 3)                                         |
+| 1.5  | F20     | Waitlist capacity cards title a judge-day with a bare person name — **DONE** — labelled as a judge; entry count pluralized                                                                                                           |
+| 1.6  | F32     | Volunteers empty state names a sidebar picker that does not exist — **DONE** — names the Show Desk path that works, links to the shows list                                                                                          |
+| 1.7  | F5      | "Judges Assigned n/n" counts judges used/added, not classes covered — **DONE** — tile now counts classes covered, not judges used (mutation-checked)                                                                                 |
+| 1.8  | F19     | Filter chips expose no pressed state (Entry Management queues, Show Map filters); Manage Classes already does it correctly — copy that — **DONE** — 4 filter groups (3 Show Map + Entry Management queues), mutation-checked         |
+| 1.9  | F7      | Judge/chairman picker rows are bare `<div>`s: no option/listitem role, name not a leaf node — **DONE (residual only)** — #1845 had already added the list roles the same day; added the missing `aria-selected`                      |
+| 1.10 | F27     | Cold replication store reports "Class not found" for a class that exists — **DONE** — hydrates trials+classes via replication, then re-reads, before reporting absence                                                               |
+| 1.11 | F31     | `classifyEmptyUpdateResult` calls an unreadable row a deleted one; the re-read is filtered by the same policy that denied the write — **DONE** — no longer asserts deletion for an unreadable row                                    |
+| 1.12 | F6      | Entry-close picker defaults to 11:59 PM, so choosing the show's own start date is always invalid — **DONE** — `toLocalDateOnly`; tested across 6 timezones; surfaced **F35**                                                         |
+| 1.13 | F2      | `.env.local` `E2E_SECRETARY_EMAIL` points at a deleted account, breaking every local secretary e2e run — **DONE** — canonical `@myk9t.com` defaults in `testUsers.ts` (audit was wrong: the default was `''`, not the named account) |
+| 1.14 | F10     | Playwright `error-context.md` captures the password field's value in plaintext — **DONE** — `globalTeardown` scrubs secrets from artifacts; pure half in `src/utils` so vitest actually runs it                                      |
+| 1.15 | F11     | Root `playwright.config.ts` cannot load from a worktree (`@playwright/test` undeclared at root) — **DONE** — root declares `@playwright/test`                                                                                        |
 
 **Testing (Phase 1):** each fix needs a test that fails without it. Prefer rendered
 behaviour over source strings — `dropdownMenuOverflow.test.ts` is the standing example
@@ -67,18 +67,18 @@ running the thing they unblock.
 Do not start these until the question is answered. Each is a plausible-looking defect
 that may be a deliberate choice.
 
-| # | Finding | The question |
-| --- | --- | --- |
-| 2.1 | **F30** (P1) | **DECIDED 2026-08-29 — see Phase 2A.** |
-| 2.2 | **F26** (P1) | **DONE 2026-08-30 — shipped; see Phase 2B. HCD (§9) still blocked on the rulebook.** |
-| 2.3 | F3 | Escape anywhere in the creation wizard raises "Unsaved Changes — leave the wizard?". Is that intended, or should Escape only dismiss the focused popover? |
-| 2.4 | F8 | The Show Chairman picker lists every person on the platform. Should it be club-scoped, or is cross-club chairman selection legitimate? |
-| 2.5 | F22 / F23 | `/secretary/messages` is history-only and composing lives in a header panel that does not inherit the show you opened it from. Should Messages gain a composer, or should the panel be the only entry point and Messages link to it? |
-| 2.6 | F18 | Every paid entry displays "Paid online" because `mapPaymentStatus` maps the generic `'paid'` onto `PAID_ONLINE`. Should the label read `entries.payment_method`, or should the status enum carry the channel? |
-| 2.9 | **F4** (P2) | Step 3 offers a per-class judge dropdown ONLY if judges were added via the optional, unstarred "Show Judges" field on Step 1; skip it and there is no way to assign a judge, yet Review still says "Show Configuration Complete" and offers Create & Publish. Should Step 1's field become required, or should Step 3 let a judge be added inline? **Never placed in a phase until 2026-08-29 — my enumeration missed it.** |
-| 2.10 | **F12** (P2) | The class Edit dialog lists only judges already attached to the show, so a secretary needing a different judge has no path from the dialog they are in; the judge must be added first via More show actions → Edit → Judges. Link the two halves, or allow adding inline? **Also missed when this plan was written.** |
-| 2.8 | **F29b** (P2) | Run order is unreachable: `ShowMapRunOrderMenu`/`reorderMode` render only inside `ShowMapTab` (correctly read-only), the cockpit action catalog has no reorder command, and Manage Classes -- where Show Desk's "Run order and class setup" link lands -- has no run-order control. Should reorder become a cockpit action, or a control on Manage Classes where the deep link already points? |
-| 2.7 | F24 | Other clubs' show names appear in the Communication History filter. Names and existence leak; content isolation is **untested** (no load show has messages). Needs a scoping decision and a test that proves content is isolated. |
+| #    | Finding       | The question                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1  | **F30** (P1)  | **DECIDED 2026-08-29 — see Phase 2A.**                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2.2  | **F26** (P1)  | **DONE 2026-08-30 — shipped; see Phase 2B. HCD (§9) still blocked on the rulebook.**                                                                                                                                                                                                                                                                                                                                        |
+| 2.3  | F3            | Escape anywhere in the creation wizard raises "Unsaved Changes — leave the wizard?". Is that intended, or should Escape only dismiss the focused popover?                                                                                                                                                                                                                                                                   |
+| 2.4  | F8            | The Show Chairman picker lists every person on the platform. Should it be club-scoped, or is cross-club chairman selection legitimate?                                                                                                                                                                                                                                                                                      |
+| 2.5  | F22 / F23     | `/secretary/messages` is history-only and composing lives in a header panel that does not inherit the show you opened it from. Should Messages gain a composer, or should the panel be the only entry point and Messages link to it?                                                                                                                                                                                        |
+| 2.6  | F18           | Every paid entry displays "Paid online" because `mapPaymentStatus` maps the generic `'paid'` onto `PAID_ONLINE`. Should the label read `entries.payment_method`, or should the status enum carry the channel?                                                                                                                                                                                                               |
+| 2.9  | **F4** (P2)   | Step 3 offers a per-class judge dropdown ONLY if judges were added via the optional, unstarred "Show Judges" field on Step 1; skip it and there is no way to assign a judge, yet Review still says "Show Configuration Complete" and offers Create & Publish. Should Step 1's field become required, or should Step 3 let a judge be added inline? **Never placed in a phase until 2026-08-29 — my enumeration missed it.** |
+| 2.10 | **F12** (P2)  | The class Edit dialog lists only judges already attached to the show, so a secretary needing a different judge has no path from the dialog they are in; the judge must be added first via More show actions → Edit → Judges. Link the two halves, or allow adding inline? **Also missed when this plan was written.**                                                                                                       |
+| 2.8  | **F29b** (P2) | Run order is unreachable: `ShowMapRunOrderMenu`/`reorderMode` render only inside `ShowMapTab` (correctly read-only), the cockpit action catalog has no reorder command, and Manage Classes -- where Show Desk's "Run order and class setup" link lands -- has no run-order control. Should reorder become a cockpit action, or a control on Manage Classes where the deep link already points?                              |
+| 2.7  | F24           | Other clubs' show names appear in the Communication History filter. Names and existence leak; content isolation is **untested** (no load show has messages). Needs a scoping decision and a test that proves content is isolated.                                                                                                                                                                                           |
 
 ---
 
@@ -132,7 +132,7 @@ summed across the elements**; tie → fastest **summed time**; still tied → **
 **One winner per difficulty level.**
 
 **§10 — limited offerings.** Where elements differ by level, a level's HIT is computed
-over all classes *available at that level*. Rulebook example: Container + Interior +
+over all classes _available at that level_. Rulebook example: Container + Interior +
 Exterior at Novice and Container + Interior at Advanced gives a Novice HIT across three
 elements and an Advanced HIT across two.
 
@@ -162,13 +162,13 @@ Implementation notes:
 
 ## Phase 3 — Follow-ups from fixes already shipped
 
-| # | Item | Why |
-| --- | --- | --- |
-| 3.1 | Backfill decision for F33 | Entries written while the server priced day-of at $0 still carry `entry_fee = 0`. A backfill must decide which tier applied on the day each was taken. |
-| 3.2 | F16 UI surfacing | **Narrower than filed.** The REGISTRATION's payment reference is already shown on the enrollment card in Entry Management (`EnrollmentCard.tsx:242`) and on the receipt. What is unsurfaced is the ENTRY-level secretary bookkeeping added by `20260828200000` — `payment_received_on` and `payment_notes`. Re-scope before doing anything. |
-| 3.3 | Regenerate `database.types.ts` | Stale for the columns added by `20260828200000`; the replication mapper reads them through a defensive accessor meanwhile. |
-| 3.4 | Do `moved` entries count in financial totals? | Move-up leaves the paid original as `entry_status = 'moved'`. If the Financial Report counts only `confirmed`, that money vanishes from show takings. Unverified. |
-| 3.5 | Staging cleanup | Four audit shows, and a move-up-created entry (`7ae6ac8b-…`) whose id falls outside the seed's fixture ranges, so a reseed will not remove it. |
+| #   | Item                                          | Why                                                                                                                                                                                                                                                                                                                                         |
+| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1 | Backfill decision for F33                     | Entries written while the server priced day-of at $0 still carry `entry_fee = 0`. A backfill must decide which tier applied on the day each was taken.                                                                                                                                                                                      |
+| 3.2 | F16 UI surfacing                              | **Narrower than filed.** The REGISTRATION's payment reference is already shown on the enrollment card in Entry Management (`EnrollmentCard.tsx:242`) and on the receipt. What is unsurfaced is the ENTRY-level secretary bookkeeping added by `20260828200000` — `payment_received_on` and `payment_notes`. Re-scope before doing anything. |
+| 3.3 | Regenerate `database.types.ts`                | Stale for the columns added by `20260828200000`; the replication mapper reads them through a defensive accessor meanwhile.                                                                                                                                                                                                                  |
+| 3.4 | Do `moved` entries count in financial totals? | Move-up leaves the paid original as `entry_status = 'moved'`. If the Financial Report counts only `confirmed`, that money vanishes from show takings. Unverified.                                                                                                                                                                           |
+| 3.5 | Staging cleanup                               | Four audit shows, and a move-up-created entry (`7ae6ac8b-…`) whose id falls outside the seed's fixture ranges, so a reseed will not remove it.                                                                                                                                                                                              |
 
 ---
 
@@ -181,7 +181,7 @@ Implementation notes:
 > predate the workbench collapse.
 
 Rewrite [`user-guides/secretary-guide.md`](user-guides/secretary-guide.md) as one short
-card per task — *When you do this / Where / Steps / Gotchas* — from the walk's verified
+card per task — _When you do this / Where / Steps / Gotchas_ — from the walk's verified
 click-paths, replacing the narrative sections. Blocked on Phase 1 and on 2.2 (task 11
 has no steps to document until High in Trial exists).
 

@@ -17,7 +17,7 @@ describe('resolvePayoutLedgerEmptyState', () => {
     ).toBeNull();
   });
 
-    it('keeps the plain first-payment copy when nothing was ever charged', () => {
+  it('keeps the plain first-payment copy when nothing was ever charged', () => {
     const state = resolvePayoutLedgerEmptyState({
       rowCount: 0,
       overviewCharges: { status: 'known', grossChargedCents: 0 },

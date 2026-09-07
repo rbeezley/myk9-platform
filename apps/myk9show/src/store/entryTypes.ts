@@ -86,16 +86,35 @@ export interface EntryStoreState {
   cleanup: () => void;
 
   createEntry: (entryData: ShowEntryInput) => Promise<SyncableShowEntry>;
-  updateEntry: (entryId: string, updates: Partial<ShowEntryInput>) => Promise<SyncableShowEntry | null>;
+  updateEntry: (
+    entryId: string,
+    updates: Partial<ShowEntryInput>
+  ) => Promise<SyncableShowEntry | null>;
   deleteEntry: (entryId: string) => Promise<void>;
-  updateRegistration: (entryId: string, updates: Partial<RegistrationData>) => Promise<SyncableShowEntry | null>;
-  updateStatus: (entryId: string, status: EntryStatus, userId: string, reason?: string) => Promise<SyncableShowEntry | null>;
+  updateRegistration: (
+    entryId: string,
+    updates: Partial<RegistrationData>
+  ) => Promise<SyncableShowEntry | null>;
+  updateStatus: (
+    entryId: string,
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ) => Promise<SyncableShowEntry | null>;
 
   recordResult: (entryId: string, result: CompetitionData) => Promise<SyncableShowEntry | null>;
-  updateResult: (entryId: string, updates: Partial<CompetitionData>) => Promise<SyncableShowEntry | null>;
+  updateResult: (
+    entryId: string,
+    updates: Partial<CompetitionData>
+  ) => Promise<SyncableShowEntry | null>;
 
   createMultipleEntries: (entries: ShowEntryInput[]) => Promise<SyncableShowEntry[]>;
-  updateEntriesStatus: (entryIds: string[], status: EntryStatus, userId: string, reason?: string) => Promise<void>;
+  updateEntriesStatus: (
+    entryIds: string[],
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ) => Promise<void>;
 
   getEntry: (entryId: string) => SyncableShowEntry | undefined;
   getEntriesByClass: (classId: string) => SyncableShowEntry[];
@@ -110,9 +129,16 @@ export interface EntryStoreState {
 
   getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
 
-  createEntryLegacy: (data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>) => string;
+  createEntryLegacy: (
+    data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>
+  ) => string;
   updateRegistrationLegacy: (entryId: string, updates: Partial<RegistrationData>) => void;
-  updateStatusLegacy: (entryId: string, status: EntryStatus, userId: string, reason?: string) => void;
+  updateStatusLegacy: (
+    entryId: string,
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ) => void;
   recordResultLegacy: (entryId: string, result: CompetitionData) => void;
   updateResultLegacy: (entryId: string, updates: Partial<CompetitionData>) => void;
 
@@ -128,7 +154,10 @@ export interface EntryStoreState {
 }
 
 export type EntryStoreSet = (
-  partial: EntryStoreState | Partial<EntryStoreState> | ((state: EntryStoreState) => EntryStoreState | Partial<EntryStoreState>),
+  partial:
+    | EntryStoreState
+    | Partial<EntryStoreState>
+    | ((state: EntryStoreState) => EntryStoreState | Partial<EntryStoreState>),
   replace?: false
 ) => void;
 

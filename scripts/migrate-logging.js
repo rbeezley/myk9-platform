@@ -14,10 +14,12 @@ function getFiles(dir) {
       if (item.name !== 'node_modules' && item.name !== '__tests__' && item.name !== 'examples') {
         files.push(...getFiles(fullPath));
       }
-    } else if ((item.name.endsWith('.ts') || item.name.endsWith('.tsx')) &&
-               !item.name.includes('.test.') &&
-               !item.name.includes('.spec.') &&
-               item.name !== 'LoggingService.ts') {
+    } else if (
+      (item.name.endsWith('.ts') || item.name.endsWith('.tsx')) &&
+      !item.name.includes('.test.') &&
+      !item.name.includes('.spec.') &&
+      item.name !== 'LoggingService.ts'
+    ) {
       files.push(fullPath);
     }
   }
@@ -31,9 +33,10 @@ function processFile(filePath) {
   const originalContent = content;
 
   // Check if file has console statements
-  const hasConsole = content.includes('console.log') ||
-                     content.includes('console.warn') ||
-                     content.includes('console.error');
+  const hasConsole =
+    content.includes('console.log') ||
+    content.includes('console.warn') ||
+    content.includes('console.error');
 
   if (!hasConsole) {
     return { status: 'skipped', reason: 'no console statements' };
@@ -50,7 +53,14 @@ function processFile(filePath) {
       const line = lines[i].trim();
       if (line.startsWith('import ') || line.match(/^import\s*\{/)) {
         lastImportIndex = i;
-      } else if (lastImportIndex >= 0 && !line.startsWith('import') && !line.startsWith('}') && !line.startsWith('*') && line !== '' && !line.startsWith('//')) {
+      } else if (
+        lastImportIndex >= 0 &&
+        !line.startsWith('import') &&
+        !line.startsWith('}') &&
+        !line.startsWith('*') &&
+        line !== '' &&
+        !line.startsWith('//')
+      ) {
         // Check if this looks like continuing from a previous import
         if (!lines[lastImportIndex].includes(';') && line.includes('from ')) {
           lastImportIndex = i;
@@ -109,22 +119,46 @@ function processFile(filePath) {
 
   // Replace console statements with logger equivalents
   // Simple string logs
-  content = content.replace(/console\.log\((['"`][^'"`\n]+['"`])\);/g, `logger.debug($1, '${category}', {});`);
-  content = content.replace(/console\.warn\((['"`][^'"`\n]+['"`])\);/g, `logger.warn($1, '${category}', {});`);
-  content = content.replace(/console\.error\((['"`][^'"`\n]+['"`])\);/g, `logger.error($1, '${category}', {});`);
+  content = content.replace(
+    /console\.log\((['"`][^'"`\n]+['"`])\);/g,
+    `logger.debug($1, '${category}', {});`
+  );
+  content = content.replace(
+    /console\.warn\((['"`][^'"`\n]+['"`])\);/g,
+    `logger.warn($1, '${category}', {});`
+  );
+  content = content.replace(
+    /console\.error\((['"`][^'"`\n]+['"`])\);/g,
+    `logger.error($1, '${category}', {});`
+  );
 
   // String with error object
-  content = content.replace(/console\.error\((['"`][^'"`\n]+['"`]),\s*(\w+)\);/g, `logger.error($1, '${category}', {}, $2 as Error);`);
+  content = content.replace(
+    /console\.error\((['"`][^'"`\n]+['"`]),\s*(\w+)\);/g,
+    `logger.error($1, '${category}', {}, $2 as Error);`
+  );
 
   // String with variable interpolation/concatenation
-  content = content.replace(/console\.log\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g, `logger.debug($1, '${category}', {});`);
-  content = content.replace(/console\.warn\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g, `logger.warn($1, '${category}', {});`);
-  content = content.replace(/console\.error\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g, `logger.error($1, '${category}', {});`);
+  content = content.replace(
+    /console\.log\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g,
+    `logger.debug($1, '${category}', {});`
+  );
+  content = content.replace(
+    /console\.warn\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g,
+    `logger.warn($1, '${category}', {});`
+  );
+  content = content.replace(
+    /console\.error\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g,
+    `logger.error($1, '${category}', {});`
+  );
 
   // Template literals
   content = content.replace(/console\.log\((`[^`]+`)\);/g, `logger.debug($1, '${category}', {});`);
   content = content.replace(/console\.warn\((`[^`]+`)\);/g, `logger.warn($1, '${category}', {});`);
-  content = content.replace(/console\.error\((`[^`]+`)\);/g, `logger.error($1, '${category}', {});`);
+  content = content.replace(
+    /console\.error\((`[^`]+`)\);/g,
+    `logger.error($1, '${category}', {});`
+  );
 
   if (content !== originalContent) {
     fs.writeFileSync(filePath, content);
@@ -144,7 +178,11 @@ console.log(`Found ${allFiles.length} TypeScript files`);
 // Filter to files with console statements
 const filesToProcess = allFiles.filter(f => {
   const content = fs.readFileSync(f, 'utf8');
-  return content.includes('console.log') || content.includes('console.warn') || content.includes('console.error');
+  return (
+    content.includes('console.log') ||
+    content.includes('console.warn') ||
+    content.includes('console.error')
+  );
 });
 
 console.log(`Found ${filesToProcess.length} files with console statements\n`);

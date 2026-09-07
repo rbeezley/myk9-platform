@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
 import type { LoadPlatformArtifact } from './loadPlatformArtifact';
-import { aggregateLoadShardArtifacts, type LoadShardArtifact,
+import {
+  aggregateLoadShardArtifacts,
+  type LoadShardArtifact,
   shardWindowDivergence,
 } from './loadShardAggregation';
 import {

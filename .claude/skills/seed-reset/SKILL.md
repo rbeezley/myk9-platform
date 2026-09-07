@@ -14,11 +14,11 @@ Sign-in-capable accounts are the `@myk9t.com` set (exhibitor, secretary, judge, 
 
 ## Known failure modes after a reseed
 
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `e2e-*` sign-in 400 | Supabase Auth passwords drifted from `.env.local` — auth state, not code | Reset the auth passwords (admin API or dashboard), don't debug the app |
-| Secretary/club-admin pages empty | Missing club-scoped role grants | `seed-demo.sql` §10 grants them (fixed #804) — confirm those rows exist in `roles`/`role_permissions` |
-| Feature works for admin, not other roles | RBAC seed gap | Inventory `roles`, `permissions`, `role_permissions` in ONE query batch before writing any INSERT (CLAUDE.md debugging rule) |
+| Symptom                                  | Cause                                                                    | Fix                                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `e2e-*` sign-in 400                      | Supabase Auth passwords drifted from `.env.local` — auth state, not code | Reset the auth passwords (admin API or dashboard), don't debug the app                                                       |
+| Secretary/club-admin pages empty         | Missing club-scoped role grants                                          | `seed-demo.sql` §10 grants them (fixed #804) — confirm those rows exist in `roles`/`role_permissions`                        |
+| Feature works for admin, not other roles | RBAC seed gap                                                            | Inventory `roles`, `permissions`, `role_permissions` in ONE query batch before writing any INSERT (CLAUDE.md debugging rule) |
 
 ## Reseeding procedure
 

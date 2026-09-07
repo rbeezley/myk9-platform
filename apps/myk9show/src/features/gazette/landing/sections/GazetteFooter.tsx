@@ -45,8 +45,8 @@ export function GazetteFooter({
               color: 'var(--gz-soft)',
             }}
           >
-            {memberClubLanguage}. <em>The Gazette</em> is the club&apos;s quarterly newsletter
-            and the official organ of its trial committee.
+            {memberClubLanguage}. <em>The Gazette</em> is the club&apos;s quarterly newsletter and
+            the official organ of its trial committee.
           </p>
         </div>
         {(secretaryName || secretaryEmail || secretaryPhone) && (
@@ -135,7 +135,9 @@ export function GazetteFooter({
           color: 'var(--gz-brown)',
         }}
       >
-        <span>© {new Date().getFullYear()} {clubName}</span>
+        <span>
+          © {new Date().getFullYear()} {clubName}
+        </span>
         <span>Published via myK9Show</span>
         {licenseLabel && <span>{licenseLabel}</span>}
       </div>

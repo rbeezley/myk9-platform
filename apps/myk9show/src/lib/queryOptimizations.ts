@@ -162,8 +162,7 @@ export class IntelligentPrefetcher {
 
       // Get the dogs data and prefetch first 3 dog details
       const dogsData = this.queryClient.getQueryData([...queryKeys.dogs, personId]) as
-        | Array<{ id: string }>
-        | undefined;
+        Array<{ id: string }> | undefined;
       if (dogsData && dogsData.length > 0) {
         const topDogs = dogsData.slice(0, 3);
         await Promise.all(
@@ -197,8 +196,7 @@ export class IntelligentPrefetcher {
     try {
       // Get current dog data
       const dogData = this.queryClient.getQueryData(queryKeys.dog(dogId)) as
-        | { owner_id?: string }
-        | undefined;
+        { owner_id?: string } | undefined;
 
       if (dogData?.owner_id) {
         // Prefetch owner details
@@ -297,8 +295,7 @@ export class IntelligentPrefetcher {
     try {
       // Get show data first
       const showData = this.queryClient.getQueryData(queryKeys.show(showId)) as
-        | { club_id?: string }
-        | undefined;
+        { club_id?: string } | undefined;
 
       if (showData?.club_id) {
         // Prefetch club details

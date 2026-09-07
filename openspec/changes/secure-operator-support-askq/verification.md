@@ -2,10 +2,10 @@
 
 ## Summary
 
-| Dimension    | Status                                                                 |
-| ------------ | ---------------------------------------------------------------------- |
-| Completeness | 14/15 tasks complete; 6/6 requirements implemented                    |
-| Correctness  | 6/6 requirements and 22/22 scenarios covered by code/tests             |
+| Dimension    | Status                                                                     |
+| ------------ | -------------------------------------------------------------------------- |
+| Completeness | 14/15 tasks complete; 6/6 requirements implemented                         |
+| Correctness  | 6/6 requirements and 22/22 scenarios covered by code/tests                 |
 | Coherence    | Follows dedicated-endpoint, caller-RLS, separate-state, no-new-page design |
 
 ## Implementation Mapping

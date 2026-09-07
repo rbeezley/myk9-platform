@@ -77,7 +77,7 @@ export function useOptimisticUpdate() {
         // If we have more retries, wait with exponential backoff
         if (attempts < maxRetries) {
           const delay = retryDelay * Math.pow(2, attempts - 1);
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
     }

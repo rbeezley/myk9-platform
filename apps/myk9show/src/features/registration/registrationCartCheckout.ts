@@ -62,12 +62,7 @@ export async function submitRegistrationCartCheckout({
     }
   }
 
-  const items = registrationToCartItems(
-    classSelections,
-    handlerAssignments,
-    classes,
-    showFeeInfo
-  );
+  const items = registrationToCartItems(classSelections, handlerAssignments, classes, showFeeInfo);
 
   let addedCount = 0;
   try {

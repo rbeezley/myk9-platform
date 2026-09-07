@@ -2,7 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { callClaude } from '../_shared/askq/promptBuilder.ts';
 import {
-  handleOperatorSupportRequest, OperatorSupportError,
+  handleOperatorSupportRequest,
+  OperatorSupportError,
 } from '../_shared/askq/operatorSupport.ts';
 import { createOperatorSupportAudit } from '../_shared/askq/operatorSupportAudit.ts';
 import { reserveOperatorSupportQuery } from '../_shared/askq/operatorSupportRateLimit.ts';

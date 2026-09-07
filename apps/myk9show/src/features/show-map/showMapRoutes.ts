@@ -26,10 +26,7 @@ export function getShowMapTrialScheduleHref(showId: string): string {
   return `/shows/${showId}/setup`;
 }
 
-export function getShowMapReportHref({
-  reportId,
-  scope,
-}: ShowMapReportHrefInput): string {
+export function getShowMapReportHref({ reportId, scope }: ShowMapReportHrefInput): string {
   const params = new URLSearchParams({ report: reportId });
   if (scope.kind === 'trial' || scope.kind === 'class') params.set('trialId', scope.trialId);
   if (scope.kind === 'class') params.set('classId', scope.classId);

@@ -38,9 +38,9 @@ describe('permissionDisplay helpers', () => {
   });
 
   it('prefers display_name over name', () => {
-    expect(
-      getPermissionDisplayName(makePermission({ name: 'raw', display_name: 'Pretty' }))
-    ).toBe('Pretty');
+    expect(getPermissionDisplayName(makePermission({ name: 'raw', display_name: 'Pretty' }))).toBe(
+      'Pretty'
+    );
   });
 
   it('falls back to name when display_name is absent', () => {

@@ -50,18 +50,12 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
   return create<ScoringState>()(
     devtools(
       persist(
-        (set) => ({
+        set => ({
           currentSession: null,
           isScoring: false,
           lastScoredEntry: null,
 
-          startScoringSession: (
-            classId,
-            className,
-            competitionType,
-            judgeId,
-            totalEntries
-          ) => {
+          startScoringSession: (classId, className, competitionType, judgeId, totalEntries) => {
             set({
               currentSession: {
                 classId,
@@ -78,14 +72,14 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
             });
           },
 
-          submitScore: (scoreData) => {
+          submitScore: scoreData => {
             const score: Score = {
               ...scoreData,
               scoredAt: new Date().toISOString(),
               syncStatus: 'pending',
             };
 
-            set((state) => {
+            set(state => {
               if (!state.currentSession) return state;
 
               return {
@@ -100,10 +94,10 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
           },
 
           updateScoreSync: (entryId, syncStatus) => {
-            set((state) => {
+            set(state => {
               if (!state.currentSession) return state;
 
-              const updatedScores = state.currentSession.scores.map((score) =>
+              const updatedScores = state.currentSession.scores.map(score =>
                 score.entryId === entryId ? { ...score, syncStatus } : score
               );
 
@@ -118,11 +112,8 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
           },
 
           undoLastScore: () => {
-            set((state) => {
-              if (
-                !state.currentSession ||
-                state.currentSession.scores.length === 0
-              ) {
+            set(state => {
+              if (!state.currentSession || state.currentSession.scores.length === 0) {
                 return state;
               }
 
@@ -134,10 +125,7 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
                 currentSession: {
                   ...state.currentSession,
                   scores,
-                  currentEntryIndex: Math.max(
-                    0,
-                    state.currentSession.currentEntryIndex - 1
-                  ),
+                  currentEntryIndex: Math.max(0, state.currentSession.currentEntryIndex - 1),
                 },
                 lastScoredEntry: scores[scores.length - 1] || null,
               };
@@ -145,7 +133,7 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
           },
 
           moveToNextEntry: () => {
-            set((state) => {
+            set(state => {
               if (!state.currentSession) return state;
 
               const nextIndex = Math.min(
@@ -164,13 +152,10 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
           },
 
           moveToPreviousEntry: () => {
-            set((state) => {
+            set(state => {
               if (!state.currentSession) return state;
 
-              const prevIndex = Math.max(
-                0,
-                state.currentSession.currentEntryIndex - 1
-              );
+              const prevIndex = Math.max(0, state.currentSession.currentEntryIndex - 1);
 
               return {
                 ...state,
@@ -198,7 +183,7 @@ export function createScoringStore(options: boolean | ScoringStoreOptions = {}) 
         }),
         {
           name: storageName,
-          partialize: (state) => ({
+          partialize: state => ({
             currentSession: state.currentSession,
             lastScoredEntry: state.lastScoredEntry,
           }),

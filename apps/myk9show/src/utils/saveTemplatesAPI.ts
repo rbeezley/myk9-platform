@@ -12,7 +12,9 @@ interface SaveTemplatesResponse {
   details?: string;
 }
 
-export const saveTemplatesToFile = async (templates: ClassTemplate[]): Promise<SaveTemplatesResponse> => {
+export const saveTemplatesToFile = async (
+  templates: ClassTemplate[]
+): Promise<SaveTemplatesResponse> => {
   try {
     const response = await fetch('/api/save-templates', {
       method: 'POST',

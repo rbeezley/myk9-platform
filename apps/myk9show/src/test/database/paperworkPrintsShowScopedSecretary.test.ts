@@ -32,7 +32,9 @@ describe('paperwork_prints reaches a show-scoped secretary', () => {
     // Widening WHO may act must not widen WHAT they may write: you still only
     // record a print you performed, and cannot insert a row born voided.
     expect(sql).toMatch(/printed_by = \(SELECT auth\.uid\(\)\)/);
-    expect(sql).toMatch(/voided_at IS NULL\s*\n\s*AND voided_by IS NULL\s*\n\s*AND void_reason IS NULL/);
+    expect(sql).toMatch(
+      /voided_at IS NULL\s*\n\s*AND voided_by IS NULL\s*\n\s*AND void_reason IS NULL/
+    );
     expect(sql).toMatch(/voided_by = \(SELECT auth\.uid\(\)\)/);
     expect(sql).toMatch(/NULLIF\(btrim\(void_reason\), ''\) IS NOT NULL/);
   });

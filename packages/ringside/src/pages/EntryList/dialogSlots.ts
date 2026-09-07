@@ -172,7 +172,7 @@ export interface RunOrderDialogProps {
   onApplyOrder: (
     preset: RunOrderPreset,
     scope?: RunOrderScope,
-    renumberMode?: RenumberMode,
+    renumberMode?: RenumberMode
   ) => Promise<void>;
   /** Switch the underlying view into drag-to-reorder mode. */
   onOpenDragMode: () => void;

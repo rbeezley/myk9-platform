@@ -11,12 +11,12 @@ Every defect below shares one property: **it fails silently.** No error, no cras
 
 Each item has a **myK9Show status**, which is one of:
 
-| Status | Meaning |
-|---|---|
-| **CONFIRMED PRESENT** | I found the same defect in the platform repo |
-| **LIKELY** | The pattern is there; needs a decision on whether it applies |
-| **NOT APPLICABLE** | Checked, myK9Show already handles it (or is already better) |
-| **UNVERIFIED** | I did not check deeply enough to say |
+| Status                | Meaning                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| **CONFIRMED PRESENT** | I found the same defect in the platform repo                 |
+| **LIKELY**            | The pattern is there; needs a decision on whether it applies |
+| **NOT APPLICABLE**    | Checked, myK9Show already handles it (or is already better)  |
+| **UNVERIFIED**        | I did not check deeply enough to say                         |
 
 I inspected the platform repo read-only and changed nothing.
 
@@ -30,7 +30,7 @@ I inspected the platform repo read-only and changed nothing.
 
 **Root cause:** on upload failure the score was set to `status: 'failed'` and left in the queue. Every consumer selected on `status === 'pending'`, and the manual "retry failed" path only drained a separate `failedItems` array the score never reached. One transient failure stranded it permanently.
 
-The trigger is routine: Chrome fires the `online` event when the network interface comes up, *before* DNS/TLS is usable, so the first upload attempt after reconnect commonly throws.
+The trigger is routine: Chrome fires the `online` event when the network interface comes up, _before_ DNS/TLS is usable, so the first upload attempt after reconnect commonly throws.
 
 **Fix:** treat `failed` with attempts remaining as eligible for retry; give one component sole ownership of the sync mutex; stop double-counting retries; don't burn retry attempts while offline.
 
@@ -44,7 +44,7 @@ The trigger is routine: Chrome fires the `online` event when the network interfa
 
 **Root cause:** `supabase.from('entries').update(...).eq('id', id)` throws only on `error`. **Postgres does not treat a zero-row UPDATE as an error.** A write against an id that no longer exists returns `{ data: [], error: null }` — indistinguishable from success unless you check the row count.
 
-Realistic trigger: a "delete trial + re-upload" import reassigns primary keys while a device holds queued work. The score uploads against a dead id, reports success, and vanishes. Worse, if ids are *reassigned* rather than deleted, it can land on the wrong dog.
+Realistic trigger: a "delete trial + re-upload" import reassigns primary keys while a device holds queued work. The score uploads against a dead id, reports success, and vanishes. Worse, if ids are _reassigned_ rather than deleted, it can land on the wrong dog.
 
 **Fix:** require `.select()` on the update and throw when it matches nothing. Extracted to one helper so the rule lives in one place.
 
@@ -62,7 +62,7 @@ Realistic trigger: a "delete trial + re-upload" import reassigns primary keys wh
 
 **Root cause:** a single un-paginated query hit Supabase's "Max Rows" cap (then 1,000). PostgREST truncates **silently** — no error, just short data.
 
-**Why whole dogs vanished rather than scattered entries:** the cap truncates an *ordered* result, so it removes the tail. Dogs entered only on the last day had all their entries in that tail. This is why the symptom was "my dog isn't in the app" rather than "a class looks short" — worth knowing, because it shapes what a diagnostic should report.
+**Why whole dogs vanished rather than scattered entries:** the cap truncates an _ordered_ result, so it removes the tail. Dogs entered only on the last day had all their entries in that tail. This is why the symptom was "my dog isn't in the app" rather than "a class looks short" — worth knowing, because it shapes what a diagnostic should report.
 
 **Fix:** paginate every read that can exceed the cap; add a guard test that fails CI on new un-paginated reads of high-volume tables.
 
@@ -71,17 +71,17 @@ Realistic trigger: a "delete trial + re-upload" import reassigns primary keys wh
 **myK9Show status: PARTIALLY NOT APPLICABLE — and myK9Show is ahead here.**
 `apps/myk9show/src/services/replication/ReplicatedDogsTable.ts` already uses **keyset pagination** (`id > lastId` ordered by `id`, with `.limit()`), which is strictly better than our offset approach — see §1.4. Do **not** port our `.range()` implementation over it.
 
-What *is* worth porting is the **guard test**: a mechanical check that no new read of a high-volume table ships unbounded. In myK9Q that guard found two defects my manual audit had missed, including one already in production.
+What _is_ worth porting is the **guard test**: a mechanical check that no new read of a high-volume table ships unbounded. In myK9Q that guard found two defects my manual audit had missed, including one already in production.
 
 ---
 
 ### 1.4 Pagination over a non-unique sort silently drops rows
 
-**This is the one to read even if you skip the rest.** It is a bug *created by* fixing §1.3 naively.
+**This is the one to read even if you skip the rest.** It is a bug _created by_ fixing §1.3 naively.
 
 `.range()` paging is only correct over a **stable** sort. Postgres gives no tie-break guarantee, so if the ORDER BY column is not unique, rows on a page boundary can be returned twice **or skipped entirely**.
 
-Nearly every natural sort key here is non-unique: `armband_number` repeats across classes, `exhibitor_order` and `final_placement` repeat freely, and `updated_at` is *identical across every row of a bulk import* — the exact situation during a re-upload.
+Nearly every natural sort key here is non-unique: `armband_number` repeats across classes, `exhibitor_order` and `final_placement` repeat freely, and `updated_at` is _identical across every row of a bulk import_ — the exact situation during a re-upload.
 
 **Measured in myK9Q:** paginating a 2,300-row fetch ordered only by `updated_at` silently lost **4 rows**. Adding `.order('id')` as a tie-break fixed it. Every one of the 9 call sites we paginated had this flaw.
 
@@ -141,7 +141,7 @@ Tables reaching their tenant key via joins (`classes → trials → shows`) had 
 
 myK9Q kept unsynced work in **two** IndexedDB stores (`OFFLINE_QUEUE` for scores, `PENDING_MUTATIONS` for table mutations) after an unfinished consolidation. Guards checked one or the other, never both — and the destructive "refresh all data" path, which deletes the database, checked only the score queue. A steward holding queued check-ins but no scores could wipe them.
 
-**Fix:** one `countUnsyncedWork()` reading both. A store that can't be read counts as *unknown*, not empty.
+**Fix:** one `countUnsyncedWork()` reading both. A store that can't be read counts as _unknown_, not empty.
 
 **myK9Q:** `src/services/replication/unsyncedWork.ts` (commit `c8c04a2`)
 
@@ -166,9 +166,9 @@ Conflating those sends a secretary chasing the wrong fix. Re-downloading cannot 
 
 ### 3.2 Recovery is a separate, explicit action
 
-"Sync Now" stays incremental and cheap. **"Repair data"** is a distinct button that re-downloads everything. Both are labelled in-app, because the distinction is invisible otherwise — and reaching for the sync icon when a dog is missing *cannot* help, since the device is already synced past the change.
+"Sync Now" stays incremental and cheap. **"Repair data"** is a distinct button that re-downloads everything. Both are labelled in-app, because the distinction is invisible otherwise — and reaching for the sync icon when a dog is missing _cannot_ help, since the device is already synced past the change.
 
-Repair reports what it changed: *"recovered 14 entries"* or *"nothing was missing on this device."* The second is the more useful: if a dog is still absent, the device isn't the problem.
+Repair reports what it changed: _"recovered 14 entries"_ or _"nothing was missing on this device."_ The second is the more useful: if a dog is still absent, the device isn't the problem.
 
 **myK9Q:** `src/hooks/useForceResync.ts`, `src/components/ui/MissingDataPrompt.tsx` (commits `e213d29`, `75d1a5d`, `ff178c9`)
 
@@ -216,4 +216,4 @@ Independent of which fixes you port:
 
 - Statuses above come from reading the platform repo, not running it. Treat **CONFIRMED PRESENT** as "the code shape is there", and verify before changing anything.
 - myK9Q's offline scoring reconnect fix (§1.1) shipped to production on 2026-07-30 but has **not** yet been verified on a real device that actually lost network. Watch myK9Q's outcome before assuming the approach is proven.
-- Where myK9Show is already better (keyset pagination), port the *guard*, not the implementation.
+- Where myK9Show is already better (keyset pagination), port the _guard_, not the implementation.

@@ -86,11 +86,14 @@ export function useLongPress(
     }
   }, []);
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    // Only respond to primary button (left click)
-    if (e.button !== 0) return;
-    start();
-  }, [start]);
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      // Only respond to primary button (left click)
+      if (e.button !== 0) return;
+      start();
+    },
+    [start]
+  );
 
   const onMouseUp = useCallback(() => {
     cancel();

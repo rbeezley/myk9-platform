@@ -30,7 +30,13 @@ console.log('⚠️  WARNING: This will rename all tables from plural to singula
 console.log('⚠️  Make sure you have backed up any important data!\n');
 
 // Read migration SQL
-const migrationPath = path.join(__dirname, '..', 'supabase', 'migrations', '20250126_singular_table_names.sql');
+const migrationPath = path.join(
+  __dirname,
+  '..',
+  'supabase',
+  'migrations',
+  '20250126_singular_table_names.sql'
+);
 const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
 
 console.log('📄 Migration file loaded:', migrationPath);

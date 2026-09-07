@@ -22,11 +22,11 @@ export function formatDateLocal(date: Date): string {
     logger.debug('formatDateLocal - invalid date input', 'dateUtils', { date });
     return '';
   }
-  
+
   try {
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   } catch (e) {
     logger.error('Error in formatDateLocal', 'dateUtils', { date, error: e });
@@ -40,30 +40,40 @@ export function formatDateLocal(date: Date): string {
  */
 export function parseLocalDateString(dateString: string): Date | undefined {
   if (!dateString) return undefined;
-  
+
   try {
     // Parse the date components
     const parts = dateString.split('-');
     if (parts.length !== 3) {
-      logger.debug('parseLocalDateString - invalid format, not YYYY-MM-DD', 'dateUtils', { dateString });
+      logger.debug('parseLocalDateString - invalid format, not YYYY-MM-DD', 'dateUtils', {
+        dateString,
+      });
       return undefined;
     }
-    
+
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1; // 0-based months
     const day = parseInt(parts[2], 10);
-    
+
     // Validate components
     if (isNaN(year) || isNaN(month) || isNaN(day)) {
-      logger.debug('parseLocalDateString - invalid numeric parts', 'dateUtils', { year, month: month + 1, day });
+      logger.debug('parseLocalDateString - invalid numeric parts', 'dateUtils', {
+        year,
+        month: month + 1,
+        day,
+      });
       return undefined;
     }
-    
+
     if (year < 1900 || year > 2100 || month < 0 || month > 11 || day < 1 || day > 31) {
-      logger.debug('parseLocalDateString - out of range values', 'dateUtils', { year, month: month + 1, day });
+      logger.debug('parseLocalDateString - out of range values', 'dateUtils', {
+        year,
+        month: month + 1,
+        day,
+      });
       return undefined;
     }
-    
+
     // Create a local date (no timezone offset)
     return new Date(year, month, day);
   } catch (e) {
@@ -78,27 +88,23 @@ export function parseLocalDateString(dateString: string): Date | undefined {
  */
 export function normalizeLocalDateString(dateString?: string): string {
   if (!dateString) return '';
-  
+
   try {
     // First try direct parsing if it matches our YYYY-MM-DD format
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       return dateString; // Already in the right format, don't process further
     }
-    
+
     // Handle other date formats by creating a date in the local timezone
     const date = new Date(dateString);
     if (isNaN(date.getTime())) {
       logger.debug('normalizeLocalDateString - invalid date', 'dateUtils', { dateString });
       return '';
     }
-    
+
     // Create a local date explicitly using components to avoid timezone issues
-    const localDateFromComponents = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate()
-    );
-    
+    const localDateFromComponents = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
     return formatDateLocal(localDateFromComponents);
   } catch (e) {
     logger.error('Error normalizing date string', 'dateUtils', { dateString, error: e });
@@ -111,10 +117,10 @@ export function normalizeLocalDateString(dateString?: string): string {
  */
 export function isValidDateFormat(dateString: string): boolean {
   if (!dateString) return false;
-  
+
   const pattern = /^\d{4}-\d{2}-\d{2}$/;
   if (!pattern.test(dateString)) return false;
-  
+
   const date = parseLocalDateString(dateString);
   return date !== undefined;
 }
@@ -132,12 +138,12 @@ export function getTodayLocal(): string {
 export function dateDifferenceInDays(startDate: string, endDate: string): number {
   const start = parseLocalDateString(startDate);
   const end = parseLocalDateString(endDate);
-  
+
   if (!start || !end) {
     logger.debug('dateDifferenceInDays - invalid date inputs', 'dateUtils', { startDate, endDate });
     return 0;
   }
-  
+
   const diffTime = end.getTime() - start.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }

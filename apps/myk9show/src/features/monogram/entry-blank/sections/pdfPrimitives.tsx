@@ -137,9 +137,7 @@ export function Field({
         {value ? <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{value}</Text> : null}
       </View>
       {hint ? (
-        <Text
-          style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 7.5, color: QUILL }}
-        >
+        <Text style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 7.5, color: QUILL }}>
           {hint}
         </Text>
       ) : null}

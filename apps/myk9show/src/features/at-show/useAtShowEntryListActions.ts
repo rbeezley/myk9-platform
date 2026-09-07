@@ -81,24 +81,21 @@ export function useAtShowEntryListActions(deps: UseAtShowEntryListActionsDeps): 
   // last one settles (useState lags within a sync burst).
   const inFlight = useRef(0);
 
-  const runMutation = useCallback(
-    async (fn: () => Promise<void>): Promise<void> => {
-      inFlight.current += 1;
-      setIsSyncing(true);
-      try {
-        await fn();
-        setHasError(false);
-      } catch (error) {
-        setHasError(true);
-        logger.error('[at-show] entry mutation failed', 'at-show', { error: String(error) });
-        throw error;
-      } finally {
-        inFlight.current -= 1;
-        if (inFlight.current === 0) setIsSyncing(false);
-      }
-    },
-    []
-  );
+  const runMutation = useCallback(async (fn: () => Promise<void>): Promise<void> => {
+    inFlight.current += 1;
+    setIsSyncing(true);
+    try {
+      await fn();
+      setHasError(false);
+    } catch (error) {
+      setHasError(true);
+      logger.error('[at-show] entry mutation failed', 'at-show', { error: String(error) });
+      throw error;
+    } finally {
+      inFlight.current -= 1;
+      if (inFlight.current === 0) setIsSyncing(false);
+    }
+  }, []);
 
   const handleStatusChange = useCallback<EntryListActions['handleStatusChange']>(
     async (entryId, newStatus) => {

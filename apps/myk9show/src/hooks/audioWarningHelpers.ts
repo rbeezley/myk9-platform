@@ -8,14 +8,28 @@ type ToneSpec = { freq: number; duration: number; delay: number; type?: Oscillat
  */
 export const SOUND_PATTERNS: Record<string, Record<string, ToneSpec[]>> = {
   warning: {
-    beep:  [{ freq: 800, duration: 0.2, delay: 0 }],
-    chime: [{ freq: 523, duration: 0.15, delay: 0 }, { freq: 659, duration: 0.15, delay: 100 }],
-    tone:  [{ freq: 700, duration: 0.1, delay: 0 }, { freq: 700, duration: 0.1, delay: 150 }],
+    beep: [{ freq: 800, duration: 0.2, delay: 0 }],
+    chime: [
+      { freq: 523, duration: 0.15, delay: 0 },
+      { freq: 659, duration: 0.15, delay: 100 },
+    ],
+    tone: [
+      { freq: 700, duration: 0.1, delay: 0 },
+      { freq: 700, duration: 0.1, delay: 150 },
+    ],
   },
   expired: {
-    beep:  [{ freq: 1000, duration: 0.15, delay: 0 }, { freq: 1000, duration: 0.15, delay: 200 }, { freq: 1000, duration: 0.15, delay: 400 }],
-    chime: [{ freq: 659, duration: 0.2, delay: 0 }, { freq: 523, duration: 0.2, delay: 150 }, { freq: 415, duration: 0.3, delay: 300 }],
-    tone:  [{ freq: 900, duration: 0.5, delay: 0 }],
+    beep: [
+      { freq: 1000, duration: 0.15, delay: 0 },
+      { freq: 1000, duration: 0.15, delay: 200 },
+      { freq: 1000, duration: 0.15, delay: 400 },
+    ],
+    chime: [
+      { freq: 659, duration: 0.2, delay: 0 },
+      { freq: 523, duration: 0.2, delay: 150 },
+      { freq: 415, duration: 0.3, delay: 300 },
+    ],
+    tone: [{ freq: 900, duration: 0.5, delay: 0 }],
   },
 };
 
@@ -24,8 +38,10 @@ export const SOUND_PATTERNS: Record<string, Record<string, ToneSpec[]>> = {
  */
 export function getAudioContextClass(): typeof AudioContext | undefined {
   if (typeof window === 'undefined') return undefined;
-  return window.AudioContext ||
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  return (
+    window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  );
 }
 
 /**

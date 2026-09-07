@@ -50,7 +50,7 @@ export class EventEmitter<TEvents = Record<string, unknown>> {
     if (!listeners || listeners.length === 0) {
       return false;
     }
-    
+
     // Create a copy to avoid issues if listeners modify the array
     const listenersCopy = [...listeners];
     listenersCopy.forEach(listener => {
@@ -82,11 +82,17 @@ export class EventEmitter<TEvents = Record<string, unknown>> {
   }
 
   // Aliases for compatibility
-  addListener<K extends keyof TEvents>(event: K | string, listener: EventListener<TEvents[K]>): this {
+  addListener<K extends keyof TEvents>(
+    event: K | string,
+    listener: EventListener<TEvents[K]>
+  ): this {
     return this.on(event, listener);
   }
 
-  removeListener<K extends keyof TEvents>(event: K | string, listener?: EventListener<TEvents[K]>): this {
+  removeListener<K extends keyof TEvents>(
+    event: K | string,
+    listener?: EventListener<TEvents[K]>
+  ): this {
     return this.off(event, listener);
   }
 }

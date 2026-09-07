@@ -13,22 +13,25 @@ interface CompetitionState {
 
 export const useCompetitionStore = create<CompetitionState>()(
   persist(
-    (set) => ({
+    set => ({
       competitions: [], // No mock data - starting clean
-      addCompetition: (comp) => set((state) => ({ 
-        competitions: [...state.competitions, comp] 
-      })),
-      editCompetition: (id, comp) => set((state) => ({
-        competitions: state.competitions.map((c) => (c.id === id ? comp : c)),
-      })),
-      deleteCompetition: (id) => set((state) => ({
-        competitions: state.competitions.filter((c) => c.id !== id),
-      })),
+      addCompetition: comp =>
+        set(state => ({
+          competitions: [...state.competitions, comp],
+        })),
+      editCompetition: (id, comp) =>
+        set(state => ({
+          competitions: state.competitions.map(c => (c.id === id ? comp : c)),
+        })),
+      deleteCompetition: id =>
+        set(state => ({
+          competitions: state.competitions.filter(c => c.id !== id),
+        })),
     }),
     {
       name: 'myk9show-competitions-storage',
       storage: createJSONStorage(() => getOptimalStorage('competitions')),
-      partialize: (state) => ({
+      partialize: state => ({
         competitions: state.competitions,
       }),
       version: 1,

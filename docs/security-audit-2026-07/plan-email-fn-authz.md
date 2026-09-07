@@ -26,6 +26,7 @@ fragile.
 **Decision:** who may send which `data.type`? The reference implementation already
 exists in the repo — `send-registration-email/index.ts:167-209` checks
 owner/secretary/admin via `user_roles`. Options:
+
 1. **Recipient-or-official** — allow if `data.to` == caller's own email, OR caller
    is secretary/admin for the referenced show/registration. Fits the entry-decision
    / confirmation / receipt templates (all show-scoped).
@@ -73,6 +74,7 @@ grants access + magic link from a body email).
 
 **Decision:** the current design is fire-and-forget from the public landing form.
 Options:
+
 1. **Shared-secret header** — the landing form posts a signed token / shared secret;
    the function verifies it. Lightest touch, keeps the form flow.
 2. **Move the grant behind an authenticated admin action** — the form only inserts

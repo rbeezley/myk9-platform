@@ -117,9 +117,12 @@ describe('useEntryListData — single class path', () => {
       fetchSingleClass: vi.fn().mockResolvedValue(payload),
     });
 
-    const { result } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
 
     await waitFor(() => {
       expect(result.current.entries).toBe(payload.entries);
@@ -156,7 +159,7 @@ describe('useEntryListData — combined class path', () => {
 
     const { result } = renderHook(
       () => useEntryListData({ classIdA: 'a', classIdB: 'b', dependencies: deps }),
-      { wrapper: makeWrapper() },
+      { wrapper: makeWrapper() }
     );
 
     await waitFor(() => {
@@ -175,9 +178,12 @@ describe('useEntryListData — refresh()', () => {
   it('refresh(false) refetches without calling forceSyncEntriesAndClasses', async () => {
     const deps = makeDeps();
 
-    const { result } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
     await waitFor(() => expect(deps.fetchSingleClass).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -202,9 +208,12 @@ describe('useEntryListData — refresh()', () => {
 
     const deps = makeDeps({ fetchSingleClass, forceSyncEntriesAndClasses });
 
-    const { result } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
     await waitFor(() => expect(callOrder).toContain('fetch'));
     callOrder.length = 0; // reset before the force sync
 
@@ -232,9 +241,12 @@ describe('useEntryListData — refresh()', () => {
       await blocked;
     });
 
-    const { result } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
     await waitFor(() => expect(deps.fetchSingleClass).toHaveBeenCalled());
 
     // Kick off the slow first sync without awaiting it.
@@ -270,9 +282,12 @@ describe('useEntryListData — refresh()', () => {
     // and CombinedEntryList's mount effect would loop. The cardinality
     // test is "rerender without input changes → same function identity."
     const deps = makeDeps();
-    const { result, rerender } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { result, rerender } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
 
     await waitFor(() => expect(deps.fetchSingleClass).toHaveBeenCalled());
 
@@ -286,9 +301,12 @@ describe('useEntryListData — refresh()', () => {
       forceSyncEntriesAndClasses: vi.fn().mockRejectedValue(new Error('Offline')),
     });
 
-    const { result } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
     await waitFor(() => expect(deps.fetchSingleClass).toHaveBeenCalledTimes(1));
 
     await act(async () => {
@@ -308,9 +326,12 @@ describe('useEntryListData — subscription lifecycle', () => {
     const subscribeToReplicationChanges = vi.fn().mockReturnValue(unsubscribe);
     const deps = makeDeps({ subscribeToReplicationChanges });
 
-    const { unmount } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { unmount } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
 
     // Subscription wired exactly once on mount.
     expect(subscribeToReplicationChanges).toHaveBeenCalledTimes(1);
@@ -332,9 +353,12 @@ describe('useEntryListData — subscription lifecycle', () => {
     });
     const deps = makeDeps({ subscribeToReplicationChanges });
 
-    const { result } = renderHook(() => useEntryListData({ classId: 'cls-1', dependencies: deps }), {
-      wrapper: makeWrapper(),
-    });
+    const { result } = renderHook(
+      () => useEntryListData({ classId: 'cls-1', dependencies: deps }),
+      {
+        wrapper: makeWrapper(),
+      }
+    );
     await waitFor(() => expect(deps.fetchSingleClass).toHaveBeenCalledTimes(1));
 
     // Fire a change — fetch should be invalidated + refetched after the
@@ -348,7 +372,7 @@ describe('useEntryListData — subscription lifecycle', () => {
       () => {
         expect(deps.fetchSingleClass).toHaveBeenCalledTimes(2);
       },
-      { timeout: 2000 },
+      { timeout: 2000 }
     );
   });
 });

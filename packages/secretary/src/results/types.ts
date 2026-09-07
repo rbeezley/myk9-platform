@@ -103,13 +103,7 @@ export interface AKCOwnerAddress {
  * rejects that outright (TS2367, no overlap) instead of leaving it to a test
  * fixture to notice. Widen it only alongside the CHECK constraint.
  */
-export type AKCResultStatus =
-  | 'pending'
-  | 'qualified'
-  | 'nq'
-  | 'absent'
-  | 'excused'
-  | 'withdrawn';
+export type AKCResultStatus = 'pending' | 'qualified' | 'nq' | 'absent' | 'excused' | 'withdrawn';
 
 /** Extends SubmissionEntry with fields required by the AKC electres.xsd schema */
 export interface AKCSubmissionEntry extends SubmissionEntry {

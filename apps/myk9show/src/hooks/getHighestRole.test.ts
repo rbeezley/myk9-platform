@@ -30,10 +30,26 @@ describe('getHighestRole', () => {
       ],
       UserRole.SITE_ADMIN,
     ],
-    ['SECRETARY beats JUDGE and EXHIBITOR', [UserRole.EXHIBITOR, UserRole.JUDGE, UserRole.SECRETARY], UserRole.SECRETARY],
-    ['JUDGE beats CLUB_ADMIN and EXHIBITOR', [UserRole.EXHIBITOR, UserRole.CLUB_ADMIN, UserRole.JUDGE], UserRole.JUDGE],
-    ['CLUB_ADMIN beats CHAIRMAN and STEWARD', [UserRole.STEWARD, UserRole.CHAIRMAN, UserRole.CLUB_ADMIN], UserRole.CLUB_ADMIN],
-    ['CHAIRMAN beats STEWARD and EXHIBITOR', [UserRole.EXHIBITOR, UserRole.STEWARD, UserRole.CHAIRMAN], UserRole.CHAIRMAN],
+    [
+      'SECRETARY beats JUDGE and EXHIBITOR',
+      [UserRole.EXHIBITOR, UserRole.JUDGE, UserRole.SECRETARY],
+      UserRole.SECRETARY,
+    ],
+    [
+      'JUDGE beats CLUB_ADMIN and EXHIBITOR',
+      [UserRole.EXHIBITOR, UserRole.CLUB_ADMIN, UserRole.JUDGE],
+      UserRole.JUDGE,
+    ],
+    [
+      'CLUB_ADMIN beats CHAIRMAN and STEWARD',
+      [UserRole.STEWARD, UserRole.CHAIRMAN, UserRole.CLUB_ADMIN],
+      UserRole.CLUB_ADMIN,
+    ],
+    [
+      'CHAIRMAN beats STEWARD and EXHIBITOR',
+      [UserRole.EXHIBITOR, UserRole.STEWARD, UserRole.CHAIRMAN],
+      UserRole.CHAIRMAN,
+    ],
     ['STEWARD beats EXHIBITOR', [UserRole.EXHIBITOR, UserRole.STEWARD], UserRole.STEWARD],
     [
       'unrecognized role string in the array is ignored, falls through to real roles',

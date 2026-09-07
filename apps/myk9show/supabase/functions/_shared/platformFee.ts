@@ -141,10 +141,7 @@ export function normalizePlatformFeeRates(rates: PlatformFeeRates): PlatformFeeR
  * sold, so there is nothing to take a minimum on (a fully make-whole-refunded
  * payment-link order snapshots as 0/0 through this path).
  */
-export function calculatePlatformFeeCents(
-  subtotalCents: number,
-  rates: PlatformFeeRates
-): number {
+export function calculatePlatformFeeCents(subtotalCents: number, rates: PlatformFeeRates): number {
   if (!Number.isFinite(subtotalCents) || subtotalCents <= 0) return 0;
   const { percent, flatCents, minCents } = normalizePlatformFeeRates(rates);
   const percentCents = percent > 0 ? Math.round((subtotalCents * percent) / 100) : 0;

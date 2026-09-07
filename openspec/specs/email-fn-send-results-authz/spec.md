@@ -1,12 +1,14 @@
 # email-fn-send-results-authz Specification
 
 ## Purpose
+
 TBD. Part of the security-audit-remediation change. The `send-results` edge
 function sends results email on behalf of a show; before this change it lacked
 show-official authorization and allowed caller-supplied override of the
 cc/reply-to/destination address fields.
 
 ## Requirements
+
 ### Requirement: send-results requires show-official authorization
 
 The system SHALL reject calls to the `send-results` edge function from a caller

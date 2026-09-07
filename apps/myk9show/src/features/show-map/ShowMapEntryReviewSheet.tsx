@@ -46,9 +46,7 @@ export function ShowMapEntryReviewSheet({
       >
         <SheetHeader className="border-b px-6 py-4 text-left">
           <SheetTitle>Review entry</SheetTitle>
-          <SheetDescription>
-            Submitted, waiting for secretary approval.
-          </SheetDescription>
+          <SheetDescription>Submitted, waiting for secretary approval.</SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">

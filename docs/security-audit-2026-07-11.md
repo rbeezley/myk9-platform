@@ -22,6 +22,7 @@ Auto-fixable: 4 of 7 findings
 
 **Category:** RLS Policy Integrity
 **Location:**
+
 - `secretary_tasks` — `supabase/migrations/133_secretary_tasks.sql:40`
 - `club_premium_templates` — `supabase/migrations/188_premium_bridge_tables.sql:41`
 - `premium_generations` — `supabase/migrations/188_premium_bridge_tables.sql:119`
@@ -72,8 +73,7 @@ Auto-fixable: 4 of 7 findings
 
 **Category:** Edge Function Auth
 **Location:** `supabase/functions/_shared/pushWebhookAuth.ts:12-13`
-**Evidence:** `if (!authHeader || authHeader !== \`Bearer ${webhookSecret}\`)`
-**Risk:** Theoretical timing side-channel on the shared secret. Callers are DB triggers (pg_net) on a trusted network, so practical exploitability is very low. Sibling helper `standardWebhookSignature.ts` already uses `timingSafeEqual`.
+**Evidence:** `if (!authHeader || authHeader !== \`Bearer ${webhookSecret}\`)`**Risk:** Theoretical timing side-channel on the shared secret. Callers are DB triggers (pg_net) on a trusted network, so practical exploitability is very low. Sibling helper`standardWebhookSignature.ts`already uses`timingSafeEqual`.
 **Fix:** Use constant-time comparison, matching the sibling helper.
 **Auto-fixable:** Yes
 
@@ -125,21 +125,22 @@ Auto-fixable: 4 of 7 findings
 
 ## Categories Checked
 
-| Category                    | Files Examined                     | Findings | Skipped |
-| --------------------------- | ---------------------------------- | -------- | ------- |
-| RLS Policy Integrity        | 361 migrations                     | 1        | —       |
-| Edge Function Auth          | 31 functions + shared helpers      | 5        | —       |
-| RBAC & Privilege Escalation | 361 migrations + rbac services     | 0        | —       |
-| Client Auth Patterns        | routes, AuthContext, helpers       | 1        | —       |
-| Data Exposure               | error/toast/logging call sites     | 0        | —       |
-| Payment Security            | 11 Stripe functions + frontend     | 0        | —       |
-| Input Validation            | sanitization, uploads, forms, params | 0      | —       |
+| Category                    | Files Examined                       | Findings | Skipped |
+| --------------------------- | ------------------------------------ | -------- | ------- |
+| RLS Policy Integrity        | 361 migrations                       | 1        | —       |
+| Edge Function Auth          | 31 functions + shared helpers        | 5        | —       |
+| RBAC & Privilege Escalation | 361 migrations + rbac services       | 0        | —       |
+| Client Auth Patterns        | routes, AuthContext, helpers         | 1        | —       |
+| Data Exposure               | error/toast/logging call sites       | 0        | —       |
+| Payment Security            | 11 Stripe functions + frontend       | 0        | —       |
+| Input Validation            | sanitization, uploads, forms, params | 0        | —       |
 
 Verified-clean highlights: RBAC mutation policies gated on `is_platform_admin()`; all RLS helpers check `is_active` + `expires_at`; Stripe webhook signature verification, server-authoritative pricing, portal ownership scoping, and open-redirect guards all present; `send-email`/`send-results` recipients derived server-side; both `dangerouslySetInnerHTML` sites DOMPurify-sanitized; storage paths ownership-validated; no hardcoded secrets (the `sk_live_` grep hit is a Sentry-scrubbing test fixture).
 
 ## Previous Audit Comparison (vs 2026-07-10)
 
 **Resolved (5):**
+
 - SA-018 / SA-019 — `send-email` recipients now derived server-side (`recipientResolution.ts`); all other types 403.
 - SA-020 — `send-results` cc/reply-to now derived from the show's `secretary_email`; authz added.
 - SA-022 / SA-027 — `20260710080000_security_audit_remediation_lifecycle_hardening.sql` adds authz/REVOKE and pins `search_path = ''`.

@@ -12,10 +12,7 @@ export type DbVetVisitUpdate = Database['public']['Tables']['vet_visits']['Updat
 
 export const getAllVetVisits = (dogId?: string) =>
   wrapQuery('vet_visit', 'select_all', [] as DbVetVisitRow[], () => {
-    let query = supabase
-      .from('vet_visits')
-      .select('*')
-      .order('visit_date', { ascending: false });
+    let query = supabase.from('vet_visits').select('*').order('visit_date', { ascending: false });
     if (dogId) query = query.eq('dog_id', dogId);
     return query;
   });

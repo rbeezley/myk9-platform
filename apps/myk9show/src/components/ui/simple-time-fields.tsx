@@ -31,11 +31,11 @@ const getRecentTimes = (): string[] => {
 
 const addRecentTime = (time: string) => {
   if (!time || time === '0:00.00') return;
-  
+
   const recent = getRecentTimes();
   const filtered = recent.filter(t => t !== time);
   const updated = [time, ...filtered].slice(0, 5);
-  
+
   try {
     localStorage.setItem(RECENT_TIMES_KEY, JSON.stringify(updated));
   } catch {
@@ -102,13 +102,13 @@ export const SimpleTimeFields: React.FC<SimpleTimeFieldsProps> = ({
       onChange?.('');
       return;
     }
-    
+
     if (minutes || seconds || hundredths) {
       // Apply validation constraints
       const mins = Math.min(parseInt(minutes) || 0, 99);
       const secs = Math.min(parseInt(seconds) || 0, 59);
       const hundr = Math.min(parseInt(hundredths) || 0, 99);
-      
+
       // Update the display values if they were constrained
       if (mins.toString() !== minutes && minutes) {
         setMinutes(mins.toString());
@@ -119,10 +119,11 @@ export const SimpleTimeFields: React.FC<SimpleTimeFieldsProps> = ({
       if (hundr.toString() !== hundredths && hundredths) {
         setHundredths(hundr.toString());
       }
-      
-      const formattedTime = mins + ':' + secs.toString().padStart(2, '0') + '.' + hundr.toString().padStart(2, '0');
+
+      const formattedTime =
+        mins + ':' + secs.toString().padStart(2, '0') + '.' + hundr.toString().padStart(2, '0');
       onChange?.(formattedTime);
-      
+
       // Add to recent times when a complete time is entered (but not when labels are hidden)
       if (!hideLabels) {
         addRecentTime(formattedTime);
@@ -145,16 +146,19 @@ export const SimpleTimeFields: React.FC<SimpleTimeFieldsProps> = ({
   };
 
   // Handle key navigation between fields
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, field: 'minutes' | 'seconds' | 'hundredths') => {
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    field: 'minutes' | 'seconds' | 'hundredths'
+  ) => {
     // Call parent handler first
     onKeyDown?.(e);
 
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
-      
+
       // Build value when navigating away
       buildValue();
-      
+
       if (e.shiftKey) {
         // Move backwards
         if (field === 'hundredths') {
@@ -193,79 +197,74 @@ export const SimpleTimeFields: React.FC<SimpleTimeFieldsProps> = ({
         <Input
           ref={minutesRef}
           value={minutes}
-          onChange={(e) => {
+          onChange={e => {
             const val = e.target.value.slice(0, 2); // Just limit length
             setMinutes(val);
             autoFocusNext('minutes', val);
           }}
           onBlur={buildValue}
-          onKeyDown={(e) => handleKeyDown(e, 'minutes')}
+          onKeyDown={e => handleKeyDown(e, 'minutes')}
           placeholder=""
           className="w-12 text-center font-mono"
           disabled={disabled}
           maxLength={2}
         />
       </div>
-      
+
       <div className="flex flex-col items-center">
         {!hideLabels && <span className="text-xs opacity-0 mb-1">:</span>}
         <span className="text-lg px-1 font-mono">:</span>
       </div>
-      
+
       {/* Seconds */}
       <div className="flex flex-col items-center">
         {!hideLabels && <label className="text-xs text-muted-foreground mb-1">Sec</label>}
         <Input
           ref={secondsRef}
           value={seconds}
-          onChange={(e) => {
+          onChange={e => {
             const val = e.target.value.slice(0, 2); // Just limit length
             setSeconds(val);
             autoFocusNext('seconds', val);
           }}
           onBlur={buildValue}
-          onKeyDown={(e) => handleKeyDown(e, 'seconds')}
+          onKeyDown={e => handleKeyDown(e, 'seconds')}
           placeholder=""
           className="w-12 text-center font-mono"
           disabled={disabled}
           maxLength={2}
         />
       </div>
-      
+
       <div className="flex flex-col items-center">
         {!hideLabels && <span className="text-xs opacity-0 mb-1">.</span>}
         <span className="text-lg px-1 font-mono">.</span>
       </div>
-      
+
       {/* Hundredths */}
       <div className="flex flex-col items-center">
         {!hideLabels && <label className="text-xs text-muted-foreground mb-1">1/100</label>}
         <Input
           ref={hundredthsRef}
           value={hundredths}
-          onChange={(e) => {
+          onChange={e => {
             const val = e.target.value.slice(0, 2); // Just limit length
             setHundredths(val);
           }}
           onBlur={buildValue}
-          onKeyDown={(e) => handleKeyDown(e, 'hundredths')}
+          onKeyDown={e => handleKeyDown(e, 'hundredths')}
           placeholder=""
           className="w-12 text-center font-mono"
           disabled={disabled}
           maxLength={2}
         />
       </div>
-      
+
       {/* Recent Times Popover */}
       {!disabled && !hideLabels && recentTimes.length > 0 && (
         <Popover open={showRecentTimes} onOpenChange={setShowRecentTimes}>
           <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 w-8 p-0 ml-2"
-              type="button"
-            >
+            <Button variant="outline" size="sm" className="h-8 w-8 p-0 ml-2" type="button">
               <Clock className="h-3 w-3" />
             </Button>
           </PopoverTrigger>

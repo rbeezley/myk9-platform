@@ -21,4 +21,3 @@ export interface ProtectedRouteProps {
 
 // Convenience route component props
 export type ConvenienceRouteProps = Omit<ProtectedRouteProps, 'requiredRole'>;
-

@@ -55,10 +55,7 @@ export function FeesSection({ fees }: { fees: EntryBlankFees }) {
           }}
         >
           <FeeRow label={`First entry · ${fees.firstEntryFee}`} value="$ ______" />
-          <FeeRow
-            label={`Additional entries · ${fees.additionalEntryFee} each`}
-            value="$ ______"
-          />
+          <FeeRow label={`Additional entries · ${fees.additionalEntryFee} each`} value="$ ______" />
           <FeeRow label={`Junior handler · ${fees.juniorHandlerFee}`} value="$ ______" />
           <FeeRow label={`Mail-in processing · ${fees.mailProcessingFee}`} value="$ ______" />
         </View>

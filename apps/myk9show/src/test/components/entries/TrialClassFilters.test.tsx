@@ -47,9 +47,7 @@ describe('TrialClassFilters', () => {
 
   it('calls onTrialChange with trial id when trial selected', async () => {
     const onTrialChange = vi.fn();
-    const { user } = render(
-      <TrialClassFilters {...defaultProps} onTrialChange={onTrialChange} />
-    );
+    const { user } = render(<TrialClassFilters {...defaultProps} onTrialChange={onTrialChange} />);
 
     const trialSelect = screen.getByLabelText('Trial filter');
     await user.selectOptions(trialSelect, 'trial-1');
@@ -60,11 +58,7 @@ describe('TrialClassFilters', () => {
   it('calls onTrialChange(null) when "All Trials" selected', async () => {
     const onTrialChange = vi.fn();
     const { user } = render(
-      <TrialClassFilters
-        {...defaultProps}
-        trialFilter="trial-1"
-        onTrialChange={onTrialChange}
-      />
+      <TrialClassFilters {...defaultProps} trialFilter="trial-1" onTrialChange={onTrialChange} />
     );
 
     const trialSelect = screen.getByLabelText('Trial filter');
@@ -96,17 +90,14 @@ describe('TrialClassFilters', () => {
   it('uses trial name when available', () => {
     render(<TrialClassFilters {...defaultProps} />);
 
-    expect(screen.getByRole('option', { name: 'Specialty Trial · Apr 16, 2026' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: 'Specialty Trial · Apr 16, 2026' })
+    ).toBeInTheDocument();
   });
 
   it('shows "Loading classes..." when isLoadingClasses is true', () => {
     render(
-      <TrialClassFilters
-        {...defaultProps}
-        trialFilter="trial-1"
-        classes={[]}
-        isLoadingClasses
-      />
+      <TrialClassFilters {...defaultProps} trialFilter="trial-1" classes={[]} isLoadingClasses />
     );
 
     const classSelect = screen.getByLabelText('Class filter');

@@ -3,11 +3,10 @@
 > **Status:** Active — metadata reconciled 2026-09-05.
 > Existing Phase 4 in progress retained.
 
-
 **Created:** 2026-06-12 · **Status:** Phase 4 in progress
-**Goal:** Audit the two highest-stakes role experiences as *end-to-end journeys*, not pages. The April 2026 sprint audited 11 pages in isolation (Tier 1 exhibitor + Tier 2 secretary, `docs/ux-audits/phase-1-summary.md` / `phase-2-summary.md`); since then the surfaces changed underneath it — myK9Q was absorbed into `/at-show`, the workbench collapse landed, and the secretary show-day consolidation plan reshaped day-of flows. This audit scores the *current* app against INTENT.md's role feelings: Exhibitor "This respects my time", Secretary "That was easy".
+**Goal:** Audit the two highest-stakes role experiences as _end-to-end journeys_, not pages. The April 2026 sprint audited 11 pages in isolation (Tier 1 exhibitor + Tier 2 secretary, `docs/ux-audits/phase-1-summary.md` / `phase-2-summary.md`); since then the surfaces changed underneath it — myK9Q was absorbed into `/at-show`, the workbench collapse landed, and the secretary show-day consolidation plan reshaped day-of flows. This audit scores the _current_ app against INTENT.md's role feelings: Exhibitor "This respects my time", Secretary "That was easy".
 
-**Methodology:** the `/UX-Audit` skill's 6-pass rubric (mental model, IA, affordances, cognitive load, state coverage, flow integrity) is mandatory per project rules — but applied per journey *segment*, with cross-segment flow integrity as the connecting thread. `/IA-Review` is the escalation path if a journey reveals structural fragmentation as the root cause.
+**Methodology:** the `/UX-Audit` skill's 6-pass rubric (mental model, IA, affordances, cognitive load, state coverage, flow integrity) is mandatory per project rules — but applied per journey _segment_, with cross-segment flow integrity as the connecting thread. `/IA-Review` is the escalation path if a journey reveals structural fragmentation as the root cause.
 
 ## Validation Profile
 
@@ -17,13 +16,13 @@
 
 ## Relationship to other plans
 
-| Plan | Relationship |
-| --- | --- |
-| `docs/goals/fall-2026-launch-readiness-scorecard.md` | **The contract this audit serves.** Its Golden Path Criteria (Secretary: 11 numbered steps; Exhibitor: 8) are the canonical journey definitions — Phase 1's journey maps adopt them verbatim as segment lists. Both golden path scorecard rows are currently `Unknown`; this audit's walks are the "browser walkthrough with realistic show data" the scorecard names as their verification method. A finding that blocks a golden path step is automatically P0/P1 (launch-blocking), not a UX nit. |
-| `plan-code-quality-audit.md` | Run this audit **after Waves A–C land** — no point auditing pages about to be consolidated or deleted. Independent of Wave D. |
-| `plan-dynamic-qa-infrastructure.md` | Independent. Its Phase 4 (error boundaries) shares the INTENT-fallback concern; cross-reference findings, don't duplicate. |
-| April 2026 UX sprint (`docs/ux-audits/`) | This **continues** that thread (its Phases 3–5 were never run). Phase 1 below dispositions every prior finding before any new auditing starts. |
-| `plan-secretary-show-day-ux-consolidation.md`, `plan-show-map-workbench-collapse.md` | Treat as the *intended* design. A finding that contradicts these plans is a question for the user, not a defect. |
+| Plan                                                                                 | Relationship                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/goals/fall-2026-launch-readiness-scorecard.md`                                 | **The contract this audit serves.** Its Golden Path Criteria (Secretary: 11 numbered steps; Exhibitor: 8) are the canonical journey definitions — Phase 1's journey maps adopt them verbatim as segment lists. Both golden path scorecard rows are currently `Unknown`; this audit's walks are the "browser walkthrough with realistic show data" the scorecard names as their verification method. A finding that blocks a golden path step is automatically P0/P1 (launch-blocking), not a UX nit. |
+| `plan-code-quality-audit.md`                                                         | Run this audit **after Waves A–C land** — no point auditing pages about to be consolidated or deleted. Independent of Wave D.                                                                                                                                                                                                                                                                                                                                                                        |
+| `plan-dynamic-qa-infrastructure.md`                                                  | Independent. Its Phase 4 (error boundaries) shares the INTENT-fallback concern; cross-reference findings, don't duplicate.                                                                                                                                                                                                                                                                                                                                                                           |
+| April 2026 UX sprint (`docs/ux-audits/`)                                             | This **continues** that thread (its Phases 3–5 were never run). Phase 1 below dispositions every prior finding before any new auditing starts.                                                                                                                                                                                                                                                                                                                                                       |
+| `plan-secretary-show-day-ux-consolidation.md`, `plan-show-map-workbench-collapse.md` | Treat as the _intended_ design. A finding that contradicts these plans is a question for the user, not a defect.                                                                                                                                                                                                                                                                                                                                                                                     |
 
 ## The two journeys
 
@@ -41,7 +40,7 @@ If Phase 1 finds a divergence between this narrative and the scorecard's numbere
 
 1. Worktree check before any write; no shared-system mutations (the audit is read-only; remediation PRs confirm separately).
 2. Read in full before auditing: `docs/INTENT.md` (role feelings + guardrails are the scoring rubric), `docs/ux-audits/phase-1-summary.md`, `phase-2-summary.md`, `ux-audit-priority.md`, and the two consolidation plans.
-3. Live walks use a dev server started *in this worktree* on a unique port — the Preview MCP serves the main checkout, not the worktree (known footgun), and concurrent agents may hold the default port.
+3. Live walks use a dev server started _in this worktree_ on a unique port — the Preview MCP serves the main checkout, not the worktree (known footgun), and concurrent agents may hold the default port.
 4. Findings live in `docs/audits/2026-06-ux-journeys/` (one file per journey + one for seams + `SUMMARY.md`), same structure as the code-quality audit directory.
 
 ## Phase 1 — Recon: prior-finding disposition + journey maps
@@ -78,13 +77,13 @@ Read-only baseline captured in `03-cross-role-seams.md`. Full seam completion st
 
 Audit each exhibitor↔secretary intersection as one continuous flow, both sides observed in the same session (two browser contexts):
 
-| Seam | Flow to walk |
-| --- | --- |
-| Scratch request | Exhibitor requests → what the secretary sees → exhibitor confirmation |
-| Waitlist offer | Secretary offers → exhibitor notification → acceptance → entry state both sides |
-| Entry question | Exhibitor messages → secretary reply → thread visibility |
-| Refund/withdrawal | Exhibitor withdraws → secretary accounting view |
-| Results publish | Secretary publishes → exhibitor reveal experience |
+| Seam              | Flow to walk                                                                    |
+| ----------------- | ------------------------------------------------------------------------------- |
+| Scratch request   | Exhibitor requests → what the secretary sees → exhibitor confirmation           |
+| Waitlist offer    | Secretary offers → exhibitor notification → acceptance → entry state both sides |
+| Entry question    | Exhibitor messages → secretary reply → thread visibility                        |
+| Refund/withdrawal | Exhibitor withdraws → secretary accounting view                                 |
+| Results publish   | Secretary publishes → exhibitor reveal experience                               |
 
 For each: latency of visibility (does the other side see it without refresh?), state agreement (do both sides show the same entry status?), and tone (INTENT: calm over clever). Output: `03-cross-role-seams.md`.
 

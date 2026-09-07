@@ -95,20 +95,16 @@ export async function dispatchQueuedWaitlistEvents(input: {
   supabaseUrl: string;
   pushWebhookSecret: string | undefined;
 }): Promise<{ dispatched: number; errors: string[] }> {
-  const results = await mapWithConcurrency(
-    input.events,
-    DISPATCH_CONCURRENCY,
-    async event => ({
-      event,
-      result: await invokeWaitlistDispatcher({
-        supabaseUrl: input.supabaseUrl,
-        pushWebhookSecret: input.pushWebhookSecret,
-        eventId: event.event_id,
-        waitlistEntryId: event.waitlist_entry_id,
-        eventType: event.event_type,
-      }),
-    })
-  );
+  const results = await mapWithConcurrency(input.events, DISPATCH_CONCURRENCY, async event => ({
+    event,
+    result: await invokeWaitlistDispatcher({
+      supabaseUrl: input.supabaseUrl,
+      pushWebhookSecret: input.pushWebhookSecret,
+      eventId: event.event_id,
+      waitlistEntryId: event.waitlist_entry_id,
+      eventType: event.event_type,
+    }),
+  }));
 
   return results.reduce(
     (summary, item) => {
@@ -125,10 +121,9 @@ export async function retryWaitlistNotificationEvents(input: {
   supabaseUrl: string;
   pushWebhookSecret: string | undefined;
 }): Promise<{ dispatched: number; errors: string[] }> {
-  const { data, error } = await input.supabase.rpc(
-    'list_retryable_waitlist_notification_events',
-    { p_limit: 10 }
-  );
+  const { data, error } = await input.supabase.rpc('list_retryable_waitlist_notification_events', {
+    p_limit: 10,
+  });
   if (error) return { dispatched: 0, errors: [`Fetch retries: ${error.message}`] };
 
   return dispatchQueuedWaitlistEvents({

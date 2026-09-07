@@ -17,7 +17,11 @@ export const useMemoryMonitoring = () => {
   useEffect(() => {
     const updateMemoryInfo = () => {
       if ('memory' in performance) {
-        const memory = (performance as Performance & { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+        const memory = (
+          performance as Performance & {
+            memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
+          }
+        ).memory;
         if (memory) {
           setMemoryInfo({
             usedJSHeapSize: memory.usedJSHeapSize,
@@ -28,11 +32,11 @@ export const useMemoryMonitoring = () => {
           // Log memory usage if it's getting high
           const usagePercent = (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100;
           if (usagePercent > 80) {
-          logger.warn(`High memory usage: ${usagePercent.toFixed(2)}%`, 'performance', {
-            usedJSHeapSize: memory.usedJSHeapSize,
-            totalJSHeapSize: memory.totalJSHeapSize,
-            jsHeapSizeLimit: memory.jsHeapSizeLimit,
-          });
+            logger.warn(`High memory usage: ${usagePercent.toFixed(2)}%`, 'performance', {
+              usedJSHeapSize: memory.usedJSHeapSize,
+              totalJSHeapSize: memory.totalJSHeapSize,
+              jsHeapSizeLimit: memory.jsHeapSizeLimit,
+            });
           }
         }
       }

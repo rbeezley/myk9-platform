@@ -21,7 +21,11 @@ test.describe('entry intent sign-in redirect', () => {
     await expect(page.getByText(LIVE_SECRETARY_SHOW_NAME).first()).toBeVisible({
       timeout: 30000,
     });
-    await page.locator('main').getByRole('link', { name: /^Enter this show$/i }).first().click();
+    await page
+      .locator('main')
+      .getByRole('link', { name: /^Enter this show$/i })
+      .first()
+      .click();
 
     await page.waitForURL(
       url => url.pathname === '/sign-in' && url.searchParams.get('redirectTo') === REGISTER_PATH,

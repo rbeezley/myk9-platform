@@ -1,9 +1,11 @@
 # motion-language Specification
 
 ## Purpose
+
 The shared motion contract for myK9Show + ringside: one set of duration/easing tokens, one learnable rule per motion category (appear, in-place state change, layout move, loading, celebration), mandatory reduced-motion gating, and the shared-package constraint (CSS-only motion in `packages/ringside`/`scoring-ui`/`ui`; no new animation libraries). Users learn once what motion means so it never surprises them.
 
 ## Requirements
+
 ### Requirement: Canonical motion tokens
 
 The system SHALL define motion durations and easings once as design tokens in `tailwind.config.js` and reference them from all animated UI. New animations MUST NOT hardcode duration or easing values outside these tokens.

@@ -36,8 +36,7 @@ export function ParticularsSection({
 }: ParticularsSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
-  const fmt = (iso: string | null) =>
-    iso ? formatDateInTimezone(iso, timezone, 'iso') : null;
+  const fmt = (iso: string | null) => (iso ? formatDateInTimezone(iso, timezone, 'iso') : null);
 
   const rows: Array<{ label: string; value: React.ReactNode }> = [
     { label: 'SANCTIONING', value: licenseLanguage },
@@ -52,7 +51,13 @@ export function ParticularsSection({
           <FieldGuideChip variant="orange">{`${entryLimit} RUNS · FIRM`}</FieldGuideChip>
         ) : null,
     },
-    { label: 'OPEN — CLOSE', value: entryOpenDate || entryCloseDate ? `${fmt(entryOpenDate) ?? '—'} → ${fmt(entryCloseDate) ?? '—'}` : null },
+    {
+      label: 'OPEN — CLOSE',
+      value:
+        entryOpenDate || entryCloseDate
+          ? `${fmt(entryOpenDate) ?? '—'} → ${fmt(entryCloseDate) ?? '—'}`
+          : null,
+    },
     { label: 'CONFIRMATION', value: fmt(confirmationDate) },
   ].filter(r => r.value);
 

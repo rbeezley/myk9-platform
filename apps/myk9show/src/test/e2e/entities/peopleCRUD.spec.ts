@@ -26,10 +26,11 @@ test.describe('People (User) CRUD Operations', () => {
       return {
         success: true,
         count: data?.length || 0,
-        users: data?.slice(0, 5).map(u => ({
-          id: u.id,
-          name: `${u.first_name} ${u.last_name}`
-        })) || []
+        users:
+          data?.slice(0, 5).map(u => ({
+            id: u.id,
+            name: `${u.first_name} ${u.last_name}`,
+          })) || [],
       };
     });
 
@@ -52,7 +53,7 @@ test.describe('People (User) CRUD Operations', () => {
         first_name: 'E2E',
         last_name: `TestUser ${Date.now()}`,
         email: `e2etestuser${Date.now()}@example.com`,
-        phone: '555-0100'
+        phone: '555-0100',
       };
 
       const { data: createdUser, error: createError } = await createUser(userData);
@@ -71,7 +72,7 @@ test.describe('People (User) CRUD Operations', () => {
         userId: createdUser?.id,
         firstName: createdUser?.first_name,
         lastName: createdUser?.last_name,
-        email: createdUser?.email
+        email: createdUser?.email,
       };
     });
 
@@ -88,14 +89,15 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, updateUser, deleteUser } = await import('/src/services/database/users/index.ts');
+      const { createUser, updateUser, deleteUser } =
+        await import('/src/services/database/users/index.ts');
 
       // Create user
       const { data: createdUser, error: createError } = await createUser({
         first_name: 'Update',
         last_name: `TestPerson ${Date.now()}`,
         email: `updatetestperson${Date.now()}@example.com`,
-        phone: '555-0200'
+        phone: '555-0200',
       });
 
       if (createError || !createdUser) {
@@ -106,7 +108,7 @@ test.describe('People (User) CRUD Operations', () => {
       const { data: updatedUser, error: updateError } = await updateUser(createdUser.id, {
         phone: '555-9999',
         city: 'Test City',
-        state: 'TS'
+        state: 'TS',
       });
 
       // Clean up
@@ -122,7 +124,7 @@ test.describe('People (User) CRUD Operations', () => {
         updatedPhone: updatedUser?.phone,
         updatedCity: updatedUser?.city,
         phoneMatches: updatedUser?.phone === '555-9999',
-        cityMatches: updatedUser?.city === 'Test City'
+        cityMatches: updatedUser?.city === 'Test City',
       };
     });
 
@@ -139,13 +141,14 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser, getUserById } = await import('/src/services/database/users/index.ts');
+      const { createUser, deleteUser, getUserById } =
+        await import('/src/services/database/users/index.ts');
 
       // Create user
       const { data: createdUser, error: createError } = await createUser({
         first_name: 'Delete',
         last_name: `TestPerson ${Date.now()}`,
-        email: `deletetestperson${Date.now()}@example.com`
+        email: `deletetestperson${Date.now()}@example.com`,
       });
 
       if (createError || !createdUser) {
@@ -162,7 +165,7 @@ test.describe('People (User) CRUD Operations', () => {
         success: !deleteError,
         userId: createdUser.id,
         userDeleted: !checkUser,
-        error: deleteError?.message
+        error: deleteError?.message,
       };
     });
 
@@ -178,14 +181,15 @@ test.describe('People (User) CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createUser, deleteUser, searchUsers } = await import('/src/services/database/users/index.ts');
+      const { createUser, deleteUser, searchUsers } =
+        await import('/src/services/database/users/index.ts');
 
       // Create a user with a unique searchable name
       const uniqueLastName = `SearchablePerson${Date.now()}`;
       const { data: createdUser, error: createError } = await createUser({
         first_name: 'Searchable',
         last_name: uniqueLastName,
-        email: `searchable${Date.now()}@example.com`
+        email: `searchable${Date.now()}@example.com`,
       });
 
       if (createError || !createdUser) {
@@ -208,7 +212,7 @@ test.describe('People (User) CRUD Operations', () => {
         success: true,
         searchTerm: 'Searchable',
         resultsCount: searchResults?.length || 0,
-        foundTestUser: foundOurUser
+        foundTestUser: foundOurUser,
       };
     });
 

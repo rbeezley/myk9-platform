@@ -1,15 +1,10 @@
 import type { ShowMapAction, ShowMapActionId } from './showMapActions';
 
 export type ShowMapActionDialogKey =
-  | 'move-up-entry'
-  | 'scratch-entry'
-  | 'message-handler'
-  | 'review-entry';
+  'move-up-entry' | 'scratch-entry' | 'message-handler' | 'review-entry';
 
 export type ShowMapActionMutationKey =
-  | 'mark-checked-in'
-  | 'mark-class-started'
-  | 'mark-class-complete';
+  'mark-checked-in' | 'mark-class-started' | 'mark-class-complete';
 
 export type ShowMapActionExecution =
   | {

@@ -55,47 +55,53 @@ export function useAudioWarnings(settings: AudioSettings) {
   }, []);
 
   // Play a tone with specified frequency and duration
-  const playTone = useCallback(async (frequency: number, duration: number, type: OscillatorType = 'sine') => {
-    if (!config.volume || config.volume === 0) return;
+  const playTone = useCallback(
+    async (frequency: number, duration: number, type: OscillatorType = 'sine') => {
+      if (!config.volume || config.volume === 0) return;
 
-    try {
-      await initializeAudio();
-      const context = audioContextRef.current;
-      if (!context) return;
+      try {
+        await initializeAudio();
+        const context = audioContextRef.current;
+        if (!context) return;
 
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
 
-      oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-      oscillator.type = type;
+        oscillator.frequency.setValueAtTime(frequency, context.currentTime);
+        oscillator.type = type;
 
-      gainNode.gain.setValueAtTime(0, context.currentTime);
-      gainNode.gain.linearRampToValueAtTime(config.volume, context.currentTime + 0.01);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+        gainNode.gain.setValueAtTime(0, context.currentTime);
+        gainNode.gain.linearRampToValueAtTime(config.volume, context.currentTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
 
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
 
-      oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + duration);
-    } catch {
-      // Tone playback failed — continue silently
-    }
-  }, [config.volume, initializeAudio]);
+        oscillator.start(context.currentTime);
+        oscillator.stop(context.currentTime + duration);
+      } catch {
+        // Tone playback failed — continue silently
+      }
+    },
+    [config.volume, initializeAudio]
+  );
 
   // Play a pattern of tones by name
-  const playPattern = useCallback(async (category: string) => {
-    const pattern = SOUND_PATTERNS[category]?.[config.soundType];
-    if (!pattern) return;
+  const playPattern = useCallback(
+    async (category: string) => {
+      const pattern = SOUND_PATTERNS[category]?.[config.soundType];
+      if (!pattern) return;
 
-    for (const tone of pattern) {
-      if (tone.delay === 0) {
-        await playTone(tone.freq, tone.duration, tone.type);
-      } else {
-        setTimeout(() => playTone(tone.freq, tone.duration, tone.type), tone.delay);
+      for (const tone of pattern) {
+        if (tone.delay === 0) {
+          await playTone(tone.freq, tone.duration, tone.type);
+        } else {
+          setTimeout(() => playTone(tone.freq, tone.duration, tone.type), tone.delay);
+        }
       }
-    }
-  }, [config.soundType, playTone]);
+    },
+    [config.soundType, playTone]
+  );
 
   const playWarning = useCallback(async () => {
     if (!config.warningSound) return;

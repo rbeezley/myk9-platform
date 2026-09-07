@@ -93,7 +93,11 @@ export function resolvePayoutBadge(
       if (accountState === 'not-enabled') {
         // Amber, not stone: this one is waiting on the treasurer to connect an
         // account, which is the only neutral state here that implies an action.
-        return { label: 'Waiting for account', variant: 'secondary', className: WAITING_STATUS_CHIP };
+        return {
+          label: 'Waiting for account',
+          variant: 'secondary',
+          className: WAITING_STATUS_CHIP,
+        };
       }
       return { label: 'Not sent yet', variant: 'secondary', className: NEUTRAL_STATUS_CHIP };
     case 'failed':

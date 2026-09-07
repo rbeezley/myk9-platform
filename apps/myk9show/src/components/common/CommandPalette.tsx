@@ -12,7 +12,10 @@ import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { getDogBreedLabel, getDogDisplayName } from '@/types/dog-types';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
 import { useCommandMenuCommands } from '@/features/command-menu/useCommandMenuCommands';
-import { adaptCommandMenuCommand, type CommandAction } from '@/features/command-menu/commandPaletteAdapter';
+import {
+  adaptCommandMenuCommand,
+  type CommandAction,
+} from '@/features/command-menu/commandPaletteAdapter';
 import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
 
 interface CommandPaletteProps {
@@ -164,9 +167,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
             navigate(`/dogs/${dog.id}`);
             onOpenChange(false);
           }),
-        keywords: [dog.name, dog.callName, getDogBreedLabel(dog)].filter(
-          Boolean
-        ) as string[],
+        keywords: [dog.name, dog.callName, getDogBreedLabel(dog)].filter(Boolean) as string[],
         category: 'data',
       });
     }

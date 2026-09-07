@@ -14,15 +14,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  ArrowLeft, 
-  Plus, 
+import {
+  ArrowLeft,
+  Plus,
   Save,
   Wand2,
   AlertTriangle,
   CheckCircle,
   Shield,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import {
   Select,
@@ -38,15 +38,15 @@ import { PermissionTemplateSelector } from '@/components/admin/permissions/Permi
 
 const CreateRolePage: React.FC = () => {
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     displayName: '',
     description: '',
     basedOnRole: '',
-    template: ''
+    template: '',
   });
-  
+
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
@@ -62,7 +62,7 @@ const CreateRolePage: React.FC = () => {
     try {
       const [permissionsData, rolesData] = await Promise.all([
         rbacService.getAllPermissions(),
-        rbacService.getAllRoles()
+        rbacService.getAllRoles(),
       ]);
       setPermissions(permissionsData);
       setRoles(rolesData.filter(r => !r.is_system)); // Only show custom roles for cloning
@@ -94,10 +94,8 @@ const CreateRolePage: React.FC = () => {
   };
 
   const handlePermissionChange = (permissionId: string, granted: boolean) => {
-    setSelectedPermissions(prev => 
-      granted 
-        ? [...prev, permissionId]
-        : prev.filter(id => id !== permissionId)
+    setSelectedPermissions(prev =>
+      granted ? [...prev, permissionId] : prev.filter(id => id !== permissionId)
     );
   };
 
@@ -106,7 +104,7 @@ const CreateRolePage: React.FC = () => {
       setError('Role name is required');
       return false;
     }
-    
+
     if (!formData.displayName.trim()) {
       setError('Display name is required');
       return false;
@@ -141,7 +139,7 @@ const CreateRolePage: React.FC = () => {
         name: formData.name,
         displayName: formData.displayName,
         description: formData.description,
-        permissions: selectedPermissionNames
+        permissions: selectedPermissionNames,
       });
 
       navigate('/admin/permissions/roles');
@@ -198,34 +196,46 @@ const CreateRolePage: React.FC = () => {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-2 ${
-                step === 'basic' ? 'text-primary' : 'text-muted-foreground'
-              }`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'basic' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                }`}>
+              <div
+                className={`flex items-center gap-2 ${
+                  step === 'basic' ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    step === 'basic' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                  }`}
+                >
                   1
                 </div>
                 <span className="font-medium">Basic Info</span>
               </div>
               <div className="w-8 h-px bg-border"></div>
-              <div className={`flex items-center gap-2 ${
-                step === 'permissions' ? 'text-primary' : 'text-muted-foreground'
-              }`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'permissions' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                }`}>
+              <div
+                className={`flex items-center gap-2 ${
+                  step === 'permissions' ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    step === 'permissions' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                  }`}
+                >
                   2
                 </div>
                 <span className="font-medium">Permissions</span>
               </div>
               <div className="w-8 h-px bg-border"></div>
-              <div className={`flex items-center gap-2 ${
-                step === 'review' ? 'text-primary' : 'text-muted-foreground'
-              }`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'review' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                }`}>
+              <div
+                className={`flex items-center gap-2 ${
+                  step === 'review' ? 'text-primary' : 'text-muted-foreground'
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    step === 'review' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                  }`}
+                >
                   3
                 </div>
                 <span className="font-medium">Review</span>
@@ -252,9 +262,7 @@ const CreateRolePage: React.FC = () => {
                 <Shield className="h-5 w-5" />
                 Role Details
               </CardTitle>
-              <CardDescription>
-                Basic information about the new role
-              </CardDescription>
+              <CardDescription>Basic information about the new role</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -262,7 +270,7 @@ const CreateRolePage: React.FC = () => {
                 <Input
                   id="display-name"
                   value={formData.displayName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
                   placeholder="e.g., Event Coordinator"
                 />
               </div>
@@ -273,11 +281,11 @@ const CreateRolePage: React.FC = () => {
                   <Input
                     id="role-name"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., event_coordinator"
                   />
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={generateRoleName}
                     disabled={!formData.displayName}
@@ -295,7 +303,7 @@ const CreateRolePage: React.FC = () => {
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Describe what this role is responsible for..."
                   rows={3}
                 />
@@ -309,9 +317,7 @@ const CreateRolePage: React.FC = () => {
                 <Sparkles className="h-5 w-5" />
                 Quick Start Options
               </CardTitle>
-              <CardDescription>
-                Start with a template or clone an existing role
-              </CardDescription>
+              <CardDescription>Start with a template or clone an existing role</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -378,9 +384,7 @@ const CreateRolePage: React.FC = () => {
           <Card>
             <CardHeader>
               <CardTitle>Review New Role</CardTitle>
-              <CardDescription>
-                Review the role configuration before creating
-              </CardDescription>
+              <CardDescription>Review the role configuration before creating</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -431,7 +435,7 @@ const CreateRolePage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           {step !== 'basic' && (
-            <Button 
+            <Button
               variant="outline"
               onClick={() => {
                 if (step === 'permissions') setStep('basic');
@@ -447,7 +451,7 @@ const CreateRolePage: React.FC = () => {
             <Link to="/admin/permissions/roles">Cancel</Link>
           </Button>
           {step === 'basic' && (
-            <Button 
+            <Button
               onClick={() => setStep('permissions')}
               disabled={!formData.name || !formData.displayName}
             >
@@ -455,9 +459,7 @@ const CreateRolePage: React.FC = () => {
             </Button>
           )}
           {step === 'permissions' && (
-            <Button onClick={() => setStep('review')}>
-              Next: Review
-            </Button>
+            <Button onClick={() => setStep('review')}>Next: Review</Button>
           )}
           {step === 'review' && (
             <Button onClick={handleSave} disabled={isLoading}>

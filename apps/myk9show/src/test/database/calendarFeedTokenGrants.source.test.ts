@@ -47,7 +47,9 @@ describe('calendar_feed_tokens grants', () => {
 
   it('keeps the client policy read-only', () => {
     expect(statements).toMatch(/create policy calendar_feed_tokens_owner_read[\s\S]*?for select/);
-    expect(statements).not.toMatch(/create policy[^;]*on public\.calendar_feed_tokens[\s\S]{0,200}for all/);
+    expect(statements).not.toMatch(
+      /create policy[^;]*on public\.calendar_feed_tokens[\s\S]{0,200}for all/
+    );
   });
 
   it('wraps auth.uid() for the RLS initplan', () => {

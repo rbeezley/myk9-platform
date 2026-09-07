@@ -309,34 +309,34 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
                     Select outright stranded it.
                   */}
                   {(assignedJudges.length > 0 || !!data.judgeId) && (
-                  <Select
-                    value={data.judgeId || ''}
-                    onValueChange={value => {
-                      const finalValue = value === 'none' ? '' : value;
-                      form?.setValue('judgeId', finalValue);
-                      form?.setValue(
-                        'judge',
-                        getJudgeNameById(assignedJudges, finalValue) ?? 'TBD'
-                      );
-                      form?.touchField('judgeId');
-                    }}
-                  >
-                    <SelectTrigger id="judgeId">
-                      <SelectValue placeholder="Select a judge">
-                        {!data.judgeId || data.judgeId === 'TBD'
-                          ? undefined
-                          : data.judge || getJudgeNameById(assignedJudges, data.judgeId)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
-                        <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                          {judge.judgeName}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="TBD">TBD</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <Select
+                      value={data.judgeId || ''}
+                      onValueChange={value => {
+                        const finalValue = value === 'none' ? '' : value;
+                        form?.setValue('judgeId', finalValue);
+                        form?.setValue(
+                          'judge',
+                          getJudgeNameById(assignedJudges, finalValue) ?? 'TBD'
+                        );
+                        form?.touchField('judgeId');
+                      }}
+                    >
+                      <SelectTrigger id="judgeId">
+                        <SelectValue placeholder="Select a judge">
+                          {!data.judgeId || data.judgeId === 'TBD'
+                            ? undefined
+                            : data.judge || getJudgeNameById(assignedJudges, data.judgeId)}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assignedJudges.map((judge: { judgeId: string; judgeName: string }) => (
+                          <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                            {judge.judgeName}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="TBD">TBD</SelectItem>
+                      </SelectContent>
+                    </Select>
                   )}
                 </FormField>
 

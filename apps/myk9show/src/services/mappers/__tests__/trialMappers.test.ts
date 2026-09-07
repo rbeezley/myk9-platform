@@ -85,7 +85,9 @@ function makeReplicated(fields: {
 
 describe('mapReplicatedTrialToDbRow — registry carry (replication fallback path)', () => {
   it('emits snake_case registry_id from the replicated registryId', () => {
-    expect(mapReplicatedTrialToDbRow(makeReplicated({ registryId: 'UKC' })).registry_id).toBe('UKC');
+    expect(mapReplicatedTrialToDbRow(makeReplicated({ registryId: 'UKC' })).registry_id).toBe(
+      'UKC'
+    );
     expect(mapReplicatedTrialToDbRow(makeReplicated({ registryId: 'ASCA' })).registry_id).toBe(
       'ASCA'
     );
@@ -104,9 +106,9 @@ describe('mapReplicatedTrialToDbRow — timezone carry (replication fallback pat
   // `timezone`, so the row reaching mapDatabaseToTrial had no timezone key and
   // getTrialTimezone fell back to 'America/New_York' on the warm service path.
   it('emits timezone on the DB row', () => {
-    expect(mapReplicatedTrialToDbRow(makeReplicated({ timezone: 'America/Chicago' })).timezone).toBe(
-      'America/Chicago'
-    );
+    expect(
+      mapReplicatedTrialToDbRow(makeReplicated({ timezone: 'America/Chicago' })).timezone
+    ).toBe('America/Chicago');
   });
 
   it('survives the full replicated → DB row → domain round-trip', () => {

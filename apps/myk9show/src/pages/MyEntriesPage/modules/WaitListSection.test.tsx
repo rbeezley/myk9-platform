@@ -67,7 +67,9 @@ describe('WaitListSection offered payment recovery', () => {
       paymentErrorOfferId: 'offer-1',
     });
 
-    expect(screen.getByText('Your spot is still held. Please try payment again.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Your spot is still held. Please try payment again.')
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try payment again' }));
     expect(props.onStartPayment).toHaveBeenCalledWith('entry-1', 'offer-1');
   });
@@ -118,7 +120,9 @@ describe('WaitListSection offered payment recovery', () => {
     rerender(
       <WaitListSection
         {...props}
-        entries={[{ ...ACTIVE_OFFER, status: 'expired', offerExpiresAt: '2026-07-12T10:00:00.000Z' }]}
+        entries={[
+          { ...ACTIVE_OFFER, status: 'expired', offerExpiresAt: '2026-07-12T10:00:00.000Z' },
+        ]}
       />
     );
     expect(screen.getByText('This offer has expired.')).toBeInTheDocument();

@@ -69,10 +69,7 @@ describe('buildSubmittedEntryProjection', () => {
       'deleted',
       'destination',
     ]);
-    expect(projection.activeEntries.map(entry => entry.id)).toEqual([
-      'owned',
-      'destination',
-    ]);
+    expect(projection.activeEntries.map(entry => entry.id)).toEqual(['owned', 'destination']);
     expect(projection.historyCount).toBe(3);
   });
 

@@ -22,7 +22,6 @@ import { saveDogPhoto, validateImageFile } from './utils';
 import { useRouteEntryFocus } from './useRouteEntryFocus';
 import type { DogDetailsMainProps } from './types';
 
-
 const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   dog,
   fromPerson,

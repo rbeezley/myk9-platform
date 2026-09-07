@@ -119,7 +119,8 @@ function runCli() {
 
   console.log('📦 Bundle budget check (initial-load payload)\n');
   console.log(`   Initial JS:   ${stats.initialJsKb} KB / ${BUDGETS.initialJsKb} KB`);
-  for (const f of stats.initialJsFiles) console.log(`      ${String(f.kb).padStart(8)} KB  ${f.file}`);
+  for (const f of stats.initialJsFiles)
+    console.log(`      ${String(f.kb).padStart(8)} KB  ${f.file}`);
   console.log(`   Initial CSS:  ${stats.initialCssKb} KB / ${BUDGETS.initialCssKb} KB`);
   console.log(
     `   Largest chunk: ${stats.largestChunk.kb} KB / ${BUDGETS.maxChunkKb} KB  (${stats.largestChunk.file})`

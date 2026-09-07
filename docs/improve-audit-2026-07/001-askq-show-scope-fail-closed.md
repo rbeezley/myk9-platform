@@ -25,8 +25,8 @@ The `ask-myk9show` edge function runs the AI assistant's data-lookup tools with
 a **service-role** Supabase client (`supabase/functions/ask-myk9show/index.ts:92`),
 which **bypasses Row-Level Security**. Tenant isolation for those tools rests
 entirely on one helper, `applyShowScope`, adding a `show_id` filter. That helper
-**fails open**: when no show scope is resolved, it returns the query with *no
-filter at all*, so a service-role query returns rows across **every club**.
+**fails open**: when no show scope is resolved, it returns the query with _no
+filter at all_, so a service-role query returns rows across **every club**.
 
 A user is given a resolved show scope only after an access check
 (`ask-myk9show/index.ts:186` — `hasAccess = roleCount > 0 || entryCount > 0`).
@@ -63,7 +63,7 @@ data, and a unit test pins that behavior.
     if (scope.licenseKey) {
       return query.eq('license_key', scope.licenseKey);
     }
-    return query;          // <-- FAILS OPEN: no scope → no filter → all clubs
+    return query; // <-- FAILS OPEN: no scope → no filter → all clubs
   }
   ```
 
@@ -86,23 +86,25 @@ data, and a unit test pins that behavior.
 
 ## Commands you will need
 
-| Purpose   | Command                                                                                   | Expected |
-|-----------|-------------------------------------------------------------------------------------------|----------|
-| Typecheck | `pnpm typecheck`                                                                          | exit 0   |
-| Lint      | `pnpm lint`                                                                               | exit 0   |
-| New test  | `cd apps/myk9show && npx vitest run supabase/functions/_shared/askq/showScope.test.ts`    | all pass |
+| Purpose   | Command                                                                                | Expected |
+| --------- | -------------------------------------------------------------------------------------- | -------- |
+| Typecheck | `pnpm typecheck`                                                                       | exit 0   |
+| Lint      | `pnpm lint`                                                                            | exit 0   |
+| New test  | `cd apps/myk9show && npx vitest run supabase/functions/_shared/askq/showScope.test.ts` | all pass |
 
 ## Scope
 
 **In scope** (only these):
+
 - `supabase/functions/_shared/askq/showScope.ts` (create)
 - `supabase/functions/_shared/askq/showScope.test.ts` (create)
 - `supabase/functions/_shared/askq/toolExecutor.ts` (edit: import + use the extracted helper; delete the inline one)
 
 **Out of scope** (do NOT touch):
+
 - `search_rules` / `search_user_guide` handling — these are intentionally global.
 - The access check in `ask-myk9show/index.ts` — it is correct; the bug is
-  purely that the *tool layer* fails open when it returns null. Do not change
+  purely that the _tool layer_ fails open when it returns null. Do not change
   how `verifiedShowId` is computed.
 - Any other edge function.
 
@@ -208,6 +210,7 @@ export function applyShowScope<Q extends { eq(column: string, value: unknown): Q
 ### Step 3: use the extracted helper in `toolExecutor.ts`
 
 In `supabase/functions/_shared/askq/toolExecutor.ts`:
+
 1. Delete the inline `applyShowScope` function (lines 13–22) **and** the inline
    `ShowScope` interface (lines 7–11).
 2. Add an import near the top (after the existing imports):
@@ -246,12 +249,12 @@ Then `grep -n "function applyShowScope" supabase/functions/_shared/askq/toolExec
   different shape than `{ showId?, licenseKey? }` — STOP.
 - Any show-data tool (`get_class_summary`, `get_entry_results`,
   `get_trial_overview`, `search_entries`) turns out **not** to route through
-  `applyShowScope` — that is a *second* leak; STOP and report it rather than
+  `applyShowScope` — that is a _second_ leak; STOP and report it rather than
   patching ad hoc.
 
 ## Maintenance notes
 
-- **This helper is a security boundary.** Any *new* AI tool that reads tenant
+- **This helper is a security boundary.** Any _new_ AI tool that reads tenant
   data must call `applyShowScope`. A reviewer should reject a new
   `serviceClient.from('<tenant table>')` in `toolExecutor.ts` that doesn't.
 - Deployment is out of scope here: after merge, a human must

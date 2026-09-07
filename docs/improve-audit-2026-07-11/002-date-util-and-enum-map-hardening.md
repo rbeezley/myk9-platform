@@ -9,6 +9,7 @@ Two small fail-soft gaps, both confirmed by reading:
 **(a)** `apps/myk9show/src/utils/date-format.ts:14-23` — `toLocalDateOnly` uses **local** getters (`getFullYear/getMonth/getDate`) after `new Date(isoStr)`. Its `if (!isoStr.includes('T')) return isoStr` guard saves bare `"YYYY-MM-DD"` inputs, but a timestamptz-midnight-UTC string (`"2026-05-15T00:00:00+00:00"`, the shape a DATE column can round-trip as) returns `"2026-05-14"` for US users — silently writing the wrong show date back on edit. Used on show fields in `pages/secretary/ShowCreationWizard/buildCreateShowPayload.ts:251-257`. The function's docstring says it exists for picker-local datetimes ("May 14 11:59 PM CDT" → `"2026-05-14"`), so the local-getter behavior is CORRECT for picker input — the fix is to make the UTC-midnight shape safe too, not to change picker semantics.
 
 **(b)** Unguarded map lookups that throw and blank the component if the DB enum gains a value ahead of the frontend:
+
 - `apps/myk9show/src/components/entries/PaymentPendingIndicator.tsx:174-175`: `const config = statusConfig[status]; const IconComponent = config.icon;`
 - `apps/myk9show/src/components/dogs/DogDetails/HealthRecords/HealthTimeline.tsx:186,212`: `eventTypeConfig[event.type].label`
 

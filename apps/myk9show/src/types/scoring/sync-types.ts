@@ -52,27 +52,17 @@ export interface SyncOperation {
 /**
  * Operation types
  */
-export type OperationType = 
-  | 'create'
-  | 'update'
-  | 'delete'
-  | 'batch';
+export type OperationType = 'create' | 'update' | 'delete' | 'batch';
 
 /**
  * Entity types that can be synced
  */
-export type EntityType = 
-  | 'score'
-  | 'entry'
-  | 'placement'
-  | 'note'
-  | 'photo'
-  | 'session';
+export type EntityType = 'score' | 'entry' | 'placement' | 'note' | 'photo' | 'session';
 
 /**
  * Action types
  */
-export type ActionType = 
+export type ActionType =
   | 'submit_score'
   | 'update_score'
   | 'delete_score'
@@ -105,7 +95,7 @@ export interface SyncConflict {
 /**
  * Types of conflicts
  */
-export type ConflictType = 
+export type ConflictType =
   | 'version_mismatch'
   | 'duplicate_entry'
   | 'deleted_remotely'
@@ -138,13 +128,13 @@ export interface ConflictResolution {
 /**
  * Resolution strategies
  */
-export type ResolutionStrategy = 
-  | 'local_wins'      // Keep local version
-  | 'remote_wins'     // Keep remote version
-  | 'merge'           // Merge changes
-  | 'manual'          // User decides
-  | 'latest_wins'     // Most recent timestamp
-  | 'highest_wins'    // Highest score (for scores)
+export type ResolutionStrategy =
+  | 'local_wins' // Keep local version
+  | 'remote_wins' // Keep remote version
+  | 'merge' // Merge changes
+  | 'manual' // User decides
+  | 'latest_wins' // Most recent timestamp
+  | 'highest_wins' // Highest score (for scores)
   | 'judge_override'; // Judge's version wins
 
 // ============================================
@@ -222,12 +212,12 @@ export interface ConnectionQuality {
 /**
  * Connection recommendations
  */
-export type ConnectionRecommendation = 
-  | 'sync_now'           // Good connection, sync immediately
-  | 'sync_when_better'   // Poor connection, wait
-  | 'batch_sync'         // Batch operations for efficiency
-  | 'offline_mode'       // Stay offline
-  | 'retry_later';       // Temporary issue
+export type ConnectionRecommendation =
+  | 'sync_now' // Good connection, sync immediately
+  | 'sync_when_better' // Poor connection, wait
+  | 'batch_sync' // Batch operations for efficiency
+  | 'offline_mode' // Stay offline
+  | 'retry_later'; // Temporary issue
 
 // ============================================
 // Sync Protocol Types
@@ -328,7 +318,7 @@ export interface SyncEvent {
 /**
  * Types of sync events
  */
-export type SyncEventType = 
+export type SyncEventType =
   | 'sync_started'
   | 'sync_completed'
   | 'sync_failed'

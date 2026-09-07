@@ -12,7 +12,7 @@ import type {
   SortType,
   SectionFilter,
   EntryListFiltersOptions,
-  EntryListFiltersReturn
+  EntryListFiltersReturn,
 } from '../types';
 
 // =============================================================================
@@ -68,7 +68,7 @@ function createSortComparators<T extends BaseEntry>(): Record<SortType, SortComp
 
     handler: (a, b) => (a.handler || '').localeCompare(b.handler || ''),
 
-    breed: (a, b) => (a.breed || '').localeCompare(b.breed || '')
+    breed: (a, b) => (a.breed || '').localeCompare(b.breed || ''),
   };
 }
 
@@ -143,7 +143,7 @@ export function useEntryListFilters<T extends BaseEntry>({
   prioritizeInRing = false,
   deprioritizePulled = false,
   manualOrder,
-  defaultSort = 'armband'
+  defaultSort = 'armband',
 }: EntryListFiltersOptions<T>): EntryListFiltersReturn<T> {
   // Filter and sort state
   const [activeTab, setActiveTab] = useState<TabType>('pending');
@@ -183,10 +183,13 @@ export function useEntryListFilters<T extends BaseEntry>({
   }, []);
 
   /** Filter entries by section (for combined view) */
-  const filterBySection = useCallback((entry: T, section: SectionFilter): boolean => {
-    if (!supportSectionFilter || section === 'all') return true;
-    return entry.section === section;
-  }, [supportSectionFilter]);
+  const filterBySection = useCallback(
+    (entry: T, section: SectionFilter): boolean => {
+      if (!supportSectionFilter || section === 'all') return true;
+      return entry.section === section;
+    },
+    [supportSectionFilter]
+  );
 
   /** Filter entries by search term */
   const filterBySearch = useCallback((entry: T, term: string): boolean => {
@@ -209,15 +212,18 @@ export function useEntryListFilters<T extends BaseEntry>({
    * Sort entries with priority handling and type-specific comparators.
    * Uses pre-computed manualOrderMap for O(1) lookups.
    */
-  const sortEntries = useCallback((a: T, b: T, sortType: SortType): number => {
-    // Check priority first (in-ring first, pulled last)
-    const priorityDiff = getPriorityDiff(a, b, prioritizeInRing, deprioritizePulled);
-    if (priorityDiff !== 0) return priorityDiff;
+  const sortEntries = useCallback(
+    (a: T, b: T, sortType: SortType): number => {
+      // Check priority first (in-ring first, pulled last)
+      const priorityDiff = getPriorityDiff(a, b, prioritizeInRing, deprioritizePulled);
+      if (priorityDiff !== 0) return priorityDiff;
 
-    // Apply sort-type specific comparator
-    const comparator = sortComparators[sortType];
-    return comparator(a, b, { manualOrderMap });
-  }, [prioritizeInRing, deprioritizePulled, manualOrderMap, sortComparators]);
+      // Apply sort-type specific comparator
+      const comparator = sortComparators[sortType];
+      return comparator(a, b, { manualOrderMap });
+    },
+    [prioritizeInRing, deprioritizePulled, manualOrderMap, sortComparators]
+  );
 
   // ==========================================================================
   // COMPUTED VALUES
@@ -225,22 +231,33 @@ export function useEntryListFilters<T extends BaseEntry>({
 
   /** Filtered and sorted entries */
   const filteredEntries = useMemo(() => {
-    const filtered = entries.filter((entry) =>
-      filterByTab(entry, activeTab) &&
-      filterBySection(entry, sectionFilter) &&
-      filterBySearch(entry, searchTerm)
+    const filtered = entries.filter(
+      entry =>
+        filterByTab(entry, activeTab) &&
+        filterBySection(entry, sectionFilter) &&
+        filterBySearch(entry, searchTerm)
     );
 
     // Sort the filtered entries (create copy to avoid mutating)
     return [...filtered].sort((a, b) => sortEntries(a, b, sortBy));
-  }, [entries, activeTab, sectionFilter, searchTerm, sortBy, filterByTab, filterBySection, filterBySearch, sortEntries]);
+  }, [
+    entries,
+    activeTab,
+    sectionFilter,
+    searchTerm,
+    sortBy,
+    filterByTab,
+    filterBySection,
+    filterBySearch,
+    sortEntries,
+  ]);
 
   /**
    * Count entries by tab
    */
   const entryCounts = useMemo(() => {
-    const pending = entries.filter((e) => filterByTab(e, 'pending')).length;
-    const completed = entries.filter((e) => filterByTab(e, 'completed')).length;
+    const pending = entries.filter(e => filterByTab(e, 'pending')).length;
+    const completed = entries.filter(e => filterByTab(e, 'completed')).length;
     return { pending, completed };
   }, [entries, filterByTab]);
 
@@ -248,7 +265,10 @@ export function useEntryListFilters<T extends BaseEntry>({
    * Pending and completed entries (filtered by tab, search, section)
    */
   const pendingEntries = useMemo(() => filteredEntries.filter(e => !e.isScored), [filteredEntries]);
-  const completedEntries = useMemo(() => filteredEntries.filter(e => e.isScored), [filteredEntries]);
+  const completedEntries = useMemo(
+    () => filteredEntries.filter(e => e.isScored),
+    [filteredEntries]
+  );
 
   /**
    * Count entries by section (for combined view)
@@ -257,8 +277,8 @@ export function useEntryListFilters<T extends BaseEntry>({
     if (!supportSectionFilter) return null;
     return {
       all: entries.length,
-      A: entries.filter((e) => e.section === 'A').length,
-      B: entries.filter((e) => e.section === 'B').length
+      A: entries.filter(e => e.section === 'A').length,
+      B: entries.filter(e => e.section === 'B').length,
     };
   }, [entries, supportSectionFilter]);
 
@@ -296,6 +316,6 @@ export function useEntryListFilters<T extends BaseEntry>({
 
     // Helpers
     supportManualSort,
-    supportSectionFilter
+    supportSectionFilter,
   };
 }

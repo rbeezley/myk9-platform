@@ -1,6 +1,6 @@
 /**
  * Agility Scoresheet Component
- * 
+ *
  * Specialized scoring interface for Agility competitions.
  * Handles time + faults scoring with real-time placement calculations.
  */
@@ -42,7 +42,7 @@ export function AgilityScoresheet({
   onSave,
   onCancel,
   validationErrors,
-  className
+  className,
 }: AgilityScoresheetProps) {
   const { user } = useAuthContext();
 
@@ -63,43 +63,49 @@ export function AgilityScoresheet({
     timestamp: new Date(),
     version: 1,
     lastModified: new Date(),
-    syncStatus: 'pending'
+    syncStatus: 'pending',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate total faults
-  const calculateTotalFaults = useCallback((jumpFaults: number, refusals: number, otherFaults: number) => {
-    return (jumpFaults * 5) + (refusals * 20) + otherFaults;
-  }, []);
+  const calculateTotalFaults = useCallback(
+    (jumpFaults: number, refusals: number, otherFaults: number) => {
+      return jumpFaults * 5 + refusals * 20 + otherFaults;
+    },
+    []
+  );
 
   // Update score with automatic calculations
-  const updateScore = useCallback((updates: Partial<AgilityScore>) => {
-    setScore(prev => {
-      const newScore = { ...prev, ...updates };
-      
-      // Recalculate total faults if fault counts changed
-      if ('jumpFaults' in updates || 'refusals' in updates || 'otherFaults' in updates) {
-        newScore.totalFaults = calculateTotalFaults(
-          newScore.jumpFaults || 0,
-          newScore.refusals || 0,
-          newScore.otherFaults || 0
-        );
-      }
+  const updateScore = useCallback(
+    (updates: Partial<AgilityScore>) => {
+      setScore(prev => {
+        const newScore = { ...prev, ...updates };
 
-      // Auto-determine qualification based on faults and eliminations
-      if (newScore.excusedEliminated || (newScore.refusals || 0) >= 3) {
-        newScore.qualification = 'Not Qualified';
-        if (newScore.refusals && newScore.refusals >= 3) {
-          newScore.eliminationReason = 'Three refusals';
+        // Recalculate total faults if fault counts changed
+        if ('jumpFaults' in updates || 'refusals' in updates || 'otherFaults' in updates) {
+          newScore.totalFaults = calculateTotalFaults(
+            newScore.jumpFaults || 0,
+            newScore.refusals || 0,
+            newScore.otherFaults || 0
+          );
         }
-      } else if (newScore.totalFaults === 0) {
-        newScore.qualification = 'Qualified';
-      }
 
-      return newScore;
-    });
-  }, [calculateTotalFaults]);
+        // Auto-determine qualification based on faults and eliminations
+        if (newScore.excusedEliminated || (newScore.refusals || 0) >= 3) {
+          newScore.qualification = 'Not Qualified';
+          if (newScore.refusals && newScore.refusals >= 3) {
+            newScore.eliminationReason = 'Three refusals';
+          }
+        } else if (newScore.totalFaults === 0) {
+          newScore.qualification = 'Qualified';
+        }
+
+        return newScore;
+      });
+    },
+    [calculateTotalFaults]
+  );
 
   const handleSubmit = async () => {
     if (!score.courseTime || score.qualification === undefined) {
@@ -160,7 +166,7 @@ export function AgilityScoresheet({
                 step="0.01"
                 min="0"
                 value={score.courseTime ? (score.courseTime / 1000).toFixed(2) : ''}
-                onChange={(e) => {
+                onChange={e => {
                   const seconds = parseFloat(e.target.value) || 0;
                   updateScore({ courseTime: seconds * 1000 });
                 }}
@@ -175,7 +181,7 @@ export function AgilityScoresheet({
                 step="0.01"
                 min="0"
                 value={score.standardCourseTime ? (score.standardCourseTime / 1000).toFixed(2) : ''}
-                onChange={(e) => {
+                onChange={e => {
                   const seconds = parseFloat(e.target.value) || 0;
                   updateScore({ standardCourseTime: seconds * 1000 });
                 }}
@@ -200,7 +206,7 @@ export function AgilityScoresheet({
                 type="number"
                 min="0"
                 value={score.jumpFaults || 0}
-                onChange={(e) => updateScore({ jumpFaults: parseInt(e.target.value) || 0 })}
+                onChange={e => updateScore({ jumpFaults: parseInt(e.target.value) || 0 })}
               />
             </div>
             <div>
@@ -211,7 +217,7 @@ export function AgilityScoresheet({
                 min="0"
                 max="3"
                 value={score.refusals || 0}
-                onChange={(e) => updateScore({ refusals: parseInt(e.target.value) || 0 })}
+                onChange={e => updateScore({ refusals: parseInt(e.target.value) || 0 })}
               />
             </div>
             <div>
@@ -221,25 +227,21 @@ export function AgilityScoresheet({
                 type="number"
                 min="0"
                 value={score.otherFaults || 0}
-                onChange={(e) => updateScore({ otherFaults: parseInt(e.target.value) || 0 })}
+                onChange={e => updateScore({ otherFaults: parseInt(e.target.value) || 0 })}
               />
             </div>
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
             <div className="text-center">
-              <span className="text-lg font-bold">
-                Total Faults: {score.totalFaults || 0}
-              </span>
+              <span className="text-lg font-bold">Total Faults: {score.totalFaults || 0}</span>
             </div>
           </div>
 
           {(score.refusals || 0) >= 3 && (
             <Alert>
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Three refusals result in elimination.
-              </AlertDescription>
+              <AlertDescription>Three refusals result in elimination.</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -257,7 +259,9 @@ export function AgilityScoresheet({
               <select
                 className="w-full mt-1 px-3 py-2 border rounded-md"
                 value={score.qualification || 'Qualified'}
-                onChange={(e) => updateScore({ qualification: e.target.value as QualificationStatus })}
+                onChange={e =>
+                  updateScore({ qualification: e.target.value as QualificationStatus })
+                }
               >
                 <option value="Qualified">Qualified</option>
                 <option value="Not Qualified">Not Qualified</option>
@@ -271,7 +275,7 @@ export function AgilityScoresheet({
                 type="checkbox"
                 id="eliminated"
                 checked={score.excusedEliminated || false}
-                onChange={(e) => updateScore({ excusedEliminated: e.target.checked })}
+                onChange={e => updateScore({ excusedEliminated: e.target.checked })}
               />
               <Label htmlFor="eliminated">Excused/Eliminated</Label>
             </div>
@@ -283,7 +287,7 @@ export function AgilityScoresheet({
               <Input
                 id="eliminationReason"
                 value={score.eliminationReason || ''}
-                onChange={(e) => updateScore({ eliminationReason: e.target.value })}
+                onChange={e => updateScore({ eliminationReason: e.target.value })}
                 placeholder="Reason for elimination"
               />
             </div>
@@ -310,10 +314,7 @@ export function AgilityScoresheet({
         <Button variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={!isComplete || isSubmitting}
-        >
+        <Button onClick={handleSubmit} disabled={!isComplete || isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save Score'}
         </Button>
       </div>

@@ -37,13 +37,13 @@ export default tseslint.config(
         'error',
         {
           selector:
-            "Literal[value=/dark:(text|bg|border)-(red|blue|amber|orange|yellow|green|emerald)-\\d+/]",
+            'Literal[value=/dark:(text|bg|border)-(red|blue|amber|orange|yellow|green|emerald)-\\d+/]',
           message:
             'Hand-paired dark: status classes are banned. Use semantic tokens: text-destructive / text-info / text-warning / text-success (and bg-*/10, border-*/30 variants).',
         },
         {
           selector:
-            "TemplateElement[value.raw=/dark:(text|bg|border)-(red|blue|amber|orange|yellow|green|emerald)-\\d+/]",
+            'TemplateElement[value.raw=/dark:(text|bg|border)-(red|blue|amber|orange|yellow|green|emerald)-\\d+/]',
           message:
             'Hand-paired dark: status classes are banned. Use semantic tokens: text-destructive / text-info / text-warning / text-success (and bg-*/10, border-*/30 variants).',
         },

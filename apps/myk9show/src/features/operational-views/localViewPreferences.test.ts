@@ -105,7 +105,7 @@ describe('cross-show rejection', () => {
 });
 
 describe('user-namespace isolation', () => {
-  it('does not restore another user\'s saved view', () => {
+  it("does not restore another user's saved view", () => {
     const storage = createMemoryStorage();
     saveLocalView(storage, 'user-1', showScope, entryView);
     const restored = restoreLocalView(storage, 'user-2', 'entry-management', showScope);
@@ -120,7 +120,7 @@ describe('user-namespace isolation', () => {
     expect(keyA).not.toBe(keyC);
   });
 
-  it('clearAllLocalViewsForUser only removes the target user\'s keys', () => {
+  it("clearAllLocalViewsForUser only removes the target user's keys", () => {
     const storage = createMemoryStorage();
     saveLocalView(storage, 'user-1', showScope, entryView);
     saveLocalView(storage, 'user-1', showScope, classView);

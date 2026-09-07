@@ -48,10 +48,7 @@ export {
   type FieldGuideDataGridCell,
 } from './components/FieldGuideDataGrid';
 
-export {
-  FieldGuideDarkBand,
-  type FieldGuideDarkBandProps,
-} from './components/FieldGuideDarkBand';
+export { FieldGuideDarkBand, type FieldGuideDarkBandProps } from './components/FieldGuideDarkBand';
 
 export {
   FieldGuideTable,

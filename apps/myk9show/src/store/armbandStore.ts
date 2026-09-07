@@ -45,29 +45,38 @@ interface ArmbandState {
   assignments: ArmbandAssignment[];
   ranges: ArmbandRange[];
   conflicts: ArmbandConflict[];
-  
+
   // Assignment methods
   assignArmband: (assignment: Omit<ArmbandAssignment, 'id' | 'assignedDate'>) => ArmbandAssignment;
   unassignArmband: (assignmentId: string) => void;
   updateAssignment: (assignmentId: string, update: Partial<ArmbandAssignment>) => void;
-  
+
   // Range management
   createRange: (range: Omit<ArmbandRange, 'id' | 'currentNumber'>) => ArmbandRange;
   updateRange: (rangeId: string, update: Partial<ArmbandRange>) => void;
   deleteRange: (rangeId: string) => void;
   getNextAvailableNumber: (showId: string, options?: NumberOptions) => string;
-  
+
   // Conflict detection
-  checkConflicts: (showId: string, armbandNumber: string, dogId: string, options?: ConflictOptions) => ArmbandConflict | null;
+  checkConflicts: (
+    showId: string,
+    armbandNumber: string,
+    dogId: string,
+    options?: ConflictOptions
+  ) => ArmbandConflict | null;
   resolveConflict: (conflictId: string, resolution: ConflictResolution) => void;
-  
+
   // Queries
   getAssignmentsByShow: (showId: string) => ArmbandAssignment[];
   getAssignmentsByDog: (dogId: string) => ArmbandAssignment[];
-  getAssignmentByShowAndDog: (showId: string, dogId: string, dayNumber?: number) => ArmbandAssignment | undefined;
+  getAssignmentByShowAndDog: (
+    showId: string,
+    dogId: string,
+    dayNumber?: number
+  ) => ArmbandAssignment | undefined;
   getRangesByShow: (showId: string) => ArmbandRange[];
   getConflictsByShow: (showId: string) => ArmbandConflict[];
-  
+
   // Utilities
   resetShowAssignments: (showId: string) => void;
   exportAssignments: (showId: string) => ExportData;
@@ -107,15 +116,15 @@ export const useArmbandStore = create<ArmbandState>()(
       assignments: [],
       ranges: [],
       conflicts: [],
-      
-      assignArmband: (assignment) => {
+
+      assignArmband: assignment => {
         const id = `armband_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newAssignment: ArmbandAssignment = {
           ...assignment,
           id,
-          assignedDate: new Date().toISOString()
+          assignedDate: new Date().toISOString(),
         };
-        
+
         // Check for conflicts
         const conflict = get().checkConflicts(
           assignment.showId,
@@ -124,117 +133,118 @@ export const useArmbandStore = create<ArmbandState>()(
           {
             trialId: assignment.trialId,
             ringId: assignment.ringId,
-            dayNumber: assignment.dayNumber
+            dayNumber: assignment.dayNumber,
           }
         );
-        
+
         if (conflict && !assignment.isManualOverride) {
           throw new Error(`Armband conflict: ${conflict.reason}`);
         }
-        
-        set((state) => ({
+
+        set(state => ({
           assignments: [...state.assignments, newAssignment],
-          conflicts: conflict ? [...state.conflicts, conflict] : state.conflicts
+          conflicts: conflict ? [...state.conflicts, conflict] : state.conflicts,
         }));
-        
+
         // Update range current number if applicable
-        const range = get().ranges.find(r => 
-          r.showId === assignment.showId &&
-          r.trialId === assignment.trialId &&
-          r.ringId === assignment.ringId &&
-          r.dayNumber === assignment.dayNumber
+        const range = get().ranges.find(
+          r =>
+            r.showId === assignment.showId &&
+            r.trialId === assignment.trialId &&
+            r.ringId === assignment.ringId &&
+            r.dayNumber === assignment.dayNumber
         );
-        
+
         if (range && !assignment.isManualOverride) {
           const numberPart = parseInt(assignment.armbandNumber.replace(range.prefix || '', ''));
           if (numberPart === range.currentNumber) {
             get().updateRange(range.id, { currentNumber: range.currentNumber + 1 });
           }
         }
-        
+
         return newAssignment;
       },
-      
-      unassignArmband: (assignmentId) => {
-        set((state) => ({
-          assignments: state.assignments.filter(a => a.id !== assignmentId)
+
+      unassignArmband: assignmentId => {
+        set(state => ({
+          assignments: state.assignments.filter(a => a.id !== assignmentId),
         }));
       },
-      
+
       updateAssignment: (assignmentId, update) => {
-        set((state) => ({
+        set(state => ({
           assignments: state.assignments.map(a =>
             a.id === assignmentId ? { ...a, ...update } : a
-          )
+          ),
         }));
       },
-      
-      createRange: (range) => {
+
+      createRange: range => {
         const id = `range_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newRange: ArmbandRange = {
           ...range,
           id,
-          currentNumber: range.startNumber
+          currentNumber: range.startNumber,
         };
-        
-        set((state) => ({
-          ranges: [...state.ranges, newRange]
+
+        set(state => ({
+          ranges: [...state.ranges, newRange],
         }));
-        
+
         return newRange;
       },
-      
+
       updateRange: (rangeId, update) => {
-        set((state) => ({
-          ranges: state.ranges.map(r =>
-            r.id === rangeId ? { ...r, ...update } : r
-          )
+        set(state => ({
+          ranges: state.ranges.map(r => (r.id === rangeId ? { ...r, ...update } : r)),
         }));
       },
-      
-      deleteRange: (rangeId) => {
-        set((state) => ({
-          ranges: state.ranges.filter(r => r.id !== rangeId)
+
+      deleteRange: rangeId => {
+        set(state => ({
+          ranges: state.ranges.filter(r => r.id !== rangeId),
         }));
       },
-      
+
       getNextAvailableNumber: (showId, options = {}) => {
-        const ranges = get().ranges.filter(r => 
-          r.showId === showId &&
-          (!options.trialId || r.trialId === options.trialId) &&
-          (!options.ringId || r.ringId === options.ringId) &&
-          (!options.dayNumber || r.dayNumber === options.dayNumber)
+        const ranges = get().ranges.filter(
+          r =>
+            r.showId === showId &&
+            (!options.trialId || r.trialId === options.trialId) &&
+            (!options.ringId || r.ringId === options.ringId) &&
+            (!options.dayNumber || r.dayNumber === options.dayNumber)
         );
-        
+
         // Find the appropriate range
         const range = ranges[0] || {
           prefix: options.prefix || '',
           currentNumber: 1,
-          endNumber: 9999
+          endNumber: 9999,
         };
-        
+
         // Check if current number is already assigned
         const assignments = get().getAssignmentsByShow(showId);
         let nextNumber = range.currentNumber;
         let armbandNumber = `${range.prefix || ''}${nextNumber}`;
-        
-        while (assignments.some(a => a.armbandNumber === armbandNumber) && nextNumber <= range.endNumber) {
+
+        while (
+          assignments.some(a => a.armbandNumber === armbandNumber) &&
+          nextNumber <= range.endNumber
+        ) {
           nextNumber++;
           armbandNumber = `${range.prefix || ''}${nextNumber}`;
         }
-        
+
         return armbandNumber;
       },
-      
+
       checkConflicts: (showId, armbandNumber, dogId, options = {}) => {
-        const assignments = get().assignments.filter(a => 
-          a.showId === showId &&
-          a.armbandNumber === armbandNumber &&
-          a.dogId !== dogId
+        const assignments = get().assignments.filter(
+          a => a.showId === showId && a.armbandNumber === armbandNumber && a.dogId !== dogId
         );
-        
+
         if (assignments.length === 0) return null;
-        
+
         // Check specific conflict scenarios
         const conflictingAssignments = assignments.filter(a => {
           // Same day conflict
@@ -248,21 +258,31 @@ export const useArmbandStore = create<ArmbandState>()(
           // Default: conflict if no specific options provided
           return !options.dayNumber && !options.trialId && !options.ringId;
         });
-        
+
         if (conflictingAssignments.length === 0) return null;
-        
+
         return {
           armbandNumber,
           dogIds: [dogId, ...conflictingAssignments.map(a => a.dogId)],
-          trialIds: Array.from(new Set(conflictingAssignments.map(a => a.trialId).filter(Boolean))) as string[],
-          ringIds: Array.from(new Set(conflictingAssignments.map(a => a.ringId).filter(Boolean))) as string[],
-          dayNumbers: Array.from(new Set(conflictingAssignments.map(a => a.dayNumber).filter(Boolean))) as number[],
-          reason: `Armband ${armbandNumber} is already assigned to ${conflictingAssignments.length} other dog(s)`
+          trialIds: Array.from(
+            new Set(conflictingAssignments.map(a => a.trialId).filter(Boolean))
+          ) as string[],
+          ringIds: Array.from(
+            new Set(conflictingAssignments.map(a => a.ringId).filter(Boolean))
+          ) as string[],
+          dayNumbers: Array.from(
+            new Set(conflictingAssignments.map(a => a.dayNumber).filter(Boolean))
+          ) as number[],
+          reason: `Armband ${armbandNumber} is already assigned to ${conflictingAssignments.length} other dog(s)`,
         };
       },
-      
+
       resolveConflict: (conflictId, resolution) => {
-        const conflict = get().conflicts.find((_, index) => `conflict_${index}` === conflictId || get().conflicts.indexOf(_) === parseInt(conflictId));
+        const conflict = get().conflicts.find(
+          (_, index) =>
+            `conflict_${index}` === conflictId ||
+            get().conflicts.indexOf(_) === parseInt(conflictId)
+        );
         if (!conflict) return;
 
         const conflictingAssignments = get().assignments.filter(
@@ -272,7 +292,9 @@ export const useArmbandStore = create<ArmbandState>()(
         switch (resolution.action) {
           case 'reassign': {
             if (!resolution.newArmbandNumber || !resolution.targetDogId) return;
-            const targetAssignment = conflictingAssignments.find(a => a.dogId === resolution.targetDogId);
+            const targetAssignment = conflictingAssignments.find(
+              a => a.dogId === resolution.targetDogId
+            );
             if (targetAssignment) {
               get().updateAssignment(targetAssignment.id, {
                 armbandNumber: resolution.newArmbandNumber,
@@ -301,92 +323,92 @@ export const useArmbandStore = create<ArmbandState>()(
           }
           case 'override': {
             if (!resolution.targetDogId) return;
-            const otherAssignments = conflictingAssignments.filter(a => a.dogId !== resolution.targetDogId);
+            const otherAssignments = conflictingAssignments.filter(
+              a => a.dogId !== resolution.targetDogId
+            );
             otherAssignments.forEach(a => get().unassignArmband(a.id));
             break;
           }
         }
 
-        set((state) => ({
+        set(state => ({
           conflicts: state.conflicts.filter(c => c.armbandNumber !== conflict.armbandNumber),
         }));
       },
-      
-      getAssignmentsByShow: (showId) => {
+
+      getAssignmentsByShow: showId => {
         return get().assignments.filter(a => a.showId === showId);
       },
-      
-      getAssignmentsByDog: (dogId) => {
+
+      getAssignmentsByDog: dogId => {
         return get().assignments.filter(a => a.dogId === dogId);
       },
-      
+
       getAssignmentByShowAndDog: (showId, dogId, dayNumber) => {
-        return get().assignments.find(a => 
-          a.showId === showId && 
-          a.dogId === dogId &&
-          (!dayNumber || a.dayNumber === dayNumber)
+        return get().assignments.find(
+          a => a.showId === showId && a.dogId === dogId && (!dayNumber || a.dayNumber === dayNumber)
         );
       },
-      
-      getRangesByShow: (showId) => {
+
+      getRangesByShow: showId => {
         return get().ranges.filter(r => r.showId === showId);
       },
-      
-      getConflictsByShow: (showId) => {
+
+      getConflictsByShow: showId => {
         return get().conflicts.filter(c => {
           // Check if conflict involves assignments from this show
-          const assignments = get().assignments.filter(a => 
-            a.showId === showId && c.dogIds.includes(a.dogId)
+          const assignments = get().assignments.filter(
+            a => a.showId === showId && c.dogIds.includes(a.dogId)
           );
           return assignments.length > 0;
         });
       },
-      
-      resetShowAssignments: (showId) => {
-        set((state) => ({
+
+      resetShowAssignments: showId => {
+        set(state => ({
           assignments: state.assignments.filter(a => a.showId !== showId),
           conflicts: state.conflicts.filter(c => {
             const showAssignments = state.assignments.filter(a => a.showId === showId);
             return !c.dogIds.some(dogId => showAssignments.some(a => a.dogId === dogId));
-          })
+          }),
         }));
       },
-      
-      exportAssignments: (showId) => {
+
+      exportAssignments: showId => {
         const assignments = get().getAssignmentsByShow(showId);
         const ranges = get().getRangesByShow(showId);
-        
+
         return {
           assignments,
           ranges,
           exportDate: new Date().toISOString(),
-          showId
+          showId,
         };
       },
-      
+
       importAssignments: (showId, data) => {
         if (data.showId !== showId) {
           throw new Error('Show ID mismatch in import data');
         }
-        
+
         // Clear existing assignments for this show
         get().resetShowAssignments(showId);
-        
+
         // Import ranges
         data.ranges.forEach(range => {
           get().createRange(range);
         });
-        
+
         // Import assignments
         data.assignments.forEach(assignment => {
           get().assignArmband(assignment);
         });
-      }
+      },
     }),
     {
       name: 'armband-storage',
       storage: createJSONStorage(() => getOptimalStorage('armbands')),
-      partialize: (state) => ({
+      partialize: state => ({
         assignments: state.assignments,
         ranges: state.ranges,
         conflicts: state.conflicts,

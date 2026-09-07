@@ -242,10 +242,7 @@ describe('deliverStoredPacket', () => {
     // and a secretary who never got the mail needs the show team to see why.
     const { supabase, inserts } = makeStub();
     const sendEmail = vi.fn().mockRejectedValue(new TrialPacketProviderError(422));
-    await expectHttpError(
-      deliverStoredPacket(supabase, SHOW, PACKET, makeDeps(sendEmail)),
-      502,
-    );
+    await expectHttpError(deliverStoredPacket(supabase, SHOW, PACKET, makeDeps(sendEmail)), 502);
     expect(inserts).toHaveLength(1);
     expect(inserts[0]).toMatchObject({
       delivery_status: 'failed',
@@ -257,7 +254,7 @@ describe('deliverStoredPacket', () => {
     const { supabase, inserts } = makeStub();
     await expectHttpError(
       deliverStoredPacket(supabase, SHOW, PACKET, { ...makeDeps(), getEnv: () => undefined }),
-      503,
+      503
     );
     expect(inserts).toHaveLength(0);
   });
@@ -320,4 +317,3 @@ describe('the manual escape hatch', () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 });
-

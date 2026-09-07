@@ -55,7 +55,9 @@ describe('upsert_ringside_session — SA-011 passcode-throttle contract', () => 
   });
 
   it('takes the show scope from the claim, not from client input', () => {
-    expect(fn).toContain("v_claim_show_id := nullif((auth.jwt() -> 'app_metadata' ->> 'show_id'), '')");
+    expect(fn).toContain(
+      "v_claim_show_id := nullif((auth.jwt() -> 'app_metadata' ->> 'show_id'), '')"
+    );
     expect(fn).toContain('v_show_id := v_claim_show_id::uuid');
   });
 
@@ -65,9 +67,7 @@ describe('upsert_ringside_session — SA-011 passcode-throttle contract', () => 
 
   it('requires the push subscription to belong to the caller in both arms', () => {
     // Ownership check must appear in each arm (claim + account), not just one.
-    const ownershipChecks = fn.match(
-      /v_subscription_user_id is distinct from auth\.uid\(\)/g
-    );
+    const ownershipChecks = fn.match(/v_subscription_user_id is distinct from auth\.uid\(\)/g);
     expect(ownershipChecks).not.toBeNull();
     expect(ownershipChecks!.length).toBeGreaterThanOrEqual(2);
   });
@@ -87,6 +87,8 @@ describe('upsert_ringside_session — SA-011 passcode-throttle contract', () => 
       'grant execute on function public.upsert_ringside_session(text, text, text[], text) to authenticated'
     );
     // The un-throttled path was reachable by anon; the fix must not re-grant it.
-    expect(migration).not.toMatch(/grant execute on function public\.upsert_ringside_session[^;]*to[^;]*\banon\b/);
+    expect(migration).not.toMatch(
+      /grant execute on function public\.upsert_ringside_session[^;]*to[^;]*\banon\b/
+    );
   });
 });

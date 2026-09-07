@@ -200,7 +200,7 @@ export function buildMagazineConfirmationProps(
         ? [cls.level, cls.element ?? cls.name].filter(Boolean).join(' · ')
         : '—';
       return {
-        trialNumeral: trial ? trialNumeralMap.get(trial.id) ?? '—' : '—',
+        trialNumeral: trial ? (trialNumeralMap.get(trial.id) ?? '—') : '—',
         dayLabel: trial ? formatTrialDay(trial.date) : '—',
         classLabel,
         judgeName: judge?.judgeName ?? '—',
@@ -218,8 +218,7 @@ export function buildMagazineConfirmationProps(
   const trialChair = findTrialChair(officers, club.name);
   const venueStr = buildVenueString(show);
   const startYear = show.start_date ? new Date(show.start_date + 'T00:00:00').getFullYear() : null;
-  const editionLabel =
-    settings?.editionLabel ?? (startYear ? `Edition · ${startYear}` : 'Edition');
+  const editionLabel = settings?.editionLabel ?? (startYear ? `Edition · ${startYear}` : 'Edition');
 
   return {
     clubName: club.name,

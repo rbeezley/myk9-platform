@@ -15,66 +15,66 @@ const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
 
 // Table name mappings (plural to singular)
 const TABLE_MAPPINGS: Record<string, string> = {
-  'people': 'user',
-  'dogs': 'dog',
-  'shows': 'show',
-  'clubs': 'club',
-  'show_trials': 'trial',
-  'classes': 'class',
-  'entries': 'entry',
-  'results': 'result',
-  'dog_registrations': 'dog_registration',
-  'health_records': 'health_record',
-  'vaccinations': 'vaccination',
-  'medications': 'medication',
-  'allergies': 'allergy',
-  'vet_visits': 'vet_visit',
-  'achievements': 'achievement',
-  'judge_qualifications': 'judge_qualification',
-  'class_templates': 'class_template',
-  'show_templates': 'show_template',
-  'template_fields': 'template_field',
-  'template_rules': 'template_rule',
-  'sync_operations': 'sync_operation',
-  'sync_conflicts': 'sync_conflict',
-  'sync_logs': 'sync_log',
-  'user_preferences': 'user_preference',
-  'search_queries': 'search_query',
-  'search_results': 'search_result',
-  'audit_logs': 'audit_log',
+  people: 'user',
+  dogs: 'dog',
+  shows: 'show',
+  clubs: 'club',
+  show_trials: 'trial',
+  classes: 'class',
+  entries: 'entry',
+  results: 'result',
+  dog_registrations: 'dog_registration',
+  health_records: 'health_record',
+  vaccinations: 'vaccination',
+  medications: 'medication',
+  allergies: 'allergy',
+  vet_visits: 'vet_visit',
+  achievements: 'achievement',
+  judge_qualifications: 'judge_qualification',
+  class_templates: 'class_template',
+  show_templates: 'show_template',
+  template_fields: 'template_field',
+  template_rules: 'template_rule',
+  sync_operations: 'sync_operation',
+  sync_conflicts: 'sync_conflict',
+  sync_logs: 'sync_log',
+  user_preferences: 'user_preference',
+  search_queries: 'search_query',
+  search_results: 'search_result',
+  audit_logs: 'audit_log',
 };
 
 // Type and interface mappings
 const TYPE_MAPPINGS: Record<string, string> = {
-  'Person': 'User',
-  'People': 'Users',
-  'PersonType': 'UserType',
-  'PersonRole': 'UserRole',
+  Person: 'User',
+  People: 'Users',
+  PersonType: 'UserType',
+  PersonRole: 'UserRole',
 };
 
 // Store and hook mappings
 const STORE_MAPPINGS: Record<string, string> = {
-  'peopleStore': 'userStore',
-  'peopleSidebarStore': 'userSidebarStore',
-  'usePeopleStore': 'useUserStore',
-  'usePeople': 'useUsers',
-  'usePerson': 'useUser',
-  'usePeopleQuery': 'useUsersQuery',
+  peopleStore: 'userStore',
+  peopleSidebarStore: 'userSidebarStore',
+  usePeopleStore: 'useUserStore',
+  usePeople: 'useUsers',
+  usePerson: 'useUser',
+  usePeopleQuery: 'useUsersQuery',
 };
 
 // Component and method mappings
 const COMPONENT_MAPPINGS: Record<string, string> = {
-  'PeopleTable': 'UserTable',
-  'PeopleDetails': 'UserDetails',
-  'PeopleListPage': 'UserListPage',
-  'PersonCreationPanel': 'UserCreationPanel',
-  'AddPersonDialog': 'AddUserDialog',
-  'addPerson': 'addUser',
-  'updatePerson': 'updateUser',
-  'deletePerson': 'deleteUser',
-  'findPersonById': 'findUserById',
-  'onPersonSelect': 'onUserSelect',
-  'selectedPerson': 'selectedUser',
+  PeopleTable: 'UserTable',
+  PeopleDetails: 'UserDetails',
+  PeopleListPage: 'UserListPage',
+  PersonCreationPanel: 'UserCreationPanel',
+  AddPersonDialog: 'AddUserDialog',
+  addPerson: 'addUser',
+  updatePerson: 'updateUser',
+  deletePerson: 'deleteUser',
+  findPersonById: 'findUserById',
+  onPersonSelect: 'onUserSelect',
+  selectedPerson: 'selectedUser',
   'people-storage': 'user-storage',
 };
 
@@ -162,7 +162,7 @@ function replaceInFile(filePath: string): boolean {
       return `from '@/store/userStore'`;
     });
 
-    content = content.replace(/from\s+['"]\.\.?\/.*\/peopleStore['"]/g, (match) => {
+    content = content.replace(/from\s+['"]\.\.?\/.*\/peopleStore['"]/g, match => {
       replacements++;
       const path = match.match(/['"](.*)['"]/)?.[1] || '';
       return `from '${path.replace('peopleStore', 'userStore')}'`;
@@ -225,12 +225,7 @@ function main(): void {
   processDirectory(SRC_DIR);
 
   // Also process root config files
-  const rootFiles = [
-    'vite.config.ts',
-    'tsconfig.json',
-    'tsconfig.app.json',
-    'tsconfig.node.json',
-  ];
+  const rootFiles = ['vite.config.ts', 'tsconfig.json', 'tsconfig.app.json', 'tsconfig.node.json'];
 
   rootFiles.forEach(file => {
     const filePath = join(ROOT_DIR, file);

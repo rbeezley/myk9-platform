@@ -25,9 +25,9 @@ Code complete; **migration NOT yet pushed** (shared-DB — awaiting confirmation
   push); `publicReads.ts` casts the non-literal-`select` result via
   `as unknown as PublicEntryRow[]`.
 - **P1 anon count reads:** `useEntriesByShowQuery` (ShowDetailsPage catalog count
-  + 7 styled-landing hooks) still hit the revoked full `entries` read. Branched it
-  by auth like the other hooks (anon → `getPublicEntriesByShow`); secretary
-  workbench consumers stay on the table path. Added `useEntriesByShowQuery.test.ts`.
+  - 7 styled-landing hooks) still hit the revoked full `entries` read. Branched it
+    by auth like the other hooks (anon → `getPublicEntriesByShow`); secretary
+    workbench consumers stay on the table path. Added `useEntriesByShowQuery.test.ts`.
 
 Security follow-up from PR #777 self-review. The `results_released_at` (and the
 broader per-field visibility cascade) release gate for public class results is
@@ -52,7 +52,7 @@ entries — can directly query withheld scored columns.
    `immediate | class_complete | manual_release`. `results_released_at` only
    governs the `manual_release` timing. **Default preset is `open`** (qual/time/faults
    immediate, placement on class-complete) — so a flat `results_released_at IS NOT NULL`
-   predicate would *over-block* the default and break the public Podium / TV results.
+   predicate would _over-block_ the default and break the public Podium / TV results.
    Logic of record: [visibility-cascade.ts](../packages/secretary/src/visibility/visibility-cascade.ts).
 
 3. **Three public detail pages leak everything via `select('*')`.** Routes
@@ -99,8 +99,8 @@ bypasses any surface and queries the table directly. The grant revoke is require
 3. `REVOKE SELECT ON public.entries FROM anon;` then
    `GRANT SELECT (<safe allowlist>) ON public.entries TO anon;`
    Safe allowlist (identity/scheduling only): `id, class_id, trial_id, show_id,
-   dog_id, armband, handler, run_order, is_in_ring, is_scored, check_in_status,
-   entry_status, jump_height, created_at`. **Excludes** all scored + PII columns.
+dog_id, armband, handler, run_order, is_in_ring, is_scored, check_in_status,
+entry_status, jump_height, created_at`. **Excludes** all scored + PII columns.
    New columns are not auto-granted → default-safe.
 4. Drop the now-redundant `entries_anon_select_for_tv` policy (grant is the gate now)
    — or keep it; document. `NOTIFY pgrst`.

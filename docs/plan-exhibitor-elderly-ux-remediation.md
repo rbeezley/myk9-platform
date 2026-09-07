@@ -3,7 +3,6 @@
 > **Status:** Active — metadata reconciled 2026-09-05.
 > Open remediation and verification phases remain in the existing plan.
 
-
 **Date:** 2026-07-06  
 **Owner:** Codex  
 **Source audits:** `docs/audits/2026-07-06-exhibitor-elderly-browser-ux-audit.md`; `docs/ux-audits/exhibitor-entry-journey-elderly-ux-audit-2026-07-10.md`
@@ -232,13 +231,13 @@ Result: passed.
 
 **Entry-input inventory (2026-07-10):**
 
-| Surface | Previous input | Canonical rule after remediation |
-| --- | --- | --- |
-| Browse Shows | Per-account entered-show stubs plus the local entry store | The relationship may retain entry history, but `Entry Submitted` and active-entry counts use the shared lifecycle classifier and exclude terminal, pulled, deleted, or completed rows. |
-| Show Detail badge/default tab | Replication-backed `useEntriesByShowQuery` plus a second `useMyEntries` store snapshot | One owned-dog projection over the replication-backed per-show query. Active rows drive the badge/default tab. |
-| Show Detail `My Entries` count/body | Independent entry-store hooks | Owned visible history from the same route projection; the canonical rows are passed into the existing tab so a cold secondary store cannot render a false zero. |
-| Classes `My entry` | Locally derived active class IDs | The projection's active-class `Set`; terminal and pulled rows do not decorate a class. |
-| Registration | Existing-entry hook plus `entry_carts`/local selections | Submitted rows remain `Already entered`; selected cart-only classes are explicitly `In cart` and never enter the submitted-entry projection. |
+| Surface                             | Previous input                                                                         | Canonical rule after remediation                                                                                                                                                       |
+| ----------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browse Shows                        | Per-account entered-show stubs plus the local entry store                              | The relationship may retain entry history, but `Entry Submitted` and active-entry counts use the shared lifecycle classifier and exclude terminal, pulled, deleted, or completed rows. |
+| Show Detail badge/default tab       | Replication-backed `useEntriesByShowQuery` plus a second `useMyEntries` store snapshot | One owned-dog projection over the replication-backed per-show query. Active rows drive the badge/default tab.                                                                          |
+| Show Detail `My Entries` count/body | Independent entry-store hooks                                                          | Owned visible history from the same route projection; the canonical rows are passed into the existing tab so a cold secondary store cannot render a false zero.                        |
+| Classes `My entry`                  | Locally derived active class IDs                                                       | The projection's active-class `Set`; terminal and pulled rows do not decorate a class.                                                                                                 |
+| Registration                        | Existing-entry hook plus `entry_carts`/local selections                                | Submitted rows remain `Already entered`; selected cart-only classes are explicitly `In cart` and never enter the submitted-entry projection.                                           |
 
 The duplication question is resolved in favor of consolidation: no page, dashboard, dialog, or entry workflow was added. Existing surfaces now consume one route projection or the shared active-status classifier.
 

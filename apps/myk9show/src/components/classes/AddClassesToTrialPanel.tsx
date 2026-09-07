@@ -215,50 +215,50 @@ export const AddClassesToTrialPanel: React.FC<AddClassesToTrialPanelProps> = ({
       />
       <SlideOverPanel
         open={open}
-      onClose={onClose}
-      title={STEP_TITLES[currentStep]}
-      subtitle={getStepDescription()}
-      size="xl"
-      footer={footer}
-    >
-      <div className="p-6">
-        {currentStep === 'template' && (
-          <TemplateSelectionStep
-            availableTemplates={availableTemplates}
-            activeTemplates={activeTemplates}
-            selectedTemplateId={selectedTemplateId}
-            selectedTemplate={selectedTemplate}
-            trialOrganization={trialOrganization}
-            onSelectTemplate={setSelectedTemplateId}
-          />
-        )}
-        {currentStep === 'classes' && selectedTemplate && (
-          <div className="space-y-4">
-            <SimpleClassSelector
-              template={selectedTemplate}
-              selectedClasses={selectedClasses}
-              onSelectionChange={setSelectedClasses}
-              existingClasses={existingClasses}
-              availableJudges={availableJudges}
-              // The third consumer of this selector, and the same dead end: a saved
-              // show with an empty roster. Codex caught it missing here after the
-              // wizard and the dialog were wired.
-              {...(showId ? { addJudge: { showId } } : {})}
-              judgeAssignments={judgeAssignments}
-              onJudgeAssignmentChange={setJudgeAssignments}
+        onClose={onClose}
+        title={STEP_TITLES[currentStep]}
+        subtitle={getStepDescription()}
+        size="xl"
+        footer={footer}
+      >
+        <div className="p-6">
+          {currentStep === 'template' && (
+            <TemplateSelectionStep
+              availableTemplates={availableTemplates}
+              activeTemplates={activeTemplates}
+              selectedTemplateId={selectedTemplateId}
+              selectedTemplate={selectedTemplate}
+              trialOrganization={trialOrganization}
+              onSelectTemplate={setSelectedTemplateId}
             />
-          </div>
-        )}
-        {currentStep === 'confirmation' && selectedTemplate && selectedClasses.length > 0 && (
-          <ConfirmationStep
-            selectedTemplate={selectedTemplate}
-            selectedClasses={selectedClasses}
-            judgeAssignments={judgeAssignments}
-            availableJudges={availableJudges}
-          />
-        )}
-      </div>
-    </SlideOverPanel>
+          )}
+          {currentStep === 'classes' && selectedTemplate && (
+            <div className="space-y-4">
+              <SimpleClassSelector
+                template={selectedTemplate}
+                selectedClasses={selectedClasses}
+                onSelectionChange={setSelectedClasses}
+                existingClasses={existingClasses}
+                availableJudges={availableJudges}
+                // The third consumer of this selector, and the same dead end: a saved
+                // show with an empty roster. Codex caught it missing here after the
+                // wizard and the dialog were wired.
+                {...(showId ? { addJudge: { showId } } : {})}
+                judgeAssignments={judgeAssignments}
+                onJudgeAssignmentChange={setJudgeAssignments}
+              />
+            </div>
+          )}
+          {currentStep === 'confirmation' && selectedTemplate && selectedClasses.length > 0 && (
+            <ConfirmationStep
+              selectedTemplate={selectedTemplate}
+              selectedClasses={selectedClasses}
+              judgeAssignments={judgeAssignments}
+              availableJudges={availableJudges}
+            />
+          )}
+        </div>
+      </SlideOverPanel>
     </>
   );
 };

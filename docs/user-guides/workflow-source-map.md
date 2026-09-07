@@ -18,19 +18,19 @@ All sidebar-visible routes are now cataloged in `pageDirectory.ts` — there are
 
 These routes exist in `pageDirectory.ts` but should not appear in customer-facing documentation.
 
-| Route                   | Reason                                         |
-| ----------------------- | ---------------------------------------------- |
-| `/admin/load-testing`   | `classification: hidden`, dev-only             |
-| `/admin/sync`           | Internal telemetry                             |
-| `/admin/deleted-items`  | Internal admin recovery tool                   |
-| `/browse-shows`         | Backwards-compat redirect                      |
-| `/my-entries`           | Backwards-compat redirect                      |
-| `/registration`         | Legacy alias / stub                            |
-| `/trials/:trialId`      | Legacy path — document the nested path instead |
-| `/classes/:classId`     | Legacy path                                    |
-| `/judge/dashboard`      | `classification: park`, parked for fall        |
-| `/judge/assignments`    | `classification: park`, parked for fall        |
-| `/tv/:showId`           | Staff/venue internal tool                      |
+| Route                  | Reason                                         |
+| ---------------------- | ---------------------------------------------- |
+| `/admin/load-testing`  | `classification: hidden`, dev-only             |
+| `/admin/sync`          | Internal telemetry                             |
+| `/admin/deleted-items` | Internal admin recovery tool                   |
+| `/browse-shows`        | Backwards-compat redirect                      |
+| `/my-entries`          | Backwards-compat redirect                      |
+| `/registration`        | Legacy alias / stub                            |
+| `/trials/:trialId`     | Legacy path — document the nested path instead |
+| `/classes/:classId`    | Legacy path                                    |
+| `/judge/dashboard`     | `classification: park`, parked for fall        |
+| `/judge/assignments`   | `classification: park`, parked for fall        |
+| `/tv/:showId`          | Staff/venue internal tool                      |
 
 ---
 

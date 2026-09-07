@@ -40,9 +40,7 @@ async function enrichAuditPeople(entries: AuditLogEntry[]): Promise<AuditLogEntr
   return entries.map(entry => {
     const actor = entry.user_id ? people.get(entry.user_id) : undefined;
     const target =
-      entry.target_type === 'user' && entry.target_id
-        ? people.get(entry.target_id)
-        : undefined;
+      entry.target_type === 'user' && entry.target_id ? people.get(entry.target_id) : undefined;
     const targetDisplay = formatPersonLabel(target);
     return {
       ...entry,

@@ -200,11 +200,8 @@ const ShowDetailsPage: React.FC = () => {
   // still-'pending' visitor (who may yet land on it) pays nothing; the Results
   // tab itself reuses the same query key.
   const hasResultsTab = audience === 'exhibitor' || audience === 'management';
-  const showResultsQuery = useShowResults(
-    hasResultsTab && id && isValidUUID(id) ? id : undefined
-  );
+  const showResultsQuery = useShowResults(hasResultsTab && id && isValidUUID(id) ? id : undefined);
   const resultsCount = resolveResultsTabCount(showResultsQuery);
-
 
   // Tab state — URL-synced with dynamic allowed tabs
   const canShowMap = features.showMap && canManageShow;

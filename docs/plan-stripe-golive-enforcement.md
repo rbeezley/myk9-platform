@@ -6,7 +6,7 @@ Closes the three functional gaps that stand between the shipped capacity/waitlis
 
 **Scope notes (duplication check, per CLAUDE.md):**
 
-- The *operator* Stripe live-mode cutover is NOT this plan — it already exists as [operations/go-live-runbook.md](operations/go-live-runbook.md) Phase 3 (steps 3.1–3.10) + [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md). Do not re-author it.
+- The _operator_ Stripe live-mode cutover is NOT this plan — it already exists as [operations/go-live-runbook.md](operations/go-live-runbook.md) Phase 3 (steps 3.1–3.10) + [operations/stripe-platform-setup.md](operations/stripe-platform-setup.md). Do not re-author it.
 - The AKC/UKC PDF AcroForm work is NOT this plan — it is substantially shipped (`apps/myk9show/src/features/organization-forms/`, pdf-lib fill live for AKC/UKC/ASCA) and the remaining static→filled conversions are tracked in the active openspec change `ukc-closeout-packet`. Do not create a parallel plan.
 - This plan covers only: (A) capacity enforcement in `submit_show_entries`, (B) waitlist Phase 7 (in-app promotion payment), (C) waitlist Phase 8 (waitlist push notifications). Original phase definitions: [archive/plans/2026-04-02-wait-list-implementation.md](archive/plans/2026-04-02-wait-list-implementation.md) (Phase 7 at L1184, Phase 8 at L1325).
 
@@ -24,16 +24,16 @@ Closes the three functional gaps that stand between the shipped capacity/waitlis
 
 - **A.** `submit_show_entries` RPC (`151_submit_show_entries_rpc.sql` lineage, latest guard `20260708130000_guard_submit_show_entries_entry_close.sql`) has **no capacity check at all** — only entry-close. Any non-paid-cart submission path (mail-in, secretary-entered, pay-later) can oversell a judge-day.
 - **B.** Phase 7: no in-app payment surface for a promoted exhibitor. `/entries/:entryId/complete-payment` route and `WaitListPaymentPage` don't exist; the only payment path is the cron email's Stripe link. No decline flow, no halfway reminder.
-- **C.** Phase 8: `push-trigger-waitlist` edge function doesn't exist; `useWaitListMutations.promoteEntry` sends no notification of any kind (secretary-initiated offers are email-silent until the next cron sweep — and the cron only emails offers *it* creates).
+- **C.** Phase 8: `push-trigger-waitlist` edge function doesn't exist; `useWaitListMutations.promoteEntry` sends no notification of any kind (secretary-initiated offers are email-silent until the next cron sweep — and the cron only emails offers _it_ creates).
 
 ## Phase A — capacity enforcement in `submit_show_entries`
 
-**Design decision (settle before coding):** `create_online_paid_entry` creates entries as `paid`; `submit_show_entries` creates unpaid/submitted entries. Reuse the *lock + live-read* core, not the whole function. Extract the per-judge check into a helper both callers share.
+**Design decision (settle before coding):** `create_online_paid_entry` creates entries as `paid`; `submit_show_entries` creates unpaid/submitted entries. Reuse the _lock + live-read_ core, not the whole function. Extract the per-judge check into a helper both callers share.
 
 1. New migration: `assert_judge_day_capacity(p_class_id uuid, p_show_id uuid)` (or set-returning variant for multi-class submits) — SECURITY DEFINER, `search_path=''`, service-role + authenticated-via-RPC execution only. For each judge/date implied by the class: take `judgeday:` advisory lock (same key derivation as `create_online_paid_entry` — byte-identical hashing, or the locks don't exclude each other), then `get_judge_day_capacity_live()`. On zero spots: if class `allow_waitlist`, insert `waitlist_entries` row (`joined_via` per source) and return `waitlisted`; else raise/return `denied`.
 2. Wire into `submit_show_entries`: after the entry-close guard, before entry insert. Return shape must surface per-class outcomes (`created | waitlisted | denied`) so the UI can tell the exhibitor which classes waitlisted. Keep the whole submit transactional — locks release at commit, which is what makes the check race-free against the webhook path.
 3. Frontend: `submitShowEntries` caller + entry-cart UI handle the new outcome variants (waitlisted confirmation state, denied messaging). Mirror the language the paid-cart flow already uses for `waitlisted_cart_item_ids`.
-4. Decide + document mail-in behavior: secretary/mail-in submissions likely bypass the *online* capacity portion but consume the mail-in reserve; encode via a `p_source` argument rather than a second RPC.
+4. Decide + document mail-in behavior: secretary/mail-in submissions likely bypass the _online_ capacity portion but consume the mail-in reserve; encode via a `p_source` argument rather than a second RPC.
 
 **Risks:** advisory-lock key drift between the two callers (test with concurrent transactions); double-waitlisting (the `waitlist_entries_active_class_dog_key` unique partial index is the backstop — handle its conflict as "already waitlisted", not an error).
 

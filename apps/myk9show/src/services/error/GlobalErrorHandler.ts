@@ -1,7 +1,7 @@
 /**
  * GlobalErrorHandler - Centralized error handling for unhandled JavaScript errors
  * and promise rejections
- * 
+ *
  * Integrates with existing LoggingService and MonitoringService for comprehensive
  * error tracking and reporting
  */
@@ -80,10 +80,10 @@ class GlobalErrorHandler {
     this.setupNetworkErrorHandling();
 
     this.isInitialized = true;
-    
+
     this.loggingService.info('GlobalErrorHandler initialized', 'error-handler', {
       sessionId: this.sessionId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -115,7 +115,7 @@ class GlobalErrorHandler {
       url: window.location.href,
       sessionId: this.sessionId,
       errorType: 'javascript',
-      severity: this.classifyErrorSeverity(event.error || new Error(event.message))
+      severity: this.classifyErrorSeverity(event.error || new Error(event.message)),
     };
 
     // Check if this error should be ignored
@@ -151,7 +151,7 @@ class GlobalErrorHandler {
       url: window.location.href,
       sessionId: this.sessionId,
       errorType: 'promise',
-      severity: this.classifyPromiseRejectionSeverity(event.reason)
+      severity: this.classifyPromiseRejectionSeverity(event.reason),
     };
 
     this.processError(errorDetails);
@@ -167,8 +167,8 @@ class GlobalErrorHandler {
    */
   private setupChunkErrorHandling(): void {
     const originalAppendChild = Element.prototype.appendChild;
-    
-    Element.prototype.appendChild = function<T extends Node>(node: T): T {
+
+    Element.prototype.appendChild = function <T extends Node>(node: T): T {
       if (node instanceof HTMLScriptElement) {
         node.addEventListener('error', () => {
           const errorDetails: ChunkLoadErrorDetails = {
@@ -180,13 +180,13 @@ class GlobalErrorHandler {
             errorType: 'chunk',
             severity: 'high',
             scriptUrl: node.src,
-            chunkName: GlobalErrorHandler.getInstance().extractChunkName(node.src)
+            chunkName: GlobalErrorHandler.getInstance().extractChunkName(node.src),
           };
 
           GlobalErrorHandler.getInstance().processError(errorDetails);
         });
       }
-      
+
       return originalAppendChild.call(this, node) as T;
     };
   }
@@ -197,11 +197,11 @@ class GlobalErrorHandler {
   private setupNetworkErrorHandling(): void {
     // Intercept fetch calls to handle network errors
     const originalFetch = window.fetch;
-    
+
     window.fetch = async (...args) => {
       try {
         const response = await originalFetch(...args);
-        
+
         if (!response.ok) {
           const errorDetails: NetworkErrorDetails = {
             message: `Network request failed: ${response.status} ${response.statusText}`,
@@ -213,12 +213,12 @@ class GlobalErrorHandler {
             severity: this.classifyNetworkErrorSeverity(response.status),
             requestUrl: typeof args[0] === 'string' ? args[0] : (args[0] as Request).url,
             method: args[1]?.method || 'GET',
-            statusCode: response.status
+            statusCode: response.status,
           };
 
           this.processError(errorDetails);
         }
-        
+
         return response;
       } catch (error) {
         const errorDetails: NetworkErrorDetails = {
@@ -230,7 +230,7 @@ class GlobalErrorHandler {
           errorType: 'network',
           severity: 'high',
           requestUrl: typeof args[0] === 'string' ? args[0] : (args[0] as Request).url,
-          method: args[1]?.method || 'GET'
+          method: args[1]?.method || 'GET',
         };
 
         this.processError(errorDetails);
@@ -245,7 +245,7 @@ class GlobalErrorHandler {
   private processError(errorDetails: ErrorDetails): void {
     // Add to queue for batch processing
     this.errorQueue.push(errorDetails);
-    
+
     // Trim queue if it gets too large
     if (this.errorQueue.length > this.maxQueueSize) {
       this.errorQueue = this.errorQueue.slice(-this.maxQueueSize);
@@ -259,7 +259,7 @@ class GlobalErrorHandler {
     // Send to logging service
     this.loggingService.error(errorDetails.message, 'error-handler', {
       ...errorDetails,
-      component: 'GlobalErrorHandler'
+      component: 'GlobalErrorHandler',
     });
 
     // Send to monitoring service
@@ -281,7 +281,7 @@ class GlobalErrorHandler {
       const criticalErrorKey = 'criticalErrorShown';
       if (!sessionStorage.getItem(criticalErrorKey)) {
         sessionStorage.setItem(criticalErrorKey, 'true');
-        
+
         // Could integrate with toast/notification system here
         logger.error('Critical error detected:', 'error', { detail: errorDetails.message });
       }
@@ -296,22 +296,26 @@ class GlobalErrorHandler {
    */
   private classifyErrorSeverity(error: Error): 'low' | 'medium' | 'high' | 'critical' {
     const message = error.message.toLowerCase();
-    
+
     // Critical errors that break core functionality
-    if (message.includes('chunk') || message.includes('module') || message.includes('cannot read prop')) {
+    if (
+      message.includes('chunk') ||
+      message.includes('module') ||
+      message.includes('cannot read prop')
+    ) {
       return 'critical';
     }
-    
+
     // High severity errors
     if (message.includes('network') || message.includes('fetch') || message.includes('cors')) {
       return 'high';
     }
-    
+
     // Medium severity errors
     if (message.includes('warning') || message.includes('deprecated')) {
       return 'medium';
     }
-    
+
     // Default to medium for unknown errors
     return 'medium';
   }
@@ -319,11 +323,13 @@ class GlobalErrorHandler {
   /**
    * Classify promise rejection severity
    */
-  private classifyPromiseRejectionSeverity(reason: unknown): 'low' | 'medium' | 'high' | 'critical' {
+  private classifyPromiseRejectionSeverity(
+    reason: unknown
+  ): 'low' | 'medium' | 'high' | 'critical' {
     if (reason instanceof Error) {
       return this.classifyErrorSeverity(reason);
     }
-    
+
     // Non-Error rejections are typically less severe
     return 'medium';
   }
@@ -344,9 +350,7 @@ class GlobalErrorHandler {
   private shouldIgnoreError(message: string): boolean {
     if (isBenignResizeObserverLoopError(message)) return true;
 
-    return Array.from(this.ignoredErrors).some(pattern => 
-      message.includes(pattern)
-    );
+    return Array.from(this.ignoredErrors).some(pattern => message.includes(pattern));
   }
 
   /**
@@ -369,9 +373,13 @@ class GlobalErrorHandler {
    */
   private flushErrorQueue(): void {
     if (this.errorQueue.length > 0) {
-      this.loggingService.info(`Flushing ${this.errorQueue.length} queued errors`, 'error-handler', {
-        sessionId: this.sessionId
-      });
+      this.loggingService.info(
+        `Flushing ${this.errorQueue.length} queued errors`,
+        'error-handler',
+        {
+          sessionId: this.sessionId,
+        }
+      );
       this.errorQueue = [];
     }
   }
@@ -387,7 +395,7 @@ class GlobalErrorHandler {
   } {
     const errorsByType: Record<string, number> = {};
     const errorsBySeverity: Record<string, number> = {};
-    
+
     this.errorQueue.forEach(error => {
       errorsByType[error.errorType] = (errorsByType[error.errorType] || 0) + 1;
       errorsBySeverity[error.severity] = (errorsBySeverity[error.severity] || 0) + 1;
@@ -397,7 +405,7 @@ class GlobalErrorHandler {
       totalErrors: this.errorQueue.length,
       errorsByType,
       errorsBySeverity,
-      sessionId: this.sessionId
+      sessionId: this.sessionId,
     };
   }
 
@@ -405,7 +413,7 @@ class GlobalErrorHandler {
    * Singleton instance
    */
   private static instance: GlobalErrorHandler;
-  
+
   static getInstance(): GlobalErrorHandler {
     if (!GlobalErrorHandler.instance) {
       GlobalErrorHandler.instance = new GlobalErrorHandler();
@@ -414,4 +422,9 @@ class GlobalErrorHandler {
   }
 }
 
-export { GlobalErrorHandler, type ErrorDetails, type NetworkErrorDetails, type ChunkLoadErrorDetails };
+export {
+  GlobalErrorHandler,
+  type ErrorDetails,
+  type NetworkErrorDetails,
+  type ChunkLoadErrorDetails,
+};

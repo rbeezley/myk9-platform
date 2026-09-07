@@ -217,10 +217,7 @@ export class LoadVirtualUser {
     return { samples, rows };
   }
 
-  start(
-    onSync: (result: VirtualUserSyncResult) => void,
-    onError?: (error: unknown) => void
-  ): void {
+  start(onSync: (result: VirtualUserSyncResult) => void, onError?: (error: unknown) => void): void {
     if (this.timer) return;
     this.timer = setInterval(() => {
       const pending: Promise<void> = this.syncOnce()

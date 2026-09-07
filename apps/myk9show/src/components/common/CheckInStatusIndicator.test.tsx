@@ -42,9 +42,7 @@ describe('CheckInStatusIndicator', () => {
   });
 
   it('announces each legend status once', () => {
-    const { getAllByText, queryByRole } = render(
-      <CheckInStatusLegend statuses={['checked-in']} />
-    );
+    const { getAllByText, queryByRole } = render(<CheckInStatusLegend statuses={['checked-in']} />);
 
     expect(getAllByText('Checked-in')).toHaveLength(1);
     expect(queryByRole('img', { name: 'Checked-in' })).not.toBeInTheDocument();

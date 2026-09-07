@@ -8,11 +8,11 @@
 
 Three cross-table diagnostics, each returning a typed, redacted result with the database it ran against (`envLabel`) stamped on every answer:
 
-| Tool | Answers |
-| --- | --- |
-| `diagnose_confirmation_email` | Why an entry did/didn't get its confirmation email (entry record cross-checked against `email_log`). |
-| `diagnose_payment` | Payment state for an entry (by id) or a Stripe payment-intent / checkout-session id. |
-| `list_show_access` | Who has secretary/admin-style access to a show (show-scoped **and** club-scoped roles), each labeled active/inactive/expired. |
+| Tool                          | Answers                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `diagnose_confirmation_email` | Why an entry did/didn't get its confirmation email (entry record cross-checked against `email_log`).                          |
+| `diagnose_payment`            | Payment state for an entry (by id) or a Stripe payment-intent / checkout-session id.                                          |
+| `list_show_access`            | Who has secretary/admin-style access to a show (show-scoped **and** club-scoped roles), each labeled active/inactive/expired. |
 
 Lookup tools (`lookup_show`, `lookup_entry`, …) are deferred to V1.1 — in V1.0 you source entry/show ids via the generic Supabase MCP or the app UI, then feed them to a diagnostic.
 
@@ -20,12 +20,12 @@ V1.0 is **read-only**. There are no create/update/delete/refund/publish/email-se
 
 ## Required environment variables
 
-| Var | Purpose |
-| --- | --- |
-| `MYK9_MCP_SUPABASE_URL` | Supabase project URL (http/https). |
-| `MYK9_MCP_SUPABASE_SERVICE_ROLE_KEY` | Service-role key (see the security warning below). |
-| `MYK9_MCP_APP_BASE_URL` | myK9Show base URL, used to build deep links (e.g. `https://myk9-platform-myk9show.vercel.app`). |
-| `MYK9_MCP_ENV_LABEL` | One of `local` / `staging` / `production` — stamped onto every answer so you always know which DB it came from. |
+| Var                                  | Purpose                                                                                                         |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `MYK9_MCP_SUPABASE_URL`              | Supabase project URL (http/https).                                                                              |
+| `MYK9_MCP_SUPABASE_SERVICE_ROLE_KEY` | Service-role key (see the security warning below).                                                              |
+| `MYK9_MCP_APP_BASE_URL`              | myK9Show base URL, used to build deep links (e.g. `https://myk9-platform-myk9show.vercel.app`).                 |
+| `MYK9_MCP_ENV_LABEL`                 | One of `local` / `staging` / `production` — stamped onto every answer so you always know which DB it came from. |
 
 Optional: `MYK9_MCP_DEFAULT_LIMIT` (default 25) and `MYK9_MCP_MAX_LIMIT` (default 50, hard-capped at 100). The server **fails closed** — it refuses to start if any required var is missing or malformed.
 
@@ -55,10 +55,10 @@ Claude Code (`claude mcp add`, or your user-level config):
         "MYK9_MCP_SUPABASE_URL": "${MYK9_MCP_SUPABASE_URL}",
         "MYK9_MCP_SUPABASE_SERVICE_ROLE_KEY": "${MYK9_MCP_SUPABASE_SERVICE_ROLE_KEY}",
         "MYK9_MCP_APP_BASE_URL": "${MYK9_MCP_APP_BASE_URL}",
-        "MYK9_MCP_ENV_LABEL": "${MYK9_MCP_ENV_LABEL}"
-      }
-    }
-  }
+        "MYK9_MCP_ENV_LABEL": "${MYK9_MCP_ENV_LABEL}",
+      },
+    },
+  },
 }
 ```
 

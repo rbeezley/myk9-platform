@@ -50,11 +50,9 @@ export async function processRequest<TBody>(
   deps: {
     getEnv: (name: string) => string | undefined;
     makeClient: (url: string, key: string) => SupabaseClient;
-  },
+  }
 ): Promise<Response> {
-  const headers = options.origins
-    ? corsHeaders(req, options.origins, options.allowedHeaders)
-    : {};
+  const headers = options.origins ? corsHeaders(req, options.origins, options.allowedHeaders) : {};
 
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers });
@@ -112,7 +110,7 @@ function errorResponse(err: unknown, headers: Record<string, string>, phase: str
     return json(
       { error: err.message, ...(err.code ? { code: err.code } : {}) },
       err.status,
-      headers,
+      headers
     );
   }
   console.error(`handle: unexpected ${phase} error`, err);
@@ -133,12 +131,12 @@ function errorResponse(err: unknown, headers: Record<string, string>, phase: str
  */
 export function handle<TBody = unknown>(
   options: HandlerOptions,
-  handler: (ctx: HandlerCtx<TBody>) => Promise<unknown>,
+  handler: (ctx: HandlerCtx<TBody>) => Promise<unknown>
 ): void {
   Deno.serve((req: Request) =>
     processRequest<TBody>(req, options, handler, {
-      getEnv: (name) => Deno.env.get(name),
+      getEnv: name => Deno.env.get(name),
       makeClient: (url, key) => createClient(url, key),
-    }),
+    })
   );
 }

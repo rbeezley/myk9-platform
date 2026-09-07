@@ -35,7 +35,7 @@ const DEFAULT_CONFIG: PreloadingConfig = {
   enablePerformanceMonitoring: true,
   maxConcurrentPreloads: 3,
   preloadDelay: 500,
-  enableDebugLogging: process.env.NODE_ENV === 'development'
+  enableDebugLogging: process.env.NODE_ENV === 'development',
 };
 
 /**
@@ -69,7 +69,7 @@ export function useIntelligentPreloading(
         likelyRoutes,
         preloadQueueRef.current,
         activePreloadsRef.current,
-        configRef.current.maxConcurrentPreloads,
+        configRef.current.maxConcurrentPreloads
       );
 
       for (const [index, route] of routesToPreload.entries()) {
@@ -84,7 +84,7 @@ export function useIntelligentPreloading(
           await preloadSingleComponent(
             route,
             component,
-            configRef.current.enablePerformanceMonitoring,
+            configRef.current.enablePerformanceMonitoring
           );
           activePreloadsRef.current.delete(route);
           preloadQueueRef.current.delete(route);
@@ -103,7 +103,11 @@ export function useIntelligentPreloading(
     preloadRoute: (route: string) => {
       const component = routeComponentMap[route];
       if (component && isPreloadable(component)) {
-        return preloadSingleComponent(route, component, configRef.current.enablePerformanceMonitoring);
+        return preloadSingleComponent(
+          route,
+          component,
+          configRef.current.enablePerformanceMonitoring
+        );
       }
       return Promise.resolve();
     },
@@ -111,8 +115,8 @@ export function useIntelligentPreloading(
     getPreloadStatus: () => ({
       queuedPreloads: Array.from(preloadQueueRef.current),
       activePreloads: Array.from(activePreloadsRef.current),
-      totalPreloaded: Object.keys(LazyLoadingMonitor.getPerformanceReport()).length
-    })
+      totalPreloaded: Object.keys(LazyLoadingMonitor.getPerformanceReport()).length,
+    }),
   };
 }
 
@@ -143,7 +147,7 @@ export function useRoutePreloading(_routePath: string, component: EnhancedLazyCo
     preload: triggerPreload,
     onMouseEnter: onHover,
     onFocus,
-    isPreloaded
+    isPreloaded,
   };
 }
 

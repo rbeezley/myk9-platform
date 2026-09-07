@@ -32,10 +32,7 @@ vi.mock('@/features/financial/useClubFinancialReconciliation', () => ({
 const mockedUseAccount = vi.mocked(accountModule.useClubStripeAccount);
 const mockedStartOnboarding = vi.mocked(accountModule.startConnectOnboarding);
 
-function mockAccountState(
-  data: ClubStripeAccount | null,
-  overrides: Record<string, unknown> = {}
-) {
+function mockAccountState(data: ClubStripeAccount | null, overrides: Record<string, unknown> = {}) {
   const base = { data, isLoading: false, isError: false, refetch: vi.fn(), ...overrides };
   mockedUseAccount.mockReturnValue({
     // `isSuccess` is what the card reads to mean "we have a real answer", so the

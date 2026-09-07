@@ -13,7 +13,7 @@ export function usePerformanceMetrics() {
     avgRenderTime: 0,
     avgMemoryUsage: 0,
     avgCacheHitRate: 0,
-    totalOperations: 0
+    totalOperations: 0,
   });
 
   const reset = useCallback(() => {
@@ -21,13 +21,13 @@ export function usePerformanceMetrics() {
       avgRenderTime: 0,
       avgMemoryUsage: 0,
       avgCacheHitRate: 0,
-      totalOperations: 0
+      totalOperations: 0,
     });
   }, []);
 
   return {
     metrics,
     summary,
-    reset
+    reset,
   };
 }

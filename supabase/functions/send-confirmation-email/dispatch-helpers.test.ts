@@ -41,11 +41,7 @@ describe('deriveShowCode', () => {
     // expected output so a regression to the duplicate-arg shape would
     // surface as a wrong code.
     expect(
-      deriveShowCode(
-        'Bexar County Kennel Club',
-        'Spring Scent Work Trial',
-        '2026-06-12'
-      )
+      deriveShowCode('Bexar County Kennel Club', 'Spring Scent Work Trial', '2026-06-12')
     ).toBe('BCKC.2026.SS');
   });
 

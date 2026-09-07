@@ -56,10 +56,12 @@
 ### Task 1: Lock Wizard Clone Behavior With Unit Tests
 
 **Files:**
+
 - Create: `apps/myk9show/src/components/shows/wizard/steps/__tests__/CloneFromShowCombobox.test.tsx`
 - Modify: `apps/myk9show/src/components/shows/wizard/steps/CloneFromShowCombobox.tsx`
 
 **Interfaces:**
+
 - Consumes: `CloneFromShowCombobox({ clubId?: string })`
 - Consumes: `useWizardStore()` actions `updateShowData(data)`, `addJudgeToShow(judgeId, details)`, `addTrial(trial)`, and `resetWizard()`
 - Produces: verified behavior that selecting a show writes non-date fields, copies trial/class structure, clears `startDate`, `endDate`, `entryOpenDate`, `entryCloseDate`, cloned trial `dateTime`, and cloned trial `eventNumber`, and handles empty/error candidate states without blocking fresh entry
@@ -95,9 +97,7 @@ const mockShows: Show[] = [
     acceptCheckPayments: true,
     acceptCashPayments: true,
     status: 'completed',
-    assignedJudges: [
-      { judgeId: 'judge-1', judgeName: 'Alex Judge', assignedClasses: ['class-1'] },
-    ],
+    assignedJudges: [{ judgeId: 'judge-1', judgeName: 'Alex Judge', assignedClasses: ['class-1'] }],
     trials: [
       {
         id: 'trial-1',
@@ -171,8 +171,9 @@ describe('CloneFromShowCombobox', () => {
     render(<CloneFromShowCombobox />);
 
     await user.click(screen.getByRole('button', { name: /select a past show to clone/i }));
-    const list = screen.getByText('Heartland Spring Trial').closest('[data-radix-popper-content-wrapper]')
-      ?? document.body;
+    const list =
+      screen.getByText('Heartland Spring Trial').closest('[data-radix-popper-content-wrapper]') ??
+      document.body;
     await user.click(within(list as HTMLElement).getByText('Heartland Spring Trial'));
 
     expect(mockUpdateShowData).toHaveBeenCalledWith({
@@ -385,6 +386,7 @@ git commit -m "test(show-wizard): cover clone prefill behavior"
 ### Task 2: Remove the Duplicate Calendar Clone Dialog
 
 **Files:**
+
 - Modify: `apps/myk9show/src/pages/CalendarPage.tsx`
 - Delete: `apps/myk9show/src/components/shows/cloning/ShowCloneDialog.tsx`
 - Delete: `apps/myk9show/src/components/shows/cloning/ShowSelector.tsx`
@@ -392,6 +394,7 @@ git commit -m "test(show-wizard): cover clone prefill behavior"
 - Delete: `apps/myk9show/src/components/shows/cloning/index.ts`
 
 **Interfaces:**
+
 - Consumes: existing `/secretary/create-show/wizard` route
 - Produces: no standalone clone dialog import or UI path remains
 
@@ -476,11 +479,13 @@ git commit -m "refactor(shows): consolidate clone flow into wizard"
 ### Task 3: Add Browser Coverage and Close the Todo
 
 **Files:**
+
 - Modify: `apps/myk9show/src/test/e2e/secretary/show-creation-wizard.spec.ts`
 - Modify: `apps/myk9show/src/test/e2e/entities/showsUI.spec.ts`
 - Modify: `OPEN-TODOS.md`
 
 **Interfaces:**
+
 - Consumes: wizard clone behavior from Task 1
 - Produces: Playwright coverage proving the user-facing flow is the wizard path, plus a documented QA gate for the cloned show appearing in the normal secretary workflow
 
@@ -501,7 +506,10 @@ test('secretary can clone a previous show into the wizard and continue reviewing
   const search = page.getByPlaceholder('Search shows...');
   await expect(search).toBeVisible();
 
-  const firstShow = page.locator('button').filter({ hasText: /AKC|UKC|ASCA|NACSW/i }).first();
+  const firstShow = page
+    .locator('button')
+    .filter({ hasText: /AKC|UKC|ASCA|NACSW/i })
+    .first();
   await expect(firstShow).toBeVisible();
   const sourceName = (await firstShow.locator('span').first().textContent())?.trim();
   expect(sourceName).toBeTruthy();
@@ -510,7 +518,9 @@ test('secretary can clone a previous show into the wizard and continue reviewing
   await expect(page.getByText(sourceName!, { exact: true })).toBeVisible();
   await expect(page.getByLabel(/Show Name/i)).toHaveValue(sourceName!);
   await expect(page.locator('#show-dates')).toContainText(/select show start and end dates/i);
-  await expect(page.locator('#show-entry-period')).toContainText(/select entry open and close dates/i);
+  await expect(page.locator('#show-entry-period')).toContainText(
+    /select entry open and close dates/i
+  );
   await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
 });
 ```
@@ -529,7 +539,10 @@ test('secretary can set new dates after cloning and continue to trial review', a
   await expect(cloneTrigger).toBeVisible({ timeout: 15000 });
   await cloneTrigger.click();
 
-  const firstShow = page.locator('button').filter({ hasText: /AKC|UKC|ASCA|NACSW/i }).first();
+  const firstShow = page
+    .locator('button')
+    .filter({ hasText: /AKC|UKC|ASCA|NACSW/i })
+    .first();
   await expect(firstShow).toBeVisible();
   await firstShow.click();
 
@@ -545,7 +558,11 @@ test('secretary can set new dates after cloning and continue to trial review', a
 
   const chairmanTrigger = page.getByRole('button', { name: /Show Chairman/i });
   await chairmanTrigger.click();
-  const firstChairman = page.getByText(/Suggested|All People/).locator('xpath=..').locator('button').first();
+  const firstChairman = page
+    .getByText(/Suggested|All People/)
+    .locator('xpath=..')
+    .locator('button')
+    .first();
   await expect(firstChairman).toBeVisible();
   await firstChairman.click();
 
@@ -616,6 +633,7 @@ Evidence to record in the PR:
 
 ```md
 Manual QA:
+
 - Wizard clone selected source show: <source show name>
 - New cloned show appeared in secretary workflow: yes
 - Separate Calendar clone dialog absent: yes
@@ -685,6 +703,7 @@ Expected: no matches.
 
 ```md
 Manual QA:
+
 - Wizard clone selected source show: <source show name>
 - New cloned show appeared in secretary workflow: yes
 - Separate Calendar clone dialog absent: yes

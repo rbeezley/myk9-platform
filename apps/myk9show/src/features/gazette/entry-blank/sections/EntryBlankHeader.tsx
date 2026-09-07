@@ -1,14 +1,6 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { EntryBlankProps } from '../types';
-import {
-  BROWN,
-  DISPLAY,
-  DoubleRule,
-  Hairline,
-  INK,
-  META,
-  QUILL,
-} from './pdfPrimitives';
+import { BROWN, DISPLAY, DoubleRule, Hairline, INK, META, QUILL } from './pdfPrimitives';
 import { GAZETTE_DEFAULT_EDITION, GAZETTE_DEFAULT_VOLUME_ROMAN } from '../../tokens';
 
 type Props = Pick<
@@ -26,7 +18,13 @@ type Props = Pick<
  * cleanly, so we splice the words and render three separate `<Text>` nodes
  * inline inside the headline.
  */
-export function EntryBlankHeader({ clubName, showTitle, licenseLanguage, dateRange, entryCloseIso }: Props) {
+export function EntryBlankHeader({
+  clubName,
+  showTitle,
+  licenseLanguage,
+  dateRange,
+  entryCloseIso,
+}: Props) {
   return (
     <View>
       {/* Top strip */}
@@ -39,10 +37,26 @@ export function EntryBlankHeader({ clubName, showTitle, licenseLanguage, dateRan
           borderBottomColor: BROWN,
         }}
       >
-        <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 7, color: BROWN, letterSpacing: 0.4 }}>
+        <Text
+          style={{
+            fontFamily: META,
+            fontWeight: 500,
+            fontSize: 7,
+            color: BROWN,
+            letterSpacing: 0.4,
+          }}
+        >
           VOL. {GAZETTE_DEFAULT_VOLUME_ROMAN} · NO {GAZETTE_DEFAULT_EDITION}
         </Text>
-        <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 7, color: BROWN, letterSpacing: 0.4 }}>
+        <Text
+          style={{
+            fontFamily: META,
+            fontWeight: 500,
+            fontSize: 7,
+            color: BROWN,
+            letterSpacing: 0.4,
+          }}
+        >
           OFFICIAL ENTRY BLANK · MAIL-IN
         </Text>
       </View>
@@ -69,13 +83,37 @@ export function EntryBlankHeader({ clubName, showTitle, licenseLanguage, dateRan
           marginBottom: 12,
         }}
       >
-        <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 6.5, color: QUILL, letterSpacing: 0.4 }}>
+        <Text
+          style={{
+            fontFamily: META,
+            fontWeight: 500,
+            fontSize: 6.5,
+            color: QUILL,
+            letterSpacing: 0.4,
+          }}
+        >
           ESTABLISHED 1947
         </Text>
-        <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 6.5, color: QUILL, letterSpacing: 0.4 }}>
+        <Text
+          style={{
+            fontFamily: META,
+            fontWeight: 500,
+            fontSize: 6.5,
+            color: QUILL,
+            letterSpacing: 0.4,
+          }}
+        >
           {licenseLanguage}
         </Text>
-        <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 6.5, color: QUILL, letterSpacing: 0.4 }}>
+        <Text
+          style={{
+            fontFamily: META,
+            fontWeight: 500,
+            fontSize: 6.5,
+            color: QUILL,
+            letterSpacing: 0.4,
+          }}
+        >
           {dateRange}
         </Text>
       </View>
@@ -130,7 +168,9 @@ export function EntryBlankHeader({ clubName, showTitle, licenseLanguage, dateRan
         <View style={{ alignItems: 'center', marginBottom: 4 }}>
           <Text style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 9, color: QUILL }}>
             Entries close{' '}
-            <Text style={{ fontStyle: 'normal', color: INK }}>{formatCloseDate(entryCloseIso)}</Text>
+            <Text style={{ fontStyle: 'normal', color: INK }}>
+              {formatCloseDate(entryCloseIso)}
+            </Text>
           </Text>
         </View>
       )}
@@ -143,7 +183,15 @@ function ItalicTitle({ clubName }: { clubName: string }) {
   const words = clubName.trim().split(/\s+/);
   if (words.length < 3) {
     return (
-      <Text style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: 30, letterSpacing: -0.4, color: INK }}>
+      <Text
+        style={{
+          fontFamily: DISPLAY,
+          fontWeight: 900,
+          fontSize: 30,
+          letterSpacing: -0.4,
+          color: INK,
+        }}
+      >
         {clubName}
       </Text>
     );
@@ -152,7 +200,15 @@ function ItalicTitle({ clubName }: { clubName: string }) {
   const last = words[words.length - 1];
   const middle = words.slice(1, -1).join(' ');
   return (
-    <Text style={{ fontFamily: DISPLAY, fontWeight: 900, fontSize: 30, letterSpacing: -0.4, color: INK }}>
+    <Text
+      style={{
+        fontFamily: DISPLAY,
+        fontWeight: 900,
+        fontSize: 30,
+        letterSpacing: -0.4,
+        color: INK,
+      }}
+    >
       <Text style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontWeight: 400 }}>{first}</Text>
       {` ${middle} `}
       <Text style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontWeight: 400 }}>{last}</Text>

@@ -19,9 +19,7 @@ import { FloatingDoneButton } from './FloatingDoneButton';
 
 describe('FloatingDoneButton', () => {
   it('renders nothing when not visible', () => {
-    const { container } = render(
-      <FloatingDoneButton isVisible={false} onClick={() => {}} />,
-    );
+    const { container } = render(<FloatingDoneButton isVisible={false} onClick={() => {}} />);
     expect(container.querySelector('button')).toBeNull();
   });
 
@@ -33,9 +31,7 @@ describe('FloatingDoneButton', () => {
   });
 
   it('is styled with Tailwind utilities, not the unstyled legacy class', () => {
-    const { container } = render(
-      <FloatingDoneButton isVisible onClick={() => {}} />,
-    );
+    const { container } = render(<FloatingDoneButton isVisible onClick={() => {}} />);
     const button = screen.getByRole('button', { name: 'Done reordering' });
 
     // The legacy semantic class had no CSS rule — it must be gone entirely.

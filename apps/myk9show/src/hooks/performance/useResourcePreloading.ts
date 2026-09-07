@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react';
 import { monitoring } from '../../services/MonitoringService';
 import { logger } from '@/services/LoggingService';
 
-export const useResourcePreloading = (resources: Array<{
-  href: string;
-  as: 'script' | 'style' | 'image' | 'font' | 'document';
-  crossorigin?: 'anonymous' | 'use-credentials';
-}>) => {
+export const useResourcePreloading = (
+  resources: Array<{
+    href: string;
+    as: 'script' | 'style' | 'image' | 'font' | 'document';
+    crossorigin?: 'anonymous' | 'use-credentials';
+  }>
+) => {
   const [preloadedResources, setPreloadedResources] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const preloadResource = (resource: typeof resources[0]) => {
+    const preloadResource = (resource: (typeof resources)[0]) => {
       if (preloadedResources.has(resource.href)) return;
 
       const link = document.createElement('link');

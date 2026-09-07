@@ -39,7 +39,7 @@ export function FastestTimesTable({ times, showShowColumn }: FastestTimesTablePr
             </tr>
           </thead>
           <tbody>
-            {times.map((t) => (
+            {times.map(t => (
               <tr key={t.id} className="border-b border-border/30 last:border-0">
                 <td className="py-2 pr-2">{RANK_MEDALS[t.rank] ?? t.rank}</td>
                 <td className="py-2 pr-2">{t.dogCallName}</td>

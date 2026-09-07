@@ -117,7 +117,7 @@ describe('useDragAndDropEntries — initial state', () => {
         setLocalEntries,
         currentEntries: [],
         updateExhibitorOrder: defaultUpdater(),
-      }),
+      })
     );
 
     expect(result.current.isDragging).toBe(false);
@@ -135,7 +135,7 @@ describe('useDragAndDropEntries — initial state', () => {
         currentEntries: [],
         updateExhibitorOrder: defaultUpdater(),
         isDraggingRef: externalRef,
-      }),
+      })
     );
 
     // The hook MUST hand back the same ref — that's how useEntryListData
@@ -159,7 +159,7 @@ describe('useDragAndDropEntries — handleDragStart', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder: defaultUpdater(),
-      }),
+      })
     );
 
     expect(result.current.isDraggingRef.current).toBe(false);
@@ -190,7 +190,7 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
         currentEntries,
         updateExhibitorOrder,
         setManualOrder,
-      }),
+      })
     );
 
     // Begin drag — snapshot is captured here
@@ -235,7 +235,7 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder: defaultUpdater(),
-      }),
+      })
     );
 
     act(() => {
@@ -269,7 +269,7 @@ describe('useDragAndDropEntries — handleDragEnd reorder', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,
-      }),
+      })
     );
 
     act(() => {
@@ -305,7 +305,7 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,
-      }),
+      })
     );
 
     act(() => {
@@ -332,7 +332,7 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,
-      }),
+      })
     );
 
     act(() => {
@@ -359,7 +359,7 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,
-      }),
+      })
     );
 
     act(() => {
@@ -388,7 +388,7 @@ describe('useDragAndDropEntries — handleDragEnd guards', () => {
         setLocalEntries,
         currentEntries,
         updateExhibitorOrder,
-      }),
+      })
     );
 
     act(() => {
@@ -407,10 +407,7 @@ describe('useDragAndDropEntries — sync race protection', () => {
   it('keeps isDraggingRef true through gracePeriodMs after the DB write completes', async () => {
     const setLocalEntries = vi.fn();
     const updateExhibitorOrder = defaultUpdater();
-    const currentEntries = [
-      makeEntry({ id: '1', armband: 1 }),
-      makeEntry({ id: '2', armband: 2 }),
-    ];
+    const currentEntries = [makeEntry({ id: '1', armband: 1 }), makeEntry({ id: '2', armband: 2 })];
     const gracePeriodMs = 1500;
 
     const { result } = renderHook(() =>
@@ -420,7 +417,7 @@ describe('useDragAndDropEntries — sync race protection', () => {
         currentEntries,
         updateExhibitorOrder,
         gracePeriodMs,
-      }),
+      })
     );
 
     act(() => {
@@ -450,10 +447,7 @@ describe('useDragAndDropEntries — sync race protection', () => {
     const updateExhibitorOrder = vi.fn().mockRejectedValueOnce(new Error('Offline'));
     const setLocalEntries = vi.fn();
     const setManualOrder = vi.fn();
-    const currentEntries = [
-      makeEntry({ id: '1', armband: 1 }),
-      makeEntry({ id: '2', armband: 2 }),
-    ];
+    const currentEntries = [makeEntry({ id: '1', armband: 1 }), makeEntry({ id: '2', armband: 2 })];
     const { result } = renderHook(() =>
       useDragAndDropEntries({
         localEntries: currentEntries,
@@ -462,7 +456,7 @@ describe('useDragAndDropEntries — sync race protection', () => {
         updateExhibitorOrder,
         setManualOrder,
         gracePeriodMs: 100,
-      }),
+      })
     );
 
     act(() => {

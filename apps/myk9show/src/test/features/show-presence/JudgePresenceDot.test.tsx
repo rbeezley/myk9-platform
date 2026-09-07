@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { JudgePresenceDot } from '@/features/show-presence/JudgePresenceDot';
-import {
-  judgesOnClass,
-  filterPresenceForViewer,
-} from '@/features/show-presence/presenceSelectors';
+import { judgesOnClass, filterPresenceForViewer } from '@/features/show-presence/presenceSelectors';
 import type { ShowPresence } from '@/features/show-presence/types';
 
 function p(overrides: Partial<ShowPresence> & { userId: string; name: string }): ShowPresence {
@@ -21,7 +18,11 @@ describe('judgesOnClass', () => {
   it('returns only judges present on the given class', () => {
     const present = [
       p({ userId: 'j1', name: 'Judge One' }),
-      p({ userId: 'j2', name: 'Judge Two', location: { page: '/', entityType: 'class', entityId: 'c2' } }),
+      p({
+        userId: 'j2',
+        name: 'Judge Two',
+        location: { page: '/', entityType: 'class', entityId: 'c2' },
+      }),
       p({ userId: 's1', name: 'Sec', role: 'secretary' }),
     ];
     expect(judgesOnClass(present, 'c1').map(j => j.userId)).toEqual(['j1']);
@@ -39,20 +40,19 @@ describe('filterPresenceForViewer (privacy, plan §10 #2)', () => {
   ];
 
   it('lets staff see everyone', () => {
-    expect(filterPresenceForViewer(roster, 'sec', 'secretary').map(x => x.userId).sort()).toEqual([
-      'ex1',
-      'ex2',
-      'jud',
-      'sec',
-    ]);
+    expect(
+      filterPresenceForViewer(roster, 'sec', 'secretary')
+        .map(x => x.userId)
+        .sort()
+    ).toEqual(['ex1', 'ex2', 'jud', 'sec']);
   });
 
   it('lets an exhibitor see only staff plus themselves', () => {
-    expect(filterPresenceForViewer(roster, 'ex1', 'exhibitor').map(x => x.userId).sort()).toEqual([
-      'ex1',
-      'jud',
-      'sec',
-    ]);
+    expect(
+      filterPresenceForViewer(roster, 'ex1', 'exhibitor')
+        .map(x => x.userId)
+        .sort()
+    ).toEqual(['ex1', 'jud', 'sec']);
   });
 });
 
@@ -64,7 +64,10 @@ describe('JudgePresenceDot', () => {
 
   it('renders nothing when no judge is on the class', () => {
     const { container } = render(
-      <JudgePresenceDot present={[p({ userId: 's1', name: 'Sec', role: 'secretary' })]} classId="c1" />
+      <JudgePresenceDot
+        present={[p({ userId: 's1', name: 'Sec', role: 'secretary' })]}
+        classId="c1"
+      />
     );
     expect(container).toBeEmptyDOMElement();
   });

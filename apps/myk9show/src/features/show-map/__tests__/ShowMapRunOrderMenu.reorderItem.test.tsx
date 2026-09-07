@@ -48,8 +48,6 @@ describe('ShowMapRunOrderMenu — Reorder manually item', () => {
         isReordering
       />
     );
-    expect(
-      screen.getByRole('button', { name: /Run order for Container Novice/i })
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Run order for Container Novice/i })).toBeDisabled();
   });
 });

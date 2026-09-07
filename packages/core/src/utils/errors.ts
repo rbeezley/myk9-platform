@@ -56,7 +56,9 @@ export function ensureError(value: unknown): Error {
 /**
  * Type guard to check if a value is an Error-like object
  */
-export function isErrorLike(value: unknown): value is { message: string; name?: string; stack?: string } {
+export function isErrorLike(
+  value: unknown
+): value is { message: string; name?: string; stack?: string } {
   return (
     typeof value === 'object' &&
     value !== null &&

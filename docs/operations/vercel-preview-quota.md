@@ -13,10 +13,10 @@ The Vercel Hobby tier has a daily deployment-created limit. This monorepo can sp
 
 Check both connected Vercel projects:
 
-| Vercel project | Root Directory | Expected behavior |
-| --- | --- | --- |
-| `myk9-platform-myk9show` (`prj_cI5y8eatUD4YDRZn3ZTBcLFdN1uk`) | `apps/myk9show` | App previews build only when the app or its dependencies changed. |
-| `myk9-platform-myk9show-guides` (`prj_jHJvF6oJEiRw344vhKHQDkKPGr3f`) | `apps/docs` | Guide previews build only when docs/guides changed. |
+| Vercel project                                                       | Root Directory  | Expected behavior                                                 |
+| -------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------- |
+| `myk9-platform-myk9show` (`prj_cI5y8eatUD4YDRZn3ZTBcLFdN1uk`)        | `apps/myk9show` | App previews build only when the app or its dependencies changed. |
+| `myk9-platform-myk9show-guides` (`prj_jHJvF6oJEiRw344vhKHQDkKPGr3f`) | `apps/docs`     | Guide previews build only when docs/guides changed.               |
 
 In Vercel, open each project and verify:
 

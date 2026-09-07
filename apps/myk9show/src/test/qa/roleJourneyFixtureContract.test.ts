@@ -13,9 +13,7 @@ describe('role journey audit fixture contract', () => {
     expect(auditSkill).toContain('TEST_USERS.SECRETARY');
     expect(auditSkill).toContain('E2E_SECRETARY_EMAIL');
     expect(auditSkill).toContain('E2E_SECRETARY_PASSWORD');
-    expect(auditSkill).toContain(
-      'pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary'
-    );
+    expect(auditSkill).toContain('pnpm exec tsx scripts/verify-e2e-auth-preflight.ts secretary');
     expect(auditSkill).not.toContain('never use legacy `*@myk9t.com` fixtures');
   });
 

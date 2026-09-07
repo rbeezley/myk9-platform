@@ -81,9 +81,15 @@ export function ClassesEnteredSection({
             >
               {row.numeral}
             </Text>
-            <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, width: '24%' }}>{row.dateLabel}</Text>
-            <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, width: '24%' }}>{row.elementsLabel}</Text>
-            <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, width: '24%' }}>{row.judgeName}</Text>
+            <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, width: '24%' }}>
+              {row.dateLabel}
+            </Text>
+            <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, width: '24%' }}>
+              {row.elementsLabel}
+            </Text>
+            <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, width: '24%' }}>
+              {row.judgeName}
+            </Text>
             <View style={{ width: '12%', alignItems: 'center' }}>
               <Checkbox checked={row.checked} flag={flag} />
             </View>

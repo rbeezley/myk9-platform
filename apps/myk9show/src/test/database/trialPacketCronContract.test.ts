@@ -44,7 +44,9 @@ describe('trial packet claim ledger', () => {
     expect(sql).toMatch(
       /grant select, insert, update, delete on public\.trial_packet_generation_claims to service_role/
     );
-    expect(sql).toMatch(/alter table public\.trial_packet_generation_claims force row level security/);
+    expect(sql).toMatch(
+      /alter table public\.trial_packet_generation_claims force row level security/
+    );
     expect(sql).toMatch(/create policy trial_packet_generation_claims_deny_all/);
   });
 });
@@ -73,7 +75,7 @@ describe('trial packet cron', () => {
     // POST and close after it.
     const guardOpen = statements.indexOf('considered := considered + 1;');
     const post = statements.indexOf('perform net.http_post(');
-    const handler = statements.indexOf("exception when others then\n      dispatch_failures");
+    const handler = statements.indexOf('exception when others then\n      dispatch_failures');
     expect(guardOpen).toBeGreaterThan(-1);
     expect(post).toBeGreaterThan(guardOpen);
     expect(handler).toBeGreaterThan(post);
@@ -124,7 +126,9 @@ describe('trial packet cron', () => {
     expect(statements).toMatch(
       /select decrypted_secret from vault\.decrypted_secrets where name = 'packet_cron_secret'/
     );
-    expect(statements).toMatch(/request_trial_packet_generation\(\s*\n\s*\(select decrypted_secret/);
+    expect(statements).toMatch(
+      /request_trial_packet_generation\(\s*\n\s*\(select decrypted_secret/
+    );
     expect(statements).toMatch(/p_base_url text,\s*\n\s*p_secret text/);
     // No secret value is ever inlined into the stored command.
     expect(statements).not.toMatch(/service_role_key|SUPABASE_SERVICE_ROLE_KEY/);
@@ -138,7 +142,7 @@ describe('trial packet cron', () => {
       /if exists \(select 1 from vault\.decrypted_secrets where name = 'packet_cron_secret'\)/
     );
     expect(statements).toMatch(/raise warning/);
-    const guard = statements.indexOf("if exists (select 1 from vault.decrypted_secrets");
+    const guard = statements.indexOf('if exists (select 1 from vault.decrypted_secrets');
     const schedule = statements.indexOf('cron.schedule(');
     expect(guard).toBeGreaterThan(-1);
     expect(schedule).toBeGreaterThan(guard);
@@ -151,7 +155,7 @@ describe('trial packet cron', () => {
   it('schedules the evening trigger only', () => {
     // Deliberate: the issue's design section names entry close too, but its
     // acceptance criterion forbids a second packet for the same trial day.
-    expect((statements.match(/cron\.schedule\(/g) ?? [])).toHaveLength(1);
+    expect(statements.match(/cron\.schedule\(/g) ?? []).toHaveLength(1);
     expect(statements).not.toMatch(/entry_close_date/);
   });
 

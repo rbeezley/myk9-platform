@@ -133,171 +133,172 @@ export function createEntryStore(enableDevtools = false) {
   return create<EntryState>()(
     devtools(
       (set, get) => ({
-      // Initial state
-      entries: [],
-      currentClassEntries: [],
-      currentEntry: null,
-      filters: defaultFilters,
-      isLoading: false,
-      error: null,
-      currentPage: 1,
-      entriesPerPage: 20,
-      totalEntries: 0,
+        // Initial state
+        entries: [],
+        currentClassEntries: [],
+        currentEntry: null,
+        filters: defaultFilters,
+        isLoading: false,
+        error: null,
+        currentPage: 1,
+        entriesPerPage: 20,
+        totalEntries: 0,
 
-      // Data Actions
-      setEntries: entries => {
-        set({
-          entries,
-          totalEntries: entries.length,
-          currentPage: 1,
-          error: null,
-        });
-      },
+        // Data Actions
+        setEntries: entries => {
+          set({
+            entries,
+            totalEntries: entries.length,
+            currentPage: 1,
+            error: null,
+          });
+        },
 
-      setCurrentClassEntries: classId => {
-        const classEntries = get().entries.filter(e => e.classId === classId);
-        set({
-          currentClassEntries: classEntries,
-          totalEntries: classEntries.length,
-          currentPage: 1,
-        });
-      },
+        setCurrentClassEntries: classId => {
+          const classEntries = get().entries.filter(e => e.classId === classId);
+          set({
+            currentClassEntries: classEntries,
+            totalEntries: classEntries.length,
+            currentPage: 1,
+          });
+        },
 
-      setCurrentEntry: entry => {
-        set({ currentEntry: entry });
-      },
+        setCurrentEntry: entry => {
+          set({ currentEntry: entry });
+        },
 
-      updateEntry: (entryId, updates) => {
-        set(state => ({
-          entries: state.entries.map(entry =>
-            entry.id === entryId ? { ...entry, ...updates } : entry
-          ),
-          currentClassEntries: state.currentClassEntries.map(entry =>
-            entry.id === entryId ? { ...entry, ...updates } : entry
-          ),
-          currentEntry:
-            state.currentEntry?.id === entryId
-              ? { ...state.currentEntry, ...updates }
-              : state.currentEntry,
-        }));
-      },
+        updateEntry: (entryId, updates) => {
+          set(state => ({
+            entries: state.entries.map(entry =>
+              entry.id === entryId ? { ...entry, ...updates } : entry
+            ),
+            currentClassEntries: state.currentClassEntries.map(entry =>
+              entry.id === entryId ? { ...entry, ...updates } : entry
+            ),
+            currentEntry:
+              state.currentEntry?.id === entryId
+                ? { ...state.currentEntry, ...updates }
+                : state.currentEntry,
+          }));
+        },
 
-      markAsScored: (entryId, resultText) => {
-        get().updateEntry(entryId, {
-          isScored: true,
-          resultText,
-          status: 'completed', // Move to completed tab
-          inRing: false, // Deprecated field for backward compat
-        });
-      },
+        markAsScored: (entryId, resultText) => {
+          get().updateEntry(entryId, {
+            isScored: true,
+            resultText,
+            status: 'completed', // Move to completed tab
+            inRing: false, // Deprecated field for backward compat
+          });
+        },
 
-      markInRing: (entryId, inRing) => {
-        get().updateEntry(entryId, { inRing });
-      },
+        markInRing: (entryId, inRing) => {
+          get().updateEntry(entryId, { inRing });
+        },
 
-      // Filter Actions
-      setFilter: filter => {
-        set(state => ({
-          filters: { ...state.filters, ...filter },
-          currentPage: 1,
-        }));
-      },
+        // Filter Actions
+        setFilter: filter => {
+          set(state => ({
+            filters: { ...state.filters, ...filter },
+            currentPage: 1,
+          }));
+        },
 
-      resetFilters: () => {
-        set({
-          filters: defaultFilters,
-          currentPage: 1,
-        });
-      },
+        resetFilters: () => {
+          set({
+            filters: defaultFilters,
+            currentPage: 1,
+          });
+        },
 
-      // Pagination Actions
-      setPage: page => {
-        const maxPage = Math.ceil(get().totalEntries / get().entriesPerPage);
-        set({
-          currentPage: Math.min(Math.max(1, page), maxPage),
-        });
-      },
+        // Pagination Actions
+        setPage: page => {
+          const maxPage = Math.ceil(get().totalEntries / get().entriesPerPage);
+          set({
+            currentPage: Math.min(Math.max(1, page), maxPage),
+          });
+        },
 
-      nextPage: () => {
-        const { currentPage, totalEntries, entriesPerPage } = get();
-        const maxPage = Math.ceil(totalEntries / entriesPerPage);
-        if (currentPage < maxPage) {
-          set({ currentPage: currentPage + 1 });
-        }
-      },
+        nextPage: () => {
+          const { currentPage, totalEntries, entriesPerPage } = get();
+          const maxPage = Math.ceil(totalEntries / entriesPerPage);
+          if (currentPage < maxPage) {
+            set({ currentPage: currentPage + 1 });
+          }
+        },
 
-      previousPage: () => {
-        const { currentPage } = get();
-        if (currentPage > 1) {
-          set({ currentPage: currentPage - 1 });
-        }
-      },
+        previousPage: () => {
+          const { currentPage } = get();
+          if (currentPage > 1) {
+            set({ currentPage: currentPage - 1 });
+          }
+        },
 
-      // Utility Functions
-      getFilteredEntries: () => {
-        const { currentClassEntries, filters } = get();
+        // Utility Functions
+        getFilteredEntries: () => {
+          const { currentClassEntries, filters } = get();
 
-        let filtered = [...currentClassEntries];
+          let filtered = [...currentClassEntries];
 
-        // Apply scored/unscored filter
-        if (!filters.showScored) {
-          filtered = filtered.filter(e => !e.isScored);
-        }
-        if (!filters.showUnscored) {
-          filtered = filtered.filter(e => e.isScored);
-        }
-
-        // Apply search filter
-        if (filters.searchTerm) {
-          const term = filters.searchTerm.toLowerCase();
-          filtered = filtered.filter(
-            e =>
-              e.callName.toLowerCase().includes(term) ||
-              e.handler.toLowerCase().includes(term) ||
-              e.breed.toLowerCase().includes(term) ||
-              e.armband.toString().includes(term)
-          );
-        }
-
-        // Apply sorting
-        filtered.sort((a, b) => {
-          let comparison = 0;
-
-          switch (filters.sortBy) {
-            case 'armband':
-              comparison = a.armband - b.armband;
-              break;
-            case 'callName':
-              comparison = a.callName.localeCompare(b.callName);
-              break;
-            case 'handler':
-              comparison = a.handler.localeCompare(b.handler);
-              break;
-            case 'status':
-              comparison = (a.isScored ? 1 : 0) - (b.isScored ? 1 : 0);
-              break;
+          // Apply scored/unscored filter
+          if (!filters.showScored) {
+            filtered = filtered.filter(e => !e.isScored);
+          }
+          if (!filters.showUnscored) {
+            filtered = filtered.filter(e => e.isScored);
           }
 
-          return filters.sortDirection === 'asc' ? comparison : -comparison;
-        });
+          // Apply search filter
+          if (filters.searchTerm) {
+            const term = filters.searchTerm.toLowerCase();
+            filtered = filtered.filter(
+              e =>
+                e.callName.toLowerCase().includes(term) ||
+                e.handler.toLowerCase().includes(term) ||
+                e.breed.toLowerCase().includes(term) ||
+                e.armband.toString().includes(term)
+            );
+          }
 
-        return filtered;
-      },
+          // Apply sorting
+          filtered.sort((a, b) => {
+            let comparison = 0;
 
-      getEntryByArmband: armband => {
-        return get().entries.find(e => e.armband === armband);
-      },
+            switch (filters.sortBy) {
+              case 'armband':
+                comparison = a.armband - b.armband;
+                break;
+              case 'callName':
+                comparison = a.callName.localeCompare(b.callName);
+                break;
+              case 'handler':
+                comparison = a.handler.localeCompare(b.handler);
+                break;
+              case 'status':
+                comparison = (a.isScored ? 1 : 0) - (b.isScored ? 1 : 0);
+                break;
+            }
 
-      getPendingEntries: () => {
-        return get().currentClassEntries.filter(e => !e.isScored);
-      },
+            return filters.sortDirection === 'asc' ? comparison : -comparison;
+          });
 
-      getScoredEntries: () => {
-        return get().currentClassEntries.filter(e => e.isScored);
-      },
-    }),
-    { enabled: enableDevtools }
-  ));
+          return filtered;
+        },
+
+        getEntryByArmband: armband => {
+          return get().entries.find(e => e.armband === armband);
+        },
+
+        getPendingEntries: () => {
+          return get().currentClassEntries.filter(e => !e.isScored);
+        },
+
+        getScoredEntries: () => {
+          return get().currentClassEntries.filter(e => e.isScored);
+        },
+      }),
+      { enabled: enableDevtools }
+    )
+  );
 }
 
 // Default store instance — consumers can call `createEntryStore(true)` to

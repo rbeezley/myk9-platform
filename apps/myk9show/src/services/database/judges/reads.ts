@@ -55,9 +55,14 @@ export async function replaceJudgeQualifications(
   personId: string,
   qualifications: CreateJudgeQualificationData[]
 ): Promise<void> {
-  const { error } = await (supabase as unknown as {
-    rpc(name: string, args: Record<string, unknown>): Promise<{ error: { message: string } | null }>;
-  }).rpc('replace_judge_qualifications', {
+  const { error } = await (
+    supabase as unknown as {
+      rpc(
+        name: string,
+        args: Record<string, unknown>
+      ): Promise<{ error: { message: string } | null }>;
+    }
+  ).rpc('replace_judge_qualifications', {
     p_person_id: personId,
     p_qualifications: qualifications,
   });

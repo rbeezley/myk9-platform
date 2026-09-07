@@ -44,7 +44,10 @@ declare module 'react-window' {
     width: number | string;
   }
 
-  export interface VariableSizeListProps<T = unknown> extends Omit<FixedSizeListProps<T>, 'itemSize'> {
+  export interface VariableSizeListProps<T = unknown> extends Omit<
+    FixedSizeListProps<T>,
+    'itemSize'
+  > {
     estimatedItemSize?: number;
     itemSize: (index: number) => number;
   }

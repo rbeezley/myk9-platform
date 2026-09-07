@@ -1,9 +1,5 @@
 import type { ShowExperienceSnapshot } from '@/features/experience/experienceSnapshot';
-import type {
-  EntryFormDog,
-  EntryFormSecretary,
-  EntryFormTrial,
-} from './entryFormTypes';
+import type { EntryFormDog, EntryFormSecretary, EntryFormTrial } from './entryFormTypes';
 
 import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
 

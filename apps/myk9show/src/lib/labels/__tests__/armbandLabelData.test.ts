@@ -51,7 +51,7 @@ describe('filterEntries', () => {
       dayOfShowEntries: false,
     });
     expect(result).toHaveLength(2);
-    expect(result.every((e) => !e.isDayOfShow)).toBe(true);
+    expect(result.every(e => !e.isDayOfShow)).toBe(true);
   });
 
   it('returns day-of-show entries only', () => {

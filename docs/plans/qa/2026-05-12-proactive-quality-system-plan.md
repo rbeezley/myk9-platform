@@ -143,12 +143,12 @@ This is the missing map. It should list:
 
 Example rows:
 
-| Asset | Use When | Command Or Invocation | Output | Cadence |
-| --- | --- | --- | --- | --- |
-| `qa-feature` | Auditing one feature end to end | `/qa-feature dogs CRUD as secretary` | E2E spec + fixes | Feature hardening |
-| `audit-pages` | Broad page health sweep | `/audit-pages secretary` | `OPEN-TODOS.md` entries | Weekly/nightly |
-| `harden` | Before commit on risky changes | `/harden apps/myk9show/src/hooks/useProfileForm.ts` | Findings/fixes | Per PR |
-| UAT secretary proof | Secretary regression proof | `pnpm test:e2e:clean src/test/e2e/uat/secretary/qa-regression-proof.spec.ts` | Playwright trace | Pre-release |
+| Asset               | Use When                        | Command Or Invocation                                                        | Output                  | Cadence           |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------------- | ----------------------- | ----------------- |
+| `qa-feature`        | Auditing one feature end to end | `/qa-feature dogs CRUD as secretary`                                         | E2E spec + fixes        | Feature hardening |
+| `audit-pages`       | Broad page health sweep         | `/audit-pages secretary`                                                     | `OPEN-TODOS.md` entries | Weekly/nightly    |
+| `harden`            | Before commit on risky changes  | `/harden apps/myk9show/src/hooks/useProfileForm.ts`                          | Findings/fixes          | Per PR            |
+| UAT secretary proof | Secretary regression proof      | `pnpm test:e2e:clean src/test/e2e/uat/secretary/qa-regression-proof.spec.ts` | Playwright trace        | Pre-release       |
 
 ### 3. E2E Suite Classification
 

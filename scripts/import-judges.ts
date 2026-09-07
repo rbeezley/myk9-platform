@@ -92,7 +92,12 @@ function parseCsv(path: string): QualRow[] {
       email: r.email,
       organization: r.organization,
       level: r.level,
-      disciplines: r.disciplines ? r.disciplines.split('|').map(d => d.trim()).filter(Boolean) : [],
+      disciplines: r.disciplines
+        ? r.disciplines
+            .split('|')
+            .map(d => d.trim())
+            .filter(Boolean)
+        : [],
       date_obtained: r.date_obtained || null,
       expiration_date: r.expiration_date || null,
     });
@@ -147,7 +152,7 @@ function generateSql(rows: QualRow[]): { sql: string; personCount: number } {
       const [first, last] = nameKey.split('|');
       process.stderr.write(
         `WARNING: ${count} rows for "${first} ${last}" have no email — ` +
-          `each will create a separate people row. Add email to merge them.\n`,
+          `each will create a separate people row. Add email to merge them.\n`
       );
     }
   }
@@ -175,7 +180,9 @@ function generateSql(rows: QualRow[]): { sql: string; personCount: number } {
     LIMIT 1;
   END IF;`;
 
-    const qualInserts = quals.map(q => `
+    const qualInserts = quals
+      .map(
+        q => `
   IF NOT EXISTS (
     SELECT 1 FROM judge_qualifications
     WHERE person_id = v_person_id
@@ -195,7 +202,9 @@ function generateSql(rows: QualRow[]): { sql: string; personCount: number } {
       TRUE,
       ${sq(q.judge_number)}
     );
-  END IF;`).join('');
+  END IF;`
+      )
+      .join('');
 
     blocks.push(`DO $$
 DECLARE
@@ -219,5 +228,7 @@ const rows = parseCsv(csvPath);
 const { sql, personCount } = generateSql(rows);
 process.stdout.write(sql);
 if (rows.length) {
-  process.stderr.write(`-- Processed ${rows.length} qualification row(s) for ${personCount} people block(s).\n`);
+  process.stderr.write(
+    `-- Processed ${rows.length} qualification row(s) for ${personCount} people block(s).\n`
+  );
 }

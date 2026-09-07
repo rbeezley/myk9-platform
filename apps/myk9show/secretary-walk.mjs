@@ -109,9 +109,7 @@ async function goToShowMap(page, showId) {
 }
 
 async function readSummaryTileValue(page, showId, label) {
-  const tileContainer = page.locator(
-    `[data-node-id="show:${showId}"][data-node-type="show"]`
-  );
+  const tileContainer = page.locator(`[data-node-id="show:${showId}"][data-node-type="show"]`);
   await tileContainer.waitFor({ timeout: 15000 });
 
   const labelNode = tileContainer

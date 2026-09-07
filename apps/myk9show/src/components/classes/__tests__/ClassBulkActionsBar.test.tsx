@@ -68,9 +68,7 @@ describe('ClassBulkActionsBar', () => {
     expect(
       await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('menuitem', { name: /mark 2 of 2 in progress/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /mark 2 of 2 in progress/i })).toBeInTheDocument();
     // Both selected classes are already Scheduled, so that bulk action has 0
     // eligible items and falls back to its unavailable-reason label.
     expect(screen.getByRole('menuitem', { name: /^mark scheduled/i })).toBeInTheDocument();
@@ -81,7 +79,11 @@ describe('ClassBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 2 of 2 in progress/i }));
 
-    expect(onBulkStatusChange).toHaveBeenCalledWith(['1', '2'], 'In Progress', expect.any(Function));
+    expect(onBulkStatusChange).toHaveBeenCalledWith(
+      ['1', '2'],
+      'In Progress',
+      expect.any(Function)
+    );
   });
 
   it('clears the selection after a fully successful bulk status change', async () => {

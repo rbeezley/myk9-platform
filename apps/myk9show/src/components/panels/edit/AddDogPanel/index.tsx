@@ -67,10 +67,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   );
 
   // Handle save: map DogFormData -> DogInput and persist
-  const handleSave = async (
-    formData: DogFormData,
-    { runSelfNavigation }: EditPanelSaveContext
-  ) => {
+  const handleSave = async (formData: DogFormData, { runSelfNavigation }: EditPanelSaveContext) => {
     setLocalSaveError(null);
     setDuplicateCandidate(null);
     if (!allowSeparateDog) {

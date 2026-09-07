@@ -1,4 +1,8 @@
-import { EXPECTED_ACCOUNT_REPOS, evaluateHeadroom, type HeadroomInputs } from './loadRunnerHeadroom';
+import {
+  EXPECTED_ACCOUNT_REPOS,
+  evaluateHeadroom,
+  type HeadroomInputs,
+} from './loadRunnerHeadroom';
 
 /**
  * Shared fixtures for the headroom gate's two test files.

@@ -1,6 +1,6 @@
 /**
  * Achievement and Competition Data Mappers
- * 
+ *
  * Transform data between database format and application format,
  * handle validation, and provide utility functions for achievement data.
  */
@@ -17,7 +17,7 @@ import {
   OrganizationConfig,
   DisciplineConfig,
   ACHIEVEMENT_TYPES,
-  DISCIPLINES
+  DISCIPLINES,
 } from '../../types/achievement';
 
 // Database to App Mappers
@@ -29,20 +29,20 @@ export const achievementMappers = {
       dog_id: dbAchievement.dog_id as string,
       achievement_type: dbAchievement.achievement_type as string,
       title: dbAchievement.title as string,
-      abbreviation: dbAchievement.abbreviation as string || undefined,
+      abbreviation: (dbAchievement.abbreviation as string) || undefined,
       organization: dbAchievement.organization as string,
-      discipline: dbAchievement.discipline as string || undefined,
-      level: dbAchievement.level as string || undefined,
+      discipline: (dbAchievement.discipline as string) || undefined,
+      level: (dbAchievement.level as string) || undefined,
       date_earned: dbAchievement.date_earned as string,
-      points: dbAchievement.points as number || undefined,
-      location: dbAchievement.location as string || undefined,
-      judge_name: dbAchievement.judge_name as string || undefined,
-      certificate_number: dbAchievement.certificate_number as string || undefined,
-      certificate_url: dbAchievement.certificate_url as string || undefined,
-      notes: dbAchievement.notes as string || undefined,
-      is_active: dbAchievement.is_active as boolean ?? true,
+      points: (dbAchievement.points as number) || undefined,
+      location: (dbAchievement.location as string) || undefined,
+      judge_name: (dbAchievement.judge_name as string) || undefined,
+      certificate_number: (dbAchievement.certificate_number as string) || undefined,
+      certificate_url: (dbAchievement.certificate_url as string) || undefined,
+      notes: (dbAchievement.notes as string) || undefined,
+      is_active: (dbAchievement.is_active as boolean) ?? true,
       created_at: dbAchievement.created_at as string,
-      updated_at: dbAchievement.updated_at as string
+      updated_at: dbAchievement.updated_at as string,
     };
   },
 
@@ -63,7 +63,7 @@ export const achievementMappers = {
       certificate_number: achievement.certificate_number || null,
       certificate_url: achievement.certificate_url || null,
       notes: achievement.notes || null,
-      is_active: achievement.is_active ?? true
+      is_active: achievement.is_active ?? true,
     };
   },
 
@@ -118,7 +118,7 @@ export const achievementMappers = {
     } catch {
       return false;
     }
-  }
+  },
 };
 
 export const competitionMappers = {
@@ -127,23 +127,23 @@ export const competitionMappers = {
     return {
       id: dbCompetition.id as string,
       dog_id: dbCompetition.dog_id as string,
-      show_id: dbCompetition.show_id as string || undefined,
-      class_id: dbCompetition.class_id as string || undefined,
+      show_id: (dbCompetition.show_id as string) || undefined,
+      class_id: (dbCompetition.class_id as string) || undefined,
       competition_name: dbCompetition.competition_name as string,
       competition_date: dbCompetition.competition_date as string,
-      location: dbCompetition.location as string || undefined,
-      placement: dbCompetition.placement as string || undefined,
-      score: dbCompetition.score as string || undefined,
-      time_seconds: dbCompetition.time_seconds as number || undefined,
+      location: (dbCompetition.location as string) || undefined,
+      placement: (dbCompetition.placement as string) || undefined,
+      score: (dbCompetition.score as string) || undefined,
+      time_seconds: (dbCompetition.time_seconds as number) || undefined,
       qualified: dbCompetition.qualified as boolean,
-      points_earned: dbCompetition.points_earned as number || 0,
-      organization: dbCompetition.organization as string || undefined,
-      discipline: dbCompetition.discipline as string || undefined,
-      level: dbCompetition.level as string || undefined,
-      judge_name: dbCompetition.judge_name as string || undefined,
-      notes: dbCompetition.notes as string || undefined,
+      points_earned: (dbCompetition.points_earned as number) || 0,
+      organization: (dbCompetition.organization as string) || undefined,
+      discipline: (dbCompetition.discipline as string) || undefined,
+      level: (dbCompetition.level as string) || undefined,
+      judge_name: (dbCompetition.judge_name as string) || undefined,
+      notes: (dbCompetition.notes as string) || undefined,
       created_at: dbCompetition.created_at as string,
-      updated_at: dbCompetition.updated_at as string
+      updated_at: dbCompetition.updated_at as string,
     };
   },
 
@@ -165,7 +165,7 @@ export const competitionMappers = {
       discipline: competition.discipline || null,
       level: competition.level || null,
       judge_name: competition.judge_name || null,
-      notes: competition.notes || null
+      notes: competition.notes || null,
     };
   },
 
@@ -215,7 +215,7 @@ export const competitionMappers = {
       /^(\d+)\.(\d+)$/, // SS.ss
       /^(\d+)$/, // SS
       /^(\d+)m\s*(\d+)\.(\d+)s$/, // XmYY.ssS
-      /^(\d+)m\s*(\d+)s$/ // XmYYs
+      /^(\d+)m\s*(\d+)s$/, // XmYYs
     ];
 
     for (const pattern of patterns) {
@@ -267,7 +267,7 @@ export const competitionMappers = {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toFixed(2).padStart(5, '0')}`;
-  }
+  },
 };
 
 export const pastResultMappers = {
@@ -276,21 +276,21 @@ export const pastResultMappers = {
     return {
       id: dbPastResult.id as string,
       dog_id: dbPastResult.dog_id as string,
-      show_id: dbPastResult.show_id as string || undefined,
+      show_id: (dbPastResult.show_id as string) || undefined,
       show_name: dbPastResult.show_name as string,
       show_date: dbPastResult.show_date as string,
-      show_location: dbPastResult.show_location as string || undefined,
+      show_location: (dbPastResult.show_location as string) || undefined,
       class_name: dbPastResult.class_name as string,
-      class_level: dbPastResult.class_level as string || undefined,
-      placement: dbPastResult.placement as string || undefined,
-      score: dbPastResult.score as string || undefined,
+      class_level: (dbPastResult.class_level as string) || undefined,
+      placement: (dbPastResult.placement as string) || undefined,
+      score: (dbPastResult.score as string) || undefined,
       qualified: dbPastResult.qualified as boolean,
-      judge_name: dbPastResult.judge_name as string || undefined,
-      notes: dbPastResult.notes as string || undefined,
-      imported_from: dbPastResult.imported_from as string || undefined,
-      external_id: dbPastResult.external_id as string || undefined,
+      judge_name: (dbPastResult.judge_name as string) || undefined,
+      notes: (dbPastResult.notes as string) || undefined,
+      imported_from: (dbPastResult.imported_from as string) || undefined,
+      external_id: (dbPastResult.external_id as string) || undefined,
       created_at: dbPastResult.created_at as string,
-      updated_at: dbPastResult.updated_at as string
+      updated_at: dbPastResult.updated_at as string,
     };
   },
 
@@ -310,7 +310,7 @@ export const pastResultMappers = {
       judge_name: pastResult.judge_name || null,
       notes: pastResult.notes || null,
       imported_from: pastResult.imported_from || null,
-      external_id: pastResult.external_id || null
+      external_id: pastResult.external_id || null,
     };
   },
 
@@ -340,7 +340,7 @@ export const pastResultMappers = {
     }
 
     return errors;
-  }
+  },
 };
 
 // Import/Export Mappers
@@ -353,7 +353,7 @@ export const importMappers = {
       title: importData.title,
       organization: importData.organization,
       date_earned: importData.date_earned,
-      notes: importData.source ? `Imported from ${importData.source}` : undefined
+      notes: importData.source ? `Imported from ${importData.source}` : undefined,
     };
   },
 
@@ -367,7 +367,7 @@ export const importMappers = {
       score: importData.score,
       qualified: importData.qualified,
       organization: importData.organization,
-      notes: importData.source ? `Imported from ${importData.source}` : undefined
+      notes: importData.source ? `Imported from ${importData.source}` : undefined,
     };
   },
 
@@ -414,7 +414,7 @@ export const importMappers = {
     }
 
     return errors;
-  }
+  },
 };
 
 // Organization and Discipline Configuration
@@ -426,7 +426,7 @@ export const organizationConfigs: Record<string, OrganizationConfig> = {
     disciplines: ['Conformation', 'Obedience', 'Rally', 'Agility', 'Tracking'],
     levels: ['Novice', 'Open', 'Utility', 'Master'],
     scoring_system: 'qualified',
-    website: 'https://www.akc.org'
+    website: 'https://www.akc.org',
   },
   UKC: {
     name: 'United Kennel Club',
@@ -435,7 +435,7 @@ export const organizationConfigs: Record<string, OrganizationConfig> = {
     disciplines: ['Conformation', 'Obedience', 'Rally', 'Agility'],
     levels: ['Started', 'Advanced', 'Superior'],
     scoring_system: 'points',
-    website: 'https://www.ukcdogs.com'
+    website: 'https://www.ukcdogs.com',
   },
   USDAA: {
     name: 'United States Dog Agility Association',
@@ -444,8 +444,8 @@ export const organizationConfigs: Record<string, OrganizationConfig> = {
     disciplines: ['Agility'],
     levels: ['Starters', 'Advanced', 'Masters', 'Performance'],
     scoring_system: 'time',
-    website: 'https://www.usdaa.com'
-  }
+    website: 'https://www.usdaa.com',
+  },
 };
 
 export const disciplineConfigs: Record<string, DisciplineConfig> = {
@@ -454,29 +454,29 @@ export const disciplineConfigs: Record<string, DisciplineConfig> = {
     abbreviation: 'AG',
     scoring_type: 'time',
     levels: ['Novice', 'Open', 'Excellent', 'Master'],
-    organizations: ['AKC', 'UKC', 'USDAA', 'CPE', 'NADAC']
+    organizations: ['AKC', 'UKC', 'USDAA', 'CPE', 'NADAC'],
   },
   Obedience: {
     name: 'Obedience',
     abbreviation: 'OB',
     scoring_type: 'points',
     levels: ['Novice', 'Open', 'Utility'],
-    organizations: ['AKC', 'UKC', 'CKC']
+    organizations: ['AKC', 'UKC', 'CKC'],
   },
   Rally: {
     name: 'Rally',
     abbreviation: 'RA',
     scoring_type: 'points',
     levels: ['Novice', 'Advanced', 'Excellent', 'Master'],
-    organizations: ['AKC', 'UKC']
+    organizations: ['AKC', 'UKC'],
   },
   Conformation: {
     name: 'Conformation',
     abbreviation: 'CH',
     scoring_type: 'placement',
     levels: ['Class', 'Major', 'Specialty'],
-    organizations: ['AKC', 'UKC', 'CKC']
-  }
+    organizations: ['AKC', 'UKC', 'CKC'],
+  },
 };
 
 // Utility Functions
@@ -520,7 +520,7 @@ export const achievementUtils = {
       '2nd': 3,
       '3rd': 2,
       '4th': 1,
-      'Q': 1
+      Q: 1,
     };
 
     const levelMultiplier = level === 'Master' ? 2 : level === 'Advanced' ? 1.5 : 1;
@@ -545,9 +545,9 @@ export const achievementUtils = {
       if (b.achievement_type === 'Championship' && a.achievement_type !== 'Championship') {
         return 1;
       }
-      
+
       // Then by date (newest first)
       return b.date_earned.localeCompare(a.date_earned);
     });
-  }
+  },
 };

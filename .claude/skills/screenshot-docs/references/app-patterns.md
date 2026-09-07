@@ -96,6 +96,7 @@ await page.screenshot({
 ```
 
 Then copy to the repo:
+
 ```bash
 cp /tmp/myk9-shots/C-07.png docs/screenshots/C-07.png
 ```

@@ -94,7 +94,10 @@ describe('nextPendingCandidates', () => {
 
 describe('findInRingEntry', () => {
   it('finds the in-ring dog via status', () => {
-    const entries = [entry({ id: 'e1', armband: 1 }), entry({ id: 'e2', armband: 2, status: 'in-ring' })];
+    const entries = [
+      entry({ id: 'e1', armband: 1 }),
+      entry({ id: 'e2', armband: 2, status: 'in-ring' }),
+    ];
     expect(findInRingEntry(entries)?.id).toBe('e2');
   });
 

@@ -5,7 +5,7 @@ import {
   serializeMultiJudgeScore,
   deserializeMultiJudgeScore,
   serializeSession,
-  deserializeSession
+  deserializeSession,
 } from './offline-scoring-serialization';
 import type { BaseScore, MultiJudgeScore, ScoringSession } from '@/types/scoring-types';
 
@@ -32,7 +32,7 @@ function makeScore(overrides: Partial<BaseScore> = {}): BaseScore {
     version: 1,
     lastModified: new Date('2026-07-01T10:00:10.000Z'),
     syncStatus: 'pending',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -70,11 +70,11 @@ describe('serializeMultiJudgeScore / deserializeMultiJudgeScore', () => {
       format: 'regular' as BaseScore['format'],
       judgeScores: new Map([
         ['judge-1', score1],
-        ['judge-2', score2]
+        ['judge-2', score2],
       ]),
       hasConflicts: false,
       lastUpdated: new Date('2026-07-01T11:00:00.000Z'),
-      syncStatus: 'pending'
+      syncStatus: 'pending',
     };
 
     const serialized = serializeMultiJudgeScore(multiScore);
@@ -94,10 +94,10 @@ describe('serializeMultiJudgeScore / deserializeMultiJudgeScore', () => {
       conflictResolution: {
         strategy: 'average',
         resolvedBy: 'head-judge-1',
-        resolvedAt: new Date('2026-07-01T12:00:00.000Z')
+        resolvedAt: new Date('2026-07-01T12:00:00.000Z'),
       },
       lastUpdated: new Date('2026-07-01T11:00:00.000Z'),
-      syncStatus: 'conflict'
+      syncStatus: 'conflict',
     };
 
     const serialized = serializeMultiJudgeScore(multiScore);
@@ -115,7 +115,7 @@ describe('serializeMultiJudgeScore / deserializeMultiJudgeScore', () => {
       judgeScores: new Map([['judge-1', makeScore()]]),
       hasConflicts: false,
       lastUpdated: new Date('2026-07-01T11:00:00.000Z'),
-      syncStatus: 'pending'
+      syncStatus: 'pending',
     };
 
     const roundTripped = deserializeMultiJudgeScore(serializeMultiJudgeScore(multiScore));
@@ -129,7 +129,7 @@ describe('serializeMultiJudgeScore / deserializeMultiJudgeScore', () => {
     const roundTripped = deserializeMultiJudgeScore({
       entryId: 'entry-1',
       classId: 'class-1',
-      lastUpdated: '2026-07-01T11:00:00.000Z'
+      lastUpdated: '2026-07-01T11:00:00.000Z',
     });
 
     expect(roundTripped.judgeScores).toBeInstanceOf(Map);
@@ -150,7 +150,7 @@ describe('serializeSession / deserializeSession', () => {
       completedEntries: ['entry-1'],
       isOffline: true,
       pendingSync: [makeScore()],
-      ...overrides
+      ...overrides,
     };
   }
 
@@ -169,7 +169,7 @@ describe('serializeSession / deserializeSession', () => {
   it('serializes optional endTime and lastSyncAt when present', () => {
     const session = makeSession({
       endTime: new Date('2026-07-01T13:00:00.000Z'),
-      lastSyncAt: new Date('2026-07-01T13:05:00.000Z')
+      lastSyncAt: new Date('2026-07-01T13:05:00.000Z'),
     });
 
     const serialized = serializeSession(session);
@@ -181,7 +181,7 @@ describe('serializeSession / deserializeSession', () => {
   it('round-trips a session through serialize -> deserialize', () => {
     const session = makeSession({
       endTime: new Date('2026-07-01T13:00:00.000Z'),
-      lastSyncAt: new Date('2026-07-01T13:05:00.000Z')
+      lastSyncAt: new Date('2026-07-01T13:05:00.000Z'),
     });
 
     const roundTripped = deserializeSession(serializeSession(session));
@@ -197,7 +197,7 @@ describe('serializeSession / deserializeSession', () => {
   it('defaults pendingSync to an empty array when missing', () => {
     const roundTripped = deserializeSession({
       id: 'session-2',
-      startTime: '2026-07-01T09:00:00.000Z'
+      startTime: '2026-07-01T09:00:00.000Z',
     });
 
     expect(roundTripped.pendingSync).toEqual([]);

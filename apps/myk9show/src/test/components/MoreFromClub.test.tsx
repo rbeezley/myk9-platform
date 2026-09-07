@@ -86,9 +86,7 @@ describe('MoreFromClub', () => {
     expect(skeleton.className).toContain(
       `min-h-[${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_MOBILE_PX}px]`
     );
-    expect(skeleton.className).toContain(
-      `sm:min-h-[${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX}px]`
-    );
+    expect(skeleton.className).toContain(`sm:min-h-[${MORE_FROM_CLUB_RESERVED_MIN_HEIGHT_PX}px]`);
   });
 
   it('does not render skeleton when data is loaded', () => {

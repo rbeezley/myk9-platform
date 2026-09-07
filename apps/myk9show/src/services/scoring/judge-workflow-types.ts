@@ -12,7 +12,8 @@ import type { ScoringFormat } from '@/types/scoring-types';
 // ============================================================================
 
 export type JudgeRole = 'judge' | 'head_judge' | 'steward' | 'show_secretary';
-export type WorkflowStep = 'setup' | 'entry_assignment' | 'scoring' | 'review' | 'finalization' | 'completed';
+export type WorkflowStep =
+  'setup' | 'entry_assignment' | 'scoring' | 'review' | 'finalization' | 'completed';
 export type AssignmentStrategy = 'sequential' | 'random' | 'optimized' | 'manual';
 
 // ============================================================================

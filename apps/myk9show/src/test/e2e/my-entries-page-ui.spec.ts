@@ -160,13 +160,18 @@ test.describe('My Shows Page - Filter Structure', () => {
   // The combination the old six-tab strip could not express: picking a status
   // then a time replaced the filter instead of refining it.
   test('status filter composes with the time filter instead of replacing it', async ({ page }) => {
-    await statusAxis(page).getByRole('radio', { name: /^Accepted/ }).click();
-    await timeAxis(page).getByRole('radio', { name: /^Upcoming\s*\d+$/ }).click();
+    await statusAxis(page)
+      .getByRole('radio', { name: /^Accepted/ })
+      .click();
+    await timeAxis(page)
+      .getByRole('radio', { name: /^Upcoming\s*\d+$/ })
+      .click();
 
     // Both constraints still applied.
-    await expect(
-      timeAxis(page).getByRole('radio', { name: /^Upcoming\s*\d+$/ })
-    ).toHaveAttribute('aria-checked', 'true');
+    await expect(timeAxis(page).getByRole('radio', { name: /^Upcoming\s*\d+$/ })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
     await expect(statusAxis(page).getByRole('radio', { name: /^Accepted/ })).toHaveAttribute(
       'aria-checked',
       'true'

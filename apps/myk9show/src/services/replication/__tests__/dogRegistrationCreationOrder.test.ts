@@ -21,7 +21,10 @@ describe('locally created registrations carry a usable creation order', () => {
   let setSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    const proto = ReplicatedDogRegistrationsTable.prototype as unknown as Record<string, () => Promise<void>>;
+    const proto = ReplicatedDogRegistrationsTable.prototype as unknown as Record<
+      string,
+      () => Promise<void>
+    >;
     setSpy = vi.spyOn(proto, 'set').mockResolvedValue(undefined);
     vi.spyOn(proto, 'queueMutation').mockResolvedValue(undefined);
 

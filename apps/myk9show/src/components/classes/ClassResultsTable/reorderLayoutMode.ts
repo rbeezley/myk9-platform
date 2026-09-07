@@ -11,8 +11,6 @@ export const REORDER_TRANSITION = { duration: 0.35, ease: [0.16, 1, 0.3, 1] as c
  * (the motion-language virtualization guard). Reduced-motion users get an
  * instant reposition (`false`) instead.
  */
-export function reorderLayoutMode(
-  prefersReducedMotion: boolean | null
-): false | 'position' {
+export function reorderLayoutMode(prefersReducedMotion: boolean | null): false | 'position' {
   return prefersReducedMotion ? false : 'position';
 }

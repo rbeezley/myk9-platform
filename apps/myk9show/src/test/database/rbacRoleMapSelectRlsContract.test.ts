@@ -182,7 +182,9 @@ describe('RBAC role-map SELECT scoping follow-up RPC contract (SA-006)', () => {
     expect(followupMigration).toContain(
       'REVOKE ALL ON FUNCTION public.get_club_show_manager_ids(uuid) FROM PUBLIC'
     );
-    expect(followupMigration.indexOf('REVOKE ALL ON FUNCTION public.get_show_officials')).toBeLessThan(
+    expect(
+      followupMigration.indexOf('REVOKE ALL ON FUNCTION public.get_show_officials')
+    ).toBeLessThan(
       followupMigration.indexOf('GRANT EXECUTE ON FUNCTION public.get_show_officials(uuid) TO anon')
     );
     expect(followupMigration).toContain(

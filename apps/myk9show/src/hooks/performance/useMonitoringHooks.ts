@@ -13,7 +13,11 @@ export const useMemoryMonitoring = () => {
   useEffect(() => {
     const updateMemoryInfo = () => {
       if ('memory' in performance) {
-        const memory = (performance as Performance & { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+        const memory = (
+          performance as Performance & {
+            memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
+          }
+        ).memory;
         if (memory) {
           setMemoryInfo({
             usedJSHeapSize: memory.usedJSHeapSize,
@@ -23,11 +27,11 @@ export const useMemoryMonitoring = () => {
 
           const usagePercent = (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100;
           if (usagePercent > 80) {
-          logger.warn(`High memory usage: ${usagePercent.toFixed(2)}%`, 'performance', {
-            usedJSHeapSize: memory.usedJSHeapSize,
-            totalJSHeapSize: memory.totalJSHeapSize,
-            jsHeapSizeLimit: memory.jsHeapSizeLimit,
-          });
+            logger.warn(`High memory usage: ${usagePercent.toFixed(2)}%`, 'performance', {
+              usedJSHeapSize: memory.usedJSHeapSize,
+              totalJSHeapSize: memory.totalJSHeapSize,
+              jsHeapSizeLimit: memory.jsHeapSizeLimit,
+            });
           }
         }
       }
@@ -72,11 +76,15 @@ export const useBundleOptimization = () => {
       monitoring.recordPerformanceMetric('bundle.total_size', totalSize, 'bytes');
 
       if (totalSize > 1024 * 1024) {
-        logger.warn(`Large bundle size detected: ${(totalSize / 1024 / 1024).toFixed(2)}MB`, 'performance', {
-          jsSize,
-          cssSize,
-          totalSize,
-        });
+        logger.warn(
+          `Large bundle size detected: ${(totalSize / 1024 / 1024).toFixed(2)}MB`,
+          'performance',
+          {
+            jsSize,
+            cssSize,
+            totalSize,
+          }
+        );
       }
     };
 
@@ -106,11 +114,15 @@ export const usePerformanceBudget = (budgets: {
       const status: Record<string, 'pass' | 'warn' | 'fail'> = {};
 
       if ('PerformanceObserver' in window) {
-        const checkMetric = (entryType: string, budgetKey: keyof typeof budgets, getValue: (entry: PerformanceEntry) => number) => {
+        const checkMetric = (
+          entryType: string,
+          budgetKey: keyof typeof budgets,
+          getValue: (entry: PerformanceEntry) => number
+        ) => {
           if (!budgets[budgetKey]) return;
 
           try {
-            const observer = new PerformanceObserver((list) => {
+            const observer = new PerformanceObserver(list => {
               const entries = list.getEntries();
               if (entries.length > 0) {
                 const value = getValue(entries[entries.length - 1]);
@@ -131,20 +143,30 @@ export const usePerformanceBudget = (budgets: {
 
             observer.observe({ entryTypes: [entryType] });
           } catch (error) {
-            logger.warn(`Failed to observe ${entryType}`, 'performance', { error: error?.toString() });
+            logger.warn(`Failed to observe ${entryType}`, 'performance', {
+              error: error?.toString(),
+            });
           }
         };
 
         if (budgets.firstContentfulPaint) {
-          checkMetric('paint', 'firstContentfulPaint', (entry) => entry.startTime);
+          checkMetric('paint', 'firstContentfulPaint', entry => entry.startTime);
         }
 
         if (budgets.largestContentfulPaint) {
-          checkMetric('largest-contentful-paint', 'largestContentfulPaint', (entry) => entry.startTime);
+          checkMetric(
+            'largest-contentful-paint',
+            'largestContentfulPaint',
+            entry => entry.startTime
+          );
         }
 
         if (budgets.cumulativeLayoutShift) {
-          checkMetric('layout-shift', 'cumulativeLayoutShift', (entry) => (entry as LayoutShift).value);
+          checkMetric(
+            'layout-shift',
+            'cumulativeLayoutShift',
+            entry => (entry as LayoutShift).value
+          );
         }
       }
     };
@@ -161,7 +183,7 @@ export function usePerformanceMetrics() {
     avgRenderTime: 0,
     avgMemoryUsage: 0,
     avgCacheHitRate: 0,
-    totalOperations: 0
+    totalOperations: 0,
   });
 
   const reset = useCallback(() => {
@@ -169,13 +191,13 @@ export function usePerformanceMetrics() {
       avgRenderTime: 0,
       avgMemoryUsage: 0,
       avgCacheHitRate: 0,
-      totalOperations: 0
+      totalOperations: 0,
     });
   }, []);
 
   return {
     metrics,
     summary,
-    reset
+    reset,
   };
 }

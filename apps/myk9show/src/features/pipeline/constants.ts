@@ -3,11 +3,36 @@ import type { PipelineStageMeta, CannedChecklistDef, PipelineStage } from './typ
 // ── Stage metadata ──────────────────────────────────────────────
 
 export const STAGE_META: Record<PipelineStage, PipelineStageMeta> = {
-  1: { stage: 1, label: 'Trial Setup', shortLabel: 'Setup', description: 'Configure venue, dates, judges, and fees' },
-  2: { stage: 2, label: 'Classes & Elements', shortLabel: 'Classes', description: 'Create and configure classes' },
-  3: { stage: 3, label: 'Entry Period', shortLabel: 'Entries', description: 'Accept and manage exhibitor entries' },
-  4: { stage: 4, label: 'Scoring Day', shortLabel: 'Scoring', description: 'Score all classes and entries' },
-  5: { stage: 5, label: 'Results & Reports', shortLabel: 'Results', description: 'Publish results and prepare submissions' },
+  1: {
+    stage: 1,
+    label: 'Trial Setup',
+    shortLabel: 'Setup',
+    description: 'Configure venue, dates, judges, and fees',
+  },
+  2: {
+    stage: 2,
+    label: 'Classes & Elements',
+    shortLabel: 'Classes',
+    description: 'Create and configure classes',
+  },
+  3: {
+    stage: 3,
+    label: 'Entry Period',
+    shortLabel: 'Entries',
+    description: 'Accept and manage exhibitor entries',
+  },
+  4: {
+    stage: 4,
+    label: 'Scoring Day',
+    shortLabel: 'Scoring',
+    description: 'Score all classes and entries',
+  },
+  5: {
+    stage: 5,
+    label: 'Results & Reports',
+    shortLabel: 'Results',
+    description: 'Publish results and prepare submissions',
+  },
   6: { stage: 6, label: 'Closed', shortLabel: 'Closed', description: 'Trial archived — read-only' },
 };
 
@@ -20,7 +45,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 1,
     label: 'Venue assigned',
     blocking: true,
-    evaluate: (ctx) => ctx.trial.venue_name !== null,
+    evaluate: ctx => ctx.trial.venue_name !== null,
     navigateTo: 'venue',
   },
   {
@@ -28,7 +53,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 1,
     label: 'Dates confirmed',
     blocking: true,
-    evaluate: (ctx) => ctx.trial.date !== null && ctx.trial.planned_start_time !== null,
+    evaluate: ctx => ctx.trial.date !== null && ctx.trial.planned_start_time !== null,
     navigateTo: 'dates',
   },
   {
@@ -36,7 +61,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 1,
     label: 'Judge(s) assigned',
     blocking: true,
-    evaluate: (ctx) => ctx.trial.judge_count > 0,
+    evaluate: ctx => ctx.trial.judge_count > 0,
     navigateTo: 'judges',
   },
   {
@@ -44,7 +69,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 1,
     label: 'Entry fees set',
     blocking: false,
-    evaluate: (ctx) => ctx.trial.has_fee_schedule,
+    evaluate: ctx => ctx.trial.has_fee_schedule,
     navigateTo: 'fees',
   },
 
@@ -54,7 +79,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 2,
     label: 'Classes created',
     blocking: true,
-    evaluate: (ctx) => ctx.classes.length > 0,
+    evaluate: ctx => ctx.classes.length > 0,
     navigateTo: 'classes',
   },
   {
@@ -62,7 +87,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 2,
     label: 'Time limits set',
     blocking: true,
-    evaluate: (ctx) => ctx.classes.length > 0 && ctx.classes.every((c) => c.has_time_limit),
+    evaluate: ctx => ctx.classes.length > 0 && ctx.classes.every(c => c.has_time_limit),
     navigateTo: 'classes',
   },
   {
@@ -70,7 +95,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 2,
     label: 'Hide counts configured',
     blocking: true,
-    evaluate: (ctx) => ctx.classes.length > 0 && ctx.classes.every((c) => c.has_hide_count),
+    evaluate: ctx => ctx.classes.length > 0 && ctx.classes.every(c => c.has_hide_count),
     navigateTo: 'classes',
   },
   {
@@ -78,7 +103,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 2,
     label: 'Class capacity set',
     blocking: false,
-    evaluate: (ctx) => ctx.classes.length > 0 && ctx.classes.every((c) => c.has_entry_limit),
+    evaluate: ctx => ctx.classes.length > 0 && ctx.classes.every(c => c.has_entry_limit),
     navigateTo: 'classes',
   },
 
@@ -88,7 +113,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 3,
     label: 'Opening date set',
     blocking: false,
-    evaluate: (ctx) => ctx.trial.entry_open_date !== null,
+    evaluate: ctx => ctx.trial.entry_open_date !== null,
     navigateTo: 'entry-dates',
   },
   {
@@ -96,7 +121,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 3,
     label: 'Closing date set',
     blocking: true,
-    evaluate: (ctx) => ctx.trial.entry_close_date !== null,
+    evaluate: ctx => ctx.trial.entry_close_date !== null,
     navigateTo: 'entry-dates',
   },
   {
@@ -104,7 +129,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 3,
     label: 'Entries received',
     blocking: false,
-    evaluate: (ctx) => ctx.trial.entry_count > 0,
+    evaluate: ctx => ctx.trial.entry_count > 0,
     navigateTo: 'entries',
   },
   {
@@ -112,8 +137,8 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 3,
     label: 'Entry conflicts resolved',
     blocking: true,
-    evaluate: (ctx) => !ctx.hasConflicts,
-    conditional: (ctx) => ctx.hasConflicts,
+    evaluate: ctx => !ctx.hasConflicts,
+    conditional: ctx => ctx.hasConflicts,
     navigateTo: 'entries',
   },
   {
@@ -121,7 +146,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 3,
     label: 'Running order generated',
     blocking: true,
-    evaluate: (ctx) => ctx.hasRunningOrder,
+    evaluate: ctx => ctx.hasRunningOrder,
     navigateTo: 'run-order',
   },
   {
@@ -130,7 +155,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     label: 'Waitlist processed',
     blocking: false,
     evaluate: () => false,
-    conditional: (ctx) => ctx.hasWaitlist,
+    conditional: ctx => ctx.hasWaitlist,
     navigateTo: 'waitlist',
   },
 
@@ -140,9 +165,9 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 4,
     label: 'All classes started',
     blocking: false,
-    evaluate: (ctx) =>
+    evaluate: ctx =>
       ctx.classes.length > 0 &&
-      ctx.classes.every((c) => c.status === 'in-progress' || c.status === 'completed'),
+      ctx.classes.every(c => c.status === 'in-progress' || c.status === 'completed'),
     navigateTo: 'scoring-day',
   },
   {
@@ -150,8 +175,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 4,
     label: 'All entries scored',
     blocking: true,
-    evaluate: (ctx) =>
-      ctx.entries.length > 0 && ctx.entries.every((e) => e.has_result),
+    evaluate: ctx => ctx.entries.length > 0 && ctx.entries.every(e => e.has_result),
     navigateTo: 'scoring-day',
   },
   {
@@ -168,7 +192,7 @@ export const CANNED_CHECKLIST: CannedChecklistDef[] = [
     stage: 5,
     label: 'Results published',
     blocking: true,
-    evaluate: (ctx) => ctx.trial.results_visible,
+    evaluate: ctx => ctx.trial.results_visible,
     navigateTo: 'results',
   },
   {

@@ -35,29 +35,13 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 
-import {
-  getDeletedShows,
-  restoreShow,
-  hardDeleteShow,
-} from '@/services/database/shows';
-import {
-  getDeletedTrials,
-  restoreTrial,
-  hardDeleteTrial,
-} from '@/services/database/trials';
+import { getDeletedShows, restoreShow, hardDeleteShow } from '@/services/database/shows';
+import { getDeletedTrials, restoreTrial, hardDeleteTrial } from '@/services/database/trials';
 import { getDeletedClasses, restoreClass, hardDeleteClass } from '@/services/database/classes';
 import { getDeletedEntries, restoreEntry, hardDeleteEntry } from '@/services/database/entries';
 import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/dogs';
-import {
-  getDeletedClubs,
-  restoreClub,
-  hardDeleteClub,
-} from '@/services/database/clubs';
-import {
-  getDeletedUsers,
-  restoreUser,
-  hardDeleteUser,
-} from '@/services/database/users';
+import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/database/clubs';
+import { getDeletedUsers, restoreUser, hardDeleteUser } from '@/services/database/users';
 
 import { DeletedEntitySection } from './DeletedEntitySection';
 import type { DeletedEntity, EntityType, EntitySectionConfig, SelectedEntity } from './types';
@@ -83,7 +67,10 @@ const TABLE_FOR_TYPE = {
  * reads use; the others (trials/entries/clubs) count fine via a direct head query.
  */
 const DELETED_COUNT_RPC: Partial<
-  Record<EntityType, 'get_deleted_dogs' | 'get_deleted_shows' | 'get_deleted_classes' | 'get_deleted_people'>
+  Record<
+    EntityType,
+    'get_deleted_dogs' | 'get_deleted_shows' | 'get_deleted_classes' | 'get_deleted_people'
+  >
 > = {
   dog: 'get_deleted_dogs',
   show: 'get_deleted_shows',
@@ -363,8 +350,7 @@ export function DeletedEntitiesTab() {
         // Restore services return { error } rather than throwing; surface it so a
         // failed restore isn't silently swallowed (and a success is confirmed).
         const result = (await config.restore(restoreTarget.id, user?.id)) as
-          | { error?: unknown }
-          | undefined;
+          { error?: unknown } | undefined;
         if (result?.error) {
           logger.error('Failed to restore entity', 'trash', { target: restoreTarget });
           notifications.error(`Couldn't restore ${label}. Please try again.`);
@@ -396,8 +382,7 @@ export function DeletedEntitiesTab() {
       if (config) {
         const label = ENTITY_LABEL[deleteTarget.type];
         const result = (await config.hardDelete(deleteTarget.id)) as
-          | { error?: unknown }
-          | undefined;
+          { error?: unknown } | undefined;
         if (result?.error) {
           logger.error('Failed to permanently delete entity', 'trash', { target: deleteTarget });
           notifications.error(`Couldn't permanently delete ${label}. Please try again.`);

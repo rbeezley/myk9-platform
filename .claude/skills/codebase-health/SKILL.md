@@ -1,19 +1,19 @@
 ---
 name: codebase-health
-description: "Use when asked where the tech debt is, to run a code-quality audit, rank churn hotspots, check static debt drift, plan refactors, or prepare a launch-milestone quality sweep. Consolidates the former code-quality-audit, hotspots, and improve skills."
+description: 'Use when asked where the tech debt is, to run a code-quality audit, rank churn hotspots, check static debt drift, plan refactors, or prepare a launch-milestone quality sweep. Consolidates the former code-quality-audit, hotspots, and improve skills.'
 user-invocable: true
-argument-hint: "[--static | --churn | --plan | dimension-name]"
+argument-hint: '[--static | --churn | --plan | dimension-name]'
 ---
 
 # Codebase Health
 
 One entry point for "where is the debt and what should we do about it." Three modes, each with its full methodology in `references/`:
 
-| Mode | Question it answers | Reference |
-| --- | --- | --- |
-| `--static` (default) | What maintainability debt exists right now? Repo-wide static audit across the June-2026 dimensions. | `references/static-audit.md` |
-| `--churn` | Where does attention pay off most? Ranks files by git churn × size. | `references/churn-hotspots.md` |
-| `--plan` | What should another agent implement? Read-only advisor survey producing prioritized, self-contained plans. | `references/advisor-plans.md` |
+| Mode                 | Question it answers                                                                                        | Reference                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `--static` (default) | What maintainability debt exists right now? Repo-wide static audit across the June-2026 dimensions.        | `references/static-audit.md`   |
+| `--churn`            | Where does attention pay off most? Ranks files by git churn × size.                                        | `references/churn-hotspots.md` |
+| `--plan`             | What should another agent implement? Read-only advisor survey producing prioritized, self-contained plans. | `references/advisor-plans.md`  |
 
 ## Choosing a mode
 

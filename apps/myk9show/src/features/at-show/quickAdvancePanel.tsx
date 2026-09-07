@@ -93,11 +93,7 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to entry list
         </Button>
-        <Button
-          className="mt-3 h-12 w-full text-base"
-          variant="outline"
-          onClick={onCorrectScore}
-        >
+        <Button className="mt-3 h-12 w-full text-base" variant="outline" onClick={onCorrectScore}>
           Correct this score
         </Button>
 

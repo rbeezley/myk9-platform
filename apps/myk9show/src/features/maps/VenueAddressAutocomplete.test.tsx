@@ -79,9 +79,7 @@ describe('VenueAddressAutocomplete', () => {
 
     expect(onChange).toHaveBeenCalledWith('purina farms');
     expect(fetchSuggestionsMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByPlaceholderText('Enter venue name and address')
-    ).not.toHaveAttribute('role');
+    expect(screen.getByPlaceholderText('Enter venue name and address')).not.toHaveAttribute('role');
   });
 
   it('debounces typing into one suggestion request and shows the results', async () => {

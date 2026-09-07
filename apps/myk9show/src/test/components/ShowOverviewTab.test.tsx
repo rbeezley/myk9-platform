@@ -114,19 +114,13 @@ describe('ShowOverviewTab', () => {
   it('loads server-projected codes without regeneration for authenticated roles', () => {
     render(<ShowOverviewTab show={fullShow} isAuthenticated />);
     expect(screen.getByTestId('show-access-codes')).toHaveAttribute('data-can-load', 'true');
-    expect(screen.getByTestId('show-access-codes')).toHaveAttribute(
-      'data-can-regenerate',
-      'false'
-    );
+    expect(screen.getByTestId('show-access-codes')).toHaveAttribute('data-can-regenerate', 'false');
   });
 
   it('loads all server-projected codes with regeneration for managers', () => {
     render(<ShowOverviewTab show={fullShow} isAuthenticated canManageShow />);
     expect(screen.getByTestId('show-access-codes')).toHaveAttribute('data-can-load', 'true');
-    expect(screen.getByTestId('show-access-codes')).toHaveAttribute(
-      'data-can-regenerate',
-      'true'
-    );
+    expect(screen.getByTestId('show-access-codes')).toHaveAttribute('data-can-regenerate', 'true');
   });
 
   it('summarizes offered classes and links to the Classes tab', async () => {

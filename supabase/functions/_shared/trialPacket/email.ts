@@ -1,7 +1,4 @@
-import {
-  sendResendEmailWithRetry,
-  type ResendEmailRequestInit,
-} from '../resendEmail.ts';
+import { sendResendEmailWithRetry, type ResendEmailRequestInit } from '../resendEmail.ts';
 
 export class TrialPacketProviderError extends Error {
   readonly status: number | 'network_error';
@@ -37,7 +34,7 @@ export async function sendTrialPacketEmail(
     subject: string;
     html: string;
   },
-  send: (init: ResendEmailRequestInit) => Promise<Response> = sendResendEmailWithRetry,
+  send: (init: ResendEmailRequestInit) => Promise<Response> = sendResendEmailWithRetry
 ): Promise<string | null> {
   let response: Response;
   try {

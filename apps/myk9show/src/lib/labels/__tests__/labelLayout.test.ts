@@ -43,8 +43,8 @@ describe('buildLabelPages', () => {
     const pages = buildLabelPages(template14, items, 0);
     expect(pages).toHaveLength(1);
     expect(pages[0].cells).toHaveLength(14);
-    expect(pages[0].cells.filter((c) => c.type === 'item')).toHaveLength(5);
-    expect(pages[0].cells.filter((c) => c.type === 'empty')).toHaveLength(9);
+    expect(pages[0].cells.filter(c => c.type === 'item')).toHaveLength(5);
+    expect(pages[0].cells.filter(c => c.type === 'empty')).toHaveLength(9);
   });
 
   it('skips the first N cells', () => {
@@ -62,25 +62,25 @@ describe('buildLabelPages', () => {
     const items = Array.from({ length: 16 }, (_, i) => ({ id: String(i) }));
     const pages = buildLabelPages(template14, items, 0);
     expect(pages).toHaveLength(2);
-    expect(pages[0].cells.filter((c) => c.type === 'item')).toHaveLength(14);
-    expect(pages[1].cells.filter((c) => c.type === 'item')).toHaveLength(2);
+    expect(pages[0].cells.filter(c => c.type === 'item')).toHaveLength(14);
+    expect(pages[1].cells.filter(c => c.type === 'item')).toHaveLength(2);
   });
 
   it('skip only applies to first page', () => {
     const items = Array.from({ length: 14 }, (_, i) => ({ id: String(i) }));
     const pages = buildLabelPages(template14, items, 4);
-    expect(pages[0].cells.filter((c) => c.type === 'skip')).toHaveLength(4);
-    expect(pages[0].cells.filter((c) => c.type === 'item')).toHaveLength(10);
+    expect(pages[0].cells.filter(c => c.type === 'skip')).toHaveLength(4);
+    expect(pages[0].cells.filter(c => c.type === 'item')).toHaveLength(10);
     expect(pages).toHaveLength(2);
-    expect(pages[1].cells.filter((c) => c.type === 'item')).toHaveLength(4);
-    expect(pages[1].cells.filter((c) => c.type === 'skip')).toHaveLength(0);
+    expect(pages[1].cells.filter(c => c.type === 'item')).toHaveLength(4);
+    expect(pages[1].cells.filter(c => c.type === 'skip')).toHaveLength(0);
   });
 
   it('handles skip exceeding first page', () => {
     const items = [{ id: 'x' }];
     const pages = buildLabelPages(template14, items, 14);
     expect(pages).toHaveLength(2);
-    expect(pages[0].cells.filter((c) => c.type === 'skip')).toHaveLength(14);
+    expect(pages[0].cells.filter(c => c.type === 'skip')).toHaveLength(14);
     expect(pages[1].cells[0].type).toBe('item');
   });
 
@@ -88,7 +88,7 @@ describe('buildLabelPages', () => {
     const items = Array.from({ length: 6 }, (_, i) => ({ id: String(i) }));
     const pages = buildLabelPages(template4, items, 0);
     expect(pages).toHaveLength(2);
-    expect(pages[0].cells.filter((c) => c.type === 'item')).toHaveLength(4);
-    expect(pages[1].cells.filter((c) => c.type === 'item')).toHaveLength(2);
+    expect(pages[0].cells.filter(c => c.type === 'item')).toHaveLength(4);
+    expect(pages[1].cells.filter(c => c.type === 'item')).toHaveLength(2);
   });
 });

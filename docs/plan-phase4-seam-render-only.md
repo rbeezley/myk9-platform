@@ -44,12 +44,12 @@ IndexedDB layer"); **that punt is exactly this decision.**
 
 ## Sync-down endpoints to serve (from the live app)
 
-| Table | Endpoint | Scope filter | Min columns (mapper never throws) |
-| --- | --- | --- | --- |
-| Entries | `GET /rest/v1/view_authenticated_entry_results` | `show_id=eq.` | `id`, `updated_at` (+ render fields: `entry_status`, `check_in_status`, `payment_status`, `class_id`, `dog_id`, `handler`, `armband`, `is_scored`, `final_placement`, `dog_call_name`) |
-| Classes | `GET /rest/v1/classes` | `trial_id=eq.` | `id`, `trial_id`, `name`, `updated_at` (+ `element`/`level`/`section`, `entry_fee`, `max_entries`, `results_released_at`) |
-| Trials | `GET /rest/v1/trials` | `show_id=eq.` | `id`, `show_id`, `name`, `date`, `updated_at` |
-| Shows | `GET /rest/v1/shows` | (global sync) | `id`, `name`, `organization`, `start_date`, `end_date`, `updated_at` |
+| Table   | Endpoint                                        | Scope filter   | Min columns (mapper never throws)                                                                                                                                                      |
+| ------- | ----------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entries | `GET /rest/v1/view_authenticated_entry_results` | `show_id=eq.`  | `id`, `updated_at` (+ render fields: `entry_status`, `check_in_status`, `payment_status`, `class_id`, `dog_id`, `handler`, `armband`, `is_scored`, `final_placement`, `dog_call_name`) |
+| Classes | `GET /rest/v1/classes`                          | `trial_id=eq.` | `id`, `trial_id`, `name`, `updated_at` (+ `element`/`level`/`section`, `entry_fee`, `max_entries`, `results_released_at`)                                                              |
+| Trials  | `GET /rest/v1/trials`                           | `show_id=eq.`  | `id`, `show_id`, `name`, `date`, `updated_at`                                                                                                                                          |
+| Shows   | `GET /rest/v1/shows`                            | (global sync)  | `id`, `name`, `organization`, `start_date`, `end_date`, `updated_at`                                                                                                                   |
 
 Column inventory cited from `ReplicatedShowsTable.ts:76-117`,
 `ReplicatedTrialsTable.ts:65-90`, `ReplicatedClassesTable.ts:127-218`,
@@ -122,12 +122,12 @@ as the real secretary, and screenshots each surface. Gated by
 `PHASE4_SEAM_FIXTURE_READY` (off in CI — flaky e2e path); the seam logic stays
 proven by `src/test/phase4-seam/*`. Captured live (passing):
 
-| Screenshot | Surface | Result |
-| --- | --- | --- |
-| `phase4-dynamic-show-detail` | `/shows/:id` | Full render |
-| `phase4-dynamic-entry-management` | `/shows/:id/entry-management` | Full render — 5 fixture entries, statuses, $150 revenue |
-| `phase4-dynamic-scratch-pull` | `…?entryTab=scratches` | Pull Management with the pending pull request (reason, handler, Approve/Deny) + Pending(1)/Processed(1) |
-| `phase4-dynamic-results-control` | `/shows/:id/results-control` | Page loads; Results Visibility list is skeleton (needs more served reads) |
+| Screenshot                        | Surface                       | Result                                                                                                  |
+| --------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `phase4-dynamic-show-detail`      | `/shows/:id`                  | Full render                                                                                             |
+| `phase4-dynamic-entry-management` | `/shows/:id/entry-management` | Full render — 5 fixture entries, statuses, $150 revenue                                                 |
+| `phase4-dynamic-scratch-pull`     | `…?entryTab=scratches`        | Pull Management with the pending pull request (reason, handler, Approve/Deny) + Pending(1)/Processed(1) |
+| `phase4-dynamic-results-control`  | `/shows/:id/results-control`  | Page loads; Results Visibility list is skeleton (needs more served reads)                               |
 
 ### Follow-ups — all three SHIPPED 2026-06-23
 

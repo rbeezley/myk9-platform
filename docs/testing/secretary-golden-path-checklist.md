@@ -17,12 +17,14 @@
 Choose one of two approaches:
 
 **Option A — Use seeded fixtures** (faster; see `docs/testing/secretary-walk-seed.md` for credentials and show IDs):
+
 - Secretary: `e2e-secretary@test.myk9.com` (password in `apps/myk9show/.env.local`)
 - Exhibitor: `exhibitor@myk9t.com` (password in `apps/myk9show/.env.local`)
 - Seeded show: **QA Walk Show** (ID `a0505c45-64d0-4b04-b2b3-cb213ed738a6`)
 - Skip Parts 1–2; start at Part 3 using the seeded entries
 
 **Option B — Create fresh data** (more thorough):
+
 - Create your own accounts via the sign-up flow, or use a site-admin account
 - Walk all parts in order from Part 1
 
@@ -539,10 +541,10 @@ Use this section to list every issue found during the walk. Bring this back to C
 
 ## Known Skip Items (do not log as bugs)
 
-| Step | Item | Reason |
-| ---- | ---- | ------ |
-| 6.1  | At-show access | The at-show surface is available for every show — no feature flag. Access is gated only by `AtShowAccessGate`; without a qualifying RBAC role or passcode grant the access gate (not a feature-flag notice) is expected. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).) |
-| 4.9  | Ring number display | Ring numbers are not yet persisted. `Ring 0` or absent ring labels are expected behavior until the ring-number contract is implemented. |
+| Step | Item                | Reason                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.1  | At-show access      | The at-show surface is available for every show — no feature flag. Access is gated only by `AtShowAccessGate`; without a qualifying RBAC role or passcode grant the access gate (not a feature-flag notice) is expected. (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).) |
+| 4.9  | Ring number display | Ring numbers are not yet persisted. `Ring 0` or absent ring labels are expected behavior until the ring-number contract is implemented.                                                                                                                                                                                                                                                            |
 
 ---
 

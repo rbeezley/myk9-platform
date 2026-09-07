@@ -195,7 +195,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               {...form?.getFieldProps('callName')}
             />
           </FormField>
-
         </div>
 
         {/* Breed is recorded on an organization registration, not on the base dog record. */}

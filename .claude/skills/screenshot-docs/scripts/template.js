@@ -7,19 +7,19 @@
  * Customize SHOTS array and sign-in credentials for your target guide section.
  */
 
-const pw   = require('playwright');
+const pw = require('playwright');
 const path = require('path');
-const fs   = require('fs');
+const fs = require('fs');
 
 // ── Config ─────────────────────────────────────────────────────────────────
-const BASE      = 'http://localhost:5173';
+const BASE = 'http://localhost:5173';
 const SHOTS_DIR = path.join(__dirname, '../../../../docs/screenshots');
-const TMP_DIR   = '/tmp/myk9-shots';
+const TMP_DIR = '/tmp/myk9-shots';
 
 const CREDS = {
   // Change to the account for your guide section
   email: 'secretary@myk9t.com',
-  pass:  'TestPass4567!',
+  pass: 'TestPass4567!',
 };
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010'; // Heritage Scent Work
@@ -40,8 +40,8 @@ const SHOTS = [
 // Viewport presets
 const VIEWPORTS = {
   desktop: { width: 1280, height: 800 },
-  mobile:  { width: 390,  height: 844 },
-  tablet:  { width: 768,  height: 1024 },
+  mobile: { width: 390, height: 844 },
+  tablet: { width: 768, height: 1024 },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ async function sidebarClick(page, selector) {
 }
 
 async function shoot(page, id) {
-  const tmpPath  = path.join(TMP_DIR, `${id}.png`);
+  const tmpPath = path.join(TMP_DIR, `${id}.png`);
   const destPath = path.join(SHOTS_DIR, `${id}.png`);
   await page.screenshot({ path: tmpPath, fullPage: false });
   fs.copyFileSync(tmpPath, destPath);
@@ -97,8 +97,8 @@ async function shoot(page, id) {
   fs.mkdirSync(TMP_DIR, { recursive: true });
 
   const browser = await pw.chromium.launch({ headless: true });
-  const ctx     = await browser.newContext({ viewport: VIEWPORTS.desktop });
-  const page    = await ctx.newPage();
+  const ctx = await browser.newContext({ viewport: VIEWPORTS.desktop });
+  const page = await ctx.newPage();
 
   try {
     console.log(`Signing in as ${CREDS.email}…`);

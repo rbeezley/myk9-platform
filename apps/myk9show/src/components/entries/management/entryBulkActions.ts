@@ -9,9 +9,5 @@ export function getEntryBulkActions(
   onBulkStatusChange: BulkStatusChange,
   onClear: () => void
 ): RowAction[] {
-  return toBulkActions(
-    selectedEntries,
-    { onBulkStatusChange, onClear },
-    entryActions
-  );
+  return toBulkActions(selectedEntries, { onBulkStatusChange, onClear }, entryActions);
 }

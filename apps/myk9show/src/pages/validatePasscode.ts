@@ -29,10 +29,8 @@ export type ValidatePasscodeResult =
 /** Calm, enumeration-resistant copy — never leak which part failed. */
 const GENERIC_INVALID =
   "That credential wasn't recognized. Double-check the passcode your secretary gave you.";
-const RATE_LIMITED =
-  'Too many attempts. Please wait a minute and try again.';
-const SERVER_ERROR =
-  "We couldn't reach the server. Check your connection and try again.";
+const RATE_LIMITED = 'Too many attempts. Please wait a minute and try again.';
+const SERVER_ERROR = "We couldn't reach the server. Check your connection and try again.";
 
 export async function validatePasscode(passcode: string): Promise<ValidatePasscodeResult> {
   const { data, error } = await supabase.functions.invoke('validate-passcode', {

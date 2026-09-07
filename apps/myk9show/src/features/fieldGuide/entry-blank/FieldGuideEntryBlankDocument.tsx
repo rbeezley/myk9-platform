@@ -28,8 +28,7 @@ export interface FieldGuideEntryBlankProps extends EntryBlankProps {
 export function FieldGuideEntryBlankDocument(props: FieldGuideEntryBlankProps) {
   const pad = 38;
   const showCode =
-    props.showCode ??
-    deriveShowCode(props.clubName, props.showTitle, props.entryCloseIso ?? null);
+    props.showCode ?? deriveShowCode(props.clubName, props.showTitle, props.entryCloseIso ?? null);
 
   return (
     <Document title={`Entry Blank — ${props.showTitle}`} author={props.clubName}>

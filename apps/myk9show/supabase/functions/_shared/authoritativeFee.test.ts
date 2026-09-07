@@ -21,7 +21,11 @@ describe('authoritativeEntryFeeCents', () => {
 
   it('falls back to pre-entry on show day when no day-of fee is set', () => {
     expect(
-      authoritativeEntryFeeCents({ ...base, showDayOfShowFee: null, nowIso: '2026-07-01T06:00:00Z' })
+      authoritativeEntryFeeCents({
+        ...base,
+        showDayOfShowFee: null,
+        nowIso: '2026-07-01T06:00:00Z',
+      })
     ).toBe(3000);
   });
 

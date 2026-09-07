@@ -57,18 +57,18 @@ Browser health notes:
 
 **Misalignment gaps:**
 
-| UI Element | User Expects | Actually Does | Severity |
-| --- | --- | --- | --- |
-| `/admin/dashboard` | "Everything looks normal" plus direct escalation paths | Shows admin cards and database counts, but not System Health, Support queue, Alerts, Sync status, or newest incidents together | High |
-| `/admin/support` diagnostics | Diagnostics explain what to check next | Shows route/show/sync fields, but no links to the affected route, show, user, health, sync, or logs | High |
-| `/admin/health` | Health checks prove operational readiness | Shows daily parity checks, but one check says the Edge Function response is not checked here | Medium |
-| `/admin/permissions/users` | Role assignment data is trustworthy | Many rows show `Unknown User` and `Unknown Role` | High |
-| `/admin/permissions/roles` | Built-in roles show their real permissions and users | Role cards show `Permissions: 0` and `Users: 0`, while overview says hundreds of effective permissions exist | High |
-| `/admin/performance` | Real platform/RUM health | Showed current browser/session metrics only | Resolved: deleted |
-| `/admin/alerts` | Shared actionable platform alerts | Used browser-local/localStorage alert state | Resolved: deleted |
-| `/admin/data-lifecycle` | Restore/cleanup surface | Mixed real deleted-entity restore with fake/local archive scheduler and cleanup controls | Resolved: narrowed to `/admin/deleted-items` |
-| `/admin/settings` | Platform-level settings are available or intentionally unavailable | Showed only "System Settings Coming Soon" | Resolved: deleted |
-| `/admin/analytics` | Platform analytics | Redirected to exhibitor analytics placeholder | Resolved: deleted |
+| UI Element                   | User Expects                                                       | Actually Does                                                                                                                  | Severity                                     |
+| ---------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `/admin/dashboard`           | "Everything looks normal" plus direct escalation paths             | Shows admin cards and database counts, but not System Health, Support queue, Alerts, Sync status, or newest incidents together | High                                         |
+| `/admin/support` diagnostics | Diagnostics explain what to check next                             | Shows route/show/sync fields, but no links to the affected route, show, user, health, sync, or logs                            | High                                         |
+| `/admin/health`              | Health checks prove operational readiness                          | Shows daily parity checks, but one check says the Edge Function response is not checked here                                   | Medium                                       |
+| `/admin/permissions/users`   | Role assignment data is trustworthy                                | Many rows show `Unknown User` and `Unknown Role`                                                                               | High                                         |
+| `/admin/permissions/roles`   | Built-in roles show their real permissions and users               | Role cards show `Permissions: 0` and `Users: 0`, while overview says hundreds of effective permissions exist                   | High                                         |
+| `/admin/performance`         | Real platform/RUM health                                           | Showed current browser/session metrics only                                                                                    | Resolved: deleted                            |
+| `/admin/alerts`              | Shared actionable platform alerts                                  | Used browser-local/localStorage alert state                                                                                    | Resolved: deleted                            |
+| `/admin/data-lifecycle`      | Restore/cleanup surface                                            | Mixed real deleted-entity restore with fake/local archive scheduler and cleanup controls                                       | Resolved: narrowed to `/admin/deleted-items` |
+| `/admin/settings`            | Platform-level settings are available or intentionally unavailable | Showed only "System Settings Coming Soon"                                                                                      | Resolved: deleted                            |
+| `/admin/analytics`           | Platform analytics                                                 | Redirected to exhibitor analytics placeholder                                                                                  | Resolved: deleted                            |
 
 **Jargon found:** `go-live parity checks`, `cron-health-check`, `Edge Function`, `RBAC`, `effective permissions`, `compression efficiency`, `scheduler`, `collection`, raw UUIDs.
 
@@ -83,13 +83,13 @@ Browser health notes:
 
 **IA issues:**
 
-| Issue | Location | Problem | Recommendation |
-| --- | --- | --- | --- |
-| Troubleshooting surfaces are split | Dashboard, Health, Support, Sync | Admin must know which diagnostic page to open | Add a "Platform Health" summary band to `/admin/dashboard` with deep links to existing pages, not a new page |
-| Support ticket detail lacks investigation path | `/admin/support` | Ticket route/show/user IDs are static text | Convert route/show/user/trial/entry diagnostics into links where IDs are present |
-| Health page lacks remediation links | `/admin/health` | Failed or ambiguous checks cannot be followed to the relevant surface | Add per-check actions: "View sync", "View payouts", "View job history", "View migrations/docs" as applicable |
-| Admin nav hides several major admin routes | Sidebar | `/admin/sync`, `/admin/templates`, `/admin/judges/analytics`, and `/admin/deleted-items` are accessible but not first-class sidebar entries | Surface these through `/admin/help` and dashboard quick links; avoid bloating the sidebar |
-| Role tooling is fragmented | Permissions pages | Overview, roles, user assignments, audit, and RBAC debug do not clearly explain which is for production work | Label `/admin/rbac-test` as debug-only and keep production actions in Permissions/User Roles |
+| Issue                                          | Location                         | Problem                                                                                                                                     | Recommendation                                                                                               |
+| ---------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Troubleshooting surfaces are split             | Dashboard, Health, Support, Sync | Admin must know which diagnostic page to open                                                                                               | Add a "Platform Health" summary band to `/admin/dashboard` with deep links to existing pages, not a new page |
+| Support ticket detail lacks investigation path | `/admin/support`                 | Ticket route/show/user IDs are static text                                                                                                  | Convert route/show/user/trial/entry diagnostics into links where IDs are present                             |
+| Health page lacks remediation links            | `/admin/health`                  | Failed or ambiguous checks cannot be followed to the relevant surface                                                                       | Add per-check actions: "View sync", "View payouts", "View job history", "View migrations/docs" as applicable |
+| Admin nav hides several major admin routes     | Sidebar                          | `/admin/sync`, `/admin/templates`, `/admin/judges/analytics`, and `/admin/deleted-items` are accessible but not first-class sidebar entries | Surface these through `/admin/help` and dashboard quick links; avoid bloating the sidebar                    |
+| Role tooling is fragmented                     | Permissions pages                | Overview, roles, user assignments, audit, and RBAC debug do not clearly explain which is for production work                                | Label `/admin/rbac-test` as debug-only and keep production actions in Permissions/User Roles                 |
 
 **Visibility problems:**
 
@@ -100,14 +100,14 @@ Browser health notes:
 
 **Affordance audit:**
 
-| Element | Looks Like | Actually Is | Clear? |
-| --- | --- | --- | --- |
-| Support ticket diagnostics | Read-only facts | Useful investigation anchors | No |
-| Support ticket status buttons | Equal choices | Workflow state changes | Partly |
-| Health recent run dots | Status indicators | Hover/title history only | Partly |
-| Dashboard statistic cards | Some are buttons, some are static | Only "Total Users" was clickable in the observed stats row | No |
-| `/admin/templates` "Force Initialize", "Reset Templates", "Clean Duplicates" | Primary admin actions | Potentially risky maintenance actions | No |
-| User table row action menus | Repeated "Open menu" buttons | Per-user actions | Partly |
+| Element                                                                      | Looks Like                        | Actually Is                                                | Clear? |
+| ---------------------------------------------------------------------------- | --------------------------------- | ---------------------------------------------------------- | ------ |
+| Support ticket diagnostics                                                   | Read-only facts                   | Useful investigation anchors                               | No     |
+| Support ticket status buttons                                                | Equal choices                     | Workflow state changes                                     | Partly |
+| Health recent run dots                                                       | Status indicators                 | Hover/title history only                                   | Partly |
+| Dashboard statistic cards                                                    | Some are buttons, some are static | Only "Total Users" was clickable in the observed stats row | No     |
+| `/admin/templates` "Force Initialize", "Reset Templates", "Clean Duplicates" | Primary admin actions             | Potentially risky maintenance actions                      | No     |
+| User table row action menus                                                  | Repeated "Open menu" buttons      | Per-user actions                                           | Partly |
 
 **False affordances:** Admin dashboard metric cards look similarly interactive, but only some navigate.
 
@@ -124,13 +124,13 @@ Browser health notes:
 
 **Decision points:**
 
-| Screen/Step | Decisions Required | Can Be Reduced? |
-| --- | --- | --- |
-| Admin dashboard | Which of many admin/support/monitoring pages is the right place? | Add health/support/sync/deleted-items summary with one-click destinations |
-| Support Inbox | Choose filter, ticket, status, reply, then manually interpret diagnostics | Add "next check" actions based on diagnostics |
-| System Health | Interpret status, source, run age, run dots, individual checks | Add owner, last successful run, and remediation link per check |
-| Sync Monitoring | Understand overall health, success rate, conflicts, compression, events, refresh interval | Make recent failures a first-class list with target/detail links |
-| Permissions | Choose between overview, permissions tab, roles, users, audit, RBAC test | Separate "Manage access" from "Debug RBAC" |
+| Screen/Step     | Decisions Required                                                                        | Can Be Reduced?                                                           |
+| --------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Admin dashboard | Which of many admin/support/monitoring pages is the right place?                          | Add health/support/sync/deleted-items summary with one-click destinations |
+| Support Inbox   | Choose filter, ticket, status, reply, then manually interpret diagnostics                 | Add "next check" actions based on diagnostics                             |
+| System Health   | Interpret status, source, run age, run dots, individual checks                            | Add owner, last successful run, and remediation link per check            |
+| Sync Monitoring | Understand overall health, success rate, conflicts, compression, events, refresh interval | Make recent failures a first-class list with target/detail links          |
+| Permissions     | Choose between overview, permissions tab, roles, users, audit, RBAC test                  | Separate "Manage access" from "Debug RBAC"                                |
 
 **Missing defaults:**
 
@@ -140,11 +140,11 @@ Browser health notes:
 
 **Unnecessary complexity:**
 
-| Complexity | Who Needs It | Recommendation |
-| --- | --- | --- |
-| Raw UUIDs in support diagnostics and role assignment tables | Developers/support operators | Pair with human labels and keep copyable IDs secondary |
-| `RBAC System Test Page` in production admin flows | Developers/admin debugging | Keep linked from Help or Permissions as debug-only, not a normal admin task |
-| Template initialization/reset/cleanup controls | Maintainers | Move behind an "Advanced maintenance" section |
+| Complexity                                                  | Who Needs It                 | Recommendation                                                              |
+| ----------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------- |
+| Raw UUIDs in support diagnostics and role assignment tables | Developers/support operators | Pair with human labels and keep copyable IDs secondary                      |
+| `RBAC System Test Page` in production admin flows           | Developers/admin debugging   | Keep linked from Help or Permissions as debug-only, not a normal admin task |
+| Template initialization/reset/cleanup controls              | Maintainers                  | Move behind an "Advanced maintenance" section                               |
 
 **Cognitive load score:** Medium-high. The individual screens are mostly understandable, but the admin has to mentally stitch them into an incident response workflow.
 
@@ -152,43 +152,43 @@ Browser health notes:
 
 ### System Health
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes | Good | Empty is treated as failure, matching intent |
-| Loading | Yes | Good | Skeleton is clear |
-| Success | Yes | Good | Healthy state is glanceable |
-| Partial | Partly | Fair | Recent warning dots are not explainable without hover/details |
-| Error | Yes | Fair | Error says retry but offers no support/debug link |
+| State   | Implemented? | Quality | Issue                                                         |
+| ------- | ------------ | ------- | ------------------------------------------------------------- |
+| Empty   | Yes          | Good    | Empty is treated as failure, matching intent                  |
+| Loading | Yes          | Good    | Skeleton is clear                                             |
+| Success | Yes          | Good    | Healthy state is glanceable                                   |
+| Partial | Partly       | Fair    | Recent warning dots are not explainable without hover/details |
+| Error   | Yes          | Fair    | Error says retry but offers no support/debug link             |
 
 ### Support Inbox
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes | Good | Clear "No tickets" message |
-| Loading | Yes | Good | Skeleton list appears |
-| Success | Yes | Fair | Ticket and diagnostics render, but no investigation links |
-| Partial | Partly | Fair | No visible empty-message state when a ticket has no thread messages |
-| Error | Yes | Fair | Query errors surface, but no retry action |
+| State   | Implemented? | Quality | Issue                                                               |
+| ------- | ------------ | ------- | ------------------------------------------------------------------- |
+| Empty   | Yes          | Good    | Clear "No tickets" message                                          |
+| Loading | Yes          | Good    | Skeleton list appears                                               |
+| Success | Yes          | Fair    | Ticket and diagnostics render, but no investigation links           |
+| Partial | Partly       | Fair    | No visible empty-message state when a ticket has no thread messages |
+| Error   | Yes          | Fair    | Query errors surface, but no retry action                           |
 
 ### Admin Dashboard
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Partly | Fair | Zero active shows is shown, but no interpretation |
-| Loading | Yes | Fair | Page eventually resolves |
-| Success | Yes | Fair | Shows admin cards and stats, but not the platform-health picture |
-| Partial | Partly | Poor | Individual failed widgets do not appear to degrade independently |
-| Error | Unknown | Unknown | Not exercised |
+| State   | Implemented? | Quality | Issue                                                            |
+| ------- | ------------ | ------- | ---------------------------------------------------------------- |
+| Empty   | Partly       | Fair    | Zero active shows is shown, but no interpretation                |
+| Loading | Yes          | Fair    | Page eventually resolves                                         |
+| Success | Yes          | Fair    | Shows admin cards and stats, but not the platform-health picture |
+| Partial | Partly       | Poor    | Individual failed widgets do not appear to degrade independently |
+| Error   | Unknown      | Unknown | Not exercised                                                    |
 
 ### Permissions/User Roles
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes | Fair | Audit empty state is clear |
-| Loading | Yes | Fair | Tables load |
-| Success | Yes | Poor | Contradictory permission counts and "Unknown User/Role" rows erode trust |
-| Partial | Yes | Poor | Missing joined labels are not explained |
-| Error | Unknown | Unknown | Not exercised |
+| State   | Implemented? | Quality | Issue                                                                    |
+| ------- | ------------ | ------- | ------------------------------------------------------------------------ |
+| Empty   | Yes          | Fair    | Audit empty state is clear                                               |
+| Loading | Yes          | Fair    | Tables load                                                              |
+| Success | Yes          | Poor    | Contradictory permission counts and "Unknown User/Role" rows erode trust |
+| Partial | Yes          | Poor    | Missing joined labels are not explained                                  |
+| Error   | Unknown      | Unknown | Not exercised                                                            |
 
 **Dead ends found:**
 
@@ -208,16 +208,16 @@ Browser health notes:
 
 **Step-by-step findings:**
 
-| Step | Action | Friction | Severity |
-| --- | --- | --- | --- |
-| 1 | Sign in as site admin | Two-step sign-in worked; brief "Preparing workspace" state resolved | Low |
-| 2 | Land on `/admin/dashboard` | Dashboard does not answer "is the platform healthy?" in one place | High |
-| 3 | Open `/admin/support` | Ticket list and diagnostics are clear, but diagnostics are not actionable | High |
-| 4 | Try to understand affected context | Route and show ID are raw/copy-only, no direct jump to the reported page/show | High |
-| 5 | Open `/admin/health` | Overall state is clear | Low |
-| 6 | Interpret health check details | "Edge Function response not checked here" creates uncertainty with no link to logs/payouts | Medium |
-| 7 | Open related admin pages | Sync, Payouts, Deleted Items, and Help have useful data but are not cross-linked from Support/Health | Medium |
-| 8 | Check access/permissions | Role pages expose contradictory or missing labels | High |
+| Step | Action                             | Friction                                                                                             | Severity |
+| ---- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- | -------- |
+| 1    | Sign in as site admin              | Two-step sign-in worked; brief "Preparing workspace" state resolved                                  | Low      |
+| 2    | Land on `/admin/dashboard`         | Dashboard does not answer "is the platform healthy?" in one place                                    | High     |
+| 3    | Open `/admin/support`              | Ticket list and diagnostics are clear, but diagnostics are not actionable                            | High     |
+| 4    | Try to understand affected context | Route and show ID are raw/copy-only, no direct jump to the reported page/show                        | High     |
+| 5    | Open `/admin/health`               | Overall state is clear                                                                               | Low      |
+| 6    | Interpret health check details     | "Edge Function response not checked here" creates uncertainty with no link to logs/payouts           | Medium   |
+| 7    | Open related admin pages           | Sync, Payouts, Deleted Items, and Help have useful data but are not cross-linked from Support/Health | Medium   |
+| 8    | Check access/permissions           | Role pages expose contradictory or missing labels                                                    | High     |
 
 **Abandonment risks:**
 
@@ -243,27 +243,27 @@ None observed in the browser walkthrough.
 
 ### High Priority
 
-| Finding | Pass | Impact | Effort |
-| --- | --- | --- | --- |
-| Dashboard does not summarize health/support/sync together | 1, 2, 6 | Admin cannot quickly answer "is the platform healthy?" | Medium |
-| Support diagnostics are not actionable | 1, 2, 3, 6 | Admin must manually copy IDs and guess the next page | Medium |
-| Permission role/user pages show unknown or contradictory data | 1, 5, 6 | Access troubleshooting becomes untrustworthy | Medium |
+| Finding                                                       | Pass       | Impact                                                 | Effort |
+| ------------------------------------------------------------- | ---------- | ------------------------------------------------------ | ------ |
+| Dashboard does not summarize health/support/sync together     | 1, 2, 6    | Admin cannot quickly answer "is the platform healthy?" | Medium |
+| Support diagnostics are not actionable                        | 1, 2, 3, 6 | Admin must manually copy IDs and guess the next page   | Medium |
+| Permission role/user pages show unknown or contradictory data | 1, 5, 6    | Access troubleshooting becomes untrustworthy           | Medium |
 
 ### Medium Priority
 
-| Finding | Pass | Impact | Effort |
-| --- | --- | --- | --- |
-| Health checks lack remediation links and ownership | 2, 4, 6 | Admin sees status but not what to do next | Low-medium |
-| Deleted pages need stale-link cleanup in docs/help/search | 1, 5 | Old links or discovery flows could cause confusion | Low |
-| Advanced maintenance actions are too prominent in Templates | 3, 4 | Admin may hesitate or misuse risky actions | Low-medium |
-| Mobile Health truncates check names/details | 3, 5 | On-call mobile review loses key diagnostic context | Low |
+| Finding                                                     | Pass    | Impact                                             | Effort     |
+| ----------------------------------------------------------- | ------- | -------------------------------------------------- | ---------- |
+| Health checks lack remediation links and ownership          | 2, 4, 6 | Admin sees status but not what to do next          | Low-medium |
+| Deleted pages need stale-link cleanup in docs/help/search   | 1, 5    | Old links or discovery flows could cause confusion | Low        |
+| Advanced maintenance actions are too prominent in Templates | 3, 4    | Admin may hesitate or misuse risky actions         | Low-medium |
+| Mobile Health truncates check names/details                 | 3, 5    | On-call mobile review loses key diagnostic context | Low        |
 
 ### Low Priority
 
-| Finding | Pass | Impact | Effort |
-| --- | --- | --- | --- |
-| Repeated console warnings add QA noise | 5 | Makes route audits harder to interpret | Low |
-| Sidebar exposes many non-admin role sections during admin work | 2, 4 | Adds scanning cost | Medium |
+| Finding                                                        | Pass | Impact                                 | Effort |
+| -------------------------------------------------------------- | ---- | -------------------------------------- | ------ |
+| Repeated console warnings add QA noise                         | 5    | Makes route audits harder to interpret | Low    |
+| Sidebar exposes many non-admin role sections during admin work | 2, 4 | Adds scanning cost                     | Medium |
 
 ### Quick Wins
 

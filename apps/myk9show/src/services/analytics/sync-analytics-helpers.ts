@@ -5,11 +5,7 @@
  * metrics, generating trend data, and formatting analytics output.
  */
 
-import type {
-  SyncEvent,
-  SyncMetrics,
-  AnalyticsConfig,
-} from '../../types/analytics-types';
+import type { SyncEvent, SyncMetrics, AnalyticsConfig } from '../../types/analytics-types';
 import type { HealthScoreFactors } from './sync-analytics-types';
 
 /**
@@ -34,10 +30,10 @@ export function calculateHealthScore(
   const volumeScore = Math.min(100, (totalSyncs / 100) * 100); // Normalize to 100 syncs
 
   const healthScore =
-    (successScore * successWeight) +
-    (performanceScore * performanceWeight) +
-    (conflictScore * conflictWeight) +
-    (volumeScore * volumeWeight);
+    successScore * successWeight +
+    performanceScore * performanceWeight +
+    conflictScore * conflictWeight +
+    volumeScore * volumeWeight;
 
   return Math.round(Math.max(0, Math.min(100, healthScore)));
 }
@@ -67,15 +63,13 @@ export function generateTrendData(
 
   // Create time buckets
   for (let i = 0; i < 24; i++) {
-    const bucketStart = new Date(startTime.getTime() + (i * bucketSize));
-    const bucketEnd = new Date(startTime.getTime() + ((i + 1) * bucketSize));
-    const bucketEvents = events.filter(
-      e => e.timestamp >= bucketStart && e.timestamp < bucketEnd
-    );
+    const bucketStart = new Date(startTime.getTime() + i * bucketSize);
+    const bucketEnd = new Date(startTime.getTime() + (i + 1) * bucketSize);
+    const bucketEvents = events.filter(e => e.timestamp >= bucketStart && e.timestamp < bucketEnd);
 
     buckets.push({
       time: bucketStart,
-      events: bucketEvents
+      events: bucketEvents,
     });
   }
 
@@ -85,56 +79,47 @@ export function generateTrendData(
       .filter(e => e.duration && e.status === 'completed')
       .map(e => e.duration! / 1000);
 
-    const avgTime = syncTimes.length > 0
-      ? syncTimes.reduce((a, b) => a + b, 0) / syncTimes.length
-      : 0;
+    const avgTime =
+      syncTimes.length > 0 ? syncTimes.reduce((a, b) => a + b, 0) / syncTimes.length : 0;
 
     return {
       timestamp: bucket.time,
-      value: avgTime
+      value: avgTime,
     };
   });
 
   const successRateTrend = buckets.map(bucket => {
-    const total = bucket.events.filter(e =>
-      e.status === 'completed' || e.status === 'failed'
+    const total = bucket.events.filter(
+      e => e.status === 'completed' || e.status === 'failed'
     ).length;
-    const successful = bucket.events.filter(e =>
-      e.status === 'completed'
-    ).length;
+    const successful = bucket.events.filter(e => e.status === 'completed').length;
 
     const rate = total > 0 ? (successful / total) * 100 : 100;
 
     return {
       timestamp: bucket.time,
-      value: rate
+      value: rate,
     };
   });
 
   const conflictRateTrend = buckets.map(bucket => {
-    const syncEvents = bucket.events.filter(e =>
-      e.status === 'completed' || e.status === 'failed'
-    );
-    const conflicts = bucket.events.filter(e =>
-      e.type === 'conflict_detected'
-    );
+    const syncEvents = bucket.events.filter(e => e.status === 'completed' || e.status === 'failed');
+    const conflicts = bucket.events.filter(e => e.type === 'conflict_detected');
 
     const rate = syncEvents.length > 0 ? (conflicts.length / syncEvents.length) * 100 : 0;
 
     return {
       timestamp: bucket.time,
-      value: rate
+      value: rate,
     };
   });
 
   const bandwidthTrend = buckets.map(bucket => {
-    const totalBytes = bucket.events.reduce(
-      (sum, e) => sum + (e.bytesTransferred || 0), 0
-    );
+    const totalBytes = bucket.events.reduce((sum, e) => sum + (e.bytesTransferred || 0), 0);
 
     return {
       timestamp: bucket.time,
-      value: totalBytes / 1024 / 1024 // Convert to MB
+      value: totalBytes / 1024 / 1024, // Convert to MB
     };
   });
 
@@ -142,7 +127,7 @@ export function generateTrendData(
     syncTimeTrend,
     successRateTrend,
     conflictRateTrend,
-    bandwidthTrend
+    bandwidthTrend,
   };
 }
 
@@ -153,12 +138,10 @@ export function calculateAverageLatency(events: SyncEvent[]): number {
   const latencyEvents = events.filter(e => e.metadata?.latency);
   if (latencyEvents.length === 0) return 0;
 
-  const totalLatency = latencyEvents.reduce(
-    (sum, e) => {
-      const latency = e.metadata?.latency;
-      return sum + (typeof latency === 'number' ? latency : 0);
-    }, 0
-  );
+  const totalLatency = latencyEvents.reduce((sum, e) => {
+    const latency = e.metadata?.latency;
+    return sum + (typeof latency === 'number' ? latency : 0);
+  }, 0);
 
   return totalLatency / latencyEvents.length;
 }
@@ -196,27 +179,35 @@ export function calculateOfflineQueuedSyncs(events: SyncEvent[]): number {
  * Convert SyncMetrics to a CSV string for export.
  */
 export function convertMetricsToCSV(metrics: SyncMetrics): string {
-  const headers = [
-    'Metric',
-    'Value',
-    'Unit',
-    'Timestamp'
-  ];
+  const headers = ['Metric', 'Value', 'Unit', 'Timestamp'];
 
   const rows = [
     ['Sync Health Score', metrics.syncHealthScore.toString(), '%', metrics.endTime.toISOString()],
     ['Success Rate', metrics.successRate.toString(), '%', metrics.endTime.toISOString()],
-    ['Average Sync Time', metrics.averageSyncTime.toString(), 'seconds', metrics.endTime.toISOString()],
+    [
+      'Average Sync Time',
+      metrics.averageSyncTime.toString(),
+      'seconds',
+      metrics.endTime.toISOString(),
+    ],
     ['Total Syncs', metrics.totalSyncs.toString(), 'count', metrics.endTime.toISOString()],
     ['Failed Syncs', metrics.failedSyncs.toString(), 'count', metrics.endTime.toISOString()],
     ['Conflict Rate', metrics.conflictRate.toString(), '%', metrics.endTime.toISOString()],
-    ['Bandwidth Used', (metrics.bandwidthUsed / 1024 / 1024).toFixed(2), 'MB', metrics.endTime.toISOString()],
-    ['Offline Usage', metrics.offlineUsageTime.toString(), 'minutes', metrics.endTime.toISOString()]
+    [
+      'Bandwidth Used',
+      (metrics.bandwidthUsed / 1024 / 1024).toFixed(2),
+      'MB',
+      metrics.endTime.toISOString(),
+    ],
+    [
+      'Offline Usage',
+      metrics.offlineUsageTime.toString(),
+      'minutes',
+      metrics.endTime.toISOString(),
+    ],
   ];
 
-  return [headers, ...rows]
-    .map(row => row.map(cell => `"${cell}"`).join(','))
-    .join('\n');
+  return [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 }
 
 /**

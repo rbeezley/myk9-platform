@@ -7,11 +7,12 @@ A comprehensive, offline-first dog show management application built with React,
 **Database Integration**: 85% complete with critical blockers identified  
 **Production Status**: ❌ **NOT READY** - 2-3 days remediation required  
 **Performance**: ✅ Exceeds all targets (P95 < 50ms, bundle < 2MB)  
-**Security**: ⚠️ 92% complete (46/50 tables with RLS)  
+**Security**: ⚠️ 92% complete (46/50 tables with RLS)
 
 ### 🚨 Critical Issues Blocking Production
+
 1. **Template Store Circular Dependency** - Application fails to start
-2. **SyncService Constructor Issues** - Real-time sync broken  
+2. **SyncService Constructor Issues** - Real-time sync broken
 3. **70 ESLint Errors** - Code quality standards not met
 4. **Build Timeout Issues** - TypeScript compilation problems
 
@@ -21,30 +22,35 @@ A comprehensive, offline-first dog show management application built with React,
 ## ✨ Features
 
 ### 🏆 **Competition Management**
+
 - **Multi-format Support**: Scent Work, Agility, Obedience, Rally, Conformation, Tracking, and more
 - **Real-time Scoring**: Live scoring interfaces for judges with instant calculation
 - **Run Order Management**: Drag-and-drop scheduling with conflict detection
 - **Class Templates**: Reusable templates for quick class creation
 
 ### 🐕 **Dog & Owner Management**
+
 - **Comprehensive Profiles**: Complete dog registration, health records, and achievements
 - **Multi-dog Registration**: Streamlined entry process for multiple dogs
 - **Health Tracking**: Vaccination records, vet visits, and medical history
 - **Achievement Tracking**: Titles, awards, and competition history
 
 ### 📱 **Offline-First Architecture**
+
 - **Works Anywhere**: Full functionality without internet connection
 - **Smart Sync**: Intelligent conflict resolution when back online
 - **Data Export**: Backup and export capabilities in multiple formats
 - **Real-time Indicators**: Clear sync status and offline mode indicators
 
 ### 👥 **Role-Based Access**
+
 - **Exhibitors**: Register dogs, enter shows, track results
 - **Judges**: Score competitions, manage assignments
 - **Secretaries**: Organize shows, manage entries, generate reports
 - **Administrators**: System configuration, user management, templates
 
 ### 🎨 **Modern User Experience**
+
 - **Apple-Inspired Design**: Clean, intuitive interface following Apple's design principles
 - **Responsive Layout**: Works perfectly on desktop, tablet, and mobile
 - **Dark/Light Themes**: Automatic theme switching with user preferences
@@ -61,23 +67,27 @@ A comprehensive, offline-first dog show management application built with React,
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/your-org/myK9Show-Windsurf.git
    cd myK9Show-Windsurf
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env.local
    # Edit .env.local with your configuration
    ```
 
 4. **Start the development server**
+
    ```bash
    npm run dev
    ```
@@ -186,10 +196,10 @@ Configure in `src/config/dataSource.ts`:
 
 ```typescript
 export const DATA_SOURCE_CONFIG = {
-  USE_MOCK_DOGS: true,    // Use mock dog data
-  USE_MOCK_SHOWS: true,   // Use mock show data
-  USE_SUPABASE: false,    // Enable cloud sync
-  AUTO_SYNC: false        // Automatic background sync
+  USE_MOCK_DOGS: true, // Use mock dog data
+  USE_MOCK_SHOWS: true, // Use mock show data
+  USE_SUPABASE: false, // Enable cloud sync
+  AUTO_SYNC: false, // Automatic background sync
 };
 ```
 

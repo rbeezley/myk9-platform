@@ -1,7 +1,11 @@
 import { MonogramEmboss } from '../../components/MonogramEmboss';
 import { MonogramSectionHead } from '../../components/MonogramSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
-import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY, MONOGRAM_MONOGRAM_FAMILY } from '../../fonts';
+import {
+  MONOGRAM_BODY_FAMILY,
+  MONOGRAM_DISPLAY_FAMILY,
+  MONOGRAM_MONOGRAM_FAMILY,
+} from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
 
 interface WelcomeSectionProps {
@@ -55,7 +59,12 @@ export function WelcomeSection({
   const hasContent = !!welcomeText || !!asideQuote;
   if (!hasContent) return null;
 
-  const paragraphs = welcomeText ? welcomeText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean) : [];
+  const paragraphs = welcomeText
+    ? welcomeText
+        .split(/\n\s*\n/)
+        .map(p => p.trim())
+        .filter(Boolean)
+    : [];
   const firstChar = paragraphs[0]?.charAt(0) ?? '';
   const showAside = !!asideQuote;
 

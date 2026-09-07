@@ -35,7 +35,7 @@ let mockCompetitions: Competition[] = [
 export function useCompetitions() {
   return useQuery<Competition[]>({
     queryKey: ['competitions'],
-    queryFn: () => new Promise(resolve => setTimeout(() => resolve([...mockCompetitions]), 500))
+    queryFn: () => new Promise(resolve => setTimeout(() => resolve([...mockCompetitions]), 500)),
   });
 }
 
@@ -45,7 +45,7 @@ export function useAddCompetition() {
     mutationFn: async (newCompetition: Competition) => {
       mockCompetitions = [...mockCompetitions, { ...newCompetition, id: Date.now().toString() }];
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['competitions'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['competitions'] }),
   });
 }
 
@@ -53,9 +53,11 @@ export function useUpdateCompetition() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (updatedCompetition: Competition) => {
-      mockCompetitions = mockCompetitions.map(c => c.id === updatedCompetition.id ? { ...updatedCompetition } : c);
+      mockCompetitions = mockCompetitions.map(c =>
+        c.id === updatedCompetition.id ? { ...updatedCompetition } : c
+      );
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['competitions'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['competitions'] }),
   });
 }
 
@@ -65,7 +67,6 @@ export function useDeleteCompetition() {
     mutationFn: async (competitionId: string) => {
       mockCompetitions = mockCompetitions.filter(c => c.id !== competitionId);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['competitions'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['competitions'] }),
   });
 }
-

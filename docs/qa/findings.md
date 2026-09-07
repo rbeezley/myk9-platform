@@ -114,7 +114,6 @@ Copy this block for each new finding.
 - **Proof required:** Satisfied for the deployment half by the migration and `pg_proc`/ACL verification above. A live post-payment browser replay of a genuinely delayed webhook order remains the only unexercised step and is optional follow-up, not a blocker.
 - **Notes:** The Codex daily run on 2026-09-02 recorded this as `blocked` on exactly that deployment evidence. That run was never committed; this entry supersedes it. Its four other closure records (MYK9-283, MYK9-284, MYK9-279, MYK9-286) were stranded in the same uncommitted diff and are not re-transcribed here — all four are Done in Linear with their own closure evidence.
 
-
 ### MYK9-258
 
 - **Status:** fixed (2026-08-29 — PR #1847 / commit `dd8184afe741b754c0c2f701648b116a858dd9b5`; focused SQL/source-contract proof)
@@ -575,6 +574,7 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 - **Existing references:** #1943 `a89fbb71b`. `BaseEntityDialog` is shared, so any dialog whose confirm handler throws has this shape.
 - **Linear issue:** MYK9-338 (new) under parent MYK9-335.
 - **Proof required:** A test spying on `window.onunhandledrejection` (or asserting `captureError` is not called) across a refused delete, failing if the catch is removed.
+
 ### MYK9-294
 
 - **Status:** fixed (2026-09-05; see canonical MYK9-294 in Closed Findings)
@@ -632,7 +632,6 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 - **Existing references:** #1931 `924b2cbce`. Local worktree `codex/fix-page-view-analytics` exists at this SHA with no open PR.
 - **Linear issue:** MYK9-339 (new) under parent MYK9-335. Codex's original run recorded this as report-only P3; carried into Linear here because that run's report was never committed and would otherwise have been lost.
 - **Proof required:** A push-navigation regression test asserting exactly one event per transition, plus a de-duplication assertion for back/forward.
-
 
 ### NCR-2026-08-26-01
 
@@ -1254,9 +1253,9 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 - **Surface:** `apps/myk9show/supabase/functions/cron-health-check/index.ts`; `apps/myk9show/supabase/functions/_shared/healthCheckRun.ts`; Sentry Cron monitors `daily-health-check` and `continuous-health-check` (project `javascript-react`, environment `staging`).
 - **Detected by:** Sentry "Regressed issue" email, incident `35976516`, 2026-08-22 08:45:02 UTC.
 - **Evidence:** One `POST | 500` on `cron-health-check` at `2026-08-22T08:45:02.151Z`; every other invocation in the surrounding 24h returned 200. The function log reads `snapshot insert failed: TypeError: error sending request ... /rest/v1/system_health_snapshots: client error (SendRequest): connection error: stream closed because of a broken pipe`. The 08:50 run wrote a normal snapshot.
-- **Root cause:** `Deno.serve` checked in to `DAILY_HEALTH_MONITOR_SLUG` on *every* invocation. `continuous-health-check` calls the same function every 5 minutes, so a monitor scheduled `0 7 * * *` with failure tolerance 1 was taking ~288 check-ins a day. One transient blip therefore paged, and an `ok` from any continuous run satisfied the 07:00 window.
+- **Root cause:** `Deno.serve` checked in to `DAILY_HEALTH_MONITOR_SLUG` on _every_ invocation. `continuous-health-check` calls the same function every 5 minutes, so a monitor scheduled `0 7 * * *` with failure tolerance 1 was taking ~288 check-ins a day. One transient blip therefore paged, and an `ok` from any continuous run satisfied the 07:00 window.
 - **Resolution:** `resolveHealthCheckRun(headers)` in a new `_shared/healthCheckRun.ts` resolves each request to the monitor it reports to. Continuous runs go to a new `continuous-health-check` monitor; the 07:00 nightly and the manual `Run now` full run go to `daily-health-check`. There is no branch to skip a check-in, so no run can end up unmonitored.
-- **Rejected first attempt (recorded because the failure mode is instructive):** the original fix simply *suppressed* the check-in for continuous runs. Adversarial review caught that `cron-health-check` has no `captureException`, `pg_net` discards the response body, pg_cron records the job `succeeded` regardless, and `operator_alerts` is only ever read by a React Query hook — so the check-in is the sole path from this function to a human. Suppressing it would have hidden a total continuous-run outage for ~24h. It also silently broke `Run now` as a monitor-recovery affordance.
+- **Rejected first attempt (recorded because the failure mode is instructive):** the original fix simply _suppressed_ the check-in for continuous runs. Adversarial review caught that `cron-health-check` has no `captureException`, `pg_net` discards the response body, pg_cron records the job `succeeded` regardless, and `operator_alerts` is only ever read by a React Query hook — so the check-in is the sole path from this function to a human. Suppressing it would have hidden a total continuous-run outage for ~24h. It also silently broke `Run now` as a monitor-recovery affordance.
 - **Proof:** `resolveHealthCheckRun` is executed by `healthCheckRun.test.ts` (not source-grepped). Three mutations that the first attempt's tests passed green are now killed: renaming the mode header in TS only (EXIT=1), collapsing both slugs to one (EXIT=1), and adding a run token to the nightly pg_cron block (EXIT=1); baseline EXIT=0. Header-name literals are cross-checked between the `.ts` constants and the migration SQL from both sides.
 - **Required manual step:** create the `continuous-health-check` Sentry monitor at `*/5 * * * *` UTC with **failure tolerance above 1**. `cronHealthCheck.source.test.ts` forbids `monitorConfig` in code, so this is console-only.
 - **Notes:** The transient broken pipe itself needs no fix — one connection reset in 288 runs, self-healing on the next tick. If it recurs, add a bounded retry around `insertSnapshot`.
@@ -1278,15 +1277,16 @@ NCR-2026-09-04-01 (core coverage and PR coverage gate). No Linear issues were cl
 - **Proof so far:** four mutations killed (`= 'full'` EXIT=1; rescoping only the window CTE and leaving `latest_snapshot` counting continuous EXIT=1; dropping `run_mode` from the insert EXIT=1; adding a column DEFAULT EXIT=1), baseline EXIT=0. `src/test/database/` 88 files / 651 tests pass, 6/6 shuffled. `pnpm typecheck` and `pnpm lint` at 0.
 - **Closure proof (replay, 2026-08-22):** Ran the **deployed** watchdog body -- pulled from `cron.job.command`, with only the two table names rewritten to temp tables -- against controlled datasets in a psql transaction that rolled back. Script: `scripts/qa/watchdog-inert-replay.sql`.
 
-  | # | Scenario | Predicate | Alerts |
-  | --- | --- | --- | --- |
-  | 1 | Nightly ran, +12 continuous | new (deployed) | 0 |
-  | 2 | **Nightly MISSING, +12 continuous** | new (deployed) | **1** (`daily-health-check:2026-08-22`) |
-  | 3 | *Same data as 2*, pre-fix predicate | old (08-04..08-22) | **0** |
-  | 4 | Scenario 2, watchdog run twice | new (deployed) | 1 (ON CONFLICT dedupe holds) |
-  | 5 | Legacy NULL `run_mode` only | new (deployed) | 0 (deploy-order safety) |
+  | #   | Scenario                            | Predicate          | Alerts                                  |
+  | --- | ----------------------------------- | ------------------ | --------------------------------------- |
+  | 1   | Nightly ran, +12 continuous         | new (deployed)     | 0                                       |
+  | 2   | **Nightly MISSING, +12 continuous** | new (deployed)     | **1** (`daily-health-check:2026-08-22`) |
+  | 3   | _Same data as 2_, pre-fix predicate | old (08-04..08-22) | **0**                                   |
+  | 4   | Scenario 2, watchdog run twice      | new (deployed)     | 1 (ON CONFLICT dedupe holds)            |
+  | 5   | Legacy NULL `run_mode` only         | new (deployed)     | 0 (deploy-order safety)                 |
 
   Row 2 vs row 3 is the finding: identical data, and only the fixed predicate raises the alert. The script asserts up front that the deployed body carries 2 `run_mode IS DISTINCT FROM` predicates and that the stripped variant carries 0, so row 3 is genuinely the old predicate rather than a mislabelled copy of the new one. Post-replay: 0 leftover `replay_*` objects, 0 spurious `operator_alerts` rows.
+
 - **Live confirmation:** first post-deploy continuous run (2026-08-22 18:50:02 UTC) wrote `run_mode = 'continuous'`. 5,156 pre-deploy rows carry NULL and are still counted as nightly, as intended.
 - **Notes:** Split out of PR #1750, which fixed Sentry routing only. The first nightly run under the new predicate is 2026-08-23 07:00 UTC; the watchdog evaluates it at 08:00 UTC.
 

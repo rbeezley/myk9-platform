@@ -133,8 +133,20 @@ describe('buildFieldGuideHtml', () => {
     // default. Single dog → single armband per show.
     const data = makeData({
       runs: [
-        { numeral: '01', dayLabel: 'FRI JUN 12', classLabel: 'EX · Containers', judgeName: 'CB', armband: '142' },
-        { numeral: '03', dayLabel: 'SAT JUN 13', classLabel: 'EX · Interiors', judgeName: 'CB', armband: '142' },
+        {
+          numeral: '01',
+          dayLabel: 'FRI JUN 12',
+          classLabel: 'EX · Containers',
+          judgeName: 'CB',
+          armband: '142',
+        },
+        {
+          numeral: '03',
+          dayLabel: 'SAT JUN 13',
+          classLabel: 'EX · Interiors',
+          judgeName: 'CB',
+          armband: '142',
+        },
       ],
     });
     // Strip the explicit override so the derivation path runs.
@@ -147,7 +159,13 @@ describe('buildFieldGuideHtml', () => {
   it('skips the chip when armbandNumber is omitted and no run has an armband yet', () => {
     const data = makeData({
       runs: [
-        { numeral: '01', dayLabel: 'FRI JUN 12', classLabel: 'EX · Containers', judgeName: 'CB', armband: null },
+        {
+          numeral: '01',
+          dayLabel: 'FRI JUN 12',
+          classLabel: 'EX · Containers',
+          judgeName: 'CB',
+          armband: null,
+        },
       ],
     });
     delete (data as Partial<FieldGuideEmailData>).armbandNumber;
@@ -170,9 +188,27 @@ describe('buildFieldGuideHtml', () => {
     const html = buildFieldGuideHtml(
       makeData({
         runs: [
-          { numeral: '01', dayLabel: 'FRI JUN 12', classLabel: 'EX · Containers', judgeName: 'CB', armband: '247' },
-          { numeral: '03', dayLabel: 'SAT JUN 13', classLabel: 'EX · Interiors', judgeName: 'CB', armband: '247' },
-          { numeral: '05', dayLabel: 'SUN JUN 14', classLabel: 'EX · Buried', judgeName: 'CB', armband: '247' },
+          {
+            numeral: '01',
+            dayLabel: 'FRI JUN 12',
+            classLabel: 'EX · Containers',
+            judgeName: 'CB',
+            armband: '247',
+          },
+          {
+            numeral: '03',
+            dayLabel: 'SAT JUN 13',
+            classLabel: 'EX · Interiors',
+            judgeName: 'CB',
+            armband: '247',
+          },
+          {
+            numeral: '05',
+            dayLabel: 'SUN JUN 14',
+            classLabel: 'EX · Buried',
+            judgeName: 'CB',
+            armband: '247',
+          },
         ],
         runCount: 3,
       })

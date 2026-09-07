@@ -278,9 +278,7 @@ describe('ClubMembersPage show-access confirmations name the person', () => {
     await user.click(await screen.findByRole('button', { name: 'Keep show access' }));
     expect(setClubShowManagerAccess).not.toHaveBeenCalled();
 
-    expect(notificationSuccess).not.toHaveBeenCalledWith(
-      expect.stringContaining('the member')
-    );
+    expect(notificationSuccess).not.toHaveBeenCalledWith(expect.stringContaining('the member'));
   });
 
   it('still names a member revoked from the roster menu', async () => {

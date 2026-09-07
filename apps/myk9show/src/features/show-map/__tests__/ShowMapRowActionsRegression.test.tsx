@@ -166,9 +166,7 @@ describe('ShowMap row actions closeout regression', () => {
     fireEvent.keyDown(getTreeItemForText('Bella'), { key: 'Enter' });
 
     await expectOneOpenMenu();
-    expect(
-      await screen.findByRole('menuitem', { name: /pull \/ no-show/i })
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /pull \/ no-show/i })).toBeInTheDocument();
     expect(onAction).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
 

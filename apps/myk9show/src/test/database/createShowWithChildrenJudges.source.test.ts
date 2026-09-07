@@ -82,7 +82,7 @@ describe('create_show_with_children class-level judges migration (20260618120000
     );
   });
 
-  it('keeps the function schema-qualified under SET search_path = \'\'', () => {
+  it("keeps the function schema-qualified under SET search_path = ''", () => {
     expect(body).toContain("SET search_path = ''");
     expect(body).toContain('public.judge_assignments');
     expect(body).toContain('public.classes');

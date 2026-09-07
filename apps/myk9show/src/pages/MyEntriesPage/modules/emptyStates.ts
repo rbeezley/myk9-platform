@@ -61,10 +61,7 @@ export const EMPTY_STATE_BY_TAB: Record<EntryTabFilter, EmptyStateContent> = {
  * come in, not shown a generic "nothing here". The tab went away; the copy
  * should not.
  */
-export const EMPTY_STATE_BY_STATUS: Record<
-  Exclude<EntryStatusFilter, 'any'>,
-  EmptyStateContent
-> = {
+export const EMPTY_STATE_BY_STATUS: Record<Exclude<EntryStatusFilter, 'any'>, EmptyStateContent> = {
   pending: {
     heading: 'Nothing pending review',
     body: "The show secretary is reviewing entries as they come in. When you submit a new entry, it will show up here until it's accepted.",

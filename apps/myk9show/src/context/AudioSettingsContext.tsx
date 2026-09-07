@@ -5,7 +5,6 @@ import { createContext, useState, useCallback, type ReactNode } from 'react';
 import { DEFAULT_AUDIO_SETTINGS, type AudioSettings } from '@/constants/audioSettings';
 import { logger } from '@/services/LoggingService';
 
-
 interface AudioSettingsContextType {
   settings: AudioSettings;
   updateSettings: (newSettings: Partial<AudioSettings>) => void;
@@ -33,7 +32,7 @@ function AudioSettingsProvider({ children }: { children: ReactNode }) {
   const updateSettings = useCallback((newSettings: Partial<AudioSettings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
-      
+
       // Save to localStorage
       if (typeof window !== 'undefined') {
         try {
@@ -42,14 +41,14 @@ function AudioSettingsProvider({ children }: { children: ReactNode }) {
           logger.warn('Failed to save audio settings:', 'context', {}, error as Error);
         }
       }
-      
+
       return updated;
     });
   }, []);
 
   const resetToDefaults = useCallback(() => {
     setSettings(DEFAULT_AUDIO_SETTINGS);
-    
+
     // Clear localStorage
     if (typeof window !== 'undefined') {
       try {
@@ -68,4 +67,3 @@ function AudioSettingsProvider({ children }: { children: ReactNode }) {
 }
 
 export { AudioSettingsContext, AudioSettingsProvider };
-

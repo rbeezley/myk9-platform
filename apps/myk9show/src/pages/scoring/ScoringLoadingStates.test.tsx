@@ -204,5 +204,4 @@ describe('scoring route loading states', () => {
       screen.queryByRole('status', { name: 'Loading paper scoresheet' })
     ).not.toBeInTheDocument();
   });
-
 });

@@ -60,21 +60,18 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<CryptoKey>
 /**
  * Encrypt sensitive data using AES-GCM
  */
-export async function encryptData(
-  data: string, 
-  password: string
-): Promise<EncryptedData> {
+export async function encryptData(data: string, password: string): Promise<EncryptedData> {
   try {
     const encoder = new TextEncoder();
     const dataBuffer = encoder.encode(data);
-    
+
     // Generate random salt and IV
     const salt = crypto.getRandomValues(new Uint8Array(DEFAULT_CONFIG.saltLength));
     const iv = crypto.getRandomValues(new Uint8Array(DEFAULT_CONFIG.ivLength));
-    
+
     // Derive key from password and salt
     const key = await deriveKey(password, salt);
-    
+
     // Encrypt the data
     const encryptedBuffer = await crypto.subtle.encrypt(
       {
@@ -84,7 +81,7 @@ export async function encryptData(
       key,
       dataBuffer
     );
-    
+
     // Convert to base64 for storage
     return {
       data: btoa(String.fromCharCode(...new Uint8Array(encryptedBuffer))),
@@ -100,19 +97,28 @@ export async function encryptData(
 /**
  * Decrypt sensitive data using AES-GCM
  */
-export async function decryptData(
-  encryptedData: EncryptedData, 
-  password: string
-): Promise<string> {
+export async function decryptData(encryptedData: EncryptedData, password: string): Promise<string> {
   try {
     // Convert from base64
-    const data = new Uint8Array(atob(encryptedData.data).split('').map(c => c.charCodeAt(0)));
-    const iv = new Uint8Array(atob(encryptedData.iv).split('').map(c => c.charCodeAt(0)));
-    const salt = new Uint8Array(atob(encryptedData.salt).split('').map(c => c.charCodeAt(0)));
-    
+    const data = new Uint8Array(
+      atob(encryptedData.data)
+        .split('')
+        .map(c => c.charCodeAt(0))
+    );
+    const iv = new Uint8Array(
+      atob(encryptedData.iv)
+        .split('')
+        .map(c => c.charCodeAt(0))
+    );
+    const salt = new Uint8Array(
+      atob(encryptedData.salt)
+        .split('')
+        .map(c => c.charCodeAt(0))
+    );
+
     // Derive key from password and salt
     const key = await deriveKey(password, salt);
-    
+
     // Decrypt the data
     const decryptedBuffer = await crypto.subtle.decrypt(
       {
@@ -122,7 +128,7 @@ export async function decryptData(
       key,
       data
     );
-    
+
     // Convert back to string
     const decoder = new TextDecoder();
     return decoder.decode(decryptedBuffer);
@@ -139,7 +145,7 @@ export function generateSecurePassword(length: number = 32): string {
   const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
-  
+
   return Array.from(array, byte => charset[byte % charset.length]).join('');
 }
 
@@ -150,7 +156,7 @@ export async function hashData(data: string): Promise<string> {
   const encoder = new TextEncoder();
   const dataBuffer = encoder.encode(data);
   const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  
+
   return btoa(String.fromCharCode(...new Uint8Array(hashBuffer)));
 }
 
@@ -186,9 +192,9 @@ export class SecureStorage {
       const storageData = {
         ...encrypted,
         timestamp: Date.now(),
-        hash: await hashData(value)
+        hash: await hashData(value),
       };
-      
+
       localStorage.setItem(`secure_${key}`, JSON.stringify(storageData));
     } catch (error) {
       logger.error('Secure storage setItem failed', 'encryption', {}, error as Error);
@@ -206,7 +212,7 @@ export class SecureStorage {
 
       const parsed = JSON.parse(storedData);
       const decrypted = await decryptData(parsed, this.masterPassword);
-      
+
       // Verify data integrity
       if (parsed.hash && !(await verifyDataIntegrity(decrypted, parsed.hash))) {
         logger.warn('Data integrity check failed for key', 'encryption', { key });
@@ -245,9 +251,7 @@ export class SecureStorage {
    */
   keys(): string[] {
     const keys = Object.keys(localStorage);
-    return keys
-      .filter(key => key.startsWith('secure_'))
-      .map(key => key.replace('secure_', ''));
+    return keys.filter(key => key.startsWith('secure_')).map(key => key.replace('secure_', ''));
   }
 }
 
@@ -263,7 +267,7 @@ export const SENSITIVE_DATA_TYPES = {
   EMERGENCY_CONTACTS: 'emergency_contacts',
 } as const;
 
-export type SensitiveDataType = typeof SENSITIVE_DATA_TYPES[keyof typeof SENSITIVE_DATA_TYPES];
+export type SensitiveDataType = (typeof SENSITIVE_DATA_TYPES)[keyof typeof SENSITIVE_DATA_TYPES];
 
 /**
  * Check if data type should be encrypted

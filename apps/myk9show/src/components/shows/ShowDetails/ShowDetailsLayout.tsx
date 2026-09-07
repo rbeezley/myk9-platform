@@ -23,7 +23,7 @@ const ShowDetailsLayout: React.FC<ShowDetailsLayoutProps> = ({
   getSearchText,
   children,
   emptyState,
-  className
+  className,
 }) => {
   // Responsive/collapsible sidebar
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -32,7 +32,7 @@ const ShowDetailsLayout: React.FC<ShowDetailsLayoutProps> = ({
     minWidth: 200,
     maxWidth: 400,
     storageKey: 'showSidebarWidth',
-    defaultCollapsed: isMobile
+    defaultCollapsed: isMobile,
   });
 
   // Find selected show
@@ -66,11 +66,13 @@ const ShowDetailsLayout: React.FC<ShowDetailsLayoutProps> = ({
         />
       )}
       {/* Main content */}
-      <div className={cn(
-        'flex-1 overflow-auto pt-20 transition-all duration-200 flex flex-col justify-start items-center',
-        className
-      )}>
-        {selectedShow ? children : (emptyState || null)}
+      <div
+        className={cn(
+          'flex-1 overflow-auto pt-20 transition-all duration-200 flex flex-col justify-start items-center',
+          className
+        )}
+      >
+        {selectedShow ? children : emptyState || null}
       </div>
     </div>
   );

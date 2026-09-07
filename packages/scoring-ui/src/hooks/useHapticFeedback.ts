@@ -40,12 +40,12 @@ export interface HapticFeedbackAPI {
  * Durations below 50ms may not be perceivable on many devices.
  */
 const HAPTIC_PATTERNS = {
-  light: 50,        // Quick tap - status changes, menu items
-  medium: 75,       // Button press - save, submit
-  heavy: 100,       // Important action - delete, reset
-  success: [50, 80, 50] as number[],  // Double pulse - score saved, check-in complete
-  error: [75, 80, 75, 80, 75] as number[],  // Triple pulse - validation error, failed sync
-  warning: [50, 150, 50] as number[],  // Pause pulse - time warning, conflict
+  light: 50, // Quick tap - status changes, menu items
+  medium: 75, // Button press - save, submit
+  heavy: 100, // Important action - delete, reset
+  success: [50, 80, 50] as number[], // Double pulse - score saved, check-in complete
+  error: [75, 80, 75, 80, 75] as number[], // Triple pulse - validation error, failed sync
+  warning: [50, 150, 50] as number[], // Pause pulse - time warning, conflict
 };
 
 /**

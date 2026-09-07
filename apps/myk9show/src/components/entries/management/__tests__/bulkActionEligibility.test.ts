@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry, EntryClass } from '@/types/entry-management-types';
-import {
-  getEligibleForBulkAction,
-  statusTargetForAction,
-} from '../bulkActionEligibility';
+import { getEligibleForBulkAction, statusTargetForAction } from '../bulkActionEligibility';
 
 const aClass: EntryClass = {
   id: 'c1',

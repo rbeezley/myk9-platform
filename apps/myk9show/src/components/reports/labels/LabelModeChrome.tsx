@@ -64,10 +64,7 @@ interface LabelSetupSectionProps {
  */
 export function LabelSetupSection({ children }: LabelSetupSectionProps) {
   return (
-    <section
-      aria-label="Label setup"
-      className="mb-6 space-y-4 rounded-lg border bg-muted p-4"
-    >
+    <section aria-label="Label setup" className="mb-6 space-y-4 rounded-lg border bg-muted p-4">
       <SetupEyebrow>Label setup</SetupEyebrow>
       {children}
     </section>

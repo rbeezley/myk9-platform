@@ -86,7 +86,7 @@ describe('useShowMapReorderMode — in-flight guard', () => {
     act(() => result.current.enter({ classId: 'class-1', classLabel: 'Container Novice' }));
 
     const dragEvent = (active: string, over: string): DragEndEvent =>
-      ({ active: { id: `entry:${active}` }, over: { id: `entry:${over}` } } as DragEndEvent);
+      ({ active: { id: `entry:${active}` }, over: { id: `entry:${over}` } }) as DragEndEvent;
 
     // First drag: enters the mutation, in-flight ref becomes true.
     act(() => result.current.onDragEnd(dragEvent('a', 'c')));
@@ -139,11 +139,7 @@ describe('useShowMapReorderMode — optimistic reorder overlay', () => {
 
     // Immediately after the drop the optimistic overlay reflects the
     // new order — no waiting for the DB write.
-    expect(result.current.getOptimisticOrder('class-1')).toEqual([
-      'entry:b',
-      'entry:c',
-      'entry:a',
-    ]);
+    expect(result.current.getOptimisticOrder('class-1')).toEqual(['entry:b', 'entry:c', 'entry:a']);
 
     // Wait for the mutation to dispatch its updateEntry calls, then
     // resolve them all and confirm the overlay clears so the next
@@ -211,11 +207,7 @@ describe('useShowMapReorderMode — keyboard reorder optimistic overlay', () => 
       await result.current.onKeyboardReorder('entry:a', 'down');
     });
 
-    expect(result.current.getOptimisticOrder('class-1')).toEqual([
-      'entry:b',
-      'entry:a',
-      'entry:c',
-    ]);
+    expect(result.current.getOptimisticOrder('class-1')).toEqual(['entry:b', 'entry:a', 'entry:c']);
 
     await waitFor(() => expect(writeResolvers.length).toBeGreaterThan(0));
     writeResolvers.forEach(fn => fn());

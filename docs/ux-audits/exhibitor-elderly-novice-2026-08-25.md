@@ -42,32 +42,32 @@ Against the 2026-07-24 report (24 findings):
 Severity follows the 2026-07-24 audit: **Critical** = cannot complete core task / data loss ·
 **High** = struggles significantly · **Medium** = friction · **Low** = polish.
 
-| # | Severity | Follow-up status | Path & screen | Verification result |
-| --- | --- | --- | --- | --- |
-| 1 | Critical | RESOLVED | `/dogs/:id` Edit Dog dialog | Shared action-bar reservation keeps the Save target clear; route changes dismiss stale toasts; dirty navigation requires an explicit discard. Existing phone hit-test and focused regressions pass. |
-| 2 | High | RESOLVED | Add/Edit Dog footer | Responsive action-bar tests pin full primary and Cancel controls at 390px and 320px. |
-| 3 | High | RESOLVED | Add Dog validation | The summary is full-width, hidden errors are reachable, invalid submit creates no record, and the panel remains open. |
-| 4 | High | RESOLVED | Dog breed across surfaces | Shared registration-backed breed resolution removes substitute breed from dog list, record, wizard, entry blank, and submission paths. |
-| 5 | High | RESOLVED | Add Dog vs Edit Dog | Base dog forms lead with call name; registered name is captured and resolved per organization registration. |
-| 6 | High | RESOLVED — MYK9-71 | My Shows ↔ My Payments | Canonical amount-due work shipped in MYK9-71 / PR #1456; MYK9-88 does not duplicate it. |
-| 7 | High | RESOLVED — MYK9-71 | Show detail entry action | Honest entry-action scope shipped in MYK9-71 / PR #1456. |
-| 8 | High | RESOLVED — MYK9-71 | Entry lifecycle | Secretary-mediated change/withdraw guidance shipped under the same existing contract. |
-| 9 | High | RESOLVED | Exhibitor review status | Both exhibitor surfaces use the shared vocabulary: pending reads **Pending review**; true refusal reads **Declined** with a reason or secretary next step. |
-| 10 | Medium | RESOLVED — MYK9-71 | Entry counts | Count scope and units shipped in MYK9-71 / PR #1456. |
-| 11 | Medium | RESOLVED | My Payments | MYK9-71 owns phone disclosure; MYK9-88 fixes the 1280px table contract with fixed layout and reserved Receipt width. |
-| 12 | Medium | RESOLVED | Sidebar / drawer | Explanatory descriptions wrap in full rather than truncating to an ellipsis. |
-| 13 | Medium | RESOLVED | Wizard dog selection | Phone layout uses page flow; the constrained inner region remains only at `md` and above. |
-| 14 | Medium | RESOLVED | Dog record Overview | Mobile identity renders before tab collections and the mobile record offers one add-registration action. |
-| 15 | Medium | RESOLVED | Wizard class selection | Static plain-language guidance names novice classes as the starting point before payment. |
-| 16 | Medium | RESOLVED | Wizard registration prerequisite | The warning opens the shared registration editor in place; matching-registry, different-registry, missing, puppy-exception, and ambiguous-metadata cases are covered. |
-| 17 | Medium | RESOLVED | Find Shows | Cards, Table, Calendar, and Map labels are visible and accessible at all four viewports; measured page overflow is false at each size. |
-| 18 | Medium | RESOLVED | Nav, dog cards, Add Dog controls | Existing accessibility regressions plus sidebar and dog-record coverage expose non-empty accessible names. |
-| 19 | Medium | RESOLVED | Wizard payment | Secure-checkout / confirmation reassurance appears once beside the card control; disabled-submit guidance remains. |
-| 20 | Medium | RESOLVED | Show schedule | Missing time, armband, and judge detail collapses to one page-level publication message across every dog section; rows with real detail still render it. |
-| 21 | Low | DEFERRED | Enum presentation | Cosmetic-only; retained in this report for a later polish pass. |
-| 22 | Low | DEFERRED | All-caps labels | Cosmetic-only; retained in this report for a later polish pass. |
-| 23 | Low | DEFERRED | Add/Edit vocabulary | Cosmetic-only; retained in this report for a later polish pass. |
-| 24 | Low | DEFERRED | Email / dog-strip truncation | Cosmetic-only; retained in this report for a later polish pass. |
+| #   | Severity | Follow-up status   | Path & screen                    | Verification result                                                                                                                                                                                 |
+| --- | -------- | ------------------ | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Critical | RESOLVED           | `/dogs/:id` Edit Dog dialog      | Shared action-bar reservation keeps the Save target clear; route changes dismiss stale toasts; dirty navigation requires an explicit discard. Existing phone hit-test and focused regressions pass. |
+| 2   | High     | RESOLVED           | Add/Edit Dog footer              | Responsive action-bar tests pin full primary and Cancel controls at 390px and 320px.                                                                                                                |
+| 3   | High     | RESOLVED           | Add Dog validation               | The summary is full-width, hidden errors are reachable, invalid submit creates no record, and the panel remains open.                                                                               |
+| 4   | High     | RESOLVED           | Dog breed across surfaces        | Shared registration-backed breed resolution removes substitute breed from dog list, record, wizard, entry blank, and submission paths.                                                              |
+| 5   | High     | RESOLVED           | Add Dog vs Edit Dog              | Base dog forms lead with call name; registered name is captured and resolved per organization registration.                                                                                         |
+| 6   | High     | RESOLVED — MYK9-71 | My Shows ↔ My Payments           | Canonical amount-due work shipped in MYK9-71 / PR #1456; MYK9-88 does not duplicate it.                                                                                                             |
+| 7   | High     | RESOLVED — MYK9-71 | Show detail entry action         | Honest entry-action scope shipped in MYK9-71 / PR #1456.                                                                                                                                            |
+| 8   | High     | RESOLVED — MYK9-71 | Entry lifecycle                  | Secretary-mediated change/withdraw guidance shipped under the same existing contract.                                                                                                               |
+| 9   | High     | RESOLVED           | Exhibitor review status          | Both exhibitor surfaces use the shared vocabulary: pending reads **Pending review**; true refusal reads **Declined** with a reason or secretary next step.                                          |
+| 10  | Medium   | RESOLVED — MYK9-71 | Entry counts                     | Count scope and units shipped in MYK9-71 / PR #1456.                                                                                                                                                |
+| 11  | Medium   | RESOLVED           | My Payments                      | MYK9-71 owns phone disclosure; MYK9-88 fixes the 1280px table contract with fixed layout and reserved Receipt width.                                                                                |
+| 12  | Medium   | RESOLVED           | Sidebar / drawer                 | Explanatory descriptions wrap in full rather than truncating to an ellipsis.                                                                                                                        |
+| 13  | Medium   | RESOLVED           | Wizard dog selection             | Phone layout uses page flow; the constrained inner region remains only at `md` and above.                                                                                                           |
+| 14  | Medium   | RESOLVED           | Dog record Overview              | Mobile identity renders before tab collections and the mobile record offers one add-registration action.                                                                                            |
+| 15  | Medium   | RESOLVED           | Wizard class selection           | Static plain-language guidance names novice classes as the starting point before payment.                                                                                                           |
+| 16  | Medium   | RESOLVED           | Wizard registration prerequisite | The warning opens the shared registration editor in place; matching-registry, different-registry, missing, puppy-exception, and ambiguous-metadata cases are covered.                               |
+| 17  | Medium   | RESOLVED           | Find Shows                       | Cards, Table, Calendar, and Map labels are visible and accessible at all four viewports; measured page overflow is false at each size.                                                              |
+| 18  | Medium   | RESOLVED           | Nav, dog cards, Add Dog controls | Existing accessibility regressions plus sidebar and dog-record coverage expose non-empty accessible names.                                                                                          |
+| 19  | Medium   | RESOLVED           | Wizard payment                   | Secure-checkout / confirmation reassurance appears once beside the card control; disabled-submit guidance remains.                                                                                  |
+| 20  | Medium   | RESOLVED           | Show schedule                    | Missing time, armband, and judge detail collapses to one page-level publication message across every dog section; rows with real detail still render it.                                            |
+| 21  | Low      | DEFERRED           | Enum presentation                | Cosmetic-only; retained in this report for a later polish pass.                                                                                                                                     |
+| 22  | Low      | DEFERRED           | All-caps labels                  | Cosmetic-only; retained in this report for a later polish pass.                                                                                                                                     |
+| 23  | Low      | DEFERRED           | Add/Edit vocabulary              | Cosmetic-only; retained in this report for a later polish pass.                                                                                                                                     |
+| 24  | Low      | DEFERRED           | Email / dog-strip truncation     | Cosmetic-only; retained in this report for a later polish pass.                                                                                                                                     |
 
 ## Responsive / cross-breakpoint notes
 

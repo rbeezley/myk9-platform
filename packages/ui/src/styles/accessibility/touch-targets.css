@@ -158,13 +158,13 @@
 .touch-link:focus-visible,
 .touch-checkbox:focus-visible,
 .touch-radio:focus-visible {
-  outline: 2px solid var(--ring, #007AFF);
+  outline: 2px solid var(--ring, #007aff);
   outline-offset: 2px;
 }
 
 /* Disabled state */
 .touch-target:disabled,
-.touch-target[aria-disabled="true"] {
+.touch-target[aria-disabled='true'] {
   opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;

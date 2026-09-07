@@ -330,7 +330,10 @@ describe('emergency packet confirmations across trial days (MYK9-228 phase 5)', 
     const saturday = packet('2026-10-03', 'snap-sat', ['t1']);
     const sunday = packet('2026-10-04', 'snap-sun', ['t2']);
 
-    const state = derivePaperworkPrintState([evidence(saturday, '2026-10-02T18:00:00.000Z')], sunday);
+    const state = derivePaperworkPrintState(
+      [evidence(saturday, '2026-10-02T18:00:00.000Z')],
+      sunday
+    );
 
     expect(state.state).toBe('unconfirmed');
     expect(state.record).toBeNull();

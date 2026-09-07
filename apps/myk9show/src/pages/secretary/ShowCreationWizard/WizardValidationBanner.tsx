@@ -23,10 +23,7 @@ export const WizardValidationBanner: React.FC<WizardValidationBannerProps> = ({
   expanded,
   onToggle,
 }) => (
-  <div
-    role="alert"
-    className="relative border-b border-warning/30 rounded-t-2xl overflow-hidden"
-  >
+  <div role="alert" className="relative border-b border-warning/30 rounded-t-2xl overflow-hidden">
     <button
       onClick={onToggle}
       aria-expanded={expanded}

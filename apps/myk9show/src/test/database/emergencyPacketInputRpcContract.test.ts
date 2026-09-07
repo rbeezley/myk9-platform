@@ -203,7 +203,9 @@ describe('emergency_packet_input contract', () => {
     expect(sql).toMatch(
       /public\.emergency_packet_registry_key\(COALESCE\(NULLIF\(btrim\(t\.registry_id\), ''\), 'AKC'\)\)/
     );
-    expect(sql).toMatch(/public\.emergency_packet_registry_key\(dr\.organization\) = t\.registry_key/);
+    expect(sql).toMatch(
+      /public\.emergency_packet_registry_key\(dr\.organization\) = t\.registry_key/
+    );
     for (const [name, code] of [
       ['AMERICAN KENNEL CLUB', 'AKC'],
       ['UNITED KENNEL CLUB', 'UKC'],

@@ -176,7 +176,10 @@ describe('sortByArmband', () => {
   });
 
   it('does not mutate the input array', () => {
-    const entries = [makeEntry({ id: 'a', armband: '300' }), makeEntry({ id: 'b', armband: '100' })];
+    const entries = [
+      makeEntry({ id: 'a', armband: '300' }),
+      makeEntry({ id: 'b', armband: '100' }),
+    ];
     const original = [...entries];
     sortByArmband(entries);
     expect(entries.map(e => e.id)).toEqual(original.map(e => e.id));

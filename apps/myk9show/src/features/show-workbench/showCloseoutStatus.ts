@@ -6,9 +6,7 @@ export interface CloseoutStatus {
 }
 
 export type IncidentState =
-  | { state: 'loading' }
-  | { state: 'error' }
-  | { state: 'ready'; reportableCount: number };
+  { state: 'loading' } | { state: 'error' } | { state: 'ready'; reportableCount: number };
 
 export interface CloseoutStatusInput {
   reconNeedsReview: boolean;

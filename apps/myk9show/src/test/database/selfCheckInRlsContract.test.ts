@@ -40,11 +40,7 @@ describe('self check-in RLS contract', () => {
   });
 
   it('keeps self_checkin_entry limited to check-in status bookkeeping', () => {
-    const updateStatement = sliceBetween(
-      migration,
-      'update public.entries e',
-      'if not found then'
-    );
+    const updateStatement = sliceBetween(migration, 'update public.entries e', 'if not found then');
 
     expect(updateStatement).toContain('check_in_status = p_new_status');
     expect(updateStatement).toContain('updated_at = now()');

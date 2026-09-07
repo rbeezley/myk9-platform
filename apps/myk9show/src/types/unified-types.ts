@@ -1,6 +1,6 @@
 /**
  * Unified Type System Index
- * 
+ *
  * This file serves as the main entry point for all types in the application.
  * It re-exports all core types to provide a clean, centralized import interface.
  */
@@ -20,13 +20,7 @@ export * from './conflict-types';
 // ============================================================================
 
 // Dog-related types
-export type {
-  Dog,
-  Registration,
-  Owner,
-  DogInput,
-  PersonInput
-} from './dog-types';
+export type { Dog, Registration, Owner, DogInput, PersonInput } from './dog-types';
 
 // User-related types
 export type {
@@ -37,24 +31,14 @@ export type {
   JudgeInfo,
   Handler,
   Judge,
-  Exhibitor
+  Exhibitor,
 } from './user-types';
 
 // Show and competition types
-export type {
-  Show,
-  ShowTrial,
-  Class,
-  Trial,
-  ShowInput,
-  ShowStat
-} from './show-types';
+export type { Show, ShowTrial, Class, Trial, ShowInput, ShowStat } from './show-types';
 
 // Judge-related types
-export type {
-  ShowJudgeAssignment,
-  LegacyJudgeAssignment
-} from './judge-types';
+export type { ShowJudgeAssignment, LegacyJudgeAssignment } from './judge-types';
 
 // Auth and permissions
 export type {
@@ -63,7 +47,7 @@ export type {
   RoleScope,
   UserWithRoles,
   PermissionChecker,
-  RBACContextState
+  RBACContextState,
 } from './auth-types';
 
 // Scoring system types
@@ -73,7 +57,7 @@ export type {
   BaseScore,
   ScoringConflict,
   JudgePresence,
-  PlacementUpdate
+  PlacementUpdate,
 } from './scoring-types';
 
 // Scent work specific
@@ -83,15 +67,11 @@ export type {
   ScentWorkEntry,
   ScentWorkClassConfig,
   QualificationStatus,
-  NQReason
+  NQReason,
 } from './scent-work-types';
 
 // Check-in and offline types
-export type {
-  CheckInStatus,
-  CheckInStatusMetadata,
-  CheckInInfo
-} from './check-in-types';
+export type { CheckInStatus, CheckInStatusMetadata, CheckInInfo } from './check-in-types';
 
 // Sync and conflict resolution (legacy compatibility)
 export type {
@@ -103,7 +83,7 @@ export type {
   SyncConflict,
   ConflictResolution,
   EnhancedConflictResolution,
-  ResolutionStrategy
+  ResolutionStrategy,
 } from './sync-types';
 
 // ============================================================================
@@ -127,7 +107,7 @@ export type {
   RequireFields,
   WithoutSync,
   CreateInput,
-  UpdateInput
+  UpdateInput,
 } from './core-types';
 
 // Re-export conflict utilities
@@ -136,7 +116,7 @@ export type {
   ConflictType,
   ConflictPriority,
   ConflictStatus,
-  ConflictMetadata
+  ConflictMetadata,
 } from './conflict-types';
 
 // Performance optimization types (Phase 5.1)
@@ -152,7 +132,7 @@ export type {
   DeltaOperation,
   DeltaValidationResult,
   CompressionResult,
-  BatchResult
+  BatchResult,
 } from './performance-types';
 
 // ============================================================================

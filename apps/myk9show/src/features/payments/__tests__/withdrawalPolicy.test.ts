@@ -23,12 +23,7 @@ const percentPolicy: WithdrawalPolicy = {
 
 describe('resolveWithdrawalRefundCents', () => {
   it('refunds the full entry fee before the cutoff (flat policy)', () => {
-    const r = resolveWithdrawalRefundCents(
-      flatPolicy,
-      3000,
-      new Date('2026-05-15T12:00:00Z'),
-      NY
-    );
+    const r = resolveWithdrawalRefundCents(flatPolicy, 3000, new Date('2026-05-15T12:00:00Z'), NY);
     expect(r.refundCents).toBe(3000);
     expect(r.retainedCents).toBe(0);
     expect(r.requiresManual).toBe(false);
@@ -36,12 +31,7 @@ describe('resolveWithdrawalRefundCents', () => {
   });
 
   it('retains the flat office fee after the cutoff', () => {
-    const r = resolveWithdrawalRefundCents(
-      flatPolicy,
-      3000,
-      new Date('2026-06-15T12:00:00Z'),
-      NY
-    );
+    const r = resolveWithdrawalRefundCents(flatPolicy, 3000, new Date('2026-06-15T12:00:00Z'), NY);
     expect(r.retainedCents).toBe(1000);
     expect(r.refundCents).toBe(2000); // $30 − $10
     expect(r.reason).toBe('after_cutoff');
@@ -60,7 +50,12 @@ describe('resolveWithdrawalRefundCents', () => {
 
   it('percent rounding: retained + refunded always sum to the entry fee (round half up)', () => {
     // 25% of 333 = 83.25 → round-half-up to 83; refund = 250; sum = 333
-    const r = resolveWithdrawalRefundCents(percentPolicy, 333, new Date('2026-06-15T12:00:00Z'), NY);
+    const r = resolveWithdrawalRefundCents(
+      percentPolicy,
+      333,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
     expect(r.retainedCents).toBe(83);
     expect(r.refundCents).toBe(250);
     expect(r.retainedCents + r.refundCents).toBe(333);
@@ -75,12 +70,7 @@ describe('resolveWithdrawalRefundCents', () => {
   it('TIMEZONE: an instant that is past the cutoff in UTC but not in the show tz resolves as before-cutoff', () => {
     // 2026-06-02T02:00Z == 2026-06-01 22:00 EDT → still June 1 in New York → full refund.
     // Evaluated in UTC this would be June 2 (after cutoff) and wrongly retain the fee.
-    const r = resolveWithdrawalRefundCents(
-      flatPolicy,
-      3000,
-      new Date('2026-06-02T02:00:00Z'),
-      NY
-    );
+    const r = resolveWithdrawalRefundCents(flatPolicy, 3000, new Date('2026-06-02T02:00:00Z'), NY);
     expect(r.reason).toBe('before_cutoff');
     expect(r.refundCents).toBe(3000);
   });
@@ -123,7 +113,12 @@ describe('resolveWithdrawalRefundCents', () => {
   });
 
   it('falls back to a default timezone when given an invalid one (no throw)', () => {
-    const r = resolveWithdrawalRefundCents(flatPolicy, 3000, new Date('2026-05-15T12:00:00Z'), 'Not/AZone');
+    const r = resolveWithdrawalRefundCents(
+      flatPolicy,
+      3000,
+      new Date('2026-05-15T12:00:00Z'),
+      'Not/AZone'
+    );
     expect(r.refundCents).toBe(3000);
   });
 });
@@ -154,7 +149,12 @@ describe('getEffectiveWithdrawalPolicy', () => {
 
   it('falls back to the club default when the show has no override', () => {
     const p = getEffectiveWithdrawalPolicy(
-      { withdrawal_cutoff_date: null, withdrawal_retention_type: null, withdrawal_retention_value: null, withdrawal_policy_notes: null },
+      {
+        withdrawal_cutoff_date: null,
+        withdrawal_retention_type: null,
+        withdrawal_retention_value: null,
+        withdrawal_policy_notes: null,
+      },
       club
     );
     expect(p).toEqual({

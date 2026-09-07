@@ -1,7 +1,7 @@
-import React from "react";
-import { Label } from "@/components/ui/label";
-import { TimePickerInput } from "./time-picker-input";
-import { convertTimeStringToDate, convertDateToTimeString } from "@/lib/time-utils";
+import React from 'react';
+import { Label } from '@/components/ui/label';
+import { TimePickerInput } from './time-picker-input';
+import { convertTimeStringToDate, convertDateToTimeString } from '@/lib/time-utils';
 
 interface TimePickerProps {
   value?: string; // MM:SS format
@@ -14,16 +14,14 @@ interface TimePickerProps {
 }
 
 export function TimePicker({
-  value = "",
+  value = '',
   onChange,
   label,
   className,
   id,
   maxMinutes = 9,
 }: TimePickerProps) {
-  const [date, setDate] = React.useState<Date | undefined>(
-    convertTimeStringToDate(value)
-  );
+  const [date, setDate] = React.useState<Date | undefined>(convertTimeStringToDate(value));
 
   const minuteRef = React.useRef<HTMLInputElement>(null);
   const secondRef = React.useRef<HTMLInputElement>(null);
@@ -40,21 +38,23 @@ export function TimePicker({
     if (newDate) {
       const minutes = newDate.getMinutes();
       const seconds = newDate.getSeconds();
-      
+
       // Validate minutes against maxMinutes
       const constrainedMinutes = Math.min(minutes, maxMinutes);
-      
+
       if (constrainedMinutes !== minutes) {
         // If we had to constrain minutes, update the date
         const constrainedDate = new Date(newDate);
         constrainedDate.setMinutes(constrainedMinutes);
         setDate(constrainedDate);
-        onChange?.(`${constrainedMinutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        onChange?.(
+          `${constrainedMinutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+        );
       } else {
         onChange?.(convertDateToTimeString(newDate));
       }
     } else {
-      onChange?.("");
+      onChange?.('');
     }
   };
 

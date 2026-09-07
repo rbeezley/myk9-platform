@@ -7,12 +7,7 @@
 
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-import {
-  LucideIcon,
-  AlertTriangle,
-  RefreshCw,
-  HelpCircle,
-} from 'lucide-react';
+import { LucideIcon, AlertTriangle, RefreshCw, HelpCircle } from 'lucide-react';
 import { PremiumButton } from './PremiumButton';
 import { IconContainer } from './IconContainer';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -119,8 +114,8 @@ export function EmptyState({
       {/* Actions */}
       {(action || secondaryAction) && (
         <div className="flex flex-col sm:flex-row items-center gap-3 mt-8">
-          {action && (
-            action.href !== undefined ? (
+          {action &&
+            (action.href !== undefined ? (
               <Link
                 to={action.href}
                 className={cn(
@@ -133,11 +128,11 @@ export function EmptyState({
                   'min-h-[44px]',
                   size === 'sm' ? 'h-8 text-sm' : 'h-10 text-sm',
                   action.variant === 'outline'
-                    // `border-border/50` and `hover:border-primary/30` emit no
-                    // CSS: an opacity modifier on a var()-backed token does not
-                    // compile, so the outline variant had no visible border and
-                    // no hover response at all.
-                    ? 'border border-border text-muted-foreground hover:border-primary hover:text-foreground'
+                    ? // `border-border/50` and `hover:border-primary/30` emit no
+                      // CSS: an opacity modifier on a var()-backed token does not
+                      // compile, so the outline variant had no visible border and
+                      // no hover response at all.
+                      'border border-border text-muted-foreground hover:border-primary hover:text-foreground'
                     : action.variant === 'secondary'
                       ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
                       : 'bg-primary text-primary-foreground hover:opacity-90'
@@ -155,8 +150,7 @@ export function EmptyState({
               >
                 {action.label}
               </PremiumButton>
-            )
-          )}
+            ))}
 
           {secondaryAction && (
             <PremiumButton

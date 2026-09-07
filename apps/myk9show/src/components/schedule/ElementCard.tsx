@@ -144,9 +144,7 @@ export function ElementCard({
       >
         <ElementTitleRow element={element} />
         {details.length > 0 && (
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {details.join(' · ')}
-          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{details.join(' · ')}</div>
         )}
       </Link>
       <div className="flex flex-col">

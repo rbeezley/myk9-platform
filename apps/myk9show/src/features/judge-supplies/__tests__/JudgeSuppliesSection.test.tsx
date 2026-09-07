@@ -17,13 +17,7 @@ vi.mock('../useTrialJudgeSupplies', () => ({
 }));
 
 vi.mock('../ManageJudgeSuppliesDialog', () => ({
-  ManageJudgeSuppliesDialog: ({
-    open,
-    judge,
-  }: {
-    open: boolean;
-    judge: { judge_name: string };
-  }) =>
+  ManageJudgeSuppliesDialog: ({ open, judge }: { open: boolean; judge: { judge_name: string } }) =>
     open ? <div data-testid="dialog-stub">Dialog open for {judge.judge_name}</div> : null,
 }));
 

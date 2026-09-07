@@ -14,8 +14,8 @@ interface EntityPageLayoutProps {
  * EntityPageLayout is the root container for all entity detail pages.
  * It provides consistent outer layout, width, and spacing for entity pages
  * and ensures all entity pages have identical structure.
- * 
- * This component should be used as the top-level wrapper for all Club, Dog, 
+ *
+ * This component should be used as the top-level wrapper for all Club, Dog,
  * Show, and User detail pages, as well as their related components like
  * ShowStatistics.
  */
@@ -36,9 +36,7 @@ const EntityPageLayout: React.FC<EntityPageLayoutProps> = ({
               <p className="text-muted-foreground">{subtitle}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            {actions}
-          </div>
+          <div className="flex items-center space-x-2">{actions}</div>
         </div>
         {children}
       </div>

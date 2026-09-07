@@ -54,8 +54,7 @@ const CARVE_OUT_REASONS: Record<CarveOutReason, string> = {
 export function renderCarveOutEmail(
   ticket: SupportTicket,
   reason: CarveOutReason,
-  appUrl: string
-,
+  appUrl: string,
   owner: TicketOwner | null = null
 ): { subject: string; html: string } {
   return {

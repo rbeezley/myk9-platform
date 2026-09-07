@@ -21,14 +21,14 @@ class QualityDashboard {
         technical_debt: null,
         security: null,
         performance: null,
-        maintainability: null
+        maintainability: null,
       },
       trends: {
         coverage_trend: [],
         complexity_trend: [],
-        debt_trend: []
+        debt_trend: [],
       },
-      recommendations: []
+      recommendations: [],
     };
   }
 
@@ -37,16 +37,15 @@ class QualityDashboard {
    */
   async generateDashboard() {
     console.log('📊 Generating Quality Dashboard...');
-    
+
     try {
       await this.collectMetrics();
       await this.analyzeQuality();
       await this.generateRecommendations();
       await this.createDashboard();
-      
+
       console.log('✅ Quality Dashboard generated successfully!');
       console.log('📁 Dashboard available at: quality-dashboard.html');
-      
     } catch (error) {
       console.error('❌ Dashboard generation failed:', error.message);
       process.exit(1);
@@ -58,37 +57,50 @@ class QualityDashboard {
    */
   async collectMetrics() {
     console.log('🔍 Collecting quality metrics...');
-    
+
     // Test coverage
     try {
       console.log('  📋 Analyzing test coverage...');
-      execSync('npm run test:coverage -- --reporter=json > coverage-report.json', { stdio: 'ignore' });
+      execSync('npm run test:coverage -- --reporter=json > coverage-report.json', {
+        stdio: 'ignore',
+      });
       const coverageData = JSON.parse(fs.readFileSync('coverage-report.json', 'utf8'));
       this.metrics.quality.coverage = this.parseCoverageData(coverageData);
     } catch (error) {
       console.warn('  ⚠️  Coverage analysis failed:', error.message);
-      this.metrics.quality.coverage = { overall: 0, statements: 0, branches: 0, functions: 0, lines: 0 };
+      this.metrics.quality.coverage = {
+        overall: 0,
+        statements: 0,
+        branches: 0,
+        functions: 0,
+        lines: 0,
+      };
     }
-    
+
     // Code complexity
     try {
       console.log('  🔄 Analyzing code complexity...');
       const ComplexityAnalyzer = require('./complexity-analysis.js');
       const analyzer = new ComplexityAnalyzer();
       await analyzer.analyzeProject();
-      
+
       const complexityData = JSON.parse(fs.readFileSync('complexity-analysis-report.json', 'utf8'));
       this.metrics.quality.complexity = {
         average: complexityData.summary.averageComplexity,
         high_risk_files: complexityData.summary.highComplexityFiles.length,
         total_files: complexityData.summary.totalFiles,
-        risk_areas: complexityData.summary.riskAreas.length
+        risk_areas: complexityData.summary.riskAreas.length,
       };
     } catch (error) {
       console.warn('  ⚠️  Complexity analysis failed:', error.message);
-      this.metrics.quality.complexity = { average: 0, high_risk_files: 0, total_files: 0, risk_areas: 0 };
+      this.metrics.quality.complexity = {
+        average: 0,
+        high_risk_files: 0,
+        total_files: 0,
+        risk_areas: 0,
+      };
     }
-    
+
     // Security analysis
     try {
       console.log('  🔒 Analyzing security...');
@@ -97,52 +109,76 @@ class QualityDashboard {
       this.metrics.quality.security = {
         vulnerabilities: auditData.metadata?.vulnerabilities || {},
         total_vulnerabilities: auditData.metadata?.vulnerabilities?.total || 0,
-        high_severity: (auditData.metadata?.vulnerabilities?.high || 0) + (auditData.metadata?.vulnerabilities?.critical || 0)
+        high_severity:
+          (auditData.metadata?.vulnerabilities?.high || 0) +
+          (auditData.metadata?.vulnerabilities?.critical || 0),
       };
     } catch (error) {
       console.warn('  ⚠️  Security analysis failed:', error.message);
-      this.metrics.quality.security = { vulnerabilities: {}, total_vulnerabilities: 0, high_severity: 0 };
+      this.metrics.quality.security = {
+        vulnerabilities: {},
+        total_vulnerabilities: 0,
+        high_severity: 0,
+      };
     }
-    
+
     // Build and lint analysis
     try {
       console.log('  🔨 Analyzing build quality...');
-      const lintResult = execSync('npm run lint -- --format json', { encoding: 'utf8', stdio: 'pipe' });
+      const lintResult = execSync('npm run lint -- --format json', {
+        encoding: 'utf8',
+        stdio: 'pipe',
+      });
       const lintData = JSON.parse(lintResult);
-      
-      const totalIssues = lintData.reduce((sum, file) => sum + file.errorCount + file.warningCount, 0);
+
+      const totalIssues = lintData.reduce(
+        (sum, file) => sum + file.errorCount + file.warningCount,
+        0
+      );
       const errors = lintData.reduce((sum, file) => sum + file.errorCount, 0);
       const warnings = lintData.reduce((sum, file) => sum + file.warningCount, 0);
-      
+
       this.metrics.quality.maintainability = {
         lint_issues: totalIssues,
         errors: errors,
         warnings: warnings,
-        clean_files: lintData.filter(file => file.errorCount === 0 && file.warningCount === 0).length,
-        total_files: lintData.length
+        clean_files: lintData.filter(file => file.errorCount === 0 && file.warningCount === 0)
+          .length,
+        total_files: lintData.length,
       };
     } catch (error) {
       console.warn('  ⚠️  Lint analysis failed:', error.message);
-      this.metrics.quality.maintainability = { lint_issues: 999, errors: 999, warnings: 0, clean_files: 0, total_files: 0 };
+      this.metrics.quality.maintainability = {
+        lint_issues: 999,
+        errors: 999,
+        warnings: 0,
+        clean_files: 0,
+        total_files: 0,
+      };
     }
-    
+
     // Performance metrics
     try {
       console.log('  ⚡ Analyzing performance...');
       execSync('npm run build', { stdio: 'ignore' });
-      
+
       const bundleStats = this.analyzeBundleSize();
       this.metrics.quality.performance = {
         bundle_size: bundleStats.size,
         bundle_size_mb: (bundleStats.size / 1024 / 1024).toFixed(2),
         build_time: bundleStats.buildTime,
-        chunks: bundleStats.chunks
+        chunks: bundleStats.chunks,
       };
     } catch (error) {
       console.warn('  ⚠️  Performance analysis failed:', error.message);
-      this.metrics.quality.performance = { bundle_size: 0, bundle_size_mb: '0', build_time: 0, chunks: 0 };
+      this.metrics.quality.performance = {
+        bundle_size: 0,
+        bundle_size_mb: '0',
+        build_time: 0,
+        chunks: 0,
+      };
     }
-    
+
     // Technical debt estimation
     this.metrics.quality.technical_debt = this.calculateTechnicalDebt();
   }
@@ -159,7 +195,7 @@ class QualityDashboard {
       functions: 80,
       lines: 75,
       uncovered_lines: 150,
-      total_lines: 600
+      total_lines: 600,
     };
   }
 
@@ -168,20 +204,20 @@ class QualityDashboard {
    */
   analyzeBundleSize() {
     const distPath = path.join(process.cwd(), 'dist');
-    
+
     if (!fs.existsSync(distPath)) {
       return { size: 0, buildTime: 0, chunks: 0 };
     }
-    
+
     let totalSize = 0;
     let chunkCount = 0;
-    
-    const scanDirectory = (dir) => {
+
+    const scanDirectory = dir => {
       const files = fs.readdirSync(dir);
       files.forEach(file => {
         const filePath = path.join(dir, file);
         const stat = fs.statSync(filePath);
-        
+
         if (stat.isDirectory()) {
           scanDirectory(filePath);
         } else if (file.endsWith('.js') || file.endsWith('.css')) {
@@ -190,13 +226,13 @@ class QualityDashboard {
         }
       });
     };
-    
+
     scanDirectory(distPath);
-    
+
     return {
       size: totalSize,
       buildTime: 0, // Would measure actual build time
-      chunks: chunkCount
+      chunks: chunkCount,
     };
   }
 
@@ -207,31 +243,30 @@ class QualityDashboard {
     const complexity = this.metrics.quality.complexity;
     const maintainability = this.metrics.quality.maintainability;
     const security = this.metrics.quality.security;
-    
+
     // Technical debt scoring (lower is better)
     let debtScore = 0;
-    
+
     // Complexity debt
     if (complexity.average > 15) debtScore += 20;
     if (complexity.high_risk_files > 5) debtScore += 30;
-    
+
     // Maintainability debt
     if (maintainability.errors > 0) debtScore += 40;
     if (maintainability.warnings > 10) debtScore += 10;
-    
+
     // Security debt
     if (security.high_severity > 0) debtScore += 50;
     if (security.total_vulnerabilities > 5) debtScore += 20;
-    
-    const debtLevel = debtScore > 80 ? 'Critical' : 
-                     debtScore > 50 ? 'High' : 
-                     debtScore > 20 ? 'Medium' : 'Low';
-    
+
+    const debtLevel =
+      debtScore > 80 ? 'Critical' : debtScore > 50 ? 'High' : debtScore > 20 ? 'Medium' : 'Low';
+
     return {
       score: debtScore,
       level: debtLevel,
       estimated_hours: Math.ceil(debtScore / 2), // Rough estimate
-      priority_items: this.getDebtPriorityItems()
+      priority_items: this.getDebtPriorityItems(),
     };
   }
 
@@ -240,43 +275,43 @@ class QualityDashboard {
    */
   getDebtPriorityItems() {
     const items = [];
-    
+
     if (this.metrics.quality.security.high_severity > 0) {
       items.push({
         category: 'Security',
         description: 'High/Critical security vulnerabilities need immediate attention',
         effort: 'High',
-        impact: 'Critical'
+        impact: 'Critical',
       });
     }
-    
+
     if (this.metrics.quality.maintainability.errors > 0) {
       items.push({
         category: 'Code Quality',
         description: 'ESLint errors preventing clean builds',
         effort: 'Medium',
-        impact: 'High'
+        impact: 'High',
       });
     }
-    
+
     if (this.metrics.quality.complexity.high_risk_files > 5) {
       items.push({
         category: 'Complexity',
         description: 'High complexity files need refactoring',
         effort: 'High',
-        impact: 'Medium'
+        impact: 'Medium',
       });
     }
-    
+
     if (this.metrics.quality.coverage.overall < 75) {
       items.push({
         category: 'Testing',
         description: 'Test coverage below target threshold',
         effort: 'Medium',
-        impact: 'Medium'
+        impact: 'Medium',
       });
     }
-    
+
     return items;
   }
 
@@ -285,39 +320,39 @@ class QualityDashboard {
    */
   async analyzeQuality() {
     console.log('📈 Analyzing quality trends...');
-    
+
     // Load historical data if available
     const historyFile = 'quality-history.json';
     let history = [];
-    
+
     if (fs.existsSync(historyFile)) {
       history = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
     }
-    
+
     // Add current metrics to history
     history.push({
       timestamp: this.metrics.timestamp,
       coverage: this.metrics.quality.coverage.overall,
       complexity: this.metrics.quality.complexity.average,
       debt_score: this.metrics.quality.technical_debt.score,
-      security_issues: this.metrics.quality.security.total_vulnerabilities
+      security_issues: this.metrics.quality.security.total_vulnerabilities,
     });
-    
+
     // Keep only last 30 entries
     if (history.length > 30) {
       history = history.slice(-30);
     }
-    
+
     // Save updated history
     fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
-    
+
     // Calculate trends
     if (history.length >= 2) {
       const recent = history.slice(-5);
       this.metrics.trends = {
         coverage_trend: this.calculateTrend(recent.map(h => h.coverage)),
         complexity_trend: this.calculateTrend(recent.map(h => h.complexity)),
-        debt_trend: this.calculateTrend(recent.map(h => h.debt_score))
+        debt_trend: this.calculateTrend(recent.map(h => h.debt_score)),
       };
     }
   }
@@ -327,14 +362,14 @@ class QualityDashboard {
    */
   calculateTrend(values) {
     if (values.length < 2) return { direction: 'stable', change: 0 };
-    
+
     const first = values[0];
     const last = values[values.length - 1];
     const change = ((last - first) / first) * 100;
-    
+
     return {
       direction: change > 5 ? 'improving' : change < -5 ? 'declining' : 'stable',
-      change: Math.abs(change).toFixed(1)
+      change: Math.abs(change).toFixed(1),
     };
   }
 
@@ -343,9 +378,9 @@ class QualityDashboard {
    */
   async generateRecommendations() {
     console.log('💡 Generating recommendations...');
-    
+
     const recommendations = [];
-    
+
     // Coverage recommendations
     if (this.metrics.quality.coverage.overall < 80) {
       recommendations.push({
@@ -356,12 +391,12 @@ class QualityDashboard {
         actions: [
           'Add unit tests for uncovered functions',
           'Implement integration tests for key workflows',
-          'Add component testing for UI elements'
+          'Add component testing for UI elements',
         ],
-        estimated_effort: '2-3 days'
+        estimated_effort: '2-3 days',
       });
     }
-    
+
     // Complexity recommendations
     if (this.metrics.quality.complexity.high_risk_files > 0) {
       recommendations.push({
@@ -372,12 +407,12 @@ class QualityDashboard {
         actions: [
           'Refactor complex functions into smaller units',
           'Extract common logic into utility functions',
-          'Consider using design patterns to simplify code'
+          'Consider using design patterns to simplify code',
         ],
-        estimated_effort: '1-2 weeks'
+        estimated_effort: '1-2 weeks',
       });
     }
-    
+
     // Security recommendations
     if (this.metrics.quality.security.high_severity > 0) {
       recommendations.push({
@@ -388,12 +423,12 @@ class QualityDashboard {
         actions: [
           'Update vulnerable dependencies immediately',
           'Review and fix security hotspots',
-          'Implement additional security testing'
+          'Implement additional security testing',
         ],
-        estimated_effort: '1-2 days'
+        estimated_effort: '1-2 days',
       });
     }
-    
+
     // Performance recommendations
     if (parseFloat(this.metrics.quality.performance.bundle_size_mb) > 5) {
       recommendations.push({
@@ -404,12 +439,12 @@ class QualityDashboard {
         actions: [
           'Implement code splitting for routes',
           'Optimize images and assets',
-          'Remove unused dependencies'
+          'Remove unused dependencies',
         ],
-        estimated_effort: '3-5 days'
+        estimated_effort: '3-5 days',
       });
     }
-    
+
     this.metrics.recommendations = recommendations;
   }
 
@@ -418,10 +453,10 @@ class QualityDashboard {
    */
   async createDashboard() {
     console.log('🎨 Creating quality dashboard...');
-    
+
     const html = this.generateDashboardHTML();
     fs.writeFileSync('quality-dashboard.html', html);
-    
+
     // Also save metrics as JSON
     fs.writeFileSync('quality-metrics.json', JSON.stringify(this.metrics, null, 2));
   }
@@ -435,7 +470,7 @@ class QualityDashboard {
     const security = this.metrics.quality.security;
     const performance = this.metrics.quality.performance;
     const debt = this.metrics.quality.technical_debt;
-    
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -609,10 +644,14 @@ class QualityDashboard {
             </div>
         </div>
         
-        ${this.metrics.recommendations.length > 0 ? `
+        ${
+          this.metrics.recommendations.length > 0
+            ? `
         <div class="recommendations">
             <h2>💡 Quality Recommendations</h2>
-            ${this.metrics.recommendations.map(rec => `
+            ${this.metrics.recommendations
+              .map(
+                rec => `
                 <div class="recommendation ${rec.priority.toLowerCase()}">
                     <h3>${rec.title} (${rec.priority} Priority)</h3>
                     <p><strong>Category:</strong> ${rec.category} | <strong>Effort:</strong> ${rec.estimated_effort}</p>
@@ -621,9 +660,13 @@ class QualityDashboard {
                         ${rec.actions.map(action => `<li>${action}</li>`).join('')}
                     </ul>
                 </div>
-            `).join('')}
+            `
+              )
+              .join('')}
         </div>
-        ` : ''}
+        `
+            : ''
+        }
         
         <div class="timestamp">
             Generated on ${new Date(this.metrics.timestamp).toLocaleString()}

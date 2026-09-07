@@ -161,9 +161,7 @@ export function buildDogFaceSummary(classes: EntryClass[]): DogFaceSummary {
         id: cls.id,
         name,
         ...(scored ? { resultStatus: cls.resultStatus } : {}),
-        ...(scored && cls.resultsReleasedAt
-          ? { resultsReleasedAt: cls.resultsReleasedAt }
-          : {}),
+        ...(scored && cls.resultsReleasedAt ? { resultsReleasedAt: cls.resultsReleasedAt } : {}),
         ...(scored &&
         cls.resultsReleasedAt &&
         cls.resultStatus === 'qualified' &&

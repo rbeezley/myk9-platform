@@ -164,7 +164,7 @@ export function useSupportHelp(user: User | null, userWithRoles: UserWithRoles |
     setState(prev => ({
       ...prev,
       status: 'escalating',
-            route:
+      route:
         prev.route?.kind === 'escalate'
           ? prev.route
           : {

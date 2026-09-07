@@ -28,11 +28,11 @@ describe('My Entries waitlist-offer recovery wiring', () => {
   });
 
   it('renders accessible offer actions and focuses the deep-linked row without a new route', () => {
-    expect(section).toContain("role=\"region\"");
+    expect(section).toContain('role="region"');
     expect(section).toContain('Complete payment');
     expect(section).toContain('Decline');
     expect(section).toContain('min-h-[44px]');
-    expect(section).toContain('scrollIntoView({ behavior: \'smooth\', block: \'center\' })');
+    expect(section).toContain("scrollIntoView({ behavior: 'smooth', block: 'center' })");
     expect(section).not.toContain('WaitListPaymentPage');
   });
 });

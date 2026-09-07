@@ -11,10 +11,10 @@ LCP is already good. Recorded here so it is not lost.
 The public landing page (`/`, `apps/myk9show/src/pages/Home.tsx`) has a poor
 **mobile LCP**. Measured 2026-06-19 with Lighthouse:
 
-| Profile | Score | LCP | FCP | CLS |
-| ------- | ----- | --- | --- | --- |
-| Desktop | 86 | **1.8 s** ✅ | 1.1 s | low |
-| Mobile (Moto G4, slow 4G, 4× CPU) | 57 | **14.8 s** ❌ | 6.7 s | ~0.08 |
+| Profile                           | Score | LCP           | FCP   | CLS   |
+| --------------------------------- | ----- | ------------- | ----- | ----- |
+| Desktop                           | 86    | **1.8 s** ✅  | 1.1 s | low   |
+| Mobile (Moto G4, slow 4G, 4× CPU) | 57    | **14.8 s** ❌ | 6.7 s | ~0.08 |
 
 The LCP element is the hero image (`/hero-ziva-tera.jpg`, rendered by
 `HeroPhotoLed.tsx`). Phase breakdown on mobile:
@@ -24,7 +24,7 @@ TTFB 663ms · Load Delay 368ms · Load Time 1679ms · Render Delay 12,083ms
 ```
 
 The image is already preloaded with `fetchpriority="high"` in `index.html` and its
-CSS (`src/styles/landing.css`) is eager — so it *loads* fast. The 12 s is pure
+CSS (`src/styles/landing.css`) is eager — so it _loads_ fast. The 12 s is pure
 **render delay**: this is a client-rendered SPA (`createRoot`, `src/main.tsx`), so the
 `<img>` does not enter the DOM until the JS bundle downloads over slow 4G and React
 mounts `<Home>` → `<HeroPhotoLed>`.
@@ -34,17 +34,17 @@ mounts `<Home>` → `<HeroPhotoLed>`.
 **Putting a static copy of the hero markup inside `<div id="root">` in `index.html`.**
 Built it, measured before/after locally (Lighthouse mobile, `vite preview`):
 
-| | Before (empty `#root`) | After (static fold) |
-| --- | --- | --- |
-| LCP | 13.1 s | 14.7 s (no improvement) |
-| LCP Render Delay | ~12 s | **12.8 s (unchanged)** |
-| CLS | 0.076 | 0.088 (slightly worse) |
+|                  | Before (empty `#root`) | After (static fold)     |
+| ---------------- | ---------------------- | ----------------------- |
+| LCP              | 13.1 s                 | 14.7 s (no improvement) |
+| LCP Render Delay | ~12 s                  | **12.8 s (unchanged)**  |
+| CLS              | 0.076                  | 0.088 (slightly worse)  |
 
-**Why it fails:** `createRoot()` *clears* `#root` and re-renders the hero from scratch
+**Why it fails:** `createRoot()` _clears_ `#root` and re-renders the hero from scratch
 on mount. It destroys the static node and paints a fresh `<img>` at boot time, so the
 browser records LCP at React's late paint and discards the early static paint. There is
 **no cheap version of this with client-side `createRoot`** — the early paint only counts
-if React *adopts* the existing node (`hydrateRoot`), which requires real prerendered
+if React _adopts_ the existing node (`hydrateRoot`), which requires real prerendered
 markup. That is Option A below.
 
 ## Option A — prerender the landing route + hydrate (the real fix)
@@ -54,7 +54,7 @@ markup. That is Option A below.
    only** — a contained build step (e.g. a `vite` SSG/prerender plugin or a
    post-build Puppeteer pass over `/`). Do not attempt to prerender authed routes.
 2. **Switch `createRoot` → `hydrateRoot`** for the prerendered entry so React adopts the
-   existing hero DOM node instead of replacing it — the early paint then *is* the LCP.
+   existing hero DOM node instead of replacing it — the early paint then _is_ the LCP.
 3. **Handle client-only bits to avoid hydration mismatches:**
    - `ShowTodayBanner` (`src/features/show-today/ShowTodayBanner.tsx`) fetches data and
      returns `null` while loading — make sure server and first client render agree
@@ -73,7 +73,7 @@ markup. That is Option A below.
 
 - Local before/after with Lighthouse mobile profile against `vite preview` (the harness
   used 2026-06-19): **build → `vite preview --port <p>` → `npx lighthouse <url>
-  --form-factor=mobile`**. Target: LCP at ~FCP (low single digits), Render Delay
+--form-factor=mobile`**. Target: LCP at ~FCP (low single digits), Render Delay
   collapses from ~12 s to ~hundreds of ms.
 - **Guard CLS stays ≤ 0.1** and that there is no hydration-mismatch console error.
 - Re-run against deployed staging after merge (PageSpeed Insights needs an API key — the

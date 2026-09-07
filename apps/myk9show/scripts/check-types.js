@@ -9,7 +9,7 @@ const criticalFiles = [
   'src/store/userStore.ts',
   'src/components/subscription/SubscriptionManager.tsx',
   'src/components/admin/users/BulkActionsBar.tsx',
-  'src/test/setup.ts'
+  'src/test/setup.ts',
 ];
 
 console.log('Checking critical files for TypeScript errors...\n');
@@ -21,12 +21,12 @@ for (const file of criticalFiles) {
     console.log(`❌ ${file} - File not found`);
     continue;
   }
-  
+
   try {
     console.log(`Checking ${file}...`);
-    execSync(`npx tsc --noEmit --skipLibCheck --project tsconfig.app.json ${file}`, { 
+    execSync(`npx tsc --noEmit --skipLibCheck --project tsconfig.app.json ${file}`, {
       stdio: 'pipe',
-      timeout: 15000 
+      timeout: 15000,
     });
     console.log(`✅ ${file} - No errors`);
   } catch (error) {
@@ -36,7 +36,10 @@ for (const file of criticalFiles) {
       totalErrors += errorCount;
       console.log(`❌ ${file} - ${errorCount} errors`);
       // Show first few lines of errors
-      const lines = output.split('\n').filter(line => line.includes('error TS')).slice(0, 3);
+      const lines = output
+        .split('\n')
+        .filter(line => line.includes('error TS'))
+        .slice(0, 3);
       lines.forEach(line => console.log(`   ${line}`));
       if (errorCount > 3) {
         console.log(`   ... and ${errorCount - 3} more errors`);

@@ -29,13 +29,13 @@ Each role has a single intent word that captures how the software should make th
 
 The secretary carries the most stress. The software should absorb complexity, not add to it.
 
-| Moment                 | Target Feeling                           | What This Means in Practice                                                          |
-| ---------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| Moment                 | Target Feeling                           | What This Means in Practice                                                                                                                                                                        |
+| ---------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Opening the dashboard  | "Calm and oriented"                      | A cross-show home — see every show, spot what needs attention across them, land in the right place. Operational work for a specific show lives inside that show's workbench, not on the dashboard. |
-| Setting up a show      | "The software already knows what I need" | Smart defaults, clone from previous shows, minimal required fields                   |
-| Night before the trial | "Everything is handled"                  | A clear checklist view — green checks, not a wall of data                            |
-| Show day chaos         | "I can handle this"                      | Scratches, move-ups, and changes are calm one-tap operations, not multi-step wizards |
-| After the show         | "That went smoothly"                     | Results export and judge reports done in clicks, not hours                           |
+| Setting up a show      | "The software already knows what I need" | Smart defaults, clone from previous shows, minimal required fields                                                                                                                                 |
+| Night before the trial | "Everything is handled"                  | A clear checklist view — green checks, not a wall of data                                                                                                                                          |
+| Show day chaos         | "I can handle this"                      | Scratches, move-ups, and changes are calm one-tap operations, not multi-step wizards                                                                                                               |
+| After the show         | "That went smoothly"                     | Results export and judge reports done in clicks, not hours                                                                                                                                         |
 
 **Anti-patterns to avoid:** Confirmation dialogs for routine actions. Multi-step forms. Technical error messages. Anything that makes the user feel like they need to "learn the software."
 

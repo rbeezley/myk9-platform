@@ -2,10 +2,7 @@ import { vi } from 'vitest';
 import defaultTheme from 'tailwindcss/defaultTheme';
 import { render, screen } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
-import {
-  RESPONSIVE_CLASSES,
-  type ResponsiveBreakpoint,
-} from '@/components/ui/data-table/types';
+import { RESPONSIVE_CLASSES, type ResponsiveBreakpoint } from '@/components/ui/data-table/types';
 import { DogsTableView, type DogsTableSelection } from '../DogsTableView';
 
 const dogs: Dog[] = [
@@ -304,7 +301,9 @@ describe('DogsTableView', () => {
       expect(screen.queryByRole('columnheader', { name: /owner/i })).not.toBeInTheDocument();
       // Everything else stays.
       for (const label of ['Name', 'Breed', 'Sex', 'Status']) {
-        expect(screen.getByRole('columnheader', { name: new RegExp(label, 'i') })).toBeInTheDocument();
+        expect(
+          screen.getByRole('columnheader', { name: new RegExp(label, 'i') })
+        ).toBeInTheDocument();
       }
     });
 

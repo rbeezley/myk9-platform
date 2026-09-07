@@ -185,10 +185,7 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
         const rows: Record<string, unknown>[] = [];
         let firstError: unknown = null;
         for (const batch of chunk(dogIds, ID_CHUNK_SIZE)) {
-          const result = await supabase
-            .from('dog_registrations')
-            .select('*')
-            .in('dog_id', batch);
+          const result = await supabase.from('dog_registrations').select('*').in('dog_id', batch);
           // Keep going after a failed batch, and return the rows that did
           // arrive alongside the error. #1490 established that a partial read
           // stays VISIBLE and is reported as incomplete rather than discarded;

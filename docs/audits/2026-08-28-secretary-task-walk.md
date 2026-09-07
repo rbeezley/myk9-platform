@@ -19,18 +19,18 @@ Audit-only: findings are recorded, not fixed.
 `sojmvhhwsjxmfistvzbe` on 2026-08-28. Verified against the applied database, not the
 migration text:
 
-| Check | Result |
-| --- | --- |
-| New columns on `public.entries` | 3 present |
-| New columns on `view_authenticated_entry_results` | 3 present |
-| View `reloptions` | `{security_invoker=false}` — **preserved** |
-| View SELECT: authenticated / anon | granted / denied |
-| `authenticated` column SELECT on the new entries columns | denied (by design — reads go through the view) |
-| `authenticated` table INSERT/UPDATE on entries | retained |
-| anon's readable `entries` columns | **still exactly 15** — the board boundary survived |
-| `trg_entries_require_dog_registration` | present |
-| Organization normalisation | `AKC (American Kennel Club)` → `AKC`, matches plain `AKC`; UKC likewise |
-| Entry Management after the push | renders, 0 × 4xx |
+| Check                                                    | Result                                                                  |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| New columns on `public.entries`                          | 3 present                                                               |
+| New columns on `view_authenticated_entry_results`        | 3 present                                                               |
+| View `reloptions`                                        | `{security_invoker=false}` — **preserved**                              |
+| View SELECT: authenticated / anon                        | granted / denied                                                        |
+| `authenticated` column SELECT on the new entries columns | denied (by design — reads go through the view)                          |
+| `authenticated` table INSERT/UPDATE on entries           | retained                                                                |
+| anon's readable `entries` columns                        | **still exactly 15** — the board boundary survived                      |
+| `trg_entries_require_dog_registration`                   | present                                                                 |
+| Organization normalisation                               | `AKC (American Kennel Club)` → `AKC`, matches plain `AKC`; UKC likewise |
+| Entry Management after the push                          | renders, 0 × 4xx                                                        |
 
 The trigger's own write path could not be exercised from here — the MCP connection is
 read-only, and the wizard's client guard blocks before the server is reached. The
@@ -47,11 +47,11 @@ backfilled.
 
 ## Severity
 
-| | Meaning |
-| --- | --- |
-| P1 | Blocks a secretary from completing a required task. |
-| P2 | Task completable, but with real friction, a trap, or misleading information. |
-| P3 | Polish, copy, accessibility, or developer-experience. |
+|     | Meaning                                                                      |
+| --- | ---------------------------------------------------------------------------- |
+| P1  | Blocks a secretary from completing a required task.                          |
+| P2  | Task completable, but with real friction, a trap, or misleading information. |
+| P3  | Polish, copy, accessibility, or developer-experience.                        |
 
 ## Findings
 
@@ -84,7 +84,7 @@ So the fallback fires exactly when the secretary most needs it — a brand-new s
 a new device, or cleared storage — and is guaranteed to fail. The working path
 (`AUTHENTICATED_ENTRY_READ_COLUMNS`) stays inside the allowlist.
 
-This is the "dual-path reads must match SELECT *and* WHERE" trap, one layer down:
+This is the "dual-path reads must match SELECT _and_ WHERE" trap, one layer down:
 the paths diverged on columns the grant allowlist forbids.
 
 **Blocks:** mail-in entry, waitlist, payments/refunds — Tasks 3, 13, 14 — on the audit show.
@@ -102,13 +102,13 @@ allowlisted columns — mirroring what the replicated path already did. Without 
 merge every scratched entry would have read as "no saved decision" and invited a
 duplicate refund. The pre-migration retry guard moved with those columns.
 
-*Verified:* audit show Entry Management renders "No entries yet" with the real
+_Verified:_ audit show Entry Management renders "No entries yet" with the real
 trial filter and **zero 4xx** (was 5×403); workbench header reads "Total Entries 0"
 instead of "Unavailable"; Heartland unchanged at 514 registrations / 3 needs-review,
 also zero 4xx. 347 unit tests pass across 42 files, `typecheck` clean,
 `qa:code-quality-ratchet` clean, `lint` 0 errors.
 
-*Guard:* `src/test/database/secretaryEntriesFallbackGrantContract.test.ts` fails if
+_Guard:_ `src/test/database/secretaryEntriesFallbackGrantContract.test.ts` fails if
 any `.from('entries')` select in that module requests a revoked scored column, or
 if the fallback stops reading the view. Confirmed non-vacuous — all three
 assertions fail when the fix is reverted.
@@ -128,8 +128,8 @@ says the `e2e-*` accounts work and the named ones do not; the reverse is now tru
 ### F3 — P2 — FIXED — Escape in the show wizard threatens to discard the show
 
 Pressing **Escape** anywhere in the create-show wizard — with no popover open —
-raises an `Unsaved Changes` alertdialog: *"You have unsaved changes that will be
-lost. Are you sure you want to leave the wizard?"* with **Keep Editing** /
+raises an `Unsaved Changes` alertdialog: _"You have unsaved changes that will be
+lost. Are you sure you want to leave the wizard?"_ with **Keep Editing** /
 **Leave Wizard**. Escape is the universal dismiss key, and the natural reflex after
 opening the club or judge picker. Recoverable, but alarming, and it hides the form.
 
@@ -149,7 +149,7 @@ listing every class as `Judge: Unassigned`. The wizard still declares
 
 With a judge added, it works well — Step 3 auto-assigned the single judge to both classes.
 
-*Documentation impact:* `docs/user-guides/secretary-guide.md` §2 step 4 tells the
+_Documentation impact:_ `docs/user-guides/secretary-guide.md` §2 step 4 tells the
 secretary to "assign a judge to each class" on Step 3 without mentioning the Step 1
 prerequisite, so following the guide literally produces a show with no judges.
 
@@ -162,7 +162,7 @@ unassigned classes reads `0/0` — which looks complete. The adjacent line
 
 ### F6 — P2 — FIXED (#1858) — Entry-close default time makes same-day close always invalid
 
-The wizard enforces *"Entry close date must be on or before the show start date."*
+The wizard enforces _"Entry close date must be on or before the show start date."_
 The entry-period picker defaults the close time to **11:59 PM** while the show start
 defaults to **8:00 AM**, so choosing the show's own start date as the entry-close
 date — normal for a day-of-entry show — always violates the rule. The time control
@@ -197,7 +197,7 @@ selection omits the attribute entirely rather than announcing a misleading
 The Show Chairman picker shows "All People" — other clubs' secretaries, exhibitors,
 admins — with no club-member grouping. A search box exists. The judge picker does
 this better: it splits "Qualified Judges: Credentials on File" from
-"All People: No Credentials Yet" with a *Tap to add credentials* affordance.
+"All People: No Credentials Yet" with a _Tap to add credentials_ affordance.
 
 ### F9 — P3 — FIXED (#1858) — "1 classes"
 
@@ -238,7 +238,7 @@ exhibitor entry-close gate and stops the secretary with:
 > This show is no longer accepting normal online entries. Entries are closed for
 > this show. **Contact the trial secretary for late-entry help.**
 
-The secretary *is* the trial secretary — the app tells them to contact themselves.
+The secretary _is_ the trial secretary — the app tells them to contact themselves.
 This bites exactly when mail-in work is most common: checks that arrive after the
 close date, and day-of paperwork.
 
@@ -246,7 +246,7 @@ The working path is **Show Desk → Tools → Late entry → Add late entry**, w
 the same wizard with `?entryMode=late` and bypasses the gate. Nothing in Entry
 Management points at it, and Entry Management is the canonical entries surface.
 
-Note the Tools panel offers *both* "Add mail-in entry" (blocked) and "Add late entry"
+Note the Tools panel offers _both_ "Add mail-in entry" (blocked) and "Add late entry"
 (works) side by side, with no indication that one of them will refuse.
 
 **Fix applied.** `getEntryCloseSubmitBlocker` now exempts organizer workflows
@@ -256,11 +256,11 @@ and deliberately refused to trust the URL flag, while the close gate did the rev
 trusting only `?source=show-desk&entryMode=late` and never exempting the secretary.
 
 That also closes a hole the open gate's own comment had already named: the flag "any
-exhibitor can append" was the *only* way past the close gate, so appending it bought a
+exhibitor can append" was the _only_ way past the close gate, so appending it bought a
 self-service entry after the deadline. `isLateEntryMode` is no longer honoured alone;
 every legitimate late-entry caller is an organizer, which the RBAC check covers.
 
-*Verified:* Entry Management → Add entry → Add mail-in entry now opens Step 1 (Select
+_Verified:_ Entry Management → Add entry → Add mail-in entry now opens Step 1 (Select
 Dogs) on a show whose entries closed, with no `entryMode=late` in the URL. Two new
 guard tests: a secretary is not blocked after close without the flag, and an exhibitor
 IS blocked after close even with it. 18 guard tests pass.
@@ -278,12 +278,12 @@ if (now >= showStart && show.dayOfShowFee) {
 
 Leaving **Day-of-Show Fee** blank in the creation wizard stores `"0.00"`, not NULL.
 That string is truthy, parses to `0`, and satisfies `dayFee >= 0` — so from the show's
-start date onward it *overrides* the pre-entry fee and every class prices at zero.
+start date onward it _overrides_ the pre-entry fee and every class prices at zero.
 
 Walked end to end on the audit show (pre-entry fee $30.00, day-of fee blank, starts
 today): the Classes step shows `Container $0/class`, the Payment step shows
 `Subtotal $0.00 / Total Due $0.00 / Amount Due: $0.00`, and the submitted entry is
-stored `entry_fee 0.00` with `payment_status paid` — so nothing downstream will ever
+stored `entry_fee 0.00`with`payment_status paid` — so nothing downstream will ever
 flag it as owing money.
 
 An unset day-of fee should mean "no day-of tier, use the pre-entry fee", not "free".
@@ -301,20 +301,20 @@ nothing else to separate "unset" from "deliberately free" — and a day-of tier 
 charge more, never nothing. Fixing it in the read path also repairs every show already
 carrying `0.00`, which a write-side fix would not.
 
-*Verified:* Classes step now reads `Container $30/class` / `Interior $30/class`, and a
+_Verified:_ Classes step now reads `Container $30/class` / `Interior $30/class`, and a
 walked late entry shows `Tera Interior Novice A $30.00`, `Subtotal $30.00`,
 `Total Due $30.00`, `Amount Due: $30.00` (was $0.00 throughout). 201 registration tests
 pass, typecheck / ratchet / lint clean.
 
-*Guard:* two tests in `PaymentStep/__tests__/utils.test.ts` — an unset (`"0.00"`) day-of
+_Guard:_ two tests in `PaymentStep/__tests__/utils.test.ts` — an unset (`"0.00"`) day-of
 fee falls back to pre-entry, and a genuinely lower positive day-of fee (`$10` under a
 `$30` pre-entry) still wins, so the fix cannot be over-applied to all low fees. The
 first fails (`+0` vs `30`) without the change.
 
 ### F16 — P1 — FIXED AND DEPLOYED — The mail-in check number and payment date are discarded
 
-The Payment step offers **Secretary Payment (Already Received)** with *Payment Date*,
-*Reference/Receipt #*, and *Payment Notes* — exactly the mail-in bookkeeping the role
+The Payment step offers **Secretary Payment (Already Received)** with _Payment Date_,
+_Reference/Receipt #_, and _Payment Notes_ — exactly the mail-in bookkeeping the role
 requires. Of the three, only the notes survive, and they land in the wrong column.
 
 `submitOfflineLateEntry.ts:174` writes `paymentDetails.paymentNotes` into
@@ -348,7 +348,7 @@ Deliberately **no grant on `entries`** for the new columns: reads reach them thr
 the owner-run view (which needs no base-table column privilege), and `authenticated`
 already holds table-level INSERT/UPDATE covering new columns — so the column
 allowlist is not widened for a reader that does not exist. Deliberately **no anon
-REVOKE on `entries`** either: `anonEntriesGrantContract` conservatively treats *any*
+REVOKE on `entries`** either: `anonEntriesGrantContract` conservatively treats _any_
 revoke naming anon on that table as clearing the whole folded allowlist, so a
 belt-and-braces revoke would read as wiping the 15-column board boundary. The
 standalone view grant carries an explicit anon decision instead.
@@ -362,15 +362,15 @@ columns, and on `42703` retries without them (`isSecretaryPaymentSchemaUnavailab
 mirroring the existing pull-refund compatibility shim). So the branch is safe against
 today's database and self-heals once the migration lands.
 
-*Not yet done:* the stored reference is not surfaced in the Entry Management UI —
+_Not yet done:_ the stored reference is not surfaced in the Entry Management UI —
 that needs the entry view-model threaded through, and is a follow-up.
 
-*Verified:* 1415 unit tests pass (including the DB contract suite, 730 tests, which
+_Verified:_ 1415 unit tests pass (including the DB contract suite, 730 tests, which
 initially rejected two earlier drafts of this migration); typecheck, ratchet and lint
 clean. A unit test proves the pre-migration retry drops the payment columns without
 dropping the scored columns the reports need.
 
-*Deploy order:* push the migration BEFORE deploying the app, then re-run
+_Deploy order:_ push the migration BEFORE deploying the app, then re-run
 `generate_typescript_types` — `ReplicatedEntriesTable.mapper.ts` reads the new
 columns through a defensive accessor precisely because the generated row type cannot
 know them yet.
@@ -422,11 +422,11 @@ Scope, stated so it is not mistaken for an oversight:
   retry. The wizard blocks first, so this should be unreachable — but it is the
   failure mode to watch when the migration lands.
 
-*Verified:* 1415 unit tests, the 730-test DB contract suite (which rejected two
+_Verified:_ 1415 unit tests, the 730-test DB contract suite (which rejected two
 earlier drafts of these migrations for missing anon grant decisions), typecheck,
 ratchet and lint all clean.
 
-*NOT verified:* `supabase/tests/entry_requires_dog_registration_test.sql` — six cases
+_NOT verified:_ `supabase/tests/entry_requires_dog_registration_test.sql` — six cases
 covering rejection, registry scoping, naming drift, the puppy exception and a blank
 number — **has never executed.** Behavioural SQL tests need a container runtime this
 machine does not have, so CI is their first real run. It is registered in both
@@ -470,7 +470,7 @@ lands on the `Needs review` queue and reads "No matching registrations" while th
 chip beside it says "All registrations 1", with nothing indicating which filter is
 responsible. (`?queue=all` shows the row correctly, so the filtering itself is fine.)
 
-The Exceptions sub-tabs (`Move-ups` / `Pulls / scratches` / `Waitlist`) *do* expose
+The Exceptions sub-tabs (`Move-ups` / `Pulls / scratches` / `Waitlist`) _do_ expose
 `[pressed]`, so this is an inconsistency within the same page.
 
 The Show Map filters behave the same way: `Today` / `Tomorrow` / `All dates` and
@@ -484,7 +484,7 @@ inconsistent with itself in three places.
 
 Waitlist Management lists capacity cards titled "Richard Beezley" and "Test Judge"
 with a date and "1 / 125 entries". This is the judge-day capacity model working as
-designed, but nothing on the card says the name is a *judge*, so it reads as an
+designed, but nothing on the card says the name is a _judge_, so it reads as an
 exhibitor with 125 entries.
 
 ### F22 — P2 — "Messages" is history-only; composing lives somewhere else
@@ -496,11 +496,11 @@ exhibitor with 125 entries.
 nothing to click, and has no pointer to the panel.
 
 Entry Management does not help either: its **Bulk actions** menu offers only
-*Accept selected* and *Reject selected*, and the per-registration detail shows only
+_Accept selected_ and _Reject selected_, and the per-registration detail shows only
 "No decision email sent yet" — decision emails are lifecycle-triggered, not composed.
 
-The composer itself is good once found: *"Send a show message to everyone, a class,
-or checked-in exhibitors."*
+The composer itself is good once found: _"Send a show message to everyone, a class,
+or checked-in exhibitors."_
 
 ### F23 — P2 — The composer does not inherit the show you opened it from
 
@@ -530,7 +530,7 @@ with `iframe.contentDocument.open()/write()/close()` (`:294`).
 The PDF effect early-returns without clearing the frame:
 
 ```ts
-if (!iframe || !pdfResult?.bytes) return;   // iframe.src still points at the old PDF
+if (!iframe || !pdfResult?.bytes) return; // iframe.src still points at the old PDF
 ```
 
 So when the secretary moves from Score Sheet to a markup report, `iframe.src` still
@@ -540,13 +540,13 @@ stays on screen with no error**.
 
 Measured on the demo show (blob id in the iframe `src`):
 
-| Selection | Preview blob | Result |
-| --- | --- | --- |
-| Check-in Sheet (default) | `2ad8e339` | — |
-| Score Sheet | `2620ef8e` | regenerated correctly |
-| Show Catalog | `2620ef8e` | **stale — still the Score Sheet** |
-| Results Sheet | `2620ef8e` | **stale — still the Score Sheet** |
-| Armband Labels | `""` | preview blanked |
+| Selection                | Preview blob | Result                            |
+| ------------------------ | ------------ | --------------------------------- |
+| Check-in Sheet (default) | `2ad8e339`   | —                                 |
+| Score Sheet              | `2620ef8e`   | regenerated correctly             |
+| Show Catalog             | `2620ef8e`   | **stale — still the Score Sheet** |
+| Results Sheet            | `2620ef8e`   | **stale — still the Score Sheet** |
+| Armband Labels           | `""`         | preview blanked                   |
 
 Not a timing artefact: traced for 60s on a show with a single entry, and the `src`
 never changes.
@@ -569,18 +569,18 @@ The extraction was not cosmetic: adding the fix inline pushed `ReportPreview.tsx
 528 lines and `qa:code-quality-ratchet` failed with `oversizedSourceFiles: 171
 exceeds 170`. Extracting brought it to 498 and produced a testable seam.
 
-*Verified in the browser* — each report now renders its own document (previously all
+_Verified in the browser_ — each report now renders its own document (previously all
 three showed the Score Sheet):
 
-| Report | Content now shown |
-| --- | --- |
-| Show Catalog | "AKC Scent Work Show Catalog … ARMBAND CALL NAME BREED" |
-| Results Sheet | "AKC Container **Preliminary Results**" |
+| Report                 | Content now shown                                                            |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| Show Catalog           | "AKC Scent Work Show Catalog … ARMBAND CALL NAME BREED"                      |
+| Results Sheet          | "AKC Container **Preliminary Results**"                                      |
 | Trial Secretary Report | "Report of Scent Work Trial … Superintendent/Event Secretary shall complete" |
-| AKC Judge's Report | "AKC Scent Work Trial Judge's Report" |
-| Financial Report | "ENTRIES GROSS FEES DISCOUNTS WAIVED/COMPED COLLECTED REFUNDED" |
+| AKC Judge's Report     | "AKC Scent Work Trial Judge's Report"                                        |
+| Financial Report       | "ENTRIES GROSS FEES DISCOUNTS WAIVED/COMPED COLLECTED REFUNDED"              |
 
-*Guard:* `__tests__/reportPreviewFrame.test.ts` — five cases; the key one asserts the
+_Guard:_ `__tests__/reportPreviewFrame.test.ts` — five cases; the key one asserts the
 blob is dropped before the markup write. Confirmed non-vacuous (it fails when the
 handoff is removed). 123 ReportsPage tests, typecheck, ratchet and lint all clean.
 
@@ -664,8 +664,8 @@ property was "inherited, not decided" because #1035 (a refactor) said the map
 
 **Why that was wrong.** I looked at the refactor that preserved the behaviour
 instead of the commit that chose it. The origin is
-[#291](https://github.com/rbeezley/myk9-platform/pull/291), *"feat(show-map): make
-public map read-only"* — a deliberate feature PR — and
+[#291](https://github.com/rbeezley/myk9-platform/pull/291), _"feat(show-map): make
+public map read-only"_ — a deliberate feature PR — and
 `docs/archive/plan-show-map-workbench-collapse.md` lists **"view-only public map"**
 among the architectural commitments the workbench collapse had to respect. The
 `false` is an INTENT, not drift. A second test I had not run,
@@ -683,18 +683,18 @@ focused class, so I traced it properly.
 **The catalog has exactly two consumers, and neither reaches these actions from a
 management surface:**
 
-| Consumer | Getter | Consequence |
-| --- | --- | --- |
-| `ShowMapRowActionsMenu` | `getDirectActionsForNode` — every action | Renders ONLY inside `ShowMapStructureTable` -> `ShowMapTab` -> the public Show Map, which is read-only by intent (#291) |
-| `buildSecretaryCockpitSnapshot` | `getRecommendedActionsForNode(node, …, 1)` — filters `action.recommended`, limit 1 | **None** of the entry row actions set `recommended`, so none are ever offered |
+| Consumer                        | Getter                                                                             | Consequence                                                                                                             |
+| ------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `ShowMapRowActionsMenu`         | `getDirectActionsForNode` — every action                                           | Renders ONLY inside `ShowMapStructureTable` -> `ShowMapTab` -> the public Show Map, which is read-only by intent (#291) |
+| `buildSecretaryCockpitSnapshot` | `getRecommendedActionsForNode(node, …, 1)` — filters `action.recommended`, limit 1 | **None** of the entry row actions set `recommended`, so none are ever offered                                           |
 
 So `ShowDeskPanel` owning `ShowMapMoveUpDialog` proves nothing: the dialog opens from
 `runCommand`, `runCommand` resolves a commandId the cockpit emits, and the cockpit
 only ever emits recommended actions. The dialog is unreachable on that page.
 
 **What I got wrong, and how.** I checked that `getRankedActions('root', …)` contains
-move-up and stopped there — I confirmed the action is *eligible* and never checked
-whether any UI *renders* it. That is the same shape as the mistake this walk exists to
+move-up and stopped there — I confirmed the action is _eligible_ and never checked
+whether any UI _renders_ it. That is the same shape as the mistake this walk exists to
 catch: verifying a mechanism exists rather than verifying a user can reach it.
 
 **The revert itself was still correct.** #291 deliberately made the public map
@@ -734,11 +734,11 @@ Observed: `shows.club_id IS NULL` on the audit show
 
 Attempts to reproduce, all negative:
 
-| Probe | Path | Result |
-| --- | --- | --- |
-| `ZZ Audit - Club Persistence Probe` | wizard → **Create Show (Unpublished)** | `club_id` set correctly |
-| `ZZ Audit - Publish Path Probe` | wizard → **Create & Publish Show** | `club_id` set correctly |
-| Probe 1 again | More show actions → Edit → Judges → Save Changes | `club_id` **preserved** |
+| Probe                               | Path                                             | Result                  |
+| ----------------------------------- | ------------------------------------------------ | ----------------------- |
+| `ZZ Audit - Club Persistence Probe` | wizard → **Create Show (Unpublished)**           | `club_id` set correctly |
+| `ZZ Audit - Publish Path Probe`     | wizard → **Create & Publish Show**               | `club_id` set correctly |
+| Probe 1 again                       | More show actions → Edit → Judges → Save Changes | `club_id` **preserved** |
 
 The wizard and the edit path are therefore exonerated: identical steps produced a
 correct `club_id` twice.
@@ -751,20 +751,20 @@ chain:
 - `shows_club_id_fkey` is `FOREIGN KEY (club_id) REFERENCES clubs(id)`
   **`ON DELETE SET NULL`**.
 - So deleting the club nulls `club_id` on **every** show that references it.
-- The seed recreates the club under the same id and re-inserts *its own* fixture shows
+- The seed recreates the club under the same id and re-inserts _its own_ fixture shows
   with `club_id` set, so the fixture data looks correct — and every non-fixture show is
   silently orphaned.
 
 That also explains the original audit show, whose `updated_at` (21:59) was hours after
 its creation: a reseed, not the wizard.
 
-What *is* established, and is the finding worth keeping:
+What _is_ established, and is the finding worth keeping:
 
 - `shows.club_id` is nullable and nothing — no constraint, no trigger — prevents a
   club-less show from existing.
 - `20260828230000` (MYK9-258) rewrote `can_manage_show` to require
   `s.club_id IS NOT NULL`. That fix is right on its own terms: a club-less show
-  should not be manageable by *every* secretary.
+  should not be manageable by _every_ secretary.
 - Together those mean a show that loses its club becomes manageable by **nobody** —
   not its creator, not a club admin, only a site admin. There is no in-app route back,
   because every repair write is itself gated by `can_manage_show`.
@@ -787,7 +787,7 @@ the seed to stop delete-recreating its club), a `NOT NULL` constraint, or a site
 reassign-club repair path. The seed could also simply re-point or refuse to orphan
 shows it does not own.
 
-*Audit artifacts on staging:* the walk show plus three probe shows
+_Audit artifacts on staging:_ the walk show plus three probe shows
 (`6cea4cdf-…`, the publish probe, and `ZZ Audit - Rewalk`), and one move-up-created
 entry on the demo show (`7ae6ac8b-…`, Interior Advanced) whose id falls outside the
 seed's fixture ranges, so a reseed will not remove it.
@@ -795,10 +795,10 @@ seed's fixture ranges, so a reseed will not remove it.
 ### F31 — P3 — CORRECTED, diagnosis FIXED (#1858) — CORRECTED — A denied entry update is diagnosed internally as a deletion
 
 **This finding was first written as a P1 silent-data-loss bug. That was wrong, and the
-correction is the substantive part.** The app *does* tell the secretary. On the failed
+correction is the substantive part.** The app _does_ tell the secretary. On the failed
 status change it raised a persistent toast:
 
-> We couldn't update this entry. Retry or discard this change.  [Retry] [Discard]
+> We couldn't update this entry. Retry or discard this change. [Retry] [Discard]
 
 with `duration: Infinity` and both recovery actions wired to
 `retryFailedMutation` / `discardFailedMutation`
@@ -815,14 +815,14 @@ chain is
    answers `200 []` (captured: `PATCH 200 rows=[]`; the walk's 4xx count stays 0).
 3. `classifyEmptyUpdateResult` (`packages/replication/src/mutation-occ.ts:139`) then
    re-reads the row to tell deletion, OCC conflict and RLS denial apart — good design.
-   But the re-read `SELECT` is filtered by the *same* policy that denied the UPDATE,
+   But the re-read `SELECT` is filtered by the _same_ policy that denied the UPDATE,
    so it returns nothing, and the `!serverCheck` branch concludes:
 
    `Row <id> on entries no longer exists server-side.`
 
 An unreadable row and a deleted row are indistinguishable to that check, so a
 permission problem is logged as data loss. The user gets the right prompt; anyone
-reading the log to work out *why* is pointed at the wrong cause.
+reading the log to work out _why_ is pointed at the wrong cause.
 
 The optimistic list also shows the change as applied ("Needs review 1") until the
 failure lands — correct for offline-first, worth knowing when reading a screenshot.
@@ -885,7 +885,7 @@ IF v_client_cents IS NOT NULL AND v_client_cents < v_server_cents THEN RAISE ...
 ```
 
 It exists to stop underpayment, so `3000 < 0` is false and the correct client figure
-is silently discarded. Fixing F15 on the client therefore made this *less* visible,
+is silently discarded. Fixing F15 on the client therefore made this _less_ visible,
 not more: before, display and record agreed at zero; now the screen says $30 and the
 record says nothing.
 
@@ -903,16 +903,16 @@ reverted; the only edit is the fee expression. Role decisions restate the verifi
 live grants (anon false, authenticated true, service_role true). 733 DB contract tests
 pass — the suite first rejected it for missing EXECUTE decisions.
 
-*Verified against the applied database:* the fee expression now carries
+_Verified against the applied database:_ the fee expression now carries
 `v_show_dos_fee > 0`, grants are unchanged (anon false, authenticated true,
 service_role true) and the function is still `SECURITY DEFINER`.
 
-*Verified end to end* on the same show, same wizard, same dog:
+_Verified end to end_ on the same show, same wizard, same dog:
 
-| Entry | Created | `entry_fee` |
-| --- | --- | --- |
-| Container Novice A | 01:54, before the push | **0.00** |
-| Interior Novice A | 02:32, after the push | **30.00** |
+| Entry              | Created                | `entry_fee` |
+| ------------------ | ---------------------- | ----------- |
+| Container Novice A | 01:54, before the push | **0.00**    |
+| Interior Novice A  | 02:32, after the push  | **30.00**   |
 
 The enrollment moved from `total_amount: 0` to `3000` with `paid_amount: 30.00`.
 
@@ -921,12 +921,12 @@ this was live still carries `entry_fee = 0` and contributes nothing to that show
 totals. A backfill would need to decide which fee tier applied on the day each entry
 was taken, so it is a deliberate decision rather than an obvious follow-up.
 
-*Push note:* `pg_get_functiondef` returns the definition WITHOUT a trailing semicolon,
+_Push note:_ `pg_get_functiondef` returns the definition WITHOUT a trailing semicolon,
 so the first push failed with a syntax error at the following `REVOKE` — the grants had
 run on as part of the function statement. Worth knowing for any migration rebuilt from
 a live definition.
 
-*Unit oddity, not investigated:* `enrollments.total_amount` is in cents (3000) while
+_Unit oddity, not investigated:_ `enrollments.total_amount` is in cents (3000) while
 `paid_amount` is in dollars (30.00). `utils/enrollmentGrouping.ts` documents the cents
 convention for Stripe, so this looks intentional rather than a defect.
 
@@ -980,20 +980,20 @@ So the user picks a name and the control answers with a UUID. Both the preset pa
 loaded from the database) and the interactive path are affected.
 
 **Blast radius.** 179 `<Select>` sites pass a value without `items`. Most are harmless
-because their value already *is* the label (`"Novice"`, `"AKC"`). The visible damage is
+because their value already _is_ the label (`"Novice"`, `"AKC"`). The visible damage is
 where value != label — **43 option sites across 34 files** keyed by an id:
 
-| Surface | File |
-| --- | --- |
-| Move-up target class | `features/show-map/ShowMapMoveUpDialog.tsx:100` |
-| Reports selector | `pages/secretary/ReportsPage/ReportControlsBar.tsx:228` (4) |
-| Incident log | `features/show-workbench/IncidentLogCard.tsx:190` (4) |
-| Waitlist show picker | `pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:66` (2) |
-| Check-in report trial | `pages/secretary/CheckInReportPage.tsx:258` |
-| Volunteer scheduling trial | `pages/secretary/VolunteerSchedulingPage/index.tsx:190` |
+| Surface                       | File                                                                       |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| Move-up target class          | `features/show-map/ShowMapMoveUpDialog.tsx:100`                            |
+| Reports selector              | `pages/secretary/ReportsPage/ReportControlsBar.tsx:228` (4)                |
+| Incident log                  | `features/show-workbench/IncidentLogCard.tsx:190` (4)                      |
+| Waitlist show picker          | `pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:66` (2)     |
+| Check-in report trial         | `pages/secretary/CheckInReportPage.tsx:258`                                |
+| Volunteer scheduling trial    | `pages/secretary/VolunteerSchedulingPage/index.tsx:190`                    |
 | Class judge (4 more surfaces) | `SimpleClassSelector`, `SimpleEditForm`, `ClassEditForm`, `ClassEditPanel` |
-| Club pickers | `ShowEditBasicInfoTab`, `ManageUserRolesDialog`, `BulkRoleDialog` |
-| …plus 20 more | see the scan in the Phase 1 commit |
+| Club pickers                  | `ShowEditBasicInfoTab`, `ManageUserRolesDialog`, `BulkRoleDialog`          |
+| …plus 20 more                 | see the scan in the Phase 1 commit                                         |
 
 **Fixed (2026-08-29) in the WRAPPER, not at the call sites.** The first pass patched
 `ClassManagementRow` alone and filed the other 33 files as a sweep. That framing was
@@ -1018,7 +1018,6 @@ Two deliberate limits:
 The "should the wrapper fail loudly when given a value with no items" question is now
 moot: it supplies the items itself.
 
-
 ### F35 — P3 — NEW — A local time that is exactly UTC midnight resolves one day late
 
 Surfaced while fixing F6, and **pre-existing** rather than introduced by it.
@@ -1026,7 +1025,7 @@ Surfaced while fixing F6, and **pre-existing** rather than introduced by it.
 `toLocalDateOnly` (`utils/date-format.ts`) short-circuits any ISO string ending
 `T00:00:00Z` to its literal date part. That is deliberate and correct for its stated
 case: a `DATE` column round-trips as UTC midnight, and local getters would misread it
-as the previous day west of UTC. But a genuine *local* timestamp that happens to land
+as the previous day west of UTC. But a genuine _local_ timestamp that happens to land
 on UTC midnight is indistinguishable from that — 5:00 PM PDT, 7:00 PM EST — so it
 resolves to the next calendar day.
 
@@ -1043,7 +1042,6 @@ The real fix is for the wizard to carry date-only values instead of ISO datetime
 the ambiguity never arises — that is a data-shape change across the picker and the
 show payload, not a one-line edit, so it is left open.
 
-
 ## Verification walk — 2026-08-29, against deployed staging
 
 Second pass, run against `myk9-platform-myk9show.vercel.app` at `390197483` (the F30
@@ -1052,17 +1050,17 @@ merge), not localhost — so this exercises the deployed artifact after PRs #185
 
 ### Confirmed fixed in the browser
 
-| Finding | Evidence |
-| --- | --- |
-| F1 / F16 | Entry Management renders 515 registrations; reads `view_authenticated_entry_results?select=id` (gated view, counted by column not `*`) |
-| F19 | Queue chips carry `aria-pressed` — "Needs review" `true`, the rest `false` — inside a `role=group` labelled "Registration queues". Exceptions sub-tabs correct too |
-| F28 / F34 | Per-class judge selectors read **"Test Judge"**, not a UUID |
-| F27 | Direct nav to `/scoring/classes/:id/entries` renders "Exterior Excellent"; "Class not found" absent |
-| F32 | Volunteers empty state reads "…choose Tools → Volunteers on its Show Desk"; the sidebar claim is gone |
-| F17 | Help link resolves to `help.myk9show.com/guides/secretary-guide` |
-| F14 | Secretary register shows no "entries are closed" blocker |
-| F20 | Capacity cards carry the **JUDGE** label; entry counts pluralize |
-| Task 20 | The needs-review queue lists 3 registrations with "Review registration" as the next action. The old "Blocked by F30" was the orphaned *audit* show, not the feature |
+| Finding   | Evidence                                                                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1 / F16  | Entry Management renders 515 registrations; reads `view_authenticated_entry_results?select=id` (gated view, counted by column not `*`)                              |
+| F19       | Queue chips carry `aria-pressed` — "Needs review" `true`, the rest `false` — inside a `role=group` labelled "Registration queues". Exceptions sub-tabs correct too  |
+| F28 / F34 | Per-class judge selectors read **"Test Judge"**, not a UUID                                                                                                         |
+| F27       | Direct nav to `/scoring/classes/:id/entries` renders "Exterior Excellent"; "Class not found" absent                                                                 |
+| F32       | Volunteers empty state reads "…choose Tools → Volunteers on its Show Desk"; the sidebar claim is gone                                                               |
+| F17       | Help link resolves to `help.myk9show.com/guides/secretary-guide`                                                                                                    |
+| F14       | Secretary register shows no "entries are closed" blocker                                                                                                            |
+| F20       | Capacity cards carry the **JUDGE** label; entry counts pluralize                                                                                                    |
+| Task 20   | The needs-review queue lists 3 registrations with "Review registration" as the next action. The old "Blocked by F30" was the orphaned _audit_ show, not the feature |
 
 ### Confirmed still broken
 
@@ -1081,7 +1079,6 @@ merge), not localhost — so this exercises the deployed artifact after PRs #185
   enforcement was never built — but it is what a secretary sees.
 - Show Desk → Tools carries Volunteers, People, Add late entry, Needs closeout and
   Ringside, so tasks 16–19 are reachable from one place.
-
 
 ## What works well
 
@@ -1141,29 +1138,29 @@ merge), not localhost — so this exercises the deployed artifact after PRs #185
 
 ## Task status
 
-| # | Task | Status |
-| --- | --- | --- |
-| 1 | Create a show, trial, and classes | **Verified** — completed end to end three times (draft and published); Host Club persists correctly. The audit show's NULL `club_id` (F30) was not caused by creation |
-| 2 | Edit a show / reassign a judge | **Verified** — added a second judge via Edit Show → Judges, reassigned Container Novice A to them; `judge_assignments` updated, other class untouched |
-| 3 | Process a mail-in entry | **FIXED (F14)** — Entry Management's own "Add mail-in entry" now works after close. Entry created, confirmed, and now correctly priced after the F15 fix; check reference still discarded (F16) |
-| 4 | Email exhibitors | **Possible, badly signposted** — composer is in the header Message Center panel, not the Messages page (F22), and does not inherit show context (F23) |
-| 13 | Waitlist | **Verified present** — Entry Management → Exceptions → Waitlist shows judge-day capacity and "View Wait List" per judge-day; no waitlisted entries to promote on this show |
-| 14 | Payments / refunds | **Partial** — Pull Management ("reconcile refunds in one place") loads with Pending/Pulled queues; payment channel is mislabelled (F18) and check references are not stored (F16) |
-| 5 | Set run order | **FIXED (F29b phase 2a, #1866)** — Show Desk → focus a class → Run order → Armband ↑ / ↓ / Random. Manual drag-and-drop hand-ordering is still not built (phase 2b) |
-| 8 | Process a move-up | **FIXED (F29b phase 1, #1865)** — Show Desk → focus a class → Entries → Move up; browser-verified, 66 controls on a 66-entry class and the dialog opens with the right entry |
-| 15 | Scratches / pulls / no-shows | **Verified present** — Entry Management → Exceptions → Pulls / scratches: "Review pull requests and reconcile refunds in one place", Pending/Pulled queues with search |
-| 16 | Late / walk-in entries | **Verified** — see Task 3; Show Desk → Tools → Late entry completes end to end |
-| 6 | Print check-in sheets | **Verified** — 33-page PDF, US Letter, "Check-in & Running Order", columns Gate Order / Armband / Call Name / Breed / Reg # / Handler / Pull-Move-Note. The Reg # column is blank for every dog (see F21) |
-| 7 | Print scoresheets | **Verified** — 106-page "AKC Scent Work Scoresheet": per-dog armband/breed/handler, Q/NQ/EX/ABS, Place, the full AKC fault taxonomy and MM/SS/TT time fields |
-| 10 | Print preliminary results | **Verified** (after the F25 fix) — "AKC Container Preliminary Results" with element, level, trial, date and judge |
-| 12 | Registry reports | **Verified present** (after the F25 fix) — Trial Secretary Report and AKC Judge's Report render their real AKC instruction text; Show Catalog, Result Catalog and Financial Report also render. Content not yet checked line-by-line against the official forms |
-| 9 | Enter results from paper scoresheets | **Verified** — `/scoring/classes/:id/entries`: Q/NQ/ABS/EX, prefill, Search Time (digit-masked, `4520` → `0:45.20`), faults stepper, Save / Save & Next. Persisted `qualified`, 45.2s, 0 faults, and computed placement 1. Blocked on a cold store by F27 |
-| 12 (submit) | Submit results to the registry | **Verified** — `/shows/:id/submit-results`: organization selector, Download draft XML, Mark as submitted, closeout guidance, submission history. **Send to AKC is correctly disabled** with "514 entries are missing AKC registration numbers" |
-| 17 | Volunteer scheduling | **Verified via Show Desk → Tools** — Add Volunteer and per-class assign slots by trial. Direct navigation misdirects (F32) |
-| 18 | Ringside access codes | **Verified** — Admin/Judge/Steward/Exhibitor codes with copy, copy-link, Print slip, Regenerate |
-| 19 | Close out the show | **Verified** — closeout panel reconciles attendance & fees (entries, day-of, at-show collected, waived, pulled/no-show, refund review) and incidents (all/reportable/urgent), e.g. "2 pulled entries have $60.00 marked refunded" |
-| 11 | High in Trial / High in Class | **WORKS** — `Reports → High in Trial`, AKC trials, trial-scoped (F26, fixed 2026-08-30). "High in Class" is not an AKC concept; the equivalent is per-class placements 1–4, already computed |
-| 20 | Approve / accept online entries | **WORKS** — re-verified 2026-08-29; the block was the orphaned audit show, not the feature — every entry write on the audit show is refused because the show has no club, so accept could not be exercised end to end. The refusal is surfaced correctly (F31) |
+| #           | Task                                 | Status                                                                                                                                                                                                                                                          |
+| ----------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1           | Create a show, trial, and classes    | **Verified** — completed end to end three times (draft and published); Host Club persists correctly. The audit show's NULL `club_id` (F30) was not caused by creation                                                                                           |
+| 2           | Edit a show / reassign a judge       | **Verified** — added a second judge via Edit Show → Judges, reassigned Container Novice A to them; `judge_assignments` updated, other class untouched                                                                                                           |
+| 3           | Process a mail-in entry              | **FIXED (F14)** — Entry Management's own "Add mail-in entry" now works after close. Entry created, confirmed, and now correctly priced after the F15 fix; check reference still discarded (F16)                                                                 |
+| 4           | Email exhibitors                     | **Possible, badly signposted** — composer is in the header Message Center panel, not the Messages page (F22), and does not inherit show context (F23)                                                                                                           |
+| 13          | Waitlist                             | **Verified present** — Entry Management → Exceptions → Waitlist shows judge-day capacity and "View Wait List" per judge-day; no waitlisted entries to promote on this show                                                                                      |
+| 14          | Payments / refunds                   | **Partial** — Pull Management ("reconcile refunds in one place") loads with Pending/Pulled queues; payment channel is mislabelled (F18) and check references are not stored (F16)                                                                               |
+| 5           | Set run order                        | **FIXED (F29b phase 2a, #1866)** — Show Desk → focus a class → Run order → Armband ↑ / ↓ / Random. Manual drag-and-drop hand-ordering is still not built (phase 2b)                                                                                             |
+| 8           | Process a move-up                    | **FIXED (F29b phase 1, #1865)** — Show Desk → focus a class → Entries → Move up; browser-verified, 66 controls on a 66-entry class and the dialog opens with the right entry                                                                                    |
+| 15          | Scratches / pulls / no-shows         | **Verified present** — Entry Management → Exceptions → Pulls / scratches: "Review pull requests and reconcile refunds in one place", Pending/Pulled queues with search                                                                                          |
+| 16          | Late / walk-in entries               | **Verified** — see Task 3; Show Desk → Tools → Late entry completes end to end                                                                                                                                                                                  |
+| 6           | Print check-in sheets                | **Verified** — 33-page PDF, US Letter, "Check-in & Running Order", columns Gate Order / Armband / Call Name / Breed / Reg # / Handler / Pull-Move-Note. The Reg # column is blank for every dog (see F21)                                                       |
+| 7           | Print scoresheets                    | **Verified** — 106-page "AKC Scent Work Scoresheet": per-dog armband/breed/handler, Q/NQ/EX/ABS, Place, the full AKC fault taxonomy and MM/SS/TT time fields                                                                                                    |
+| 10          | Print preliminary results            | **Verified** (after the F25 fix) — "AKC Container Preliminary Results" with element, level, trial, date and judge                                                                                                                                               |
+| 12          | Registry reports                     | **Verified present** (after the F25 fix) — Trial Secretary Report and AKC Judge's Report render their real AKC instruction text; Show Catalog, Result Catalog and Financial Report also render. Content not yet checked line-by-line against the official forms |
+| 9           | Enter results from paper scoresheets | **Verified** — `/scoring/classes/:id/entries`: Q/NQ/ABS/EX, prefill, Search Time (digit-masked, `4520` → `0:45.20`), faults stepper, Save / Save & Next. Persisted `qualified`, 45.2s, 0 faults, and computed placement 1. Blocked on a cold store by F27       |
+| 12 (submit) | Submit results to the registry       | **Verified** — `/shows/:id/submit-results`: organization selector, Download draft XML, Mark as submitted, closeout guidance, submission history. **Send to AKC is correctly disabled** with "514 entries are missing AKC registration numbers"                  |
+| 17          | Volunteer scheduling                 | **Verified via Show Desk → Tools** — Add Volunteer and per-class assign slots by trial. Direct navigation misdirects (F32)                                                                                                                                      |
+| 18          | Ringside access codes                | **Verified** — Admin/Judge/Steward/Exhibitor codes with copy, copy-link, Print slip, Regenerate                                                                                                                                                                 |
+| 19          | Close out the show                   | **Verified** — closeout panel reconciles attendance & fees (entries, day-of, at-show collected, waived, pulled/no-show, refund review) and incidents (all/reportable/urgent), e.g. "2 pulled entries have $60.00 marked refunded"                               |
+| 11          | High in Trial / High in Class        | **WORKS** — `Reports → High in Trial`, AKC trials, trial-scoped (F26, fixed 2026-08-30). "High in Class" is not an AKC concept; the equivalent is per-class placements 1–4, already computed                                                                    |
+| 20          | Approve / accept online entries      | **WORKS** — re-verified 2026-08-29; the block was the orphaned audit show, not the feature — every entry write on the audit show is refused because the show has no club, so accept could not be exercised end to end. The refusal is surfaced correctly (F31)  |
 
 Tasks 20 (approve/accept online entries) and 13 (waitlist) were added to the canonical
 list at the owner's request on 2026-08-28. Accept/reject is the secretary's

@@ -11,13 +11,7 @@ interface TooltipPayloadItem {
   payload: ResultDistributionItem;
 }
 
-function CustomTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: TooltipPayloadItem[];
-}) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayloadItem[] }) {
   if (!active || !payload || payload.length === 0) return null;
   const item = payload[0]!.payload;
   return (
@@ -39,7 +33,7 @@ export function ResultDistributionChart({ data }: ResultDistributionChartProps) 
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
             <Pie data={data} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={100}>
-              {data.map((item) => (
+              {data.map(item => (
                 <Cell key={item.status} fill={item.color} />
               ))}
             </Pie>

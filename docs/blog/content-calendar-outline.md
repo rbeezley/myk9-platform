@@ -188,19 +188,19 @@ Link each post to the KB article it supplements — do not duplicate full KB ste
 
 ## Post Publish Order (recommended)
 
-| Priority | Post | Why first |
-|---|---|---|
-| 1 | E-1 — Entry timeline | Deflects #1 exhibitor question; no Stripe dep |
-| 2 | C-2 — Stripe contact legitimacy | Deflects #1 treasurer panic; needed before first club onboards |
-| 3 | S-1 — Show desk on show day | Deflects #1 secretary demo question |
-| 4 | P-1 — Offline reliability | Trust-builder for clubs; no screenshot dep |
-| 5 | E-2 — Enter online first time | Onboarding for first exhibitor cohort |
-| 6 | S-2 — First show setup | Onboarding for first secretary cohort |
-| 7 | E-3 — Run order + check-in | Show-day self-service |
-| 8 | C-1 — Payout timing | Needed before first show closes |
-| 9 | S-3 — Approving entries | Secretary efficiency |
-| 10 | S-4 — AKC XML submission | Evaluation / closeout confidence |
-| 11 | E-4 — Results and Q/NQ | Post-show self-service |
-| 12 | P-2 — Release notes template | Ongoing, post-launch |
+| Priority | Post                            | Why first                                                      |
+| -------- | ------------------------------- | -------------------------------------------------------------- |
+| 1        | E-1 — Entry timeline            | Deflects #1 exhibitor question; no Stripe dep                  |
+| 2        | C-2 — Stripe contact legitimacy | Deflects #1 treasurer panic; needed before first club onboards |
+| 3        | S-1 — Show desk on show day     | Deflects #1 secretary demo question                            |
+| 4        | P-1 — Offline reliability       | Trust-builder for clubs; no screenshot dep                     |
+| 5        | E-2 — Enter online first time   | Onboarding for first exhibitor cohort                          |
+| 6        | S-2 — First show setup          | Onboarding for first secretary cohort                          |
+| 7        | E-3 — Run order + check-in      | Show-day self-service                                          |
+| 8        | C-1 — Payout timing             | Needed before first show closes                                |
+| 9        | S-3 — Approving entries         | Secretary efficiency                                           |
+| 10       | S-4 — AKC XML submission        | Evaluation / closeout confidence                               |
+| 11       | E-4 — Results and Q/NQ          | Post-show self-service                                         |
+| 12       | P-2 — Release notes template    | Ongoing, post-launch                                           |
 
 All posts are gated on Phase 0 except P-1 (offline — prose-only) and C-2 (Stripe contact — prose-only, needs Stripe sandbox for the screenshot but the post body does not).

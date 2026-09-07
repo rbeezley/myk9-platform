@@ -1,6 +1,6 @@
 /**
  * Performance Optimizations Utilities
- * 
+ *
  * Collection of performance optimizations to eliminate navigation delays
  */
 

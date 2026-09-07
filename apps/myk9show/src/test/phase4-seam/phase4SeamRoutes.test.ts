@@ -64,9 +64,9 @@ describe('classifyUrl', () => {
 describe('extractEqFilter', () => {
   it('reads eq filters and bare values', () => {
     expect(extractEqFilter(`${REST}/entries?id=eq.abc`, 'id')).toBe('abc');
-    expect(extractEqFilter(`${REST}/entries?id=eq.abc&entry_status=eq.scratch-requested`, 'entry_status')).toBe(
-      'scratch-requested'
-    );
+    expect(
+      extractEqFilter(`${REST}/entries?id=eq.abc&entry_status=eq.scratch-requested`, 'entry_status')
+    ).toBe('scratch-requested');
     expect(extractEqFilter(`${REST}/entries?id=eq.abc`, 'missing')).toBeNull();
   });
 });
@@ -272,7 +272,12 @@ describe('Seam 3: entry question (messaging)', () => {
     // No thread yet: a `.single()` read MUST be a no-row (406) so the app's
     // falsy-`data` branch proceeds to INSERT. A `200 []` here would be truthy
     // and make getOrCreateThread build a thread with id: undefined.
-    const before = run(state, audit, { method: 'GET', url: threadQuery, postData: null, headers: OBJ });
+    const before = run(state, audit, {
+      method: 'GET',
+      url: threadQuery,
+      postData: null,
+      headers: OBJ,
+    });
     expect(before.status).toBe(406);
     expect((before.body as { code: string }).code).toBe('PGRST116');
 
@@ -285,7 +290,12 @@ describe('Seam 3: entry question (messaging)', () => {
     });
 
     // Now the `.single()` read returns the single object (reuse branch).
-    const after = run(state, audit, { method: 'GET', url: threadQuery, postData: null, headers: OBJ });
+    const after = run(state, audit, {
+      method: 'GET',
+      url: threadQuery,
+      postData: null,
+      headers: OBJ,
+    });
     expect(after.status).toBe(200);
     expect((after.body as { participant_id: string }).participant_id).toBe(PHASE4_IDS.exhibitorA);
     expect(Array.isArray(after.body)).toBe(false);

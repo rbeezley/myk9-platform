@@ -47,11 +47,7 @@ export {
 } from './IconContainer';
 
 // State Components
-export {
-  EmptyState,
-  ErrorEmptyState,
-  LoadingEmptyState,
-} from './EmptyState';
+export { EmptyState, ErrorEmptyState, LoadingEmptyState } from './EmptyState';
 
 // Type Exports
 export type {

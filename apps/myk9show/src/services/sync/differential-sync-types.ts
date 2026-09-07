@@ -96,9 +96,4 @@ export interface JsonPatchTest extends JsonPatchOperationBase {
 }
 
 export type JsonPatchOperation =
-  | JsonPatchAdd
-  | JsonPatchRemove
-  | JsonPatchReplace
-  | JsonPatchMove
-  | JsonPatchCopy
-  | JsonPatchTest;
+  JsonPatchAdd | JsonPatchRemove | JsonPatchReplace | JsonPatchMove | JsonPatchCopy | JsonPatchTest;

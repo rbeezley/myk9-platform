@@ -132,12 +132,7 @@ export interface ConformationScore extends BaseScore {
 
   // Competition level
   competitionLevel?:
-    | 'Puppy'
-    | 'Open'
-    | 'Bred-by-Exhibitor'
-    | 'American Bred'
-    | 'Specials'
-    | undefined;
+    'Puppy' | 'Open' | 'Bred-by-Exhibitor' | 'American Bred' | 'Specials' | undefined;
 }
 
 // ============================================================================

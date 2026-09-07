@@ -16,13 +16,13 @@ the same afternoon and every item was applied from this session, **after** the t
 `PerformanceGraphs`, `TimerIntegration` all empty; fuzzy hits were the known dead-code sweeps and
 MYK9-311, a different DATE surface). Filed:
 
-| Issue | Sev | Title |
-| -- | -- | -- |
-| [MYK9-373](https://linear.app/myk9-platform/issue/MYK9-373) | — | Parent: `Bug audit components/ rest 2026-09-04 — P2/P3 findings` |
-| [MYK9-375](https://linear.app/myk9-platform/issue/MYK9-375) | P2 | `/admin/sync` renders `Math.random()` mock data as live sync health |
-| [MYK9-376](https://linear.app/myk9-platform/issue/MYK9-376) | P2 | Class-creation "Overrides" tab strip pinned to Basic |
-| [MYK9-377](https://linear.app/myk9-platform/issue/MYK9-377) | P3 | Judge qualification "Certified" date one day early west of UTC |
-| [MYK9-374](https://linear.app/myk9-platform/issue/MYK9-374) | P3 | Dead code: `PerformanceGraphs` cluster + six zero-importer modules |
+| Issue                                                       | Sev | Title                                                               |
+| ----------------------------------------------------------- | --- | ------------------------------------------------------------------- |
+| [MYK9-373](https://linear.app/myk9-platform/issue/MYK9-373) | —   | Parent: `Bug audit components/ rest 2026-09-04 — P2/P3 findings`    |
+| [MYK9-375](https://linear.app/myk9-platform/issue/MYK9-375) | P2  | `/admin/sync` renders `Math.random()` mock data as live sync health |
+| [MYK9-376](https://linear.app/myk9-platform/issue/MYK9-376) | P2  | Class-creation "Overrides" tab strip pinned to Basic                |
+| [MYK9-377](https://linear.app/myk9-platform/issue/MYK9-377) | P3  | Judge qualification "Certified" date one day early west of UTC      |
+| [MYK9-374](https://linear.app/myk9-platform/issue/MYK9-374) | P3  | Dead code: `PerformanceGraphs` cluster + six zero-importer modules  |
 
 The same session applied the three older queued items: MYK9-365's residual section replaced,
 MYK9-372's correction comment posted, and **MYK9-289 reopened (Done → In Review)** with
@@ -64,13 +64,13 @@ clear is already in progress" — wrong message, no shipping browser lacks Web L
 
 ## Findings
 
-| Issue          | Sev | Title                                                                                                                    | Evidence                                                                                                                                                                                     |
-| -------------- | --- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MYK9-373       | —   | `Bug audit components/ rest 2026-09-04 — P2/P3 findings`                                                                 | —                                                                                                                                                                                            |
-| MYK9-375       | P2  | `/admin/sync` Sync Monitoring dashboard renders `Math.random()` mock data as live sync health                            | `sync/SyncMonitoringDashboard/index.tsx:28,57`; `services/analytics/SyncAnalyticsService.ts:545-551`; `sync-analytics-helpers.ts:235-260`; `ConflictsTab.tsx:41,48`; `NetworkTab.tsx:82,116` |
-| MYK9-376       | P2  | Class-creation "Overrides" step pins its tab strip to Basic — Financial/Timing/Personnel/Rules overrides are unreachable | `templates/secretary/FieldOverrideForm.tsx:362`                                                                                                                                              |
-| MYK9-377       | P3  | Judge qualification "Certified" date renders one day early west of UTC (MYK9-352 pattern, two surviving sites)           | `users/UserDetails/JudgeQualificationsCard.tsx:118`; `panels/edit/QualificationsTab.tsx:57`                                                                                                  |
-| MYK9-374       | P3  | Dead code: `PerformanceGraphs` cluster orphaned by #1980 + six more zero-importer modules (~2.3k lines)                  | per-symbol table below                                                                                                                                                                       |
+| Issue    | Sev | Title                                                                                                                    | Evidence                                                                                                                                                                                     |
+| -------- | --- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MYK9-373 | —   | `Bug audit components/ rest 2026-09-04 — P2/P3 findings`                                                                 | —                                                                                                                                                                                            |
+| MYK9-375 | P2  | `/admin/sync` Sync Monitoring dashboard renders `Math.random()` mock data as live sync health                            | `sync/SyncMonitoringDashboard/index.tsx:28,57`; `services/analytics/SyncAnalyticsService.ts:545-551`; `sync-analytics-helpers.ts:235-260`; `ConflictsTab.tsx:41,48`; `NetworkTab.tsx:82,116` |
+| MYK9-376 | P2  | Class-creation "Overrides" step pins its tab strip to Basic — Financial/Timing/Personnel/Rules overrides are unreachable | `templates/secretary/FieldOverrideForm.tsx:362`                                                                                                                                              |
+| MYK9-377 | P3  | Judge qualification "Certified" date renders one day early west of UTC (MYK9-352 pattern, two surviving sites)           | `users/UserDetails/JudgeQualificationsCard.tsx:118`; `panels/edit/QualificationsTab.tsx:57`                                                                                                  |
+| MYK9-374 | P3  | Dead code: `PerformanceGraphs` cluster orphaned by #1980 + six more zero-importer modules (~2.3k lines)                  | per-symbol table below                                                                                                                                                                       |
 
 ### F1 — `/admin/sync` reports randomly generated mock metrics as live sync health (P2, Bug)
 

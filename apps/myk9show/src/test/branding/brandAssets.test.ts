@@ -36,9 +36,7 @@ describe('myK9Show brand assets', () => {
   });
 
   it('uses the terracotta brand color in the static manifest', () => {
-    const manifest = JSON.parse(
-      readFileSync(join(appRoot, 'public/manifest.json'), 'utf8')
-    ) as {
+    const manifest = JSON.parse(readFileSync(join(appRoot, 'public/manifest.json'), 'utf8')) as {
       theme_color: string;
       background_color: string;
     };
@@ -48,9 +46,7 @@ describe('myK9Show brand assets', () => {
   });
 
   it('uses a dedicated padded icon for maskable PWA contexts', () => {
-    const manifest = JSON.parse(
-      readFileSync(join(appRoot, 'public/manifest.json'), 'utf8')
-    ) as {
+    const manifest = JSON.parse(readFileSync(join(appRoot, 'public/manifest.json'), 'utf8')) as {
       icons: Array<{ src: string; purpose?: string }>;
     };
 

@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Club } from '@/types/club-types';
 import { UserRole } from '@/types/auth-types';
-import {
-  filterVisibleBrowseClubs,
-  isDeveloperSeedClub,
-} from '../browseClubsVisibility';
+import { filterVisibleBrowseClubs, isDeveloperSeedClub } from '../browseClubsVisibility';
 
 function makeClub(name: string): Club {
   return {

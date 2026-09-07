@@ -111,7 +111,10 @@ export interface AnalyticsReportingSlice {
   generateAnalytics: (timeRange?: { start: Date; end: Date }) => SearchAnalytics;
   getUserBehavior: (userId: string, timeRange?: { start: Date; end: Date }) => UserSearchBehavior;
   getSearchTrends: (days: number) => SearchAnalytics['searchTrends'];
-  getPopularQueries: (limit?: number, searchType?: SearchQuery['searchType']) => Array<{
+  getPopularQueries: (
+    limit?: number,
+    searchType?: SearchQuery['searchType']
+  ) => Array<{
     query: string;
     count: number;
     averageTime: number;
@@ -150,12 +153,15 @@ export interface UserInsightsSlice {
     sessionCount: number;
     averageSessionDuration: number;
   }>;
-  getSearchTypeDistribution: () => Record<string, {
-    count: number;
-    percentage: number;
-    averageTime: number;
-    successRate: number;
-  }>;
+  getSearchTypeDistribution: () => Record<
+    string,
+    {
+      count: number;
+      percentage: number;
+      averageTime: number;
+      successRate: number;
+    }
+  >;
 }
 
 export interface DataManagementSlice {

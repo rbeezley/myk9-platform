@@ -1,9 +1,11 @@
 # results-unrelease Specification
 
 ## Purpose
+
 Let a secretary return released class results to held-for-review with an explicit confirmation, limited to classes whose visibility is actually gated by manual release timing, with partial failures surfaced and retryable.
 
 ## Requirements
+
 ### Requirement: Secretary can un-release class results
 
 The Results Control surface SHALL let a secretary return released classes to held-for-review by clearing the release timestamp and releaser, behind an explicit confirmation that notes already-viewed pages will not retroactively refresh.

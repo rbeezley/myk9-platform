@@ -1,6 +1,6 @@
 /**
  * Deployment Services Index
- * 
+ *
  * Central export point for all deployment-related services and utilities.
  */
 
@@ -46,7 +46,7 @@ export type {
   AlertThreshold,
   NotificationChannel,
   MetricType,
-  Severity
+  Severity,
 } from '../../types/deployment-types';
 
 // Feature Flag Context and Types
@@ -56,7 +56,7 @@ export type {
   ABTestConfig,
   ABTestVariant,
   SuccessMetric,
-  SegmentationRule
+  SegmentationRule,
 } from './FeatureFlagService';
 
 // Monitoring Types
@@ -75,7 +75,7 @@ export type {
   UserSession,
   AlertRule,
   AlertCondition,
-  Alert
+  Alert,
 } from './production-monitoring-types';
 
 // CDN Types
@@ -90,7 +90,7 @@ export type {
   CachingRule,
   CacheStats,
   CDNAnalytics,
-  AnalyticsTimeRange
+  AnalyticsTimeRange,
 } from './CDNService';
 
 // Utility Functions
@@ -99,22 +99,22 @@ export const deploymentUtils = {
    * Get deployment manager instance
    */
   getDeploymentManager: () => DeploymentManager.getInstance(),
-  
+
   /**
    * Get feature flag service instance
    */
   getFeatureFlagService: () => FeatureFlagService.getInstance(),
-  
+
   /**
    * Get production monitoring service instance
    */
   getMonitoringService: () => ProductionMonitoringService.getInstance(),
-  
+
   /**
    * Get CDN service instance
    */
   getCDNService: () => CDNService.getInstance(),
-  
+
   /**
    * Check if a feature is enabled for a user
    */
@@ -122,7 +122,7 @@ export const deploymentUtils = {
     const service = FeatureFlagService.getInstance();
     return service.isEnabled(flagId, context);
   },
-  
+
   /**
    * Report an error to monitoring
    */
@@ -130,7 +130,7 @@ export const deploymentUtils = {
     const service = ProductionMonitoringService.getInstance();
     return service.reportError(error, context);
   },
-  
+
   /**
    * Track a user event
    */
@@ -138,14 +138,18 @@ export const deploymentUtils = {
     const service = ProductionMonitoringService.getInstance();
     service.trackEvent(event, properties, userId);
   },
-  
+
   /**
    * Record a performance metric
    */
-  recordMetric: (name: string, value: number, type: 'counter' | 'gauge' | 'histogram' | 'summary' = 'gauge') => {
+  recordMetric: (
+    name: string,
+    value: number,
+    type: 'counter' | 'gauge' | 'histogram' | 'summary' = 'gauge'
+  ) => {
     const service = ProductionMonitoringService.getInstance();
     service.recordMetric(name, value, type);
-  }
+  },
 };
 
 // Configuration Presets
@@ -155,66 +159,66 @@ export const deploymentPresets = {
       provider: 'sentry' as const,
       environment: 'development',
       sampleRate: 1.0,
-      enableSourceMaps: true
+      enableSourceMaps: true,
     },
     featureFlags: {
       defaultRolloutPercentage: 100,
       enableABTesting: true,
-      quickRollback: true
+      quickRollback: true,
     },
     monitoring: {
       enableWebVitals: true,
       trackUserEvents: true,
       alertThresholds: {
         errorRate: 0.1,
-        responseTime: 5000
-      }
-    }
+        responseTime: 5000,
+      },
+    },
   },
-  
+
   staging: {
     errorTracking: {
       provider: 'sentry' as const,
       environment: 'staging',
       sampleRate: 1.0,
-      enableSourceMaps: true
+      enableSourceMaps: true,
     },
     featureFlags: {
       defaultRolloutPercentage: 50,
       enableABTesting: true,
-      quickRollback: true
+      quickRollback: true,
     },
     monitoring: {
       enableWebVitals: true,
       trackUserEvents: true,
       alertThresholds: {
         errorRate: 0.05,
-        responseTime: 3000
-      }
-    }
+        responseTime: 3000,
+      },
+    },
   },
-  
+
   production: {
     errorTracking: {
       provider: 'sentry' as const,
       environment: 'production',
       sampleRate: 0.1,
-      enableSourceMaps: false
+      enableSourceMaps: false,
     },
     featureFlags: {
       defaultRolloutPercentage: 5,
       enableABTesting: true,
-      quickRollback: true
+      quickRollback: true,
     },
     monitoring: {
       enableWebVitals: true,
       trackUserEvents: true,
       alertThresholds: {
         errorRate: 0.01,
-        responseTime: 2000
-      }
-    }
-  }
+        responseTime: 2000,
+      },
+    },
+  },
 } as const;
 
 // React hooks for components (conditionally exported for browser environments)
@@ -230,11 +234,16 @@ export const createDeploymentHooks = () => {
         recordMetric: () => {},
         getDashboardData: () => ({
           errors: { total: 0, recent: 0, byLevel: {}, topErrors: [] },
-          performance: { avgResponseTime: 0, errorRate: 0, throughput: 0, webVitals: { fcp: 0, lcp: 0, fid: 0, cls: 0 } },
+          performance: {
+            avgResponseTime: 0,
+            errorRate: 0,
+            throughput: 0,
+            webVitals: { fcp: 0, lcp: 0, fid: 0, cls: 0 },
+          },
           users: { activeUsers: 0, totalSessions: 0, avgSessionDuration: 0, topEvents: [] },
-          alerts: { active: 0, acknowledged: 0, resolved: 0, recent: [] }
-        })
-      })
+          alerts: { active: 0, acknowledged: 0, resolved: 0, recent: [] },
+        }),
+      }),
     };
   }
 
@@ -242,7 +251,7 @@ export const createDeploymentHooks = () => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useState, useEffect, useCallback } = require('react');
-    
+
     return {
       useDeployment: () => {
         const [deploymentManager] = useState(() => DeploymentManager.getInstance());
@@ -252,59 +261,75 @@ export const createDeploymentHooks = () => {
       useFeatureFlag: (flagId: string, context: Record<string, unknown> = {}) => {
         const [service] = useState(() => FeatureFlagService.getInstance());
         const [isEnabled, setIsEnabled] = useState(false);
-        
+
         useEffect(() => {
           const checkFlag = () => {
             setIsEnabled(service.isEnabled(flagId, context));
           };
-          
+
           checkFlag();
-          
+
           // Re-check every 30 seconds
           const interval = setInterval(checkFlag, 30000);
           return () => clearInterval(interval);
         }, [flagId, context, service]);
-        
+
         return isEnabled;
       },
 
       useMonitoring: () => {
         const [service] = useState(() => ProductionMonitoringService.getInstance());
-        
-        const reportError = useCallback((error: Error, context?: Record<string, unknown>) => {
-          return service.reportError(error, context);
-        }, [service]);
-        
-        const trackEvent = useCallback((event: string, properties?: Record<string, unknown>, userId?: string) => {
-          service.trackEvent(event, properties, userId);
-        }, [service]);
-        
-        const recordMetric = useCallback((name: string, value: number, type?: 'counter' | 'gauge' | 'histogram' | 'summary') => {
-          service.recordMetric(name, value, type);
-        }, [service]);
-        
+
+        const reportError = useCallback(
+          (error: Error, context?: Record<string, unknown>) => {
+            return service.reportError(error, context);
+          },
+          [service]
+        );
+
+        const trackEvent = useCallback(
+          (event: string, properties?: Record<string, unknown>, userId?: string) => {
+            service.trackEvent(event, properties, userId);
+          },
+          [service]
+        );
+
+        const recordMetric = useCallback(
+          (name: string, value: number, type?: 'counter' | 'gauge' | 'histogram' | 'summary') => {
+            service.recordMetric(name, value, type);
+          },
+          [service]
+        );
+
         return {
           reportError,
           trackEvent,
           recordMetric,
-          getDashboardData: () => service.getDashboardData()
+          getDashboardData: () => service.getDashboardData(),
         };
-      }
+      },
     };
   } catch {
     // React not available, return non-reactive versions
     return {
       useDeployment: () => DeploymentManager.getInstance(),
-      useFeatureFlag: (flagId: string, context: Record<string, unknown> = {}) => FeatureFlagService.getInstance().isEnabled(flagId, context),
+      useFeatureFlag: (flagId: string, context: Record<string, unknown> = {}) =>
+        FeatureFlagService.getInstance().isEnabled(flagId, context),
       useMonitoring: () => {
         const service = ProductionMonitoringService.getInstance();
         return {
-          reportError: (error: Error, context?: Record<string, unknown>) => service.reportError(error, context),
-          trackEvent: (event: string, properties?: Record<string, unknown>, userId?: string) => service.trackEvent(event, properties, userId),
-          recordMetric: (name: string, value: number, type?: 'counter' | 'gauge' | 'histogram' | 'summary') => service.recordMetric(name, value, type),
-          getDashboardData: () => service.getDashboardData()
+          reportError: (error: Error, context?: Record<string, unknown>) =>
+            service.reportError(error, context),
+          trackEvent: (event: string, properties?: Record<string, unknown>, userId?: string) =>
+            service.trackEvent(event, properties, userId),
+          recordMetric: (
+            name: string,
+            value: number,
+            type?: 'counter' | 'gauge' | 'histogram' | 'summary'
+          ) => service.recordMetric(name, value, type),
+          getDashboardData: () => service.getDashboardData(),
         };
-      }
+      },
     };
   }
 };

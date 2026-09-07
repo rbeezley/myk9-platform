@@ -12,7 +12,9 @@ describe('MISSING_TILE_URL', () => {
     // placeholder fetched over the network would fail in the same conditions
     // and paint nothing, which is the state it is meant to replace. The one
     // permitted http(s) string is the SVG namespace, which is never fetched.
-    const withoutNamespace = MISSING_TILE_URL.split(encodeURIComponent('http://www.w3.org/2000/svg')).join('');
+    const withoutNamespace = MISSING_TILE_URL.split(
+      encodeURIComponent('http://www.w3.org/2000/svg')
+    ).join('');
     expect(withoutNamespace).not.toMatch(/https?(:|%3A)/i);
   });
 

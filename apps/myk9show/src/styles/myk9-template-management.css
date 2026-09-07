@@ -2,7 +2,8 @@
 
 /* Typography - San Francisco inspired */
 .myk9-template-page {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
@@ -94,7 +95,7 @@
 .myk9-stat-number {
   font-size: 32px;
   font-weight: 700;
-  line-height: 1.0;
+  line-height: 1;
   color: var(--foreground);
   margin-bottom: 4px;
 }
@@ -142,7 +143,7 @@
 
 .myk9-filter-input:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #007aff;
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
@@ -174,7 +175,9 @@
   border-radius: 16px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -227,7 +230,7 @@
 }
 
 .myk9-badge-official {
-  background: #007AFF;
+  background: #007aff;
   color: white;
 }
 
@@ -288,7 +291,7 @@
 
 /* myK9 Buttons */
 .myk9-button-primary {
-  background: #007AFF;
+  background: #007aff;
   color: white;
   border: none;
   border-radius: 8px;
@@ -303,7 +306,7 @@
 }
 
 .myk9-button-primary:hover {
-  background: #0056CC;
+  background: #0056cc;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
@@ -364,7 +367,7 @@
   z-index: 50 !important;
 }
 
-.myk9-template-card [role="menu"] {
+.myk9-template-card [role='menu'] {
   z-index: 50 !important;
 }
 
@@ -386,7 +389,7 @@
 }
 
 .myk9-template-card-icon {
-  color: #007AFF;
+  color: #007aff;
   opacity: 0.8;
   display: flex;
   align-items: center;
@@ -449,7 +452,7 @@
 }
 
 .myk9-template-badge.active {
-  background: #34D399;
+  background: #34d399;
   color: white;
 }
 
@@ -459,12 +462,12 @@
 }
 
 .myk9-template-badge.official {
-  background: #007AFF;
+  background: #007aff;
   color: white;
 }
 
 .myk9-template-badge.custom {
-  background: #F59E0B;
+  background: #f59e0b;
   color: white;
 }
 
@@ -551,19 +554,19 @@
   .myk9-template-container {
     @apply px-4 py-6;
   }
-  
+
   .myk9-template-title {
     font-size: 28px;
   }
-  
+
   .myk9-template-subtitle {
     font-size: 17px;
   }
-  
+
   .myk9-templates-grid {
     @apply grid-cols-1 gap-4;
   }
-  
+
   .myk9-template-card:hover {
     transform: none;
   }
@@ -578,6 +581,6 @@
 .myk9-button-primary:focus,
 .myk9-button-secondary:focus,
 .myk9-filter-input:focus {
-  outline: 2px solid #007AFF;
+  outline: 2px solid #007aff;
   outline-offset: 2px;
 }

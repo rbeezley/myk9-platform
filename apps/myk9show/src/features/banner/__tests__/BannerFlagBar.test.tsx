@@ -24,12 +24,7 @@ describe('BannerFlagBar', () => {
 
   it('uses the deeper sibling on the final variant when provided', () => {
     const { container } = render(
-      <BannerFlagBar
-        variant="final"
-        color="#1a4d80"
-        colorDeep="#0d2540"
-        textColor="#ffffff"
-      >
+      <BannerFlagBar variant="final" color="#1a4d80" colorDeep="#0d2540" textColor="#ffffff">
         final
       </BannerFlagBar>
     );

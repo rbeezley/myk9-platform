@@ -26,9 +26,6 @@ describe('VolunteersCard', () => {
     render(<VolunteersCard showId="show with space" />);
 
     const link = screen.getByRole('link', { name: /open volunteer scheduling/i });
-    expect(link).toHaveAttribute(
-      'href',
-      '/secretary/volunteers?showId=show%20with%20space'
-    );
+    expect(link).toHaveAttribute('href', '/secretary/volunteers?showId=show%20with%20space');
   });
 });

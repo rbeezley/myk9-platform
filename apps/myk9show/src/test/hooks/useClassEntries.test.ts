@@ -143,7 +143,7 @@ describe('useClassEntries', () => {
     ];
     const { result } = renderHook(() => useClassEntries('class-1'), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    const userEntry = result.current.pending.find((e) => e.isCurrentUser);
+    const userEntry = result.current.pending.find(e => e.isCurrentUser);
     expect(userEntry?.dogsAhead).toBe(2); // Ziggy (in ring) + Pepper ahead
   });
 });

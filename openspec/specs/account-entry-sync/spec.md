@@ -1,11 +1,13 @@
 # account-entry-sync Specification
 
 ## Purpose
+
 Account-level exhibitor entry reads must stay local-first for show-day
 reliability while avoiding false-empty states when a cold or stale local replica
 has not yet hydrated entries that the authenticated user owns online.
 
 ## Requirements
+
 ### Requirement: Account-level entry reads reconcile empty local replicas
 
 The system SHALL verify the authenticated online entry-results view when an account-level exhibitor entry read finds no matching rows in the local entries replica.

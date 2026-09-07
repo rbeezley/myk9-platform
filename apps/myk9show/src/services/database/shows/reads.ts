@@ -134,13 +134,7 @@ export const getAllShows = async () => {
           loadClassesByTrialMap(),
           loadJudgeAssignmentsByShowMap(),
         ]);
-        const data = mapShowsWithJoins(
-          shows,
-          clubsMap,
-          trialsMap,
-          classesMap,
-          judgeAssignmentsMap
-        );
+        const data = mapShowsWithJoins(shows, clubsMap, trialsMap, classesMap, judgeAssignmentsMap);
         return { data, error: null };
       },
       postgrestGetAllShows,

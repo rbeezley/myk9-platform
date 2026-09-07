@@ -6,31 +6,31 @@ import { LoggingService, LogLevel } from '@/services/LoggingService';
 const mockLocalStorage = {
   getItem: vi.fn(),
   setItem: vi.fn(),
-  removeItem: vi.fn()
+  removeItem: vi.fn(),
 };
 
 Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage
+  value: mockLocalStorage,
 });
 
 // Mock document and window for event listeners
 const mockDocument = {
   addEventListener: vi.fn(),
-  hidden: false
+  hidden: false,
 };
 
 const mockWindow = {
-  addEventListener: vi.fn()
+  addEventListener: vi.fn(),
 };
 
 Object.defineProperty(global, 'document', {
   value: mockDocument,
-  configurable: true
+  configurable: true,
 });
 
 Object.defineProperty(global, 'window', {
   value: mockWindow,
-  configurable: true
+  configurable: true,
 });
 
 describe('UserBehaviorLearning', () => {
@@ -51,7 +51,7 @@ describe('UserBehaviorLearning', () => {
   describe('Action Tracking', () => {
     it('should track navigation actions', () => {
       behaviorLearning.trackNavigation('/shows', '/dogs', 3000);
-      
+
       const analytics = behaviorLearning.getAnalytics();
       expect(analytics.totalActions).toBe(1);
       expect(mockLocalStorage.setItem).toHaveBeenCalled();
@@ -59,14 +59,14 @@ describe('UserBehaviorLearning', () => {
 
     it('should track entity access actions', () => {
       behaviorLearning.trackEntityAccess('person', 'person-123', '/people', 2000);
-      
+
       const analytics = behaviorLearning.getAnalytics();
       expect(analytics.totalActions).toBe(1);
     });
 
     it('should track search actions', () => {
       behaviorLearning.trackSearch('golden retriever', '/dogs', 5);
-      
+
       const analytics = behaviorLearning.getAnalytics();
       expect(analytics.totalActions).toBe(1);
     });
@@ -76,7 +76,7 @@ describe('UserBehaviorLearning', () => {
         type: 'create',
         entityType: 'dog',
         entityId: 'dog-123',
-        route: '/dogs'
+        route: '/dogs',
       });
 
       const analytics = behaviorLearning.getAnalytics();
@@ -88,7 +88,7 @@ describe('UserBehaviorLearning', () => {
       for (let i = 0; i < 1005; i++) {
         behaviorLearning.trackAction({
           type: 'navigation',
-          route: `/route-${i}`
+          route: `/route-${i}`,
         });
       }
 
@@ -102,7 +102,7 @@ describe('UserBehaviorLearning', () => {
       // A session should be created on instantiation
       behaviorLearning.trackAction({
         type: 'navigation',
-        route: '/test'
+        route: '/test',
       });
 
       const analytics = behaviorLearning.getAnalytics();
@@ -112,9 +112,9 @@ describe('UserBehaviorLearning', () => {
     it('should end session and update user profile', () => {
       behaviorLearning.trackNavigation('/shows', '/dogs', 2000);
       behaviorLearning.trackEntityAccess('dog', 'dog-123', '/dogs');
-      
+
       behaviorLearning.endSession();
-      
+
       const analytics = behaviorLearning.getAnalytics();
       expect(analytics.totalSessions).toBe(1);
     });
@@ -122,7 +122,7 @@ describe('UserBehaviorLearning', () => {
     it('should track routes visited in session', () => {
       behaviorLearning.trackNavigation('/shows', '/dogs', 1000);
       behaviorLearning.trackNavigation('/dogs', '/people', 1500);
-      
+
       // Routes should be tracked internally (tested through behavior)
       const analytics = behaviorLearning.getAnalytics();
       expect(analytics.totalActions).toBe(2);
@@ -147,7 +147,7 @@ describe('UserBehaviorLearning', () => {
 
       const insights = behaviorLearning.analyzePatterns();
       expect(Array.isArray(insights)).toBe(true);
-      
+
       const navigationInsights = insights.filter(i => i.type === 'next_route');
       expect(navigationInsights.length).toBeGreaterThanOrEqual(0);
     });
@@ -171,7 +171,7 @@ describe('UserBehaviorLearning', () => {
         vi.setSystemTime(new Date(now.getTime() + i * 60 * 60 * 1000)); // Hour intervals
         behaviorLearning.trackAction({
           type: 'navigation',
-          route: '/test'
+          route: '/test',
         });
       }
 
@@ -229,7 +229,7 @@ describe('UserBehaviorLearning', () => {
       for (let i = 0; i < 10; i++) {
         behaviorLearning.trackAction({
           type: 'navigation',
-          route: '/test'
+          route: '/test',
         });
       }
 
@@ -311,7 +311,7 @@ describe('UserBehaviorLearning', () => {
     it('should save data to localStorage', () => {
       behaviorLearning.trackAction({
         type: 'navigation',
-        route: '/test'
+        route: '/test',
       });
 
       expect(mockLocalStorage.setItem).toHaveBeenCalled();
@@ -324,11 +324,11 @@ describe('UserBehaviorLearning', () => {
           type: 'navigation',
           route: '/test',
           timestamp: new Date().toISOString(),
-          sessionId: 'session-1'
-        }
+          sessionId: 'session-1',
+        },
       ]);
 
-      mockLocalStorage.getItem.mockImplementation((key) => {
+      mockLocalStorage.getItem.mockImplementation(key => {
         if (key === 'myk9show-behavior-history') return mockHistory;
         return null;
       });
@@ -348,17 +348,17 @@ describe('UserBehaviorLearning', () => {
 
     it('should save periodically', () => {
       vi.useFakeTimers();
-      
+
       behaviorLearning.trackAction({
         type: 'navigation',
-        route: '/test'
+        route: '/test',
       });
 
       // Advance time to trigger periodic save
       vi.advanceTimersByTime(5 * 60 * 1000 + 100); // 5 minutes + buffer
 
       expect(mockLocalStorage.setItem).toHaveBeenCalled();
-      
+
       vi.useRealTimers();
     });
   });
@@ -371,7 +371,7 @@ describe('UserBehaviorLearning', () => {
       behaviorLearning.endSession();
 
       const analytics = behaviorLearning.getAnalytics();
-      
+
       expect(analytics).toHaveProperty('totalActions');
       expect(analytics).toHaveProperty('totalSessions');
       expect(analytics).toHaveProperty('uniqueUsers');
@@ -379,7 +379,7 @@ describe('UserBehaviorLearning', () => {
       expect(analytics).toHaveProperty('averageSessionDuration');
       expect(analytics).toHaveProperty('topRoutes');
       expect(analytics).toHaveProperty('topEntityTypes');
-      
+
       expect(analytics.totalActions).toBe(3);
       expect(analytics.totalSessions).toBe(1);
       expect(analytics.uniqueUsers).toBe(1);
@@ -418,7 +418,7 @@ describe('UserBehaviorLearning', () => {
     it('should reset all behavior data', () => {
       behaviorLearning.trackNavigation('/shows', '/dogs', 2000);
       behaviorLearning.trackEntityAccess('dog', 'dog-1', '/dogs');
-      
+
       let analytics = behaviorLearning.getAnalytics();
       expect(analytics.totalActions).toBeGreaterThan(0);
 
@@ -441,7 +441,7 @@ describe('UserBehaviorLearning', () => {
       behaviorLearning.resetBehaviorData();
       behaviorLearning.trackAction({
         type: 'navigation',
-        route: '/test'
+        route: '/test',
       });
 
       const analytics = behaviorLearning.getAnalytics();

@@ -78,7 +78,13 @@ const StubClassStatusDialog: EntryListDialogSlots['ClassStatusDialog'] = ({
   isOpen,
   classData,
   onStatusChange,
-}) => (isOpen ? <div data-testid="status-stub">{classData.class_name}<button onClick={() => onStatusChange('in_progress', '10:30')}>go</button></div> : null);
+}) =>
+  isOpen ? (
+    <div data-testid="status-stub">
+      {classData.class_name}
+      <button onClick={() => onStatusChange('in_progress', '10:30')}>go</button>
+    </div>
+  ) : null;
 
 const StubClassRequirementsDialog: EntryListDialogSlots['ClassRequirementsDialog'] = ({
   isOpen,
@@ -198,7 +204,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
         onClose={() => undefined}
         onStatusChange={onStatusChange}
         dogInfo={{ armband: 42, callName: 'Rex', handler: 'Alice' }}
-      />,
+      />
     );
     // `getByText` throws if the element is missing — that's the assertion.
     // Avoiding `.toBeInTheDocument()` because @testing-library/jest-dom isn't
@@ -212,9 +218,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
 
   it('renders ClassOptionsDialog with nullable classData and tolerates `null`', () => {
     const { ClassOptionsDialog } = slots;
-    render(
-      <ClassOptionsDialog isOpen onClose={() => undefined} classData={null} />,
-    );
+    render(<ClassOptionsDialog isOpen onClose={() => undefined} classData={null} />);
     screen.getByText('(no class)');
   });
 
@@ -227,7 +231,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
         onClose={() => undefined}
         classData={{ id: '1', element: 'Container', level: 'Novice', class_name: 'NA' }}
         onStatistics={onStatistics}
-      />,
+      />
     );
     fireEvent.click(screen.getByText('stats'));
     // Returning false is part of the contract — typecheck enforces; runtime
@@ -237,11 +241,21 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
 
   it('RunOrderDialog accepts an entries array and async onApplyOrder', async () => {
     const onApplyOrder = vi.fn<[RunOrderPreset, RunOrderScope?, RenumberMode?], Promise<void>>(
-      async () => undefined,
+      async () => undefined
     );
     const { RunOrderDialog } = slots;
     const entries: Entry[] = [
-      { id: '1', armband: 1, callName: '', breed: '', handler: '', isScored: false, status: 'no-status', classId: '1', className: '' },
+      {
+        id: '1',
+        armband: 1,
+        callName: '',
+        breed: '',
+        handler: '',
+        isScored: false,
+        status: 'no-status',
+        classId: '1',
+        className: '',
+      },
     ];
     render(
       <RunOrderDialog
@@ -250,7 +264,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
         entries={entries}
         onApplyOrder={onApplyOrder}
         onOpenDragMode={() => undefined}
-      />,
+      />
     );
     screen.getByText('1');
     fireEvent.click(screen.getByText('apply'));
@@ -271,7 +285,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
           primary: { label: 'Placement', sortOrder: 'placement' },
           secondary: { label: 'Armband', sortOrder: 'armband' },
         }}
-      />,
+      />
     );
     fireEvent.click(screen.getByText('print'));
     expect(onPrint).toHaveBeenCalledWith('placement');
@@ -292,7 +306,7 @@ describe('EntryListDialogSlots — required-slot rendering', () => {
           time_limit_seconds: 180,
         }}
         onTimeUpdate={onTimeUpdate}
-      />,
+      />
     );
     screen.getByText('180');
     fireEvent.click(screen.getByText('save'));
@@ -319,7 +333,7 @@ describe('EntryListDialogSlots — optional AreaCountSelectionDialog slot', () =
         classData={{ id: '1', element: 'Interior', level: 'Adv', class_name: 'AI' }}
         areaCountRequirements={{ min: 1, max: 3, maxTotalSeconds: 600 }}
         onSave={() => undefined}
-      />,
+      />
     );
     screen.getByText('3');
   });

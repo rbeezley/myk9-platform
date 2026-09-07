@@ -1,8 +1,11 @@
 # g9-rehearsal-safety Specification
 
 ## Purpose
+
 TBD - created by archiving change separate-g9-generator-saturation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Cleanup proves scoring work is drained before reseed
 
 The manual cleanup job SHALL request cancellation only for active
@@ -202,4 +205,3 @@ deduplicate pending work and leave healthy subscriptions untouched, without poll
 
 - **WHEN** a thread/message read fails and connectivity or replicated/auth data later refreshes
 - **THEN** one retry hydrates the current store scope, repeated events do not overlap it, and later healthy refreshes cause no additional fetches
-

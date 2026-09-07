@@ -9,7 +9,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { monitoring } from '../services/MonitoringService';
 import { logger } from '@/services/LoggingService';
-import type { PerformanceConfig, VirtualizedResult, LayoutShift } from './performance-optimization-types';
+import type {
+  PerformanceConfig,
+  VirtualizedResult,
+  LayoutShift,
+} from './performance-optimization-types';
 import { calculateVirtualizedItems, defaultConfig } from './performance-optimization-utils';
 
 /**
@@ -68,14 +72,17 @@ export const useThrottle = <T extends (...args: unknown[]) => unknown>(
 ): T => {
   const lastRun = useRef<number>(0);
 
-  return useCallback((...args: Parameters<T>) => {
-    const now = Date.now();
-    if (now - lastRun.current >= delay) {
-      lastRun.current = now;
-      return callback(...args);
-    }
-    return undefined;
-  }, [callback, delay]) as T;
+  return useCallback(
+    (...args: Parameters<T>) => {
+      const now = Date.now();
+      if (now - lastRun.current >= delay) {
+        lastRun.current = now;
+        return callback(...args);
+      }
+      return undefined;
+    },
+    [callback, delay]
+  ) as T;
 };
 
 /**
@@ -137,30 +144,36 @@ export const useLazyLoading = (shouldLoad: boolean = true) => {
 /**
  * Image optimization hook
  */
-export const useImageOptimization = (src: string, options: {
-  quality?: number;
-  format?: 'webp' | 'avif' | 'auto';
-  sizes?: string[];
-  lazy?: boolean;
-} = {}) => {
+export const useImageOptimization = (
+  src: string,
+  options: {
+    quality?: number;
+    format?: 'webp' | 'avif' | 'auto';
+    sizes?: string[];
+    lazy?: boolean;
+  } = {}
+) => {
   const { quality = 85, format = 'auto', sizes = [], lazy = true } = options;
   const [optimizedSrc, setOptimizedSrc] = useState<string>('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateOptimizedUrl = useCallback((originalSrc: string) => {
-    // If using a CDN service like Cloudinary or ImageKit
-    if (import.meta.env.VITE_CDN_BASE_URL) {
-      const params = new URLSearchParams();
-      params.set('q', quality.toString());
-      if (format !== 'auto') params.set('f', format);
-      if (sizes.length > 0) params.set('w', sizes[0]);
+  const generateOptimizedUrl = useCallback(
+    (originalSrc: string) => {
+      // If using a CDN service like Cloudinary or ImageKit
+      if (import.meta.env.VITE_CDN_BASE_URL) {
+        const params = new URLSearchParams();
+        params.set('q', quality.toString());
+        if (format !== 'auto') params.set('f', format);
+        if (sizes.length > 0) params.set('w', sizes[0]);
 
-      return `${import.meta.env.VITE_CDN_BASE_URL}/${originalSrc}?${params.toString()}`;
-    }
+        return `${import.meta.env.VITE_CDN_BASE_URL}/${originalSrc}?${params.toString()}`;
+      }
 
-    return originalSrc;
-  }, [quality, format, sizes]);
+      return originalSrc;
+    },
+    [quality, format, sizes]
+  );
 
   useEffect(() => {
     if (!src) return;
@@ -242,15 +255,17 @@ export const useVirtualScrolling = <T>(
 /**
  * Resource preloading hook
  */
-export const useResourcePreloading = (resources: Array<{
-  href: string;
-  as: 'script' | 'style' | 'image' | 'font' | 'document';
-  crossorigin?: 'anonymous' | 'use-credentials';
-}>) => {
+export const useResourcePreloading = (
+  resources: Array<{
+    href: string;
+    as: 'script' | 'style' | 'image' | 'font' | 'document';
+    crossorigin?: 'anonymous' | 'use-credentials';
+  }>
+) => {
   const [preloadedResources, setPreloadedResources] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const preloadResource = (resource: typeof resources[0]) => {
+    const preloadResource = (resource: (typeof resources)[0]) => {
       if (preloadedResources.has(resource.href)) return;
 
       const link = document.createElement('link');
@@ -314,12 +329,17 @@ export const useBundleOptimization = () => {
       monitoring.recordPerformanceMetric('bundle.total_size', totalSize, 'bytes');
 
       // Warn about large bundles
-      if (totalSize > 1024 * 1024) { // 1MB
-        logger.warn(`Large bundle size detected: ${(totalSize / 1024 / 1024).toFixed(2)}MB`, 'performance', {
-          jsSize,
-          cssSize,
-          totalSize,
-        });
+      if (totalSize > 1024 * 1024) {
+        // 1MB
+        logger.warn(
+          `Large bundle size detected: ${(totalSize / 1024 / 1024).toFixed(2)}MB`,
+          'performance',
+          {
+            jsSize,
+            cssSize,
+            totalSize,
+          }
+        );
       }
     };
 
@@ -354,11 +374,15 @@ export const usePerformanceBudget = (budgets: {
 
       // Check Web Vitals budgets
       if ('PerformanceObserver' in window) {
-        const checkMetric = (entryType: string, budgetKey: keyof typeof budgets, getValue: (entry: PerformanceEntry) => number) => {
+        const checkMetric = (
+          entryType: string,
+          budgetKey: keyof typeof budgets,
+          getValue: (entry: PerformanceEntry) => number
+        ) => {
           if (!budgets[budgetKey]) return;
 
           try {
-            const observer = new PerformanceObserver((list) => {
+            const observer = new PerformanceObserver(list => {
               const entries = list.getEntries();
               if (entries.length > 0) {
                 const value = getValue(entries[entries.length - 1]);
@@ -379,20 +403,30 @@ export const usePerformanceBudget = (budgets: {
 
             observer.observe({ entryTypes: [entryType] });
           } catch (error) {
-            logger.warn(`Failed to observe ${entryType}`, 'performance', { error: error?.toString() });
+            logger.warn(`Failed to observe ${entryType}`, 'performance', {
+              error: error?.toString(),
+            });
           }
         };
 
         if (budgets.firstContentfulPaint) {
-          checkMetric('paint', 'firstContentfulPaint', (entry) => entry.startTime);
+          checkMetric('paint', 'firstContentfulPaint', entry => entry.startTime);
         }
 
         if (budgets.largestContentfulPaint) {
-          checkMetric('largest-contentful-paint', 'largestContentfulPaint', (entry) => entry.startTime);
+          checkMetric(
+            'largest-contentful-paint',
+            'largestContentfulPaint',
+            entry => entry.startTime
+          );
         }
 
         if (budgets.cumulativeLayoutShift) {
-          checkMetric('layout-shift', 'cumulativeLayoutShift', (entry) => (entry as LayoutShift).value);
+          checkMetric(
+            'layout-shift',
+            'cumulativeLayoutShift',
+            entry => (entry as LayoutShift).value
+          );
         }
       }
     };
@@ -413,13 +447,7 @@ export function useAdvancedVirtualization<T>(options: {
   overscan?: number;
   onScroll?: (scrollTop: number) => void;
 }) {
-  const {
-    data,
-    itemHeight,
-    containerHeight,
-    overscan = 5,
-    onScroll
-  } = options;
+  const { data, itemHeight, containerHeight, overscan = 5, onScroll } = options;
 
   const [scrollTop, setScrollTop] = useState(0);
   const [result, setResult] = useState<VirtualizedResult<T> | null>(null);
@@ -434,11 +462,11 @@ export function useAdvancedVirtualization<T>(options: {
       return;
     }
 
-    const virtualizedResult = calculateVirtualizedItems(
-      data,
-      scrollTop,
-      { itemHeight, containerHeight, overscan }
-    );
+    const virtualizedResult = calculateVirtualizedItems(data, scrollTop, {
+      itemHeight,
+      containerHeight,
+      overscan,
+    });
 
     queueMicrotask(() => {
       setResult(virtualizedResult);
@@ -447,30 +475,36 @@ export function useAdvancedVirtualization<T>(options: {
 
   // Handle scroll events with throttling
   const handleScroll = useThrottle(
-    useCallback((event: React.UIEvent<HTMLDivElement>) => {
-      const newScrollTop = event.currentTarget.scrollTop;
-      setScrollTop(newScrollTop);
-      onScroll?.(newScrollTop);
-    }, [onScroll]) as (...args: unknown[]) => unknown,
+    useCallback(
+      (event: React.UIEvent<HTMLDivElement>) => {
+        const newScrollTop = event.currentTarget.scrollTop;
+        setScrollTop(newScrollTop);
+        onScroll?.(newScrollTop);
+      },
+      [onScroll]
+    ) as (...args: unknown[]) => unknown,
     16 // 60fps
   );
 
   // Scroll to specific index
-  const scrollToIndex = useCallback((index: number) => {
-    const newScrollTop = index * itemHeight;
-    setScrollTop(newScrollTop);
+  const scrollToIndex = useCallback(
+    (index: number) => {
+      const newScrollTop = index * itemHeight;
+      setScrollTop(newScrollTop);
 
-    if (containerRef.current) {
-      containerRef.current.scrollTop = newScrollTop;
-    }
-  }, [itemHeight]);
+      if (containerRef.current) {
+        containerRef.current.scrollTop = newScrollTop;
+      }
+    },
+    [itemHeight]
+  );
 
   return {
     result,
     containerRef,
     handleScroll,
     scrollToIndex,
-    scrollTop
+    scrollTop,
   };
 }
 
@@ -482,42 +516,41 @@ export function useChunkedProcessing<T, R>() {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<R[]>([]);
 
-  const processInChunks = useCallback(async (
-    data: T[],
-    processor: (chunk: T[]) => Promise<R[]>,
-    chunkSize: number = 100
-  ) => {
-    setProcessing(true);
-    setProgress(0);
-    setResults([]);
+  const processInChunks = useCallback(
+    async (data: T[], processor: (chunk: T[]) => Promise<R[]>, chunkSize: number = 100) => {
+      setProcessing(true);
+      setProgress(0);
+      setResults([]);
 
-    try {
-      const allResults: R[] = [];
-      const totalChunks = Math.ceil(data.length / chunkSize);
+      try {
+        const allResults: R[] = [];
+        const totalChunks = Math.ceil(data.length / chunkSize);
 
-      for (let i = 0; i < data.length; i += chunkSize) {
-        const chunk = data.slice(i, i + chunkSize);
-        const chunkResults = await processor(chunk);
-        allResults.push(...chunkResults);
+        for (let i = 0; i < data.length; i += chunkSize) {
+          const chunk = data.slice(i, i + chunkSize);
+          const chunkResults = await processor(chunk);
+          allResults.push(...chunkResults);
 
-        const currentChunk = Math.floor(i / chunkSize) + 1;
-        setProgress((currentChunk / totalChunks) * 100);
+          const currentChunk = Math.floor(i / chunkSize) + 1;
+          setProgress((currentChunk / totalChunks) * 100);
 
-        // Allow other operations to run
-        await new Promise(resolve => setTimeout(resolve, 0));
+          // Allow other operations to run
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
+        setResults(allResults);
+        return allResults;
+      } finally {
+        setProcessing(false);
       }
-
-      setResults(allResults);
-      return allResults;
-    } finally {
-      setProcessing(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   return {
     processing,
     progress,
     results,
-    processInChunks
+    processInChunks,
   };
 }

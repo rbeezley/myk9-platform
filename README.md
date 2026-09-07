@@ -40,14 +40,14 @@ Show (competition event, e.g., "Bluegrass Classic 2026")
 
 ## User Personas
 
-| Role            | Primary Surface          | What They Do                                       |
-| --------------- | ------------------------ | -------------------------------------------------- |
-| Exhibitor       | myK9Show                 | Register dogs, enter shows, view results           |
-| Judge           | myK9Show `/at-show`      | Score entries, manage timers, record faults        |
-| Steward         | myK9Show `/at-show`      | Manage ring flow, call entries, assist judge       |
-| Trial Secretary | myK9Show                 | Process entries, assign armbands, handle waitlists |
-| Club Admin      | myK9Show                 | Create shows, assign judges, configure fees        |
-| Platform Admin  | myK9Show                 | System-wide analytics, club payouts                |
+| Role            | Primary Surface     | What They Do                                       |
+| --------------- | ------------------- | -------------------------------------------------- |
+| Exhibitor       | myK9Show            | Register dogs, enter shows, view results           |
+| Judge           | myK9Show `/at-show` | Score entries, manage timers, record faults        |
+| Steward         | myK9Show `/at-show` | Manage ring flow, call entries, assist judge       |
+| Trial Secretary | myK9Show            | Process entries, assign armbands, handle waitlists |
+| Club Admin      | myK9Show            | Create shows, assign judges, configure fees        |
+| Platform Admin  | myK9Show            | System-wide analytics, club payouts                |
 
 ## Quick Start
 

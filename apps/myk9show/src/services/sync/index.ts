@@ -35,7 +35,7 @@ export type {
   ConflictRecord,
   SyncSessionRecord,
   SyncService,
-  SyncableEntityType
+  SyncableEntityType,
 } from './types';
 
 export { SYNCABLE_ENTITIES, DEFAULT_SYNC_PRIORITIES, SyncEvents } from './types';

@@ -27,8 +27,7 @@ export interface PromoCodeFormData {
 
 /** Scope target for creating a promo code — exactly one of showId or trialId */
 export type PromoCodeTarget =
-  | { showId: string; trialId?: never }
-  | { showId?: never; trialId: string };
+  { showId: string; trialId?: never } | { showId?: never; trialId: string };
 
 /**
  * Minimal promo-code shape returned by validation. Exhibitor validation goes

@@ -43,10 +43,10 @@ Use the seeded staging exhibitor: `e2e-exhibitor@test.myk9.com`.
 
 The account currently holds an **active complimentary Premium grant (2026-07-25 → 2026-10-23)**, issued during task 7.6. This decides what the participant can see, so choose deliberately:
 
-| State | How | What it tests |
-| --- | --- | --- |
-| **Premium (current)** | leave as-is | The five Premium capabilities, unlocked. Recommended for a first session. |
-| Free / expired | revoke via the admin grant control | Whether the upgrade prompts explain themselves. Note this makes tasks 4–5 below untestable. |
+| State                 | How                                | What it tests                                                                               |
+| --------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Premium (current)** | leave as-is                        | The five Premium capabilities, unlocked. Recommended for a first session.                   |
+| Free / expired        | revoke via the admin grant control | Whether the upgrade prompts explain themselves. Note this makes tasks 4–5 below untestable. |
 
 If you revoke it, the task 7.6 Playwright suite will start failing at its trigger assertion — by design, not by accident. Re-grant before running that suite.
 
@@ -87,15 +87,15 @@ Seven tasks, each aimed at something this change claims to have fixed. Run in or
 
 Give the participant the goal, then stop talking.
 
-| # | Say this | Silently checking | Claim under test |
-| --- | --- | --- | --- |
-| 1 | "You've entered some shows. Find out which ones, and when the next one is." | Do they find My Shows? Do the counts read as dogs, entries, or orders? | Counts declare their unit and scope |
-| 2 | "Find out whether you owe any money, and how much." | My Shows vs My Payments — do they agree? Is the "paid at checkout" order understood as settled? | Both surfaces agree on amount due |
-| 3 | "One of your dogs is Willow. Find out what she's earned." | Can they reach Career? Does the pip row mean anything to them? | Overview / Career / Records consolidation |
-| 4 | "Add a record of Willow's rabies shot from last month." | Do they find Records → Health? Does the date land on the day they chose? | Record integrity; date-only handling |
-| 5 | "Now add a vaccination but leave the name blank, and try to save it." | Does the form explain the problem and keep their typing? | Invalid input never persists |
-| 6 | "Find out what kind of account you have, and what it costs you." | Does "Complimentary Premium" read as free-to-them? Any contradiction with Pricing? | Entitlement source is explained truthfully |
-| 7 | "There's something in your shopping cart. Find out what, and get rid of it." | Is the stale cart discoverable and clearable? | Stale-cart recovery |
+| #   | Say this                                                                     | Silently checking                                                                               | Claim under test                           |
+| --- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| 1   | "You've entered some shows. Find out which ones, and when the next one is."  | Do they find My Shows? Do the counts read as dogs, entries, or orders?                          | Counts declare their unit and scope        |
+| 2   | "Find out whether you owe any money, and how much."                          | My Shows vs My Payments — do they agree? Is the "paid at checkout" order understood as settled? | Both surfaces agree on amount due          |
+| 3   | "One of your dogs is Willow. Find out what she's earned."                    | Can they reach Career? Does the pip row mean anything to them?                                  | Overview / Career / Records consolidation  |
+| 4   | "Add a record of Willow's rabies shot from last month."                      | Do they find Records → Health? Does the date land on the day they chose?                        | Record integrity; date-only handling       |
+| 5   | "Now add a vaccination but leave the name blank, and try to save it."        | Does the form explain the problem and keep their typing?                                        | Invalid input never persists               |
+| 6   | "Find out what kind of account you have, and what it costs you."             | Does "Complimentary Premium" read as free-to-them? Any contradiction with Pricing?              | Entitlement source is explained truthfully |
+| 7   | "There's something in your shopping cart. Find out what, and get rid of it." | Is the stale cart discoverable and clearable?                                                   | Stale-cart recovery                        |
 
 **On task 5,** they may be reluctant to do something they think is wrong. Reassure: "I want to see what the software does when someone makes a mistake."
 
@@ -116,11 +116,11 @@ Capture screenshots of any screen that caused a pause — not just failures.
 
 **Triage each finding into exactly one bucket. This is where 7.7's real instruction bites: _"open follow-up issues for non-blocking findings rather than silently expanding this change."_**
 
-| Bucket | Meaning | Action |
-| --- | --- | --- |
-| **Blocking** | Participant could not complete a task the change claims to have fixed | Fix under MYK9-71 before archiving |
-| **Non-blocking** | Real friction, but the task completed, or it is outside this change's scope | **New Linear issue.** Do not expand MYK9-71. |
-| **Not a finding** | Domain unfamiliarity, or a one-off slip they self-corrected | Note it, no action |
+| Bucket            | Meaning                                                                     | Action                                       |
+| ----------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
+| **Blocking**      | Participant could not complete a task the change claims to have fixed       | Fix under MYK9-71 before archiving           |
+| **Non-blocking**  | Real friction, but the task completed, or it is outside this change's scope | **New Linear issue.** Do not expand MYK9-71. |
+| **Not a finding** | Domain unfamiliarity, or a one-off slip they self-corrected                 | Note it, no action                           |
 
 The middle row is the one that gets violated under time pressure. A walkthrough always surfaces more than the change owns, and folding "one more small fix" into MYK9-71 is how a scoped change turns into an unreviewable one. Precedent from this same change: [MYK9-92](https://linear.app/myk9-platform/issue/MYK9-92/fix-seriouscritical-a11y-violations-in-usereditpanel-admin-user-edit) and [MYK9-95](https://linear.app/myk9-platform/issue/MYK9-95/prove-focus-indicators-appear-because-of-focus-not-merely-that-they) were both split out rather than absorbed.
 
@@ -136,45 +136,53 @@ Copy into `docs/ux-audits/exhibitor-lowtech-walkthrough-<YYYY-MM-DD>.md` and fil
 MYK9-71 task 7.7. Facilitator: <name>. Duration: <n> min.
 
 ## Participant
+
 Device: <desktop / tablet / phone> · Browser: <->
 Tech comfort: <one or two sentences, no identifying detail>
 Dog-show experience: <->
 Prior myK9Show exposure: none
 
 ## Environment
+
 Account: e2e-exhibitor@test.myk9.com · Entitlement: <complimentary / free>
 Signed in by facilitator before start: <yes/no>
 
 ## Results
 
-| # | Task | Outcome | Time | First move | Notes |
-| - | ---- | ------- | ---- | ---------- | ----- |
-| 1 | Find shows entered |  |  |  |  |
-| 2 | Find amount owed |  |  |  |  |
-| 3 | Find Willow's titles |  |  |  |  |
-| 4 | Add vaccination |  |  |  |  |
-| 5 | Save invalid record |  |  |  |  |
-| 6 | Identify account type |  |  |  |  |
-| 7 | Clear the cart |  |  |  |  |
+| #   | Task                  | Outcome | Time | First move | Notes |
+| --- | --------------------- | ------- | ---- | ---------- | ----- |
+| 1   | Find shows entered    |         |      |            |       |
+| 2   | Find amount owed      |         |      |            |       |
+| 3   | Find Willow's titles  |         |      |            |       |
+| 4   | Add vaccination       |         |      |            |       |
+| 5   | Save invalid record   |         |      |            |       |
+| 6   | Identify account type |         |      |            |       |
+| 7   | Clear the cart        |         |      |            |       |
 
 ## Quotes
+
 > <verbatim>
 
 ## Findings
 
 ### Blocking
+
 <!-- Fix under MYK9-71 before archiving. "None" is a valid and good answer. -->
 
 ### Non-blocking → follow-up issues
+
 <!-- One Linear issue each. Record the issue key here once filed. -->
 
 ### Not findings
+
 <!-- Domain unfamiliarity, self-corrected slips. -->
 
 ## Facilitator rescues
+
 <!-- Each one, with exact wording used. "None" is the goal. -->
 
 ## Protocol deviations
+
 <!-- Anything that compromises the result. Honesty here protects the next reader. -->
 ```
 

@@ -33,22 +33,16 @@ export const RunOrderDialog: React.FC<RunOrderDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Run Order</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            onClick={() => void onApplyOrder('armband-asc')}
-          >
+          <Button variant="outline" onClick={() => void onApplyOrder('armband-asc')}>
             Armband Ascending
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => void onApplyOrder('random-all')}
-          >
+          <Button variant="outline" onClick={() => void onApplyOrder('random-all')}>
             Randomize All
           </Button>
           <Button variant="outline" onClick={onOpenDragMode}>
@@ -88,22 +82,16 @@ export const ScoresheetPrintDialog: React.FC<ScoresheetPrintDialogProps> = ({
   };
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title ?? 'Print'}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onPrint(primary.sortOrder)}
-          >
+          <Button variant="outline" onClick={() => onPrint(primary.sortOrder)}>
             {primary.label}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => onPrint(secondary.sortOrder)}
-          >
+          <Button variant="outline" onClick={() => onPrint(secondary.sortOrder)}>
             {secondary.label}
           </Button>
         </div>
@@ -121,23 +109,16 @@ export const ScoresheetPrintDialog: React.FC<ScoresheetPrintDialogProps> = ({
 // NoStatsDialog — info dialog when a class has no scored entries.
 // ---------------------------------------------------------------------------
 
-export const NoStatsDialog: React.FC<NoStatsDialogProps> = ({
-  isOpen,
-  onClose,
-  className,
-}) => {
+export const NoStatsDialog: React.FC<NoStatsDialogProps> = ({ isOpen, onClose, className }) => {
   if (!isOpen) return null;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>No Statistics Available</DialogTitle>
         </DialogHeader>
-        <p>
-          {className ? `${className} has` : 'This class has'} no scored
-          entries yet.
-        </p>
+        <p>{className ? `${className} has` : 'This class has'} no scored entries yet.</p>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
             Close

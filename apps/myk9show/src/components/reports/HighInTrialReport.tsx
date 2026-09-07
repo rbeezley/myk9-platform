@@ -57,8 +57,8 @@ const ExclusionNote: React.FC<{ exclusions: HighInTrialExclusion[] }> = ({ exclu
       )}
       {cancelled.length > 0 && (
         <p className="catalog-empty">
-          Cancelled, so not an available class under Chapter 6 §10 and not required for
-          eligibility: {cancelled.map(e => `${e.element} ${e.level}`).join(', ')}.
+          Cancelled, so not an available class under Chapter 6 §10 and not required for eligibility:{' '}
+          {cancelled.map(e => `${e.element} ${e.level}`).join(', ')}.
         </p>
       )}
     </div>
@@ -82,9 +82,8 @@ const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
 
       {level.pendingCount > 0 && (
         <p className="catalog-empty">
-          {level.pendingCount} {level.pendingCount === 1 ? 'entry has' : 'entries have'} no
-          result yet. This standing can still change — do not award until the level is
-          fully scored.
+          {level.pendingCount} {level.pendingCount === 1 ? 'entry has' : 'entries have'} no result
+          yet. This standing can still change — do not award until the level is fully scored.
         </p>
       )}
 
@@ -92,23 +91,22 @@ const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
         <p className="catalog-empty">
           {level.incompleteScoreCount}{' '}
           {level.incompleteScoreCount === 1 ? 'team qualified but is' : 'teams qualified but are'}{' '}
-          missing a fault count or a time (shown as —). §8 ranks on exactly those two
-          numbers, so record them before awarding; until then these teams rank below every
-          team whose scores are complete.
+          missing a fault count or a time (shown as —). §8 ranks on exactly those two numbers, so
+          record them before awarding; until then these teams rank below every team whose scores are
+          complete.
         </p>
       )}
 
       {level.teams.length === 0 ? (
         <p className="catalog-empty">
-          No team qualified in every element offered at this level, so no High in Trial is
-          awarded.
+          No team qualified in every element offered at this level, so no High in Trial is awarded.
         </p>
       ) : (
         <>
           {level.needsCoinFlip && (
             <p className="nq-text">
-              TIE — {winners.length} teams are tied on both faults and time. Chapter 6 §8
-              requires a coin flip to decide the winner. Record the outcome by hand.
+              TIE — {winners.length} teams are tied on both faults and time. Chapter 6 §8 requires a
+              coin flip to decide the winner. Record the outcome by hand.
             </p>
           )}
 
@@ -151,8 +149,8 @@ const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
           </table>
 
           <p className="qualified-count">
-            Per-element cells show faults / time. Ranked by fewest total faults, then
-            fastest total time (Chapter 6 §8).
+            Per-element cells show faults / time. Ranked by fewest total faults, then fastest total
+            time (Chapter 6 §8).
           </p>
         </>
       )}
@@ -197,9 +195,9 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
 
       {model.levels.length === 0 ? (
         <p className="catalog-empty">
-          No High in Trial award applies to this trial. Chapter 6 §8 offers High in Trial
-          only where a club runs more than one element (Container, Interior, Exterior,
-          Buried) at the same difficulty level.
+          No High in Trial award applies to this trial. Chapter 6 §8 offers High in Trial only where
+          a club runs more than one element (Container, Interior, Exterior, Buried) at the same
+          difficulty level.
         </p>
       ) : (
         model.levels.map(level => <LevelSection key={level.level} level={level} />)
@@ -216,15 +214,13 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
       <div className="report-footer">
         <div className="footer-left">
           <p>
-            Eligible teams entered every element offered at their difficulty level and
-            qualified in each. Handler Discrimination is excluded from High in Trial even
-            when offered (Chapter 6 §8). The High in Trial award is not recorded by the
-            AKC.
+            Eligible teams entered every element offered at their difficulty level and qualified in
+            each. Handler Discrimination is excluded from High in Trial even when offered (Chapter 6
+            §8). The High in Trial award is not recorded by the AKC.
           </p>
           <p>
-            High Combined Division (§9) is not calculated by this report and must be
-            worked out by hand where a club offers Handler Discrimination alongside High
-            in Trial.
+            High Combined Division (§9) is not calculated by this report and must be worked out by
+            hand where a club offers Handler Discrimination alongside High in Trial.
           </p>
         </div>
       </div>

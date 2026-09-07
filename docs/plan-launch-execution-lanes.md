@@ -7,9 +7,10 @@
 session from re-deriving context another already established.
 
 Pre-launch, no real users yet. Direction: consolidate into a smooth role workflow; close the
-launch gate with *evidence* before more speculative UI lands.
+launch gate with _evidence_ before more speculative UI lands.
 
 ## Current state (so fresh sessions don't redo)
+
 - **Exhibitor golden path:** steps 1–8 re-walked; coherent. Findings A (My Entries placement)
   **merged** ([#775](https://github.com/rbeezley/myk9-platform/pull/775) + [#776](https://github.com/rbeezley/myk9-platform/pull/776)); P1-01/P1-02/P1-03 cleared. Scorecard row → **Yellow**.
 - **Finding B (public results) — DONE:** [#779](https://github.com/rbeezley/myk9-platform/pull/779) merged + mig `20260616120000` applied (2026-06-16). Server-side per-field visibility-cascade gate + direct `publicReads.ts` path; resolves the stale class-results read **and** closes a pre-existing anon over-broad `entries` SELECT (withheld scored columns + payment/PII on public detail routes).
@@ -35,7 +36,7 @@ launch gate with *evidence* before more speculative UI lands.
   **unverified, not passing**. Three blockers:
   - **S1 (HIGH, app bug):** public `/results` deep link dead-ends for a true guest ("No Classes
     Available"). `ClassDetailsPage` reads the class via the **replication layer only**; the released
-    results *view* returns 200 but the page bails at `index.tsx:273` (`!currentClass`).
+    results _view_ returns 200 but the page bails at `index.tsx:273` (`!currentClass`).
     `getPublicClassById` doesn't exist — add it (mirror `getPublicShows`) + cold fallback. Twin leak
     to check: `/trials/:trialId`.
   - **S2 (HIGH, fixture):** no `judge_assignments` seeded → judge dashboard has no route to a ring,
@@ -49,16 +50,17 @@ launch gate with *evidence* before more speculative UI lands.
 
 ---
 
-## Lane 1 — Evidence + Launch Gate  *(do first; this is ONE arc, not 8 todos)*
+## Lane 1 — Evidence + Launch Gate _(do first; this is ONE arc, not 8 todos)_
+
 Goal: flip the scorecard Secretary + Exhibitor golden-path rows to Green with linked evidence.
 Establishes what's actually broken before more UI changes land.
 
-1. **Establish the canonical seed fixture set** *(prerequisite — unblocks steps 2–4 + P1-04)*.
-   Not just "clean clutter": seed the *gaps* too — one accepting show **with classes**, one class
+1. **Establish the canonical seed fixture set** _(prerequisite — unblocks steps 2–4 + P1-04)_.
+   Not just "clean clutter": seed the _gaps_ too — one accepting show **with classes**, one class
    with **released results**, a **pending move-up** request, and a **refunded/withdrawn entry**
    (for the P1-04 seam). One fixture investment replaces several separate seed todos.
 2. **Secretary golden-path re-walk** (11 steps) — explicit launch-gate row. Folds in: announcement
-   time-to-task baseline from the Message Center, and the move-up *decision* walk (not just the
+   time-to-task baseline from the Message Center, and the move-up _decision_ walk (not just the
    empty state).
 3. **Exhibitor remaining → just P1-04** (finding B resolved by #779). Walk **P1-04**
    (refund/withdrawn state agreement across exhibitor ↔ secretary) using the seeded refunded entry;
@@ -80,7 +82,7 @@ Establishes what's actually broken before more UI changes land.
    walkthrough; the biggest single gate is **real-user testing (step 7)**, which also supplies the
    missing UX-clarity evidence.
 7. **Phase 3 — real-user testing** — **DEFERRED to the final pre-launch gate (decision 2026-06-18).**
-   Moved out of the Lane 1 arc to run *after* Lanes 2–4 (and the launch-affecting parts of Lane 5) so
+   Moved out of the Lane 1 arc to run _after_ Lanes 2–4 (and the launch-affecting parts of Lane 5) so
    real users test a near-final product, not a surface about to change under them. Lanes 1.1–1.6
    already supply the internal evidence that de-risks getting there; this is the last gate before
    launch. See **"Final pre-launch gate"** below. (It remains the sole closer for the overall launch
@@ -90,7 +92,8 @@ Establishes what's actually broken before more UI changes land.
    Lane 2 onward; the only remaining non-real-user Lane 1 thread is the **Admin functional walkthrough**
    (scorecard "Admin minimum" Unknown), which can run any time and is not gated on Lanes 2–5.
 
-## Lane 2 — Secretary Operational UX  *(after Lane 1 has evidence; may overlap)*
+## Lane 2 — Secretary Operational UX _(after Lane 1 has evidence; may overlap)_
+
 1. **Standardize the shared 3-dot row-action menu** (primitive first). — **DONE 2026-06-18**
    ([#825](https://github.com/rbeezley/myk9-platform/pull/825)). New canonical `RowActionMenu`
    primitive (`components/ui/RowActionMenu`); destructive items use the themed `text-destructive` /
@@ -99,15 +102,16 @@ Establishes what's actually broken before more UI changes land.
    RowActions migrated. **Follow-up DONE 2026-06-18:** `common/ThreeDotMenu` (12 consumers, the last
    parallel impl) folded onto `RowActionMenu` — there is now a single menu implementation behind two
    thin prop-preserving adapters.
-2. **Entry Management checkbox multi-select** for bulk editing — *after* #1, or the interaction
+2. **Entry Management checkbox multi-select** for bulk editing — _after_ #1, or the interaction
    pattern gets touched twice. — **DONE 2026-06-18**
    ([#827](https://github.com/rbeezley/myk9-platform/pull/827)). Table-view checkbox multi-select +
    sticky bulk-action bar (Approve / Reject / Check-In) reusing existing bulk mutations; selection
    prunes on filter/tab change. Waitlist bulk action deferred (needs the real `waitlist_entries`
    workflow).
-3. **Print testing on venue hardware.** *(hardware task — not code)*
+3. **Print testing on venue hardware.** _(hardware task — not code)_
 
-## Lane 3 — Pre-Launch Hardening  *(safe to parallelize)*
+## Lane 3 — Pre-Launch Hardening _(safe to parallelize)_
+
 1. **Fix `--success` token** — fails WCAG AA as small text. — **DONE 2026-06-18**
    ([#832](https://github.com/rbeezley/myk9-platform/pull/832)). Bumped light-mode to green-800
    (`22 101 52`); dark-mode `--success-foreground` overridden to green-900 (`20 83 45`);
@@ -125,7 +129,7 @@ Establishes what's actually broken before more UI changes land.
    all credentials now env-var-only (tests self-skip when absent). Old auth accounts deleted after
    FK cleanup (`exhibitor_profiles` + `people.auth_user_id`). Credentials in `.env.local` and
    mirrored to GitHub Actions secrets.
-4. **Make E2E CI jobs blocking** — *only after #2 + #3* (blocking a flaky suite blocks every PR).
+4. **Make E2E CI jobs blocking** — _only after #2 + #3_ (blocking a flaky suite blocks every PR).
 5. **CI-gated Vercel deploys** — after #4.
 6. **Pre-load AKC & UKC Judge Directory.** — **Tooling DONE 2026-06-18**
    ([#833](https://github.com/rbeezley/myk9-platform/pull/833)). `supabase/seed-data/akc-ukc-judges.csv`
@@ -136,7 +140,8 @@ Establishes what's actually broken before more UI changes land.
    (trials/shows self-fall-through on cold guest store). `getPublicClassById` exists and is integrated.
    - Watch-item: ~30 wall-clock perf asserts — reactive only, do not chase proactively.
 
-## Lane 4 — Payments Go-Live  *(isolated; one owner; no casual parallel Stripe/live-mode writes)*
+## Lane 4 — Payments Go-Live _(isolated; one owner; no casual parallel Stripe/live-mode writes)_
+
 1. **Treasurer guide** — **DONE 2026-06-18.**
    [`docs/operations/stripe-treasurer-guide.md`](operations/stripe-treasurer-guide.md) — written for
    club treasurers (non-technical); covers Express onboarding, payout timing, FAQ.
@@ -151,19 +156,19 @@ Establishes what's actually broken before more UI changes land.
    is correctly blocked (`422 payout_already_sent`); after clearing the payout row the refund succeeds
    (Stripe `re_3Tmyb…`, $30) and stamps the entry `refunded`, and the payout math recomputes $90→$60
    (deduction confirmed). Whole sandbox loop proven end-to-end.
-4. **Go-live live-mode tasks** — *after #3 passes.* Dashboard toggle: live mode ON. Three things:
+4. **Go-live live-mode tasks** — _after #3 passes._ Dashboard toggle: live mode ON. Three things:
    (a) Enable Connect in live mode (may require a short Stripe review — plan a few days of buffer);
    (b) live webhook endpoint + `supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_<live>`;
    (c) `supabase secrets set STRIPE_SECRET_KEY=sk_live_...` + purge sandbox Stripe IDs from DB
    (`stripe_customers`, `exhibitor_profiles.stripe_customer_id`, `club_stripe_accounts`).
    Full click-by-click in [`docs/operations/stripe-platform-setup.md`](operations/stripe-platform-setup.md)
    under "Go-live — Task 6.3."
-5. **Verified manual payout run** — *live mode.* Real low-value entry payment + refund + confirm
+5. **Verified manual payout run** — _live mode._ Real low-value entry payment + refund + confirm
    payout transfer lands in the connected club's bank. **Sandbox equivalent fully proven 2026-06-27
    (see #3)** — `show_payouts` `completed` + real transfer; this is the same loop in LIVE mode, the
    last proof before the cron takes over.
 6. **`cron.schedule` migration for payouts** — **DONE + VERIFIED 2026-06-27.** The placeholder
-   migration `20260618130000` was *superseded* by the Vault-backed `20260619130000_payout_cron_vault_secret`
+   migration `20260618130000` was _superseded_ by the Vault-backed `20260619130000_payout_cron_vault_secret`
    (both applied). The real bug was not the migration but 2 missing Vault secrets (`service_role_key`,
    `payout_cron_secret`) — `nightly-show-payouts` had failed every night since ≥Jun 23. Fixed (rotated
    the edge-fn `PAYOUT_CRON_SECRET` + set the two Vault secrets) and verified end-to-end (cron's
@@ -172,32 +177,37 @@ Establishes what's actually broken before more UI changes land.
    "fill the placeholder and push" instruction is obsolete. (Live mode still needs the same Vault
    secrets set in the live project before #5.)
 
-## Lane 5 — Architecture / Data Model  *(parallel, below show-day launch work)*
+## Lane 5 — Architecture / Data Model _(parallel, below show-day launch work)_
+
 1. **Architecture Phase 6** (flatten `judges/reads.ts` per ADR-008).
 2. **Non-atomic dog creation + child registration** → RPC.
 3. **Split Pull Management** local pull state from refund/accounting metadata.
-4. **Remove completed kill-switch flags** — *only after the first live shows*.
+4. **Remove completed kill-switch flags** — _only after the first live shows_.
 
 ---
 
-## Final pre-launch gate  *(runs last — after Lanes 2–4 + launch-affecting Lane 5)*
+## Final pre-launch gate _(runs last — after Lanes 2–4 + launch-affecting Lane 5)_
+
 **Real-user testing (was Lane 1.7 / North Star Phase 3).** Deferred here 2026-06-18 so 2–3
 non-technical users (one secretary, one or two exhibitors) test a **near-final** product. Watch
 silently, log every hesitation, fix each one. This is the sole closer for two launch criteria:
-- the overall gate "real-user testing completed with no confusion-level findings outstanding", and
-- the scorecard **UX clarity** dimension (currently Yellow — its primary missing evidence *is* this).
 
-**Entry condition:** Lanes 2–4 done and the launch-affecting parts of Lane 5 settled. *Not* gated on
+- the overall gate "real-user testing completed with no confusion-level findings outstanding", and
+- the scorecard **UX clarity** dimension (currently Yellow — its primary missing evidence _is_ this).
+
+**Entry condition:** Lanes 2–4 done and the launch-affecting parts of Lane 5 settled. _Not_ gated on
 Lane 5 #4 (kill-switch removal — itself post-first-live-shows). The two golden-path rows stay
 **Green-gated-on-real-user-test** until this passes. Plan: `docs/plans/strategy/2026-04-11-north-star-fall-2026.md`.
 
 ## Defer for now
+
 - **Result Reveal + Share Card**, **AI natural-language access / MCP / BYOK** (planning underway in
   a parallel session; defer the build), **Multi-registry config layer**.
 - **User documentation & support library** — outline/structure may start now; final screenshots and
   step instructions wait until UX remediation (Lanes 1–2) settles.
 
 ## Post-Fall parked
+
 Prevent duplicate rows in core tables · configurable exhibitor convenience fee · role-mode icon
 switcher for sidebar nav · queue-based offline dog create · review `awesome-design-md` · research
 Claude Code managed agents for AskQ · unify "Add Entries" with whose-dog branching · scope the entry
@@ -205,7 +215,7 @@ wizard dog picker by audience.
 
 ---
 
-*Reconciliation notes vs. the prior flat list: the eight UX-audit-cluster items collapsed into
+_Reconciliation notes vs. the prior flat list: the eight UX-audit-cluster items collapsed into
 Lane 1 (they were sub-steps, not peers); "clean test-data" reframed as "build the canonical seed";
 the replication-leak sweep added (Lane 3.7); Lane 3 re-ordered so E2E-blocking follows stability,
-not just account rotation; the Secretary re-walk made explicit (Lane 1.2).*
+not just account rotation; the Secretary re-walk made explicit (Lane 1.2)._

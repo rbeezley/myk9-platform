@@ -37,7 +37,9 @@ function truncate(text: string, maxLength: number): string {
   return text.slice(0, maxLength - 1) + '…';
 }
 
-handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ body: payload, supabase }) => {
+handle<WebhookPayload>(
+  { auth: 'none', beforeBody: requirePushWebhookSecret },
+  async ({ body: payload, supabase }) => {
     const announcement = payload.record;
 
     if (
@@ -208,4 +210,5 @@ handle<WebhookPayload>({ auth: 'none', beforeBody: requirePushWebhookSecret }, a
       total_subscriptions: allSubscriptions.length,
       expired: expiredEndpoints.length,
     };
-});
+  }
+);

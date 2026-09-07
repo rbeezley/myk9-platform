@@ -23,7 +23,6 @@ import {
 } from './withdrawalPolicy';
 import { getTrialTimezone } from '@/features/registries';
 
-
 export interface WithdrawalRefundSuggestion {
   /** A policy was captured at payment → show the disclosure + drive the pre-fill. */
   hasPolicy: boolean;

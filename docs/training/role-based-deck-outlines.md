@@ -19,30 +19,30 @@ No PowerPoint, PDF, or video assets are created here yet. These outlines are the
 
 ### Slides
 
-| # | Title | Key message | Screenshot | Source |
-|---|---|---|---|---|
-| 1 | Running your show on myK9Show | Opening frame — what this session covers | None | Unique |
-| 2 | What this replaces | Spreadsheets → wizard; email entry forms → online entry; manual AKC report → XML download | None | Unique |
-| 3 | Create a show in four steps | One wizard covers show details, trials, classes, and judges | S-02, S-04 | **Reuse:** Overview slide 6 |
-| 4 | Entry Management | Approve, reject, waitlist, add mail-in entries | S-07, S-09 | **Reuse:** Overview slide 7 |
-| 5 | The Show Desk | Everything on show day in one place | S-15, S-19 | **Reuse:** Overview slide 8 |
-| 6 | Show Map — check-in, scratch, move-up | Row-level actions on every entry in the Show Map; no separate page to navigate | S-15, S-16, S-17 | Unique (extends slide 5) |
-| 7 | Communications | Announce to all; message one exhibitor from entry card | S-11 (if captured) | Unique |
-| 8 | Results + AKC submission | Verify → release → download XML → email to AKC | S-20, S-22 | **Reuse:** Overview slide 9 |
-| 9 | When something goes wrong | Support path: docs site, show-day triage runbook, escalation | None | Unique |
-| 10 | Leave-behind links | Bookmark list | None | Unique |
+| #   | Title                                 | Key message                                                                               | Screenshot         | Source                      |
+| --- | ------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------ | --------------------------- |
+| 1   | Running your show on myK9Show         | Opening frame — what this session covers                                                  | None               | Unique                      |
+| 2   | What this replaces                    | Spreadsheets → wizard; email entry forms → online entry; manual AKC report → XML download | None               | Unique                      |
+| 3   | Create a show in four steps           | One wizard covers show details, trials, classes, and judges                               | S-02, S-04         | **Reuse:** Overview slide 6 |
+| 4   | Entry Management                      | Approve, reject, waitlist, add mail-in entries                                            | S-07, S-09         | **Reuse:** Overview slide 7 |
+| 5   | The Show Desk                         | Everything on show day in one place                                                       | S-15, S-19         | **Reuse:** Overview slide 8 |
+| 6   | Show Map — check-in, scratch, move-up | Row-level actions on every entry in the Show Map; no separate page to navigate            | S-15, S-16, S-17   | Unique (extends slide 5)    |
+| 7   | Communications                        | Announce to all; message one exhibitor from entry card                                    | S-11 (if captured) | Unique                      |
+| 8   | Results + AKC submission              | Verify → release → download XML → email to AKC                                            | S-20, S-22         | **Reuse:** Overview slide 9 |
+| 9   | When something goes wrong             | Support path: docs site, show-day triage runbook, escalation                              | None               | Unique                      |
+| 10  | Leave-behind links                    | Bookmark list                                                                             | None               | Unique                      |
 
 ### Leave-Behind Links
 
-| Resource | Link |
-|---|---|
-| Secretary Guide | `docs/user-guides/secretary-guide.md` |
-| KB: create-a-show | (target article) |
-| KB: approve-entries | (target article) |
-| KB: handle-a-scratch | (target article) |
-| KB: handle-move-up | (target article) |
+| Resource                | Link                                      |
+| ----------------------- | ----------------------------------------- |
+| Secretary Guide         | `docs/user-guides/secretary-guide.md`     |
+| KB: create-a-show       | (target article)                          |
+| KB: approve-entries     | (target article)                          |
+| KB: handle-a-scratch    | (target article)                          |
+| KB: handle-move-up      | (target article)                          |
 | Show-day triage runbook | `docs/support/show-day-triage-outline.md` |
-| Support contact | [placeholder] |
+| Support contact         | [placeholder]                             |
 
 ### Slides shared with Overview Deck
 
@@ -59,28 +59,28 @@ Slides 3, 4, 5, 8 are direct reuses of Overview slides 6, 7, 8, 9. Keep in sync 
 
 ### Slides
 
-| # | Title | Key message | Screenshot | Source |
-|---|---|---|---|---|
-| 1 | Entering a show online | Opening frame | None | Unique |
-| 2 | What you need to start | Two things: an account + a dog profile | E-04, E-05 | Unique |
-| 3 | Find a show → enter online | Browse shows (no account needed) → wizard → pay by card | E-01, E-06, E-08 | **Reuse:** Overview slide 10 |
-| 4 | Your entry status | Pending → Accepted → Waitlisted — what each means and when it changes | E-09, E-10 | Unique |
-| 5 | Getting ready for show day | Run order in Classes tab; Show Today banner; check-in | E-12, E-14 | **Reuse:** Overview slide 11 |
-| 6 | Your results | Q/NQ badge and placement appear after the secretary releases results | E-16 | Unique |
-| 7 | Getting help | What to do if your entry isn't showing, payment issue, or need to withdraw | None | Unique |
-| 8 | Leave-behind links | Bookmark list | None | Unique |
+| #   | Title                      | Key message                                                                | Screenshot       | Source                       |
+| --- | -------------------------- | -------------------------------------------------------------------------- | ---------------- | ---------------------------- |
+| 1   | Entering a show online     | Opening frame                                                              | None             | Unique                       |
+| 2   | What you need to start     | Two things: an account + a dog profile                                     | E-04, E-05       | Unique                       |
+| 3   | Find a show → enter online | Browse shows (no account needed) → wizard → pay by card                    | E-01, E-06, E-08 | **Reuse:** Overview slide 10 |
+| 4   | Your entry status          | Pending → Accepted → Waitlisted — what each means and when it changes      | E-09, E-10       | Unique                       |
+| 5   | Getting ready for show day | Run order in Classes tab; Show Today banner; check-in                      | E-12, E-14       | **Reuse:** Overview slide 11 |
+| 6   | Your results               | Q/NQ badge and placement appear after the secretary releases results       | E-16             | Unique                       |
+| 7   | Getting help               | What to do if your entry isn't showing, payment issue, or need to withdraw | None             | Unique                       |
+| 8   | Leave-behind links         | Bookmark list                                                              | None             | Unique                       |
 
 ### Leave-Behind Links
 
-| Resource | Link |
-|---|---|
-| Exhibitor Guide | `docs/user-guides/exhibitor-guide.md` |
-| KB: enter-a-show | (target article) |
-| KB: entry-status | (target article) |
-| KB: find-run-order | (target article) |
-| KB: check-in | (target article) |
-| KB: view-results | (target article) |
-| Support contact | [placeholder] |
+| Resource           | Link                                  |
+| ------------------ | ------------------------------------- |
+| Exhibitor Guide    | `docs/user-guides/exhibitor-guide.md` |
+| KB: enter-a-show   | (target article)                      |
+| KB: entry-status   | (target article)                      |
+| KB: find-run-order | (target article)                      |
+| KB: check-in       | (target article)                      |
+| KB: view-results   | (target article)                      |
+| Support contact    | [placeholder]                         |
 
 ### Slides shared with Overview Deck
 
@@ -99,39 +99,39 @@ Slides 3 and 5 are direct reuses of Overview slides 10 and 11.
 
 ### Slides
 
-| # | Title | Key message | Screenshot | Source |
-|---|---|---|---|---|
-| 1 | Getting your club paid | Opening frame | None | Unique |
-| 2 | What myK9Show does / what Stripe does | The boundary table — this is the most important slide | None (table slide) | Unique |
-| 3 | Setting up your payment account | Stripe Express onboarding from the Club Admin Payments page | C-04 (blocked) | Unique |
-| 4 | Why Stripe contacts you directly | Legal identity verification — not a myK9Show request | None | Unique |
-| 5 | When you get paid | Payout timing: 2–7 business days after show window closes | C-05 (blocked) | **Overlaps** Overview slides 14–15 (different frame) |
-| 6 | How to read your payout history | Per-show gross, platform fee, net payout, transfer status | C-05 (blocked) | Unique |
-| 7 | Common treasurer questions | SSN, bank account change, under review, refund impact on payout | None | Unique |
-| 8 | Leave-behind links | Bookmark list | None | Unique |
+| #   | Title                                 | Key message                                                     | Screenshot         | Source                                               |
+| --- | ------------------------------------- | --------------------------------------------------------------- | ------------------ | ---------------------------------------------------- |
+| 1   | Getting your club paid                | Opening frame                                                   | None               | Unique                                               |
+| 2   | What myK9Show does / what Stripe does | The boundary table — this is the most important slide           | None (table slide) | Unique                                               |
+| 3   | Setting up your payment account       | Stripe Express onboarding from the Club Admin Payments page     | C-04 (blocked)     | Unique                                               |
+| 4   | Why Stripe contacts you directly      | Legal identity verification — not a myK9Show request            | None               | Unique                                               |
+| 5   | When you get paid                     | Payout timing: 2–7 business days after show window closes       | C-05 (blocked)     | **Overlaps** Overview slides 14–15 (different frame) |
+| 6   | How to read your payout history       | Per-show gross, platform fee, net payout, transfer status       | C-05 (blocked)     | Unique                                               |
+| 7   | Common treasurer questions            | SSN, bank account change, under review, refund impact on payout | None               | Unique                                               |
+| 8   | Leave-behind links                    | Bookmark list                                                   | None               | Unique                                               |
 
 ### What myK9Show Does / What Stripe Does (Slide 2)
 
 This slide is unique to the Club deck. It answers the #1 club question: "Why is Stripe contacting us?" Use a two-column table:
 
-| myK9Show does | Stripe does |
-|---|---|
-| Hosts the show | Processes the card payment |
-| Shows the fee | Holds the money |
-| Calculates the payout | Deposits to the club's bank |
-| Shows payout history | Sends identity verification emails |
+| myK9Show does         | Stripe does                        |
+| --------------------- | ---------------------------------- |
+| Hosts the show        | Processes the card payment         |
+| Shows the fee         | Holds the money                    |
+| Calculates the payout | Deposits to the club's bank        |
+| Shows payout history  | Sends identity verification emails |
 
 ### Leave-Behind Links
 
-| Resource | Link |
-|---|---|
-| Club Admin & Treasurer Guide | `docs/user-guides/club-admin-guide.md` |
+| Resource                            | Link                                        |
+| ----------------------------------- | ------------------------------------------- |
+| Club Admin & Treasurer Guide        | `docs/user-guides/club-admin-guide.md`      |
 | Stripe Treasurer Guide (full steps) | `docs/operations/stripe-treasurer-guide.md` |
-| KB: stripe-onboarding | (target article) |
-| KB: payout-timing | (target article) |
-| KB: stripe-under-review | (target article) |
-| KB: platform-fee | (target article) |
-| Support contact | [placeholder] |
+| KB: stripe-onboarding               | (target article)                            |
+| KB: payout-timing                   | (target article)                            |
+| KB: stripe-under-review             | (target article)                            |
+| KB: platform-fee                    | (target article)                            |
+| Support contact                     | [placeholder]                               |
 
 ### Slides shared with Overview Deck
 
@@ -150,25 +150,25 @@ Slides 5–6 content overlaps with Overview slides 14–15 but frames the inform
 
 ### Slides
 
-| # | Title | Key message | Screenshot | Source |
-|---|---|---|---|---|
-| 1 | At the ring — Judge & Steward | Opening frame | None | Unique |
-| 2 | Two ways in | Staff account or passcode — passcode needs no account | J-01 (blocked) | **Reuse:** Overview slide 12 content |
-| 3 | How to get the passcode | Secretary generates from Show Desk → Tools → Show Access Codes → share QR or text | J-01 (blocked) | Unique |
-| 4 | Your class list | All trials and classes for today's show | J-02 (blocked) | Unique |
-| 5 | The entry list | Run order: dog name, armband, handler | J-03 (blocked) | Unique |
-| 6 | Scoring a dog | Timer → Q or NQ → Save (five taps) | J-04, J-05 (blocked) | Unique |
-| 7 | When you lose signal | "Offline ready" = expected; scores save locally and sync on reconnect; don't refresh | None | **Reuse:** Overview slide 13 content |
-| 8 | Leave-behind links | Bookmark list + the one-page quickstart | None | Unique |
+| #   | Title                         | Key message                                                                          | Screenshot           | Source                               |
+| --- | ----------------------------- | ------------------------------------------------------------------------------------ | -------------------- | ------------------------------------ |
+| 1   | At the ring — Judge & Steward | Opening frame                                                                        | None                 | Unique                               |
+| 2   | Two ways in                   | Staff account or passcode — passcode needs no account                                | J-01 (blocked)       | **Reuse:** Overview slide 12 content |
+| 3   | How to get the passcode       | Secretary generates from Show Desk → Tools → Show Access Codes → share QR or text    | J-01 (blocked)       | Unique                               |
+| 4   | Your class list               | All trials and classes for today's show                                              | J-02 (blocked)       | Unique                               |
+| 5   | The entry list                | Run order: dog name, armband, handler                                                | J-03 (blocked)       | Unique                               |
+| 6   | Scoring a dog                 | Timer → Q or NQ → Save (five taps)                                                   | J-04, J-05 (blocked) | Unique                               |
+| 7   | When you lose signal          | "Offline ready" = expected; scores save locally and sync on reconnect; don't refresh | None                 | **Reuse:** Overview slide 13 content |
+| 8   | Leave-behind links            | Bookmark list + the one-page quickstart                                              | None                 | Unique                               |
 
 ### Leave-Behind Links
 
-| Resource | Link |
-|---|---|
-| Ringside Quickstart (printable) | `docs/user-guides/judge-steward-quickstart.md` (planned) |
-| KB: (TBD — from quickstart outline friction findings) | |
-| Secretary: Share Show Access Codes | Show Desk → Tools panel → Show Access Codes |
-| Support contact | [placeholder] |
+| Resource                                              | Link                                                     |
+| ----------------------------------------------------- | -------------------------------------------------------- |
+| Ringside Quickstart (printable)                       | `docs/user-guides/judge-steward-quickstart.md` (planned) |
+| KB: (TBD — from quickstart outline friction findings) |                                                          |
+| Secretary: Share Show Access Codes                    | Show Desk → Tools panel → Show Access Codes              |
+| Support contact                                       | [placeholder]                                            |
 
 ### Slides shared with Overview Deck
 
@@ -182,15 +182,15 @@ No longer flag-blocked — the final Judge/Steward Deck can be produced once the
 
 ## Cross-Deck Shot Reuse Summary
 
-| Shot | Used in decks |
-|---|---|
-| S-02, S-04 | Overview, Secretary |
-| S-07, S-09 | Overview, Secretary |
-| S-15, S-16, S-17, S-19 | Overview, Secretary |
-| S-20, S-22 | Overview, Secretary |
-| S-11 | Secretary |
-| E-01, E-06, E-08 | Overview, Exhibitor |
-| E-04, E-05 | Exhibitor |
-| E-09, E-10, E-12, E-14, E-16 | Exhibitor |
-| C-04, C-05 | Club/Treasurer (blocked) |
-| J-01–J-06 | Overview, Judge/Steward (all blocked) |
+| Shot                         | Used in decks                         |
+| ---------------------------- | ------------------------------------- |
+| S-02, S-04                   | Overview, Secretary                   |
+| S-07, S-09                   | Overview, Secretary                   |
+| S-15, S-16, S-17, S-19       | Overview, Secretary                   |
+| S-20, S-22                   | Overview, Secretary                   |
+| S-11                         | Secretary                             |
+| E-01, E-06, E-08             | Overview, Exhibitor                   |
+| E-04, E-05                   | Exhibitor                             |
+| E-09, E-10, E-12, E-14, E-16 | Exhibitor                             |
+| C-04, C-05                   | Club/Treasurer (blocked)              |
+| J-01–J-06                    | Overview, Judge/Steward (all blocked) |

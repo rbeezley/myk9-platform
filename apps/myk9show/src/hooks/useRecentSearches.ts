@@ -102,7 +102,8 @@ function isValidRecentSearch(value: unknown, expectedContext: string): value is 
   const candidate = value as Partial<RecentSearch>;
   if (typeof candidate.id !== 'string' || !candidate.id) return false;
   if (typeof candidate.query !== 'string' || !candidate.query) return false;
-  if (typeof candidate.timestamp !== 'number' || !Number.isFinite(candidate.timestamp)) return false;
+  if (typeof candidate.timestamp !== 'number' || !Number.isFinite(candidate.timestamp))
+    return false;
   if (typeof candidate.context !== 'string' || candidate.context !== expectedContext) return false;
   if (candidate.metadata !== undefined) {
     if (typeof candidate.metadata !== 'object' || candidate.metadata === null) return false;
@@ -294,7 +295,9 @@ export function useRecentSearches(options: UseRecentSearchesOptions) {
       }
 
       const query = currentQuery.toLowerCase();
-      return recentSearches.filter(search => search.query.toLowerCase().includes(query)).slice(0, limit);
+      return recentSearches
+        .filter(search => search.query.toLowerCase().includes(query))
+        .slice(0, limit);
     },
     [recentSearches]
   );

@@ -39,11 +39,13 @@
 ## Task 1: Expose Pending Mutation Lookup
 
 **Files:**
+
 - Modify: `packages/replication/src/MutationManager.ts`
 - Modify: `packages/replication/src/core/ReplicatedTable.ts`
 - Test: `packages/replication/src/MutationManager.test.ts`
 
 **Interfaces:**
+
 - Produces: `MutationManager.getPendingMutationsForRow(tableName: string, rowId: string): Promise<PendingMutation[]>`
 - Produces: `ReplicatedTable.getPendingMutationIdsForRow(rowId: string): Promise<string[]>`
 
@@ -74,12 +76,14 @@ Expected: the new pending lookup test and existing MutationManager tests pass.
 ## Task 2: Add Show-Desk People Queue
 
 **Files:**
+
 - Create: `apps/myk9show/src/services/replication/ReplicatedShowDeskPeopleTable.ts`
 - Modify: `apps/myk9show/src/services/replication/index.ts`
 - Modify: `apps/myk9show/src/providers/ReplicationSyncProvider.tsx`
 - Test: `apps/myk9show/src/services/replication/__tests__/ReplicatedShowDeskPeopleTable.test.ts`
 
 **Interfaces:**
+
 - Produces: `replicatedShowDeskPeopleTable.createPerson(person: ShowDeskPersonInput): Promise<ReplicatedShowDeskPerson>`
 - Produces: `replicatedShowDeskPeopleTable.lastMutationId: string | null`
 
@@ -115,6 +119,7 @@ Expected: the new table tests pass.
 ## Task 3: Add Dependency-Aware Dog Create And Pending Registrations
 
 **Files:**
+
 - Modify: `apps/myk9show/src/services/replication/ReplicatedDogsTable.ts`
 - Create: `apps/myk9show/src/services/replication/PendingDogRegistrationIntents.ts`
 - Modify: `apps/myk9show/src/hooks/useDogStoreCompat.ts`
@@ -123,6 +128,7 @@ Expected: the new table tests pass.
 - Test: `apps/myk9show/src/hooks/__tests__/useDogStoreCompat.test.ts`
 
 **Interfaces:**
+
 - Produces: `ReplicatedDogsTable.createDogWithId(dog: ReplicatedDog, options?: { dependsOn?: string[] }): Promise<ReplicatedDog>`
 - Produces: `useDogStoreCompat().addDogOfflineFirst(dogData: DogInput, options?: { dependsOn?: string[] }): Promise<Dog>`
 - Produces: `savePendingDogRegistrationIntents(dogId: string, registrations: DogInput['registrations']): Promise<void>`
@@ -170,6 +176,7 @@ Expected: new and existing focused tests pass.
 ## Task 4: Make Quick Create Local-First In Secretary Late-Entry Mode
 
 **Files:**
+
 - Modify: `apps/myk9show/src/components/shows/RegistrationWorkflow/CreateExhibitorDialog.tsx`
 - Modify: `apps/myk9show/src/components/panels/edit/AddDogPanel/index.tsx`
 - Modify: `apps/myk9show/src/components/shows/RegistrationWorkflow/QuickCreateFlow.tsx`
@@ -180,6 +187,7 @@ Expected: new and existing focused tests pass.
 - Test: `apps/myk9show/src/components/shows/RegistrationWorkflow/__tests__/CreateExhibitorDialog.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `replicatedShowDeskPeopleTable.createPerson()`
 - Consumes: `addDogOfflineFirst()`
 - Produces: `offlineFirst?: boolean` prop through late-entry create dialogs
@@ -219,12 +227,14 @@ Expected: create dialogs pass in both offline-first and existing online modes.
 ## Task 5: Add Offline Late-Entry Submission
 
 **Files:**
+
 - Create: `apps/myk9show/src/features/registration/submitOfflineLateEntry.ts`
 - Modify: `apps/myk9show/src/pages/RegistrationWizardPage/submitPaymentStep.ts`
 - Test: `apps/myk9show/src/features/registration/submitOfflineLateEntry.test.ts`
 - Test: `apps/myk9show/src/pages/RegistrationWizardPage/submitPaymentStep.test.ts`
 
 **Interfaces:**
+
 - Produces: `submitOfflineLateEntry(params): Promise<{ armbandAssignments: ArmbandAssignment[]; entryIds: string[] }>`
 - Consumes: `replicatedEntriesTable.createEntry(entry, dependencyMutationId)`
 - Consumes: pending dog mutation lookup from Task 1
@@ -264,10 +274,12 @@ Expected: offline late-entry tests pass; existing close-date and card-guard test
 ## Task 6: Tracking, UX Copy, And Focused Regression
 
 **Files:**
+
 - Modify: `OPEN-TODOS.md`
 - Add or modify a focused wizard/service regression test under existing test folders.
 
 **Interfaces:**
+
 - Consumes: Tasks 1-5.
 - Produces: launch-priority tracking entry and final focused test evidence.
 

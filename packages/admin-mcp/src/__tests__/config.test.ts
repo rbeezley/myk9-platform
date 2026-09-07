@@ -31,50 +31,47 @@ describe('loadAdminMcpConfig', () => {
     'MYK9_MCP_SUPABASE_SERVICE_ROLE_KEY',
     'MYK9_MCP_APP_BASE_URL',
     'MYK9_MCP_ENV_LABEL',
-  ])('throws when %s is missing', (key) => {
+  ])('throws when %s is missing', key => {
     expect(() => loadAdminMcpConfig(withoutKey(key))).toThrow(AdminMcpConfigError);
   });
 
   it('rejects a Supabase URL that is not http(s)', () => {
     expect(() =>
-      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_SUPABASE_URL: 'example.supabase.co' }),
+      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_SUPABASE_URL: 'example.supabase.co' })
     ).toThrow(AdminMcpConfigError);
   });
 
-  it.each([
-    '/',
-    'app.myk9show.com',
-    'javascript:alert(1)',
-    'ftp://app.myk9show.com',
-    'not a url',
-  ])('rejects an app base URL that is not absolute http(s): %s', (value) => {
-    expect(() =>
-      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_APP_BASE_URL: value }),
-    ).toThrow(AdminMcpConfigError);
-  });
+  it.each(['/', 'app.myk9show.com', 'javascript:alert(1)', 'ftp://app.myk9show.com', 'not a url'])(
+    'rejects an app base URL that is not absolute http(s): %s',
+    value => {
+      expect(() => loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_APP_BASE_URL: value })).toThrow(
+        AdminMcpConfigError
+      );
+    }
+  );
 
   it('rejects an env label outside local, staging, and production', () => {
-    expect(() =>
-      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_ENV_LABEL: 'prod' }),
-    ).toThrow(/MYK9_MCP_ENV_LABEL/);
+    expect(() => loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_ENV_LABEL: 'prod' })).toThrow(
+      /MYK9_MCP_ENV_LABEL/
+    );
   });
 
   it('rejects a non-positive default limit', () => {
-    expect(() =>
-      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_DEFAULT_LIMIT: '0' }),
-    ).toThrow(AdminMcpConfigError);
+    expect(() => loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_DEFAULT_LIMIT: '0' })).toThrow(
+      AdminMcpConfigError
+    );
   });
 
   it('rejects a negative max limit', () => {
-    expect(() =>
-      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_MAX_LIMIT: '-5' }),
-    ).toThrow(AdminMcpConfigError);
+    expect(() => loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_MAX_LIMIT: '-5' })).toThrow(
+      AdminMcpConfigError
+    );
   });
 
   it('rejects a non-integer limit', () => {
-    expect(() =>
-      loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_MAX_LIMIT: '12.5' }),
-    ).toThrow(AdminMcpConfigError);
+    expect(() => loadAdminMcpConfig({ ...BASE_ENV, MYK9_MCP_MAX_LIMIT: '12.5' })).toThrow(
+      AdminMcpConfigError
+    );
   });
 
   it('caps the max limit at the hard ceiling of 100', () => {

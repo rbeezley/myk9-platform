@@ -37,7 +37,10 @@ test.describe('Show live-sync — live Realtime', () => {
 
   test('a real entry change fires the replication:sync-requested nudge', async ({ page }) => {
     test.skip(!RUN, 'Opt-in: VITE_SHOW_LIVE_SYNC=true + RUN_LIVE_SYNC_E2E=1.');
-    test.skip(!SUPABASE_URL || !SERVICE_KEY, 'Needs VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.');
+    test.skip(
+      !SUPABASE_URL || !SERVICE_KEY,
+      'Needs VITE_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.'
+    );
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
@@ -89,10 +92,10 @@ test.describe('Show live-sync — live Realtime', () => {
 
     // The hook debounces 400ms then dispatches. Allow generous Realtime latency.
     await expect
-      .poll(
-        () => page.evaluate(() => (window as unknown as { __lsNudges: number }).__lsNudges),
-        { timeout: 15000, message: 'live-sync nudge never fired after the entry change' }
-      )
+      .poll(() => page.evaluate(() => (window as unknown as { __lsNudges: number }).__lsNudges), {
+        timeout: 15000,
+        message: 'live-sync nudge never fired after the entry change',
+      })
       .toBeGreaterThan(0);
   });
 });

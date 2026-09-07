@@ -1,7 +1,8 @@
 /* myK9 Registration Dialog Styles */
 
 .myk9-registration-dialog {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
 
@@ -20,7 +21,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 50;
-  
+
   /* myK9 entrance animation */
   animation: appleDialogEnter 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
@@ -53,7 +54,7 @@
 }
 
 /* Dialog closing animation */
-.myk9-registration-dialog[data-state="closed"] {
+.myk9-registration-dialog[data-state='closed'] {
   animation: appleDialogExit 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
@@ -84,7 +85,7 @@
   }
 }
 
-.myk9-registration-backdrop[data-state="closed"] {
+.myk9-registration-backdrop[data-state='closed'] {
   animation: appleBackdropExit 0.2s ease-out forwards;
 }
 
@@ -129,7 +130,7 @@
 }
 
 .myk9-registration-required {
-  color: #FF3B30;
+  color: #ff3b30;
   margin-left: 4px;
 }
 
@@ -147,7 +148,7 @@
 }
 
 .myk9-registration-input:focus {
-  border-color: #007AFF;
+  border-color: #007aff;
   box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
   background: var(--card);
 }
@@ -180,7 +181,7 @@
 }
 
 .myk9-registration-select-trigger:focus {
-  border-color: #007AFF;
+  border-color: #007aff;
   box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
   background: var(--card);
 }
@@ -213,9 +214,9 @@
   background: var(--muted);
 }
 
-.myk9-registration-select-item[data-state="checked"] {
+.myk9-registration-select-item[data-state='checked'] {
   background: rgba(0, 122, 255, 0.1);
-  color: #007AFF;
+  color: #007aff;
   font-weight: 590;
 }
 
@@ -234,7 +235,7 @@
 }
 
 .myk9-registration-date-input:focus {
-  border-color: #007AFF;
+  border-color: #007aff;
   box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
   background: var(--card);
 }
@@ -264,7 +265,7 @@
 
 .myk9-registration-button-cancel {
   background: rgba(120, 119, 198, 0.1);
-  color: #7877C6;
+  color: #7877c6;
   border: 1.5px solid rgba(120, 119, 198, 0.2);
 }
 
@@ -276,7 +277,7 @@
 }
 
 .myk9-registration-button-save {
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
   color: white;
   border: none;
 }
@@ -295,19 +296,19 @@
 
 /* Error States */
 .myk9-registration-error {
-  color: #FF3B30;
+  color: #ff3b30;
   font-size: 14px;
   margin-top: 4px;
   font-weight: 500;
 }
 
 .myk9-registration-input.error {
-  border-color: #FF3B30;
+  border-color: #ff3b30;
   box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1);
 }
 
 .myk9-registration-select-trigger.error {
-  border-color: #FF3B30;
+  border-color: #ff3b30;
   box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1);
 }
 
@@ -331,15 +332,15 @@
     max-height: 90vh;
     overflow-y: auto;
   }
-  
+
   .myk9-registration-dialog-title {
     font-size: 20px;
   }
-  
+
   .myk9-registration-actions {
     flex-direction: column-reverse;
   }
-  
+
   .myk9-registration-button {
     width: 100%;
   }
@@ -349,6 +350,6 @@
 .myk9-registration-button:focus,
 .myk9-registration-input:focus,
 .myk9-registration-select-trigger:focus {
-  outline: 2px solid #007AFF;
+  outline: 2px solid #007aff;
   outline-offset: 2px;
 }

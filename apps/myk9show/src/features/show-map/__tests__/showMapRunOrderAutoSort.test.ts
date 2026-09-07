@@ -35,9 +35,9 @@ describe('isPinnedRunOrderEntry', () => {
   });
 
   it('pins entries with a ring_entry_time even when status is unset', () => {
-    expect(
-      isPinnedRunOrderEntry(entry({ id: 'a', ring_entry_time: '2026-05-22T10:00:00Z' }))
-    ).toBe(true);
+    expect(isPinnedRunOrderEntry(entry({ id: 'a', ring_entry_time: '2026-05-22T10:00:00Z' }))).toBe(
+      true
+    );
   });
 
   it('pins entries with completed check-in status', () => {
@@ -159,10 +159,7 @@ describe('computeShowMapAutoSortAssignments', () => {
 
 describe('snapshotPriorRunOrders', () => {
   it('captures id + runOrder for every entry, null when missing', () => {
-    const entries = [
-      entry({ id: 'a', runOrder: 5 }),
-      entry({ id: 'b', runOrder: undefined }),
-    ];
+    const entries = [entry({ id: 'a', runOrder: 5 }), entry({ id: 'b', runOrder: undefined })];
     expect(snapshotPriorRunOrders(entries)).toEqual([
       { id: 'a', runOrder: 5 },
       { id: 'b', runOrder: null },

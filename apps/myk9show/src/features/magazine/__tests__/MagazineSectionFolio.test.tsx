@@ -14,9 +14,7 @@ describe('MagazineSectionFolio', () => {
   });
 
   it('passes through a custom className', () => {
-    const { container } = render(
-      <MagazineSectionFolio label="On the day" className="mb-6" />
-    );
+    const { container } = render(<MagazineSectionFolio label="On the day" className="mb-6" />);
     expect(container.firstChild).toHaveClass('mz-section-folio', 'mb-6');
   });
 

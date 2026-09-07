@@ -1,9 +1,7 @@
 import { FieldGuideChip } from '../../components/FieldGuideChip';
 import { FieldGuideDataGrid } from '../../components/FieldGuideDataGrid';
 import { FieldGuideHeading } from '../../components/FieldGuideHeading';
-import {
-  FIELD_GUIDE_BODY_FAMILY,
-} from '../../fonts';
+import { FIELD_GUIDE_BODY_FAMILY } from '../../fonts';
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
 import type { FieldGuideQuickRefCell } from '../types';
 
@@ -58,7 +56,11 @@ export function DataGridHero({
         </div>
       )}
 
-      <FieldGuideHeading level="h1" subtitle={showSubtitle} style={{ marginBottom: 16, maxWidth: '22ch' }}>
+      <FieldGuideHeading
+        level="h1"
+        subtitle={showSubtitle}
+        style={{ marginBottom: 16, maxWidth: '22ch' }}
+      >
         {showName || 'Untitled Trial'}
       </FieldGuideHeading>
 

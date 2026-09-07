@@ -30,10 +30,7 @@ export interface ClubPermissions {
  * ids are literals like 'club-admin-user' and never a real `people.id`, so it
  * returned false for every real account (MYK9-359).
  */
-export function hasClubAdminScope(
-  scopes: RoleScope[] | undefined,
-  clubId: string
-): boolean {
+export function hasClubAdminScope(scopes: RoleScope[] | undefined, clubId: string): boolean {
   return (scopes ?? []).some(
     scope =>
       scope.scopeType === ScopeType.CLUB &&

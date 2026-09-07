@@ -18,12 +18,9 @@ import type {
   PerformanceBenchmark,
   StorageMetrics,
   SyncQueueMetrics,
-  HealthCheckResult
+  HealthCheckResult,
 } from '../../types/analytics-types';
-import {
-  conflictManager,
-  type ConflictEvent
-} from '@myk9/replication';
+import { conflictManager, type ConflictEvent } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import {
   calculateHealthScore,
@@ -63,7 +60,7 @@ export class SyncAnalyticsService {
     syncTimeThreshold: 10, // 10 seconds
     targetSyncTime: 3, // 3 seconds
     targetSuccessRate: 95, // 95%
-    targetConflictRate: 2 // 2%
+    targetConflictRate: 2, // 2%
   };
 
   private constructor() {
@@ -111,7 +108,7 @@ export class SyncAnalyticsService {
         type: 'conflict_detected',
         status: 'pending',
         conflictType: 'update_update', // Default
-        metadata: { ...event.data, conflictId: event.conflictId }
+        metadata: { ...event.data, conflictId: event.conflictId },
       });
     });
 
@@ -119,7 +116,7 @@ export class SyncAnalyticsService {
       this.recordEvent({
         type: 'conflict_resolved',
         status: 'completed',
-        metadata: { conflictId: event.conflictId }
+        metadata: { conflictId: event.conflictId },
       });
 
       // Also record in specialized conflict history if needed
@@ -135,7 +132,7 @@ export class SyncAnalyticsService {
           resolvedValue: conflict.resolution?.resolvedEntity,
           fieldPath: 'unknown',
           recordId: conflict.entityId,
-          collectionName: conflict.entityType || 'unknown'
+          collectionName: conflict.entityType || 'unknown',
         });
       }
     });
@@ -144,7 +141,7 @@ export class SyncAnalyticsService {
       this.recordEvent({
         type: 'conflict_detected',
         status: 'conflict_resolution_required',
-        metadata: { ...event.data, conflictId: event.conflictId, manual: true }
+        metadata: { ...event.data, conflictId: event.conflictId, manual: true },
       });
     });
   }
@@ -160,7 +157,7 @@ export class SyncAnalyticsService {
     const fullEvent: SyncEvent = {
       ...event,
       id: generateAnalyticsId(),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     this.events.push(fullEvent);
@@ -203,25 +200,20 @@ export class SyncAnalyticsService {
       event => event.timestamp >= startTime && event.timestamp <= endTime
     );
 
-    const totalSyncs = filteredEvents.filter(e =>
-      e.status === 'completed' || e.status === 'failed'
+    const totalSyncs = filteredEvents.filter(
+      e => e.status === 'completed' || e.status === 'failed'
     ).length;
 
-    const successfulSyncs = filteredEvents.filter(e =>
-      e.status === 'completed'
-    ).length;
+    const successfulSyncs = filteredEvents.filter(e => e.status === 'completed').length;
 
-    const failedSyncs = filteredEvents.filter(e =>
-      e.status === 'failed'
-    ).length;
+    const failedSyncs = filteredEvents.filter(e => e.status === 'failed').length;
 
     const syncTimes = filteredEvents
       .filter(e => e.duration && e.status === 'completed')
       .map(e => e.duration! / 1000); // Convert to seconds
 
-    const averageSyncTime = syncTimes.length > 0
-      ? syncTimes.reduce((a, b) => a + b, 0) / syncTimes.length
-      : 0;
+    const averageSyncTime =
+      syncTimes.length > 0 ? syncTimes.reduce((a, b) => a + b, 0) / syncTimes.length : 0;
 
     const successRate = totalSyncs > 0 ? (successfulSyncs / totalSyncs) * 100 : 100;
 
@@ -276,7 +268,7 @@ export class SyncAnalyticsService {
       syncTimeTrend: trendData.syncTimeTrend,
       successRateTrend: trendData.successRateTrend,
       conflictRateTrend: trendData.conflictRateTrend,
-      bandwidthTrend: trendData.bandwidthTrend
+      bandwidthTrend: trendData.bandwidthTrend,
     };
   }
 
@@ -297,7 +289,8 @@ export class SyncAnalyticsService {
       priorityOperations: Math.floor(Math.random() * 5),
       retryOperations: Math.floor(Math.random() * 3),
       failedOperations: this.events.filter(e => e.status === 'failed').length,
-      lastProcessedAt: recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].timestamp : undefined
+      lastProcessedAt:
+        recentEvents.length > 0 ? recentEvents[recentEvents.length - 1].timestamp : undefined,
     };
   }
 
@@ -311,7 +304,7 @@ export class SyncAnalyticsService {
       shows: 1.8 * 1024 * 1024, // 1.8 MB
       entries: 3.2 * 1024 * 1024, // 3.2 MB
       people: 1.5 * 1024 * 1024, // 1.5 MB
-      clubs: 0.8 * 1024 * 1024   // 0.8 MB
+      clubs: 0.8 * 1024 * 1024, // 0.8 MB
     };
 
     const totalUsed = Object.values(mockUsage).reduce((a, b) => a + b, 0);
@@ -324,7 +317,7 @@ export class SyncAnalyticsService {
       usageByCollection: mockUsage,
       cacheSize,
       indexSize,
-      lastCleanupAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // 24 hours ago
+      lastCleanupAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 24 hours ago
     };
   }
 
@@ -368,22 +361,22 @@ export class SyncAnalyticsService {
         status: 'healthy',
         responseTime: 150,
         lastChecked: new Date(),
-        uptime: 99.9
+        uptime: 99.9,
       },
       {
         service: 'Database',
         status: 'healthy',
         responseTime: 45,
         lastChecked: new Date(),
-        uptime: 99.95
+        uptime: 99.95,
       },
       {
         service: 'Network',
         status: 'healthy',
         responseTime: 25,
         lastChecked: new Date(),
-        uptime: 98.5
-      }
+        uptime: 98.5,
+      },
     ];
   }
 
@@ -399,7 +392,7 @@ export class SyncAnalyticsService {
 
     if (format === 'json') {
       return new Blob([JSON.stringify(metrics, null, 2)], {
-        type: 'application/json'
+        type: 'application/json',
       });
     } else {
       // CSV export implementation
@@ -419,31 +412,24 @@ export class SyncAnalyticsService {
 
     return collections.map(collectionName => {
       const collectionEvents = this.events.filter(
-        e => e.collectionName === collectionName &&
-          e.timestamp >= startTime &&
-          e.timestamp <= endTime
+        e =>
+          e.collectionName === collectionName && e.timestamp >= startTime && e.timestamp <= endTime
       );
 
-      const totalRecords = collectionEvents.reduce(
-        (sum, e) => sum + (e.recordCount || 0), 0
-      );
+      const totalRecords = collectionEvents.reduce((sum, e) => sum + (e.recordCount || 0), 0);
 
       const successfulEvents = collectionEvents.filter(e => e.status === 'completed');
-      const syncedRecords = successfulEvents.reduce(
-        (sum, e) => sum + (e.recordCount || 0), 0
-      );
+      const syncedRecords = successfulEvents.reduce((sum, e) => sum + (e.recordCount || 0), 0);
 
-      const syncTimes = successfulEvents
-        .filter(e => e.duration)
-        .map(e => e.duration!);
+      const syncTimes = successfulEvents.filter(e => e.duration).map(e => e.duration!);
 
-      const averageSyncTime = syncTimes.length > 0
-        ? syncTimes.reduce((a, b) => a + b, 0) / syncTimes.length
-        : 0;
+      const averageSyncTime =
+        syncTimes.length > 0 ? syncTimes.reduce((a, b) => a + b, 0) / syncTimes.length : 0;
 
-      const successRate = collectionEvents.length > 0
-        ? (successfulEvents.length / collectionEvents.length) * 100
-        : 100;
+      const successRate =
+        collectionEvents.length > 0
+          ? (successfulEvents.length / collectionEvents.length) * 100
+          : 100;
 
       return {
         collectionName,
@@ -451,12 +437,13 @@ export class SyncAnalyticsService {
         syncedRecords,
         pendingRecords: totalRecords - syncedRecords,
         conflictedRecords: this.conflicts.filter(c => c.collectionName === collectionName).length,
-        lastSyncAt: collectionEvents.length > 0
-          ? collectionEvents[collectionEvents.length - 1].timestamp
-          : undefined,
+        lastSyncAt:
+          collectionEvents.length > 0
+            ? collectionEvents[collectionEvents.length - 1].timestamp
+            : undefined,
         averageSyncTime,
         successRate,
-        errorCount: collectionEvents.filter(e => e.status === 'failed').length
+        errorCount: collectionEvents.filter(e => e.status === 'failed').length,
       };
     });
   }
@@ -465,7 +452,6 @@ export class SyncAnalyticsService {
    * Check for alert conditions
    */
   private async checkAlerts(event: SyncEvent): Promise<void> {
-
     // Check for performance alerts
     if (event.duration && event.duration > this.config.syncTimeThreshold * 1000) {
       await this.createAlert({
@@ -473,7 +459,7 @@ export class SyncAnalyticsService {
         severity: 'medium',
         title: 'Slow Sync Operation',
         description: `Sync operation took ${(event.duration / 1000).toFixed(1)}s, exceeding threshold of ${this.config.syncTimeThreshold}s`,
-        metadata: { eventId: event.id, duration: event.duration }
+        metadata: { eventId: event.id, duration: event.duration },
       });
     }
 
@@ -484,7 +470,7 @@ export class SyncAnalyticsService {
         severity: 'high',
         title: 'Sync Operation Failed',
         description: `Sync failed: ${event.errorMessage || 'Unknown error'}`,
-        metadata: { eventId: event.id, errorMessage: event.errorMessage }
+        metadata: { eventId: event.id, errorMessage: event.errorMessage },
       });
     }
   }
@@ -502,7 +488,7 @@ export class SyncAnalyticsService {
     const alert: SyncAlert = {
       id: generateAnalyticsId(),
       ...alertData,
-      triggeredAt: new Date()
+      triggeredAt: new Date(),
     };
 
     this.alerts.push(alert);
@@ -551,9 +537,12 @@ export class SyncAnalyticsService {
    */
   private setupCleanupSchedule(): void {
     // Clean up old data every hour
-    setInterval(() => {
-      this.cleanupOldData();
-    }, 60 * 60 * 1000); // 1 hour
+    setInterval(
+      () => {
+        this.cleanupOldData();
+      },
+      60 * 60 * 1000
+    ); // 1 hour
   }
 
   /**
@@ -576,9 +565,7 @@ export class SyncAnalyticsService {
 
     // Remove resolved alerts older than 7 days
     const alertCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    this.alerts = this.alerts.filter(alert =>
-      !alert.resolvedAt || alert.resolvedAt > alertCutoff
-    );
+    this.alerts = this.alerts.filter(alert => !alert.resolvedAt || alert.resolvedAt > alertCutoff);
   }
 }
 

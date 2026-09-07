@@ -18,14 +18,7 @@ vi.mock('@/hooks/queries/useArmbandLookup', () => ({
 
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
-  Link: ({
-    to,
-    children,
-    ...rest
-  }: {
-    to: string;
-    children: React.ReactNode;
-  }) => (
+  Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
     <a href={to} {...rest}>
       {children}
     </a>
@@ -35,18 +28,12 @@ vi.mock('react-router-dom', async importOriginal => ({
 /* eslint-disable @typescript-eslint/no-explicit-any */
 vi.mock('@/components/ui/popover', () => ({
   Popover: ({ children }: any) => <div data-testid="popover">{children}</div>,
-  PopoverTrigger: ({ children }: any) => (
-    <div data-testid="popover-trigger">{children}</div>
-  ),
-  PopoverContent: ({ children }: any) => (
-    <div data-testid="popover-content">{children}</div>
-  ),
+  PopoverTrigger: ({ children }: any) => <div data-testid="popover-trigger">{children}</div>,
+  PopoverContent: ({ children }: any) => <div data-testid="popover-content">{children}</div>,
 }));
 
 vi.mock('@/components/ui/input', () => ({
-  Input: React.forwardRef<HTMLInputElement, any>((props, ref) => (
-    <input ref={ref} {...props} />
-  )),
+  Input: React.forwardRef<HTMLInputElement, any>((props, ref) => <input ref={ref} {...props} />),
 }));
 
 vi.mock('@/components/ui/badge', () => ({
@@ -190,9 +177,7 @@ describe('ArmbandLookup', () => {
     });
     render(<ArmbandLookup showId="show-1" />);
     submitArmband('999');
-    expect(
-      screen.getByText('No dog found with armband #999'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('No dog found with armband #999')).toBeInTheDocument();
   });
 
   it('shows error state', () => {

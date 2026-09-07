@@ -1,9 +1,11 @@
 # show-desk-action-coherence Specification
 
 ## Purpose
+
 Keep Show Desk entry mutations coherent with the page's own data: every check-in, scratch, move-up, or approve action must refresh the caches the Show Desk reads, and scratch/no-show actions must be undoable via a time-boxed affordance mirroring the move-up undo pattern.
 
 ## Requirements
+
 ### Requirement: Show Desk actions keep same-page entry data fresh
 
 Entry mutations executed from the Show Desk (check-in, scratch/no-show, move-up, approve) SHALL update or invalidate every React Query cache that feeds the Show Desk page itself, so counts, the People roster, and entry pickers reflect the action without a manual refetch.

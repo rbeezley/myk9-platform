@@ -1,6 +1,6 @@
 /**
  * Analytics Types for Sync Monitoring
- * 
+ *
  * Defines TypeScript interfaces for sync analytics, metrics, and monitoring data
  * used throughout the sync monitoring dashboard and analytics service.
  */
@@ -51,12 +51,7 @@ export type SyncStatus =
   | 'conflict';
 
 // Network connection status
-export type NetworkStatus =
-  | 'online'
-  | 'offline'
-  | 'limited'
-  | 'slow'
-  | 'unstable';
+export type NetworkStatus = 'online' | 'offline' | 'limited' | 'slow' | 'unstable';
 
 /**
  * Individual sync event record

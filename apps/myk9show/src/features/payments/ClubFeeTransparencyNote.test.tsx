@@ -24,9 +24,7 @@ describe('ClubFeeTransparencyNote', () => {
     rates.current = { percent: 7, flatCents: 0, minCents: 0 };
     render(<ClubFeeTransparencyNote />);
 
-    expect(
-      screen.getByText(/Your club receives 100% of entry fees\./i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Your club receives 100% of entry fees\./i)).toBeInTheDocument();
     expect(screen.getByText(/never deducted from your payout/i)).toBeInTheDocument();
   });
 

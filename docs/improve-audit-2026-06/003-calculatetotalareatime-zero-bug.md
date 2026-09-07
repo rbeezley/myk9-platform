@@ -27,11 +27,11 @@
 whether to add each area's time. JavaScript treats `0` as falsy, so the `0`
 branch is skipped. **Be honest about the impact**: adding `0` versus skipping
 `0` produces the same total, so there is no current numeric defect — this is a
-*contract/clarity* fix, not a behavior-changing bug. It still matters because
+_contract/clarity_ fix, not a behavior-changing bug. It still matters because
 (a) the function's own JSDoc says the "missing" sentinels are `null`/`undefined`,
 not zero, and the code contradicts that; and (b) a truthiness check on a
 `number | null` value is a latent trap — the next person who adds a fourth area
-or copies this pattern inherits the bug in a context where the value *isn't*
+or copies this pattern inherits the bug in a context where the value _isn't_
 zero. The fix is to replace the falsy checks with explicit nullish guards and
 pin the contract with tests. Do not oversell this as a production bugfix in the
 PR description.
@@ -50,15 +50,18 @@ PR description.
   ): number {
     let totalTime = 0;
 
-    if (area1Time) {            // ← drops a real 0
+    if (area1Time) {
+      // ← drops a real 0
       totalTime += area1Time;
     }
 
-    if (area2Time) {            // ← drops a real 0
+    if (area2Time) {
+      // ← drops a real 0
       totalTime += area2Time;
     }
 
-    if (area3Time) {            // ← drops a real 0
+    if (area3Time) {
+      // ← drops a real 0
       totalTime += area3Time;
     }
 
@@ -73,25 +76,27 @@ PR description.
 
 ## Commands you will need
 
-| Purpose   | Command                                                                              | Expected on success |
-|-----------|--------------------------------------------------------------------------------------|---------------------|
-| Install   | `pnpm install`                                                                       | exit 0              |
-| Typecheck | `pnpm --filter @myk9/scoring typecheck` (or root `pnpm typecheck`)                   | exit 0              |
-| Test      | `pnpm --filter @myk9/scoring test -- calculationUtils`                               | all pass            |
-| Rebuild   | `pnpm --filter @myk9/scoring build`                                                  | exit 0              |
+| Purpose   | Command                                                            | Expected on success |
+| --------- | ------------------------------------------------------------------ | ------------------- |
+| Install   | `pnpm install`                                                     | exit 0              |
+| Typecheck | `pnpm --filter @myk9/scoring typecheck` (or root `pnpm typecheck`) | exit 0              |
+| Test      | `pnpm --filter @myk9/scoring test -- calculationUtils`             | all pass            |
+| Rebuild   | `pnpm --filter @myk9/scoring build`                                | exit 0              |
 
 > Note: app-level vitest runs against a package's built `dist`, so after editing
-> `packages/scoring/src` you must rebuild the package before any *app* test would
+> `packages/scoring/src` you must rebuild the package before any _app_ test would
 > see the change. The package's own suite reads `src` directly.
 
 ## Scope
 
 **In scope**:
+
 - `packages/scoring/src/utils/calculationUtils.ts`
 - A test file for this function. If `packages/scoring/src/utils/calculationUtils.test.ts`
   exists, extend it; otherwise create it.
 
 **Out of scope** (do NOT touch):
+
 - Other functions in `calculationUtils.ts` (e.g. `formatTimeDisplay`) — they are
   not part of this finding.
 - Any caller of `calculateTotalAreaTime` — the change is backward compatible

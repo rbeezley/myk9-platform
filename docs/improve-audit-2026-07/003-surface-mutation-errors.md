@@ -55,7 +55,9 @@ const assignJudgeMutation = useMutation({
     if (!showId) throw new Error('Show is required before assigning judges.');
     return upsertClassJudgeAssignment(showId, classId, judgeId);
   },
-  onSuccess: () => { /* invalidate queries */ },
+  onSuccess: () => {
+    /* invalidate queries */
+  },
 });
 
 // :156-158
@@ -64,7 +66,7 @@ const handleJudgeChange = (classId, judgeId) => {
 };
 
 // :166-180
-const handleBulkStatusChange = (newStatus) => {
+const handleBulkStatusChange = newStatus => {
   selectedClasses.forEach(classId => {
     updateClassMutation.mutate({ id: classId, updates: { status: newStatus } });
   });
@@ -81,6 +83,7 @@ const handleBulkDelete = () => {
 ```
 
 Conventions to match:
+
 - **Toasts**: `import { toast } from 'sonner';` then `toast.error('…')` /
   `toast.success('…')`. Exemplar: `apps/myk9show/src/pages/secretary/ClassCreationPage.tsx:12,192,195`.
   The `<Toaster/>` is already mounted in `main.tsx`. `ClassManagementPage.tsx`
@@ -96,19 +99,21 @@ Conventions to match:
 
 ## Commands you will need
 
-| Purpose   | Command                                                                                                        | Expected |
-|-----------|---------------------------------------------------------------------------------------------------------------|----------|
-| Typecheck | `pnpm typecheck`                                                                                               | exit 0   |
-| One test  | `cd apps/myk9show && npx vitest run src/pages/secretary/__tests__/ClassManagementPage.judges.test.tsx`         | all pass |
-| Lint      | `pnpm lint`                                                                                                    | exit 0   |
+| Purpose   | Command                                                                                                | Expected |
+| --------- | ------------------------------------------------------------------------------------------------------ | -------- |
+| Typecheck | `pnpm typecheck`                                                                                       | exit 0   |
+| One test  | `cd apps/myk9show && npx vitest run src/pages/secretary/__tests__/ClassManagementPage.judges.test.tsx` | all pass |
+| Lint      | `pnpm lint`                                                                                            | exit 0   |
 
 ## Scope
 
 **In scope**:
+
 - `apps/myk9show/src/pages/secretary/ClassManagementPage.tsx`
 - `apps/myk9show/src/pages/secretary/__tests__/ClassManagementPage.judges.test.tsx` (add cases; or a sibling `.errors.test.tsx` if cleaner)
 
 **Out of scope**:
+
 - `useClassesDatabase.ts` mutation hooks — do NOT add toasts inside the shared
   hooks (they're used elsewhere; page-level messaging is the right layer here).
 - The global `MutationCache.onError` in `queryClient.ts` — leave it; it's the
@@ -131,11 +136,14 @@ In the judges test file, add a case: mock `upsertClassJudgeAssignmentMock` to
 test — copy that interaction), then assert a `toast.error` was shown.
 
 Mock sonner at the top of the file:
+
 ```ts
 const toastErrorMock = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({ toast: { error: toastErrorMock, success: vi.fn() } }));
 ```
+
 Assertion:
+
 ```ts
 await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
 ```

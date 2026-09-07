@@ -211,9 +211,7 @@ describe('runCli', () => {
       );
 
       expect(runCli(['--baseline=baseline.json'], rootDir)).toBe(1);
-      expect(log).toHaveBeenCalledWith(
-        expect.stringContaining('apps/myk9show/src/example.ts:1')
-      );
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('apps/myk9show/src/example.ts:1'));
     } finally {
       rmSync(rootDir, { recursive: true, force: true });
     }

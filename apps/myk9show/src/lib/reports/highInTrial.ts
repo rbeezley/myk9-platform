@@ -430,8 +430,7 @@ export function buildHighInTrial(input: {
     [...elementsByLevel].flatMap(([level, els]) => [...els].map(el => `${el}\u0000${level}`))
   );
   const dedupedExclusions = exclusions.filter(
-    ex =>
-      ex.reason !== 'cancelled-class' || !offeredPairs.has(`${ex.element}\u0000${ex.level}`)
+    ex => ex.reason !== 'cancelled-class' || !offeredPairs.has(`${ex.element}\u0000${ex.level}`)
   );
 
   levels.sort((a, b) => {

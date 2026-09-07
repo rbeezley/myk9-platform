@@ -64,7 +64,7 @@ export enum LogLevel {
   INFO = 1,
   WARN = 2,
   ERROR = 3,
-  FATAL = 4
+  FATAL = 4,
 }
 
 export interface LogEntry {
@@ -94,7 +94,7 @@ class ConsoleTransport implements LogTransport {
   async log(entry: LogEntry): Promise<void> {
     const logMethod = this.getConsoleMethod(entry.level);
     const message = this.formatMessage(entry);
-    
+
     if (entry.stack) {
       logMethod(message, entry.stack);
     } else {
@@ -144,7 +144,7 @@ class RemoteTransport implements LogTransport {
 
   async log(entry: LogEntry): Promise<void> {
     this.buffer.push(entry);
-    
+
     if (this.buffer.length >= this.maxBufferSize || entry.level >= LogLevel.ERROR) {
       await this.flush();
     }
@@ -204,12 +204,12 @@ class LocalStorageTransport implements LogTransport {
     try {
       const existingLogs = this.getLogs();
       existingLogs.push(entry);
-      
+
       // Keep only the most recent entries
       if (existingLogs.length > this.maxEntries) {
         existingLogs.splice(0, existingLogs.length - this.maxEntries);
       }
-      
+
       localStorage.setItem(this.storageKey, JSON.stringify(existingLogs));
     } catch (error) {
       // LocalStorage might be full or unavailable
@@ -283,7 +283,7 @@ export class LoggingService {
     if (typeof window === 'undefined') return;
 
     // Global error handler
-    window.addEventListener('error', (event) => {
+    window.addEventListener('error', event => {
       if (isBenignResizeObserverLoopError(event.message)) return;
 
       this.error('Global Error', 'unhandled-error', {
@@ -296,7 +296,7 @@ export class LoggingService {
     });
 
     // Unhandled promise rejection handler
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener('unhandledrejection', event => {
       this.error('Unhandled Promise Rejection', 'unhandled-promise', {
         reason: event.reason,
         stack: event.reason?.stack,
@@ -312,22 +312,42 @@ export class LoggingService {
     this.minLevel = level;
   }
 
-  debug(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+  debug(
+    message: string,
+    category = 'general',
+    metadata?: Record<string, unknown>,
+    error?: Error
+  ): void {
     const logMetadata = error ? { ...metadata, stack: error.stack } : metadata;
     this.log(LogLevel.DEBUG, message, category, logMetadata);
   }
 
-  info(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+  info(
+    message: string,
+    category = 'general',
+    metadata?: Record<string, unknown>,
+    error?: Error
+  ): void {
     const logMetadata = error ? { ...metadata, stack: error.stack } : metadata;
     this.log(LogLevel.INFO, message, category, logMetadata);
   }
 
-  warn(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+  warn(
+    message: string,
+    category = 'general',
+    metadata?: Record<string, unknown>,
+    error?: Error
+  ): void {
     const logMetadata = error ? { ...metadata, stack: error.stack } : metadata;
     this.log(LogLevel.WARN, message, category, logMetadata);
   }
 
-  error(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+  error(
+    message: string,
+    category = 'general',
+    metadata?: Record<string, unknown>,
+    error?: Error
+  ): void {
     const logMetadata = {
       ...metadata,
       stack: error?.stack,
@@ -335,7 +355,12 @@ export class LoggingService {
     this.log(LogLevel.ERROR, message, category, logMetadata);
   }
 
-  fatal(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+  fatal(
+    message: string,
+    category = 'general',
+    metadata?: Record<string, unknown>,
+    error?: Error
+  ): void {
     const logMetadata = {
       ...metadata,
       stack: error?.stack,
@@ -343,7 +368,12 @@ export class LoggingService {
     this.log(LogLevel.FATAL, message, category, logMetadata);
   }
 
-  private async log(level: LogLevel, message: string, category: string, metadata?: Record<string, unknown>): Promise<void> {
+  private async log(
+    level: LogLevel,
+    message: string,
+    category: string,
+    metadata?: Record<string, unknown>
+  ): Promise<void> {
     if (level < this.minLevel) return;
 
     const entry: LogEntry = {
@@ -363,7 +393,7 @@ export class LoggingService {
     }
 
     // Send to all transports
-    const promises = this.transports.map(transport => 
+    const promises = this.transports.map(transport =>
       transport.log(entry).catch(error => {
         console.error(`Transport ${transport.name} failed:`, error);
       })
@@ -384,7 +414,7 @@ export class LoggingService {
     const promises = this.transports
       .filter(transport => transport.flush)
       .map(transport => transport.flush!());
-    
+
     await Promise.allSettled(promises);
   }
 
@@ -406,7 +436,13 @@ export class LoggingService {
   }
 
   // API call logging
-  logApiCall(method: string, url: string, status: number, duration: number, metadata?: Record<string, unknown>): void {
+  logApiCall(
+    method: string,
+    url: string,
+    status: number,
+    duration: number,
+    metadata?: Record<string, unknown>
+  ): void {
     const level = status >= 400 ? LogLevel.ERROR : LogLevel.INFO;
     this.log(level, `API Call: ${method} ${url}`, 'api', {
       method,
@@ -423,11 +459,20 @@ export class LoggingService {
   }
 
   // Security event logging
-  logSecurityEvent(event: string, severity: 'low' | 'medium' | 'high' | 'critical', metadata?: Record<string, unknown>): void {
-    const level = severity === 'critical' ? LogLevel.FATAL : 
-                  severity === 'high' ? LogLevel.ERROR :
-                  severity === 'medium' ? LogLevel.WARN : LogLevel.INFO;
-    
+  logSecurityEvent(
+    event: string,
+    severity: 'low' | 'medium' | 'high' | 'critical',
+    metadata?: Record<string, unknown>
+  ): void {
+    const level =
+      severity === 'critical'
+        ? LogLevel.FATAL
+        : severity === 'high'
+          ? LogLevel.ERROR
+          : severity === 'medium'
+            ? LogLevel.WARN
+            : LogLevel.INFO;
+
     this.log(level, `Security Event: ${event}`, 'security', {
       severity,
       ...metadata,
@@ -436,13 +481,17 @@ export class LoggingService {
 
   // Get local logs for debugging
   getLocalLogs(): LogEntry[] {
-    const localTransport = this.transports.find(t => t instanceof LocalStorageTransport) as LocalStorageTransport;
+    const localTransport = this.transports.find(
+      t => t instanceof LocalStorageTransport
+    ) as LocalStorageTransport;
     return localTransport ? localTransport.getLogs() : [];
   }
 
   // Clear local logs
   clearLocalLogs(): void {
-    const localTransport = this.transports.find(t => t instanceof LocalStorageTransport) as LocalStorageTransport;
+    const localTransport = this.transports.find(
+      t => t instanceof LocalStorageTransport
+    ) as LocalStorageTransport;
     if (localTransport) {
       localTransport.clearLogs();
     }

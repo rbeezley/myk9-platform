@@ -109,7 +109,8 @@ interface RegistrationFormData {
   totalFees: number;
 }
 
-export type ReportData = ShowResultData | HealthRecordData | TrainingSummaryData | RegistrationFormData;
+export type ReportData =
+  ShowResultData | HealthRecordData | TrainingSummaryData | RegistrationFormData;
 
 interface PrintableReportProps {
   type: 'show_results' | 'health_records' | 'training_summary' | 'registration_form';
@@ -129,14 +130,26 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
         {/* Show Information */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p><strong>Show:</strong> {data.showName}</p>
-            <p><strong>Date:</strong> {data.date}</p>
-            <p><strong>Location:</strong> {data.location}</p>
+            <p>
+              <strong>Show:</strong> {data.showName}
+            </p>
+            <p>
+              <strong>Date:</strong> {data.date}
+            </p>
+            <p>
+              <strong>Location:</strong> {data.location}
+            </p>
           </div>
           <div>
-            <p><strong>Judge:</strong> {data.judge}</p>
-            <p><strong>Ring:</strong> {data.ring}</p>
-            <p><strong>Class:</strong> {data.className}</p>
+            <p>
+              <strong>Judge:</strong> {data.judge}
+            </p>
+            <p>
+              <strong>Ring:</strong> {data.ring}
+            </p>
+            <p>
+              <strong>Class:</strong> {data.className}
+            </p>
           </div>
         </div>
 
@@ -160,9 +173,9 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
               {data.results?.map((result: ShowResult, index: number) => (
                 <tr key={index}>
                   <td className="border border-gray-300 p-2">
-                    {result.placement === 1 && "🥇"} 
-                    {result.placement === 2 && "🥈"} 
-                    {result.placement === 3 && "🥉"} 
+                    {result.placement === 1 && '🥇'}
+                    {result.placement === 2 && '🥈'}
+                    {result.placement === 3 && '🥉'}
                     {result.placement}
                   </td>
                   <td className="border border-gray-300 p-2">{result.armband}</td>
@@ -180,9 +193,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
         {data.comments && (
           <div>
             <h3 className="text-lg font-semibold mb-2">Judge's Comments</h3>
-            <div className="p-3 bg-gray-50 rounded text-sm">
-              {data.comments}
-            </div>
+            <div className="p-3 bg-gray-50 rounded text-sm">{data.comments}</div>
           </div>
         )}
       </div>
@@ -193,14 +204,26 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
         {/* Dog Information */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p><strong>Dog Name:</strong> {data.dogName}</p>
-            <p><strong>Breed:</strong> {data.breed}</p>
-            <p><strong>Date of Birth:</strong> {data.dateOfBirth}</p>
+            <p>
+              <strong>Dog Name:</strong> {data.dogName}
+            </p>
+            <p>
+              <strong>Breed:</strong> {data.breed}
+            </p>
+            <p>
+              <strong>Date of Birth:</strong> {data.dateOfBirth}
+            </p>
           </div>
           <div>
-            <p><strong>Registration:</strong> {data.registration}</p>
-            <p><strong>Microchip:</strong> {data.microchip}</p>
-            <p><strong>Owner:</strong> {data.owner}</p>
+            <p>
+              <strong>Registration:</strong> {data.registration}
+            </p>
+            <p>
+              <strong>Microchip:</strong> {data.microchip}
+            </p>
+            <p>
+              <strong>Owner:</strong> {data.owner}
+            </p>
           </div>
         </div>
 
@@ -288,7 +311,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                 <div className="text-right">
                   <p className="font-medium">{skill.proficiency}%</p>
                   <div className="w-24 h-2 bg-gray-200 rounded">
-                    <div 
+                    <div
                       className="h-2 bg-blue-500 rounded"
                       style={{ width: `${skill.proficiency}%` }}
                     ></div>
@@ -326,7 +349,9 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
         {/* Show Information */}
         <div className="text-center mb-6">
           <h2 className="text-xl font-bold">{data.showName}</h2>
-          <p className="text-sm text-gray-600">{data.showDate} • {data.location}</p>
+          <p className="text-sm text-gray-600">
+            {data.showDate} • {data.location}
+          </p>
         </div>
 
         {/* Owner Information */}
@@ -334,14 +359,26 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
           <h3 className="text-lg font-semibold mb-3">Owner Information</h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p><strong>Name:</strong> {data.owner.name}</p>
-              <p><strong>Address:</strong> {data.owner.address}</p>
-              <p><strong>City, State ZIP:</strong> {data.owner.cityStateZip}</p>
+              <p>
+                <strong>Name:</strong> {data.owner.name}
+              </p>
+              <p>
+                <strong>Address:</strong> {data.owner.address}
+              </p>
+              <p>
+                <strong>City, State ZIP:</strong> {data.owner.cityStateZip}
+              </p>
             </div>
             <div>
-              <p><strong>Phone:</strong> {data.owner.phone}</p>
-              <p><strong>Email:</strong> {data.owner.email}</p>
-              <p><strong>AKC Number:</strong> {data.owner.akcNumber}</p>
+              <p>
+                <strong>Phone:</strong> {data.owner.phone}
+              </p>
+              <p>
+                <strong>Email:</strong> {data.owner.email}
+              </p>
+              <p>
+                <strong>AKC Number:</strong> {data.owner.akcNumber}
+              </p>
             </div>
           </div>
         </div>
@@ -355,16 +392,32 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
             <div key={index} className="mb-4 p-4 border rounded">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p><strong>Dog Name:</strong> {entry.dogName}</p>
-                  <p><strong>Breed:</strong> {entry.breed}</p>
-                  <p><strong>Sex:</strong> {entry.sex}</p>
-                  <p><strong>Date of Birth:</strong> {entry.dateOfBirth}</p>
+                  <p>
+                    <strong>Dog Name:</strong> {entry.dogName}
+                  </p>
+                  <p>
+                    <strong>Breed:</strong> {entry.breed}
+                  </p>
+                  <p>
+                    <strong>Sex:</strong> {entry.sex}
+                  </p>
+                  <p>
+                    <strong>Date of Birth:</strong> {entry.dateOfBirth}
+                  </p>
                 </div>
                 <div>
-                  <p><strong>Registration:</strong> {entry.registration}</p>
-                  <p><strong>Class:</strong> {entry.className}</p>
-                  <p><strong>Entry Fee:</strong> ${entry.entryFee}</p>
-                  <p><strong>Armband:</strong> {entry.armband || 'TBD'}</p>
+                  <p>
+                    <strong>Registration:</strong> {entry.registration}
+                  </p>
+                  <p>
+                    <strong>Class:</strong> {entry.className}
+                  </p>
+                  <p>
+                    <strong>Entry Fee:</strong> ${entry.entryFee}
+                  </p>
+                  <p>
+                    <strong>Armband:</strong> {entry.armband || 'TBD'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -450,7 +503,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
             }
           }
         `}</style>
-        
+
         <div className="max-w-4xl mx-auto p-8">
           {/* Header */}
           <div className="text-center mb-6">
@@ -460,12 +513,10 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                 <p className="text-sm text-gray-600">Professional Dog Show Management</p>
               </div>
             )}
-            
+
             <h2 className="text-xl font-bold mb-2">{title}</h2>
             {subtitle && <p className="text-sm text-gray-600 mb-2">{subtitle}</p>}
-            {showDate && (
-              <p className="text-xs text-gray-500">Generated on {printDate}</p>
-            )}
+            {showDate && <p className="text-xs text-gray-500">Generated on {printDate}</p>}
           </div>
 
           {/* Report Content */}

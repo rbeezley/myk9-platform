@@ -44,11 +44,7 @@ export function isShowUnreachableError(error: unknown): boolean {
   );
 }
 
-export type MissingShowReason =
-  | 'not-found'
-  | 'uncached-offline'
-  | 'unreachable'
-  | 'refresh-failed';
+export type MissingShowReason = 'not-found' | 'uncached-offline' | 'unreachable' | 'refresh-failed';
 
 /**
  * Not every failed refresh is a network failure.
@@ -79,8 +75,7 @@ export type MissingShowReason =
  * is why it imports it rather than re-spelling the sentence.
  */
 export function classifyRefreshFailure(cause: unknown): 'unreachable' | 'refresh-failed' {
-  const message =
-    typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : null;
+  const message = typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : null;
   if (!message) return 'refresh-failed';
   if (message === SAFE_SYNC_REFRESH_ERROR) return 'unreachable';
   return isTransientBrowserFetchError(new Error(message)) ? 'unreachable' : 'refresh-failed';

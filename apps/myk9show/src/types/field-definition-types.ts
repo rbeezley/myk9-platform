@@ -162,7 +162,8 @@ export interface ConditionalRule {
 
 // Helper type for field values in a class
 export type ClassFieldValues = {
-  [key in TrialTypeField]?: string | number | boolean | Date | string[] | number[]; // Added number[] for duration arrays
+  [key in TrialTypeField]?:
+    string | number | boolean | Date | string[] | number[]; // Added number[] for duration arrays
 };
 
 // Type for the actual class data with all fields

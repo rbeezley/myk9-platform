@@ -106,7 +106,9 @@ export function MagazineFooter({
           letterSpacing: '0.28em',
         }}
       >
-        <span>© {new Date().getFullYear()} {clubName}</span>
+        <span>
+          © {new Date().getFullYear()} {clubName}
+        </span>
         <span>Premium published via myK9Show</span>
         <span>{editionLabel}</span>
       </div>

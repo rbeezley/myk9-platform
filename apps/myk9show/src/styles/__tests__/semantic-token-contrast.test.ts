@@ -30,7 +30,12 @@ describe('semantic token contrast', () => {
   const chipLightBlock = block(redesignTokens, ':root');
   const chipDarkBlock = block(redesignTokens, '.dark');
 
-  function expectContrast(label: string, foreground: RgbColor, background: RgbColor, minimum = 4.5) {
+  function expectContrast(
+    label: string,
+    foreground: RgbColor,
+    background: RgbColor,
+    minimum = 4.5
+  ) {
     expect(contrastRatio(foreground, background), label).toBeGreaterThanOrEqual(minimum);
   }
 
@@ -125,7 +130,12 @@ describe('semantic token contrast', () => {
         const accentForeground = resolveColorValue('--accent-foreground', ...contexts);
         const ring = resolveColorValue('--ring', ...contexts);
 
-        recordContrastFailure(failures, `${theme} ${accent} primary fill`, primaryForeground, primary);
+        recordContrastFailure(
+          failures,
+          `${theme} ${accent} primary fill`,
+          primaryForeground,
+          primary
+        );
         recordContrastFailure(
           failures,
           `${theme} ${accent} primary hover fill`,
@@ -133,7 +143,12 @@ describe('semantic token contrast', () => {
           primaryHover
         );
         recordContrastFailure(failures, `${theme} ${accent} primary text`, primary, background);
-        recordContrastFailure(failures, `${theme} ${accent} accent pair`, accentForeground, accentFill);
+        recordContrastFailure(
+          failures,
+          `${theme} ${accent} accent pair`,
+          accentForeground,
+          accentFill
+        );
         recordContrastFailure(
           failures,
           `${theme} ${accent} focus ring`,
@@ -170,15 +185,12 @@ describe('semantic token contrast', () => {
     expect(contrastRatio(bg, fg)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
   });
 
-  it.each(['clay', 'grove', 'dusk', 'heather'])(
-    'keeps dark %s primary fills readable',
-    accent => {
-      const accentBlock = block(indexCss, `html[data-accent='${accent}'].dark`);
-      const bg = parseColor(varValue(accentBlock, '--primary'));
-      const fg = parseColor(varValue(accentBlock, '--primary-foreground'));
-      expect(contrastRatio(bg, fg)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
-    }
-  );
+  it.each(['clay', 'grove', 'dusk', 'heather'])('keeps dark %s primary fills readable', accent => {
+    const accentBlock = block(indexCss, `html[data-accent='${accent}'].dark`);
+    const bg = parseColor(varValue(accentBlock, '--primary'));
+    const fg = parseColor(varValue(accentBlock, '--primary-foreground'));
+    expect(contrastRatio(bg, fg)).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
+  });
 
   it('keeps muted text readable in light and dark mode', () => {
     const lightBg = parseColor(varValue(indexCss, '--muted'));
@@ -210,12 +222,12 @@ describe('semantic token contrast', () => {
     const lightSurface = parseColor(varValue(indexCss, '--background'));
     const darkSurface = parseColor(varValue(darkBlock, '--card'));
 
-    expect(contrastRatio(lightForeground, composite([255, 255, 255], 0.1, lightSurface))).toBeGreaterThanOrEqual(
-      AA_SMALL_TEXT
-    );
-    expect(contrastRatio(darkForeground, composite([30, 28, 25], 0.1, darkSurface))).toBeGreaterThanOrEqual(
-      AA_SMALL_TEXT
-    );
+    expect(
+      contrastRatio(lightForeground, composite([255, 255, 255], 0.1, lightSurface))
+    ).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
+    expect(
+      contrastRatio(darkForeground, composite([30, 28, 25], 0.1, darkSurface))
+    ).toBeGreaterThanOrEqual(AA_SMALL_TEXT);
   });
 
   // This file compares each token against its FLAT surface, which is why the

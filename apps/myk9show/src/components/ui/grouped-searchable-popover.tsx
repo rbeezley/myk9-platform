@@ -108,38 +108,38 @@ function GroupedSearchablePopover<T extends { id: string }>({
           )}
           {!loading &&
             visibleGroups.map((group, idx) => (
-            <React.Fragment key={group.groupKey}>
-              {idx > 0 && <div className="h-px bg-border mx-2" />}
-              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                {group.label}
-              </div>
-              {group.items.map(item => {
-                const choose = () => {
-                  onSelect(item, group.groupKey);
-                  onOpenChange(false);
-                };
-                return (
-                  <div
-                    key={item.id}
-                    role="option"
-                    {...(selectedIdSet ? { 'aria-selected': selectedIdSet.has(item.id) } : {})}
-                    tabIndex={0}
-                    onClick={choose}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        choose();
-                      }
-                    }}
-                    className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                    data-group-key={group.groupKey}
-                  >
-                    {renderItem(item, group.groupKey)}
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
+              <React.Fragment key={group.groupKey}>
+                {idx > 0 && <div className="h-px bg-border mx-2" />}
+                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  {group.label}
+                </div>
+                {group.items.map(item => {
+                  const choose = () => {
+                    onSelect(item, group.groupKey);
+                    onOpenChange(false);
+                  };
+                  return (
+                    <div
+                      key={item.id}
+                      role="option"
+                      {...(selectedIdSet ? { 'aria-selected': selectedIdSet.has(item.id) } : {})}
+                      tabIndex={0}
+                      onClick={choose}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          choose();
+                        }
+                      }}
+                      className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                      data-group-key={group.groupKey}
+                    >
+                      {renderItem(item, group.groupKey)}
+                    </div>
+                  );
+                })}
+              </React.Fragment>
+            ))}
         </div>
         {footer && <div className="border-t p-2">{footer}</div>}
       </PopoverContent>

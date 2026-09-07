@@ -13,10 +13,7 @@ export interface FloatingDoneButtonProps {
  * Floating done button for exiting drag mode.
  * Used by both entry-list modes (single class and combined A/B).
  */
-export const FloatingDoneButton: React.FC<FloatingDoneButtonProps> = ({
-  isVisible,
-  onClick,
-}) => {
+export const FloatingDoneButton: React.FC<FloatingDoneButtonProps> = ({ isVisible, onClick }) => {
   if (!isVisible) {
     return null;
   }
@@ -44,7 +41,7 @@ export const FloatingDoneButton: React.FC<FloatingDoneButtonProps> = ({
           'transition-transform duration-200 ease-apple hover:scale-105 active:scale-95',
           'motion-reduce:transition-none motion-reduce:hover:scale-100',
           // Keyboard focus affordance.
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}
         onClick={onClick}
         aria-label="Done reordering"

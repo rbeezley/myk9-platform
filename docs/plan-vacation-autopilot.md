@@ -8,18 +8,18 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
 
 ## Decisions (settled with Richard, 2026-08-02)
 
-| Decision           | Choice                                                                      |
-| ------------------ | --------------------------------------------------------------------------- |
-| Merge policy       | Merge with guardrails (CI green + Codex review clear); risky classes stop at PR |
-| Issue selection    | Pre-flight triage together; queue = In Progress + Todo only                 |
-| Backlog            | **Never read.** Wanted items are promoted to Todo during triage             |
-| Cadence            | Serial, 4 runs/day every 6h (~5am / 11am / 5pm / 11pm, jittered)            |
-| Failure policy     | ~3.5h timebox; 2 genuine attempts max; 3 consecutive failed runs → self-disable |
-| Quota exhaustion   | Not a failure; next run resumes in-flight work (see Resume rule)            |
-| Reporting          | Vacation Log issue in Linear; per-issue comments per CLAUDE.md              |
-| Kill switch        | `STOP` comment on the Vacation Log (checked first, every run)              |
-| Pipeline           | Standard 8-step: implement → /simplify → commit → PR → Codex review → fix → merge → cleanup (non-interactive; NOT the `/cleanup` skill) |
-| Usage budget       | Subscription limits govern; no artificial cap                               |
+| Decision         | Choice                                                                                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Merge policy     | Merge with guardrails (CI green + Codex review clear); risky classes stop at PR                                                         |
+| Issue selection  | Pre-flight triage together; queue = In Progress + Todo only                                                                             |
+| Backlog          | **Never read.** Wanted items are promoted to Todo during triage                                                                         |
+| Cadence          | Serial, 4 runs/day every 6h (~5am / 11am / 5pm / 11pm, jittered)                                                                        |
+| Failure policy   | ~3.5h timebox; 2 genuine attempts max; 3 consecutive failed runs → self-disable                                                         |
+| Quota exhaustion | Not a failure; next run resumes in-flight work (see Resume rule)                                                                        |
+| Reporting        | Vacation Log issue in Linear; per-issue comments per CLAUDE.md                                                                          |
+| Kill switch      | `STOP` comment on the Vacation Log (checked first, every run)                                                                           |
+| Pipeline         | Standard 8-step: implement → /simplify → commit → PR → Codex review → fix → merge → cleanup (non-interactive; NOT the `/cleanup` skill) |
+| Usage budget     | Subscription limits govern; no artificial cap                                                                                           |
 
 ## Vocabulary
 
@@ -63,10 +63,11 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    > rehearsal left its lock held. This reverses a P1 Codex finding that (correctly, in
    > the abstract) asked for atomic acquisition. Atomicity via `mkdir` is only atomic if
    > the directory can also be removed. Read-then-write is adequate for one machine, one
-   > scheduler, 6h apart: the lease exists to stop a *stalled* run overlapping the next,
+   > scheduler, 6h apart: the lease exists to stop a _stalled_ run overlapping the next,
    > not to arbitrate a millisecond race that cannot occur. A 5h lease under a 6h
    > interval also means an unreleased lease can never block the following run — and 5h,
    > not 6h, because a lease equal to the interval expires exactly as its successor fires.
+
 3. **Health:** if `main` CI is red, **repairing it is the run's work item** — not an exit.
    A red base blocks every future run, so fixing it outranks queue work. Red-main runs do
    not count toward the circuit breaker until two consecutive repair attempts fail to turn
@@ -100,7 +101,7 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    - The issue must be `auto:green`. Every `auto:yellow` is a PR-stop regardless of how
      harmless its diff looks — that is what the grade means.
    - **And** the diff must be clean. Deny by default if `git diff --name-only
-     origin/main...HEAD` touches `supabase/migrations/`, `supabase/functions/`,
+origin/main...HEAD` touches `supabase/migrations/`, `supabase/functions/`,
      `.github/`, or `.claude/`.
    - **Path names are not sufficient.** Read the actual patch: a change to an ordinary
      component can still touch payments, auth/RBAC/RLS, grants, or session handling. If
@@ -109,13 +110,13 @@ Designed 2026-08-02 via a grilling session; departure 2026-08-04.
    - **Green CI means the GitHub Actions checks — Vercel is not blocking.** Vercel
      entries are preview deployments and fail for reasons unrelated to the code, most
      often the account's daily deployment quota (`Resource is limited - try again in 24
-     hours`, hit 2026-08-02 during the rehearsal). Blocking on those would PR-stop every
+hours`, hit 2026-08-02 during the rehearsal). Blocking on those would PR-stop every
      issue for a day or more over an infrastructure limit — degrading the plan to the
      PR-queue-only shape that was explicitly rejected. Log the Vercel failure, judge the
      merge on the Actions checks. A Vercel failure that reads like a real build error,
      rather than a quota/infra message, IS blocking.
 8. **Log FIRST, then finish.** The moment the outcome is known — merge, PR-stop, or
-   blocked — write the MYK9-158 comment *before* cleanup. The 2026-08-02 rehearsal merged
+   blocked — write the MYK9-158 comment _before_ cleanup. The 2026-08-02 rehearsal merged
    its PR, set Linear to Done, and then ended without ever logging, because logging was
    the last step. From a beach, a run that did work and left no record is indistinguishable
    from a run that never fired. Then:
@@ -134,10 +135,10 @@ CI runs `--sequence.shuffle`; local runs do not. A test that leaks state into an
 therefore passes locally and fails **randomly** in CI, turning `main` red with no code
 change to blame. Two were found on 2026-08-02 within one afternoon:
 
-| Issue | Test | Leaked state |
-| --- | --- | --- |
-| MYK9-170 | `atShowLayoutSlotComponents` ContainmentBanner | module-scope `lastContainmentUntil` memo |
-| MYK9-172 | `trialQueries.replication` `getTrialTimelineRows` | entry-count state across cases |
+| Issue    | Test                                              | Leaked state                             |
+| -------- | ------------------------------------------------- | ---------------------------------------- |
+| MYK9-170 | `atShowLayoutSlotComponents` ContainmentBanner    | module-scope `lastContainmentUntil` memo |
+| MYK9-172 | `trialQueries.replication` `getTrialTimelineRows` | entry-count state across cases           |
 
 Both are the same shape: shared state outside a test's own scope, fixed by a `beforeEach`
 reset — not a product change. A pre-departure **shuffle sweep** (run the suite shuffled
@@ -153,14 +154,14 @@ Codex reviewed the operating model after the rehearsal passed. Verdict: "good
 architecture, not quite production-ready." All seven findings were accepted; two were
 outright bugs, and one corrected advice added earlier the same day.
 
-1. **Lease raised 4h → 5h.** The 3.5h timebox covers *working the issue*; bootstrap, CI
+1. **Lease raised 4h → 5h.** The 3.5h timebox covers _working the issue_; bootstrap, CI
    waits, review, merge and cleanup come on top, so a 4h lease could expire while the run
    was legitimately still going — the exact overlap the lease exists to prevent. 5h stays
    under the 6h interval so a dead run still frees the slot. Not 6h: a lease equal to the
    interval expires exactly as its successor starts.
 2. **Health check verifies the SHA.** "Latest run" can be in-progress or for an older
    commit. The runner now matches `headSha` against `origin/main` and treats
-   pending-for-this-SHA as *skip*, never as green.
+   pending-for-this-SHA as _skip_, never as green.
 3. **Two or more `vacation-*` worktrees = stop.** Serial execution makes this impossible,
    so its occurrence means an assumption already broke. Guessing risks resuming the wrong
    issue; the runner logs all of them and stops.
@@ -184,7 +185,7 @@ outright bugs, and one corrected advice added earlier the same day.
 
 8. **Lease release is owner-guarded.** If a run overruns, its lease expires, and a
    successor takes it over, the first run's unconditional `lockedUntil: null` would wipe
-   the *successor's* live lease and let a third run start alongside it. Release now only
+   the _successor's_ live lease and let a third run start alongside it. Release now only
    clears the lease when `lockOwner` is still yours.
 9. **Cleanup no longer depends on Linear.** Log → clean up → release, with each step
    independent: a Linear outage must not skip worktree removal, because a surviving
@@ -232,7 +233,7 @@ Automating the restart would introduce a **new total-loss failure mode to preven
 partial-loss one**, and hand it ten chances to fire. That is the right trade when someone
 is home to notice, and the wrong one when nobody is. Note the guard is the weak link
 here — untested, and dependent on the model choosing to skip — but if it fails the result
-is an OOM kill, which is the *same* total loss; do-nothing simply does not add a second
+is an OOM kill, which is the _same_ total loss; do-nothing simply does not add a second
 independent path to it.
 
 **Plugin trim: attempted, and it turned out to be a non-lever.** The intent was to shrink
@@ -246,7 +247,7 @@ have to be done in the desktop app's plugin UI, and its benefit is unquantified.
 This does not change the plan. The trim was insurance on top of an already-accepted risk,
 not a dependency. The live defenses remain: the 15%-free memory guard, the memory line in
 every log comment, and `STOP` from the phone if the trend degrades.
- A nightly launchd restart was considered and
+A nightly launchd restart was considered and
 rejected as unnecessary complexity for a rate this low — the crash-only design would have
 made it safe, but the arithmetic does not require it. The defenses are:
 
@@ -336,7 +337,7 @@ prohibited unattended. This is the Auto Mode carve-out CLAUDE.md requires.
       PAUSE on a prompt with nobody there to answer. The rehearsal must exercise the real
       command set (git worktree/commit/push, `gh pr create`/`merge`, `codex review`,
       Linear writes) so every one of them is approved before departure. Note `git
-      checkout --` was denied interactively on 2026-08-02; the runner must not depend on
+checkout --` was denied interactively on 2026-08-02; the runner must not depend on
       any denied command (use scoped `git apply -R` or `git restore` equivalents).
 - [ ] Verify the kill switch in rehearsal: post `STOP`, trigger a run, confirm it
       disables itself; then remove `STOP` and re-enable.

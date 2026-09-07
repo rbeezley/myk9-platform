@@ -6,11 +6,11 @@ Outlines, shot lists, and planning material for club training, slide decks, and 
 
 ## Files
 
-| File | Status | Purpose |
-|---|---|---|
-| [myk9show-overview-deck-outline.md](myk9show-overview-deck-outline.md) | `drafted` | Slide-deck outline for club decision-makers + secretaries |
-| [role-based-deck-outlines.md](role-based-deck-outlines.md) | `drafted` | Secretary, exhibitor, club/treasurer, judge/steward deck outlines |
-| [screenshot-shot-list.md](screenshot-shot-list.md) | `drafted` | Required screenshots + demo captures by workflow |
+| File                                                                   | Status    | Purpose                                                           |
+| ---------------------------------------------------------------------- | --------- | ----------------------------------------------------------------- |
+| [myk9show-overview-deck-outline.md](myk9show-overview-deck-outline.md) | `drafted` | Slide-deck outline for club decision-makers + secretaries         |
+| [role-based-deck-outlines.md](role-based-deck-outlines.md)             | `drafted` | Secretary, exhibitor, club/treasurer, judge/steward deck outlines |
+| [screenshot-shot-list.md](screenshot-shot-list.md)                     | `drafted` | Required screenshots + demo captures by workflow                  |
 
 ---
 
@@ -23,6 +23,7 @@ Workflow flowcharts and architecture diagrams live in [`../diagrams/`](../diagra
 ## Shot List Discipline
 
 Every screenshot and diagram in final training material must:
+
 - Come from the shot list in `screenshot-shot-list.md`
 - Use the seeded fixture accounts listed there (never real customer data)
 - Be re-verified against the live app before each training use
@@ -34,6 +35,7 @@ Screenshots without a shot-list entry are considered provisional and should not 
 ## Leave-Behind Links
 
 Every training session should end with a leave-behind link list the attendee can bookmark:
+
 - Role-specific user guide
 - Top 3 KB articles for their role
 - Support contact path (email / page / macro)

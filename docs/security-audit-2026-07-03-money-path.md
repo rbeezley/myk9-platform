@@ -8,19 +8,19 @@ Method: three parallel red-team passes (pay / refund / payout), each given the f
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| CRITICAL | 0 |
-| HIGH | 4 |
-| MEDIUM | 4 |
-| LOW | 6 |
+| Severity  | Count  |
+| --------- | ------ |
+| CRITICAL  | 0      |
+| HIGH      | 4      |
+| MEDIUM    | 4      |
+| LOW       | 6      |
 | **Total** | **14** |
 
 Auto-fixable: 11 of 14 (MP-08 and MP-11 need a small schema/surface decision; MP-14 is operational).
 
-**Headline.** The payout *mechanism* (idempotency, partial-failure isolation, crash recovery, constant-time cron auth) and the *cart* payment flow (claim-first latch, fresh-retrieve verification, stale-session cleanup) are genuinely well-built and audit clean. All money loss concentrates in two seams:
+**Headline.** The payout _mechanism_ (idempotency, partial-failure isolation, crash recovery, constant-time cron auth) and the _cart_ payment flow (claim-first latch, fresh-retrieve verification, stale-session cleanup) are genuinely well-built and audit clean. All money loss concentrates in two seams:
 
-1. **Amount integrity feeding the payout (MP-01 + MP-02, both HIGH).** The payout eligibility predicate keys on `entries.payment_status`, the one payment field with no write-guard, and `submit_show_entries` defaults every entry to `payment_method='online'`. Chained, they transfer real platform money to a club for fees that never arrived through Stripe — and MP-02 fires in the *ordinary* mail-in secretary workflow, not just under attack.
+1. **Amount integrity feeding the payout (MP-01 + MP-02, both HIGH).** The payout eligibility predicate keys on `entries.payment_status`, the one payment field with no write-guard, and `submit_show_entries` defaults every entry to `payment_method='online'`. Chained, they transfer real platform money to a club for fees that never arrived through Stripe — and MP-02 fires in the _ordinary_ mail-in secretary workflow, not just under attack.
 2. **The payment-link path never inherited the cart path's hardening (MP-03 + MP-04, both HIGH).** A duplicate `checkout.session.completed` delivery makes the link path auto-refund a legitimate charge, and the entire persisted-Stripe-ID layer is mode-blind, which will deterministically re-break checkout at the test→live cutover (the 2026-06-10 incident shape).
 
 None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 are duplicate-delivery / operational-cutover triggered. But all four move or lose real money and should close before live-mode payouts and the first real cancellation.
@@ -44,7 +44,7 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 
 **Category:** RBAC / money integrity (payout inflation)
 **Location:** Guard gap: `supabase/migrations/20260611240000_entries_protect_payment_fields.sql:68-69` — trigger fires `before update of entry_fee, payment_method, stripe_payment_intent_id` only, **not** `payment_status`. Write path RLS is `can_manage_show(show_id)` only (`supabase/migrations/20260604004045_restrict_entries_update_to_managers.sql`). Reachable client API: `apps/myk9show/src/services/database/entries/writes.ts:44-61` (`updateEntry` does a raw `.update(arbitraryFields)`). Consumed by `payoutCalc.ts:26-33`.
-**Evidence (verified):** `payoutCalc.ts:14-18` documents that the authors knew `payment_status` is *not* service-role-guarded — that is precisely why they keyed the refund *deduction* on `refund_amount` instead. But the payout **eligibility** gate is still `payment_status === 'paid' || 'refunded'` (`:28-29`) — the forgeable field. A `payment_status`-only UPDATE does not even fire the 240000 trigger (its `before update of` column list excludes it), and no entries analogue of `migration 110`'s registrations guard exists.
+**Evidence (verified):** `payoutCalc.ts:14-18` documents that the authors knew `payment_status` is _not_ service-role-guarded — that is precisely why they keyed the refund _deduction_ on `refund_amount` instead. But the payout **eligibility** gate is still `payment_status === 'paid' || 'refunded'` (`:28-29`) — the forgeable field. A `payment_status`-only UPDATE does not even fire the 240000 trigger (its `before update of` column list excludes it), and no entries analogue of `migration 110`'s registrations guard exists.
 **Risk / failure scenario:** A secretary or club admin (`can_manage_show`) calls `updateEntry({ id, updates: { payment_status: 'paid' }})` on an `online`/`pending` entry → allowed by RLS, blocked by nothing → `calculateShowPayoutCents` now counts the full `entry_fee` → nightly cron transfers it from the platform balance to the club's `acct_…`, money no exhibitor paid. A malicious club admin self-deals (their club receives it); an honest secretary triggers it accidentally via MP-01. The cron logs a **successful** payout — no `failed` row, no alert. HIGH not CRITICAL because it requires a manage-show role.
 **Fix:** Add an entries analogue of migration 110 — a `before update` trigger `when (new.payment_status is distinct from old.payment_status)` that blocks a non-`service_role` writer from moving `payment_status` into `paid`/`refunded` for a `payment_method='online'` row (desk methods `cash`/`check`/`waived`/`secretary_paid` may still be marked paid by staff). Mirror the `current_setting('role',true)='service_role'` bypass the sibling guards use. **Fix MP-01 first** — it removes the routine trigger; MP-02 closes the malicious/edge path.
 **Auto-fixable:** Yes (mechanical trigger following the 240000 pattern). Migration → `migration-auditor` → confirmation-gated `db push`.
@@ -55,7 +55,7 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 
 **Category:** Payment Security / idempotency
 **Location:** `apps/myk9show/supabase/functions/stripe-webhook/index.ts:1063-1096, 1107-1111, 1157-1162, 1219-1227`; `_shared/entryPaymentUpdateReconcile.ts:52`; `_shared/entryPaymentAutoRefund.ts:30-36`
-**Evidence:** The payment-link path has no up-front atomic claim — the link latch closes only *after* the per-entry patch loop. The no-op re-read (`:1108-1110`) does not select `stripe_payment_intent_id`, so a same-intent already-paid entry hits `entry.payment_status === 'paid' → alreadyPaidFromNoOp → invalidEntryIds`. With zero valid entries, `entryPaymentAutoRefund.ts:30-36` returns `full_make_whole` and refunds the entire charge (`:1219-1227`). The link-close write (`:1157-1162`) is also unchecked (error discarded).
+**Evidence:** The payment-link path has no up-front atomic claim — the link latch closes only _after_ the per-entry patch loop. The no-op re-read (`:1108-1110`) does not select `stripe_payment_intent_id`, so a same-intent already-paid entry hits `entry.payment_status === 'paid' → alreadyPaidFromNoOp → invalidEntryIds`. With zero valid entries, `entryPaymentAutoRefund.ts:30-36` returns `full_make_whole` and refunds the entire charge (`:1219-1227`). The link-close write (`:1157-1162`) is also unchecked (error discarded).
 **Risk / failure scenario:** Stripe delivers `checkout.session.completed` twice near-simultaneously (documented behavior), or an operator re-sends the event from the dashboard after a silent link-close failure. Both invocations read `link.status='open'`. Winner stamps entries paid; loser's guarded updates match 0 rows → re-read shows paid → everything classified invalid → loser issues a full make-whole refund of the whole charge and flips the winner's `stripe_orders` row to `refunded`. Exhibitor keeps paid entries **and** gets full money back; payout cron still pays the club (reads untouched `refund_amount`). Platform eats the charge, automatically, no human gate. The cart path solved this exact race with a claim-first latch + verify-first alert (`:631-697`); the link path never inherited it.
 **Fix:** (a) Select `stripe_payment_intent_id` in the pre-read (`:997`) and no-op re-read (`:1110`); classify an entry whose intent equals this session's intent as paid-by-this-charge (idempotent success), never invalid. (b) Claim the link first — `update({status:'paid'}).eq('id', link.id).eq('status','open').select()` before patching; 0 rows → return (carry over the expired-promotion-revival case). (c) Check the link-close write's error. Assertion-first test: duplicate delivery must NOT call `stripe.refunds.create`.
 **Auto-fixable:** Yes (Codex-review gate — refund logic).
@@ -67,7 +67,7 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 **Category:** Payment Security / mode-scoped IDs
 **Location:** `apps/myk9show/supabase/functions/stripe-checkout/index.ts:201-213, 253-256`; `stripe-customer-portal/index.ts:109-132`; `stripe-connect-onboard/index.ts:129-158`; `supabase/migrations/20260611260000_stripe_customers_unique_person_id.sql`
 **Evidence:** `stripe_customers` is looked up by `person_id` and the stored `stripe_customer_id` reused blindly — no mode column, no `resource_missing` recovery. `grep -rn "livemode|live_mode|test_mode"` across all edge functions and 324 migrations returns nothing; there is no mode column on `stripe_customers`, `stripe_subscriptions`, `stripe_orders`, or `club_stripe_accounts`. The unique-`person_id` constraint guarantees one row per person regardless of mode. `exhibitor_profiles.stripe_customer_id` and `club_stripe_accounts.stripe_account_id` mirror the same unscoped ID.
-**Risk / failure scenario:** Swap `STRIPE_SECRET_KEY` to live → every pre-cutover user's stored `cus_test…` is passed to `checkout.sessions.create({ customer })` → `No such customer` → 500 for every such user, permanently, no self-heal. Same break in the portal; and a stale sandbox `acct_…` with `payouts_enabled=true` survives into live mode (checkout gates still see it enabled while transfers fail). This is the exact incident shape already experienced 2026-06-10. The go-live runbook prescribes a purge (Task 6.3 step 4) as the *only* current protection — see MP-14.
+**Risk / failure scenario:** Swap `STRIPE_SECRET_KEY` to live → every pre-cutover user's stored `cus_test…` is passed to `checkout.sessions.create({ customer })` → `No such customer` → 500 for every such user, permanently, no self-heal. Same break in the portal; and a stale sandbox `acct_…` with `payouts_enabled=true` survives into live mode (checkout gates still see it enabled while transfers fail). This is the exact incident shape already experienced 2026-06-10. The go-live runbook prescribes a purge (Task 6.3 step 4) as the _only_ current protection — see MP-14.
 **Fix:** Add `livemode boolean not null` to `stripe_customers` and `club_stripe_accounts`, derive current mode once from `stripeSecret.startsWith('sk_live')`, and scope every lookup `.eq('livemode', isLive)`. Belt-and-suspenders: catch `resource_missing` on session create → delete stale row → recreate customer.
 **Auto-fixable:** Yes (migration + guarded lookup + recovery catch; contained in three files). Keep the runbook purge (MP-14) as a hard gate until this lands.
 
@@ -89,8 +89,8 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 **Category:** Payment Security / secretary recovery (alert-channel integrity)
 **Location:** `apps/myk9show/supabase/functions/stripe-webhook/index.ts:250-257` (app-origin allowlist) vs. `stripe-refund-show/index.ts:207` (bulk refund tags `metadata: { show_refund: showId }`)
 **Evidence:** The `allFromAppRefund` allowlist recognizes `entry_id`, `entry_payment_request_auto_refund`, and `entry_cart_overflow_auto_refund` — but not `show_refund`. No `show_refund` string exists anywhere in `stripe-webhook/` (grep exit 1).
-**Risk / failure scenario:** Secretary cancels a 200-entry show and runs "Refund all." Each refunded intent's `charge.refunded` falls through the allowlist → handler takes the *dashboard-reconcile* path and calls `alertAdmin('Dashboard refund needs reconciling before payout', …)` → up to ~200 false CRITICAL emails for a fully-recorded refund, possibly tripping Resend rate limits and burying the one real "refund issued but not recorded — payout will overpay" alert. No money moves (the `stripe_orders` update is correct), but the refund system's entire failure-recovery design leans on `alertAdmin` signal integrity.
-**Fix:** Add `r.metadata?.show_refund` to the allowlist. Better (pairs with MP-10): when the refund carries `show_refund`, alert only when the intent's entries are *unstamped* (`refund_amount` NULL) — turning today's noise into the exact post-mortem signal MP-10 needs.
+**Risk / failure scenario:** Secretary cancels a 200-entry show and runs "Refund all." Each refunded intent's `charge.refunded` falls through the allowlist → handler takes the _dashboard-reconcile_ path and calls `alertAdmin('Dashboard refund needs reconciling before payout', …)` → up to ~200 false CRITICAL emails for a fully-recorded refund, possibly tripping Resend rate limits and burying the one real "refund issued but not recorded — payout will overpay" alert. No money moves (the `stripe_orders` update is correct), but the refund system's entire failure-recovery design leans on `alertAdmin` signal integrity.
+**Fix:** Add `r.metadata?.show_refund` to the allowlist. Better (pairs with MP-10): when the refund carries `show_refund`, alert only when the intent's entries are _unstamped_ (`refund_amount` NULL) — turning today's noise into the exact post-mortem signal MP-10 needs.
 **Auto-fixable:** Yes (one-line allowlist; the smarter variant is a small function). Land jointly with MP-10.
 
 ---
@@ -99,7 +99,7 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 
 **Category:** Payment Security / partial failures
 **Location:** `apps/myk9show/supabase/functions/stripe-webhook/index.ts:1147, 1173, 986` vs. the cart path's fresh retrieve at `:497-508`
-**Evidence:** The cart path re-retrieves the session *because* "the pinned webhook payload omits amount_total" (comment `:497-506`). The link path uses `session.amount_total` directly for refund decisions (`:1147`), the `stripe_orders` amount (`:1173`), and the no-link-record refund (`:986`).
+**Evidence:** The cart path re-retrieves the session _because_ "the pinned webhook payload omits amount_total" (comment `:497-506`). The link path uses `session.amount_total` directly for refund decisions (`:1147`), the `stripe_orders` amount (`:1173`), and the no-link-record refund (`:986`).
 **Risk / failure scenario:** Payload arrives without `amount_total` (older pinned endpoint version / event resend) → full-make-whole becomes `cannot_refund: missing_amount` (alert + manual refund instead of automatic) and the `stripe_orders` row is recorded `amount_cents: 0` ($0.00 in exhibitor history, broken reconciliation totals). Operational-failure only, but converts an automated money path to manual and corrupts history.
 **Fix:** Mirror the cart path — `stripe.checkout.sessions.retrieve(session.id)` at the top of `handleEntryPaymentRequestCompleted` and use `fresh.amount_total` / `fresh.payment_status` throughout (also satisfies MP-05 for this path).
 **Auto-fixable:** Yes.
@@ -131,7 +131,7 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 
 **Category:** Payment Security / partial failures
 **Location:** `apps/myk9show/supabase/functions/stripe-refund-show/index.ts:27` (`CONCURRENCY = 5`), `:198-234` (refund→stamp window), `:235-258` (alert fires only on `stampError`)
-**Evidence:** The only overpay alert is inside the `stampError` branch. A runtime kill (edge-fn wall-clock limit, crash) between `stripe.refunds.create` (`:206`) and the stamp RPC (`:231`) alerts no one — the process is gone — and the client gets a bare network error. Re-run is fully resumable (`findReusableShowRefund` + atomic stamp, verified), but a secretary who assumes total failure won't re-run, and the payout cron then pays the ≤5 unstamped entries' fees for money already refunded. Today this is *accidentally* covered by MP-06's noise — a naive MP-06 fix would remove that net.
+**Evidence:** The only overpay alert is inside the `stampError` branch. A runtime kill (edge-fn wall-clock limit, crash) between `stripe.refunds.create` (`:206`) and the stamp RPC (`:231`) alerts no one — the process is gone — and the client gets a bare network error. Re-run is fully resumable (`findReusableShowRefund` + atomic stamp, verified), but a secretary who assumes total failure won't re-run, and the payout cron then pays the ≤5 unstamped entries' fees for money already refunded. Today this is _accidentally_ covered by MP-06's noise — a naive MP-06 fix would remove that net.
 **Fix:** Fix MP-06 the smart way (alert on unstamped `show_refund` intents via webhook) — that is exactly the post-mortem detector this needs and it survives the function's death.
 **Auto-fixable:** Yes (jointly with MP-06).
 
@@ -141,7 +141,7 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 
 **Category:** Data Exposure / secretary recovery
 **Location:** `apps/myk9show/src/components/shows/RefundAllEntriesCard.tsx:164-183`; server returns rich per-entry data at `stripe-refund-show/index.ts:369-379`
-**Evidence:** The server returns `refunded[].entryIds`, `skipped[].{entryId, reason}`, `failed[].{entryIds, error}`, but the card renders only counts, held in component `useState` (`:81`) — a reload discards even the counts. A secretary can't see *which* entries were skipped (cash/check vs already-refunded vs shared-payment need different next steps) or *why* a refund failed.
+**Evidence:** The server returns `refunded[].entryIds`, `skipped[].{entryId, reason}`, `failed[].{entryIds, error}`, but the card renders only counts, held in component `useState` (`:81`) — a reload discards even the counts. A secretary can't see _which_ entries were skipped (cash/check vs already-refunded vs shared-payment need different next steps) or _why_ a refund failed.
 **Fix:** Render the `skipped`/`failed` arrays grouped by reason with entry links; optionally persist the run summary (e.g. a `show_refund_runs` row) so it survives reload.
 **Auto-fixable:** Partially (rendering yes; persistence needs a small schema decision).
 
@@ -161,7 +161,7 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 
 **Category:** Data Exposure / idempotency
 **Location:** `apps/myk9show/supabase/functions/stripe-webhook/index.ts:1591-1720`; `supabase/functions/send-confirmation-email/index.ts:443, 592, 607`
-**Evidence:** The webhook's `sendEntryConfirmationEmail` neither stamps `entries.confirmation_email_sent_at` nor sends a Resend idempotency key. The Heritage cron is properly idempotent (`.is('confirmation_email_sent_at', null)` + `Idempotency-Key`), but because the webhook never stamps, a heritage-configured trial (`trials.confirmation_date` set) whose entries paid via online cart gets *both* the webhook receipt email and the Heritage confirmation email.
+**Evidence:** The webhook's `sendEntryConfirmationEmail` neither stamps `entries.confirmation_email_sent_at` nor sends a Resend idempotency key. The Heritage cron is properly idempotent (`.is('confirmation_email_sent_at', null)` + `Idempotency-Key`), but because the webhook never stamps, a heritage-configured trial (`trials.confirmation_date` set) whose entries paid via online cart gets _both_ the webhook receipt email and the Heritage confirmation email.
 **Fix:** Stamp `confirmation_email_sent_at`/`status` from the webhook path too, or exclude `payment_method='online'` entries from the Heritage cron query. No money impact.
 **Auto-fixable:** Yes.
 
@@ -188,16 +188,18 @@ None is anonymously exploitable; MP-01/02 require a manage-show role, MP-03/04 a
 The following idempotency, partial-failure, and integrity properties were checked and confirmed correct:
 
 **Payout mechanism**
+
 - **No double transfer** — `transfers.list({ transfer_group: show.id })` before every `transfers.create` (`cron-process-payouts:295-296`) + partial unique index `show_payouts_one_live_per_show ... where status <> 'failed'` + status-gated `.update({status:'processing'}).eq('status','pending').select()` claim → at most one transfer per show, ever.
 - **Crash between transfer and DB update is safe** — `processing` rows failed after 24h by `recoverStaleProcessing`; the retry re-hits the `transfers.list` guard and reconciles the orphan instead of re-paying.
 - **Partial failures isolate + retry** — per-show try/catch; one failure marks only that row `failed` (falls outside the unique index → fresh retry next night) and emails the admin.
 - **Payout amount excludes the platform fee** — `payoutCalc` sums only `entry_fee`; the 7% platform fee stays in the platform balance.
-- **Refund-after-payout blocked** — `validateRefund` rejects `completed`/`processing` payout states; both refund fns re-read payout state immediately before issuing; cron recomputes the amount *after* claiming `processing`.
+- **Refund-after-payout blocked** — `validateRefund` rejects `completed`/`processing` payout states; both refund fns re-read payout state immediately before issuing; cron recomputes the amount _after_ claiming `processing`.
 - **Cron auth is constant-time** — `secretMatches` SHA-256-hashes both sides and XOR-accumulates; a leaked secret only allows idempotent nuisance triggers of already-owed shows.
 - **`refund_amount` forgery closed** — service-role-only on UPDATE and INSERT; payout deduction keys on it, not `payment_status`.
 - **`stripe-connect-onboard` authz** — verifies `is_club_admin`/`is_site_admin` as the caller; allow-listed redirect origins; orphan Express account cleaned up on persist failure; onboarding flags only ever set from `account.updated` webhook, defaulting missing fields to `false`.
 
 **Pay path (cart)**
+
 - **Cart duplicate delivery** — atomic claim latch `update({status:'submitted'}).eq('status','active')` before any entry write; genuine second charge disambiguated with a verify-first alert.
 - **Replayed events** — signature verified first (dual-secret); sequential replays latched by cart/link status.
 - **Per-entry paid-marking** — every stamp `.eq('payment_status','pending')` + active-status filter; can't double-apply.
@@ -206,6 +208,7 @@ The following idempotency, partial-failure, and integrity properties were checke
 - **Capacity-gate entry creation** — `create_online_paid_entry` re-verifies class→show/trial membership and takes the judge-day advisory lock; service-role-only.
 
 **Refund path**
+
 - **Client double-submit** — `inFlightRef` + disabled buttons on both single and bulk.
 - **Concurrent same-entry refunds** — shared Stripe idempotency key `refund-entry-{id}-0`; same params dedupe, different amounts error.
 - **refund-show run twice** — stamped entries classify `already_refunded` and skip; refunded-but-unstamped intents reuse via `metadata.show_refund`; resumable, never double-refunds.

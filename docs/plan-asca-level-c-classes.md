@@ -15,19 +15,19 @@ Result: ASCA's Level C continuation classes are offered by the config layer but 
 
 Raised with the user during the Phase 4 live walk:
 
-- **Level C → own scheduled class.** Seed it. Confirmed by the ASCA rulebook: `docs/rulebooks/asca-scent-detection-rules.txt` §3.2.2/§5.2 — Level C is a real class with its own element titles (`SCNc-C`, etc.), entered by dogs that have titled at the base level and wish to *continue*.
+- **Level C → own scheduled class.** Seed it. Confirmed by the ASCA rulebook: `docs/rulebooks/asca-scent-detection-rules.txt` §3.2.2/§5.2 — Level C is a real class with its own element titles (`SCNc-C`, etc.), entered by dogs that have titled at the base level and wish to _continue_.
 - **Champion → titling/invitational, leave out.** Not seeded into the wizard template; the divergence is intentional and documented here.
 
 ## Root-cause facts (verified 2026-07-01)
 
-| Fact | Evidence |
-| --- | --- |
-| Wizard grid renders **one card per `sport_class_rules` row**, carrying `section` straight through. | `mapSportTemplateToClassTemplate` = `rules.map(...)` — `sport-template-types.ts:128,185`; fed via `useSportTemplates.ts:30` and `templateStore.ts:378` (both pass `row.sport_class_rules`). |
-| `section_mode` has **zero consumers** — it is decorative metadata. | `grep section_mode\|sectionMode src` → only the type declaration `sport-template-types.ts:22`. AKC/UKC section behavior is achieved purely by *which rows exist*. |
-| Card face shows `level` + a `section` badge; `class_name` is the **identity** key (judge assignment, selection, search, dedup, aria). | `SimpleClassSelector.tsx:490-498` (visible), `:80,124-127,151,502` (identity). |
-| Level C runs with **identical** judging/scoring parameters to its base level. | Rulebook §5.2.2: "The same methods and standards are used for judging and scoring the Novice Level C classes as the Novice Level classes." |
-| `buildRuleMap` keys by `templateId\|element\|level` (**section-blind**), so base and C collide on one key. | `buildRuleMap.ts:27`. Harmless: §5.2.2 makes their params identical, so either wins the collision correctly. |
-| Config already emits `class_name = "{Element} {Level} Level C"`, `section='C'`, and is **unit-tested**. | `asca.test.ts:40-58`; `generateScentWorkClasses.test.ts:108-130`. AKC's DB seed matches AKC's config (`"Container Novice A"`), so ASCA's DB seed should match ASCA's config. |
+| Fact                                                                                                                                  | Evidence                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Wizard grid renders **one card per `sport_class_rules` row**, carrying `section` straight through.                                    | `mapSportTemplateToClassTemplate` = `rules.map(...)` — `sport-template-types.ts:128,185`; fed via `useSportTemplates.ts:30` and `templateStore.ts:378` (both pass `row.sport_class_rules`). |
+| `section_mode` has **zero consumers** — it is decorative metadata.                                                                    | `grep section_mode\|sectionMode src` → only the type declaration `sport-template-types.ts:22`. AKC/UKC section behavior is achieved purely by _which rows exist_.                           |
+| Card face shows `level` + a `section` badge; `class_name` is the **identity** key (judge assignment, selection, search, dedup, aria). | `SimpleClassSelector.tsx:490-498` (visible), `:80,124-127,151,502` (identity).                                                                                                              |
+| Level C runs with **identical** judging/scoring parameters to its base level.                                                         | Rulebook §5.2.2: "The same methods and standards are used for judging and scoring the Novice Level C classes as the Novice Level classes."                                                  |
+| `buildRuleMap` keys by `templateId\|element\|level` (**section-blind**), so base and C collide on one key.                            | `buildRuleMap.ts:27`. Harmless: §5.2.2 makes their params identical, so either wins the collision correctly.                                                                                |
+| Config already emits `class_name = "{Element} {Level} Level C"`, `section='C'`, and is **unit-tested**.                               | `asca.test.ts:40-58`; `generateScentWorkClasses.test.ts:108-130`. AKC's DB seed matches AKC's config (`"Container Novice A"`), so ASCA's DB seed should match ASCA's config.                |
 
 ## Naming & shape decisions
 
@@ -39,8 +39,8 @@ Raised with the user during the Phase 4 live walk:
 
 ## Out of scope (flagged, not fixed here)
 
-- **`SimpleClassSelector` level-sort bug** (`SimpleClassSelector.tsx:105`): `levelOrder = ['Novice','Advanced','Excellent','Master']` omits ASCA's `Open` (and UKC's Superior/Elite). Unlisted levels get `indexOf === -1` and sort *before* Novice, so ASCA `Open` classes already sort first today. Pre-existing; unrelated to Level C. Track separately.
-- **`buildRuleMap` section-blind key**: fine today because continuation params equal base params. If a future registry adds a continuation class with *different* params than its base, add `section` to the key at `buildRuleMap.ts:27`.
+- **`SimpleClassSelector` level-sort bug** (`SimpleClassSelector.tsx:105`): `levelOrder = ['Novice','Advanced','Excellent','Master']` omits ASCA's `Open` (and UKC's Superior/Elite). Unlisted levels get `indexOf === -1` and sort _before_ Novice, so ASCA `Open` classes already sort first today. Pre-existing; unrelated to Level C. Track separately.
+- **`buildRuleMap` section-blind key**: fine today because continuation params equal base params. If a future registry adds a continuation class with _different_ params than its base, add `section` to the key at `buildRuleMap.ts:27`.
 
 ## Phase 1 — Migration
 

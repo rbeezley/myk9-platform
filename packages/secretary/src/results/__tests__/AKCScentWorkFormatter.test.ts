@@ -537,10 +537,30 @@ describe('AKCScentWorkFormatter', () => {
     const xml = AKCScentWorkFormatter.formatXml(
       makeData({
         entries: [
-          makeEntry({ classId: 'class-1', armbandNumber: 101, resultStatus: 'qualified', finalPlacement: 1 }),
-          makeEntry({ classId: 'class-1', armbandNumber: 102, resultStatus: 'qualified', finalPlacement: null }),
-          makeEntry({ classId: 'class-1', armbandNumber: 103, resultStatus: 'qualified', finalPlacement: null }),
-          makeEntry({ classId: 'class-1', armbandNumber: 104, resultStatus: 'qualified', finalPlacement: null }),
+          makeEntry({
+            classId: 'class-1',
+            armbandNumber: 101,
+            resultStatus: 'qualified',
+            finalPlacement: 1,
+          }),
+          makeEntry({
+            classId: 'class-1',
+            armbandNumber: 102,
+            resultStatus: 'qualified',
+            finalPlacement: null,
+          }),
+          makeEntry({
+            classId: 'class-1',
+            armbandNumber: 103,
+            resultStatus: 'qualified',
+            finalPlacement: null,
+          }),
+          makeEntry({
+            classId: 'class-1',
+            armbandNumber: 104,
+            resultStatus: 'qualified',
+            finalPlacement: null,
+          }),
         ],
       })
     );

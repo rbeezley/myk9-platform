@@ -11,7 +11,7 @@ export function withErrorBoundary<P extends object>(
     fallback?: (props: { error: Error | null; resetErrorBoundary: () => void }) => React.ReactNode;
   }
 ) {
-  const WrappedComponent: React.FC<P> = (props) => (
+  const WrappedComponent: React.FC<P> = props => (
     <ErrorBoundary {...options}>
       <Component {...props} />
     </ErrorBoundary>
@@ -29,11 +29,11 @@ export const useErrorHandler = () => {
       stack: error.stack,
       context: context || 'Functional Component',
       timestamp: new Date().toISOString(),
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
 
     logger.error('Manual Error Report:', 'hooks', errorReport, error);
-    
+
     // Store in localStorage for debugging
     try {
       const existingErrors = JSON.parse(localStorage.getItem('manualErrorLogs') || '[]');

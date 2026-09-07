@@ -28,13 +28,13 @@ async function main(): Promise<void> {
 
   process.stderr.write(
     `[myk9-admin-mcp] serving over stdio; env=${config.envLabel}; ` +
-      `${tools.length} tool(s) registered.\n`,
+      `${tools.length} tool(s) registered.\n`
   );
 
   await startAdminMcpServer({ config, tools });
 }
 
-main().catch((error) => {
+main().catch(error => {
   const detail = error instanceof Error ? error.message : String(error);
   process.stderr.write(`[myk9-admin-mcp] fatal: ${detail}\n`);
   process.exit(1);

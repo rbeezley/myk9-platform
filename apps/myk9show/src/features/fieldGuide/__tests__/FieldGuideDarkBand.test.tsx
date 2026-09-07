@@ -33,9 +33,7 @@ describe('FieldGuideDarkBand', () => {
   });
 
   it('renders as a section element when as="section"', () => {
-    const { container } = render(
-      <FieldGuideDarkBand as="section">SECTIONED</FieldGuideDarkBand>
-    );
+    const { container } = render(<FieldGuideDarkBand as="section">SECTIONED</FieldGuideDarkBand>);
     expect(container.querySelector('section.fg-dark-band')).not.toBeNull();
   });
 

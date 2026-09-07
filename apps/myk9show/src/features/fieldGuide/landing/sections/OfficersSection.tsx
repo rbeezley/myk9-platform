@@ -15,11 +15,7 @@ interface OfficersSectionProps {
  * the source data only carries a secretary, we synthesize a single-cell
  * fallback so the section still surfaces. If neither, we render nothing.
  */
-export function OfficersSection({
-  officers,
-  secretaryName,
-  secretaryEmail,
-}: OfficersSectionProps) {
+export function OfficersSection({ officers, secretaryName, secretaryEmail }: OfficersSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   const items: FieldGuideOfficer[] =

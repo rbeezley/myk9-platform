@@ -59,7 +59,7 @@ export const AKC_BREEDS: BreedInfo[] = [
   { name: 'Bloodhound', varieties: [], group: 'Hound' },
   { name: 'Bluetick Coonhound', varieties: [], group: 'Hound' },
   { name: 'Borzoi', varieties: [], group: 'Hound' },
-  { name: 'Cirneco dell\'Etna', varieties: [], group: 'Hound' },
+  { name: "Cirneco dell'Etna", varieties: [], group: 'Hound' },
   { name: 'Dachshund', varieties: ['Longhaired', 'Smooth', 'Wirehaired'], group: 'Hound' },
   { name: 'English Foxhound', varieties: [], group: 'Hound' },
   { name: 'Grand Basset Griffon Vendéen', varieties: [], group: 'Hound' },
@@ -154,7 +154,11 @@ export const AKC_BREEDS: BreedInfo[] = [
   { name: 'Cavalier King Charles Spaniel', varieties: [], group: 'Toy' },
   { name: 'Chihuahua', varieties: ['Long Coat', 'Smooth Coat'], group: 'Toy' },
   { name: 'Chinese Crested', varieties: ['Hairless', 'Powderpuff'], group: 'Toy' },
-  { name: 'English Toy Spaniel', varieties: ['Blenheim & Prince Charles', 'King Charles & Ruby'], group: 'Toy' },
+  {
+    name: 'English Toy Spaniel',
+    varieties: ['Blenheim & Prince Charles', 'King Charles & Ruby'],
+    group: 'Toy',
+  },
   { name: 'Havanese', varieties: [], group: 'Toy' },
   { name: 'Italian Greyhound', varieties: [], group: 'Toy' },
   { name: 'Japanese Chin', varieties: [], group: 'Toy' },
@@ -173,7 +177,11 @@ export const AKC_BREEDS: BreedInfo[] = [
   { name: 'Yorkshire Terrier', varieties: [], group: 'Toy' },
 
   // Non-Sporting Group
-  { name: 'American Eskimo Dog', varieties: ['Standard', 'Miniature', 'Toy'], group: 'Non-Sporting' },
+  {
+    name: 'American Eskimo Dog',
+    varieties: ['Standard', 'Miniature', 'Toy'],
+    group: 'Non-Sporting',
+  },
   { name: 'Bichon Frise', varieties: [], group: 'Non-Sporting' },
   { name: 'Boston Terrier', varieties: [], group: 'Non-Sporting' },
   { name: 'Bulldog', varieties: [], group: 'Non-Sporting' },
@@ -306,22 +314,34 @@ export const UKC_BREEDS: BreedInfo[] = [
   { name: 'Borzoi', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Canaan Dog', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Carolina Dog', varieties: [], group: 'Sighthound & Pariah Dog' },
-  { name: 'Cirneco dell\'Etna', varieties: [], group: 'Sighthound & Pariah Dog' },
+  { name: "Cirneco dell'Etna", varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Greyhound', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Ibizan Hound', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Irish Wolfhound', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Italian Greyhound', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'New Guinea Singing Dog', varieties: [], group: 'Sighthound & Pariah Dog' },
-  { name: 'Peruvian Inca Orchid', varieties: ['Small', 'Medium', 'Large'], group: 'Sighthound & Pariah Dog' },
+  {
+    name: 'Peruvian Inca Orchid',
+    varieties: ['Small', 'Medium', 'Large'],
+    group: 'Sighthound & Pariah Dog',
+  },
   { name: 'Pharaoh Hound', varieties: [], group: 'Sighthound & Pariah Dog' },
-  { name: 'Portuguese Podengo', varieties: ['Small', 'Medium', 'Large'], group: 'Sighthound & Pariah Dog' },
+  {
+    name: 'Portuguese Podengo',
+    varieties: ['Small', 'Medium', 'Large'],
+    group: 'Sighthound & Pariah Dog',
+  },
   { name: 'Rhodesian Ridgeback', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Saluki', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Scottish Deerhound', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Sloughi', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Thai Ridgeback', varieties: [], group: 'Sighthound & Pariah Dog' },
   { name: 'Whippet', varieties: [], group: 'Sighthound & Pariah Dog' },
-  { name: 'Xoloitzcuintli', varieties: ['Standard', 'Miniature', 'Toy'], group: 'Sighthound & Pariah Dog' },
+  {
+    name: 'Xoloitzcuintli',
+    varieties: ['Standard', 'Miniature', 'Toy'],
+    group: 'Sighthound & Pariah Dog',
+  },
 
   // Gun Dogs Group
   { name: 'American Water Spaniel', varieties: [], group: 'Gun Dog' },
@@ -357,9 +377,17 @@ export const UKC_BREEDS: BreedInfo[] = [
   { name: 'Wirehaired Vizsla', varieties: [], group: 'Gun Dog' },
 
   // Northern Breeds Group
-  { name: 'Alaskan Klee Kai', varieties: ['Standard', 'Miniature', 'Toy'], group: 'Northern Breed' },
+  {
+    name: 'Alaskan Klee Kai',
+    varieties: ['Standard', 'Miniature', 'Toy'],
+    group: 'Northern Breed',
+  },
   { name: 'Alaskan Malamute', varieties: [], group: 'Northern Breed' },
-  { name: 'American Eskimo Dog', varieties: ['Standard', 'Miniature', 'Toy'], group: 'Northern Breed' },
+  {
+    name: 'American Eskimo Dog',
+    varieties: ['Standard', 'Miniature', 'Toy'],
+    group: 'Northern Breed',
+  },
   { name: 'Chinook', varieties: [], group: 'Northern Breed' },
   { name: 'Chow Chow', varieties: [], group: 'Northern Breed' },
   { name: 'Eurasier', varieties: [], group: 'Northern Breed' },
@@ -396,7 +424,11 @@ export const UKC_BREEDS: BreedInfo[] = [
   { name: 'Briard', varieties: [], group: 'Herding Dog' },
   { name: 'Cardigan Welsh Corgi', varieties: [], group: 'Herding Dog' },
   { name: 'Collie', varieties: ['Rough', 'Smooth'], group: 'Herding Dog' },
-  { name: 'Dutch Shepherd', varieties: ['Short Hair', 'Long Hair', 'Wire Hair'], group: 'Herding Dog' },
+  {
+    name: 'Dutch Shepherd',
+    varieties: ['Short Hair', 'Long Hair', 'Wire Hair'],
+    group: 'Herding Dog',
+  },
   { name: 'English Shepherd', varieties: [], group: 'Herding Dog' },
   { name: 'Entlebucher Mountain Dog', varieties: [], group: 'Herding Dog' },
   { name: 'German Shepherd Dog', varieties: [], group: 'Herding Dog' },
@@ -460,7 +492,11 @@ export const UKC_BREEDS: BreedInfo[] = [
   { name: 'Coton de Tulear', varieties: [], group: 'Companion Dog' },
   { name: 'Dalmatian', varieties: [], group: 'Companion Dog' },
   { name: 'English Bulldog', varieties: [], group: 'Companion Dog' },
-  { name: 'English Toy Spaniel', varieties: ['Blenheim & Prince Charles', 'King Charles & Ruby'], group: 'Companion Dog' },
+  {
+    name: 'English Toy Spaniel',
+    varieties: ['Blenheim & Prince Charles', 'King Charles & Ruby'],
+    group: 'Companion Dog',
+  },
   { name: 'French Bulldog', varieties: [], group: 'Companion Dog' },
   { name: 'Havanese', varieties: [], group: 'Companion Dog' },
   { name: 'Japanese Chin', varieties: [], group: 'Companion Dog' },
@@ -519,12 +555,12 @@ export const KC_BREEDS: BreedInfo[] = [
 
 // Organization to breeds mapping
 export const ORGANIZATION_BREEDS: OrganizationBreeds = {
-  'AKC': AKC_BREEDS,
-  'UKC': UKC_BREEDS,
-  'CKC': CKC_BREEDS,
-  'FCI': FCI_BREEDS,
-  'KC': KC_BREEDS,
-  'Other': AKC_BREEDS, // Default to AKC for "Other"
+  AKC: AKC_BREEDS,
+  UKC: UKC_BREEDS,
+  CKC: CKC_BREEDS,
+  FCI: FCI_BREEDS,
+  KC: KC_BREEDS,
+  Other: AKC_BREEDS, // Default to AKC for "Other"
 };
 
 // Helper function to get breeds for an organization
@@ -594,5 +630,5 @@ export const UKC_GROUPS = [
   'Companion Dog',
 ] as const;
 
-export type AKCGroup = typeof AKC_GROUPS[number];
-export type UKCGroup = typeof UKC_GROUPS[number];
+export type AKCGroup = (typeof AKC_GROUPS)[number];
+export type UKCGroup = (typeof UKC_GROUPS)[number];

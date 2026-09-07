@@ -8,70 +8,189 @@
         "role": "primary",
         "displayName": "Clay",
         "canonical": "#c96442",
-        "tonalRamp": ["#3d2516", "#7c4a2e", "#b05338", "#c96442", "#db8561", "#f2c8a8", "#f9e5d5", "#fdf5ef"]
+        "tonalRamp": [
+          "#3d2516",
+          "#7c4a2e",
+          "#b05338",
+          "#c96442",
+          "#db8561",
+          "#f2c8a8",
+          "#f9e5d5",
+          "#fdf5ef"
+        ]
       },
       "grove": {
         "role": "primary",
         "displayName": "Grove",
         "canonical": "#2f8a7f",
-        "tonalRamp": ["#0d2e2b", "#184d47", "#226b63", "#2f8a7f", "#3aa898", "#b9dcd6", "#cce9e4", "#ecf6f4"]
+        "tonalRamp": [
+          "#0d2e2b",
+          "#184d47",
+          "#226b63",
+          "#2f8a7f",
+          "#3aa898",
+          "#b9dcd6",
+          "#cce9e4",
+          "#ecf6f4"
+        ]
       },
       "dusk": {
         "role": "primary",
         "displayName": "Dusk",
         "canonical": "#3d6d8c",
-        "tonalRamp": ["#0d1e2a", "#213e53", "#305875", "#3d6d8c", "#5088a8", "#b9cbd9", "#cfdbe6", "#edf2f6"]
+        "tonalRamp": [
+          "#0d1e2a",
+          "#213e53",
+          "#305875",
+          "#3d6d8c",
+          "#5088a8",
+          "#b9cbd9",
+          "#cfdbe6",
+          "#edf2f6"
+        ]
       },
       "heather": {
         "role": "primary",
         "displayName": "Heather",
         "canonical": "#7b5aa6",
-        "tonalRamp": ["#1e1028", "#432f61", "#634689", "#7b5aa6", "#9572bf", "#cdbedb", "#e0d5ed", "#f1ecf6"]
+        "tonalRamp": [
+          "#1e1028",
+          "#432f61",
+          "#634689",
+          "#7b5aa6",
+          "#9572bf",
+          "#cdbedb",
+          "#e0d5ed",
+          "#f1ecf6"
+        ]
       },
       "catalog-cream": {
         "role": "neutral",
         "displayName": "Catalog Cream",
         "canonical": "#faf7f2",
-        "tonalRamp": ["#181411", "#403a31", "#8c8376", "#b9b1a0", "#e4dccc", "#ede9e0", "#f3efe6", "#faf7f2"]
+        "tonalRamp": [
+          "#181411",
+          "#403a31",
+          "#8c8376",
+          "#b9b1a0",
+          "#e4dccc",
+          "#ede9e0",
+          "#f3efe6",
+          "#faf7f2"
+        ]
       },
       "card-white": {
         "role": "neutral",
         "displayName": "Card White",
         "canonical": "#ffffff",
-        "tonalRamp": ["#181411", "#403a31", "#8c8376", "#b9b1a0", "#e4dccc", "#f0eee6", "#faf9f5", "#ffffff"]
+        "tonalRamp": [
+          "#181411",
+          "#403a31",
+          "#8c8376",
+          "#b9b1a0",
+          "#e4dccc",
+          "#f0eee6",
+          "#faf9f5",
+          "#ffffff"
+        ]
       },
       "ink": {
         "role": "neutral",
         "displayName": "Ink",
         "canonical": "#181411",
-        "tonalRamp": ["#141413", "#181411", "#1e1c19", "#2e2b27", "#3a3a36", "#5e5d59", "#8c8376", "#b0aea5"]
+        "tonalRamp": [
+          "#141413",
+          "#181411",
+          "#1e1c19",
+          "#2e2b27",
+          "#3a3a36",
+          "#5e5d59",
+          "#8c8376",
+          "#b0aea5"
+        ]
       },
       "ring-green": {
         "role": "secondary",
         "displayName": "Ring Green",
         "canonical": "#4e7c53",
-        "tonalRamp": ["#1c2e1e", "#385a3b", "#4e7c53", "#5f8f64", "#7fa883", "#b3ccb5", "#d8e6d9", "#f1f8f1"]
+        "tonalRamp": [
+          "#1c2e1e",
+          "#385a3b",
+          "#4e7c53",
+          "#5f8f64",
+          "#7fa883",
+          "#b3ccb5",
+          "#d8e6d9",
+          "#f1f8f1"
+        ]
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display / h1 (Montserrat 600)", "purpose": "Page titles. Viewport-clamped, not --font-scale." },
-      "headline": { "displayName": "Headline / h2 (Montserrat 600)", "purpose": "Major section headings. Viewport-clamped, not --font-scale." },
-      "celebration": { "displayName": "Celebration (Fraunces)", "purpose": "The Podium only: .display-serif (450, opsz 144) at heading sizes, .celebration-serif (500, opsz 24) at text sizes." },
-      "body": { "displayName": "Body", "purpose": "All working text. 16px minimum before user scaling." },
+      "display": {
+        "displayName": "Display / h1 (Montserrat 600)",
+        "purpose": "Page titles. Viewport-clamped, not --font-scale."
+      },
+      "headline": {
+        "displayName": "Headline / h2 (Montserrat 600)",
+        "purpose": "Major section headings. Viewport-clamped, not --font-scale."
+      },
+      "celebration": {
+        "displayName": "Celebration (Fraunces)",
+        "purpose": "The Podium only: .display-serif (450, opsz 144) at heading sizes, .celebration-serif (500, opsz 24) at text sizes."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All working text. 16px minimum before user scaling."
+      },
       "label": { "displayName": "Label", "purpose": "Chips, badges, form labels, metadata." },
-      "mono": { "displayName": "Mono (JetBrains Mono)", "purpose": "Armband numbers, times, scores — tabular digits." }
+      "mono": {
+        "displayName": "Mono (JetBrains Mono)",
+        "purpose": "Armband numbers, times, scores — tabular digits."
+      }
     },
     "shadows": [
-      { "name": "card-rest", "value": "rgba(61, 37, 22, 0.05) 0 4px 24px", "purpose": "Whisper-soft ambient lift for elevated cards; optional, borders often suffice." },
-      { "name": "card-hover", "value": "0 0 0 1px var(--border), rgba(61, 37, 22, 0.06) 0 8px 28px", "purpose": "Hover response paired with a 1-2px translateY rise." },
-      { "name": "header", "value": "0 1px 3px rgba(61, 37, 22, 0.04)", "purpose": "Faintest separation under sticky headers." },
-      { "name": "ring-primary", "value": "0 0 0 1px var(--primary)", "purpose": "Selected / active containment in the user's accent." },
-      { "name": "modal", "value": "0 12px 32px rgba(0, 0, 0, 0.15)", "purpose": "Floating layers only: modals, popovers, toasts." }
+      {
+        "name": "card-rest",
+        "value": "rgba(61, 37, 22, 0.05) 0 4px 24px",
+        "purpose": "Whisper-soft ambient lift for elevated cards; optional, borders often suffice."
+      },
+      {
+        "name": "card-hover",
+        "value": "0 0 0 1px var(--border), rgba(61, 37, 22, 0.06) 0 8px 28px",
+        "purpose": "Hover response paired with a 1-2px translateY rise."
+      },
+      {
+        "name": "header",
+        "value": "0 1px 3px rgba(61, 37, 22, 0.04)",
+        "purpose": "Faintest separation under sticky headers."
+      },
+      {
+        "name": "ring-primary",
+        "value": "0 0 0 1px var(--primary)",
+        "purpose": "Selected / active containment in the user's accent."
+      },
+      {
+        "name": "modal",
+        "value": "0 12px 32px rgba(0, 0, 0, 0.15)",
+        "purpose": "Floating layers only: modals, popovers, toasts."
+      }
     ],
     "motion": [
-      { "name": "transition-fast", "value": "0.15s ease", "purpose": "Hover and press feedback on buttons and links." },
-      { "name": "transition-normal", "value": "0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)", "purpose": "Default ease-out for state transitions and lifts." },
-      { "name": "spring", "value": "cubic-bezier(0.175, 0.885, 0.32, 1.275)", "purpose": "Celebration moments only (The Podium); never in working UI." }
+      {
+        "name": "transition-fast",
+        "value": "0.15s ease",
+        "purpose": "Hover and press feedback on buttons and links."
+      },
+      {
+        "name": "transition-normal",
+        "value": "0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "purpose": "Default ease-out for state transitions and lifts."
+      },
+      {
+        "name": "spring",
+        "value": "cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+        "purpose": "Celebration moments only (The Podium); never in working UI."
+      }
     ],
     "breakpoints": [
       { "name": "sm", "value": "640px" },
@@ -151,12 +270,36 @@
       "Token layering: base UI tokens, v2 surface overrides (index.css @layer base — canonical), accent system, redesign tokens, chip pairs"
     ],
     "rules": [
-      { "name": "The Accent Is the User's Rule", "body": "Components never hardcode #c96442 or any accent hex. Always var(--primary), var(--accent), var(--ring). A component that only looks right in Clay is broken.", "section": "colors" },
-      { "name": "The Ring Green Rule", "body": "Ring Green (#4e7c53) appears only on live-judging indicators. Never for success states, never for decoration.", "section": "colors" },
-      { "name": "The Status Is Sacred Rule", "body": "Status colors are a vocabulary the whole show day depends on. Never repurpose a status color for decoration, and never invent a new status color when one exists.", "section": "colors" },
-      { "name": "The Podium Rule", "body": "Fraunces is forbidden in working UI. If the screen helps someone do a task, it is Montserrat. If the screen honors something a dog just did — a placement, a title, a qualifying run — Fraunces may speak. Use .display-serif above ~20px and .celebration-serif below it.", "section": "typography" },
-      { "name": "The Font Scale Rule", "body": "Body and h3-and-below sizes multiply by --font-scale (user preference); h1/h2 use viewport clamps instead. Never set working text in fixed px that escapes the scale, and never below 12px equivalent.", "section": "typography" },
-      { "name": "The Flat-by-Default Rule", "body": "A surface earns a shadow by being interacted with or by floating above the page (modal, popover, toast). Resting content stays flat.", "section": "elevation" }
+      {
+        "name": "The Accent Is the User's Rule",
+        "body": "Components never hardcode #c96442 or any accent hex. Always var(--primary), var(--accent), var(--ring). A component that only looks right in Clay is broken.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ring Green Rule",
+        "body": "Ring Green (#4e7c53) appears only on live-judging indicators. Never for success states, never for decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status Is Sacred Rule",
+        "body": "Status colors are a vocabulary the whole show day depends on. Never repurpose a status color for decoration, and never invent a new status color when one exists.",
+        "section": "colors"
+      },
+      {
+        "name": "The Podium Rule",
+        "body": "Fraunces is forbidden in working UI. If the screen helps someone do a task, it is Montserrat. If the screen honors something a dog just did — a placement, a title, a qualifying run — Fraunces may speak. Use .display-serif above ~20px and .celebration-serif below it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Font Scale Rule",
+        "body": "Body and h3-and-below sizes multiply by --font-scale (user preference); h1/h2 use viewport clamps instead. Never set working text in fixed px that escapes the scale, and never below 12px equivalent.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-by-Default Rule",
+        "body": "A surface earns a shadow by being interacted with or by floating above the page (modal, popover, toast). Resting content stays flat.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do keep every neutral warm-toned — if a gray has no yellow-brown undertone, it doesn't belong here.",

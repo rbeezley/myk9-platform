@@ -34,11 +34,7 @@ describe('MagazineCover', () => {
 
     it('does NOT render the placeholder gradient or monogram when an image is supplied', () => {
       const { container } = render(
-        <MagazineCover
-          imageUrl="https://example.com/cover.jpg"
-          alt="cover"
-          monogramLetters="BCK"
-        />
+        <MagazineCover imageUrl="https://example.com/cover.jpg" alt="cover" monogramLetters="BCK" />
       );
       expect(container.firstChild).not.toHaveClass('mz-cover--placeholder');
       expect(container.querySelector('.mz-cover__monogram')).toBeNull();
@@ -47,16 +43,12 @@ describe('MagazineCover', () => {
 
   describe('without image URL (placeholder mode)', () => {
     it('renders the placeholder modifier class', () => {
-      const { container } = render(
-        <MagazineCover imageUrl={null} monogramLetters="BCK" />
-      );
+      const { container } = render(<MagazineCover imageUrl={null} monogramLetters="BCK" />);
       expect(container.firstChild).toHaveClass('mz-cover', 'mz-cover--placeholder');
     });
 
     it('renders the club monogram letters inside the placeholder', () => {
-      const { container } = render(
-        <MagazineCover imageUrl={null} monogramLetters="BCK" />
-      );
+      const { container } = render(<MagazineCover imageUrl={null} monogramLetters="BCK" />);
       expect(container.querySelector('.mz-cover__monogram')).toHaveTextContent('BCK');
     });
 
@@ -87,10 +79,7 @@ describe('MagazineCover', () => {
 
     it('exposes an aria-label so the empty slot is announced as a placeholder', () => {
       const { container } = render(<MagazineCover imageUrl={null} monogramLetters="BCK" />);
-      expect(container.firstChild).toHaveAttribute(
-        'aria-label',
-        'Cover photograph placeholder'
-      );
+      expect(container.firstChild).toHaveAttribute('aria-label', 'Cover photograph placeholder');
     });
   });
 });

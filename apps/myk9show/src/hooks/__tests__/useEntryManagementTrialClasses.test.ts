@@ -66,17 +66,17 @@ describe('useEntryManagementTrialClasses (audit A1)', () => {
   it.each([
     ['paused offline (no data, not loading, never succeeded)', { isError: false }],
     ['errored', { isError: true }],
-  ])('reports UNKNOWN rather than an empty allowlist when the read did not succeed: %s', (
-    _name,
-    overrides
-  ) => {
-    Object.assign(queryState, overrides);
+  ])(
+    'reports UNKNOWN rather than an empty allowlist when the read did not succeed: %s',
+    (_name, overrides) => {
+      Object.assign(queryState, overrides);
 
-    const { result } = renderHook(() => useEntryManagementTrialClasses('trial-1'));
+      const { result } = renderHook(() => useEntryManagementTrialClasses('trial-1'));
 
-    expect(result.current.trialClassIds).toBeUndefined();
-    expect(result.current.trialClassesUnknown).toBe(true);
-  });
+      expect(result.current.trialClassIds).toBeUndefined();
+      expect(result.current.trialClassesUnknown).toBe(true);
+    }
+  );
 
   it('does not call a still-loading trial unknown, so no notice flashes on a normal pick', () => {
     queryState.isLoading = true;

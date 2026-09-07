@@ -54,7 +54,10 @@ export function TrainingProgressReportDialog({
               <h3 className="mb-2 font-semibold">Sessions by Skill</h3>
               <div className="space-y-2">
                 {report.bySkill.map(row => (
-                  <div key={row.skill} className="flex items-center justify-between rounded-md border p-2">
+                  <div
+                    key={row.skill}
+                    className="flex items-center justify-between rounded-md border p-2"
+                  >
                     <span>{row.skill}</span>
                     <Badge variant="outline">
                       {row.sessions} sessions · {row.minutes} min
@@ -80,7 +83,10 @@ export function TrainingProgressReportDialog({
               <h3 className="mb-2 font-semibold">Training Time Trends</h3>
               <div className="space-y-2">
                 {report.monthlyMinutes.map(row => (
-                  <div key={row.month} className="flex items-center justify-between rounded-md border p-2">
+                  <div
+                    key={row.month}
+                    className="flex items-center justify-between rounded-md border p-2"
+                  >
                     <span>{row.month}</span>
                     <Badge variant="secondary">
                       {row.sessions} sessions · {row.minutes} min

@@ -35,7 +35,7 @@ export class NetworkMonitor {
 
   private getCurrentStatus(): NetworkStatus {
     const status: NetworkStatus = {
-      isOnline: navigator.onLine
+      isOnline: navigator.onLine,
     };
 
     // Add connection information if available
@@ -56,12 +56,12 @@ export class NetworkMonitor {
   private handleOnline(): void {
     const oldStatus = this.status;
     this.status = this.getCurrentStatus();
-    
+
     if (!oldStatus.isOnline && this.status.isOnline) {
       this.eventEmitter.emit('network_changed', {
         type: 'network_changed',
         timestamp: new Date(),
-        data: { status: this.status, previousStatus: oldStatus }
+        data: { status: this.status, previousStatus: oldStatus },
       });
     }
   }
@@ -69,12 +69,12 @@ export class NetworkMonitor {
   private handleOffline(): void {
     const oldStatus = this.status;
     this.status = this.getCurrentStatus();
-    
+
     if (oldStatus.isOnline && !this.status.isOnline) {
       this.eventEmitter.emit('network_changed', {
         type: 'network_changed',
         timestamp: new Date(),
-        data: { status: this.status, previousStatus: oldStatus }
+        data: { status: this.status, previousStatus: oldStatus },
       });
     }
   }
@@ -82,13 +82,13 @@ export class NetworkMonitor {
   private handleConnectionChange(): void {
     const oldStatus = this.status;
     this.status = this.getCurrentStatus();
-    
+
     // Check if meaningful connection properties changed
     if (this.hasConnectionChanged(oldStatus, this.status)) {
       this.eventEmitter.emit('network_changed', {
         type: 'network_changed',
         timestamp: new Date(),
-        data: { status: this.status, previousStatus: oldStatus }
+        data: { status: this.status, previousStatus: oldStatus },
       });
     }
   }
@@ -113,7 +113,7 @@ export class NetworkMonitor {
         this.eventEmitter.emit('network_changed', {
           type: 'network_changed',
           timestamp: new Date(),
-          data: { status: this.status, previousStatus: oldStatus }
+          data: { status: this.status, previousStatus: oldStatus },
         });
       }
     }, 30000);
@@ -145,7 +145,9 @@ export class NetworkMonitor {
     return navWithConnection.connection || null;
   }
 
-  private getConnectionType(connection: Record<string, unknown>): 'wifi' | 'cellular' | 'ethernet' | 'unknown' {
+  private getConnectionType(
+    connection: Record<string, unknown>
+  ): 'wifi' | 'cellular' | 'ethernet' | 'unknown' {
     const type = connection.type;
     if (typeof type === 'string') {
       switch (type) {
@@ -160,7 +162,9 @@ export class NetworkMonitor {
     return 'unknown';
   }
 
-  private getEffectiveType(connection: Record<string, unknown>): '2g' | '3g' | '4g' | 'slow-2g' | undefined {
+  private getEffectiveType(
+    connection: Record<string, unknown>
+  ): '2g' | '3g' | '4g' | 'slow-2g' | undefined {
     const effectiveType = connection.effectiveType;
     if (typeof effectiveType === 'string') {
       switch (effectiveType) {

@@ -7,11 +7,13 @@ export interface SearchHistoryItem {
   resultCount?: number | undefined;
   selectedResultId?: string | undefined;
   filters?: Record<string, unknown> | undefined;
-  context?: {
-    page: string;
-    section?: string | undefined;
-    previousQuery?: string | undefined;
-  } | undefined;
+  context?:
+    | {
+        page: string;
+        section?: string | undefined;
+        previousQuery?: string | undefined;
+      }
+    | undefined;
 }
 
 export interface SearchSuggestion {
@@ -71,13 +73,24 @@ export interface HistoryActions {
   removeFromHistory: (id: string) => void;
   clearHistory: (userId?: string) => void;
   clearHistoryByType: (searchType: SearchHistoryItem['searchType'], userId?: string) => void;
-  getRecentSearches: (userId: string, limit?: number, searchType?: SearchHistoryItem['searchType']) => SearchHistoryItem[];
-  getPopularSearches: (userId: string, limit?: number, searchType?: SearchHistoryItem['searchType']) => SearchFrequency[];
+  getRecentSearches: (
+    userId: string,
+    limit?: number,
+    searchType?: SearchHistoryItem['searchType']
+  ) => SearchHistoryItem[];
+  getPopularSearches: (
+    userId: string,
+    limit?: number,
+    searchType?: SearchHistoryItem['searchType']
+  ) => SearchFrequency[];
   getSearchesByContext: (userId: string, page: string, section?: string) => SearchHistoryItem[];
 }
 
 export interface SuggestionActions {
-  generateSuggestions: (userId: string, searchType?: SearchHistoryItem['searchType']) => SearchSuggestion[];
+  generateSuggestions: (
+    userId: string,
+    searchType?: SearchHistoryItem['searchType']
+  ) => SearchSuggestion[];
   getSuggestions: (
     userId: string,
     partialQuery?: string,
@@ -149,15 +162,18 @@ export interface DataActions {
   };
 }
 
-export type SearchHistoryStore = SearchHistoryState
-  & HistoryActions
-  & SuggestionActions
-  & BookmarkActions
-  & AnalyticsActions
-  & DataActions;
+export type SearchHistoryStore = SearchHistoryState &
+  HistoryActions &
+  SuggestionActions &
+  BookmarkActions &
+  AnalyticsActions &
+  DataActions;
 
 export type SearchHistorySet = (
-  partial: SearchHistoryStore | Partial<SearchHistoryStore> | ((state: SearchHistoryStore) => SearchHistoryStore | Partial<SearchHistoryStore>),
+  partial:
+    | SearchHistoryStore
+    | Partial<SearchHistoryStore>
+    | ((state: SearchHistoryStore) => SearchHistoryStore | Partial<SearchHistoryStore>),
   replace?: false
 ) => void;
 

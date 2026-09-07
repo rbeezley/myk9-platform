@@ -572,7 +572,10 @@ describe('secretary entry read replication', () => {
             };
           }
           // Pre-migration shape: withdrawn_at only, still merged onto the row.
-          return { data: [{ id: 'entry-from-view', withdrawn_at: '2026-08-28T12:00:00Z' }], error: null };
+          return {
+            data: [{ id: 'entry-from-view', withdrawn_at: '2026-08-28T12:00:00Z' }],
+            error: null,
+          };
         };
 
         const query = {

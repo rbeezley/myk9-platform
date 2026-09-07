@@ -57,7 +57,7 @@ export interface PosterEmailData {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
-  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
+  venueMap?: import('./confirmation-email-shared.ts').VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -123,10 +123,17 @@ function dayCell(label: string, value: string | null): string {
 </td>`;
 }
 
-function dayRow(left: { label: string; value: string | null }, right: { label: string; value: string | null }): string {
+function dayRow(
+  left: { label: string; value: string | null },
+  right: { label: string; value: string | null }
+): string {
   if (!left.value && !right.value) return '';
-  const leftCell = left.value ? dayCell(left.label, left.value) : `<td width="50%" style="padding:14px 16px;border-right:1px solid rgba(243,237,224,0.18);border-bottom:1px solid rgba(243,237,224,0.18);"></td>`;
-  const rightCell = right.value ? dayCell(right.label, right.value) : `<td width="50%" style="padding:14px 16px;border-bottom:1px solid rgba(243,237,224,0.18);"></td>`;
+  const leftCell = left.value
+    ? dayCell(left.label, left.value)
+    : `<td width="50%" style="padding:14px 16px;border-right:1px solid rgba(243,237,224,0.18);border-bottom:1px solid rgba(243,237,224,0.18);"></td>`;
+  const rightCell = right.value
+    ? dayCell(right.label, right.value)
+    : `<td width="50%" style="padding:14px 16px;border-bottom:1px solid rgba(243,237,224,0.18);"></td>`;
   return `<tr>${leftCell}${rightCell}</tr>`;
 }
 

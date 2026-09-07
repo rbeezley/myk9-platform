@@ -30,7 +30,7 @@ function readSource(relPath: string): string {
 
 describe('2.A date-format migration completeness', () => {
   it.each(MIGRATED_FILES)('%s imports the shared date module', relPath => {
-    expect(readSource(relPath)).toContain("@/lib/format/dates");
+    expect(readSource(relPath)).toContain('@/lib/format/dates');
   });
 
   it.each(MIGRATED_FILES)('%s renders no inline .toLocaleDateString()', relPath => {

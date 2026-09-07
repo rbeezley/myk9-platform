@@ -20,7 +20,8 @@ interface TitleProgressSectionProps {
 }
 
 function TrackCard({ track }: { track: TitleProgressResult }) {
-  const pct = track.requiredLegs > 0 ? Math.round((track.earnedLegs / track.requiredLegs) * 100) : 0;
+  const pct =
+    track.requiredLegs > 0 ? Math.round((track.earnedLegs / track.requiredLegs) * 100) : 0;
   return (
     <div className="rounded-xl border border-border bg-card px-4 py-3.5">
       <div className="text-sm font-semibold text-foreground truncate">{track.fullName}</div>

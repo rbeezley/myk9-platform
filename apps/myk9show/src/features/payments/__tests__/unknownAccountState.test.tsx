@@ -138,7 +138,6 @@ describe('the badge an unknown account state produces', () => {
   });
 });
 
-
 describe('returning from Stripe does not read the pre-form state back to the treasurer', () => {
   beforeEach(() => {
     vi.clearAllMocks();

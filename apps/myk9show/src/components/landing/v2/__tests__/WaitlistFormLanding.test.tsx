@@ -45,7 +45,7 @@ describe('WaitlistFormLanding', () => {
         email: 'test@example.com',
         role: 'exhibitor',
         source: 'myk9show.com',
-      }),
+      })
     );
     expect(await screen.findByText(/you're on the list/i)).toBeInTheDocument();
   });
@@ -61,7 +61,7 @@ describe('WaitlistFormLanding', () => {
     await user.click(screen.getByRole('button', { name: /join the waitlist/i }));
 
     expect(insertMock).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'secretary@example.com', role: 'club_official' }),
+      expect.objectContaining({ email: 'secretary@example.com', role: 'club_official' })
     );
     expect(mockSupabase.functions.invoke).not.toHaveBeenCalled();
     expect(await screen.findByText(/check your email/i)).toBeInTheDocument();

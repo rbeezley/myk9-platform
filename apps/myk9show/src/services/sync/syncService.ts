@@ -34,7 +34,7 @@ export class MockSyncService {
       pending: 0,
       processing: 0,
       failed: 0,
-      completed: 0
+      completed: 0,
     };
   }
 

@@ -49,14 +49,14 @@ handle<TrialPacketPayload>(
     const show = await loadPacketShow(supabase, body.showId);
 
     const { data: callerRows, error: callerError } = await applyActiveRoleValidity(
-      supabase.from('user_roles').select(PACKET_ROLE_SELECT).eq('auth_user_id', user.id),
+      supabase.from('user_roles').select(PACKET_ROLE_SELECT).eq('auth_user_id', user.id)
     );
     if (callerError) throw new HttpError(500, 'Failed to verify packet authorization.');
     const authorized = ((callerRows ?? []) as PacketRoleRow[]).some(row =>
       callerRoleAuthorizesPacket(
         { roleName: row.roles?.name ?? null, showId: row.show_id, clubId: row.club_id },
-        { id: show.id, clubId: show.club_id },
-      ),
+        { id: show.id, clubId: show.club_id }
+      )
     );
     if (!authorized) throw new HttpError(403, 'Forbidden: show manager role required.');
 
@@ -71,5 +71,5 @@ handle<TrialPacketPayload>(
       generatedBy: user.id,
       generatedSource: 'manual',
     });
-  },
+  }
 );

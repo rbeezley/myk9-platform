@@ -66,7 +66,7 @@ describe('RingsideEntryPage', () => {
     expect(screen.getByRole('status', { name: 'Loading ringside…' })).toBeInTheDocument();
   });
 
-  it('shows a spinner while the user\'s shows are resolving', () => {
+  it("shows a spinner while the user's shows are resolving", () => {
     mockShows.mockReturnValue({ ...NO_SHOWS, isLoading: true });
     renderPage();
     expect(screen.getByRole('status', { name: 'Finding your show…' })).toBeInTheDocument();
@@ -89,22 +89,19 @@ describe('RingsideEntryPage', () => {
     UserRole.CHAIRMAN,
     UserRole.JUDGE,
     UserRole.STEWARD,
-  ])(
-    'lets a signed-in %s verify one upcoming show without a passcode',
-    role => {
-      mockRoles = [role];
-      mockShows.mockReturnValue({
-        liveShows: [],
-        upcomingShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'upcoming' }],
-        isLoading: false,
-      });
+  ])('lets a signed-in %s verify one upcoming show without a passcode', role => {
+    mockRoles = [role];
+    mockShows.mockReturnValue({
+      liveShows: [],
+      upcomingShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'upcoming' }],
+      isLoading: false,
+    });
 
-      renderPage();
+    renderPage();
 
-      expect(screen.getByText('IN THE RING: show-9')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /enter a passcode/i })).not.toBeInTheDocument();
-    }
-  );
+    expect(screen.getByText('IN THE RING: show-9')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /enter a passcode/i })).not.toBeInTheDocument();
+  });
 
   it('keeps an exhibitor on the pre-show landing with the passcode option', () => {
     mockRoles = [UserRole.EXHIBITOR];

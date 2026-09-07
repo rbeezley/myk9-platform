@@ -29,10 +29,7 @@ export interface SuccessToastProps {
  * centering. Motion follows the shared motion language: a fade + small rise over
  * `duration-enter` with `ease-enter` (no bounce), gated on reduced motion.
  */
-export const SuccessToast: React.FC<SuccessToastProps> = ({
-  isVisible,
-  message,
-}) => {
+export const SuccessToast: React.FC<SuccessToastProps> = ({ isVisible, message }) => {
   if (!isVisible) {
     return null;
   }
@@ -45,7 +42,7 @@ export const SuccessToast: React.FC<SuccessToastProps> = ({
         className={cn(
           'inline-flex items-center gap-2 rounded-full',
           'bg-success px-4 py-3 text-sm font-medium text-success-foreground',
-          'shadow-lg',
+          'shadow-lg'
         )}
       >
         <CheckCircle size={20} className="shrink-0" />

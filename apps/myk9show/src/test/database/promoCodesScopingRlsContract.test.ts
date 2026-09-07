@@ -5,10 +5,7 @@ import { describe, expect, it } from 'vitest';
 // SA-002: promo_codes INSERT + SELECT must be scoped to show officials, and
 // exhibitor validation must go through a validate-only RPC (no catalog SELECT).
 const migration = readFileSync(
-  resolve(
-    __dirname,
-    '../../../../../supabase/migrations/20260703123000_scope_promo_codes_rls.sql'
-  ),
+  resolve(__dirname, '../../../../../supabase/migrations/20260703123000_scope_promo_codes_rls.sql'),
   'utf8'
 );
 
@@ -29,7 +26,7 @@ describe('promo_codes scoping RLS contract (SA-002)', () => {
     }
   });
 
-  it('scopes INSERT to users who manage the row\'s show or trial (not created_by / not any authenticated)', () => {
+  it("scopes INSERT to users who manage the row's show or trial (not created_by / not any authenticated)", () => {
     const insertPolicy = sliceBetween(
       migration,
       'CREATE POLICY "promo_codes_insert_policy"',
@@ -85,8 +82,12 @@ describe('promo_codes scoping RLS contract (SA-002)', () => {
     expect(migration).toContain('CREATE OR REPLACE FUNCTION public.validate_promo_code(');
     expect(migration).toContain('SECURITY DEFINER');
     expect(migration).toContain("SET search_path = ''");
-    expect(migration).toContain('REVOKE ALL ON FUNCTION public.validate_promo_code(TEXT, UUID, UUID) FROM PUBLIC');
-    expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.validate_promo_code(TEXT, UUID, UUID) TO authenticated');
+    expect(migration).toContain(
+      'REVOKE ALL ON FUNCTION public.validate_promo_code(TEXT, UUID, UUID) FROM PUBLIC'
+    );
+    expect(migration).toContain(
+      'GRANT EXECUTE ON FUNCTION public.validate_promo_code(TEXT, UUID, UUID) TO authenticated'
+    );
   });
 
   it('validate RPC returns only match/no-match + discount, never the row set', () => {

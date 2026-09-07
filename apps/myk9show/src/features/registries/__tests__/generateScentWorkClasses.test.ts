@@ -77,9 +77,7 @@ describe('generateScentWorkClasses — AKC', () => {
 
   it('emits Detective as a single standalone class (no level, no section)', () => {
     const detective = classes.filter(c => c.element === 'Detective');
-    expect(detective).toEqual([
-      { element: 'Detective', level: undefined, className: 'Detective' },
-    ]);
+    expect(detective).toEqual([{ element: 'Detective', level: undefined, className: 'Detective' }]);
   });
 
   it('sets section only on Novice classes, by ownership', () => {

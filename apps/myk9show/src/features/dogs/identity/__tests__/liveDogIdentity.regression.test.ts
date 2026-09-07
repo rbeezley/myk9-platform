@@ -25,8 +25,7 @@ const ZIVA_REGISTRATIONS: DogRegistrationLike[] = [
   {
     organization: 'UKC (United Kennel Club)',
     registration_number: 'P935-254',
-    registered_name:
-      'ACH NNCH NTD BN ACD BA AHD UCDX CH URO3 EN BEL CANTO I WANT IT ALL SPOT-ON',
+    registered_name: 'ACH NNCH NTD BN ACD BA AHD UCDX CH URO3 EN BEL CANTO I WANT IT ALL SPOT-ON',
     breed: 'Belgian Tervuren',
     variety: null,
   },

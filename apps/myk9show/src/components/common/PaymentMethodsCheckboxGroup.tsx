@@ -39,7 +39,11 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
           checked={acceptCheck}
           onCheckedChange={onCheckChange as (checked: boolean | 'indeterminate') => void}
         />
-        <Label id={`label-${checkId}`} htmlFor={checkId} className="text-sm font-medium cursor-pointer">
+        <Label
+          id={`label-${checkId}`}
+          htmlFor={checkId}
+          className="text-sm font-medium cursor-pointer"
+        >
           Check (pay at show)
         </Label>
       </div>
@@ -50,7 +54,11 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
           checked={acceptCash}
           onCheckedChange={onCashChange as (checked: boolean | 'indeterminate') => void}
         />
-        <Label id={`label-${cashId}`} htmlFor={cashId} className="text-sm font-medium cursor-pointer">
+        <Label
+          id={`label-${cashId}`}
+          htmlFor={cashId}
+          className="text-sm font-medium cursor-pointer"
+        >
           Cash (pay at show)
         </Label>
       </div>

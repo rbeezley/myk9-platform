@@ -13,11 +13,7 @@ export type {
 export { getClassesWithCapacity, createDayOfEntry, searchDogs } from './entries';
 export { createDayOfEntryDog } from './late-entry-dog';
 
-export {
-  getMoveUpEligibleEntries,
-  getPendingMoveUpRequests,
-  denyMoveUpRequest,
-} from './move-up';
+export { getMoveUpEligibleEntries, getPendingMoveUpRequests, denyMoveUpRequest } from './move-up';
 
 export {
   pullEntry,

@@ -27,10 +27,7 @@ const officialPicker = read(path.join(stepsDir, 'OfficialPicker.tsx'));
 // into its own sibling component; the a11y guard follows the markup to its new
 // home. The pinned aria string-literals stay byte-identical.
 const validationBanner = read(
-  path.join(
-    __dirname,
-    '../../../pages/secretary/ShowCreationWizard/WizardValidationBanner.tsx'
-  )
+  path.join(__dirname, '../../../pages/secretary/ShowCreationWizard/WizardValidationBanner.tsx')
 );
 const wizardPage = read(
   path.join(__dirname, '../../../pages/secretary/ShowCreationWizardPage.tsx')
@@ -59,15 +56,16 @@ const parseRgbToken = (css: string, token: string): [number, number, number] => 
 const relativeLuminance = ([red, green, blue]: [number, number, number]) => {
   const [r, g, b] = [red, green, blue].map(channel => {
     const normalized = channel / 255;
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : Math.pow((normalized + 0.055) / 1.055, 2.4);
+    return normalized <= 0.03928 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
   });
 
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 
-const contrastRatio = (foreground: [number, number, number], background: [number, number, number]) => {
+const contrastRatio = (
+  foreground: [number, number, number],
+  background: [number, number, number]
+) => {
   const foregroundLuminance = relativeLuminance(foreground);
   const backgroundLuminance = relativeLuminance(background);
   const lighter = Math.max(foregroundLuminance, backgroundLuminance);

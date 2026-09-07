@@ -4,31 +4,31 @@ Functional walk of the secretary's task surface against deployed staging
 (`myk9-platform-myk9show.vercel.app`), main at `5b3c67eef`. Audit only — no
 source edits, no commits, no migrations, no deploys.
 
-This asks a different question from `claude-role-ux-walk`: not *does it feel
-right*, but *does the job work end to end*.
+This asks a different question from `claude-role-ux-walk`: not _does it feel
+right_, but _does the job work end to end_.
 
 Findings numbered continuously from the prior walk
 ([2026-08-28](2026-08-28-secretary-task-walk.md), which ended at F35).
 
 ## Severity
 
-| | Meaning |
-| --- | --- |
-| P1 | Blocks a secretary from completing a required task. |
-| P2 | Task completable, but with real friction, a trap, or misleading information. |
-| P3 | Polish, copy, accessibility, or developer-experience. |
+|     | Meaning                                                                      |
+| --- | ---------------------------------------------------------------------------- |
+| P1  | Blocks a secretary from completing a required task.                          |
+| P2  | Task completable, but with real friction, a trap, or misleading information. |
+| P3  | Polish, copy, accessibility, or developer-experience.                        |
 
 ## Coverage
 
-| # | Task area | Walked | Notes |
-| --- | --- | --- | --- |
-| 1 | Show setup / wizard | **Full** | All four steps walked, a show created, verified in SQL, then deleted through the app's own affordance. Nothing left live. |
-| 2 | Entries | **Partial** | Entry Management, queues, Exceptions (Move-ups / Pulls / Waitlist) walked read-only. Mail-in creation and check-in not walked — both create records. |
-| 3 | Permissions | **Full** | Show Access tab, appoint a non-member, revoke, restore. Round-tripped and verified in SQL. |
-| 4 | Reports | **Full** | All 36 registry reports opened on two shows (72 renders). |
-| 5 | Money | **Partial** | Payment-channel labelling verified against DB. Refunds and receipts not re-walked. |
-| 6 | Messages | **Full** | `/secretary/messages` and the show-scoped route. |
-| 7 | Waitlist / classes | **Partial** | Exceptions → Waitlist reached; capacity cards not re-measured. |
+| #   | Task area           | Walked      | Notes                                                                                                                                                |
+| --- | ------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Show setup / wizard | **Full**    | All four steps walked, a show created, verified in SQL, then deleted through the app's own affordance. Nothing left live.                            |
+| 2   | Entries             | **Partial** | Entry Management, queues, Exceptions (Move-ups / Pulls / Waitlist) walked read-only. Mail-in creation and check-in not walked — both create records. |
+| 3   | Permissions         | **Full**    | Show Access tab, appoint a non-member, revoke, restore. Round-tripped and verified in SQL.                                                           |
+| 4   | Reports             | **Full**    | All 36 registry reports opened on two shows (72 renders).                                                                                            |
+| 5   | Money               | **Partial** | Payment-channel labelling verified against DB. Refunds and receipts not re-walked.                                                                   |
+| 6   | Messages            | **Full**    | `/secretary/messages` and the show-scoped route.                                                                                                     |
+| 7   | Waitlist / classes  | **Partial** | Exceptions → Waitlist reached; capacity cards not re-measured.                                                                                       |
 
 A skipped area is a coverage gap, not a pass.
 
@@ -91,7 +91,7 @@ in the app. It is also the same family as F1 and F27 (cold store reports a false
 zero) and as the standing `disabled/paused query renders a false zero` pattern.
 
 **Suggested check when fixing:** whatever makes `isLoading` false before entries
-land, the empty branch should require a *positive* "we asked and there are none"
+land, the empty branch should require a _positive_ "we asked and there are none"
 signal rather than the absence of rows.
 
 ### F37 — P2 — NEW — [MYK9-284](https://linear.app/myk9-platform/issue/MYK9-284) — Revoking show access happens on one click, with no confirmation
@@ -112,7 +112,7 @@ revocation is a larger action than either and asks for less.
 
 **Disclosed:** this walk hit the consequence directly. My revoke script clicked
 the target's own row correctly, then looked for a confirmation button; finding
-none, its page-wide fallback selector matched a *second* row's Revoke and fired
+none, its page-wide fallback selector matched a _second_ row's Revoke and fired
 it, deactivating the canonical `secretary@myk9t.com` appointment as well. That
 was my selector bug, not an app defect — `onRevoke` is keyed to a single
 `personId` and cannot revoke two. I restored the appointment through the app's
@@ -156,7 +156,7 @@ report. Low confidence that this is unintended; recorded so a human can decide.
 `ZZ Audit - Publish Path Probe` all carry `club_id IS NULL`.
 
 F30's mechanism is closed — `20260829120000_restrict_club_deletion_with_shows.sql`
-changed the FK to `ON DELETE RESTRICT`, so no *new* orphan can be produced — but
+changed the FK to `ON DELETE RESTRICT`, so no _new_ orphan can be produced — but
 that migration does not heal rows that were already orphaned. These three are
 inert leftovers rather than a live defect; they are noted because they will keep
 appearing in every future walk as shows nobody can be scoped to, and because
@@ -172,9 +172,9 @@ Deleting a show through **More show actions → Delete** raises:
 What actually happens is a soft delete. After confirming, every affected row
 carried a `deleted_at` stamp and none were removed:
 
-| Row | `deleted_at` |
-| --- | --- |
-| show `bcf76812…` | `2026-08-31 23:26:58.895026+00` |
+| Row               | `deleted_at`                    |
+| ----------------- | ------------------------------- |
+| show `bcf76812…`  | `2026-08-31 23:26:58.895026+00` |
 | trial `838c641c…` | `2026-08-31 23:26:58.895026+00` |
 | class `f232dbd7…` | `2026-08-31 23:26:58.895026+00` |
 | class `733054f0…` | `2026-08-31 23:26:58.895026+00` |
@@ -212,26 +212,26 @@ wizard, would cost little.
 
 Re-walked in the browser against deployed staging.
 
-| Finding | Verdict | Evidence |
-| --- | --- | --- |
-| **MYK9-280** (entry form unreachable) | **Holds** | `akc-scent-work-entry-form` renders on both shows — 3,811 chars on the officials show, 301,281 on the demo show |
-| **MYK9-282** (`Trial NaN`) | **Holds** | Zero occurrences of `NaN` across all 36 reports on both shows (72 renders) |
-| **Phase 2/3 permission model** | **Holds** | Appointing a non-member works; the list labels them "Not a club member"; the dialog states "Club membership is not required"; revoke works; count 1 → 2 → 1 |
-| **F29b** (run order / move up unreachable) | **Fixed** | Show Desk with a focused class exposes both "Run order" and "Move up". #1865/#1866 hold |
-| **F18** ("Paid online" for every channel) | **Fixed** | The All-registrations queue reads plain **"Paid"** — 52 occurrences, 0 "Paid online". The false channel claim is gone |
-| **F24** (other clubs' shows in the filter) | **Holds** | Communication History's show filter lists only Heartland's two shows |
-| **F25** (stale PDF after switching report) | **Holds** | 36 reports opened in sequence; the picker's value matched the requested report on every one |
-| **F26** (High in Trial missing) | **Holds** | `high-in-trial` renders on both shows |
-| **F1** (Entry Management dead on a cold store) | **Holds** | 481 registrations render; queue chips populated |
-| **F30** (club delete strips management) | **Mechanism closed** | FK is now `ON DELETE RESTRICT`; legacy orphans remain — see F40 |
-| **MYK9-211** (grants/revocations write no audit events) | **Holds, and extends** | The club-appointment path added after that issue writes `club_secretary_granted` / `club_secretary_revoked` with actor, role, club and person |
-| **Officials grant nothing** (Phase 2's governing rule) | **Holds at creation** | Naming Test Chairman and Test Secretary on a new show wrote 2 `show_officials` rows and **0** `user_roles` rows for that show |
-| **Created shows keep their club** (F30's other half) | **Holds** | The new show persisted `club_id` = Heartland; the orphans in F40 were not reproduced |
-| **F4 / F12** (judges must exist before class assignment) | **Now explained** | Step 3 states "This show has no judges yet, so classes cannot be assigned one here. Add a judge and a judge picker appears on every element", with an inline **Add a judge** |
-| **F8** (chairman picker lists everyone) | **Unchanged** | The picker's results are still headed **ALL PEOPLE**, not scoped to the club |
-| **F22** (Messages is history-only) | **Still open** | `/secretary/messages` is "Communication History" with Messages / Email delivery tabs and **no compose control** |
-| **F23** (composer ignores show context) | **Unchanged** | Not testable from this surface while F22 stands |
-| **F29a** (row actions on the public map) | **Unchanged by intent** | `ShowMapTab` is read-only by decision (#291); not a defect |
+| Finding                                                  | Verdict                 | Evidence                                                                                                                                                                     |
+| -------------------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MYK9-280** (entry form unreachable)                    | **Holds**               | `akc-scent-work-entry-form` renders on both shows — 3,811 chars on the officials show, 301,281 on the demo show                                                              |
+| **MYK9-282** (`Trial NaN`)                               | **Holds**               | Zero occurrences of `NaN` across all 36 reports on both shows (72 renders)                                                                                                   |
+| **Phase 2/3 permission model**                           | **Holds**               | Appointing a non-member works; the list labels them "Not a club member"; the dialog states "Club membership is not required"; revoke works; count 1 → 2 → 1                  |
+| **F29b** (run order / move up unreachable)               | **Fixed**               | Show Desk with a focused class exposes both "Run order" and "Move up". #1865/#1866 hold                                                                                      |
+| **F18** ("Paid online" for every channel)                | **Fixed**               | The All-registrations queue reads plain **"Paid"** — 52 occurrences, 0 "Paid online". The false channel claim is gone                                                        |
+| **F24** (other clubs' shows in the filter)               | **Holds**               | Communication History's show filter lists only Heartland's two shows                                                                                                         |
+| **F25** (stale PDF after switching report)               | **Holds**               | 36 reports opened in sequence; the picker's value matched the requested report on every one                                                                                  |
+| **F26** (High in Trial missing)                          | **Holds**               | `high-in-trial` renders on both shows                                                                                                                                        |
+| **F1** (Entry Management dead on a cold store)           | **Holds**               | 481 registrations render; queue chips populated                                                                                                                              |
+| **F30** (club delete strips management)                  | **Mechanism closed**    | FK is now `ON DELETE RESTRICT`; legacy orphans remain — see F40                                                                                                              |
+| **MYK9-211** (grants/revocations write no audit events)  | **Holds, and extends**  | The club-appointment path added after that issue writes `club_secretary_granted` / `club_secretary_revoked` with actor, role, club and person                                |
+| **Officials grant nothing** (Phase 2's governing rule)   | **Holds at creation**   | Naming Test Chairman and Test Secretary on a new show wrote 2 `show_officials` rows and **0** `user_roles` rows for that show                                                |
+| **Created shows keep their club** (F30's other half)     | **Holds**               | The new show persisted `club_id` = Heartland; the orphans in F40 were not reproduced                                                                                         |
+| **F4 / F12** (judges must exist before class assignment) | **Now explained**       | Step 3 states "This show has no judges yet, so classes cannot be assigned one here. Add a judge and a judge picker appears on every element", with an inline **Add a judge** |
+| **F8** (chairman picker lists everyone)                  | **Unchanged**           | The picker's results are still headed **ALL PEOPLE**, not scoped to the club                                                                                                 |
+| **F22** (Messages is history-only)                       | **Still open**          | `/secretary/messages` is "Communication History" with Messages / Email delivery tabs and **no compose control**                                                              |
+| **F23** (composer ignores show context)                  | **Unchanged**           | Not testable from this surface while F22 stands                                                                                                                              |
+| **F29a** (row actions on the public map)                 | **Unchanged by intent** | `ShowMapTab` is read-only by decision (#291); not a defect                                                                                                                   |
 
 **Not reached this run:** F3, F4, F5, F6, F7, F8, F9, F12, F13, F14, F15, F16,
 F17, F19, F20, F21, F27, F28, F31, F32, F33, F34, F35. F17/F19/F20/F27/F28/F32/F34
@@ -250,7 +250,7 @@ Recorded because two of them would have shipped false findings.
   Code"). Measuring for an iframe was the wrong test.
 - **"Prints the named official" is not a reliable string match on the demo
   show.** Six reports there matched "Test Secretary" — but that show has zero
-  `show_officials` rows, and the string is a *handler* name in the entry data.
+  `show_officials` rows, and the string is a _handler_ name in the entry data.
   The claim is only answerable on show `75e078e9`, the one carrying officials,
   where exactly one report — the AKC Scent Work Entry Form — prints it.
 - **The double revoke was mine, not the app's.** See F37.
@@ -284,12 +284,12 @@ No source edits, commits, migrations or deploys.
 
 ## Filed
 
-| Finding | Issue | Priority | Status |
-| --- | --- | --- | --- |
-| F36 | [MYK9-283](https://linear.app/myk9-platform/issue/MYK9-283) — Check-in Sheet reports a false zero on a cold load and never retracts it | High | **Done** (#1922, verified 2026-09-01) |
-| F37 | [MYK9-284](https://linear.app/myk9-platform/issue/MYK9-284) — Revoking show access takes effect on one click, with no confirmation | Medium | Open |
-| F41 | [MYK9-285](https://linear.app/myk9-platform/issue/MYK9-285) — Delete-show confirmation promises permanent, irreversible deletion; the app soft-deletes | Medium | **Done** (#1922) |
-| F42 | [MYK9-286](https://linear.app/myk9-platform/issue/MYK9-286) — `/shows/new` renders "We couldn't load this show" instead of the create wizard | Low | Open |
+| Finding | Issue                                                                                                                                                  | Priority | Status                                |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------------- |
+| F36     | [MYK9-283](https://linear.app/myk9-platform/issue/MYK9-283) — Check-in Sheet reports a false zero on a cold load and never retracts it                 | High     | **Done** (#1922, verified 2026-09-01) |
+| F37     | [MYK9-284](https://linear.app/myk9-platform/issue/MYK9-284) — Revoking show access takes effect on one click, with no confirmation                     | Medium   | Open                                  |
+| F41     | [MYK9-285](https://linear.app/myk9-platform/issue/MYK9-285) — Delete-show confirmation promises permanent, irreversible deletion; the app soft-deletes | Medium   | **Done** (#1922)                      |
+| F42     | [MYK9-286](https://linear.app/myk9-platform/issue/MYK9-286) — `/shows/new` renders "We couldn't load this show" instead of the create wizard           | Low      | Open                                  |
 
 F38, F39 and F40 were not filed — all P3, and F39 may be intended behaviour.
 Every issue above was checked for duplicates with `includeArchived: true`;

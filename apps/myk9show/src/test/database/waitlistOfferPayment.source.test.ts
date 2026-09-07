@@ -21,13 +21,17 @@ describe('waitlist offer payment and decline contracts', () => {
   it('rejects new tracked payment links once a promoted offer is no longer actionable', () => {
     const migration = readRequired(paymentLinkGuardPath);
 
-    expect(migration).toContain('CREATE OR REPLACE FUNCTION public.assert_active_waitlist_offer_payment_link');
-    expect(migration).toContain("NEW.entry_ids");
+    expect(migration).toContain(
+      'CREATE OR REPLACE FUNCTION public.assert_active_waitlist_offer_payment_link'
+    );
+    expect(migration).toContain('NEW.entry_ids');
     expect(migration).toContain("waitlist.status IS DISTINCT FROM 'offered'");
     expect(migration).toContain('waitlist.offer_expires_at <= now()');
     expect(migration).toContain("entry.entry_status NOT IN ('pending-payment', 'pending')");
     expect(migration).toContain("entry.payment_status IS DISTINCT FROM 'pending'");
-    expect(migration).toContain('CREATE TRIGGER trg_entry_payment_links_require_active_waitlist_offer');
+    expect(migration).toContain(
+      'CREATE TRIGGER trg_entry_payment_links_require_active_waitlist_offer'
+    );
   });
 
   it('authorizes decline only for the caller-owned offered row and fails closed on paid races', () => {
@@ -48,7 +52,7 @@ describe('waitlist offer payment and decline contracts', () => {
   it('expires a lapsed offered row instead of recording a late user decline', () => {
     const source = readRequired(declineFunctionPath);
 
-    expect(source).toContain("ownedOffer.offer_expires_at <= nowIso");
+    expect(source).toContain('ownedOffer.offer_expires_at <= nowIso');
     expect(source).toContain("terminalStatus: 'expired'");
   });
 

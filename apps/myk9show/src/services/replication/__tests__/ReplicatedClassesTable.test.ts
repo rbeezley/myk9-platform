@@ -230,7 +230,9 @@ describe('ReplicatedClassesTable', () => {
         // Assert that explicitly — a regression here is a silent sync outage.
         const selectArg = mockSupabaseSelect.mock.calls
           .map(call => call[0])
-          .find((value): value is string => typeof value === 'string' && value.includes('hides_known'));
+          .find(
+            (value): value is string => typeof value === 'string' && value.includes('hides_known')
+          );
         expect(selectArg).toBeDefined();
         expect(selectArg).not.toContain('*,');
         expect(selectArg).not.toContain('num_hides');

@@ -141,17 +141,15 @@ export const useShowTemplateStore = create<ShowTemplateStore>()(
 
         // Generate classes based on template field combinations
         const combinations = get().getValidFieldCombinations(template);
-        return combinations.map(
-          (combo, index): GeneratedClass => ({
-            className: `${combo.element || ''} ${combo.level || ''} ${combo.section || ''}`.trim(),
-            classNumber: `${index + 1}`,
-            element: String(combo.element || ''),
-            level: String(combo.level || ''),
-            section: String(combo.section || ''),
-            maxEntries: Number(customValues.maxEntries) || 100,
-            ...customValues,
-          })
-        );
+        return combinations.map((combo, index): GeneratedClass => ({
+          className: `${combo.element || ''} ${combo.level || ''} ${combo.section || ''}`.trim(),
+          classNumber: `${index + 1}`,
+          element: String(combo.element || ''),
+          level: String(combo.level || ''),
+          section: String(combo.section || ''),
+          maxEntries: Number(customValues.maxEntries) || 100,
+          ...customValues,
+        }));
       },
 
       generateClassesFromPreset: (presetKey, customValues = {}) => {

@@ -14,18 +14,18 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
   immediate = false
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
-  
+
   return function executedFunction(...args: Parameters<T>) {
     const later = () => {
       timeout = null;
       if (!immediate) func(...args);
     };
-    
+
     const callNow = immediate && !timeout;
-    
+
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(later, wait);
-    
+
     if (callNow) func(...args);
   };
 }
@@ -39,12 +39,12 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
   limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean;
-  
+
   return function executedFunction(this: unknown, ...args: Parameters<T>) {
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+      setTimeout(() => (inThrottle = false), limit);
     }
   };
 }
@@ -63,10 +63,10 @@ export function batchify<T>(
 
   const processBatch = async () => {
     if (batch.length === 0) return;
-    
+
     const currentBatch = [...batch];
     batch = [];
-    
+
     try {
       await func(currentBatch);
     } catch (error) {
@@ -78,7 +78,7 @@ export function batchify<T>(
 
   return (item: T) => {
     batch.push(item);
-    
+
     if (batch.length >= batchSize) {
       // Process immediately if batch is full
       if (timeout) {
@@ -107,17 +107,17 @@ export function memoize<TArgs extends unknown[], TReturn>(
   keyFn?: (...args: TArgs) => string
 ): (...args: TArgs) => TReturn {
   const cache = new Map<string, TReturn>();
-  
+
   return (...args: TArgs): TReturn => {
     const key = keyFn ? keyFn(...args) : JSON.stringify(args);
-    
+
     if (cache.has(key)) {
       return cache.get(key)!;
     }
-    
+
     const result = fn(...args);
     cache.set(key, result);
-    
+
     return result;
   };
 }
@@ -176,7 +176,7 @@ export class PerformanceMonitor {
     latest: number;
   } {
     const measurements = this.metrics.get(label) || [];
-    
+
     if (measurements.length === 0) {
       return { count: 0, average: 0, min: 0, max: 0, latest: 0 };
     }
@@ -186,17 +186,17 @@ export class PerformanceMonitor {
       average: measurements.reduce((acc, val) => acc + val, 0) / measurements.length,
       min: Math.min(...measurements),
       max: Math.max(...measurements),
-      latest: measurements[measurements.length - 1]
+      latest: measurements[measurements.length - 1],
     };
   }
 
   getAllMetrics(): Record<string, ReturnType<typeof this.getMetrics>> {
     const result: Record<string, ReturnType<typeof this.getMetrics>> = {};
-    
+
     for (const [label] of this.metrics) {
       result[label] = this.getMetrics(label);
     }
-    
+
     return result;
   }
 
@@ -225,10 +225,10 @@ export function measurePerformance(label?: string) {
 
     descriptor.value = function (...args: unknown[]) {
       performanceMonitor.startTimer(methodLabel);
-      
+
       try {
         const result = originalMethod.apply(this, args);
-        
+
         // Handle async methods
         if (result instanceof Promise) {
           return result.finally(() => {
@@ -259,7 +259,7 @@ export function requestAnimationFrameThrottle<T extends (...args: unknown[]) => 
 
   return function (this: unknown, ...args: Parameters<T>) {
     lastArgs = args;
-    
+
     if (!ticking) {
       requestAnimationFrame(() => {
         func.apply(this, lastArgs);
@@ -281,16 +281,16 @@ export class MemoryMonitor {
     if ('memory' in performance) {
       const memory = (performance as { memory: { usedJSHeapSize: number } }).memory;
       const usedMB = memory.usedJSHeapSize / 1024 / 1024;
-      
+
       this.samples.push(usedMB);
-      
+
       if (this.samples.length > this.maxSamples) {
         this.samples.shift();
       }
-      
+
       return usedMB;
     }
-    
+
     return 0;
   }
 
@@ -307,7 +307,7 @@ export class MemoryMonitor {
     const current = this.samples[this.samples.length - 1];
     const average = this.samples.reduce((sum, val) => sum + val, 0) / this.samples.length;
     const max = Math.max(...this.samples);
-    
+
     // Calculate trend from last 10 samples
     let trend: 'increasing' | 'decreasing' | 'stable' = 'stable';
     if (this.samples.length >= 10) {
@@ -315,7 +315,7 @@ export class MemoryMonitor {
       const first = recent[0];
       const last = recent[recent.length - 1];
       const diff = last - first;
-      
+
       if (diff > 1) trend = 'increasing';
       else if (diff < -1) trend = 'decreasing';
     }
@@ -336,19 +336,18 @@ export function shouldOptimizePerformance(): boolean {
   const memoryStats = memoryMonitor.getStats();
   const isLowMemory = memoryStats.current > 100; // > 100MB
   const isMemoryIncreasing = memoryStats.trend === 'increasing';
-  
+
   // Check if we're on a mobile device
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
   );
-  
+
   // Check connection quality
   const connection = (navigator as { connection?: { effectiveType: string } }).connection;
-  const isSlowConnection = Boolean(connection && (
-    connection.effectiveType === 'slow-2g' || 
-    connection.effectiveType === '2g'
-  ));
-  
+  const isSlowConnection = Boolean(
+    connection && (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g')
+  );
+
   return isLowMemory || isMemoryIncreasing || isMobile || isSlowConnection;
 }
 
@@ -357,23 +356,23 @@ export function shouldOptimizePerformance(): boolean {
  */
 export function getAdaptiveConfig() {
   const shouldOptimize = shouldOptimizePerformance();
-  
+
   return {
     // Realtime update frequencies
     scoreUpdateThrottle: shouldOptimize ? 1000 : 300,
     placementUpdateDebounce: shouldOptimize ? 2000 : 500,
     presenceUpdateInterval: shouldOptimize ? 10000 : 5000,
-    
+
     // Batch sizes
     syncBatchSize: shouldOptimize ? 5 : 10,
     eventHistorySize: shouldOptimize ? 50 : 100,
-    
+
     // UI optimizations
     enableAnimations: !shouldOptimize,
     enableRealTimePreview: !shouldOptimize,
-    
+
     // Connection settings
     heartbeatInterval: shouldOptimize ? 60000 : 30000,
-    reconnectDelay: shouldOptimize ? 5000 : 2000
+    reconnectDelay: shouldOptimize ? 5000 : 2000,
   };
 }

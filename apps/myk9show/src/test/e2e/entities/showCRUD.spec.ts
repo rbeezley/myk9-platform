@@ -26,7 +26,7 @@ test.describe('Show CRUD Operations', () => {
       return {
         success: true,
         count: data.length,
-        shows: data.slice(0, 5).map(s => ({ id: s.id, name: s.name }))
+        shows: data.slice(0, 5).map(s => ({ id: s.id, name: s.name })),
       };
     });
 
@@ -59,7 +59,7 @@ test.describe('Show CRUD Operations', () => {
         location: 'Test Venue, Test City, TS',
         status: 'draft',
         max_total_entries: 100,
-        pre_entry_fee: 25
+        pre_entry_fee: 25,
       };
 
       const { data: createdShow, error: createError } = await createShow(testShowData);
@@ -77,7 +77,7 @@ test.describe('Show CRUD Operations', () => {
         success: true,
         showId: createdShow?.id,
         showName: createdShow?.name,
-        organization: createdShow?.organization
+        organization: createdShow?.organization,
       };
     });
 
@@ -96,7 +96,8 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, updateShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      const { createShow, updateShow, deleteShow } =
+        await import('/src/services/database/shows/index.ts');
 
       // Calculate dates
       const startDate = new Date();
@@ -110,7 +111,7 @@ test.describe('Show CRUD Operations', () => {
         start_date: startDate.toISOString().split('T')[0],
         end_date: endDate.toISOString().split('T')[0],
         location: 'Original Venue',
-        status: 'draft'
+        status: 'draft',
       };
 
       const { data: createdShow, error: createError } = await createShow(testShowData);
@@ -121,11 +122,11 @@ test.describe('Show CRUD Operations', () => {
 
       // Update the show
       const updatedLocation = 'Updated Venue, New City';
-      const updatedStatus = 'published';  // Valid status per check constraint
+      const updatedStatus = 'published'; // Valid status per check constraint
       const { data: updatedShow, error: updateError } = await updateShow(createdShow.id, {
         location: updatedLocation,
         status: updatedStatus,
-        max_total_entries: 150
+        max_total_entries: 150,
       });
 
       if (updateError) {
@@ -142,7 +143,7 @@ test.describe('Show CRUD Operations', () => {
         updatedLocation: updatedShow?.location,
         updatedStatus: updatedShow?.status,
         locationMatches: updatedShow?.location === updatedLocation,
-        statusMatches: updatedShow?.status === updatedStatus
+        statusMatches: updatedShow?.status === updatedStatus,
       };
     });
 
@@ -161,7 +162,8 @@ test.describe('Show CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { supabase } = await import('/src/services/database/supabaseClient.ts');
-      const { createShow, deleteShow, getShowById } = await import('/src/services/database/shows/index.ts');
+      const { createShow, deleteShow, getShowById } =
+        await import('/src/services/database/shows/index.ts');
 
       // Calculate dates
       const startDate = new Date();
@@ -177,7 +179,7 @@ test.describe('Show CRUD Operations', () => {
         location: 'Test Venue, Test City, TS',
         status: 'draft',
         max_total_entries: 100,
-        pre_entry_fee: 25
+        pre_entry_fee: 25,
       };
 
       const { data: createdShow, error: createError } = await createShow(testShowData);
@@ -192,7 +194,7 @@ test.describe('Show CRUD Operations', () => {
           authEmail: userData.user?.email,
           siteAdmin,
           platformAdmin,
-          payload: testShowData
+          payload: testShowData,
         };
       }
 
@@ -211,7 +213,7 @@ test.describe('Show CRUD Operations', () => {
       return {
         success: true,
         showId,
-        showDeleted: !fetchedShow || !!fetchError
+        showDeleted: !fetchedShow || !!fetchError,
       };
     });
 
@@ -241,8 +243,8 @@ test.describe('Show CRUD Operations', () => {
         shows: data.slice(0, 3).map(s => ({
           id: s.id,
           name: s.name,
-          startDate: s.start_date
-        }))
+          startDate: s.start_date,
+        })),
       };
     });
 

@@ -39,11 +39,7 @@ export interface FieldGuideTableValueCellProps {
  * have heterogeneous cells (one row holds chips, another a date, another
  * a number). A children API stays out of the way.
  */
-export function FieldGuideTable({
-  head,
-  children,
-  ariaLabel,
-}: FieldGuideTableProps): JSX.Element {
+export function FieldGuideTable({ head, children, ariaLabel }: FieldGuideTableProps): JSX.Element {
   return (
     <table
       aria-label={ariaLabel}
@@ -100,9 +96,7 @@ export function FieldGuideTableRow({ alt, children }: FieldGuideTableRowProps): 
   );
 }
 
-export function FieldGuideTableLabelCell({
-  children,
-}: FieldGuideTableLabelCellProps): JSX.Element {
+export function FieldGuideTableLabelCell({ children }: FieldGuideTableLabelCellProps): JSX.Element {
   return (
     <th
       scope="row"

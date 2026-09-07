@@ -90,11 +90,7 @@ function isPremiumRateLimitRow(value: unknown): value is PremiumRateLimitRow {
     );
   }
 
-  return (
-    attemptsCount >= MAX_PREMIUM_ATTEMPTS &&
-    remainingAttempts === 0 &&
-    retryAfterSeconds >= 1
-  );
+  return attemptsCount >= MAX_PREMIUM_ATTEMPTS && remainingAttempts === 0 && retryAfterSeconds >= 1;
 }
 
 function unavailableError(): HttpError {

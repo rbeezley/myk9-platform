@@ -78,21 +78,17 @@ export function useUserFriendlyErrors() {
     []
   );
 
-  const showSuccess = useCallback(
-    (message: string, description?: string, duration = 3000) => {
-      toast.success(message, {
-        description,
-        duration,
-      });
-    },
-    []
-  );
+  const showSuccess = useCallback((message: string, description?: string, duration = 3000) => {
+    toast.success(message, {
+      description,
+      duration,
+    });
+  }, []);
 
   const showOfflineNotice = useCallback(() => {
     if (!networkStatus.isOnline) {
       toast.error('You are offline', {
-        description:
-          'Your changes will be saved and synced when connection is restored.',
+        description: 'Your changes will be saved and synced when connection is restored.',
         duration: 8000,
       });
     }

@@ -4,19 +4,19 @@ console.log('Getting TypeScript errors...\n');
 
 try {
   // Run TypeScript check with timeout
-  const result = execSync('npx tsc --noEmit --skipLibCheck', { 
+  const result = execSync('npx tsc --noEmit --skipLibCheck', {
     encoding: 'utf8',
     timeout: 30000,
-    maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+    maxBuffer: 1024 * 1024 * 10, // 10MB buffer
   });
   console.log('✅ No TypeScript errors found!');
 } catch (error) {
   if (error.stdout) {
     const lines = error.stdout.split('\n').filter(line => line.trim());
     const errorLines = lines.filter(line => line.includes('error TS'));
-    
+
     console.log(`Found ${errorLines.length} TypeScript errors:\n`);
-    
+
     // Group errors by file
     const errorsByFile = {};
     errorLines.forEach(line => {
@@ -29,7 +29,7 @@ try {
         errorsByFile[file].push(line);
       }
     });
-    
+
     // Show first few files with errors
     let count = 0;
     for (const [file, errors] of Object.entries(errorsByFile)) {
@@ -43,7 +43,7 @@ try {
       }
       count++;
     }
-    
+
     console.log(`\nTotal files with errors: ${Object.keys(errorsByFile).length}`);
     console.log(`Total error count: ${errorLines.length}`);
   } else {

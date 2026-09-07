@@ -35,9 +35,7 @@ import { toLocalDate } from '@/utils/date-format';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage, toYYYYMMDD } from '@myk9/core';
-import {
-  replaceJudgeQualifications,
-} from '@/services/database/judges';
+import { replaceJudgeQualifications } from '@/services/database/judges';
 import type { CreateJudgeQualificationData } from '@/types/judge-management';
 
 interface JudgeQualificationPanelProps {
@@ -79,8 +77,6 @@ function mapUiToDbQualification(
     is_active: qual.status === 'Active',
   };
 }
-
-
 
 // Organization-specific disciplines sourced from official org websites:
 // AKC: akc.org/sports/ and akc.org/sports/titles-and-abbreviations/titles-by-sport/

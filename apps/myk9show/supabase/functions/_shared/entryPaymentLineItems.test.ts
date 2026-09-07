@@ -49,8 +49,6 @@ describe('entry payment line-item fee reader', () => {
     await expect(loadEntryPaymentLineItemFeesFromStripe(client, 'cs_test_123')).resolves.toEqual(
       new Map([['entry-1', 3_000]])
     );
-    expect(calls).toEqual([
-      ['cs_test_123', { limit: 100, expand: ['data.price.product'] }],
-    ]);
+    expect(calls).toEqual([['cs_test_123', { limit: 100, expand: ['data.price.product'] }]]);
   });
 });

@@ -11,11 +11,11 @@ export function useFilteredEntries<T>(
 ) {
   const [filteredData, setFilteredData] = useState<T[]>([]);
   const entryStore = useEntryStore();
-  
+
   useEffect(() => {
     // Apply the filter function
     const newFilteredData = filterFn(entryStore.entries);
-    
+
     // Create a comparison array that includes updatedAt timestamps to detect content changes
     const newFingerprints = newFilteredData.map((item: unknown) => {
       const entry = item as { id?: string; updatedAt?: string; competitionData?: unknown };
@@ -25,15 +25,17 @@ export function useFilteredEntries<T>(
       const entry = item as { id?: string; updatedAt?: string; competitionData?: unknown };
       return `${entry.id || 'unknown'}-${entry.updatedAt || 'no-timestamp'}-${JSON.stringify(entry.competitionData || {})}`;
     });
-    
+
     // Update if the data has actually changed (length, order, or content)
-    if (newFingerprints.length !== currentFingerprints.length ||
-        newFingerprints.some((fingerprint, index) => fingerprint !== currentFingerprints[index])) {
+    if (
+      newFingerprints.length !== currentFingerprints.length ||
+      newFingerprints.some((fingerprint, index) => fingerprint !== currentFingerprints[index])
+    ) {
       setFilteredData(newFilteredData);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryStore.entries, filterFn, ...dependencies]);
-  
+
   return filteredData;
 }
 
@@ -42,7 +44,10 @@ export function useFilteredEntries<T>(
  */
 export function useEntriesByClass(classId: string) {
   return useFilteredEntries(
-    (entries) => classId ? entries.filter((entry: unknown) => (entry as { classId?: string }).classId === classId) : [],
+    entries =>
+      classId
+        ? entries.filter((entry: unknown) => (entry as { classId?: string }).classId === classId)
+        : [],
     [classId]
   );
 }
@@ -52,7 +57,10 @@ export function useEntriesByClass(classId: string) {
  */
 export function useEntriesByShow(showId: string) {
   return useFilteredEntries(
-    (entries) => showId ? entries.filter((entry: unknown) => (entry as { showId?: string }).showId === showId) : [],
+    entries =>
+      showId
+        ? entries.filter((entry: unknown) => (entry as { showId?: string }).showId === showId)
+        : [],
     [showId]
   );
 }
@@ -62,7 +70,10 @@ export function useEntriesByShow(showId: string) {
  */
 export function useEntriesByDog(dogId: string) {
   return useFilteredEntries(
-    (entries) => dogId ? entries.filter((entry: unknown) => (entry as { dogId?: string }).dogId === dogId) : [],
+    entries =>
+      dogId
+        ? entries.filter((entry: unknown) => (entry as { dogId?: string }).dogId === dogId)
+        : [],
     [dogId]
   );
 }

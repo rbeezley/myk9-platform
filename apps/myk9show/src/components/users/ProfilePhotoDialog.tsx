@@ -16,7 +16,7 @@ interface ProfilePhotoDialogProps {
   isSaving?: boolean;
 }
 
-const ProfilePhotoDialog: React.FC<ProfilePhotoDialogProps> = (props) => (
+const ProfilePhotoDialog: React.FC<ProfilePhotoDialogProps> = props => (
   <PhotoDialog {...props} title="Change Profile Photo" previewAlt="Profile Preview" />
 );
 

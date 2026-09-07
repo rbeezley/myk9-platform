@@ -140,7 +140,9 @@ function buildDescriptor(
       scope,
       subjectFingerprints,
       subjectScopes,
-      ...(dayIdentity ? { trialDate: dayIdentity.trialDate, snapshotId: dayIdentity.snapshotId } : {}),
+      ...(dayIdentity
+        ? { trialDate: dayIdentity.trialDate, snapshotId: dayIdentity.snapshotId }
+        : {}),
     },
     fingerprint: compactFingerprint(subjectFingerprints),
   };
@@ -274,8 +276,10 @@ export function buildEmergencyPacketPaperworkDescriptor(input: {
     // Empty strings would produce subject key `packet-day:` and no
     // `coverage.trialDate`, i.e. a row the reminder can never join. Refuse
     // rather than write evidence nothing can read.
-    { trialDate: requireNonEmpty(input.trialDate, 'trialDate'),
-      snapshotId: requireNonEmpty(input.snapshotId, 'snapshotId') }
+    {
+      trialDate: requireNonEmpty(input.trialDate, 'trialDate'),
+      snapshotId: requireNonEmpty(input.snapshotId, 'snapshotId'),
+    }
   );
 }
 
@@ -286,8 +290,6 @@ function requireNonEmpty(value: string, field: string): string {
   }
   return trimmed;
 }
-
-
 
 /** The one spelling of the key, shared by the writer and every reader. */
 export function emergencyPacketSubjectKey(trialDate: string): string {

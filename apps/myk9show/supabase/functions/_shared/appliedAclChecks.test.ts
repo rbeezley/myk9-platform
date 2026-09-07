@@ -21,13 +21,9 @@ const sqlGrantRows = [
     .matchAll(/^\s*\('([a-z_]+)','([^']*)','([^']*)','([^']*)'\),?\s*$/gm),
 ];
 
-const sqlAuthenticatedGrants = Object.fromEntries(
-  sqlGrantRows.map(m => [m[1], m[2]])
-);
+const sqlAuthenticatedGrants = Object.fromEntries(sqlGrantRows.map(m => [m[1], m[2]]));
 
-const sqlServiceRoleGrants = Object.fromEntries(
-  sqlGrantRows.map(m => [m[1], m[4]])
-);
+const sqlServiceRoleGrants = Object.fromEntries(sqlGrantRows.map(m => [m[1], m[4]]));
 
 const PROBED_AT = '2026-08-04T12:00:00.000Z';
 
@@ -190,7 +186,9 @@ describe('AUTHENTICATED_TABLE_GRANTS agrees with the SQL contract', () => {
   it('agrees on the authenticated privileges for every table', () => {
     const disagreements = Object.entries(sqlAuthenticatedGrants)
       .filter(([table, privs]) => AUTHENTICATED_TABLE_GRANTS[table] !== privs)
-      .map(([table, privs]) => `${table}: SQL='${privs}' TS='${AUTHENTICATED_TABLE_GRANTS[table]}'`);
+      .map(
+        ([table, privs]) => `${table}: SQL='${privs}' TS='${AUTHENTICATED_TABLE_GRANTS[table]}'`
+      );
 
     expect(disagreements).toEqual([]);
   });
@@ -205,8 +203,7 @@ describe('SERVICE_ROLE_TABLE_GRANTS agrees with the deployed SQL contract', () =
       Object.entries(sqlServiceRoleGrants)
         .filter(([table, privs]) => SERVICE_ROLE_TABLE_GRANTS[table] !== privs)
         .map(
-          ([table, privs]) =>
-            `${table}: SQL='${privs}' TS='${SERVICE_ROLE_TABLE_GRANTS[table]}'`
+          ([table, privs]) => `${table}: SQL='${privs}' TS='${SERVICE_ROLE_TABLE_GRANTS[table]}'`
         )
     ).toEqual([]);
   });

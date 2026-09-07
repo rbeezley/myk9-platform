@@ -1,9 +1,9 @@
 /**
  * Countdown Timer Hook for Result Entry System
- * 
+ *
  * Provides dual timer functionality (stopwatch + countdown) for accurate
  * dog show result timing with warning alerts and precision control.
- * 
+ *
  * Used by judges for real-time timing during competition events.
  */
 
@@ -11,44 +11,44 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 export interface CountdownTimerState {
   // Timer values in milliseconds
-  searchTime: number;        // Elapsed time (stopwatch counting up)
-  remainingTime: number;     // Time remaining (countdown)
-  
+  searchTime: number; // Elapsed time (stopwatch counting up)
+  remainingTime: number; // Time remaining (countdown)
+
   // Timer status
   isRunning: boolean;
-  isWarning: boolean;        // True when within 30 seconds of time limit
-  isExpired: boolean;        // True when time limit exceeded
-  
+  isWarning: boolean; // True when within 30 seconds of time limit
+  isExpired: boolean; // True when time limit exceeded
+
   // Control functions
   start: () => void;
   stop: () => void;
   reset: () => void;
-  
+
   // Current timer display values
-  searchTimeDisplay: string;    // MM:SS.HH format
+  searchTimeDisplay: string; // MM:SS.HH format
   remainingTimeDisplay: string; // MM:SS format
 }
 
 interface UseCountdownTimerOptions {
-  maxTimeMs: number;                                    // Class time limit in milliseconds
+  maxTimeMs: number; // Class time limit in milliseconds
   level: 'Novice' | 'Advanced' | 'Excellent' | 'Masters'; // Competition level
-  onTimeWarning?: ((remainingMs: number) => void) | undefined;       // Called at 30-second warning
-  onTimeExpired?: (() => void) | undefined;                           // Called when time limit exceeded
-  onSearchTime?: ((timeMs: number) => void) | undefined;              // Called when timer stopped
-  precision?: number;                                   // Update interval in ms (default: 10)
+  onTimeWarning?: ((remainingMs: number) => void) | undefined; // Called at 30-second warning
+  onTimeExpired?: (() => void) | undefined; // Called when time limit exceeded
+  onSearchTime?: ((timeMs: number) => void) | undefined; // Called when timer stopped
+  precision?: number; // Update interval in ms (default: 10)
 }
 
 const WARNING_THRESHOLD_MS = 30000; // 30 seconds
 
 /**
  * Custom hook for dual timer functionality (stopwatch + countdown)
- * 
+ *
  * Provides precise timing for dog show competitions with warning alerts
  * and automatic expiration handling. Follows AKC timing rules.
- * 
+ *
  * @param options - Timer configuration and callbacks
  * @returns Timer state and control functions
- * 
+ *
  * @example
  * ```tsx
  * const timer = useCountdownTimer({
@@ -58,24 +58,17 @@ const WARNING_THRESHOLD_MS = 30000; // 30 seconds
  *   onTimeExpired: () => handleTimeExpired(),
  *   onSearchTime: (time) => setResultTime(time)
  * });
- * 
+ *
  * // Start timing when dog begins search
  * <button onClick={timer.start}>Start</button>
- * 
+ *
  * // Display current times
  * <div>Search Time: {timer.searchTimeDisplay}</div>
  * <div>Remaining: {timer.remainingTimeDisplay}</div>
  * ```
  */
 export function useCountdownTimer(options: UseCountdownTimerOptions): CountdownTimerState {
-  const {
-    maxTimeMs,
-    level,
-    onTimeWarning,
-    onTimeExpired,
-    onSearchTime,
-    precision = 10
-  } = options;
+  const { maxTimeMs, level, onTimeWarning, onTimeExpired, onSearchTime, precision = 10 } = options;
 
   // Timer state
   const [searchTime, setSearchTime] = useState(0);
@@ -112,7 +105,7 @@ export function useCountdownTimer(options: UseCountdownTimerOptions): CountdownT
 
     const now = Date.now();
     startTimeRef.current = now - pausedTimeRef.current;
-    
+
     setIsRunning(true);
     warningTriggeredRef.current = false;
     expiredTriggeredRef.current = false;
@@ -134,7 +127,7 @@ export function useCountdownTimer(options: UseCountdownTimerOptions): CountdownT
 
     setIsRunning(false);
     pausedTimeRef.current = searchTime;
-    
+
     // Notify parent component of final time
     if (onSearchTime) {
       onSearchTime(searchTime);
@@ -206,7 +199,7 @@ export function useCountdownTimer(options: UseCountdownTimerOptions): CountdownT
     stop,
     reset,
     searchTimeDisplay,
-    remainingTimeDisplay
+    remainingTimeDisplay,
   };
 }
 
@@ -235,7 +228,7 @@ function formatTimeMinutes(ms: number): string {
 
 /**
  * Multi-area timer hook for Interior Excellent and Masters classes
- * 
+ *
  * Manages sequential timing across multiple search areas with progressive
  * unlocking and individual time limits per area.
  */
@@ -250,16 +243,17 @@ interface MultiAreaTimerOptions {
 }
 
 export interface MultiAreaTimerState extends CountdownTimerState {
-  currentArea: number;           // Currently active area (1-based)
-  completedAreas: number[];      // List of completed area numbers
-  areaResults: Array<{           // Results for each area
+  currentArea: number; // Currently active area (1-based)
+  completedAreas: number[]; // List of completed area numbers
+  areaResults: Array<{
+    // Results for each area
     areaNumber: number;
     searchTime: number;
     qualified: boolean;
   }>;
-  totalSearchTime: number;       // Sum of all area times
-  canProceedToNext: boolean;     // Whether next area is unlocked
-  
+  totalSearchTime: number; // Sum of all area times
+  canProceedToNext: boolean; // Whether next area is unlocked
+
   // Multi-area specific controls
   assignTimeToArea: (areaNumber: number) => void;
   proceedToNextArea: () => void;
@@ -268,19 +262,21 @@ export interface MultiAreaTimerState extends CountdownTimerState {
 
 /**
  * Hook for managing multi-area timer sequences
- * 
+ *
  * Used for Interior Excellent (2 areas) and Interior Masters (3 areas)
  * with different time limits per area and sequential progression.
  */
 export function useMultiAreaTimer(options: MultiAreaTimerOptions): MultiAreaTimerState {
   const { areas, level, onAreaComplete, onAllComplete } = options;
-  
+
   const [currentArea, setCurrentArea] = useState(1);
-  const [areaResults, setAreaResults] = useState<Array<{
-    areaNumber: number;
-    searchTime: number;
-    qualified: boolean;
-  }>>([]);
+  const [areaResults, setAreaResults] = useState<
+    Array<{
+      areaNumber: number;
+      searchTime: number;
+      qualified: boolean;
+    }>
+  >([]);
 
   // Get current area configuration
   const currentAreaConfig = areas.find(area => area.areaNumber === currentArea);
@@ -290,39 +286,43 @@ export function useMultiAreaTimer(options: MultiAreaTimerOptions): MultiAreaTime
   const baseTimer = useCountdownTimer({
     maxTimeMs,
     level,
-    precision: 10
+    precision: 10,
   });
 
   // Calculate derived state
   const completedAreas = areaResults.map(result => result.areaNumber);
   const totalSearchTime = areaResults.reduce((sum, result) => sum + result.searchTime, 0);
-  const canProceedToNext = areaResults.length > 0 && 
-                          areaResults[areaResults.length - 1]?.qualified &&
-                          currentArea < areas.length;
+  const canProceedToNext =
+    areaResults.length > 0 &&
+    areaResults[areaResults.length - 1]?.qualified &&
+    currentArea < areas.length;
 
   // Assign current timer time to specific area
-  const assignTimeToArea = useCallback((areaNumber: number) => {
-    if (!baseTimer.searchTime) return;
+  const assignTimeToArea = useCallback(
+    (areaNumber: number) => {
+      if (!baseTimer.searchTime) return;
 
-    const newResult = {
-      areaNumber,
-      searchTime: baseTimer.searchTime,
-      qualified: true // Default to qualified - will be set by scoresheet
-    };
+      const newResult = {
+        areaNumber,
+        searchTime: baseTimer.searchTime,
+        qualified: true, // Default to qualified - will be set by scoresheet
+      };
 
-    setAreaResults(prev => {
-      const filtered = prev.filter(r => r.areaNumber !== areaNumber);
-      return [...filtered, newResult].sort((a, b) => a.areaNumber - b.areaNumber);
-    });
+      setAreaResults(prev => {
+        const filtered = prev.filter(r => r.areaNumber !== areaNumber);
+        return [...filtered, newResult].sort((a, b) => a.areaNumber - b.areaNumber);
+      });
 
-    // Reset timer for next area
-    baseTimer.reset();
+      // Reset timer for next area
+      baseTimer.reset();
 
-    // Notify parent
-    if (onAreaComplete) {
-      onAreaComplete(areaNumber, baseTimer.searchTime);
-    }
-  }, [baseTimer, onAreaComplete]);
+      // Notify parent
+      if (onAreaComplete) {
+        onAreaComplete(areaNumber, baseTimer.searchTime);
+      }
+    },
+    [baseTimer, onAreaComplete]
+  );
 
   // Proceed to next area
   const proceedToNextArea = useCallback(() => {
@@ -352,6 +352,6 @@ export function useMultiAreaTimer(options: MultiAreaTimerOptions): MultiAreaTime
     canProceedToNext,
     assignTimeToArea,
     proceedToNextArea,
-    getCurrentAreaLimit
+    getCurrentAreaLimit,
   };
 }

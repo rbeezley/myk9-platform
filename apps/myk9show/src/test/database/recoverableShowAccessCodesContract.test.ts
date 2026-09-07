@@ -76,9 +76,7 @@ describe('recoverable show access codes — migration contract', () => {
     expect(getter).toContain("array_append(v_allowed_roles, 'judge')");
     expect(getter).toContain("array_append(v_allowed_roles, 'steward')");
     expect(getter).toContain("array_append(v_allowed_roles, 'exhibitor')");
-    expect(getter).toContain(
-      "v_allowed_roles := array['admin', 'judge', 'steward', 'exhibitor']"
-    );
+    expect(getter).toContain("v_allowed_roles := array['admin', 'judge', 'steward', 'exhibitor']");
   });
 
   it('matches the active submitted-entry projection and fails closed for inactive rows', () => {

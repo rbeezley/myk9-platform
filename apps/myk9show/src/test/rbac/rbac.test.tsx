@@ -7,9 +7,7 @@ import {
   MOCK_USERS,
   DEFAULT_ROLE_PERMISSIONS,
 } from '../../types/auth-types';
-import {
-  PermissionGuard,
-} from '../../components/auth/PermissionGuard';
+import { PermissionGuard } from '../../components/auth/PermissionGuard';
 import { useRegistrationPermissions } from '../../hooks/useRegistrationPermissions';
 
 // Mock useAuthContext so no QueryClientProvider / AuthProvider needed

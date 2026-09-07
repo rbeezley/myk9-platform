@@ -39,9 +39,7 @@ describe('myK9Show pwaUpdate wrapper', () => {
 
   it("threads the app's buildTimestamp into the package as the version", () => {
     setupPwa({ onPrompt: vi.fn() });
-    expect(setupPwaUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ version: 'dev' })
-    );
+    expect(setupPwaUpdateMock).toHaveBeenCalledWith(expect.objectContaining({ version: 'dev' }));
   });
 
   it('passes the app logger as a PwaLogger adapter', () => {

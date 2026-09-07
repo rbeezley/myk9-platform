@@ -124,7 +124,8 @@ export function useRegistrationPermissions() {
   /**
    * Check if user can create new exhibitors
    */
-  const canCreateExhibitor = can(REGISTRATION_PERMISSIONS.CREATE_EXHIBITOR) || canProcessMailInEntry;
+  const canCreateExhibitor =
+    can(REGISTRATION_PERMISSIONS.CREATE_EXHIBITOR) || canProcessMailInEntry;
 
   /**
    * Check if user can override fees

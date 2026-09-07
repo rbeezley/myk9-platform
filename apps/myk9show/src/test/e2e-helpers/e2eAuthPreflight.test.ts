@@ -140,9 +140,7 @@ describe('e2e auth preflight', () => {
         'utf8'
       );
       for (const { email } of resolveAuthPreflightConfig(noEmails, ROLES).credentials) {
-        expect(seed, `${email} is not created by setup-e2e-test-users.ts`).toContain(
-          `'${email}'`
-        );
+        expect(seed, `${email} is not created by setup-e2e-test-users.ts`).toContain(`'${email}'`);
       }
     });
 
@@ -160,10 +158,9 @@ describe('e2e auth preflight', () => {
       // the empty string (`??`) and signed in as nobody — a green preflight
       // followed by an auth failure, which is the false negative it exists to
       // prevent. Both now route through resolveFixtureEmail.
-      const config = resolveAuthPreflightConfig(
-        { ...noEmails, E2E_SECRETARY_EMAIL: '' },
-        ['secretary']
-      );
+      const config = resolveAuthPreflightConfig({ ...noEmails, E2E_SECRETARY_EMAIL: '' }, [
+        'secretary',
+      ]);
       expect(config.credentials[0]?.email).toBe('secretary@myk9t.com');
     });
 

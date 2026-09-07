@@ -44,7 +44,11 @@ describe('LeadArticleSection', () => {
     expect(withoutChair.textContent).not.toMatch(/Special to the Gazette/);
 
     const { container: withChair } = render(
-      <LeadArticleSection {...BASE_PROPS} trialChairName="Sarah Whitman" trialChairTitle="Trial Chair" />
+      <LeadArticleSection
+        {...BASE_PROPS}
+        trialChairName="Sarah Whitman"
+        trialChairTitle="Trial Chair"
+      />
     );
     expect(withChair.textContent).toMatch(/By Sarah Whitman, Trial Chair · Special to the Gazette/);
   });
@@ -64,7 +68,10 @@ describe('LeadArticleSection', () => {
 
   it('renders a drop cap inside the columns (Unicode-aware)', () => {
     const { container } = render(
-      <LeadArticleSection {...BASE_PROPS} welcomeText="For seventy-nine years our club has shown." />
+      <LeadArticleSection
+        {...BASE_PROPS}
+        welcomeText="For seventy-nine years our club has shown."
+      />
     );
     const cap = container.querySelector('.gz-dropcap');
     expect(cap).toHaveTextContent('F');
@@ -72,9 +79,7 @@ describe('LeadArticleSection', () => {
 
   it('splits welcomeText into paragraphs on blank-line boundaries', () => {
     const welcomeText = 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.';
-    const { container } = render(
-      <LeadArticleSection {...BASE_PROPS} welcomeText={welcomeText} />
-    );
+    const { container } = render(<LeadArticleSection {...BASE_PROPS} welcomeText={welcomeText} />);
     // The first paragraph is consumed by the drop-cap component (which emits
     // its own <p>); the remaining two render as direct siblings inside
     // .gz-columns. Total p count inside the column container: 3.
@@ -87,7 +92,7 @@ describe('LeadArticleSection', () => {
     expect(columnsParas[2].textContent).toBe('Third paragraph.');
   });
 
-  it('exposes the lead h2 id used by the welcome section\'s aria-labelledby', () => {
+  it("exposes the lead h2 id used by the welcome section's aria-labelledby", () => {
     // Review fix A4 — <section id="welcome"> carries aria-labelledby pointing
     // at the lead h2. The id contract must not silently drift.
     const { container } = render(<LeadArticleSection {...BASE_PROPS} />);
@@ -107,8 +112,6 @@ describe('LeadArticleSection', () => {
     expect(container.textContent).not.toMatch(/filled well before/i);
     // The neutral fallback should still print the show name as factual
     // anchor copy inside the column body.
-    expect(container.querySelector('.gz-columns')?.textContent).toMatch(
-      /Spring Scent Work Trial/
-    );
+    expect(container.querySelector('.gz-columns')?.textContent).toMatch(/Spring Scent Work Trial/);
   });
 });

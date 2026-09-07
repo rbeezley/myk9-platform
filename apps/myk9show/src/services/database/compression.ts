@@ -24,7 +24,7 @@ export class DataCompressionService {
   private readonly defaultOptions: CompressionOptions = {
     threshold: 1024, // 1KB threshold
     algorithm: 'json-minify',
-    level: 6
+    level: 6,
   };
 
   /**
@@ -37,7 +37,7 @@ export class DataCompressionService {
     const opts = { ...this.defaultOptions, ...options };
     const jsonString = JSON.stringify(data);
     const originalSize = new TextEncoder().encode(jsonString).length;
-    
+
     // Don't compress if below threshold
     if (originalSize < opts.threshold) {
       return {
@@ -45,7 +45,7 @@ export class DataCompressionService {
         compressed: false,
         originalSize,
         compressedSize: originalSize,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     }
 
@@ -74,13 +74,14 @@ export class DataCompressionService {
 
       // Only use compression if it actually reduces size significantly
       const savings = (originalSize - compressedSize) / originalSize;
-      if (savings < 0.1) { // Less than 10% savings
+      if (savings < 0.1) {
+        // Less than 10% savings
         return {
           data: jsonString,
           compressed: false,
           originalSize,
           compressedSize: originalSize,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
       }
 
@@ -90,7 +91,7 @@ export class DataCompressionService {
         originalSize,
         compressedSize,
         algorithm,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     } catch (error) {
       logger.warn('Compression failed, storing uncompressed:', 'database', {}, error as Error);
@@ -99,7 +100,7 @@ export class DataCompressionService {
         compressed: false,
         originalSize,
         compressedSize: originalSize,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
     }
   }
@@ -134,7 +135,9 @@ export class DataCompressionService {
       return JSON.parse(decompressedString);
     } catch (error) {
       logger.error('Decompression failed:', 'database', {}, error as Error);
-      throw new Error(`Failed to decompress data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to decompress data: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -146,12 +149,12 @@ export class DataCompressionService {
   async analyzeCompression<T>(data: T): Promise<CompressionAnalysis> {
     const jsonString = JSON.stringify(data);
     const originalSize = new TextEncoder().encode(jsonString).length;
-    
+
     const results: CompressionResult[] = [];
 
     // Test different algorithms
     const algorithms: CompressionOptions['algorithm'][] = ['json-minify', 'gzip', 'lz4'];
-    
+
     for (const algorithm of algorithms) {
       try {
         const compressed = await this.compress(data, { algorithm, threshold: 0 });
@@ -160,7 +163,7 @@ export class DataCompressionService {
           originalSize,
           compressedSize: compressed.compressedSize,
           savings: (originalSize - compressed.compressedSize) / originalSize,
-          compressionRatio: compressed.compressedSize / originalSize
+          compressionRatio: compressed.compressedSize / originalSize,
         });
       } catch (error) {
         results.push({
@@ -169,21 +172,19 @@ export class DataCompressionService {
           compressedSize: originalSize,
           savings: 0,
           compressionRatio: 1,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
 
-    const bestResult = results
-      .filter(r => !r.error)
-      .sort((a, b) => b.savings - a.savings)[0];
+    const bestResult = results.filter(r => !r.error).sort((a, b) => b.savings - a.savings)[0];
 
     return {
       originalSize,
       results,
       bestAlgorithm: bestResult?.algorithm,
       maxSavings: bestResult?.savings || 0,
-      recommendation: this.getCompressionRecommendation(originalSize, bestResult)
+      recommendation: this.getCompressionRecommendation(originalSize, bestResult),
     };
   }
 
@@ -194,24 +195,24 @@ export class DataCompressionService {
    * @returns Array of compressed records
    */
   async batchCompress<T>(
-    records: T[], 
+    records: T[],
     options?: Partial<CompressionOptions>
   ): Promise<CompressedData[]> {
     const batchSize = 100; // Process in batches to avoid blocking
     const results: CompressedData[] = [];
-    
+
     for (let i = 0; i < records.length; i += batchSize) {
       const batch = records.slice(i, i + batchSize);
       const batchPromises = batch.map(record => this.compress(record, options));
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults);
-      
+
       // Yield control to prevent blocking
       if (i + batchSize < records.length) {
         await new Promise(resolve => setTimeout(resolve, 0));
       }
     }
-    
+
     return results;
   }
 
@@ -234,7 +235,7 @@ export class DataCompressionService {
 
       const chunks: Uint8Array[] = [];
       let done = false;
-      
+
       while (!done) {
         const { value, done: readerDone } = await reader.read();
         done = readerDone;
@@ -250,7 +251,7 @@ export class DataCompressionService {
 
       return btoa(String.fromCharCode(...compressed));
     }
-    
+
     // Fallback to simple base64 encoding (not actual compression)
     return btoa(data);
   }
@@ -268,7 +269,7 @@ export class DataCompressionService {
 
       const chunks: Uint8Array[] = [];
       let done = false;
-      
+
       while (!done) {
         const { value, done: readerDone } = await reader.read();
         done = readerDone;
@@ -284,7 +285,7 @@ export class DataCompressionService {
 
       return new TextDecoder().decode(decompressed);
     }
-    
+
     // Fallback
     return atob(compressedData);
   }
@@ -293,30 +294,28 @@ export class DataCompressionService {
     // Simplified LZ4-like compression using repetition detection
     let compressed = '';
     let i = 0;
-    
+
     while (i < data.length) {
       let bestMatch = { length: 0, distance: 0 };
-      
+
       // Look for matches in the previous 64KB window
       const windowStart = Math.max(0, i - 65536);
       const maxLength = Math.min(255, data.length - i);
-      
+
       for (let j = windowStart; j < i; j++) {
         let length = 0;
-        while (length < maxLength && 
-               data[i + length] === data[j + length] && 
-               j + length < i) {
+        while (length < maxLength && data[i + length] === data[j + length] && j + length < i) {
           length++;
         }
-        
+
         if (length > bestMatch.length && length >= 4) {
           bestMatch = { length, distance: i - j };
         }
       }
-      
+
       if (bestMatch.length >= 4) {
         // Encode as reference
-        compressed += `\x00${String.fromCharCode(bestMatch.distance & 0xFF)}${String.fromCharCode((bestMatch.distance >> 8) & 0xFF)}${String.fromCharCode(bestMatch.length)}`;
+        compressed += `\x00${String.fromCharCode(bestMatch.distance & 0xff)}${String.fromCharCode((bestMatch.distance >> 8) & 0xff)}${String.fromCharCode(bestMatch.length)}`;
         i += bestMatch.length;
       } else {
         // Encode as literal
@@ -324,7 +323,7 @@ export class DataCompressionService {
         i++;
       }
     }
-    
+
     return btoa(compressed);
   }
 
@@ -332,18 +331,18 @@ export class DataCompressionService {
     const compressed = atob(compressedData);
     let decompressed = '';
     let i = 0;
-    
+
     while (i < compressed.length) {
       if (compressed[i] === '\x00' && i + 3 < compressed.length) {
         // Reference
         const distance = compressed.charCodeAt(i + 1) | (compressed.charCodeAt(i + 2) << 8);
         const length = compressed.charCodeAt(i + 3);
-        
+
         const start = decompressed.length - distance;
         for (let j = 0; j < length; j++) {
           decompressed += decompressed[start + j];
         }
-        
+
         i += 4;
       } else {
         // Literal
@@ -351,30 +350,30 @@ export class DataCompressionService {
         i++;
       }
     }
-    
+
     return decompressed;
   }
 
   private getCompressionRecommendation(
-    originalSize: number, 
+    originalSize: number,
     bestResult?: CompressionResult
   ): string {
     if (originalSize < 1024) {
       return 'No compression needed for small data';
     }
-    
+
     if (!bestResult || bestResult.savings < 0.1) {
       return 'Data not suitable for compression';
     }
-    
+
     if (bestResult.savings > 0.5) {
       return `Excellent compression candidate - ${(bestResult.savings * 100).toFixed(1)}% savings with ${bestResult.algorithm}`;
     }
-    
+
     if (bestResult.savings > 0.2) {
       return `Good compression candidate - ${(bestResult.savings * 100).toFixed(1)}% savings with ${bestResult.algorithm}`;
     }
-    
+
     return `Marginal compression benefits - ${(bestResult.savings * 100).toFixed(1)}% savings with ${bestResult.algorithm}`;
   }
 }

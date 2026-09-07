@@ -641,7 +641,9 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       renderCards(25);
 
       expect(cardLinks()).toHaveLength(25);
-      expect(screen.queryByRole('navigation', { name: 'Dog list pagination' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('navigation', { name: 'Dog list pagination' })
+      ).not.toBeInTheDocument();
     });
 
     it('paginates the exhibitor card view too', () => {
@@ -675,7 +677,9 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       const smaller = roster(26);
       mockBrowseDogsReturn = { ...mockBrowseDogsReturn, dogs: smaller, filteredDogs: smaller };
       rerender(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
           <MemoryRouter initialEntries={['/dogs']}>
             <BrowseDogsPage />
           </MemoryRouter>

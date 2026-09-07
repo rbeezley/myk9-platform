@@ -22,16 +22,16 @@ Prioritization follows [fall launch readiness](goals/fall-2026-launch-readiness.
 - GitHub API confirms the repo is public and PR #2016 merged as `a5d8af4cf88e680eb22fee50507f6559df93f653`. Shell GitHub access could not connect; connector reads succeeded.
 - This pass inspected source and reconciled issues; it ran no app tests, browser replay, live SQL, or scheduler mutation. Hosted definitions, current scheduler enablement, and notifier root cause remain unverified here.
 
-| Issue | Linear priority | Verified disposition | Primary slice |
-| --- | --- | --- | --- |
-| [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) — absent-entry completion parity | Medium / P2 | Merged source fix; SQL behavior/mutation and applied-state proof remain | A1 |
-| [MYK9-412](https://linear.app/myk9-platform/issue/MYK9-412) — notifier test flake | Medium / P2 | Diagnostic gap confirmed; root cause unconfirmed | B1 |
-| [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) — migration guard false positives | Medium / P2 | Guard still rejects inherited/applied history | B2 |
-| [MYK9-407](https://linear.app/myk9-platform/issue/MYK9-407) — ACL cadence omission | Low / P3 | Emitted check key missing from cadence table | C1a |
-| [MYK9-409](https://linear.app/myk9-platform/issue/MYK9-409) — external remediation targets | Low / P3 | Target/accessibility contract missing; claimed malformed URL needs reproduction | C1b |
-| [MYK9-358](https://linear.app/myk9-platform/issue/MYK9-358) — migration provenance | Low / P3 | Header correction never landed; SQL bodies still identical | D1 |
-| [MYK9-406](https://linear.app/myk9-platform/issue/MYK9-406) — plan metadata | Low / P3 | 24 of 77 top-level plans lack canonical status marker | E1 |
-| [MYK9-408](https://linear.app/myk9-platform/issue/MYK9-408) — audit failover | Low / P3 | Disablement recorded complete; stale prompts remain | F1 |
+| Issue                                                                                         | Linear priority | Verified disposition                                                            | Primary slice |
+| --------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------- | ------------- |
+| [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) — absent-entry completion parity  | Medium / P2     | Merged source fix; SQL behavior/mutation and applied-state proof remain         | A1            |
+| [MYK9-412](https://linear.app/myk9-platform/issue/MYK9-412) — notifier test flake             | Medium / P2     | Diagnostic gap confirmed; root cause unconfirmed                                | B1            |
+| [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) — migration guard false positives | Medium / P2     | Guard still rejects inherited/applied history                                   | B2            |
+| [MYK9-407](https://linear.app/myk9-platform/issue/MYK9-407) — ACL cadence omission            | Low / P3        | Emitted check key missing from cadence table                                    | C1a           |
+| [MYK9-409](https://linear.app/myk9-platform/issue/MYK9-409) — external remediation targets    | Low / P3        | Target/accessibility contract missing; claimed malformed URL needs reproduction | C1b           |
+| [MYK9-358](https://linear.app/myk9-platform/issue/MYK9-358) — migration provenance            | Low / P3        | Header correction never landed; SQL bodies still identical                      | D1            |
+| [MYK9-406](https://linear.app/myk9-platform/issue/MYK9-406) — plan metadata                   | Low / P3        | 24 of 77 top-level plans lack canonical status marker                           | E1            |
+| [MYK9-408](https://linear.app/myk9-platform/issue/MYK9-408) — audit failover                  | Low / P3        | Disablement recorded complete; stale prompts remain                             | F1            |
 
 ## Order, dependencies, and workflow
 
@@ -209,15 +209,15 @@ plan-ux-journey-audit.md
 
 No slice is complete until its tests and issue-specific gates pass. Start narrow, then run required CI. Source-text coverage is not deployed or SQL behavioral proof.
 
-| Slice | Focused verification | Additional gate |
-| --- | --- | --- |
-| A1 | entryAccounting/at-show, classPlacementContract; `pnpm qa:sql:behavioral:test`; local SQL harness | Installed SQL mutation red/restored green; hosted definitions |
-| B1 | Notifier behavior/wiring; coverage/shuffle reproduction | Six full-app shuffled green passes; retained duplicate proof |
-| B2 | `pnpm qa:migrations:guard:test`, disposable git fixtures | Allow/reject mutations; green migration PR and isolated collision red |
-| C1 | Coverage/cadence, runner, remediation, triage and rendered consumers; app/edge typechecks | Two-surface browser replay; protected-intent approval; hosted cadence |
-| D1 | Header/body diff, fixed guard | Before/after read-only migration inventory; PR checks |
-| E1 | New checker fixtures and existing doc-staleness tests | 24-file disposition; two omission mutations; CI wiring |
-| F1 | Text and byte-level prompt parity | Scheduler readouts and subsequent-day single report/stamp |
+| Slice | Focused verification                                                                              | Additional gate                                                       |
+| ----- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| A1    | entryAccounting/at-show, classPlacementContract; `pnpm qa:sql:behavioral:test`; local SQL harness | Installed SQL mutation red/restored green; hosted definitions         |
+| B1    | Notifier behavior/wiring; coverage/shuffle reproduction                                           | Six full-app shuffled green passes; retained duplicate proof          |
+| B2    | `pnpm qa:migrations:guard:test`, disposable git fixtures                                          | Allow/reject mutations; green migration PR and isolated collision red |
+| C1    | Coverage/cadence, runner, remediation, triage and rendered consumers; app/edge typechecks         | Two-surface browser replay; protected-intent approval; hosted cadence |
+| D1    | Header/body diff, fixed guard                                                                     | Before/after read-only migration inventory; PR checks                 |
+| E1    | New checker fixtures and existing doc-staleness tests                                             | 24-file disposition; two omission mutations; CI wiring                |
+| F1    | Text and byte-level prompt parity                                                                 | Scheduler readouts and subsequent-day single report/stamp             |
 
 - New components/hooks/utilities need meaningful unit tests. Use `src/test/utils/testUtils.tsx` for rendered app components. For boundary values, write exact assertions first, run red, then fix.
 - Use pnpm and TypeScript for new tooling; verify schemas and actual field names. Keep new source modules under 500 lines and avoid implementation-mirroring tests.
@@ -228,18 +228,18 @@ No slice is complete until its tests and issue-specific gates pass. Start narrow
 
 ## Risks, decisions and resume gates
 
-| Gate | Owner / resolution |
-| --- | --- |
-| MYK9-356 stale original AC | Resolved by September 5 addendum: lifecycle absent excluded. No new product decision. |
-| MYK9-408 scheduler choice | Resolved: Claude off. Fresh state proof remains. |
-| MYK9-409 internal-route INTENT | Richard explicitly approves the extension before implementation unless already authorized in that session. |
-| MYK9-409 malformed URL hypothesis | Implementer reproduces with installed router; narrow causal claim if not reproducible. |
-| MYK9-405 applied identity | Document how main/base/path/body prove identity; fail closed on uncertain new claims. |
-| SQL environment/applied absent fix | Agent prepares CI/local proof; Richard provides read access or owns deployment approval. |
-| Health runner dependency deploy | Separate authorized bundle deployment and snapshot proof; no implied ACL/DB change. |
-| B1 full-suite hangs/unrelated failures | Keep issue open with specific blocker; explicit owned acceptance required to change gate. |
-| Deployed Claude prompt outside repo | Richard/owning tool installs prepared diff under authorization; repo-only correction is partial. |
-| Historical plan state unclear | Record owner/evidence gap per file, never fictitious completion. |
+| Gate                                   | Owner / resolution                                                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| MYK9-356 stale original AC             | Resolved by September 5 addendum: lifecycle absent excluded. No new product decision.                      |
+| MYK9-408 scheduler choice              | Resolved: Claude off. Fresh state proof remains.                                                           |
+| MYK9-409 internal-route INTENT         | Richard explicitly approves the extension before implementation unless already authorized in that session. |
+| MYK9-409 malformed URL hypothesis      | Implementer reproduces with installed router; narrow causal claim if not reproducible.                     |
+| MYK9-405 applied identity              | Document how main/base/path/body prove identity; fail closed on uncertain new claims.                      |
+| SQL environment/applied absent fix     | Agent prepares CI/local proof; Richard provides read access or owns deployment approval.                   |
+| Health runner dependency deploy        | Separate authorized bundle deployment and snapshot proof; no implied ACL/DB change.                        |
+| B1 full-suite hangs/unrelated failures | Keep issue open with specific blocker; explicit owned acceptance required to change gate.                  |
+| Deployed Claude prompt outside repo    | Richard/owning tool installs prepared diff under authorization; repo-only correction is partial.           |
+| Historical plan state unclear          | Record owner/evidence gap per file, never fictitious completion.                                           |
 
 Source changes can be reverted by their PR. Evidence/header work requires no DB rollback. Health-runner rollback is the previously recorded bundle/SHA; prompt rollback is the saved prior prompt while retaining Claude's disabled state. Never silently re-enable duplicate audits.
 

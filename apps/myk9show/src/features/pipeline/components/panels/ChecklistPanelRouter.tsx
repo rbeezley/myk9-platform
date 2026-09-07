@@ -48,8 +48,8 @@ export const ChecklistPanelRouter: React.FC<ChecklistPanelRouterProps> = ({
     >
       <div className="p-6">
         <p className="text-sm text-muted-foreground">
-          Configuration panel for &ldquo;{panelKey}&rdquo; &mdash; will be wired to existing
-          edit forms. Trial: {trialId}, Show: {showId}.
+          Configuration panel for &ldquo;{panelKey}&rdquo; &mdash; will be wired to existing edit
+          forms. Trial: {trialId}, Show: {showId}.
         </p>
       </div>
     </SlideOverPanel>

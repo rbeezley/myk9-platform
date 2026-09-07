@@ -43,10 +43,7 @@ describe('entry submission outcome helpers', () => {
       {
         dogId: 'dog-1',
         trialId: 'trial-1',
-        selectedClasses: [
-          { classId: 'class-created' },
-          { classId: 'class-waitlisted' },
-        ],
+        selectedClasses: [{ classId: 'class-created' }, { classId: 'class-waitlisted' }],
       },
       {
         dogId: 'dog-2',

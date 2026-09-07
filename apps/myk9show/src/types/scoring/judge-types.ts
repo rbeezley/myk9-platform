@@ -73,7 +73,7 @@ export interface JudgeCertification {
 /**
  * Judging disciplines
  */
-export type JudgeDiscipline = 
+export type JudgeDiscipline =
   | 'conformation'
   | 'obedience'
   | 'rally'
@@ -123,14 +123,8 @@ export interface DateRange {
 /**
  * Day of week
  */
-export type DayOfWeek = 
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday';
+export type DayOfWeek =
+  'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 // ============================================
 // Judge Preferences Types
@@ -158,7 +152,7 @@ export interface JudgePreferences {
 /**
  * Class types judge is willing to judge
  */
-export type ClassType = 
+export type ClassType =
   | 'conformation'
   | 'junior_showmanship'
   | 'obedience'

@@ -292,7 +292,8 @@ function preparationAttention(
       // still belongs -- the secretary should look -- but it has to say which
       // situation it is in.
       reason: (() => {
-        const status = item.state === 'unknown' ? 'print history unavailable' : 'not confirmed printed';
+        const status =
+          item.state === 'unknown' ? 'print history unavailable' : 'not confirmed printed';
         return isImminent
           ? `${item.label} ${status} · starts in ${minutesUntil} minutes`
           : `${item.label} ${status} · next in schedule order for Trial ${trial.number}`;

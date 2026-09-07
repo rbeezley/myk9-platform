@@ -15,12 +15,7 @@ interface ResultRevealDialogProps {
   onSeen: (releaseKey: string) => void;
 }
 
-export function ResultRevealDialog({
-  open,
-  onOpenChange,
-  model,
-  onSeen,
-}: ResultRevealDialogProps) {
+export function ResultRevealDialog({ open, onOpenChange, model, onSeen }: ResultRevealDialogProps) {
   const [sharing, setSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -85,5 +80,8 @@ export function ResultRevealDialog({
 }
 
 function slugify(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
 }

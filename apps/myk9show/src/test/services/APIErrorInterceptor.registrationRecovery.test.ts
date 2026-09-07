@@ -60,11 +60,9 @@ describe('Registration error handling and recovery', () => {
       retries: 2,
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchMock.mock.calls.map(([, init]) => (init?.headers as Record<string, string>)['X-Attempt'])).toEqual([
-      '0',
-      '1',
-      '2',
-    ]);
+    expect(
+      fetchMock.mock.calls.map(([, init]) => (init?.headers as Record<string, string>)['X-Attempt'])
+    ).toEqual(['0', '1', '2']);
     expect(recordPerformanceMetric).toHaveBeenCalledWith(
       'api_request_duration',
       expect.any(Number),
@@ -125,7 +123,9 @@ describe('Registration error handling and recovery', () => {
   });
 
   it('does not retry when retryable type config only partially matches the error code', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('fetch failed'));
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('fetch failed'));
 
     const result = await new APIErrorInterceptor().interceptRequest({
       url: '/api/registrations',

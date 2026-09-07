@@ -34,10 +34,10 @@ The lease sits above the worst-case render and below the 30-minute cron gap — 
 
 ## Configuration
 
-| Secret | Purpose |
-| --- | --- |
+| Secret               | Purpose                                                       |
+| -------------------- | ------------------------------------------------------------- |
 | `PACKET_CRON_SECRET` | Bearer secret for the trigger. **Unset means 503**, not open. |
-| `RESEND_API_KEY` | Email delivery, shared with the manual path. |
+| `RESEND_API_KEY`     | Email delivery, shared with the manual path.                  |
 
 Requires `20260821220000_emergency_packet_input_rpc.sql` and `20260821230000_trial_packet_automation_columns.sql`.
 

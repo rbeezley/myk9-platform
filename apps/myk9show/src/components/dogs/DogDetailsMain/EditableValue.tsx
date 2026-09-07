@@ -7,7 +7,12 @@ import type { EditableValueProps } from './types';
 const EditableValue: React.FC<EditableValueProps> = ({ value, onEdit, suffix = '', formatFn }) => {
   if (value) {
     const displayValue = formatFn ? formatFn(value) : value;
-    return <span className="text-sm font-medium text-foreground">{displayValue}{suffix}</span>;
+    return (
+      <span className="text-sm font-medium text-foreground">
+        {displayValue}
+        {suffix}
+      </span>
+    );
   }
 
   return (

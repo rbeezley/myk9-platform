@@ -207,9 +207,7 @@ describe('ShowDeskToolsSheet', () => {
   it('singularizes the actionable label when count is 1', () => {
     renderSheet({ actionableCount: 1 });
 
-    expect(screen.getByTestId('show-desk-tools-badge')).toHaveTextContent(
-      '1 item needs attention'
-    );
+    expect(screen.getByTestId('show-desk-tools-badge')).toHaveTextContent('1 item needs attention');
   });
 
   it('falls back to the muted tool-count badge when actionableCount is 0', () => {
@@ -384,9 +382,7 @@ describe('ShowDeskToolsSheet', () => {
         p_show_id: '63165809-e025-25c6-6cf9-979f63165809',
       });
     });
-    expect(notifications.success).toHaveBeenCalledWith(
-      'New codes generated and saved.'
-    );
+    expect(notifications.success).toHaveBeenCalledWith('New codes generated and saved.');
     expect(await screen.findByText('e4444')).toBeInTheDocument();
   });
 });

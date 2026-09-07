@@ -19,7 +19,7 @@ export function mapNetworkQuality(quality: string): NetworkQuality {
 export function buildNetworkState(
   online: boolean,
   quality: string,
-  downlink?: number,
+  downlink?: number
 ): NetworkState {
   return {
     isOnline: online,
@@ -40,7 +40,9 @@ interface SyncStats {
 /**
  * Computes SyncMetrics from raw sync statistics.
  */
-export function calculateSyncMetrics(stats: SyncStats): SyncMetrics & { lastSyncAt?: Date | undefined } {
+export function calculateSyncMetrics(
+  stats: SyncStats
+): SyncMetrics & { lastSyncAt?: Date | undefined } {
   const lastSyncAt = stats.lastSyncAttempt > 0 ? new Date(stats.lastSyncAttempt) : undefined;
   return {
     syncSuccessRate: stats.totalTasks > 0 ? stats.completedTasks / stats.totalTasks : 1,
@@ -80,7 +82,10 @@ export function createSyncCompletionEvent(result: {
 /**
  * Creates a SyncEvent from a sync error.
  */
-export function createSyncErrorEvent(error: Error, task: { entity: string; entityId: string }): SyncEvent {
+export function createSyncErrorEvent(
+  error: Error,
+  task: { entity: string; entityId: string }
+): SyncEvent {
   return {
     type: 'sync-failed',
     timestamp: new Date(),

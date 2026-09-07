@@ -4,19 +4,19 @@ import { PredictivePrefetcher } from '@/services/sync/PredictivePrefetcher';
 // Mock the sync service
 vi.mock('@/services/sync/syncService', () => ({
   syncService: {
-    addToQueue: vi.fn().mockResolvedValue('queue-id-123')
-  }
+    addToQueue: vi.fn().mockResolvedValue('queue-id-123'),
+  },
 }));
 
 // Mock localStorage
 const mockLocalStorage = {
   getItem: vi.fn(),
   setItem: vi.fn(),
-  removeItem: vi.fn()
+  removeItem: vi.fn(),
 };
 
 Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage
+  value: mockLocalStorage,
 });
 
 describe('PredictivePrefetcher', () => {
@@ -55,7 +55,7 @@ describe('PredictivePrefetcher', () => {
 
     it('should save patterns to storage', () => {
       prefetcher.trackNavigation('/clubs', '/shows', 1500);
-      
+
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
         'myk9show-nav-patterns',
         expect.any(String)
@@ -158,11 +158,11 @@ describe('PredictivePrefetcher', () => {
         condition: 'route:/custom',
         action: 'prefetch_entity' as const,
         priority: 'high' as const,
-        enabled: true
+        enabled: true,
       };
 
       prefetcher.addPrefetchRule(rule);
-      
+
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
         'myk9show-prefetch-rules',
         expect.any(String)
@@ -179,7 +179,7 @@ describe('PredictivePrefetcher', () => {
   describe('Storage Management', () => {
     it('should save patterns to localStorage', () => {
       prefetcher.trackNavigation('/test1', '/test2', 1000);
-      
+
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
         'myk9show-nav-patterns',
         expect.any(String)
@@ -188,10 +188,19 @@ describe('PredictivePrefetcher', () => {
 
     it('should load patterns from localStorage', () => {
       const mockNavPatterns = JSON.stringify([
-        ['test->test2', { fromRoute: 'test', toRoute: 'test2', frequency: 5, avgTimeSpent: 2000, lastAccessed: new Date().toISOString() }]
+        [
+          'test->test2',
+          {
+            fromRoute: 'test',
+            toRoute: 'test2',
+            frequency: 5,
+            avgTimeSpent: 2000,
+            lastAccessed: new Date().toISOString(),
+          },
+        ],
       ]);
-      
-      mockLocalStorage.getItem.mockImplementation((key) => {
+
+      mockLocalStorage.getItem.mockImplementation(key => {
         if (key === 'myk9show-nav-patterns') return mockNavPatterns;
         return null;
       });
@@ -225,7 +234,7 @@ describe('PredictivePrefetcher', () => {
 
     it('should track prefetch queue status', () => {
       prefetcher.predictSearchResults('test query');
-      
+
       const analytics = prefetcher.getAnalytics();
       expect(typeof analytics.queuedPrefetches).toBe('number');
       expect(typeof analytics.pendingPrefetches).toBe('number');
@@ -261,7 +270,7 @@ describe('PredictivePrefetcher', () => {
       // Test that size estimation is working by checking prefetch behavior
       prefetcher.predictSearchResults('test', 'person');
       prefetcher.predictSearchResults('test', 'dog');
-      
+
       const analytics = prefetcher.getAnalytics();
       expect(analytics.queuedPrefetches).toBeGreaterThanOrEqual(0);
     });
@@ -271,7 +280,7 @@ describe('PredictivePrefetcher', () => {
       // we test through behavior
       const largeQuery = 'a'.repeat(1000);
       prefetcher.predictSearchResults(largeQuery);
-      
+
       // Should still handle large queries gracefully
       const analytics = prefetcher.getAnalytics();
       expect(analytics.queuedPrefetches).toBeGreaterThanOrEqual(0);

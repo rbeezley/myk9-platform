@@ -56,7 +56,7 @@ describe('Button Component', () => {
       const user = userEvent.setup();
 
       render(<Button onClick={handleClick}>Click me</Button>);
-      
+
       await user.click(screen.getByRole('button'));
       expect(handleClick).toHaveBeenCalledTimes(1);
     });
@@ -65,8 +65,12 @@ describe('Button Component', () => {
       const handleClick = vi.fn();
       const user = userEvent.setup();
 
-      render(<Button onClick={handleClick} disabled>Disabled</Button>);
-      
+      render(
+        <Button onClick={handleClick} disabled>
+          Disabled
+        </Button>
+      );
+
       await user.click(screen.getByRole('button'));
       expect(handleClick).not.toHaveBeenCalled();
     });
@@ -74,7 +78,7 @@ describe('Button Component', () => {
     it('should handle keyboard events', () => {
       const handleClick = vi.fn();
       render(<Button onClick={handleClick}>Button</Button>);
-      
+
       const button = screen.getByRole('button');
       fireEvent.keyDown(button, { key: 'Enter' });
       // Note: actual keyboard activation depends on browser behavior
@@ -83,17 +87,17 @@ describe('Button Component', () => {
     it('should handle focus and blur events', () => {
       const handleFocus = vi.fn();
       const handleBlur = vi.fn();
-      
+
       render(
         <Button onFocus={handleFocus} onBlur={handleBlur}>
           Focusable
         </Button>
       );
-      
+
       const button = screen.getByRole('button');
       button.focus();
       expect(handleFocus).toHaveBeenCalled();
-      
+
       button.blur();
       expect(handleBlur).toHaveBeenCalled();
     });
@@ -106,7 +110,7 @@ describe('Button Component', () => {
           <a href="/test">Link Button</a>
         </Button>
       );
-      
+
       const link = screen.getByRole('link');
       expect(link).toBeInTheDocument();
       expect(link).toHaveAttribute('href', '/test');
@@ -118,7 +122,7 @@ describe('Button Component', () => {
           <a href="/test">Destructive Link</a>
         </Button>
       );
-      
+
       const link = screen.getByRole('link');
       expect(link).toHaveAttribute('class');
     });
@@ -128,7 +132,7 @@ describe('Button Component', () => {
     it('should forward ref to button element', () => {
       const ref = React.createRef<HTMLButtonElement>();
       render(<Button ref={ref}>Button with ref</Button>);
-      
+
       expect(ref.current).toBeInstanceOf(HTMLButtonElement);
       expect(ref.current?.textContent).toBe('Button with ref');
     });
@@ -138,7 +142,7 @@ describe('Button Component', () => {
     it('should be focusable by default', () => {
       render(<Button>Focusable Button</Button>);
       const button = screen.getByRole('button');
-      
+
       button.focus();
       expect(button).toHaveFocus();
     });
@@ -146,22 +150,18 @@ describe('Button Component', () => {
     it('should not be focusable when disabled', () => {
       render(<Button disabled>Disabled Button</Button>);
       const button = screen.getByRole('button');
-      
+
       button.focus();
       expect(button).not.toHaveFocus();
     });
 
     it('should support ARIA attributes', () => {
       render(
-        <Button 
-          aria-describedby="help-text"
-          aria-expanded="false"
-          aria-controls="menu"
-        >
+        <Button aria-describedby="help-text" aria-expanded="false" aria-controls="menu">
           Menu Button
         </Button>
       );
-      
+
       const button = screen.getByRole('button');
       expect(button).toHaveAttribute('aria-describedby', 'help-text');
       expect(button).toHaveAttribute('aria-expanded', 'false');
@@ -182,27 +182,31 @@ describe('Button Component', () => {
   describe('Icon Support', () => {
     it('should render with icon children', () => {
       const TestIcon = () => <span data-testid="test-icon">🔥</span>;
-      
+
       render(
         <Button>
           <TestIcon />
           Button with Icon
         </Button>
       );
-      
+
       expect(screen.getByTestId('test-icon')).toBeInTheDocument();
       expect(screen.getByText('Button with Icon')).toBeInTheDocument();
     });
 
     it('should render icon-only button', () => {
-      const TestIcon = () => <span data-testid="test-icon" aria-label="Save">💾</span>;
-      
+      const TestIcon = () => (
+        <span data-testid="test-icon" aria-label="Save">
+          💾
+        </span>
+      );
+
       render(
         <Button aria-label="Save">
           <TestIcon />
         </Button>
       );
-      
+
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
       expect(screen.getByTestId('test-icon')).toBeInTheDocument();
     });

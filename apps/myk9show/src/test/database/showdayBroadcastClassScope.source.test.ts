@@ -54,9 +54,7 @@ describe('show-day Broadcast class-scope migration', () => {
     expect(migration).toContain("'showday_change'");
     expect(migration).toContain('EXCEPTION WHEN OTHERS THEN');
     expect(migration).toContain('RETURN NULL');
-    expect(migration).toContain(
-      'REVOKE EXECUTE ON FUNCTION public.broadcast_showday_change()'
-    );
+    expect(migration).toContain('REVOKE EXECUTE ON FUNCTION public.broadcast_showday_change()');
     expect(migration).toContain('FROM PUBLIC, anon, authenticated');
   });
 });

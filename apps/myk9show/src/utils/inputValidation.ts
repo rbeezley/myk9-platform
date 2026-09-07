@@ -20,21 +20,21 @@ export const VALIDATION_PATTERNS = {
   decimal: /^\d+(\.\d{1,2})?$/,
   uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
   slug: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-  strongPassword: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/
+  strongPassword: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/,
 } as const;
 
 /**
  * Input length limits for security
  */
 export const INPUT_LIMITS = {
-  shortText: 50,     // Names, titles
-  mediumText: 255,   // Descriptions, addresses
-  longText: 2000,    // Comments, notes
+  shortText: 50, // Names, titles
+  mediumText: 255, // Descriptions, addresses
+  longText: 2000, // Comments, notes
   veryLongText: 10000, // Rich text content
-  email: 254,        // RFC 5321 limit
+  email: 254, // RFC 5321 limit
   phone: 20,
   url: 2048,
-  filename: 255
+  filename: 255,
 } as const;
 
 /**
@@ -102,11 +102,11 @@ export class InputValidator {
     if (value.length < min) {
       this.addError(fieldName, `${fieldName} must be at least ${min} characters`, 'TOO_SHORT');
     }
-    
+
     if (value.length > max) {
       this.addError(fieldName, `${fieldName} must be no more than ${max} characters`, 'TOO_LONG');
     }
-    
+
     return this;
   }
 
@@ -120,13 +120,9 @@ export class InputValidator {
     }
 
     if (!pattern.test(value)) {
-      this.addError(
-        fieldName, 
-        message || `${fieldName} format is invalid`, 
-        'INVALID_FORMAT'
-      );
+      this.addError(fieldName, message || `${fieldName} format is invalid`, 'INVALID_FORMAT');
     }
-    
+
     return this;
   }
 
@@ -135,9 +131,9 @@ export class InputValidator {
    */
   email(value: string, fieldName: string): this {
     return this.pattern(
-      value, 
-      VALIDATION_PATTERNS.email, 
-      fieldName, 
+      value,
+      VALIDATION_PATTERNS.email,
+      fieldName,
       'Please enter a valid email address'
     ).length(value, 1, INPUT_LIMITS.email, fieldName);
   }
@@ -158,12 +154,7 @@ export class InputValidator {
    * Validate UUID format
    */
   uuid(value: string, fieldName: string): this {
-    return this.pattern(
-      value,
-      VALIDATION_PATTERNS.uuid,
-      fieldName,
-      'Invalid ID format'
-    );
+    return this.pattern(value, VALIDATION_PATTERNS.uuid, fieldName, 'Invalid ID format');
   }
 
   /**
@@ -190,7 +181,7 @@ export class InputValidator {
     if (value <= 0) {
       this.addError(fieldName, `${fieldName} must be a positive number`, 'INVALID_VALUE');
     }
-    
+
     return this;
   }
 
@@ -199,11 +190,11 @@ export class InputValidator {
    */
   date(value: string | Date, fieldName: string): this {
     const date = typeof value === 'string' ? new Date(value) : value;
-    
+
     if (!(date instanceof Date) || isNaN(date.getTime())) {
       this.addError(fieldName, `${fieldName} must be a valid date`, 'INVALID_DATE');
     }
-    
+
     return this;
   }
 
@@ -212,23 +203,28 @@ export class InputValidator {
    */
   futureDate(value: string | Date, fieldName: string): this {
     this.date(value, fieldName);
-    
+
     const date = typeof value === 'string' ? new Date(value) : value;
     if (date instanceof Date && !isNaN(date.getTime()) && date <= new Date()) {
       this.addError(fieldName, `${fieldName} must be in the future`, 'INVALID_DATE_RANGE');
     }
-    
+
     return this;
   }
 
   /**
    * Custom validation function
    */
-  custom(value: unknown, validator: (val: unknown) => boolean, fieldName: string, message: string): this {
+  custom(
+    value: unknown,
+    validator: (val: unknown) => boolean,
+    fieldName: string,
+    message: string
+  ): this {
     if (!validator(value)) {
       this.addError(fieldName, message, 'CUSTOM_VALIDATION');
     }
-    
+
     return this;
   }
 }
@@ -236,11 +232,14 @@ export class InputValidator {
 /**
  * Sanitize user input to prevent XSS
  */
-export function sanitizeInput(input: string, type: 'basic' | 'richText' | 'textOnly' = 'basic'): string {
+export function sanitizeInput(
+  input: string,
+  type: 'basic' | 'richText' | 'textOnly' = 'basic'
+): string {
   if (typeof input !== 'string') {
     return '';
   }
-  
+
   return sanitizeHTML(input, type);
 }
 
@@ -253,39 +252,45 @@ export function validateFormData<T extends Record<string, unknown>>(
 ): { isValid: boolean; data?: T; errors?: Record<string, string> } {
   try {
     // First, sanitize string fields
-    const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
-      if (typeof value === 'string') {
-        acc[key] = sanitizeInput(value, 'basic');
-      } else {
-        acc[key] = value;
-      }
-      return acc;
-    }, {} as Record<string, unknown>) as T;
+    const sanitizedData = Object.entries(data).reduce(
+      (acc, [key, value]) => {
+        if (typeof value === 'string') {
+          acc[key] = sanitizeInput(value, 'basic');
+        } else {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as Record<string, unknown>
+    ) as T;
 
     // Then validate with schema
     const validData = schema.parse(sanitizedData);
-    
+
     return {
       isValid: true,
-      data: validData
+      data: validData,
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors = error.issues.reduce((acc: Record<string, string>, err) => {
-        const field = err.path.join('.');
-        acc[field] = err.message;
-        return acc;
-      }, {} as Record<string, string>);
-      
+      const errors = error.issues.reduce(
+        (acc: Record<string, string>, err) => {
+          const field = err.path.join('.');
+          acc[field] = err.message;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
+
       return {
         isValid: false,
-        errors
+        errors,
       };
     }
-    
+
     return {
       isValid: false,
-      errors: { general: 'Validation failed' }
+      errors: { general: 'Validation failed' },
     };
   }
 }
@@ -298,37 +303,50 @@ export const ValidationSchemas = {
   email: z.string().email('Invalid email format').max(INPUT_LIMITS.email),
   name: z.string().min(1, 'Name is required').max(INPUT_LIMITS.shortText),
   phone: z.string().regex(VALIDATION_PATTERNS.phone, 'Invalid phone format').optional(),
-  
+
   // Dog-related validations
-  dogName: z.string().min(1, 'Dog name is required').max(INPUT_LIMITS.shortText)
+  dogName: z
+    .string()
+    .min(1, 'Dog name is required')
+    .max(INPUT_LIMITS.shortText)
     .regex(VALIDATION_PATTERNS.safeString, 'Dog name contains invalid characters'),
   breed: z.string().min(1, 'Breed is required').max(INPUT_LIMITS.shortText),
   registrationNumber: z.string().max(INPUT_LIMITS.shortText).optional(),
-  
+
   // Show-related validations
-  showName: z.string().min(1, 'Show name is required').max(INPUT_LIMITS.mediumText)
+  showName: z
+    .string()
+    .min(1, 'Show name is required')
+    .max(INPUT_LIMITS.mediumText)
     .regex(VALIDATION_PATTERNS.safeString, 'Show name contains invalid characters'),
   description: z.string().max(INPUT_LIMITS.longText).optional(),
   notes: z.string().max(INPUT_LIMITS.longText).optional(),
-  
+
   // Common validations
   id: z.string().uuid('Invalid ID format'),
   positiveInteger: z.number().int().positive('Must be a positive number'),
-  currency: z.number().min(0, 'Amount cannot be negative').multipleOf(0.01, 'Invalid currency amount'),
+  currency: z
+    .number()
+    .min(0, 'Amount cannot be negative')
+    .multipleOf(0.01, 'Invalid currency amount'),
   date: z.string().datetime('Invalid date format'),
   url: z.string().url('Invalid URL format').max(INPUT_LIMITS.url).optional(),
-  
+
   // Password validation
-  password: z.string()
+  password: z
+    .string()
     .min(12, 'Password must be at least 12 characters')
-    .regex(VALIDATION_PATTERNS.strongPassword, 
-      'Password must contain uppercase, lowercase, number, and special character'),
-  
+    .regex(
+      VALIDATION_PATTERNS.strongPassword,
+      'Password must contain uppercase, lowercase, number, and special character'
+    ),
+
   // File validation
-  filename: z.string()
+  filename: z
+    .string()
     .min(1, 'Filename is required')
     .max(INPUT_LIMITS.filename)
-    .regex(VALIDATION_PATTERNS.noSpecialChars, 'Filename contains invalid characters')
+    .regex(VALIDATION_PATTERNS.noSpecialChars, 'Filename contains invalid characters'),
 } as const;
 
 /**
@@ -343,30 +361,30 @@ export function validateFileUpload(
   if (!allowedTypes.includes(file.type)) {
     return {
       isValid: false,
-      error: `File type ${file.type} is not allowed. Allowed types: ${allowedTypes.join(', ')}`
+      error: `File type ${file.type} is not allowed. Allowed types: ${allowedTypes.join(', ')}`,
     };
   }
-  
+
   // Check file size
   if (file.size > maxSize) {
     const maxMB = Math.round(maxSize / 1024 / 1024);
     return {
       isValid: false,
-      error: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds maximum allowed size (${maxMB}MB)`
+      error: `File size (${Math.round(file.size / 1024 / 1024)}MB) exceeds maximum allowed size (${maxMB}MB)`,
     };
   }
-  
+
   // Check filename
   const validator = new InputValidator();
   validator.safeString(file.name, 'filename');
-  
+
   if (!validator.isValid()) {
     return {
       isValid: false,
-      error: 'Filename contains invalid characters'
+      error: 'Filename contains invalid characters',
     };
   }
-  
+
   return { isValid: true };
 }
 
@@ -375,28 +393,28 @@ export function validateFileUpload(
  */
 class RateLimiter {
   private attempts: Map<string, number[]> = new Map();
-  
+
   /**
    * Check if action is rate limited
    */
   isRateLimited(identifier: string, maxAttempts: number, windowMs: number): boolean {
     const now = Date.now();
     const attempts = this.attempts.get(identifier) || [];
-    
+
     // Remove old attempts outside the window
     const recentAttempts = attempts.filter(time => now - time < windowMs);
-    
+
     if (recentAttempts.length >= maxAttempts) {
       return true;
     }
-    
+
     // Add current attempt
     recentAttempts.push(now);
     this.attempts.set(identifier, recentAttempts);
-    
+
     return false;
   }
-  
+
   /**
    * Clear rate limit for identifier
    */
@@ -418,12 +436,12 @@ export const SecurityValidation = {
     const patterns = [
       /('|(--|;)|(\|\|)|(\*\*))/i,
       /(union|select|insert|update|delete|drop|create|alter|exec|execute)/i,
-      /(script|javascript|vbscript|onload|onerror|onclick)/i
+      /(script|javascript|vbscript|onload|onerror|onclick)/i,
     ];
-    
+
     return patterns.some(pattern => pattern.test(input));
   },
-  
+
   /**
    * Check for potential XSS patterns
    */
@@ -434,18 +452,18 @@ export const SecurityValidation = {
       /on\w+\s*=/gi,
       /<iframe[^>]*>.*?<\/iframe>/gi,
       /<object[^>]*>.*?<\/object>/gi,
-      /<embed[^>]*>/gi
+      /<embed[^>]*>/gi,
     ];
-    
+
     return patterns.some(pattern => pattern.test(input));
   },
-  
+
   /**
    * Validate input is safe
    */
   isSafeInput(input: string): boolean {
     return !this.hasSQLInjectionPattern(input) && !this.hasXSSPattern(input);
-  }
+  },
 };
 
 /**

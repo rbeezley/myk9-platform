@@ -47,8 +47,7 @@ export function getShowDeskEntriesAvailability(input: {
   const enabled = input.isEnabled ?? true;
   return {
     entriesKnown: input.data !== undefined,
-    entriesUnavailable:
-      enabled && input.data === undefined && !input.isLoading && !input.isError,
+    entriesUnavailable: enabled && input.data === undefined && !input.isLoading && !input.isError,
   };
 }
 

@@ -12,11 +12,7 @@ import {
   type ReplicatedShow,
   type ReplicatedTrial,
 } from '@/services/replication';
-import type {
-  RingProgressRow,
-  ShowDayCheckRow,
-  ShowDayDetailRow,
-} from '@/types/show-day-types';
+import type { RingProgressRow, ShowDayCheckRow, ShowDayDetailRow } from '@/types/show-day-types';
 
 type ReplicatedShowDayContext = {
   entry: ReplicatedEntry;
@@ -119,8 +115,7 @@ async function resolveDog(
   const dogId = entry.dogId;
   if (!dogId) return null;
   return (
-    dogCache.get(dogId) ??
-    dogCache.set(dogId, replicatedDogsTable.getDogById(dogId)).get(dogId)!
+    dogCache.get(dogId) ?? dogCache.set(dogId, replicatedDogsTable.getDogById(dogId)).get(dogId)!
   );
 }
 
@@ -171,9 +166,7 @@ async function buildShowDayContext(
   return { entry, dog, cls, trial, show, club };
 }
 
-async function buildContexts(
-  entries: ReplicatedEntry[]
-): Promise<ReplicatedShowDayContext[]> {
+async function buildContexts(entries: ReplicatedEntry[]): Promise<ReplicatedShowDayContext[]> {
   const caches = {
     classCache: new Map<string, Promise<ReplicatedClass | null>>(),
     trialCache: new Map<string, Promise<ReplicatedTrial | null>>(),
@@ -286,14 +279,11 @@ export async function fetchReplicatedShowDayDetails(
     .filter(context => context.trial.date === today)
     .map(toDetailRow)
     .sort(
-      (a, b) =>
-        (a.run_order ?? Number.MAX_SAFE_INTEGER) - (b.run_order ?? Number.MAX_SAFE_INTEGER)
+      (a, b) => (a.run_order ?? Number.MAX_SAFE_INTEGER) - (b.run_order ?? Number.MAX_SAFE_INTEGER)
     );
 }
 
-export async function fetchReplicatedRingProgress(
-  classIds: string[]
-): Promise<RingProgressRow[]> {
+export async function fetchReplicatedRingProgress(classIds: string[]): Promise<RingProgressRow[]> {
   if (classIds.length === 0) return [];
 
   const classIdSet = new Set(classIds);
@@ -309,7 +299,6 @@ export async function fetchReplicatedRingProgress(
       (a, b) =>
         ringProgressSortTimestamp(a.scoring_completed_at).localeCompare(
           ringProgressSortTimestamp(b.scoring_completed_at)
-        ) ||
-        (a.run_order ?? Number.MAX_SAFE_INTEGER) - (b.run_order ?? Number.MAX_SAFE_INTEGER)
+        ) || (a.run_order ?? Number.MAX_SAFE_INTEGER) - (b.run_order ?? Number.MAX_SAFE_INTEGER)
     );
 }

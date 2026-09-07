@@ -60,9 +60,9 @@ describe('ASCA Scent Detection — generated class catalog', () => {
   it('uses ASCA-only level vocabulary (Open) and excludes AKC/UKC-only elements', () => {
     expect(names.some(n => n.includes('Open'))).toBe(true);
     expect(classes.some(c => c.element === 'Vehicle')).toBe(true);
-    expect(classes.some(c => c.element === 'Buried' || c.element === 'Handler Discrimination')).toBe(
-      false
-    );
+    expect(
+      classes.some(c => c.element === 'Buried' || c.element === 'Handler Discrimination')
+    ).toBe(false);
   });
 
   it('Champion is a single standalone class with no level, no section, and no Level C', () => {

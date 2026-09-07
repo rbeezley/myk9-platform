@@ -149,8 +149,8 @@ describe('composite action manifests', () => {
 
   function compositeActions(): { file: string; source: string }[] {
     return readdirSync(actionsDir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => ({
+      .filter(entry => entry.isDirectory())
+      .map(entry => ({
         file: join(entry.name, 'action.yml'),
         source: readFileSync(join(actionsDir, entry.name, 'action.yml'), 'utf8'),
       }))
@@ -163,23 +163,16 @@ describe('composite action manifests', () => {
     expect(compositeActions().length).toBeGreaterThan(0);
   });
 
-  it.each(compositeActions())(
-    '$file resolves every expression it contains',
-    ({ source }) => {
-      const expressions = [...source.matchAll(/\$\{\{([^}]*)\}\}/g)].map((m) =>
-        m[1].trim()
-      );
+  it.each(compositeActions())('$file resolves every expression it contains', ({ source }) => {
+    const expressions = [...source.matchAll(/\$\{\{([^}]*)\}\}/g)].map(m => m[1].trim());
 
-      const unresolvable = expressions.filter((expression) =>
-        FORBIDDEN.some((context) =>
-          new RegExp(`(^|[^\\w.])${context}\\.`).test(expression)
-        )
-      );
+    const unresolvable = expressions.filter(expression =>
+      FORBIDDEN.some(context => new RegExp(`(^|[^\\w.])${context}\\.`).test(expression))
+    );
 
-      // Reported with the offending text so the fix is obvious: either the
-      // caller should pass it as an input, or — if this is documentation —
-      // write the expression without its braces.
-      expect(unresolvable).toEqual([]);
-    }
-  );
+    // Reported with the offending text so the fix is obvious: either the
+    // caller should pass it as an input, or — if this is documentation —
+    // write the expression without its braces.
+    expect(unresolvable).toEqual([]);
+  });
 });

@@ -42,11 +42,13 @@ The 2026-08-27 read-only linked-project inventory covered `sport_templates`,
 ### Task 1: Pin the corrected AKC rule in TypeScript
 
 **Files:**
+
 - Modify: `apps/myk9show/src/data/templates/__tests__/akcScentWorkRules.test.ts`
 - Modify: `apps/myk9show/src/data/templates/akcScentWorkRules.ts`
 - Modify: `apps/myk9show/src/types/show-template-types.ts`
 
 **Interfaces:**
+
 - Consumes: `generateAKCScentWorkClasses(): ClassDefinition[]` and `getHideConfiguration(element, level): string`.
 - Produces: Interior Excellent hide copy `Set by Rules: 3`; no type or function signature changes.
 
@@ -95,10 +97,12 @@ git commit -m "fix(rules): correct AKC Interior Excellent hide total"
 ### Task 2: Correct and backfill the database rule
 
 **Files:**
+
 - Create: `supabase/migrations/20260827120000_fix_akc_interior_excellent_hide_count.sql`
 - Modify: `apps/myk9show/src/test/database/registryDbParityContract.test.ts`
 
 **Interfaces:**
+
 - Consumes: `sport_templates.organization`, `sport_templates.sport_code`, `sport_class_rules` hide columns, `trials.registry_id`, and class identity columns.
 - Produces: exactly one AKC Scent Work Interior Excellent rule with `hide_count_fixed = 3`, null min/max, and `hides_known = true`; matching persisted classes receive `num_hides = 3` and `hides_known = true`.
 
@@ -197,11 +201,13 @@ git commit -m "fix(db): correct AKC Interior Excellent hide rule"
 ### Task 3: Enrich visible class rows with public fixed counts
 
 **Files:**
+
 - Modify: `apps/myk9show/src/services/replication/resolveClassHideCounts.test.ts`
 - Modify: `apps/myk9show/src/services/replication/resolveClassHideCounts.ts`
 - Modify: `apps/myk9show/src/services/replication/ReplicatedClassesTable.ts`
 
 **Interfaces:**
+
 - Consumes rows shaped as `{ id, trial_id, element, level, section }`; trial rows shaped as `{ id, show_id, registry_id }`; public rule rows shaped as `{ element, level, section, hide_count_fixed, hides_known, sport_templates: { organization } }`.
 - Produces `resolveHideCountsForClassRows(rows): Promise<Map<string, number>>`, containing public fixed rule values plus authorized RPC values, with RPC values taking precedence.
 
@@ -211,12 +217,36 @@ Build a Supabase chain mock keyed by table and assert these rows:
 
 ```ts
 const rows = [
-  { id: 'akc-excellent', trial_id: 'akc-trial', element: 'Interior', level: 'Excellent', section: null },
+  {
+    id: 'akc-excellent',
+    trial_id: 'akc-trial',
+    element: 'Interior',
+    level: 'Excellent',
+    section: null,
+  },
   { id: 'akc-master', trial_id: 'akc-trial', element: 'Buried', level: 'Master', section: null },
   { id: 'akc-detective', trial_id: 'akc-trial', element: 'Detective', level: null, section: null },
-  { id: 'akc-hd-master', trial_id: 'akc-trial', element: 'Handler Discrimination', level: 'Master', section: null },
-  { id: 'ukc-hd-master', trial_id: 'ukc-trial', element: 'Handler Discrimination', level: 'Master', section: 'A' },
-  { id: 'asca-excellent', trial_id: 'asca-trial', element: 'Interior', level: 'Excellent', section: null },
+  {
+    id: 'akc-hd-master',
+    trial_id: 'akc-trial',
+    element: 'Handler Discrimination',
+    level: 'Master',
+    section: null,
+  },
+  {
+    id: 'ukc-hd-master',
+    trial_id: 'ukc-trial',
+    element: 'Handler Discrimination',
+    level: 'Master',
+    section: 'A',
+  },
+  {
+    id: 'asca-excellent',
+    trial_id: 'asca-trial',
+    element: 'Interior',
+    level: 'Excellent',
+    section: null,
+  },
 ];
 ```
 
@@ -227,7 +257,7 @@ new Map([
   ['akc-excellent', 3],
   ['akc-hd-master', 3],
   ['ukc-hd-master', 1],
-])
+]);
 ```
 
 Add a second test where the RPC returns `akc-master=4` and `akc-excellent=99`; assert both RPC values override the public map. Add error-path assertions showing a public-rule lookup failure does not block official RPC values and an RPC failure does not remove public fixed values.
@@ -288,9 +318,11 @@ git commit -m "fix(replication): expose public fixed hide counts"
 ### Task 4: Expand closure evidence for the corrected boundary
 
 **Files:**
+
 - Modify: `supabase/tests/class_hide_count_gating_test.sql`
 
 **Interfaces:**
+
 - Consumes: raw column ACL, `get_show_class_hide_counts(uuid)`, and applied `sport_class_rules`.
 - Produces: behavioral evidence for known AKC counts, protected Master/Detective counts, official access, and non-AKC preservation.
 
@@ -329,10 +361,12 @@ git commit -m "test(security): cover corrected hide-count boundary"
 ### Task 5: Verify, review, and prepare delivery
 
 **Files:**
+
 - Review all files changed since `2ccb7dc69`.
 - Update: MYK9-127 after verification through the existing Linear issue; create no duplicate.
 
 **Interfaces:**
+
 - Consumes: completed tasks 1–4.
 - Produces: a reviewable branch and PR with explicit migration deployment follow-up.
 

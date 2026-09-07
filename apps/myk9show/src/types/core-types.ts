@@ -1,6 +1,6 @@
 /**
  * Core Types for MyK9Show Application
- * 
+ *
  * This file contains fundamental types that are used across multiple domains
  * in the application. It serves as the foundation for the type system.
  */
@@ -67,25 +67,25 @@ export interface SyncMetadata {
   _lastModified: string;
   _lastModifiedBy: string;
   _syncStatus: SyncStatus;
-  
+
   // Offline support
   _localOnly?: boolean;
   _lastSyncedAt?: Date;
   _lastSyncedVersion?: number;
   _pendingChanges?: FieldChange[];
-  
+
   // Conflict resolution
   _conflictVersion?: number;
   _conflictMarkers?: ConflictMarker[];
 }
 
-export type SyncStatus = 
-  | 'synced'       // Up to date with server
-  | 'pending'      // Has local changes waiting to sync
-  | 'syncing'      // Currently synchronizing
-  | 'conflict'     // Has unresolved conflicts
-  | 'error'        // Sync failed
-  | 'offline';     // Offline, sync queued
+export type SyncStatus =
+  | 'synced' // Up to date with server
+  | 'pending' // Has local changes waiting to sync
+  | 'syncing' // Currently synchronizing
+  | 'conflict' // Has unresolved conflicts
+  | 'error' // Sync failed
+  | 'offline'; // Offline, sync queued
 
 export interface ConflictMarker {
   field: string;
@@ -105,28 +105,18 @@ export interface SyncableEntity extends BaseEntity {
 // Common Status Types
 // ============================================================================
 
-export type EntityStatus = 
-  | 'draft'        // Being created/edited
-  | 'pending'      // Awaiting approval/processing
-  | 'active'       // Currently active/published
-  | 'inactive'     // Temporarily disabled
-  | 'archived'     // Completed but preserved
-  | 'deleted';     // Soft deleted
+export type EntityStatus =
+  | 'draft' // Being created/edited
+  | 'pending' // Awaiting approval/processing
+  | 'active' // Currently active/published
+  | 'inactive' // Temporarily disabled
+  | 'archived' // Completed but preserved
+  | 'deleted'; // Soft deleted
 
-export type ProcessingStatus = 
-  | 'not_started'
-  | 'in_progress'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'on_hold';
+export type ProcessingStatus =
+  'not_started' | 'in_progress' | 'completed' | 'failed' | 'cancelled' | 'on_hold';
 
-export type ApprovalStatus = 
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'requires_changes'
-  | 'withdrawn';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'requires_changes' | 'withdrawn';
 
 // ============================================================================
 // Common Data Types
@@ -253,14 +243,8 @@ export interface ValidationResult {
 // User and Permission Types
 // ============================================================================
 
-export type UserRole = 
-  | 'super_admin'
-  | 'admin'
-  | 'secretary'
-  | 'judge'
-  | 'steward'
-  | 'exhibitor'
-  | 'viewer';
+export type UserRole =
+  'super_admin' | 'admin' | 'secretary' | 'judge' | 'steward' | 'exhibitor' | 'viewer';
 
 export interface Permission {
   resource: string;
@@ -302,12 +286,7 @@ export interface ImageInfo extends FileInfo {
 // Notification Types
 // ============================================================================
 
-export type NotificationType = 
-  | 'info'
-  | 'success'
-  | 'warning'
-  | 'error'
-  | 'conflict';
+export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'conflict';
 
 export interface Notification {
   id: string;
@@ -361,18 +340,23 @@ export type SyncMetadataOnly<T> = T extends { _sync?: infer S } ? S : never;
 export type UpdateInput<T> = Omit<T, 'id' | 'createdAt' | 'createdBy' | '_sync'>;
 
 // Create create type (omit all generated fields)
-export type CreateInput<T> = Omit<T, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | '_sync'>;
+export type CreateInput<T> = Omit<
+  T,
+  'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | '_sync'
+>;
 
 // ============================================================================
 // Type Guards
 // ============================================================================
 
 export function isBaseEntity(obj: unknown): obj is BaseEntity {
-  return typeof obj === 'object' && 
-         obj !== null && 
-         'id' in obj && 
-         'createdAt' in obj && 
-         'updatedAt' in obj;
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'createdAt' in obj &&
+    'updatedAt' in obj
+  );
 }
 
 export function isSyncableEntity(obj: unknown): obj is SyncableEntity {
@@ -398,14 +382,14 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 export const SUPPORTED_IMAGE_TYPES = [
   'image/jpeg',
-  'image/png', 
+  'image/png',
   'image/gif',
-  'image/webp'
+  'image/webp',
 ] as const;
 
 export const SUPPORTED_DOCUMENT_TYPES = [
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain'
+  'text/plain',
 ] as const;

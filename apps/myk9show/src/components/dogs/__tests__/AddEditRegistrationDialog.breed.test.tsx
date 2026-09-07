@@ -90,14 +90,27 @@ describe('AddEditRegistrationDialog breed picker (4.E — searchable)', () => {
     expect(document.getElementById('breed-error')).toBeInTheDocument();
   });
 
+  it('exposes each filtered breed as a listbox option (MYK9-422)', () => {
+    renderDialog(akcRegistration);
+    fireEvent.change(screen.getByPlaceholderText(/search breeds/i), {
+      target: { value: 'labrador' },
+    });
+
+    expect(screen.getByRole('option', { name: 'Labrador Retriever' })).toBeInTheDocument();
+    expect(screen.getByRole('listbox', { name: 'Breeds' })).toBeInTheDocument();
+  });
+
   it('selecting a breed updates the trigger label', () => {
     renderDialog(akcRegistration);
     fireEvent.change(screen.getByPlaceholderText(/search breeds/i), {
       target: { value: 'golden' },
     });
-    fireEvent.click(screen.getByText('Golden Retriever'));
-    // Trigger now reflects the chosen breed.
-    expect(screen.getByRole('button', { name: 'Golden Retriever' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'Golden Retriever' }));
+    // Trigger now reflects the chosen breed. It is a combobox, whose value is
+    // its content — the accessible name comes from the field's own label.
+    expect(screen.getByRole('combobox', { name: /registered breed/i })).toHaveTextContent(
+      'Golden Retriever'
+    );
   });
 });
 

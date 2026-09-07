@@ -114,7 +114,7 @@ The gate is a review by the **other** harness. A subagent of your own harness is
 BASE_SHA=$(git rev-parse origin/main)
 HEAD_SHA=$(git rev-parse HEAD)
 PR_NUMBER=$(gh pr view --json number -q '.number')
-LOG=/tmp/review-gate-$PR_NUMBER-$HEAD_SHA.log
+LOG=.logs/review-gate-$PR_NUMBER-$HEAD_SHA.log
 ```
 
 **Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:
@@ -123,7 +123,7 @@ LOG=/tmp/review-gate-$PR_NUMBER-$HEAD_SHA.log
 pnpm qa:codex-review            # scripts/qa/codex-review.sh, always --base origin/main
 ```
 
-Exit 0 = clean (it prints the exact evidence line to post), 1 = findings printed (fix, commit, re-run for the NEW head), 2 = the review did NOT run (usage limit / interrupted) — not a verdict, never post evidence. The wrapper closes stdin, logs to `/tmp/codex-review-<head>.log`, and detects an abort with a line-anchored grep because the log echoes the diff. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
+Exit 0 = clean (it prints the exact evidence line to post), 1 = findings printed (fix, commit, re-run for the NEW head), 2 = the review did NOT run (usage limit / interrupted) — not a verdict, never post evidence. The wrapper closes stdin, logs to `.logs/codex-review-<head>.log`, and detects an abort with a line-anchored grep because the log echoes the diff. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
 
 **Author is Codex → Claude Code reviews:**
 

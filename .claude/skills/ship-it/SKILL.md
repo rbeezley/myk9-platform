@@ -121,11 +121,11 @@ else
   # virtually always succeeds), so a failed reset would silently fall through
   # to the "passed" branch. Two-line form is more portable than `set -o pipefail`
   # — works the same under bash, zsh, and `sh` posix mode.
-  supabase db reset --local --debug > /tmp/ship-it-db-reset.log 2>&1
+  supabase db reset --local --debug > .logs/ship-it-db-reset.log 2>&1
   RESET_STATUS=$?
-  cat /tmp/ship-it-db-reset.log
+  cat .logs/ship-it-db-reset.log
   if [ $RESET_STATUS -ne 0 ]; then
-    echo "Compile-check FAILED (supabase db reset exit=$RESET_STATUS). Full log: /tmp/ship-it-db-reset.log"
+    echo "Compile-check FAILED (supabase db reset exit=$RESET_STATUS). Full log: .logs/ship-it-db-reset.log"
     echo "Re-run interactively: supabase db reset --local --debug"
     exit 1
   fi
@@ -134,7 +134,7 @@ else
 fi
 ```
 
-**Failure handling:** the full reset log is preserved at `/tmp/ship-it-db-reset.log` so the operator can scan for the first ERROR line. The local Supabase stack stays running for interactive inspection (`supabase status` shows the connection string; `psql "$(supabase status -o env | grep DB_URL | cut -d= -f2-)"`). Stop the pipeline and report.
+**Failure handling:** the full reset log is preserved at `.logs/ship-it-db-reset.log` so the operator can scan for the first ERROR line. The local Supabase stack stays running for interactive inspection (`supabase status` shows the connection string; `psql "$(supabase status -o env | grep DB_URL | cut -d= -f2-)"`). Stop the pipeline and report.
 
 **No Docker / no Supabase CLI caveat:** the skill skips with a warning rather than failing. This is deliberate — environments without Docker shouldn't block shipping JS-only changes that happen to share a branch with SQL. But the warning calls out the unverified surface explicitly so it doesn't get lost in PR review.
 
@@ -448,6 +448,6 @@ Both shared-system actions require explicit user confirmation per CLAUDE.md Auto
 
 **Pre-existing typecheck failures:** If typecheck fails on files this branch did NOT touch, stop and report — do not silently fix pre-existing breakage.
 
-**SQL compile-check left the local stack running:** Step 3a does not stop the Supabase local stack on failure — the operator may want to `psql` into it for inspection. To tear it down after debugging: `supabase stop`. The reset log lives at `/tmp/ship-it-db-reset.log` and is overwritten on each run (no orphan accumulation).
+**SQL compile-check left the local stack running:** Step 3a does not stop the Supabase local stack on failure — the operator may want to `psql` into it for inspection. To tear it down after debugging: `supabase stop`. The reset log lives at `.logs/ship-it-db-reset.log` and is overwritten on each run (no orphan accumulation).
 
 **Docker is installed but not running:** the Step 3a detection runs `docker info` which fails fast if the Docker daemon isn't reachable. The skill skips with a warning in that case. On macOS the typical fix is to launch Docker Desktop; on Linux it's `sudo systemctl start docker` (or `colima start` if using Colima).

@@ -44,7 +44,19 @@ export default {
     configFile: 'vitest.mutation.config.ts',
     related: false,
   },
-  ignorePatterns: ['.agents/**', '.claude/**', '.worktrees/**', 'reports/**', 'skills/**'],
+  // Stryker copies the tree into a sandbox with copyFile, which rejects a
+  // symlink (ENOTSUP). Every skill tree holds symlinks since #2062/#2064, so
+  // all three are ignored, plus the per-worktree log directory and docs.
+  ignorePatterns: [
+    '.agents/**',
+    '.claude/**',
+    '.codex/**',
+    '.logs/**',
+    '.worktrees/**',
+    'docs/**',
+    'reports/**',
+    'skills/**',
+  ],
   reporters: ['clear-text', 'progress', 'json', 'html'],
   jsonReporter: {
     fileName: `reports/mutation/${targetName}/mutation.json`,

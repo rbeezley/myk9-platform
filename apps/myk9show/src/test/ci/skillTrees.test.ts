@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -127,5 +135,53 @@ describe('auditSkillTrees on fixtures', () => {
     const problems = auditSkillTrees(root, SKILL_TREES, {});
     expect(problems).toHaveLength(1);
     expect(problems[0].problem).toMatch(/0 real copies/);
+  });
+});
+
+describe('third-party skills are inventoried', () => {
+  const inventory = readFileSync(resolve(repoRoot, 'docs/agents/skills-inventory.md'), 'utf8');
+  // | `name` | origin | reason |  -- split on pipes and trim: Prettier pads
+  // table cells to column width, so a fixed-space regex would reject every
+  // formatted row (Codex review of #2110).
+  const rows = inventory
+    .split('\n')
+    .filter(line => /^\|\s*`[^`]+`\s*\|/.test(line))
+    .map(line =>
+      line
+        .split('|')
+        .slice(1, -1)
+        .map(cell => cell.trim())
+    )
+    .filter(cells => cells.length === 3 && cells.every(Boolean))
+    .map(([name, origin, reason]) => ({
+      name: name!.replace(/^`|`$/g, ''),
+      origin: origin!,
+      reason: reason!,
+    }));
+  const onDisk = readdirSync(resolve(repoRoot, '.agents/skills'), { withFileTypes: true })
+    .filter(d => d.isDirectory() && !d.isSymbolicLink())
+    .map(d => d.name);
+
+  it('every real (non-symlink) .agents/skills entry has a row, and every row has a directory', () => {
+    const listed = new Set(rows.map(r => r.name));
+    expect(onDisk.filter(n => !listed.has(n)).sort()).toEqual([]);
+    expect(
+      rows
+        .map(r => r.name)
+        .filter(n => !onDisk.includes(n))
+        .sort()
+    ).toEqual([]);
+    expect(onDisk.length).toBeGreaterThan(5); // vacuity guard
+  });
+
+  it('every third-party row names a repo file that routes to it, and that file exists and mentions it', () => {
+    for (const row of rows.filter(r => r.origin !== 'ours')) {
+      const path = row.reason.match(/`([^`]+\.(?:md|ts|js|yml|json))`/)?.[1];
+      expect(path, `${row.name}: reason must name the routing file in backticks`).toBeTruthy();
+      const text = readFileSync(resolve(repoRoot, path!), 'utf8');
+      expect(text, `${path} does not name ${row.name}`).toMatch(
+        new RegExp(`(skills/${row.name}\\b|\`${row.name}\`|/${row.name}\\b)`)
+      );
+    }
   });
 });

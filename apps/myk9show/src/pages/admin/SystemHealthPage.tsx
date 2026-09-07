@@ -359,14 +359,31 @@ export default function SystemHealthPage() {
     <PageShell>
       <div className="flex flex-col gap-[18px]">
         <BoardCard className={cn('border-l-[3px]', verdictAccent)}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
+          {/* Wrap on the AVAILABLE width, not the viewport. A `sm:flex-row`
+              here read 768px as roomy and put the 250px chip block beside the
+              prose — but the manager sidebar holds 240px of that viewport, so
+              the real column is ~417px and the headline was squeezed into a
+              151px, six-line ribbon. `basis-[320px]` is the wrap trigger:
+              flexbox breaks the line on hypothetical main size, so the chips
+              drop below whenever the text could not keep 320px, and `min-w-0`
+              still lets the text shrink under that once it is alone on its
+              line. No breakpoint to keep in sync with the sidebar's width. */}
+          <div data-testid="health-verdict-header" className="flex flex-wrap items-start gap-4">
+            <div className="min-w-0 shrink grow basis-[320px]">
               {/* 32px against the 25px h1: a full scale step (1.28) — the old
                   29px was close enough to read as accidental. */}
-              <h2 className="text-[32px] font-medium leading-tight tracking-[-0.018em] text-foreground">
+              <h2
+                data-testid="health-verdict-headline"
+                className="text-[32px] font-medium leading-tight tracking-[-0.018em] text-foreground"
+              >
                 {headline}
               </h2>
-              <p className="mt-2 max-w-prose text-sm text-muted-foreground">{explanation}</p>
+              <p
+                data-testid="health-verdict-explanation"
+                className="mt-2 max-w-prose text-sm text-muted-foreground"
+              >
+                {explanation}
+              </p>
             </div>
             {!effective.isEmpty && <VerdictChips summary={summary} />}
           </div>

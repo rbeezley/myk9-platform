@@ -299,22 +299,22 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                 onSearchChange={setBreedSearch}
                 items={filteredBreeds}
                 emptyMessage="No breeds match your search"
+                listboxLabel="Breeds"
+                selectedItemIds={form.data.breed ? [form.data.breed] : []}
+                onSelect={breed => {
+                  handleBreedChange(breed.id);
+                  setBreedSearch('');
+                }}
                 renderItem={breed => (
-                  <button
-                    type="button"
+                  <div
                     className={cn(
                       'flex w-full items-center justify-between gap-2 p-3 text-left text-sm hover:bg-muted border-b last:border-b-0',
                       breed.id === form.data.breed && 'bg-muted/60 font-medium'
                     )}
-                    onClick={() => {
-                      handleBreedChange(breed.id);
-                      setBreedPickerOpen(false);
-                      setBreedSearch('');
-                    }}
                   >
                     {breed.id}
                     {breed.id === form.data.breed && <Check className="h-4 w-4 text-primary" />}
-                  </button>
+                  </div>
                 )}
               />
             ) : (

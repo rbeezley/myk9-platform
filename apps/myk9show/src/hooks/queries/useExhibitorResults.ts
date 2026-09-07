@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { useDogsQuery } from './useDogsDatabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import { viewerScope } from '@/lib/viewerScopedQueryKey';
+import { useViewerId } from '@/hooks/useViewerId';
 import type { ResultStatus } from '@/components/common/ResultBadge';
 
 export interface ExhibitorResult {
@@ -95,8 +97,16 @@ async function fetchExhibitorResults(dogIds: string[]) {
  * Fetches scored results for dogs owned by the current user. A title card can
  * narrow this to one dog without loading every owned dog's career history.
  * Returns results ordered by most recent scoring date.
+ *
+ * The viewer is read here rather than passed in, unlike `useMyPayments`. These
+ * results reach the UI through `useTitleProgress` and
+ * `usePerformanceStatistics` and then through half a dozen dog cards, none of
+ * which has any other use for an account id; threading a security argument
+ * through that many presentational components is more forgettable, not less.
+ * Reading it inside the hook means no caller can omit it at all (MYK9-429).
  */
 export function useExhibitorResults(dogId?: string) {
+  const viewerId = useViewerId();
   const { data: dogs = [] } = useDogsQuery();
   const dogIds = dogs
     .map((d: Record<string, unknown>) => d.id as string)
@@ -104,7 +114,7 @@ export function useExhibitorResults(dogId?: string) {
   const sortedIds = dogIds.slice().sort();
 
   return useQuery({
-    queryKey: ['exhibitor', 'results', sortedIds],
+    queryKey: ['exhibitor', 'results', viewerScope(viewerId), sortedIds],
     queryFn: () => fetchExhibitorResults(dogIds),
     enabled: dogIds.length > 0,
     ...cacheStrategies.moderate,

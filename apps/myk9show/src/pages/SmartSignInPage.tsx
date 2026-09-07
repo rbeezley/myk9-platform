@@ -276,8 +276,20 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     setError('');
   };
 
+  // Two different insets, because the fixed chrome is not one thing.
+  //
+  // The HEADER is `fixed`, so it never pushes this page down: subtracting its
+  // height from min-height leaves the centring region starting at y=0, and on a
+  // short viewport the card centres UNDER the header (measured -8px at 653px).
+  // Pad the top by the HEADER height so the region starts below it.
+  //
+  // The PWA install BANNER is different — it renders an in-flow spacer that has
+  // already pushed this page down, and it moves the header down with it. So the
+  // height to subtract is the BANNER's, not the combined --app-top-inset:
+  // subtracting the combined value double-counts the header, and using
+  // 100vh flat overflows by the banner's height whenever it shows.
   return (
-    <div className="flex min-h-[calc(100vh-var(--app-top-inset,3rem))] flex-col items-center justify-center bg-background px-3 py-6">
+    <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-4 pt-[var(--app-header-height,3rem)]">
       <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="mb-3 flex justify-center">
           <Link

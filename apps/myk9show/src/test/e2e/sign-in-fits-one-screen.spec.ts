@@ -13,6 +13,10 @@ import { test, expect } from '@playwright/test';
  * iPhone-class viewport. Both are the real thing, not the OS window size.
  */
 const VIEWPORTS = [
+  // 653 is the short-laptop case that exposed the header overlap: the card
+  // cleared the fixed header at 760 and 900 but centred 8px UNDER it here, so a
+  // single tall viewport is not enough to cover this page's layout.
+  { name: 'short laptop', width: 1440, height: 653 },
   { name: 'laptop', width: 1440, height: 760 },
   { name: 'phone', width: 375, height: 812 },
 ] as const;
@@ -35,6 +39,18 @@ test.describe('sign-in fits one screen', () => {
         () => document.documentElement.scrollWidth - window.innerWidth
       );
       expect(horizontal, 'page overflows horizontally').toBeLessThanOrEqual(0);
+
+      // The app header is FIXED, so it never pushes this page down — fitting the
+      // viewport and clearing the header are separate properties, and a layout
+      // that centres the card can satisfy the first while violating the second.
+      const headerGap = await page.evaluate(() => {
+        const input = document.querySelector('[data-testid="credential-input"]');
+        const card = input?.closest('.bg-card');
+        const nav = document.querySelector('nav');
+        if (!card || !nav) throw new Error('card or header not found — selector drifted');
+        return card.getBoundingClientRect().top - nav.getBoundingClientRect().bottom;
+      });
+      expect(headerGap, 'card sits under the fixed app header').toBeGreaterThanOrEqual(0);
 
       // The field, the submit and both providers must be reachable without scrolling.
       for (const target of [

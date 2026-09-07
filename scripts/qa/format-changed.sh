@@ -17,10 +17,23 @@ for arg in "$@"; do
   esac
 done
 cd "$(git rev-parse --show-toplevel)" || exit 1
+# Fail closed: a base that does not resolve (unfetched origin/main, a typo)
+# must not turn into an empty file list and a green check (Codex review of
+# #2121). Exit 2 means "did not check", never "clean".
 if [ -n "$BASE" ]; then
-  FILES="$(git diff --name-only --diff-filter=ACMR "$(git merge-base "$BASE" HEAD)" HEAD)"
+  if ! MB="$(git merge-base "$BASE" HEAD 2>/dev/null)" || [ -z "$MB" ]; then
+    echo "format-changed: cannot resolve merge base of '$BASE' and HEAD; nothing was checked" >&2
+    exit 2
+  fi
+  if ! FILES="$(git diff --name-only --diff-filter=ACMR "$MB" HEAD)"; then
+    echo "format-changed: git diff against $MB failed; nothing was checked" >&2
+    exit 2
+  fi
 else
-  FILES="$(git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard)"
+  if ! FILES="$(git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard)"; then
+    echo "format-changed: git diff failed; nothing was formatted" >&2
+    exit 2
+  fi
 fi
 # The extension list is what Prettier parses with no plugins. `.astro` is
 # deliberately absent (and in .prettierignore): prettier-plugin-astro is not

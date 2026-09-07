@@ -84,7 +84,10 @@ if [ -z "$WAIT" ]; then
   # The default lives in its own variable: a `}` inside `${VAR:-default}` (curl's
   # %{http_code}) closes the expansion early and the rest of the URL leaks into
   # the probe's output, so "000" never matches.
-  NET_PROBE_DEFAULT='curl -sS -o /dev/null -m 5 -w %{http_code} https://api.anthropic.com/'
+  # Probe the endpoint Claude will actually call: ANTHROPIC_BASE_URL when a
+  # Bedrock/Vertex/proxy setup overrides it, first-party otherwise (Codex
+  # review of #2127, round 5).
+  NET_PROBE_DEFAULT="curl -sS -o /dev/null -m 5 -w %{http_code} ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}/"
   NET_PROBE="${CLAUDE_REVIEW_NET_PROBE:-$NET_PROBE_DEFAULT}"
   # The probe measures the shell's real capability. Codex's marker
   # (CODEX_SANDBOX_NETWORK_DISABLED=1) is only a hint: an escalated re-run can
@@ -93,7 +96,7 @@ if [ -z "$WAIT" ]; then
   # of #2127, round 3).
   if [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
     MARKER=""; [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] && MARKER=" (Codex sandbox marker present)"
-    echo "claude-review: no network from this shell${MARKER} — api.anthropic.com unreachable, so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
+    echo "claude-review: no network from this shell${MARKER} — ${ANTHROPIC_BASE_URL:-https://api.anthropic.com} unreachable, so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
     exit 2
   fi
 fi

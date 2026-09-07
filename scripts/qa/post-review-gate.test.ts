@@ -143,6 +143,53 @@ describe('post-review-gate.sh', () => {
     }
   });
 
+  describe('--withdraw', () => {
+    // A findings comment is invisible to review-gate.ts, so a second review of
+    // a head that already carries clean evidence would leave the gate green
+    // over defects just reported (Codex review of #2115, round 3). Withdrawal
+    // writes an evidence line the checker REJECTS — it can only add red.
+    const FINDINGS = 'codex\n- [P1] Something is broken\n- [P2] And another\n';
+
+    it('posts an evidence line the checker rejects', () => {
+      const gh = stubGh();
+      const log = logFile(FINDINGS);
+      const r = run(
+        ['--withdraw', '42', 'codex', '0a2020c7a', '5af9af158', '2 findings, not addressed', log],
+        gh.bin
+      );
+      expect(r.code).toBe(0);
+      const body = readFileSync(gh.calls, 'utf8').split('--body\n')[1]!.split('\n---')[0]!;
+      expect(body.split('\n')[0]).toBe(
+        'Review gate: codex reviewed 0a2020c7a..5af9af158 — 2 findings, not addressed'
+      );
+      expect(body).toContain('[P1] Something is broken');
+    });
+
+    it('refuses to withdraw with a CLEAN verdict — that would post evidence, not remove it', () => {
+      const gh = stubGh();
+      const log = logFile(FINDINGS);
+      const r = run(
+        ['--withdraw', '42', 'codex', '0a2020c7a', '5af9af158', 'no findings', log],
+        gh.bin
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/cannot withdraw/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+
+    it('refuses to withdraw over a log with no findings in it', () => {
+      const gh = stubGh();
+      const log = logFile('codex\nNo actionable defects found.\n');
+      const r = run(
+        ['--withdraw', '42', 'codex', '0a2020c7a', '5af9af158', '2 findings, not addressed', log],
+        gh.bin
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/no \[P\*\] bullets/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    });
+  });
+
   it('reads a marker-less (claude -p) log in full, so a long clean review keeps its opening sentence', () => {
     const gh = stubGh();
     const long = `No actionable defects found.\n\n${Array.from({ length: 60 }, (_, i) => `- checked file ${i}`).join('\n')}\n`;

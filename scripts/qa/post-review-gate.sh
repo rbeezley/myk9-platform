@@ -5,9 +5,20 @@
 # parses; line 2 is the sha256 of the review log; the rest is the verdict
 # block, fenced, so the PR carries what the reviewer actually said.
 #
-# Usage: post-review-gate.sh <pr> <codex|claude> <base-sha> <head-sha> "<verdict>" <log>
+# With --withdraw it writes the MIRROR of that: an evidence line the checker
+# REJECTS, so a re-review that finds defects turns a green gate red. Without it
+# a second review of the same head could only add a findings comment, which
+# `review-gate.ts` never reads, leaving the earlier clean attestation as the
+# latest evidence for a SHA now known to be defective (Codex review of #2115,
+# round 3). A withdrawal is refused unless the verdict really is one the
+# checker rejects and the log really does carry findings — it can only ever
+# make the gate redder.
+#
+# Usage: post-review-gate.sh [--withdraw] <pr> <codex|claude> <base-sha> <head-sha> "<verdict>" <log>
 # Exit:  0 posted · 2 refused (bad verdict grammar or empty log); nothing posted
 set -euo pipefail
+WITHDRAW=0
+if [ "${1:-}" = "--withdraw" ]; then WITHDRAW=1; shift; fi
 PR="$1"; REVIEWER="$2"; BASE="$3"; HEAD="$4"; VERDICT="$5"; LOG="$6"
 GH="${GH_BIN:-gh}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -17,8 +28,17 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 case "$REVIEWER" in codex|claude) ;; *) echo "post-review-gate: reviewer must be codex or claude" >&2; exit 2;; esac
 # ONE grammar: ask the parser that will judge the comment, never a copied regex.
-if ! node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
-    "$(dirname "$0")/review-gate.ts" --verdict "$VERDICT"; then
+VERDICT_ACCEPTED=0
+if node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+  "$HERE/review-gate.ts" --verdict "$VERDICT"; then
+  VERDICT_ACCEPTED=1
+fi
+if [ "$WITHDRAW" = 1 ]; then
+  if [ "$VERDICT_ACCEPTED" = 1 ]; then
+    echo "post-review-gate: '$VERDICT' is a CLEAN verdict, so it cannot withdraw anything; nothing posted" >&2
+    exit 2
+  fi
+elif [ "$VERDICT_ACCEPTED" != 1 ]; then
   echo "post-review-gate: verdict '$VERDICT' is outside the gate grammar (review-gate.ts CLEAN_VERDICT); nothing posted" >&2
   exit 2
 fi
@@ -43,11 +63,20 @@ if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG
   echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
   exit 2
 fi
+if [ "$WITHDRAW" = 1 ]; then
+  # A withdrawal is the mirror image: it must be backed by a log that really
+  # does carry findings, so "withdraw" cannot be used to red-flag a head
+  # nothing objected to.
+  if ! printf '%s' "$VERDICT_BLOCK" | grep -Eq '^\s*- \[P[0-9]\]'; then
+    echo "post-review-gate: log does not support withdrawing '$VERDICT' (it carries no [P*] bullets); nothing posted" >&2
+    exit 2
+  fi
+fi
 # Both accepted verdicts describe a CLEAN final log: "N findings, all
 # addressed" means the reviewer was re-run on the fixed head and that re-run
 # came back clean, so the log it is posted with must pass the same checks
 # (Codex review of #2110, round 8). No verdict form skips them.
-{
+if [ "$WITHDRAW" != 1 ]; then
   if printf '%s' "$VERDICT_BLOCK" | grep -Eq '^\s*- \[P[0-9]\]'; then
     echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
     exit 2
@@ -63,7 +92,7 @@ fi
     echo "post-review-gate: log does not support '$VERDICT' (first paragraph lacks the contract sentence 'No actionable ...'); nothing posted" >&2
     exit 2
   fi
-}
+fi
 BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
   "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 "$GH" pr comment "$PR" --body "$BODY"

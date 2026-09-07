@@ -98,6 +98,14 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
       echo "claude-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
       exit 2
     fi
+    # Withdraw any earlier clean evidence for this head: a findings comment is
+    # not read by review-gate.ts, so the gate would stay green over defects
+    # someone just reported (Codex review of #2115, round 3).
+    FOUND="$(echo "$VERDICT" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+    if ! bash "$POSTER" --withdraw "$PR" claude "$BASE_SHA" "$HEAD_SHA" "${FOUND} findings, not addressed" "$LOG"; then
+      echo "claude-review: findings posted, but the earlier clean evidence for this head could NOT be withdrawn. Exit 2 — check the gate status by hand." >&2
+      exit 2
+    fi
   fi
   exit 1
 fi

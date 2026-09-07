@@ -56,7 +56,15 @@ function run(stub: { bin: string; log: string }): { code: number; out: string } 
  * answers the wrapper's own earlier findings comments (jq already applied by
  * the real gh, so the stub prints the joined text).
  */
-function stubGh(opts: { commentExit?: number; prior?: string; commentsExit?: number } = {}): {
+function stubGh(
+  opts: {
+    commentExit?: number;
+    prior?: string;
+    commentsExit?: number;
+    /** Exit code for the SECOND `pr comment` only (the withdrawal). */
+    secondCommentExit?: number;
+  } = {}
+): {
   bin: string;
   calls: string;
 } {
@@ -64,6 +72,7 @@ function stubGh(opts: { commentExit?: number; prior?: string; commentsExit?: num
   dirs.push(dir);
   const calls = join(dir, 'calls.log');
   const prior = join(dir, 'prior.txt');
+  const counter = join(dir, 'comment-count');
   const bin = join(dir, 'gh');
   writeFileSync(prior, opts.prior ?? '');
   writeFileSync(
@@ -74,7 +83,10 @@ printf -- '---\\n' >> '${calls}'
 case "$*" in
   *comments*) cat '${prior}'; exit ${opts.commentsExit ?? 0} ;;
   'pr view --json number'*) echo 7 ;;
-  'pr comment'*) exit ${opts.commentExit ?? 0} ;;
+  'pr comment'*)
+    n=$(cat '${counter}' 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > '${counter}'
+    if [ "$n" -ge 2 ]; then exit ${opts.secondCommentExit ?? opts.commentExit ?? 0}; fi
+    exit ${opts.commentExit ?? 0} ;;
 esac
 `
   );
@@ -304,11 +316,33 @@ describe('codex-review.sh', () => {
     const r = runPost(stub, gh);
     expect(r.code).toBe(1);
     const posted = bodies(gh.calls);
-    expect(posted).toHaveLength(1);
     expect(posted[0]).toMatch(/^Codex findings for [0-9a-f]{9} \(not gate evidence\):/);
     // review-gate.ts only reads a comment whose FIRST line is the evidence line.
     expect(posted[0].split('\n')[0]).not.toMatch(/^Review gate:/);
     expect(posted[0]).toContain('[P2] Something is wrong');
+  });
+
+  it('--post on findings also WITHDRAWS any clean evidence already on this head', () => {
+    // The findings comment is invisible to review-gate.ts, so on a head that
+    // already carries clean evidence the gate would stay green over defects
+    // just reported (Codex review of #2115, round 3).
+    const stub = stubCodex(['codex', '- [P1] one', '- [P2] two'].join('\n'));
+    const gh = stubGh();
+    expect(runPost(stub, gh).code).toBe(1);
+    const posted = bodies(gh.calls);
+    expect(posted).toHaveLength(2);
+    expect(posted[1].split('\n')[0]).toMatch(
+      /^Review gate: codex reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — 2 findings, not addressed$/
+    );
+  });
+
+  it('exits 2 when the withdrawal could not be posted, even though the findings were', () => {
+    const stub = stubCodex(['codex', '- [P1] one'].join('\n'));
+    const gh = stubGh({ secondCommentExit: 1 });
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('could NOT be withdrawn');
+    expect(bodies(gh.calls)).toHaveLength(2);
   });
 
   it('counts N from its own earlier findings comments, not from a typed number', () => {

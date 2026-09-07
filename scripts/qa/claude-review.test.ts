@@ -41,7 +41,13 @@ exit ${exitCode}
 const LOCAL_HEAD = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
 function stubGh(
-  opts: { commentExit?: number; prior?: string; prHead?: string; commentsExit?: number } = {}
+  opts: {
+    commentExit?: number;
+    prior?: string;
+    prHead?: string;
+    commentsExit?: number;
+    secondCommentExit?: number;
+  } = {}
 ): {
   bin: string;
   calls: string;
@@ -50,6 +56,7 @@ function stubGh(
   dirs.push(dir);
   const calls = join(dir, 'calls.log');
   const prior = join(dir, 'prior.txt');
+  const counter = join(dir, 'comment-count');
   const bin = join(dir, 'gh');
   writeFileSync(prior, opts.prior ?? '');
   writeFileSync(
@@ -61,7 +68,10 @@ case "$*" in
   *headRefOid*) echo '${opts.prHead ?? LOCAL_HEAD}' ;;
   *comments*) cat '${prior}'; exit ${opts.commentsExit ?? 0} ;;
   'pr view --json number'*) echo 7 ;;
-  'pr comment'*) exit ${opts.commentExit ?? 0} ;;
+  'pr comment'*)
+    n=$(cat '${counter}' 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" > '${counter}'
+    if [ "$n" -ge 2 ]; then exit ${opts.secondCommentExit ?? opts.commentExit ?? 0}; fi
+    exit ${opts.commentExit ?? 0} ;;
 esac
 `
   );
@@ -142,6 +152,26 @@ describe('claude-review.sh', () => {
       /^Claude findings for [0-9a-f]{9} \(not gate evidence\):$/
     );
     expect(posted[0]).toContain('[P1] Something is broken');
+  });
+
+  it('--post on findings also WITHDRAWS any clean evidence already on this head', () => {
+    const stub = stubClaude('- [P1] one\n- [P3] two\n');
+    const gh = stubGh();
+    expect(run(stub, gh).code).toBe(1);
+    const posted = bodies(gh.calls);
+    expect(posted).toHaveLength(2);
+    expect(posted[1].split('\n')[0]).toMatch(
+      /^Review gate: claude reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — 2 findings, not addressed$/
+    );
+  });
+
+  it('exits 2 when the withdrawal could not be posted, even though the findings were', () => {
+    const stub = stubClaude('- [P1] one\n');
+    const gh = stubGh({ secondCommentExit: 1 });
+    const r = run(stub, gh);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('could NOT be withdrawn');
+    expect(bodies(gh.calls)).toHaveLength(2);
   });
 
   it('counts N from its own earlier findings comments', () => {

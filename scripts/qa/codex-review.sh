@@ -93,6 +93,15 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
       echo "codex-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
       exit 2
     fi
+    # If this head already carries clean evidence, the findings comment alone
+    # leaves the gate GREEN — review-gate.ts only reads `Review gate:` lines,
+    # and the old clean one is still the latest (Codex review of #2115, round
+    # 3). Withdraw it with an evidence line the checker rejects.
+    FOUND="$(echo "$VERDICT" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+    if ! bash "$POSTER" --withdraw "$PR" codex "$BASE_SHA" "$HEAD_SHA" "${FOUND} findings, not addressed" "$LOG"; then
+      echo "codex-review: findings posted, but the earlier clean evidence for this head could NOT be withdrawn. Exit 2 — check the gate status by hand." >&2
+      exit 2
+    fi
   fi
   exit 1
 fi

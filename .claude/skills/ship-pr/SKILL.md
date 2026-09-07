@@ -134,6 +134,8 @@ Push first on this path: `/code-review` reads the **remote** PR head while the e
 
 Both wrappers behave identically. Exit 0 = clean and the evidence comment has been posted for THIS head; 1 = findings, which the wrapper posts as a `Codex/Claude findings for <head>` comment (not evidence — it does not begin `Review gate:`), so fix them, commit, and re-run for the NEW head; 2 = the review did NOT complete (usage limit, interrupt, unrecognized output) **or the evidence was not posted** — not a verdict, and nothing was recorded. Drop `--post` to rehearse without writing to the PR. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
 
+A re-review that finds defects on a head that already carries clean evidence also **withdraws** it — the wrapper posts a `<N> findings, not addressed` evidence line, which the checker rejects — so the gate goes red instead of staying green on the older attestation.
+
 **The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings; that is why the wrappers read the log and why only the poster writes evidence. On a clean re-run after findings, the wrapper counts the `[P*]` bullets in its own earlier findings comments and posts `<N> findings, all addressed` — you do not supply N.
 
 `.github/workflows/review-gate.yml` parses the comment's FIRST line into the `Review gate` commit status on the head. Concrete example — this exact line is what the checker's contract test parses, so keep one here:

@@ -319,6 +319,29 @@ describe('flattenPages', () => {
   });
 });
 
+describe('withdrawal evidence', () => {
+  it('a "<N> findings, not addressed" line for the head turns a green gate red', () => {
+    // What scripts/qa/post-review-gate.sh --withdraw writes when a re-review of
+    // an already-attested head finds defects. Without it the earlier clean line
+    // stayed the latest evidence and the gate stayed green (Codex, #2115 r3).
+    const r = evaluateReviewGate({
+      headSha: HEAD,
+      comments: [
+        comment(
+          `Review gate: codex reviewed 0a2020c7a..${H9} — no findings`,
+          '2026-09-07T10:00:00Z'
+        ),
+        comment(
+          `Review gate: codex reviewed 0a2020c7a..${H9} — 2 findings, not addressed`,
+          '2026-09-07T11:00:00Z'
+        ),
+      ],
+    });
+    expect(r.state).toBe('failure');
+    expect(r.description).toContain('2 findings, not addressed');
+  });
+});
+
 describe('--verdict CLI mode', () => {
   // scripts/qa/post-review-gate.sh asks this script whether a verdict is inside
   // the grammar, so the poster and the checker can never drift. Spawn it for

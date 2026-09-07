@@ -94,6 +94,12 @@ if [ -z "$WAIT" ]; then
   # inherit it from the sandboxed parent while actually having network, and
   # trusting it alone would block the documented escalation path (Codex review
   # of #2127, round 3).
+  # Only probe when the endpoint is knowable. Bedrock/Vertex call AWS/Google
+  # hosts the wrapper cannot infer, so the probe is skipped there and the review
+  # itself is the network check (Codex review of #2127, round 6).
+  if [ "${CLAUDE_CODE_USE_BEDROCK:-}" = "1" ] || [ "${CLAUDE_CODE_USE_VERTEX:-}" = "1" ]; then
+    NET_PROBE="echo provider-managed"
+  fi
   if [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
     MARKER=""; [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] && MARKER=" (Codex sandbox marker present)"
     echo "claude-review: no network from this shell${MARKER} — ${ANTHROPIC_BASE_URL:-https://api.anthropic.com} unreachable, so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2

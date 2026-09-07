@@ -404,6 +404,23 @@ describe('claude-review.sh', () => {
       expect(existsSync(stub.args)).toBe(false);
     });
 
+    it('skips the network probe when a Bedrock or Vertex provider is configured', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const prevProbe = process.env.CLAUDE_REVIEW_NET_PROBE_TEST;
+      const prevBedrock = process.env.CLAUDE_CODE_USE_BEDROCK;
+      process.env.CLAUDE_REVIEW_NET_PROBE_TEST = 'echo 000'; // would refuse if consulted
+      process.env.CLAUDE_CODE_USE_BEDROCK = '1';
+      try {
+        expect(run(stub, gh, ['7']).code).toBe(0);
+      } finally {
+        if (prevProbe === undefined) delete process.env.CLAUDE_REVIEW_NET_PROBE_TEST;
+        else process.env.CLAUDE_REVIEW_NET_PROBE_TEST = prevProbe;
+        if (prevBedrock === undefined) delete process.env.CLAUDE_CODE_USE_BEDROCK;
+        else process.env.CLAUDE_CODE_USE_BEDROCK = prevBedrock;
+      }
+    });
+
     it('exits 2 with the escalation hint when the network probe reports 000', () => {
       const stub = stubClaude('No actionable defects found.');
       const gh = stubGh();

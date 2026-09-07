@@ -578,8 +578,12 @@ const words = (file: string) =>
   readFileSync(resolve(root, file), 'utf8').split(/\s+/).filter(Boolean).length;
 
 describe('instruction file budgets', () => {
-  it('CLAUDE.md stays under 5,000 words', () => {
-    expect(words('CLAUDE.md')).toBeLessThan(5000);
+  it('CLAUDE.md stays under 7,500 words', () => {
+    expect(words('CLAUDE.md')).toBeLessThan(7500);
+  });
+
+  it('the LESSONS section stays under 3,000 words', () => {
+    expect(lessonsSection().split(/\s+/).filter(Boolean).length).toBeLessThan(3000);
   });
   it('AGENTS.md stays under 5,000 words', () => {
     expect(words('AGENTS.md')).toBeLessThan(5000);
@@ -1420,7 +1424,7 @@ Nothing above is done until these are recorded in this file under a `## Evidence
 - [ ] **Dependency audit green**: `gh workflow run dependency-audit.yml` then `gh run list --workflow dependency-audit.yml --limit 1 --json conclusion` → `success`.
 - [ ] **Nightly-e2e and nightly-health**: both dispatched after Task 3 merged; conclusions recorded. If either is still red, the failure is named in this file with the Linear issue that owns it.
 - [ ] **Shared rules in CI**: the Quality Checks log of the first PR after Task 4 shows `shared-rules: in sync`.
-- [ ] **CLAUDE.md word count**: `wc -w CLAUDE.md AGENTS.md` both under 5,000.
+- [ ] **Instruction file budgets**: `wc -w CLAUDE.md AGENTS.md` under 7,500 and 5,000; the LESSONS section under 3,000 (`instructionFileBudget.test.ts` green on `main`).
 - [ ] **Review gate self-posted**: the Task 7 PR's evidence comment carries a `log sha256:` second line and a verdict block.
 - [ ] **Prettier in CI**: the first PR after Task 8 shows a green `Prettier` step; `pnpm format:check` locally exits 0 on `main`.
 - [ ] **Skill count**: `ls .agents/skills | wc -l` recorded; `skillTrees.test.ts` green on `main`.

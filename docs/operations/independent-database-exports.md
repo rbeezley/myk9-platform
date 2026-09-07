@@ -82,9 +82,43 @@ Keep existing private objects until the owner approves deletion. Recovery uses a
 database and the selected export's manifest/checksum; source writes remain stopped until the
 operator has compared newer data and reconciled offline tablet queues.
 
-The current implementation has no live provider credentials or measured source dump/provider
-restore. A [synthetic two-cluster local restore passed](independent-database-exports-local-test.md).
+The source export was measured successfully on 2026-09-07 (below). There are no live provider
+credentials or successful provider/Supabase restore from that export yet.
+A [synthetic two-cluster local restore passed](independent-database-exports-local-test.md).
 The real Supabase/provider rehearsal remains an activation gate.
+
+## Measured source export — 2026-09-07
+
+Operator authorized a read-only export of `sojmvhhwsjxmfistvzbe` to private local files.
+The saved session-pooler connection was verified against the source ref without printing credentials.
+Only SELECT queries, `pg_dump`, and `pg_dumpall` were executed. The pooler did not preserve
+the requested `default_transaction_read_only` option (preflight reported off); no server-side
+read-only enforcement is claimed for that option. No source mutation commands were executed.
+
+| Measurement                             | Result                                                                            |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| Source server                           | PostgreSQL 17.6                                                                   |
+| Native dump clients                     | PostgreSQL 18.3                                                                   |
+| Database disk size                      | 124,923,027 bytes (~119 MiB)                                                      |
+| Compressed custom-format dump           | 6,284,328 bytes                                                                   |
+| Globals export, role passwords excluded | 6,003 bytes; 17 role definitions                                                  |
+| Database dump duration                  | 45.594 seconds                                                                    |
+| Dump, globals and encryption duration   | 47.999 seconds (excludes preflight)                                               |
+| Encrypted payload total                 | 6,290,387 bytes (~6.3 MB)                                                         |
+| Archive inventory                       | 178 table-data entries; public, auth, storage and supabase_migrations represented |
+| Security object inventory               | 378 policy entries, 156 row-security entries, 827 ACL entries                     |
+
+The encrypted files were validated with the branch's decrypt CLI. Authenticated decryption
+succeeded, and `pg_restore --list` on the decrypted dump exactly matched the original inventory.
+This is archive validation, **not a restore of the source data**. Managed-role behavior, Vault
+key recovery, and compatibility with the actual destination must still be rehearsed.
+
+Artifacts are in private temporary directory `/private/tmp/myk9-live-export.rCG2z0` (0700),
+with encrypted dump/globals, manifest, local recovery-key file, and measurement metadata (0600).
+Plaintext dump/globals and the temporary decryption outputs were removed. The key has not been
+uploaded or committed. This temporary local directory is not durable independent backup storage.
+At this one measured size, 306–352 exports across 30 days would occupy roughly 1.9–2.2 GB,
+excluding versions, growth, overhead and manual reruns. Total operating cost remains unapproved.
 
 ## Local decrypt and validation
 

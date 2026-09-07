@@ -15,12 +15,16 @@ on:
   push:
     branches: [main]
 
-# PR runs are superseded by the next push. A `main` run is never cancelled:
-# merges land minutes apart and the push-only coverage job takes ~25 min, so
-# cancelling on push left 25 of 30 consecutive main runs without a verdict
-# (2026-09-06/07). scripts/qa/ci-concurrency.test.ts pins this.
+# PR runs are superseded by the next push (one group per ref, cancel on push).
+# A `main` run is never cancelled OR replaced: merges land minutes apart and
+# the push-only coverage job takes ~25 min, so a ref-keyed group left 25 of 30
+# consecutive main runs without a verdict (2026-09-06/07) -- and GitHub keeps
+# only ONE queued run per group, so `cancel-in-progress: false` alone would
+# still let a third merge replace the second's pending run (Codex review of
+# #2110). Keying main's group by SHA gives every main commit its own run.
+# scripts/qa/ci-concurrency.test.ts pins both halves.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:

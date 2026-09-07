@@ -375,16 +375,17 @@ describe('claude-review.sh', () => {
       expect(existsSync(stub.args)).toBe(false); // the review itself never started
     });
 
-    it('exits 2 with the escalation hint when Codex sets CODEX_SANDBOX_NETWORK_DISABLED=1', () => {
+    it('an escalated re-run that inherits CODEX_SANDBOX_NETWORK_DISABLED=1 but HAS network proceeds', () => {
+      // The marker is a hint, never the verdict: escalation can leave it in the
+      // environment while the shell can reach the Keychain and the API.
       const stub = stubClaude('No actionable defects found.');
       const gh = stubGh();
       const prev = process.env.CODEX_SANDBOX_MARKER_TEST;
       process.env.CODEX_SANDBOX_MARKER_TEST = '1';
       try {
         const r = run(stub, gh, ['7']);
-        expect(r.code).toBe(2);
-        expect(r.out).toContain('no network');
-        expect(existsSync(stub.args)).toBe(false);
+        expect(r.code).toBe(0);
+        expect(existsSync(stub.args)).toBe(true);
       } finally {
         if (prev === undefined) delete process.env.CODEX_SANDBOX_MARKER_TEST;
         else process.env.CODEX_SANDBOX_MARKER_TEST = prev;

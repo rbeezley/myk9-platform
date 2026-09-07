@@ -82,8 +82,14 @@ if [ -z "$WAIT" ]; then
   # the probe's output, so "000" never matches.
   NET_PROBE_DEFAULT='curl -sS -o /dev/null -m 5 -w %{http_code} https://api.anthropic.com/'
   NET_PROBE="${CLAUDE_REVIEW_NET_PROBE:-$NET_PROBE_DEFAULT}"
-  if [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] || [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
-    echo "claude-review: no network from this shell (api.anthropic.com unreachable), so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
+  # The probe measures the shell's real capability. Codex's marker
+  # (CODEX_SANDBOX_NETWORK_DISABLED=1) is only a hint: an escalated re-run can
+  # inherit it from the sandboxed parent while actually having network, and
+  # trusting it alone would block the documented escalation path (Codex review
+  # of #2127, round 3).
+  if [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
+    MARKER=""; [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] && MARKER=" (Codex sandbox marker present)"
+    echo "claude-review: no network from this shell${MARKER} — api.anthropic.com unreachable, so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
     exit 2
   fi
 fi

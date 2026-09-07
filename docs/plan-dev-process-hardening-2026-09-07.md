@@ -1107,12 +1107,24 @@ Add to `skillTrees.test.ts`:
 ```ts
 describe('third-party skills are inventoried', () => {
   const inventory = readFileSync(resolve(repoRoot, 'docs/agents/skills-inventory.md'), 'utf8');
-  // | `name` | origin | reason |  -- three non-empty cells, or the row does not count.
-  const rows = [...inventory.matchAll(/^\| `([^`]+)` \| ([^|]+?) \| ([^|]+?) \|$/gm)].map(m => ({
-    name: m[1]!,
-    origin: m[2]!.trim(),
-    reason: m[3]!.trim(),
-  }));
+  // | `name` | origin | reason |  -- split on pipes and trim: Prettier pads
+  // table cells to column width, so a fixed-space regex would reject every
+  // formatted row (Codex review of #2110).
+  const rows = inventory
+    .split('\n')
+    .filter(line => /^\|\s*`[^`]+`\s*\|/.test(line))
+    .map(line =>
+      line
+        .split('|')
+        .slice(1, -1)
+        .map(cell => cell.trim())
+    )
+    .filter(cells => cells.length === 3 && cells.every(Boolean))
+    .map(([name, origin, reason]) => ({
+      name: name!.replace(/^`|`$/g, ''),
+      origin: origin!,
+      reason: reason!,
+    }));
   const onDisk = readdirSync(resolve(repoRoot, '.agents/skills'), { withFileTypes: true })
     .filter(d => d.isDirectory() && !d.isSymbolicLink())
     .map(d => d.name);

@@ -22,7 +22,10 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 
 1. `superpowers:brainstorming` — explore intent/requirements before implementation (required before creative work).
 2. `superpowers:test-driven-development` — write the test first.
-3. Implement.
+3. Implement. For React component work, `vercel-react-best-practices` (rendering, data
+   fetching, bundle cost) and `vercel-composition-patterns` (compound components, render
+   props, context) are the reference skills — reach for them when a component grows boolean
+   props or a list re-renders more than it should.
 4. `/simplify` — constructive cleanup pass (3 parallel agents: efficiency, quality, reuse). Auto-fixes safe wins.
 5. `/harden` — adversarial stress-test (3 parallel agents try to break it: edge cases, state corruption, security holes).
 6. `/commit`
@@ -92,6 +95,7 @@ Read [`docs/INTENT.md`](INTENT.md) first — every UX change must preserve the t
 | Navigation/routes/tabs feel fragmented, "why are there 3 places to do X"                                            | `IA-Review` (structural audit + phased remediation plan)  |
 | Real-browser walk of an existing feature, fixing bugs at the root cause mid-walk, leaves a Playwright spec behind   | `qa-feature`                                              |
 | Sweep for console/network errors after a refactor, before release                                                   | `audit-pages`                                             |
+| Check rendered UI against the Web Interface Guidelines (focus, contrast, motion, forms)                             | `web-design-guidelines`                                   |
 
 `role-journey-ux-audit` and `UX-Audit` overlap (both persona/6-pass style) — prefer `role-journey-ux-audit` when the ask names a specific role and wants viewport + regression diffing; use `UX-Audit` for a single page/feature review.
 

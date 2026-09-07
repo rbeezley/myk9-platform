@@ -824,6 +824,36 @@ describe('post-review-gate.sh', () => {
       run(['42', 'claude', '0a2020c7a', '5af9af158', '2 findings, all addressed', log], gh.bin).code
     ).toBe(2);
   });
+
+  it.each([
+    'codex\nUnable to complete the review because the connection failed.\n',
+    "ERROR: You've hit your usage limit\nReview was interrupted\n",
+    'codex\n- [P1] Something is broken\n',
+  ])(
+    'refuses "no findings" over a log that did not complete or still carries findings: %j',
+    text => {
+      const gh = stubGh();
+      const log = logFile(text);
+      const r = run(['42', 'codex', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin);
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/log does not support/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    }
+  );
+
+  it('accepts "no findings" only over a log whose verdict opens with a clean sentence', () => {
+    const gh = stubGh();
+    for (const text of [
+      'codex\nNo actionable defects found.\n',
+      'No issues found in this diff.\n',
+      'No findings.\n',
+    ]) {
+      const log = logFile(text);
+      expect(run(['42', 'claude', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(
+        0
+      );
+    }
+  });
 });
 ```
 
@@ -875,6 +905,27 @@ fi
 HASH="$(shasum -a 256 "$LOG" | cut -d' ' -f1)"
 VERDICT_BLOCK="$(awk '/^codex$/{f=1; next} f' "$LOG")"
 [ -n "$VERDICT_BLOCK" ] || VERDICT_BLOCK="$(tail -40 "$LOG")"
+
+# The log must SUPPORT the verdict. The poster is reachable without the Codex
+# wrapper (the Claude path calls it directly), so it re-checks what the wrapper
+# checks: an interrupted or incomplete review is never evidence, and "no
+# findings" needs a clean sentence in the log, not just a caller's say-so.
+if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" ||
+   printf '%s' "$VERDICT_BLOCK" | grep -Eiq '\bunable to complete the review\b|\breview (did not run|was interrupted)\b'; then
+  echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
+  exit 2
+fi
+if [ "$VERDICT" = "no findings" ]; then
+  if printf '%s' "$VERDICT_BLOCK" | grep -Eq '^\s*- \[P[0-9]\]'; then
+    echo "post-review-gate: log does not support 'no findings' (it carries [P*] bullets); nothing posted" >&2
+    exit 2
+  fi
+  # One place to extend when a reviewer's clean phrasing changes; add a fixture with the real log.
+  if ! printf '%s' "$VERDICT_BLOCK" | grep -Eiq '(^|[.!?][[:space:]]+)No (actionable |blocking )?(findings|defects|issues|regressions)'; then
+    echo "post-review-gate: log does not support 'no findings' (no clean sentence found); nothing posted" >&2
+    exit 2
+  fi
+fi
 BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
   "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 "$GH" pr comment "$PR" --body "$BODY"
@@ -1041,11 +1092,10 @@ FILES="$(printf '%s\n' "$FILES" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|css|md|
 printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 ./node_modules/.bin/prettier --write --ignore-unknown --log-level warn
 ```
 
-`.codex/hooks.json`: add to the `PostToolUse` array
+`.codex/hooks.json`: add to the `PostToolUse` array an entry with NO matcher, so it fires after every tool including the shell (Bash-driven edits are exactly the path the Claude hook misses; the script is a no-op on a clean tree, so firing after reads costs one `git diff --name-only`):
 
 ```json
 {
-  "matcher": "Write|Edit|apply_patch",
   "hooks": [
     {
       "type": "command",
@@ -1056,6 +1106,8 @@ printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 ./node_modules/.bin/prettier --
   ]
 }
 ```
+
+Confirm the harness honours an entry without `matcher` by running one Codex turn that edits a file through the shell and checking `git diff` shows it formatted; if Codex requires a matcher, use `".*"`.
 
 Probe the hook with an untracked file, then remove ONLY that file (a bare `git stash push -u` would stash the whole reformat; `rm` is denied here):
 

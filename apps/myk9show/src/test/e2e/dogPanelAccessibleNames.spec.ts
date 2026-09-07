@@ -47,6 +47,15 @@ for (const vp of VIEWPORTS) {
 
       // Naming must not cost keyboard operation: the trigger takes focus, opens
       // on Enter, and Escape returns focus to it.
+      //
+      // KNOWN RED in the nightly regression (run 34147260051, all three
+      // viewports) — MYK9-443, and a real defect, so this assertion stays as
+      // it is. SlideOverPanel focuses "the first focusable element in the
+      // panel" on an unconditional 300ms timer (SlideOverPanel.tsx:142-163);
+      // when the runner is fast enough to reach the Escape inside that window,
+      // the timer lands afterwards and parks focus on the panel's Close (X)
+      // button. It passes on both local targets only because they take longer
+      // than 300ms to get here. Do not relax this to make the nightly green.
       await sex.focus();
       await expect(sex).toBeFocused();
       await page.keyboard.press('Enter');

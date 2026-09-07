@@ -8,11 +8,24 @@ import {
 import { AKC_SCENT_WORK_FIELDS } from './akcScentWorkFields';
 import { generateAKCScentWorkClasses, AKC_SCENT_WORK_VALIDATION_RULES } from './akcScentWorkRules';
 
+/**
+ * Stable id for the locally bundled AKC Scent Work fallback (MYK9-432).
+ *
+ * The fallback is only injected when the DB template fetch fails, but the template
+ * store is persisted — so once a browser takes that path the row survives forever.
+ * `upsertTemplates` reconciles it away as soon as the authoritative DB template for
+ * the same organization + trial type loads; that reconciliation keys off this id.
+ */
+export const AKC_SCENT_WORK_FALLBACK_TEMPLATE_ID = 'akc-scent-work-official-2024';
+
 export const AKC_SCENT_WORK_TEMPLATE: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'> = {
   // Identity
   organization: Organization.AKC,
   trialType: TrialType.SCENT_WORK,
-  templateName: 'AKC Scent Work - Official 2024 Rules',
+  // MYK9-432: matches the name the DB mapper synthesizes for the same real-world
+  // template (`${organization} ${sport_name} - Official`). The two denote one thing;
+  // the 2024 rules edition is carried in `version` / `officialRulesReference` below.
+  templateName: 'AKC Scent Work - Official',
   version: '2024.1.0',
 
   // Metadata

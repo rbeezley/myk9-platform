@@ -40,7 +40,9 @@ exit ${exitCode}
 /** The local HEAD the wrapper will bind its evidence to. */
 const LOCAL_HEAD = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 
-function stubGh(opts: { commentExit?: number; prior?: string; prHead?: string } = {}): {
+function stubGh(
+  opts: { commentExit?: number; prior?: string; prHead?: string; commentsExit?: number } = {}
+): {
   bin: string;
   calls: string;
 } {
@@ -57,7 +59,7 @@ printf '%s\\n' "$@" >> '${calls}'
 printf -- '---\\n' >> '${calls}'
 case "$*" in
   *headRefOid*) echo '${opts.prHead ?? LOCAL_HEAD}' ;;
-  *comments*) cat '${prior}' ;;
+  *comments*) cat '${prior}'; exit ${opts.commentsExit ?? 0} ;;
   'pr view --json number'*) echo 7 ;;
   'pr comment'*) exit ${opts.commentExit ?? 0} ;;
 esac
@@ -168,6 +170,16 @@ describe('claude-review.sh', () => {
     const r = run(stub, gh);
     expect(r.code).toBe(2);
     expect(r.out).toContain('local HEAD');
+    expect(bodies(gh.calls)).toEqual([]);
+  });
+
+  it('exits 2 when the prior-findings lookup fails, instead of posting "no findings"', () => {
+    // A failed lookup returns an empty history, which reads as "there were
+    // never any findings" (Codex review of #2115, round 2).
+    const stub = stubClaude('No actionable defects found.');
+    const gh = stubGh({ commentsExit: 1, prior: '- [P1] one\n' });
+    const r = run(stub, gh);
+    expect(r.code).toBe(2);
     expect(bodies(gh.calls)).toEqual([]);
   });
 

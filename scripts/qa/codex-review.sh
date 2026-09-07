@@ -133,7 +133,12 @@ if [ "$POST" = 1 ]; then
   PR="$("$GH" pr view --json number -q .number)"
   # N comes from the wrapper's OWN earlier findings comments on this PR, so
   # "N findings, all addressed" is counted from what was posted, not typed.
-  PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Codex findings for"))] | join("\n")')"
+  # Fail closed: a transient API failure here returns an empty history, which
+  # would post "no findings" over a head that had them (Codex, #2115 round 2).
+  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Codex findings for"))] | join("\n")')"; then
+    echo "codex-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
+    exit 2
+  fi
   N="$(printf '%s' "$PRIOR" | grep -cE '^\s*- \[P[0-9]\]' || true)"
   [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   # The wrapper runs without errexit; a poster failure (grammar refusal, gh

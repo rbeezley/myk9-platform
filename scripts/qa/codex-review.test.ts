@@ -56,7 +56,7 @@ function run(stub: { bin: string; log: string }): { code: number; out: string } 
  * answers the wrapper's own earlier findings comments (jq already applied by
  * the real gh, so the stub prints the joined text).
  */
-function stubGh(opts: { commentExit?: number; prior?: string } = {}): {
+function stubGh(opts: { commentExit?: number; prior?: string; commentsExit?: number } = {}): {
   bin: string;
   calls: string;
 } {
@@ -71,9 +71,10 @@ function stubGh(opts: { commentExit?: number; prior?: string } = {}): {
     `#!/usr/bin/env bash
 printf '%s\\n' "$@" >> '${calls}'
 printf -- '---\\n' >> '${calls}'
-case "$1 $2" in
-  'pr view') if [ "$3" = '--json' ]; then echo 7; else cat '${prior}'; fi ;;
-  'pr comment') exit ${opts.commentExit ?? 0} ;;
+case "$*" in
+  *comments*) cat '${prior}'; exit ${opts.commentsExit ?? 0} ;;
+  'pr view --json number'*) echo 7 ;;
+  'pr comment'*) exit ${opts.commentExit ?? 0} ;;
 esac
 `
   );
@@ -319,6 +320,17 @@ describe('codex-review.sh', () => {
     expect(bodies(gh.calls)[0]).toMatch(
       /^Review gate: codex reviewed \S+ — 2 findings, all addressed\n/
     );
+  });
+
+  it('exits 2 when the prior-findings lookup fails, instead of posting "no findings"', () => {
+    // A failed lookup returns an empty history, which reads as "there were
+    // never any findings" — the one direction this must never fail in
+    // (Codex review of #2115, round 2).
+    const stub = stubCodex('codex\nNo actionable defects found.');
+    const gh = stubGh({ commentsExit: 1, prior: '- [P1] one\n' });
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(2);
+    expect(bodies(gh.calls)).toEqual([]);
   });
 
   it('exits 2 when the findings comment could not be posted', () => {

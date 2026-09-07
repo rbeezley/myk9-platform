@@ -124,7 +124,12 @@ fi
 
 VERDICT_LINE="no findings"
 if [ "$POST" = 1 ]; then
-  PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Claude findings for"))] | join("\n")')"
+  # Fail closed: a transient API failure here returns an empty history, which
+  # would post "no findings" over a head that had them (Codex, #2115 round 2).
+  if ! PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Claude findings for"))] | join("\n")')"; then
+    echo "claude-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
+    exit 2
+  fi
   N="$(printf '%s' "$PRIOR" | grep -cE '^\s*- \[P[0-9]\]' || true)"
   [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   if ! bash "$POSTER" "$PR" claude "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then

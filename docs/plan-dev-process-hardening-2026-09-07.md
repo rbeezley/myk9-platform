@@ -720,6 +720,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Files:**
 
 - Create: `scripts/qa/post-review-gate.sh`
+- Create: `scripts/qa/claude-review.sh` (the Claude-reviews-Codex path, same contract as the Codex wrapper)
 - Modify: `scripts/qa/codex-review.sh`
 - Modify: `scripts/qa/codex-review.test.ts`
 - Create: `scripts/qa/post-review-gate.test.ts`
@@ -731,6 +732,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Produces: `scripts/qa/post-review-gate.sh <pr> <codex|claude> <base-sha> <head-sha> "<verdict>" <log-path>`; env `GH_BIN` overrides `gh` for tests. Exit 0 posted, 2 refused (bad verdict grammar, empty log).
 - Produces: `scripts/qa/review-gate.ts --verdict "<text>"` exits 0 when `CLEAN_VERDICT` (line 88) accepts the text and 2 otherwise. The poster calls this so there is ONE grammar; a hand-copied regex in the poster drifted from the parser in the first draft of this plan (`finding(s)` is accepted by the parser's docs in ship-pr but rejected by `CLEAN_VERDICT`).
 - `codex-review.sh --post` (PR number from `gh pr view --json number`), env `GH_BIN` for tests.
+- `claude-review.sh [--post] <pr>`: runs `claude -p` with the SAME verdict contract text as `REVIEW_INSTRUCTIONS` in `codex-review.sh` (clean verdict begins `No actionable defects found.`; findings as `- [P0..3]` bullets; `Unable to complete the review` otherwise), logs to `.logs/claude-review-<head>.log`, and exits 0/1/2 with the same meanings. Env `CLAUDE_BIN` for tests. With `--post` it calls the poster exactly as the Codex wrapper does. Its prompt is `/code-review $PR` followed by the contract paragraph. Test it with a stub `claude` the way `codex-review.test.ts` stubs `codex`.
 
 - [ ] **Step 1: Write the failing tests for the poster**
 
@@ -829,6 +831,9 @@ describe('post-review-gate.sh', () => {
     'codex\nUnable to complete the review because the connection failed.\n',
     "ERROR: You've hit your usage limit\nReview was interrupted\n",
     'codex\n- [P1] Something is broken\n',
+    'No findings yet; only the workflow file has been inspected.\n',
+    'No issues found in this diff.\n',
+    'Summary of changes.\n\nNo actionable defects found.\n',
   ])(
     'refuses "no findings" over a log that did not complete or still carries findings: %j',
     text => {
@@ -841,12 +846,12 @@ describe('post-review-gate.sh', () => {
     }
   );
 
-  it('accepts "no findings" only over a log whose verdict opens with a clean sentence', () => {
+  it('accepts "no findings" only when the first paragraph carries the contract sentence', () => {
     const gh = stubGh();
     for (const text of [
       'codex\nNo actionable defects found.\n',
-      'No issues found in this diff.\n',
-      'No findings.\n',
+      'No actionable correctness, security, or data-flow regressions were found. Tests pass.\n',
+      'The change is small. No actionable issues found.\n',
     ]) {
       const log = logFile(text);
       expect(run(['42', 'claude', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(
@@ -920,9 +925,19 @@ if [ "$VERDICT" = "no findings" ]; then
     echo "post-review-gate: log does not support 'no findings' (it carries [P*] bullets); nothing posted" >&2
     exit 2
   fi
-  # One place to extend when a reviewer's clean phrasing changes; add a fixture with the real log.
-  if ! printf '%s' "$VERDICT_BLOCK" | grep -Eiq '(^|[.!?][[:space:]]+)No (actionable |blocking )?(findings|defects|issues|regressions)'; then
-    echo "post-review-gate: log does not support 'no findings' (no clean sentence found); nothing posted" >&2
+  # Not free text: both review wrappers instruct the reviewer to open a clean
+  # verdict with the CONTRACT sentence "No actionable ..." and nothing else
+  # counts. "No findings yet; only the workflow file has been inspected" is a
+  # clean-looking sentence about an incomplete review, and any regex that
+  # guesses at completeness from prose will be fooled by the next phrasing
+  # (Codex review of #2110, round 7). Same first-paragraph rule as codex-review.sh.
+  FIRST_PARAGRAPH="$(printf '%s\n' "$VERDICT_BLOCK" | awk '
+    /^[[:space:]]*$/ { if (started) exit; next }
+    { printf "%s%s", started ? " " : "", $0; started=1 }
+  ')"
+  if ! { printf '%s' "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*No actionable\b' ||
+         printf '%s' "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
+    echo "post-review-gate: log does not support 'no findings' (first paragraph lacks the contract sentence 'No actionable ...'); nothing posted" >&2
     exit 2
   fi
 fi
@@ -993,14 +1008,14 @@ Add to `scripts/qa/codex-review.test.ts` a `stubGh` like the one above whose `pr
 
 - [ ] **Step 6: Update ship-pr Step 4**
 
-Replace the hand-typed `gh pr comment … "Review gate: …"` instructions with: Claude-authored → `pnpm qa:codex-review --post` (no `--`: pnpm forwards it and the wrapper would read it as the base ref); Codex-authored → `claude -p "/code-review $PR_NUMBER" > "$LOG" 2>&1` then `scripts/qa/post-review-gate.sh $PR_NUMBER claude $BASE_SHA $HEAD_SHA "no findings" "$LOG"` (or the `N findings, all addressed` form). Keep the grammar example line the contract test parses. Add the rule: "Never type an evidence comment by hand; the poster is the only writer."
+Replace the hand-typed `gh pr comment … "Review gate: …"` instructions with: Claude-authored → `pnpm qa:codex-review --post` (no `--`: pnpm forwards it and the wrapper would read it as the base ref); Codex-authored → `bash scripts/qa/claude-review.sh --post $PR_NUMBER`. Neither path calls the poster by hand; both wrappers do, and the poster refuses a log whose first paragraph lacks the contract sentence. Keep the grammar example line the contract test parses. Add the rule: "Never type an evidence comment by hand; the poster is the only writer."
 
 - [ ] **Step 7: Register and ship**
 
 Add `"qa:post-review-gate:test": "vitest run scripts/qa/post-review-gate.test.ts"` and run it in Quality Checks beside `pnpm qa:codex-review:test`.
 
 ```bash
-git add scripts/qa/post-review-gate.sh scripts/qa/post-review-gate.test.ts scripts/qa/review-gate.ts scripts/qa/review-gate.test.ts scripts/qa/codex-review.sh scripts/qa/codex-review.test.ts .claude/skills/ship-pr/SKILL.md package.json .github/workflows/ci.yml
+git add scripts/qa/post-review-gate.sh scripts/qa/post-review-gate.test.ts scripts/qa/claude-review.sh scripts/qa/review-gate.ts scripts/qa/review-gate.test.ts scripts/qa/codex-review.sh scripts/qa/codex-review.test.ts .claude/skills/ship-pr/SKILL.md package.json .github/workflows/ci.yml
 git commit -m "tooling(qa): the review gate posts its own evidence and keeps the findings
 
 Evidence comments were typed by the agent that ran the review, and the

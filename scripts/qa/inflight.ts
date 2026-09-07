@@ -451,6 +451,22 @@ export function otherWorktrees(
   return out;
 }
 
+/**
+ * The LOCAL branch that the selected base names, if any: `origin/main` ->
+ * `main`, `refs/remotes/origin/develop` -> `develop`, `develop` -> `develop`.
+ * The branch that IS the base holds no in-flight work by definition, so the
+ * inventory skips it — but it was hardcoded to `main`, which is only right
+ * while `--base` is left at its default. With `--base=origin/develop`, local
+ * `main` can carry commits past that base and was silently omitted: a clean
+ * verdict from a check that did not look (MYK9-426, Codex #2073 round 13).
+ */
+export function baseLocalBranch(base: string): string {
+  return base
+    .replace(/^refs\/remotes\//, '')
+    .replace(/^refs\/heads\//, '')
+    .replace(/^origin\//, '');
+}
+
 export function unmergedLocalBranches(
   base: string,
   skip: ReadonlySet<string>,
@@ -474,8 +490,11 @@ export function unmergedLocalBranches(
     )
   );
   const out: ChangeSource[] = [];
+  // The base's own branch, not the literal `main`: with a non-main base, local
+  // `main` is an ordinary branch whose commits may well be in flight.
+  const baseBranch = baseLocalBranch(base);
   for (const name of names) {
-    if (name === 'main' || skip.has(name)) continue;
+    if (name === baseBranch || skip.has(name)) continue;
     // Contained in the base means merged (or empty): nothing in flight. Ask this
     // first — it is already answered, and it spares a `gh` round trip for every
     // branch already in the base.

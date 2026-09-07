@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { ClassDefinition } from '@/types/template.types';
 import {
   compareClassesForGrid,
+  findAmbiguousClassNames,
+  findClassNamesNeedingFullLabel,
   formatJudgeName,
   groupClassesByElement,
 } from './SimpleClassSelector.helpers';
@@ -25,7 +27,8 @@ function def(
     element: partial.element ?? 'Container',
     level: partial.level,
     section: partial.section,
-    className: `${partial.element ?? 'Container'} ${partial.level ?? ''} ${partial.section ?? ''}`.trim(),
+    className:
+      `${partial.element ?? 'Container'} ${partial.level ?? ''} ${partial.section ?? ''}`.trim(),
     displayOrder: partial.displayOrder,
   };
 }
@@ -121,5 +124,105 @@ describe('groupClassesByElement', () => {
       'Excellent',
       'Master',
     ]);
+  });
+});
+
+describe('findAmbiguousClassNames', () => {
+  const named = (
+    className: string,
+    identity: Pick<ClassDefinition, 'element' | 'level' | 'section'>
+  ): ClassDefinition => ({ ...identity, className, displayOrder: 1 });
+
+  it('flags both names when a cloned class shares a level with a template class', () => {
+    const result = findAmbiguousClassNames([
+      named('Interior Advanced', { element: 'Interior', level: 'Advanced' }),
+      named('Interior Advanced Preliminary', { element: 'Interior', level: 'Advanced' }),
+    ]);
+
+    expect([...result].sort()).toEqual(['Interior Advanced', 'Interior Advanced Preliminary']);
+  });
+
+  it('flags nothing across a standard AKC catalog', () => {
+    expect(
+      findAmbiguousClassNames([
+        named('Container Novice A', { element: 'Container', level: 'Novice', section: 'A' }),
+        named('Container Novice B', { element: 'Container', level: 'Novice', section: 'B' }),
+        named('Container Advanced', { element: 'Container', level: 'Advanced' }),
+        named('Detective', { element: 'Detective' }),
+      ]).size
+    ).toBe(0);
+  });
+
+  it('leaves ASCA Level C alone — its section already separates it on the card', () => {
+    // "Container Novice Level C" is not element+level+section verbatim, but the
+    // card still renders a distinct `Novice C`, so it needs no second line.
+    expect(
+      findAmbiguousClassNames([
+        named('Container Novice', { element: 'Container', level: 'Novice' }),
+        named('Container Novice Level C', { element: 'Container', level: 'Novice', section: 'C' }),
+      ]).size
+    ).toBe(0);
+  });
+
+  it('separates same-level classes that belong to different elements', () => {
+    expect(
+      findAmbiguousClassNames([
+        named('Interior Advanced', { element: 'Interior', level: 'Advanced' }),
+        named('Exterior Advanced', { element: 'Exterior', level: 'Advanced' }),
+      ]).size
+    ).toBe(0);
+  });
+});
+
+describe('findClassNamesNeedingFullLabel', () => {
+  const named = (
+    className: string,
+    identity: Pick<ClassDefinition, 'element' | 'level' | 'section'>
+  ): ClassDefinition => ({ ...identity, className, displayOrder: 1 });
+
+  const INTERIOR_ADVANCED = named('Interior Advanced', {
+    element: 'Interior',
+    level: 'Advanced',
+  });
+  const INTERIOR_ADVANCED_PRELIMINARY = named('Interior Advanced Preliminary', {
+    element: 'Interior',
+    level: 'Advanced',
+  });
+
+  it('labels a cloned class that has DISPLACED its template twin, leaving no ambiguity', () => {
+    // The wizard merge keys on element|level|section, so the retained custom class
+    // is the only Interior/Advanced entry left. Nothing is ambiguous and the card
+    // would read a bare `Advanced` — the standard class's own label.
+    const catalog = [INTERIOR_ADVANCED_PRELIMINARY];
+
+    expect(findAmbiguousClassNames(catalog).size).toBe(0);
+    expect([...findClassNamesNeedingFullLabel(catalog, ['Interior Advanced Preliminary'])]).toEqual(
+      ['Interior Advanced Preliminary']
+    );
+  });
+
+  it('still labels both when the template twin survives beside the clone', () => {
+    expect(
+      [
+        ...findClassNamesNeedingFullLabel(
+          [INTERIOR_ADVANCED, INTERIOR_ADVANCED_PRELIMINARY],
+          ['Interior Advanced Preliminary']
+        ),
+      ].sort()
+    ).toEqual(['Interior Advanced', 'Interior Advanced Preliminary']);
+  });
+
+  it('labels nothing for a plain template catalog with no custom names', () => {
+    expect(
+      findClassNamesNeedingFullLabel([
+        named('Container Novice A', { element: 'Container', level: 'Novice', section: 'A' }),
+        named('Container Novice Level C', { element: 'Container', level: 'Novice', section: 'C' }),
+        named('Detective', { element: 'Detective' }),
+      ]).size
+    ).toBe(0);
+  });
+
+  it('ignores a custom name that is not in the catalog at all', () => {
+    expect(findClassNamesNeedingFullLabel([INTERIOR_ADVANCED], ['Some Other Class']).size).toBe(0);
   });
 });

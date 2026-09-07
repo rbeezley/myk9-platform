@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  baseLocalBranch,
   committedPaths,
   findOverlaps,
   pathsOverlap,
@@ -45,6 +46,18 @@ describe('pathsOverlap', () => {
     ['', '', false],
   ])('%j vs %j -> %s', (a, b, want) => {
     expect(pathsOverlap(a, b)).toBe(want);
+  });
+});
+
+describe('baseLocalBranch', () => {
+  it.each([
+    ['origin/main', 'main'],
+    ['refs/remotes/origin/develop', 'develop'],
+    ['refs/heads/develop', 'develop'],
+    ['develop', 'develop'],
+    ['origin/release/1.2', 'release/1.2'],
+  ])('%j -> %j', (base, want) => {
+    expect(baseLocalBranch(base)).toBe(want);
   });
 });
 
@@ -436,6 +449,31 @@ describe('inflight CLI', () => {
     expect(r.code).toBe(1);
     expect(r.out).toContain('branch oldest');
   }, 60_000);
+
+  it('reports local `main` as in flight when --base names another branch, and not on the default base', () => {
+    const { main, bin } = repo();
+    // An integration base that local `main` is AHEAD of.
+    git(main, 'update-ref', 'refs/remotes/origin/develop', 'origin/main');
+    git(main, 'checkout', '-q', 'main');
+    writeFileSync(join(main, 'src', 'c.ts'), 'work sitting on local main');
+    git(main, 'add', 'src/c.ts');
+    git(main, 'commit', '-q', '-m', 'on main, past develop');
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, []);
+
+    // Known answer 1: against origin/develop, local `main` holds commits past
+    // the base — it must be REPORTED, not silently skipped for being named main.
+    const other = runCli(main, bin, '--base=refs/remotes/origin/develop', 'src/c.ts');
+    expect(other.code).toBe(1);
+    expect(other.out).toContain('branch main');
+    expect(other.out).toContain('src/c.ts');
+
+    // Known answer 2: the default base is unchanged — `main` IS the base there,
+    // so the same commits are not in flight and nothing is reported.
+    const dflt = runCli(main, bin, 'src/c.ts');
+    expect(dflt.code).toBe(0);
+    expect(dflt.out).not.toContain('branch main');
+  });
 
   it('exits 2 when a git comparison cannot run (unknown base) — never a clean result', () => {
     const { main, bin } = repo();

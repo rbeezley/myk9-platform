@@ -46,10 +46,14 @@ const balanceState: {
   isError: false,
 };
 
-const { useMyPaymentsMock, useMyPaymentYearsMock } = vi.hoisted(() => ({
+const { useMyPaymentsMock, useMyPaymentYearsMock, VIEWER_ID } = vi.hoisted(() => ({
   useMyPaymentsMock: vi.fn(),
   useMyPaymentYearsMock: vi.fn(),
+  /** The signed-in viewer both ledger queries must be scoped to (MYK9-429). */
+  VIEWER_ID: 'auth-user-1',
 }));
+
+vi.mock('@/hooks/useViewerId', () => ({ useViewerId: () => VIEWER_ID }));
 
 vi.mock('@/features/payments/useMyPayments', () => ({
   useMyPayments: useMyPaymentsMock,
@@ -73,6 +77,8 @@ const payment: MyPayment = {
   reference: 'pi_abc123',
   refundedAt: null,
   entryIds: ['e1'],
+  refundedCents: 0,
+  makeWholeRefundedCents: 0,
   refunds: [],
 };
 
@@ -87,8 +93,12 @@ describe('ExhibitorPaymentsPage payment queries', () => {
     paymentYearsState.isError = false;
     paymentYearsState.isFetching = false;
     paymentYearsState.refetch = vi.fn();
-    useMyPaymentsMock.mockReset().mockImplementation((_selection?: string) => paymentState);
-    useMyPaymentYearsMock.mockReset().mockImplementation((_enabled: boolean) => paymentYearsState);
+    useMyPaymentsMock
+      .mockReset()
+      .mockImplementation((_selection?: string, _viewerId?: string | null) => paymentState);
+    useMyPaymentYearsMock
+      .mockReset()
+      .mockImplementation((_enabled: boolean, _viewerId?: string | null) => paymentYearsState);
   });
 
   it('shows an error state instead of an empty ledger when the payment query fails', () => {
@@ -160,8 +170,8 @@ describe('ExhibitorPaymentsPage payment queries', () => {
 
       expect(screen.getByText('Spring Trial')).toBeInTheDocument();
       expect(screen.getByText('Autumn Trial')).toBeInTheDocument();
-      expect(useMyPaymentsMock).toHaveBeenCalledWith('all');
-      expect(useMyPaymentYearsMock).toHaveBeenCalledWith(false);
+      expect(useMyPaymentsMock).toHaveBeenCalledWith('all', VIEWER_ID);
+      expect(useMyPaymentYearsMock).toHaveBeenCalledWith(false, VIEWER_ID);
     });
 
     it('scopes the list and totals to a year chosen from the control', async () => {
@@ -176,8 +186,8 @@ describe('ExhibitorPaymentsPage payment queries', () => {
       expect(screen.getByText('1 payment in 2025')).toBeInTheDocument();
       expect(screen.getAllByText('$20.00').length).toBeGreaterThan(0);
       expect(screen.queryByText('$53.00')).not.toBeInTheDocument();
-      expect(useMyPaymentsMock).toHaveBeenLastCalledWith('2025');
-      expect(useMyPaymentYearsMock).toHaveBeenLastCalledWith(true);
+      expect(useMyPaymentsMock).toHaveBeenLastCalledWith('2025', VIEWER_ID);
+      expect(useMyPaymentYearsMock).toHaveBeenLastCalledWith(true, VIEWER_ID);
     });
 
     it('honors a valid URL year and sends it to the server query', () => {
@@ -187,8 +197,8 @@ describe('ExhibitorPaymentsPage payment queries', () => {
       expect(screen.getByText('Spring Trial')).toBeInTheDocument();
       expect(screen.queryByText('Autumn Trial')).not.toBeInTheDocument();
       expect(screen.getByText('1 payment in 2026')).toBeInTheDocument();
-      expect(useMyPaymentsMock).toHaveBeenCalledWith('2026');
-      expect(useMyPaymentYearsMock).toHaveBeenCalledWith(true);
+      expect(useMyPaymentsMock).toHaveBeenCalledWith('2026', VIEWER_ID);
+      expect(useMyPaymentYearsMock).toHaveBeenCalledWith(true, VIEWER_ID);
     });
 
     it('retains known year options so the exhibitor can switch directly between years', async () => {

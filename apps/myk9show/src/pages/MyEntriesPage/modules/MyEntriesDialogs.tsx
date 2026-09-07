@@ -20,7 +20,7 @@ import {
   useEntryReceiptOrders,
   type EntryReceiptOrder,
 } from '@/features/payments/entryReceiptOrder';
-import { paymentStatusLabel } from '@/features/payments/moneyPresentation';
+import { orderRefundStatusLabel } from '@/features/payments/orderRefundReconciliation';
 import { ENTRY_SCOPE_ORDER_PARAM } from '@/features/payments/entryScopeParams';
 import {
   Dialog,
@@ -38,7 +38,7 @@ import type {
   MyEntry,
   ReceiptDialogState,
 } from './my-entries-types';
-import { buildOrderScopedReceipt, orderHasRefund } from './orderScopedReceipt';
+import { buildOrderScopedReceipt } from './orderScopedReceipt';
 
 interface CheckInDialogProps {
   dialog: CheckInDialogState;
@@ -190,17 +190,6 @@ function formatOrderAmount(order: EntryReceiptOrder): string {
   }
 }
 
-/**
- * `status` alone cannot answer this. orderSnapshot.ts records that a PARTIALLY
- * refunded order keeps `status = 'succeeded'`, so reading it would print "Paid"
- * over money that came back.
- */
-function receiptPaymentStatus(order: EntryReceiptOrder): string {
-  if (!orderHasRefund(order)) return paymentStatusLabel(order.status);
-  const netCents = order.amountCents - order.refundedCents - order.makeWholeRefundedCents;
-  return netCents <= 0 ? 'Refunded' : 'Partially refunded';
-}
-
 interface ReceiptEntryDialogProps {
   dialog: ReceiptDialogState;
   user: { email?: string; user_metadata?: Record<string, string> } | null;
@@ -286,12 +275,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
     // not readable by the exhibitor. The card receipt is the correct document
     // here, not an error with a Try again that could never succeed.
     return (
-      <CardDerivedReceipt
-        dialog={dialog}
-        entry={dialog.entry}
-        user={user}
-        onClose={closeReceipt}
-      />
+      <CardDerivedReceipt dialog={dialog} entry={dialog.entry} user={user} onClose={closeReceipt} />
     );
   }
 
@@ -403,7 +387,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         paymentReference: entry.paymentReference,
         orderId: entry.orderId,
         submittedAt: entry.submittedAt,
-        paymentStatus: receiptPaymentStatus(selectedOrder),
+        paymentStatus: orderRefundStatusLabel(selectedOrder),
       }}
       {...(exhibitorName && { exhibitorName })}
       {...(exhibitorEmail && { exhibitorEmail })}

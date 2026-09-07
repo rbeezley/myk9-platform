@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import { viewerScope } from '@/lib/viewerScopedQueryKey';
 
 // Every money column the receipt needs to ADD UP, not just the gross.
 //
@@ -64,9 +65,23 @@ export interface EntryReceiptOrder {
   /** Cart-overflow auto-refund; never netted out of amountCents. */
   makeWholeRefundedCents: number;
   refundedAt: string | null;
+  /**
+   * Post-hoc refunds as the APP recorded them, summed over this order's entry
+   * rows — the same money `refundedCents` describes, written by a different
+   * actor at a different time (see `orderRefundReconciliation`).
+   *
+   * Required, and deliberately absent from `mapReceiptOrder`'s output type: a
+   * fetch path that forgot to resolve it would default to zero, which is the
+   * UNDERSTATING direction. Making it unrepresentable until `withEntryRefunds`
+   * has run is what stops that being a silent drop (MYK9-428).
+   */
+  entryRefundedCents: number;
 }
 
-function mapReceiptOrder(row: EntryReceiptOrderRow): EntryReceiptOrder {
+/** One order as the `stripe_orders` row alone describes it — not yet complete. */
+type ReceiptOrderSnapshot = Omit<EntryReceiptOrder, 'entryRefundedCents'>;
+
+function mapReceiptOrder(row: EntryReceiptOrderRow): ReceiptOrderSnapshot {
   return {
     id: row.id,
     createdAt: row.created_at,
@@ -84,7 +99,49 @@ function mapReceiptOrder(row: EntryReceiptOrderRow): EntryReceiptOrder {
   };
 }
 
-async function fetchEntryReceiptOrder(orderId: string): Promise<EntryReceiptOrder | null> {
+/**
+ * `entries.refund_amount` for the given rows, in cents.
+ *
+ * The same cents conversion `useMyPayments` applies, so the receipt and the
+ * ledger round a fractional-dollar refund identically.
+ */
+async function fetchEntryRefundCentsById(entryIds: string[]): Promise<Map<string, number>> {
+  if (entryIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('entries')
+    .select('id, refund_amount')
+    .in('id', entryIds);
+  if (error) throw error;
+
+  return new Map(
+    ((data ?? []) as Array<{ id: string; refund_amount: number | null }>).map(row => [
+      row.id,
+      Math.round((row.refund_amount ?? 0) * 100),
+    ])
+  );
+}
+
+/**
+ * The ONLY way to produce an `EntryReceiptOrder`.
+ *
+ * One `entries` read covers every order, so a multi-order card costs the same
+ * round trip as a single one.
+ */
+async function withEntryRefunds(orders: ReceiptOrderSnapshot[]): Promise<EntryReceiptOrder[]> {
+  const refundCentsById = await fetchEntryRefundCentsById([
+    ...new Set(orders.flatMap(order => order.entryIds)),
+  ]);
+  return orders.map(order => ({
+    ...order,
+    entryRefundedCents: order.entryIds.reduce(
+      (sum, entryId) => sum + (refundCentsById.get(entryId) ?? 0),
+      0
+    ),
+  }));
+}
+
+async function fetchEntryReceiptOrder(orderId: string): Promise<ReceiptOrderSnapshot | null> {
   // INTENT: This is an exact, independently keyed receipt read. Do not reuse
   // useMyPayments' year/range-bounded list query: an old order must remain
   // printable when the payments page is showing a different year.
@@ -99,7 +156,9 @@ async function fetchEntryReceiptOrder(orderId: string): Promise<EntryReceiptOrde
   return mapReceiptOrder(data as EntryReceiptOrderRow);
 }
 
-async function fetchEntryReceiptOrdersForEntries(entryIds: string[]): Promise<EntryReceiptOrder[]> {
+async function fetchEntryReceiptOrdersForEntries(
+  entryIds: string[]
+): Promise<ReceiptOrderSnapshot[]> {
   const { data, error } = await supabase
     .from('stripe_orders')
     .select(RECEIPT_ORDER_SELECT)
@@ -133,38 +192,13 @@ async function fetchEntryReceiptOrdersForEntries(entryIds: string[]): Promise<En
  */
 export interface DeepLinkedReceipt {
   order: EntryReceiptOrder;
-  /**
-   * Post-hoc refunds as the APP recorded them, summed over the order's entries.
-   *
-   * The same money `stripe_orders.refunded_cents` describes, written by a
-   * different actor at a different time: `stripe-refund-entry` sets
-   * `entries.refund_amount` synchronously, while `refunded_cents` is only ever
-   * written by the webhook's `recordOrderRefundCents` when Stripe delivers the
-   * event. A receipt read inside that window would state a gross with no
-   * refund while the My Payments row that linked to it — which derives from
-   * `entries.refund_amount` — already shows one.
-   */
-  entryRefundedCents: number;
 }
 
 async function fetchDeepLinkedReceipt(orderId: string): Promise<DeepLinkedReceipt | null> {
   const order = await fetchEntryReceiptOrder(orderId);
   if (!order) return null;
-  if (order.entryIds.length === 0) return { order, entryRefundedCents: 0 };
-
-  const { data, error } = await supabase
-    .from('entries')
-    .select('id, refund_amount')
-    .in('id', order.entryIds);
-  if (error) throw error;
-
-  // Same cents conversion useMyPayments applies, so the two screens round a
-  // fractional-dollar refund the same way.
-  const entryRefundedCents = ((data ?? []) as Array<{ refund_amount: number | null }>).reduce(
-    (sum, row) => sum + Math.round((row.refund_amount ?? 0) * 100),
-    0
-  );
-  return { order, entryRefundedCents };
+  const [resolved] = await withEntryRefunds([order]);
+  return resolved ? { order: resolved } : null;
 }
 
 export function useDeepLinkedReceiptOrder(orderId: string | null, viewerId: string | null) {
@@ -175,7 +209,7 @@ export function useDeepLinkedReceiptOrder(orderId: string | null, viewerId: stri
     // exhibitor signing in after another in the same tab could be served the
     // previous account's amount and payment reference from cache, with no
     // request made and therefore no RLS check.
-    queryKey: ['exhibitor', 'deep-linked-receipt-order', viewerId, orderId],
+    queryKey: ['exhibitor', 'deep-linked-receipt-order', viewerScope(viewerId), orderId],
     queryFn: () => fetchDeepLinkedReceipt(orderId!),
     enabled: Boolean(orderId),
     ...cacheStrategies.moderate,
@@ -198,9 +232,19 @@ export function useEntryReceiptOrders({
 }: UseEntryReceiptOrdersInput) {
   const stableEntryIds = [...entryIds].sort();
   return useQuery({
-    queryKey: ['exhibitor', 'entry-receipt-orders', viewerId, requestedOrderId, stableEntryIds],
+    queryKey: [
+      'exhibitor',
+      'entry-receipt-orders',
+      viewerScope(viewerId),
+      requestedOrderId,
+      stableEntryIds,
+    ],
     queryFn: async () => {
-      if (!requestedOrderId) return fetchEntryReceiptOrdersForEntries(stableEntryIds);
+      // Every branch returns through `withEntryRefunds`, so the dialog can
+      // never be handed an order whose entry-side refunds were not resolved.
+      if (!requestedOrderId) {
+        return withEntryRefunds(await fetchEntryReceiptOrdersForEntries(stableEntryIds));
+      }
 
       const requested = await fetchEntryReceiptOrder(requestedOrderId);
       // A deep-linked orderId outlives the dialog that used it. If it does not
@@ -208,8 +252,10 @@ export function useEntryReceiptOrders({
       // asking only for it would strand this one on a receipt with no charge
       // detail and nothing saying why. Fall through to discovery instead.
       const coversThisCard = requested?.entryIds.some(id => stableEntryIds.includes(id));
-      if (requested && coversThisCard) return [requested];
-      return stableEntryIds.length > 0 ? fetchEntryReceiptOrdersForEntries(stableEntryIds) : [];
+      if (requested && coversThisCard) return withEntryRefunds([requested]);
+      return stableEntryIds.length > 0
+        ? withEntryRefunds(await fetchEntryReceiptOrdersForEntries(stableEntryIds))
+        : [];
     },
     enabled: enabled && (Boolean(requestedOrderId) || stableEntryIds.length > 0),
     ...cacheStrategies.moderate,

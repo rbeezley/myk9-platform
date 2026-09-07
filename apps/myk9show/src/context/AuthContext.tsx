@@ -39,6 +39,7 @@ import {
 } from './authContextHelpers';
 import { toDbRoles, useRbacAdminActions, useRbacLifecycle } from './useRbacLifecycle';
 import { useClassHideCacheBoundary } from '@/services/replication/useClassHideCacheBoundary';
+import { useClearQueryCacheOnAccountChange } from '@/hooks/useClearQueryCacheOnAccountChange';
 
 export type { AuthContextType, UserRoleWithDetails } from './authContextTypes';
 
@@ -73,6 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // PRIOR user's entries whenever the authenticated user id changes so a
   // shared device never lists/restores another account's recent searches.
   useResetRecentSearchesOnAccountChange(auth.user?.id);
+
+  // Nothing recreated the QueryClient singleton on an auth change, so cached
+  // rows outlived the account that fetched them and the next account was
+  // served them without a request — and therefore without RLS (MYK9-429).
+  // Keyed on the auth user id, so a token refresh (a fresh User object for the
+  // same identity) clears nothing.
+  useClearQueryCacheOnAccountChange({
+    authReady: !auth.loading,
+    userId: auth.user?.id ?? null,
+  });
 
   // Mock user state for development testing
   const [currentMockUser, setCurrentMockUser] = useState<string | null>(() => {

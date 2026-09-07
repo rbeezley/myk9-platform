@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import { viewerScope } from '@/lib/viewerScopedQueryKey';
 import type { PaymentPresentationRefund } from './moneyPresentation';
+import { resolveOrderNetPaidCents } from './orderRefundReconciliation';
 import {
   ALL_PAYMENT_YEARS,
   listPaymentYears,
@@ -13,8 +15,12 @@ import { chunk } from '@/utils/chunkIds';
 
 const PAYMENT_ORDER_PAGE_SIZE = 100;
 const ENTRY_ID_CHUNK_SIZE = 100;
+// `refunded_cents` and `make_whole_refunded_cents` are not optional here. They
+// are the half of the refund record the ENTRIES never see — a Stripe dashboard
+// refund writes only these — so a ledger built without them understates what
+// came back on exactly the orders the receipt shows in full (MYK9-428).
 const ORDER_SELECT =
-  'id, amount_cents, currency, status, paid_at, refunded_at, created_at, stripe_payment_intent_id, entry_ids, show_id, show:show_id(name)';
+  'id, amount_cents, currency, status, paid_at, refunded_at, created_at, stripe_payment_intent_id, entry_ids, refunded_cents, make_whole_refunded_cents, show_id, show:show_id(name)';
 
 interface StripeOrderRow {
   id: string;
@@ -26,6 +32,8 @@ interface StripeOrderRow {
   created_at: string | null;
   stripe_payment_intent_id: string | null;
   entry_ids: string[] | null;
+  refunded_cents: number | null;
+  make_whole_refunded_cents: number | null;
   show_id: string | null;
   show: { name: string } | null;
 }
@@ -187,10 +195,14 @@ async function fetchEntryRefundDates(entryIds: string[]): Promise<Array<string |
  * enabled only while a year is selected: it pages date/id metadata and chunks
  * entry IDs, retaining picker options without re-fetching unbounded amounts or
  * full order payloads.
+ *
+ * `viewerId` is required, not optional: these years are derived from one
+ * account's own orders, and a caller that could omit the viewer would omit it
+ * (MYK9-429). Pass `useViewerId()`.
  */
-export function useMyPaymentYears(enabled: boolean) {
+export function useMyPaymentYears(enabled: boolean, viewerId: string | null) {
   return useQuery({
-    queryKey: ['exhibitor', 'my-payment-years'],
+    queryKey: ['exhibitor', 'my-payment-years', viewerScope(viewerId)],
     queryFn: async (): Promise<string[]> => {
       const orders = await fetchPaymentYearMetadataOrders();
       const entryIds = [...new Set(orders.flatMap(order => order.entry_ids ?? []))];
@@ -231,6 +243,16 @@ export interface MyPayment {
   refundedAt: string | null;
   /** entries this payment covers — drives the "View entries" receipt link. */
   entryIds: string[];
+  /**
+   * `stripe_orders.refunded_cents` / `make_whole_refunded_cents`, verbatim.
+   *
+   * REQUIRED, unlike the optional fields of `PaymentPresentationSource`: this
+   * is the only producer of a `MyPayment`, so making them required is what
+   * stops the columns being dropped at the last hop and the ledger quietly
+   * reverting to an entries-only refund total.
+   */
+  refundedCents: number;
+  makeWholeRefundedCents: number;
   /** Synthetic entry-level refund rows; current data stores refunds on entries. */
   refunds: PaymentPresentationRefund[];
 }
@@ -240,10 +262,19 @@ export interface MyPayment {
  * directly — RLS scopes rows to the caller (customer_id → stripe_customers.person_id
  * = get_my_person_id()), so no explicit owner filter is needed here. The show name
  * is embedded via the show_id FK (null for non-entry orders).
+ *
+ * `viewerId` is a REQUIRED argument, not a nicety. The QueryClient is a module
+ * singleton, so an unscoped key held this account's amounts, references and
+ * show names for whoever signed in next on the same tab, served from cache with
+ * no request and therefore no RLS (MYK9-429). Required so a call site cannot
+ * drop it silently; pass `useViewerId()`.
  */
-export function useMyPayments(selection: PaymentYearSelection = ALL_PAYMENT_YEARS) {
+export function useMyPayments(
+  selection: PaymentYearSelection = ALL_PAYMENT_YEARS,
+  viewerId: string | null
+) {
   return useQuery({
-    queryKey: ['exhibitor', 'my-payments', selection],
+    queryKey: ['exhibitor', 'my-payments', viewerScope(viewerId), selection],
     queryFn: async (): Promise<MyPayment[]> => {
       const orders = await fetchOrders(selection);
       const entryIds = [...new Set(orders.flatMap(o => o.entry_ids ?? []))];
@@ -290,12 +321,24 @@ export function useMyPayments(selection: PaymentYearSelection = ALL_PAYMENT_YEAR
           showId: o.show_id ?? recoveredShow?.id ?? null,
           showName: (o.show as { name: string } | null)?.name ?? recoveredShow?.name ?? null,
           amountCents,
-          netPaidCents: Math.max(0, amountCents - entryRefundCents),
+          // The shared derivation, not a third copy: this figure has to agree
+          // with the receipt for the same order. Unclamped, because a resolved
+          // refund larger than the gross is a data fault worth seeing rather
+          // than a zero that reads as "nothing happened" (MYK9-428).
+          netPaidCents: resolveOrderNetPaidCents({
+            amountCents,
+            status: o.status ?? 'unknown',
+            refundedCents: o.refunded_cents ?? 0,
+            makeWholeRefundedCents: o.make_whole_refunded_cents ?? 0,
+            entryRefundedCents: entryRefundCents,
+          }),
           currency: o.currency ?? 'usd',
           status: o.status ?? 'unknown',
           reference: o.stripe_payment_intent_id,
           refundedAt: o.refunded_at ?? null,
           entryIds: o.entry_ids ?? [],
+          refundedCents: o.refunded_cents ?? 0,
+          makeWholeRefundedCents: o.make_whole_refunded_cents ?? 0,
           refunds: (o.entry_ids ?? [])
             .map(entryId => refundDetailsByEntryId.get(entryId))
             .filter((refund): refund is PaymentPresentationRefund => Boolean(refund)),

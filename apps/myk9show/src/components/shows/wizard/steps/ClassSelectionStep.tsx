@@ -201,6 +201,21 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     [currentTrialState.selectedClasses, currentTrialState.selectedTemplate]
   );
 
+  // MYK9-389: selections carried in from a clone that the template does not know by
+  // name. The merge above keys on element|level|section, so such a class DISPLACES the
+  // template definition it was renamed from and would otherwise render under that
+  // class's bare level — presenting a custom class as the standard one.
+  const customClassNames = useMemo(() => {
+    const template = currentTrialState.selectedTemplate;
+    if (!template) return [];
+    const templateClassNames = new Set(
+      (template.classDefinitions || []).map(definition => definition.className)
+    );
+    return currentTrialState.selectedClasses
+      .map(definition => definition.className)
+      .filter(className => !templateClassNames.has(className));
+  }, [currentTrialState.selectedClasses, currentTrialState.selectedTemplate]);
+
   // Filter DB existing classes to the current trial for the SimpleClassSelector prop
   const existingClassesForTrial = useMemo(() => {
     if (existingDBClasses.length === 0 || !currentTrialId) return [];
@@ -368,9 +383,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         <div className="max-w-5xl mx-auto space-y-6 px-4">
           {/* Classes Header */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-foreground">
-              Classes ({totalClasses})
-            </h3>
+            <h3 className="text-lg font-semibold text-foreground">Classes ({totalClasses})</h3>
           </div>
 
           {/* Template Selection Alert for No Templates */}
@@ -519,6 +532,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       <CardContent>
                         <SimpleClassSelector
                           template={currentTemplateWithRetainedClasses}
+                          customClassNames={customClassNames}
                           selectedClasses={currentTrialState.selectedClasses}
                           onSelectionChange={handleClassSelectionChange}
                           existingClasses={existingClassesForTrial}

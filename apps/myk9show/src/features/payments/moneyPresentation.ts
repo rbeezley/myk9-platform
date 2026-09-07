@@ -1,3 +1,10 @@
+import { resolveOrderRefundedCents } from './orderRefundReconciliation';
+import { isRefundedPaymentStatus } from './paymentStatusLabels';
+
+// Re-exported so every existing importer keeps one place to reach the status
+// vocabulary; the definitions moved to a leaf module to break an import cycle.
+export { isRefundedPaymentStatus, paymentStatusLabel } from './paymentStatusLabels';
+
 export interface PaymentPresentationRefund {
   entryId: string;
   amountCents: number;
@@ -18,6 +25,16 @@ export interface PaymentPresentationSource {
   refundedAt?: string | null;
   entryIds: string[];
   refunds?: PaymentPresentationRefund[];
+  /**
+   * `stripe_orders.refunded_cents` — the refund total as the WEBHOOK recorded
+   * it. Optional only so hand-built fixtures stay readable; `useMyPayments`
+   * declares both columns as required fields on `MyPayment`, so the production
+   * producer cannot drop them silently. Omitting them here loses only the
+   * webhook-ahead reconciliation row, never a refund the entries already carry.
+   */
+  refundedCents?: number;
+  /** `stripe_orders.make_whole_refunded_cents` — the cart-overflow auto-refund. */
+  makeWholeRefundedCents?: number;
 }
 
 export type PaymentDisplayRowKind = 'charge' | 'refund';
@@ -61,10 +78,6 @@ export function isSettlingPaymentStatus(status: string): boolean {
   return SETTLING_STATUSES.has(status.toLowerCase());
 }
 
-export function isRefundedPaymentStatus(status: string): boolean {
-  return status.toLowerCase() === 'refunded';
-}
-
 export function formatPaymentCents(cents: number, currency: string): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -81,18 +94,6 @@ export function formatPaymentDate(iso: string | null): string {
     month: 'short',
     day: 'numeric',
   });
-}
-
-export function paymentStatusLabel(status: string): string {
-  const s = status.toLowerCase();
-  if (s === 'succeeded' || s === 'paid') return 'Paid';
-  if (s === 'refunded') return 'Refunded';
-  if (s === 'failed') return 'Failed';
-  if (s === 'cancelled' || s === 'canceled') return 'Cancelled';
-  if (s === 'pending') return 'Pending';
-  if (s === 'processing') return 'Processing';
-  if (s === 'unknown' || s === '') return 'Unknown';
-  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 /**
@@ -118,6 +119,79 @@ function comparePaymentRowsByDate(a: PaymentDisplayRow, b: PaymentDisplayRow): n
   if (aBad) return 1;
   if (bBad) return -1;
   return bt - at;
+}
+
+/**
+ * The part of an order's resolved refund that no row above has already stated.
+ *
+ * The ledger's refund rows come from `entries.refund_amount` (or, on the legacy
+ * path, from the whole gross). Neither sees a refund only
+ * `stripe_orders.refunded_cents` carries — a Stripe DASHBOARD refund, which
+ * never touches the entries — so before MYK9-428 the ledger silently
+ * understated it while the receipt for the same order showed it in full.
+ *
+ * Emitting the REMAINDER rather than replacing the rows is what keeps the four
+ * cart-overflow orders on staging unchanged: their gross is already stated as a
+ * refund by the legacy branch, the shared derivation resolves to exactly that
+ * gross, and the remainder is zero. Double-counting would need the remainder to
+ * restate money a row above already carries, which by construction it cannot.
+ */
+function unreconciledRefundCents(
+  payment: PaymentPresentationSource,
+  alreadyStatedCents: number
+): number {
+  // `entryRefundedCents` is what the ENTRIES record, and `alreadyStatedCents`
+  // is what the rows above already print. They coincide on the normal path and
+  // must NOT be conflated: on the legacy path the rows state the whole gross
+  // while the entries record nothing, and feeding the gross in as an entry
+  // refund makes the resolver add it to `makeWholeRefundedCents` — which
+  // reported twice the money back on exactly the four cart-overflow orders this
+  // change had to leave alone.
+  const resolved = resolveOrderRefundedCents({
+    amountCents: payment.amountCents,
+    status: payment.status,
+    refundedCents: payment.refundedCents ?? 0,
+    makeWholeRefundedCents: payment.makeWholeRefundedCents ?? 0,
+    entryRefundedCents: entryRefundedCentsOf(payment),
+  });
+  return Math.max(0, resolved - alreadyStatedCents);
+}
+
+/** What `entries.refund_amount` records for this order, per the refund rows. */
+function entryRefundedCentsOf(payment: PaymentPresentationSource): number {
+  return (payment.refunds ?? []).reduce((sum, refund) => sum + Math.abs(refund.amountCents), 0);
+}
+
+/** Zero or one reconciliation row, so both branches can spread it inline. */
+function appendUnreconciledRefund(
+  payment: PaymentPresentationSource,
+  alreadyStatedCents: number
+): PaymentDisplayRow[] {
+  const remainder = unreconciledRefundCents(payment, alreadyStatedCents);
+  return remainder > 0 ? [unreconciledRefundRow(payment, remainder)] : [];
+}
+
+/** The reconciliation row for a refund only the order columns know about. */
+function unreconciledRefundRow(
+  payment: PaymentPresentationSource,
+  amountCents: number
+): PaymentDisplayRow {
+  return {
+    id: `${payment.id}:refund:unreconciled`,
+    orderId: payment.id,
+    kind: 'refund',
+    // Its own date when the order carries one. A cash-basis year must file the
+    // refund under the year it happened, not the year the charge was made.
+    date: payment.refundedAt ?? payment.date,
+    showId: payment.showId,
+    showName: payment.showName,
+    description: 'Refund',
+    amountCents: -Math.abs(amountCents),
+    currency: payment.currency,
+    status: 'refunded',
+    reference: payment.reference,
+    entryIds: payment.entryIds,
+  };
 }
 
 export function buildPaymentDisplayRows(
@@ -162,6 +236,7 @@ export function buildPaymentDisplayRows(
           reference: payment.reference,
           entryIds: payment.entryIds,
         },
+        ...appendUnreconciledRefund(payment, payment.amountCents),
       ];
     }
 
@@ -199,7 +274,8 @@ export function buildPaymentDisplayRows(
         entryIds: [refund.entryId],
       })) ?? [];
 
-    return [chargeRow, ...refundRows];
+    const statedRefundCents = refundRows.reduce((sum, row) => sum + Math.abs(row.amountCents), 0);
+    return [chargeRow, ...refundRows, ...appendUnreconciledRefund(payment, statedRefundCents)];
   });
 
   return rows.sort(comparePaymentRowsByDate);

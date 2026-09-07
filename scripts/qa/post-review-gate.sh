@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# The ONLY writer of `Review gate:` evidence comments. An agent that ran a
+# review calls this with the log; an agent that did not has no log to hash.
+# Format contract: line 1 is the evidence line scripts/qa/review-gate.ts
+# parses; line 2 is the sha256 of the review log; the rest is the verdict
+# block, fenced, so the PR carries what the reviewer actually said.
+#
+# Usage: post-review-gate.sh <pr> <codex|claude> <base-sha> <head-sha> "<verdict>" <log>
+# Exit:  0 posted · 2 refused (bad verdict grammar or empty log); nothing posted
+set -euo pipefail
+PR="$1"; REVIEWER="$2"; BASE="$3"; HEAD="$4"; VERDICT="$5"; LOG="$6"
+GH="${GH_BIN:-gh}"
+
+case "$REVIEWER" in codex|claude) ;; *) echo "post-review-gate: reviewer must be codex or claude" >&2; exit 2;; esac
+# ONE grammar: ask the parser that will judge the comment, never a copied regex.
+if ! node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+    "$(dirname "$0")/review-gate.ts" --verdict "$VERDICT"; then
+  echo "post-review-gate: verdict '$VERDICT' is outside the gate grammar (review-gate.ts CLEAN_VERDICT); nothing posted" >&2
+  exit 2
+fi
+if [ ! -s "$LOG" ]; then
+  echo "post-review-gate: log '$LOG' is empty or missing; nothing posted" >&2
+  exit 2
+fi
+HASH="$(shasum -a 256 "$LOG" | cut -d' ' -f1)"
+# Codex logs carry a `codex` marker line before the verdict; `claude -p` output
+# has no marker, so the whole log is the verdict. Never a `tail`: a long clean
+# Claude review would lose its opening contract sentence and be refused
+# (Codex review of #2110, round 9).
+VERDICT_BLOCK="$(awk '/^codex$/{f=1; next} f' "$LOG")"
+[ -n "$VERDICT_BLOCK" ] || VERDICT_BLOCK="$(cat "$LOG")"
+
+# The log must SUPPORT the verdict. The poster is reachable without the Codex
+# wrapper (the Claude path calls it directly), so it re-checks what the wrapper
+# checks: an interrupted or incomplete review is never evidence, and "no
+# findings" needs a clean sentence in the log, not just a caller's say-so.
+if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" ||
+   printf '%s' "$VERDICT_BLOCK" | grep -Eiq '\bunable to complete the review\b|\breview (did not run|was interrupted)\b'; then
+  echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
+  exit 2
+fi
+# Both accepted verdicts describe a CLEAN final log: "N findings, all
+# addressed" means the reviewer was re-run on the fixed head and that re-run
+# came back clean, so the log it is posted with must pass the same checks
+# (Codex review of #2110, round 8). No verdict form skips them.
+{
+  if printf '%s' "$VERDICT_BLOCK" | grep -Eq '^\s*- \[P[0-9]\]'; then
+    echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
+    exit 2
+  fi
+  # Not free text: both review wrappers instruct the reviewer to open a clean
+  # verdict with the CONTRACT sentence "No actionable ..." and nothing else
+  # counts. "No findings yet; only the workflow file has been inspected" is a
+  # clean-looking sentence about an incomplete review, and any regex that
+  # guesses at completeness from prose will be fooled by the next phrasing
+  # (Codex review of #2110, round 7). Same first-paragraph rule as codex-review.sh.
+  FIRST_PARAGRAPH="$(printf '%s\n' "$VERDICT_BLOCK" | awk '
+    /^[[:space:]]*$/ { if (started) exit; next }
+    { printf "%s%s", started ? " " : "", $0; started=1 }
+  ')"
+  if ! { printf '%s' "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*No actionable\b' ||
+         printf '%s' "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
+    echo "post-review-gate: log does not support '$VERDICT' (first paragraph lacks the contract sentence 'No actionable ...'); nothing posted" >&2
+    exit 2
+  fi
+}
+BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
+  "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
+"$GH" pr comment "$PR" --body "$BODY"
+echo "post-review-gate: posted '$VERDICT' for ${HEAD:0:9} on #$PR (log sha256 ${HASH:0:12})"

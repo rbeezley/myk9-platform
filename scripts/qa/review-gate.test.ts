@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -315,6 +316,55 @@ describe('flattenPages', () => {
 
   it('tolerates a single un-slurped page', () => {
     expect(flattenPages<{ a: number }>('[{"a":1}]')).toEqual([{ a: 1 }]);
+  });
+});
+
+describe('--verdict CLI mode', () => {
+  // scripts/qa/post-review-gate.sh asks this script whether a verdict is inside
+  // the grammar, so the poster and the checker can never drift. Spawn it for
+  // real: an in-process CLEAN_VERDICT.test() would prove the regex, not the CLI.
+  const SCRIPT = resolve(import.meta.dirname, 'review-gate.ts');
+  function verdictExit(text: string): number {
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          '--disable-warning=MODULE_TYPELESS_PACKAGE_JSON',
+          SCRIPT,
+          '--verdict',
+          text,
+        ],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+      );
+      return 0;
+    } catch (error) {
+      return (error as { status: number }).status;
+    }
+  }
+
+  it.each(['no findings', '2 findings, all addressed', '1 findings, all fixed'])(
+    'exits 0 on the accepted verdict %j',
+    text => {
+      expect(verdictExit(text)).toBe(0);
+    }
+  );
+
+  it.each([
+    // ship-pr documented `finding(s)` as accepted; CLEAN_VERDICT never was.
+    '1 finding(s), all addressed',
+    'no findings yet',
+    'no blocking findings',
+    '2 findings, not all addressed',
+    '',
+  ])('exits 2 on the rejected verdict %j', text => {
+    expect(verdictExit(text)).toBe(2);
+  });
+
+  it('does not require PR_NUMBER/REPO to answer a verdict question', () => {
+    // The verdict check runs before runCli's env validation; a poster that had
+    // to set PR_NUMBER just to validate a string would drift from the parser.
+    expect(verdictExit('no findings')).toBe(0);
   });
 });
 

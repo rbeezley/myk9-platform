@@ -49,6 +49,68 @@ function run(stub: { bin: string; log: string }): { code: number; out: string } 
   }
 }
 
+/**
+ * `--post` makes the wrapper a writer, so the posting paths get the same
+ * treatment: a stub `gh` records every invocation and we assert what reached
+ * the PR. `pr view --json number` answers 7; `pr view 7 --json comments`
+ * answers the wrapper's own earlier findings comments (jq already applied by
+ * the real gh, so the stub prints the joined text).
+ */
+function stubGh(opts: { commentExit?: number; prior?: string } = {}): {
+  bin: string;
+  calls: string;
+} {
+  const dir = mkdtempSync(join(tmpdir(), 'gh-stub-'));
+  dirs.push(dir);
+  const calls = join(dir, 'calls.log');
+  const prior = join(dir, 'prior.txt');
+  const bin = join(dir, 'gh');
+  writeFileSync(prior, opts.prior ?? '');
+  writeFileSync(
+    bin,
+    `#!/usr/bin/env bash
+printf '%s\\n' "$@" >> '${calls}'
+printf -- '---\\n' >> '${calls}'
+case "$1 $2" in
+  'pr view') if [ "$3" = '--json' ]; then echo 7; else cat '${prior}'; fi ;;
+  'pr comment') exit ${opts.commentExit ?? 0} ;;
+esac
+`
+  );
+  chmodSync(bin, 0o755);
+  return { bin, calls };
+}
+
+function runPost(
+  stub: { bin: string; log: string },
+  gh: { bin: string },
+  args: string[] = ['HEAD', '--post']
+): { code: number; out: string } {
+  try {
+    const out = execFileSync('bash', [SCRIPT, ...args], {
+      encoding: 'utf8',
+      env: { ...process.env, CODEX_BIN: stub.bin, CODEX_REVIEW_LOG: stub.log, GH_BIN: gh.bin },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { code: 0, out };
+  } catch (error) {
+    const e = error as { status: number; stdout: string; stderr: string };
+    return { code: e.status, out: `${e.stdout}${e.stderr}` };
+  }
+}
+
+/** Every `--body` argument the stub `gh` was handed, in order. */
+function bodies(callsPath: string): string[] {
+  return readFileSync(callsPath, 'utf8')
+    .split('\n---\n')
+    .filter(Boolean)
+    .flatMap(call => {
+      const lines = call.split('\n');
+      const i = lines.indexOf('--body');
+      return i < 0 ? [] : [lines.slice(i + 1).join('\n')];
+    });
+}
+
 describe('codex-review.sh', () => {
   it('instructs an explicit verdict while retaining whole-branch review', () => {
     const stub = stubCodex('codex\nNo actionable defects found.');
@@ -211,6 +273,78 @@ describe('codex-review.sh', () => {
     const r = run(stubCodex('codex\nNo actionable defects found.\n\n- [P1] A defect'));
     expect(r.code).toBe(1);
     expect(r.out).not.toContain('Review gate: codex reviewed');
+  });
+
+  it('--post on a clean review posts evidence through the poster, never by hand', () => {
+    const stub = stubCodex('codex\nNo actionable defects found.');
+    const gh = stubGh();
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(0);
+    const posted = bodies(gh.calls);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatch(
+      /^Review gate: codex reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — no findings\nlog sha256: [0-9a-f]{64}\n/
+    );
+    // The poster carries what the reviewer actually said, not just a claim.
+    expect(posted[0]).toContain('No actionable defects found.');
+  });
+
+  it('--post on findings posts them as a NON-evidence comment and still exits 1', () => {
+    const stub = stubCodex(['codex', 'Two problems.', '', '- [P2] Something is wrong'].join('\n'));
+    const gh = stubGh();
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(1);
+    const posted = bodies(gh.calls);
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatch(/^Codex findings for [0-9a-f]{9} \(not gate evidence\):/);
+    // review-gate.ts only reads a comment whose FIRST line is the evidence line.
+    expect(posted[0].split('\n')[0]).not.toMatch(/^Review gate:/);
+    expect(posted[0]).toContain('[P2] Something is wrong');
+  });
+
+  it('counts N from its own earlier findings comments, not from a typed number', () => {
+    const stub = stubCodex('codex\nNo actionable defects found.');
+    const gh = stubGh({
+      prior: 'Codex findings for abc123456 (not gate evidence):\n\n- [P1] one\n- [P3] two\n',
+    });
+    expect(runPost(stub, gh).code).toBe(0);
+    expect(bodies(gh.calls)[0]).toMatch(
+      /^Review gate: codex reviewed \S+ — 2 findings, all addressed\n/
+    );
+  });
+
+  it('exits 2 when the review was clean but the evidence did NOT get posted', () => {
+    // Without this the wrapper falls through to exit 0 and the agent reports a
+    // gate that nothing recorded — the exact hole the poster exists to close.
+    const stub = stubCodex('codex\nNo actionable defects found.');
+    const gh = stubGh({ commentExit: 1 });
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('NOT posted');
+  });
+
+  it('treats a pnpm-forwarded `--` as a flag, not as the base ref', () => {
+    // `pnpm qa:codex-review -- --post` hands the script a bare `--`; indexing
+    // $1 made that the base ref and `git rev-parse --` decided the run.
+    const stub = stubCodex('codex\nNo actionable defects found.');
+    const gh = stubGh();
+    expect(runPost(stub, gh, ['--', '--post']).code).toBe(0);
+    const args = readFileSync(stub.args, 'utf8').trimEnd().split('\n');
+    expect(args.slice(0, 3)).toEqual(['review', '--base', 'origin/main']);
+    expect(args[2]).not.toBe('--');
+  });
+
+  it('without --post it writes nothing to the PR', () => {
+    const stub = stubCodex('codex\nNo actionable defects found.');
+    const gh = stubGh();
+    expect(
+      execFileSync('bash', [SCRIPT, 'HEAD'], {
+        encoding: 'utf8',
+        env: { ...process.env, CODEX_BIN: stub.bin, CODEX_REVIEW_LOG: stub.log, GH_BIN: gh.bin },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    ).toContain('post-review-gate.sh');
+    expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
   });
 
   it('always reviews the branch against a base, never a single commit', () => {

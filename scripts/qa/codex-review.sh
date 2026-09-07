@@ -16,15 +16,32 @@
 # the exact evidence line `scripts/qa/review-gate.ts` accepts, but only when the
 # verdict is clean; with findings it prints them and tells you to re-run.
 #
-# Usage: scripts/qa/codex-review.sh [base-ref]      (default: origin/main)
+# With --post it also WRITES to the PR: findings go up as a `Codex findings for
+# <head>` comment (never evidence — it does not begin `Review gate:`), and a
+# clean verdict is posted by scripts/qa/post-review-gate.sh, the only writer of
+# evidence comments. Nobody types an evidence line by hand.
+#
+# Usage: scripts/qa/codex-review.sh [base-ref] [--post]   (default: origin/main)
+#        pnpm qa:codex-review --post                      (no `--`: see the parser)
 # Env:   CODEX_BIN  override the codex executable (tests use a stub)
+#        GH_BIN     override the gh executable (tests use a stub)
 # Exit:  0 review ran and found nothing actionable
 #        1 review ran and reported findings (fix, re-run against the new head)
 #        2 review did NOT complete (usage limit, interrupted, cli failure, or
 #          unrecognized output) — not a verdict, never post evidence
 set -uo pipefail
 
-BASE_REF="${1:-origin/main}"
+# `--post` is a flag, not a base ref, and pnpm forwards a bare `--` to the
+# script — `pnpm qa:codex-review -- --post` would otherwise review base `--`
+# and die in `git rev-parse`. Parse instead of indexing $1.
+BASE_REF="origin/main"
+for arg in "$@"; do
+  case "$arg" in --post | --) ;; *) BASE_REF="$arg" ;; esac
+done
+POST=0
+for arg in "$@"; do [ "$arg" = "--post" ] && POST=1; done
+GH="${GH_BIN:-gh}"
+POSTER="$(dirname "$0")/post-review-gate.sh"
 CODEX="${CODEX_BIN:-codex}"
 BASE_SHA="$(git rev-parse "$BASE_REF")"
 HEAD_SHA="$(git rev-parse HEAD)"
@@ -59,6 +76,14 @@ echo "$VERDICT"
 if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."
+  # Findings belong ON the PR: without this they existed only in a local log,
+  # and the PR carried nothing but "12 findings, all addressed". This comment
+  # never begins with `Review gate:`, so review-gate.ts never reads it as
+  # evidence — and the clean re-run counts its [P*] bullets for the N.
+  if [ "$POST" = 1 ]; then
+    PR="$("$GH" pr view --json number -q .number)"
+    "$GH" pr comment "$PR" --body "$(printf 'Codex findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"
+  fi
   exit 1
 fi
 
@@ -108,7 +133,25 @@ if ! { echo "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*no actionable\b' ||
   exit 2
 fi
 
-echo
-echo "codex-review: clean. Post this as the FIRST line of a PR comment:"
-echo "Review gate: codex reviewed ${BASE_SHA:0:9}..${HEAD_SHA:0:9} — no findings"
+VERDICT_LINE="no findings"
+if [ "$POST" = 1 ]; then
+  PR="$("$GH" pr view --json number -q .number)"
+  # N comes from the wrapper's OWN earlier findings comments on this PR, so
+  # "N findings, all addressed" is counted from what was posted, not typed.
+  PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Codex findings for"))] | join("\n")')"
+  N="$(printf '%s' "$PRIOR" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+  [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
+  # The wrapper runs without errexit; a poster failure (grammar refusal, gh
+  # error) must not fall through to exit 0 as if evidence had been posted.
+  if ! bash "$POSTER" "$PR" codex "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
+    echo "codex-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
+    exit 2
+  fi
+else
+  echo
+  echo "codex-review: clean. Do NOT type the evidence by hand — re-run with --post, or:"
+  echo "  bash scripts/qa/post-review-gate.sh <pr> codex ${BASE_SHA:0:9} ${HEAD_SHA:0:9} \"$VERDICT_LINE\" $LOG"
+  # The line the poster will write, printed so a human can see what is claimed.
+  echo "Review gate: codex reviewed ${BASE_SHA:0:9}..${HEAD_SHA:0:9} — no findings"
+fi
 exit 0

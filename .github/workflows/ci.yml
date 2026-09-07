@@ -82,6 +82,7 @@ jobs:
               apps/myk9show/index.html|\
               apps/myk9show/package.json|\
               apps/myk9show/playwright.config.*|\
+              apps/myk9show/playwright.ci.config.ts|\
               apps/myk9show/vite.config.*|\
               packages/core/*|\
               packages/replication/*|\

@@ -29,7 +29,7 @@ A scheduled and manually dispatchable GitHub Actions workflow SHALL run the cura
 
 ### Requirement: PR smoke gates verified critical journeys
 
-The PR smoke job SHALL run connectivity, secretary regression proof, and secretary critical path specs. Only specs verified green under `playwright.ci.config.ts` may be promoted into PR smoke. Payment journeys are excluded until real (non-mock) specs exist (MYK9-42); at-show offline scoring runs scheduled-regression-only until its seed dependency is stable. This change SHALL NOT alter the PR-smoke spec set or its shared-staging read-only policy.
+The PR smoke job SHALL run connectivity, secretary regression proof, and secretary critical path specs. Only specs verified green under `playwright.ci.config.ts` may be promoted into PR smoke. Payment journeys are excluded until real (non-mock) specs exist (MYK9-42); at-show offline scoring runs scheduled-regression-only until its seed dependency is stable. Altering the PR-smoke spec set SHALL require both the verification above and a matching row in `docs/qa/e2e-suite-map.md`, which `qa:e2e-map:check` cross-checks against `PR_SMOKE_SPECS`. The shared-staging read-only policy SHALL NOT change.
 
 #### Scenario: Secretary critical-path regression on a PR
 

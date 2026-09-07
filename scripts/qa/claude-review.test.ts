@@ -315,6 +315,39 @@ describe('claude-review.sh', () => {
     expect(out).toContain('verdict contract');
   });
 
+  it("recognizes Claude's bold-bracket findings (`- **[P2]**`) as findings, not as unrecognized output", () => {
+    // Verbatim shape from the 2026-09-07 ten-minute review of #2124, which the
+    // plain `- [P2]` matcher discarded as "unrecognized output".
+    const stub = stubClaude(
+      [
+        '- **[P2]** `supabase/migrations/20260907150000_add_missing_fk_leading_indexes.sql:8` — covers three of the five FKs.',
+        '',
+        '- **[P3]** `apps/myk9show/src/components/shows/browse/monthScrubber.helpers.ts:126` — recovered tile re-prints the year.',
+        '',
+        'Checked and found sound (no finding): the int2vector predicate is correct.',
+      ].join('\n')
+    );
+    const gh = stubGh();
+    const r = run(stub, gh, ['--post', '7']);
+    expect(r.code).toBe(1);
+    const posted = bodies(gh.calls);
+    expect(posted.some(b => b.startsWith('Claude findings for'))).toBe(true);
+    expect(
+      posted.some(
+        b => b.startsWith('Review gate: claude reviewed') && b.includes('2 findings, not addressed')
+      )
+    ).toBe(true);
+  });
+
+  it('a trailing --wait with no duration is a usage error (exit 2), not a synchronous review', () => {
+    const stub = stubClaude('No actionable defects found.');
+    const gh = stubGh();
+    const r = run(stub, gh, ['7', '--wait']);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('--wait needs a number');
+    expect(existsSync(stub.args)).toBe(false); // claude was never invoked
+  });
+
   describe('--detach / --wait (a per-command timeout must never kill the review)', () => {
     it('--wait with nothing detached is exit 2, not a verdict', () => {
       const stub = stubClaude('No actionable defects found.');

@@ -130,6 +130,11 @@ function bodies(callsPath: string): string[] {
 }
 
 describe('codex-review.sh', () => {
+  it('counts bold-bracket bullets (`- **[P1]**`) as findings', () => {
+    const stub = stubCodex('codex\n- **[P1]** bold-bracket finding\n');
+    expect(run(stub).code).toBe(1);
+  });
+
   it('instructs an explicit verdict while retaining whole-branch review', () => {
     const stub = stubCodex('codex\nNo actionable defects found.');
     expect(run(stub).code).toBe(0);

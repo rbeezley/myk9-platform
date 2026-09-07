@@ -59,6 +59,10 @@ for arg in "$@"; do
     *) PR="$arg"; CHILD_ARGS+=("$arg") ;;
   esac
 done
+if [ "$expect_wait" = 1 ]; then
+  echo "claude-review: --wait needs a number of seconds (usage: --wait <seconds> [pr-number])" >&2
+  exit 2
+fi
 [ -n "$PR" ] || PR="$("$GH" pr view --json number -q .number)"
 if [ -z "$PR" ]; then
   echo "claude-review: no PR number given and gh could not find one" >&2
@@ -149,7 +153,7 @@ echo "$VERDICT"
 # reported a defect and then hit a blocker has still reported a defect, and
 # exiting 2 here would leave an already-green gate green over it (Codex review
 # of #2115, round 5).
-if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
+if echo "$VERDICT" | grep -Eq "$REVIEW_FINDING_BULLET"; then
   echo
   echo "claude-review: findings above. Fix them, commit, and re-run — the evidence is for the NEW head."
   if [ "$POST" = 1 ]; then
@@ -162,7 +166,7 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
     # Withdraw any earlier clean evidence for this head: a findings comment is
     # not read by review-gate.ts, so the gate would stay green over defects
     # someone just reported (Codex review of #2115, round 3).
-    FOUND="$(echo "$VERDICT" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+    FOUND="$(echo "$VERDICT" | grep -cE "$REVIEW_FINDING_BULLET" || true)"
     if ! bash "$POSTER" --withdraw "$PR" claude "$BASE_SHA" "$HEAD_SHA" "${FOUND} findings, not addressed" "$LOG"; then
       echo "claude-review: findings posted, but the earlier clean evidence for this head could NOT be withdrawn. Exit 2 — check the gate status by hand." >&2
       exit 2
@@ -206,7 +210,7 @@ if [ "$POST" = 1 ]; then
     echo "claude-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
     exit 2
   fi
-  N="$(printf '%s' "$PRIOR" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+  N="$(printf '%s' "$PRIOR" | grep -cE "$REVIEW_FINDING_BULLET" || true)"
   [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   if ! bash "$POSTER" "$PR" claude "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
     echo "claude-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2

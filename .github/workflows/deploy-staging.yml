@@ -1,5 +1,12 @@
 name: Deploy Staging
 
+# DORMANT: STAGING_RELEASE_ENABLED is unset, so every run of this workflow is
+# skipped and the release refs are frozen at 5975adadb (2026-07-27). Enabling
+# it is MYK9-44, sequenced with the Stripe live cutover (MYK9-11). Until then
+# this file is the launch design, not the deploy path -- Vercel deploys every
+# push to main directly, ungated. See docs/operations/ci-vercel-deploys.md
+# "Current pre-launch mode".
+#
 # Successful main CI promotes the exact validated SHA to protected release
 # refs. Vercel Git branch tracking performs the staging/guides deployments;
 # this automatic workflow never receives a Vercel access token.

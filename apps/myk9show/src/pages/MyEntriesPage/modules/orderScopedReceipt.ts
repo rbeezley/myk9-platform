@@ -1,4 +1,5 @@
 import type { EntryReceiptOrder } from '@/features/payments/entryReceiptOrder';
+import { resolveOrderRefundedCents } from '@/features/payments/orderRefundReconciliation';
 import type { MyEntry } from './my-entries-types';
 
 export interface OrderScopedReceiptEntry extends MyEntry {
@@ -25,10 +26,14 @@ export interface OrderScopedReceiptEntry extends MyEntry {
 
 /** True once any money came back, whether post-hoc or as a cart overflow. */
 export function orderHasRefund(order: EntryReceiptOrder): boolean {
-  // Read the refund COLUMNS, never `status`: orderSnapshot.ts records that a
-  // partially refunded order keeps status = 'succeeded', so a status check
-  // reports "Paid" over money that was returned.
-  return order.refundedCents > 0 || order.makeWholeRefundedCents > 0;
+  // Never `status`: orderSnapshot.ts records that a partially refunded order
+  // keeps status = 'succeeded', so a status check reports "Paid" over money
+  // that was returned. And never the ORDER COLUMNS alone, which is what this
+  // did until MYK9-428 — an app refund writes `entries.refund_amount`
+  // synchronously and `stripe_orders.refunded_cents` only when the webhook
+  // lands, so inside that window the dialog reported no refund while the My
+  // Payments row that linked to it already showed one.
+  return resolveOrderRefundedCents(order) > 0;
 }
 
 /**
@@ -85,7 +90,10 @@ export function buildOrderScopedReceipt(
   const platformFeeCents =
     order.platformFeeCents ??
     Math.max(0, order.amountCents - entrySubtotalCents - overflowChargedCents);
-  const refundedCents = order.refundedCents + order.makeWholeRefundedCents;
+  // The SAME derivation `buildScopedPaymentFacts` and the My Payments ledger
+  // use — see `orderRefundReconciliation`. This line previously read the order
+  // columns alone and was the second copy MYK9-428 exists to remove.
+  const refundedCents = resolveOrderRefundedCents(order);
 
   return {
     ...entry,

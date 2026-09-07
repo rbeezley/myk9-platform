@@ -109,7 +109,7 @@ export function ScopedPaymentSummary({ viewerId }: ScopedPaymentSummaryProps) {
     );
   }
 
-  const facts = buildScopedPaymentFacts(receipt.data.order, receipt.data.entryRefundedCents);
+  const facts = buildScopedPaymentFacts(receipt.data.order);
 
   return (
     <PanelShell>

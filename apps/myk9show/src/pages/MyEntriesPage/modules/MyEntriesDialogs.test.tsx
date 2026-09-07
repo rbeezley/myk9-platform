@@ -14,6 +14,7 @@ vi.mock('@/features/payments/entryReceiptOrder', () => ({
 }));
 
 import { ReceiptEntryDialog } from './MyEntriesDialogs';
+import { buildScopedPaymentFacts } from './scopedPaymentFacts';
 
 const splitRegistration: MyEntry = {
   id: 'entry-a',
@@ -55,6 +56,7 @@ const receiptOrders = [
     refundedCents: 0,
     makeWholeRefundedCents: 0,
     refundedAt: null,
+    entryRefundedCents: 0,
   },
   {
     id: 'order-2',
@@ -70,6 +72,7 @@ const receiptOrders = [
     refundedCents: 0,
     makeWholeRefundedCents: 0,
     refundedAt: null,
+    entryRefundedCents: 0,
   },
 ];
 
@@ -216,7 +219,10 @@ describe('ReceiptEntryDialog order resolution', () => {
       { initialRoute: '/exhibitor/entries?orderId=order-1' }
     );
 
-    expect(screen.getByText(label)).toBeInTheDocument();
+    // `getAllByText`: a legacy `status = 'refunded'` order now also prints a
+    // "Refunded" amount row, because the shared derivation reads that status as
+    // a full refund exactly as the My Payments ledger always has (MYK9-428).
+    expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     expect(screen.queryByText('Paid')).not.toBeInTheDocument();
   });
 
@@ -357,6 +363,67 @@ describe('ReceiptEntryDialog order resolution', () => {
     expect(screen.getByText('-$20.00')).toBeInTheDocument();
     expect(screen.getByText('Net paid')).toBeInTheDocument();
     expect(screen.getByText('$45.00')).toBeInTheDocument();
+  });
+
+  /**
+   * AC1/AC3 of MYK9-428, asserted through a RENDER rather than through the pure
+   * function.
+   *
+   * `buildScopedPaymentFacts` is what the My Payments "Receipt" deep link lands
+   * on, so its output IS the figure the ledger side states for this order. Each
+   * case renders the dialog for the same order object and requires the dialog
+   * to print exactly those strings. A unit test on either derivation alone
+   * cannot see the last hop — `buildOrderScopedReceipt` re-maps the order into
+   * a hand-picked `{ entrySubtotal, platformFee, ... }` charge object, and a
+   * field dropped there is invisible to typecheck and to both pure tests.
+   */
+  describe.each([
+    [
+      'an app refund the order columns have not caught up with',
+      { refundedCents: 0, entryRefundedCents: 2000 },
+    ],
+    [
+      'a Stripe dashboard refund the entries have not caught up with',
+      { refundedCents: 2000, entryRefundedCents: 0 },
+    ],
+    [
+      'a legacy refunded order with no refund figure in either source',
+      { status: 'refunded', refundedCents: 0, entryRefundedCents: 0 },
+    ],
+  ])('states the same refund as the My Payments arrival panel for %s', (_label, overrides) => {
+    it("prints the panel's own refund, net and status strings", () => {
+      const order = { ...receiptOrders[0], ...overrides };
+      const facts = buildScopedPaymentFacts(order);
+      const refundLine = facts.rows.find(row => row.label === 'Refunded')?.value;
+      // Precondition: without it a case that resolves to NO refund would pass
+      // this test vacuously, asserting the absence of strings it never had.
+      expect(refundLine).toBeDefined();
+
+      useEntryReceiptOrdersMock.mockReturnValue({
+        data: [order],
+        isPending: false,
+        isError: false,
+        refetch,
+      });
+
+      render(
+        <ReceiptEntryDialog
+          dialog={{ open: true, entry: splitRegistration }}
+          user={null}
+          onClose={vi.fn()}
+        />,
+        { initialRoute: '/exhibitor/entries?orderId=order-1' }
+      );
+
+      // The dialog labels its own lines differently ("Refunded" / "Net paid"),
+      // so the VALUES are what must match, and they must be the panel's.
+      expect(screen.getAllByText(refundLine as string).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(facts.headlineValue).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(facts.statusLabel).length).toBeGreaterThan(0);
+      // The gross is never quietly replaced by the net: zero net is true both
+      // when nothing happened and when everything was reversed.
+      expect(screen.getAllByText('$65.00').length).toBeGreaterThan(0);
+    });
   });
 
   it('sends the URL order id into the exact keyed lookup', () => {

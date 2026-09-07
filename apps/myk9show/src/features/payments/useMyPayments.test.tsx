@@ -87,6 +87,11 @@ describe('useMyPayments', () => {
         reference: 'pi_1',
         refundedAt: null,
         entryIds: ['e1', 'e2'],
+        // The webhook-side refund columns, carried verbatim. Absent from the
+        // select until MYK9-428, which is why the ledger could not see a Stripe
+        // dashboard refund the receipt for the same order showed in full.
+        refundedCents: 0,
+        makeWholeRefundedCents: 0,
         refunds: [],
       },
     ]);
@@ -123,6 +128,44 @@ describe('useMyPayments', () => {
       reference: null,
       entryIds: [],
       refunds: [],
+    });
+  });
+
+  it('carries the order-side refund columns a dashboard refund writes', async () => {
+    // A Stripe DASHBOARD refund sets refunded_cents and never touches the
+    // entries, so an entries-only ledger understated it. Dropping either column
+    // from the select or the projection re-opens exactly that gap (MYK9-428).
+    stripeOrdersRange.mockResolvedValue({
+      data: [
+        {
+          id: 'o-dashboard',
+          amount_cents: 5300,
+          currency: 'usd',
+          status: 'succeeded',
+          paid_at: '2026-06-10T00:00:00Z',
+          created_at: '2026-06-09T00:00:00Z',
+          stripe_payment_intent_id: 'pi_dash',
+          entry_ids: [],
+          refunded_cents: 2000,
+          make_whole_refunded_cents: 300,
+          refunded_at: '2026-06-12T00:00:00Z',
+          show_id: null,
+          show: null,
+        },
+      ],
+      error: null,
+    });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.[0]).toMatchObject({
+      refundedCents: 2000,
+      makeWholeRefundedCents: 300,
+      // 5300 gross less 2000 post-hoc less 300 overflow — the same figure the
+      // receipt for this order derives.
+      netPaidCents: 3000,
     });
   });
 

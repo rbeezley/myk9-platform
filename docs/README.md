@@ -114,6 +114,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-pull-management-split.md](plan-pull-management-split.md)                                                   | Active    | Pull Management — separate show-day pull state from refund accounting              |
 | [plan-public-results-release-gate.md](plan-public-results-release-gate.md)                                       | Active    | Plan: Server-side gate for public/anon scored results                              |
 | [plan-quick-wins.md](plan-quick-wins.md)                                                                         | Active    | Quick Wins Batch Plan                                                              |
+| [plan-2026-09-07-quick-wins.md](plan-2026-09-07-quick-wins.md)                                                   | Active    | Quick-wins remediation — MYK9-437, MYK9-439, MYK9-436, MYK9-438, MYK9-435          |
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)                                 | Active    | Replication INSERT retry idempotency — investigation verdict (B)                   |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                                                 | Active    | Plan: Fix the Deleted Entities (restore) UI                                        |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                                             | Active    | Plan: Result Reveal + Share Card                                                   |

@@ -1,5 +1,7 @@
 # Quick-wins remediation plan — 2026-09-07
 
+> **Status:** Active
+
 Tracking: MYK9-437, MYK9-439, MYK9-436, MYK9-438, MYK9-435
 
 ## Goal

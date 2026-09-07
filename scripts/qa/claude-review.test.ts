@@ -120,6 +120,9 @@ function run(
         CLAUDE_REVIEW_LOG: stub.log,
         GH_BIN: gh.bin,
         CLAUDE_REVIEW_NET_PROBE: process.env.CLAUDE_REVIEW_NET_PROBE_TEST ?? 'echo 200',
+        // Inside Codex this marker is set; the stub environment must not inherit it or
+        // the sandbox guard fires before the probe override runs (Codex review of #2127).
+        CODEX_SANDBOX_NETWORK_DISABLED: process.env.CODEX_SANDBOX_MARKER_TEST ?? '',
         ...(stub.stateDir ? { CLAUDE_REVIEW_STATE_DIR: stub.stateDir } : {}),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -313,6 +316,9 @@ describe('claude-review.sh', () => {
           CLAUDE_REVIEW_LOG: stub.log,
           GH_BIN: gh.bin,
           CLAUDE_REVIEW_NET_PROBE: process.env.CLAUDE_REVIEW_NET_PROBE_TEST ?? 'echo 200',
+          // Inside Codex this marker is set; the stub environment must not inherit it or
+          // the sandbox guard fires before the probe override runs (Codex review of #2127).
+          CODEX_SANDBOX_NETWORK_DISABLED: process.env.CODEX_SANDBOX_MARKER_TEST ?? '',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
@@ -367,6 +373,22 @@ describe('claude-review.sh', () => {
       expect(r.out).toContain('not logged in HERE');
       expect(r.out).toContain('escalated permissions');
       expect(existsSync(stub.args)).toBe(false); // the review itself never started
+    });
+
+    it('exits 2 with the escalation hint when Codex sets CODEX_SANDBOX_NETWORK_DISABLED=1', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const prev = process.env.CODEX_SANDBOX_MARKER_TEST;
+      process.env.CODEX_SANDBOX_MARKER_TEST = '1';
+      try {
+        const r = run(stub, gh, ['7']);
+        expect(r.code).toBe(2);
+        expect(r.out).toContain('no network');
+        expect(existsSync(stub.args)).toBe(false);
+      } finally {
+        if (prev === undefined) delete process.env.CODEX_SANDBOX_MARKER_TEST;
+        else process.env.CODEX_SANDBOX_MARKER_TEST = prev;
+      }
     });
 
     it('exits 2 with the escalation hint when the network probe reports 000', () => {

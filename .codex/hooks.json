@@ -11,6 +11,16 @@
             "statusMessage": "Checking E2E suite map..."
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/qa/format-changed.sh",
+            "timeout": 30,
+            "statusMessage": "Formatting changed files..."
+          }
+        ]
       }
     ]
   }

@@ -144,6 +144,14 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Files changed vs the merge base, not the whole tree: a tree-wide check
+      # would go red on main the moment a worktree that predates the one-time
+      # reformat (#2121) merged its unformatted files, and would block every
+      # unrelated PR until someone reformatted them. The changed-files check
+      # ratchets: every PR leaves the files it touches formatted.
+      - name: Prettier (changed files vs merge base)
+        run: pnpm format:check:changed
+
       - name: Load harness anti-rot
         run: |
           pnpm --filter @myk9/show test:load:unit

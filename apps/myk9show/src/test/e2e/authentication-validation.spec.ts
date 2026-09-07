@@ -8,6 +8,33 @@ import { TestSetup } from './helpers/testSetup';
  * and access the application properly. This is Phase 2 validation that real
  * database records are being created and authentication is working.
  */
+/**
+ * Where a signed-in user actually lands.
+ *
+ * `HomeRedirect` (src/routerComponents.tsx) sends every authenticated user from
+ * `/` to the dashboard of their highest role — `ROLE_DASHBOARD_ROUTES` in
+ * src/hooks/roleUtils.ts, whose JUDGE entry carries an `// INTENT:` comment. It
+ * has been the product's behaviour since #1622 and is deliberate.
+ *
+ * These tests asserted `toHaveURL('/')`, which only ever passed as a RACE: the
+ * app sits on `/` while `rbacLoading` is true, and the assertion sampled that
+ * window before the redirect resolved. Nightly run 34147260051 (2026-09-07
+ * 17:21Z) lost that race on all five, sitting 15s at `/admin/dashboard`,
+ * `/secretary/dashboard`, `/judge/dashboard` and `/exhibitor/entries` — the
+ * exact ROLE_DASHBOARD_ROUTES values. No product change explains it: the range
+ * 6510e9cf5..bb0ed47e7 touches only SmartSignInPage's layout, AppHeader and
+ * SystemHealthPage, and all eight pass locally against both `pnpm dev` and
+ * `vite preview`. Asserting the SETTLED landing route passes in both worlds,
+ * because `toHaveURL` waits for the redirect instead of racing it.
+ */
+const ROLE_LANDING = {
+  admin: '/admin/dashboard',
+  secretary: '/secretary/dashboard',
+  judge: '/judge/dashboard',
+  // TestSetup maps 'user' to the demo exhibitor account.
+  user: '/exhibitor/entries',
+} as const;
+
 test.describe('Phase 2: Authentication Validation', () => {
   let testSetup: TestSetup;
 
@@ -20,8 +47,8 @@ test.describe('Phase 2: Authentication Validation', () => {
     // Sign in as admin
     await testSetup.signIn('admin');
 
-    // Verify we're logged in and redirected to home
-    await expect(page).toHaveURL('/');
+    // Verify we're logged in and redirected to the site-admin landing route.
+    await expect(page).toHaveURL(ROLE_LANDING.admin);
 
     // Verify the authenticated app shell is present. Assert the account menu
     // (rendered for every signed-in user) rather than specific nav-link labels,
@@ -43,7 +70,7 @@ test.describe('Phase 2: Authentication Validation', () => {
     await testSetup.signIn('secretary');
 
     // Verify we're logged in
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL(ROLE_LANDING.secretary);
 
     // Navigate to shows page (secretaries manage shows)
     await page.goto('/shows');
@@ -58,7 +85,7 @@ test.describe('Phase 2: Authentication Validation', () => {
     await testSetup.signIn('judge');
 
     // Verify we're logged in
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL(ROLE_LANDING.judge);
 
     // Navigate to a common page accessible to judges
     await page.goto('/dogs');
@@ -75,7 +102,7 @@ test.describe('Phase 2: Authentication Validation', () => {
     await testSetup.signIn('user');
 
     // Verify we're logged in
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL(ROLE_LANDING.user);
 
     // Navigate to dogs page (exhibitors manage their dogs)
     await page.goto('/dogs');
@@ -139,7 +166,7 @@ test.describe('Phase 2: Authentication Validation', () => {
   test('should allow sign out functionality', async ({ page }) => {
     // Sign in as admin
     await testSetup.signIn('admin');
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL(ROLE_LANDING.admin);
 
     // Look for sign out option (could be in profile menu, settings, etc.)
     const signOutElements = page.locator(

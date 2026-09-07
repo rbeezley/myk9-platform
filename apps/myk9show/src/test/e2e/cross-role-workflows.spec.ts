@@ -13,7 +13,12 @@ test.describe('Cross-role workflow smoke', () => {
       timeout: 15000,
     });
     await expect(page.getByRole('textbox', { name: /Search shows/i })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /Browse All/i })).toBeVisible();
+    // Guests get no tab strip since #2087 (Browse All is their only tab, and
+    // PrimaryTabs is hideWhenSingle); the month scrubber is the guest-visible
+    // control that proves the redesigned page rendered. Its accessible name is
+    // MonthScrubber.tsx's aria-label on role="radiogroup" -- not "group",
+    // which is a different ARIA role and would never match.
+    await expect(page.getByRole('radiogroup', { name: /month/i })).toBeVisible();
   });
 
   test('secretary can land on the current command center', async ({ page }) => {

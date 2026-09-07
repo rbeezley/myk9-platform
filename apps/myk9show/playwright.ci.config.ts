@@ -137,7 +137,11 @@ export default defineConfig({
   },
   use: {
     baseURL: 'http://localhost:4173',
-    trace: 'on-first-retry',
+    // Regression/nightly runs pass `--retries=0`
+    // (scripts/qa/run-playwright-regression.sh), so `on-first-retry` never
+    // records: there is no first retry. A failure there must carry its own
+    // trace or the next morning has nothing to diagnose from.
+    trace: isRegression ? 'retain-on-failure' : 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     viewport: { width: 1280, height: 720 },

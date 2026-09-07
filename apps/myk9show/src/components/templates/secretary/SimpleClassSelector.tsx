@@ -11,7 +11,7 @@ import {
 import { logger } from '@/services/LoggingService';
 import { Search, CheckSquare, Square, Filter, User } from 'lucide-react';
 import {
-  findAmbiguousClassNames,
+  findClassNamesNeedingFullLabel,
   formatJudgeName,
   groupClassesByElement,
 } from './SimpleClassSelector.helpers';
@@ -37,7 +37,17 @@ interface SimpleClassSelectorProps {
    * while a saved show links to the Edit panel's Judges tab.
    */
   addJudge?: { showId: string; onAddJudge?: never } | { onAddJudge: () => void; showId?: never };
+  /**
+   * Class names in `template` that are NOT part of the template's own catalog —
+   * a class cloned into an unsaved show and renamed, typically. Their cards spell
+   * the full name out, because the level alone would present them as the standard
+   * class they displaced (MYK9-389). Omit it and nothing changes.
+   */
+  customClassNames?: readonly string[];
 }
+
+/** Stable identity so the memo below is not invalidated on every render. */
+const EMPTY_CUSTOM_CLASS_NAMES: readonly string[] = [];
 
 export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   template,
@@ -48,6 +58,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   availableJudges = [],
   judgeAssignments = {},
   onJudgeAssignmentChange,
+  customClassNames = EMPTY_CUSTOM_CLASS_NAMES,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterElement, setFilterElement] = useState<string>('all');
@@ -63,7 +74,10 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
 
   // Over the whole catalog, not the filtered view: a search that hides one of two
   // look-alike cards must not take the surviving card's full name away with it.
-  const ambiguousClassNames = useMemo(() => findAmbiguousClassNames(classes), [classes]);
+  const classNamesNeedingFullLabel = useMemo(
+    () => findClassNamesNeedingFullLabel(classes, customClassNames),
+    [classes, customClassNames]
+  );
 
   // Sync element-level judge dropdown when judgeAssignments change externally (e.g. auto-assign).
   // If every class in an element group shares the same judge, reflect that in the group dropdown.
@@ -519,10 +533,12 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                           </div>
 
                           {/* MYK9-389: a level alone cannot tell a cloned, renamed class
-                              apart from the template class it shares a level with. Spell
-                              out the full name on both, visibly — the aria-label already
-                              carried it, which is exactly why the clash was invisible. */}
-                          {ambiguousClassNames.has(classDefinition.className) && (
+                              apart from the template class it shares a level with — nor,
+                              when it has displaced that class outright, from the standard
+                              class it is pretending to be. Spell the full name out
+                              visibly: the aria-label already carried it, which is exactly
+                              why the clash was invisible. */}
+                          {classNamesNeedingFullLabel.has(classDefinition.className) && (
                             <div
                               className={`myk9-class-card-full-name ${isExisting ? 'disabled' : ''}`}
                             >

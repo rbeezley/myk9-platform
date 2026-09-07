@@ -105,6 +105,34 @@ describe('SimpleClassSelector custom class names', () => {
     );
   });
 
+  it('spells out a cloned class that has displaced its template twin', () => {
+    // The wizard's merge keys on element|level|section, so the retained custom class
+    // replaces "Interior Advanced" outright: no ambiguity, and the card would read a
+    // bare `Advanced` — the standard class's own label on a class that is not it.
+    const displaced = {
+      id: 'tpl-1',
+      templateName: 'AKC Scent Work',
+      classDefinitions: [CONTAINER_NOVICE_A, INTERIOR_ADVANCED_PRELIMINARY],
+    } as unknown as ClassTemplate;
+
+    render(
+      <SimpleClassSelector
+        template={displaced}
+        customClassNames={['Interior Advanced Preliminary']}
+        selectedClasses={[INTERIOR_ADVANCED_PRELIMINARY]}
+        onSelectionChange={vi.fn()}
+        availableJudges={[]}
+        judgeAssignments={{}}
+      />
+    );
+
+    expect(visibleText(card('Deselect Interior Advanced Preliminary'))).toContain(
+      'Interior Advanced Preliminary'
+    );
+    // The standard class beside it is still left alone.
+    expect(visibleText(card('Select Container Novice A'))).toBe('NoviceA');
+  });
+
   it('still removes the cloned class from the keyboard', async () => {
     const onSelectionChange = vi.fn();
     renderSelector({ onSelectionChange });

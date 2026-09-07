@@ -105,6 +105,31 @@ function fakeWizardState(organization: string): Record<string, unknown> {
   };
 }
 
+/**
+ * MYK9-389 — a class cloned into the wizard under a custom name. Its
+ * element/level/section match the AKC template's own class, so
+ * `mergeTemplateWithRetainedClassDefinitions` DISPLACES that definition and the
+ * custom class becomes the only Container/Novice/A entry in the catalog. The
+ * previous fix keyed only on ambiguity and therefore rendered nothing here.
+ */
+function wizardStateWithRetainedCustomClass(): Record<string, unknown> {
+  const state = fakeWizardState('AKC');
+  (state.trials as Record<string, unknown>[])[0]!.classes = [
+    {
+      templateId: 'tmpl-akc',
+      customizations: {
+        className: 'AKC Container Novice A Preliminary',
+        element: 'Container',
+        level: 'Novice',
+        section: 'A',
+        displayOrder: 1,
+        fieldOverrides: {},
+      },
+    },
+  ];
+  return state;
+}
+
 function setOrganization(organization: string) {
   mockUseWizardStore.mockImplementation((selector: (state: unknown) => unknown) =>
     selector(fakeWizardState(organization))
@@ -130,5 +155,21 @@ describe('ClassSelectionStep — registry-filtered class list', () => {
     expect(await screen.findByLabelText(/Select ASCA Container Open/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/AKC Container Novice A/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/UKC Vehicle Novice/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('ClassSelectionStep — a retained cloned class names itself on screen', () => {
+  it('renders the custom class name as VISIBLE text, not only in the aria-label', async () => {
+    mockUseWizardStore.mockImplementation((selector: (state: unknown) => unknown) =>
+      selector(wizardStateWithRetainedCustomClass())
+    );
+
+    render(<ClassSelectionStep />);
+
+    const cloned = await screen.findByLabelText('Deselect AKC Container Novice A Preliminary');
+    // The accessible name was ALWAYS correct — read what a sighted secretary sees.
+    expect((cloned.textContent ?? '').replace(/\s+/gu, ' ')).toContain(
+      'AKC Container Novice A Preliminary'
+    );
   });
 });

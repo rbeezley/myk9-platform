@@ -100,3 +100,33 @@ export function findAmbiguousClassNames(classes: ClassDefinition[]): Set<string>
 
   return ambiguous;
 }
+
+/**
+ * Every class name whose card must spell itself out in full.
+ *
+ * Two independent reasons, and the second one is easy to miss. A class is
+ * ambiguous (above) when some OTHER card paints the same string. But a cloned,
+ * renamed class can also arrive with no twin at all: the wizard's
+ * `mergeTemplateWithRetainedClassDefinitions` keys on element|level|section and
+ * ignores the name, so a retained "Interior Advanced Preliminary" DISPLACES the
+ * template's own "Interior Advanced" and is then the only Interior/Advanced entry
+ * in the catalog. Nothing is ambiguous, and the card still reads a bare `Advanced`
+ * — silently presenting a custom class as the standard one.
+ *
+ * `customClassNames` is the caller's list of selections that are not part of the
+ * template's own catalog. Callers with no such concept pass nothing and every
+ * standard label is left exactly as it was.
+ */
+export function findClassNamesNeedingFullLabel(
+  classes: ClassDefinition[],
+  customClassNames: readonly string[] = []
+): Set<string> {
+  const needsFullLabel = findAmbiguousClassNames(classes);
+  const custom = new Set(customClassNames);
+
+  for (const cls of classes) {
+    if (custom.has(cls.className)) needsFullLabel.add(cls.className);
+  }
+
+  return needsFullLabel;
+}

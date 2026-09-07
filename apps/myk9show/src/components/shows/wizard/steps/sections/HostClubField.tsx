@@ -55,26 +55,14 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
           onSearchChange={setSearchTerm}
           items={filteredClubs}
           emptyMessage="No clubs found"
+          listboxLabel="Clubs"
+          selectedItemIds={clubId ? [clubId] : []}
+          onSelect={club => {
+            onSelectClub(club.id);
+            setSearchTerm('');
+          }}
           renderItem={club => (
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label={`Select ${club.name}`}
-              className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-              onClick={() => {
-                onSelectClub(club.id);
-                setShowSearch(false);
-                setSearchTerm('');
-              }}
-              onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  onSelectClub(club.id);
-                  setShowSearch(false);
-                  setSearchTerm('');
-                }
-              }}
-            >
+            <div className="p-3 hover:bg-muted border-b last:border-b-0">
               <div className="font-medium">{club.name}</div>
               <div className="text-sm text-muted-foreground">
                 {club.address.city}, {club.address.state}

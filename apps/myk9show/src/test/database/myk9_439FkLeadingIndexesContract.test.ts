@@ -82,6 +82,10 @@ describe('MYK9-439 missing FK-leading indexes', () => {
     expect(catalogSql).toContain('i.indisvalid');
     expect(catalogSql).toContain('i.indisready');
     expect(catalogSql).toContain('i.indpred is null');
+    expect(normalizedCatalogSql).toContain('i.indrelid = c.conrelid');
+    expect(normalizedCatalogSql).toContain(
+      '(i.indkey::smallint[])[0:cardinality(c.conkey) - 1] @> c.conkey'
+    );
     expect(catalogSql).toContain('raise exception');
 
     const fkGuard = 'if target_fk_count <> 3 or target_fk_pair_count <> 3 then';

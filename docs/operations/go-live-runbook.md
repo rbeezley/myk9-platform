@@ -297,7 +297,9 @@ if PITR is not enabled on the project, it is not vague, it is **false**.
 
 - [ ] **a. Confirm the backup posture in the Supabase dashboard** for `sojmvhhwsjxmfistvzbe`:
       is PITR enabled, at what retention window, and is it a paid add-on that still needs turning on?
-      Record the answer here. **If PITR is disabled, STOP** — that is a launch blocker, not a task.
+      **2026-09-07 decision:** daily physical backups retained; paid PITR deferred until revenue.
+      See [nightly recovery procedure and evidence](nightly-backup-recovery.md). Retention and
+      formal RPO/RTO acceptance remain outstanding; disabled PITR alone is no longer the gate.
 - [ ] **b. Write down the accepted RPO and RTO** (how much data may be lost; how fast we can be back).
       A number the operator has agreed to, not an aspiration.
 - [ ] **c. Actually perform a restore** — ideally into a scratch/branch project — and verify the
@@ -309,18 +311,19 @@ if PITR is not enabled on the project, it is not vague, it is **false**.
 - [x] **d. Write the partial-recovery procedure** for the realistic incident: _one show's entries or
       scores were destroyed mid-weekend; recover those rows without rolling back every other show._
       Whole-project PITR is the wrong tool for the most likely failure.
-      Written 2026-08-17 (MYK9-176) — see **§2.4.1** below. **Untested** until step **c** runs.
-- [ ] **e. Replace the rollback appendix's "last resort" line** with the tested procedure.
+      Written 2026-08-17 (MYK9-176) — see **§2.4.1** below. Five-column score repair rehearsed
+      2026-09-07; cross-project transfer, app/tablet checks, and other paths remain untested.
+- [x] **e. Replace the rollback appendix's "last resort" line** with the procedure and explicit test limits.
 
 _Why this gates Phase 3:_ after the Stripe cutover the platform holds real money and irreplaceable
 show-day results — scores and placements that cannot be re-derived, because the dogs went home.
 
 ### 2.4.1 Partial recovery — one show, without rolling back the project
 
-> **Status: UNTESTED DRAFT.** No part of this has been executed against a real restore. It is written
-> from the live schema (`sojmvhhwsjxmfistvzbe`, read 2026-08-17), not from an incident. Step **c**
-> above is what converts it from a draft into a procedure; until then treat every claim below as
-> "believed correct", and do not let its existence check off G8.
+> **Status: PARTIALLY REHEARSED, 2026-09-07.** A daily backup was restored and five scoring
+> columns recovered inside a disposable clone, with unchanged unrelated data and correct placements.
+> See [exact evidence and limits](nightly-backup-recovery.md). Paths A/B/C, cross-project transport,
+> and app/tablet validation remain untested. This does not check off G8.
 
 **Use `psql` connected as `postgres`, not the Dashboard SQL Editor.** Everything below uses psql
 meta-commands — `\set` for the show id and tombstone, `\copy` for the hard-delete export — and those
@@ -531,7 +534,8 @@ work is wasted.
 There is no in-database undo. `entries → shows` is `ON DELETE CASCADE` all the way up
 (`entries_show_id_fkey`, `classes_trial_id_fkey`, `trials_show_id_fkey`), so a `DELETE FROM shows`
 takes the entries, armbands, judge assignments, passcodes, messages, and payouts with it. The only
-source is PITR restored into a **scratch project** — which is why step **a** is a blocker, not a task.
+source is a suitable pre-incident backup restored into a **scratch project**. Daily physical
+backups can supply rows present at that timestamp; PITR is optional finer-grained coverage.
 
 **The cascade is far wider than the four core tables, and it is transitive.** Forty-seven dependent
 tables come away with a show. Restoring only the core four gives you a show with no ringside
@@ -751,7 +755,7 @@ Sources, in order of preference:
    localStorage key. Reconnecting that device and letting it drain is the recovery. **Do this before
    any server-side write** — a manual restore bumps `entries.version`, and the queued mutations carry
    the old version as an OCC precondition, so they will all reject as conflicts afterwards.
-2. **PITR into a scratch project**, then a column-scoped diff back. Same mechanics as path C but an
+2. **Restore a suitable nightly backup (or PITR) into a scratch project**, then a column-scoped diff back. Same mechanics as path C but an
    `UPDATE … FROM` of the scoring columns only, never `SELECT *`, so you do not also roll back
    payment or check-in state that legitimately changed since.
 3. **Ask the judge for the paper sheets.** Not a joke and not a last resort — for a single class this
@@ -828,8 +832,8 @@ Verified against live 2026-08-17. Do not plan a recovery around these:
 
 State these plainly so it is never mistaken for full DR:
 
-- **Hard deletes without PITR.** Paths C and D-2 both assume a working PITR restore into a scratch
-  project. If step **a** finds PITR disabled, the honest answer is that a hard-deleted show is gone.
+- **Rows absent from every available backup.** Paths C and D-2 need a backup containing the lost
+  data. Nightly backups can recover earlier rows; post-backup changes need another source.
 - **Full fidelity of a hard-deleted show.** Path C gives explicit SQL for the four core tables only.
   Forty-seven more cascade away with the show, and the procedure hands you a catalog query plus a
   triage rule for those rather than ready-made statements — so a path C recovery is a guided
@@ -840,14 +844,14 @@ State these plainly so it is never mistaken for full DR:
   and **no scoring columns at all**. It is a useful pre-show roster insurance policy; it is not a
   backup.
 - **Multi-show and project-wide incidents.** If the Step 1 containment check returns rows, stop and
-  use whole-project PITR. This procedure is single-show by construction.
+  assess whole-project backup recovery. This procedure is single-show by construction.
 - **Money.** Nothing here reconciles Stripe. Restoring an entry row does not restore a
   `payment_intent`, a refund, or a payout, and re-inserting entries can desynchronise
   `show_payouts` — treat money reconciliation as a separate, manual step.
 - **Storage objects.** Logos, premium PDFs, and signature images live in Supabase Storage, which
   database PITR does not cover.
 - **Auth users.** A deleted exhibitor account is not recoverable through any statement here.
-- **Anything at all until step c runs.** An untested procedure is a draft.
+- **Untested paths.** The limited score-repair rehearsal does not validate all procedures above.
 
 ---
 
@@ -857,9 +861,9 @@ State these plainly so it is never mistaken for full DR:
 
 - **G3** — money-path Phase 3 (MP-04 mode-scoping) merged AND the Stripe functions redeployed
   (`--workdir apps/myk9show`).
-- **G8** — data durability proven: step **2.4** complete, meaning PITR confirmed enabled, an actual
+- **G8** — data durability proven: step **2.4** complete, meaning backup posture explicitly accepted, an actual
   restore performed within the agreed RTO, and the partial-recovery procedure written. **Added
-  2026-07-26.** Not "PITR is probably on" — the scorecard **Data durability** row must be Green.
+  2026-07-26; PITR requirement superseded 2026-09-07.** The scorecard **Data durability** row must be Green.
 
 Full detail: [`stripe-platform-setup.md`](stripe-platform-setup.md) Task 6.3. Owner: Operator except
 where noted. Do this only when ready to take real money — there is no half-live state.
@@ -1187,7 +1191,7 @@ stops the bleeding.
 | Realtime show-day feature misbehaving (presence/live-sync/edit-awareness/conflict toasts) | Set the matching `VITE_SHOW_*=false` in Vercel env → redeploy → hard refresh. No code change.                                                                             | ~5 min  |
 | Bad frontend build                                                                        | Vercel dashboard → Deployments → promote the previous production deployment.                                                                                              | ~2 min  |
 | Release pipeline itself broken                                                            | Set `STAGING_RELEASE_ENABLED=false`; pause the protected production environment; do not restore Git auto-deploy from `main` as a bypass.                                  | ~10 min |
-| Bad migration                                                                             | Never edit an applied migration. Write a new reverting migration and `supabase db push` it. If data was corrupted, use PITR via Supabase support as last resort.          | 15 min+ |
+| Bad migration                                                                             | Never edit an applied migration. Write a new reverting migration and `supabase db push` it. For corrupted data, use [nightly backup recovery](nightly-backup-recovery.md); only clone creation and limited score repair have been rehearsed. | Incident-dependent; full RTO unproven |
 | Edge function regression                                                                  | Redeploy the prior version from the last-good commit (`git show <sha>:… > tmp` then deploy), per the drift runbook.                                                       | ~10 min |
 | Stripe live cutover failing (webhooks erroring, checkout broken)                          | Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows. | ~10 min |
 | Payout misfire                                                                            | Payouts are Manual-schedule + cron-gated: unset the Vault `payout_cron_secret` to hard-stop the cron, reconcile via `/admin/payouts` + `show_payouts.failure_reason`.     | ~5 min  |

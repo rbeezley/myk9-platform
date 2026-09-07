@@ -73,7 +73,57 @@ was not changed by these tests. These are observed clone durations, not accepted
 
 The second test saved backup rows in private `dr_myk9110` staging, added a newer secretary note,
 saved a pre-damage baseline, committed damage, then recovered five columns by ID. Staging schema
-access was revoked from PUBLIC, anon and authenticated. No cross-project export/import occurred.
+access was revoked from PUBLIC, anon and authenticated. The five-row staging set was later
+transferred into a separate disposable destination and repaired there; no source or shared-system
+data was changed.
+
+### Cross-project and application rehearsal — 2026-09-07
+
+The existing restore `yltegnpcnqrtjurxdmon` was verified before use: it was the named disposable
+project and its 14 copied cron jobs were inactive. A separate Pro disposable destination was created:
+`myk9-110-cross-project-recovery-2026-09-07`, ref `nzihqlfcqntxjvhdttzf`. Repository migrations and
+the contained demo seed were applied there. The destination's 11 cron jobs were then confirmed
+inactive (0 active). No invitation emails were sent and no payment or ordinary-user device was used.
+
+The source staging contained 10 shows, 16 trials, 33 classes, and 1,278 entries. Only the five
+damaged entry IDs were transferred across the project boundary into protected destination staging:
+
+`dededede-0000-0000-0000-000000000051`, `...055`, `...058`, `...067`, and `...068`.
+
+The destination simulation cleared `total_score`, `search_time_seconds`, `total_faults`,
+`points_earned`, `is_scored`, `result_status`, and derived placement for those five rows. A
+destination-only secretary note was added before damage. The column-scoped repair restored the
+backup score values, set the qualifying status, and re-derived placements with
+`recalculate_class_placements`. Observed report: 5 transferred, 5 repaired, 5 placement matches,
+5 intact show→trial→class→dog relationship chains, 5 unchanged non-scoring-field comparisons, 5
+version advances, 5 timestamp advances, and the newer note preserved. Other-show counts remained
+756 entries and 12 classes.
+
+The local isolated app used only the destination URL and anon key. Auto-confirmed contained accounts
+were created for exhibitor, secretary, test admin, judge, chairman, and club admin. Secretary login
+opened the destination dashboard; show entry management displayed 516 entries; ringside displayed
+the recovered 1st/2nd/3rd podium with 38.50/41.20/45.80-second scores; and the unauthenticated
+browser loaded the public Heartland show page with 516 runs claimed. An exhibitor login was redirected
+away from `/secretary/dashboard` to onboarding.
+
+Browser replication simulation set the Playwright context offline. A cached ringside scoresheet showed
+the offline alert and `Offline ready`; one qualified score was saved while offline, then the context
+was reconnected. The destination row became `is_scored=true`, `result_status='qualified'`, with one
+server version update and no duplicate visible mutation. A separate authenticated browser then read
+the same destination class as 65 pending / 1 completed and displayed the queued score as qualified.
+This is a browser simulation only. A cold offline navigation to an uncached scoresheet failed to load
+its Vite dynamic module and remains an untested/failing cold-cache path. No physical tablet was
+connected.
+
+Manual configuration and dependencies: migrations/seed, six Auth users, destination API URL/key,
+cron deactivation, and protected staging. Edge Functions deployed: 0; seed/scoring notices confirmed
+push notifications were skipped. Realtime publication contains `shows`, `show_messages`, and
+`show_announcements`, not `entries`; the app therefore needs an explicit Realtime/replication review
+before launch. Three Storage buckets exist, but uploaded-file recovery was not exercised. Observed
+restore/repair times are measurements, not accepted RPO/RTO. Destination project metadata was created
+at 17:36:12.066870 UTC and final post-reconnect server verification completed at 18:18:56.641254 UTC:
+42m44.6s wall time including provisioning, migrations, manual configuration, repair, app checks, and
+browser simulation. The database clone alone measured approximately 4m05s.
 Verification compared full rows for unaffected entities and all non-scoring columns for entries,
 excluding derived placement and replication markers. No hard-delete path was exercised.
 
@@ -100,12 +150,21 @@ confirm parity but do not exercise restoration of populated officer records.
 
 ## Remaining evidence gates
 
-- Rehearse transfer of selected backup records into a separate recovery destination.
-- Verify authenticated/anonymous app behavior and actual tablet synchronization after repair.
+- Test a deployed-PWA cold-cache offline scoresheet and explicit stale-overwrite/conflict and
+  duplicate-mutation flows in two browser profiles. The current OCC probe and unit suites are
+  supporting evidence, not the end-to-end gate.
+- Resolve source-to-destination handler identity mapping and verify recovered ownership/handler
+  display, including the source handler's Auth/people relationship.
+- Exercise live private show-day Broadcast delivery after repair and confirm the required database
+  RPCs under the recovered Auth/role configuration. No Edge Functions are deployed in the destination;
+  ancillary email, payment, push, and premium flows remain untested.
+- Verify actual physical-tablet synchronization; the browser simulation is not tablet evidence.
 - Check remaining ownership/handler relationship tables and explicit referential-integrity queries.
 - Test any additional damaged columns and hard/soft-delete paths before calling them proven.
 - Record actual retention and accepted RPO/RTO; resolve copied-job startup handling before launch.
 - Plan independent Storage-file protection; database backups exclude uploaded file contents.
+- Decide whether missing Edge Functions and the absence of `entries` from the Realtime publication are
+  acceptable for the recovered app, then configure only inside a separately approved test destination.
 - Implement/test the separately approved export direction later; this rehearsal does not prove it.
 
 MYK9-110 remains open. A successful database rehearsal does not complete the launch durability gate.

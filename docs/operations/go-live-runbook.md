@@ -302,17 +302,20 @@ if PITR is not enabled on the project, it is not vague, it is **false**.
       formal RPO/RTO acceptance remain outstanding; disabled PITR alone is no longer the gate.
 - [ ] **b. Write down the accepted RPO and RTO** (how much data may be lost; how fast we can be back).
       A number the operator has agreed to, not an aspiration.
-- [ ] **c. Actually perform a restore** — ideally into a scratch/branch project — and verify the
+- [x] **c. Actually perform a restore** — ideally into a scratch/branch project — and verify the
       restored data. **Record the elapsed time and compare it against the RTO agreed in step b.**
       Elapsed time is the _observed_ recovery time, not the objective — if a restore takes eight hours
       against a one-hour RTO, that is a **failed** durability gate, not a redefinition of the RTO.
       Either bring the procedure inside the objective or renegotiate the objective explicitly; do not
-      let the measurement silently become the target. An untested backup is not a backup.
+      let the measurement silently become the target. The 2026-09-07 destination rehearsal transferred
+      and repaired five selected rows; the measured clone/repair/app durations are recorded in
+      [nightly recovery evidence](nightly-backup-recovery.md), but no accepted RTO exists yet.
 - [x] **d. Write the partial-recovery procedure** for the realistic incident: _one show's entries or
       scores were destroyed mid-weekend; recover those rows without rolling back every other show._
       Whole-project PITR is the wrong tool for the most likely failure.
-      Written 2026-08-17 (MYK9-176) — see **§2.4.1** below. Five-column score repair rehearsed
-      2026-09-07; cross-project transfer, app/tablet checks, and other paths remain untested.
+      Written 2026-08-17 (MYK9-176) — see **§2.4.1** below. Five-column score repair and
+      cross-project transfer were rehearsed 2026-09-07; browser app checks passed, while cold-cache,
+      Edge Function, Realtime-publication, and physical-tablet gaps remain.
 - [x] **e. Replace the rollback appendix's "last resort" line** with the procedure and explicit test limits.
 
 _Why this gates Phase 3:_ after the Stripe cutover the platform holds real money and irreplaceable
@@ -320,10 +323,14 @@ show-day results — scores and placements that cannot be re-derived, because th
 
 ### 2.4.1 Partial recovery — one show, without rolling back the project
 
-> **Status: PARTIALLY REHEARSED, 2026-09-07.** A daily backup was restored and five scoring
-> columns recovered inside a disposable clone, with unchanged unrelated data and correct placements.
-> See [exact evidence and limits](nightly-backup-recovery.md). Paths A/B/C, cross-project transport,
-> and app/tablet validation remain untested. This does not check off G8.
+> **Status: PARTIALLY REHEARSED, 2026-09-07.** A daily backup was restored, five selected rows
+> crossed into a separate disposable destination, and five scoring repairs completed there with
+> unchanged unrelated data and correct placements. The isolated secretary/public app flows and a
+> browser offline/reconnect score passed. See [exact evidence and limits](nightly-backup-recovery.md).
+> Physical-tablet sync, deployed-PWA cold-cache import, two-browser conflict/duplicate tests, source
+> handler identity mapping, live Broadcast delivery, Edge Functions, Storage files, and accepted
+> RPO/RTO remain open. The destination OCC probe and replication unit suites are supporting evidence,
+> not the end-to-end gate. This does not check off G8.
 
 **Use `psql` connected as `postgres`, not the Dashboard SQL Editor.** Everything below uses psql
 meta-commands — `\set` for the show id and tombstone, `\copy` for the hard-delete export — and those
@@ -918,25 +925,25 @@ recorded.
 
       Preferred: the admin UI — **/people/:id → Edit → Complimentary Premium**.
 
-                                          By SQL, the RPC is site-admin-only, and the dashboard's `postgres` role is
-                                          NOT a site admin, so impersonate one:
+                                              By SQL, the RPC is site-admin-only, and the dashboard's `postgres` role is
+                                              NOT a site admin, so impersonate one:
 
-                                          ```sql
-                                          BEGIN;
-                                          SET LOCAL ROLE authenticated;
-                                          SELECT set_config('request.jwt.claims',
-                                            json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
+                                              ```sql
+                                              BEGIN;
+                                              SET LOCAL ROLE authenticated;
+                                              SELECT set_config('request.jwt.claims',
+                                                json_build_object('sub','<site-admin auth_user_id>','role','authenticated')::text, true);
 
-                                          SELECT public.admin_grant_entitlement(
-                                            (SELECT id FROM public.people WHERE email = 'person@example.com'),
-                                            'founding', now(), now() + interval '12 months',
-                                            'Founding member — go-live batch', false);
-                                          COMMIT;
-                                          ```
+                                              SELECT public.admin_grant_entitlement(
+                                                (SELECT id FROM public.people WHERE email = 'person@example.com'),
+                                                'founding', now(), now() + interval '12 months',
+                                                'Founding member — go-live batch', false);
+                                              COMMIT;
+                                              ```
 
-                                          Verify with the queries in [`../entitlement-operations.md`](../entitlement-operations.md).
-                                          Note `has_effective_premium_access()` is caller-scoped: querying it as
-                                          `postgres` returns nothing, which is correct rather than a failure.
+                                              Verify with the queries in [`../entitlement-operations.md`](../entitlement-operations.md).
+                                              Note `has_effective_premium_access()` is caller-scoped: querying it as
+                                              `postgres` returns nothing, which is correct rather than a failure.
 
 - [ ] **3.11** Concierge-onboard the first 3–4 club treasurers by phone using
       [`stripe-treasurer-guide.md`](stripe-treasurer-guide.md); confirm Express accounts appear
@@ -1186,16 +1193,16 @@ migration. Do not edit an applied migration in place.
 prior build → migration revert → Stripe mode rotate-back. Roll back the smallest layer that
 stops the bleeding.
 
-| Failure                                                                                   | Action                                                                                                                                                                    | Time    |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| Realtime show-day feature misbehaving (presence/live-sync/edit-awareness/conflict toasts) | Set the matching `VITE_SHOW_*=false` in Vercel env → redeploy → hard refresh. No code change.                                                                             | ~5 min  |
-| Bad frontend build                                                                        | Vercel dashboard → Deployments → promote the previous production deployment.                                                                                              | ~2 min  |
-| Release pipeline itself broken                                                            | Set `STAGING_RELEASE_ENABLED=false`; pause the protected production environment; do not restore Git auto-deploy from `main` as a bypass.                                  | ~10 min |
+| Failure                                                                                   | Action                                                                                                                                                                                                                                       | Time                                  |
+| ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Realtime show-day feature misbehaving (presence/live-sync/edit-awareness/conflict toasts) | Set the matching `VITE_SHOW_*=false` in Vercel env → redeploy → hard refresh. No code change.                                                                                                                                                | ~5 min                                |
+| Bad frontend build                                                                        | Vercel dashboard → Deployments → promote the previous production deployment.                                                                                                                                                                 | ~2 min                                |
+| Release pipeline itself broken                                                            | Set `STAGING_RELEASE_ENABLED=false`; pause the protected production environment; do not restore Git auto-deploy from `main` as a bypass.                                                                                                     | ~10 min                               |
 | Bad migration                                                                             | Never edit an applied migration. Write a new reverting migration and `supabase db push` it. For corrupted data, use [nightly backup recovery](nightly-backup-recovery.md); only clone creation and limited score repair have been rehearsed. | Incident-dependent; full RTO unproven |
-| Edge function regression                                                                  | Redeploy the prior version from the last-good commit (`git show <sha>:… > tmp` then deploy), per the drift runbook.                                                       | ~10 min |
-| Stripe live cutover failing (webhooks erroring, checkout broken)                          | Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows. | ~10 min |
-| Payout misfire                                                                            | Payouts are Manual-schedule + cron-gated: unset the Vault `payout_cron_secret` to hard-stop the cron, reconcile via `/admin/payouts` + `show_payouts.failure_reason`.     | ~5 min  |
-| Auth email broken                                                                         | Restore the auth-config backup JSON (SMTP + rate limit) and/or redeploy prior `send-auth-email` + prior hook secret in one window.                                        | ~10 min |
+| Edge function regression                                                                  | Redeploy the prior version from the last-good commit (`git show <sha>:… > tmp` then deploy), per the drift runbook.                                                                                                                          | ~10 min                               |
+| Stripe live cutover failing (webhooks erroring, checkout broken)                          | Rotate `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` back to test values and disable the live payment surfaces; announce a payments pause. Do NOT purge live customer rows.                                                                    | ~10 min                               |
+| Payout misfire                                                                            | Payouts are Manual-schedule + cron-gated: unset the Vault `payout_cron_secret` to hard-stop the cron, reconcile via `/admin/payouts` + `show_payouts.failure_reason`.                                                                        | ~5 min                                |
+| Auth email broken                                                                         | Restore the auth-config backup JSON (SMTP + rate limit) and/or redeploy prior `send-auth-email` + prior hook secret in one window.                                                                                                           | ~10 min                               |
 
 **Abort criteria (call it, don't push through):** any P0 (data loss, money mis-charged,
 cross-tenant read) on launch day → roll back the offending layer, close entries if needed via

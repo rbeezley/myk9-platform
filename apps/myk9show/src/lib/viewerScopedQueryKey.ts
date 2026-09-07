@@ -69,10 +69,26 @@ export function isViewerScopedQueryKey(queryKey: readonly unknown[]): boolean {
   return queryKey.some(isViewerScopeSegment);
 }
 
+/**
+ * `JSON.stringify` is not total: a BigInt segment throws, and so does a
+ * circular one. React Query allows both — its own hashing only chokes on them
+ * when the default `queryKeyHashFn` is in use, and that is overridable per
+ * query. Building this message must never be the thing that throws, because
+ * the only caller is an error path inside `QueryCache.build`, which runs inside
+ * render.
+ */
+function describeQueryKey(queryKey: readonly unknown[]): string {
+  try {
+    return JSON.stringify(queryKey) ?? String(queryKey);
+  } catch {
+    return `[${queryKey.map(segment => String(typeof segment)).join(', ')}]`;
+  }
+}
+
 export class MissingViewerScopeError extends Error {
   constructor(queryKey: readonly unknown[]) {
     super(
-      `Query key ${JSON.stringify(queryKey)} is in a viewer-scoped namespace but carries no ` +
+      `Query key ${describeQueryKey(queryKey)} is in a viewer-scoped namespace but carries no ` +
         `viewerScope() segment. Rows under this namespace belong to one signed-in account, and ` +
         `an unscoped key is served from cache to the next account without re-applying RLS ` +
         `(MYK9-429). Add viewerScope(viewerId) to the key — see lib/viewerScopedQueryKey.ts.`

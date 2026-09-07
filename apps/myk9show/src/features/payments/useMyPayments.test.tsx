@@ -70,7 +70,9 @@ describe('useMyPayments', () => {
       ],
       error: null,
     });
-    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([
       {
@@ -108,7 +110,9 @@ describe('useMyPayments', () => {
       ],
       error: null,
     });
-    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.[0]).toMatchObject({
       date: '2026-06-01T00:00:00Z',
@@ -124,7 +128,9 @@ describe('useMyPayments', () => {
 
   it('propagates a query error', async () => {
     stripeOrdersRange.mockResolvedValue({ data: null, error: { message: 'boom' } });
-    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isError).toBe(true));
   });
 
@@ -159,7 +165,9 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(entriesSelect).toHaveBeenCalledWith(
@@ -214,7 +222,9 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.[0]).toMatchObject({
@@ -252,7 +262,9 @@ describe('useMyPayments', () => {
         error: null,
       });
 
-    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersRange).toHaveBeenNthCalledWith(1, 0, 99);
@@ -274,7 +286,9 @@ describe('useMyPayments', () => {
       .mockResolvedValueOnce({ data: firstPage, error: null })
       .mockResolvedValueOnce({ data: [{ id: 'e001' }], error: null });
 
-    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(refundedEntriesRange).toHaveBeenNthCalledWith(1, 0, 99);
@@ -306,7 +320,9 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPaymentYears(true, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPaymentYears(true, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersSelect).toHaveBeenCalledWith(
@@ -337,7 +353,9 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersQuery.or).toHaveBeenCalledOnce();
@@ -370,7 +388,9 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments('2019', VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2019', VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersRange).toHaveBeenNthCalledWith(1, 0, 99);
@@ -414,7 +434,9 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersQuery.overlaps).toHaveBeenCalledWith('entry_ids', ['e-refunded']);
@@ -445,7 +467,9 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), {
+      wrapper: createWrapper(),
+    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(inFilter).toHaveBeenCalledTimes(2);
@@ -563,5 +587,4 @@ describe('useMyPayments', () => {
     expect(stripeOrdersRange).toHaveBeenCalled();
     expect(second.result.current.data).toEqual(['2026']);
   });
-
 });

@@ -163,6 +163,108 @@ describe('moneyPresentation', () => {
     expect(rows.map(r => r.id)).toEqual(['dated:charge', 'undated:charge']);
   });
 
+  describe('refunds only the ORDER columns know about (MYK9-428)', () => {
+    // The ledger's refund rows come from entries.refund_amount. A Stripe
+    // DASHBOARD refund never touches the entries, so before this the ledger
+    // silently understated money the receipt for the same order showed in full.
+    it('emits a reconciliation row for a dashboard refund the entries never saw', () => {
+      const rows = buildPaymentDisplayRows([
+        payment({ refundedCents: 2000, refundedAt: '2026-06-14T00:00:00Z', refunds: [] }),
+      ]);
+
+      expect(rows.map(row => row.id)).toEqual(['order-1:refund:unreconciled', 'order-1:charge']);
+      expect(rows[0]).toMatchObject({
+        kind: 'refund',
+        amountCents: -2000,
+        // Its OWN date: a cash-basis year must file the refund under the year
+        // it happened, not the year the charge was made.
+        date: '2026-06-14T00:00:00Z',
+        status: 'refunded',
+      });
+    });
+
+    it('states only the REMAINDER when the entries already carry part of it', () => {
+      const rows = buildPaymentDisplayRows([
+        payment({
+          refundedCents: 3000,
+          refunds: [
+            {
+              entryId: 'entry-1',
+              amountCents: 2000,
+              date: '2026-06-12T00:00:00Z',
+              label: 'Copper',
+            },
+          ],
+        }),
+      ]);
+
+      const refunded = rows
+        .filter(row => row.kind === 'refund')
+        .reduce((sum, row) => sum + Math.abs(row.amountCents), 0);
+      // 3000, not 5000: the entry row and the order column describe the same
+      // money, so the reconciliation row states only what is not already said.
+      expect(refunded).toBe(3000);
+    });
+
+    it('adds nothing when the entries already state the whole refund', () => {
+      // The app-refund window: entries ahead, refunded_cents not yet written.
+      const rows = buildPaymentDisplayRows([
+        payment({
+          refundedCents: 0,
+          refunds: [
+            {
+              entryId: 'entry-1',
+              amountCents: 2000,
+              date: '2026-06-12T00:00:00Z',
+              label: 'Copper',
+            },
+          ],
+        }),
+      ]);
+
+      expect(rows.filter(row => row.id.endsWith(':unreconciled'))).toHaveLength(0);
+    });
+
+    it('counts the cart-overflow auto-refund, which no entry row records', () => {
+      const rows = buildPaymentDisplayRows([payment({ makeWholeRefundedCents: 300, refunds: [] })]);
+      expect(rows.find(row => row.id.endsWith(':unreconciled'))).toMatchObject({
+        amountCents: -300,
+      });
+    });
+
+    it.each([
+      ['c42caa66-24b0-4b0f-bea0-f50552d731af', 6420],
+      ['c72add22-01c4-427b-9865-ca707b267aee', 3745],
+      ['cedb3da0-337b-4c26-90ec-be50a7c818a5', 3745],
+      ['5578b168-30c8-409a-8667-759f00732ff2', 3745],
+    ])('leaves staging cart-overflow order %s stated exactly once (AC4)', (id, amountCents) => {
+      // status 'refunded', zero entries, the whole gross in
+      // make_whole_refunded_cents. The legacy branch already states the full
+      // refund, so the remainder must be zero — a second row here would report
+      // twice the money back and a negative net for the year.
+      const rows = buildPaymentDisplayRows([
+        payment({
+          id,
+          amountCents,
+          status: 'refunded',
+          refundedCents: 0,
+          makeWholeRefundedCents: amountCents,
+          entryIds: [],
+          refunds: [],
+        }),
+      ]);
+
+      // Charge then refund: same date, and the sort is stable. What matters is
+      // that there are exactly TWO rows — a third, ':refund:unreconciled',
+      // would be the gross stated a second time.
+      expect(rows.map(row => row.id)).toEqual([id + ':charge', id + ':refund']);
+      const refunded = rows
+        .filter(row => row.kind === 'refund')
+        .reduce((sum, row) => sum + Math.abs(row.amountCents), 0);
+      expect(refunded).toBe(amountCents);
+    });
+  });
+
   it('falls back to the charge date when a legacy refund has no refunded_at', () => {
     const rows = buildPaymentDisplayRows([
       payment({ status: 'refunded', refunds: [], date: '2025-12-20T12:00:00Z', refundedAt: null }),

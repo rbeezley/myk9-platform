@@ -39,6 +39,7 @@ function order(overrides: Partial<EntryReceiptOrder> = {}): EntryReceiptOrder {
     refundedCents: 0,
     makeWholeRefundedCents: 0,
     refundedAt: null,
+    entryRefundedCents: 0,
     ...overrides,
   };
 }
@@ -83,9 +84,10 @@ describe('buildOrderScopedReceipt', () => {
     expect(receipt?.platformFee).toBeCloseTo(4.2, 2);
     expect(receipt?.amountCharged).toBeCloseTo(64.2, 2);
     expect(receipt?.overflowCharged).toBe(0);
-    expect(
-      receipt!.entrySubtotal + receipt!.platformFee + receipt!.overflowCharged
-    ).toBeCloseTo(receipt!.amountCharged, 2);
+    expect(receipt!.entrySubtotal + receipt!.platformFee + receipt!.overflowCharged).toBeCloseTo(
+      receipt!.amountCharged,
+      2
+    );
     // The class rows sum to the entry subtotal, not to the amount charged.
     const rowSum = receipt!.classes.reduce((sum, c) => sum + c.fee, 0);
     expect(rowSum).toBeCloseTo(receipt!.entrySubtotal, 2);
@@ -113,9 +115,10 @@ describe('buildOrderScopedReceipt', () => {
     expect(receipt?.platformFee).toBe(14);
     expect(receipt?.overflowCharged).toBe(100);
     expect(receipt?.amountCharged).toBe(314);
-    expect(
-      receipt!.entrySubtotal + receipt!.platformFee + receipt!.overflowCharged
-    ).toBeCloseTo(receipt!.amountCharged, 2);
+    expect(receipt!.entrySubtotal + receipt!.platformFee + receipt!.overflowCharged).toBeCloseTo(
+      receipt!.amountCharged,
+      2
+    );
     expect(receipt?.refunded).toBe(100);
     expect(receipt?.netPaid).toBe(214);
     expect(receipt!.amountCharged - receipt!.refunded).toBeCloseTo(receipt!.netPaid, 2);
@@ -126,6 +129,53 @@ describe('buildOrderScopedReceipt', () => {
 
     expect(receipt?.refunded).toBe(20);
     expect(receipt?.netPaid).toBeCloseTo(44.2, 2);
+  });
+
+  describe('refunds recorded by only one of the two writers (MYK9-428)', () => {
+    // An app refund writes entries.refund_amount synchronously and reaches
+    // stripe_orders.refunded_cents only when the webhook lands. Inside that
+    // window this dialog used to print the gross with no refund while the My
+    // Payments row that linked to it already showed one.
+    it('honours an entry refund the order columns have not caught up with', () => {
+      const receipt = buildOrderScopedReceipt(
+        registration,
+        order({ refundedCents: 0, entryRefundedCents: 2000 })
+      );
+
+      expect(receipt?.refunded).toBe(20);
+      expect(receipt?.netPaid).toBeCloseTo(44.2, 2);
+    });
+
+    // The reverse lag: a Stripe DASHBOARD refund sets refunded_cents and never
+    // touches the entries.
+    it('honours an order refund the entries have not caught up with', () => {
+      const receipt = buildOrderScopedReceipt(
+        registration,
+        order({ refundedCents: 2000, entryRefundedCents: 0 })
+      );
+
+      expect(receipt?.refunded).toBe(20);
+      expect(receipt?.netPaid).toBeCloseTo(44.2, 2);
+    });
+
+    it('never double-counts the same refund recorded in both places', () => {
+      const receipt = buildOrderScopedReceipt(
+        registration,
+        order({ refundedCents: 2000, entryRefundedCents: 2000 })
+      );
+
+      expect(receipt?.refunded).toBe(20);
+    });
+
+    it('treats a legacy refunded order with no refund figure as fully refunded', () => {
+      const receipt = buildOrderScopedReceipt(
+        registration,
+        order({ status: 'refunded', refundedCents: 0, entryRefundedCents: 0 })
+      );
+
+      expect(receipt?.refunded).toBe(64.2);
+      expect(receipt?.netPaid).toBe(0);
+    });
   });
 
   it('narrows the dogs and the dog name to the order, not the whole card', () => {
@@ -150,7 +200,10 @@ describe('buildOrderScopedReceipt', () => {
 
   it('refuses until every order entry id is replicated', () => {
     expect(
-      buildOrderScopedReceipt(registration, order({ entryIds: ['entry-a', 'entry-not-replicated'] }))
+      buildOrderScopedReceipt(
+        registration,
+        order({ entryIds: ['entry-a', 'entry-not-replicated'] })
+      )
     ).toBeNull();
   });
 
@@ -197,10 +250,16 @@ describe('buildOrderScopedReceipt', () => {
 });
 
 describe('orderHasRefund', () => {
-  it('reads the refund columns, never the status', () => {
+  it('reads the resolved refund, never the status', () => {
     // orderSnapshot.ts: a PARTIALLY refunded order keeps status 'succeeded'.
     expect(orderHasRefund(order({ status: 'succeeded', refundedCents: 500 }))).toBe(true);
     expect(orderHasRefund(order({ status: 'succeeded', makeWholeRefundedCents: 500 }))).toBe(true);
     expect(orderHasRefund(order({ status: 'succeeded' }))).toBe(false);
+  });
+
+  it('sees an entry refund the order columns have not caught up with', () => {
+    // The order-columns-only version of this returned false here, which is how
+    // the dialog came to disagree with the My Payments row (MYK9-428).
+    expect(orderHasRefund(order({ status: 'succeeded', entryRefundedCents: 500 }))).toBe(true);
   });
 });

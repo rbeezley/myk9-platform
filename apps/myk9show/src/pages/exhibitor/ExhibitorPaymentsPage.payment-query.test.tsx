@@ -77,6 +77,8 @@ const payment: MyPayment = {
   reference: 'pi_abc123',
   refundedAt: null,
   entryIds: ['e1'],
+  refundedCents: 0,
+  makeWholeRefundedCents: 0,
   refunds: [],
 };
 

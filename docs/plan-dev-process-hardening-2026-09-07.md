@@ -34,6 +34,7 @@
 - Create: `scripts/qa/ci-concurrency.test.ts`
 - Modify: `package.json` (add `qa:ci-concurrency:test`)
 - Modify: `.github/workflows/ci.yml` Quality Checks step that runs `pnpm qa:inflight:test` (add the new test)
+- Modify: `.gitignore` (add `.logs/`, the per-worktree log directory every later task writes to)
 
 **Interfaces:**
 
@@ -68,7 +69,7 @@ describe('CI concurrency', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm vitest run scripts/qa/ci-concurrency.test.ts > .logs/t1.log 2>&1; echo "EXIT=$?"` (create `.logs/` first; Task 10 gitignores it, until then do not stage it)
+Run: `mkdir -p .logs; pnpm vitest run scripts/qa/ci-concurrency.test.ts > .logs/t1.log 2>&1; echo "EXIT=$?"` (`.logs/` is gitignored by this task)
 Expected: EXIT=1, assertion on `cancel-in-progress`.
 
 - [ ] **Step 3: Change the workflow**
@@ -107,7 +108,7 @@ Expected: EXIT=0.
 - [ ] **Step 5: Commit and ship**
 
 ```bash
-git add .github/workflows/ci.yml scripts/qa/ci-concurrency.test.ts package.json
+git add .github/workflows/ci.yml scripts/qa/ci-concurrency.test.ts package.json .gitignore
 git commit -m "ci: never cancel an in-progress main run
 
 25 of the last 30 main runs were cancelled by the next merge, so main
@@ -511,9 +512,12 @@ Expected: `shared-rules: wrote CLAUDE.md`, `shared-rules: wrote AGENTS.md`, then
 
 - [ ] **Step 6: Prove the check bites (mutation)**
 
-Run: `printf '\nx\n' >> AGENTS.md; pnpm qa:shared-rules; echo "EXIT=$?"; git checkout AGENTS.md 2>/dev/null || git restore AGENTS.md`
-Expected: appending AFTER the end marker leaves it in sync (EXIT=0). Then edit ONE character inside the block: `sed -i '' 's/Keep responses concise/Keep responses concise!/' AGENTS.md` is outside the block, so instead run `perl -0pi -e 's/(shared-rules:begin -->\n## Shared rules)/$1!/' AGENTS.md; pnpm qa:shared-rules; echo "EXIT=$?"; git restore AGENTS.md`
-Expected: EXIT=1 naming `AGENTS.md`.
+First stage the synced result so the mutations below can be undone from the index without losing Step 5's work: `git add CLAUDE.md AGENTS.md docs/agents/shared-rules.md`.
+
+Run: `printf '\nx\n' >> AGENTS.md; pnpm qa:shared-rules; echo "EXIT=$?"; git restore AGENTS.md`
+Expected: appending AFTER the end marker leaves it in sync (EXIT=0); `git restore` (no `--staged`) puts the staged, synced file back.
+Run: `perl -0pi -e 's/(shared-rules:begin -->\n## Shared rules)/$1!/' AGENTS.md; pnpm qa:shared-rules; echo "EXIT=$?"; git restore AGENTS.md; pnpm qa:shared-rules; echo "AFTER_RESTORE_EXIT=$?"`
+Expected: EXIT=1 naming `AGENTS.md`, then AFTER_RESTORE_EXIT=0 proving the restore brought the synced text back, not the pre-task one.
 
 - [ ] **Step 7: Run the tests, the doc staleness check and the whole test file**
 
@@ -931,7 +935,7 @@ Replace the hand-typed `gh pr comment … "Review gate: …"` instructions with:
 Add `"qa:post-review-gate:test": "vitest run scripts/qa/post-review-gate.test.ts"` and run it in Quality Checks beside `pnpm qa:codex-review:test`.
 
 ```bash
-git add scripts/qa/post-review-gate.sh scripts/qa/post-review-gate.test.ts scripts/qa/codex-review.sh scripts/qa/codex-review.test.ts .claude/skills/ship-pr/SKILL.md package.json .github/workflows/ci.yml
+git add scripts/qa/post-review-gate.sh scripts/qa/post-review-gate.test.ts scripts/qa/review-gate.ts scripts/qa/review-gate.test.ts scripts/qa/codex-review.sh scripts/qa/codex-review.test.ts .claude/skills/ship-pr/SKILL.md package.json .github/workflows/ci.yml
 git commit -m "tooling(qa): the review gate posts its own evidence and keeps the findings
 
 Evidence comments were typed by the agent that ran the review, and the
@@ -958,7 +962,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 - Create: `scripts/qa/format-changed.sh`
 - Modify: `.codex/hooks.json`, `package.json` (`format`, `format:check`), `.github/workflows/ci.yml` Quality Checks
 
-- [ ] **Step 1: Ignore what should never be formatted**
+- [ ] **Step 1: Confirm the tree and the neighbourhood are clean BEFORE editing anything**
+
+Run: `gh pr list --state open --json number,title --jq '.[] | "\(.number) \(.title)"'`. If any non-Dependabot PR is open, stop and merge or coordinate first: this PR conflicts with everything.
+Run: `pnpm qa:inflight apps packages supabase scripts .github .claude .codex .agents docs openspec > .logs/inflight.log 2>&1; echo "EXIT=$?"`. Exit 1 lists every worktree with uncommitted edits and every unmerged branch touching those paths; the other worktrees must be clean (`git -C <path> status --short` empty) before continuing, because a reformat lands on top of whatever they later merge. Exit 2 is not a pass.
+Run: `git status --short > .logs/pre-fmt.txt; wc -l < .logs/pre-fmt.txt` → 0. A dirty tree here means untracked WIP that Step 6 must not sweep; stop. (`.logs/` is gitignored since Task 1, so it does not appear.)
+
+- [ ] **Step 2: Ignore what should never be formatted, then reformat once**
 
 Append to `.prettierignore`:
 
@@ -972,15 +982,9 @@ myk9q-analysis.json
 mockup-dashboard.html
 ```
 
-- [ ] **Step 2: Confirm no other PR is open, then reformat once**
-
-Run: `gh pr list --state open --json number,title --jq '.[] | "\(.number) \(.title)"'`. If any non-Dependabot PR is open, stop and merge or coordinate first: this PR conflicts with everything.
-Run: `pnpm qa:inflight apps packages supabase scripts .github .claude .codex .agents docs openspec > .logs/inflight.log 2>&1; echo "EXIT=$?"`. Exit 1 lists every worktree with uncommitted edits and every unmerged branch touching those paths; the other worktrees must be clean (`git -C <path> status --short` empty) before continuing, because a reformat lands on top of whatever they later merge. Exit 2 is not a pass.
-Run: `git status --short > .logs/pre-fmt.txt; wc -l < .logs/pre-fmt.txt` → 0. A dirty tree here means untracked WIP that Step 6 must not sweep; stop.
-
 Run: `pnpm exec prettier --write . > .logs/fmt.log 2>&1; echo "EXIT=$?"` → EXIT=0.
 Run: `pnpm exec prettier --check . > .logs/fmtc.log 2>&1; echo "EXIT=$?"` → EXIT=0.
-Run: `git diff --shortstat > .logs/fmt-stat.txt; cat .logs/fmt-stat.txt` and record the file count in the PR body. Run `git status --short | grep -v '^ M' > .logs/fmt-untracked.txt; wc -l < .logs/fmt-untracked.txt` → 0: Prettier modifies tracked files only, so anything else here is not the reformat.
+Run: `git diff --shortstat > .logs/fmt-stat.txt; cat .logs/fmt-stat.txt` and record the file count in the PR body. Run `git status --short | grep -v '^ M' > .logs/fmt-untracked.txt; wc -l < .logs/fmt-untracked.txt` → 0: Prettier modifies tracked files only, so anything else here is not the reformat (`.prettierignore` shows as ` M`, which is expected).
 
 - [ ] **Step 3: Prove nothing but formatting changed**
 
@@ -1165,7 +1169,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 **Files:**
 
-- Modify: `.gitignore` (add `.logs/`), `.claude/skills/{commit,ship-pr,ship-it,screenshot-docs}/SKILL.md`
+- Modify: `.claude/skills/{commit,ship-pr,ship-it,screenshot-docs}/SKILL.md`
 - Modify: `docs/reference/git-workflow.md:38`, `docs/PLAYBOOK.md` § 7 if it repeats the list
 - Create: `.github/pull_request_template.md`
 - Create: `.github/workflows/mutation-tests.yml`
@@ -1173,7 +1177,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 - [ ] **Step 1: A per-worktree log directory**
 
-Add `.logs/` to `.gitignore`. In the four skills replace every `/tmp/<name>.log` with `.logs/<name>.log` and add once, in the commit skill's Step 1a: "Logs go to `.logs/` at the worktree root (gitignored, one per worktree, so two sessions never write the same file); `mkdir -p .logs` first." Add the same sentence to the Testing section of `docs/agents/shared-rules.md` and run `pnpm qa:shared-rules:write`.
+`.logs/` is gitignored since Task 1. In the four skills replace every `/tmp/<name>.log` with `.logs/<name>.log` and add once, in the commit skill's Step 1a: "Logs go to `.logs/` at the worktree root (gitignored, one per worktree, so two sessions never write the same file); `mkdir -p .logs` first." Add the same sentence to the Testing section of `docs/agents/shared-rules.md` and run `pnpm qa:shared-rules:write`.
 
 Run: `grep -rn '/tmp/' .claude/skills/*/SKILL.md | grep -v 'claude-501\|scratchpad' ; echo "remaining=$?"` → `remaining=1` (no matches).
 
@@ -1261,7 +1265,7 @@ Run: `pnpm test:mutation:cart > .logs/mut.log 2>&1; echo "EXIT=$?"` once locally
 - [ ] **Step 5: Commit and ship**
 
 ```bash
-git add .gitignore .claude/skills docs/reference/git-workflow.md docs/agents/shared-rules.md CLAUDE.md AGENTS.md .github/pull_request_template.md .github/workflows/mutation-tests.yml
+git add .claude/skills docs/reference/git-workflow.md docs/agents/shared-rules.md CLAUDE.md AGENTS.md .github/pull_request_template.md .github/workflows/mutation-tests.yml
 git commit -m "chore(process): per-worktree logs, PR template, weekly mutation run, scope drift
 
 Skills wrote to /tmp against the shared-log lesson; the docs-only scope

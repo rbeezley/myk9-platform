@@ -100,3 +100,6 @@ tmpclaude-*-cwd
 
 # Local support-triage pass state (regenerated every run; safe to delete)
 .support-triage/
+
+# Per-worktree log directory for local check output (see docs/plan-dev-process-hardening-2026-09-07.md)
+.logs/

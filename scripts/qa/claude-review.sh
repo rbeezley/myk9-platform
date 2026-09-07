@@ -64,6 +64,30 @@ if [ "$expect_wait" = 1 ]; then
   echo "claude-review: --wait needs a number of seconds (usage: --wait <seconds> [pr-number])" >&2
   exit 2
 fi
+if [ -z "$WAIT" ]; then
+  # Preflight (before ANY gh/network call, which would hang the same way — Codex
+  # review of #2127): the review needs the macOS Keychain (Claude's credentials) and the
+  # network. Codex's workspace-write sandbox denies both, and the symptoms are
+  # misleading: keychain denied reads as "Not logged in · Please run /login" even
+  # though the user IS logged in, and network denied hangs ~3 minutes before
+  # "Can't reach the API server" (Codex on #2124, 2026-09-07: three timed-out
+  # runs, then a false "not logged in"). Fail in seconds and say what to do.
+  ESCALATE_HINT="This must run OUTSIDE the sandbox: Codex should re-run it with escalated permissions, or — if its approval policy forbids that — stop and ask Richard to run \`bash scripts/qa/claude-review.sh --detach --post ${PR:-<pr>}\` from a terminal."
+  if ! "$CLAUDE" auth status > /dev/null 2>&1; then
+    echo "claude-review: \`claude auth status\` says not logged in HERE. If the user is logged in interactively, this shell cannot reach the Keychain (a sandbox). ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
+    exit 2
+  fi
+  # The default lives in its own variable: a `}` inside `${VAR:-default}` (curl's
+  # %{http_code}) closes the expansion early and the rest of the URL leaks into
+  # the probe's output, so "000" never matches.
+  NET_PROBE_DEFAULT='curl -sS -o /dev/null -m 5 -w %{http_code} https://api.anthropic.com/'
+  NET_PROBE="${CLAUDE_REVIEW_NET_PROBE:-$NET_PROBE_DEFAULT}"
+  if [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] || [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
+    echo "claude-review: no network from this shell (api.anthropic.com unreachable), so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
+    exit 2
+  fi
+fi
+
 [ -n "$PR" ] || PR="$("$GH" pr view --json number -q .number)"
 if [ -z "$PR" ]; then
   echo "claude-review: no PR number given and gh could not find one" >&2
@@ -128,27 +152,6 @@ LOG="${CLAUDE_REVIEW_LOG:-$ROOT/.logs/claude-review-${HEAD_SHA}.log}"
 CONTRACT="$(sed -n "s/^REVIEW_INSTRUCTIONS='\(.*\)'\$/\1/p" "$HERE/codex-review.sh")"
 if [ -z "$CONTRACT" ]; then
   echo "claude-review: could not read REVIEW_INSTRUCTIONS from codex-review.sh; refusing to review without the verdict contract (exit 2)." >&2
-  exit 2
-fi
-
-# Preflight: the review needs the macOS Keychain (Claude's credentials) and the
-# network. Codex's workspace-write sandbox denies both, and the symptoms are
-# misleading: keychain denied reads as "Not logged in · Please run /login" even
-# though the user IS logged in, and network denied hangs ~3 minutes before
-# "Can't reach the API server" (Codex on #2124, 2026-09-07: three timed-out
-# runs, then a false "not logged in"). Fail in seconds and say what to do.
-ESCALATE_HINT="This must run OUTSIDE the sandbox: Codex should re-run it with escalated permissions, or — if its approval policy forbids that — stop and ask Richard to run \`bash scripts/qa/claude-review.sh --detach --post ${PR}\` from a terminal."
-if ! "$CLAUDE" auth status > /dev/null 2>&1; then
-  echo "claude-review: \`claude auth status\` says not logged in HERE. If the user is logged in interactively, this shell cannot reach the Keychain (a sandbox). ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
-  exit 2
-fi
-# The default lives in its own variable: a `}` inside `${VAR:-default}` (curl's
-# %{http_code}) closes the expansion early and the rest of the URL leaks into
-# the probe's output, so "000" never matches.
-NET_PROBE_DEFAULT='curl -sS -o /dev/null -m 5 -w %{http_code} https://api.anthropic.com/'
-NET_PROBE="${CLAUDE_REVIEW_NET_PROBE:-$NET_PROBE_DEFAULT}"
-if [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] || [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
-  echo "claude-review: no network from this shell (api.anthropic.com unreachable), so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
   exit 2
 fi
 

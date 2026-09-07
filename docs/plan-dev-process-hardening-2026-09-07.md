@@ -256,6 +256,9 @@ Decide by what the URL is:
 
 ```bash
 git add apps/myk9show/src/test/e2e/cross-role-workflows.spec.ts apps/myk9show/src/test/e2e/browse-shows-to-details.spec.ts apps/myk9show/playwright.ci.config.ts
+# Branch (a) in Step 5 also edits the harness; stage it or the nightly-health fix does not ship:
+git add apps/myk9show/src/test/e2e/harness/routeHealthDiagnostics.ts 2>/dev/null || true
+git status --short   # every M/A line must be one of the files above
 git commit -m "test(e2e): retire the guest tab-strip locator and make a nightly 500 name its request
 
 cross-role-workflows expected a Browse All tab that guests have not seen
@@ -343,6 +346,13 @@ describe('syncSharedRules', () => {
     ]);
   });
 
+  it('fails check on a second marker pair (a stale duplicate block would otherwise hide)', () => {
+    const root = repo('## Rule\n', wrap('## Rule'), `${wrap('## Rule')}\n${wrap('## Stale')}`);
+    expect(syncSharedRules({ root, mode: 'check' }).problems).toEqual([
+      'AGENTS.md: more than one shared-rules marker pair',
+    ]);
+  });
+
   it('write rewrites only the block and keeps everything outside it', () => {
     const root = repo('## New\n', wrap('## Old', '# Head\n', '\n## Tail\n'), wrap('## Old'));
     expect(syncSharedRules({ root, mode: 'write' }).changed.sort()).toEqual([
@@ -410,6 +420,10 @@ export function syncSharedRules(opts: { root: string; mode: 'check' | 'write' })
     const end = text.indexOf(END);
     if (begin < 0 || end < 0 || end < begin) {
       result.problems.push(`${target}: missing shared-rules markers`);
+      continue;
+    }
+    if (text.indexOf(BEGIN, begin + 1) >= 0 || text.indexOf(END, end + 1) >= 0) {
+      result.problems.push(`${target}: more than one shared-rules marker pair`);
       continue;
     }
     const current = text
@@ -711,6 +725,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 **Interfaces:**
 
 - Produces: `scripts/qa/post-review-gate.sh <pr> <codex|claude> <base-sha> <head-sha> "<verdict>" <log-path>`; env `GH_BIN` overrides `gh` for tests. Exit 0 posted, 2 refused (bad verdict grammar, empty log).
+- Produces: `scripts/qa/review-gate.ts --verdict "<text>"` exits 0 when `CLEAN_VERDICT` (line 88) accepts the text and 2 otherwise. The poster calls this so there is ONE grammar; a hand-copied regex in the poster drifted from the parser in the first draft of this plan (`finding(s)` is accepted by the parser's docs in ship-pr but rejected by `CLEAN_VERDICT`).
 - `codex-review.sh --post` (PR number from `gh pr view --json number`), env `GH_BIN` for tests.
 
 - [ ] **Step 1: Write the failing tests for the poster**
@@ -778,13 +793,24 @@ describe('post-review-gate.sh', () => {
     expect(body).toContain('No actionable defects found.');
   });
 
-  it('refuses a verdict outside the gate grammar and posts nothing', () => {
+  it.each(['no blocking findings', '1 finding(s), all addressed', 'no findings yet'])(
+    'refuses %j (rejected by review-gate.ts CLEAN_VERDICT) and posts nothing',
+    verdict => {
+      const gh = stubGh();
+      const log = logFile('codex\nNo actionable defects found.\n');
+      const r = run(['42', 'codex', '0a2020c7a', '5af9af158', verdict, log], gh.bin);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('verdict');
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    }
+  );
+
+  it('accepts exactly what review-gate.ts accepts (grammar is shared, not copied)', () => {
     const gh = stubGh();
-    const log = logFile('codex\nNo actionable defects found.\n');
-    const r = run(['42', 'codex', '0a2020c7a', '5af9af158', 'no blocking findings', log], gh.bin);
-    expect(r.code).toBe(2);
-    expect(r.out).toContain('verdict');
-    expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    const log = logFile('codex\n- fixed\n');
+    expect(
+      run(['42', 'claude', '0a2020c7a', '5af9af158', '2 findings, all fixed', log], gh.bin).code
+    ).toBe(0);
   });
 
   it('refuses an empty log', () => {
@@ -800,6 +826,20 @@ describe('post-review-gate.sh', () => {
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `pnpm vitest run scripts/qa/post-review-gate.test.ts > .logs/t7.log 2>&1; echo "EXIT=$?"` → EXIT=1 (script missing).
+
+- [ ] **Step 3a: Give review-gate.ts a `--verdict` mode**
+
+In `scripts/qa/review-gate.ts`, at the top of the CLI block (the `if (import.meta.url === pathToFileURL(...))` branch), add:
+
+```ts
+const verdictFlag = process.argv.indexOf('--verdict');
+if (verdictFlag >= 0) {
+  const text = (process.argv[verdictFlag + 1] ?? '').trim();
+  process.exit(CLEAN_VERDICT.test(text) ? 0 : 2);
+}
+```
+
+and in `scripts/qa/review-gate.test.ts` add a case that spawns the script with `--verdict "1 finding(s), all addressed"` and expects exit 2, and with `--verdict "no findings"` expects 0. Also fix `.claude/skills/ship-pr/SKILL.md` Step 4, which today documents `finding(s)` as accepted: the accepted forms are exactly `no findings` and `<N> findings, all addressed|fixed` (`1 findings, all addressed` is the singular, ugly but green).
 
 - [ ] **Step 3: Write the poster**
 
@@ -818,8 +858,10 @@ PR="$1"; REVIEWER="$2"; BASE="$3"; HEAD="$4"; VERDICT="$5"; LOG="$6"
 GH="${GH_BIN:-gh}"
 
 case "$REVIEWER" in codex|claude) ;; *) echo "post-review-gate: reviewer must be codex or claude" >&2; exit 2;; esac
-if ! printf '%s' "$VERDICT" | grep -Eq '^(no findings|[0-9]+ findings?(\(s\))?, all (addressed|fixed))$'; then
-  echo "post-review-gate: verdict '$VERDICT' is outside the gate grammar; nothing posted" >&2
+# ONE grammar: ask the parser that will judge the comment, never a copied regex.
+if ! node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+    "$(dirname "$0")/review-gate.ts" --verdict "$VERDICT"; then
+  echo "post-review-gate: verdict '$VERDICT' is outside the gate grammar (review-gate.ts CLEAN_VERDICT); nothing posted" >&2
   exit 2
 fi
 if [ ! -s "$LOG" ]; then
@@ -933,10 +975,12 @@ mockup-dashboard.html
 - [ ] **Step 2: Confirm no other PR is open, then reformat once**
 
 Run: `gh pr list --state open --json number,title --jq '.[] | "\(.number) \(.title)"'`. If any non-Dependabot PR is open, stop and merge or coordinate first: this PR conflicts with everything.
+Run: `pnpm qa:inflight apps packages supabase scripts .github .claude .codex .agents docs openspec > .logs/inflight.log 2>&1; echo "EXIT=$?"`. Exit 1 lists every worktree with uncommitted edits and every unmerged branch touching those paths; the other worktrees must be clean (`git -C <path> status --short` empty) before continuing, because a reformat lands on top of whatever they later merge. Exit 2 is not a pass.
+Run: `git status --short > .logs/pre-fmt.txt; wc -l < .logs/pre-fmt.txt` → 0. A dirty tree here means untracked WIP that Step 6 must not sweep; stop.
 
 Run: `pnpm exec prettier --write . > .logs/fmt.log 2>&1; echo "EXIT=$?"` → EXIT=0.
 Run: `pnpm exec prettier --check . > .logs/fmtc.log 2>&1; echo "EXIT=$?"` → EXIT=0.
-Run: `git diff --stat | tail -1` and record the file count in the PR body.
+Run: `git diff --shortstat > .logs/fmt-stat.txt; cat .logs/fmt-stat.txt` and record the file count in the PR body. Run `git status --short | grep -v '^ M' > .logs/fmt-untracked.txt; wc -l < .logs/fmt-untracked.txt` → 0: Prettier modifies tracked files only, so anything else here is not the reformat.
 
 - [ ] **Step 3: Prove nothing but formatting changed**
 
@@ -999,10 +1043,10 @@ Run: `echo '  const x   = 1' >> scripts/qa/format-changed.sh.tmp.ts; bash script
 
 - [ ] **Step 6: Commit and ship**
 
-Two commits in one PR so the review can read the second one alone:
+Two commits in one PR so the review can read the second one alone. Stage tracked modifications only (`-u`); never `-A`, which sweeps untracked WIP in a shared checkout:
 
 ```bash
-git add -A -- . ':!.logs'
+git add -u -- . ':!.prettierignore' ':!package.json' ':!.github/workflows/ci.yml' ':!.codex/hooks.json'
 git commit -m "style: one-time Prettier pass over the tree
 
 No behavior change; typecheck, lint, the app suite, the package suites
@@ -1012,7 +1056,7 @@ check that keeps it this way.
 Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 ```
 
-(the second commit holds `.prettierignore`, `package.json`, `ci.yml`, `scripts/qa/format-changed.sh`, `.codex/hooks.json` if they were not already swept in; if they were, split with `git reset HEAD~1 -- <those files>` before the first commit).
+Then the second commit: `git add .prettierignore package.json .github/workflows/ci.yml .codex/hooks.json scripts/qa/format-changed.sh` and commit as `ci: check formatting in Quality Checks; format-changed hook for Codex`. `git status --short` must be empty afterwards.
 
 `/ship-pr`. In the PR body: file count, the five green checks, and "Codex: review the second commit; the first is `prettier --write .`".
 
@@ -1020,7 +1064,9 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 9: Only skills the playbook routes to
 
-**Finding:** `.agents/skills` has 69 entries; about 37 are third-party (Matt Pocock's set, tracked by #2062) that nothing in the repo routes to except their own router `ask-matt`, and several duplicate project skills (code-review vs review-fix vs simplify-review vs simplify vs harden; three handoffs; two TDDs; three grill variants). Codex loads all of their descriptions for routing.
+**Finding:** `.agents/skills` has 69 entries; about 37 are third-party (Matt Pocock's set, tracked by #2062) that nothing in the repo routes to except their own router `ask-matt`, and several duplicate a built-in or project skill: `code-review` (Matt's) duplicates the built-in `/code-review` the PLAYBOOK and ship-pr actually invoke, `review-fix`/`simplify-review` overlap `/simplify` and `/harden`, `claude-handoff`/`handoff` overlap the harness handoff skill, `tdd` duplicates `superpowers:test-driven-development`, and three grill variants overlap `superpowers:brainstorming`. Codex loads all of their descriptions for routing. (`simplify` and `harden` themselves are distinct pipeline stages, not duplicates.)
+
+**Reference rule:** a mention counts only when it names the thing as a skill: `skills/<name>`, `` `<name>` `` in backticks, or `/<name>` as a command. A bare word (`qa`, `triage`, `implement`, `wizard`, `handoff`, `research`) is prose, not routing, and the "code-review" mentions in PLAYBOOK and ship-pr are the built-in `/code-review`, not `.agents/skills/code-review`.
 
 **Files:**
 
@@ -1034,15 +1080,38 @@ Add to `skillTrees.test.ts`:
 
 ```ts
 describe('third-party skills are inventoried', () => {
-  it('every real (non-symlink) .agents/skills entry is listed with a reason, and nothing listed is missing', () => {
-    const inventory = readFileSync(resolve(repoRoot, 'docs/agents/skills-inventory.md'), 'utf8');
-    const listed = new Set([...inventory.matchAll(/^\| `([^`]+)` \|/gm)].map(m => m[1]!));
-    const onDisk = readdirSync(resolve(repoRoot, '.agents/skills'), { withFileTypes: true })
-      .filter(d => d.isDirectory() && !d.isSymbolicLink())
-      .map(d => d.name);
+  const inventory = readFileSync(resolve(repoRoot, 'docs/agents/skills-inventory.md'), 'utf8');
+  // | `name` | origin | reason |  -- three non-empty cells, or the row does not count.
+  const rows = [...inventory.matchAll(/^\| `([^`]+)` \| ([^|]+?) \| ([^|]+?) \|$/gm)].map(m => ({
+    name: m[1]!,
+    origin: m[2]!.trim(),
+    reason: m[3]!.trim(),
+  }));
+  const onDisk = readdirSync(resolve(repoRoot, '.agents/skills'), { withFileTypes: true })
+    .filter(d => d.isDirectory() && !d.isSymbolicLink())
+    .map(d => d.name);
+
+  it('every real (non-symlink) .agents/skills entry has a row, and every row has a directory', () => {
+    const listed = new Set(rows.map(r => r.name));
     expect(onDisk.filter(n => !listed.has(n)).sort()).toEqual([]);
-    expect([...listed].filter(n => !onDisk.includes(n)).sort()).toEqual([]);
+    expect(
+      rows
+        .map(r => r.name)
+        .filter(n => !onDisk.includes(n))
+        .sort()
+    ).toEqual([]);
     expect(onDisk.length).toBeGreaterThan(5); // vacuity guard
+  });
+
+  it('every third-party row names a repo file that routes to it, and that file exists and mentions it', () => {
+    for (const row of rows.filter(r => r.origin !== 'ours')) {
+      const path = row.reason.match(/`([^`]+\.(?:md|ts|js|yml|json))`/)?.[1];
+      expect(path, `${row.name}: reason must name the routing file in backticks`).toBeTruthy();
+      const text = readFileSync(resolve(repoRoot, path!), 'utf8');
+      expect(text, `${path} does not name ${row.name}`).toMatch(
+        new RegExp(`(skills/${row.name}\\b|\`${row.name}\`|/${row.name}\\b)`)
+      );
+    }
   });
 });
 ```
@@ -1059,13 +1128,13 @@ for d in .agents/skills/*/; do [ -L "${d%/}" ] && continue; n=$(basename "$d")
   echo "$n $refs"; done | sort -k2 -n
 ```
 
-Delete every directory with 0 references EXCEPT the four project-owned real directories (`launch-readiness-triage`, `quality-finding-lifecycle`, `role-journey-ux-audit`, `supabase-health-drift-audit`; they are symlink targets for `.codex/skills`). Today that list is: `ask-matt claude-handoff codebase-design design-an-interface diagnosing-bugs edit-article git-guardrails-claude-code grill-me grill-with-docs grilling implement loop-me migrate-to-shoehorn obsidian-vault prototype qa request-refactor-plan resolving-merge-conflicts review-fix scaffold-exercises setup-matt-pocock-skills setup-pre-commit simplify-review tdd teach to-issues to-prd triage ubiquitous-language wayfinder wizard write-a-skill writing-beats writing-concisely writing-fragments writing-great-skills writing-shape` (`implement`, `qa`, `triage`, `wizard` only match as common words; confirm with `grep -rn 'skills/implement\|skills/qa\b\|skills/triage\|skills/wizard'` returning nothing). Before deleting, check the kept skills do not reference a deleted one: `for n in <delete list>; do grep -rlw "$n" .agents/skills/{UX-to-Prompt,code-review,domain-modeling,handoff,improve-codebase-architecture,research} && echo "KEEP $n"; done` and keep any that prints.
+Apply the reference rule above (skill-shaped mentions only), then delete every directory with 0 such references EXCEPT the four project-owned real directories (`launch-readiness-triage`, `quality-finding-lifecycle`, `role-journey-ux-audit`, `supabase-health-drift-audit`; they are symlink targets for `.codex/skills`). Today that list is: `ask-matt claude-handoff code-review codebase-design design-an-interface diagnosing-bugs edit-article git-guardrails-claude-code grill-me grill-with-docs grilling handoff implement loop-me migrate-to-shoehorn obsidian-vault prototype qa request-refactor-plan research resolving-merge-conflicts review-fix scaffold-exercises setup-matt-pocock-skills setup-pre-commit simplify-review tdd teach to-issues to-prd triage ubiquitous-language wayfinder wizard write-a-skill writing-beats writing-concisely writing-fragments writing-great-skills writing-shape` (40). Verify each of `code-review`, `handoff`, `research` before deleting: `grep -rnE 'skills/(code-review|handoff|research)\b|`(code-review|handoff|research)`' CLAUDE.md AGENTS.md docs/PLAYBOOK.md docs/agents .claude/skills .codex .github scripts` must return only the built-in `/code-review` command mentions; if a hit names the `.agents` skill, keep it and add its row. Kept today with a skill-shaped reference: `UX-to-Prompt` (UX-Audit, IA-Review), `domain-modeling` (`docs/agents/domain.md`), `improve-codebase-architecture` (codebase-health references, `/simplify`), `supabase-postgres-best-practices` (`debugging-patterns`), and the three that are also real directories under `.claude/skills` only because #2062 tracked them (`vercel-composition-patterns`, `vercel-react-best-practices`, `web-design-guidelines`; check `ls -la .claude/skills | grep -E 'vercel|web-design'` and delete the `.agents` copy if `.claude` holds a real directory, since `skillTrees.test.ts` forbids two real copies). Before deleting, check the kept skills do not reference a deleted one: `for n in <delete list>; do grep -rlw "$n" .agents/skills/{UX-to-Prompt,domain-modeling,improve-codebase-architecture,supabase-postgres-best-practices} && echo "KEEP $n"; done` and keep any that prints (add its row with the kept skill's SKILL.md as the routing file).
 
 Run: `git rm -r -q .agents/skills/<name> …` for the final list.
 
 - [ ] **Step 3: Write the inventory**
 
-`docs/agents/skills-inventory.md`: a table `| Skill | Origin | Why we keep it |` with one row per remaining real directory, e.g. `| \`domain-modeling\` | Matt Pocock skills | referenced by docs/agents/domain.md |`, `| \`role-journey-ux-audit\` | ours | PLAYBOOK § 6 |`. Add a paragraph: "A third-party skill stays only while something in the repo routes to it. `skillTrees.test.ts` fails when a real directory is missing from this table or a listed one is gone. Reinstall a deleted one from its upstream when a playbook row needs it."
+`docs/agents/skills-inventory.md`: a table `| Skill | Origin | Why we keep it |` with one row per remaining real directory. Origin is `ours` or `Matt Pocock skills`; a third-party row's reason MUST name, in backticks, the repo file that routes to it, e.g. `| \`domain-modeling\` | Matt Pocock skills | routed from \`docs/agents/domain.md\` |`, `| \`role-journey-ux-audit\` | ours | PLAYBOOK § 6 |`. The test reads that path and greps it for the skill name, so a row with a vague reason fails. Add a paragraph: "A third-party skill stays only while something in the repo routes to it. `skillTrees.test.ts` fails when a real directory is missing from this table or a listed one is gone. Reinstall a deleted one from its upstream when a playbook row needs it."
 
 - [ ] **Step 4: Run the tests and the doc check**
 
@@ -1210,7 +1279,7 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 Nothing above is done until these are recorded in this file under a `## Evidence` heading, each with the command and its output date.
 
-- [ ] **Two consecutive `main` runs completed** after Task 1 merged: `gh run list --workflow ci.yml --branch main --limit 5 --json conclusion,displayTitle` shows no `cancelled` among runs newer than the merge.
+- [ ] **Two consecutive `main` runs completed** after Task 1 merged: `gh run list --workflow ci.yml --branch main --event push --limit 8 --json conclusion,status,createdAt,headSha,displayTitle` shows, for the two `main` pushes immediately after the #2110 merge commit (identify them by `headSha` against `git log --first-parent origin/main`), `status: completed` and `conclusion: success`. Queued or in-progress runs do not count; a `failure` is recorded as such with the failing job named, and is still evidence the run was not cancelled.
 - [ ] **Dependency audit green**: `gh workflow run dependency-audit.yml` then `gh run list --workflow dependency-audit.yml --limit 1 --json conclusion` → `success`.
 - [ ] **Nightly-e2e and nightly-health**: both dispatched after Task 3 merged; conclusions recorded. If either is still red, the failure is named in this file with the Linear issue that owns it.
 - [ ] **Shared rules in CI**: the Quality Checks log of the first PR after Task 4 shows `shared-rules: in sync`.

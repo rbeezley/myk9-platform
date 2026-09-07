@@ -222,6 +222,14 @@ describe('codex-review.sh', () => {
       0,
     ],
     [
+      // "No actionable" alone is not the contract sentence: this one asserts
+      // that no VERDICT is available, i.e. the opposite of a clean review
+      // (Codex review of #2115, P2). The sentence must name findings.
+      'a sentence that opens "No actionable" but asserts no verdict is available',
+      'codex\nNo actionable verdict is available; only one file has been inspected.',
+      0,
+    ],
+    [
       'a review that did not run despite clean wording',
       'codex\nThe review did not run. No actionable defects found.',
       0,
@@ -311,6 +319,17 @@ describe('codex-review.sh', () => {
     expect(bodies(gh.calls)[0]).toMatch(
       /^Review gate: codex reviewed \S+ — 2 findings, all addressed\n/
     );
+  });
+
+  it('exits 2 when the findings comment could not be posted', () => {
+    // A dropped findings comment is not cosmetic: the next clean run counts N
+    // from these comments, so the evidence would say "no findings" for a head
+    // that had them (Codex review of #2115, P2).
+    const stub = stubCodex('codex\n- [P2] Something is wrong');
+    const gh = stubGh({ commentExit: 1 });
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('NOT posted');
   });
 
   it('exits 2 when the review was clean but the evidence did NOT get posted', () => {

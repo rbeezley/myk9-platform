@@ -41,7 +41,11 @@ done
 POST=0
 for arg in "$@"; do [ "$arg" = "--post" ] && POST=1; done
 GH="${GH_BIN:-gh}"
-POSTER="$(dirname "$0")/post-review-gate.sh"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+POSTER="$HERE/post-review-gate.sh"
+# One definition of "clean verdict" for both wrappers and the poster.
+# shellcheck source=scripts/qa/review-verdict.sh
+. "$HERE/review-verdict.sh"
 CODEX="${CODEX_BIN:-codex}"
 BASE_SHA="$(git rev-parse "$BASE_REF")"
 HEAD_SHA="$(git rev-parse HEAD)"
@@ -82,7 +86,13 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
   # evidence — and the clean re-run counts its [P*] bullets for the N.
   if [ "$POST" = 1 ]; then
     PR="$("$GH" pr view --json number -q .number)"
-    "$GH" pr comment "$PR" --body "$(printf 'Codex findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"
+    # A lost findings comment is not a cosmetic failure: the next clean run
+    # counts N from these comments, so a silently dropped one makes the
+    # evidence read "no findings" for a head that had them (Codex, #2115 P2).
+    if ! "$GH" pr comment "$PR" --body "$(printf 'Codex findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"; then
+      echo "codex-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
+      exit 2
+    fi
   fi
   exit 1
 fi
@@ -106,28 +116,13 @@ if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted
   exit 2
 fi
 
-# Only the first non-empty paragraph can certify the review (MYK9-415).
-# Join wrapped lines so sentence matching behaves the same across line wraps.
-FIRST_PARAGRAPH="$(echo "$VERDICT" | awk '
-  /^[[:space:]]*$/ { if (started) exit; next }
-  { printf "%s%s", started ? " " : "", $0; started=1 }
-')"
-# The stable part of a clean verdict is the SENTENCE "No actionable ..."; the
-# noun varies ("defects", "regressions", "correctness, security, or data-flow
-# regressions"), so match only the prefix (Codex review of #2063, P2).
-#
-# That sentence is not always the first thing Codex says. On #2074 it opened
-# with a summary — "The documentation-only change restores ... requirements.
-# No actionable defects found; git diff --check passed." — and a verdict
-# anchored to the start of the BLOCK rejected a review that had genuinely run
-# and genuinely found nothing. Anchor to a sentence boundary instead.
-#
-# Two arms, and the second is case-SENSITIVE on purpose. Mid-string, only a
-# capitalised "No" is a sentence opening; accepting lowercase after any [.!?]
-# would let an ellipsis in "the run stopped... no actionable verdict" read as
-# clean, which is the exact class of false pass the block below guards.
-if ! { echo "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*no actionable\b' ||
-  echo "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
+# Only the first non-empty paragraph can certify the review (MYK9-415), and it
+# must carry a whole clean-verdict SENTENCE, not just its opening. That rule
+# lives in scripts/qa/review-verdict.sh, shared with the poster and the Claude
+# wrapper — see its header for why the sentence is not anchored to the start of
+# the block (#2074 opened with a summary and a block-anchored match rejected a
+# review that had genuinely run).
+if ! review_verdict_is_clean "$VERDICT"; then
   echo
   echo "codex-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
   exit 2

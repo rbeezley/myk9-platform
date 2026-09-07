@@ -112,6 +112,9 @@ describe('post-review-gate.sh', () => {
     "ERROR: You've hit your usage limit\nReview was interrupted\n",
     'codex\n- [P1] Something is broken\n',
     'No findings yet; only the workflow file has been inspected.\n',
+    // Opens "No actionable" but asserts no VERDICT is available — the opposite
+    // of a clean review (Codex review of #2115, P2).
+    'No actionable verdict is available; only one file has been inspected.\n',
     'No issues found in this diff.\n',
     'Summary of changes.\n\nNo actionable defects found.\n',
   ])(

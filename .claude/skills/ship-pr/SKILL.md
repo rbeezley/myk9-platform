@@ -130,6 +130,8 @@ Use `--post` with no `--` before it: pnpm forwards a bare `--` to the script.
 bash scripts/qa/claude-review.sh --post $PR_NUMBER
 ```
 
+Push first on this path: `/code-review` reads the **remote** PR head while the evidence names your local HEAD, so `claude-review.sh` refuses (exit 2) when the two differ rather than attesting to a commit the reviewer never saw.
+
 Both wrappers behave identically. Exit 0 = clean and the evidence comment has been posted for THIS head; 1 = findings, which the wrapper posts as a `Codex/Claude findings for <head>` comment (not evidence — it does not begin `Review gate:`), so fix them, commit, and re-run for the NEW head; 2 = the review did NOT complete (usage limit, interrupt, unrecognized output) **or the evidence was not posted** — not a verdict, and nothing was recorded. Drop `--post` to rehearse without writing to the PR. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
 
 **The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings; that is why the wrappers read the log and why only the poster writes evidence. On a clean re-run after findings, the wrapper counts the `[P*]` bullets in its own earlier findings comments and posts `<N> findings, all addressed` — you do not supply N.

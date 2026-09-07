@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -37,7 +37,10 @@ exit ${exitCode}
   return { bin, log: join(dir, 'review.log'), args };
 }
 
-function stubGh(opts: { commentExit?: number; prior?: string } = {}): {
+/** The local HEAD the wrapper will bind its evidence to. */
+const LOCAL_HEAD = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+
+function stubGh(opts: { commentExit?: number; prior?: string; prHead?: string } = {}): {
   bin: string;
   calls: string;
 } {
@@ -52,9 +55,11 @@ function stubGh(opts: { commentExit?: number; prior?: string } = {}): {
     `#!/usr/bin/env bash
 printf '%s\\n' "$@" >> '${calls}'
 printf -- '---\\n' >> '${calls}'
-case "$1 $2" in
-  'pr view') if [ "$3" = '--json' ]; then echo 7; else cat '${prior}'; fi ;;
-  'pr comment') exit ${opts.commentExit ?? 0} ;;
+case "$*" in
+  *headRefOid*) echo '${opts.prHead ?? LOCAL_HEAD}' ;;
+  *comments*) cat '${prior}' ;;
+  'pr view --json number'*) echo 7 ;;
+  'pr comment'*) exit ${opts.commentExit ?? 0} ;;
 esac
 `
   );
@@ -62,7 +67,13 @@ esac
   return { bin, calls };
 }
 
+/**
+ * Every `--body` the stub `gh` was handed, in order. The wrapper also READS the
+ * PR (number, head SHA, prior comments), so "nothing was posted" is an empty
+ * body list, not an absent calls file.
+ */
 function bodies(callsPath: string): string[] {
+  if (!existsSync(callsPath)) return [];
   return readFileSync(callsPath, 'utf8')
     .split('\n---\n')
     .filter(Boolean)
@@ -149,8 +160,34 @@ describe('claude-review.sh', () => {
     expect(r.out).toContain('NOT posted');
   });
 
+  it('refuses to review when the PR head is not the local HEAD', () => {
+    // `/code-review <pr>` reads the REMOTE head; the evidence names local HEAD.
+    // With an unpushed commit a clean review would attest to unreviewed code.
+    const stub = stubClaude('No actionable defects found.');
+    const gh = stubGh({ prHead: '0'.repeat(40) });
+    const r = run(stub, gh);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('local HEAD');
+    expect(bodies(gh.calls)).toEqual([]);
+  });
+
+  it('exits 2 when the findings comment could not be posted', () => {
+    // The next clean run counts N from these comments, so a dropped one makes
+    // the evidence say "no findings" for a head that had them.
+    const stub = stubClaude('- [P1] Something is broken\n');
+    const gh = stubGh({ commentExit: 1 });
+    const r = run(stub, gh);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('NOT posted');
+  });
+
   it.each([
     ['a usage-limit abort that still exits 0', "ERROR: You've hit your usage limit\n", 0],
+    [
+      'a sentence that opens "No actionable" but asserts no VERDICT is available',
+      'No actionable verdict is available; only one file has been inspected.\n',
+      0,
+    ],
     ['an empty log', '', 0],
     ['prose that is neither findings nor a clean verdict', 'The change looks fine to me.\n', 0],
     [
@@ -169,7 +206,7 @@ describe('claude-review.sh', () => {
     const gh = stubGh();
     const r = run(stub, gh);
     expect(r.code).toBe(2);
-    expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    expect(bodies(gh.calls)).toEqual([]);
   });
 
   it('without --post it writes nothing to the PR', () => {
@@ -178,7 +215,7 @@ describe('claude-review.sh', () => {
     const r = run(stub, gh, ['7']);
     expect(r.code).toBe(0);
     expect(r.out).toContain('post-review-gate.sh');
-    expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    expect(bodies(gh.calls)).toEqual([]);
   });
 
   it('refuses to review at all when the contract cannot be read', () => {
@@ -190,6 +227,10 @@ describe('claude-review.sh', () => {
     dirs.push(dir);
     const copy = join(dir, 'claude-review.sh');
     writeFileSync(copy, readFileSync(SCRIPT, 'utf8'));
+    writeFileSync(
+      join(dir, 'review-verdict.sh'),
+      readFileSync(resolve(import.meta.dirname, 'review-verdict.sh'), 'utf8')
+    );
     writeFileSync(join(dir, 'codex-review.sh'), '#!/usr/bin/env bash\necho hi\n');
     let code = 0;
     let out = '';

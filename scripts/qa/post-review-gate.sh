@@ -10,6 +10,10 @@
 set -euo pipefail
 PR="$1"; REVIEWER="$2"; BASE="$3"; HEAD="$4"; VERDICT="$5"; LOG="$6"
 GH="${GH_BIN:-gh}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+# One definition of "clean verdict", shared with both review wrappers.
+# shellcheck source=scripts/qa/review-verdict.sh
+. "$HERE/review-verdict.sh"
 
 case "$REVIEWER" in codex|claude) ;; *) echo "post-review-gate: reviewer must be codex or claude" >&2; exit 2;; esac
 # ONE grammar: ask the parser that will judge the comment, never a copied regex.
@@ -49,17 +53,13 @@ fi
     exit 2
   fi
   # Not free text: both review wrappers instruct the reviewer to open a clean
-  # verdict with the CONTRACT sentence "No actionable ..." and nothing else
-  # counts. "No findings yet; only the workflow file has been inspected" is a
-  # clean-looking sentence about an incomplete review, and any regex that
-  # guesses at completeness from prose will be fooled by the next phrasing
-  # (Codex review of #2110, round 7). Same first-paragraph rule as codex-review.sh.
-  FIRST_PARAGRAPH="$(printf '%s\n' "$VERDICT_BLOCK" | awk '
-    /^[[:space:]]*$/ { if (started) exit; next }
-    { printf "%s%s", started ? " " : "", $0; started=1 }
-  ')"
-  if ! { printf '%s' "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*No actionable\b' ||
-         printf '%s' "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
+  # verdict with the CONTRACT sentence "No actionable <findings> ..." and
+  # nothing else counts. "No findings yet; only the workflow file has been
+  # inspected" is a clean-looking sentence about an incomplete review, and any
+  # regex that guesses at completeness from prose will be fooled by the next
+  # phrasing (Codex review of #2110, round 7). The sentence rule itself lives in
+  # review-verdict.sh — the same one codex-review.sh and claude-review.sh apply.
+  if ! review_verdict_is_clean "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support '$VERDICT' (first paragraph lacks the contract sentence 'No actionable ...'); nothing posted" >&2
     exit 2
   fi

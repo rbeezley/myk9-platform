@@ -25,6 +25,9 @@ ROOT="$(git rev-parse --show-toplevel)"
 CLAUDE="${CLAUDE_BIN:-claude}"
 GH="${GH_BIN:-gh}"
 POSTER="$HERE/post-review-gate.sh"
+# One definition of "clean verdict" for both wrappers and the poster.
+# shellcheck source=scripts/qa/review-verdict.sh
+. "$HERE/review-verdict.sh"
 
 POST=0
 PR=""
@@ -43,6 +46,18 @@ fi
 
 BASE_SHA="$(git rev-parse origin/main)"
 HEAD_SHA="$(git rev-parse HEAD)"
+
+# `/code-review <pr>` reviews the REMOTE PR head; the evidence names local HEAD.
+# With an unpushed commit those are different commits, so a clean review of the
+# pushed head would attest to code nobody reviewed (Codex review of #2115, P1).
+# Refuse rather than guess which SHA the verdict belongs to.
+PR_HEAD="$("$GH" pr view "$PR" --json headRefOid -q .headRefOid)"
+if [ "$PR_HEAD" != "$HEAD_SHA" ]; then
+  echo "claude-review: PR #${PR} head is ${PR_HEAD:0:9} but local HEAD is ${HEAD_SHA:0:9}." >&2
+  echo "claude-review: the reviewer reads the PR, so the evidence would name a commit it never saw. Push (or check out the PR head) and re-run. Exit 2; nothing recorded." >&2
+  exit 2
+fi
+
 mkdir -p "$ROOT/.logs"
 LOG="${CLAUDE_REVIEW_LOG:-$ROOT/.logs/claude-review-${HEAD_SHA}.log}"
 
@@ -77,7 +92,12 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
   echo
   echo "claude-review: findings above. Fix them, commit, and re-run — the evidence is for the NEW head."
   if [ "$POST" = 1 ]; then
-    "$GH" pr comment "$PR" --body "$(printf 'Claude findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"
+    # A lost findings comment is not cosmetic: the next clean run counts N from
+    # these comments (Codex review of #2115, P2).
+    if ! "$GH" pr comment "$PR" --body "$(printf 'Claude findings for %s (not gate evidence):\n\n%s\n' "${HEAD_SHA:0:9}" "$VERDICT")"; then
+      echo "claude-review: findings were NOT posted (gh failed). Exit 2; nothing recorded — re-run once gh works." >&2
+      exit 2
+    fi
   fi
   exit 1
 fi
@@ -94,13 +114,9 @@ if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted
 fi
 
 # Clean is a POSITIVE match on the first paragraph, never the absence of
-# findings — identical to codex-review.sh, deliberately.
-FIRST_PARAGRAPH="$(echo "$VERDICT" | awk '
-  /^[[:space:]]*$/ { if (started) exit; next }
-  { printf "%s%s", started ? " " : "", $0; started=1 }
-')"
-if ! { echo "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*no actionable\b' ||
-  echo "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
+# findings — the same rule codex-review.sh and the poster apply, from the same
+# file, so no harness can drift into accepting something the others reject.
+if ! review_verdict_is_clean "$VERDICT"; then
   echo
   echo "claude-review: verdict is neither findings nor an explicit clean verdict — unrecognized output, treat as not run (exit 2). No evidence emitted."
   exit 2

@@ -3,16 +3,26 @@ import { test, expect } from '@playwright/test';
 test.describe('Browse Shows to Show Details Flow', () => {
   test('should load public browse shows without authentication', async ({ page }) => {
     const consoleErrors: string[] = [];
+    // The nightly reported a bare `Failed to load resource: … 500` with nothing
+    // in the artifact naming the request, so the failure could not be diagnosed
+    // without re-running. Record the responses too, so a 500 names its URL.
+    const failedResponses: string[] = [];
     page.on('console', msg => {
       if (msg.type() === 'error') {
         consoleErrors.push(msg.text());
+      }
+    });
+    page.on('response', response => {
+      if (response.status() >= 500) {
+        failedResponses.push(`${response.status()} ${response.url()}`);
       }
     });
 
     await page.goto('/shows');
 
     await expect(page).toHaveURL(/\/shows/);
-    await expect(page.getByPlaceholder(/search shows/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/search shows/i)).toBeVisible({ timeout: 15000 });
+    expect(failedResponses, 'server errors while loading /shows').toEqual([]);
     expect(consoleErrors.filter(error => !error.includes('DevTools'))).toHaveLength(0);
   });
 

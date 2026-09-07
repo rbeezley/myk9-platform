@@ -75,6 +75,17 @@ const REGRESSION_SPECS = [
 // sign-in. Unauthenticated and ~3s for four cases; verified green under this
 // config before promotion (2026-09-06).
 //
+// header-wordmark-fits.spec.ts is here because the brand truncated to
+// "myK9S…" on every phone width while signed in, and no check anywhere could
+// see it: the header's classes were all present and correct, so a source scan
+// reads clean, and the truncation only exists once the right-hand icon buttons
+// are laid out beside it. It asserts rendered geometry against the wordmark's
+// intrinsic width, so it fails for whatever reason the space is taken again —
+// a fifth header control, a longer product name, a bigger tap target — and any
+// PR can take it, not only one touching the header. Exhibitor-authed and ~20s
+// for four cases; verified green under this config before promotion
+// (2026-09-07).
+//
 // my-entries-page-ui.spec.ts is here because a PR that rewrote that page's
 // entire status vocabulary (#1699) merged green while this spec was failing —
 // it was Nightly-only, so nothing caught a stale assertion until the page was
@@ -86,6 +97,7 @@ const PR_SMOKE_SPECS = [
   '**/uat/secretary/critical-path.spec.ts',
   '**/my-entries-page-ui.spec.ts',
   '**/sign-in-fits-one-screen.spec.ts',
+  '**/header-wordmark-fits.spec.ts',
 ];
 
 /**

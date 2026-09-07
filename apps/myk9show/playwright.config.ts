@@ -1,13 +1,28 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadEnv } from 'dotenv';
+import { createHash } from 'node:crypto';
 
 // Load .env.local first (gitignored, takes precedence), then fall back to .env.
 loadEnv({ path: '.env.local', override: false });
 loadEnv({ path: '.env', override: false });
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:5173';
+// `reuseExistingServer` is on outside CI, so a fixed default port means a local
+// run silently tests whichever WORKTREE happens to own it — this machine keeps a
+// dozen checked out at once. That has produced a wasted debugging round and a
+// false code-review finding, both reading -8.3px off another tree's `main`.
+// Derive the default from the working directory so each worktree gets its own
+// port and can only ever reuse its OWN server. Explicit PLAYWRIGHT_BASE_URL /
+// PLAYWRIGHT_PORT still win, and CI keeps 5173 since it starts a fresh server.
+function worktreeDefaultPort(): string {
+  if (process.env.CI) return '5173';
+  const digest = createHash('sha1').update(process.cwd()).digest();
+  return String(5200 + (digest.readUInt16BE(0) % 600));
+}
+
+const defaultPort = worktreeDefaultPort();
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${defaultPort}`;
 const parsedBaseURL = new URL(baseURL);
-const webServerPort = Number(process.env.PLAYWRIGHT_PORT || parsedBaseURL.port || '5173');
+const webServerPort = Number(process.env.PLAYWRIGHT_PORT || parsedBaseURL.port || defaultPort);
 const webServerHmrPort = Number(process.env.PLAYWRIGHT_HMR_PORT || webServerPort + 20000);
 
 export default defineConfig({

@@ -3,13 +3,17 @@
 ## Current pre-launch mode
 
 Until real users are onboarded, myK9Show uses the Hobby-compatible fast path:
-successful merges to `main` automatically update `myk9show.com`. Pull requests
-still receive preview deployments for review. Keep `STAGING_RELEASE_ENABLED`
-set to `false` while the Vercel staging environment is not configured.
+every push to `main` is built by Vercel and served at `myk9show.com` — the
+build starts before CI finishes and is not gated by it. Pull requests still
+receive preview deployments for review.
 
-This is a temporary development/demo mode. The CI-gated process below remains
-the launch target for real users and should be re-enabled only after the
-required Vercel staging environment and production approval gates are ready.
+The CI-gated process below is **dormant**. `STAGING_RELEASE_ENABLED` is unset,
+so `deploy-staging.yml` is skipped on every run, and the protected
+`staging-release` / `guides-release` refs are frozen at `5975adadb`
+(2026-07-27), 700+ commits behind `main`. Do not use `staging-release` as
+evidence of anything. Enabling the path is [MYK9-44](https://linear.app/myk9-platform/issue/MYK9-44),
+sequenced with the Stripe live cutover (MYK9-11); it should be re-enabled only
+after the Vercel staging environment and production approval gates are ready.
 
 ## Launch-ready release process
 

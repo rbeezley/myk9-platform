@@ -873,6 +873,16 @@ describe('post-review-gate.sh', () => {
       );
     }
   });
+
+  it('reads a marker-less (claude -p) log in full, so a long clean review keeps its opening sentence', () => {
+    const gh = stubGh();
+    const long = `No actionable defects found.\n\n${Array.from({ length: 60 }, (_, i) => `- checked file ${i}`).join('\n')}\n`;
+    const log = logFile(long);
+    expect(run(['42', 'claude', '0a2020c7a', '5af9af158', 'no findings', log], gh.bin).code).toBe(
+      0
+    );
+    expect(readFileSync(gh.calls, 'utf8')).toContain('checked file 59');
+  });
 });
 ```
 
@@ -922,8 +932,12 @@ if [ ! -s "$LOG" ]; then
   exit 2
 fi
 HASH="$(shasum -a 256 "$LOG" | cut -d' ' -f1)"
+# Codex logs carry a `codex` marker line before the verdict; `claude -p` output
+# has no marker, so the whole log is the verdict. Never a `tail`: a long clean
+# Claude review would lose its opening contract sentence and be refused
+# (Codex review of #2110, round 9).
 VERDICT_BLOCK="$(awk '/^codex$/{f=1; next} f' "$LOG")"
-[ -n "$VERDICT_BLOCK" ] || VERDICT_BLOCK="$(tail -40 "$LOG")"
+[ -n "$VERDICT_BLOCK" ] || VERDICT_BLOCK="$(cat "$LOG")"
 
 # The log must SUPPORT the verdict. The poster is reachable without the Codex
 # wrapper (the Claude path calls it directly), so it re-checks what the wrapper

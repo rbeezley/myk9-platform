@@ -22,6 +22,9 @@ if [ -n "$BASE" ]; then
 else
   FILES="$(git diff --name-only --diff-filter=ACMR HEAD; git ls-files --others --exclude-standard)"
 fi
+# The extension list is what Prettier parses with no plugins. `.astro` is
+# deliberately absent (and in .prettierignore): prettier-plugin-astro is not
+# installed, so Prettier errors on those files rather than formatting them.
 FILES="$(printf '%s\n' "$FILES" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|json|css|md|yml|yaml|html)$' | sort -u)"
 [ -z "$FILES" ] && { echo "format-changed: nothing to format"; exit 0; }
 # One argument per line: the tree has paths with spaces

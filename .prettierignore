@@ -21,3 +21,7 @@ docs/operations/go-live-runbook.md
 
 # Astro build output (gitignored, but prettier --check . still walks it)
 **/.astro/
+
+# Astro components: prettier cannot parse them without prettier-plugin-astro,
+# which is not installed. Three files today; add the plugin to format them.
+**/*.astro

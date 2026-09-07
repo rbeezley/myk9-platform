@@ -144,9 +144,9 @@ const AppHeader: React.FC = () => {
                 aria-hidden="true"
                 width="28"
                 height="28"
-                className="h-7 w-7 shrink-0 object-contain"
+                className="block min-[360px]:hidden sm:block h-7 w-7 shrink-0 object-contain"
               />
-              <span className="max-[359px]:hidden truncate text-lg font-bold text-foreground tracking-tight">
+              <span className="max-[359px]:hidden truncate text-base sm:text-lg font-bold text-foreground tracking-tight">
                 myK9Show
               </span>
             </Link>
@@ -206,14 +206,17 @@ const AppHeader: React.FC = () => {
                   </Button>
                 )}
 
-                {/* Theme Toggle — remains visible at every width so appearance
-                    stays a single, consistent header action. */}
+                {/* Theme Toggle — desktop only. On phones the four icon
+                    buttons left the wordmark 75px of the 114px it needs and
+                    it rendered as "myK9S…"; the labeled Appearance item in
+                    AccountMenuContent covers phone widths with the same
+                    handler, matching how AskQ is already split. */}
                 {!isOnboardingRoute && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={toggleTheme}
-                    className="flex min-h-11 min-w-11 rounded-lg p-2"
+                    className="hidden md:flex min-h-11 min-w-11 rounded-lg p-2"
                     aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   >
                     {theme === 'dark' ? (

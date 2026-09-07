@@ -7,7 +7,9 @@ import {
   Info,
   LifeBuoy,
   LogOut,
+  Moon,
   RefreshCw,
+  Sun,
   User as UserIcon,
   WifiOff,
 } from 'lucide-react';
@@ -24,6 +26,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
+import { useTheme } from '@/hooks/useTheme';
 import { helpUrl } from '@/lib/help';
 import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
@@ -54,6 +57,7 @@ export function AccountMenuContent({
   const globalSync = useGlobalSyncStatus();
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
+  const { theme, toggleTheme } = useTheme();
   const [isClearingCache, setIsClearingCache] = useState(false);
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
@@ -151,14 +155,23 @@ export function AccountMenuContent({
       </DropdownMenuItem>
       <AccountMenuSeparator />
 
-      {/* AskQ stays here as the labeled compact-width access path for the
-          same panel action exposed by the desktop header button. */}
+      {/* AskQ and Appearance both live here as the labeled compact-width
+          access path for the same actions the desktop header exposes as icon
+          buttons. On phones the header cannot afford either icon without
+          truncating the myK9Show wordmark to "myK9S…". */}
       <DropdownMenuItem
         onClick={toggleAskQ}
         className="w-full flex items-center gap-2 cursor-pointer"
       >
         <AskQIcon className="h-4 w-4" />
         AskQ
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={toggleTheme}
+        className="w-full flex items-center gap-2 cursor-pointer md:hidden"
+      >
+        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        {theme === 'dark' ? 'Light mode' : 'Dark mode'}
       </DropdownMenuItem>
       <DropdownMenuItem asChild>
         <a

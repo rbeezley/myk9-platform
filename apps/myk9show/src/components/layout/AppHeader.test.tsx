@@ -76,11 +76,17 @@ beforeEach(() => {
 });
 
 describe('AppHeader phone-width header consolidation', () => {
-  it('keeps theme access in the header while consolidating AskQ into the account menu below md', () => {
+  // #1521 ("fix(nav): keep theme control in header") originally asserted the
+  // theme button was NOT hidden at any width. Reversed deliberately: with four
+  // icon buttons on a phone the myK9Show wordmark got 75px of the 114px it
+  // needs and truncated to "myK9S…" at every phone width. Theme now follows the
+  // same split AskQ already used — desktop icon, labeled item in the account
+  // menu below md. Geometry pinned by header-wordmark-fits.spec.ts.
+  it('consolidates both theme and AskQ into the account menu below md', () => {
     render(<AppHeader />);
 
     const themeButton = screen.getByRole('button', { name: /switch to dark mode/i });
-    expect(themeButton).not.toHaveClass('hidden');
+    expect(themeButton).toHaveClass('hidden', 'md:flex');
 
     const askQButton = screen.getByRole('button', { name: /askq assistant/i });
     expect(askQButton).toHaveClass('hidden', 'md:flex');

@@ -8,15 +8,19 @@ import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { useAskQPanelStore } from '@/store/useAskQPanelStore';
 import { UserRole } from '@/types/auth-types';
 
-const { authState, networkState, syncState, signOutSpy } = vi.hoisted(() => ({
-  authState: { roles: [] as string[] },
-  networkState: { isOnline: true },
-  syncState: {
-    status: 'synced' as 'synced' | 'pending' | 'offline' | 'error',
-    queueSize: 0,
-  },
-  signOutSpy: vi.fn(),
-}));
+const { authState, networkState, syncState, signOutSpy, themeState, toggleThemeSpy } = vi.hoisted(
+  () => ({
+    authState: { roles: [] as string[] },
+    networkState: { isOnline: true },
+    syncState: {
+      status: 'synced' as 'synced' | 'pending' | 'offline' | 'error',
+      queueSize: 0,
+    },
+    signOutSpy: vi.fn(),
+    themeState: { theme: 'light' as 'light' | 'dark' },
+    toggleThemeSpy: vi.fn(),
+  })
+);
 
 vi.mock('@/hooks/useProfileForm', () => ({
   useCurrentUserPerson: () => ({ data: null }),
@@ -35,6 +39,10 @@ vi.mock('@/hooks/useAuthContext', () => ({
     },
     getUserRoles: () => authState.roles,
   }),
+}));
+
+vi.mock('@/hooks/useTheme', () => ({
+  useTheme: () => ({ theme: themeState.theme, toggleTheme: toggleThemeSpy }),
 }));
 
 vi.mock('@/hooks/useNetworkStatus', () => ({
@@ -78,6 +86,10 @@ beforeEach(() => {
   syncState.status = 'synced';
   syncState.queueSize = 0;
   signOutSpy.mockClear();
+  // themeState is module-scope mutable state, so a test that flips it to dark
+  // would leak into every file that runs after it under --sequence.shuffle.
+  themeState.theme = 'light';
+  toggleThemeSpy.mockClear();
   useAskQPanelStore.getState().close();
 });
 
@@ -169,6 +181,25 @@ describe('AccountMenuContent AskQ item (phone consolidation)', () => {
   });
 });
 
+describe('AccountMenuContent appearance item (phone consolidation)', () => {
+  it('fires the same theme handler the desktop header button uses', async () => {
+    const { user } = renderOpenAccountMenu();
+
+    const item = screen.getByRole('menuitem', { name: 'Dark mode' });
+    await user.click(item);
+
+    expect(toggleThemeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('names the mode it switches TO, not the one in effect', () => {
+    themeState.theme = 'dark';
+    renderOpenAccountMenu();
+
+    expect(screen.getByRole('menuitem', { name: 'Light mode' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Dark mode' })).not.toBeInTheDocument();
+  });
+});
+
 describe('AccountMenuContent organization', () => {
   it('renders visible dividers between menu groups', () => {
     renderOpenAccountMenu();
@@ -192,8 +223,14 @@ describe('AccountMenuContent organization', () => {
       expect(
         screen.queryByRole('menuitem', { name: 'Template Management' })
       ).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: 'Dark mode' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: 'Light mode' })).not.toBeInTheDocument();
+      // Appearance USED to be asserted absent here: #1521 ("fix(nav): keep theme
+      // control in header") deliberately kept it out of this menu. That call was
+      // made before the header ran out of room — on a phone the four icon
+      // buttons left the myK9Show wordmark 75px of the 114px it needs and it
+      // rendered as "myK9S…". The appearance item is now the phone-width access
+      // path, pinned above, exactly as AskQ already was. It stays desktop-hidden
+      // (md:hidden), so #1521's actual intent — one appearance control, not two —
+      // still holds and is pinned by header-wordmark-fits.spec.ts.
     }
   );
 
@@ -202,7 +239,18 @@ describe('AccountMenuContent organization', () => {
 
     const itemNames = screen.getAllByRole('menuitem').map(item => item.textContent?.trim());
 
-    expect(itemNames).toEqual(['Account', 'AskQ', 'Help & Guides', 'About', 'Sign out']);
+    // Appearance sits beside AskQ: both are header icons consolidated into
+    // this menu at phone widths. jsdom evaluates no media queries, so the
+    // md:hidden item is present here; header-wordmark-fits.spec.ts is what
+    // pins that a real desktop viewport shows it in the header instead.
+    expect(itemNames).toEqual([
+      'Account',
+      'AskQ',
+      'Dark mode',
+      'Help & Guides',
+      'About',
+      'Sign out',
+    ]);
   });
 
   it('keeps Sign out neutral until focus or highlight', () => {

@@ -79,15 +79,18 @@ fi
 
 # Line-anchored: the log may echo the diff, and a diff that mentions these
 # phrases (this file does) matched an unanchored grep on 2026-09-05.
-if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"; then
-  echo "claude-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
-  exit 2
-fi
+abort_lines() {
+  grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"
+}
 
 # `claude -p` prints no marker line, so the whole log is the verdict.
 VERDICT="$(cat "$LOG")"
 echo "$VERDICT"
 
+# FINDINGS ARE PROCESSED BEFORE EVERY INCOMPLETENESS GUARD: a review that
+# reported a defect and then hit a blocker has still reported a defect, and
+# exiting 2 here would leave an already-green gate green over it (Codex review
+# of #2115, round 5).
 if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
   echo
   echo "claude-review: findings above. Fix them, commit, and re-run — the evidence is for the NEW head."
@@ -108,6 +111,13 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
     fi
   fi
   exit 1
+fi
+
+# No findings — now the incompleteness guards decide, and they are strict.
+if abort_lines > /dev/null; then
+  echo "claude-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
+  abort_lines | head -3
+  exit 2
 fi
 
 if [ "$CLI_EXIT" -ne 0 ]; then

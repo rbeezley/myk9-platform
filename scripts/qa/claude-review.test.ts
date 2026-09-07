@@ -165,6 +165,17 @@ describe('claude-review.sh', () => {
     );
   });
 
+  it('posts and withdraws when a review reported findings AND then was interrupted', () => {
+    // Findings come before every incompleteness guard (Codex, #2115 round 5).
+    const stub = stubClaude('- [P1] one\n\nReview was interrupted\n');
+    const gh = stubGh();
+    const r = run(stub, gh);
+    expect(r.code).toBe(1);
+    const posted = bodies(gh.calls);
+    expect(posted).toHaveLength(2);
+    expect(posted[1].split('\n')[0]).toMatch(/— 1 findings, not addressed$/);
+  });
+
   it('exits 2 when the withdrawal could not be posted, even though the findings were', () => {
     const stub = stubClaude('- [P1] one\n');
     const gh = stubGh({ secondCommentExit: 1 });

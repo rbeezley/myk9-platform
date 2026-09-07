@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -112,8 +112,13 @@ function runPost(
   }
 }
 
-/** Every `--body` argument the stub `gh` was handed, in order. */
+/**
+ * Every `--body` argument the stub `gh` was handed, in order. A path the
+ * wrapper leaves before touching `gh` at all writes no calls file, and that is
+ * still "nothing was posted".
+ */
 function bodies(callsPath: string): string[] {
+  if (!existsSync(callsPath)) return [];
   return readFileSync(callsPath, 'utf8')
     .split('\n---\n')
     .filter(Boolean)
@@ -334,6 +339,32 @@ describe('codex-review.sh', () => {
     expect(posted[1].split('\n')[0]).toMatch(
       /^Review gate: codex reviewed [0-9a-f]{9}\.\.[0-9a-f]{9} — 2 findings, not addressed$/
     );
+  });
+
+  it('posts and withdraws when a review reported findings AND then was interrupted', () => {
+    // Findings come first: a review that found a defect and then hit a blocker
+    // has still found a defect, and exiting 2 would leave an already-green gate
+    // green over it. It also stops the wrapper aborting on its OWN message when
+    // the reviewer's shell output is echoed into the log (Codex, #2115 r5).
+    const stub = stubCodex(
+      ['codex', '- [P1] one', '', 'Review was interrupted', 'codex exit=2'].join('\n')
+    );
+    const gh = stubGh();
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(1);
+    const posted = bodies(gh.calls);
+    expect(posted).toHaveLength(2);
+    expect(posted[0]).toMatch(/^Codex findings for /);
+    expect(posted[1].split('\n')[0]).toMatch(/— 1 findings, not addressed$/);
+  });
+
+  it('still exits 2 on an interrupted review that reported NO findings', () => {
+    const stub = stubCodex(['codex', 'Reviewing...', 'Review was interrupted'].join('\n'));
+    const gh = stubGh();
+    const r = runPost(stub, gh);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('GATE DID NOT RUN');
+    expect(bodies(gh.calls)).toEqual([]);
   });
 
   it('exits 2 when the withdrawal could not be posted, even though the findings were', () => {

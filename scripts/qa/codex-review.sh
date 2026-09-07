@@ -62,19 +62,30 @@ echo "codex-review: ${BASE_REF} (${BASE_SHA:0:9}) .. HEAD (${HEAD_SHA:0:9}) -> $
 "$CODEX" review --base "$BASE_REF" -c "developer_instructions=\"${REVIEW_INSTRUCTIONS}\"" < /dev/null > "$LOG" 2>&1
 CLI_EXIT=$?
 
-if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"; then
-  echo "codex-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
-  grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" | head -3
-  exit 2
-fi
+abort_lines() {
+  grep -E "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG"
+}
 
 # The verdict is everything after the CLI's own "codex" marker line.
 VERDICT="$(awk '/^codex$/{f=1; next} f' "$LOG")"
 if [ -z "$VERDICT" ]; then
+  if abort_lines > /dev/null; then
+    echo "codex-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
+    abort_lines | head -3
+    exit 2
+  fi
   echo "codex-review: no verdict block found in the log (cli exit ${CLI_EXIT}); treat as not run."
   tail -5 "$LOG"
   exit 2
 fi
+
+# FINDINGS ARE PROCESSED BEFORE EVERY INCOMPLETENESS GUARD. A review that
+# reported a defect and then hit a blocker has still reported a defect, and
+# exiting 2 here would leave an already-green gate green over it (Codex review
+# of #2115, round 5). It also removes a false abort of the wrapper's own
+# making: the log echoes commands the reviewer ran, and on round 5 a reproduction
+# printed this wrapper's own "Review was interrupted" line at column 0, which
+# the anchored grep read as a real abort and threw away a completed review.
 
 echo "$VERDICT"
 if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
@@ -104,6 +115,14 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
     fi
   fi
   exit 1
+fi
+
+# No findings — now the incompleteness guards decide, and they are strict:
+# nothing below may certify a review that did not finish.
+if abort_lines > /dev/null; then
+  echo "codex-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
+  abort_lines | head -3
+  exit 2
 fi
 
 # Clean is a POSITIVE match, never the absence of findings: a verdict block

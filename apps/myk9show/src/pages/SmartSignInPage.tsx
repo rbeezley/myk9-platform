@@ -290,7 +290,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   // 100vh flat overflows by the banner's height whenever it shows.
   return (
     <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-4 pt-[var(--app-header-height,3rem)]">
-      <div className="bg-card p-8 rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-card p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md">
         <div className="mb-3 flex justify-center">
           <Link
             to="/"
@@ -302,14 +302,14 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
               aria-hidden="true"
               width="40"
               height="40"
-              className="h-10 w-10 shrink-0 object-contain"
+              className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 object-contain"
             />
-            <span className="text-lg font-bold text-primary">myK9Show</span>
+            <span className="text-base sm:text-lg font-bold text-primary">myK9Show</span>
           </Link>
         </div>
-        <h2 className="mb-1 text-center text-lg font-bold">{heading}</h2>
+        <h2 className="mb-1 text-center text-base sm:text-lg font-bold">{heading}</h2>
         {!passcodeOnly && (
-          <div className="text-muted-foreground mb-5 text-center text-sm">
+          <div className="text-muted-foreground mb-4 sm:mb-5 text-center text-sm">
             Don't have an account?{' '}
             <Link to={signUpPath} className="text-primary hover:underline font-medium">
               Sign up
@@ -331,7 +331,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                   onApple={handleAppleSignIn}
                   disabled={isLoading || googleLoading || appleLoading}
                 />
-                <div className="relative my-5">
+                <div className="relative my-4 sm:my-5">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-input" />
                   </div>
@@ -431,11 +431,11 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                 it sits INSIDE this paragraph, and axe's link-in-text-block wants
                 a non-colour distinguisher — primary on muted-foreground is
                 1.01:1, far under the 3:1 it would otherwise require. */}
-            <p id="credential-help" className="mt-5 text-sm text-muted-foreground">
-              Working a show? Use the 5-character passcode your secretary gave you.{' '}
+            <p id="credential-help" className="mt-4 sm:mt-5 text-xs sm:text-sm text-muted-foreground">
+              Working a show? Use your secretary's 5-character passcode.{' '}
               {!passcodeOnly && (
                 <Link to="/help/credentials" className="text-primary underline">
-                  Learn how it works &rarr;
+                  How it works &rarr;
                 </Link>
               )}
             </p>

@@ -813,10 +813,24 @@ describe('post-review-gate.sh', () => {
 
   it('accepts exactly what review-gate.ts accepts (grammar is shared, not copied)', () => {
     const gh = stubGh();
-    const log = logFile('codex\n- fixed\n');
+    const log = logFile('codex\nNo actionable defects found on the re-run.\n');
     expect(
       run(['42', 'claude', '0a2020c7a', '5af9af158', '2 findings, all fixed', log], gh.bin).code
     ).toBe(0);
+  });
+
+  it('refuses "N findings, all addressed" over a log that still carries findings or lacks the contract sentence', () => {
+    for (const text of ['codex\n- [P1] Something is broken\n', 'Both findings were addressed.\n']) {
+      const gh = stubGh();
+      const log = logFile(text);
+      const r = run(
+        ['42', 'codex', '0a2020c7a', '5af9af158', '2 findings, all addressed', log],
+        gh.bin
+      );
+      expect(r.code).toBe(2);
+      expect(r.out).toMatch(/log does not support/);
+      expect(() => readFileSync(gh.calls, 'utf8')).toThrow();
+    }
   });
 
   it('refuses an empty log', () => {
@@ -920,9 +934,13 @@ if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG
   echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
   exit 2
 fi
-if [ "$VERDICT" = "no findings" ]; then
+# Both accepted verdicts describe a CLEAN final log: "N findings, all
+# addressed" means the reviewer was re-run on the fixed head and that re-run
+# came back clean, so the log it is posted with must pass the same checks
+# (Codex review of #2110, round 8). No verdict form skips them.
+{
   if printf '%s' "$VERDICT_BLOCK" | grep -Eq '^\s*- \[P[0-9]\]'; then
-    echo "post-review-gate: log does not support 'no findings' (it carries [P*] bullets); nothing posted" >&2
+    echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
     exit 2
   fi
   # Not free text: both review wrappers instruct the reviewer to open a clean
@@ -937,10 +955,10 @@ if [ "$VERDICT" = "no findings" ]; then
   ')"
   if ! { printf '%s' "$FIRST_PARAGRAPH" | grep -Eiq '^[[:space:]]*No actionable\b' ||
          printf '%s' "$FIRST_PARAGRAPH" | grep -Eq '[.!?][[:space:]]+No actionable\b'; }; then
-    echo "post-review-gate: log does not support 'no findings' (first paragraph lacks the contract sentence 'No actionable ...'); nothing posted" >&2
+    echo "post-review-gate: log does not support '$VERDICT' (first paragraph lacks the contract sentence 'No actionable ...'); nothing posted" >&2
     exit 2
   fi
-fi
+}
 BODY="$(printf 'Review gate: %s reviewed %s..%s — %s\nlog sha256: %s\n\n<details><summary>%s verdict</summary>\n\n```text\n%s\n```\n\n</details>\n' \
   "$REVIEWER" "${BASE:0:9}" "${HEAD:0:9}" "$VERDICT" "$HASH" "$REVIEWER" "$VERDICT_BLOCK")"
 "$GH" pr comment "$PR" --body "$BODY"

@@ -73,7 +73,11 @@ if [ -z "$WAIT" ]; then
   # "Can't reach the API server" (Codex on #2124, 2026-09-07: three timed-out
   # runs, then a false "not logged in"). Fail in seconds and say what to do.
   ESCALATE_HINT="This must run OUTSIDE the sandbox: Codex should re-run it with escalated permissions, or — if its approval policy forbids that — stop and ask Richard to run \`bash scripts/qa/claude-review.sh --detach --post ${PR:-<pr>}\` from a terminal."
-  if ! "$CLAUDE" auth status > /dev/null 2>&1; then
+  # Both the exit code AND the payload: the CLI has reported {"loggedIn": false}
+  # with exit 0 in some versions (Codex review of #2127, round 4), and the
+  # measured sandbox case is exit 1 — require loggedIn:true either way.
+  AUTH_JSON="$("$CLAUDE" auth status 2>/dev/null)"; AUTH_EXIT=$?
+  if [ "$AUTH_EXIT" -ne 0 ] || ! printf '%s' "$AUTH_JSON" | grep -Eq '"loggedIn":[[:space:]]*true'; then
     echo "claude-review: \`claude auth status\` says not logged in HERE. If the user is logged in interactively, this shell cannot reach the Keychain (a sandbox). ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
     exit 2
   fi

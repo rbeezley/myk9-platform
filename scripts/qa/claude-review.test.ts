@@ -36,7 +36,10 @@ function stubClaude(
     bin,
     `#!/usr/bin/env bash
 # 'claude auth status' is the wrapper's preflight; only -p runs count as a review.
-if [ "$1" = "auth" ]; then exit ${authExit}; fi
+if [ "$1" = "auth" ]; then
+  if [ ${authExit} -eq 2 ]; then echo '{"loggedIn": false}'; exit 0; fi
+  echo "{\\"loggedIn\\": ${authExit === 0 ? 'true' : 'false'}}"; exit ${authExit}
+fi
 printf '%s\\n' "$@" > '${args}'
 sleep ${delaySeconds}
 cat ${JSON.stringify(canned)}
@@ -390,6 +393,15 @@ describe('claude-review.sh', () => {
         if (prev === undefined) delete process.env.CODEX_SANDBOX_MARKER_TEST;
         else process.env.CODEX_SANDBOX_MARKER_TEST = prev;
       }
+    });
+
+    it('exits 2 when auth status exits 0 but reports loggedIn:false', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 0, 2);
+      const gh = stubGh();
+      const r = run(stub, gh, ['7']);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('not logged in HERE');
+      expect(existsSync(stub.args)).toBe(false);
     });
 
     it('exits 2 with the escalation hint when the network probe reports 000', () => {

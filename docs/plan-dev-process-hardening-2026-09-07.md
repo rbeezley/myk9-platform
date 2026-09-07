@@ -894,7 +894,16 @@ GH="${GH_BIN:-gh}"
 POSTER="$(dirname "$0")/post-review-gate.sh"
 ```
 
-(and change `BASE_REF="${1:-origin/main}"` to ignore `--post` as a positional: `BASE_REF="origin/main"; [ $# -ge 1 ] && [ "$1" != "--post" ] && BASE_REF="$1"`).
+and replace `BASE_REF="${1:-origin/main}"` with a parser that ignores `--post` and a stray `--` (pnpm forwards `--` to the script, so `pnpm qa:codex-review -- --post` would otherwise review base `--`):
+
+```bash
+BASE_REF="origin/main"
+for arg in "$@"; do
+  case "$arg" in --post|--) ;; *) BASE_REF="$arg" ;; esac
+done
+```
+
+Invoke it as `pnpm qa:codex-review --post` (no `--`). Add a test that `bash codex-review.sh -- --post` still passes `--base HEAD`'s default `origin/main` to the stub (assert `args[2]` is not `--`).
 
 In the findings branch (before `exit 1`), add:
 
@@ -914,7 +923,12 @@ if [ "$POST" = 1 ]; then
   PRIOR="$("$GH" pr view "$PR" --json comments -q '[.comments[].body | select(startswith("Codex findings for"))] | join("\n")')"
   N="$(printf '%s' "$PRIOR" | grep -cE '^\s*- \[P[0-9]\]' || true)"
   [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
-  "$POSTER" "$PR" codex "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"
+  # The wrapper runs without errexit; a poster failure (grammar refusal, gh
+  # error) must not fall through to exit 0 as if evidence had been posted.
+  if ! "$POSTER" "$PR" codex "$BASE_SHA" "$HEAD_SHA" "$VERDICT_LINE" "$LOG"; then
+    echo "codex-review: review was clean but the evidence was NOT posted (poster failed). Exit 2; nothing recorded." >&2
+    exit 2
+  fi
 else
   echo
   echo "codex-review: clean. Post it with: scripts/qa/post-review-gate.sh <pr> codex ${BASE_SHA:0:9} ${HEAD_SHA:0:9} \"no findings\" $LOG"
@@ -924,11 +938,11 @@ exit 0
 
 - [ ] **Step 5: Extend the wrapper tests**
 
-Add to `scripts/qa/codex-review.test.ts` a `stubGh` like the one above whose `pr view --json number` prints `7` and whose `pr view 7 --json comments` prints `[]` (branch on `"$1 $2"`), and two cases: `--post` on a clean stub posts a comment whose body starts `Review gate: codex reviewed`; `--post` on a findings stub posts a body starting `Codex findings for` and exits 1. Run `pnpm qa:codex-review:test > .logs/t7b.log 2>&1; echo "EXIT=$?"` → EXIT=0.
+Add to `scripts/qa/codex-review.test.ts` a `stubGh` like the one above whose `pr view --json number` prints `7` and whose `pr view 7 --json comments` prints `[]` (branch on `"$1 $2"`), and three cases: `--post` on a clean stub posts a comment whose body starts `Review gate: codex reviewed`; `--post` on a findings stub posts a body starting `Codex findings for` and exits 1; and `--post` on a clean stub with a `gh` stub whose `pr comment` exits 1 makes the wrapper exit 2 with `NOT posted` in its output (the poster's failure propagates instead of falling through to exit 0). Run `pnpm qa:codex-review:test > .logs/t7b.log 2>&1; echo "EXIT=$?"` → EXIT=0.
 
 - [ ] **Step 6: Update ship-pr Step 4**
 
-Replace the hand-typed `gh pr comment … "Review gate: …"` instructions with: Claude-authored → `pnpm qa:codex-review -- --post`; Codex-authored → `claude -p "/code-review $PR_NUMBER" > "$LOG" 2>&1` then `scripts/qa/post-review-gate.sh $PR_NUMBER claude $BASE_SHA $HEAD_SHA "no findings" "$LOG"` (or the `N findings, all addressed` form). Keep the grammar example line the contract test parses. Add the rule: "Never type an evidence comment by hand; the poster is the only writer."
+Replace the hand-typed `gh pr comment … "Review gate: …"` instructions with: Claude-authored → `pnpm qa:codex-review --post` (no `--`: pnpm forwards it and the wrapper would read it as the base ref); Codex-authored → `claude -p "/code-review $PR_NUMBER" > "$LOG" 2>&1` then `scripts/qa/post-review-gate.sh $PR_NUMBER claude $BASE_SHA $HEAD_SHA "no findings" "$LOG"` (or the `N findings, all addressed` form). Keep the grammar example line the contract test parses. Add the rule: "Never type an evidence comment by hand; the poster is the only writer."
 
 - [ ] **Step 7: Register and ship**
 
@@ -1043,7 +1057,15 @@ printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 ./node_modules/.bin/prettier --
 }
 ```
 
-Run: `echo '  const x   = 1' >> scripts/qa/format-changed.sh.tmp.ts; bash scripts/qa/format-changed.sh; cat scripts/qa/format-changed.sh.tmp.ts; git rm -q --cached scripts/qa/format-changed.sh.tmp.ts 2>/dev/null; git clean -n` → the temp file reads `const x = 1;`. Delete it with `git rm -f` if tracked or leave it untracked and remove it via `git stash push -u -m fmt-tmp` then drop that stash by SHA (`rm` is denied here).
+Probe the hook with an untracked file, then remove ONLY that file (a bare `git stash push -u` would stash the whole reformat; `rm` is denied here):
+
+```bash
+printf 'const x   = 1\n' > scripts/qa/format-changed.probe.ts
+bash scripts/qa/format-changed.sh; cat scripts/qa/format-changed.probe.ts        # expect: const x = 1;
+git stash push -u -m fmt-probe -- scripts/qa/format-changed.probe.ts             # path-scoped
+SHA=$(git stash list --format='%H %gs' | grep ' fmt-probe$' | cut -d' ' -f1); git stash drop "$SHA"
+git status --short | grep probe; echo "probe-gone=$?"                            # expect: probe-gone=1
+```
 
 - [ ] **Step 6: Commit and ship**
 

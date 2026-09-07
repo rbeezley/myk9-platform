@@ -6,4 +6,5 @@
 export { ShowCardGrid } from './ShowCardGrid';
 export { ShowCardHorizontal } from './ShowCardHorizontal';
 export { ShowsTableView } from './ShowsTableView';
+export { ShowsMapPanel } from './ShowsMapPanel';
 export { ShowBulkActionsBar } from './ShowBulkActionsBar';

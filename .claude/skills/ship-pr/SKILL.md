@@ -124,13 +124,15 @@ pnpm qa:codex-review --post     # scripts/qa/codex-review.sh, always --base orig
 
 Use `--post` with no `--` before it: pnpm forwards a bare `--` to the script.
 
-**Author is Codex → Claude Code reviews:**
+**Author is Codex → Claude Code reviews.** A real review takes 5-20 minutes and `claude -p` prints nothing until it finishes, so a shell tool with a per-command timeout sees an empty log and kills it (Codex did exactly this on #2124 with `timeout 180 claude -p …`, twice). Never wrap the wrapper in `timeout`. Start it detached, then poll in short calls:
 
 ```bash
-bash scripts/qa/claude-review.sh --post $PR_NUMBER
+bash scripts/qa/claude-review.sh --detach --post $PR_NUMBER      # returns at once
+bash scripts/qa/claude-review.sh --wait 240 $PR_NUMBER           # repeat until it is not 3
+#   0 clean and evidence posted · 1 findings posted · 2 did not run (not a verdict) · 3 still running, call again
 ```
 
-Push first on this path: `/code-review` reads the **remote** PR head while the evidence names your local HEAD, so `claude-review.sh` refuses (exit 2) when the two differ rather than attesting to a commit the reviewer never saw.
+Two preconditions. Push first: `/code-review` reads the **remote** PR head while the evidence names your local HEAD, so the wrapper refuses (exit 2) when the two differ rather than attesting to a commit the reviewer never saw. And the wrapper lives in the tree: if `scripts/qa/claude-review.sh` is missing on your branch, your base predates it — `git merge origin/main` (that is a new head; push, then gate the new head).
 
 Both wrappers behave identically. Exit 0 = clean and the evidence comment has been posted for THIS head; 1 = findings, which the wrapper posts as a `Codex/Claude findings for <head>` comment (not evidence — it does not begin `Review gate:`), so fix them, commit, and re-run for the NEW head; 2 = the review did NOT complete (usage limit, interrupt, unrecognized output) **or the evidence was not posted** — not a verdict, and nothing was recorded. Drop `--post` to rehearse without writing to the PR. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
 

@@ -16,6 +16,13 @@
 # as clean (Codex review of #2115, P2). The sentence must therefore assert the
 # absence of FINDINGS: some finding noun has to appear before the sentence ends.
 
+# A finding bullet. Codex writes `- [P2] ...`; Claude's /code-review writes
+# `- **[P2]** ...` with the brackets bolded, and on 2026-09-07 a ten-minute
+# review of #2124 that reported two real findings was discarded as
+# "unrecognized output" because only the plain form was matched. Bold is
+# optional on both sides of the bracket; the priority digit is what counts.
+REVIEW_FINDING_BULLET='^[[:space:]]*- (\*\*)?\[P[0-9]\](\*\*)?'
+
 # The clean-verdict sentence, anchored nowhere: callers add the anchor.
 REVIEW_CLEAN_SENTENCE='No actionable[^.!?]*\b(defect|defects|regression|regressions|issue|issues|finding|findings|problem|problems|concern|concerns|bug|bugs|risk|risks)\b'
 

@@ -18,23 +18,30 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-function stubClaude(output: string, exitCode = 0): { bin: string; log: string; args: string } {
+function stubClaude(
+  output: string,
+  exitCode = 0,
+  delaySeconds = 0
+): { bin: string; log: string; args: string; stateDir: string } {
   const dir = mkdtempSync(join(tmpdir(), 'claude-stub-'));
   dirs.push(dir);
   const bin = join(dir, 'claude');
   const canned = join(dir, 'canned.log');
   const args = join(dir, 'args.log');
   writeFileSync(canned, output);
+  // The delay models the real thing: `claude -p` prints nothing until it is
+  // done, so a slow stub is how --detach / --wait get exercised.
   writeFileSync(
     bin,
     `#!/usr/bin/env bash
 printf '%s\\n' "$@" > '${args}'
+sleep ${delaySeconds}
 cat ${JSON.stringify(canned)}
 exit ${exitCode}
 `
   );
   chmodSync(bin, 0o755);
-  return { bin, log: join(dir, 'review.log'), args };
+  return { bin, log: join(dir, 'review.log'), args, stateDir: join(dir, 'state') };
 }
 
 /** The local HEAD the wrapper will bind its evidence to. */
@@ -97,14 +104,20 @@ function bodies(callsPath: string): string[] {
 }
 
 function run(
-  stub: { bin: string; log: string },
+  stub: { bin: string; log: string; stateDir?: string },
   gh: { bin: string },
   args: string[] = ['--post', '7']
 ): { code: number; out: string } {
   try {
     const out = execFileSync('bash', [SCRIPT, ...args], {
       encoding: 'utf8',
-      env: { ...process.env, CLAUDE_BIN: stub.bin, CLAUDE_REVIEW_LOG: stub.log, GH_BIN: gh.bin },
+      env: {
+        ...process.env,
+        CLAUDE_BIN: stub.bin,
+        CLAUDE_REVIEW_LOG: stub.log,
+        GH_BIN: gh.bin,
+        ...(stub.stateDir ? { CLAUDE_REVIEW_STATE_DIR: stub.stateDir } : {}),
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     return { code: 0, out };
@@ -300,5 +313,56 @@ describe('claude-review.sh', () => {
     }
     expect(code).toBe(2);
     expect(out).toContain('verdict contract');
+  });
+
+  describe('--detach / --wait (a per-command timeout must never kill the review)', () => {
+    it('--wait with nothing detached is exit 2, not a verdict', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const r = run(stub, gh, ['--wait', '1', '7']);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('no detached review');
+    });
+
+    it('--detach returns at once, records running, and --wait reports 3 until the child finishes, then its exit', async () => {
+      const stub = stubClaude('No actionable defects found.', 0, 4);
+      const gh = stubGh();
+      const started = Date.now();
+      const detached = run(stub, gh, ['--detach', '7']);
+      expect(detached.code).toBe(0);
+      expect(Date.now() - started).toBeLessThan(3000); // did not wait for the 4s stub
+      expect(detached.out).toContain('detached PR #7 review');
+      expect(readFileSync(join(stub.stateDir, 'claude-review-7.status'), 'utf8')).toMatch(
+        /^running since/
+      );
+
+      const early = run(stub, gh, ['--wait', '1', '7']);
+      expect(early.code).toBe(3);
+      expect(early.out).toContain('still running');
+
+      const done = run(stub, gh, ['--wait', '30', '7']);
+      expect(done.code).toBe(0);
+      expect(done.out).toContain('No actionable defects found.');
+      expect(done.out).toContain('finished with exit 0');
+      expect(readFileSync(join(stub.stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('0');
+    }, 20_000);
+
+    it('a detached review with findings surfaces exit 1 through --wait', () => {
+      const stub = stubClaude('- [P1] Something is broken', 0, 2);
+      const gh = stubGh();
+      expect(run(stub, gh, ['--detach', '7']).code).toBe(0);
+      const done = run(stub, gh, ['--wait', '30', '7']);
+      expect(done.code).toBe(1);
+      expect(done.out).toContain('[P1]');
+    });
+
+    it('--detach forwards --post to the child (evidence still goes through the poster)', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 1);
+      const gh = stubGh();
+      expect(run(stub, gh, ['--detach', '--post', '7']).code).toBe(0);
+      const done = run(stub, gh, ['--wait', '30', '7']);
+      expect(done.code).toBe(0);
+      expect(bodies(gh.calls).some(b => b.startsWith('Review gate: claude reviewed'))).toBe(true);
+    });
   });
 });

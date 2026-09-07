@@ -12,12 +12,26 @@
 # back empty the wrapper exits 2 instead of reviewing without a contract.
 #
 # Usage: bash scripts/qa/claude-review.sh [--post] [pr-number]
-# Env:   CLAUDE_BIN         override the claude executable (tests use a stub)
-#        GH_BIN             override the gh executable (tests use a stub)
-#        CLAUDE_REVIEW_LOG  override the log path
+#        bash scripts/qa/claude-review.sh --detach [--post] [pr-number]
+#        bash scripts/qa/claude-review.sh --wait <seconds> [pr-number]
+#
+# A real `/code-review` of a PR takes 5-20 minutes and `claude -p` prints
+# NOTHING until it finishes, so a caller with a per-command timeout sees an
+# empty log and a killed process. On 2026-09-07 Codex ran
+# `timeout 180 claude -p ...` twice against PR #2124, got an empty log both
+# times, and left the PR draft with "no verdict". `--detach` starts the review
+# under nohup and returns at once; `--wait N` blocks up to N seconds for the
+# detached run's exit code and returns 3 while it is still running, so each
+# poll fits inside any tool timeout. Never wrap this script in `timeout`.
+#
+# Env:   CLAUDE_BIN               override the claude executable (tests use a stub)
+#        GH_BIN                   override the gh executable (tests use a stub)
+#        CLAUDE_REVIEW_LOG        override the log path
+#        CLAUDE_REVIEW_STATE_DIR  where --detach writes <pr>.status / <pr>.out (default .logs/)
 # Exit:  0 review ran and found nothing actionable
 #        1 review ran and reported findings (fix, re-run against the new head)
 #        2 review did NOT complete, or the evidence was not posted — not a verdict
+#        3 (--wait only) the detached review is still running; call --wait again
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -30,18 +44,62 @@ POSTER="$HERE/post-review-gate.sh"
 . "$HERE/review-verdict.sh"
 
 POST=0
+DETACH=0
+WAIT=""
 PR=""
+CHILD_ARGS=()
+expect_wait=0
 for arg in "$@"; do
+  if [ "$expect_wait" = 1 ]; then WAIT="$arg"; expect_wait=0; continue; fi
   case "$arg" in
-    --post) POST=1 ;;
+    --post) POST=1; CHILD_ARGS+=("$arg") ;;
+    --detach) DETACH=1 ;;
+    --wait) expect_wait=1 ;;
     --) ;;
-    *) PR="$arg" ;;
+    *) PR="$arg"; CHILD_ARGS+=("$arg") ;;
   esac
 done
 [ -n "$PR" ] || PR="$("$GH" pr view --json number -q .number)"
 if [ -z "$PR" ]; then
   echo "claude-review: no PR number given and gh could not find one" >&2
   exit 2
+fi
+
+STATE_DIR="${CLAUDE_REVIEW_STATE_DIR:-$ROOT/.logs}"
+STATUS_FILE="$STATE_DIR/claude-review-${PR}.status"
+OUT_FILE="$STATE_DIR/claude-review-${PR}.out"
+
+# --wait: poll the detached run. Exit codes are the child's; 3 = still running.
+if [ -n "$WAIT" ]; then
+  case "$WAIT" in ''|*[!0-9]*) echo "claude-review: --wait needs a number of seconds" >&2; exit 2 ;; esac
+  if [ ! -f "$STATUS_FILE" ]; then
+    echo "claude-review: no detached review for PR #${PR} (no ${STATUS_FILE}); start one with --detach" >&2
+    exit 2
+  fi
+  waited=0
+  while :; do
+    st="$(cat "$STATUS_FILE" 2>/dev/null)"
+    case "$st" in
+      ''|*[!0-9]*) ;;  # "running ..." or not yet written
+      *) [ -f "$OUT_FILE" ] && cat "$OUT_FILE"; echo "claude-review: detached review for PR #${PR} finished with exit ${st}"; exit "$st" ;;
+    esac
+    if [ "$waited" -ge "$WAIT" ]; then
+      echo "claude-review: PR #${PR} review still running (${st}); call --wait again. Exit 3 is not a verdict."
+      exit 3
+    fi
+    sleep 1; waited=$((waited + 1))
+  done
+fi
+
+# --detach: run this same review in the background and return at once.
+if [ "$DETACH" = 1 ]; then
+  mkdir -p "$STATE_DIR"
+  printf 'running since %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
+  : > "$OUT_FILE"
+  STATUS_FILE="$STATUS_FILE" nohup bash -c 'bash "$1" "${@:2}"; echo "$?" > "$STATUS_FILE"' _ "$0" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"} >> "$OUT_FILE" 2>&1 &
+  echo "claude-review: detached PR #${PR} review (pid $!). Output: ${OUT_FILE}. Poll with:"
+  echo "  bash scripts/qa/claude-review.sh --wait 240 ${PR}    # 0 clean · 1 findings · 2 did not run · 3 still running"
+  exit 0
 fi
 
 BASE_SHA="$(git rev-parse origin/main)"

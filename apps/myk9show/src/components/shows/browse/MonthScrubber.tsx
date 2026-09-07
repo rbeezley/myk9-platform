@@ -48,7 +48,7 @@ export function MonthScrubber({ shows, value, onChange, className }: MonthScrubb
   useEffect(() => {
     // Guarded: jsdom has no scrollIntoView.
     selectedRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-  }, []);
+  }, [tiles, value]);
 
   // Roving arrow keys, as a radio group expects: the strip is one tab stop
   // and Left/Right move the selection.

@@ -3,13 +3,43 @@
 -- These are additive only. Each index puts its foreign-key column first so
 -- PostgreSQL can use it for parent-row referential checks and joins.
 
-begin;
+-- These indexes intentionally run outside an explicit transaction so each
+-- non-concurrent build releases its table lock before the next one starts.
+-- Refuse to wait behind live writes for more than five seconds, and require a
+-- separate concurrent-index plan before any target relation reaches 100 MB.
+set lock_timeout = '5s';
+set statement_timeout = '10min';
 
-create index calendar_feed_tokens_show_id_fk_idx
+do $$
+declare
+  oversized text;
+begin
+  select string_agg(
+    format('%I.%I (%s)', n.nspname, c.relname, pg_size_pretty(pg_relation_size(c.oid))),
+    ', '
+    order by c.relname
+  )
+  into oversized
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where c.relkind in ('r', 'p')
+    and n.nspname = 'public'
+    and c.relname in ('calendar_feed_tokens', 'show_officials')
+    and pg_relation_size(c.oid) >= 100 * 1024 * 1024;
+
+  if oversized is not null then
+    raise exception
+      'MYK9-439 requires a concurrent-index plan before indexing relations at or above 100 MB: %',
+      oversized;
+  end if;
+end
+$$;
+
+create index if not exists calendar_feed_tokens_show_id_fk_idx
   on public.calendar_feed_tokens (show_id);
-create index show_officials_person_id_fk_idx
+create index if not exists show_officials_person_id_fk_idx
   on public.show_officials (person_id);
-create index show_officials_created_by_fk_idx
+create index if not exists show_officials_created_by_fk_idx
   on public.show_officials (created_by);
 
 do $$
@@ -70,5 +100,3 @@ begin
   end if;
 end
 $$;
-
-commit;

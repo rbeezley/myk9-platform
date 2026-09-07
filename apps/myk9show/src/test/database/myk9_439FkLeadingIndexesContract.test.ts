@@ -65,7 +65,12 @@ describe('MYK9-439 missing FK-leading indexes', () => {
     expect(createdIndexes.map(({ name, table, columns }) => ({ name, table, columns }))).toEqual(
       expectedIndexes
     );
-    expect(createdIndexes.every(index => !index.isUnique && !index.isConcurrent)).toBe(true);
+    expect(
+      createdIndexes.every(
+        index =>
+          !index.isUnique && !index.isConcurrent && index.usesIfNotExists && index.method === null
+      )
+    ).toBe(true);
   });
 
   it('is additive and proves strict catalog coverage for each target FK', () => {
@@ -73,8 +78,8 @@ describe('MYK9-439 missing FK-leading indexes', () => {
     const catalogSql = sql.toLowerCase();
     const normalizedCatalogSql = catalogSql.replace(/\s+/g, ' ');
 
-    expect(sql).toContain('begin;');
-    expect(sql.trimEnd()).toMatch(/commit;$/i);
+    expect(catalogSql).not.toMatch(/\bbegin\s*;/i);
+    expect(catalogSql).not.toMatch(/\bcommit\s*;/i);
     expect(sql).not.toMatch(/drop\s+(?:constraint|index)/i);
     expect(sql).not.toMatch(/alter\s+table[^;]*primary\s+key/i);
     expect(catalogSql).toContain('pg_constraint');
@@ -87,6 +92,12 @@ describe('MYK9-439 missing FK-leading indexes', () => {
       '(i.indkey::smallint[])[0:cardinality(c.conkey) - 1] @> c.conkey'
     );
     expect(catalogSql).toContain('raise exception');
+    expect(normalizedCatalogSql).toContain("set lock_timeout = '5s';");
+    expect(normalizedCatalogSql).toContain("set statement_timeout = '10min';");
+    expect(normalizedCatalogSql).toContain('pg_relation_size(c.oid) >= 100 * 1024 * 1024');
+    expect(normalizedCatalogSql).toContain(
+      "c.relname in ('calendar_feed_tokens', 'show_officials')"
+    );
 
     const fkGuard = 'if target_fk_count <> 3 or target_fk_pair_count <> 3 then';
     const indexCheck = 'and not exists ( select 1 from pg_index';

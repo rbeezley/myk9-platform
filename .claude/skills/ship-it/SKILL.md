@@ -121,6 +121,7 @@ else
   # virtually always succeeds), so a failed reset would silently fall through
   # to the "passed" branch. Two-line form is more portable than `set -o pipefail`
   # — works the same under bash, zsh, and `sh` posix mode.
+  mkdir -p .logs   # worktree root; this block runs from the repo root
   supabase db reset --local --debug > .logs/ship-it-db-reset.log 2>&1
   RESET_STATUS=$?
   cat .logs/ship-it-db-reset.log

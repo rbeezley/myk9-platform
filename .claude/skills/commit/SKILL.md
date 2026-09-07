@@ -54,11 +54,12 @@ pnpm --filter @myk9/show typecheck
 pnpm --filter @myk9/show lint
 ```
 
-**High-risk change** — the full gates, redirected so the real exit status is visible (a pipe through `tail`/`grep` reports the filter's exit code). Logs go to `.logs/` at the worktree root — gitignored and per-worktree, so two sessions never write the same file (`/tmp/suite.log` did exactly that on 2026-09-06); `mkdir -p .logs` first:
+**High-risk change** — the full gates, redirected so the real exit status is visible (a pipe through `tail`/`grep` reports the filter's exit code). Logs go to `.logs/` at the worktree root — gitignored and per-worktree, so two sessions never write the same file (`/tmp/suite.log` did exactly that on 2026-09-06). Anchor the path to the root and create it, because the test commands below `cd` into `apps/myk9show`:
 
 ```bash
-pnpm typecheck > .logs/typecheck.log 2>&1; echo "EXIT=$?"
-pnpm lint > .logs/lint.log 2>&1; echo "EXIT=$?"
+LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"   # root-anchored: later commands cd into apps/myk9show
+pnpm typecheck > "$LOGS/typecheck.log" 2>&1; echo "EXIT=$?"
+pnpm lint > "$LOGS/lint.log" 2>&1; echo "EXIT=$?"
 ```
 
 If the change ADDS lines to an existing file, also run `pnpm qa:code-quality-ratchet` from the worktree — CI's Quality Checks job runs it and nothing in typecheck, lint, or the test suite approximates it.
@@ -111,8 +112,9 @@ Count `$CHANGED` files.
 **If >3 source files → run the full app suite**, redirected so the real exit status is visible:
 
 ```bash
-cd apps/myk9show && pnpm vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' > .logs/suite.log 2>&1; echo "EXIT=$?"
-grep -E '^ (Test Files|Tests) ' .logs/suite.log
+LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"
+cd apps/myk9show && pnpm vitest run --reporter=default --exclude '**/integration/**' --exclude '**/debug-*.test.*' > "$LOGS/suite.log" 2>&1; echo "EXIT=$?"
+grep -E '^ (Test Files|Tests) ' "$LOGS/suite.log"
 ```
 
 **If ≤3 source files → run related tests only.** Identify test files related to the modified source files:
@@ -150,7 +152,8 @@ CI runs vitest with `--sequence.shuffle`; local runs do not. Run the **whole** s
 - **6+ runs** when it adds or touches one (a memo, cache, singleton, module-scope `let`), and add an O(1) `beforeEach` reset. CI will not cover you here: `--shard=i/6` partitions files by `sha1(path)` deterministically, so files in different shards never share a process and CI can never see a leak between them.
 
 ```bash
-cd apps/myk9show && pnpm vitest run --sequence.shuffle > .logs/shuffle.log 2>&1; echo "EXIT=$?"
+LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"
+cd apps/myk9show && pnpm vitest run --sequence.shuffle > "$LOGS/shuffle.log" 2>&1; echo "EXIT=$?"
 ```
 
 #### Failure handling (both passes)

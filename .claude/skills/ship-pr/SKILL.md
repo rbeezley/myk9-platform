@@ -114,7 +114,8 @@ The gate is a review by the **other** harness. A subagent of your own harness is
 BASE_SHA=$(git rev-parse origin/main)
 HEAD_SHA=$(git rev-parse HEAD)
 PR_NUMBER=$(gh pr view --json number -q '.number')
-LOG=.logs/review-gate-$PR_NUMBER-$HEAD_SHA.log
+LOGS="$(git rev-parse --show-toplevel)/.logs"; mkdir -p "$LOGS"
+LOG="$LOGS/review-gate-$PR_NUMBER-$HEAD_SHA.log"
 ```
 
 **Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:

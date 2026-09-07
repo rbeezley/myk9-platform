@@ -65,10 +65,14 @@ export default {
     fileName: `reports/mutation/${targetName}/index.html`,
   },
   tempDirName: `.stryker-tmp/${targetName}`,
+  // `break` makes the weekly run (.github/workflows/mutation-tests.yml) fail
+  // when a target's score falls below the `low` floor; with `null` a 0% score
+  // exited 0 and the notifier could never fire (Codex review of #2120).
+  // cart measured 71.79% on 2026-09-07.
   thresholds: {
     high: 80,
     low: 60,
-    break: null,
+    break: 60,
   },
   concurrency: 2,
 };

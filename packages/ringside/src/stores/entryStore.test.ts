@@ -266,7 +266,7 @@ describe('entryStore', () => {
     it('should support partial updates', () => {
       useEntryStore.getState().updateEntry('1', {
         status: 'checked-in',
-        isScored: false
+        isScored: false,
       });
 
       const entry = useEntryStore.getState().entries.find(e => e.id === '1');
@@ -297,9 +297,7 @@ describe('entryStore', () => {
 
   describe('markAsScored', () => {
     beforeEach(() => {
-      const entries = [
-        createMockEntry({ id: '1', isScored: false, status: 'in-ring' }),
-      ];
+      const entries = [createMockEntry({ id: '1', isScored: false, status: 'in-ring' })];
       useEntryStore.getState().setEntries(entries);
     });
 
@@ -352,9 +350,7 @@ describe('entryStore', () => {
 
   describe('markInRing', () => {
     beforeEach(() => {
-      const entries = [
-        createMockEntry({ id: '1', inRing: false }),
-      ];
+      const entries = [createMockEntry({ id: '1', inRing: false })];
       useEntryStore.getState().setEntries(entries);
     });
 
@@ -572,11 +568,51 @@ describe('entryStore', () => {
   describe('getFilteredEntries', () => {
     beforeEach(() => {
       const entries = [
-        createMockEntry({ id: '1', armband: 101, callName: 'Buddy', handler: 'John Doe', breed: 'Golden Retriever', isScored: false, classId: '1' }),
-        createMockEntry({ id: '2', armband: 102, callName: 'Max', handler: 'Jane Smith', breed: 'Labrador', isScored: true, classId: '1' }),
-        createMockEntry({ id: '3', armband: 103, callName: 'Charlie', handler: 'Bob Johnson', breed: 'German Shepherd', isScored: false, classId: '1' }),
-        createMockEntry({ id: '4', armband: 104, callName: 'Luna', handler: 'Alice Brown', breed: 'Border Collie', isScored: true, classId: '1' }),
-        createMockEntry({ id: '5', armband: 105, callName: 'Rocky', handler: 'Charlie Davis', breed: 'Boxer', isScored: false, classId: '1' }),
+        createMockEntry({
+          id: '1',
+          armband: 101,
+          callName: 'Buddy',
+          handler: 'John Doe',
+          breed: 'Golden Retriever',
+          isScored: false,
+          classId: '1',
+        }),
+        createMockEntry({
+          id: '2',
+          armband: 102,
+          callName: 'Max',
+          handler: 'Jane Smith',
+          breed: 'Labrador',
+          isScored: true,
+          classId: '1',
+        }),
+        createMockEntry({
+          id: '3',
+          armband: 103,
+          callName: 'Charlie',
+          handler: 'Bob Johnson',
+          breed: 'German Shepherd',
+          isScored: false,
+          classId: '1',
+        }),
+        createMockEntry({
+          id: '4',
+          armband: 104,
+          callName: 'Luna',
+          handler: 'Alice Brown',
+          breed: 'Border Collie',
+          isScored: true,
+          classId: '1',
+        }),
+        createMockEntry({
+          id: '5',
+          armband: 105,
+          callName: 'Rocky',
+          handler: 'Charlie Davis',
+          breed: 'Boxer',
+          isScored: false,
+          classId: '1',
+        }),
       ];
       useEntryStore.getState().setEntries(entries);
       useEntryStore.getState().setCurrentClassEntries('1');
@@ -682,7 +718,7 @@ describe('entryStore', () => {
       it('should combine search with scored filter', () => {
         useEntryStore.getState().setFilter({
           searchTerm: 'a',
-          showScored: false
+          showScored: false,
         });
 
         const filtered = useEntryStore.getState().getFilteredEntries();
@@ -720,7 +756,7 @@ describe('entryStore', () => {
       it('should sort by call name descending', () => {
         useEntryStore.getState().setFilter({
           sortBy: 'callName',
-          sortDirection: 'desc'
+          sortDirection: 'desc',
         });
 
         const filtered = useEntryStore.getState().getFilteredEntries();
@@ -741,7 +777,7 @@ describe('entryStore', () => {
       it('should sort by handler descending', () => {
         useEntryStore.getState().setFilter({
           sortBy: 'handler',
-          sortDirection: 'desc'
+          sortDirection: 'desc',
         });
 
         const filtered = useEntryStore.getState().getFilteredEntries();
@@ -763,7 +799,7 @@ describe('entryStore', () => {
       it('should sort by status descending', () => {
         useEntryStore.getState().setFilter({
           sortBy: 'status',
-          sortDirection: 'desc'
+          sortDirection: 'desc',
         });
 
         const filtered = useEntryStore.getState().getFilteredEntries();
@@ -777,7 +813,7 @@ describe('entryStore', () => {
       it('should apply search filter then sort', () => {
         useEntryStore.getState().setFilter({
           searchTerm: 'o',
-          sortBy: 'callName'
+          sortBy: 'callName',
         });
 
         const filtered = useEntryStore.getState().getFilteredEntries();
@@ -794,7 +830,7 @@ describe('entryStore', () => {
           showScored: false,
           searchTerm: 'r',
           sortBy: 'armband',
-          sortDirection: 'desc'
+          sortDirection: 'desc',
         });
 
         const filtered = useEntryStore.getState().getFilteredEntries();
@@ -1075,7 +1111,7 @@ describe('entryStore', () => {
       // Update entry
       useEntryStore.getState().updateEntry('1', {
         callName: 'Updated Name',
-        status: 'checked-in'
+        status: 'checked-in',
       });
 
       // Current entry should reflect update
@@ -1124,12 +1160,7 @@ describe('entryStore', () => {
       useEntryStore.getState().setEntries([entry]);
 
       // Typical workflow progression
-      const statusProgression: EntryStatus[] = [
-        'checked-in',
-        'at-gate',
-        'in-ring',
-        'completed',
-      ];
+      const statusProgression: EntryStatus[] = ['checked-in', 'at-gate', 'in-ring', 'completed'];
 
       statusProgression.forEach(status => {
         useEntryStore.getState().updateEntry('1', { status });

@@ -1,10 +1,6 @@
 /** Notification event types triggered by show-day activity */
 export type NotificationType =
-  | 'your_turn'
-  | 'results_posted'
-  | 'class_starting'
-  | 'check_in_reminder'
-  | 'announcement';
+  'your_turn' | 'results_posted' | 'class_starting' | 'check_in_reminder' | 'announcement';
 
 /** Audio/visual urgency tier */
 export type NotificationPriority = 'normal' | 'high' | 'urgent';

@@ -21,12 +21,12 @@ If you've used other show-management software before, the main change is that en
 
 Your club receives entry fees through a payment processor called Stripe. Here is the boundary between what myK9Show does and what Stripe does:
 
-| myK9Show does | Stripe does |
-|---|---|
-| Hosts the show and collects entries | Processes exhibitor credit card payments |
-| Calculates the amount owed to your club | Holds the money during the show period |
-| Initiates the deposit to your club after the show | Deposits the money into your bank account |
-| Shows payout history and status | Sends identity verification requests directly to the treasurer |
+| myK9Show does                                                                              | Stripe does                                                             |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Hosts the show and collects entries                                                        | Processes exhibitor credit card payments                                |
+| Calculates the amount owed to your club                                                    | Holds the money during the show period                                  |
+| Initiates the deposit to your club after the show                                          | Deposits the money into your bank account                               |
+| Shows payout history and status                                                            | Sends identity verification requests directly to the treasurer          |
 | Charges exhibitors a service fee on top of the entry fee — never deducted from your payout | Deducts its card processing fee from the platform, not from your payout |
 
 **Why Stripe contacts the treasurer directly:** Stripe is legally required to verify the identity of the account holder before releasing funds. This is a U.S. regulatory requirement, not a myK9Show request. When you receive an email from Stripe asking for information, respond directly to them.
@@ -145,12 +145,12 @@ Three days after the show's end date, myK9Show sends the transfer. Your bank typ
 
 ![C-05: Payments page — "Payouts enabled" with a Show payouts row (show name, date, amount, Paid status)](../screenshots/C-05.png)
 
-| Status | Meaning |
-|---|---|
-| **Paid** | Deposit sent; should appear in your bank within one business day |
-| **Sending** | Transfer is in progress |
-| **Waiting for account** | Stripe onboarding is not yet complete |
-| **Retrying** | A transfer attempt failed; Stripe will retry automatically |
+| Status                  | Meaning                                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| **Paid**                | Deposit sent; should appear in your bank within one business day |
+| **Sending**             | Transfer is in progress                                          |
+| **Waiting for account** | Stripe onboarding is not yet complete                            |
+| **Retrying**            | A transfer attempt failed; Stripe will retry automatically       |
 
 **Need itemized records?** The per-entry breakdown lives in the show's Entry Management page. Ask your secretary to export a report from there for your treasurer's records.
 
@@ -226,12 +226,12 @@ The **Officers** tab tracks the club's formal officers (president, secretary, tr
 
 All shots to be captured and added to `docs/training/screenshot-shot-list.md`. Status as of 2026-06-19:
 
-| Shot ID | Section | Description | Status |
-|---|---|---|---|
-| C-01 | § 1 | Club Settings form — all fields visible | ready |
-| C-02 | § 2 | Club Admin → Shows list | ready |
-| C-03 | § 3 | Members page — member row with Show Manager badge | ready |
-| C-04 | § 4 | Payments page — pre-onboarding "Connect payment account" state | ready |
-| C-05 | § 5 | Payments page — payout history table | ready |
-| C-06 | § 7 | Club Members page — members list | ready |
-| C-07 | § 7 | Add Member dialog | ready |
+| Shot ID | Section | Description                                                    | Status |
+| ------- | ------- | -------------------------------------------------------------- | ------ |
+| C-01    | § 1     | Club Settings form — all fields visible                        | ready  |
+| C-02    | § 2     | Club Admin → Shows list                                        | ready  |
+| C-03    | § 3     | Members page — member row with Show Manager badge              | ready  |
+| C-04    | § 4     | Payments page — pre-onboarding "Connect payment account" state | ready  |
+| C-05    | § 5     | Payments page — payout history table                           | ready  |
+| C-06    | § 7     | Club Members page — members list                               | ready  |
+| C-07    | § 7     | Add Member dialog                                              | ready  |

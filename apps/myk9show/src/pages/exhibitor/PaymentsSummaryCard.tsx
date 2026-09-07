@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  formatPaymentCents,
-  type PaymentDisplayRow,
-} from '@/features/payments/moneyPresentation';
+import { formatPaymentCents, type PaymentDisplayRow } from '@/features/payments/moneyPresentation';
 import { summarizePaymentLedgerTotals } from '@/features/payments/paymentsSummary';
 
 /**

@@ -86,9 +86,13 @@ function compareDayOfEntries(a: DayOfReadEntry, b: DayOfReadEntry, sort: SortMod
         a.id.localeCompare(b.id)
       );
     case 'created-asc':
-      return timestampValue(a.created_at) - timestampValue(b.created_at) || a.id.localeCompare(b.id);
+      return (
+        timestampValue(a.created_at) - timestampValue(b.created_at) || a.id.localeCompare(b.id)
+      );
     case 'updated-desc':
-      return timestampValue(b.updated_at) - timestampValue(a.updated_at) || a.id.localeCompare(b.id);
+      return (
+        timestampValue(b.updated_at) - timestampValue(a.updated_at) || a.id.localeCompare(b.id)
+      );
     case 'class-id':
       return (a.class_id ?? '').localeCompare(b.class_id ?? '') || a.id.localeCompare(b.id);
   }
@@ -184,7 +188,9 @@ export async function getReplicatedDayOfEntries(
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
   const dogCache = new Map<string, Promise<ReplicatedDog | null>>();
   const statusSet = new Set(statuses);
-  const filtered = entries.filter(entry => isNotDeleted(entry) && statusSet.has(getEntryStatus(entry) ?? ''));
+  const filtered = entries.filter(
+    entry => isNotDeleted(entry) && statusSet.has(getEntryStatus(entry) ?? '')
+  );
   const enriched = await Promise.all(
     filtered.map(entry => enrichDayOfEntry(entry, classCache, dogCache))
   );

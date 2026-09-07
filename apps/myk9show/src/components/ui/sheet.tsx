@@ -13,8 +13,7 @@ import { getNativeButtonProp } from '@/components/ui/base-ui-native-button';
 
 const Sheet = SheetPrimitive.Root;
 
-interface SheetTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Trigger> {
+interface SheetTriggerProps extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Trigger> {
   asChild?: boolean;
   nativeButton?: boolean;
 }
@@ -102,7 +101,8 @@ const sheetVariants = cva(
 );
 
 interface SheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Popup>,
+  extends
+    React.ComponentPropsWithoutRef<typeof SheetPrimitive.Popup>,
     VariantProps<typeof sheetVariants> {}
 
 const SheetContent = React.forwardRef<

@@ -107,9 +107,9 @@ export interface PresenceState {
 }
 
 // Event types for the event bus
-export type RealtimeEventType = 
+export type RealtimeEventType =
   | 'score-created'
-  | 'score-updated' 
+  | 'score-updated'
   | 'score-deleted'
   | 'placement-updated'
   | 'placement-calculated'
@@ -191,11 +191,13 @@ export interface PresenceTrackingData {
   show_id?: string | undefined;
   status: 'active' | 'idle' | 'away';
   last_seen: string;
-  device_info?: {
-    type: 'desktop' | 'tablet' | 'mobile';
-    os: string;
-    browser: string;
-  } | undefined;
+  device_info?:
+    | {
+        type: 'desktop' | 'tablet' | 'mobile';
+        os: string;
+        browser: string;
+      }
+    | undefined;
 }
 
 // Batch operations

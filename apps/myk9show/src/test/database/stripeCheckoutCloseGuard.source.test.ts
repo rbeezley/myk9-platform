@@ -25,7 +25,7 @@ describe('stripe-checkout entry-window gate', () => {
 
   it('compares calendar days in the show timezone', () => {
     expect(source).toContain('calendarDateInTz');
-    expect(source).toContain("timeZone: tz");
+    expect(source).toContain('timeZone: tz');
     // "now" is the local date; the deadline is the date read in UTC
     expect(source).toContain('const todayLocal =');
     expect(source).toContain("'UTC'");

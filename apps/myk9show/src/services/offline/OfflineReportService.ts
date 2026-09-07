@@ -11,11 +11,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 export type ReportType =
-  | 'entry-list'
-  | 'class-schedule'
-  | 'judge-book'
-  | 'results'
-  | 'show-summary';
+  'entry-list' | 'class-schedule' | 'judge-book' | 'results' | 'show-summary';
 
 export interface ReportOptions {
   type: ReportType;

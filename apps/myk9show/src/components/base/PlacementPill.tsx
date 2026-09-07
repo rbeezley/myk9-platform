@@ -22,7 +22,5 @@ export function PlacementPill({ placement, size = 'md' }: PlacementPillProps) {
   const label = ordinal(placement);
   const style = PLACEMENT_STYLES[placement] ?? 'bg-muted text-muted-foreground';
   const padding = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-0.5 text-sm';
-  return (
-    <span className={`rounded-full font-bold ${padding} ${style}`}>{label}</span>
-  );
+  return <span className={`rounded-full font-bold ${padding} ${style}`}>{label}</span>;
 }

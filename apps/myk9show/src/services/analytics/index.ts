@@ -11,9 +11,9 @@ export const ANALYTICS_PRESETS = {
       failureRate: 0.2,
       avgSyncTime: 10000,
       conflictRate: 0.1,
-      bandwidthUsage: 50 * 1024 * 1024
+      bandwidthUsage: 50 * 1024 * 1024,
     },
-    enableRealTimeAlerts: true
+    enableRealTimeAlerts: true,
   },
   production: {
     samplingRate: 0.1,
@@ -23,9 +23,9 @@ export const ANALYTICS_PRESETS = {
       failureRate: 0.05,
       avgSyncTime: 3000,
       conflictRate: 0.02,
-      bandwidthUsage: 10 * 1024 * 1024
+      bandwidthUsage: 10 * 1024 * 1024,
     },
-    enableRealTimeAlerts: true
+    enableRealTimeAlerts: true,
   },
   testing: {
     samplingRate: 1.0,
@@ -35,8 +35,8 @@ export const ANALYTICS_PRESETS = {
       failureRate: 0.5,
       avgSyncTime: 30000,
       conflictRate: 0.5,
-      bandwidthUsage: 100 * 1024 * 1024
+      bandwidthUsage: 100 * 1024 * 1024,
     },
-    enableRealTimeAlerts: false
-  }
+    enableRealTimeAlerts: false,
+  },
 } as const;

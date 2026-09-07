@@ -34,59 +34,65 @@ The Feb-2026 summary and item history below are retained for provenance.
 - **Estimated Remaining Effort:** None — all items resolved or closed
 
 ### Sprint 29 Progress (2026-02-06)
-| Item | Status | Impact |
-|------|--------|--------|
+
+| Item     | Status      | Impact                                                                                            |
+| -------- | ----------- | ------------------------------------------------------------------------------------------------- |
 | DEBT-015 | ✅ Resolved | 41 test files, 875 tests across 6 packages (core, replication, scoring, scoring-ui, supabase, ui) |
-| DEBT-017 | ✅ Resolved | 7 ADRs + README created in docs/adr/ |
-| DEBT-021 | ✅ Resolved | @myk9/test-utils package created, vitest configs for all packages, test scripts added |
-| DEBT-024 | ✅ Resolved | Service patterns documented (covered by DEBT-017 ADR + CLAUDE.md) |
-| DEBT-025 | ✅ Resolved | Service interfaces — deferred (patterns documented instead) |
-| DEBT-028 | ✅ Resolved | ~8,500 lines dead perf monitoring code deleted |
+| DEBT-017 | ✅ Resolved | 7 ADRs + README created in docs/adr/                                                              |
+| DEBT-021 | ✅ Resolved | @myk9/test-utils package created, vitest configs for all packages, test scripts added             |
+| DEBT-024 | ✅ Resolved | Service patterns documented (covered by DEBT-017 ADR + CLAUDE.md)                                 |
+| DEBT-025 | ✅ Resolved | Service interfaces — deferred (patterns documented instead)                                       |
+| DEBT-028 | ✅ Resolved | ~8,500 lines dead perf monitoring code deleted                                                    |
 
 ### Sprint 28 Progress (2026-02-06)
-| Item | Status | Impact |
-|------|--------|--------|
-| DEBT-004 | ✅ Closed | Stores are 741-873 lines, not 25-30K — not bloated |
-| DEBT-013 | ✅ Closed | AuthContext is 552 lines, not 16.7K — well-designed |
-| DEBT-018 | ✅ Closed | Worst offenders use options objects — false positive |
-| DEBT-019 | ✅ Closed | Mostly benign literals (0, 1, 100) — not actionable |
-| DEBT-023 | ✅ Closed | Intentional design decision (myK9Q uses Semantic CSS) |
-| DEBT-006 | ✅ Resolved | State management guidelines added to CLAUDE.md |
-| DEBT-014 | ⬇️ Downgraded | Low — different architectures, not duplicates |
-| DEBT-020 | ⬇️ Downgraded | Low — @myk9/ui IS consistent; app components are domain-specific |
-| DEBT-008 | ✅ Complete | 13 dead files (~6,500 lines) purged; 209 active services confirmed |
+
+| Item     | Status        | Impact                                                             |
+| -------- | ------------- | ------------------------------------------------------------------ |
+| DEBT-004 | ✅ Closed     | Stores are 741-873 lines, not 25-30K — not bloated                 |
+| DEBT-013 | ✅ Closed     | AuthContext is 552 lines, not 16.7K — well-designed                |
+| DEBT-018 | ✅ Closed     | Worst offenders use options objects — false positive               |
+| DEBT-019 | ✅ Closed     | Mostly benign literals (0, 1, 100) — not actionable                |
+| DEBT-023 | ✅ Closed     | Intentional design decision (myK9Q uses Semantic CSS)              |
+| DEBT-006 | ✅ Resolved   | State management guidelines added to CLAUDE.md                     |
+| DEBT-014 | ⬇️ Downgraded | Low — different architectures, not duplicates                      |
+| DEBT-020 | ⬇️ Downgraded | Low — @myk9/ui IS consistent; app components are domain-specific   |
+| DEBT-008 | ✅ Complete   | 13 dead files (~6,500 lines) purged; 209 active services confirmed |
 
 ### Sprint 27 Progress (2026-02-06)
-| Item | Status | Impact |
-|------|--------|--------|
-| DEBT-003 | ✅ Resolved | No real duplication found — architecture is correct |
-| DEBT-012 | ✅ Complete | Console statements far fewer than expected (11 not 192) |
-| DEBT-026 | ✅ Complete | Path aliases normalized, stale tsconfig entries removed |
+
+| Item     | Status      | Impact                                                             |
+| -------- | ----------- | ------------------------------------------------------------------ |
+| DEBT-003 | ✅ Resolved | No real duplication found — architecture is correct                |
+| DEBT-012 | ✅ Complete | Console statements far fewer than expected (11 not 192)            |
+| DEBT-026 | ✅ Complete | Path aliases normalized, stale tsconfig entries removed            |
 | DEBT-027 | ✅ Complete | Barrel file already organized; added missing sub-directory barrels |
-| DEBT-029 | ✅ Complete | Example components moved to docs/examples/ |
-| DEBT-030 | ✅ Complete | .excluded/ verified fully deleted |
+| DEBT-029 | ✅ Complete | Example components moved to docs/examples/                         |
+| DEBT-030 | ✅ Complete | .excluded/ verified fully deleted                                  |
 
 ### Sprint 26 Progress (2026-02-06)
-| Item | Status | Impact |
-|------|--------|--------|
-| DEBT-011 | ✅ Complete | Audited: 143 TODOs (not 265), 0 BUG/HACK/FIXME |
-| DEBT-002 | ✅ Complete | 11 worst offenders refactored (54-86% line reductions) |
+
+| Item     | Status             | Impact                                                         |
+| -------- | ------------------ | -------------------------------------------------------------- |
+| DEBT-011 | ✅ Complete        | Audited: 143 TODOs (not 265), 0 BUG/HACK/FIXME                 |
+| DEBT-002 | ✅ Complete        | 11 worst offenders refactored (54-86% line reductions)         |
 | DEBT-009 | ✅ Mostly Complete | Worst offender complexity reduced 77-91% via helper extraction |
-| DEBT-010 | ✅ Mostly Complete | Worst offender nesting reduced from 9 to 5 levels |
+| DEBT-010 | ✅ Mostly Complete | Worst offender nesting reduced from 9 to 5 levels              |
 
 ### Sprint 25 Progress (2026-02-04)
-| Item | Status | Impact |
-|------|--------|--------|
-| DEBT-001 | ✅ Complete | Strict mode enabled, 143 files excluded |
+
+| Item     | Status      | Impact                                               |
+| -------- | ----------- | ---------------------------------------------------- |
+| DEBT-001 | ✅ Complete | Strict mode enabled, 143 files excluded              |
 | DEBT-005 | ✅ Complete | 36+ `any` types fixed, 5 schema mismatches remaining |
-| DEBT-007 | ✅ Complete | 19 hooks now exported (was 4) |
-| DEBT-003 | ✅ Resolved | No duplication existed, legacy code deleted |
-| DEBT-016 | ✅ Complete | All 6 package READMEs done |
-| DEBT-030 | ✅ Complete | .excluded/ folder deleted |
+| DEBT-007 | ✅ Complete | 19 hooks now exported (was 4)                        |
+| DEBT-003 | ✅ Resolved | No duplication existed, legacy code deleted          |
+| DEBT-016 | ✅ Complete | All 6 package READMEs done                           |
+| DEBT-030 | ✅ Complete | .excluded/ folder deleted                            |
 
 ### Code Analysis Statistics
 
 **myK9Show:**
+
 - Files Analyzed: 1,373
 - Total Lines: 401,064
 - Total Issues: 5,520
@@ -95,6 +101,7 @@ The Feb-2026 summary and item history below are retained for provenance.
   - LOW: 3,506
 
 **myK9Q:**
+
 - Files Analyzed: 489
 - Total Lines: 119,547
 - Total Issues: 1,888
@@ -112,6 +119,7 @@ The Feb-2026 summary and item history below are retained for provenance.
 **Status:** ✅ **COMPLETE** (2026-02-04)
 
 **Resolution:**
+
 - ✅ Strict mode fully enabled in `tsconfig.app.json`
 - ✅ All strict flags active: `strict`, `strictNullChecks`, `strictFunctionTypes`, `strictBindCallApply`, `strictPropertyInitialization`, `noImplicitAny`
 - ✅ `pnpm typecheck` passes (14/14 tasks)
@@ -129,6 +137,7 @@ The Feb-2026 summary and item history below are retained for provenance.
 **Created:** 2026-02-03
 
 **Location:**
+
 - Files: Multiple large files across both apps
 - Worst offenders (myK9Show) - remaining:
   - `types/supabase.ts` (3,695 lines) - auto-generated
@@ -153,16 +162,19 @@ The Feb-2026 summary and item history below are retained for provenance.
 251 files in myK9Show and 30 files in myK9Q exceed 500 lines, with some reaching 3,695 lines. This makes code hard to maintain, test, and understand.
 
 **Impact:**
+
 - **Business Impact:** Slows feature development, increases bug rate, new developer onboarding difficulty
 - **Technical Impact:** Hard to test, difficult to reuse, merge conflicts, poor code navigation
 - **Risk:** Changes in large files frequently break unrelated functionality
 
 **Root Cause:**
+
 - Rapid feature development without refactoring
 - Generated types file (supabase.ts) not split
 - Page components with embedded business logic
 
 **Proposed Solution:**
+
 1. **Immediate (supabase.ts):** Split by domain (shows, entries, classes, scoring)
 2. **Phase 1 (Pages):** Extract business logic to custom hooks and services
 3. **Phase 2 (Services):** Break large services into smaller focused services
@@ -174,6 +186,7 @@ The Feb-2026 summary and item history below are retained for provenance.
 Critical because large files are high-churn areas blocking feature development and causing bugs.
 
 **Dependencies:**
+
 - Related: DEBT-003 (Complex Functions), DEBT-007 (Deep Nesting)
 
 **Status:** ✅ Complete (Sprint 26)
@@ -183,6 +196,7 @@ Critical because large files are high-churn areas blocking feature development a
 **Target Resolution:** Q1 2026
 
 **Progress (Sprint 26):**
+
 - ✅ **BrowseShowsPage.tsx**: 1,296 → 562 lines (57% reduction)
   - Extracted: `useBrowseShowsData.ts`, `useBrowseShowsFilters.ts`
   - Extracted: `ShowsGridView.tsx`, `ShowsListView.tsx`
@@ -214,6 +228,7 @@ Critical because large files are high-churn areas blocking feature development a
   - Extracted: `QuickActionsSection.tsx`, `RecentActivitySection.tsx`
 
 **Progress (Sprint 26 cont.):**
+
 - ✅ **DayOfOperationsPage.tsx**: 875 → 160 lines (82% reduction)
   - Extracted: `types.ts`, `useDayOfOperationsData.ts`
   - Extracted: `ClassAvailabilityTable.tsx`, `MoveUpEntriesTable.tsx`, `ScratchEntriesTable.tsx`
@@ -249,6 +264,7 @@ All worst-offender files refactored. Only `types/supabase.ts` (3,695 lines, auto
 
 **Resolution:**
 Investigation revealed the original assessment was incorrect:
+
 - The "50K lines of duplication" claim counted the package itself, not actual duplicated code
 - myK9Show's `services/replication/` contains 6 **concrete table implementations** (1,702 lines) that extend `@myk9/replication`'s `ReplicatedTable<T>` base class — this is the **intended usage pattern**
 - myK9Q follows the exact same pattern with 18 concrete table implementations
@@ -270,6 +286,7 @@ Investigation revealed the original assessment was incorrect:
 
 **Resolution:**
 Sprint 28 verification found the register claims were off by **97%**:
+
 - `entryStore.ts`: claimed 30K, **actual 873 lines** (63 exports)
 - `searchHistoryStore.ts`: claimed 28K, **actual 855 lines** (70 exports)
 - `classStore.ts`: claimed 27K, **actual 801 lines** (50 exports)
@@ -302,11 +319,13 @@ Sprint 28 verification found the register claims were off by **97%**:
 **Created:** 2026-02-03
 
 **Location:**
+
 - `apps/myk9show/src/context/` (4 context providers, 1,172 total lines)
 - `apps/myk9show/src/store/` (35 Zustand stores, 12,140 total lines)
 
 **Sprint 28 Verification (2026-02-06):**
 The register overstated the problem. Actual findings:
+
 - **4 context providers** (not 5): AuthContext (552 lines), EnhancedThemeContext (237), RegistrationContext (194), ThemeContext (41)
 - **35 stores** (not 28): averaging ~350 lines each
 - Context/Store separation is **mostly sound**: Context for auth/theme (global, rarely-changing), Zustand for domain data
@@ -347,6 +366,7 @@ The register overstated the problem. Actual findings:
 Initial agent-based analysis claimed ~100 unused files (47%), but manual grep verification revealed only **13 dead service files + 2 orphaned test files (~6,500 lines)**. The automated search missed imports through barrel files, hook layers, factory patterns, and compat layers.
 
 **Files deleted (4 batches, typecheck verified after each):**
+
 - `services/data-boundaries/` — AutoCleanup.ts, ShowIsolation.ts (entire dir removed)
 - `services/database/performance/performanceMonitor.ts` (dir removed)
 - `services/database/utils/retryWrapper.ts` (dir removed)
@@ -376,6 +396,7 @@ Initial agent-based analysis claimed ~100 unused files (47%), but manual grep ve
 **Created:** 2026-02-03
 
 **Location:**
+
 - Worst offenders (myK9Show) — refactored:
   - ✅ `hooks/useClassStoreCompat.ts`: 46 → ~3-4 complexity (91% reduction, helpers extracted)
   - ✅ `hooks/useAudioWarnings.ts`: 30 → ~3 complexity (90% reduction, helpers extracted)
@@ -389,6 +410,7 @@ Initial agent-based analysis claimed ~100 unused files (47%), but manual grep ve
 466 functions in myK9Show exceed cyclomatic complexity of 10 or length of 50 lines. Some functions have complexity over 40 with 250+ lines.
 
 **Impact:**
+
 - **Business Impact:** Hard to modify without introducing bugs, slows development
 - **Technical Impact:** Impossible to test all paths, high bug risk, hard to understand
 - **Risk:** Changes introduce regressions, onboarding difficulty
@@ -397,6 +419,7 @@ Initial agent-based analysis claimed ~100 unused files (47%), but manual grep ve
 Functions grew organically without refactoring. Multiple concerns bundled in single functions.
 
 **Proposed Solution:**
+
 1. Extract helper functions for each logical concern
 2. Use early returns to reduce nesting
 3. Break into smaller composable functions
@@ -408,6 +431,7 @@ Functions grew organically without refactoring. Multiple concerns bundled in sin
 High because these are frequently modified functions in critical paths.
 
 **Dependencies:**
+
 - Related: DEBT-002 (Large Files), DEBT-010 (Deep Nesting)
 
 **Status:** ✅ Mostly Complete (Sprint 26) — worst offenders resolved, incremental work remains
@@ -417,6 +441,7 @@ High because these are frequently modified functions in critical paths.
 **Target Resolution:** Q1 2026
 
 **Progress (Sprint 26):**
+
 - ✅ Extracted pure helper modules for 6 hooks (audioWarningHelpers, backgroundSyncHelpers, classStoreCompatHelpers, dogStoreCompatHelpers, intelligentPreloadingHelpers, lazyLoadingHelpers)
 - ✅ Shared utility module: storeCompatUtils.ts
 - ✅ All extracted helpers are pure functions with complexity ≤ 5, easily testable
@@ -433,6 +458,7 @@ High because these are frequently modified functions in critical paths.
 **Created:** 2026-02-03
 
 **Location:**
+
 - 971 instances of nesting depth > 4 levels
 - Worst offenders — refactored:
   - ✅ `hooks/useDogStoreCompat.ts`: depth 8 → 3 (helpers extracted)
@@ -443,6 +469,7 @@ High because these are frequently modified functions in critical paths.
 971 code locations have nesting deeper than 4 levels, making code hard to read and understand. Some reach 9 levels of nesting.
 
 **Impact:**
+
 - **Business Impact:** Hard to modify logic, increased bug rate
 - **Technical Impact:** Poor readability, hard to test, cognitive load
 - **Risk:** Changes introduce bugs due to complexity
@@ -451,6 +478,7 @@ High because these are frequently modified functions in critical paths.
 Nested if/else and try/catch blocks without early returns or guard clauses.
 
 **Proposed Solution:**
+
 1. Use early returns and guard clauses
 2. Extract nested logic to separate functions
 3. Replace nested conditionals with strategies or lookup tables
@@ -462,6 +490,7 @@ Nested if/else and try/catch blocks without early returns or guard clauses.
 High because it affects code maintainability across the application.
 
 **Dependencies:**
+
 - Related: DEBT-009 (Complex Functions)
 
 **Status:** ✅ Mostly Complete (Sprint 26) — worst offenders resolved, 2 hooks still at depth 5
@@ -471,6 +500,7 @@ High because it affects code maintainability across the application.
 **Target Resolution:** Q1 2026
 
 **Progress (Sprint 26):**
+
 - ✅ All 3 worst offenders refactored via helper extraction
 - ✅ useDogStoreCompat reduced from depth 8 to 3
 - ✅ useIntelligentPreloading reduced from depth 9 to 5
@@ -491,26 +521,29 @@ High because it affects code maintainability across the application.
 
 **Resolution:**
 Audit completed with findings much better than expected:
+
 - ✅ **BUG markers: 0** (none found, previously estimated 77)
 - ✅ **HACK markers: 0** (none found, previously estimated 23)
 - ✅ **FIXME markers: 0** (none found)
 - **TODO markers: 143** (down from estimated 265)
 
 **TODO Breakdown by Category:**
-| Category | Count | Priority | Notes |
-|----------|-------|----------|-------|
-| Type/Schema Fixes | 21 | Blocked | Waiting on database migrations |
-| Auth Context Integration | 8 | Medium | Need auth context hookup |
-| Error Handling | 11 | High | Missing user feedback |
-| Backend/API Integration | 15 | Medium | Replace mock data with real APIs |
-| Feature Implementation | 15 | Medium | Incomplete features |
-| Data Integration | 11 | Medium | Hardcoded values |
-| Conflict Resolution | 5 | Low | Future feature |
-| Migration/Integration | 8 | Low | Future work |
-| Tests | 6 | Low | E2E test stubs |
-| Miscellaneous | 43 | Varies | Various |
+
+| Category                 | Count | Priority | Notes                            |
+| ------------------------ | ----- | -------- | -------------------------------- |
+| Type/Schema Fixes        | 21    | Blocked  | Waiting on database migrations   |
+| Auth Context Integration | 8     | Medium   | Need auth context hookup         |
+| Error Handling           | 11    | High     | Missing user feedback            |
+| Backend/API Integration  | 15    | Medium   | Replace mock data with real APIs |
+| Feature Implementation   | 15    | Medium   | Incomplete features              |
+| Data Integration         | 11    | Medium   | Hardcoded values                 |
+| Conflict Resolution      | 5     | Low      | Future feature                   |
+| Migration/Integration    | 8     | Low      | Future work                      |
+| Tests                    | 6     | Low      | E2E test stubs                   |
+| Miscellaneous            | 43    | Varies   | Various                          |
 
 **Key Findings:**
+
 1. All critical BUG/HACK/FIXME markers have been cleaned up
 2. 21 TODOs are blocked waiting on database schema migrations
 3. 11 error handling TODOs are quick wins (add user toast notifications)
@@ -518,6 +551,7 @@ Audit completed with findings much better than expected:
 5. Many TODOs are legitimate placeholders for planned features
 
 **Recommendations:**
+
 1. ~~Add pre-commit hook to prevent BUG/HACK markers~~ Not needed (none exist)
 2. Address error handling TODOs (quick wins for UX)
 3. Create database migration tickets for blocked TODOs
@@ -539,11 +573,13 @@ Audit completed with findings much better than expected:
 Audit revealed the original "192 statements" count was overstated. Actual findings:
 
 **myK9Show (11 production console statements):**
+
 - 7 legitimate (LoggingService fallbacks, deprecation warnings) — kept
 - 3 replaced with `logger` (SyncAnalyticsService, errorTracking) or removed (dead code in performanceMonitor)
 - Robust logging infrastructure already exists: `@myk9/core` logger + custom `LoggingService` with 400+ files already using it
 
 **myK9Q (158 production console statements):**
+
 - 85 in intentional debug utility (`entryDebug.ts`, eslint-disabled) — kept
 - 48 `console.error` in Supabase error handling — replaced with `logger.error` in 4 files (useKanbanBoard, useScheduleBoard, NotificationSettings, ClassStatusDialog)
 - 14 in test utility (`testDatabaseConnections.ts`, eslint-disabled) — kept
@@ -565,6 +601,7 @@ Audit revealed the original "192 statements" count was overstated. Actual findin
 
 **Resolution:**
 Sprint 28 verification found the register was off by **30x**:
+
 - **Claimed:** 16.7K lines
 - **Actual:** 552 lines with 8 exports, used by 66 files
 
@@ -582,6 +619,7 @@ The file is well-designed with proper separation: auth logic delegated to `useAu
 
 **Sprint 28 Verification (2026-02-06):**
 The "~30K duplicate code" claim is **inaccurate**. These are fundamentally different systems:
+
 - **myK9Q** (2,288 lines): Client-side PWA push notifications with queue management, haptic feedback, voice, quiet hours
 - **myK9Show** (2,706 lines): WebSocket real-time notifications for audit trails, templates, multi-channel delivery
 
@@ -602,6 +640,7 @@ The "~30K duplicate code" claim is **inaccurate**. These are fundamentally diffe
 **Created:** 2026-02-03
 
 **Location:**
+
 - `packages/core/` (1 test file only)
 - `packages/replication/` (no tests)
 - `packages/scoring/` (no tests)
@@ -613,11 +652,13 @@ The "~30K duplicate code" claim is **inaccurate**. These are fundamentally diffe
 Shared packages have minimal or no test coverage. Only `@myk9/core` has 1 test file. Apps have ~12-14% test coverage.
 
 **Current coverage:**
+
 - myK9Q: 78 test files / 567 source files = 13.8%
 - myK9Show: 182 test files / 1,626 source files = 11.2%
 - Packages: ~0% coverage
 
 **Impact:**
+
 - **Business Impact:** Bugs in shared code affect both apps, risky refactoring
 - **Technical Impact:** Can't confidently refactor shared code, no regression detection
 - **Risk:** Package updates may break both apps silently
@@ -626,6 +667,7 @@ Shared packages have minimal or no test coverage. Only `@myk9/core` has 1 test f
 Packages created during migration without adding tests. Focus on feature delivery over test coverage.
 
 **Proposed Solution:**
+
 1. Add unit tests for each package (target: 80% coverage)
 2. Add integration tests for package boundaries
 3. Add E2E tests for cross-app scenarios
@@ -638,6 +680,7 @@ Packages created during migration without adding tests. Focus on feature deliver
 High because lack of package tests makes refactoring risky.
 
 **Dependencies:**
+
 - Blocks: All major refactoring work
 
 **Status:** Open
@@ -661,6 +704,7 @@ High because lack of package tests makes refactoring risky.
 **Created:** 2026-02-03
 
 **Location:**
+
 - All 6 packages missing README files:
   - `packages/core/` - no README
   - `packages/replication/` - no README
@@ -673,6 +717,7 @@ High because lack of package tests makes refactoring risky.
 No package has a README file explaining purpose, API, examples, or usage patterns.
 
 **Impact:**
+
 - **Business Impact:** Slower onboarding, confusion about which package to use
 - **Technical Impact:** Developers unsure of package APIs, duplicate implementations
 - **Risk:** Packages underutilized or misused
@@ -682,6 +727,7 @@ Packages created quickly during migration without documentation.
 
 **Proposed Solution:**
 Create README for each package including:
+
 - Purpose and scope
 - Installation/import examples
 - API reference
@@ -695,6 +741,7 @@ Create README for each package including:
 Medium because documentation enables proper package usage.
 
 **Dependencies:**
+
 - None
 
 **Status:** Open
@@ -704,6 +751,7 @@ Medium because documentation enables proper package usage.
 **Target Resolution:** Sprint 25
 
 **Notes:**
+
 - Highest ROI documentation task
 - Can be done by any team member
 
@@ -718,12 +766,14 @@ Medium because documentation enables proper package usage.
 **Created:** 2026-02-03
 
 **Location:**
+
 - `docs/adr/` directory missing
 
 **Description:**
 No Architecture Decision Records (ADRs) exist to document major technical decisions like package structure, state management, UI library choice, etc.
 
 **Missing ADRs:**
+
 - Why Base UI over Radix?
 - Why Zustand for state management?
 - Why pnpm over npm/yarn?
@@ -732,6 +782,7 @@ No Architecture Decision Records (ADRs) exist to document major technical decisi
 - Replication strategy
 
 **Impact:**
+
 - **Business Impact:** Repeated discussions about architecture, inconsistent decisions
 - **Technical Impact:** No historical context for decisions, hard to evaluate alternatives
 - **Risk:** New team members make decisions without understanding constraints
@@ -740,6 +791,7 @@ No Architecture Decision Records (ADRs) exist to document major technical decisi
 ADRs not part of development workflow.
 
 **Proposed Solution:**
+
 1. Create `docs/adr/` directory
 2. Document past major decisions (retrospective ADRs)
 3. Require ADR for future major decisions
@@ -751,6 +803,7 @@ ADRs not part of development workflow.
 Medium because it prevents future architectural debt.
 
 **Dependencies:**
+
 - None
 
 **Resolution (Sprint 29, 2026-02-06):** Created 7 ADRs in `docs/adr/` covering: monorepo/pnpm/Turborepo, Base UI over Radix, Zustand state management, offline-first IndexedDB, dual UI strategy, package boundaries, Supabase backend. README index included.
@@ -771,6 +824,7 @@ Medium because it prevents future architectural debt.
 
 **Resolution:**
 Sprint 28 verification found the claimed worst offenders don't exist:
+
 - `useConflictResolution.ts:108` — actually takes **1 parameter** (options object)
 - `lib/export.ts:147` — actually takes **3 parameters**
 - `lib/export.ts:105` — actually takes **3 parameters**
@@ -804,6 +858,7 @@ Sprint 28 verification confirmed this is not actionable. The 3,126 count include
 
 **Sprint 28 Verification (2026-02-06):**
 The claim of "no shared component patterns" is inaccurate:
+
 - `@myk9/ui` has **16 consistent prop interfaces** following Base UI/shadcn conventions
 - The 734 interfaces in app-specific components are for **domain-specific** components (ShowCard, RegistrationForm, ScoreEntry) — these SHOULD be app-specific
 - The real architecture is correct: shared UI in @myk9/ui, domain components in apps
@@ -823,6 +878,7 @@ The claim of "no shared component patterns" is inaccurate:
 **Created:** 2026-02-03
 
 **Location:**
+
 - myK9Show tests scattered in multiple directories:
   - `src/test/e2e/`
   - `src/test/components/`
@@ -833,6 +889,7 @@ The claim of "no shared component patterns" is inaccurate:
 Tests scattered across multiple locations with inconsistent organization. No clear test structure or shared test utilities.
 
 **Impact:**
+
 - **Business Impact:** Hard to run specific test suites, slower CI
 - **Technical Impact:** Duplicate test utilities, hard to maintain tests
 - **Risk:** Tests skipped because they're hard to find/run
@@ -841,6 +898,7 @@ Tests scattered across multiple locations with inconsistent organization. No cle
 Tests added organically without organizational structure.
 
 **Proposed Solution:**
+
 1. Standardize test location: colocate tests with source
 2. Create shared test utilities in `@myk9/core/testing`
 3. Group E2E tests by feature
@@ -852,6 +910,7 @@ Tests added organically without organizational structure.
 Medium because it affects test maintainability.
 
 **Dependencies:**
+
 - Related: DEBT-015 (Insufficient Package Testing)
 
 **Resolution (Sprint 29, 2026-02-06):** Created `@myk9/test-utils` shared package with mocks (localStorage, matchMedia, IndexedDB). Added vitest configs to all 6 packages. Standardized colocated test pattern (.test.ts next to source). Added `test:packages` script to root. All new tests follow consistent conventions (it(), describe blocks by module).
@@ -871,17 +930,20 @@ Medium because it affects test maintainability.
 **Created:** 2026-02-03
 
 **Location:**
+
 - E2E tests exist only for individual apps
 - No tests validating shared data/behavior
 
 **Description:**
 Both apps use the same database and shared packages, but no E2E tests validate cross-app scenarios like:
+
 - Show created in myK9Show visible in myK9Q
 - Entries scored in myK9Q visible in myK9Show
 - Offline sync between apps
 - Shared state consistency
 
 **Impact:**
+
 - **Business Impact:** Cross-app bugs not caught until production
 - **Technical Impact:** Can't validate shared package behavior in real scenarios
 - **Risk:** Database migrations may break one app but not the other
@@ -890,6 +952,7 @@ Both apps use the same database and shared packages, but no E2E tests validate c
 Apps tested independently during development.
 
 **Proposed Solution:**
+
 1. Create cross-app E2E test suite
 2. Test scenarios:
    - Data visibility across apps
@@ -904,6 +967,7 @@ Apps tested independently during development.
 Medium because cross-app bugs are high-impact but infrequent.
 
 **Dependencies:**
+
 - Blocked By: DEBT-015 (need package tests first)
 
 **Status:** ✅ Closed (Won't Do) — Each app has independent Playwright E2E tests. Cross-app scenarios are adequately covered by each app testing against the shared Supabase backend independently. The complexity of coordinating two dev servers for marginal coverage gain is not justified.
@@ -938,26 +1002,30 @@ This is an **intentional architectural decision** documented in CLAUDE.md: "UI l
 **Created:** 2026-02-03
 
 **Location:**
+
 - myK9Q: Class-based services extending ReplicatedTable
 - myK9Show: Mix of classes (EventEmitter), functions, and singletons
 
 **Description:**
 Inconsistent service patterns across apps:
+
 - myK9Q: Object-oriented inheritance pattern
 - myK9Show: Mixed paradigm (classes + functional + singleton)
 
 **Examples:**
+
 ```typescript
 // myK9Q pattern
-class ReplicatedAnnouncementsTable extends ReplicatedTable<Announcement> { }
+class ReplicatedAnnouncementsTable extends ReplicatedTable<Announcement> {}
 
 // myK9Show patterns
-class AlertingService extends EventEmitter { }
+class AlertingService extends EventEmitter {}
 export const notificationService = new NotificationService(); // Singleton
-export function getUserService() { } // Functional
+export function getUserService() {} // Functional
 ```
 
 **Impact:**
+
 - **Business Impact:** Confusion about service patterns, inconsistent architecture
 - **Technical Impact:** Hard to abstract common service logic, testing inconsistencies
 - **Risk:** Patterns continue to diverge
@@ -966,6 +1034,7 @@ export function getUserService() { } // Functional
 Apps developed by different teams with different preferences.
 
 **Proposed Solution:**
+
 1. Document service patterns in CLAUDE.md
 2. Choose primary pattern (recommend: class-based for services with state)
 3. Create service base classes/utilities
@@ -977,6 +1046,7 @@ Apps developed by different teams with different preferences.
 Medium because it affects future service development.
 
 **Dependencies:**
+
 - Related: DEBT-008 (Service Layer Complexity)
 
 **Resolution (Sprint 29, 2026-02-06):** Service patterns documented in CLAUDE.md (state management section) and ADR-003, ADR-004. Three recommended patterns identified: ReplicatedTable for data access, injectable class with factory for business logic, pure functions for stateless utilities. No code migration needed — patterns are intentionally different between apps.
@@ -996,12 +1066,14 @@ Medium because it affects future service development.
 **Created:** 2026-02-03
 
 **Location:**
+
 - Services across both apps have no interface contracts
 
 **Description:**
 Services implement behavior without interface contracts, making them hard to test, mock, or swap implementations.
 
 **Impact:**
+
 - **Business Impact:** Harder to test services in isolation
 - **Technical Impact:** Tight coupling, difficult to mock for tests
 - **Risk:** Can't easily swap implementations
@@ -1010,6 +1082,7 @@ Services implement behavior without interface contracts, making them hard to tes
 TypeScript interfaces not created for services.
 
 **Proposed Solution:**
+
 1. Create `@myk9/types` package for service contracts
 2. Define interfaces for all service types:
    - `IReplicatedTable<T>`
@@ -1025,6 +1098,7 @@ TypeScript interfaces not created for services.
 Low because current code works, but would improve testability.
 
 **Dependencies:**
+
 - None
 
 **Resolution (Sprint 29, 2026-02-06):** Addressed through documentation rather than interface extraction. Service patterns documented in CLAUDE.md and ADRs. The 875 new package tests provide the testability improvement this item sought. Full interface extraction deferred as low-ROI given the existing test coverage.
@@ -1044,6 +1118,7 @@ Low because current code works, but would improve testability.
 **Status:** ✅ **COMPLETE** (2026-02-06)
 
 **Resolution:**
+
 - Normalized myk9q path alias from `./src/*` to `src/*` (consistent with myk9show)
 - Removed stale `src/examples/**/*` and `src/examples/field-level-sync-example.ts` entries from myk9show tsconfig exclude list
 - Investigation confirmed centralization to root tsconfig is not beneficial — path aliases are correctly scoped to apps (packages use `package.json` exports, not path aliases), and myk9show's duplication across tsconfig.json/tsconfig.app.json is intentional (IDE resolution vs Vite compilation)
@@ -1062,6 +1137,7 @@ Low because current code works, but would improve testability.
 **Status:** ✅ **COMPLETE** (2026-02-06)
 
 **Resolution:**
+
 - Investigation found the barrel file (index.ts) already has 9 labeled category sections with clear comments — the "no categorization" claim was inaccurate
 - Added missing barrel files for `utils/index.ts` and `types/index.ts` subdirectories (constants/ already had one)
 - Namespaced exports (`export * as utils`) rejected as it would be a breaking change for all consumers
@@ -1078,6 +1154,7 @@ Low because current code works, but would improve testability.
 **Created:** 2026-02-03
 
 **Location:**
+
 - `apps/myk9show/src/services/performance/` (multiple files, 16.5K lines)
 - `apps/myk9q/src/services/performanceMonitor.ts` (572 lines)
 
@@ -1085,6 +1162,7 @@ Low because current code works, but would improve testability.
 Complex performance monitoring implementation with comprehensive metrics collection. May be over-engineered for current needs.
 
 **Impact:**
+
 - **Business Impact:** Maintenance burden, unclear value
 - **Technical Impact:** Complex code, testing difficulty
 - **Risk:** Performance monitoring itself may impact performance
@@ -1093,6 +1171,7 @@ Complex performance monitoring implementation with comprehensive metrics collect
 Comprehensive performance monitoring built proactively.
 
 **Proposed Solution:**
+
 1. Audit which metrics are actually used
 2. Remove unused monitoring code
 3. Consider simpler alternatives (Sentry, LogRocket)
@@ -1104,6 +1183,7 @@ Comprehensive performance monitoring built proactively.
 Low because monitoring works and doesn't cause issues.
 
 **Dependencies:**
+
 - None
 
 **Resolution (Sprint 29, 2026-02-06):** Deleted ~8,500 lines of dead performance monitoring code. Removed: `integrator/` directory (5 files), `mobile/` directory (6 files), 9 individual dead files, `PerformanceMonitoringDashboard.tsx`, associated hook and import references. Kept: `RealUserMonitoring.ts`, `PerformanceBudgets.ts` (actively used). Typecheck clean after deletion.
@@ -1123,6 +1203,7 @@ Low because monitoring works and doesn't cause issues.
 **Status:** ✅ **COMPLETE** (2026-02-06)
 
 **Resolution:**
+
 - Original `src/examples/` directory (4 files: BatchProcessorUsage.ts, compression-usage.ts, DifferentialSyncExample.ts, field-level-sync-example.ts) was already deleted in a prior session
 - Remaining `src/components/examples/` (CommandPaletteExample.tsx, RBACExample.tsx) moved to `docs/examples/` as reference code
 - No example files remain in production app source
@@ -1140,6 +1221,7 @@ Low because monitoring works and doesn't cause issues.
 **Status:** ✅ **COMPLETE** (2026-02-04)
 
 **Resolution:**
+
 - `.excluded/` directory fully deleted — no files remain
 - No dangling imports or references to the directory anywhere in the codebase
 - Related DEBT-003 investigation confirmed the excluded code was unused dead code from early refactoring
@@ -1159,7 +1241,7 @@ Low because monitoring works and doesn't cause issues.
 **Description:** `stripe-checkout` established a pattern of assigning a module-level
 `_corsHeaders` at request start and reading it inside `corsResponse()`; PR #625 copied it
 into `stripe-connect-onboard`, `stripe-refund-entry`, and `stripe-webhook`. Two concurrent
-requests in one isolate can race, so a response may carry the *other* request's
+requests in one isolate can race, so a response may carry the _other_ request's
 `Access-Control-Allow-Origin`. Worst case is a browser-blocked response (both origins come
 from the same allowlist) — not a security hole, which is why it didn't block merge.
 
@@ -1172,26 +1254,30 @@ with a sandbox smoke test after redeploy, not mid-payments-launch.
 ## Debt Trends
 
 ### By Category (after Sprint 28 verification)
-- Code Quality: 0 open - *8 resolved/closed: DEBT-001, 002, 005, 009, 010, 011, 018, 019*
-- Architecture: 2 genuine open (DEBT-024, 025) + 3 downgraded (006, 014, 020) - *7 resolved/closed: DEBT-003, 004, 007, 008, 013, 023, 027*
+
+- Code Quality: 0 open - _8 resolved/closed: DEBT-001, 002, 005, 009, 010, 011, 018, 019_
+- Architecture: 2 genuine open (DEBT-024, 025) + 3 downgraded (006, 014, 020) - _7 resolved/closed: DEBT-003, 004, 007, 008, 013, 023, 027_
 - Test: 3 open (DEBT-015, 021, 022)
-- Documentation: 1 open (DEBT-017) - *1 resolved: DEBT-016*
-- Code Organization: 0 open - *2 resolved: DEBT-029, 030*
-- Developer Experience: 0 open - *2 resolved: DEBT-026, 012*
-- Performance: 0 open - *1 resolved: DEBT-028*
+- Documentation: 1 open (DEBT-017) - _1 resolved: DEBT-016_
+- Code Organization: 0 open - _2 resolved: DEBT-029, 030_
+- Developer Experience: 0 open - _2 resolved: DEBT-026, 012_
+- Performance: 0 open - _1 resolved: DEBT-028_
 
 ### By Severity (revised)
+
 - Critical: 0
 - Medium-High: 0
 - Low: 2 downgraded (DEBT-014, 020)
 - Closed/Resolved: 28 total
 
 ### Key Insight (Sprint 28-29)
+
 The original automated analysis overstated severity on **8 of 16 open items**. Line counts were off by 96-97% on stores (DEBT-004) and AuthContext (DEBT-013). Long parameter lists (DEBT-018) were false positives. Always verify automated claims against actual codebase before planning work.
 
 Sprint 29 resolved 6 items in a single session using parallel agent execution (7 agents coordinated via team system). Package test coverage went from ~0% to 875 tests.
 
 ### Aging
+
 - Items created: 2026-02-03
 - Sprint 28 audit: 2026-02-06 (5 closed, 3 downgraded, 8 reprioritized)
 - Sprint 28 execution: 2026-02-06 (DEBT-008 complete — 13 dead files purged)
@@ -1210,6 +1296,7 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 ## Action Plan Summary
 
 ### Sprint 24 (Immediate - 1 week)
+
 **Focus: High-impact, low-effort wins**
 
 1. ✅ **DEBT-003:** Investigated — no real duplication found, architecture is correct
@@ -1220,6 +1307,7 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 **Impact:** Eliminate 50K lines of duplicate code, improve documentation
 
 ### Sprint 25 (Completed)
+
 **Focus: Type safety and code reuse**
 
 1. ✅ **DEBT-001:** Enable TypeScript strict mode (2-3 days)
@@ -1229,6 +1317,7 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 **Status:** Complete
 
 ### Sprint 26 (Current)
+
 **Focus: Code quality audit and cleanup**
 
 1. ✅ **DEBT-011:** Audit technical debt markers (2 days) - **143 TODOs found, 0 BUG/HACK/FIXME**
@@ -1240,6 +1329,7 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 **Impact:** Significant code maintainability improvement
 
 ### Sprint 27 (Next)
+
 **Focus: Code quality and cleanup**
 
 1. ✅ **DEBT-003:** Resolved — no real duplication (architecture is correct, see item notes)
@@ -1250,6 +1340,7 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 **Impact:** Production-ready logging, codebase cleanup
 
 ### Sprint 28 (Complete)
+
 **Focus: Dead code cleanup — highest ROI, zero risk**
 
 1. ~~**DEBT-008:** Purge unused service files~~ ✅ Complete — 13 files (~6,500 lines) deleted
@@ -1258,6 +1349,7 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 **Status:** Complete
 
 ### Sprint 29 (Complete)
+
 **Focus: Testing foundation + documentation + dead code**
 
 1. ~~**DEBT-015:** Package tests~~ ✅ Complete — 41 test files, 875 tests across 6 packages
@@ -1271,6 +1363,7 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 **Impact:** Package test coverage from 0% to 50%+, dead code removed, architecture documented
 
 ### Remaining
+
 **All items resolved or closed.** No remaining technical debt items.
 
 DEBT-022 (cross-app E2E) closed as won't do — independent per-app E2E tests are sufficient.
@@ -1282,6 +1375,7 @@ DEBT-022 (cross-app E2E) closed as won't do — independent per-app E2E tests ar
 ### Code Review Checklist
 
 Before approving PRs, verify:
+
 - [ ] No new strict mode violations (when DEBT-001 resolved)
 - [ ] No files over 500 lines (DEBT-002)
 - [ ] No functions over 50 lines or complexity > 10 (DEBT-009)
@@ -1295,6 +1389,7 @@ Before approving PRs, verify:
 ### Automated Prevention
 
 **ESLint Rules:**
+
 ```json
 {
   "rules": {
@@ -1309,6 +1404,7 @@ Before approving PRs, verify:
 ```
 
 **Required Checks:**
+
 - TypeScript strict mode enabled
 - Minimum test coverage threshold (80% for packages, 60% for apps)
 - No high-severity code smell violations
@@ -1317,17 +1413,20 @@ Before approving PRs, verify:
 ### Regular Maintenance
 
 **Weekly:**
+
 - Review and triage TODO/FIXME comments
 - Update debt register with new findings
 - Check debt marker violations in new code
 
 **Monthly:**
+
 - Run automated code smell detection
 - Review high-priority debt items
 - Plan fixes for next sprint
 - Update trends
 
 **Quarterly:**
+
 - Full codebase debt analysis
 - Architecture review
 - Dependency updates
@@ -1340,22 +1439,26 @@ Before approving PRs, verify:
 Track these metrics to measure debt reduction:
 
 **Quantity Metrics:**
+
 - Total debt items (target: trending down from 30)
 - Critical items (target: 0)
 - High severity items (target: < 5)
 
 **Quality Metrics:**
+
 - Test coverage (target: 80% packages, 60% apps)
 - TypeScript strict mode (target: enabled everywhere)
 - Large files (target: < 10 files over 500 lines)
 - Average function complexity (target: < 6)
 
 **Velocity Metrics:**
+
 - Debt items resolved per sprint (target: 3-5)
 - Time to resolve debt (target: decreasing)
 - New debt rate (target: < 2 per sprint)
 
 **Business Metrics:**
+
 - Bug rate (target: decreasing)
 - Feature delivery speed (target: increasing)
 - Developer satisfaction (target: increasing)
@@ -1367,6 +1470,7 @@ Track these metrics to measure debt reduction:
 This debt register created from comprehensive automated analysis (code smell detection) and manual architectural review on 2026-02-03.
 
 **Methodology:**
+
 1. Automated code smell detection on both apps
 2. Dependency analysis for both apps
 3. Manual architectural review covering:
@@ -1378,6 +1482,7 @@ This debt register created from comprehensive automated analysis (code smell det
    - Refactoring opportunities
 
 **Key Findings:**
+
 - myK9Show has significantly more debt (5,520 issues) than myK9Q (1,888 issues)
 - Both apps have no major dependency issues
 - Architectural debt is moderate-to-high
@@ -1385,6 +1490,7 @@ This debt register created from comprehensive automated analysis (code smell det
 - Documentation is minimal
 
 **Recommended Approach:**
+
 1. Start with quick wins (Sprint 24) to build momentum
 2. Focus on type safety (Sprint 25) to prevent future bugs
 3. Improve code quality (Sprint 26-27) for maintainability

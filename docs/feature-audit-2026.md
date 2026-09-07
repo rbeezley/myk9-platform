@@ -68,19 +68,19 @@
 
 ## Section 3: Admin (Admin nav group)
 
-| Page / Feature      | Route                    | Classification | Rationale                                                             |
-| ------------------- | ------------------------ | -------------- | --------------------------------------------------------------------- |
-| Dashboard           | /admin/dashboard         | critical-path  | Admin home; per classification rules                                  |
-| Alerts              | /admin/alerts            | delete         | Removed: browser-local alerts were not shared or actionable platform health |
+| Page / Feature      | Route                    | Classification | Rationale                                                                    |
+| ------------------- | ------------------------ | -------------- | ---------------------------------------------------------------------------- |
+| Dashboard           | /admin/dashboard         | critical-path  | Admin home; per classification rules                                         |
+| Alerts              | /admin/alerts            | delete         | Removed: browser-local alerts were not shared or actionable platform health  |
 | Performance         | /admin/performance       | delete         | Removed: current-browser telemetry belonged in diagnostics, not admin health |
-| Deleted Items       | /admin/deleted-items     | critical-path  | Real admin restore/permanent-delete surface for soft-deleted records  |
-| Performance Mode    | /admin/performance-mode  | park           | Per rules; no active route in adminRoutes.tsx — nav item may be stale |
-| Load Testing        | /admin/load-testing      | park           | Per rules; already DEV-gated in adminRoutes.tsx                       |
-| Sync                | /admin/sync              | park           | Per rules                                                             |
-| Users               | /admin/users             | critical-path  | Per classification rules                                              |
-| Roles & Permissions | /admin/permissions       | critical-path  | Per classification rules                                              |
-| Permission Audit    | /admin/permissions/audit | park           | Useful ops tool; not in critical-path list                            |
-| Templates           | /admin/templates         | park           | Real feature (scoresheet templates); not in critical-path list        |
+| Deleted Items       | /admin/deleted-items     | critical-path  | Real admin restore/permanent-delete surface for soft-deleted records         |
+| Performance Mode    | /admin/performance-mode  | park           | Per rules; no active route in adminRoutes.tsx — nav item may be stale        |
+| Load Testing        | /admin/load-testing      | park           | Per rules; already DEV-gated in adminRoutes.tsx                              |
+| Sync                | /admin/sync              | park           | Per rules                                                                    |
+| Users               | /admin/users             | critical-path  | Per classification rules                                                     |
+| Roles & Permissions | /admin/permissions       | critical-path  | Per classification rules                                                     |
+| Permission Audit    | /admin/permissions/audit | park           | Useful ops tool; not in critical-path list                                   |
+| Templates           | /admin/templates         | park           | Real feature (scoresheet templates); not in critical-path list               |
 
 ---
 

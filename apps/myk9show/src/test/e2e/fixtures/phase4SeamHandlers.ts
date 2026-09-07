@@ -254,8 +254,7 @@ function handleWaitlistWrite(
     row.status = 'offered';
     row.offered_at =
       typeof body.offered_at === 'string' ? body.offered_at : clock(options).toISOString();
-    row.offer_expires_at =
-      typeof body.offer_expires_at === 'string' ? body.offer_expires_at : null;
+    row.offer_expires_at = typeof body.offer_expires_at === 'string' ? body.offer_expires_at : null;
   } else if (body.status === 'declined' || body.status === 'expired') {
     row.status = body.status;
   } else {

@@ -115,7 +115,7 @@
 /* Buttons */
 .high-contrast button,
 .high-contrast .button,
-.high-contrast [role="button"] {
+.high-contrast [role='button'] {
   border: var(--hc-border-width) solid var(--hc-border-color);
   font-weight: 600;
   min-height: var(--touch-target-min);
@@ -124,7 +124,7 @@
 
 .high-contrast button:focus,
 .high-contrast .button:focus,
-.high-contrast [role="button"]:focus {
+.high-contrast [role='button']:focus {
   outline: var(--hc-focus-outline);
   outline-offset: var(--hc-focus-outline-offset);
 }
@@ -140,13 +140,13 @@
 }
 
 /* Input fields */
-.high-contrast input[type="text"],
-.high-contrast input[type="email"],
-.high-contrast input[type="password"],
-.high-contrast input[type="number"],
-.high-contrast input[type="tel"],
-.high-contrast input[type="url"],
-.high-contrast input[type="search"],
+.high-contrast input[type='text'],
+.high-contrast input[type='email'],
+.high-contrast input[type='password'],
+.high-contrast input[type='number'],
+.high-contrast input[type='tel'],
+.high-contrast input[type='url'],
+.high-contrast input[type='search'],
 .high-contrast textarea,
 .high-contrast select {
   border: var(--hc-border-width) solid var(--hc-border-color);
@@ -165,8 +165,8 @@
 }
 
 /* Checkboxes and radio buttons */
-.high-contrast input[type="checkbox"],
-.high-contrast input[type="radio"] {
+.high-contrast input[type='checkbox'],
+.high-contrast input[type='radio'] {
   width: var(--space-3xl);
   height: var(--space-3xl);
   border: var(--hc-border-width) solid var(--hc-border-color);
@@ -174,14 +174,14 @@
   cursor: pointer;
 }
 
-.high-contrast input[type="checkbox"]:checked,
-.high-contrast input[type="radio"]:checked {
+.high-contrast input[type='checkbox']:checked,
+.high-contrast input[type='radio']:checked {
   background-color: var(--hc-btn-primary-bg);
   border-color: var(--hc-btn-primary-bg);
 }
 
-.high-contrast input[type="checkbox"]:checked::after {
-  content: "\2713";
+.high-contrast input[type='checkbox']:checked::after {
+  content: '\2713';
   display: block;
   text-align: center;
   color: var(--hc-text-inverse);
@@ -190,8 +190,8 @@
   line-height: var(--space-2xl);
 }
 
-.high-contrast input[type="radio"]:checked::after {
-  content: "";
+.high-contrast input[type='radio']:checked::after {
+  content: '';
   display: block;
   width: var(--space-lg);
   height: var(--space-lg);
@@ -202,7 +202,7 @@
 
 /* Cards and containers */
 .high-contrast .card,
-.high-contrast [data-slot="card"] {
+.high-contrast [data-slot='card'] {
   border: var(--hc-border-width) solid var(--hc-border-color);
   background-color: var(--hc-bg-primary);
 }
@@ -230,7 +230,7 @@
 
 /* Status badges */
 .high-contrast .badge,
-.high-contrast [data-slot="badge"] {
+.high-contrast [data-slot='badge'] {
   border: var(--hc-border-width) solid var(--hc-border-color);
   font-weight: 600;
   padding: 6px var(--space-lg);
@@ -267,7 +267,7 @@
 }
 
 .high-contrast .modal-content,
-.high-contrast [role="dialog"] {
+.high-contrast [role='dialog'] {
   border: 3px solid var(--hc-border-color);
   background-color: var(--hc-bg-primary);
 }
@@ -307,7 +307,7 @@
 }
 
 /* Remove gradients */
-.high-contrast [style*="gradient"] {
+.high-contrast [style*='gradient'] {
   background-image: none !important;
   background-color: var(--hc-bg-primary) !important;
 }
@@ -315,7 +315,7 @@
 /* Error states */
 .high-contrast .error,
 .high-contrast .invalid,
-.high-contrast [aria-invalid="true"] {
+.high-contrast [aria-invalid='true'] {
   border-color: var(--hc-error);
   border-width: 3px;
 }

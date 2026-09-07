@@ -15,9 +15,9 @@ describe('findReusableRefund', () => {
 
   it('reuses an in-flight refund (pending / requires_action)', () => {
     expect(findReusableRefund([refund('re_1', 'pending', 'entry-1')], 'entry-1')?.id).toBe('re_1');
-    expect(
-      findReusableRefund([refund('re_2', 'requires_action', 'entry-1')], 'entry-1')?.id
-    ).toBe('re_2');
+    expect(findReusableRefund([refund('re_2', 'requires_action', 'entry-1')], 'entry-1')?.id).toBe(
+      're_2'
+    );
   });
 
   it('does NOT reuse a failed or canceled refund — the customer was never paid', () => {

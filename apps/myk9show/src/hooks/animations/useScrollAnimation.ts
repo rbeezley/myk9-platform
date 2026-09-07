@@ -20,9 +20,7 @@ const defaultConfig: ScrollAnimationConfig = {
   reverse: false,
 };
 
-export function useScrollAnimation(
-  config: Partial<ScrollAnimationConfig> = {}
-) {
+export function useScrollAnimation(config: Partial<ScrollAnimationConfig> = {}) {
   const elementRef = useRef<HTMLElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [hasTriggered, setHasTriggered] = useState(false);
@@ -34,10 +32,10 @@ export function useScrollAnimation(
     if (!element) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           const isIntersecting = entry.isIntersecting;
-          
+
           if (isIntersecting) {
             setIsVisible(true);
             if (finalConfig.triggerOnce) {
@@ -90,7 +88,7 @@ export function useScrollPosition() {
       const y = window.pageYOffset;
 
       let direction: ScrollPosition['direction'] = null;
-      
+
       if (y > lastPosition.y) {
         direction = 'down';
       } else if (y < lastPosition.y) {
@@ -121,7 +119,10 @@ export function useScrollPosition() {
 }
 
 // Hook for scroll-based parallax effects
-export function useParallax(speed: number = 0.5, direction: 'vertical' | 'horizontal' = 'vertical') {
+export function useParallax(
+  speed: number = 0.5,
+  direction: 'vertical' | 'horizontal' = 'vertical'
+) {
   const elementRef = useRef<HTMLElement>(null);
   const [offset, setOffset] = useState(0);
 
@@ -134,7 +135,7 @@ export function useParallax(speed: number = 0.5, direction: 'vertical' | 'horizo
     const updateParallax = () => {
       const rect = element.getBoundingClientRect();
       const scrolled = direction === 'vertical' ? window.pageYOffset : window.pageXOffset;
-      
+
       if (direction === 'vertical') {
         const yPos = -(rect.top + scrolled) * speed;
         setOffset(yPos);
@@ -142,7 +143,7 @@ export function useParallax(speed: number = 0.5, direction: 'vertical' | 'horizo
         const xPos = -(rect.left + scrolled) * speed;
         setOffset(xPos);
       }
-      
+
       ticking = false;
     };
 
@@ -160,9 +161,7 @@ export function useParallax(speed: number = 0.5, direction: 'vertical' | 'horizo
   }, [speed, direction]);
 
   const getTransform = useCallback(() => {
-    return direction === 'vertical' 
-      ? `translateY(${offset}px)`
-      : `translateX(${offset}px)`;
+    return direction === 'vertical' ? `translateY(${offset}px)` : `translateX(${offset}px)`;
   }, [offset, direction]);
 
   return {
@@ -184,7 +183,7 @@ export function useScrollProgress(container?: React.RefObject<HTMLElement>) {
       const scrollTop = container?.current ? element.scrollTop : window.pageYOffset;
       const scrollHeight = element.scrollHeight - element.clientHeight;
       const progress = Math.min(scrollTop / scrollHeight, 1);
-      
+
       setProgress(progress);
       ticking = false;
     };
@@ -225,7 +224,7 @@ export function useScrollSticky(offset: number = 0) {
     const updateSticky = () => {
       const scrollTop = window.pageYOffset;
       const shouldBeSticky = scrollTop > originalTop - offset;
-      
+
       setIsSticky(shouldBeSticky);
       ticking = false;
     };
@@ -261,18 +260,14 @@ export function useScrollSticky(offset: number = 0) {
 }
 
 // Hook for scroll-based counter animations
-export function useScrollCounter(
-  end: number,
-  start: number = 0,
-  duration: number = 1000
-) {
+export function useScrollCounter(end: number, start: number = 0, duration: number = 1000) {
   const elementRef = useRef<HTMLElement>(null);
   const [count, setCount] = useState(start);
   const [isAnimating, setIsAnimating] = useState(false);
 
   const startAnimation = useCallback(() => {
     if (isAnimating) return;
-    
+
     setIsAnimating(true);
     const startTime = Date.now();
     const range = end - start;
@@ -280,11 +275,11 @@ export function useScrollCounter(
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       // Easing function (ease-out)
       const easeOut = 1 - Math.pow(1 - progress, 3);
-      const current = start + (range * easeOut);
-      
+      const current = start + range * easeOut;
+
       setCount(Math.floor(current));
 
       if (progress < 1) {
@@ -304,8 +299,8 @@ export function useScrollCounter(
     if (!element) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
             startAnimation();
           }

@@ -11,10 +11,10 @@ single `core.hooksPath` set.
 sets it automatically (it runs after `EnterWorktree` and can be run manually).
 
 **This repo enables `extensions.worktreeConfig`**, and the Claude Code worktree
-harness seeds a *per-worktree* `core.hooksPath` (in each checkout's
+harness seeds a _per-worktree_ `core.hooksPath` (in each checkout's
 `config.worktree`, pointed at `.git/hooks`) that **overrides** the shared value.
 So a plain `git config core.hooksPath .githooks` is **not enough** — the
-per-worktree override shadows it. The guard only ever *blocks* from the
+per-worktree override shadows it. The guard only ever _blocks_ from the
 **primary** checkout (it's a no-op in linked worktrees), so the primary's
 override is the one that must be repointed. `bootstrap-worktree.sh` handles all
 of this; to do it by hand:

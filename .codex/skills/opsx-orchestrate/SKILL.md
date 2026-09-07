@@ -22,13 +22,13 @@ For `openspec/changes/<change-id>/` only. Use `ship-it` for `docs/plan-*.md`.
 
 ## Phase Ownership
 
-| OPSX phase | Owner |
-|---|---|
-| Branch safety, proposal, design/spec/tasks, artifact validation | Root agent |
-| Apply independent task batches | Implementation sub-agents |
-| Diff review and acceptance per batch | Root agent |
-| Implementation verification and adversarial review | Root agent; may dispatch read-only reviewers |
-| PR, merge, archive, cleanup | Root agent |
+| OPSX phase                                                      | Owner                                        |
+| --------------------------------------------------------------- | -------------------------------------------- |
+| Branch safety, proposal, design/spec/tasks, artifact validation | Root agent                                   |
+| Apply independent task batches                                  | Implementation sub-agents                    |
+| Diff review and acceptance per batch                            | Root agent                                   |
+| Implementation verification and adversarial review              | Root agent; may dispatch read-only reviewers |
+| PR, merge, archive, cleanup                                     | Root agent                                   |
 
 The root agent MUST NOT delegate proposal/design judgment.
 

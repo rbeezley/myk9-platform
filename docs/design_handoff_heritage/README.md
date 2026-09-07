@@ -10,7 +10,7 @@ This package contains design references for the **Heritage style** applied to th
 
 A fourth touch-point is also in scope:
 
-4. **Wizard completion screen restyle** — when an exhibitor finishes the existing entry wizard, the *final summary screen* should be re-rendered in the Heritage style to mirror the confirmation email. The wizard's earlier steps (data collection) stay as-is. A "Print my entry blank" action on this screen should generate a populated copy of the Heritage Entry Blank.
+4. **Wizard completion screen restyle** — when an exhibitor finishes the existing entry wizard, the _final summary screen_ should be re-rendered in the Heritage style to mirror the confirmation email. The wizard's earlier steps (data collection) stay as-is. A "Print my entry blank" action on this screen should generate a populated copy of the Heritage Entry Blank.
 
 The Heritage **Premium PDF** itself is **not** in this handoff — it shipped in the previous Premium Designs handoff (`design_handoff_premiums/`, Style 8).
 
@@ -31,6 +31,7 @@ The confirmation email is the exception: that file is intentionally written in *
 A separate scoping document, **`Multi-Registry Scoping.md`**, is included in this handoff. It describes how the system will eventually support sanctioning bodies beyond AKC (UKC, ASCA, CKC, etc.). **Implement the registry-config layer now, with AKC populated as the only registry.** This avoids retrofitting later. All registry-specific copy in the design files (license language, exhibitor agreement text, class structure, member-club footer line) should be read from a `registries.AKC.*` config rather than hardcoded.
 
 Specifically, these strings/structures must come from config:
+
 - "An A.K.C. Licensed Trial" / "American Kennel Club" / "A.K.C." (license language, registry name, short name)
 - "A member club of the American Kennel Club" (footer line)
 - The full ~300-word exhibitor agreement in §V of the entry blank
@@ -46,29 +47,36 @@ See the scoping doc for the proposed schema shape.
 Used by all three artifacts. Define once in the React app's theme/tokens module.
 
 ### Colors
-| Token | Hex | Usage |
-|---|---|---|
-| `paper` | `#f8f4ea` | Page background, card surfaces |
-| `ink` | `#1a1612` | Primary text, borders, dark headings |
-| `claret` | `#8a1818` | Accent / italic highlights / corner dots / footer headers |
-| `gold` | `#8a6a45` | Secondary rules, dotted underlines, panel borders |
-| `quill` | `#6b4f3a` | Italic muted text, captions, labels |
+
+| Token       | Hex       | Usage                                                                |
+| ----------- | --------- | -------------------------------------------------------------------- |
+| `paper`     | `#f8f4ea` | Page background, card surfaces                                       |
+| `ink`       | `#1a1612` | Primary text, borders, dark headings                                 |
+| `claret`    | `#8a1818` | Accent / italic highlights / corner dots / footer headers            |
+| `gold`      | `#8a6a45` | Secondary rules, dotted underlines, panel borders                    |
+| `quill`     | `#6b4f3a` | Italic muted text, captions, labels                                  |
 | `paperDark` | `#d9d2c2` | Off-page background (browser preview gutter only — not used in prod) |
 
 ### Typography
+
 - **`Cormorant Garamond`** (italic 400/500/600, regular 400/500/600) — display, italics, ornaments, section folios. Loaded from Google Fonts.
 - **`EB Garamond`** (regular 400/500, italic 400/500) — body copy, labels, lists. Loaded from Google Fonts.
 
 ```html
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet" />
+<link
+  href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&display=swap"
+  rel="stylesheet"
+/>
 ```
 
 ### Spacing & layout
+
 - Section padding: `48px` vertical between sections, `72px` page horizontal padding (landing page is centered, max-width ~960px content).
 - Engraved double border: outer 1px solid ink, 6px gap, inner 1px solid ink. Used on entry blank and on hero ornament.
 - Corner dots: 4–7px claret radial-gradient circles at each corner of bordered elements.
 
 ### Ornaments
+
 - **`✦`** (U+2726) — diamond glyph used as the centerpiece of horizontal rules. Typeset in Cormorant Garamond at 16–22px.
 - **Rule ornament**: thin line, gap, ✦, gap, thin line. Two variants: ink-colored (default) and gold (`gold` modifier).
 - **Section folio**: `§ I`, `§ II`, etc. — Cormorant Garamond italic, claret color, used as section markers.
@@ -80,9 +88,11 @@ Used by all three artifacts. Define once in the React app's theme/tokens module.
 **File:** `Heritage Landing Page.html` · **CSS:** `heritage.css`
 
 ### Purpose
+
 The public web face of a trial. Exhibitors land here from a shared link, search results, or the club's own website. They can read all trial particulars, see judges, plan logistics, and click through to the entry wizard.
 
 ### Route
+
 Suggested: `/trials/:trialId` (or whatever myK9Show's existing public-trial route is). When a club has selected the Heritage style, render this layout instead of the default. Style choice should already be a field on the trial record.
 
 ### Layout & Sections
@@ -101,7 +111,7 @@ Centered single-column page, max-width ~960px content, `paper` background.
    - Establishment line (italic, quill)
    - First ornament rule (✦)
    - "the" italic transition word
-   - Title: "Spring *Scent Work* Trial" — 84px Cormorant Garamond, italic *Scent Work* in claret
+   - Title: "Spring _Scent Work_ Trial" — 84px Cormorant Garamond, italic _Scent Work_ in claret
    - Subtitle: "An A.K.C. Licensed Trial · Six Trials Over Three Days" (uppercase, letter-spaced 0.32em, quill)
    - Second ornament rule (gold variant)
    - Three-column meta grid (held on / at the / in)
@@ -125,7 +135,7 @@ Centered single-column page, max-width ~960px content, `paper` background.
 
 9. **§ VII — In Whose Care** — small officers list, centered, dotted underlines.
 
-10. **§ VIII — Final CTA** — `#enter` — `ink`-colored band (dark, paper text), centered seal mark, "You are *cordially* invited." headline, descriptive paragraph, big Submit Entry button. Below: gold ornament rule, then three entry-method cards (Online / By Post / By Email).
+10. **§ VIII — Final CTA** — `#enter` — `ink`-colored band (dark, paper text), centered seal mark, "You are _cordially_ invited." headline, descriptive paragraph, big Submit Entry button. Below: gold ornament rule, then three entry-method cards (Online / By Post / By Email).
 
 11. **Footer** — `ink` background, paper text. Club name (uppercase letter-spaced), establishment line, divider, secretary contact, sponsors list, fine print with copyright and links.
 
@@ -133,20 +143,21 @@ Centered single-column page, max-width ~960px content, `paper` background.
 
 All defined in `heritage.css` under "MICRO-ANIMATIONS" comment block. All respect `prefers-reduced-motion`.
 
-| Element | Animation | Trigger |
-|---|---|---|
-| Hero composition (each child element) | Fade up 10px → settled, 800ms ease-out, staggered 100–1100ms | On load |
-| Hero corner dots | Scale 0 → 1.4 → 1, 1200ms ease-out | On load (200ms / 320ms delays) |
-| Section headings (`.hl-section-head`) | Fade up 12px, 720ms ease-out | IntersectionObserver, threshold 0.18, once |
-| Ornament rules (`.hl-rule-orn`) | Lines `scaleX(0)` → `scaleX(1)` from center, 900ms cubic-bezier; ✦ glyph fades in 200ms after | Intersection, once |
-| Capacity bar fill | `width: 0` → `width: 38%`, 1400ms cubic-bezier | Intersection, once |
-| Journey timeline steps | Fade + slide-right, 540ms ease-out, 140ms stagger | Intersection on parent, once |
-| Active timeline dot | Pulsing claret ring, 2.4s infinite | After reveal |
-| Countdown digit change | translateY(-2px) + fade 0.4 for 120ms, then text swaps | Each second when digit actually changes |
+| Element                               | Animation                                                                                     | Trigger                                    |
+| ------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Hero composition (each child element) | Fade up 10px → settled, 800ms ease-out, staggered 100–1100ms                                  | On load                                    |
+| Hero corner dots                      | Scale 0 → 1.4 → 1, 1200ms ease-out                                                            | On load (200ms / 320ms delays)             |
+| Section headings (`.hl-section-head`) | Fade up 12px, 720ms ease-out                                                                  | IntersectionObserver, threshold 0.18, once |
+| Ornament rules (`.hl-rule-orn`)       | Lines `scaleX(0)` → `scaleX(1)` from center, 900ms cubic-bezier; ✦ glyph fades in 200ms after | Intersection, once                         |
+| Capacity bar fill                     | `width: 0` → `width: 38%`, 1400ms cubic-bezier                                                | Intersection, once                         |
+| Journey timeline steps                | Fade + slide-right, 540ms ease-out, 140ms stagger                                             | Intersection on parent, once               |
+| Active timeline dot                   | Pulsing claret ring, 2.4s infinite                                                            | After reveal                               |
+| Countdown digit change                | translateY(-2px) + fade 0.4 for 120ms, then text swaps                                        | Each second when digit actually changes    |
 
 The IntersectionObserver pattern: observe targets `.hl-section-head, .hl-rule-orn, .hl-capacity, .hl-journey`; on first intersection add `.in` class (which triggers the CSS transition); unobserve. Reduced-motion fallback adds `.in` immediately.
 
 ### Interactions
+
 - All section anchor links smooth-scroll to their target.
 - Sticky nav active state: tracks scroll position; the link whose section's top is most recently passed gets `.active` (italic + claret).
 - Share button copies `window.location.href` to clipboard, shows a small ink-colored toast bottom-right ("Link copied to clipboard ✦") for 1800ms.
@@ -159,9 +170,11 @@ The IntersectionObserver pattern: observe targets `.hl-section-head, .hl-rule-or
 **File:** `Heritage Entry Blank.html`
 
 ### Purpose
+
 A printable, mail-in entry form. Single page, US Letter portrait (8.5" × 11"). Exhibitors print, fill in by hand, sign §V, and mail to the trial secretary or scan/email a PDF.
 
 ### Two delivery modes
+
 1. **Static blank** — empty form for download from the landing page (under "Plan Your Sojourn" or near the entry-method cards). Currently just the prototype — in production this is generated as a PDF from the trial record (so club name, dates, judges, fees populate automatically).
 2. **Pre-filled** — generated from the wizard completion screen (Artifact 4 below) populated with the entrant's data. Allows the user to print a paper record of what they entered online.
 
@@ -169,7 +182,7 @@ A printable, mail-in entry form. Single page, US Letter portrait (8.5" × 11"). 
 
 Single page, paper background, engraved double-border frame with claret corner dots.
 
-- **Header** (centered): "Official Entry Blank" supra → club name → establishment line → ornament rule → "Spring *Scent Work* Trial" title → AKC license subtitle → gold ornament rule → meta line ("Entries close 3 June 2026 · 8:00 PM Central · One dog per blank · Please print clearly in ink").
+- **Header** (centered): "Official Entry Blank" supra → club name → establishment line → ornament rule → "Spring _Scent Work_ Trial" title → AKC license subtitle → gold ornament rule → meta line ("Entries close 3 June 2026 · 8:00 PM Central · One dog per blank · Please print clearly in ink").
 - **§ I — Particulars of the Dog** — 12-column field grid: registered name (8 cols) + call name (4); breed / variety / sex / DOB / place of birth / AKC reg # — three rows of 4-col fields; sire / dam / breeder / actual owner — two rows of 6-col dotted-underline fields.
 - **§ II — Classes Entered** — trials table (6 rows: trial roman numeral, day, element list, judge, single checkbox cell with "level ↓" caption pointing to the level grid below). Then: 4-row × 4-column class-level grid with checkboxes for every Level × Element combination (Novice/Advanced/Excellent/Master × Containers/Interiors/Exteriors/Buried), plus an "Other" row for Handler Discrimination and Detective (Master).
 - **§ III — Owner & Handler** — 12-col field grid for owner name, handler name, mailing address, city/state/ZIP, phone, email, junior handler age.
@@ -179,13 +192,16 @@ Single page, paper background, engraved double-border frame with claret corner d
 - **Foot rule + small italic foot-line** with closing date and online-entry URL.
 
 ### Section folio rule
+
 `.sec-folio` must have `white-space: nowrap` and `min-width: 32px` to prevent "§" and the roman numeral from breaking onto separate lines.
 
 ### Print
+
 - `@media print { @page { size: letter; margin: 0; } body { background: #fff; } .screen-bar { display: none; } .page { box-shadow: none; margin: 0; } }`
 - `screen-bar` is the dark "Print / Save as PDF" bar shown on screen only.
 
 ### Form fields (for the pre-filled version)
+
 When generating a pre-filled blank from a completed wizard entry, populate every text-input slot. The dotted-underline fields (`.f .ln`) should render the value above the line, italic. Checkbox cells (`.cb`) should render as filled (✕ or ✓ glyph in claret) when selected. Render the agreement text as a fully-justified read-only block (not editable).
 
 ---
@@ -195,9 +211,11 @@ When generating a pre-filled blank from a completed wizard entry, populate every
 **File:** `Heritage Confirmation Email.html`
 
 ### Purpose
+
 Sent to **all entrants** (both online and mail-in) on the trial's **confirmation date** (~6 days before trial) once the draw is complete and armband numbers are assigned. Communicates: entry confirmed, runs they're in, judges, armband number, what to expect on the day, withdrawal policy, contact.
 
 ### Note on entry receipts
+
 A separate **online-receipt email** is sent immediately when an exhibitor finishes the wizard — confirming payment received and entry recorded. That receipt is **transactional and short** (uses the wizard's existing email template). It is **not** in scope for this handoff.
 
 This Heritage confirmation is the formal "your entry is confirmed and the draw is set" email — sent later, to everyone, in the engraved style.
@@ -214,6 +232,7 @@ This email **must** render correctly in Outlook 2007–2021, Gmail web/iOS/Andro
 - **Unicode ornament `✦`** is fine; renders as text glyph.
 
 ### Critical bug-fix to preserve
+
 Horizontal ornament rules use a `<table>` with three `<td>`s: line / glyph / line. The line cells contain a 1px-tall `<div>` with `font-size:0; line-height:0` (not just `height:1px` on the `<td>`, which gets overridden by the row's natural height and renders as a 22px-tall solid block). **Keep the `<div>` wrapper** when porting.
 
 ### Layout (top to bottom)
@@ -223,10 +242,10 @@ Horizontal ornament rules use a `<table>` with three `<td>`s: line / glyph / lin
    - "Bexar County Kennel Club" club name (uppercase, letter-spaced)
    - Establishment line (italic quill)
    - Ornament rule (✦)
-   - "Your entry is *confirmed*." headline (38px, italic *confirmed* in claret)
+   - "Your entry is _confirmed_." headline (38px, italic _confirmed_ in claret)
    - Trial subtitle (uppercase, letter-spaced, quill)
 
-2. **Greeting** — "Dear *{salutation + last name}*" + paragraph confirming entry recorded and draw complete.
+2. **Greeting** — "Dear _{salutation + last name}_" + paragraph confirming entry recorded and draw complete.
 
 3. **Entry detail card** — bordered top + bottom (1px ink), contains:
    - "§ The Dog" italic claret folio
@@ -248,7 +267,9 @@ Horizontal ornament rules use a `<table>` with three `<td>`s: line / glyph / lin
 9. **Footer** (ink background, paper text) — club name + establishment + transactional fine print + manage-preferences and view-in-browser links.
 
 ### Personalization fields
+
 Variables to merge in:
+
 - `{exhibitorSalutation}` `{exhibitorLastName}` (greeting)
 - `{dogRegisteredName}` `{dogCallName}` `{dogBreed}` `{dogSex}` (entry card)
 - `{runs[]}` (for each: `trialRoman` `dayLabel` `className` `judgeShort` `armband`)
@@ -264,8 +285,10 @@ Variables to merge in:
 The existing entry wizard's data-collection steps are unchanged. **Only the final summary/completion screen** picks up the Heritage style.
 
 ### Layout & content
+
 Mirror the structure of Artifact 3 (Confirmation Email):
-1. Engraved header — "Your entry has been received" headline (italic *received* in claret) + trial subtitle
+
+1. Engraved header — "Your entry has been received" headline (italic _received_ in claret) + trial subtitle
 2. Entry detail card — same dog + runs + total layout as the email
 3. **Two prominent actions**:
    - Primary: "Print my entry blank" button (claret-filled, paper text) — generates the populated Heritage Entry Blank PDF (Artifact 2 in pre-filled mode)
@@ -273,7 +296,8 @@ Mirror the structure of Artifact 3 (Confirmation Email):
 4. Italic-quill caption: "A formal confirmation will be emailed on {confirmationDate} once the draw is complete."
 
 ### Note
-This screen is **not** the same as the confirmation email — it's the *immediate* end-of-wizard moment. The email comes later. But the visual language matches so the exhibitor sees a coherent identity from entry → confirmation.
+
+This screen is **not** the same as the confirmation email — it's the _immediate_ end-of-wizard moment. The email comes later. But the visual language matches so the exhibitor sees a coherent identity from entry → confirmation.
 
 ---
 

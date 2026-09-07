@@ -143,10 +143,12 @@ export const ENTRY_MANAGEMENT_OPTIONAL_COLUMN_VALUES = [
   'armband',
   'checkIn',
 ] as const;
-export type EntryManagementOptionalColumn = (typeof ENTRY_MANAGEMENT_OPTIONAL_COLUMN_VALUES)[number];
+export type EntryManagementOptionalColumn =
+  (typeof ENTRY_MANAGEMENT_OPTIONAL_COLUMN_VALUES)[number];
 
 export const CLASS_MANAGEMENT_OPTIONAL_COLUMN_VALUES = ['judge', 'element', 'schedule'] as const;
-export type ClassManagementOptionalColumn = (typeof CLASS_MANAGEMENT_OPTIONAL_COLUMN_VALUES)[number];
+export type ClassManagementOptionalColumn =
+  (typeof CLASS_MANAGEMENT_OPTIONAL_COLUMN_VALUES)[number];
 
 export interface OperationalViewDisplaySettings<TColumn extends string> {
   density?: OperationalViewDensity;
@@ -223,14 +225,20 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
-function sanitizeScope(scope: unknown): { showId?: string; trialId?: string; classId?: string } | undefined {
+function sanitizeScope(
+  scope: unknown
+): { showId?: string; trialId?: string; classId?: string } | undefined {
   if (!scope || typeof scope !== 'object') return undefined;
   const raw = scope as Record<string, unknown>;
   const showId = isNonEmptyString(raw.showId) ? raw.showId : undefined;
   const trialId = isNonEmptyString(raw.trialId) ? raw.trialId : undefined;
   const classId = isNonEmptyString(raw.classId) ? raw.classId : undefined;
   if (!showId && !trialId && !classId) return undefined;
-  return { ...(showId ? { showId } : {}), ...(trialId ? { trialId } : {}), ...(classId ? { classId } : {}) };
+  return {
+    ...(showId ? { showId } : {}),
+    ...(trialId ? { trialId } : {}),
+    ...(classId ? { classId } : {}),
+  };
 }
 
 /**
@@ -252,7 +260,9 @@ export function validateEntryManagementView(value: unknown): EntryManagementOper
   )
     ? (filtersRaw.attention as EntryAttentionFilter)
     : 'all';
-  const payment = isEntryPaymentFilter(typeof filtersRaw.payment === 'string' ? filtersRaw.payment : null)
+  const payment = isEntryPaymentFilter(
+    typeof filtersRaw.payment === 'string' ? filtersRaw.payment : null
+  )
     ? (filtersRaw.payment as EntryPaymentFilter)
     : 'all';
   const mode = ENTRY_WORK_MODE_VALUES.includes(filtersRaw.mode as EntryWorkMode)
@@ -342,11 +352,15 @@ export type ClassManagementPresetId = (typeof CLASS_MANAGEMENT_PRESET_IDS)[numbe
 
 export type OperationalViewPresetId = EntryManagementPresetId | ClassManagementPresetId;
 
-export function isEntryManagementPresetId(value: string | null | undefined): value is EntryManagementPresetId {
+export function isEntryManagementPresetId(
+  value: string | null | undefined
+): value is EntryManagementPresetId {
   return ENTRY_MANAGEMENT_PRESET_IDS.includes(value as EntryManagementPresetId);
 }
 
-export function isClassManagementPresetId(value: string | null | undefined): value is ClassManagementPresetId {
+export function isClassManagementPresetId(
+  value: string | null | undefined
+): value is ClassManagementPresetId {
   return CLASS_MANAGEMENT_PRESET_IDS.includes(value as ClassManagementPresetId);
 }
 

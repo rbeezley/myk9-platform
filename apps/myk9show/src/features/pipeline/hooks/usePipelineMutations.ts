@@ -65,11 +65,7 @@ export function usePipelineMutations(trialId: string) {
   });
 
   const advanceStage = useMutation({
-    mutationFn: (args: {
-      currentStage: PipelineStage;
-      userId: string;
-      userName: string;
-    }) =>
+    mutationFn: (args: { currentStage: PipelineStage; userId: string; userName: string }) =>
       pipelineService.advanceStage(trialId, args.currentStage, args.userId, args.userName),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });
@@ -79,11 +75,7 @@ export function usePipelineMutations(trialId: string) {
   });
 
   const revertStage = useMutation({
-    mutationFn: (args: {
-      targetStage: PipelineStage;
-      userId: string;
-      userName: string;
-    }) =>
+    mutationFn: (args: { targetStage: PipelineStage; userId: string; userName: string }) =>
       pipelineService.revertStage(trialId, args.targetStage, args.userId, args.userName),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.trialChecklist(trialId) });

@@ -16,10 +16,7 @@ export interface BannerContentRowProps {
  * Mobile collapse happens via `banner.css` — under 900px the 240px slot
  * collapses to inline. Don't hardcode that breakpoint at the call site.
  */
-export function BannerContentRow({
-  children,
-  className,
-}: BannerContentRowProps): JSX.Element {
+export function BannerContentRow({ children, className }: BannerContentRowProps): JSX.Element {
   return (
     <div
       className={`bn-content-row ${className ?? ''}`.trim()}

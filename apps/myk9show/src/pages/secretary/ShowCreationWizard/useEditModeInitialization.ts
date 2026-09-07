@@ -143,6 +143,5 @@ export function useEditModeInitialization({
     resetInitialization: () => {
       if (!isDirty) initializedRef.current = null;
     },
-
   };
 }

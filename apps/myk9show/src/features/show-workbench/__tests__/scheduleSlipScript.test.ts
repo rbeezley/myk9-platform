@@ -44,12 +44,8 @@ describe('buildScheduleSlipScript', () => {
   });
 
   it('builds an announcement title from the ring label', () => {
-    expect(buildScheduleSlipAnnouncementTitle({ ring: 'Ring 3' })).toBe(
-      'Schedule delay: Ring 3'
-    );
-    expect(buildScheduleSlipAnnouncementTitle({ ring: '' })).toBe(
-      'Schedule delay: this ring'
-    );
+    expect(buildScheduleSlipAnnouncementTitle({ ring: 'Ring 3' })).toBe('Schedule delay: Ring 3');
+    expect(buildScheduleSlipAnnouncementTitle({ ring: '' })).toBe('Schedule delay: this ring');
   });
 
   it('expires schedule announcements two hours after posting', () => {

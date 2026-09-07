@@ -2,7 +2,7 @@
 name: incident-triage
 description: "Use when production or staging misbehaves — errors spiking in Sentry, /admin/health red, Supabase CPU high, users can't sign in, scores not saving at a show, payments failing, or any 'the site is down/slow/broken' report. Especially during live show weekends."
 user-invocable: true
-argument-hint: "[symptom description]"
+argument-hint: '[symptom description]'
 ---
 
 # Incident Triage
@@ -25,16 +25,16 @@ Show weekends are the highest-stakes windows: exhibitors and secretaries are sta
 
 ## Step 3 — Match against known signatures
 
-| Signature | Diagnosis | Fix |
-| --- | --- | --- |
-| Staging/prod DB CPU > 80%, floods of `40001` on `ringside_update_entry` | OCC conflict storm from stale demo/leftover clients | Identify and kill stale sessions; see memory: ringside-occ-conflict-storm |
-| Sentry `QuotaExceededError` | IndexedDB replication cache unbounded on that device | Eviction shipped; verify client version, clear site data as stopgap |
-| Auth emails not arriving, ~2/hr | GoTrue rate limit without custom SMTP | Custom SMTP (launch blocker); runbook in memory: auth-email-rate-limit |
-| `e2e-*` sign-in returns 400 | Drifted Supabase Auth passwords, NOT code | Reset the accounts |
-| New table 404s from client | Missing GRANTs | Add GRANTs migration |
-| Cron function 401 | Vault secret ≠ edge secret | Re-sync secrets |
-| Judge/steward edits silently not saving | RLS gap — role not in `can_manage_show` | See memory: atshow-judge-write-rls-gap |
-| Page crashes on status icon/map lookup | Unguarded `MAP[dbStatus]` | Guard with `?? MAP['no-status']` |
+| Signature                                                               | Diagnosis                                            | Fix                                                                       |
+| ----------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| Staging/prod DB CPU > 80%, floods of `40001` on `ringside_update_entry` | OCC conflict storm from stale demo/leftover clients  | Identify and kill stale sessions; see memory: ringside-occ-conflict-storm |
+| Sentry `QuotaExceededError`                                             | IndexedDB replication cache unbounded on that device | Eviction shipped; verify client version, clear site data as stopgap       |
+| Auth emails not arriving, ~2/hr                                         | GoTrue rate limit without custom SMTP                | Custom SMTP (launch blocker); runbook in memory: auth-email-rate-limit    |
+| `e2e-*` sign-in returns 400                                             | Drifted Supabase Auth passwords, NOT code            | Reset the accounts                                                        |
+| New table 404s from client                                              | Missing GRANTs                                       | Add GRANTs migration                                                      |
+| Cron function 401                                                       | Vault secret ≠ edge secret                           | Re-sync secrets                                                           |
+| Judge/steward edits silently not saving                                 | RLS gap — role not in `can_manage_show`              | See memory: atshow-judge-write-rls-gap                                    |
+| Page crashes on status icon/map lookup                                  | Unguarded `MAP[dbStatus]`                            | Guard with `?? MAP['no-status']`                                          |
 
 ## Step 4 — Fix discipline
 

@@ -8,26 +8,26 @@ Section 9 evidence. Written 2026-07-25 against `main` @ `d72429ea7`.
 
 All 18 findings from [`docs/ux-audits/exhibitor-elderly-novice-2026-07-23.md`](../../../docs/ux-audits/exhibitor-elderly-novice-2026-07-23.md) are closed. Each was verified by locating the artifact that closes it on `main`, not by assuming the owning slice covered it.
 
-| # | Sev | Finding | Closed by |
-| --- | --- | --- | --- |
-| 1 | Critical | Blank sire created by empty Pedigree submit | `PedigreeAncestorDialogs.test.tsx` |
-| 2 | High | Empty Health submission silently closes | `AddHealthItemDialog.test.tsx` |
-| 3 | High | Date-only vaccination renders one day earlier | `healthDateOnly.test.ts` |
-| 4 | High | Health search/year filters non-functional | `HealthTimeline.filters.test.ts` |
-| 5 | High | Seven peer tabs overflow at every width | `dogDetailsSections.ts` (Overview/Career/Records) |
-| 6 | High | Pedigree tree clips grandparent cards | `PedigreeTree.responsive.test.tsx` |
-| 7 | High | Health header/cards overflow content column | `HealthTimeline.responsive.test.tsx` |
-| 8 | High | Complimentary grant vs "No active subscription" | `SubscriptionManager` `SOURCE_LABEL` + entitlement resolver |
-| 9 | High | Fabricated "Usage This Month" card | Card deleted — no `Usage This Month` in source |
-| 10 | High | My Shows `$150 due` vs My Payments `$0.00` | `crossSurfaceAmountDue.test.ts` + `slice5-cross-surface-reconciliation.spec.ts` |
-| 11 | High | "Add or Change Entries" cannot change entries | `ShowExhibitorView.entryCta.test.ts` |
-| 12 | Medium | Counts irreconcilable across surfaces | `crossSurfaceCounts.fixture.test.ts` |
-| 13 | Medium | Training delete has no confirmation/undo | `TrainingDeleteConfirmDialog.tsx` |
-| 14 | Medium | Training fields/toolbar unlabelled | `EnhancedTrainingJournal.test.tsx` a11y cases |
-| 15 | Medium | Scroll position preserved into dog detail | `useRouteEntryFocus.ts` |
-| 16 | Medium | Mobile Payments hides amount/status/receipt | `ExhibitorPaymentsPage.mobile.test.tsx` |
-| 17 | Medium | Pricing not entitlement-aware; fake footer | `PricingPage` `CURRENT_ACCESS_LABEL`; `Footer.test.tsx` |
-| 18 | Low | Premium docs said "parked, do not build" | `docs/future/exhibitor-premium.md` now reads **Shipped** |
+| #   | Sev      | Finding                                         | Closed by                                                                       |
+| --- | -------- | ----------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1   | Critical | Blank sire created by empty Pedigree submit     | `PedigreeAncestorDialogs.test.tsx`                                              |
+| 2   | High     | Empty Health submission silently closes         | `AddHealthItemDialog.test.tsx`                                                  |
+| 3   | High     | Date-only vaccination renders one day earlier   | `healthDateOnly.test.ts`                                                        |
+| 4   | High     | Health search/year filters non-functional       | `HealthTimeline.filters.test.ts`                                                |
+| 5   | High     | Seven peer tabs overflow at every width         | `dogDetailsSections.ts` (Overview/Career/Records)                               |
+| 6   | High     | Pedigree tree clips grandparent cards           | `PedigreeTree.responsive.test.tsx`                                              |
+| 7   | High     | Health header/cards overflow content column     | `HealthTimeline.responsive.test.tsx`                                            |
+| 8   | High     | Complimentary grant vs "No active subscription" | `SubscriptionManager` `SOURCE_LABEL` + entitlement resolver                     |
+| 9   | High     | Fabricated "Usage This Month" card              | Card deleted — no `Usage This Month` in source                                  |
+| 10  | High     | My Shows `$150 due` vs My Payments `$0.00`      | `crossSurfaceAmountDue.test.ts` + `slice5-cross-surface-reconciliation.spec.ts` |
+| 11  | High     | "Add or Change Entries" cannot change entries   | `ShowExhibitorView.entryCta.test.ts`                                            |
+| 12  | Medium   | Counts irreconcilable across surfaces           | `crossSurfaceCounts.fixture.test.ts`                                            |
+| 13  | Medium   | Training delete has no confirmation/undo        | `TrainingDeleteConfirmDialog.tsx`                                               |
+| 14  | Medium   | Training fields/toolbar unlabelled              | `EnhancedTrainingJournal.test.tsx` a11y cases                                   |
+| 15  | Medium   | Scroll position preserved into dog detail       | `useRouteEntryFocus.ts`                                                         |
+| 16  | Medium   | Mobile Payments hides amount/status/receipt     | `ExhibitorPaymentsPage.mobile.test.tsx`                                         |
+| 17  | Medium   | Pricing not entitlement-aware; fake footer      | `PricingPage` `CURRENT_ACCESS_LABEL`; `Footer.test.tsx`                         |
+| 18  | Low      | Premium docs said "parked, do not build"        | `docs/future/exhibitor-premium.md` now reads **Shipped**                        |
 
 ### Superseded code
 
@@ -41,7 +41,7 @@ All 18 findings from [`docs/ux-audits/exhibitor-elderly-novice-2026-07-23.md`](.
 Per 7.7's instruction to file rather than absorb:
 
 - [MYK9-92](https://linear.app/myk9-platform/issue/MYK9-92/fix-seriouscritical-a11y-violations-in-usereditpanel-admin-user-edit) — `UserEditPanel` a11y debt (7 unnamed buttons; hardcoded `bg-[#1a365d]` badge).
-- [MYK9-95](https://linear.app/myk9-platform/issue/MYK9-95/prove-focus-indicators-appear-because-of-focus-not-merely-that-they) — the keyboard walk proves a focus indicator exists, not that it appears *because of* focus.
+- [MYK9-95](https://linear.app/myk9-platform/issue/MYK9-95/prove-focus-indicators-appear-because-of-focus-not-merely-that-they) — the keyboard walk proves a focus indicator exists, not that it appears _because of_ focus.
 
 ## 9.1 — Tracking consistency
 
@@ -56,15 +56,15 @@ Per 7.7's instruction to file rather than absorb:
 
 Audited all seven PR bodies for the sections 9.3 requires. **The table records the state AS FOUND, before backfill** — it is the more useful fact:
 
-| PR | Linear link | How to test | Risk | Non-goals |
-| --- | --- | --- | --- | --- |
-| #1437 Slice 1 | ✅ | ✅ | ✅ | ✅ |
-| #1438 Slice 2 | ✅ | ✅ | ✅ | ✅ |
-| #1439 Slice 3A | ✅ | ✅ | ✅ | ❌ |
-| #1442 3A deploy | ❌ | ❌ | ❌ | ❌ |
-| #1450 Slice 3B | ✅ | ❌ | ❌ | ✅ |
-| #1456 Slice 4 | ✅ | ❌ | ❌ | ❌ |
-| #1464 Section 7 | ✅ | ✅ | ✅ | ✅ |
+| PR              | Linear link | How to test | Risk | Non-goals |
+| --------------- | ----------- | ----------- | ---- | --------- |
+| #1437 Slice 1   | ✅          | ✅          | ✅   | ✅        |
+| #1438 Slice 2   | ✅          | ✅          | ✅   | ✅        |
+| #1439 Slice 3A  | ✅          | ✅          | ✅   | ❌        |
+| #1442 3A deploy | ❌          | ❌          | ❌   | ❌        |
+| #1450 Slice 3B  | ✅          | ❌          | ❌   | ✅        |
+| #1456 Slice 4   | ✅          | ❌          | ❌   | ❌        |
+| #1464 Section 7 | ✅          | ✅          | ✅   | ✅        |
 
 Four PRs were incomplete against the task's own checklist. **Backfilled 2026-07-25**; all seven now carry Linear link, how-to-test, risk, and non-goals.
 
@@ -81,11 +81,11 @@ Every appended section is explicitly dated and labelled as added after merge. Th
 
 ### What unblocks each
 
-| Blocker | Needs |
-| --- | --- |
-| 7.7 | Delegated to MYK9-96 — a real participant and one 45-minute session |
-| §8 | Migrating the five legacy callers, then a cleanup migration with shared-system deploy approval |
-| 9.3 | Done — four PR descriptions backfilled 2026-07-25 |
+| Blocker | Needs                                                                                          |
+| ------- | ---------------------------------------------------------------------------------------------- |
+| 7.7     | Delegated to MYK9-96 — a real participant and one 45-minute session                            |
+| §8      | Migrating the five legacy callers, then a cleanup migration with shared-system deploy approval |
+| 9.3     | Done — four PR descriptions backfilled 2026-07-25                                              |
 
 ## Staging state to remember
 

@@ -31,28 +31,30 @@ interface EntryRegistrationStore {
   registrations: EntryRegistration[];
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
-  createRegistration: (data: Omit<EntryRegistration, 'id' | 'createdAt' | 'updatedAt'>) => EntryRegistration;
+  createRegistration: (
+    data: Omit<EntryRegistration, 'id' | 'createdAt' | 'updatedAt'>
+  ) => EntryRegistration;
   updateRegistration: (id: string, updates: Partial<EntryRegistration>) => void;
   deleteRegistration: (id: string) => void;
-  
+
   // Queries
   getRegistration: (id: string) => EntryRegistration | undefined;
   getRegistrationsByShow: (showId: string) => EntryRegistration[];
   getRegistrationsByClass: (classId: string) => EntryRegistration[];
   getRegistrationsByDog: (dogId: string) => EntryRegistration[];
   getRegistrationsByStatus: (status: EntryRegistration['status']) => EntryRegistration[];
-  
+
   // Registration workflow
   submitRegistration: (id: string) => void;
   confirmPayment: (id: string) => void;
   refundPayment: (id: string) => void;
-  
+
   // Bulk operations
   bulkUpdateRegistrations: (ids: string[], updates: Partial<EntryRegistration>) => void;
   bulkDeleteRegistrations: (ids: string[]) => void;
-  
+
   // Utility
   clearError: () => void;
   resetStore: () => void;
@@ -68,59 +70,57 @@ export const useEntryRegistrationStore = create<EntryRegistrationStore>()(
   persist(
     (set, get) => ({
       ...initialState,
-      
-      createRegistration: (data) => {
+
+      createRegistration: data => {
         const registration: EntryRegistration = {
           ...data,
           id: generateId(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        
+
         set(state => ({
           registrations: [...state.registrations, registration],
         }));
-        
+
         return registration;
       },
-      
+
       updateRegistration: (id, updates) => {
         set(state => ({
           registrations: state.registrations.map(reg =>
-            reg.id === id
-              ? { ...reg, ...updates, updatedAt: new Date().toISOString() }
-              : reg
+            reg.id === id ? { ...reg, ...updates, updatedAt: new Date().toISOString() } : reg
           ),
         }));
       },
-      
-      deleteRegistration: (id) => {
+
+      deleteRegistration: id => {
         set(state => ({
           registrations: state.registrations.filter(reg => reg.id !== id),
         }));
       },
-      
-      getRegistration: (id) => {
+
+      getRegistration: id => {
         return get().registrations.find(reg => reg.id === id);
       },
-      
-      getRegistrationsByShow: (showId) => {
+
+      getRegistrationsByShow: showId => {
         return get().registrations.filter(reg => reg.showId === showId);
       },
-      
-      getRegistrationsByClass: (classId) => {
+
+      getRegistrationsByClass: classId => {
         return get().registrations.filter(reg => reg.classId === classId);
       },
-      
-      getRegistrationsByDog: (dogId) => {
+
+      getRegistrationsByDog: dogId => {
         return get().registrations.filter(reg => reg.dogId === dogId);
       },
-      
-      getRegistrationsByStatus: (status) => {
+
+      getRegistrationsByStatus: status => {
         return get().registrations.filter(reg => reg.status === status);
       },
-      
-      submitRegistration: (id) => {
+
+      submitRegistration: id => {
         const registration = get().getRegistration(id);
         if (registration && registration.status === 'draft') {
           get().updateRegistration(id, {
@@ -132,8 +132,8 @@ export const useEntryRegistrationStore = create<EntryRegistrationStore>()(
           });
         }
       },
-      
-      confirmPayment: (id) => {
+
+      confirmPayment: id => {
         const registration = get().getRegistration(id);
         if (registration && registration.status === 'submitted') {
           get().updateRegistration(id, {
@@ -145,8 +145,8 @@ export const useEntryRegistrationStore = create<EntryRegistrationStore>()(
           });
         }
       },
-      
-      refundPayment: (id) => {
+
+      refundPayment: id => {
         const registration = get().getRegistration(id);
         if (registration && registration.registrationData.paymentStatus === 'paid') {
           get().updateRegistration(id, {
@@ -157,27 +157,25 @@ export const useEntryRegistrationStore = create<EntryRegistrationStore>()(
           });
         }
       },
-      
+
       bulkUpdateRegistrations: (ids, updates) => {
         set(state => ({
           registrations: state.registrations.map(reg =>
-            ids.includes(reg.id)
-              ? { ...reg, ...updates, updatedAt: new Date().toISOString() }
-              : reg
+            ids.includes(reg.id) ? { ...reg, ...updates, updatedAt: new Date().toISOString() } : reg
           ),
         }));
       },
-      
-      bulkDeleteRegistrations: (ids) => {
+
+      bulkDeleteRegistrations: ids => {
         set(state => ({
           registrations: state.registrations.filter(reg => !ids.includes(reg.id)),
         }));
       },
-      
+
       clearError: () => {
         set({ error: null });
       },
-      
+
       resetStore: () => {
         set(initialState);
       },

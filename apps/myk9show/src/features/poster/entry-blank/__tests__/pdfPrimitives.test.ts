@@ -26,11 +26,7 @@ const PDF_FILES = [
   'MailToPanel.tsx',
 ];
 
-const SECTIONS_DIR = join(
-  __dirname,
-  '..',
-  'sections'
-);
+const SECTIONS_DIR = join(__dirname, '..', 'sections');
 
 describe('Poster entry-blank PDF — Archivo Black guard', () => {
   for (const file of PDF_FILES) {

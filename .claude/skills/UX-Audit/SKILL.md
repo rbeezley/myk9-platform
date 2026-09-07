@@ -88,9 +88,10 @@ Execute IN ORDER. Each pass produces findings before the next begins.
 **What it actually does:** [Actual behavior]
 
 **Misalignment gaps:**
-| UI Element | User Expects | Actually Does | Severity |
-|------------|--------------|---------------|----------|
-| [Element] | [Expectation] | [Reality] | High/Med/Low |
+
+| UI Element | User Expects  | Actually Does | Severity     |
+| ---------- | ------------- | ------------- | ------------ |
+| [Element]  | [Expectation] | [Reality]     | High/Med/Low |
 
 **Jargon found:** [Terms that need user-friendly alternatives]
 ```
@@ -121,9 +122,10 @@ Execute IN ORDER. Each pass produces findings before the next begins.
 - [Group 2]: [Items]
 
 **IA issues:**
-| Issue | Location | Problem | Recommendation |
-|-------|----------|---------|----------------|
-| [Type] | [Where] | [What's wrong] | [Fix] |
+
+| Issue  | Location | Problem        | Recommendation |
+| ------ | -------- | -------------- | -------------- |
+| [Type] | [Where]  | [What's wrong] | [Fix]          |
 
 **Visibility problems:**
 
@@ -152,9 +154,10 @@ Execute IN ORDER. Each pass produces findings before the next begins.
 ## Pass 3: Affordance Clarity
 
 **Affordance audit:**
-| Element | Looks Like | Actually Is | Clear? |
-|---------|------------|-------------|--------|
-| [Element] | [Appearance] | [Function] | Yes/No |
+
+| Element   | Looks Like   | Actually Is | Clear? |
+| --------- | ------------ | ----------- | ------ |
+| [Element] | [Appearance] | [Function]  | Yes/No |
 
 **False affordances:** [Things that look interactive but aren't]
 
@@ -187,18 +190,20 @@ Execute IN ORDER. Each pass produces findings before the next begins.
 ## Pass 4: Cognitive Load
 
 **Decision points:**
+
 | Screen/Step | Decisions Required | Can Be Reduced? |
-|-------------|-------------------|-----------------|
-| [Location] | [Count & type] | [How] |
+| ----------- | ------------------ | --------------- |
+| [Location]  | [Count & type]     | [How]           |
 
 **Missing defaults:**
 
 - [Field/option that should have a default]
 
 **Unnecessary complexity:**
-| Complexity | Who Needs It | Recommendation |
-|------------|--------------|----------------|
-| [What] | [Power users only?] | [Hide/simplify/remove] |
+
+| Complexity | Who Needs It        | Recommendation         |
+| ---------- | ------------------- | ---------------------- |
+| [What]     | [Power users only?] | [Hide/simplify/remove] |
 
 **Cognitive load score:** [High/Medium/Low] - [Justification]
 ```
@@ -263,10 +268,11 @@ Execute IN ORDER. Each pass produces findings before the next begins.
 **Primary flow tested:** [Description]
 
 **Step-by-step findings:**
-| Step | Action | Friction | Severity |
-|------|--------|----------|----------|
-| 1 | [What user does] | [Issue or "None"] | High/Med/Low/None |
-| 2 | ... | ... | ... |
+
+| Step | Action           | Friction          | Severity          |
+| ---- | ---------------- | ----------------- | ----------------- |
+| 1    | [What user does] | [Issue or "None"] | High/Med/Low/None |
+| 2    | ...              | ...               | ...               |
 
 **Abandonment risks:**
 

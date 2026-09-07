@@ -26,7 +26,7 @@ export function GazetteHeading({
   className,
   id,
 }: GazetteHeadingProps) {
-  const Tag = (`h${level}` as 'h1' | 'h2' | 'h3') as keyof JSX.IntrinsicElements;
+  const Tag = `h${level}` as 'h1' | 'h2' | 'h3' as keyof JSX.IntrinsicElements;
   const sizeClass = level === 1 ? 'h1' : level === 2 ? 'h2' : 'h3';
 
   return (

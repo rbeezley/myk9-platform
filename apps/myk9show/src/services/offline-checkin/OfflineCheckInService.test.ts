@@ -12,8 +12,7 @@ vi.mock('../sync/syncService', () => ({
 }));
 
 vi.mock('@/services/show-day/checkInStatus', () => ({
-  updateReplicatedCheckInStatus: (...args: unknown[]) =>
-    mockUpdateReplicatedCheckInStatus(...args),
+  updateReplicatedCheckInStatus: (...args: unknown[]) => mockUpdateReplicatedCheckInStatus(...args),
 }));
 
 import { OfflineCheckInService } from './OfflineCheckInService';

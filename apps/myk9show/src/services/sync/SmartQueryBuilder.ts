@@ -32,7 +32,6 @@ export interface BaseQuery {
 }
 
 export class SmartQueryBuilder {
-
   /**
    * Build a query for an entity based on sync scope and user context
    */
@@ -65,9 +64,7 @@ export class SmartQueryBuilder {
     try {
       // Start building the Supabase query
       // Cast to TableName since buildQuery produces known table names
-      let supabaseQuery = supabase
-        .from(query.from as TableName)
-        .select(query.select);
+      let supabaseQuery = supabase.from(query.from as TableName).select(query.select);
 
       // Apply filters — only use simple, single-table operators that PostgREST supports.
       // Filters referencing joined tables (e.g. "entries.userId") are skipped at the
@@ -116,7 +113,10 @@ export class SmartQueryBuilder {
             );
             break;
           case 'contains':
-            supabaseQuery = supabaseQuery.contains(filter.field, filter.value as Record<string, unknown>);
+            supabaseQuery = supabaseQuery.contains(
+              filter.field,
+              filter.value as Record<string, unknown>
+            );
             break;
           case 'in':
             supabaseQuery = supabaseQuery.in(filter.field, filter.value as string[]);
@@ -148,12 +148,7 @@ export class SmartQueryBuilder {
 
       return (data ?? []) as Record<string, unknown>[];
     } catch (error) {
-      logger.error(
-        `Failed to execute query on '${query.from}':`,
-        'sync',
-        {},
-        error as Error
-      );
+      logger.error(`Failed to execute query on '${query.from}':`, 'sync', {}, error as Error);
       throw error;
     }
   }
@@ -166,7 +161,7 @@ export class SmartQueryBuilder {
       from: 'shows',
       select: '*',
       filters: [],
-      limit: config.limit
+      limit: config.limit,
     };
 
     switch (config.scope) {
@@ -199,17 +194,13 @@ export class SmartQueryBuilder {
 
       case 'managing':
         // Shows where user is secretary/admin
-        baseQuery.filters.push(
-          { field: 'secretary_id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({ field: 'secretary_id', operator: 'eq', value: user.id });
         break;
 
       case 'upcoming':
       default:
         // Basic upcoming shows
-        baseQuery.filters.push(
-          { field: 'date', operator: 'gte', value: new Date() }
-        );
+        baseQuery.filters.push({ field: 'date', operator: 'gte', value: new Date() });
         break;
     }
 
@@ -224,43 +215,49 @@ export class SmartQueryBuilder {
       from: 'dogs',
       select: '*',
       filters: [],
-      limit: config.limit
+      limit: config.limit,
     };
 
     switch (config.scope) {
       case 'own':
         // User's own dogs
-        baseQuery.filters.push(
-          { field: 'owner_id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({ field: 'owner_id', operator: 'eq', value: user.id });
         break;
 
       case 'by-entry':
         // Dogs with entries in shows user is involved with
-        baseQuery.filters.push(
-          { field: 'entries.shows.judge_assignments', operator: 'contains', value: { judge_id: user.id } }
-        );
+        baseQuery.filters.push({
+          field: 'entries.shows.judge_assignments',
+          operator: 'contains',
+          value: { judge_id: user.id },
+        });
         break;
 
       case 'by-assignment':
         // Dogs in classes assigned to judge
-        baseQuery.filters.push(
-          { field: 'entries.classes.judge_id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({
+          field: 'entries.classes.judge_id',
+          operator: 'eq',
+          value: user.id,
+        });
         break;
 
       case 'show-entered':
         // Dogs entered in shows user is managing
-        baseQuery.filters.push(
-          { field: 'entries.shows.secretary_id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({
+          field: 'entries.shows.secretary_id',
+          operator: 'eq',
+          value: user.id,
+        });
         break;
 
       case 'search-cache':
         // Recently searched dogs (would come from local cache)
-        baseQuery.filters.push(
-          { field: 'updated_at', operator: 'gte', value: this.addDays(new Date(), -7) }
-        );
+        baseQuery.filters.push({
+          field: 'updated_at',
+          operator: 'gte',
+          value: this.addDays(new Date(), -7),
+        });
         baseQuery.limit = Math.min(config.limit, 50); // Limit cache size
         break;
 
@@ -282,29 +279,31 @@ export class SmartQueryBuilder {
       from: 'people',
       select: '*',
       filters: [],
-      limit: config.limit
+      limit: config.limit,
     };
 
     switch (config.scope) {
       case 'own':
         // Just the user themselves
-        baseQuery.filters.push(
-          { field: 'id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({ field: 'id', operator: 'eq', value: user.id });
         break;
 
       case 'show-participants':
         // Users with entries in shows user is managing
-        baseQuery.filters.push(
-          { field: 'dogs.entries.shows.secretary_id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({
+          field: 'dogs.entries.shows.secretary_id',
+          operator: 'eq',
+          value: user.id,
+        });
         break;
 
       case 'search-cache':
         // Recently searched people
-        baseQuery.filters.push(
-          { field: 'updated_at', operator: 'gte', value: this.addDays(new Date(), -7) }
-        );
+        baseQuery.filters.push({
+          field: 'updated_at',
+          operator: 'gte',
+          value: this.addDays(new Date(), -7),
+        });
         baseQuery.limit = Math.min(config.limit, 100);
         break;
 
@@ -325,31 +324,29 @@ export class SmartQueryBuilder {
       from: 'clubs',
       select: '*',
       filters: [],
-      limit: config.limit
+      limit: config.limit,
     };
 
     switch (config.scope) {
       case 'member':
         // Clubs where user is a member
-        baseQuery.filters.push(
-          { field: 'members', operator: 'contains', value: { member_id: user.id } }
-        );
+        baseQuery.filters.push({
+          field: 'members',
+          operator: 'contains',
+          value: { member_id: user.id },
+        });
         break;
 
       case 'nearby':
         // Clubs in user's state
         if (user.state) {
-          baseQuery.filters.push(
-            { field: 'state', operator: 'eq', value: user.state }
-          );
+          baseQuery.filters.push({ field: 'state', operator: 'eq', value: user.state });
         }
         break;
 
       case 'active':
         // Clubs with upcoming shows
-        baseQuery.filters.push(
-          { field: 'shows.date', operator: 'gte', value: new Date() }
-        );
+        baseQuery.filters.push({ field: 'shows.date', operator: 'gte', value: new Date() });
         break;
 
       default:
@@ -368,7 +365,7 @@ export class SmartQueryBuilder {
       from: 'entries',
       select: '*',
       filters: [],
-      limit: config.limit
+      limit: config.limit,
     };
 
     switch (config.scope) {
@@ -382,16 +379,12 @@ export class SmartQueryBuilder {
 
       case 'assigned-classes':
         // Entries in classes assigned to judge
-        baseQuery.filters.push(
-          { field: 'classes.judge_id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({ field: 'classes.judge_id', operator: 'eq', value: user.id });
         break;
 
       case 'show-all':
         // All entries in shows user is managing
-        baseQuery.filters.push(
-          { field: 'shows.secretary_id', operator: 'eq', value: user.id }
-        );
+        baseQuery.filters.push({ field: 'shows.secretary_id', operator: 'eq', value: user.id });
         break;
 
       case 'class-specific':
@@ -415,24 +408,28 @@ export class SmartQueryBuilder {
       from: entity,
       select: '*',
       filters: [],
-      limit: config.limit
+      limit: config.limit,
     };
   }
 
   /**
    * Build query with geographic scope
    */
-  buildGeoQuery(entity: string, config: QueryConfig, geoScope: { radius: number; center: [number, number] }): BaseQuery {
+  buildGeoQuery(
+    entity: string,
+    config: QueryConfig,
+    geoScope: { radius: number; center: [number, number] }
+  ): BaseQuery {
     const baseQuery = this.buildQuery(entity, config, { id: 'system', role: 'geo' });
-    
+
     // Add geographic filters (would need PostGIS or similar)
     baseQuery.filters.push({
       field: 'location',
       operator: 'within_distance',
       value: {
         center: geoScope.center,
-        radius: geoScope.radius
-      }
+        radius: geoScope.radius,
+      },
     });
 
     return baseQuery;
@@ -441,9 +438,13 @@ export class SmartQueryBuilder {
   /**
    * Build query with time range
    */
-  buildTimeRangeQuery(entity: string, config: QueryConfig, timeRange: { start: Date; end: Date }): BaseQuery {
+  buildTimeRangeQuery(
+    entity: string,
+    config: QueryConfig,
+    timeRange: { start: Date; end: Date }
+  ): BaseQuery {
     const baseQuery = this.buildQuery(entity, config, { id: 'system', role: 'time' });
-    
+
     // Add time range filters
     baseQuery.filters.push(
       { field: 'created_at', operator: 'gte', value: timeRange.start },
@@ -493,7 +494,7 @@ export class SmartQueryBuilder {
       people: 'last_name, first_name',
       shows: 'date DESC',
       clubs: 'name',
-      entries: 'created_at DESC'
+      entries: 'created_at DESC',
     };
 
     return orderFields[entityType] || 'created_at DESC';

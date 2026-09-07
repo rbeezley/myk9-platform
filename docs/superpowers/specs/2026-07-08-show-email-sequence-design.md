@@ -39,14 +39,14 @@ This does not justify a new page family or app. Scheduled emails belong in the e
 
 ## V1 Email Steps
 
-| Step | Trigger | Send behavior | Review model |
-| --- | --- | --- | --- |
-| Entry received | Exhibitor submits online entry | Automatic transactional email | Status/history visible in communications |
-| Accepted | Secretary accepts entry | Prompt immediately | Preview/edit before send |
-| Waitlisted | Secretary waitlists entry | Prompt immediately | Preview/edit before send |
-| 2-week reminder | Show is 14 days away in show timezone | Prepared batch | Secretary reviews and clicks Send now |
-| Day-before reminder | Show is 1 day away in show timezone | Prepared batch | Secretary reviews and clicks Send now |
-| Results available | Show is complete/results are ready | Prepared whole-show batch | Secretary reviews and clicks Send now |
+| Step                | Trigger                               | Send behavior                 | Review model                             |
+| ------------------- | ------------------------------------- | ----------------------------- | ---------------------------------------- |
+| Entry received      | Exhibitor submits online entry        | Automatic transactional email | Status/history visible in communications |
+| Accepted            | Secretary accepts entry               | Prompt immediately            | Preview/edit before send                 |
+| Waitlisted          | Secretary waitlists entry             | Prompt immediately            | Preview/edit before send                 |
+| 2-week reminder     | Show is 14 days away in show timezone | Prepared batch                | Secretary reviews and clicks Send now    |
+| Day-before reminder | Show is 1 day away in show timezone   | Prepared batch                | Secretary reviews and clicks Send now    |
+| Results available   | Show is complete/results are ready    | Prepared whole-show batch     | Secretary reviews and clicks Send now    |
 
 ## User Experience
 

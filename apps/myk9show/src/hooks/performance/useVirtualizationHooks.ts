@@ -48,13 +48,7 @@ export function useAdvancedVirtualization<T>(options: {
   overscan?: number;
   onScroll?: (scrollTop: number) => void;
 }) {
-  const {
-    data,
-    itemHeight,
-    containerHeight,
-    overscan = 5,
-    onScroll
-  } = options;
+  const { data, itemHeight, containerHeight, overscan = 5, onScroll } = options;
 
   const [scrollTop, setScrollTop] = useState(0);
   const [result, setResult] = useState<VirtualizedResult<T> | null>(null);
@@ -68,11 +62,11 @@ export function useAdvancedVirtualization<T>(options: {
       return;
     }
 
-    const virtualizedResult = calculateVirtualizedItems(
-      data,
-      scrollTop,
-      { itemHeight, containerHeight, overscan }
-    );
+    const virtualizedResult = calculateVirtualizedItems(data, scrollTop, {
+      itemHeight,
+      containerHeight,
+      overscan,
+    });
 
     queueMicrotask(() => {
       setResult(virtualizedResult);
@@ -80,28 +74,34 @@ export function useAdvancedVirtualization<T>(options: {
   }, [data, scrollTop, itemHeight, containerHeight, overscan]);
 
   const handleScroll = useThrottle(
-    useCallback((event: React.UIEvent<HTMLDivElement>) => {
-      const newScrollTop = event.currentTarget.scrollTop;
-      setScrollTop(newScrollTop);
-      onScroll?.(newScrollTop);
-    }, [onScroll]) as (...args: unknown[]) => unknown,
+    useCallback(
+      (event: React.UIEvent<HTMLDivElement>) => {
+        const newScrollTop = event.currentTarget.scrollTop;
+        setScrollTop(newScrollTop);
+        onScroll?.(newScrollTop);
+      },
+      [onScroll]
+    ) as (...args: unknown[]) => unknown,
     16
   );
 
-  const scrollToIndex = useCallback((index: number) => {
-    const newScrollTop = index * itemHeight;
-    setScrollTop(newScrollTop);
+  const scrollToIndex = useCallback(
+    (index: number) => {
+      const newScrollTop = index * itemHeight;
+      setScrollTop(newScrollTop);
 
-    if (containerRef.current) {
-      containerRef.current.scrollTop = newScrollTop;
-    }
-  }, [itemHeight]);
+      if (containerRef.current) {
+        containerRef.current.scrollTop = newScrollTop;
+      }
+    },
+    [itemHeight]
+  );
 
   return {
     result,
     containerRef,
     handleScroll,
     scrollToIndex,
-    scrollTop
+    scrollTop,
   };
 }

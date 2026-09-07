@@ -1,9 +1,11 @@
 # Role: Site Admin
 
 ## Scope for fall 2026
+
 **Functional only — just the user.** One site admin for the whole platform during fall. Impersonation, audit trails, and multi-admin workflows are post-fall concerns.
 
 ## Who they are
+
 The platform operator. Deeply computer-literate. Responsible for keeping the lights on, onboarding new clubs, and being the final escalation point for anything a secretary can't fix themselves.
 
 ## Must accomplish (fall 2026)
@@ -19,11 +21,13 @@ The platform operator. Deeply computer-literate. Responsible for keeping the lig
 9. **Troubleshoot general issues** — support escalation for anything a secretary or exhibitor can't resolve themselves.
 
 ## Should never have to think about
+
 - Remembering which sport has which levels — templates carry that.
 - Whether a fix in one club affects others — fixes are scoped by design.
 - Building dashboards just to see what's going on — minimum viable telemetry is enough for fall.
 
 ## Deferred to post-fall
+
 - Multi-admin site-admin workflow with audit trails.
 - Impersonation mode (as distinct from the "all permissions" approach).
 - Custom admin UI for emergency data repair.

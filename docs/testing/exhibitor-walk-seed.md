@@ -5,9 +5,9 @@ golden path (find → enter → add dog → check in → view results).
 
 ## Test Account
 
-| Role      | Email                       | Password           | Name         |
-| --------- | --------------------------- | ------------------ | ------------ |
-| Exhibitor | exhibitor@myk9t.com | see `.env.local`   | Alice Martin |
+| Role      | Email               | Password         | Name         |
+| --------- | ------------------- | ---------------- | ------------ |
+| Exhibitor | exhibitor@myk9t.com | see `.env.local` | Alice Martin |
 
 Other exhibitor accounts: `exhibitor2..5@myk9t.com` (legacy seed; nightly only).
 
@@ -20,11 +20,11 @@ Exhibitors land on `/exhibitor/entries` (MyEntriesPage).
 
 ## Shows for the walk
 
-| Show     | UUID                                   | Entry window | Use for |
-| -------- | -------------------------------------- | ------------ | ------- |
-| Headline | `18802fc0-1558-4dc3-902d-989edef4df3c` | open, closes Jun 4, 2026 | **Enter a show** (clean upcoming show, Jun 12–14) |
-| Heritage | `3b91e282-6e45-4a89-9446-f6ebeb0bf62c` | running "today" | Show Today banner / `/at-show` / results viewing |
-| QA Walk Show 1777260779 | `a0505c45-64d0-4b04-b2b3-cb213ed738a6` | closed May 14 | Past entries already on exhibitor1 |
+| Show                    | UUID                                   | Entry window             | Use for                                           |
+| ----------------------- | -------------------------------------- | ------------------------ | ------------------------------------------------- |
+| Headline                | `18802fc0-1558-4dc3-902d-989edef4df3c` | open, closes Jun 4, 2026 | **Enter a show** (clean upcoming show, Jun 12–14) |
+| Heritage                | `3b91e282-6e45-4a89-9446-f6ebeb0bf62c` | running "today"          | Show Today banner / `/at-show` / results viewing  |
+| QA Walk Show 1777260779 | `a0505c45-64d0-4b04-b2b3-cb213ed738a6` | closed May 14            | Past entries already on exhibitor1                |
 
 `get_account_today_entries` (RPC) drives the "Show today" banner — it is
 date-range aware, so a multi-day show that started earlier but is still running

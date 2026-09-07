@@ -25,17 +25,17 @@ The change swaps an inline `.filter()` for a shared `selectOwnedDogs()` helper i
 
 For every `Replicated*Table` that queues INSERT mutations, the `data` object passed to `queueMutation('INSERT', id, data)` includes the row's PK (`id`) generated **on the client before upload**. Evidence per entity:
 
-| Entity | Table file | PK column | Generated at | Evidence (file:line) |
-|--------|-----------|-----------|--------------|----------------------|
-| **Dogs** | `ReplicatedDogsTable.ts` | `id` | `crypto.randomUUID()` in `createDog()` | `ReplicatedDogsTable.ts:336` |
-| **Entries** (show-map path) | `ReplicatedEntriesTable.ts` | `id` | `generateUUID()` called in `showMapActionMutations.ts:264`, passed as `entry.id` into `createEntry(entry)` | `showMapActionMutations.ts:264`, `ReplicatedEntriesTable.ts:456` |
-| **Entries** (offline/legacy path) | `OfflineEntryCreator.ts` | `id` | `generateId()` at `OfflineEntryCreator.ts:474` — produces `timestamp36-random6` format, NOT a proper UUID | `OfflineEntryCreator.ts:474`, `idUtils.ts:6-9` |
-| **Classes** | `ReplicatedClassesTable.ts` | `id` | Caller sets `classData.id \|\| crypto.randomUUID()` before passing to `createClass(classData)` | `useShowCreationWizardActions.ts:49`, `ReplicatedClassesTable.ts:463` |
-| **Shows** | `ReplicatedShowsTable.ts` | `id` | `crypto.randomUUID()` in `createShow()` | `ReplicatedShowsTable.ts:337` |
-| **Trials** | `ReplicatedTrialsTable.ts` | `id` | Caller sets `id = crypto.randomUUID()` in `trialStore.ts:53` before passing to `createTrial(trial)` | `trialStore.ts:53`, `ReplicatedTrialsTable.ts:241` |
-| **Clubs** | `ReplicatedClubsTable.ts` | `id` | `crypto.randomUUID()` in `createClub()` | `ReplicatedClubsTable.ts:248` |
-| **Armbands** | `ReplicatedArmbandsTable.ts` | `id` | `createLocalId()` = `globalThis.crypto.randomUUID()` (falls back to `armband-${Date.now()}-${Math.random()}`) | `ReplicatedArmbandsTable.ts:100-104`, `ReplicatedArmbandsTable.ts:231` |
-| **Judge assignments** | `ReplicatedJudgeAssignmentsTable.ts` | `id` | `crypto.randomUUID()` in `createJudgeAssignment()` | `ReplicatedJudgeAssignmentsTable.ts:229` |
+| Entity                            | Table file                           | PK column | Generated at                                                                                                  | Evidence (file:line)                                                   |
+| --------------------------------- | ------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Dogs**                          | `ReplicatedDogsTable.ts`             | `id`      | `crypto.randomUUID()` in `createDog()`                                                                        | `ReplicatedDogsTable.ts:336`                                           |
+| **Entries** (show-map path)       | `ReplicatedEntriesTable.ts`          | `id`      | `generateUUID()` called in `showMapActionMutations.ts:264`, passed as `entry.id` into `createEntry(entry)`    | `showMapActionMutations.ts:264`, `ReplicatedEntriesTable.ts:456`       |
+| **Entries** (offline/legacy path) | `OfflineEntryCreator.ts`             | `id`      | `generateId()` at `OfflineEntryCreator.ts:474` — produces `timestamp36-random6` format, NOT a proper UUID     | `OfflineEntryCreator.ts:474`, `idUtils.ts:6-9`                         |
+| **Classes**                       | `ReplicatedClassesTable.ts`          | `id`      | Caller sets `classData.id \|\| crypto.randomUUID()` before passing to `createClass(classData)`                | `useShowCreationWizardActions.ts:49`, `ReplicatedClassesTable.ts:463`  |
+| **Shows**                         | `ReplicatedShowsTable.ts`            | `id`      | `crypto.randomUUID()` in `createShow()`                                                                       | `ReplicatedShowsTable.ts:337`                                          |
+| **Trials**                        | `ReplicatedTrialsTable.ts`           | `id`      | Caller sets `id = crypto.randomUUID()` in `trialStore.ts:53` before passing to `createTrial(trial)`           | `trialStore.ts:53`, `ReplicatedTrialsTable.ts:241`                     |
+| **Clubs**                         | `ReplicatedClubsTable.ts`            | `id`      | `crypto.randomUUID()` in `createClub()`                                                                       | `ReplicatedClubsTable.ts:248`                                          |
+| **Armbands**                      | `ReplicatedArmbandsTable.ts`         | `id`      | `createLocalId()` = `globalThis.crypto.randomUUID()` (falls back to `armband-${Date.now()}-${Math.random()}`) | `ReplicatedArmbandsTable.ts:100-104`, `ReplicatedArmbandsTable.ts:231` |
+| **Judge assignments**             | `ReplicatedJudgeAssignmentsTable.ts` | `id`      | `crypto.randomUUID()` in `createJudgeAssignment()`                                                            | `ReplicatedJudgeAssignmentsTable.ts:229`                               |
 
 **All offline-INSERT entities generate their PK on the client and embed it in `data` before upload.** A network-timeout retry therefore re-sends the same PK — not a new one. This rules out Verdict C.
 
@@ -88,9 +88,9 @@ None of the `isSupabaseError` branches return `true`. The function falls through
 Back in `classifyMutationFailure()` (`packages/replication/src/mutation-retry.ts`, lines 23–53):
 
 ```ts
-const canRetry = isRetryableError(error);          // false
+const canRetry = isRetryableError(error); // false
 const retries = (mutation.retries || 0) + 1;
-const permanentlyFailed = retries >= maxRetries || !canRetry;  // true on first hit
+const permanentlyFailed = retries >= maxRetries || !canRetry; // true on first hit
 ```
 
 Because `canRetry = false`, `permanentlyFailed = true` immediately — even on the first retry attempt (retries=1, maxRetries=3). The mutation is written to `FAILED_MUTATIONS` with status `'failed'` and error message `"Non-retryable error: duplicate key value..."`. It is removed from `PENDING_MUTATIONS` (`MutationManager.ts:504`).
@@ -163,10 +163,16 @@ it('treats a 23505 duplicate-key error on INSERT retry as success (not a permane
   });
 
   // First upload: server returns 23505 (row already committed on a prior timed-out attempt)
-  mockSupabase.from().insert().select.mockResolvedValueOnce({
-    data: null,
-    error: { code: '23505', message: 'duplicate key value violates unique constraint "entries_pkey"' },
-  });
+  mockSupabase
+    .from()
+    .insert()
+    .select.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "entries_pkey"',
+      },
+    });
 
   await mutationManager.uploadPendingMutations();
 
@@ -192,21 +198,21 @@ Run this test red against the current code first to prove the bug, then apply th
 
 ## Files cited
 
-| File | Role |
-|------|------|
-| `packages/replication/src/MutationManager.ts` | INSERT execution (lines 591–603), catch/classify (lines 466–509) |
-| `packages/replication/src/mutation-utils.ts` | `isRetryableError()` (lines 196–253) |
-| `packages/replication/src/mutation-retry.ts` | `classifyMutationFailure()` (lines 23–53) |
-| `apps/myk9show/src/services/replication/ReplicatedDogsTable.ts` | Dog PK: `crypto.randomUUID()` line 336 |
-| `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts` | Entry PK passed in; `toSupabaseRow` includes `id` at line 59 |
-| `apps/myk9show/src/services/replication/ReplicatedClassesTable.ts` | Class PK from caller line 463 |
-| `apps/myk9show/src/services/replication/ReplicatedShowsTable.ts` | Show PK: `crypto.randomUUID()` line 337 |
-| `apps/myk9show/src/services/replication/ReplicatedTrialsTable.ts` | Trial PK: `crypto.randomUUID()` in `trialStore.ts:53` |
-| `apps/myk9show/src/services/replication/ReplicatedClubsTable.ts` | Club PK: `crypto.randomUUID()` line 248 |
-| `apps/myk9show/src/services/replication/ReplicatedArmbandsTable.ts` | Armband PK: `createLocalId()` line 100 |
-| `apps/myk9show/src/services/replication/ReplicatedJudgeAssignmentsTable.ts` | Judge-assignment PK: `crypto.randomUUID()` line 229 |
-| `apps/myk9show/src/pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts` | Class PK: `crypto.randomUUID()` line 49 |
-| `apps/myk9show/src/store/trialStore.ts` | Trial PK: `crypto.randomUUID()` line 53 |
-| `apps/myk9show/src/services/entries/OfflineEntryCreator.ts` | Entry PK (legacy path): `generateId()` line 474 |
-| `apps/myk9show/src/utils/idUtils.ts` | `generateId()` = timestamp36 + random6 (NOT a UUID) |
-| `apps/myk9show/src/features/show-map/showMapActionMutations.ts` | Entry PK (show-map path): `generateUUID()` line 264 |
+| File                                                                                   | Role                                                             |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `packages/replication/src/MutationManager.ts`                                          | INSERT execution (lines 591–603), catch/classify (lines 466–509) |
+| `packages/replication/src/mutation-utils.ts`                                           | `isRetryableError()` (lines 196–253)                             |
+| `packages/replication/src/mutation-retry.ts`                                           | `classifyMutationFailure()` (lines 23–53)                        |
+| `apps/myk9show/src/services/replication/ReplicatedDogsTable.ts`                        | Dog PK: `crypto.randomUUID()` line 336                           |
+| `apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`                     | Entry PK passed in; `toSupabaseRow` includes `id` at line 59     |
+| `apps/myk9show/src/services/replication/ReplicatedClassesTable.ts`                     | Class PK from caller line 463                                    |
+| `apps/myk9show/src/services/replication/ReplicatedShowsTable.ts`                       | Show PK: `crypto.randomUUID()` line 337                          |
+| `apps/myk9show/src/services/replication/ReplicatedTrialsTable.ts`                      | Trial PK: `crypto.randomUUID()` in `trialStore.ts:53`            |
+| `apps/myk9show/src/services/replication/ReplicatedClubsTable.ts`                       | Club PK: `crypto.randomUUID()` line 248                          |
+| `apps/myk9show/src/services/replication/ReplicatedArmbandsTable.ts`                    | Armband PK: `createLocalId()` line 100                           |
+| `apps/myk9show/src/services/replication/ReplicatedJudgeAssignmentsTable.ts`            | Judge-assignment PK: `crypto.randomUUID()` line 229              |
+| `apps/myk9show/src/pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts` | Class PK: `crypto.randomUUID()` line 49                          |
+| `apps/myk9show/src/store/trialStore.ts`                                                | Trial PK: `crypto.randomUUID()` line 53                          |
+| `apps/myk9show/src/services/entries/OfflineEntryCreator.ts`                            | Entry PK (legacy path): `generateId()` line 474                  |
+| `apps/myk9show/src/utils/idUtils.ts`                                                   | `generateId()` = timestamp36 + random6 (NOT a UUID)              |
+| `apps/myk9show/src/features/show-map/showMapActionMutations.ts`                        | Entry PK (show-map path): `generateUUID()` line 264              |

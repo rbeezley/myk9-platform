@@ -187,8 +187,7 @@ describe('usePushSubscription', () => {
     // device holds a subscription. Reporting success here would flip the toggle
     // off while the push_subscriptions row survives, so the user keeps getting
     // notifications they opted out of.
-    const { lookupExistingSubscription, unsubscribeFromPush } =
-      await import('@myk9/notifications');
+    const { lookupExistingSubscription, unsubscribeFromPush } = await import('@myk9/notifications');
     vi.mocked(lookupExistingSubscription).mockResolvedValueOnce({ status: 'unavailable' });
 
     const { result } = renderHook(() => usePushSubscription());

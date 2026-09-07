@@ -3,7 +3,10 @@ import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { DogEditPanelSkeleton, PhotoDialogSkeleton } from './Skeletons';
 import { DeleteDogDialog } from '@/components/dogs/common/DeleteDogDialog';
-import { useDogActiveEntryCountQuery, useDogBlockingEntryCountQuery } from '@/hooks/queries/useEntriesDatabase';
+import {
+  useDogActiveEntryCountQuery,
+  useDogBlockingEntryCountQuery,
+} from '@/hooks/queries/useEntriesDatabase';
 import { convertDogToDogInput, CELEBRATION_DURATION_MS, CELEBRATION_FADE_DELAY_MS } from './utils';
 import type { DogDialogsProps } from './types';
 

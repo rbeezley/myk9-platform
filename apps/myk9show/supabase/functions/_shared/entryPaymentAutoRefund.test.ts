@@ -4,7 +4,6 @@ import type { PlatformFeeRates } from './platformFee';
 /** The 7/0/0 rates every legacy fixture in this file was priced with. */
 const RATES_7: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
 
-
 const base = {
   paymentIntentId: 'pi_link_123',
   // 11_000 subtotal + 7% = 11_770, i.e. a correctly-collected charge.

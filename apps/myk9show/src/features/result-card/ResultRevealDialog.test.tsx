@@ -43,14 +43,15 @@ function makeModel(overrides: Partial<ResultCardModel> = {}): ResultCardModel {
 describe('ResultRevealDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: false }))
+    );
   });
 
   it('renders a dog-first qualifying reveal and marks it seen', () => {
     const onSeen = vi.fn();
-    render(
-      <ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={onSeen} />
-    );
+    render(<ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={onSeen} />);
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText('Ditto')).toBeInTheDocument();
@@ -61,15 +62,15 @@ describe('ResultRevealDialog', () => {
 
   it('shares the rendered PNG when Share is clicked', async () => {
     const user = userEvent.setup();
-    render(
-      <ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />
-    );
+    render(<ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /Share/i }));
 
     const { renderResultCardImage } = await import('./renderResultCardImage');
     const { shareFile } = await import('@/utils/share');
-    expect(renderResultCardImage).toHaveBeenCalledWith(expect.objectContaining({ dogName: 'Ditto' }));
+    expect(renderResultCardImage).toHaveBeenCalledWith(
+      expect.objectContaining({ dogName: 'Ditto' })
+    );
     expect(shareFile).toHaveBeenCalledWith(expect.any(Blob), {
       title: 'Ditto qualified',
       text: 'Ditto earned a Q.',
@@ -78,19 +79,18 @@ describe('ResultRevealDialog', () => {
   });
 
   it('[ADDED] skips confetti when reduced motion is requested', async () => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
-    render(
-      <ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true }))
     );
+    render(<ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />);
 
     const confetti = (await import('canvas-confetti')).default;
     expect(confetti).not.toHaveBeenCalled();
   });
 
   it('creates confetti without a worker so strict CSP allows the reveal', async () => {
-    render(
-      <ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />
-    );
+    render(<ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />);
 
     const confetti = (await import('canvas-confetti')).default;
     expect(confetti.create).toHaveBeenCalledWith(undefined, { useWorker: false });
@@ -105,9 +105,7 @@ describe('ResultRevealDialog', () => {
     const user = userEvent.setup();
     const { shareFile } = await import('@/utils/share');
     vi.mocked(shareFile).mockRejectedValueOnce(new Error('Share failed'));
-    render(
-      <ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />
-    );
+    render(<ResultRevealDialog open onOpenChange={vi.fn()} model={makeModel()} onSeen={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: /Share/i }));
 

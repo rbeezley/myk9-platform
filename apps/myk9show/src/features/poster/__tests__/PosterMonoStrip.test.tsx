@@ -6,11 +6,7 @@ describe('PosterMonoStrip', () => {
   it('renders all items in left-to-right order', () => {
     const { container } = render(
       <PosterMonoStrip
-        items={[
-          { label: 'SS‒26' },
-          { label: '12—14 JUN' },
-          { label: 'LIVE OAK' },
-        ]}
+        items={[{ label: 'SS‒26' }, { label: '12—14 JUN' }, { label: 'LIVE OAK' }]}
       />
     );
     expect(container.textContent).toContain('SS‒26');
@@ -57,9 +53,7 @@ describe('PosterMonoStrip', () => {
 
   it('applies the hide-narrow class to items past the second', () => {
     const { container } = render(
-      <PosterMonoStrip
-        items={[{ label: 'A' }, { label: 'B' }, { label: 'C' }, { label: 'D' }]}
-      />
+      <PosterMonoStrip items={[{ label: 'A' }, { label: 'B' }, { label: 'C' }, { label: 'D' }]} />
     );
     const items = container.querySelectorAll('.po-strip-item');
     expect(items[0]?.className).not.toContain('hide-narrow');

@@ -37,7 +37,10 @@ export function HeritageFooter({
             {secretaryName && (
               <p
                 className="text-xs uppercase tracking-widest"
-                style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
+                style={{
+                  color: 'var(--hl-paper-muted)',
+                  fontFamily: "'EB Garamond', Georgia, serif",
+                }}
               >
                 Trial Secretary — {secretaryName}
               </p>
@@ -46,7 +49,10 @@ export function HeritageFooter({
               <a
                 href={`mailto:${secretaryEmail}`}
                 className="inline-flex min-h-[44px] items-center text-xs underline"
-                style={{ color: 'var(--hl-paper-muted)', fontFamily: "'EB Garamond', Georgia, serif" }}
+                style={{
+                  color: 'var(--hl-paper-muted)',
+                  fontFamily: "'EB Garamond', Georgia, serif",
+                }}
               >
                 {secretaryEmail}
               </a>

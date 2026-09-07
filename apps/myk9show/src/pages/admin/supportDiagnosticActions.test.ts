@@ -84,9 +84,7 @@ describe('buildSupportInvestigationModel', () => {
       expect.arrayContaining([expect.objectContaining({ href: '/admin/sync' })])
     );
     expect(model.nextChecks).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: 'health', href: '/admin/health' }),
-      ])
+      expect.arrayContaining([expect.objectContaining({ id: 'health', href: '/admin/health' })])
     );
   });
 

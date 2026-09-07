@@ -65,7 +65,10 @@ describe('ExhibitorClassCallout', () => {
   });
 
   it('shows "You\'re up next!" chip when dogsAhead is 0 and runOrder is set', () => {
-    mockHook({ myEntries: [makeEntry({ dogsAhead: 0, runOrder: 1, position: 1 })], isAfterClass: false });
+    mockHook({
+      myEntries: [makeEntry({ dogsAhead: 0, runOrder: 1, position: 1 })],
+      isAfterClass: false,
+    });
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.getByText(/you.re up next/i)).toBeInTheDocument();
   });
@@ -100,7 +103,9 @@ describe('ExhibitorClassCallout', () => {
 
   it('shows placement pill for a placed qualifying result', () => {
     mockHook({
-      myEntries: [makeEntry({ hasResult: true, result: { qualified: true, time: '00:31.5', placement: 1 } })],
+      myEntries: [
+        makeEntry({ hasResult: true, result: { qualified: true, time: '00:31.5', placement: 1 } }),
+      ],
       isAfterClass: true,
     });
     render(<ExhibitorClassCallout classId="c1" />);

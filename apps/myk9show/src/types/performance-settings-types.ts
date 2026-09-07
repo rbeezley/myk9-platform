@@ -2,7 +2,11 @@
  * Aggregated performance optimization settings
  */
 
-import type { SelectiveSync, FieldLevelSyncConfig, PriorityQueueConfig } from './performance-sync-types';
+import type {
+  SelectiveSync,
+  FieldLevelSyncConfig,
+  PriorityQueueConfig,
+} from './performance-sync-types';
 import type { DifferentialSyncConfig } from './performance-delta-types';
 import type { CompressionConfig } from './performance-compression-types';
 import type { PerformanceMonitoringConfig } from './performance-metrics-types';

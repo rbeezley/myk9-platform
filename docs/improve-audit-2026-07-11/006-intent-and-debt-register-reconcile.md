@@ -11,7 +11,7 @@
 ## Steps
 
 1. **INTENT.md §6 rewrite** (read the full section first — lines ~183-244):
-   - Keep the section (the *boundary decision* still matters historically) but retitle/reframe: myK9Q's ringside role now lives at `/at-show` inside myK9Show; the legacy myk9q.com production app (separate repo) remains untouched; the monorepo `apps/myk9q` is deleted.
+   - Keep the section (the _boundary decision_ still matters historically) but retitle/reframe: myK9Q's ringside role now lives at `/at-show` inside myK9Show; the legacy myk9q.com production app (separate repo) remains untouched; the monorepo `apps/myk9q` is deleted.
    - Preserve every intent statement about ringside qualities (offline capability, tablet touch targets, "invisible" judge experience) — re-anchor them to `/at-show`. Do NOT weaken or drop any emotional-intent language; this is a re-addressing, not a rewrite of intent.
    - Update any cross-app navigation rules to in-app routes. Add a dated note: "(2026-07: myK9Q absorbed into `/at-show`; section re-anchored.)"
 2. **TECHNICAL_DEBT.md:** add a dated section at top: current standing debt summary — 173 files >500 lines (ratchet baseline 176, `scripts/qa/code-quality-ratchet.baseline.json`), pointer to `docs/improve-audit-2026-07-11/README.md` for the current audit and backlog. Change the header claim from "0 open" to reference the ratchet + audit as the live sources of truth. Do not delete historical entries.

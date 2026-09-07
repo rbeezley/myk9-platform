@@ -4,7 +4,7 @@
 
 export const DATA_SOURCE = {
   USE_MOCK_DATA: false, // Set to false when Supabase is ready
-  
+
   // Feature flags for gradual migration
   FEATURES: {
     USE_MOCK_PEOPLE: false,
@@ -13,7 +13,7 @@ export const DATA_SOURCE = {
     USE_MOCK_CLUBS: false,
     USE_MOCK_REGISTRATIONS: false,
     USE_MOCK_HEALTH_RECORDS: false,
-  }
+  },
 };
 
 // Helper to check if we should use mock data for a specific feature

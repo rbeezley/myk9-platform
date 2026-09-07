@@ -33,9 +33,7 @@ describe('formatDateRange — date-only values', () => {
   it('renders a cross-month date-only range without an off-by-one', () => {
     // The audit's exact reported case: a show spanning Jul 31 – Aug 2 must not
     // be misreported when the true dates are Aug 1–3.
-    expect(formatDateRange('2026-07-31', '2026-08-02', 'America/Chicago')).toBe(
-      'Jul 31 – Aug 2'
-    );
+    expect(formatDateRange('2026-07-31', '2026-08-02', 'America/Chicago')).toBe('Jul 31 – Aug 2');
   });
 
   it('renders a single date-only day with no range dash', () => {

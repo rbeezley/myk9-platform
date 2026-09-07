@@ -40,9 +40,7 @@ export function FinalCtaBand({
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
   const closesLabel =
-    entryCloseDate && !entryClosed
-      ? formatDateInTimezone(entryCloseDate, timezone, 'long')
-      : null;
+    entryCloseDate && !entryClosed ? formatDateInTimezone(entryCloseDate, timezone, 'long') : null;
 
   return (
     <section
@@ -107,18 +105,13 @@ export function FinalCtaBand({
           {canShowEntryCta ? (
             <>
               Enter your dog{' '}
-              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>
-                in confidence
-              </span>
+              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>in confidence</span>
               .
             </>
           ) : entryClosed ? (
             <>
               Entries are{' '}
-              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>
-                closed
-              </span>
-              .
+              <span style={{ fontStyle: 'italic', color: monogramColors.leaf }}>closed</span>.
             </>
           ) : (
             <>

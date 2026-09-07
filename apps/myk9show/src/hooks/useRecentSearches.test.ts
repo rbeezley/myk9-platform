@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useRecentSearches, clearAllRecentSearchesForUser, buildRecentSearchesKey, type KeyValueStorage } from './useRecentSearches';
+import {
+  useRecentSearches,
+  clearAllRecentSearchesForUser,
+  buildRecentSearchesKey,
+  type KeyValueStorage,
+} from './useRecentSearches';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -168,7 +173,10 @@ describe('useRecentSearches', () => {
   });
 
   it('legacy global key is deleted on first use', async () => {
-    window.localStorage.setItem('myK9Show_recentSearches', JSON.stringify([{ id: 'legacy', query: 'x', timestamp: 1, context: 'dogs' }]));
+    window.localStorage.setItem(
+      'myK9Show_recentSearches',
+      JSON.stringify([{ id: 'legacy', query: 'x', timestamp: 1, context: 'dogs' }])
+    );
     mockUser('user-a');
 
     renderHook(() => useRecentSearches({ context: 'dogs' }));

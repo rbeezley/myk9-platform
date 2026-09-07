@@ -14,16 +14,14 @@ const CONFIG: AdminMcpConfig = {
 
 describe('buildShowLink', () => {
   it('points at the canonical show detail route', () => {
-    expect(buildShowLink(CONFIG, 'show-123').url).toBe(
-      'https://app.myk9show.com/shows/show-123',
-    );
+    expect(buildShowLink(CONFIG, 'show-123').url).toBe('https://app.myk9show.com/shows/show-123');
   });
 });
 
 describe('buildEntryManagementLink', () => {
   it('points at the show entry-management route', () => {
     expect(buildEntryManagementLink(CONFIG, 'show-123').url).toBe(
-      'https://app.myk9show.com/shows/show-123/entry-management',
+      'https://app.myk9show.com/shows/show-123/entry-management'
     );
   });
 

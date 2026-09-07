@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  MOVED_UP_FROM_PATTERN,
-  buildMovedUpFromNote,
-  parseMovedUpFromClassId,
-} from './moveUpNote';
+import { MOVED_UP_FROM_PATTERN, buildMovedUpFromNote, parseMovedUpFromClassId } from './moveUpNote';
 
 describe('moveUpNote', () => {
   it('builds the canonical note without a reason', () => {

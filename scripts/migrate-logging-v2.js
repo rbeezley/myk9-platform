@@ -13,10 +13,12 @@ function getFiles(dir) {
       if (item.name !== 'node_modules' && item.name !== '__tests__' && item.name !== 'examples') {
         files.push(...getFiles(fullPath));
       }
-    } else if ((item.name.endsWith('.ts') || item.name.endsWith('.tsx')) &&
-               !item.name.includes('.test.') &&
-               !item.name.includes('.spec.') &&
-               item.name !== 'LoggingService.ts') {
+    } else if (
+      (item.name.endsWith('.ts') || item.name.endsWith('.tsx')) &&
+      !item.name.includes('.test.') &&
+      !item.name.includes('.spec.') &&
+      item.name !== 'LoggingService.ts'
+    ) {
       files.push(fullPath);
     }
   }
@@ -103,9 +105,10 @@ function processFile(filePath) {
   const originalContent = content;
 
   // Check if file has console statements
-  const hasConsole = content.includes('console.log') ||
-                     content.includes('console.warn') ||
-                     content.includes('console.error');
+  const hasConsole =
+    content.includes('console.log') ||
+    content.includes('console.warn') ||
+    content.includes('console.error');
 
   if (!hasConsole) {
     return { status: 'skipped', reason: 'no console statements' };
@@ -123,9 +126,18 @@ function processFile(filePath) {
       const line = lines[i].trim();
       if (line.startsWith('import ') || line.match(/^import\s*\{/) || line.match(/^import\s*\*/)) {
         lastImportIndex = i;
-      } else if (lastImportIndex >= 0 && line !== '' && !line.startsWith('//') && !line.startsWith('*') && !line.startsWith('}')) {
+      } else if (
+        lastImportIndex >= 0 &&
+        line !== '' &&
+        !line.startsWith('//') &&
+        !line.startsWith('*') &&
+        !line.startsWith('}')
+      ) {
         // Check for multiline imports
-        if (!lines[lastImportIndex].includes(';') && (line.includes('from ') || line.includes('}') || line.startsWith(','))) {
+        if (
+          !lines[lastImportIndex].includes(';') &&
+          (line.includes('from ') || line.includes('}') || line.startsWith(','))
+        ) {
           lastImportIndex = i;
           continue;
         }
@@ -144,34 +156,46 @@ function processFile(filePath) {
   // Apply replacements - from most specific to most general
 
   // Pattern: console.log('message', var1, var2) - with multiple args after string
-  content = content.replace(/console\.log\((['"`][^'"`\n]+['"`]),\s*([^)]+)\);/g, (match, msg, args) => {
-    // Don't process if already migrated
-    if (match.includes('logger.')) return match;
-    return `logger.debug(${msg}, '${category}', { data: ${args.trim()} });`;
-  });
+  content = content.replace(
+    /console\.log\((['"`][^'"`\n]+['"`]),\s*([^)]+)\);/g,
+    (match, msg, args) => {
+      // Don't process if already migrated
+      if (match.includes('logger.')) return match;
+      return `logger.debug(${msg}, '${category}', { data: ${args.trim()} });`;
+    }
+  );
 
   // Pattern: console.warn('message', var1, var2)
-  content = content.replace(/console\.warn\((['"`][^'"`\n]+['"`]),\s*([^)]+)\);/g, (match, msg, args) => {
-    if (match.includes('logger.')) return match;
-    // Check if last arg looks like an error
-    const trimmedArgs = args.trim();
-    if (trimmedArgs.match(/error|err|e$/i)) {
-      return `logger.warn(${msg}, '${category}', {}, ${trimmedArgs} as Error);`;
+  content = content.replace(
+    /console\.warn\((['"`][^'"`\n]+['"`]),\s*([^)]+)\);/g,
+    (match, msg, args) => {
+      if (match.includes('logger.')) return match;
+      // Check if last arg looks like an error
+      const trimmedArgs = args.trim();
+      if (trimmedArgs.match(/error|err|e$/i)) {
+        return `logger.warn(${msg}, '${category}', {}, ${trimmedArgs} as Error);`;
+      }
+      return `logger.warn(${msg}, '${category}', { data: ${trimmedArgs} });`;
     }
-    return `logger.warn(${msg}, '${category}', { data: ${trimmedArgs} });`;
-  });
+  );
 
   // Pattern: console.error('message', error)
-  content = content.replace(/console\.error\((['"`][^'"`\n]+['"`]),\s*(\w+)\);/g, (match, msg, errVar) => {
-    if (match.includes('logger.')) return match;
-    return `logger.error(${msg}, '${category}', {}, ${errVar} as Error);`;
-  });
+  content = content.replace(
+    /console\.error\((['"`][^'"`\n]+['"`]),\s*(\w+)\);/g,
+    (match, msg, errVar) => {
+      if (match.includes('logger.')) return match;
+      return `logger.error(${msg}, '${category}', {}, ${errVar} as Error);`;
+    }
+  );
 
   // Pattern: console.error('message', err.message) or similar
-  content = content.replace(/console\.error\((['"`][^'"`\n]+['"`]),\s*(\w+\.\w+)\);/g, (match, msg, prop) => {
-    if (match.includes('logger.')) return match;
-    return `logger.error(${msg}, '${category}', { detail: ${prop} });`;
-  });
+  content = content.replace(
+    /console\.error\((['"`][^'"`\n]+['"`]),\s*(\w+\.\w+)\);/g,
+    (match, msg, prop) => {
+      if (match.includes('logger.')) return match;
+      return `logger.error(${msg}, '${category}', { detail: ${prop} });`;
+    }
+  );
 
   // Simple patterns - single string argument
   content = content.replace(/console\.log\((['"`][^'"`\n]+['"`])\);/g, (match, msg) => {
@@ -228,20 +252,29 @@ function processFile(filePath) {
   });
 
   // String concatenation
-  content = content.replace(/console\.log\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g, (match, expr) => {
-    if (match.includes('logger.')) return match;
-    return `logger.debug(${expr}, '${category}', {});`;
-  });
+  content = content.replace(
+    /console\.log\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g,
+    (match, expr) => {
+      if (match.includes('logger.')) return match;
+      return `logger.debug(${expr}, '${category}', {});`;
+    }
+  );
 
-  content = content.replace(/console\.warn\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g, (match, expr) => {
-    if (match.includes('logger.')) return match;
-    return `logger.warn(${expr}, '${category}', {});`;
-  });
+  content = content.replace(
+    /console\.warn\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g,
+    (match, expr) => {
+      if (match.includes('logger.')) return match;
+      return `logger.warn(${expr}, '${category}', {});`;
+    }
+  );
 
-  content = content.replace(/console\.error\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g, (match, expr) => {
-    if (match.includes('logger.')) return match;
-    return `logger.error(${expr}, '${category}', {});`;
-  });
+  content = content.replace(
+    /console\.error\((['"`][^'"`\n]*['"`]\s*\+\s*[^)]+)\);/g,
+    (match, expr) => {
+      if (match.includes('logger.')) return match;
+      return `logger.error(${expr}, '${category}', {});`;
+    }
+  );
 
   if (content !== originalContent) {
     fs.writeFileSync(filePath, content);
@@ -261,7 +294,11 @@ console.log(`Found ${allFiles.length} TypeScript files`);
 // Filter to files with console statements
 const filesToProcess = allFiles.filter(f => {
   const content = fs.readFileSync(f, 'utf8');
-  return content.includes('console.log') || content.includes('console.warn') || content.includes('console.error');
+  return (
+    content.includes('console.log') ||
+    content.includes('console.warn') ||
+    content.includes('console.error')
+  );
 });
 
 console.log(`Found ${filesToProcess.length} files with console statements\n`);

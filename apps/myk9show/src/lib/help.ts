@@ -7,10 +7,7 @@
  */
 export const HELP_BASE_URL = 'https://help.myk9show.com';
 
-export type HelpGuideSlug =
-  | 'exhibitor-guide'
-  | 'secretary-guide'
-  | 'club-admin-guide';
+export type HelpGuideSlug = 'exhibitor-guide' | 'secretary-guide' | 'club-admin-guide';
 
 /**
  * Build a URL into the help site. With no slug it points at the help home;

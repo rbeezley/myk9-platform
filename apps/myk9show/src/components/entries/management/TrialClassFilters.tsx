@@ -31,8 +31,7 @@ function formatTrialLabel(trial: TrialClassFiltersProps['trials'][number]): stri
   return label;
 }
 
-const selectClassName =
-  'min-h-11 max-w-full rounded-lg border border-border bg-card px-3 text-sm';
+const selectClassName = 'min-h-11 max-w-full rounded-lg border border-border bg-card px-3 text-sm';
 
 export const TrialClassFilters: React.FC<TrialClassFiltersProps> = ({
   trials,

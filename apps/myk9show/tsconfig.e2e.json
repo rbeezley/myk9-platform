@@ -6,10 +6,6 @@
     "noImplicitOverride": false,
     "useUnknownInCatchVariables": false
   },
-  "include": [
-    "src/vite-env.d.ts",
-    "src/types/**/*.d.ts",
-    "src/test/e2e/**/*"
-  ],
+  "include": ["src/vite-env.d.ts", "src/types/**/*.d.ts", "src/test/e2e/**/*"],
   "exclude": []
 }

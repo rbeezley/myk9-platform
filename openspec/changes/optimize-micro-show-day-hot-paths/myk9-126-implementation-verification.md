@@ -4,11 +4,11 @@ Verified locally on 2026-07-30.
 
 ## Summary
 
-| Dimension    | Status                                                                    |
-| ------------ | ------------------------------------------------------------------------- |
-| Completeness | 51/59 change tasks complete; all MYK9-126 local implementation tasks done |
+| Dimension    | Status                                                                     |
+| ------------ | -------------------------------------------------------------------------- |
+| Completeness | 51/59 change tasks complete; all MYK9-126 local implementation tasks done  |
 | Correctness  | Generator, lifecycle, aggregation, evaluation, and evidence contracts pass |
-| Coherence    | Implementation matches the approved Micro-first generator-validity design |
+| Coherence    | Implementation matches the approved Micro-first generator-validity design  |
 
 ## Evidence
 
@@ -19,22 +19,22 @@ Verified locally on 2026-07-30.
 - `pnpm build` in `apps/myk9show`: passed with pre-existing CSS, chunk, and
   static/dynamic-import warnings.
 - `pnpm openspec validate optimize-micro-show-day-hot-paths --type change --strict
-  --no-interactive`: passed.
+--no-interactive`: passed.
 - `git diff --check`: passed.
 - Independent standards and specification reviews: clean after three fix/review cycles.
 
 ## Requirement Mapping
 
-| Requirement                         | Implementation evidence                                                | Status |
-| ----------------------------------- | ---------------------------------------------------------------------- | ------ |
-| Per-runner generator validity       | `loadGeneratorSampler.ts`, evaluator/evidence contracts                | Passed |
-| Bounded behavior under saturation   | Timed Chromium probe/context cleanup and never-resolving regression tests | Passed |
-| Sampling completeness               | Duration-derived host/probe coverage with 80% fail-closed floor        | Passed |
-| Saturated-shard attribution         | Explicit thresholds, shard reasons, invalid backend-attribution result | Passed |
-| Prepared/open session concurrency   | `LoadSessionLifecycle`, synchronized open-page assertion               | Passed |
-| Exact global peak activity          | High-resolution workflow intervals and cross-shard half-open sweep     | Passed |
-| Four-runner topology cannot drift   | Shared shard-count constant plus workflow/aggregation contracts        | Passed |
-| Existing G9 budgets remain intact   | Evaluator and README contracts; page p95 remains informational          | Passed |
+| Requirement                       | Implementation evidence                                                   | Status |
+| --------------------------------- | ------------------------------------------------------------------------- | ------ |
+| Per-runner generator validity     | `loadGeneratorSampler.ts`, evaluator/evidence contracts                   | Passed |
+| Bounded behavior under saturation | Timed Chromium probe/context cleanup and never-resolving regression tests | Passed |
+| Sampling completeness             | Duration-derived host/probe coverage with 80% fail-closed floor           | Passed |
+| Saturated-shard attribution       | Explicit thresholds, shard reasons, invalid backend-attribution result    | Passed |
+| Prepared/open session concurrency | `LoadSessionLifecycle`, synchronized open-page assertion                  | Passed |
+| Exact global peak activity        | High-resolution workflow intervals and cross-shard half-open sweep        | Passed |
+| Four-runner topology cannot drift | Shared shard-count constant plus workflow/aggregation contracts           | Passed |
+| Existing G9 budgets remain intact | Evaluator and README contracts; page p95 remains informational            | Passed |
 
 ## Remaining Gates
 

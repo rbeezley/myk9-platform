@@ -50,8 +50,7 @@ export function LeadArticleSection({
   const lead = paragraphs[0] ?? defaultLeadParagraph(showName, showSubtitle);
   const rest = paragraphs.slice(1);
 
-  const riseClass = (delay: 'delay-2' | 'delay-3') =>
-    reducedMotion ? '' : `gz-rise ${delay}`;
+  const riseClass = (delay: 'delay-2' | 'delay-3') => (reducedMotion ? '' : `gz-rise ${delay}`);
 
   return (
     <section id="welcome" aria-labelledby="gz-lead-title">

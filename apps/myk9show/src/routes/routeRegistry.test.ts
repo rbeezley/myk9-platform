@@ -8,10 +8,7 @@ import {
 } from './routeRegistry';
 import { router } from '../router';
 
-function flattenRoutePaths(
-  routes: typeof router.routes,
-  parentPath = ''
-): string[] {
+function flattenRoutePaths(routes: typeof router.routes, parentPath = ''): string[] {
   return routes.flatMap(route => {
     const path = route.path ? joinRoutePaths(parentPath, route.path) : parentPath;
     return [path, ...flattenRoutePaths(route.children ?? [], path)];
@@ -33,9 +30,7 @@ function routePatternSignature(path: string): string {
 
 describe('routeRegistry', () => {
   it('registers only paths declared in the application route tree', () => {
-    const declaredSignatures = new Set(
-      flattenRoutePaths(router.routes).map(routePatternSignature)
-    );
+    const declaredSignatures = new Set(flattenRoutePaths(router.routes).map(routePatternSignature));
     const undeclared = Object.keys(fullRouteRegistry).filter(
       path => !declaredSignatures.has(routePatternSignature(path))
     );

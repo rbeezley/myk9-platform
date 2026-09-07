@@ -16,9 +16,7 @@ let mockAuthLoading = false;
 let mockAuthUser: { id: string } | null = { id: 'user-1' };
 let mockScopes: Array<{ scopeType: ScopeType; scopeId: string }> = [];
 let mockUserWithRoles:
-  | { scopes: Array<{ scopeType: ScopeType; scopeId: string }> }
-  | null
-  | undefined;
+  { scopes: Array<{ scopeType: ScopeType; scopeId: string }> } | null | undefined;
 let mockShowsOverride: typeof mockShows | null = null;
 let mockShowsLoading = false;
 let mockTablesStatus: Record<string, 'idle' | 'syncing' | 'success' | 'error'> = {};

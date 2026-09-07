@@ -108,7 +108,9 @@ describe('buildEntryBlankProps — UKC trial', () => {
   it('prefills the HD special row for a UKC Excellent HD entry', () => {
     const props = buildEntryBlankProps({
       ...UKC_BASE,
-      classes: [{ id: 'c1', trial_id: 't1', level: 'Excellent', element: 'Handler Discrimination' }],
+      classes: [
+        { id: 'c1', trial_id: 't1', level: 'Excellent', element: 'Handler Discrimination' },
+      ],
       entry: { trial_id: 't1', class_id: 'c1' },
     });
     const checked = props.levelCells.filter(c => c.checked).map(c => `${c.level} / ${c.element}`);

@@ -14,7 +14,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     ruleValue: 'AKC',
     displayOrder: 1,
     groupName: 'Basic Information',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'showType',
@@ -27,7 +27,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     ruleValue: 'Scent Work',
     displayOrder: 2,
     groupName: 'Basic Information',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'element',
@@ -40,7 +40,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     options: ['Container', 'Interior', 'Exterior', 'Buried', 'Handler Discrimination', 'Detective'],
     displayOrder: 3,
     groupName: 'Basic Information',
-    columnWidth: 2
+    columnWidth: 2,
   },
   {
     fieldName: 'level',
@@ -54,11 +54,11 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     showWhen: {
       dependsOn: 'element',
       condition: 'notEquals',
-      value: 'Detective'
+      value: 'Detective',
     },
     displayOrder: 4,
     groupName: 'Basic Information',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'section',
@@ -72,11 +72,11 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     showWhen: {
       dependsOn: 'level',
       condition: 'equals',
-      value: 'Novice'
+      value: 'Novice',
     },
     displayOrder: 5,
     groupName: 'Basic Information',
-    columnWidth: 1
+    columnWidth: 1,
   },
 
   // ===== STATUS AND SCHEDULING FIELDS =====
@@ -91,7 +91,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     options: ['Pending', 'In Progress', 'Complete', 'Cancelled'],
     displayOrder: 6,
     groupName: 'Status & Schedule',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'runOrder',
@@ -103,7 +103,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 7,
     groupName: 'Status & Schedule',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'plannedStartTime',
@@ -115,7 +115,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 8,
     groupName: 'Status & Schedule',
-    columnWidth: 2
+    columnWidth: 2,
   },
 
   // ===== TIME LIMIT FIELDS =====
@@ -130,7 +130,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     displayOrder: 9,
     groupName: 'Time Limits',
     columnWidth: 1,
-    helpText: 'Set by rules for some elements, by judge for others'
+    helpText: 'Set by rules for some elements, by judge for others',
   },
   {
     fieldName: 'timeLimit2',
@@ -144,17 +144,17 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
       {
         dependsOn: 'element',
         condition: 'equals',
-        value: 'Interior'
+        value: 'Interior',
       },
       {
         dependsOn: 'level',
         condition: 'in',
-        value: ['Excellent', 'Master']
-      }
+        value: ['Excellent', 'Master'],
+      },
     ],
     displayOrder: 10,
     groupName: 'Time Limits',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'timeLimit3',
@@ -168,17 +168,17 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
       {
         dependsOn: 'element',
         condition: 'equals',
-        value: 'Interior'
+        value: 'Interior',
       },
       {
         dependsOn: 'level',
         condition: 'equals',
-        value: 'Master'
-      }
+        value: 'Master',
+      },
     ],
     displayOrder: 11,
     groupName: 'Time Limits',
-    columnWidth: 1
+    columnWidth: 1,
   },
 
   // ===== SEARCH CONFIGURATION FIELDS =====
@@ -192,7 +192,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: false,
     displayOrder: 12,
     groupName: 'Search Configuration',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'hides',
@@ -205,7 +205,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     displayOrder: 13,
     groupName: 'Search Configuration',
     columnWidth: 2,
-    helpText: 'Known number for Novice/Advanced, judge determines for higher levels'
+    helpText: 'Known number for Novice/Advanced, judge determines for higher levels',
   },
   {
     fieldName: 'distractions',
@@ -217,7 +217,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: false,
     displayOrder: 14,
     groupName: 'Search Configuration',
-    columnWidth: 1
+    columnWidth: 1,
   },
 
   // ===== OPERATIONAL FIELDS =====
@@ -232,7 +232,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     displayOrder: 15,
     groupName: 'Operations',
     columnWidth: 1,
-    helpText: 'Used for scheduling calculations'
+    helpText: 'Used for scheduling calculations',
   },
   {
     fieldName: 'judgeName',
@@ -244,7 +244,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 16,
     groupName: 'Personnel',
-    columnWidth: 2
+    columnWidth: 2,
   },
   {
     fieldName: 'hitExclude',
@@ -257,7 +257,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     defaultValue: false,
     displayOrder: 17,
     groupName: 'Operations',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'hcdExclude',
@@ -270,7 +270,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     defaultValue: false,
     displayOrder: 18,
     groupName: 'Operations',
-    columnWidth: 1
+    columnWidth: 1,
   },
 
   // ===== PERSONNEL FIELDS =====
@@ -283,7 +283,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 19,
     groupName: 'Personnel',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'tableSteward',
@@ -294,7 +294,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 20,
     groupName: 'Personnel',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'timerSteward',
@@ -305,7 +305,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 21,
     groupName: 'Personnel',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'ringSteward1',
@@ -316,7 +316,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 22,
     groupName: 'Personnel',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'ringSteward2',
@@ -327,7 +327,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 23,
     groupName: 'Personnel',
-    columnWidth: 1
+    columnWidth: 1,
   },
   {
     fieldName: 'ringSteward3',
@@ -338,7 +338,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 24,
     groupName: 'Personnel',
-    columnWidth: 1
+    columnWidth: 1,
   },
 
   // ===== FINANCIAL FIELDS =====
@@ -353,7 +353,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     displayOrder: 25,
     groupName: 'Fees',
     columnWidth: 1,
-    defaultValue: 30
+    defaultValue: 30,
   },
   {
     fieldName: 'dayOfShowFee',
@@ -366,7 +366,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     displayOrder: 26,
     groupName: 'Fees',
     columnWidth: 1,
-    defaultValue: 35
+    defaultValue: 35,
   },
 
   // ===== ADDITIONAL FIELDS =====
@@ -381,7 +381,7 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     displayOrder: 27,
     groupName: 'Entries',
     columnWidth: 1,
-    defaultValue: 40
+    defaultValue: 40,
   },
   {
     fieldName: 'notes',
@@ -393,8 +393,8 @@ export const AKC_SCENT_WORK_FIELDS: FieldSpecification[] = [
     editable: true,
     displayOrder: 28,
     groupName: 'Additional Information',
-    columnWidth: 4
-  }
+    columnWidth: 4,
+  },
 ];
 
 // Field groups for UI organization
@@ -407,5 +407,5 @@ export const AKC_SCENT_WORK_FIELD_GROUPS = [
   { groupName: 'Operations', displayOrder: 6, defaultExpanded: false },
   { groupName: 'Fees', displayOrder: 7, defaultExpanded: false },
   { groupName: 'Entries', displayOrder: 8, defaultExpanded: false },
-  { groupName: 'Additional Information', displayOrder: 9, defaultExpanded: false }
+  { groupName: 'Additional Information', displayOrder: 9, defaultExpanded: false },
 ];

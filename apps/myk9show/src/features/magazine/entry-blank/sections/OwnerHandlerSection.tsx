@@ -11,11 +11,7 @@ export function OwnerHandlerSection({ owner }: { owner: Owner }) {
 
       <View style={{ flexDirection: 'row' }}>
         <Field label="Owner's name (as on registration)" value={owner.ownerName} width="50%" />
-        <Field
-          label="Handler at this trial (if not owner)"
-          value={owner.handlerName}
-          width="50%"
-        />
+        <Field label="Handler at this trial (if not owner)" value={owner.handlerName} width="50%" />
       </View>
 
       <Field label="Mailing address" value={owner.mailingAddress} width="100%" />

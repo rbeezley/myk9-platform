@@ -21,7 +21,6 @@ export interface UnreleaseResultsResult {
   failed: string[];
 }
 
-
 export function useUnreleaseResults() {
   const queryClient = useQueryClient();
 

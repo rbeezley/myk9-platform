@@ -1,8 +1,11 @@
 # entry-review-vocabulary Specification
 
 ## Purpose
+
 One canonical vocabulary for entry review states across the secretary cockpit (states as nouns, menu commands as verbs, sourced from reviewStateLabels.ts), with the status menu marking the current state and a confirmation guard before reverting a scored entry to a pre-scoring status.
+
 ## Requirements
+
 ### Requirement: Review states use one canonical vocabulary
 
 All secretary-facing renderings of a registration or entry review state SHALL source their label from one shared mapping module, with states rendered as nouns/adjectives and menu commands as verbs.

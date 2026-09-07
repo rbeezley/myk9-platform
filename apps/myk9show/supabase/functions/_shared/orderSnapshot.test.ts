@@ -81,9 +81,12 @@ describe('the make-whole tie-out holds with a flat component and a floor', () =>
   it('balances at a binding floor — the unbounded case (used to lose $10)', () => {
     // Two $1 entries with a $20 floor: the floor is almost the entire charge, so
     // a proportional split gave away half of it.
-    const r = tieOutAt({ percent: 7, flatCents: 0, minCents: 2000 }, { e1: 100, e2: 100 }, ['e1'], [
-      'e2',
-    ]);
+    const r = tieOutAt(
+      { percent: 7, flatCents: 0, minCents: 2000 },
+      { e1: 100, e2: 100 },
+      ['e1'],
+      ['e2']
+    );
     expect(r.delta).toBe(0);
     expect(r.bookedFeeCents).toBe(2000);
     expect(r.retainedCents).toBe(2000);
@@ -96,19 +99,23 @@ describe('the make-whole tie-out holds with a flat component and a floor', () =>
   });
 
   it('balances with 1 of 4 accepted, where the invalid share is largest', () => {
-    const r = tieOutAt({ percent: 7, flatCents: 30, minCents: 0 }, four, ['e1'], [
-      'e2',
-      'e3',
-      'e4',
-    ]);
+    const r = tieOutAt(
+      { percent: 7, flatCents: 30, minCents: 0 },
+      four,
+      ['e1'],
+      ['e2', 'e3', 'e4']
+    );
     expect(r.delta).toBe(0);
     expect(r.retainedCents).toBe(r.bookedFeeCents);
   });
 
   it('balances with 3 of 4 accepted', () => {
-    const r = tieOutAt({ percent: 7, flatCents: 30, minCents: 0 }, four, ['e1', 'e2', 'e3'], [
-      'e4',
-    ]);
+    const r = tieOutAt(
+      { percent: 7, flatCents: 30, minCents: 0 },
+      four,
+      ['e1', 'e2', 'e3'],
+      ['e4']
+    );
     expect(r.delta).toBe(0);
     expect(r.retainedCents).toBe(r.bookedFeeCents);
   });

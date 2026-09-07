@@ -9,7 +9,13 @@ interface DeleteAncestorDialogProps {
   isSubmitting?: boolean | undefined;
 }
 
-const DeleteAncestorDialog: React.FC<DeleteAncestorDialogProps> = ({ open, ancestorName, onClose, onDelete, isSubmitting }) => {
+const DeleteAncestorDialog: React.FC<DeleteAncestorDialogProps> = ({
+  open,
+  ancestorName,
+  onClose,
+  onDelete,
+  isSubmitting,
+}) => {
   return (
     <StandardDialog
       open={open}
@@ -23,7 +29,8 @@ const DeleteAncestorDialog: React.FC<DeleteAncestorDialogProps> = ({ open, ances
       saveButtonProps={{ variant: 'destructive' }}
     >
       <div className="py-2 text-sm">
-        Are you sure you want to delete {ancestorName ? <b>{ancestorName}</b> : 'this ancestor'} from the pedigree? This cannot be undone.
+        Are you sure you want to delete {ancestorName ? <b>{ancestorName}</b> : 'this ancestor'}{' '}
+        from the pedigree? This cannot be undone.
       </div>
     </StandardDialog>
   );

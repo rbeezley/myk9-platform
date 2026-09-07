@@ -31,10 +31,7 @@ describe('ShowMapToolbar pressed state', () => {
   it('marks the active date range and leaves the others unpressed', () => {
     renderToolbar({ dayScope: 'today' });
 
-    expect(screen.getByRole('button', { name: 'Today' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Tomorrow' })).toHaveAttribute(
       'aria-pressed',
       'false'
@@ -48,10 +45,7 @@ describe('ShowMapToolbar pressed state', () => {
   it('marks the active completion scope — the filter that hid the scored class', () => {
     renderToolbar({ completionScope: 'active' });
 
-    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    expect(screen.getByRole('button', { name: 'Active' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Completed' })).toHaveAttribute(
       'aria-pressed',
       'false'

@@ -156,10 +156,7 @@ describe('EntryManagementCockpit queue chips (F19)', () => {
       'true'
     );
     for (const label of [/Missing information/, /Payment due/, /All registrations/]) {
-      expect(screen.getByRole('button', { name: label })).toHaveAttribute(
-        'aria-pressed',
-        'false'
-      );
+      expect(screen.getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'false');
     }
   });
 

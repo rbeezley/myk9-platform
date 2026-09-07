@@ -3,38 +3,37 @@
 > **Status:** Active — metadata reconciled 2026-09-05.
 > Proposed product work; no completion evidence recorded.
 
-
 Turn the qualifying result — the emotional peak of the exhibitor's weekend — from a row
 state into a moment: a celebratory reveal when results release, and a shareable card image
 the exhibitor posts to their dog-sport circles. The card is also the growth loop: every
 share puts the show name and a quiet myK9Show mark in front of exactly our market.
 
 **INTENT alignment (docs/INTENT.md, Exhibitor › Viewing results: "There it is"):** results
-appear quickly, easy to find their dog, *shareable*. This is the explicit celebratory-UI
+appear quickly, easy to find their dog, _shareable_. This is the explicit celebratory-UI
 exception to the no-emoji/calm-over-clever defaults (cf. podium medals precedent) — the
 reveal may celebrate; everything around it stays calm.
 
 ## Duplication check (required by CLAUDE.md)
 
-Does this duplicate an existing surface? **No.** Results are *displayed* today on
-MyEntriesPage and ClassResultsTable; nothing *celebrates or exports* them. The reveal is a
+Does this duplicate an existing surface? **No.** Results are _displayed_ today on
+MyEntriesPage and ClassResultsTable; nothing _celebrates or exports_ them. The reveal is a
 modal moment layered on the existing results data path, and the share card is an artifact
 renderer, not a page. The "results posted" push already exists (`buildResultsPostedPayload`)
 — the reveal becomes what that push opens into, replacing nothing.
 
 ## Existing pieces (verified 2026-06-12)
 
-| Piece | Location | Status |
-| --- | --- | --- |
-| Result fields | `entries`: `result_status`, `final_placement`, `search_time_seconds`, `total_faults`, `is_scored` | Live. All card facts exist; no migration. |
-| Release gating | `classes.results_released_at` / `is_scoring_finalized`; `deriveClassState()` in `useVisibleResultFields.ts` | Live. The card MUST flow through this — no leaks pre-release. |
-| Field visibility | `getVisibleResultFields()` (`@myk9/secretary`): `showPlacement` / `showQualification` / `showTime` / `showFaults` per class state + role | Live. Card builder consumes its output verbatim. |
-| Dog photo | `dogs.image_url` (nullable); `DogPhotoSection.tsx` with `/placeholder-dog.png` fallback | Live. Card uses the same fallback chain. |
-| Results push | `buildResultsPostedPayload` (`packages/notifications/src/handlers.ts:79`); `actionUrl=/classes/:classId` set in `useNotificationMonitor.ts` | Live. Phase 2 retargets the actionUrl for own-entry results. |
-| Share plumbing | `shareOrCopy()` (`apps/myk9show/src/utils/share.ts`) — `navigator.share` + clipboard fallback | Live but text/url-only; Phase 3 adds a file-share variant. |
-| Celebration | `canvas-confetti` already a dependency (used by ShowCreationWizardPage) | Live. |
-| Exhibitor results view | `MyEntriesPage` (`useMyEntriesData.ts:160` loads result fields); `ResultBadge.tsx` label mapping | Live. Reveal entry points hang off these. |
-| Judge name | NOT denormalized onto entries — `judge_assignments` → `people` join | Gap. Card shows judge only when cheaply available (class detail already resolves it); never blocks on it. |
+| Piece                  | Location                                                                                                                                    | Status                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Result fields          | `entries`: `result_status`, `final_placement`, `search_time_seconds`, `total_faults`, `is_scored`                                           | Live. All card facts exist; no migration.                                                                 |
+| Release gating         | `classes.results_released_at` / `is_scoring_finalized`; `deriveClassState()` in `useVisibleResultFields.ts`                                 | Live. The card MUST flow through this — no leaks pre-release.                                             |
+| Field visibility       | `getVisibleResultFields()` (`@myk9/secretary`): `showPlacement` / `showQualification` / `showTime` / `showFaults` per class state + role    | Live. Card builder consumes its output verbatim.                                                          |
+| Dog photo              | `dogs.image_url` (nullable); `DogPhotoSection.tsx` with `/placeholder-dog.png` fallback                                                     | Live. Card uses the same fallback chain.                                                                  |
+| Results push           | `buildResultsPostedPayload` (`packages/notifications/src/handlers.ts:79`); `actionUrl=/classes/:classId` set in `useNotificationMonitor.ts` | Live. Phase 2 retargets the actionUrl for own-entry results.                                              |
+| Share plumbing         | `shareOrCopy()` (`apps/myk9show/src/utils/share.ts`) — `navigator.share` + clipboard fallback                                               | Live but text/url-only; Phase 3 adds a file-share variant.                                                |
+| Celebration            | `canvas-confetti` already a dependency (used by ShowCreationWizardPage)                                                                     | Live.                                                                                                     |
+| Exhibitor results view | `MyEntriesPage` (`useMyEntriesData.ts:160` loads result fields); `ResultBadge.tsx` label mapping                                            | Live. Reveal entry points hang off these.                                                                 |
+| Judge name             | NOT denormalized onto entries — `judge_assignments` → `people` join                                                                         | Gap. Card shows judge only when cheaply available (class detail already resolves it); never blocks on it. |
 
 ## Design decisions
 
@@ -50,7 +49,7 @@ renderer, not a page. The "results posted" push already exists (`buildResultsPos
    button.
 3. **Own entries only.** Reveal + share are offered for entries the account owns — reuse
    the `get_account_today_entries` ownership semantics (handler/owner/co-owner). Anyone can
-   *see* released results where they already can today; the celebration/share affordance is
+   _see_ released results where they already can today; the celebration/share affordance is
    personal.
 4. **Hand-drawn canvas renderer, not html2canvas.** The share image is a fixed-layout
    1080×1350 (4:5, the social sweet spot) drawn directly with Canvas 2D — deterministic
@@ -70,7 +69,7 @@ renderer, not a page. The "results posted" push already exists (`buildResultsPos
 ### Phase 1 — Card model + DOM card component
 
 - `apps/myk9show/src/features/result-card/resultCardModel.ts`: `buildResultCardModel(
-  entry, cls, show, visibility, dog)` → `ResultCardModel | null` (null when not released /
+entry, cls, show, visibility, dog)` → `ResultCardModel | null` (null when not released /
   not scored / nothing visible). Pure.
 - `ResultCard.tsx`: the on-screen card (shadcn/ui, both themes), ribbon accent by
   placement, photo fallback chain (`image_url` → placeholder).
@@ -96,7 +95,7 @@ renderer, not a page. The "results posted" push already exists (`buildResultsPos
   loads the dog photo with CORS-safe fallback to the placeholder; myK9Show wordmark + show
   name footer.
 - Extend `utils/share.ts` with `shareFile(blob, { title, text })`: `navigator.canShare({
-  files })` → share sheet; else object-URL download + existing `shareOrCopy` for the text.
+files })` → share sheet; else object-URL download + existing `shareOrCopy` for the text.
 - Share button on the reveal card and on the entry row's card view.
 - **Tests:** renderer draw-call assertions against a mocked 2D context (text content,
   ribbon color by placement, no placement text when `showPlacement=false`), photo-load

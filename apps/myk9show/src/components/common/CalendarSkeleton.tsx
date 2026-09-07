@@ -23,7 +23,7 @@ export function CalendarSkeleton() {
             <div className="h-8 w-16 bg-muted rounded animate-pulse" />
           </div>
         </div>
-        
+
         {/* Calendar grid skeleton */}
         <div className="border rounded-lg overflow-hidden">
           {/* Days of week header */}
@@ -34,7 +34,7 @@ export function CalendarSkeleton() {
               </div>
             ))}
           </div>
-          
+
           {/* Calendar dates */}
           {Array.from({ length: 6 }).map((_, weekIndex) => (
             <div key={weekIndex} className="grid grid-cols-7 border-b last:border-b-0">

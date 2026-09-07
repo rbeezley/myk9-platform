@@ -5,12 +5,12 @@
 
 ## Summary
 
-| Severity | Count |
-|----------|------:|
-| CRITICAL | 0 |
-| HIGH | 0 |
-| MEDIUM | 0 |
-| LOW | 0 |
+| Severity  | Count |
+| --------- | ----: |
+| CRITICAL  |     0 |
+| HIGH      |     0 |
+| MEDIUM    |     0 |
+| LOW       |     0 |
 | **Total** | **0** |
 
 Auto-fixable: 0 of 0 findings.
@@ -42,15 +42,15 @@ local storage, IndexedDB, or notifications.
 
 ## Categories Checked
 
-| Category | Files Examined | Findings | Skipped |
-|----------|---------------:|---------:|---------|
-| RLS Policy Integrity | 2 migrations | 0 | — |
-| Edge Function Auth | 0 | 0 | No edge-function changes |
-| RBAC & Privilege Escalation | 2 migrations, 3 established authorization dependencies | 0 | — |
-| Client Auth Patterns | 2 route/auth dependencies, 4 changed surfaces | 0 | — |
-| Data Exposure | 6 production TypeScript files, 1 migration, 1 seed file | 0 | — |
-| Payment Security | 0 | 0 | No payment changes |
-| Input Validation | 6 production TypeScript files | 0 | — |
+| Category                    |                                          Files Examined | Findings | Skipped                  |
+| --------------------------- | ------------------------------------------------------: | -------: | ------------------------ |
+| RLS Policy Integrity        |                                            2 migrations |        0 | —                        |
+| Edge Function Auth          |                                                       0 |        0 | No edge-function changes |
+| RBAC & Privilege Escalation |  2 migrations, 3 established authorization dependencies |        0 | —                        |
+| Client Auth Patterns        |           2 route/auth dependencies, 4 changed surfaces |        0 | —                        |
+| Data Exposure               | 6 production TypeScript files, 1 migration, 1 seed file |        0 | —                        |
+| Payment Security            |                                                       0 |        0 | No payment changes       |
+| Input Validation            |                           6 production TypeScript files |        0 | —                        |
 
 Immediate dependencies inspected included the original `show_passcodes`
 migration, current role helpers, established judge/steward authorization

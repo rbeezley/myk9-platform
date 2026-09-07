@@ -117,10 +117,9 @@ describe('useClassReleasedResults', () => {
   it('reads released results directly, filtered by class_id and is_scored', async () => {
     const { eq1, eq2 } = mockQuery([makeRow()]);
 
-    const { result } = renderHook(
-      () => useClassReleasedResults(CLASS_ID, '2026-06-16T00:00:00Z'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useClassReleasedResults(CLASS_ID, '2026-06-16T00:00:00Z'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.rawEntries).toHaveLength(1));
 

@@ -193,7 +193,11 @@ function formatRefundAmount(amount: number): string {
  * replication path). Returns an atom ("Refunded" / "Partial refund" /
  * "Refunded $30"); callers compose their own separator.
  */
-export function getRefundLabel({ paymentStatus, refundAmount, refundedAt }: RefundInput): string | null {
+export function getRefundLabel({
+  paymentStatus,
+  refundAmount,
+  refundedAt,
+}: RefundInput): string | null {
   const isPartial = paymentStatus === 'partial_refund';
   const hasExplicitRefund = (refundAmount != null && refundAmount > 0) || refundedAt != null;
 
@@ -238,7 +242,10 @@ export interface ClassTitleInput {
  */
 export function composeClassTitle({ name, element, level, section }: ClassTitleInput): string {
   const resolvedSection = resolveClassSection(section);
-  const composed = [element, level, resolvedSection].map(part => part?.trim()).filter(Boolean).join(' ');
+  const composed = [element, level, resolvedSection]
+    .map(part => part?.trim())
+    .filter(Boolean)
+    .join(' ');
   return composed || name?.trim() || '';
 }
 

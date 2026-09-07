@@ -8,7 +8,12 @@ export function DogParticularsSection({ dog, flag }: { dog: EntryBlankDog; flag:
       <SectionHeader number="01" title="The dog" flag={flag} />
 
       <View style={{ flexDirection: 'row' }}>
-        <Field label="Registered name (in full)" value={dog.registeredName} width="66%" flag={flag} />
+        <Field
+          label="Registered name (in full)"
+          value={dog.registeredName}
+          width="66%"
+          flag={flag}
+        />
         <Field label="Call name" value={dog.callName} width="34%" flag={flag} />
       </View>
 
@@ -27,7 +32,12 @@ export function DogParticularsSection({ dog, flag }: { dog: EntryBlankDog; flag:
           width="33%"
           flag={flag}
         />
-        <Field label="A.K.C. registration number" value={dog.registrationNumber} width="34%" flag={flag} />
+        <Field
+          label="A.K.C. registration number"
+          value={dog.registrationNumber}
+          width="34%"
+          flag={flag}
+        />
       </View>
 
       <View style={{ flexDirection: 'row' }}>
@@ -37,7 +47,13 @@ export function DogParticularsSection({ dog, flag }: { dog: EntryBlankDog; flag:
 
       <View style={{ flexDirection: 'row' }}>
         <Field label="Breeder" value={dog.breeder} variant="dotted" width="50%" flag={flag} />
-        <Field label="Actual owner(s)" value={dog.actualOwners} variant="dotted" width="50%" flag={flag} />
+        <Field
+          label="Actual owner(s)"
+          value={dog.actualOwners}
+          variant="dotted"
+          width="50%"
+          flag={flag}
+        />
       </View>
     </View>
   );

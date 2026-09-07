@@ -38,10 +38,7 @@ describe('OrganizationSelector template cards', () => {
 
     expect(onTemplateSelected).toHaveBeenCalledWith(template);
     view.rerender(
-      <OrganizationSelector
-        onTemplateSelected={onTemplateSelected}
-        selectedTemplate={template}
-      />
+      <OrganizationSelector onTemplateSelected={onTemplateSelected} selectedTemplate={template} />
     );
     expect(screen.getByRole('button', { name: `Select ${template.templateName}` })).toHaveAttribute(
       'aria-pressed',

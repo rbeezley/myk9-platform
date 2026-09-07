@@ -86,6 +86,9 @@ describe('buildPlacementData', () => {
       ['101', makeResult('101', 35_000, 0, 1)],
     ]);
 
-    expect(buildPlacementData(entries, results).map(entry => entry.entryId)).toEqual(['101', '102']);
+    expect(buildPlacementData(entries, results).map(entry => entry.entryId)).toEqual([
+      '101',
+      '102',
+    ]);
   });
 });

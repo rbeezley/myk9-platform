@@ -6,7 +6,7 @@
 import { useState, useMemo } from 'react';
 
 /**
- * Consolidated table management hook that combines sorting, filtering, 
+ * Consolidated table management hook that combines sorting, filtering,
  * pagination, and selection in an optimized way
  */
 export interface TableState<T> {
@@ -15,25 +15,25 @@ export interface TableState<T> {
   filtered: T[];
   sorted: T[];
   paginated: T[];
-  
+
   // Sort
   sortKey: string | null;
   sortDirection: 'asc' | 'desc';
-  
+
   // Filter
   filters: Record<string, unknown>;
   searchTerm: string;
-  
+
   // Pagination
   currentPage: number;
   pageSize: number;
   totalPages: number;
   totalItems: number;
-  
+
   // Selection
   selectedIds: string[];
   isAllSelected: boolean;
-  
+
   // Loading/Error
   loading: boolean;
   error: string | null;
@@ -43,26 +43,26 @@ export interface TableActions<T> {
   // Sort
   setSortKey: (key: string) => void;
   toggleSort: (key: string) => void;
-  
+
   // Filter
   setFilter: (key: string, value: unknown) => void;
   setFilters: (filters: Record<string, unknown>) => void;
   setSearchTerm: (term: string) => void;
   clearFilters: () => void;
-  
+
   // Pagination
   setPage: (page: number) => void;
   setPageSize: (size: number) => void;
   nextPage: () => void;
   prevPage: () => void;
-  
+
   // Selection
   selectItem: (id: string) => void;
   deselectItem: (id: string) => void;
   toggleSelection: (id: string) => void;
   selectAll: () => void;
   deselectAll: () => void;
-  
+
   // Data
   setData: (data: T[]) => void;
   refreshData: () => Promise<void>;
@@ -82,7 +82,7 @@ export function useConsolidatedTable<T extends { id: string }>(
     initialPageSize = 10,
     defaultSortKey = '',
     defaultSortDirection = 'asc',
-    searchFields = []
+    searchFields = [],
   } = options || {};
 
   // Base data state
@@ -133,11 +133,11 @@ export function useConsolidatedTable<T extends { id: string }>(
     return [...filtered].sort((a, b) => {
       const aVal = a[sortKey as keyof T];
       const bVal = b[sortKey as keyof T];
-      
+
       let comparison = 0;
       if (aVal < bVal) comparison = -1;
       if (aVal > bVal) comparison = 1;
-      
+
       return sortDirection === 'desc' ? -comparison : comparison;
     });
   }, [filtered, sortKey, sortDirection]);
@@ -148,11 +148,11 @@ export function useConsolidatedTable<T extends { id: string }>(
     const pages = Math.ceil(total / pageSize);
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    
+
     return {
       paginated: sorted.slice(startIndex, endIndex),
       totalPages: pages,
-      totalItems: total
+      totalItems: total,
     };
   }, [sorted, currentPage, pageSize]);
 
@@ -162,121 +162,120 @@ export function useConsolidatedTable<T extends { id: string }>(
   }, [paginated, selectedIds]);
 
   // Actions
-  const actions = useMemo<TableActions<T>>(() => ({
-    // Sort actions
-    setSortKey: (key: string) => {
-      if (sortKey === key) {
-        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-      } else {
-        setSortKey(key);
-        setSortDirection('asc');
-      }
-      setCurrentPage(1); // Reset to first page when sorting
-    },
-    
-    toggleSort: (key: string) => {
-      if (sortKey === key) {
-        setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-      } else {
-        setSortKey(key);
-        setSortDirection('asc');
-      }
-      setCurrentPage(1);
-    },
-    
-    // Filter actions
-    setFilter: (key: string, value: unknown) => {
-      setFilters(prev => ({ ...prev, [key]: value }));
-      setCurrentPage(1);
-    },
-    
-    setFilters: (newFilters: Record<string, unknown>) => {
-      setFilters(newFilters);
-      setCurrentPage(1);
-    },
-    
-    setSearchTerm: (term: string) => {
-      setSearchTerm(term);
-      setCurrentPage(1);
-    },
-    
-    clearFilters: () => {
-      setFilters({});
-      setSearchTerm('');
-      setCurrentPage(1);
-    },
-    
-    // Pagination actions
-    setPage: (page: number) => {
-      setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-    },
-    
-    setPageSize: (size: number) => {
-      setPageSize(size);
-      setCurrentPage(1);
-    },
-    
-    nextPage: () => {
-      setCurrentPage(prev => Math.min(prev + 1, totalPages));
-    },
-    
-    prevPage: () => {
-      setCurrentPage(prev => Math.max(prev - 1, 1));
-    },
-    
-    // Selection actions
-    selectItem: (id: string) => {
-      setSelectedIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    },
-    
-    deselectItem: (id: string) => {
-      setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
-    },
-    
-    toggleSelection: (id: string) => {
-      setSelectedIds(prev => 
-        prev.includes(id) 
-          ? prev.filter(selectedId => selectedId !== id)
-          : [...prev, id]
-      );
-    },
-    
-    selectAll: () => {
-      const pageIds = paginated.map(item => item.id);
-      setSelectedIds(prev => [...new Set([...prev, ...pageIds])]);
-    },
-    
-    deselectAll: () => {
-      const pageIds = new Set(paginated.map(item => item.id));
-      setSelectedIds(prev => prev.filter(id => !pageIds.has(id)));
-    },
-    
-    // Data actions
-    setData: (newData: T[]) => {
-      setData(newData);
-      setCurrentPage(1);
-      setSelectedIds([]);
-    },
-    
-    refreshData: async () => {
-      if (!dataLoader) return;
-      
-      try {
-        setLoading(true);
-        setError(null);
-        const newData = await dataLoader();
+  const actions = useMemo<TableActions<T>>(
+    () => ({
+      // Sort actions
+      setSortKey: (key: string) => {
+        if (sortKey === key) {
+          setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+          setSortKey(key);
+          setSortDirection('asc');
+        }
+        setCurrentPage(1); // Reset to first page when sorting
+      },
+
+      toggleSort: (key: string) => {
+        if (sortKey === key) {
+          setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+          setSortKey(key);
+          setSortDirection('asc');
+        }
+        setCurrentPage(1);
+      },
+
+      // Filter actions
+      setFilter: (key: string, value: unknown) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+        setCurrentPage(1);
+      },
+
+      setFilters: (newFilters: Record<string, unknown>) => {
+        setFilters(newFilters);
+        setCurrentPage(1);
+      },
+
+      setSearchTerm: (term: string) => {
+        setSearchTerm(term);
+        setCurrentPage(1);
+      },
+
+      clearFilters: () => {
+        setFilters({});
+        setSearchTerm('');
+        setCurrentPage(1);
+      },
+
+      // Pagination actions
+      setPage: (page: number) => {
+        setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+      },
+
+      setPageSize: (size: number) => {
+        setPageSize(size);
+        setCurrentPage(1);
+      },
+
+      nextPage: () => {
+        setCurrentPage(prev => Math.min(prev + 1, totalPages));
+      },
+
+      prevPage: () => {
+        setCurrentPage(prev => Math.max(prev - 1, 1));
+      },
+
+      // Selection actions
+      selectItem: (id: string) => {
+        setSelectedIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+      },
+
+      deselectItem: (id: string) => {
+        setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+      },
+
+      toggleSelection: (id: string) => {
+        setSelectedIds(prev =>
+          prev.includes(id) ? prev.filter(selectedId => selectedId !== id) : [...prev, id]
+        );
+      },
+
+      selectAll: () => {
+        const pageIds = paginated.map(item => item.id);
+        setSelectedIds(prev => [...new Set([...prev, ...pageIds])]);
+      },
+
+      deselectAll: () => {
+        const pageIds = new Set(paginated.map(item => item.id));
+        setSelectedIds(prev => prev.filter(id => !pageIds.has(id)));
+      },
+
+      // Data actions
+      setData: (newData: T[]) => {
         setData(newData);
         setCurrentPage(1);
         setSelectedIds([]);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    }
-  }), [
-    sortKey, totalPages, paginated, dataLoader
-  ]);
+      },
+
+      refreshData: async () => {
+        if (!dataLoader) return;
+
+        try {
+          setLoading(true);
+          setError(null);
+          const newData = await dataLoader();
+          setData(newData);
+          setCurrentPage(1);
+          setSelectedIds([]);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load data');
+        } finally {
+          setLoading(false);
+        }
+      },
+    }),
+    [sortKey, totalPages, paginated, dataLoader]
+  );
 
   const state: TableState<T> = {
     data,
@@ -294,7 +293,7 @@ export function useConsolidatedTable<T extends { id: string }>(
     selectedIds,
     isAllSelected,
     loading,
-    error
+    error,
   };
 
   return { state, actions };
@@ -319,62 +318,69 @@ export interface ModalActions {
   getModalData: <T = unknown>(modalId: string) => T | undefined;
 }
 
-export function useConsolidatedModals(
-  initialModals: string[] = []
-): { state: ModalState; actions: ModalActions } {
+export function useConsolidatedModals(initialModals: string[] = []): {
+  state: ModalState;
+  actions: ModalActions;
+} {
   const [modalState, setModalState] = useState<ModalState>(
-    initialModals.reduce((acc, modalId) => ({
-      ...acc,
-      [modalId]: { isOpen: false }
-    }), {})
+    initialModals.reduce(
+      (acc, modalId) => ({
+        ...acc,
+        [modalId]: { isOpen: false },
+      }),
+      {}
+    )
   );
 
-  const actions = useMemo<ModalActions>(() => ({
-    openModal: (modalId: string, data?: unknown) => {
-      setModalState(prev => ({
-        ...prev,
-        [modalId]: { isOpen: true, data }
-      }));
-    },
-    
-    closeModal: (modalId: string) => {
-      setModalState(prev => ({
-        ...prev,
-        [modalId]: { isOpen: false, data: undefined }
-      }));
-    },
-    
-    toggleModal: (modalId: string, data?: unknown) => {
-      setModalState(prev => {
-        const currentModal = prev[modalId];
-        return {
+  const actions = useMemo<ModalActions>(
+    () => ({
+      openModal: (modalId: string, data?: unknown) => {
+        setModalState(prev => ({
           ...prev,
-          [modalId]: {
-            isOpen: !currentModal?.isOpen,
-            data: currentModal?.isOpen ? undefined : data
-          }
-        };
-      });
-    },
-    
-    closeAllModals: () => {
-      setModalState(prev => {
-        const closed: ModalState = {};
-        Object.keys(prev).forEach(modalId => {
-          closed[modalId] = { isOpen: false, data: undefined };
+          [modalId]: { isOpen: true, data },
+        }));
+      },
+
+      closeModal: (modalId: string) => {
+        setModalState(prev => ({
+          ...prev,
+          [modalId]: { isOpen: false, data: undefined },
+        }));
+      },
+
+      toggleModal: (modalId: string, data?: unknown) => {
+        setModalState(prev => {
+          const currentModal = prev[modalId];
+          return {
+            ...prev,
+            [modalId]: {
+              isOpen: !currentModal?.isOpen,
+              data: currentModal?.isOpen ? undefined : data,
+            },
+          };
         });
-        return closed;
-      });
-    },
-    
-    isModalOpen: (modalId: string): boolean => {
-      return modalState[modalId]?.isOpen || false;
-    },
-    
-    getModalData: <T = unknown>(modalId: string): T | undefined => {
-      return modalState[modalId]?.data as T;
-    }
-  }), [modalState]);
+      },
+
+      closeAllModals: () => {
+        setModalState(prev => {
+          const closed: ModalState = {};
+          Object.keys(prev).forEach(modalId => {
+            closed[modalId] = { isOpen: false, data: undefined };
+          });
+          return closed;
+        });
+      },
+
+      isModalOpen: (modalId: string): boolean => {
+        return modalState[modalId]?.isOpen || false;
+      },
+
+      getModalData: <T = unknown>(modalId: string): T | undefined => {
+        return modalState[modalId]?.data as T;
+      },
+    }),
+    [modalState]
+  );
 
   return { state: modalState, actions };
 }

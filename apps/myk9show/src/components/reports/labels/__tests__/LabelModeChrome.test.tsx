@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import {
-  LabelModeHeader,
-  LabelSetupSection,
-  SetupEyebrow,
-} from '../LabelModeChrome';
+import { LabelModeHeader, LabelSetupSection, SetupEyebrow } from '../LabelModeChrome';
 
 describe('LabelModeHeader', () => {
   it('renders the mode title as a heading and the subtitle as supporting copy', () => {
@@ -14,9 +10,7 @@ describe('LabelModeHeader', () => {
         subtitle="Choose a label size, pick which armbands to print, then Print."
       />
     );
-    expect(
-      screen.getByRole('heading', { name: 'Print Labels — Armband' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Print Labels — Armband' })).toBeInTheDocument();
     expect(
       screen.getByText('Choose a label size, pick which armbands to print, then Print.')
     ).toBeInTheDocument();

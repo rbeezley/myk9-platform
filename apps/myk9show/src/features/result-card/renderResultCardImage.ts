@@ -80,8 +80,8 @@ export async function renderResultCardImage(model: ResultCardModel): Promise<Blo
   ctx.font = '500 42px system-ui, sans-serif';
   drawFittedText(ctx, model.showName, WIDTH / 2, showY, TEXT_MAX_WIDTH);
 
-  const details = [model.timeLabel, model.faultsLabel].filter(
-    (value): value is string => Boolean(value)
+  const details = [model.timeLabel, model.faultsLabel].filter((value): value is string =>
+    Boolean(value)
   );
 
   ctx.font = '500 38px system-ui, sans-serif';

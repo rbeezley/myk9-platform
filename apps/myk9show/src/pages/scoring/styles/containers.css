@@ -28,8 +28,8 @@
 .app-container-wide {
   width: 100%;
   margin: 0 auto;
-  padding: 0 var(--token-space-md);  /* Mobile: smaller padding for ultra-narrow */
-  min-width: 280px;  /* Mobile: absolute minimum for readability */
+  padding: 0 var(--token-space-md); /* Mobile: smaller padding for ultra-narrow */
+  min-width: 280px; /* Mobile: absolute minimum for readability */
 }
 
 /* Narrow container for focused tasks (forms, scoresheets) */
@@ -74,8 +74,8 @@
   /* Section 3: Wide container */
   .app-container-wide {
     max-width: 640px;
-    padding: 0 var(--token-space-3xl);  /* Desktop: larger padding */
-    min-width: initial;  /* Desktop: reset minimum width */
+    padding: 0 var(--token-space-3xl); /* Desktop: larger padding */
+    min-width: initial; /* Desktop: reset minimum width */
   }
 
   /* Section 4: Narrow container */

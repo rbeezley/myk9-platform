@@ -18,10 +18,7 @@
  * break the common case of a workflow mapping an optional secret that has not
  * been created yet.
  */
-export function resolveFixtureEmail(
-  override: string | undefined,
-  seededAddress: string
-): string {
+export function resolveFixtureEmail(override: string | undefined, seededAddress: string): string {
   const trimmed = override?.trim();
   return trimmed ? trimmed : seededAddress;
 }

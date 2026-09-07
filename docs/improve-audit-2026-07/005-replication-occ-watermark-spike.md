@@ -33,22 +33,24 @@ not guesses.
 
 Two of the audit's replication leads were **already rejected** during vetting —
 do not re-litigate them (record them as settled in your doc):
-- *Quota eviction deletes dirty rows* — FALSE. `evictToTarget` filters
+
+- _Quota eviction deletes dirty rows_ — FALSE. `evictToTarget` filters
   `if (row.isDirty) return false` (`packages/replication/src/core/ReplicatedTableCache.ts:240`);
   `evictLRU`/`evictRetainingFraction` delegate to it.
-- *INSERT 23505 left in the failed queue* — already fixed
+- _INSERT 23505 left in the failed queue_ — already fixed
   (`packages/replication/src/MutationManager.ts:700`).
 
 ## Leads to verify (each gets a verdict + evidence in your doc)
 
 ### Lead A — OCC token not advanced for full-row UPDATEs on non-entries tables
+
 `reconcilePendingMutationsForRow` skips advancing a queued full-row UPDATE's OCC
 token when no `rebuildUpdatePayload` was supplied
 (`MutationManager.ts:333` — `if (!isRpc && rebuiltData === undefined) continue;`).
 Only `ReplicatedEntriesTable` supplies that hook
 (`apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts:160`).
 
-**The question that decides severity**: do any *non-entries* replicated tables
+**The question that decides severity**: do any _non-entries_ replicated tables
 actually use OCC at all? OCC only engages when a queued `mutation.serverVersion`
 is set (see the version precondition at `MutationManager.ts:767-768`). Determine
 which `Replicated*Table` adapters populate `serverVersion` / carry a `version`
@@ -58,6 +60,7 @@ another table uses OCC without a rebuild hook, it can re-trigger the 40001
 conflict storm → CONFIRMED, and scope the fix (supply/auto-generate the hook).
 
 ### Lead B — scoped vs unscoped watermark mixing
+
 `ReplicatedTableCache` stores a table-global `lastIncrementalSyncAt` and
 per-scope slots (`scopes[scopeValue]`); the monotonic-advance path
 (`ReplicatedTableCache.ts:~490`) and the scoped projection
@@ -77,6 +80,7 @@ can't fire → NOT A BUG (record the call-site table). If one does, → CONFIRME
 scope an invariant/guard.
 
 ### Lead C — `baseData` missing for a locally-created row that reconciles before upload
+
 A row created locally (INSERT, dirty, never downloaded) that gets reconciled by a
 concurrent server merge before its INSERT uploads may lose its base snapshot,
 defeating later 3-way conflict detection. Trace the INSERT queue path: is
@@ -86,6 +90,7 @@ and `syncReplicatedTable.ts:~268-280`)? Verdict + evidence. If real, this needs 
 **failing test first** before any fix → mark NEEDS-TEST and describe the test.
 
 ### Lead D — conflict resolution drops server-added fields
+
 `detectDirtyRowConflict` (`packages/replication/src/conflict/detectDirtyRowConflict.ts`)
 iterates over base/local/remote keys. Lead: a field present on remote but absent
 on local (server-added) is not flagged as a conflict, and "keep local" could
@@ -95,26 +100,28 @@ overwrite such a field, or whether it only sends touched-field deltas (which
 would make this a non-issue). Verdict + evidence.
 
 ### Lead E — passcode-session expiry misclassified on OCC re-check
+
 On an OCC 0-row result the manager does a direct `select('version')` re-check
 (`MutationManager.ts:781-790`) and classifies the outcome
 (`classifyEmptyUpdateResult`). Lead: for a passcode-authenticated ringside
 client whose session expired, that SELECT fails RLS and the mutation may be
 misclassified as "row deleted" and dead-lettered, with no re-auth recovery.
-Confirm how `classifyEmptyUpdateResult` treats a *failed* (vs empty) re-check
+Confirm how `classifyEmptyUpdateResult` treats a _failed_ (vs empty) re-check
 and whether ringside passcode sessions can expire mid-show. Verdict + evidence.
 (This one may need reading `packages/ringside/src/auth/*`.)
 
 ## Commands you will need (read-only)
 
-| Purpose | Command |
-|---------|---------|
-| Find OCC usage | `grep -rn "serverVersion\|version" apps/myk9show/src/services/replication/Replicated*Table.ts` |
-| Find sync call sites | `grep -rn "\.sync(" apps/myk9show/src packages/replication/src` |
-| Run existing repl tests (to understand invariants) | `cd packages/replication && pnpm test` |
+| Purpose                                            | Command                                                                                        |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Find OCC usage                                     | `grep -rn "serverVersion\|version" apps/myk9show/src/services/replication/Replicated*Table.ts` |
+| Find sync call sites                               | `grep -rn "\.sync(" apps/myk9show/src packages/replication/src`                                |
+| Run existing repl tests (to understand invariants) | `cd packages/replication && pnpm test`                                                         |
 
 ## Scope
 
 **In scope** (create ONE file):
+
 - `docs/archive/plan-replication-occ-watermark-findings.md` — the findings doc, with a
   verdict table (Lead A–E: CONFIRMED / NOT A BUG / NEEDS-TEST), `file:line`
   evidence for each, and for every CONFIRMED/NEEDS-TEST lead a short "fix scope"
@@ -123,6 +130,7 @@ and whether ringside passcode sessions can expire mid-show. Verdict + evidence.
   `docs/README.md` per the project's docs convention.
 
 **Out of scope** (do NOT touch):
+
 - Any `.ts`/`.tsx` under `packages/` or `apps/`. This spike changes no code.
 - Re-verifying the two already-rejected leads beyond noting them settled.
 
@@ -141,7 +149,7 @@ and whether ringside passcode sessions can expire mid-show. Verdict + evidence.
 - A lead turns out to be a live, actively-firing bug (not latent) — finish the
   doc but flag it at the TOP as urgent so a fix plan is prioritized immediately.
 - Verifying a lead would require running a mutation against the real database —
-  STOP; this spike is read-only. Describe the test that *would* prove it instead.
+  STOP; this spike is read-only. Describe the test that _would_ prove it instead.
 
 ## Maintenance notes
 

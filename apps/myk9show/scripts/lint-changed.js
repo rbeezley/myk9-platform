@@ -13,11 +13,16 @@ const ESLINT_BIN = path.join(appRoot, 'node_modules', '.bin', 'eslint');
 
 function gitLines(args) {
   const out = execSync(`git ${args}`, { cwd: repoRoot, encoding: 'utf8' });
-  return out.split('\n').map((l) => l.trim()).filter(Boolean);
+  return out
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean);
 }
 
 function refExists(ref) {
-  return spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd: repoRoot }).status === 0;
+  return (
+    spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { cwd: repoRoot }).status === 0
+  );
 }
 
 const explicitBase = process.env.LINT_CHANGED_BASE;
@@ -29,16 +34,18 @@ if (!baseRef && explicitBase) {
 }
 
 const baseLabel = baseRef ?? 'working tree only';
-const changedTracked = baseRef ? gitLines(`diff --name-only --diff-filter=ACMR ${baseRef}...HEAD`) : [];
+const changedTracked = baseRef
+  ? gitLines(`diff --name-only --diff-filter=ACMR ${baseRef}...HEAD`)
+  : [];
 const workingTree = gitLines('diff --name-only --diff-filter=ACMR');
 const untracked = gitLines('ls-files --others --exclude-standard');
 
 const all = [...new Set([...changedTracked, ...workingTree, ...untracked])];
 const lintTargets = all
-  .filter((f) => f.startsWith(appPrefix))
-  .filter((f) => /\.(ts|tsx)$/.test(f))
-  .map((f) => f.slice(appPrefix.length))
-  .filter((f) => existsSync(path.join(appRoot, f)));
+  .filter(f => f.startsWith(appPrefix))
+  .filter(f => /\.(ts|tsx)$/.test(f))
+  .map(f => f.slice(appPrefix.length))
+  .filter(f => existsSync(path.join(appRoot, f)));
 
 if (lintTargets.length === 0) {
   console.log(`[lint:changed] No changed .ts/.tsx files in ${appPrefix} vs ${baseLabel}`);

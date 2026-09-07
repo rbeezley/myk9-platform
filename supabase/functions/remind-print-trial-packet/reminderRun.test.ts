@@ -180,9 +180,15 @@ const request = { showId: SHOW_ID, trialDate: DAY, kind: 'evening-before' as con
 describe('validateReminderRequest', () => {
   it('rejects anything that is not a real show, day, and slot', () => {
     expect(() => validateReminderRequest({})).toThrow(HttpError);
-    expect(() => validateReminderRequest({ showId: 'nope', trialDate: DAY, kind: 'morning-of' })).toThrow(HttpError);
-    expect(() => validateReminderRequest({ showId: SHOW_ID, trialDate: 'today', kind: 'morning-of' })).toThrow(HttpError);
-    expect(() => validateReminderRequest({ showId: SHOW_ID, trialDate: DAY, kind: 'whenever' })).toThrow(HttpError);
+    expect(() =>
+      validateReminderRequest({ showId: 'nope', trialDate: DAY, kind: 'morning-of' })
+    ).toThrow(HttpError);
+    expect(() =>
+      validateReminderRequest({ showId: SHOW_ID, trialDate: 'today', kind: 'morning-of' })
+    ).toThrow(HttpError);
+    expect(() =>
+      validateReminderRequest({ showId: SHOW_ID, trialDate: DAY, kind: 'whenever' })
+    ).toThrow(HttpError);
     expect(validateReminderRequest(request)).toEqual(request);
   });
 
@@ -194,12 +200,16 @@ describe('validateReminderRequest', () => {
     // variant 0 -- so the evening cron POSTed on schedule and collected a
     // 400 every time, while the suite stayed green.
     const seeded = 'dededede-0000-0000-0000-000000000010';
-    expect(seeded).not.toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-    expect(validateReminderRequest({ showId: seeded, trialDate: DAY, kind: 'morning-of' })).toEqual({
-      showId: seeded,
-      trialDate: DAY,
-      kind: 'morning-of',
-    });
+    expect(seeded).not.toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
+    expect(validateReminderRequest({ showId: seeded, trialDate: DAY, kind: 'morning-of' })).toEqual(
+      {
+        showId: seeded,
+        trialDate: DAY,
+        kind: 'morning-of',
+      }
+    );
   });
 
   it('rejects a date that looks well-formed but never existed', () => {
@@ -285,10 +295,7 @@ describe('runPrintReminder', () => {
     // across the loop would mail the first official and hand back their id for
     // everyone else -- recording a full send that never happened. The show and
     // day alone are NOT enough once the send is per recipient.
-    const sendEmail = vi
-      .fn()
-      .mockResolvedValueOnce('msg-1')
-      .mockResolvedValueOnce('msg-2');
+    const sendEmail = vi.fn().mockResolvedValueOnce('msg-1').mockResolvedValueOnce('msg-2');
     const { supabase } = makeStub({
       recipients: [
         { email: 'secretary@example.com', show_id: SHOW_ID, club_id: null },
@@ -301,9 +308,9 @@ describe('runPrintReminder', () => {
     expect(outcome).toEqual({ sent: true, recipientCount: 2 });
     const keys = sendEmail.mock.calls.map(call => call[0].idempotencyKey);
     expect(new Set(keys).size).toBe(2);
-    expect(keys.every(key => key.startsWith(`print-reminder-${SHOW_ID}-${DAY}-evening-before-`))).toBe(
-      true
-    );
+    expect(
+      keys.every(key => key.startsWith(`print-reminder-${SHOW_ID}-${DAY}-evening-before-`))
+    ).toBe(true);
   });
 
   it('does not chase a print for a packet that does not exist', async () => {
@@ -322,7 +329,10 @@ describe('runPrintReminder', () => {
     const sendEmail = vi.fn().mockResolvedValue('msg-1');
     const { supabase } = makeStub({
       existingReminders: {
-        'evening-before': { claimed_at: '2026-10-04T00:59:00.000Z', sent_at: '2026-10-04T00:59:30.000Z' },
+        'evening-before': {
+          claimed_at: '2026-10-04T00:59:00.000Z',
+          sent_at: '2026-10-04T00:59:30.000Z',
+        },
       },
     });
 
@@ -353,7 +363,9 @@ describe('runPrintReminder', () => {
   it('releases the claim when there is nobody to email', async () => {
     // A show with no reachable official tonight may have one by morning.
     const sendEmail = vi.fn();
-    const { supabase, reminders } = makeStub({ recipients: [{ email: null, show_id: SHOW_ID, club_id: null }] });
+    const { supabase, reminders } = makeStub({
+      recipients: [{ email: null, show_id: SHOW_ID, club_id: null }],
+    });
 
     const outcome = await runPrintReminder(supabase, request, makeDeps(sendEmail));
 
@@ -418,7 +430,10 @@ describe('the reminder lease', () => {
     const sendEmail = vi.fn();
     const { supabase } = makeStub({
       existingReminders: {
-        'evening-before': { claimed_at: '1970-01-01T00:00:00.000Z', sent_at: '1970-01-01T00:01:00.000Z' },
+        'evening-before': {
+          claimed_at: '1970-01-01T00:00:00.000Z',
+          sent_at: '1970-01-01T00:01:00.000Z',
+        },
       },
     });
 
@@ -505,4 +520,3 @@ describe('the reclaim is a compare-and-swap, not a blind overwrite', () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 });
-

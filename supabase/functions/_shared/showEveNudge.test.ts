@@ -249,9 +249,7 @@ describe('isJudgeAssignedToTrial', () => {
   it('includes a class assignment whose trial cannot be resolved', () => {
     // Missing embed is a data anomaly; a judge on this show getting one extra
     // reminder beats a judge who is working tomorrow getting none.
-    expect(
-      isJudgeAssignedToTrial({ trial_id: null, class_id: 'class-9' }, 'trial-1')
-    ).toBe(true);
+    expect(isJudgeAssignedToTrial({ trial_id: null, class_id: 'class-9' }, 'trial-1')).toBe(true);
   });
 });
 
@@ -310,9 +308,9 @@ describe('filterPushOptedIn', () => {
   });
 
   it('drops a recipient who explicitly turned push off', () => {
-    expect(
-      filterPushOptedIn(['a', 'b'], [{ auth_user_id: 'b', push_enabled: false }])
-    ).toEqual(['a']);
+    expect(filterPushOptedIn(['a', 'b'], [{ auth_user_id: 'b', push_enabled: false }])).toEqual([
+      'a',
+    ]);
   });
 
   it('keeps a recipient whose push_enabled is null (unset, not disabled)', () => {
@@ -356,7 +354,14 @@ describe('filterClubStaffByMembership', () => {
 
   it('keeps a SHOW-scoped official regardless of membership — explicitly exempt', () => {
     const kept = filterClubStaffByMembership(
-      [{ auth_user_id: 'a', user_id: 'person-inactive', role_name: 'secretary', show_id: 'show-1' }],
+      [
+        {
+          auth_user_id: 'a',
+          user_id: 'person-inactive',
+          role_name: 'secretary',
+          show_id: 'show-1',
+        },
+      ],
       activeMembers
     );
     expect(kept).toHaveLength(1);

@@ -16,7 +16,9 @@ export const BreedEntryCounts: React.FC<ReportProps> = ({
   const sortedBreeds = [...breedMap.entries()].sort(([a], [b]) => a.localeCompare(b));
   const totalBreeds = sortedBreeds.length;
   const totalEntries = entries.length;
-  const orgTitle = organization ? `${organization} Scent Work Breed Counts` : 'Scent Work Breed Counts';
+  const orgTitle = organization
+    ? `${organization} Scent Work Breed Counts`
+    : 'Scent Work Breed Counts';
 
   return (
     <div className="report-page">

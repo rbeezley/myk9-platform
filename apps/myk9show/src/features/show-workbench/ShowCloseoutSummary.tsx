@@ -11,10 +11,7 @@ import {
   summarizeShowDayReconciliation,
   type ShowDayReconciliationEntry,
 } from './showDayReconciliationSummary';
-import {
-  summarizeCloseoutStatus,
-  type IncidentState,
-} from './showCloseoutStatus';
+import { summarizeCloseoutStatus, type IncidentState } from './showCloseoutStatus';
 import { formatIncidentType, summarizeShowIncidents } from './showIncidents';
 
 interface ShowCloseoutSummaryProps {
@@ -129,8 +126,7 @@ export function ShowCloseoutSummary({ showId, entries }: ShowCloseoutSummaryProp
 
         {recon.refundedCount > 0 && (
           <p className="mt-3 text-sm text-muted-foreground">
-            {recon.refundedCount} pulled{' '}
-            {recon.refundedCount === 1 ? 'entry has' : 'entries have'}{' '}
+            {recon.refundedCount} pulled {recon.refundedCount === 1 ? 'entry has' : 'entries have'}{' '}
             {formatCurrency(recon.refundedAmount)} marked refunded.
           </p>
         )}

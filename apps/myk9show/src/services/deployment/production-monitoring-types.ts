@@ -5,11 +5,7 @@
  * user analytics, and alert management used by ProductionMonitoringService.
  */
 
-import type {
-  MetricType,
-  NotificationChannel,
-  Severity
-} from '../../types/deployment-types';
+import type { MetricType, NotificationChannel, Severity } from '../../types/deployment-types';
 
 // === Error Tracking ===
 

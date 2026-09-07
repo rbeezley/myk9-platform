@@ -1,6 +1,6 @@
 /**
  * Unit tests for useCountdownTimer hook
- * 
+ *
  * Tests timer accuracy, warning triggers, and state management
  */
 
@@ -22,7 +22,7 @@ vi.mock('@/lib/timeUtils', () => ({
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
+  },
 }));
 
 describe('useCountdownTimer', () => {
@@ -210,7 +210,7 @@ describe('useCountdownTimer', () => {
     });
 
     expect(result.current.isRunning).toBe(true);
-    
+
     // With 100ms precision, timer should still work
     act(() => {
       vi.advanceTimersByTime(1000);

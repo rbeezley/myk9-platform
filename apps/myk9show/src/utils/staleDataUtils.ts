@@ -39,8 +39,7 @@ export function getStaleDataStatus(
   }
 
   // Calculate time since last result
-  const lastResultTime =
-    typeof lastResultAt === 'string' ? new Date(lastResultAt) : lastResultAt;
+  const lastResultTime = typeof lastResultAt === 'string' ? new Date(lastResultAt) : lastResultAt;
   const now = new Date();
   const minutesSinceLastResult = Math.floor(
     (now.getTime() - lastResultTime.getTime()) / (1000 * 60)

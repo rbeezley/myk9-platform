@@ -20,7 +20,7 @@ import type {
   ScoringFormat,
   ValidationResult,
   ValidationRule,
-  ScoringValidation
+  ScoringValidation,
 } from '@/types/scoring-types';
 import { isAgilityScore, isObedienceScore, isRallyScore } from '@/types/scoring-types';
 import type { ScentWorkResult } from '@/types/scent-work-types';
@@ -45,7 +45,7 @@ const DEFAULT_CONFIG: ValidatorConfig = {
   enableRealTimeValidation: true,
   enableWarnings: true,
   enableBusinessRuleValidation: true,
-  customRules: new Map()
+  customRules: new Map(),
 };
 
 // ============================================================================
@@ -69,7 +69,7 @@ export class ScoreValidatorService {
     const result: ValidationResult = {
       isValid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     };
 
     try {
@@ -78,7 +78,7 @@ export class ScoreValidatorService {
         result.errors.push({
           field: 'format',
           message: `Unsupported scoring format: ${score.format}`,
-          code: 'UNSUPPORTED_FORMAT'
+          code: 'UNSUPPORTED_FORMAT',
         });
         result.isValid = false;
         return result;
@@ -100,7 +100,7 @@ export class ScoreValidatorService {
       result.errors.push({
         field: 'general',
         message: 'Internal validation error occurred',
-        code: 'VALIDATION_ERROR'
+        code: 'VALIDATION_ERROR',
       });
       result.isValid = false;
       return result;
@@ -115,7 +115,7 @@ export class ScoreValidatorService {
     const result: ValidationResult = {
       isValid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     };
 
     if (score.format) {
@@ -162,7 +162,7 @@ export class ScoreValidatorService {
             result.errors.push({
               field: rule.field,
               message: rule.errorMessage,
-              code: 'REQUIRED_FIELD'
+              code: 'REQUIRED_FIELD',
             });
           }
           break;
@@ -175,7 +175,7 @@ export class ScoreValidatorService {
               result.errors.push({
                 field: rule.field,
                 message: rule.errorMessage,
-                code: 'OUT_OF_RANGE'
+                code: 'OUT_OF_RANGE',
               });
             }
           }
@@ -188,7 +188,7 @@ export class ScoreValidatorService {
               result.errors.push({
                 field: rule.field,
                 message: rule.errorMessage,
-                code: 'INVALID_FORMAT'
+                code: 'INVALID_FORMAT',
               });
             }
           }
@@ -244,7 +244,7 @@ export class ScoreValidatorService {
       result.errors.push({
         field: rule.field,
         message: rule.errorMessage,
-        code: 'DEPENDENCY_VIOLATION'
+        code: 'DEPENDENCY_VIOLATION',
       });
     }
   }
@@ -283,7 +283,7 @@ export class ScoreValidatorService {
         result.warnings.push({
           field: 'time',
           message: 'Very fast time - please verify accuracy',
-          suggestion: 'Double-check timer was started/stopped correctly'
+          suggestion: 'Double-check timer was started/stopped correctly',
         });
       }
 
@@ -292,7 +292,7 @@ export class ScoreValidatorService {
         result.warnings.push({
           field: 'time',
           message: 'Unusually long time - please verify accuracy',
-          suggestion: 'Check if timer was stopped correctly'
+          suggestion: 'Check if timer was stopped correctly',
         });
       }
     }
@@ -308,7 +308,7 @@ export class ScoreValidatorService {
         result.warnings.push({
           field: 'qualification',
           message: 'Absent/Withdrawn entry has scoring data',
-          suggestion: 'Consider if qualification status is correct'
+          suggestion: 'Consider if qualification status is correct',
         });
       }
     }
@@ -319,7 +319,7 @@ export class ScoreValidatorService {
         result.warnings.push({
           field: 'qualification',
           message: `Qualified entry missing: ${missingData.join(', ')}`,
-          suggestion: 'Ensure all required scoring data is entered'
+          suggestion: 'Ensure all required scoring data is entered',
         });
       }
     }
@@ -333,7 +333,7 @@ export class ScoreValidatorService {
       result.errors.push({
         field: 'recordedAt',
         message: 'Score cannot be recorded in the future',
-        code: 'FUTURE_TIMESTAMP'
+        code: 'FUTURE_TIMESTAMP',
       });
     }
 
@@ -342,7 +342,7 @@ export class ScoreValidatorService {
       result.warnings.push({
         field: 'recordedAt',
         message: 'Score timestamp is over a year old',
-        suggestion: 'Verify the recorded date is correct'
+        suggestion: 'Verify the recorded date is correct',
       });
     }
   }
@@ -368,7 +368,7 @@ export class ScoreValidatorService {
       result.warnings.push({
         field: 'qualificationReason',
         message: 'Non-qualifying entry should have a reason',
-        suggestion: 'Add qualification reason or judge notes'
+        suggestion: 'Add qualification reason or judge notes',
       });
     }
 
@@ -376,7 +376,7 @@ export class ScoreValidatorService {
       result.warnings.push({
         field: 'judgeNotes',
         message: 'Excused/Withdrawn entry should have explanation',
-        suggestion: 'Add judge notes explaining the situation'
+        suggestion: 'Add judge notes explaining the situation',
       });
     }
   }
@@ -386,7 +386,7 @@ export class ScoreValidatorService {
       result.errors.push({
         field: 'judgeId',
         message: 'Valid judge ID is required',
-        code: 'INVALID_JUDGE'
+        code: 'INVALID_JUDGE',
       });
     }
   }

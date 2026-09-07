@@ -16,7 +16,7 @@ function makeScore(overrides: Partial<BaseScore> = {}): BaseScore {
     version: 1,
     lastModified: new Date('2026-07-01T10:00:00.000Z'),
     syncStatus: 'pending',
-    ...overrides
+    ...overrides,
   } as BaseScore;
 }
 
@@ -36,11 +36,9 @@ describe('useScoringValidation', () => {
     );
 
     expect(validation.isValid).toBe(false);
-    const fields = validation.errors.map((e) => e.field);
-    expect(fields).toEqual(
-      expect.arrayContaining(['entryId', 'classId', 'judgeId', 'format'])
-    );
-    expect(validation.errors.every((e) => e.code === 'REQUIRED')).toBe(true);
+    const fields = validation.errors.map(e => e.field);
+    expect(fields).toEqual(expect.arrayContaining(['entryId', 'classId', 'judgeId', 'format']));
+    expect(validation.errors.every(e => e.code === 'REQUIRED')).toBe(true);
   });
 
   it('warns when points fall below the format qualifying threshold', () => {
@@ -66,9 +64,7 @@ describe('useScoringValidation', () => {
 
     expect(validation.isValid).toBe(false);
     expect(validation.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ field: 'faults', code: 'INVALID_VALUE' })
-      ])
+      expect.arrayContaining([expect.objectContaining({ field: 'faults', code: 'INVALID_VALUE' })])
     );
   });
 
@@ -76,7 +72,7 @@ describe('useScoringValidation', () => {
     const { result } = renderHook(() => useScoringValidation());
     const validation = result.current.validate(makeScore({ faults: 0 }));
 
-    expect(validation.errors.some((e) => e.field === 'faults')).toBe(false);
+    expect(validation.errors.some(e => e.field === 'faults')).toBe(false);
   });
 
   it('skips format-specific rules when the format has no known configuration', () => {
@@ -87,7 +83,7 @@ describe('useScoringValidation', () => {
 
     // format itself is present so no REQUIRED error for it, and format-specific
     // faults check is skipped because there is no matching config.
-    expect(validation.errors.some((e) => e.field === 'format')).toBe(false);
-    expect(validation.errors.some((e) => e.field === 'faults')).toBe(false);
+    expect(validation.errors.some(e => e.field === 'format')).toBe(false);
+    expect(validation.errors.some(e => e.field === 'faults')).toBe(false);
   });
 });

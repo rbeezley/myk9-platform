@@ -8,11 +8,11 @@ Preventive hardening of armband/results label printing so misalignment (drift, o
 
 Labels render as HTML with exact inch-based CSS (`@page size: letter`, Avery template dimensions in `apps/myk9show/src/lib/labels/labelTemplates.ts`), printed via a hidden iframe. This already eliminates the Access-era driver-dependent failure modes. Residual risks, each with a distinct fix:
 
-| Cause | Symptom | Fix |
-| --- | --- | --- |
-| Print-dialog scaling ("Fit to page") | Everything shrinks toward center | Guidance + test-sheet ruler |
-| Printer origin offset (unprintable area) | Whole page uniformly shifted | New top/left offset nudges |
-| Feed accuracy / label-stock tolerance | Drift grows toward bottom of sheet | Existing pitch adjustment |
+| Cause                                    | Symptom                            | Fix                         |
+| ---------------------------------------- | ---------------------------------- | --------------------------- |
+| Print-dialog scaling ("Fit to page")     | Everything shrinks toward center   | Guidance + test-sheet ruler |
+| Printer origin offset (unprintable area) | Whole page uniformly shifted       | New top/left offset nudges  |
+| Feed accuracy / label-stock tolerance    | Drift grows toward bottom of sheet | Existing pitch adjustment   |
 
 Known gaps today: pitch adjustment exists but ResultLabelsReport keeps it in unsaved local state (`useState(0)`), there are no top/left offset controls, and nothing helps the secretary diagnose which knob to turn.
 

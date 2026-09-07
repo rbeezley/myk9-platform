@@ -12,9 +12,7 @@ vi.mock('@react-pdf/renderer', () => ({
     <div data-testid="pdf-page">{children}</div>
   ),
   View: ({ children }: { children?: React.ReactNode; style?: unknown }) => <div>{children}</div>,
-  Text: ({ children }: { children?: React.ReactNode; style?: unknown }) => (
-    <span>{children}</span>
-  ),
+  Text: ({ children }: { children?: React.ReactNode; style?: unknown }) => <span>{children}</span>,
   Image: () => null,
   StyleSheet: { create: (s: unknown) => s },
   Font: { register: vi.fn(), registerHyphenationCallback: vi.fn() },
@@ -50,7 +48,13 @@ const BASE_OPTS = {
     },
   ],
   classes: [
-    { id: 'cls-1', trial_id: 'trial-1', element: 'Containers', level: 'Novice', name: 'Containers' },
+    {
+      id: 'cls-1',
+      trial_id: 'trial-1',
+      element: 'Containers',
+      level: 'Novice',
+      name: 'Containers',
+    },
   ],
   judges: [
     { trial_id: 'trial-1', judgeName: 'C. Beagles' },

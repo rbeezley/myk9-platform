@@ -10,13 +10,15 @@ This skill is a **procedure and pitfall checklist**, not reusable code. The scen
 ## 1. What's reusable vs what isn't
 
 **Reusable (the `Registry` envelope):**
+
 - `apps/myk9show/src/features/registries/types.ts` — `Registry { id, name, shortName, licenseLanguage, memberClubLanguage?, exhibitorAgreement, registrationField, sports: Record<string, RegistrySport>, dogFields }`
 - `lookup.ts` — `getRegistry`, `getSport`, `listRegistries`
 - `helpers.ts` — `getTrialRegistry`, `getTrialTimezone`, `getShowStyle` (registry-agnostic selectors)
 - The registry-per-trial DB model: `trials.registry_id`, one registry per show (trials within a show share it — confirmed for scent work; **re-confirm this still holds before assuming it for a new sport family**, e.g. a club running an AKC obedience trial alongside a Barn Hunt trial under one show would break this assumption)
 
 **NOT reusable — build a new sport-family module:**
-- `scentWork.ts`'s `RegistrySport.levels`/`.elements`/`.variantsByLevel`, `generateScentWorkClasses`, `scentWorkGrid` are scent-work's specific data shape. A new sport family (agility, obedience, conformation, fast CAT, Barn Hunt) needs its own derivation module mirroring scentWork.ts's *role* (levels/structure → class catalog → display grid), not its *shape*. Conformation in particular has no "level" concept at all — don't force one.
+
+- `scentWork.ts`'s `RegistrySport.levels`/`.elements`/`.variantsByLevel`, `generateScentWorkClasses`, `scentWorkGrid` are scent-work's specific data shape. A new sport family (agility, obedience, conformation, fast CAT, Barn Hunt) needs its own derivation module mirroring scentWork.ts's _role_ (levels/structure → class catalog → display grid), not its _shape_. Conformation in particular has no "level" concept at all — don't force one.
 
 ## 2. Survey every consumer BEFORE scoping the work
 
@@ -27,6 +29,7 @@ grep -rn "getRegistry('AKC')\|getScentWorkSport('AKC')\|getRegistry(\"AKC\")" ap
 ```
 
 Every hit is a consumer that needs a decision: registry-aware now, or explicitly out of scope with a reason. In this session that grep surfaced not just the obvious landing/email/PDF surfaces but two surprises:
+
 - `moveUpEligibility.ts` — a **write-path** rule (Entries Management, Show Map, Show Desk, the server-side mutation guard) sharing the same hardcoded level table as the display-ordering code. Found mid-implementation, not in the original plan.
 - Premium PDF generation is gated to AKC/UKC only by a **DB CHECK constraint + edge-function 400** (`supabase/functions/generate-premium`), a pre-existing system separate from the registries config layer entirely — discovered only by tracing where `GeneratedPremium.org` actually gets set.
 
@@ -38,7 +41,7 @@ If the new sport/registry needs a new column or a new field threaded onto the tr
 
 1. **Cold/anon path** — `apps/myk9show/src/services/mappers/trialMappers.ts` → `mapDatabaseToTrial` (raw PostgREST row → domain `Trial`)
 2. **Warm/replicated path** — `apps/myk9show/src/services/replication/ReplicatedTrialsTable.ts` (`rowToTrial`, the `ReplicatedTrial` interface) → `apps/myk9show/src/store/trial-store-helpers.ts` (`replicatedToTrial`)
-3. **The replication-fallback re-serializer** — `mapReplicatedTrialToDbRow` in `trialMappers.ts`. This one is easy to miss because it looks like internal plumbing: it converts a replicated row *back* into a snake_case DB-row shape for `getTrialById`/`getTrialsByShow`'s offline fallback, which is then fed back through `mapDatabaseToTrial` a second time. A field dropped here silently resolves to the default (AKC, `America/New_York`) on the fallback path only — easy to miss in testing because the warm and cold paths both work fine.
+3. **The replication-fallback re-serializer** — `mapReplicatedTrialToDbRow` in `trialMappers.ts`. This one is easy to miss because it looks like internal plumbing: it converts a replicated row _back_ into a snake_case DB-row shape for `getTrialById`/`getTrialsByShow`'s offline fallback, which is then fed back through `mapDatabaseToTrial` a second time. A field dropped here silently resolves to the default (AKC, `America/New_York`) on the fallback path only — easy to miss in testing because the warm and cold paths both work fine.
 
 Write a value-sensitive test for each hop (assert the field survives), plus one round-trip test (`mapReplicatedTrialToDbRow` → `mapDatabaseToTrial` produces the right value) — that round-trip test is what would have caught the miss immediately.
 
@@ -51,6 +54,7 @@ If a sport spans multiple registries with structurally different rules (e.g., ag
 ## 5. Decision points to raise explicitly, not assume
 
 Use `AskUserQuestion` (or just ask) at these forks rather than guessing:
+
 - Can a trial/show legitimately span two registries or two sport families with different structural models? (Confirmed "no" for scent work in `docs/design_handoff_heritage/Multi-Registry Scoping.md` §7 — re-verify per sport, don't inherit the answer.)
 - Does an existing hardcoded business rule (move-up eligibility, scoring, placement) implicitly assume the old sport's structure (levels with a strict order) in a way that breaks for the new sport (e.g., conformation's class structure isn't ordered by "level" at all)?
 - When a PR's scope grows mid-implementation (a write-path bug, a gated subsystem, a structural wall), should the fix bundle into the current PR or split into its own tracked item? Decide this with the user, don't silently absorb scope or silently drop the finding.

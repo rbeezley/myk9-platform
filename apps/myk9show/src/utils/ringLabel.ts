@@ -1,6 +1,13 @@
 export type RingDisplayValue = number | string | null | undefined;
 
-const MISSING_RING_LABELS = new Set(['0', 'null', 'unknown', 'ring 0', 'ring null', 'ring unknown']);
+const MISSING_RING_LABELS = new Set([
+  '0',
+  'null',
+  'unknown',
+  'ring 0',
+  'ring null',
+  'ring unknown',
+]);
 
 export function formatRingLabel(value: RingDisplayValue): string | null {
   if (value == null) return null;

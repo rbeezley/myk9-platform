@@ -77,9 +77,12 @@ export interface Auditable {
  * @example
  * type Entry = BaseEntity & SyncableEntity & ClassScoped & SoftDeletable;
  */
-export type EntityWithTraits<T extends object, Traits extends object[]> =
-  T & UnionToIntersection<Traits[number]>;
+export type EntityWithTraits<T extends object, Traits extends object[]> = T &
+  UnionToIntersection<Traits[number]>;
 
 // Helper type for combining traits
-type UnionToIntersection<U> =
-  (U extends unknown ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
+type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (
+  k: infer I
+) => void
+  ? I
+  : never;

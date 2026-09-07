@@ -23,9 +23,7 @@ interface ShowMapRunOrderMenuProps {
   isAutoSorting: boolean;
   // When provided, the menu shows a "Reorder manually..." item that enters
   // drag-and-drop reorder mode. Omitted in read-only/browse contexts.
-  onEnterReorderMode?:
-    | ((input: { classId: string; classLabel: string }) => void)
-    | undefined;
+  onEnterReorderMode?: ((input: { classId: string; classLabel: string }) => void) | undefined;
   isReordering?: boolean | undefined;
 }
 

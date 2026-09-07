@@ -46,7 +46,9 @@ describe('summarizePaymentLedgerTotals', () => {
     // The real shape once the ledger can be scoped to one calendar year: a
     // 2026 refund of a 2025 charge. Clamping said "Net paid $0.00" for $30
     // that demonstrably came back, which is wrong on a cash basis.
-    expect(summarizePaymentLedgerTotals([{ amountCents: -3000, currency: 'usd', status: 'refunded' }])).toEqual([
+    expect(
+      summarizePaymentLedgerTotals([{ amountCents: -3000, currency: 'usd', status: 'refunded' }])
+    ).toEqual([
       {
         currency: 'usd',
         grossPaidCents: 0,

@@ -63,10 +63,9 @@ describe('useShowMapRunOrderAutoSort — Undo handles null priors', () => {
       entry({ id: 'b', armband: '20', runOrder: null as unknown as undefined }),
     ]);
 
-    const { result } = renderHook(
-      () => useShowMapRunOrderAutoSort({ showId: 'show-1' }),
-      { wrapper: makeWrapper() }
-    );
+    const { result } = renderHook(() => useShowMapRunOrderAutoSort({ showId: 'show-1' }), {
+      wrapper: makeWrapper(),
+    });
 
     // Trigger the auto-sort. Wait for completion.
     act(() => {

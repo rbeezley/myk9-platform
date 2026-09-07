@@ -3,7 +3,6 @@
 > **Status:** Active — metadata reconciled 2026-09-05.
 > Existing inventory and phased consolidation remain unclosed.
 
-
 ## Goal
 
 Move myK9Show core data reads out of hooks, pages, routes, and components and
@@ -16,16 +15,16 @@ or joined table lookups.
 Direct Supabase reads still appear in route/page/hook/component code. Initial
 scan found these high-value clusters:
 
-| Cluster                          | Representative files                                                                                               | Disposition                                                                                                                       |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Class route context              | `routes/ClassDetailsRedirect.tsx`                                                                                  | Done: migrated to `services/database/classes`.                                                                                    |
-| Schedule timeline reads          | `hooks/queries/useScheduleTimeline.ts`, `hooks/queries/useTrialTimeline.ts`                                        | Done: migrated to `services/database/trials`.                                                                                     |
+| Cluster                          | Representative files                                                                                               | Disposition                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Class route context              | `routes/ClassDetailsRedirect.tsx`                                                                                  | Done: migrated to `services/database/classes`.                                                                                               |
+| Schedule timeline reads          | `hooks/queries/useScheduleTimeline.ts`, `hooks/queries/useTrialTimeline.ts`                                        | Done: migrated to `services/database/trials`.                                                                                                |
 | TV display reads                 | `pages/TVDisplay/useTVData.ts`, `pages/TVDisplay/useTVResults.ts`                                                  | Done: migrated to `services/database/tv-display`; remains an ADR-009 online-only exception because `/tv/:showId` is public before auth/sync. |
-| Show-day and check-in reads      | `hooks/queries/useShowDayData.ts`, `hooks/queries/useClassCheckInData.ts`, `pages/secretary/CheckInReportPage.tsx` | Migrate one workflow at a time; core Entry/Class read path.                                                                       |
-| Entry form and eligibility reads | `hooks/queries/useEntryFormData.ts`, `hooks/useEntryEligibility.ts`, `hooks/useClassAvailability.ts`               | Migrate after show-day reads; mixed replicated and online-only side tables.                                                       |
-| Auth/profile/role reads          | `hooks/useAuth.ts`, `hooks/useExhibitorProfile.ts`, `hooks/queries/useUserRoles.ts`, admin user dialogs            | Keep online/auth-adjacent unless a core offline workflow depends on them.                                                         |
-| Reporting/export reads           | `view_entry_with_results`, AKC submission data, secretary reports, armband labels                                  | Follow-up review; reporting/export may remain online-only by design.                                                              |
-| Admin/config reads               | show visibility settings, volunteers, secretary tasks, billing, notification subscriptions                         | Follow-up review; likely admin/online exceptions.                                                                                 |
+| Show-day and check-in reads      | `hooks/queries/useShowDayData.ts`, `hooks/queries/useClassCheckInData.ts`, `pages/secretary/CheckInReportPage.tsx` | Migrate one workflow at a time; core Entry/Class read path.                                                                                  |
+| Entry form and eligibility reads | `hooks/queries/useEntryFormData.ts`, `hooks/useEntryEligibility.ts`, `hooks/useClassAvailability.ts`               | Migrate after show-day reads; mixed replicated and online-only side tables.                                                                  |
+| Auth/profile/role reads          | `hooks/useAuth.ts`, `hooks/useExhibitorProfile.ts`, `hooks/queries/useUserRoles.ts`, admin user dialogs            | Keep online/auth-adjacent unless a core offline workflow depends on them.                                                                    |
+| Reporting/export reads           | `view_entry_with_results`, AKC submission data, secretary reports, armband labels                                  | Follow-up review; reporting/export may remain online-only by design.                                                                         |
+| Admin/config reads               | show visibility settings, volunteers, secretary tasks, billing, notification subscriptions                         | Follow-up review; likely admin/online exceptions.                                                                                            |
 
 ## Phases
 

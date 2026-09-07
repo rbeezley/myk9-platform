@@ -15,9 +15,7 @@ const EarnedTitleBadge: React.FC<EarnedTitleBadgeProps> = ({
 }) => (
   <div
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold ${
-      isSuperseded
-        ? 'bg-muted text-muted-foreground line-through'
-        : 'bg-success/15 text-success'
+      isSuperseded ? 'bg-muted text-muted-foreground line-through' : 'bg-success/15 text-success'
     }`}
   >
     <CheckCircle className="w-3.5 h-3.5" />

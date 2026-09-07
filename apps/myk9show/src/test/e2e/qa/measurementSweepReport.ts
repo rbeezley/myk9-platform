@@ -102,8 +102,7 @@ export function partition(measurements: RouteMeasurement[]) {
         // to stop a small empty state being disbelieved for failing
         // proportionally, and it let a 14-of-14 page through during the
         // colour-notation audit — 100% is categorically different from "most".
-        (m.probe.measured >= TOTAL_FAILURE_FLOOR &&
-          m.probe.totals.contrast === m.probe.measured)
+        (m.probe.measured >= TOTAL_FAILURE_FLOOR && m.probe.totals.contrast === m.probe.measured)
       ) {
         // A page where most of the text fails is a broken measurement, not a
         // broken page. The registration wizard produced 1,277 findings out of
@@ -224,10 +223,7 @@ function clusterRows(clusters: Cluster[], limit: number): string[][] {
     ]);
 }
 
-export function renderSweepReport(
-  measurements: RouteMeasurement[],
-  routeCount: number
-): string {
+export function renderSweepReport(measurements: RouteMeasurement[], routeCount: number): string {
   const { usable, excluded } = partition(measurements);
   const contrast = contrastClusters(usable);
   const targets = targetClusters(usable);
@@ -262,7 +258,10 @@ export function renderSweepReport(
         // line the coverage table would report a tidy 100% of whatever ran and
         // stay silent about the rest — the same shrinking-denominator lie the
         // exclusion list below exists to prevent.
-        ['Never attempted (group skipped)', String(Math.max(0, routeCount * 2 - measurements.length))],
+        [
+          'Never attempted (group skipped)',
+          String(Math.max(0, routeCount * 2 - measurements.length)),
+        ],
         ['Usable', String(usable.length)],
         ['Excluded (see below)', String(excluded.length)],
         ['Text nodes measured for contrast', String(totalMeasured)],

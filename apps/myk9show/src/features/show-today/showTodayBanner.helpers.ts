@@ -129,9 +129,7 @@ export function buildShowTodayBannerItems(
     .sort((a, b) => compareNullableTimes(a.earliestClassTime, b.earliestClassTime));
 }
 
-export function getShowTodayBannerVariant(
-  items: ShowTodayBannerItem[]
-): ShowTodayBannerVariant {
+export function getShowTodayBannerVariant(items: ShowTodayBannerItem[]): ShowTodayBannerVariant {
   if (items.length === 0) return 'hidden';
   return items.length === 1 ? 'single' : 'stacked';
 }

@@ -51,12 +51,7 @@ export const PHASE4_ROUTES = {
 } as const;
 
 export type EntryStatus =
-  | 'confirmed'
-  | 'pending-payment'
-  | 'scratch-requested'
-  | 'scratched'
-  | 'withdrawn'
-  | 'pending';
+  'confirmed' | 'pending-payment' | 'scratch-requested' | 'scratched' | 'withdrawn' | 'pending';
 
 export type CheckInStatus = 'not-checked-in' | 'checked-in' | 'pulled';
 

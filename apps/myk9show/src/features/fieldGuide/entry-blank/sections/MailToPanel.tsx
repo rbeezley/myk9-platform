@@ -2,13 +2,7 @@ import { Text, View } from '@react-pdf/renderer';
 import type { EntryBlankMailTo } from '@/features/heritage/entry-blank/types';
 import { BODY, DISPLAY, MONO, ORANGE, PAPER, PAPER_DEEP } from './pdfPrimitives';
 
-function PanelColumn({
-  heading,
-  children,
-}: {
-  heading: string;
-  children: React.ReactNode;
-}) {
+function PanelColumn({ heading, children }: { heading: string; children: React.ReactNode }) {
   return (
     <View style={{ flex: 1 }}>
       <Text

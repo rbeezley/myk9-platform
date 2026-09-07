@@ -331,4 +331,3 @@ describe('loadDogRegistrations batching', () => {
     expect(result.byDog.get('dog-200')).toHaveLength(1);
   });
 });
-

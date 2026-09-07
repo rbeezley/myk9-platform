@@ -177,7 +177,9 @@ describe('selectClassesForEntry', () => {
     const e = entry({ id: 'entry-1', classes: [c1, c2] });
     const r = reg({ id: 'reg-1', entries: [e] });
     const state = makeState([r]);
-    expect(selectClassesForEntry(state, 'reg-1', 'entry-1')).toEqual(expect.arrayContaining([c1, c2]));
+    expect(selectClassesForEntry(state, 'reg-1', 'entry-1')).toEqual(
+      expect.arrayContaining([c1, c2])
+    );
     expect(selectClassesForEntry(state, 'reg-1', 'entry-1')).toHaveLength(2);
   });
 

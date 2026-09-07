@@ -12,16 +12,16 @@ behaviour, `@tanstack/query-core@5.102.8`'s `isLoading` derivation) rather than 
 
 ## Filed
 
-| Issue | Sev | Title | Evidence |
-| -- | -- | -- | -- |
-| [MYK9-346](https://linear.app/myk9-platform/issue/MYK9-346) | P1 | Show Edit → Fees tab: schema/form drift — "Nationals event" never saves, Max Entries bricks Save | `components/panels/edit/ShowEditFeesTab.tsx:126,138,157-171`; `lib/validation.ts:149-193`; `hooks/useFormValidation.ts:119-152`; `components/panels/edit/EditPanelWrapper.tsx:461-464` |
-| [MYK9-347](https://linear.app/myk9-platform/issue/MYK9-347) | P1 | Cold offline boot redirects every onboarded exhibitor to `/onboarding` | `components/exhibitor/ExhibitorOnboardingChecker.tsx:51-71`; `hooks/useExhibitorProfile.ts:90-119,255`; `lib/queryClient.ts:67`; `App.tsx:221` |
-| [MYK9-348](https://linear.app/myk9-platform/issue/MYK9-348) | P1 | "Clear Cache" deletes the replication outbox and unsynced scores | `components/preferences/DataSettings.tsx:14-58,74-78`; `packages/replication/src/constants.ts:11`; `store/offlineScoringStore.ts:262` |
-| [MYK9-349](https://linear.app/myk9-platform/issue/MYK9-349) | — | Parent: P2/P3 findings | — |
-| [MYK9-350](https://linear.app/myk9-platform/issue/MYK9-350) | P2 | Edit User → Role Management is the third role-write surface MYK9-152 did not reach | `components/panels/edit/personRolesService.ts:8-25,55-63,73-93`; `BasicInfoTab.tsx:24-44,202-224`; migration `102:79-97` |
-| [MYK9-351](https://linear.app/myk9-platform/issue/MYK9-351) | P2 | Judge qualifications save is delete-all-then-insert with no transaction | `components/panels/edit/JudgeQualificationPanel.tsx:232-258`; `services/database/judges/reads.ts:86-98,191-197` |
-| [MYK9-352](https://linear.app/myk9-platform/issue/MYK9-352) | P3 | Club profile files a show as "past" from ~7pm local the evening before its last day | `components/clubs/ClubDetails/useClubDetailsState.ts:134,151-155` |
-| [MYK9-353](https://linear.app/myk9-platform/issue/MYK9-353) | P3 | Dead-code sweep, components (non-show-ops): ~26k lines | see the issue's per-symbol table |
+| Issue                                                       | Sev | Title                                                                                            | Evidence                                                                                                                                                                               |
+| ----------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [MYK9-346](https://linear.app/myk9-platform/issue/MYK9-346) | P1  | Show Edit → Fees tab: schema/form drift — "Nationals event" never saves, Max Entries bricks Save | `components/panels/edit/ShowEditFeesTab.tsx:126,138,157-171`; `lib/validation.ts:149-193`; `hooks/useFormValidation.ts:119-152`; `components/panels/edit/EditPanelWrapper.tsx:461-464` |
+| [MYK9-347](https://linear.app/myk9-platform/issue/MYK9-347) | P1  | Cold offline boot redirects every onboarded exhibitor to `/onboarding`                           | `components/exhibitor/ExhibitorOnboardingChecker.tsx:51-71`; `hooks/useExhibitorProfile.ts:90-119,255`; `lib/queryClient.ts:67`; `App.tsx:221`                                         |
+| [MYK9-348](https://linear.app/myk9-platform/issue/MYK9-348) | P1  | "Clear Cache" deletes the replication outbox and unsynced scores                                 | `components/preferences/DataSettings.tsx:14-58,74-78`; `packages/replication/src/constants.ts:11`; `store/offlineScoringStore.ts:262`                                                  |
+| [MYK9-349](https://linear.app/myk9-platform/issue/MYK9-349) | —   | Parent: P2/P3 findings                                                                           | —                                                                                                                                                                                      |
+| [MYK9-350](https://linear.app/myk9-platform/issue/MYK9-350) | P2  | Edit User → Role Management is the third role-write surface MYK9-152 did not reach               | `components/panels/edit/personRolesService.ts:8-25,55-63,73-93`; `BasicInfoTab.tsx:24-44,202-224`; migration `102:79-97`                                                               |
+| [MYK9-351](https://linear.app/myk9-platform/issue/MYK9-351) | P2  | Judge qualifications save is delete-all-then-insert with no transaction                          | `components/panels/edit/JudgeQualificationPanel.tsx:232-258`; `services/database/judges/reads.ts:86-98,191-197`                                                                        |
+| [MYK9-352](https://linear.app/myk9-platform/issue/MYK9-352) | P3  | Club profile files a show as "past" from ~7pm local the evening before its last day              | `components/clubs/ClubDetails/useClubDetailsState.ts:134,151-155`                                                                                                                      |
+| [MYK9-353](https://linear.app/myk9-platform/issue/MYK9-353) | P3  | Dead-code sweep, components (non-show-ops): ~26k lines                                           | see the issue's per-symbol table                                                                                                                                                       |
 
 ### The three that matter most
 
@@ -69,7 +69,7 @@ same account surface and is strictly more destructive.
 - The reviewer's initial out-of-directory grep counts for the panel-stack symbols were inflated by a
   path-prefix filter that did not match ugrep's output format (it printed `components/panels/...`,
   not `./components/panels/...`). Re-run correctly, the counts are zero — the conclusion held, the
-  arithmetic did not. Same correction applied to `common/LazyComponents.tsx`, which is *partly* live
+  arithmetic did not. Same correction applied to `common/LazyComponents.tsx`, which is _partly_ live
   (`VenuePinMap`, `ShowCalendar`, `ShowsMapView`), not wholly dead.
 - **Three P3s the reviewer explicitly declined to file**, and I agree: `DeletedEntitySection` showing
   a failed list fetch as "No deleted X found" (the count badge still shows the true number);

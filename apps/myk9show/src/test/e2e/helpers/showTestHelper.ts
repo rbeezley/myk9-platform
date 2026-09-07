@@ -1,6 +1,11 @@
 import { Page, expect } from '@playwright/test';
 import { TestSetup } from './testSetup';
-import { ShowTestDataFactory, type ShowTestData, type TrialTestData, type JudgeTestData } from './showTestDataFactory';
+import {
+  ShowTestDataFactory,
+  type ShowTestData,
+  type TrialTestData,
+  type JudgeTestData,
+} from './showTestDataFactory';
 import { logger } from '@/services/LoggingService';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -86,35 +91,35 @@ export class ShowTestHelper extends TestSetup {
   async fillShowDetails(showData: ShowTestData) {
     // Wait for step to be active
     await expect(this.page.locator('[data-testid="step-indicator"]')).toContainText('Show Details');
-    
+
     // Fill basic information
     await this.page.fill('[data-testid="show-name-input"]', showData.name);
-    
+
     // Select show type
     await this.page.selectOption('[data-testid="show-type-select"]', showData.type);
-    
+
     // Fill dates
     await this.page.fill('[data-testid="start-date-input"]', showData.startDate);
     await this.page.fill('[data-testid="end-date-input"]', showData.endDate);
-    
+
     // Fill location
     await this.page.fill('[data-testid="location-input"]', showData.location);
-    
+
     // Select club (assuming club exists)
     await this.page.selectOption('[data-testid="club-select"]', showData.clubId);
-    
+
     // Fill entry dates
     await this.page.fill('[data-testid="entry-open-date-input"]', showData.entryOpenDate);
     await this.page.fill('[data-testid="entry-close-date-input"]', showData.entryCloseDate);
-    
+
     // Fill fees
     await this.page.fill('[data-testid="pre-entry-fee-input"]', showData.preEntryFee.toString());
     await this.page.fill('[data-testid="day-of-show-fee-input"]', showData.dayOfShowFee.toString());
-    
+
     // Fill staff
     await this.page.fill('[data-testid="chairman-input"]', showData.chairman);
     await this.page.fill('[data-testid="secretary-input"]', showData.secretary);
-    
+
     // Select judges (multi-select)
     for (const judgeId of showData.judgeIds) {
       await this.page.selectOption('[data-testid="judges-multi-select"]', judgeId);
@@ -127,25 +132,25 @@ export class ShowTestHelper extends TestSetup {
   async addTrial(trialData: TrialTestData) {
     // Ensure we're on trials step
     await this.page.click('[data-testid="add-trial-button"]');
-    
+
     // Fill trial details
     await this.page.fill('[data-testid="trial-name-input"]', trialData.name);
-    
+
     // Handle date/time input - split the dateTime into date and time components
     const date = trialData.dateTime.split('T')[0];
     const time = trialData.dateTime.split('T')[1].substring(0, 5); // Get HH:MM format
-    
+
     await this.page.fill('[data-testid="trial-date-input"]', date);
     await this.page.fill('[data-testid="trial-time-input"]', time);
-    
+
     await this.page.fill('[data-testid="event-number-input"]', trialData.eventNumber);
-    
+
     // Select trial type
     await this.page.selectOption('[data-testid="trial-type-select"]', trialData.type);
-    
+
     // Save trial
     await this.page.click('[data-testid="save-trial-button"]');
-    
+
     // Wait for trial to be added to the list
     await expect(this.page.locator(`[data-testid="trial-item-${trialData.id}"]`)).toBeVisible();
   }
@@ -156,44 +161,50 @@ export class ShowTestHelper extends TestSetup {
   async selectClassesFromTemplate(templateId: string, classNames: string[]) {
     // Ensure we're on class selection step
     await expect(this.page.locator('[data-testid="step-indicator"]')).toContainText('Classes');
-    
+
     // Select template if not already selected
     await this.page.click(`[data-testid="template-${templateId}"]`);
-    
+
     // Select individual classes
     for (const className of classNames) {
       const checkboxSelector = `[data-testid="class-checkbox-${className.replace(/\s+/g, '-')}"]`;
       await this.page.check(checkboxSelector);
     }
-    
+
     // Verify selection count
     const expectedCount = classNames.length;
-    await expect(this.page.locator('[data-testid="selected-classes-count"]')).toContainText(`${expectedCount} selected`);
+    await expect(this.page.locator('[data-testid="selected-classes-count"]')).toContainText(
+      `${expectedCount} selected`
+    );
   }
 
   /**
    * Assign judges to classes
    */
-  async assignJudgesToClasses(assignments: Array<{ className: string; judgeId: string; time?: string }>) {
+  async assignJudgesToClasses(
+    assignments: Array<{ className: string; judgeId: string; time?: string }>
+  ) {
     for (const assignment of assignments) {
       const classSelector = `[data-testid="class-${assignment.className.replace(/\s+/g, '-')}"]`;
-      
+
       // Open judge assignment dialog
       await this.page.click(`${classSelector} [data-testid="assign-judge-button"]`);
-      
+
       // Select judge
       await this.page.selectOption('[data-testid="judge-select"]', assignment.judgeId);
-      
+
       // Set judging time if provided
       if (assignment.time) {
         await this.page.fill('[data-testid="judging-time-input"]', assignment.time);
       }
-      
+
       // Save assignment
       await this.page.click('[data-testid="save-judge-assignment-button"]');
-      
+
       // Verify assignment
-      await expect(this.page.locator(`${classSelector} [data-testid="assigned-judge"]`)).toBeVisible();
+      await expect(
+        this.page.locator(`${classSelector} [data-testid="assigned-judge"]`)
+      ).toBeVisible();
     }
   }
 
@@ -207,17 +218,17 @@ export class ShowTestHelper extends TestSetup {
     action: 'draft' | 'create' | 'publish';
   }) {
     const { showData, trials, judges, action } = options;
-    
+
     // Step 1: Show Details
     await this.fillShowDetails(showData);
     await this.page.click('[data-testid="next-step-button"]');
-    
+
     // Step 2: Trials
     for (const trial of trials) {
       await this.addTrial(trial);
     }
     await this.page.click('[data-testid="next-step-button"]');
-    
+
     // Step 3: Classes (assuming trials have classes defined)
     const allClasses = trials.flatMap(trial => trial.classes);
     if (allClasses.length > 0) {
@@ -230,16 +241,16 @@ export class ShowTestHelper extends TestSetup {
         }
         templateGroups.get(cls.templateId)!.push(className);
       });
-      
+
       for (const [templateId, classNames] of Array.from(templateGroups.entries())) {
         await this.selectClassesFromTemplate(templateId, classNames);
       }
     }
     await this.page.click('[data-testid="next-step-button"]');
-    
+
     // Step 4: Review and Create
     await expect(this.page.locator('[data-testid="step-indicator"]')).toContainText('Review');
-    
+
     // Execute the selected action
     switch (action) {
       case 'draft':
@@ -252,7 +263,7 @@ export class ShowTestHelper extends TestSetup {
         await this.page.click('[data-testid="create-and-publish-button"]');
         break;
     }
-    
+
     // Wait for success and navigation
     await this.page.waitForURL(/\/shows\/.*/, { timeout: 10000 });
   }
@@ -264,17 +275,23 @@ export class ShowTestHelper extends TestSetup {
     // Check show details
     await expect(this.page.locator('[data-testid="show-name"]')).toContainText(showData.name);
     await expect(this.page.locator('[data-testid="show-type"]')).toContainText(showData.type);
-    await expect(this.page.locator('[data-testid="show-location"]')).toContainText(showData.location);
+    await expect(this.page.locator('[data-testid="show-location"]')).toContainText(
+      showData.location
+    );
     await expect(this.page.locator('[data-testid="show-status"]')).toContainText(expectedStatus);
-    
+
     // Check dates
     await expect(this.page.locator('[data-testid="start-date"]')).toContainText(showData.startDate);
     await expect(this.page.locator('[data-testid="end-date"]')).toContainText(showData.endDate);
-    
+
     // Check fees
-    await expect(this.page.locator('[data-testid="pre-entry-fee"]')).toContainText(showData.preEntryFee.toString());
-    await expect(this.page.locator('[data-testid="day-of-show-fee"]')).toContainText(showData.dayOfShowFee.toString());
-    
+    await expect(this.page.locator('[data-testid="pre-entry-fee"]')).toContainText(
+      showData.preEntryFee.toString()
+    );
+    await expect(this.page.locator('[data-testid="day-of-show-fee"]')).toContainText(
+      showData.dayOfShowFee.toString()
+    );
+
     // Check staff
     await expect(this.page.locator('[data-testid="chairman"]')).toContainText(showData.chairman);
     await expect(this.page.locator('[data-testid="secretary"]')).toContainText(showData.secretary);
@@ -286,13 +303,19 @@ export class ShowTestHelper extends TestSetup {
   async verifyTrialsCreation(trials: TrialTestData[]) {
     // Navigate to trials tab
     await this.page.click('[data-testid="show-trials-tab"]');
-    
+
     for (const trial of trials) {
       const trialSelector = `[data-testid="trial-${trial.id}"]`;
       await expect(this.page.locator(trialSelector)).toBeVisible();
-      await expect(this.page.locator(`${trialSelector} [data-testid="trial-name"]`)).toContainText(trial.name);
-      await expect(this.page.locator(`${trialSelector} [data-testid="trial-type"]`)).toContainText(trial.type);
-      await expect(this.page.locator(`${trialSelector} [data-testid="event-number"]`)).toContainText(trial.eventNumber);
+      await expect(this.page.locator(`${trialSelector} [data-testid="trial-name"]`)).toContainText(
+        trial.name
+      );
+      await expect(this.page.locator(`${trialSelector} [data-testid="trial-type"]`)).toContainText(
+        trial.type
+      );
+      await expect(
+        this.page.locator(`${trialSelector} [data-testid="event-number"]`)
+      ).toContainText(trial.eventNumber);
     }
   }
 
@@ -302,24 +325,32 @@ export class ShowTestHelper extends TestSetup {
   async verifyClassesCreation(trials: TrialTestData[]) {
     for (const trial of trials) {
       // Navigate to trial classes
-      await this.page.click(`[data-testid="trial-${trial.id}"] [data-testid="view-classes-button"]`);
-      
+      await this.page.click(
+        `[data-testid="trial-${trial.id}"] [data-testid="view-classes-button"]`
+      );
+
       for (const cls of trial.classes) {
         const className = cls.customizations.className;
         const classSelector = `[data-testid="class-${className.replace(/\s+/g, '-')}"]`;
-        
+
         await expect(this.page.locator(classSelector)).toBeVisible();
-        await expect(this.page.locator(`${classSelector} [data-testid="class-name"]`)).toContainText(className);
-        
+        await expect(
+          this.page.locator(`${classSelector} [data-testid="class-name"]`)
+        ).toContainText(className);
+
         if (cls.customizations.element) {
-          await expect(this.page.locator(`${classSelector} [data-testid="class-element"]`)).toContainText(cls.customizations.element);
+          await expect(
+            this.page.locator(`${classSelector} [data-testid="class-element"]`)
+          ).toContainText(cls.customizations.element);
         }
-        
+
         if (cls.customizations.level) {
-          await expect(this.page.locator(`${classSelector} [data-testid="class-level"]`)).toContainText(cls.customizations.level);
+          await expect(
+            this.page.locator(`${classSelector} [data-testid="class-level"]`)
+          ).toContainText(cls.customizations.level);
         }
       }
-      
+
       // Go back to show details
       await this.page.click('[data-testid="back-to-show-button"]');
     }
@@ -330,19 +361,19 @@ export class ShowTestHelper extends TestSetup {
    */
   async publishShow(showId: string) {
     await this.goToShowDetails(showId);
-    
+
     // Check current status
     await expect(this.page.locator('[data-testid="show-status"]')).not.toContainText('Published');
-    
+
     // Click publish button
     await this.page.click('[data-testid="publish-show-button"]');
-    
+
     // Confirm publication in dialog
     await this.page.click('[data-testid="confirm-publish-button"]');
-    
+
     // Verify status changed
     await expect(this.page.locator('[data-testid="show-status"]')).toContainText('Published');
-    
+
     // Check that entries are now accepted
     await expect(this.page.locator('[data-testid="accepting-entries-indicator"]')).toBeVisible();
   }
@@ -352,10 +383,10 @@ export class ShowTestHelper extends TestSetup {
    */
   async testShowModificationLimitations(showId: string) {
     await this.goToShowDetails(showId);
-    
+
     // Published shows should have limited editing capabilities
     await expect(this.page.locator('[data-testid="edit-show-button"]')).toBeDisabled();
-    
+
     // But should allow some modifications
     await expect(this.page.locator('[data-testid="edit-classes-button"]')).toBeEnabled();
     await expect(this.page.locator('[data-testid="manage-entries-button"]')).toBeEnabled();
@@ -366,23 +397,23 @@ export class ShowTestHelper extends TestSetup {
    */
   async cancelShow(showId: string, reason: string, refundPolicy: 'full' | 'partial' | 'none') {
     await this.goToShowDetails(showId);
-    
+
     // Navigate to show settings
     await this.page.click('[data-testid="show-settings-tab"]');
-    
+
     // Click cancel show button
     await this.page.click('[data-testid="cancel-show-button"]');
-    
+
     // Fill cancellation form
     await this.page.fill('[data-testid="cancellation-reason-textarea"]', reason);
     await this.page.selectOption('[data-testid="refund-policy-select"]', refundPolicy);
-    
+
     // Confirm cancellation
     await this.page.click('[data-testid="confirm-cancellation-button"]');
-    
+
     // Verify show status
     await expect(this.page.locator('[data-testid="show-status"]')).toContainText('Cancelled');
-    
+
     // Check refund processing if applicable
     if (refundPolicy !== 'none') {
       await this.page.click('[data-testid="refund-processing-tab"]');
@@ -395,12 +426,12 @@ export class ShowTestHelper extends TestSetup {
    */
   async testEntryDeadlineEnforcement(showId: string) {
     await this.goToShowDetails(showId);
-    
+
     // Check if entry period is active/closed based on dates
     const entryStatus = await this.page.locator('[data-testid="entry-status"]');
-    
+
     // Test entry form accessibility
-    if (await entryStatus.textContent() === 'Open') {
+    if ((await entryStatus.textContent()) === 'Open') {
       await expect(this.page.locator('[data-testid="enter-show-button"]')).toBeEnabled();
     } else {
       await expect(this.page.locator('[data-testid="enter-show-button"]')).toBeDisabled();
@@ -414,17 +445,17 @@ export class ShowTestHelper extends TestSetup {
   async generateShowReports(showId: string) {
     await this.goToShowDetails(showId);
     await this.page.click('[data-testid="reports-tab"]');
-    
+
     // Generate entry report
     await this.page.click('[data-testid="generate-entry-report-button"]');
     await expect(this.page.locator('[data-testid="report-generation-complete"]')).toBeVisible();
-    
+
     // Export as PDF
     const downloadPromise = this.page.waitForEvent('download');
     await this.page.click('[data-testid="export-pdf-button"]');
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toContain('entry-report');
-    
+
     // Generate judging schedule
     await this.page.click('[data-testid="generate-judging-schedule-button"]');
     await expect(this.page.locator('[data-testid="judging-schedule-preview"]')).toBeVisible();
@@ -433,7 +464,7 @@ export class ShowTestHelper extends TestSetup {
   /**
    * Enhanced helper methods for Phase 5 comprehensive testing
    */
-  
+
   /**
    * Create test club with enhanced data
    */
@@ -452,7 +483,7 @@ export class ShowTestHelper extends TestSetup {
       const judgeId = `judge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       this.testData.judges.push({ ...judge, id: judgeId });
     }
-    
+
     return this.testData.judges;
   }
 
@@ -488,7 +519,7 @@ export class ShowTestHelper extends TestSetup {
   async createTestEntry(entryData: Record<string, unknown>) {
     const entryId = `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.testData.entries.push({ ...entryData, id: entryId });
-    
+
     return entryId;
   }
 
@@ -504,7 +535,7 @@ export class ShowTestHelper extends TestSetup {
    */
   async judgeClass(classId: string, results: Record<string, unknown>[]) {
     this.testData.results[classId] = results as TestResultRecord[];
-    
+
     // Simulate judging interface interaction
     logger.debug(`Judging class ${classId} with ${results.length} results`, 'app', {});
   }
@@ -526,18 +557,18 @@ export class ShowTestHelper extends TestSetup {
         type: 'High_In_Trial',
         dogId: 'dog-2',
         awardName: 'High In Trial',
-        points: 200
+        points: 200,
       },
       {
         type: 'Class_Winner',
         dogId: 'dog-1',
         awardName: 'First Place - Novice A',
-        points: 15
-      }
+        points: 15,
+      },
     ];
-    
+
     this.testData.awards[trialId] = awards;
-    
+
     return awards;
   }
 
@@ -563,12 +594,12 @@ export class ShowTestHelper extends TestSetup {
   async mockShowApiResponses() {
     // Initialize test data storage
     this.testData = createTestDataStore();
-    
+
     // Mock show management APIs
-    await this.page.route('**/api/shows/**', async (route) => {
+    await this.page.route('**/api/shows/**', async route => {
       const method = route.request().method();
       const url = route.request().url();
-      
+
       if (method === 'POST') {
         // Create show
         await route.fulfill({
@@ -577,30 +608,30 @@ export class ShowTestHelper extends TestSetup {
           body: JSON.stringify({
             success: true,
             id: `show-${Date.now()}`,
-            ...JSON.parse(route.request().postData() || '{}')
-          })
+            ...JSON.parse(route.request().postData() || '{}'),
+          }),
         });
       } else if (method === 'PUT') {
         // Update show
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ success: true })
+          body: JSON.stringify({ success: true }),
         });
       } else {
         // Get shows
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify([])
+          body: JSON.stringify([]),
         });
       }
     });
 
     // Mock trial APIs
-    await this.page.route('**/api/trials/**', async (route) => {
+    await this.page.route('**/api/trials/**', async route => {
       const method = route.request().method();
-      
+
       if (method === 'POST') {
         await route.fulfill({
           status: 200,
@@ -608,22 +639,22 @@ export class ShowTestHelper extends TestSetup {
           body: JSON.stringify({
             success: true,
             id: `trial-${Date.now()}`,
-            ...JSON.parse(route.request().postData() || '{}')
-          })
+            ...JSON.parse(route.request().postData() || '{}'),
+          }),
         });
       } else {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify([])
+          body: JSON.stringify([]),
         });
       }
     });
 
     // Mock class APIs
-    await this.page.route('**/api/classes/**', async (route) => {
+    await this.page.route('**/api/classes/**', async route => {
       const method = route.request().method();
-      
+
       if (method === 'POST') {
         await route.fulfill({
           status: 200,
@@ -631,30 +662,30 @@ export class ShowTestHelper extends TestSetup {
           body: JSON.stringify({
             success: true,
             id: `class-${Date.now()}`,
-            ...JSON.parse(route.request().postData() || '{}')
-          })
+            ...JSON.parse(route.request().postData() || '{}'),
+          }),
         });
       } else {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify([])
+          body: JSON.stringify([]),
         });
       }
     });
 
     // Mock club APIs
-    await this.page.route('**/api/clubs/**', async (route) => {
+    await this.page.route('**/api/clubs/**', async route => {
       const testClub = ShowTestDataFactory.createClubData();
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([testClub])
+        body: JSON.stringify([testClub]),
       });
     });
 
     // Mock judge APIs
-    await this.page.route('**/api/judges/**', async (route) => {
+    await this.page.route('**/api/judges/**', async route => {
       const testJudges = [
         ShowTestDataFactory.createJudgeData(),
         ShowTestDataFactory.createJudgeData(),
@@ -663,7 +694,7 @@ export class ShowTestHelper extends TestSetup {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(testJudges)
+        body: JSON.stringify(testJudges),
       });
     });
   }

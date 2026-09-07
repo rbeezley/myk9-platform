@@ -1,6 +1,10 @@
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
 import { FieldGuideSectionHead } from '../../components/FieldGuideSectionHead';
-import { FIELD_GUIDE_DISPLAY_FAMILY, FIELD_GUIDE_MONO_FAMILY, FIELD_GUIDE_SERIF_FAMILY } from '../../fonts';
+import {
+  FIELD_GUIDE_DISPLAY_FAMILY,
+  FIELD_GUIDE_MONO_FAMILY,
+  FIELD_GUIDE_SERIF_FAMILY,
+} from '../../fonts';
 import { fieldGuideColors, fieldGuideSpacing } from '../../tokens';
 
 interface WelcomeSectionProps {
@@ -25,7 +29,10 @@ export function WelcomeSection({
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
   if (!welcomeText) return null;
 
-  const paragraphs = welcomeText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const paragraphs = welcomeText
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(Boolean);
 
   return (
     <section

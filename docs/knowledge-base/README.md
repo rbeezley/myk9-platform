@@ -12,24 +12,24 @@ Customer-facing help articles. These are public, task-specific answers organized
 
 ## Article Categories
 
-| Category | Audience | Examples |
-|---|---|---|
-| Getting started | All | "How to create an account", "How to add a dog" |
-| Entering shows | Exhibitors | "How to enter a show online", "How to enter multiple dogs" |
-| Secretary setup | Secretaries | "How to create a show", "How to add a judge" |
-| Show day | All | "How to check in", "How to handle a scratch" |
-| Payments | Exhibitors, treasurers | "Why does it say Pending?", "When will the club get paid?" |
-| Results | Exhibitors | "Where do I see my results?", "What does Q mean?" |
-| Account access | All | "I can't sign in", "How to reset my password" |
-| Troubleshooting | All | "Entry not showing after payment", "App says Offline" |
+| Category        | Audience               | Examples                                                   |
+| --------------- | ---------------------- | ---------------------------------------------------------- |
+| Getting started | All                    | "How to create an account", "How to add a dog"             |
+| Entering shows  | Exhibitors             | "How to enter a show online", "How to enter multiple dogs" |
+| Secretary setup | Secretaries            | "How to create a show", "How to add a judge"               |
+| Show day        | All                    | "How to check in", "How to handle a scratch"               |
+| Payments        | Exhibitors, treasurers | "Why does it say Pending?", "When will the club get paid?" |
+| Results         | Exhibitors             | "Where do I see my results?", "What does Q mean?"          |
+| Account access  | All                    | "I can't sign in", "How to reset my password"              |
+| Troubleshooting | All                    | "Entry not showing after payment", "App says Offline"      |
 
 ---
 
 ## Files
 
-| File | Audience | Status | Aliases (searchable phrases) |
-|---|---|---|---|
-| [article-template.md](article-template.md) | — | `drafted` | — |
+| File                                       | Audience | Status    | Aliases (searchable phrases) |
+| ------------------------------------------ | -------- | --------- | ---------------------------- |
+| [article-template.md](article-template.md) | —        | `drafted` | —                            |
 
 Articles are created here as `how-to-enter-a-show.md`, `payment-under-review.md`, etc. Every article uses the template and includes `aliases` frontmatter.
 
@@ -38,6 +38,7 @@ Articles are created here as `how-to-enter-a-show.md`, `payment-under-review.md`
 ## Article Priority Rules
 
 Write in this order:
+
 1. **High-volume first** — questions that every first-time user hits (sign in, enter a show, find results)
 2. **Show-day stress second** — questions that create the most panic when unanswered (entry missing, payment confusion, scratch/move-up)
 3. **Sales/onboarding third** — questions from clubs evaluating the platform

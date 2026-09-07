@@ -138,11 +138,7 @@ describe('buildVEvent', () => {
   });
 
   it('prefers the ACTUAL start once the ring reports it — this is the shift', () => {
-    const ics = buildVEvent(
-      event({ actualStartTime: '2026-08-16T13:12:00Z' }),
-      DTSTAMP,
-      ORIGIN
-    );
+    const ics = buildVEvent(event({ actualStartTime: '2026-08-16T13:12:00Z' }), DTSTAMP, ORIGIN);
     expect(ics).toContain('DTSTART:20260816T131200Z');
     expect(ics).toContain('STATUS:CONFIRMED');
     expect(ics).toContain('confirmed from the ring');
@@ -193,11 +189,7 @@ describe('buildVEvent', () => {
   });
 
   it('escapes venue text that contains a comma', () => {
-    const ics = buildVEvent(
-      event({ venue: 'Purina Farms, Gray Summit, MO' }),
-      DTSTAMP,
-      ORIGIN
-    );
+    const ics = buildVEvent(event({ venue: 'Purina Farms, Gray Summit, MO' }), DTSTAMP, ORIGIN);
     expect(ics).toContain('LOCATION:Purina Farms\\, Gray Summit\\, MO');
   });
 });

@@ -59,8 +59,8 @@ export function EntryBlankHeader({
             color: PAPER,
           }}
         >
-          <Text style={{ color: ORANGE, fontWeight: 700 }}>{showCode}</Text> ·{' '}
-          {licenseLanguage} · OFFICIAL ENTRY BLANK
+          <Text style={{ color: ORANGE, fontWeight: 700 }}>{showCode}</Text> · {licenseLanguage} ·
+          OFFICIAL ENTRY BLANK
         </Text>
         <Text
           style={{
@@ -125,8 +125,8 @@ export function EntryBlankHeader({
             marginTop: 6,
           }}
         >
-          Reference document for entrants. Use before entry to confirm levels, fees, and dates;
-          use on site for venue, vet, schedule.
+          Reference document for entrants. Use before entry to confirm levels, fees, and dates; use
+          on site for venue, vet, schedule.
         </Text>
       </View>
     </View>

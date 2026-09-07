@@ -19,7 +19,11 @@ export function AgreementSection({ agreementText }: { agreementText: string }) {
 
   return (
     <View>
-      <MagazineSectionHeader numeral="v" title="Agreement & signature" kicker="read before signing" />
+      <MagazineSectionHeader
+        numeral="v"
+        title="Agreement & signature"
+        kicker="read before signing"
+      />
 
       <View
         style={{
@@ -45,9 +49,7 @@ export function AgreementSection({ agreementText }: { agreementText: string }) {
       <View style={{ flexDirection: 'row', gap: 24, marginTop: 8 }}>
         {/* Signature line — 2/3 width */}
         <View style={{ flex: 2 }}>
-          <View
-            style={{ borderBottomWidth: 0.5, borderBottomColor: INK, minHeight: 24 }}
-          />
+          <View style={{ borderBottomWidth: 0.5, borderBottomColor: INK, minHeight: 24 }} />
           <Text
             style={{
               fontFamily: DISPLAY,
@@ -64,9 +66,7 @@ export function AgreementSection({ agreementText }: { agreementText: string }) {
 
         {/* Date line — 1/3 width */}
         <View style={{ flex: 1 }}>
-          <View
-            style={{ borderBottomWidth: 0.5, borderBottomColor: INK, minHeight: 24 }}
-          />
+          <View style={{ borderBottomWidth: 0.5, borderBottomColor: INK, minHeight: 24 }} />
           <Text
             style={{
               fontFamily: DISPLAY,

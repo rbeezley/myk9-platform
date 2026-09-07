@@ -199,8 +199,12 @@ export function FieldGuideFooter({
           color: fieldGuideColors.mute,
         }}
       >
-        <span>© {new Date().getFullYear()} {clubName || 'KENNEL CLUB'}</span>
-        <span>{showCode} · {licenseLanguage}</span>
+        <span>
+          © {new Date().getFullYear()} {clubName || 'KENNEL CLUB'}
+        </span>
+        <span>
+          {showCode} · {licenseLanguage}
+        </span>
         <span>PAGE FIELD-GUIDE.1</span>
       </div>
     </footer>

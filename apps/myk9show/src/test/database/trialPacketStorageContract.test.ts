@@ -14,7 +14,9 @@ describe('emergency trial packet storage contract', () => {
     expect(sql).toMatch(/VALUES \('trial-packets', 'trial-packets', false/i);
     expect(sql).toMatch(/ON storage\.objects FOR INSERT[\s\S]*bucket_id = 'trial-packets'/i);
     expect(sql).not.toMatch(/ON storage\.objects FOR SELECT[\s\S]*bucket_id = 'trial-packets'/i);
-    expect(sql).not.toMatch(/ON storage\.objects FOR (UPDATE|DELETE)[\s\S]*bucket_id = 'trial-packets'/i);
+    expect(sql).not.toMatch(
+      /ON storage\.objects FOR (UPDATE|DELETE)[\s\S]*bucket_id = 'trial-packets'/i
+    );
   });
 
   it('authorizes uploads from the show id path prefix', () => {

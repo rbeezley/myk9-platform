@@ -47,7 +47,7 @@ describe('submit_show_entries entry-period guard', () => {
     expect(guard).toContain('NOT v_is_official');
     expect(guard).toContain('v_show_close IS NOT NULL');
     // timezone-anchored calendar-day comparison, not a raw instant compare
-    expect(guard).toContain("(now() AT TIME ZONE v_show_tz)::date");
+    expect(guard).toContain('(now() AT TIME ZONE v_show_tz)::date');
     expect(guard).toContain("(v_show_close AT TIME ZONE 'UTC')::date");
     expect(guard).toContain('RAISE EXCEPTION');
     expect(guard).toContain("ERRCODE = '42501'");
@@ -58,8 +58,6 @@ describe('submit_show_entries entry-period guard', () => {
     // guard must reference it (so officials skip the refusal) after it exists.
     expect(migration).toContain('public.is_show_secretary(p_show_id)');
     expect(migration).toContain('public.is_club_admin(v_show_club_id)');
-    expect(migration.indexOf('v_is_official := (')).toBeLessThan(
-      migration.indexOf('3a.')
-    );
+    expect(migration.indexOf('v_is_official := (')).toBeLessThan(migration.indexOf('3a.'));
   });
 });

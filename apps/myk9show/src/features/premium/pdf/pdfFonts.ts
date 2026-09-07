@@ -200,9 +200,7 @@ Font.register({
 
 Font.register({
   family: 'Italiana',
-  fonts: [
-    { src: `${FS}/italiana@5/files/italiana-latin-400-normal.woff`, fontWeight: 400 },
-  ],
+  fonts: [{ src: `${FS}/italiana@5/files/italiana-latin-400-normal.woff`, fontWeight: 400 }],
 });
 
 Font.register({

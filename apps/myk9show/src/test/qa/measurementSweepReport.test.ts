@@ -24,7 +24,14 @@ import {
 
 function probe(overrides: Partial<ProbeResult> = {}): ProbeResult {
   return {
-    sanity: { blackOnWhite: 21, whiteOnWhite: 1, greyOnWhite: 4.54, stretchedLink: 120, syntaxAgreement: 0, translucentStack: 63.75 },
+    sanity: {
+      blackOnWhite: 21,
+      whiteOnWhite: 1,
+      greyOnWhite: 4.54,
+      stretchedLink: 120,
+      syntaxAgreement: 0,
+      translucentStack: 63.75,
+    },
     measured: 100,
     unmeasurable: 0,
     interactive: 20,
@@ -78,7 +85,16 @@ describe('sanityFailures', () => {
 
   it('catches the collapsed-ratio failure mode round 5 shipped three times', () => {
     // Every broken colour parser produced ratios near 1.0 across the board.
-    const broken = probe({ sanity: { blackOnWhite: 1.0, whiteOnWhite: 1, greyOnWhite: 1.0, stretchedLink: 120, syntaxAgreement: 0, translucentStack: 63.75 } });
+    const broken = probe({
+      sanity: {
+        blackOnWhite: 1.0,
+        whiteOnWhite: 1,
+        greyOnWhite: 1.0,
+        stretchedLink: 120,
+        syntaxAgreement: 0,
+        translucentStack: 63.75,
+      },
+    });
     expect(sanityFailures(broken)).toEqual([
       'blackOnWhite=1 (expected ~21)',
       'greyOnWhite=1 (expected ~4.54)',
@@ -91,7 +107,14 @@ describe('sanityFailures', () => {
     // covers. Nothing in the contrast checks moves, and the run over-reports
     // small targets across every route that uses the pattern.
     const broken = probe({
-      sanity: { blackOnWhite: 21, whiteOnWhite: 1, greyOnWhite: 4.54, stretchedLink: 20, syntaxAgreement: 0, translucentStack: 63.75 },
+      sanity: {
+        blackOnWhite: 21,
+        whiteOnWhite: 1,
+        greyOnWhite: 4.54,
+        stretchedLink: 20,
+        syntaxAgreement: 0,
+        translucentStack: 63.75,
+      },
     });
     expect(sanityFailures(broken)).toEqual(['stretchedLink=20 (expected ~120)']);
     expect(partition([measurement({ probe: broken })]).usable).toHaveLength(0);
@@ -136,7 +159,16 @@ describe('sanityFailures', () => {
   });
 
   it('catches a probe that inflates rather than collapses', () => {
-    const broken = probe({ sanity: { blackOnWhite: 21, whiteOnWhite: 3.2, greyOnWhite: 4.54, stretchedLink: 120, syntaxAgreement: 0, translucentStack: 63.75 } });
+    const broken = probe({
+      sanity: {
+        blackOnWhite: 21,
+        whiteOnWhite: 3.2,
+        greyOnWhite: 4.54,
+        stretchedLink: 120,
+        syntaxAgreement: 0,
+        translucentStack: 63.75,
+      },
+    });
     expect(sanityFailures(broken)).toHaveLength(1);
   });
 });
@@ -172,7 +204,18 @@ describe('partition', () => {
 
   it('excludes a measurement whose known-answer checks failed', () => {
     const { usable, excluded } = partition([
-      measurement({ probe: probe({ sanity: { blackOnWhite: 1, whiteOnWhite: 1, greyOnWhite: 1, stretchedLink: 120, syntaxAgreement: 0, translucentStack: 63.75 } }) }),
+      measurement({
+        probe: probe({
+          sanity: {
+            blackOnWhite: 1,
+            whiteOnWhite: 1,
+            greyOnWhite: 1,
+            stretchedLink: 120,
+            syntaxAgreement: 0,
+            translucentStack: 63.75,
+          },
+        }),
+      }),
     ]);
     expect(usable).toHaveLength(0);
     expect(excluded[0].reason).toContain('known-answer check failed');
@@ -219,7 +262,9 @@ describe('partition', () => {
     // broken probe. The guard needs enough content to mean anything.
     expect(
       partition([
-        measurement({ probe: probe({ measured: 8, totals: { contrast: 6, targets: 0, names: 0 } }) }),
+        measurement({
+          probe: probe({ measured: 8, totals: { contrast: 6, targets: 0, names: 0 } }),
+        }),
       ]).usable
     ).toHaveLength(1);
   });

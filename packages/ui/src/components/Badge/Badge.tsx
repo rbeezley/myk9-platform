@@ -5,8 +5,7 @@ import { cn } from '../../utils/cn';
 import { badgeVariants } from './badgeVariants';
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 
 /**
  * Badge component for displaying status, labels, or counts.

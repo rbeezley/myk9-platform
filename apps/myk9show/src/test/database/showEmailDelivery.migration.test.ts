@@ -57,7 +57,9 @@ describe('MYK9-180 email delivery history migration contract', () => {
   });
 
   it('qualifies return-column names inside the PL/pgSQL query', () => {
-    expect(migration).toContain('SELECT * FROM email_rows WHERE email_rows.source_kind IS NOT NULL');
+    expect(migration).toContain(
+      'SELECT * FROM email_rows WHERE email_rows.source_kind IS NOT NULL'
+    );
   });
 
   it('keeps each auth.users behavioral fixture aligned with all timestamp columns', () => {

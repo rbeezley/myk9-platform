@@ -70,7 +70,9 @@ describe('buildRingsideRpcFields', () => {
   });
 
   it('returns null for an auto-columns-only / empty write', () => {
-    expect(buildRingsideRpcFields(['id', 'updated_at'], { id: 'e1', updated_at: 'now' })).toBeNull();
+    expect(
+      buildRingsideRpcFields(['id', 'updated_at'], { id: 'e1', updated_at: 'now' })
+    ).toBeNull();
     expect(buildRingsideRpcFields([], {})).toBeNull();
   });
 

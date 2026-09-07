@@ -9,20 +9,14 @@
 import type { AdminMcpConfig } from '../config';
 import type { DiagnosticLink } from './types';
 
-export function buildShowLink(
-  config: AdminMcpConfig,
-  showId: string,
-): DiagnosticLink {
+export function buildShowLink(config: AdminMcpConfig, showId: string): DiagnosticLink {
   return {
     label: 'Open show in myK9Show',
     url: `${config.appBaseUrl}/shows/${encodeURIComponent(showId)}`,
   };
 }
 
-export function buildEntryManagementLink(
-  config: AdminMcpConfig,
-  showId: string,
-): DiagnosticLink {
+export function buildEntryManagementLink(config: AdminMcpConfig, showId: string): DiagnosticLink {
   // Links to the show's Entry Management page. The page filters by a `trial`
   // query param, not an entry id, so we don't append an entry-select param it
   // would silently ignore — the diagnostic's evidence carries the entry id.

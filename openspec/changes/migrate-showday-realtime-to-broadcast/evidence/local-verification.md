@@ -2,11 +2,11 @@
 
 ## Summary
 
-| Dimension | Status |
-|-----------|--------|
-| Completeness | 20/23 tasks complete; three shared-system shipping gates remain |
-| Correctness | 6/6 requirements and 15/15 scenarios covered locally |
-| Coherence | Design decisions followed; no contradictory transport or data-authority path found |
+| Dimension    | Status                                                                             |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Completeness | 20/23 tasks complete; three shared-system shipping gates remain                    |
+| Correctness  | 6/6 requirements and 15/15 scenarios covered locally                               |
+| Coherence    | Design decisions followed; no contradictory transport or data-authority path found |
 
 ## Requirement mapping
 

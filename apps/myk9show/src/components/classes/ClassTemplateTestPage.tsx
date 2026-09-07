@@ -11,7 +11,7 @@ export const ClassTemplateTestPage: React.FC = () => {
   const [selectedTrialId] = useState('test-trial-1');
   const { classes, getClassesByTrialId } = useClassStoreCompat();
   const { getPresets } = useClassTemplateStore();
-  
+
   const trialClasses = getClassesByTrialId(selectedTrialId);
   const presets = getPresets();
 
@@ -36,9 +36,10 @@ export const ClassTemplateTestPage: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Select a template to create multiple classes at once for trial: <strong>{selectedTrialId}</strong>
+              Select a template to create multiple classes at once for trial:{' '}
+              <strong>{selectedTrialId}</strong>
             </p>
-            
+
             <ClassTemplateManager
               trialId={selectedTrialId}
               onClassesCreated={handleClassesCreated}
@@ -129,7 +130,7 @@ export const ClassTemplateTestPage: React.FC = () => {
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {classes.map((cls: ClassData) => (
               <div key={cls.id} className="text-xs p-2 bg-gray-50 rounded border">
-                <strong>ID:</strong> {cls.id} | <strong>Trial:</strong> {cls.trialId} | 
+                <strong>ID:</strong> {cls.id} | <strong>Trial:</strong> {cls.trialId} |
                 <strong> Class:</strong> {cls.element} {cls.level} {cls.section}
               </div>
             ))}

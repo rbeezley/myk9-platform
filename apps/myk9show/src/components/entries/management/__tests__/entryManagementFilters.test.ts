@@ -218,7 +218,7 @@ describe('entryManagementFilters', () => {
   });
 
   describe('trial/class scope pass-through', () => {
-    it('leaves opaque trial/class ids untouched — validity is the surface caller\'s job', () => {
+    it("leaves opaque trial/class ids untouched — validity is the surface caller's job", () => {
       const result = normalizeEntryManagementSearchParams(new URLSearchParams('trial=t1&class=c1'));
       expect(result.params.get('trial')).toBe('t1');
       expect(result.params.get('class')).toBe('c1');

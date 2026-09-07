@@ -10,9 +10,13 @@ describe('CheckInProgressBar', () => {
     expect(screen.getByText(/Checked In 27/)).toBeInTheDocument();
     expect(screen.getByText(/Partial 8/)).toBeInTheDocument();
     expect(screen.getByText(/Not Checked In 12/)).toBeInTheDocument();
-    expect(container.querySelector('[data-status="checked-in"][data-shape="in-progress"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-status="checked-in"][data-shape="in-progress"]')
+    ).toBeTruthy();
     expect(container.querySelector('[data-status="pending"][data-shape="pending"]')).toBeTruthy();
-    expect(container.querySelector('[data-status="no-status"][data-shape="not-started"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-status="no-status"][data-shape="not-started"]')
+    ).toBeTruthy();
   });
 
   it('shows percentage', () => {

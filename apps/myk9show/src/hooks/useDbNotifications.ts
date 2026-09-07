@@ -3,10 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 export type DbNotificationType =
-  | 'entry_confirmed'
-  | 'q_earned'
-  | 'schedule_change'
-  | 'judge_assignment';
+  'entry_confirmed' | 'q_earned' | 'schedule_change' | 'judge_assignment';
 
 export interface DbNotification {
   id: string;

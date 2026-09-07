@@ -27,7 +27,9 @@ describe('ShowMapRunOrderMenu', () => {
         isAutoSorting={false}
       />
     );
-    expect(screen.getByRole('button', { name: /Run order for Container Novice/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Run order for Container Novice/i })
+    ).toBeInTheDocument();
   });
 
   it('fires onAutoSort with the correct kind when a preset is chosen', () => {

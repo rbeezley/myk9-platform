@@ -361,9 +361,7 @@ describe('ShowAccessCodesCard', () => {
     expect(screen.getByText('e4444')).toBeInTheDocument();
 
     unmount();
-    renderWithProviders(
-      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
-    );
+    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />);
     expect(await screen.findByText('a1111')).toBeInTheDocument();
     expect(mockSupabase.rpc).toHaveBeenCalledTimes(2);
   });
@@ -388,9 +386,7 @@ describe('ShowAccessCodesCard', () => {
     );
     expect(await screen.findByText('a1111')).toBeInTheDocument();
 
-    rerender(
-      <ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />
-    );
+    rerender(<ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />);
 
     expect(screen.queryByText('a1111')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Loading access codes');
@@ -400,7 +396,7 @@ describe('ShowAccessCodesCard', () => {
     });
   });
 
-  it("clears regenerated codes when the card changes to another show", async () => {
+  it('clears regenerated codes when the card changes to another show', async () => {
     mockSupabase.rpc.mockImplementation((fn: string, args?: Record<string, unknown>) => {
       if (fn === 'regenerate_show_passcodes') {
         return Promise.resolve({
@@ -429,9 +425,7 @@ describe('ShowAccessCodesCard', () => {
     await user.click(await screen.findByRole('button', { name: /^generate$/i }));
     expect(await screen.findByText('a1111')).toBeInTheDocument();
 
-    rerender(
-      <ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />
-    );
+    rerender(<ShowAccessCodesCard showId={SECOND_TEST_SHOW_ID} canLoadCodes canRegenerate />);
 
     expect(screen.queryByText('a1111')).not.toBeInTheDocument();
     expect(screen.queryByText('e4444')).not.toBeInTheDocument();
@@ -468,16 +462,12 @@ describe('ShowAccessCodesCard', () => {
       error: null,
     });
 
-    renderWithProviders(
-      <ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />
-    );
+    renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes canRegenerate />);
 
     expect(
       await screen.findByText(/created before saved display was available/i)
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /generate replacement codes/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /generate replacement codes/i })).toBeInTheDocument();
   });
 
   it('does not offer regeneration to a non-manager with legacy rows', async () => {
@@ -503,9 +493,7 @@ describe('ShowAccessCodesCard', () => {
 
     renderWithProviders(<ShowAccessCodesCard showId={TEST_SHOW_ID} canLoadCodes />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /couldn't load show access codes/i
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn't load show access codes/i);
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     expect(screen.queryByText(/^[ajse][a-z0-9]{4}$/)).not.toBeInTheDocument();
   });

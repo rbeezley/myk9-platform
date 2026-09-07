@@ -13,7 +13,7 @@ export function saveTemplatesPlugin() {
         }
 
         let body = '';
-        req.on('data', (chunk) => {
+        req.on('data', chunk => {
           body += chunk.toString();
         });
 
@@ -37,23 +37,26 @@ export function saveTemplatesPlugin() {
             fs.writeFileSync(mockDataPath, fileContent, 'utf8');
 
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ 
-              success: true, 
-              message: `Successfully saved ${templates.length} templates to mockTemplatesWithFields.ts`,
-              templatesCount: templates.length
-            }));
-
+            res.end(
+              JSON.stringify({
+                success: true,
+                message: `Successfully saved ${templates.length} templates to mockTemplatesWithFields.ts`,
+                templatesCount: templates.length,
+              })
+            );
           } catch (error) {
             console.error('Error saving templates:', error);
             res.statusCode = 500;
-            res.end(JSON.stringify({ 
-              error: 'Failed to save templates', 
-              details: error.message 
-            }));
+            res.end(
+              JSON.stringify({
+                error: 'Failed to save templates',
+                details: error.message,
+              })
+            );
           }
         });
       });
-    }
+    },
   };
 }
 
@@ -68,16 +71,16 @@ function generateMockDataFileContent(templates) {
 
   // For now, just export a simplified array to avoid complex type issues
   content += `// Export all templates
-export const STRUCTURED_TEMPLATES: ClassTemplate[] = ${JSON.stringify(templates, null, 2)
-    .replace(/"([^"]+)":/g, '$1:') // Remove quotes from object keys
-    .replace(/: "([^"]*Organization\.[^"]*)"([,\n\r\s]*)/g, ': $1$2') // Fix enum refs
-    .replace(/: "([^"]*ShowType\.[^"]*)"([,\n\r\s]*)/g, ': $1$2')
-    .replace(/: "([^"]*TemplateStatus\.[^"]*)"([,\n\r\s]*)/g, ': $1$2')
-    .replace(/: "([^"]*TemplateType\.[^"]*)"([,\n\r\s]*)/g, ': $1$2')
-    .replace(/"new Date\(([^)]+)\)"/g, 'new Date($1)') // Fix dates
+export const STRUCTURED_TEMPLATES: ClassTemplate[] = ${
+    JSON.stringify(templates, null, 2)
+      .replace(/"([^"]+)":/g, '$1:') // Remove quotes from object keys
+      .replace(/: "([^"]*Organization\.[^"]*)"([,\n\r\s]*)/g, ': $1$2') // Fix enum refs
+      .replace(/: "([^"]*ShowType\.[^"]*)"([,\n\r\s]*)/g, ': $1$2')
+      .replace(/: "([^"]*TemplateStatus\.[^"]*)"([,\n\r\s]*)/g, ': $1$2')
+      .replace(/: "([^"]*TemplateType\.[^"]*)"([,\n\r\s]*)/g, ': $1$2')
+      .replace(/"new Date\(([^)]+)\)"/g, 'new Date($1)') // Fix dates
   };
 `;
 
   return content;
 }
-

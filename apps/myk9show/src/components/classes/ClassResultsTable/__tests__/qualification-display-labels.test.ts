@@ -1,20 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { QUALIFICATION_STATUSES } from '@/types/scent-work-types';
-import {
-  DISPLAY_LABELS,
-  QUALIFICATION_REASONS,
-  STATUSES_REQUIRING_REASON,
-} from '../constants';
+import { DISPLAY_LABELS, QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from '../constants';
 
 describe('QualificationCell DISPLAY_LABELS', () => {
   it('has a short-code entry for every QualificationStatus union member', () => {
     // Iterates the same const tuple QualificationStatus is derived from, so the
     // assertion can never silently drift out of sync with the union.
     for (const status of QUALIFICATION_STATUSES) {
-      expect(
-        DISPLAY_LABELS[status],
-        `missing DISPLAY_LABELS entry for "${status}"`
-      ).toBeTruthy();
+      expect(DISPLAY_LABELS[status], `missing DISPLAY_LABELS entry for "${status}"`).toBeTruthy();
     }
   });
 

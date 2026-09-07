@@ -64,20 +64,20 @@ The shared packages follow a strict directed acyclic graph (DAG) to prevent circ
 
 ### Package Responsibilities
 
-| Package             | Responsibility                                           | Key Exports                                                                      |
-| ------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `@myk9/core`        | Utilities, types, and constants shared by everything     | `logger`, `BaseEntity`, `SyncableEntity`, network utilities, nationals constants |
-| `@myk9/supabase`    | Supabase client singleton and generated database types   | `supabase` client, `Database` type, `Json` type, query helpers                   |
-| `@myk9/replication` | Offline-first data layer with IndexedDB caching and sync | `ReplicatedTable`, `DatabaseManager`, `ConflictResolver`, sync utilities         |
-| `@myk9/ui`          | Accessible UI components built on Base UI + Tailwind     | `Button`, `Dialog`, `Select`, tailwind preset, `cn()` utility                    |
-| `@myk9/scoring`     | Scoring domain stores and types (pure logic, no UI)      | `useScoringStore`, `useTimerStore`, score types, scoring configs                 |
-| `@myk9/scoring-ui`  | Shared behavioral hooks for scoring UIs                  | `useStopwatch`, `useEntryListFilters`, scoresheet components                     |
-| `@myk9/ringside`    | The `/at-show` ringside scoring UI and feature package   | Ringside screens, gates, and show-day scoring flows                              |
-| `@myk9/secretary`   | Secretary show-management feature package                | Show setup, entry management, and secretary workflow surfaces                    |
-| `@myk9/email`       | Email templates and sending helpers                      | Transactional email templates and send utilities                                |
-| `@myk9/notifications` | Push and notification helpers                          | Notification dispatch and subscription helpers                                   |
-| `@myk9/pwa-update`  | Service-worker update prompt (prompt mode)               | PWA update detection and user-prompt component                                   |
-| `@myk9/test-utils`  | Testing utilities and mock factories                     | Test helpers, mock data builders                                                 |
+| Package               | Responsibility                                           | Key Exports                                                                      |
+| --------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `@myk9/core`          | Utilities, types, and constants shared by everything     | `logger`, `BaseEntity`, `SyncableEntity`, network utilities, nationals constants |
+| `@myk9/supabase`      | Supabase client singleton and generated database types   | `supabase` client, `Database` type, `Json` type, query helpers                   |
+| `@myk9/replication`   | Offline-first data layer with IndexedDB caching and sync | `ReplicatedTable`, `DatabaseManager`, `ConflictResolver`, sync utilities         |
+| `@myk9/ui`            | Accessible UI components built on Base UI + Tailwind     | `Button`, `Dialog`, `Select`, tailwind preset, `cn()` utility                    |
+| `@myk9/scoring`       | Scoring domain stores and types (pure logic, no UI)      | `useScoringStore`, `useTimerStore`, score types, scoring configs                 |
+| `@myk9/scoring-ui`    | Shared behavioral hooks for scoring UIs                  | `useStopwatch`, `useEntryListFilters`, scoresheet components                     |
+| `@myk9/ringside`      | The `/at-show` ringside scoring UI and feature package   | Ringside screens, gates, and show-day scoring flows                              |
+| `@myk9/secretary`     | Secretary show-management feature package                | Show setup, entry management, and secretary workflow surfaces                    |
+| `@myk9/email`         | Email templates and sending helpers                      | Transactional email templates and send utilities                                 |
+| `@myk9/notifications` | Push and notification helpers                            | Notification dispatch and subscription helpers                                   |
+| `@myk9/pwa-update`    | Service-worker update prompt (prompt mode)               | PWA update detection and user-prompt component                                   |
+| `@myk9/test-utils`    | Testing utilities and mock factories                     | Test helpers, mock data builders                                                 |
 
 All packages use `tsup` for building and produce ESM-only output. The `workspace:*` protocol in pnpm keeps inter-package versions in sync. React is declared as a peer dependency across all packages to avoid version duplication.
 
@@ -129,13 +129,13 @@ See [docs/adr/004-offline-first-indexeddb.md](../adr/004-offline-first-indexeddb
 
 ### Decision Matrix
 
-| Tool                  | Use For                                  | Examples                                   |
-| --------------------- | ---------------------------------------- | ------------------------------------------ |
-| **Zustand**           | Client/UI state shared across components | Modals, filters, selections, domain stores |
-| **React Query**       | Server state, async data fetching        | Lists, detail views, search results        |
-| **React Context**     | Cross-cutting concerns (rarely changes)  | Auth/RBAC, theme, app-wide config          |
+| Tool                  | Use For                                  | Examples                                               |
+| --------------------- | ---------------------------------------- | ------------------------------------------------------ |
+| **Zustand**           | Client/UI state shared across components | Modals, filters, selections, domain stores             |
+| **React Query**       | Server state, async data fetching        | Lists, detail views, search results                    |
+| **React Context**     | Cross-cutting concerns (rarely changes)  | Auth/RBAC, theme, app-wide config                      |
 | **@myk9/replication** | Persistent data that must work offline   | Show data, class entries, scores (ringside `/at-show`) |
-| **Local useState**    | Ephemeral, component-scoped state        | Form inputs, timers, dialog open/close     |
+| **Local useState**    | Ephemeral, component-scoped state        | Form inputs, timers, dialog open/close                 |
 
 ### Zustand Conventions
 

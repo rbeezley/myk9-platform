@@ -65,7 +65,11 @@ export function ClassLifecyclePresetTiles({
   ];
 
   return (
-    <div className="manager-class-stats-grid mb-6" role="group" aria-label="Class lifecycle presets">
+    <div
+      className="manager-class-stats-grid mb-6"
+      role="group"
+      aria-label="Class lifecycle presets"
+    >
       {tiles.map(tile => (
         <Card
           key={tile.status}

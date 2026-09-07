@@ -5,21 +5,22 @@
 **Found:** 2026-06-16, during a manual restore walk (deleting Dog 1 then trying to restore it).
 
 ## Problem
+
 The admin restore UI (`/admin/deleted-items` → Deleted Items) works for only
 **1 of 7** entity types (Clubs). Two independent root causes:
 
 - **A — RLS-blocked reads (dogs, shows, classes, people).** Their `*_select`
-  policies hard-code `deleted_at IS NULL` for *every* role, so not even a
+  policies hard-code `deleted_at IS NULL` for _every_ role, so not even a
   `site_admin` can SELECT a soft-deleted row. The count badge (a head-count) and
   the list both return 0 → the section never appears. Verified: as the admin JWT,
   `SELECT count(*) ... WHERE deleted_at IS NOT NULL` returns 0 for all four.
 - **B — broken relational embeds (trials, entries, users).** The list reads embed
   `deleted_by_user:deleted_by(...)` selecting `first_name/last_name`, but
   `deleted_by` FKs **`auth.users`** (which lacks those columns and isn't exposed
-  to the Data API). PostgREST errors → the list returns empty *even though* the
+  to the Data API). PostgREST errors → the list returns empty _even though_ the
   count (no embed) correctly shows 24 trials / 8 entries.
 
-- **C — RLS-blocked restore *writes* (dogs, shows, classes, people).** _(Found
+- **C — RLS-blocked restore _writes_ (dogs, shows, classes, people).** _(Found
   2026-06-17, during the live restore walk — corrects an earlier wrong assumption
   that "writes are fine.")_ The restore services issue a direct
   `UPDATE <t> SET deleted_at = NULL WHERE id = X RETURNING ...`. That matches **0
@@ -36,6 +37,7 @@ This also made PR #781's dialog copy ("can be restored by an administrator from
 Admin → Deleted Items") false for dogs before the restore RPC work.
 
 ## Approach
+
 Three surgical fixes, no change to normal (non-deleted) read paths:
 
 - **Embeds (B):** drop the invalid `deleted_by → auth.users` embed from the
@@ -45,7 +47,7 @@ Three surgical fixes, no change to normal (non-deleted) read paths:
 - **RLS-blocked reads (A):** add admin-gated `SECURITY DEFINER` read RPCs
   (`get_deleted_dogs/shows/classes/people`) that return base deleted rows,
   bypassing RLS. Chosen over loosening the `*_select` policies because those
-  tables hide deleted rows via RLS *by design* (normal lists rely on it) — an RPC
+  tables hide deleted rows via RLS _by design_ (normal lists rely on it) — an RPC
   has zero leak risk into normal views and mirrors the existing `soft_delete_dog`
   SECURITY DEFINER pattern. Each RPC raises/returns empty unless
   `is_platform_admin()`.
@@ -60,6 +62,7 @@ Three surgical fixes, no change to normal (non-deleted) read paths:
   independently-deleted rows.
 
 ## Phases
+
 1. **Embed fix** — repair `getDeletedTrials`, `getDeletedEntries`,
    `getDeletedUsers` (remove the `auth.users` deleted_by embed). Trials + Entries
    lists populate immediately (RLS already allows).
@@ -80,5 +83,6 @@ Three surgical fixes, no change to normal (non-deleted) read paths:
    tombstone in a `BEGIN … ROLLBACK` (dog + both entries restored, zero persistence).
 
 ## Out of scope
+
 - Sidebar discoverability of the Deleted Items page — a
   separate IA decision, noted in Phase 4.

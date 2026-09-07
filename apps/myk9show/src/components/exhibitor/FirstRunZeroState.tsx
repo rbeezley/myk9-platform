@@ -83,11 +83,7 @@ export const FirstRunZeroState: React.FC<FirstRunZeroStateProps> = ({ hasDogs, o
                 Add Your First Dog
               </Button>
             )}
-            <Button
-              asChild
-              variant={dogOwnershipKnown ? 'outline' : 'default'}
-              size="lg"
-            >
+            <Button asChild variant={dogOwnershipKnown ? 'outline' : 'default'} size="lg">
               <Link to="/shows">
                 <CalendarPlus className="mr-2 h-4 w-4" />
                 Browse Shows

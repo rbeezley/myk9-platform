@@ -17,25 +17,25 @@ New guides start at `planned`. Write them as `qa-draft` — a testing instrument
 Every guide follows this structure:
 
 ```markdown
-# [Role] Guide                        ← H1 title
+# [Role] Guide ← H1 title
 
-**Status:** `qa-draft`                ← always start here
+**Status:** `qa-draft` ← always start here
 **Audience:** [who reads this]
 **Last verified:** YYYY-MM-DD
 **Verified by:** [walkthrough method]
 
-> **Note:** This is a QA-draft guide...  ← boilerplate note (copy from existing guide)
+> **Note:** This is a QA-draft guide... ← boilerplate note (copy from existing guide)
 
 ---
 
-## What this guide covers             ← 2-3 sentence overview of the guide's scope
+## What this guide covers ← 2-3 sentence overview of the guide's scope
 
-[platform context paragraph]          ← how the platform works for this role; what's different
-                                        from other tools they may have used
+[platform context paragraph] ← how the platform works for this role; what's different
+from other tools they may have used
 
 ---
 
-## Section 1 — [Task name]            ← imperative task title (not feature name)
+## Section 1 — [Task name] ← imperative task title (not feature name)
 
 [1-2 sentence context]
 
@@ -43,7 +43,7 @@ Every guide follows this structure:
 2. Step two.
 3. Step three.
 
-![alt text](../screenshots/<ID>.png)  ← or blocked placeholder (see below)
+![alt text](../screenshots/<ID>.png) ← or blocked placeholder (see below)
 
 [1-2 sentence follow-on or note]
 
@@ -62,9 +62,9 @@ Every guide follows this structure:
 
 ## Screenshot Checklist
 
-| Shot ID | Section | Description | Status |
-|---|---|---|---|
-| X-01 | § 1 | Description | ready / blocked: reason |
+| Shot ID | Section | Description | Status                  |
+| ------- | ------- | ----------- | ----------------------- |
+| X-01    | § 1     | Description | ready / blocked: reason |
 ```
 
 ---
@@ -73,14 +73,15 @@ Every guide follows this structure:
 
 **Role tone:**
 
-| Role | Target feeling | What this means |
-|---|---|---|
-| Secretary | "That was easy" | No jargon. Confident guidance. Each step completable in one motion. |
-| Exhibitor | "This respects my time" | Short steps, no re-explanation of what they know. |
-| Judge / Steward | "Invisible technology" | Minimal words. Action-oriented. Eyes on the dog, not the screen. |
-| Club Admin / Treasurer | "The platform is healthy" | Factual, reassuring. Numbers and status at a glance. |
+| Role                   | Target feeling            | What this means                                                     |
+| ---------------------- | ------------------------- | ------------------------------------------------------------------- |
+| Secretary              | "That was easy"           | No jargon. Confident guidance. Each step completable in one motion. |
+| Exhibitor              | "This respects my time"   | Short steps, no re-explanation of what they know.                   |
+| Judge / Steward        | "Invisible technology"    | Minimal words. Action-oriented. Eyes on the dog, not the screen.    |
+| Club Admin / Treasurer | "The platform is healthy" | Factual, reassuring. Numbers and status at a glance.                |
 
 **Section titles are user actions, not feature names:**
+
 - "Grant show access" not "Secretary Assignment"
 - "Approve an entry" not "Entry Management"
 - "Connect your bank account" not "Stripe Express Onboarding"
@@ -90,6 +91,7 @@ Every guide follows this structure:
 **Never reference:** internal route names (`/secretary/dashboard`), component names (`ShowWorkbenchSetupPage`), or software concepts (`modal`, `sync`, `IndexedDB`, `webhook`)
 
 **Dog-show terminology:**
+
 - Entry (not "registration" in the software sense)
 - Pulled (platform standard; "scratch" also understood)
 - Armband number (not "entry number")
@@ -102,7 +104,7 @@ Every guide follows this structure:
 When a screenshot can't be captured yet, use this exact format inline:
 
 ```markdown
-> *[Screenshot C-04: Payments page — "Connect bank account" button and pre-flight checklist visible — blocked: stripe]*
+> _[Screenshot C-04: Payments page — "Connect bank account" button and pre-flight checklist visible — blocked: stripe]_
 ```
 
 Pattern: `> *[Screenshot <ID>: <description of expected state> — blocked: <reason>]*`
@@ -116,17 +118,19 @@ Add the shot to the guide's checklist table with `blocked: <reason>` status. Do 
 When creating a new guide:
 
 1. **`docs/user-guides/README.md`** — add a row to the Planned Guides table:
+
    ```markdown
    | [Guide Title](filename.md) | Audience | `qa-draft` | priority | Notes |
    ```
 
 2. **`docs/training/screenshot-shot-list.md`** — add a new Part section at the bottom:
+
    ```markdown
    ## Part N — [Role] Guide Screenshots
 
-   | Shot ID | Description | Route | Account | Viewport | Expected state | Guide section | Status |
-   |---|---|---|---|---|---|---|---|
-   | X-01 | ... | `/route` | `account@myk9t.com` | Desktop | ... | § 1 | `ready` |
+   | Shot ID | Description | Route    | Account             | Viewport | Expected state | Guide section | Status  |
+   | ------- | ----------- | -------- | ------------------- | -------- | -------------- | ------------- | ------- |
+   | X-01    | ...         | `/route` | `account@myk9t.com` | Desktop  | ...            | § 1           | `ready` |
    ```
 
 3. **The guide's own checklist table** at the bottom of the guide markdown.
@@ -137,12 +141,12 @@ Do NOT add individual guides to `docs/README.md` (the main index) — that track
 
 ## Existing guides and outlines
 
-| Guide | Outline source | Status | Notes |
-|---|---|---|---|
-| `docs/user-guides/secretary-guide.md` | `secretary-guide-outline.md` | `qa-draft` | Phase 0 gate met; screenshots pending |
-| `docs/user-guides/exhibitor-guide.md` | `exhibitor-guide-outline.md` | `qa-draft` | Phase 0 gate met; § 10 stub |
-| `docs/user-guides/club-admin-guide.md` | `club-admin-guide-outline.md` | `qa-draft` | C-04/C-05 blocked: stripe |
-| `docs/user-guides/judge-steward-quickstart.md` | `judge-steward-quickstart-outline.md` | `planned` | No longer flag-blocked; screenshots capturable after staging redeploy (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../../../../docs/plan-remove-unified-ringside-flag.md`](../../../../docs/plan-remove-unified-ringside-flag.md)) |
+| Guide                                          | Outline source                        | Status     | Notes                                                                                                                                                                                                                                                      |
+| ---------------------------------------------- | ------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/user-guides/secretary-guide.md`          | `secretary-guide-outline.md`          | `qa-draft` | Phase 0 gate met; screenshots pending                                                                                                                                                                                                                      |
+| `docs/user-guides/exhibitor-guide.md`          | `exhibitor-guide-outline.md`          | `qa-draft` | Phase 0 gate met; § 10 stub                                                                                                                                                                                                                                |
+| `docs/user-guides/club-admin-guide.md`         | `club-admin-guide-outline.md`         | `qa-draft` | C-04/C-05 blocked: stripe                                                                                                                                                                                                                                  |
+| `docs/user-guides/judge-steward-quickstart.md` | `judge-steward-quickstart-outline.md` | `planned`  | No longer flag-blocked; screenshots capturable after staging redeploy (Updated 2026-06-23: `unified_ringside_enabled` flag removed — see [`../../../../docs/plan-remove-unified-ringside-flag.md`](../../../../docs/plan-remove-unified-ringside-flag.md)) |
 
 ---
 

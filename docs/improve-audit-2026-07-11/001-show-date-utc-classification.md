@@ -21,7 +21,7 @@ const isActive = showStart <= now && showEnd >= now;
 
 Same raw-parse pattern at: `utils/unified-shows-config.ts:48,52,129,133,341,376`; `utils/show-relationships.ts:125,127,130-131,197-198,209-210,295`; `utils/showCardUtils.ts:14-15`; `utils/showFilters.ts:11`. (Line numbers are leads — re-locate by grepping `new Date(show` and `new Date(s.startDate` variants in those files.)
 
-Note the semantics you must preserve: a show whose `endDate` is today is **still active until end of day local time**. The correct comparison is `toLocalDate(endDate)` at end-of-day (or `toLocalDate(endDate) + 1 day > now`), not merely swapping the parser — `toLocalDate("2026-05-15")` is local *midnight*, so `showEnd < now` would still mark the show past for most of its final day. Follow `entryStatusUtils.ts`'s existing end-of-day handling as the exemplar.
+Note the semantics you must preserve: a show whose `endDate` is today is **still active until end of day local time**. The correct comparison is `toLocalDate(endDate)` at end-of-day (or `toLocalDate(endDate) + 1 day > now`), not merely swapping the parser — `toLocalDate("2026-05-15")` is local _midnight_, so `showEnd < now` would still mark the show past for most of its final day. Follow `entryStatusUtils.ts`'s existing end-of-day handling as the exemplar.
 
 ## Steps
 

@@ -1,13 +1,16 @@
 /**
  * Offline Scoring Services Index
- * 
+ *
  * Centralized export point for all offline scoring services and utilities.
  * Provides easy imports and service coordination.
  */
 
 // Core Services
 export { OfflineScoringService, offlineScoringService } from './OfflineScoringService';
-export { PlacementCalculatorService, placementCalculatorService } from './PlacementCalculatorService';
+export {
+  PlacementCalculatorService,
+  placementCalculatorService,
+} from './PlacementCalculatorService';
 export { ScoreValidatorService, scoreValidatorService } from './ScoreValidatorService';
 export { JudgeWorkflowManager, judgeWorkflowManager } from './JudgeWorkflowManager';
 
@@ -18,17 +21,11 @@ import { judgeWorkflowManager } from './JudgeWorkflowManager';
 import { logger } from '@/services/LoggingService';
 
 // Service Types
-export type {
-  OfflineScoringServiceConfig
-} from './offline-scoring-types';
+export type { OfflineScoringServiceConfig } from './offline-scoring-types';
 
-export type {
-  PlacementCalculatorConfig
-} from './PlacementCalculatorService';
+export type { PlacementCalculatorConfig } from './PlacementCalculatorService';
 
-export type {
-  ValidatorConfig
-} from './ScoreValidatorService';
+export type { ValidatorConfig } from './ScoreValidatorService';
 
 export type {
   JudgeCredentials,
@@ -40,7 +37,7 @@ export type {
   WorkflowStepDefinition,
   JudgePerformanceMetrics,
   WorkflowAction,
-  JudgeRole
+  JudgeRole,
 } from './JudgeWorkflowManager';
 
 // Store Exports
@@ -50,7 +47,7 @@ export {
   useJudgeAuth,
   useClassScoring,
   useScoringValidation,
-  useSyncStatus
+  useSyncStatus,
 } from '@/store/offlineScoringStore';
 
 export type { OfflineScoringStore as OfflineScoringState } from '@/store/offlineScoringStore';
@@ -62,7 +59,7 @@ export {
   isObedienceScore,
   isRallyScore,
   isConformationScore,
-  isScentWorkScore
+  isScentWorkScore,
 } from '@/types/scoring-types';
 
 /**
@@ -88,7 +85,7 @@ export async function cleanupOfflineScoring(): Promise<void> {
     await Promise.all([
       offlineScoringService.destroy(),
       placementCalculatorService.cleanup(),
-      judgeWorkflowManager.cleanup()
+      judgeWorkflowManager.cleanup(),
     ]);
     logger.debug('Offline scoring services cleaned up', 'scoring', {});
   } catch (error) {
@@ -109,6 +106,6 @@ export function getOfflineScoringStatus(): {
     scoring: offlineScoringService.getStatistics(),
     placements: placementCalculatorService.getStatistics(),
     workflow: judgeWorkflowManager.getStatistics(),
-    isOnline: navigator.onLine
+    isOnline: navigator.onLine,
   };
 }

@@ -194,7 +194,7 @@ describe('a pending write never clobbers a filter changed underneath it', () => 
     expect(params.get('club')).toBe('club-1');
   });
 
-  it('does not revert an external navigation with the previous write\'s params', () => {
+  it("does not revert an external navigation with the previous write's params", () => {
     // write -> external navigation -> write. The second write must fold onto the
     // navigation's query string, not onto the optimistic base left by the first;
     // otherwise the navigation is silently reverted by the next chip click.

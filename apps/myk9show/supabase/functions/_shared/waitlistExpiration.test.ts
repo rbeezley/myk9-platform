@@ -127,9 +127,9 @@ describe('shouldAbortPaymentLinkExpiration', () => {
       true
     );
     expect(shouldAbortPaymentLinkExpiration({ status: 'open', paymentStatus: 'paid' })).toBe(true);
-    expect(
-      shouldAbortPaymentLinkExpiration({ status: 'complete', paymentStatus: 'unpaid' })
-    ).toBe(false);
+    expect(shouldAbortPaymentLinkExpiration({ status: 'complete', paymentStatus: 'unpaid' })).toBe(
+      false
+    );
   });
 
   it('allows open or already-expired unpaid sessions to be closed locally', () => {

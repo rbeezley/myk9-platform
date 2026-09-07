@@ -92,9 +92,7 @@ export function resolveAuthPreflightConfig(
     const password = env[envNames.password];
 
     if (!password) {
-      throw new Error(
-        `Missing E2E auth preflight secret(s) for ${role}: ${envNames.password}`
-      );
+      throw new Error(`Missing E2E auth preflight secret(s) for ${role}: ${envNames.password}`);
     }
 
     // A retired address must die here rather than at Supabase. This preflight

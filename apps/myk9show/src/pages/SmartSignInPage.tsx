@@ -431,7 +431,10 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                 it sits INSIDE this paragraph, and axe's link-in-text-block wants
                 a non-colour distinguisher — primary on muted-foreground is
                 1.01:1, far under the 3:1 it would otherwise require. */}
-            <p id="credential-help" className="mt-4 sm:mt-5 text-xs sm:text-sm text-muted-foreground">
+            <p
+              id="credential-help"
+              className="mt-4 sm:mt-5 text-xs sm:text-sm text-muted-foreground"
+            >
               Working a show? Use your secretary's 5-character passcode.{' '}
               {!passcodeOnly && (
                 <Link to="/help/credentials" className="text-primary underline">

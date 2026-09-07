@@ -54,9 +54,7 @@ export const QualificationsTab: React.FC<QualificationsTabProps> = ({
                   <Badge variant="default">Active</Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {qual.date_obtained && (
-                    <p>Certified: {formatDateOnly(qual.date_obtained)}</p>
-                  )}
+                  {qual.date_obtained && <p>Certified: {formatDateOnly(qual.date_obtained)}</p>}
                   {qual.disciplines.length > 0 && (
                     <div className="mt-2">
                       <span className="font-medium">Show Types: </span>

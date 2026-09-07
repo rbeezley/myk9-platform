@@ -1,6 +1,6 @@
 /**
  * Scent Work Scoresheet Component
- * 
+ *
  * Main judging interface for single-area Scent Work classes.
  * Provides timer integration, qualification selection, fault counting,
  * and result submission following the proven Flutter app UX patterns.
@@ -21,9 +21,9 @@ import { DualTimerDisplay } from '@/components/common/DualTimerDisplay';
 // Types and utilities
 import { logger } from '@/services/LoggingService';
 import type {
-  ScentWorkEntry, 
-  ScentWorkResult, 
-  QualificationStatus
+  ScentWorkEntry,
+  ScentWorkResult,
+  QualificationStatus,
 } from '@/types/scent-work-types';
 import type { ValidationResult } from '@/types/scoring-types';
 import { getTimeLimit, isTimeExpired, validateScentWorkResult } from '@/types/scent-work-types';
@@ -31,26 +31,28 @@ import { msToDisplay } from '@/lib/timeUtils';
 
 // Props interface
 export interface ScentWorkScoresheetProps {
-  entry: ScentWorkEntry | {
-    id: string;
-    classId?: string;
-    armband?: string;
-    dogName?: string;
-    dogBreed?: string;
-    handlerName?: string;
-    classConfig?: {
-      element: string;
-      level: string;
-    };
-    displayInfo?: {
-      armband: string;
-      dogName: string;
-      dogBreed: string;
-      handlerName: string;
-      dogId: string;
-      handlerId: string;
-    };
-  };
+  entry:
+    | ScentWorkEntry
+    | {
+        id: string;
+        classId?: string;
+        armband?: string;
+        dogName?: string;
+        dogBreed?: string;
+        handlerName?: string;
+        classConfig?: {
+          element: string;
+          level: string;
+        };
+        displayInfo?: {
+          armband: string;
+          dogName: string;
+          dogBreed: string;
+          handlerName: string;
+          dogId: string;
+          handlerId: string;
+        };
+      };
   onSave: (result: ScentWorkResult) => Promise<ValidationResult>; // Always return validation result
   onCancel: () => void;
   validationErrors?: ValidationResult;
@@ -59,7 +61,7 @@ export interface ScentWorkScoresheetProps {
 
 /**
  * Single-area Scent Work scoresheet component
- * 
+ *
  * Features:
  * - Large dog information display (armband, name, breed, handler)
  * - Integrated timer with auto-population
@@ -71,15 +73,14 @@ export function ScentWorkScoresheet({
   entry,
   onSave,
   onCancel,
-  className
+  className,
 }: ScentWorkScoresheetProps) {
-
   const { user } = useAuthContext();
 
   // Extract class configuration and time limits - handle mock data
-  const classConfig = entry.classConfig || { 
-    element: 'Interior' as 'Container' | 'Interior' | 'Exterior' | 'Buried', 
-    level: 'Novice' as 'Novice' | 'Advanced' | 'Excellent' | 'Masters' 
+  const classConfig = entry.classConfig || {
+    element: 'Interior' as 'Container' | 'Interior' | 'Exterior' | 'Buried',
+    level: 'Novice' as 'Novice' | 'Advanced' | 'Excellent' | 'Masters',
   };
   const displayInfo = entry.displayInfo || {
     armband: 'armband' in entry ? entry.armband || '001' : '001',
@@ -87,23 +88,26 @@ export function ScentWorkScoresheet({
     dogBreed: 'dogBreed' in entry ? entry.dogBreed || 'Unknown' : 'Unknown',
     handlerName: 'handlerName' in entry ? entry.handlerName || 'Test Handler' : 'Test Handler',
     dogId: 'unknown',
-    handlerId: 'unknown'
+    handlerId: 'unknown',
   };
   const maxTimeMs = getTimeLimit(
-    classConfig.element as 'Container' | 'Interior' | 'Exterior' | 'Buried', 
+    classConfig.element as 'Container' | 'Interior' | 'Exterior' | 'Buried',
     classConfig.level as 'Novice' | 'Advanced' | 'Excellent' | 'Masters'
   );
 
   // Result state - use type assertion for explicit undefined assignment on required fields
-  const [result, setResult] = useState<Partial<ScentWorkResult>>(() => ({
-    entryId: entry.id,
-    classId: entry.classId || 'mock-class-id',
-    searchTime: 0,
-    maxTimeAllowed: maxTimeMs,
-    faults: 0,
-    recordedBy: user?.id || 'unknown',
-    recordedAt: new Date()
-  }) as Partial<ScentWorkResult>);
+  const [result, setResult] = useState<Partial<ScentWorkResult>>(
+    () =>
+      ({
+        entryId: entry.id,
+        classId: entry.classId || 'mock-class-id',
+        searchTime: 0,
+        maxTimeAllowed: maxTimeMs,
+        faults: 0,
+        recordedBy: user?.id || 'unknown',
+        recordedAt: new Date(),
+      }) as Partial<ScentWorkResult>
+  );
 
   // UI state
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -114,7 +118,7 @@ export function ScentWorkScoresheet({
   const handleSearchTime = useCallback((timeMs: number) => {
     setResult(prev => ({
       ...prev,
-      searchTime: timeMs
+      searchTime: timeMs,
     }));
   }, []);
 
@@ -128,47 +132,50 @@ export function ScentWorkScoresheet({
     setResult(prev => ({
       ...prev,
       qualification: 'Not Qualified',
-      nqReason: 'timeout'
+      nqReason: 'timeout',
     }));
   }, []);
 
   // Qualification selection handler
-  const handleQualificationChange = useCallback((qualification: QualificationStatus) => {
-    setResult(prev => {
-      const updated = {
-        ...prev,
-        qualification,
-        // Reset faults when changing qualification
-        faults: qualification === 'Qualified' ? prev.faults || 0 : 0,
-        // Clear NQ reason when qualifying
-        nqReason: qualification === 'Qualified' ? undefined : prev.nqReason
-      };
+  const handleQualificationChange = useCallback(
+    (qualification: QualificationStatus) => {
+      setResult(prev => {
+        const updated = {
+          ...prev,
+          qualification,
+          // Reset faults when changing qualification
+          faults: qualification === 'Qualified' ? prev.faults || 0 : 0,
+          // Clear NQ reason when qualifying
+          nqReason: qualification === 'Qualified' ? undefined : prev.nqReason,
+        };
 
-      // Auto-set NQ reason for non-qualification scenarios
-      if (qualification === 'Not Qualified' && !updated.nqReason) {
-        if (isTimeExpired(updated.searchTime || 0, maxTimeMs)) {
-          updated.nqReason = 'timeout';
-        } else {
-          updated.nqReason = 'noFind'; // Default NQ reason
+        // Auto-set NQ reason for non-qualification scenarios
+        if (qualification === 'Not Qualified' && !updated.nqReason) {
+          if (isTimeExpired(updated.searchTime || 0, maxTimeMs)) {
+            updated.nqReason = 'timeout';
+          } else {
+            updated.nqReason = 'noFind'; // Default NQ reason
+          }
         }
-      }
 
-      return updated;
-    });
-  }, [maxTimeMs]);
+        return updated;
+      });
+    },
+    [maxTimeMs]
+  );
 
   // Fault counter handlers
   const handleFaultIncrement = useCallback(() => {
     setResult(prev => ({
       ...prev,
-      faults: Math.min((prev.faults || 0) + 1, 99) // Cap at 99 faults
+      faults: Math.min((prev.faults || 0) + 1, 99), // Cap at 99 faults
     }));
   }, []);
 
   const handleFaultDecrement = useCallback(() => {
     setResult(prev => ({
       ...prev,
-      faults: Math.max((prev.faults || 0) - 1, 0) // Minimum 0 faults
+      faults: Math.max((prev.faults || 0) - 1, 0), // Minimum 0 faults
     }));
   }, []);
 
@@ -210,7 +217,7 @@ export function ScentWorkScoresheet({
     { value: 'Not Qualified', label: 'Not Qualified', color: 'bg-red-600 hover:bg-red-700' },
     { value: 'Absent', label: 'Absent', color: 'bg-gray-600 hover:bg-gray-700' },
     { value: 'Excused', label: 'Excused', color: 'bg-yellow-600 hover:bg-yellow-700' },
-    { value: 'Withdrawn', label: 'Withdrawn', color: 'bg-purple-600 hover:bg-purple-700' }
+    { value: 'Withdrawn', label: 'Withdrawn', color: 'bg-purple-600 hover:bg-purple-700' },
   ];
 
   return (
@@ -225,7 +232,7 @@ export function ScentWorkScoresheet({
                 <div className="myk9-armband-display">
                   <div className="text-3xl font-bold">#{displayInfo.armband}</div>
                 </div>
-                
+
                 {/* Dog & Handler Info */}
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
@@ -239,7 +246,7 @@ export function ScentWorkScoresheet({
                   </div>
                 </div>
               </div>
-              
+
               {/* Status Indicators */}
               <div className="text-right space-y-2">
                 <div className="flex items-center space-x-2 text-white/90">
@@ -289,13 +296,11 @@ export function ScentWorkScoresheet({
               <Award className="h-5 w-5 text-primary" />
               <span>Qualification</span>
             </div>
-            <p className="myk9-card-description">
-              Select the result for this run
-            </p>
+            <p className="myk9-card-description">Select the result for this run</p>
           </div>
           <div className="myk9-card-content">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {qualificationOptions.map((option) => {
+              {qualificationOptions.map(option => {
                 const isSelected = result.qualification === option.value;
                 const getButtonClasses = () => {
                   if (isSelected) {
@@ -316,7 +321,7 @@ export function ScentWorkScoresheet({
                   }
                   return 'myk9-button-qualification';
                 };
-                
+
                 return (
                   <button
                     key={option.value}
@@ -347,9 +352,7 @@ export function ScentWorkScoresheet({
               <div className="myk9-card-title">
                 <span>Faults</span>
               </div>
-              <p className="myk9-card-description">
-                Number of faults observed during the search
-              </p>
+              <p className="myk9-card-description">Number of faults observed during the search</p>
             </div>
             <div className="myk9-card-content">
               <div className="myk9-fault-counter">
@@ -360,16 +363,12 @@ export function ScentWorkScoresheet({
                 >
                   <span className="myk9-fault-button-text">−</span>
                 </button>
-                
+
                 <div className="myk9-fault-display">
-                  <div className="myk9-fault-number">
-                    {result.faults}
-                  </div>
-                  <div className="myk9-fault-label">
-                    fault{result.faults !== 1 ? 's' : ''}
-                  </div>
+                  <div className="myk9-fault-number">{result.faults}</div>
+                  <div className="myk9-fault-label">fault{result.faults !== 1 ? 's' : ''}</div>
                 </div>
-                
+
                 <button
                   onClick={handleFaultIncrement}
                   className="myk9-fault-button myk9-fault-button-increment"
@@ -391,11 +390,9 @@ export function ScentWorkScoresheet({
           >
             Cancel
           </Button>
-          
+
           <div className="flex items-center space-x-3">
-            {saveError && (
-              <span className="myk9-error-text">{saveError}</span>
-            )}
+            {saveError && <span className="myk9-error-text">{saveError}</span>}
             <Button
               onClick={handleSaveClick}
               disabled={!isResultComplete || isSaving}
@@ -423,7 +420,7 @@ export function ScentWorkScoresheet({
 
 /**
  * Save Confirmation Dialog Component
- * 
+ *
  * Shows a summary of the result before final submission,
  * matching the Flutter app's confirmation pattern.
  */
@@ -440,18 +437,16 @@ function SaveConfirmationDialog({
   entry,
   onConfirm,
   onCancel,
-  isLoading
+  isLoading,
 }: SaveConfirmationDialogProps) {
   return (
     <div className="myk9-dialog-overlay">
       <div className="myk9-dialog">
         <div className="myk9-dialog-header">
           <h3 className="myk9-dialog-title">Confirm Result</h3>
-          <p className="myk9-dialog-description">
-            Please review the result before saving
-          </p>
+          <p className="myk9-dialog-description">Please review the result before saving</p>
         </div>
-        
+
         <div className="myk9-dialog-content">
           {/* Summary */}
           <div className="myk9-result-summary">
@@ -471,10 +466,12 @@ function SaveConfirmationDialog({
             </div>
             <div className="myk9-summary-row">
               <span className="myk9-summary-label">Result:</span>
-              <div className={cn(
-                'myk9-summary-badge',
-                result.qualification === 'Qualified' ? 'qualified' : 'not-qualified'
-              )}>
+              <div
+                className={cn(
+                  'myk9-summary-badge',
+                  result.qualification === 'Qualified' ? 'qualified' : 'not-qualified'
+                )}
+              >
                 {result.qualification}
               </div>
             </div>
@@ -498,11 +495,7 @@ function SaveConfirmationDialog({
             >
               Cancel
             </Button>
-            <Button
-              onClick={onConfirm}
-              disabled={isLoading}
-              className="myk9-button-primary"
-            >
+            <Button onClick={onConfirm} disabled={isLoading} className="myk9-button-primary">
               {isLoading ? 'Saving...' : 'Confirm'}
             </Button>
           </div>

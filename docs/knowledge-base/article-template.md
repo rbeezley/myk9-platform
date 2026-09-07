@@ -1,11 +1,11 @@
 ---
-title: "Verb the object"
+title: 'Verb the object'
 audience: exhibitor | secretary | treasurer | judge | steward | public
 route: /canonical/route/path
 aliases:
-  - "phrase the user says"
-  - "exact error string they quote"
-  - "alternative question phrasing"
+  - 'phrase the user says'
+  - 'exact error string they quote'
+  - 'alternative question phrasing'
 status: planned | qa-draft | draft-ready | drafted | verified | published
 last-verified: YYYY-MM-DD
 verified-account: e2e-exhibitor@test.myk9.com

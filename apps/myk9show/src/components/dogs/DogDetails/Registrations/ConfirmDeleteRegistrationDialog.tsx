@@ -10,7 +10,12 @@ interface ConfirmDeleteRegistrationDialogProps {
   registration: Registration | null;
 }
 
-const ConfirmDeleteRegistrationDialog: React.FC<ConfirmDeleteRegistrationDialogProps> = ({ open, onClose, onDelete, registration }) => {
+const ConfirmDeleteRegistrationDialog: React.FC<ConfirmDeleteRegistrationDialogProps> = ({
+  open,
+  onClose,
+  onDelete,
+  registration,
+}) => {
   return (
     <StandardDialog
       open={open}
@@ -25,7 +30,10 @@ const ConfirmDeleteRegistrationDialog: React.FC<ConfirmDeleteRegistrationDialogP
     >
       <div className="text-base text-gray-700">
         {registration ? (
-          <>Are you sure you want to delete <b>"{registration.registeredName}"</b> ({registration.organization})?</>
+          <>
+            Are you sure you want to delete <b>"{registration.registeredName}"</b> (
+            {registration.organization})?
+          </>
         ) : null}
       </div>
     </StandardDialog>

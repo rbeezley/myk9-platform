@@ -1,6 +1,6 @@
 /**
  * Integration Tests for Analytics Components
- * 
+ *
  * Simplified integration tests that focus on component functionality
  * without complex DOM rendering or chart interactions.
  */
@@ -17,9 +17,9 @@ vi.mock('@/services/analytics/SyncAnalyticsService', () => ({
       getMetrics: vi.fn().mockResolvedValue(mockMetrics),
       getActiveAlerts: vi.fn().mockResolvedValue([]),
       getHealthChecks: vi.fn().mockResolvedValue([]),
-      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' }))
-    }))
-  }
+      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' })),
+    })),
+  },
 }));
 
 const mockMetrics: SyncMetrics = {
@@ -45,23 +45,23 @@ const mockMetrics: SyncMetrics = {
   syncTimeTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 2.1 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 2.3 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.0 }
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.0 },
   ],
   successRateTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 96.0 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 95.5 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 97.0 }
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 97.0 },
   ],
   conflictRateTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 3.0 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 3.5 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.8 }
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 2.8 },
   ],
   bandwidthTrend: [
     { timestamp: new Date('2024-01-01T10:00:00Z'), value: 1.5 },
     { timestamp: new Date('2024-01-01T11:00:00Z'), value: 2.1 },
-    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 1.8 }
-  ]
+    { timestamp: new Date('2024-01-01T12:00:00Z'), value: 1.8 },
+  ],
 };
 
 describe('Analytics Components Integration', () => {
@@ -80,24 +80,26 @@ describe('Analytics Components Integration', () => {
       getMetrics: vi.fn().mockResolvedValue(mockMetrics),
       getActiveAlerts: vi.fn().mockResolvedValue([]),
       getHealthChecks: vi.fn().mockResolvedValue([]),
-      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' }))
+      exportData: vi.fn().mockResolvedValue(new Blob(['test data'], { type: 'application/json' })),
     };
 
-    (SyncAnalyticsService.getInstance as ReturnType<typeof vi.fn>).mockReturnValue(mockAnalyticsService);
+    (SyncAnalyticsService.getInstance as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockAnalyticsService
+    );
   });
 
   describe('Analytics Service Integration', () => {
     test('analytics service singleton pattern works correctly', () => {
       const service1 = SyncAnalyticsService.getInstance();
       const service2 = SyncAnalyticsService.getInstance();
-      
+
       expect(service1).toBe(service2);
     });
 
     test('service initialization is called correctly', async () => {
       const service = SyncAnalyticsService.getInstance();
       await service.initialize();
-      
+
       expect(mockAnalyticsService.initialize).toHaveBeenCalled();
     });
 
@@ -105,9 +107,9 @@ describe('Analytics Components Integration', () => {
       const service = SyncAnalyticsService.getInstance();
       const startTime = new Date('2024-01-01T00:00:00Z');
       const endTime = new Date('2024-01-01T23:59:59Z');
-      
+
       const metrics = await service.getMetrics(startTime, endTime);
-      
+
       expect(mockAnalyticsService.getMetrics).toHaveBeenCalledWith(startTime, endTime);
       expect(metrics).toEqual(mockMetrics);
     });
@@ -116,9 +118,9 @@ describe('Analytics Components Integration', () => {
       const service = SyncAnalyticsService.getInstance();
       const startTime = new Date('2024-01-01T00:00:00Z');
       const endTime = new Date('2024-01-01T23:59:59Z');
-      
+
       const exportBlob = await service.exportData(startTime, endTime, 'json');
-      
+
       expect(mockAnalyticsService.exportData).toHaveBeenCalledWith(startTime, endTime, 'json');
       expect(exportBlob).toBeInstanceOf(Blob);
     });
@@ -127,7 +129,7 @@ describe('Analytics Components Integration', () => {
   describe('Performance Calculations', () => {
     test('calculates performance percentiles correctly', () => {
       const syncTimes = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5];
-      
+
       const getPercentile = (arr: number[], percentile: number) => {
         const sorted = [...arr].sort((a, b) => a - b);
         const index = Math.floor((percentile / 100) * sorted.length);
@@ -142,7 +144,7 @@ describe('Analytics Components Integration', () => {
     test('regression analysis calculation works', () => {
       const data = mockMetrics.syncTimeTrend.map((point, index) => ({
         x: index,
-        y: point.value
+        y: point.value,
       }));
 
       // Simple linear regression
@@ -168,7 +170,7 @@ describe('Analytics Components Integration', () => {
         totalSyncs: number;
       }) => {
         const { successRate, averageSyncTime, conflictRate, totalSyncs } = factors;
-        
+
         const successWeight = 0.4;
         const performanceWeight = 0.3;
         const conflictWeight = 0.2;
@@ -179,11 +181,11 @@ describe('Analytics Components Integration', () => {
         const conflictScore = Math.max(0, 100 - (conflictRate / 2) * 100);
         const volumeScore = Math.min(100, (totalSyncs / 100) * 100);
 
-        const healthScore = 
-          (successScore * successWeight) +
-          (performanceScore * performanceWeight) +
-          (conflictScore * conflictWeight) +
-          (volumeScore * volumeWeight);
+        const healthScore =
+          successScore * successWeight +
+          performanceScore * performanceWeight +
+          conflictScore * conflictWeight +
+          volumeScore * volumeWeight;
 
         return Math.round(Math.max(0, Math.min(100, healthScore)));
       };
@@ -192,7 +194,7 @@ describe('Analytics Components Integration', () => {
         successRate: 95.5,
         averageSyncTime: 2.3,
         conflictRate: 3.3,
-        totalSyncs: 150
+        totalSyncs: 150,
       });
 
       expect(healthScore).toBeGreaterThan(0);
@@ -205,11 +207,11 @@ describe('Analytics Components Integration', () => {
     test('time range filtering works correctly', () => {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      
+
       const events = [
         { timestamp: new Date(now.getTime() - 30 * 60 * 1000) }, // 30 min ago - should be included
         { timestamp: new Date(now.getTime() - 90 * 60 * 1000) }, // 90 min ago - should be excluded
-        { timestamp: new Date(now.getTime() - 45 * 60 * 1000) }  // 45 min ago - should be included
+        { timestamp: new Date(now.getTime() - 45 * 60 * 1000) }, // 45 min ago - should be included
       ];
 
       const filtered = events.filter(
@@ -223,18 +225,18 @@ describe('Analytics Components Integration', () => {
       const startTime = new Date('2024-01-01T00:00:00Z');
       const endTime = new Date('2024-01-01T23:59:59Z');
       const bucketCount = 24;
-      
+
       const timeRange = endTime.getTime() - startTime.getTime();
       const bucketSize = timeRange / bucketCount;
-      
+
       const buckets = Array.from({ length: bucketCount }, (_, i) => {
-        const bucketStart = new Date(startTime.getTime() + (i * bucketSize));
-        const bucketEnd = new Date(startTime.getTime() + ((i + 1) * bucketSize));
-        
+        const bucketStart = new Date(startTime.getTime() + i * bucketSize);
+        const bucketEnd = new Date(startTime.getTime() + (i + 1) * bucketSize);
+
         return {
           start: bucketStart,
           end: bucketEnd,
-          index: i
+          index: i,
         };
       });
 
@@ -248,17 +250,21 @@ describe('Analytics Components Integration', () => {
         { userId: 'user1', duration: 30, deviceType: 'mobile', syncCount: 5 },
         { userId: 'user2', duration: 45, deviceType: 'desktop', syncCount: 8 },
         { userId: 'user1', duration: 20, deviceType: 'mobile', syncCount: 3 },
-        { userId: 'user3', duration: 60, deviceType: 'tablet', syncCount: 12 }
+        { userId: 'user3', duration: 60, deviceType: 'tablet', syncCount: 12 },
       ];
 
       const uniqueUsers = new Set(mockSessions.map(s => s.userId)).size;
-      const avgDuration = mockSessions.reduce((acc, s) => acc + s.duration, 0) / mockSessions.length;
+      const avgDuration =
+        mockSessions.reduce((acc, s) => acc + s.duration, 0) / mockSessions.length;
       const totalSyncs = mockSessions.reduce((acc, s) => acc + s.syncCount, 0);
-      
-      const deviceBreakdown = mockSessions.reduce((acc, s) => {
-        acc[s.deviceType] = (acc[s.deviceType] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+
+      const deviceBreakdown = mockSessions.reduce(
+        (acc, s) => {
+          acc[s.deviceType] = (acc[s.deviceType] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
       expect(uniqueUsers).toBe(3);
       expect(avgDuration).toBe(38.75);
@@ -271,28 +277,31 @@ describe('Analytics Components Integration', () => {
 
   describe('Performance Thresholds', () => {
     test('performance status determination works correctly', () => {
-      const getPerformanceStatus = (value: number, metric: 'syncTime' | 'successRate' | 'conflictRate') => {
+      const getPerformanceStatus = (
+        value: number,
+        metric: 'syncTime' | 'successRate' | 'conflictRate'
+      ) => {
         const thresholds = {
           excellent: { syncTime: 1, successRate: 98, conflictRate: 1 },
           good: { syncTime: 3, successRate: 95, conflictRate: 3 },
           fair: { syncTime: 5, successRate: 90, conflictRate: 5 },
-          poor: { syncTime: 10, successRate: 80, conflictRate: 10 }
+          poor: { syncTime: 10, successRate: 80, conflictRate: 10 },
         };
-        
+
         if (metric === 'syncTime') {
           if (value <= thresholds.excellent.syncTime) return 'excellent';
           if (value <= thresholds.good.syncTime) return 'good';
           if (value <= thresholds.fair.syncTime) return 'fair';
           return 'poor';
         }
-        
+
         if (metric === 'successRate') {
           if (value >= thresholds.excellent.successRate) return 'excellent';
           if (value >= thresholds.good.successRate) return 'good';
           if (value >= thresholds.fair.successRate) return 'fair';
           return 'poor';
         }
-        
+
         // conflictRate
         if (value <= thresholds.excellent.conflictRate) return 'excellent';
         if (value <= thresholds.good.conflictRate) return 'good';
@@ -333,25 +342,23 @@ describe('Analytics Components Integration', () => {
       };
 
       // Test excellent status
-      expect(calculateSystemStatus(
-        [{ status: 'healthy' }, { status: 'healthy' }],
-        [],
-        95
-      )).toBe('excellent');
+      expect(calculateSystemStatus([{ status: 'healthy' }, { status: 'healthy' }], [], 95)).toBe(
+        'excellent'
+      );
 
       // Test good status
-      expect(calculateSystemStatus(
-        [{ status: 'healthy' }, { status: 'healthy' }],
-        [],
-        85
-      )).toBe('good');
+      expect(calculateSystemStatus([{ status: 'healthy' }, { status: 'healthy' }], [], 85)).toBe(
+        'good'
+      );
 
       // Test poor status with critical alert
-      expect(calculateSystemStatus(
-        [{ status: 'healthy' }, { status: 'degraded' }],
-        [{ severity: 'critical' }],
-        85
-      )).toBe('poor');
+      expect(
+        calculateSystemStatus(
+          [{ status: 'healthy' }, { status: 'degraded' }],
+          [{ severity: 'critical' }],
+          85
+        )
+      ).toBe('poor');
     });
   });
 });

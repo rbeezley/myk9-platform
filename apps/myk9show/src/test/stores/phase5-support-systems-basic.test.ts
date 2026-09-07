@@ -14,7 +14,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
   describe('Draft Store', () => {
     it('should be properly configured', () => {
       const store = useDraftStore.getState();
-      
+
       // Verify store structure
       expect(typeof store.saveDraft).toBe('function');
       expect(typeof store.loadDraft).toBe('function');
@@ -27,7 +27,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
 
     it('should have proper default configuration', () => {
       const store = useDraftStore.getState();
-      
+
       expect(store.config.autoSaveInterval).toBe(30000);
       expect(store.config.maxDraftsPerShow).toBe(10);
       expect(store.config.maxDraftsPerUser).toBe(50);
@@ -36,7 +36,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
 
     it('should support basic operations', () => {
       const store = useDraftStore.getState();
-      
+
       // Test that methods exist and can be called
       expect(() => store.getDraftsByUser('test-user')).not.toThrow();
       expect(() => store.getDraftsByShow('test-show')).not.toThrow();
@@ -48,7 +48,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
   describe('Search Analytics Store', () => {
     it('should be properly configured', () => {
       const store = useSearchAnalyticsStore.getState();
-      
+
       expect(typeof store.logSearchQuery).toBe('function');
       expect(typeof store.logSearchResult).toBe('function');
       expect(typeof store.generateAnalytics).toBe('function');
@@ -66,7 +66,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
 
     it('should support analytics operations', () => {
       const store = useSearchAnalyticsStore.getState();
-      
+
       // Test that methods exist and can be called
       expect(() => store.generateAnalytics()).not.toThrow();
       expect(() => store.getPerformanceMetrics()).not.toThrow();
@@ -78,7 +78,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
   describe('Search History Store', () => {
     it('should be properly configured', () => {
       const store = useSearchHistoryStore.getState();
-      
+
       expect(typeof store.addToHistory).toBe('function');
       expect(typeof store.createBookmark).toBe('function');
       expect(typeof store.getRecentSearches).toBe('function');
@@ -98,7 +98,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
 
     it('should support history operations', () => {
       const store = useSearchHistoryStore.getState();
-      
+
       // Test that methods exist and can be called
       expect(() => store.getRecentSearches('test-user')).not.toThrow();
       expect(() => store.getPopularSearches('test-user')).not.toThrow();
@@ -115,7 +115,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
         { name: 'searchAnalytics', store: useSearchAnalyticsStore },
         { name: 'searchHistory', store: useSearchHistoryStore },
       ];
-      
+
       stores.forEach(({ store }) => {
         const state = store.getState();
         // Verify the store is functional (basic smoke test)
@@ -128,12 +128,12 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
       const draftStore = useDraftStore.getState();
       const analyticsStore = useSearchAnalyticsStore.getState();
       const historyStore = useSearchHistoryStore.getState();
-      
+
       // Test cleanup methods exist
       expect(typeof draftStore.clearAllDrafts).toBe('function');
       expect(typeof analyticsStore.clearAnalytics).toBe('function');
       expect(typeof historyStore.clearHistory).toBe('function');
-      
+
       // Test user data deletion methods exist
       expect(typeof draftStore.clearDraftsByUser).toBe('function');
       expect(typeof analyticsStore.clearUserData).toBe('function');
@@ -152,7 +152,7 @@ describe('Phase 5 Support Systems - Basic Configuration Tests', () => {
     it('should support IndexedDB migration', () => {
       // Verify stores can handle IndexedDB operations
       const stores = [useDraftStore, useSearchAnalyticsStore, useSearchHistoryStore];
-      
+
       stores.forEach(store => {
         const state = store.getState();
         expect(state).toBeDefined();

@@ -55,6 +55,6 @@ export function useDebouncedSearch<T>(
     results,
     loading,
     error,
-    clearSearch
+    clearSearch,
   };
 }

@@ -36,7 +36,7 @@ export interface HeadlineEmailData {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
-  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
+  venueMap?: import('./confirmation-email-shared.ts').VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;

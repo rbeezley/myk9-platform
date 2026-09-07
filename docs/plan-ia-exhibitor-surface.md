@@ -8,7 +8,7 @@
 
 ## Origin
 
-The audit was triggered by a concrete defect on `/exhibitor/entries`: the tab strip read `Completed 0` while cards on screen carried a "Scored" badge (MYK9-208, fixed in #1699). Fixing the counts made the *structural* question visible — the strip's six tabs are two independent partitions of the same entries, so the numbers were never going to reconcile into one story.
+The audit was triggered by a concrete defect on `/exhibitor/entries`: the tab strip read `Completed 0` while cards on screen carried a "Scored" badge (MYK9-208, fixed in #1699). Fixing the counts made the _structural_ question visible — the strip's six tabs are two independent partitions of the same entries, so the numbers were never going to reconcile into one story.
 
 This plan addresses the structure. It does **not** revisit the entry-status surface trio, settled as deliberate by [`ia-review-entry-status-surfaces.md`](ia-review-entry-status-surfaces.md) (2026-06-18).
 
@@ -31,7 +31,7 @@ Every phase must hold these:
 > and again in the E2E strip spec, and status composes with time rather than
 > replacing it.
 >
-> A later pass changed how the time axis is *expressed* — from a `PrimaryTabs`
+> A later pass changed how the time axis is _expressed_ — from a `PrimaryTabs`
 > tablist to a labelled chip `radiogroup`, matching the status axis — on the
 > grounds that both narrow the same list of the same cards, so neither is a tab.
 > The axis decision, the partition, the counts and the `?tab=` contract are
@@ -46,13 +46,13 @@ Every phase must hold these:
 
 Three defensible shapes. Each keeps one axis as tabs and demotes the other:
 
-| Option | Tabs become | The other axis becomes | Best when the exhibitor's first question is… |
-|---|---|---|---|
-| **A1 — time leads** | Upcoming · Completed | status filter chips | "What's coming up?" |
-| **A2 — status leads** | Pending · Accepted · Waitlist | a time toggle | "Did I get in?" |
-| **A3 — no tabs** | one list ranked by what needs attention | filters for everything | "Just tell me what to do next" |
+| Option                | Tabs become                             | The other axis becomes | Best when the exhibitor's first question is… |
+| --------------------- | --------------------------------------- | ---------------------- | -------------------------------------------- |
+| **A1 — time leads**   | Upcoming · Completed                    | status filter chips    | "What's coming up?"                          |
+| **A2 — status leads** | Pending · Accepted · Waitlist           | a time toggle          | "Did I get in?"                              |
+| **A3 — no tabs**      | one list ranked by what needs attention | filters for everything | "Just tell me what to do next"               |
 
-INTENT names *checking schedule* ("I know where to be") before *entry status*, which leans A1. `CLAUDE.md`'s "deletions are a feature" leans A3. **Not decidable from the code — this is the product owner's call.**
+INTENT names _checking schedule_ ("I know where to be") before _entry status_, which leans A1. `CLAUDE.md`'s "deletions are a feature" leans A3. **Not decidable from the code — this is the product owner's call.**
 
 **Decided: A1 — time leads.** Kept as the record of why; do not re-open it without a product decision. Time is the first axis and is labelled as such; status is the composable second axis.
 
@@ -75,7 +75,7 @@ INTENT names *checking schedule* ("I know where to be") before *entry status*, w
 
 **Addresses:** F2 (Critical), F3 (High)
 **Entry trigger:** Phase A shipped — B applies the same axis decision one level up.
-**Exit criterion:** `/shows` is about *finding* shows; "entered" and "past" reach My Shows by link rather than re-answering the question locally.
+**Exit criterion:** `/shows` is about _finding_ shows; "entered" and "past" reach My Shows by link rather than re-answering the question locally.
 
 ### Work
 
@@ -116,14 +116,14 @@ INTENT names *checking schedule* ("I know where to be") before *entry status*, w
 
 ## Sequencing rationale
 
-A gates B because both turn on one question — *what is the exhibitor's primary axis?* Answering it twice is how the two front doors appeared in the first place. C and D are independent; D can be picked up by anyone at any time.
+A gates B because both turn on one question — _what is the exhibitor's primary axis?_ Answering it twice is how the two front doors appeared in the first place. C and D are independent; D can be picked up by anyone at any time.
 
-| Phase | Est. PRs | Blocked by |
-|---|---|---|
-| A | 1–2 | product decision |
-| B | 1–2 | A |
-| C | 1 | B (soft — could go earlier) |
-| D | 1 | nothing |
+| Phase | Est. PRs | Blocked by                  |
+| ----- | -------- | --------------------------- |
+| A     | 1–2      | product decision            |
+| B     | 1–2      | A                           |
+| C     | 1        | B (soft — could go earlier) |
+| D     | 1        | nothing                     |
 
 ## Out of scope
 

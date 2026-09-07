@@ -10,9 +10,9 @@ LOC, 47 commits / 6 months, no prior dedicated extraction — unlike its sibling
 
 ## Execution order & status
 
-| Plan | Title | Priority | Effort | Depends on | Status |
-|------|-------|----------|--------|------------|--------|
-| 001  | Extract Basic Show Info section and mutation handlers out of ShowDetailsStep.tsx | P2 | M | — | TODO (re-dispatched after BLOCKED run 1) |
+| Plan | Title                                                                            | Priority | Effort | Depends on | Status                                   |
+| ---- | -------------------------------------------------------------------------------- | -------- | ------ | ---------- | ---------------------------------------- |
+| 001  | Extract Basic Show Info section and mutation handlers out of ShowDetailsStep.tsx | P2       | M      | —          | TODO (re-dispatched after BLOCKED run 1) |
 
 ## Execution log
 

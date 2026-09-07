@@ -19,27 +19,33 @@
   height: 1056px;
   background: #fff;
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.04),
-    0 8px 24px -8px rgba(0,0,0,0.18),
-    0 24px 48px -16px rgba(0,0,0,0.14);
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 8px 24px -8px rgba(0, 0, 0, 0.18),
+    0 24px 48px -16px rgba(0, 0, 0, 0.14);
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
   flex-shrink: 0;
 }
 
-.sheet[data-cream] { background: #faf6ee; }
-.sheet[data-ivory] { background: #f8f4ea; }
-.sheet[data-paper] { background: #f5f1e6; }
+.sheet[data-cream] {
+  background: #faf6ee;
+}
+.sheet[data-ivory] {
+  background: #f8f4ea;
+}
+.sheet[data-paper] {
+  background: #f5f1e6;
+}
 
 .page-num {
   position: absolute;
   bottom: 24px;
   right: 32px;
-  font-family: "IBM Plex Mono", monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9px;
   letter-spacing: 0.16em;
-  color: rgba(0,0,0,0.45);
+  color: rgba(0, 0, 0, 0.45);
   text-transform: uppercase;
 }
 
@@ -55,4 +61,7 @@
 }
 
 /* Hide the default DCArtboard padding inside our docs */
-.dc-artboard__body { padding: 0 !important; background: transparent !important; }
+.dc-artboard__body {
+  padding: 0 !important;
+  background: transparent !important;
+}

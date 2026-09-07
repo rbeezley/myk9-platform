@@ -36,9 +36,7 @@ export function PlatformFeeSplitLines({ subtotalCents, rates }: PlatformFeeSplit
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">
-          Service fee ({formatPlatformFeeLabel(rates)})
-        </span>
+        <span className="text-muted-foreground">Service fee ({formatPlatformFeeLabel(rates)})</span>
         <span>{formatCartCurrency(split.feeCents)}</span>
       </div>
 
@@ -63,8 +61,8 @@ export function PlatformFeeSplitLines({ subtotalCents, rates }: PlatformFeeSplit
             <p className="text-xs text-muted-foreground">{CARD_PROCESSING_COVERS_FEE_NOTE}</p>
           )}
           <p className="text-xs text-muted-foreground">
-            These two amounts are approximate — Stripe&rsquo;s exact fee depends on the card and
-            is only known after the payment settles. The service fee above is exact, and the club
+            These two amounts are approximate — Stripe&rsquo;s exact fee depends on the card and is
+            only known after the payment settles. The service fee above is exact, and the club
             receives 100% of the entry fees.
           </p>
           <Link to="/fees" className="text-xs underline hover:text-foreground">

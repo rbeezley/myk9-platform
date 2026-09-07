@@ -1,6 +1,6 @@
 /**
  * Show Management System Types
- * 
+ *
  * Types for tracking show registrations, armband management, and check-in processes.
  * Supports comprehensive show management with registration status tracking and armband workflows.
  */
@@ -240,7 +240,7 @@ export const REGISTRATION_STATUSES = [
   'transferred',
   'refunded',
   'waitlisted',
-  'expired'
+  'expired',
 ] as const;
 
 export const CHECK_IN_STATUSES = [
@@ -248,7 +248,7 @@ export const CHECK_IN_STATUSES = [
   'checked_in',
   'late_arrival',
   'no_show',
-  'withdrawn'
+  'withdrawn',
 ] as const;
 
 export const PAYMENT_STATUSES = [
@@ -257,7 +257,7 @@ export const PAYMENT_STATUSES = [
   'partial',
   'refunded',
   'cancelled',
-  'overdue'
+  'overdue',
 ] as const;
 
 export const PAYMENT_METHODS = [
@@ -268,7 +268,7 @@ export const PAYMENT_METHODS = [
   'paypal',
   'venmo',
   'bank_transfer',
-  'other'
+  'other',
 ] as const;
 
 export const ARMBAND_TYPES = [
@@ -278,7 +278,7 @@ export const ARMBAND_TYPES = [
   'exhibitor',
   'special',
   'emergency',
-  'replacement'
+  'replacement',
 ] as const;
 
 export const ASSIGNMENT_STATUSES = [
@@ -286,16 +286,10 @@ export const ASSIGNMENT_STATUSES = [
   'assigned',
   'reserved',
   'temporary',
-  'cancelled'
+  'cancelled',
 ] as const;
 
-export const PRINT_STATUSES = [
-  'not_printed',
-  'printed',
-  'reprinted',
-  'damaged',
-  'lost'
-] as const;
+export const PRINT_STATUSES = ['not_printed', 'printed', 'reprinted', 'damaged', 'lost'] as const;
 
 export const CHECK_IN_METHODS = [
   'manual',
@@ -304,7 +298,7 @@ export const CHECK_IN_METHODS = [
   'nfc',
   'rfid',
   'mobile_app',
-  'online'
+  'online',
 ] as const;
 
 export const VERIFICATION_STATUSES = [
@@ -312,15 +306,15 @@ export const VERIFICATION_STATUSES = [
   'unverified',
   'pending',
   'failed',
-  'manual_override'
+  'manual_override',
 ] as const;
 
-export type RegistrationStatus = typeof REGISTRATION_STATUSES[number];
-export type CheckInStatus = typeof CHECK_IN_STATUSES[number];
-export type PaymentStatus = typeof PAYMENT_STATUSES[number];
-export type PaymentMethod = typeof PAYMENT_METHODS[number];
-export type ArmbandType = typeof ARMBAND_TYPES[number];
-export type AssignmentStatus = typeof ASSIGNMENT_STATUSES[number];
-export type PrintStatus = typeof PRINT_STATUSES[number];
-export type CheckInMethod = typeof CHECK_IN_METHODS[number];
-export type VerificationStatus = typeof VERIFICATION_STATUSES[number];
+export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
+export type CheckInStatus = (typeof CHECK_IN_STATUSES)[number];
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export type ArmbandType = (typeof ARMBAND_TYPES)[number];
+export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
+export type PrintStatus = (typeof PRINT_STATUSES)[number];
+export type CheckInMethod = (typeof CHECK_IN_METHODS)[number];
+export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];

@@ -1,6 +1,6 @@
 /**
  * Placement Recalculation Alert Component
- * 
+ *
  * Displays alerts for placement changes and recalculation events.
  * Provides clear notifications of ranking updates with smooth animations
  * and Premium design for professional competition management.
@@ -18,27 +18,21 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { logger } from '@/services/LoggingService';
-import {
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Icons
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Trophy, 
-  AlertTriangle, 
- 
-  X, 
-  ArrowUp, 
-  ArrowDown, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Trophy,
+  AlertTriangle,
+  X,
+  ArrowUp,
+  ArrowDown,
   RotateCcw,
   Clock,
   CheckCircle2,
-  Zap
+  Zap,
 } from 'lucide-react';
 
 // Hooks and Services
@@ -46,11 +40,7 @@ import { useOfflineScoringStore } from '@/store/offlineScoringStore';
 import { placementCalculatorService } from '@/services/scoring/PlacementCalculatorService';
 
 // Types
-import type { 
-  PlacementEntry, 
- 
-  ScoringFormat 
-} from '@/types/scoring-types';
+import type { PlacementEntry, ScoringFormat } from '@/types/scoring-types';
 
 export interface PlacementRecalculationAlertProps {
   classId: string;
@@ -95,7 +85,7 @@ export function PlacementRecalculationAlert({
   onViewPlacements,
   maxAlerts = 5,
   autoHideDelay = 10000,
-  className
+  className,
 }: PlacementRecalculationAlertProps) {
   // Store hooks
   const { getScoresByClass } = useOfflineScoringStore();
@@ -118,7 +108,7 @@ export function PlacementRecalculationAlert({
         if (!entry.placement) return;
 
         const oldPlacement = previousPlacements.get(entry.entryId);
-        
+
         if (oldPlacement === undefined) {
           // New entry
           changes.push({
@@ -128,12 +118,12 @@ export function PlacementRecalculationAlert({
             armband: entry.armband,
             newPlacement: entry.placement,
             changeType: 'new_entry',
-            timestamp: new Date()
+            timestamp: new Date(),
           });
         } else if (oldPlacement !== entry.placement) {
           // Placement changed
           const changeType = entry.placement < oldPlacement ? 'moved_up' : 'moved_down';
-          
+
           changes.push({
             entryId: entry.entryId,
             dogName: entry.dogName,
@@ -142,7 +132,7 @@ export function PlacementRecalculationAlert({
             oldPlacement,
             newPlacement: entry.placement,
             changeType,
-            timestamp: new Date()
+            timestamp: new Date(),
           });
         }
       });
@@ -160,7 +150,7 @@ export function PlacementRecalculationAlert({
               armband: entryInfo.armband,
               oldPlacement,
               changeType: 'lost',
-              timestamp: new Date()
+              timestamp: new Date(),
             });
           }
         }
@@ -173,7 +163,10 @@ export function PlacementRecalculationAlert({
 
   // Create alert from changes
   const createAlertFromChanges = useCallback(
-    (changes: PlacementChange[], triggerType: 'score_update' | 'conflict_resolution' = 'score_update'): PlacementAlert | null => {
+    (
+      changes: PlacementChange[],
+      triggerType: 'score_update' | 'conflict_resolution' = 'score_update'
+    ): PlacementAlert | null => {
       if (changes.length === 0) return null;
 
       let type: PlacementAlert['type'] = 'recalculation';
@@ -182,11 +175,11 @@ export function PlacementRecalculationAlert({
       let message = `${changes.length} placement ${changes.length === 1 ? 'change' : 'changes'} detected`;
 
       // Determine alert type and priority
-      const majorChanges = changes.filter(c => 
-        c.changeType === 'moved_up' || c.changeType === 'moved_down'
+      const majorChanges = changes.filter(
+        c => c.changeType === 'moved_up' || c.changeType === 'moved_down'
       );
-      const topThreeChanges = changes.filter(c => 
-        (c.newPlacement && c.newPlacement <= 3) || (c.oldPlacement && c.oldPlacement <= 3)
+      const topThreeChanges = changes.filter(
+        c => (c.newPlacement && c.newPlacement <= 3) || (c.oldPlacement && c.oldPlacement <= 3)
       );
 
       if (triggerType === 'conflict_resolution') {
@@ -218,7 +211,7 @@ export function PlacementRecalculationAlert({
         timestamp: new Date(),
         priority,
         isDismissed: false,
-        autoHide: priority !== 'high'
+        autoHide: priority !== 'high',
       };
     },
     []
@@ -259,11 +252,17 @@ export function PlacementRecalculationAlert({
       });
       setPreviousPlacements(placementMap);
       // setLastCalculationTime(calculation.calculatedAt);
-
     } catch (error) {
       logger.error('Failed to monitor placements:', 'scoring', {}, error as Error);
     }
-  }, [classId, format, getScoresByClass, calculatePlacementChanges, createAlertFromChanges, maxAlerts]);
+  }, [
+    classId,
+    format,
+    getScoresByClass,
+    calculatePlacementChanges,
+    createAlertFromChanges,
+    maxAlerts,
+  ]);
 
   // Auto-hide alerts
   useEffect(() => {
@@ -272,9 +271,7 @@ export function PlacementRecalculationAlert({
     alerts.forEach(alert => {
       if (alert.autoHide && !alert.isDismissed) {
         const timer = setTimeout(() => {
-          setAlerts(prev => prev.map(a => 
-            a.id === alert.id ? { ...a, isDismissed: true } : a
-          ));
+          setAlerts(prev => prev.map(a => (a.id === alert.id ? { ...a, isDismissed: true } : a)));
         }, autoHideDelay);
         timers.push(timer);
       }
@@ -306,18 +303,18 @@ export function PlacementRecalculationAlert({
   }, [monitorPlacements]);
 
   // Dismiss alert
-  const dismissAlert = useCallback((alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId ? { ...alert, isDismissed: true } : alert
-    ));
-    onDismiss?.(alertId);
-  }, [onDismiss]);
+  const dismissAlert = useCallback(
+    (alertId: string) => {
+      setAlerts(prev =>
+        prev.map(alert => (alert.id === alertId ? { ...alert, isDismissed: true } : alert))
+      );
+      onDismiss?.(alertId);
+    },
+    [onDismiss]
+  );
 
   // Get visible alerts
-  const visibleAlerts = useMemo(() => 
-    alerts.filter(alert => !alert.isDismissed),
-    [alerts]
-  );
+  const visibleAlerts = useMemo(() => alerts.filter(alert => !alert.isDismissed), [alerts]);
 
   // Get alert styling
   const getAlertStyling = (alert: PlacementAlert) => {
@@ -326,19 +323,19 @@ export function PlacementRecalculationAlert({
         return {
           cardClass: 'border-warning/50 bg-warning/5',
           iconColor: 'text-warning',
-          badgeClass: 'bg-warning/10 text-warning border-warning/20'
+          badgeClass: 'bg-warning/10 text-warning border-warning/20',
         };
       case 'medium':
         return {
           cardClass: 'border-primary/50 bg-primary/5',
           iconColor: 'text-primary',
-          badgeClass: 'bg-primary/10 text-primary border-primary/20'
+          badgeClass: 'bg-primary/10 text-primary border-primary/20',
         };
       case 'low':
         return {
           cardClass: 'border-border/50 bg-background/5',
           iconColor: 'text-muted-foreground',
-          badgeClass: 'bg-muted text-muted-foreground border-border'
+          badgeClass: 'bg-muted text-muted-foreground border-border',
         };
     }
   };
@@ -384,52 +381,47 @@ export function PlacementRecalculationAlert({
   }
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn('space-y-3', className)}>
       <AnimatePresence mode="popLayout">
         {visibleAlerts.map((alert, index) => {
           const styling = getAlertStyling(alert);
-          
+
           return (
             <motion.div
               key={alert.id}
               initial={{ opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 20, scale: 0.95 }}
-              transition={{ 
+              transition={{
                 duration: 0.3,
                 delay: index * 0.05,
-                ease: [0.25, 0.46, 0.45, 0.94]
+                ease: [0.25, 0.46, 0.45, 0.94],
               }}
             >
-              <Card className={cn(
-                "backdrop-blur-sm shadow-lg transition-all duration-300",
-                styling.cardClass
-              )}>
+              <Card
+                className={cn(
+                  'backdrop-blur-sm shadow-lg transition-all duration-300',
+                  styling.cardClass
+                )}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-start gap-3">
-                      <div className={cn("mt-1", styling.iconColor)}>
+                      <div className={cn('mt-1', styling.iconColor)}>
                         {alert.type === 'major_change' && <AlertTriangle className="h-4 w-4" />}
                         {alert.type === 'recalculation' && <RotateCcw className="h-4 w-4" />}
                         {alert.type === 'conflict_resolved' && <CheckCircle2 className="h-4 w-4" />}
                         {alert.type === 'new_scores' && <Zap className="h-4 w-4" />}
                       </div>
-                      
+
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-sm font-semibold text-foreground">
-                            {alert.title}
-                          </h4>
-                          <Badge 
-                            variant="outline" 
-                            className={cn("text-xs", styling.badgeClass)}
-                          >
+                          <h4 className="text-sm font-semibold text-foreground">{alert.title}</h4>
+                          <Badge variant="outline" className={cn('text-xs', styling.badgeClass)}>
                             {alert.priority}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {alert.message}
-                        </p>
+                        <p className="text-xs text-muted-foreground mb-2">{alert.message}</p>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           {alert.timestamp.toLocaleTimeString()}
@@ -457,7 +449,7 @@ export function PlacementRecalculationAlert({
                           </Tooltip>
                         </TooltipProvider>
                       )}
-                      
+
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -505,7 +497,7 @@ export function PlacementRecalculationAlert({
                               </span>
                             </motion.div>
                           ))}
-                          
+
                           {alert.changes.length > 5 && (
                             <div className="text-xs text-muted-foreground text-center py-1">
                               +{alert.changes.length - 5} more changes

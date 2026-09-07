@@ -5,8 +5,8 @@ license: MIT
 compatibility: Requires openspec CLI.
 metadata:
   author: openspec
-  version: "1.0"
-  generatedBy: "1.5.0"
+  version: '1.0'
+  generatedBy: '1.5.0'
 ---
 
 Implement tasks from an OpenSpec change.
@@ -28,29 +28,35 @@ Implement tasks from an OpenSpec change.
 
 2. **Check status to understand the schema**
    ```bash
-pnpm openspec status --change "<name>" --json
+
    ```
-   Parse the JSON to understand:
-   - `schemaName`: The workflow being used (e.g., "spec-driven")
-   - `planningHome`, `changeRoot`, and `actionContext`: planning scope and edit constraints
-   - Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
+
+pnpm openspec status --change "<name>" --json
+
+````
+Parse the JSON to understand:
+- `schemaName`: The workflow being used (e.g., "spec-driven")
+- `planningHome`, `changeRoot`, and `actionContext`: planning scope and edit constraints
+- Which artifact contains the tasks (typically "tasks" for spec-driven, check status for others)
 
 3. **Get apply instructions**
 
-   ```bash
+```bash
 pnpm openspec instructions apply --change "<name>" --json
-   ```
+````
 
-   This returns:
-   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
-   - Progress (total, complete, remaining)
-   - Task list with status
-   - Dynamic instruction based on current state
+This returns:
 
-   **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show message, suggest using openspec-continue-change
-   - If `state: "all_done"`: congratulate, suggest archive
-   - Otherwise: proceed to implementation
+- `contextFiles`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
+- Progress (total, complete, remaining)
+- Task list with status
+- Dynamic instruction based on current state
+
+**Handle states:**
+
+- If `state: "blocked"` (missing artifacts): show message, suggest using openspec-continue-change
+- If `state: "all_done"`: congratulate, suggest archive
+- Otherwise: proceed to implementation
 
 4. **Read context files**
 
@@ -142,6 +148,7 @@ What would you like to do?
 ```
 
 **Guardrails**
+
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
 - If task is ambiguous, pause and ask before implementing

@@ -52,29 +52,35 @@ export const useLazyLoading = (shouldLoad: boolean = true) => {
   };
 };
 
-export const useImageOptimization = (src: string, options: {
-  quality?: number;
-  format?: 'webp' | 'avif' | 'auto';
-  sizes?: string[];
-  lazy?: boolean;
-} = {}) => {
+export const useImageOptimization = (
+  src: string,
+  options: {
+    quality?: number;
+    format?: 'webp' | 'avif' | 'auto';
+    sizes?: string[];
+    lazy?: boolean;
+  } = {}
+) => {
   const { quality = 85, format = 'auto', sizes = [], lazy = true } = options;
   const [optimizedSrc, setOptimizedSrc] = useState<string>('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateOptimizedUrl = useCallback((originalSrc: string) => {
-    if (import.meta.env.VITE_CDN_BASE_URL) {
-      const params = new URLSearchParams();
-      params.set('q', quality.toString());
-      if (format !== 'auto') params.set('f', format);
-      if (sizes.length > 0) params.set('w', sizes[0]);
+  const generateOptimizedUrl = useCallback(
+    (originalSrc: string) => {
+      if (import.meta.env.VITE_CDN_BASE_URL) {
+        const params = new URLSearchParams();
+        params.set('q', quality.toString());
+        if (format !== 'auto') params.set('f', format);
+        if (sizes.length > 0) params.set('w', sizes[0]);
 
-      return `${import.meta.env.VITE_CDN_BASE_URL}/${originalSrc}?${params.toString()}`;
-    }
+        return `${import.meta.env.VITE_CDN_BASE_URL}/${originalSrc}?${params.toString()}`;
+      }
 
-    return originalSrc;
-  }, [quality, format, sizes]);
+      return originalSrc;
+    },
+    [quality, format, sizes]
+  );
 
   useEffect(() => {
     if (!src) return;

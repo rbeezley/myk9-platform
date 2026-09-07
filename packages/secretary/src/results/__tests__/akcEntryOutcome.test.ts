@@ -249,7 +249,11 @@ describe('classifyAKCEntryOutcome', () => {
       AKCEntryOutcome,
     ][]) {
       // Neutral lifecycle columns so result_status is the only signal.
-      const entry = makeEntry({ resultStatus, entryStatus: 'confirmed', checkInStatus: 'no-status' });
+      const entry = makeEntry({
+        resultStatus,
+        entryStatus: 'confirmed',
+        checkInStatus: 'no-status',
+      });
       expect(classifyAKCEntryOutcome(entry)).toBe(outcome);
     }
   });

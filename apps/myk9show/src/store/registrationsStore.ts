@@ -25,36 +25,41 @@ interface RegistrationsStore {
 
 export const useRegistrationsStore = create<RegistrationsStore>()(
   persist(
-    (set) => ({
+    set => ({
       registrations: [],
-      setRegistrations: (registrations) => set({ registrations }),
-      addRegistration: (registration) => set((state) => ({ 
-        registrations: [...state.registrations, registration] 
-      })),
-      updateRegistration: (registration) => set((state) => ({
-        registrations: state.registrations.map((r) => r.id === registration.id ? registration : r),
-      })),
-      removeRegistration: (id) => set((state) => ({
-        registrations: state.registrations.filter((r) => r.id !== id),
-      })),
+      setRegistrations: registrations => set({ registrations }),
+      addRegistration: registration =>
+        set(state => ({
+          registrations: [...state.registrations, registration],
+        })),
+      updateRegistration: registration =>
+        set(state => ({
+          registrations: state.registrations.map(r =>
+            r.id === registration.id ? registration : r
+          ),
+        })),
+      removeRegistration: id =>
+        set(state => ({
+          registrations: state.registrations.filter(r => r.id !== id),
+        })),
 
       // Dialog and selection state
       isAddRegistrationDialogOpen: false,
-      setIsAddRegistrationDialogOpen: (open) => set({ isAddRegistrationDialogOpen: open }),
+      setIsAddRegistrationDialogOpen: open => set({ isAddRegistrationDialogOpen: open }),
       isEditRegistrationDialogOpen: false,
-      setIsEditRegistrationDialogOpen: (open) => set({ isEditRegistrationDialogOpen: open }),
+      setIsEditRegistrationDialogOpen: open => set({ isEditRegistrationDialogOpen: open }),
       isDeleteRegistrationDialogOpen: false,
-      setIsDeleteRegistrationDialogOpen: (open) => set({ isDeleteRegistrationDialogOpen: open }),
+      setIsDeleteRegistrationDialogOpen: open => set({ isDeleteRegistrationDialogOpen: open }),
       isViewRegistrationDialogOpen: false,
-      setIsViewRegistrationDialogOpen: (open) => set({ isViewRegistrationDialogOpen: open }),
+      setIsViewRegistrationDialogOpen: open => set({ isViewRegistrationDialogOpen: open }),
       selectedRegistration: null,
-      setSelectedRegistration: (registration) => set({ selectedRegistration: registration }),
+      setSelectedRegistration: registration => set({ selectedRegistration: registration }),
     }),
     {
       name: 'myk9show-registrations-storage',
       storage: createJSONStorage(() => getOptimalStorage('registrations')),
       // Only persist the registrations data, not the UI state
-      partialize: (state) => ({
+      partialize: state => ({
         registrations: state.registrations,
       }),
       version: 1,

@@ -36,10 +36,7 @@
  * arithmetic, never the size.
  */
 
-import {
-  calculatePlatformFeeCents,
-  type PlatformFeeRates,
-} from '@/store/cartStore.helpers';
+import { calculatePlatformFeeCents, type PlatformFeeRates } from '@/store/cartStore.helpers';
 
 /**
  * Stripe's published US domestic card rate. An assumption about a THIRD PARTY's
@@ -85,8 +82,7 @@ export interface PlatformFeeSplit {
 export function estimateCardProcessingCents(amountChargedCents: number): number {
   if (!Number.isFinite(amountChargedCents) || amountChargedCents <= 0) return 0;
   return (
-    Math.round((amountChargedCents * STRIPE_CARD_RATE.percent) / 100) +
-    STRIPE_CARD_RATE.flatCents
+    Math.round((amountChargedCents * STRIPE_CARD_RATE.percent) / 100) + STRIPE_CARD_RATE.flatCents
   );
 }
 
@@ -94,10 +90,7 @@ export function estimateCardProcessingCents(amountChargedCents: number): number 
  * Split the fee for one cart. The two parts always sum to `feeCents` exactly,
  * so the disclosure can never add up to a different number than the charge.
  */
-export function splitPlatformFee(
-  subtotalCents: number,
-  rates: PlatformFeeRates
-): PlatformFeeSplit {
+export function splitPlatformFee(subtotalCents: number, rates: PlatformFeeRates): PlatformFeeSplit {
   const feeCents = calculatePlatformFeeCents(subtotalCents, rates);
   if (feeCents <= 0) {
     return {

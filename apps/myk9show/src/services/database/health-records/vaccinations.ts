@@ -36,9 +36,7 @@ export const updateVaccination = (id: string, updates: DbVaccinationUpdate) =>
   );
 
 export const deleteVaccination = (id: string) =>
-  wrapMutation('vaccination', 'delete', () =>
-    supabase.from('vaccinations').delete().eq('id', id)
-  );
+  wrapMutation('vaccination', 'delete', () => supabase.from('vaccinations').delete().eq('id', id));
 
 // Get upcoming vaccinations (due within next 30 days)
 export const getUpcomingVaccinations = (dogId?: string) => {

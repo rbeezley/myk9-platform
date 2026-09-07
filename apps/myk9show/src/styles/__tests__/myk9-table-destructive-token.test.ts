@@ -9,11 +9,7 @@ import { describe, expect, it } from 'vitest';
  * --destructive-strong token (AA on card/popover surfaces in both themes); the
  * old #ff3b30 was only ~3.4:1 on the card and overrode the primitive's token.
  */
-const cssPath = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'myk9-table.css'
-);
+const cssPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'myk9-table.css');
 const css = readFileSync(cssPath, 'utf8');
 
 describe('myk9-table destructive dropdown item', () => {

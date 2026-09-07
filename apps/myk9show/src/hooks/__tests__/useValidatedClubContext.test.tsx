@@ -243,8 +243,8 @@ describe('selectValidatedClubContext — switching and session scope (MYK9-138)'
   });
 
   it('honours an unattributed selection, so the store default is not a blocker', () => {
-    expect(
-      selectValidatedClubContext({ ...twoClubAdmin, selectedClubId: 'club-b' })
-    ).toMatchObject({ status: 'ready', clubId: 'club-b' });
+    expect(selectValidatedClubContext({ ...twoClubAdmin, selectedClubId: 'club-b' })).toMatchObject(
+      { status: 'ready', clubId: 'club-b' }
+    );
   });
 });

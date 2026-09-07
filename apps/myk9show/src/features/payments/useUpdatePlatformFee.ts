@@ -37,7 +37,11 @@ export function useUpdatePlatformFee() {
 
   return useMutation({
     mutationFn: async (rates: PlatformFeeRates): Promise<PlatformFeeRates> => {
-      if (!Number.isFinite(rates.percent) || rates.percent < 0 || rates.percent > PLATFORM_FEE_BOUNDS.maxPercent) {
+      if (
+        !Number.isFinite(rates.percent) ||
+        rates.percent < 0 ||
+        rates.percent > PLATFORM_FEE_BOUNDS.maxPercent
+      ) {
         throw new Error(
           `Platform fee must be between 0 and ${PLATFORM_FEE_BOUNDS.maxPercent} percent.`
         );

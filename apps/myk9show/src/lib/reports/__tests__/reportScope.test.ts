@@ -43,8 +43,6 @@ describe('report scope', () => {
     };
     expect(isReportScopeSupported({ scopes: ['trial', 'class'] }, scope)).toBe(true);
     expect(isReportScopeSupported({ scopes: ['show'] }, scope)).toBe(false);
-    expect(getReportScopeSearchParams(scope).toString()).toBe(
-      'trialId=trial-1&classId=class-1'
-    );
+    expect(getReportScopeSearchParams(scope).toString()).toBe('trialId=trial-1&classId=class-1');
   });
 });

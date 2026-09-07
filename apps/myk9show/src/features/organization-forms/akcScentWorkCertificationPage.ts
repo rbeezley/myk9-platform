@@ -6,12 +6,7 @@ import { trialEventNumber } from './reportValueHelpers';
 import { AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS } from './akcScentWorkCertificationPageFields';
 
 type CertificationElement =
-  | 'Container'
-  | 'Interior'
-  | 'Exterior'
-  | 'Buried'
-  | 'Handler Discrimination'
-  | 'Detective';
+  'Container' | 'Interior' | 'Exterior' | 'Buried' | 'Handler Discrimination' | 'Detective';
 
 export interface CertificationPageValues {
   judgeName: string;
@@ -32,7 +27,9 @@ const ELEMENTS = Object.keys(ELEMENT_FIELDS) as CertificationElement[];
 const UNKNOWN_JUDGE = 'Unknown Judge';
 
 export function buildAKCScentWorkCertificationPageFilename(props: ReportProps): string {
-  const trialToken = sanitizeFilenameToken(trialEventNumber(props) ?? props.trial?.trialNumber ?? '');
+  const trialToken = sanitizeFilenameToken(
+    trialEventNumber(props) ?? props.trial?.trialNumber ?? ''
+  );
   return `akc-certification-page-${trialToken || 'trial'}.pdf`;
 }
 
@@ -66,14 +63,13 @@ export async function buildAKCScentWorkCertificationPagePdfBytes(input: {
   return outputPdf.save();
 }
 
-function buildJudgeCertificationValues(
-  props: ReportProps,
-  judgeName: string
-): PdfFormFillValues {
+function buildJudgeCertificationValues(props: ReportProps, judgeName: string): PdfFormFillValues {
   const text: NonNullable<PdfFormFillValues['text']> = {
     [AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS.judgeName]: judgeName,
-    [AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS.judgeTotalQualifying]:
-      qualifyingEntriesForJudge(props.entries, judgeName).length,
+    [AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS.judgeTotalQualifying]: qualifyingEntriesForJudge(
+      props.entries,
+      judgeName
+    ).length,
     [AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS.totalEntries]: props.entries.length,
     [AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS.totalRuns]: totalRuns(props.entries),
     [AKC_SCENT_WORK_CERTIFICATION_PAGE_FIELDS.totalWithdrawn]: totalWithdrawn(props.entries),
@@ -117,7 +113,9 @@ function elementsJudgedBy(props: ReportProps, judgeName: string): Set<Certificat
 }
 
 function qualifyingEntriesForJudge(entries: ReportEntry[], judgeName: string): ReportEntry[] {
-  return entries.filter(entry => isQualified(entry) && cleanJudgeName(entry.judgeName) === judgeName);
+  return entries.filter(
+    entry => isQualified(entry) && cleanJudgeName(entry.judgeName) === judgeName
+  );
 }
 
 function qualifyingEntriesForJudgeAndElement(
@@ -137,8 +135,7 @@ function totalRuns(entries: ReportEntry[]): number {
 function totalWithdrawn(entries: ReportEntry[]): number {
   return entries.filter(
     entry =>
-      entry.checkInStatus === 'withdrawn' ||
-      entry.resultText?.trim().toLowerCase() === 'withdrawn'
+      entry.checkInStatus === 'withdrawn' || entry.resultText?.trim().toLowerCase() === 'withdrawn'
   ).length;
 }
 

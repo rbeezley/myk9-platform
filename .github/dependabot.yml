@@ -16,21 +16,21 @@ version: 2
 # ignore if periodic visibility into routine majors becomes desirable.
 
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Etc/UTC"
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'Etc/UTC'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
-      - "automated"
+      - 'dependencies'
+      - 'automated'
     commit-message:
-      prefix: "fix(deps)"
-      prefix-development: "chore(deps-dev)"
-      include: "scope"
+      prefix: 'fix(deps)'
+      prefix-development: 'chore(deps-dev)'
+      include: 'scope'
     groups:
       # @supabase/* is the spine of both apps — realtime, auth, postgrest, storage.
       # Keep it OUT of the catch-all group so any minor/patch lands as its own PR
@@ -40,46 +40,46 @@ updates:
       # sub-packages so this doesn't need re-editing if pnpm hoists any as direct deps.
       supabase:
         patterns:
-          - "@supabase/*"
+          - '@supabase/*'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
       npm-minor-patch:
         patterns:
-          - "*"
+          - '*'
         exclude-patterns:
           # Root pnpm.overrides pins these direct deps. Keep them out of the
           # catch-all group so Dependabot doesn't produce PRs where manifests
           # move but the lockfile still resolves to the pinned version.
-          - "@supabase/*"
-          - "eslint-plugin-react-hooks"
-          - "workbox-build"
+          - '@supabase/*'
+          - 'eslint-plugin-react-hooks'
+          - 'workbox-build'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
     ignore:
-      - dependency-name: "*"
+      - dependency-name: '*'
         update-types:
-          - "version-update:semver-major"
+          - 'version-update:semver-major'
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Etc/UTC"
+      interval: 'weekly'
+      day: 'monday'
+      time: '06:00'
+      timezone: 'Etc/UTC'
     open-pull-requests-limit: 3
     labels:
-      - "ci"
-      - "automated"
+      - 'ci'
+      - 'automated'
     commit-message:
-      prefix: "ci(actions)"
-      include: "scope"
+      prefix: 'ci(actions)'
+      include: 'scope'
     groups:
       gha-minor-patch:
         patterns:
-          - "*"
+          - '*'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'

@@ -185,8 +185,7 @@ export function ResultEntryNavigation({
                 <div className="myk9-judge-progress-indicator">
                   <StatusIcon family="entry" status="in-progress" size="sm" decorative />
                   <span>
-                    {progressStats.inProgress}{' '}
-                    {getStatusDescriptor('entry', 'in-progress').label}
+                    {progressStats.inProgress} {getStatusDescriptor('entry', 'in-progress').label}
                   </span>
                 </div>
                 <div className="myk9-judge-progress-indicator">

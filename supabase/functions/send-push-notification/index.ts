@@ -94,5 +94,5 @@ handle<SendPushPayload>(
     }
 
     return { sent, errors: errors.length ? errors : undefined };
-  },
+  }
 );

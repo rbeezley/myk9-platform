@@ -33,14 +33,14 @@ export const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
       advancedSearch: false,
       handlerAssignment: false,
       statusManagement: false,
-      paymentOverride: false
+      paymentOverride: false,
     },
     ui: {
       showAdvancedOptions: false,
       showBulkActions: false,
       showQuickFilters: true,
-      maxDogsPerRegistration: 5
-    }
+      maxDogsPerRegistration: 5,
+    },
   },
   secretary_existing: {
     steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
@@ -50,66 +50,87 @@ export const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
       advancedSearch: true,
       handlerAssignment: true,
       statusManagement: true,
-      paymentOverride: false
+      paymentOverride: false,
     },
     ui: {
       showAdvancedOptions: true,
       showBulkActions: true,
       showQuickFilters: true,
-      maxDogsPerRegistration: 50
-    }
+      maxDogsPerRegistration: 50,
+    },
   },
   secretary_new: {
-    steps: ['create-exhibitor', 'dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+    steps: [
+      'create-exhibitor',
+      'dog-selection',
+      'class-selection',
+      'handler-assignment',
+      'payment',
+      'confirmation',
+    ],
     features: {
       bulkSelection: true,
       createNew: true,
       advancedSearch: true,
       handlerAssignment: true,
       statusManagement: true,
-      paymentOverride: true
+      paymentOverride: true,
     },
     ui: {
       showAdvancedOptions: true,
       showBulkActions: true,
       showQuickFilters: true,
-      maxDogsPerRegistration: 50
-    }
+      maxDogsPerRegistration: 50,
+    },
   },
   club_admin: {
-    steps: ['create-exhibitor', 'dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+    steps: [
+      'create-exhibitor',
+      'dog-selection',
+      'class-selection',
+      'handler-assignment',
+      'payment',
+      'confirmation',
+    ],
     features: {
       bulkSelection: true,
       createNew: true,
       advancedSearch: true,
       handlerAssignment: true,
       statusManagement: true,
-      paymentOverride: true
+      paymentOverride: true,
     },
     ui: {
       showAdvancedOptions: true,
       showBulkActions: true,
       showQuickFilters: true,
-      maxDogsPerRegistration: 100
-    }
+      maxDogsPerRegistration: 100,
+    },
   },
   site_admin: {
-    steps: ['create-exhibitor', 'dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
+    steps: [
+      'create-exhibitor',
+      'dog-selection',
+      'class-selection',
+      'handler-assignment',
+      'payment',
+      'confirmation',
+    ],
     features: {
       bulkSelection: true,
       createNew: true,
       advancedSearch: true,
       handlerAssignment: true,
       statusManagement: true,
-      paymentOverride: true
+      paymentOverride: true,
     },
     ui: {
       showAdvancedOptions: true,
       showBulkActions: true,
       showQuickFilters: true,
-      maxDogsPerRegistration: 1000
-    }
-  }
+      maxDogsPerRegistration: 1000,
+    },
+  },
 };
 
 /**

@@ -41,9 +41,7 @@ describe('MonogramSectionHead', () => {
   });
 
   it('uses the mg-section__head class so monogram.css selectors apply', () => {
-    const { container } = render(
-      <MonogramSectionHead numeral="i" eyebrow="x" title="y" />
-    );
+    const { container } = render(<MonogramSectionHead numeral="i" eyebrow="x" title="y" />);
     expect(container.querySelector('.mg-section__head')).not.toBeNull();
   });
 });

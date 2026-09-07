@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildTimestamp, formattedBuildDate, getBuildReference, productVersion } from './appVersion';
+import {
+  buildTimestamp,
+  formattedBuildDate,
+  getBuildReference,
+  productVersion,
+} from './appVersion';
 
 describe('appVersion', () => {
   it('exposes a non-empty product version from package.json', () => {

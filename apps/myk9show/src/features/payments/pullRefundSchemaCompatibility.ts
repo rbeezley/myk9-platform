@@ -8,8 +8,7 @@ const PULL_REFUND_SCHEMA_TARGET =
   /refund_decision|refund_decided_at|refund_decided_by|set_entry_refund_decision/i;
 const MISSING_SCHEMA_MESSAGE = /does not exist|schema cache|could not find/i;
 
-const SECRETARY_PAYMENT_SCHEMA_TARGET =
-  /payment_reference|payment_received_on|payment_notes/i;
+const SECRETARY_PAYMENT_SCHEMA_TARGET = /payment_reference|payment_received_on|payment_notes/i;
 
 /**
  * True only when the migration-backed secretary payment bookkeeping columns are

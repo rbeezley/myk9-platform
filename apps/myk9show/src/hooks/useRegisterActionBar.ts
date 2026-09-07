@@ -35,9 +35,10 @@ interface RegisterActionBarOptions {
   onHeightChange?: (height: number) => void;
 }
 
-export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>(
-  { bottomOffsetPx = 0, onHeightChange }: RegisterActionBarOptions = {}
-) {
+export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>({
+  bottomOffsetPx = 0,
+  onHeightChange,
+}: RegisterActionBarOptions = {}) {
   // useId keeps two instances of the same panel from clobbering each other's
   // entry — an id derived from the component name would not.
   const id = useId();
@@ -81,8 +82,7 @@ export function useRegisterActionBar<T extends HTMLElement = HTMLDivElement>(
         // by ~25px and the first resize would silently shrink the reservation the
         // initial getBoundingClientRect measurement got right. Measured on /dogs:
         // 44px reported against a 69px bar.
-        const measured =
-          entry.borderBoxSize?.[0]?.blockSize ?? node.getBoundingClientRect().height;
+        const measured = entry.borderBoxSize?.[0]?.blockSize ?? node.getBoundingClientRect().height;
         const next = measured + bottomOffsetPx;
         setHeight(id, next);
         onHeightChangeRef.current?.(Math.max(0, Math.round(next)));

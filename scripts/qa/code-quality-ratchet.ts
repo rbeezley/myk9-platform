@@ -3,10 +3,7 @@ import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export type CodeQualityMetricName =
-  | 'oversizedSourceFiles'
-  | 'anyCasts'
-  | 'todoMarkers'
-  | 'directSupabaseCoreBypasses';
+  'oversizedSourceFiles' | 'anyCasts' | 'todoMarkers' | 'directSupabaseCoreBypasses';
 
 export type CodeQualityMetrics = Record<CodeQualityMetricName, number>;
 
@@ -56,12 +53,7 @@ const EVIDENCE_PRINT_LIMIT = 25;
 export const DEFAULT_CONFIG: CodeQualityRatchetConfig = {
   sourceRoots: ['apps', 'packages'],
   oversizedLineThreshold: 500,
-  generatedFileSuffixes: [
-    'database.types.ts',
-    'supabase.ts',
-    '.generated.ts',
-    '.generated.tsx',
-  ],
+  generatedFileSuffixes: ['database.types.ts', 'supabase.ts', '.generated.ts', '.generated.tsx'],
   coreFlowPaths: [
     'apps/myk9show/src/services/database/entries/secretaryReadReplication.ts',
     'apps/myk9show/src/services/database/entries/userEntriesReplication.ts',

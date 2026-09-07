@@ -112,11 +112,9 @@ describe('getTabQuickActions navigation', () => {
   it('offers Analytics only when the feature flag is on', () => {
     // The route is wrapped in featurePage(features.analytics, ...), so with the
     // flag off this button navigated correctly to a "coming soon" screen.
-    const ids = getTabQuickActions(
-      'managing',
-      userWith([PERMISSIONS.SHOW_MANAGE]),
-      vi.fn()
-    ).map(a => a.id);
+    const ids = getTabQuickActions('managing', userWith([PERMISSIONS.SHOW_MANAGE]), vi.fn()).map(
+      a => a.id
+    );
     expect(ids.includes('analytics')).toBe(features.analytics);
   });
 

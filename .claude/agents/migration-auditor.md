@@ -15,6 +15,7 @@ When given a migration file path, read the file and run each check below in orde
 If the migration contains `CREATE TABLE public.<name>`, verify the same migration (or a prior migration) contains explicit GRANTs. As of Oct 30, 2026 Supabase no longer auto-exposes new public tables to PostgREST without a grant — missing grants silently 404.
 
 Required pattern (match the access level the table actually needs):
+
 ```sql
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.<table> TO authenticated;
 GRANT SELECT ON public.<table> TO anon;  -- only if anon reads are needed
@@ -25,6 +26,7 @@ FAIL if a CREATE TABLE has no corresponding GRANT in the same migration. Suggest
 ## Check 2 — RLS enabled for new tables
 
 If the migration contains `CREATE TABLE public.<name>`, verify it also contains:
+
 ```sql
 ALTER TABLE public.<name> ENABLE ROW LEVEL SECURITY;
 ```
@@ -34,12 +36,14 @@ FAIL if missing. Also check that at least one CREATE POLICY exists for the table
 ## Check 3 — O(N) RLS function call anti-pattern
 
 Scan all CREATE POLICY statements. Flag WARN if a policy's USING clause calls any of these per-row functions inside a subquery:
+
 - `can_manage_show_person()`
 - `can_manage_show_dog()`
 - `can_manage_show()`
 - Any function whose name starts with `can_` applied to a column value (not a constant)
 
 These cause O(N) calls and have caused statement timeouts (see migrations 20260602000000 and 20260602040000 for the fix pattern). Suggest the direct `user_roles` join pattern instead:
+
 ```sql
 exists (
   select 1 from public.user_roles ur
@@ -52,6 +56,7 @@ exists (
 ## Check 4 — INSERT references without a pre-query comment
 
 If the migration inserts rows that reference values from another table (e.g., `INSERT INTO role_permissions SELECT id FROM permissions WHERE ...` or hardcoded UUIDs/names from seed tables), verify there is either:
+
 - A SELECT/query in the same migration that confirms the referenced rows exist, OR
 - A comment explaining why the reference is known-safe (e.g., "added in migration NNN")
 
@@ -60,12 +65,14 @@ WARN if a hardcoded UUID or name from another table is referenced without eviden
 ## Check 5 — Enum / CHECK constraint alignment
 
 If the migration inserts or updates a column that has a known CHECK constraint in this project, verify the values match. Known constrained columns:
+
 - `entries.status`: `'pending' | 'confirmed' | 'waitlisted' | 'withdrawn'`
 - `entries.confirmation_email_status`: `'pending' | 'sent' | 'bounced' | 'failed'`
 - `shows.landing_style`: `'default' | 'heritage'`
 - `trials.registry_id`: typically `'AKC'` or `'UKC'`
 
 If the migration modifies a CHECK constraint, verify all existing INSERT/UPDATE values in other migrations still comply. To check, run:
+
 ```bash
 grep -rn "INSERT INTO public\.<table>" supabase/migrations/ | grep -v "^Binary"
 ```
@@ -73,9 +80,11 @@ grep -rn "INSERT INTO public\.<table>" supabase/migrations/ | grep -v "^Binary"
 ## Check 6 — Migration numbering
 
 Read the filename timestamp prefix (format: `YYYYMMDDHHMMSS_description.sql`). Run:
+
 ```bash
 ls supabase/migrations/ | sort | tail -5
 ```
+
 Verify no two migrations share the same timestamp prefix. Flag FAIL if collision detected.
 
 ## Check 7 — DROP POLICY / DROP TABLE safety

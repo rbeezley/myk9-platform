@@ -33,7 +33,11 @@ export function OfficersSection({ officers, secretaryName, volumeRoman }: Office
         page={7}
         volume={volumeRoman}
         kicker="In whose care"
-        title={<>Officers <em>of the club</em></>}
+        title={
+          <>
+            Officers <em>of the club</em>
+          </>
+        }
       />
       <div className="grid grid-cols-1 gap-x-12 gap-y-8 sm:grid-cols-2 md:grid-cols-3">
         {all.map(officer => (

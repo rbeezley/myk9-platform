@@ -14,30 +14,30 @@ testing. The final read-only fetch confirmed `main` and `origin/main` at the bas
 
 ## Summary
 
-| Source severity | Count |
-| --- | ---: |
-| CRITICAL | 0 |
-| HIGH | 4 |
-| MEDIUM | 4 |
-| LOW | 2 |
-| INFO | 2 |
+| Source severity          |  Count |
+| ------------------------ | -----: |
+| CRITICAL                 |      0 |
+| HIGH                     |      4 |
+| MEDIUM                   |      4 |
+| LOW                      |      2 |
+| INFO                     |      2 |
 | **Total current ledger** | **12** |
 
 | Canonical launch severity | Count |
-| --- | ---: |
-| P0 | 2 |
-| P1 | 2 |
-| P2 | 5 |
-| P3 | 3 |
+| ------------------------- | ----: |
+| P0                        |     2 |
+| P1                        |     2 |
+| P2                        |     5 |
+| P3                        |     3 |
 
-| Lifecycle transition | Count | Meaning |
-| --- | ---: | --- |
-| new | 2 | SA-2026-07-30-01 and SA-2026-07-30-02 |
-| unchanged | 9 | Reconfirmed findings/informational records |
-| resolved | 0 | No finding was closed from code alone |
-| duplicate | 1 | Historical alias SA-2026-07-29-09 remains canonical SA-027 |
-| rejected | 3 | Prior candidates -04, -07, and -10 |
-| blocked | 1 | SA-2026-07-29-13 has a source fix but lacks applied exploit-path closure proof |
+| Lifecycle transition | Count | Meaning                                                                        |
+| -------------------- | ----: | ------------------------------------------------------------------------------ |
+| new                  |     2 | SA-2026-07-30-01 and SA-2026-07-30-02                                          |
+| unchanged            |     9 | Reconfirmed findings/informational records                                     |
+| resolved             |     0 | No finding was closed from code alone                                          |
+| duplicate            |     1 | Historical alias SA-2026-07-29-09 remains canonical SA-027                     |
+| rejected             |     3 | Prior candidates -04, -07, and -10                                             |
+| blocked              |     1 | SA-2026-07-29-13 has a source fix but lacks applied exploit-path closure proof |
 
 Auto-fixable: **4 of 12** (SA-2026-07-29-03, SA-2026-07-29-08,
 SA-2026-07-29-13, and SA-2026-07-30-02). **8 require a design or policy decision.**
@@ -435,24 +435,24 @@ dependency.
 
 ## Candidate dispositions
 
-| Candidate | Status | Evidence |
-| --- | --- | --- |
-| SA-2026-07-29-04 (`people.email`) | **rejected** | The grant is a documented PostgREST embed dependency; people row RLS returns no cold-anon rows. No current disclosure path. |
-| SA-2026-07-29-07 (branding storage predicate) | **rejected as security** | The ambiguous inner `name` binding fails closed. It remains product correctness, not unauthorized access. |
-| SA-2026-07-29-09 | **duplicate** | Reuse canonical SA-027. |
-| SA-2026-07-29-10 (advisor comments) | **rejected** | The required deny-all rationale comments exist in current migrations. |
+| Candidate                                     | Status                   | Evidence                                                                                                                    |
+| --------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| SA-2026-07-29-04 (`people.email`)             | **rejected**             | The grant is a documented PostgREST embed dependency; people row RLS returns no cold-anon rows. No current disclosure path. |
+| SA-2026-07-29-07 (branding storage predicate) | **rejected as security** | The ambiguous inner `name` binding fails closed. It remains product correctness, not unauthorized access.                   |
+| SA-2026-07-29-09                              | **duplicate**            | Reuse canonical SA-027.                                                                                                     |
+| SA-2026-07-29-10 (advisor comments)           | **rejected**             | The required deny-all rationale comments exist in current migrations.                                                       |
 
 ## Categories checked
 
-| Category | Scope examined | Findings | Incomplete/blocked |
-| --- | --- | ---: | --- |
-| RLS Policy Integrity | 441 migration files inventoried; final policy/grant/helper delta read; repository FORCE-RLS and grant-decision contracts replayed | 01, 02, 03, 08, 2026-07-30-02 | Applied database not re-queried |
-| Edge Function Auth | all 35 `index.ts` entrypoints inventoried; no entrypoint changed since prior baseline; complete implicated functions/shared helpers read | 11, 12; INFO 05 | No live model/anonymous invocation |
-| RBAC & Privilege Escalation | roles/permissions/user_roles policies; final helper bodies; current remediation and behavioral SQL test | 06, 13, 2026-07-30-01; INFO SA-027 | Applied RBAC behavior not replayed |
-| Client Auth Patterns | auth lifecycle, anonymous-session flow, 15 route files, route guards, current RBAC/replication delta | 01, 02 | Static only |
-| Data Exposure | AskQ scope, grants/policies, public/replication reads, logging/error and storage upload paths | 01, 02, 03, 08, 13 | Public bucket objects not inventoried |
-| Payment Security | 9 Stripe/refund/payout entrypoints, money locks, withdrawal snapshots, and focused contracts; no source delta | 0 | No paid/refund/payout smoke |
-| Input Validation | request/UUID/redirect validation, HTML sinks, URL params, forms, and image/storage path policies | 0 | Static only |
+| Category                    | Scope examined                                                                                                                           |                           Findings | Incomplete/blocked                    |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------: | ------------------------------------- |
+| RLS Policy Integrity        | 441 migration files inventoried; final policy/grant/helper delta read; repository FORCE-RLS and grant-decision contracts replayed        |      01, 02, 03, 08, 2026-07-30-02 | Applied database not re-queried       |
+| Edge Function Auth          | all 35 `index.ts` entrypoints inventoried; no entrypoint changed since prior baseline; complete implicated functions/shared helpers read |                    11, 12; INFO 05 | No live model/anonymous invocation    |
+| RBAC & Privilege Escalation | roles/permissions/user_roles policies; final helper bodies; current remediation and behavioral SQL test                                  | 06, 13, 2026-07-30-01; INFO SA-027 | Applied RBAC behavior not replayed    |
+| Client Auth Patterns        | auth lifecycle, anonymous-session flow, 15 route files, route guards, current RBAC/replication delta                                     |                             01, 02 | Static only                           |
+| Data Exposure               | AskQ scope, grants/policies, public/replication reads, logging/error and storage upload paths                                            |                 01, 02, 03, 08, 13 | Public bucket objects not inventoried |
+| Payment Security            | 9 Stripe/refund/payout entrypoints, money locks, withdrawal snapshots, and focused contracts; no source delta                            |                                  0 | No paid/refund/payout smoke           |
+| Input Validation            | request/UUID/redirect validation, HTML sinks, URL params, forms, and image/storage path policies                                         |                                  0 | Static only                           |
 
 ### Focus areas with no additional concrete finding
 
@@ -497,34 +497,34 @@ Current `main` adds the cold-anon class allowlist, RBAC self/admin lookup restri
 table grants, class hide-count replication, and registry/title corrections. No edge entrypoint,
 Stripe/refund/payout source, or AskQ/passcode authorization source changed.
 
-| Prior tracked item | Transition |
-| --- | --- |
-| SA-2026-07-29-01 | **unchanged / partial:** cold anon passed closure proof; authenticated and passcode legs remain and now have MYK9-127/128 |
-| SA-2026-07-29-02, -03, -05, -06, -08 | **unchanged**, independently confirmed |
-| SA-027 | **unchanged**; alias -09 remains duplicate |
-| SA-2026-07-29-11, -12 | **unchanged** after a second consecutive confirmed run |
-| SA-2026-07-29-13 | **blocked:** source remediation confirmed; applied behavioral closure not run |
-| SA-2026-07-30-01, -02 | **new**, independently confirmed |
-| Prior -04, -07, -10 | **rejected** for the prior reasons |
+| Prior tracked item                   | Transition                                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| SA-2026-07-29-01                     | **unchanged / partial:** cold anon passed closure proof; authenticated and passcode legs remain and now have MYK9-127/128 |
+| SA-2026-07-29-02, -03, -05, -06, -08 | **unchanged**, independently confirmed                                                                                    |
+| SA-027                               | **unchanged**; alias -09 remains duplicate                                                                                |
+| SA-2026-07-29-11, -12                | **unchanged** after a second consecutive confirmed run                                                                    |
+| SA-2026-07-29-13                     | **blocked:** source remediation confirmed; applied behavioral closure not run                                             |
+| SA-2026-07-30-01, -02                | **new**, independently confirmed                                                                                          |
+| Prior -04, -07, -10                  | **rejected** for the prior reasons                                                                                        |
 
 Historical closures SA-020, SA-021, SA-023, SA-024, SA-025, SA-028, SA-029, and SA-030 retain their
 prior resolved status and prior replay proof. They were not re-resolved from code inspection.
 
 ## Independent `/codex:review` disposition
 
-| Item | Verdict |
-| --- | --- |
-| 01 | confirmed HIGH/P0; cold-anon remediation valid but incomplete for authenticated/passcode |
-| 02 | confirmed HIGH/P1 |
-| 03 | confirmed MEDIUM/P2 |
-| 05 | INFO/P3; no victim-token path |
-| 06 | confirmed MEDIUM/P2 |
-| 08 | confirmed LOW/P3 |
-| SA-027 | duplicate/accepted-dependency INFO/P3 |
-| 11 | confirmed HIGH/P1 |
-| 12 | confirmed MEDIUM/P2 |
-| 13 | source fix confirmed; closure blocked |
-| 2026-07-30-01 | confirmed HIGH/P0 |
+| Item          | Verdict                                                                                   |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| 01            | confirmed HIGH/P0; cold-anon remediation valid but incomplete for authenticated/passcode  |
+| 02            | confirmed HIGH/P1                                                                         |
+| 03            | confirmed MEDIUM/P2                                                                       |
+| 05            | INFO/P3; no victim-token path                                                             |
+| 06            | confirmed MEDIUM/P2                                                                       |
+| 08            | confirmed LOW/P3                                                                          |
+| SA-027        | duplicate/accepted-dependency INFO/P3                                                     |
+| 11            | confirmed HIGH/P1                                                                         |
+| 12            | confirmed MEDIUM/P2                                                                       |
+| 13            | source fix confirmed; closure blocked                                                     |
+| 2026-07-30-01 | confirmed HIGH/P0                                                                         |
 | 2026-07-30-02 | confirmed monitor defect LOW/P2 by standards axis; spec axis recommended attachment to 01 |
 
 The independent review also rejected an additional security regression in the registry/title delta
@@ -535,8 +535,7 @@ and found no contradictory payment, passcode-claim-write, or replication authori
 1. **No applied database/HTTP replay.** This static audit reconciled the prior applied evidence but
    did not measure deployment drift.
 2. **No composed anonymous-session exploit replay.** Creating an Auth identity is an external write.
-3. **No real exhibitor/secretary/judge/steward token matrix.** This blocks full proof for 01, 02, and
-   06.
+3. **No real exhibitor/secretary/judge/steward token matrix.** This blocks full proof for 01, 02, and 06.
 4. **RBAC behavioral SQL not executed.** This is why 13 is blocked rather than resolved.
 5. **No cross-tenant `create_show_with_children` exploit replay.** Source and dependency evidence
    establish the path; a disposable database is required for closure.
@@ -548,14 +547,14 @@ and found no contradictory payment, passcode-claim-write, or replication authori
 
 No Linear issue was created, updated, or closed during this audit.
 
-| Finding | Existing issue | Current state |
-| --- | --- | --- |
+| Finding          | Existing issue                                              | Current state                                |
+| ---------------- | ----------------------------------------------------------- | -------------------------------------------- |
 | SA-2026-07-29-01 | [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116) | Done for cold-anon scope, with applied proof |
-| SA-2026-07-29-01 | [MYK9-127](https://linear.app/myk9-platform/issue/MYK9-127) | Todo / High |
-| SA-2026-07-29-01 | [MYK9-128](https://linear.app/myk9-platform/issue/MYK9-128) | Backlog / High |
-| SA-2026-07-29-02 | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117) | Todo / High |
-| SA-2026-07-29-11 | [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) | Todo / High |
-| SA-2026-07-30-01 | none | Draft below awaits batch approval |
+| SA-2026-07-29-01 | [MYK9-127](https://linear.app/myk9-platform/issue/MYK9-127) | Todo / High                                  |
+| SA-2026-07-29-01 | [MYK9-128](https://linear.app/myk9-platform/issue/MYK9-128) | Backlog / High                               |
+| SA-2026-07-29-02 | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117) | Todo / High                                  |
+| SA-2026-07-29-11 | [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) | Todo / High                                  |
+| SA-2026-07-30-01 | none                                                        | Draft below awaits batch approval            |
 
 SA-2026-07-30-02 is P2/LOW and remains report-only. It is related to completed MYK9-93 and
 MYK9-116 but is not a duplicate of either remediation.

@@ -38,10 +38,7 @@ export function EditingBadge({ entityType, entityId, className }: EditingBadgePr
     <span
       role="status"
       title={`${editorName} currently has this open for editing`}
-      className={cn(
-        'inline-flex items-center gap-1.5 text-xs text-muted-foreground',
-        className
-      )}
+      className={cn('inline-flex items-center gap-1.5 text-xs text-muted-foreground', className)}
     >
       <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
       {editorName} is editing this

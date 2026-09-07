@@ -88,7 +88,8 @@ export async function updateAchievement(data: UpdateAchievementData): Promise<Ac
   const dbUpdate: TablesUpdate<'achievements'> = {};
   if (updateData.title !== undefined) dbUpdate.title = updateData.title;
   if (updateData.organization !== undefined) dbUpdate.organization = updateData.organization;
-  if ('sport' in updateData && typeof updateData.sport === 'string') dbUpdate.sport = updateData.sport;
+  if ('sport' in updateData && typeof updateData.sport === 'string')
+    dbUpdate.sport = updateData.sport;
   if (updateData.date_earned !== undefined) dbUpdate.date_earned = updateData.date_earned;
   if (updateData.certificate_number !== undefined)
     dbUpdate.certificate_number = updateData.certificate_number;

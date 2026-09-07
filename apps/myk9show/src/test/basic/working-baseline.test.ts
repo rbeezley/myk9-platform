@@ -6,10 +6,10 @@ vi.mock('../../lib/supabase', () => ({
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
       onAuthStateChange: vi.fn().mockReturnValue({
-        data: { subscription: { unsubscribe: vi.fn() } }
-      })
-    }
-  }
+        data: { subscription: { unsubscribe: vi.fn() } },
+      }),
+    },
+  },
 }));
 
 // Mock the replication module so showStore can be imported
@@ -68,7 +68,7 @@ vi.mock('@/services/LoggingService', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-  }
+  },
 }));
 
 describe('Baseline Smoke Tests - Working', () => {

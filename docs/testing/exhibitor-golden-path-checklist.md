@@ -20,6 +20,7 @@ Parallel to `secretary-golden-path-checklist.md`. Seed data + credentials in
 ## Pre-Flight
 
 ### Environment
+
 - [ ] `pnpm dev:show` running at localhost:5173 (use `preview_start` / launch.json `myK9Show`)
 - [ ] Signed in as **exhibitor@myk9t.com** (password in `apps/myk9show/.env.local`)
 - [ ] App loads with no console errors
@@ -52,9 +53,9 @@ and clean up extras; leave one entry behind.
 
 **🔧 BUG-EX-01 [P1] — summary counts wrong (was OPEN-TODOS todo #6). FIXED.**
 Counts showed "0 Upcoming Shows / 6 Past Shows" while the Show Today banner showed
-a current show. Two root causes: (a) "Shows" cards counted *entries*, not distinct
-*shows*; (b) "past" used a live-timestamp compare on `start_date` only, so a
-multi-day show running *today* was bucketed past and never upcoming; plus two
+a current show. Two root causes: (a) "Shows" cards counted _entries_, not distinct
+_shows_; (b) "past" used a live-timestamp compare on `start_date` only, so a
+multi-day show running _today_ was bucketed past and never upcoming; plus two
 parallel derivations (`statistics` vs `entryStats`) drifted (`>` vs `>=`).
 Fix: single date-range-aware, distinct-show helper
 (`MyEntriesPage/modules/myEntriesStats.helpers.ts`). Now: 2 Active / 2 Upcoming /
@@ -101,6 +102,7 @@ landing date renderer. Confirm with the secretary's stored show dates.
 3 steps: **Classes → Payment → Confirmation**.
 
 ### 5.1 Classes ✅
+
 - [x] Dog chips (Dog 1 / Dog 2 / …); pick a dog
 - [x] Classes grouped by trial → element (Container/Interior/…) → level (Novice A/B, Advanced, Excellent, Master)
 - [x] Check a class → "N selected" updates, `aria-checked` syncs, Next enables
@@ -115,6 +117,7 @@ the committed spec needs test ids or accessible names here.)
 instead of "Scent Work" (a `formatTrialTypeLabel` exists on the secretary side).
 
 ### 5.2 Payment ✅ 🐞
+
 - [x] Registration summary (dog · class · fee), subtotal, total, payment method, AKC Entry Agreement, Next
 - [x] Select "Credit/Debit Card" payment method (required) + check the agreement → Next enables
 - [x] "Online payment coming soon — entry submitted, payment collected later" (expected; no Stripe yet)
@@ -130,6 +133,7 @@ server-honored before they are shown to exhibitors.
 payment method is required.
 
 ### 5.3 Confirmation ✅ 🔧 🐞
+
 - [x] Receipt (#MK9-…), dog, class, total, "Complete Registration"
 - [x] **Complete Registration** persists the entry (verified: it appears in My Entries and bumps Upcoming Shows)
 
@@ -144,17 +148,17 @@ armband. Fix: gate the armband claim on a new `canAssignArmbands` param
 in `RegistrationWizardPage` — false for exhibitors (skip the call), true for
 secretary/club-admin/site-admin (mail-in roles keep auto-armbands). Behavior-
 preserving for the persisted entry; removes the doomed call. Unit test added.
-*(Live re-verification of the absent 400 is unit-test-proven; the wizard's Base UI
+_(Live re-verification of the absent 400 is unit-test-proven; the wizard's Base UI
 "Next" resisted synthetic clicks during the walk — re-verify in the committed spec
-with real Playwright clicks.)*
+with real Playwright clicks.)_
 
 **✅ BUG-EX-10 [P2] — fixed.** The final review step now avoids premature
 "CONFIRMED" / "FEES RECEIVED" language before **Complete Registration** and while
 payment is deferred. Styled receipts and the generic confirmation card use
 pre-submit copy ("ready to submit", "fees due") until entry + payment are recorded.
 
-**ℹ️ Not a bug:** receipt shows the dog's *registered* name ("E2E Dog A …") while
-the selector/list show the *call* name ("Dog 1"). Same dog; minor cross-surface
+**ℹ️ Not a bug:** receipt shows the dog's _registered_ name ("E2E Dog A …") while
+the selector/list show the _call_ name ("Dog 1"). Same dog; minor cross-surface
 name-display inconsistency.
 
 ---
@@ -190,30 +194,30 @@ The My Entries card dialog now persists through `useCheckInMutation` / `self_che
 ## Part 8 — View Results ⚠️ (surfaces verified; no released results in fixture)
 
 - [x] Results-viewing surfaces exist: **Dog Details → Competitions → Past Results** (`useExhibitorResults`), the per-class public results route (`/shows/:showId/trials/:trialId/classes/:classId/results`), and My Entries card result badges (`resultStatus`/placement, mapped in `transformEntry`)
-- [ ] **Blocked:** exhibitor1 has **no scored/released results** in the fixture, so the actual result *display* (placement, Q/NQ, time) couldn't be exercised. Re-walk after a secretary scores + releases a class this exhibitor is entered in.
+- [ ] **Blocked:** exhibitor1 has **no scored/released results** in the fixture, so the actual result _display_ (placement, Q/NQ, time) couldn't be exercised. Re-walk after a secretary scores + releases a class this exhibitor is entered in.
 - [ ] Confirm results hidden until released (needs the above fixture)
 
 ---
 
 ## Issue Log
 
-| # | ID | Sev | Step | Issue | Status |
-|---|----|-----|------|-------|--------|
-| 1 | BUG-EX-01 | P1 | 2 | My Entries counts: entries-not-shows + multi-day-today bucketed past → 0 upcoming / 6 past; two derivations drift | ✅ Fixed |
-| 2 | BUG-EX-02 | Minor | 2 | Show Today banner "8:00 AM AM" double meridiem | ✅ Fixed |
-| 3 | BUG-EX-09 | P1 | 5.3 | Exhibitor self-entry calls staff-only `assign_armband` → 400 (swallowed); no armband | ✅ Fixed (#500) |
-| 3b | BUG-EX-11 | P1 | 7 | Check-in status never displayed — `transformEntry` hardcoded `checkInStatus: undefined` | ✅ Fixed |
-| 4 | BUG-EX-03 | P2 | 5.2 | Unhonored automatic multi-dog discount shown in registration total | ✅ Closed — not a product feature |
-| 4b | BUG-EX-13 | P2 | 7 | Check-in write over-reaches via secretary path (sets is_in_ring/judge_notes as exhibitor) | ✅ Fixed |
-| 4c | BUG-EX-12 | P2 | 6 | `/dogs` "My Dogs" shows 9 vs dashboard 4 — owner-scope/count mismatch | 🐞 Open |
-| 4d | BUG-EX-14 | Minor | 7 | CheckInStatusDialog renders `<div>` inside `<p>` (validateDOMNesting/hydration) | 🐞 Open |
-| 5 | BUG-EX-04 | P2 | 4 | Premium landing show dates off-by-one (Jun 11–13 vs 12–14) | 🐞 Open |
-| 6 | BUG-EX-10 | P2 | 5.3 | "CONFIRMED / FEES RECEIVED" shown before completion & with deferred payment | ✅ Fixed |
-| 7 | BUG-EX-07 | P2 | 3 | Browse counts inconsistent (5 vs 9); "My Entries" tab shows 0 despite entries | 🐞 Open |
-| 8 | BUG-EX-05 | Minor | 5.1 | Class checkboxes lack accessible name; dog chips lack aria-pressed | 🐞 Open |
-| 9 | BUG-EX-08 | Minor | 5.2 | Disabled "Next" on payment with no inline reason | ✅ Fixed |
-| 10 | BUG-EX-06 | Minor | 5.1 | Raw enum "scent_work" in wizard trial header | 🐞 Open |
-| 11 | HYGIENE | — | 3 | Leftover "Update Test Show …" rows + E2E dogs pollute browse/My Dogs | 🐞 Open |
+| #   | ID        | Sev   | Step | Issue                                                                                                             | Status                            |
+| --- | --------- | ----- | ---- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| 1   | BUG-EX-01 | P1    | 2    | My Entries counts: entries-not-shows + multi-day-today bucketed past → 0 upcoming / 6 past; two derivations drift | ✅ Fixed                          |
+| 2   | BUG-EX-02 | Minor | 2    | Show Today banner "8:00 AM AM" double meridiem                                                                    | ✅ Fixed                          |
+| 3   | BUG-EX-09 | P1    | 5.3  | Exhibitor self-entry calls staff-only `assign_armband` → 400 (swallowed); no armband                              | ✅ Fixed (#500)                   |
+| 3b  | BUG-EX-11 | P1    | 7    | Check-in status never displayed — `transformEntry` hardcoded `checkInStatus: undefined`                           | ✅ Fixed                          |
+| 4   | BUG-EX-03 | P2    | 5.2  | Unhonored automatic multi-dog discount shown in registration total                                                | ✅ Closed — not a product feature |
+| 4b  | BUG-EX-13 | P2    | 7    | Check-in write over-reaches via secretary path (sets is_in_ring/judge_notes as exhibitor)                         | ✅ Fixed                          |
+| 4c  | BUG-EX-12 | P2    | 6    | `/dogs` "My Dogs" shows 9 vs dashboard 4 — owner-scope/count mismatch                                             | 🐞 Open                           |
+| 4d  | BUG-EX-14 | Minor | 7    | CheckInStatusDialog renders `<div>` inside `<p>` (validateDOMNesting/hydration)                                   | 🐞 Open                           |
+| 5   | BUG-EX-04 | P2    | 4    | Premium landing show dates off-by-one (Jun 11–13 vs 12–14)                                                        | 🐞 Open                           |
+| 6   | BUG-EX-10 | P2    | 5.3  | "CONFIRMED / FEES RECEIVED" shown before completion & with deferred payment                                       | ✅ Fixed                          |
+| 7   | BUG-EX-07 | P2    | 3    | Browse counts inconsistent (5 vs 9); "My Entries" tab shows 0 despite entries                                     | 🐞 Open                           |
+| 8   | BUG-EX-05 | Minor | 5.1  | Class checkboxes lack accessible name; dog chips lack aria-pressed                                                | 🐞 Open                           |
+| 9   | BUG-EX-08 | Minor | 5.2  | Disabled "Next" on payment with no inline reason                                                                  | ✅ Fixed                          |
+| 10  | BUG-EX-06 | Minor | 5.1  | Raw enum "scent_work" in wizard trial header                                                                      | 🐞 Open                           |
+| 11  | HYGIENE   | —     | 3    | Leftover "Update Test Show …" rows + E2E dogs pollute browse/My Dogs                                              | 🐞 Open                           |
 
 ---
 

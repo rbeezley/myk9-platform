@@ -29,9 +29,11 @@ describe('resolveHealthCheckRun', () => {
 
   it('routes a manual Run now full run to the daily monitor so it can clear a page', () => {
     const token = '8b0f1f4e-1f2a-4a3b-9c0d-6f5e4d3c2b1a';
-    expect(
-      run({ [HEALTH_CHECK_MODE_HEADER]: 'full', [HEALTH_RUN_TOKEN_HEADER]: token })
-    ).toEqual({ mode: 'full', runToken: token, monitorSlug: DAILY_HEALTH_MONITOR_SLUG });
+    expect(run({ [HEALTH_CHECK_MODE_HEADER]: 'full', [HEALTH_RUN_TOKEN_HEADER]: token })).toEqual({
+      mode: 'full',
+      runToken: token,
+      monitorSlug: DAILY_HEALTH_MONITOR_SLUG,
+    });
   });
 
   it('never leaves a run unmonitored, whatever the headers say', () => {

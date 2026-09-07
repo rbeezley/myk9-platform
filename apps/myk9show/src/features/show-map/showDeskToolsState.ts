@@ -36,7 +36,10 @@ export function loadOpenToolIds(
 
 export function saveOpenToolIds(showId: string, openToolIds: readonly string[]): void {
   try {
-    window.localStorage.setItem(getShowDeskToolsStorageKey(showId), JSON.stringify([...openToolIds]));
+    window.localStorage.setItem(
+      getShowDeskToolsStorageKey(showId),
+      JSON.stringify([...openToolIds])
+    );
   } catch {
     // Preference persistence is non-critical; the sheet remains usable.
   }

@@ -35,9 +35,7 @@ const PedigreeCard: React.FC<PedigreeCardProps> = ({
                      flex flex-col items-center justify-center"
           style={{ minHeight: 110 }}
         >
-          <div className="text-sm font-medium text-muted-foreground">
-            No {displayRole} recorded
-          </div>
+          <div className="text-sm font-medium text-muted-foreground">No {displayRole} recorded</div>
         </div>
       );
     }
@@ -96,9 +94,7 @@ const PedigreeCard: React.FC<PedigreeCardProps> = ({
       style={{ minHeight: 110 }}
     >
       <div className="absolute top-2 right-2 z-10">
-        <ThreeDotMenu
-          items={menuItems}
-        />
+        <ThreeDotMenu items={menuItems} />
       </div>
       <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center mb-2">
         <span className="text-accent-foreground font-bold text-lg">{name.charAt(0)}</span>

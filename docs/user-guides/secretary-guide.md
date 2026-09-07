@@ -51,7 +51,6 @@ The wizard creates all three in one pass. **Dashboard → Create Show.**
 
 > **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.
 
-
 > **Entries closing on the show's first day is allowed** — normal for day-of entry.
 
 ## 2 · Edit a show, or reassign a judge
@@ -288,12 +287,12 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What                                     | Status                                                                                                                                         |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| High Combined Division (HCD)             | Not built — calculate by hand when you offer Handler Discrimination (card 23)                                                                  |
-| Hand-placing a dog in the run order      | Not built — presets only (card 10)                                                                                                             |
-| Emailing exhibitors                      | Works, but the composer is in the **Message Center panel in the header**, not the Messages page, and it doesn't pick up the show you came from |
-| Wait-list capacity                       | Displayed, not enforced (card 6)                                                                                                               |
+| What                                | Status                                                                                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| High Combined Division (HCD)        | Not built — calculate by hand when you offer Handler Discrimination (card 23)                                                                  |
+| Hand-placing a dog in the run order | Not built — presets only (card 10)                                                                                                             |
+| Emailing exhibitors                 | Works, but the composer is in the **Message Center panel in the header**, not the Messages page, and it doesn't pick up the show you came from |
+| Wait-list capacity                  | Displayed, not enforced (card 6)                                                                                                               |
 
 ---
 

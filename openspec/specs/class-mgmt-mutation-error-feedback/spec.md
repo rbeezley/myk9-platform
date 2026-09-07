@@ -7,7 +7,9 @@ Management judge assignment and bulk class operations. Introduced by
 `class-mgmt-mutation-error-surfacing` to prevent a secretary from believing a
 judge assignment, bulk status change, or bulk delete succeeded when the
 underlying mutation failed.
+
 ## Requirements
+
 ### Requirement: Judge-assign failure shows a visible error toast
 
 The system SHALL show a `toast.error` when `assignJudgeMutation` fails, and

@@ -51,11 +51,12 @@ const REPLICATED_TABLES_STORE = 'replicated_tables';
 const PENDING_MUTATIONS_STORE = 'pending_mutations';
 
 test.describe('At-show judge scoring authorization', () => {
-  test('routes a judge score through ringside_update_entry and persists it', async ({
-    page,
-  }) => {
+  test('routes a judge score through ringside_update_entry and persists it', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
+    await installSharedStagingWriteGuard(page, {
+      ringsideRpcCalls: rpcCalls,
+      strictRpcWrites: true,
+    });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(SCORE_PATH)));
@@ -98,9 +99,8 @@ test.describe('At-show judge scoring authorization', () => {
     await expect
       .poll(
         () =>
-          rpcCalls.filter(
-            call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true
-          ).length,
+          rpcCalls.filter(call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true)
+            .length,
         { timeout: 5_000 }
       )
       .toBe(1);
@@ -117,7 +117,10 @@ test.describe('At-show judge scoring authorization', () => {
     page,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
+    await installSharedStagingWriteGuard(page, {
+      ringsideRpcCalls: rpcCalls,
+      strictRpcWrites: true,
+    });
 
     await signInAsJudge(page, UNASSIGNED_SCORE_PATH);
     await expect(page).toHaveURL(new RegExp(escapeRegExp(UNASSIGNED_SCORE_PATH)));
@@ -148,7 +151,10 @@ test.describe('At-show judge scoring authorization', () => {
 
   test('records an explicit absence without exposing a qualified result', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
+    await installSharedStagingWriteGuard(page, {
+      ringsideRpcCalls: rpcCalls,
+      strictRpcWrites: true,
+    });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
@@ -180,7 +186,10 @@ test.describe('At-show judge scoring authorization', () => {
 
   test('lets the judge pull a dog without turning it into a score', async ({ page }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
+    await installSharedStagingWriteGuard(page, {
+      ringsideRpcCalls: rpcCalls,
+      strictRpcWrites: true,
+    });
 
     await signInAsJudge(page, CLASS_PATH);
     await expect(page.getByText('Change Status')).toHaveCount(0);
@@ -189,11 +198,9 @@ test.describe('At-show judge scoring authorization', () => {
     await page.getByRole('button', { name: 'Pulled' }).click();
 
     await expect
-      .poll(
-        () =>
-          rpcCalls.some(call => call.p_fields?.check_in_status === 'pulled'),
-        { timeout: 20_000 }
-      )
+      .poll(() => rpcCalls.some(call => call.p_fields?.check_in_status === 'pulled'), {
+        timeout: 20_000,
+      })
       .toBe(true);
     expect(rpcCalls.some(call => call.p_fields?.is_scored === true)).toBe(false);
   });
@@ -202,7 +209,10 @@ test.describe('At-show judge scoring authorization', () => {
     page,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
+    await installSharedStagingWriteGuard(page, {
+      ringsideRpcCalls: rpcCalls,
+      strictRpcWrites: true,
+    });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
@@ -249,7 +259,10 @@ test.describe('At-show judge scoring authorization', () => {
     context,
   }) => {
     const rpcCalls: GuardedRingsideRpcCall[] = [];
-    await installSharedStagingWriteGuard(page, { ringsideRpcCalls: rpcCalls, strictRpcWrites: true });
+    await installSharedStagingWriteGuard(page, {
+      ringsideRpcCalls: rpcCalls,
+      strictRpcWrites: true,
+    });
 
     await signInAsJudge(page, SCORE_PATH);
     await expect(page.getByRole('button', { name: /^Save$/ })).toBeVisible({ timeout: 20_000 });
@@ -262,9 +275,7 @@ test.describe('At-show judge scoring authorization', () => {
     await page.getByRole('button', { name: /Confirm & Submit/i }).click();
 
     await expect(page).toHaveURL(new RegExp(escapeRegExp(CLASS_PATH)), { timeout: 15_000 });
-    await expect
-      .poll(() => readPendingMutationCount(page), { timeout: 10_000 })
-      .toBeGreaterThan(0);
+    await expect.poll(() => readPendingMutationCount(page), { timeout: 10_000 }).toBeGreaterThan(0);
     await expect
       .poll(() => readEntryReplica(page), { timeout: 10_000 })
       .toMatchObject({
@@ -299,9 +310,8 @@ test.describe('At-show judge scoring authorization', () => {
     await expect
       .poll(
         () =>
-          rpcCalls.filter(
-            call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true
-          ).length,
+          rpcCalls.filter(call => call.p_entry_id === ENTRY_ID && call.p_fields?.is_scored === true)
+            .length,
         { timeout: 20_000 }
       )
       .toBe(1);
@@ -339,7 +349,9 @@ async function readEntryReplica(page: Page) {
                 }
               | undefined;
             db.close();
-            resolve(row ? { syncStatus: row.syncStatus, isDirty: row.isDirty, data: row.data } : null);
+            resolve(
+              row ? { syncStatus: row.syncStatus, isDirty: row.isDirty, data: row.data } : null
+            );
           };
           getReq.onerror = () => {
             db.close();
@@ -392,10 +404,7 @@ async function readPendingMutation(page: Page, scoredOnly = false) {
             resolve(null);
             return;
           }
-          const getAllReq = db
-            .transaction(storeName, 'readonly')
-            .objectStore(storeName)
-            .getAll();
+          const getAllReq = db.transaction(storeName, 'readonly').objectStore(storeName).getAll();
           getAllReq.onsuccess = () => {
             const rows = getAllReq.result as Array<Record<string, unknown>>;
             db.close();

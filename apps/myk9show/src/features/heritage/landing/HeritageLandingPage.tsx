@@ -54,8 +54,7 @@ export function HeritageLandingPage({
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
-  const canEnterOnline =
-    hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
+  const canEnterOnline = hasEntryClassInventory !== false && !entryClosed && !entryNotYetOpen;
 
   return (
     // INTENT: Heritage is a deliberately fixed-light public style. It keeps the

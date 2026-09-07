@@ -120,10 +120,7 @@ function RegenerateButton({
   );
 }
 
-export function ShowAccessCodesCard({
-  showId,
-  ...props
-}: ShowAccessCodesCardProps) {
+export function ShowAccessCodesCard({ showId, ...props }: ShowAccessCodesCardProps) {
   return <ShowAccessCodesCardForShow key={showId} showId={showId} {...props} />;
 }
 
@@ -353,8 +350,8 @@ function ShowAccessCodesCardForShow({
               <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <p>
-                  Generate one replacement set and redistribute it. Future visits will display
-                  those codes without another reset.
+                  Generate one replacement set and redistribute it. Future visits will display those
+                  codes without another reset.
                 </p>
               </div>
               <RegenerateButton
@@ -388,9 +385,7 @@ function ShowAccessCodesCardForShow({
   }
 
   const exhibitorCode = rows.find(row => row.role === 'Exhibitor')?.code;
-  const exhibitorUrl = exhibitorCode
-    ? `https://myk9show.com/at-show?code=${exhibitorCode}`
-    : null;
+  const exhibitorUrl = exhibitorCode ? `https://myk9show.com/at-show?code=${exhibitorCode}` : null;
 
   return (
     <Card>

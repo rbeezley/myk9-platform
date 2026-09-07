@@ -19,8 +19,8 @@ export function PremiumReadOnlyNotice() {
       <div>
         <h2 className="font-semibold">Records are read-only</h2>
         <p className="text-sm text-muted-foreground">
-          Your existing records remain available to view, export, and delete. Upgrade to add or
-          edit records.
+          Your existing records remain available to view, export, and delete. Upgrade to add or edit
+          records.
         </p>
       </div>
       <PremiumButton

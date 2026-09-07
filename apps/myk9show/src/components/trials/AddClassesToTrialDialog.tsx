@@ -328,9 +328,7 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
                   </div>
                   <div className="myk9-template-detail-item">
                     <span className="myk9-template-label">Version:</span>
-                    <span className="myk9-template-value">
-                      {selectedTemplate.version || 'N/A'}
-                    </span>
+                    <span className="myk9-template-value">{selectedTemplate.version || 'N/A'}</span>
                   </div>
                   <div className="myk9-template-detail-item">
                     <span className="myk9-template-label">Classes Available:</span>
@@ -343,9 +341,7 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
                 {selectedTemplate.description && (
                   <div className="myk9-template-description">
                     <span className="myk9-template-description-label">Description:</span>
-                    <p className="myk9-template-description-text">
-                      {selectedTemplate.description}
-                    </p>
+                    <p className="myk9-template-description-text">{selectedTemplate.description}</p>
                   </div>
                 )}
               </div>
@@ -492,55 +488,56 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
         isDirty={open && selectedClasses.length > 0}
         subject="the classes you selected"
       />
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl">
-        <DialogHeader>
-          <DialogTitle>{getStepTitle()}</DialogTitle>
-          <DialogDescription>{getStepDescription()}</DialogDescription>
-        </DialogHeader>
-        <div className="max-h-[60vh] overflow-hidden flex flex-col w-full">
-          {/* Step Content - Scrollable area */}
-          <div className="flex-1 overflow-y-auto pr-2">{renderStepContent()}</div>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>{getStepTitle()}</DialogTitle>
+            <DialogDescription>{getStepDescription()}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-hidden flex flex-col w-full">
+            {/* Step Content - Scrollable area */}
+            <div className="flex-1 overflow-y-auto pr-2">{renderStepContent()}</div>
 
-          {/* Custom Footer with Navigation - Always visible */}
-          <div
-            className="flex-shrink-0 flex items-center justify-between pt-6 mt-4 px-6 pb-4"
-            style={{ borderTop: 'none' }}
-          >
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                Step {currentStep === 'template' ? '1' : currentStep === 'classes' ? '2' : '3'} of 3
-              </span>
-              {currentStep === 'classes' && selectedClasses.length > 0 && (
-                <span>• {selectedClasses.length} classes selected</span>
-              )}
-            </div>
+            {/* Custom Footer with Navigation - Always visible */}
+            <div
+              className="flex-shrink-0 flex items-center justify-between pt-6 mt-4 px-6 pb-4"
+              style={{ borderTop: 'none' }}
+            >
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  Step {currentStep === 'template' ? '1' : currentStep === 'classes' ? '2' : '3'} of
+                  3
+                </span>
+                {currentStep === 'classes' && selectedClasses.length > 0 && (
+                  <span>• {selectedClasses.length} classes selected</span>
+                )}
+              </div>
 
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-
-              {currentStep !== 'template' && (
-                <Button variant="outline" onClick={handleBack}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
                 </Button>
-              )}
 
-              {currentStep !== 'confirmation' ? (
-                <Button onClick={handleNext} disabled={!canProceed()}>
-                  Next
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button onClick={handleSave}>Add Classes to Trial</Button>
-              )}
+                {currentStep !== 'template' && (
+                  <Button variant="outline" onClick={handleBack}>
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                )}
+
+                {currentStep !== 'confirmation' ? (
+                  <Button onClick={handleNext} disabled={!canProceed()}>
+                    Next
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button onClick={handleSave}>Add Classes to Trial</Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

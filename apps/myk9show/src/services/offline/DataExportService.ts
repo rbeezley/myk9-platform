@@ -2,7 +2,7 @@ import { logger } from '@/services/LoggingService';
 
 /**
  * DataExportService - Handle data export in multiple formats
- * 
+ *
  * Provides:
  * - JSON export with full fidelity
  * - CSV export for spreadsheet applications
@@ -68,7 +68,7 @@ export class DataExportService {
   ): Promise<ExportResult> {
     const exportId = this.generateExportId();
     const abortController = new AbortController();
-    
+
     this.activeExports.set(exportId, abortController);
     if (onProgress) {
       this.progressCallbacks.set(exportId, onProgress);
@@ -85,17 +85,17 @@ export class DataExportService {
           size: 0,
           format: options.format,
           entityCount: 0,
-          error: 'Export cancelled by user'
+          error: 'Export cancelled by user',
         };
       }
-      
+
       return {
         success: false,
         filename: '',
         size: 0,
         format: options.format,
         entityCount: 0,
-        error: error instanceof Error ? error.message : 'Unknown export error'
+        error: error instanceof Error ? error.message : 'Unknown export error',
       };
     } finally {
       this.activeExports.delete(exportId);
@@ -129,17 +129,17 @@ export class DataExportService {
     signal: AbortSignal
   ): Promise<ExportResult> {
     const startTime = performance.now();
-    
+
     // Stage 1: Gather data
     this.updateProgress(exportId, {
       stage: 'Gathering data',
       completed: 0,
       total: 100,
-      percentage: 0
+      percentage: 0,
     });
 
     const data = await this.gatherExportData(exportId, options, signal);
-    
+
     if (signal.aborted) throw new Error('Export cancelled');
 
     // Stage 2: Process and format data
@@ -147,11 +147,11 @@ export class DataExportService {
       stage: 'Processing data',
       completed: 30,
       total: 100,
-      percentage: 30
+      percentage: 30,
     });
 
     const processedData = await this.processExportData(data, options, signal);
-    
+
     if (signal.aborted) throw new Error('Export cancelled');
 
     // Stage 3: Generate export file
@@ -159,11 +159,11 @@ export class DataExportService {
       stage: 'Generating export file',
       completed: 60,
       total: 100,
-      percentage: 60
+      percentage: 60,
     });
 
     const exportFile = await this.generateExportFile(processedData, options);
-    
+
     if (signal.aborted) throw new Error('Export cancelled');
 
     // Stage 4: Finalize
@@ -171,16 +171,16 @@ export class DataExportService {
       stage: 'Finalizing export',
       completed: 90,
       total: 100,
-      percentage: 90
+      percentage: 90,
     });
 
     const result = await this.finalizeExport(exportFile, options);
-    
+
     this.updateProgress(exportId, {
       stage: 'Complete',
       completed: 100,
       total: 100,
-      percentage: 100
+      percentage: 100,
     });
 
     const endTime = performance.now();
@@ -198,24 +198,24 @@ export class DataExportService {
     signal: AbortSignal
   ): Promise<Record<string, unknown[]>> {
     const data: Record<string, unknown[]> = {};
-    
+
     for (let i = 0; i < options.entities.length; i++) {
       if (signal.aborted) throw new Error('Export cancelled');
-      
+
       const entity = options.entities[i];
-      
+
       this.updateProgress(exportId, {
         stage: 'Gathering data',
         completed: (i / options.entities.length) * 30,
         total: 100,
         percentage: (i / options.entities.length) * 30,
-        currentItem: `Loading ${entity} data`
+        currentItem: `Loading ${entity} data`,
       });
 
       try {
         const entityData = await this.getEntityData(entity, options);
         data[entity] = entityData;
-        
+
         // Simulate loading delay
         await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
@@ -233,7 +233,7 @@ export class DataExportService {
   private async getEntityData(entityType: string, options: ExportOptions): Promise<unknown[]> {
     // Simulate data retrieval - in real app, get from actual stores
     const mockData = await this.getMockEntityData(entityType);
-    
+
     // Apply filters
     let filteredData = [...mockData];
 
@@ -242,9 +242,9 @@ export class DataExportService {
       filteredData = filteredData.filter(item => {
         const itemRecord = item as Record<string, unknown>;
         const itemDate = new Date(
-          (itemRecord.createdAt as string) || 
-          (itemRecord.date as string) || 
-          (itemRecord.updatedAt as string)
+          (itemRecord.createdAt as string) ||
+            (itemRecord.date as string) ||
+            (itemRecord.updatedAt as string)
         );
         return itemDate >= options.dateRange!.start && itemDate <= options.dateRange!.end;
       });
@@ -286,10 +286,10 @@ export class DataExportService {
     const entities = Object.keys(data);
     for (let i = 0; i < entities.length; i++) {
       if (signal.aborted) throw new Error('Export cancelled');
-      
+
       const entity = entities[i];
       const entityData = data[entity];
-      
+
       // Transform data based on format
       switch (options.format) {
         case 'csv':
@@ -325,29 +325,27 @@ export class DataExportService {
         filename = `myK9Show-export-${timestamp}.json`;
         content = this.generateJSONExport(data, options);
         break;
-        
+
       case 'csv':
         filename = `myK9Show-export-${timestamp}.csv`;
         content = this.generateCSVExport(data);
         break;
-        
+
       case 'xlsx':
         filename = `myK9Show-export-${timestamp}.xlsx`;
         content = await this.generateExcelExport(data);
         break;
-        
+
       case 'zip':
         filename = `myK9Show-export-${timestamp}.zip`;
         content = await this.generateZipExport(data, options);
         break;
-        
+
       default:
         throw new Error(`Unsupported export format: ${options.format}`);
     }
 
-    const size = typeof content === 'string' ? 
-      new Blob([content]).size : 
-      content.size;
+    const size = typeof content === 'string' ? new Blob([content]).size : content.size;
 
     return { content, filename, size };
   }
@@ -355,10 +353,7 @@ export class DataExportService {
   /**
    * Generate JSON export
    */
-  private generateJSONExport(
-    data: Record<string, unknown[]>,
-    options: ExportOptions
-  ): string {
+  private generateJSONExport(data: Record<string, unknown[]>, options: ExportOptions): string {
     const exportData = {
       metadata: {
         exportedAt: new Date().toISOString(),
@@ -367,10 +362,10 @@ export class DataExportService {
         options: {
           entities: options.entities,
           includeDeleted: options.includeDeleted,
-          dateRange: options.dateRange
-        }
+          dateRange: options.dateRange,
+        },
       },
-      data
+      data,
     };
 
     return JSON.stringify(exportData, null, 2);
@@ -379,22 +374,20 @@ export class DataExportService {
   /**
    * Generate CSV export
    */
-  private generateCSVExport(
-    data: Record<string, unknown[]>
-  ): string {
+  private generateCSVExport(data: Record<string, unknown[]>): string {
     const csvParts: string[] = [];
 
     for (const [entityType, entityData] of Object.entries(data)) {
       if (entityData.length === 0) continue;
 
       csvParts.push(`\n# ${entityType.toUpperCase()}\n`);
-      
+
       // Get all unique columns
       const columns = this.getUniqueColumns(entityData);
-      
+
       // Add header
       csvParts.push(columns.map(col => `"${col}"`).join(','));
-      
+
       // Add data rows
       entityData.forEach(item => {
         const itemRecord = item as Record<string, unknown>;
@@ -406,7 +399,7 @@ export class DataExportService {
         });
         csvParts.push(row.join(','));
       });
-      
+
       csvParts.push(''); // Empty line between entities
     }
 
@@ -416,22 +409,20 @@ export class DataExportService {
   /**
    * Generate Excel export (simulated)
    */
-  private async generateExcelExport(
-    data: Record<string, unknown[]>
-  ): Promise<Blob> {
+  private async generateExcelExport(data: Record<string, unknown[]>): Promise<Blob> {
     // In a real implementation, use a library like SheetJS or exceljs
     // For now, generate a simple tab-separated values format
-    
+
     const tsvParts: string[] = [];
-    
+
     for (const [entityType, entityData] of Object.entries(data)) {
       if (entityData.length === 0) continue;
 
       tsvParts.push(`${entityType.toUpperCase()}\n`);
-      
+
       const columns = this.getUniqueColumns(entityData);
       tsvParts.push(columns.join('\t'));
-      
+
       entityData.forEach(item => {
         const itemRecord = item as Record<string, unknown>;
         const row = columns.map(col => {
@@ -442,12 +433,12 @@ export class DataExportService {
         });
         tsvParts.push(row.join('\t'));
       });
-      
+
       tsvParts.push(''); // Empty line
     }
 
-    return new Blob([tsvParts.join('\n')], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+    return new Blob([tsvParts.join('\n')], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
   }
 
@@ -460,12 +451,12 @@ export class DataExportService {
   ): Promise<Blob> {
     // In a real implementation, use JSZip
     // For now, simulate by creating a JSON file
-    
+
     const jsonContent = this.generateJSONExport(data, options);
-    
+
     // Simulate zip compression
     const compressedContent = `SIMULATED ZIP ARCHIVE\n\nOriginal JSON content:\n${jsonContent}`;
-    
+
     return new Blob([compressedContent], { type: 'application/zip' });
   }
 
@@ -478,12 +469,13 @@ export class DataExportService {
   ): Promise<ExportResult> {
     try {
       // Create download URL
-      const blob = typeof exportFile.content === 'string' 
-        ? new Blob([exportFile.content], { type: this.getContentType(options.format) })
-        : exportFile.content;
-      
+      const blob =
+        typeof exportFile.content === 'string'
+          ? new Blob([exportFile.content], { type: this.getContentType(options.format) })
+          : exportFile.content;
+
       const downloadUrl = URL.createObjectURL(blob);
-      
+
       // Trigger download
       const link = document.createElement('a');
       link.href = downloadUrl;
@@ -491,7 +483,7 @@ export class DataExportService {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Clean up URL after a delay
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 10000);
 
@@ -501,10 +493,12 @@ export class DataExportService {
         size: exportFile.size,
         format: options.format,
         entityCount: options.entities.length,
-        downloadUrl
+        downloadUrl,
       };
     } catch (error) {
-      throw new Error(`Failed to finalize export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to finalize export: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -518,11 +512,15 @@ export class DataExportService {
   /**
    * Recursively flatten an object
    */
-  private flattenObject(obj: Record<string, unknown>, prefix = '', result: Record<string, unknown> = {}): Record<string, unknown> {
+  private flattenObject(
+    obj: Record<string, unknown>,
+    prefix = '',
+    result: Record<string, unknown> = {}
+  ): Record<string, unknown> {
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         const newKey = prefix ? `${prefix}.${key}` : key;
-        
+
         if (obj[key] !== null && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
           this.flattenObject(obj[key] as Record<string, unknown>, newKey, result);
         } else if (Array.isArray(obj[key])) {
@@ -587,7 +585,7 @@ export class DataExportService {
   private async getMockEntityData(entityType: string): Promise<unknown[]> {
     // Simulate async data loading
     await new Promise(resolve => setTimeout(resolve, 50));
-    
+
     const mockData = {
       shows: Array.from({ length: 25 }, (_, i) => ({
         id: `show-${i + 1}`,
@@ -597,9 +595,9 @@ export class DataExportService {
         status: ['upcoming', 'active', 'completed'][Math.floor(Math.random() * 3)],
         entryCount: Math.floor(Math.random() * 100) + 10,
         createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-        isDeleted: Math.random() < 0.1
+        isDeleted: Math.random() < 0.1,
       })),
-      
+
       entries: Array.from({ length: 1250 }, (_, i) => ({
         id: `entry-${i + 1}`,
         showId: `show-${Math.floor(Math.random() * 25) + 1}`,
@@ -609,20 +607,22 @@ export class DataExportService {
         status: ['registered', 'withdrawn', 'completed'][Math.floor(Math.random() * 3)],
         entryFee: Math.floor(Math.random() * 50) + 15,
         createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-        isDeleted: Math.random() < 0.05
+        isDeleted: Math.random() < 0.05,
       })),
-      
+
       dogs: Array.from({ length: 450 }, (_, i) => ({
         id: `dog-${i + 1}`,
         name: `Dog ${i + 1}`,
-        breed: ['Labrador', 'Golden Retriever', 'German Shepherd', 'Beagle', 'Poodle'][Math.floor(Math.random() * 5)],
+        breed: ['Labrador', 'Golden Retriever', 'German Shepherd', 'Beagle', 'Poodle'][
+          Math.floor(Math.random() * 5)
+        ],
         ownerId: `person-${Math.floor(Math.random() * 300) + 1}`,
         dateOfBirth: new Date(Date.now() - Math.random() * 10 * 365 * 24 * 60 * 60 * 1000),
         registrationNumber: `REG${i + 1000}`,
         createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-        isDeleted: Math.random() < 0.02
+        isDeleted: Math.random() < 0.02,
       })),
-      
+
       people: Array.from({ length: 300 }, (_, i) => ({
         id: `person-${i + 1}`,
         name: `User ${i + 1}`,
@@ -632,11 +632,11 @@ export class DataExportService {
           street: `${Math.floor(Math.random() * 9999) + 1} Main St`,
           city: `City ${i + 1}`,
           state: 'CA',
-          zip: String(Math.floor(Math.random() * 90000) + 10000)
+          zip: String(Math.floor(Math.random() * 90000) + 10000),
         },
         createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-        isDeleted: Math.random() < 0.03
-      }))
+        isDeleted: Math.random() < 0.03,
+      })),
     };
 
     return mockData[entityType as keyof typeof mockData] || [];

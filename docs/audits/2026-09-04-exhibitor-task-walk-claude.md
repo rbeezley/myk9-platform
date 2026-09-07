@@ -5,15 +5,15 @@
 > `role-intent-walk` rotates judge / club-admin / site-admin only. The question is:
 > **does the exhibitor's job actually work end to end?**
 
-| | |
-| --- | --- |
-| Baseline SHA | `44c6c153d` (`fix(admin): resolve component audit findings (#2025)`) |
-| Surface | deployed staging `myk9-platform-myk9show.vercel.app` (auto-deploys from `main`), real Chromium 1440×1000, tz America/Chicago |
-| Accounts | `exhibitor@myk9t.com` (252 dogs / 1235 live entries). `exhibitor2@myk9t.com` **sign-in rejected — credential drift, 2nd consecutive walk** |
-| Stripe | **payment completed in sandbox on 2026-09-05**, `cs_test_` asserted before any digits. Required a fixture fix first — see the addendum |
-| Findings | 8 new (E24–E31), 5 prior findings unchanged, **9 prior findings confirmed resolved in the browser** |
-| Artefacts | 53 screenshots + network captures in the session scratchpad |
-| Mutations | 1 dog + 1 registration created and **fully undone**; counts asserted before and after |
+|              |                                                                                                                                            |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Baseline SHA | `44c6c153d` (`fix(admin): resolve component audit findings (#2025)`)                                                                       |
+| Surface      | deployed staging `myk9-platform-myk9show.vercel.app` (auto-deploys from `main`), real Chromium 1440×1000, tz America/Chicago               |
+| Accounts     | `exhibitor@myk9t.com` (252 dogs / 1235 live entries). `exhibitor2@myk9t.com` **sign-in rejected — credential drift, 2nd consecutive walk** |
+| Stripe       | **payment completed in sandbox on 2026-09-05**, `cs_test_` asserted before any digits. Required a fixture fix first — see the addendum     |
+| Findings     | 8 new (E24–E31), 5 prior findings unchanged, **9 prior findings confirmed resolved in the browser**                                        |
+| Artefacts    | 53 screenshots + network captures in the session scratchpad                                                                                |
+| Mutations    | 1 dog + 1 registration created and **fully undone**; counts asserted before and after                                                      |
 
 Prior walk: [`2026-09-01-exhibitor-task-walk-claude.md`](2026-09-01-exhibitor-task-walk-claude.md) (E9–E23).
 A Codex elderly-novice UX walk also ran on 2026-09-03
@@ -25,7 +25,7 @@ findings here are deduped against it.
 ## Headline
 
 **The remediation since 2026-09-01 is real and it holds.** All five P1s from that walk
-were verified fixed *in the browser*, not just merged — the entry list now pages the full
+were verified fixed _in the browser_, not just merged — the entry list now pages the full
 1275 rows, the ghost "Show cancelled" cards are gone, the $180 outstanding balance
 reconciles to the cent, and the dog-delete refusal is surfaced verbatim. Four of the ten
 P2/P3s were fixed too, several by the 2026-09-03 Codex walk.
@@ -39,7 +39,7 @@ P2/P3s were fixed too, several by the 2026-09-03 Codex walk.
 - The exhibitor's **run schedule can never display a result or a judge**. 958 rows say
   "Awaiting results" and 967 say "Judge TBD", on a show where 3 entries are scored and
   released and 9 of 9 classes carry a judge name. Both fields are fetched over the wire and
-  discarded by a mapper. Meanwhile the *same dog's* Statistics tab reports the results
+  discarded by a mapper. Meanwhile the _same dog's_ Statistics tab reports the results
   exactly right — the signature exhibitor defect, at its widest yet.
 
 ---
@@ -48,44 +48,44 @@ P2/P3s were fixed too, several by the 2026-09-03 Codex walk.
 
 Checked first, as required.
 
-| Show | Entries close | Club has Stripe? | Enterable today? |
-| --- | --- | --- | --- |
-| `MYK9-109 Load Show 1` | **2027-01-02** | **no** | Yes — wizard opens, but the club cannot take money |
-| `Heartland Scent Work Classic` | 2026-09-01 | **yes** | **No** — closed 3 days ago |
-| `MYK9-109 Load Show 2` / `3` | 2026-09-01 | no | No |
-| `ZZ Audit - Rewalk` | 2026-08-27 | yes | No |
-| `[E2E MYK9-336] Past Due Payment Fixture` | 2026-08-09 | yes | No |
-| `ZZ Audit - *` (others) | 2026-08-27 | no | No |
+| Show                                      | Entries close  | Club has Stripe? | Enterable today?                                   |
+| ----------------------------------------- | -------------- | ---------------- | -------------------------------------------------- |
+| `MYK9-109 Load Show 1`                    | **2027-01-02** | **no**           | Yes — wizard opens, but the club cannot take money |
+| `Heartland Scent Work Classic`            | 2026-09-01     | **yes**          | **No** — closed 3 days ago                         |
+| `MYK9-109 Load Show 2` / `3`              | 2026-09-01     | no               | No                                                 |
+| `ZZ Audit - Rewalk`                       | 2026-08-27     | yes              | No                                                 |
+| `[E2E MYK9-336] Past Due Payment Fixture` | 2026-08-09     | yes              | No                                                 |
+| `ZZ Audit - *` (others)                   | 2026-08-27     | no               | No                                                 |
 
 **No show is both open and Stripe-capable**, so **role task 3 (Pay entry fees) could not be
 walked at all** and MYK9-294 could not be re-verified. This is recorded as a coverage gap,
 not a pass. Exactly one club in the database has a `club_stripe_accounts` row, and its
 show's window closed on the same day the previous walk used it.
 
-This was predicted — the 2026-09-01 walk closed with *"Task 3 is unwalkable as specified
-next run"* — and the 2026-07-06 walk hit the same wall. Filed as
+This was predicted — the 2026-09-01 walk closed with _"Task 3 is unwalkable as specified
+next run"_ — and the 2026-07-06 walk hit the same wall. Filed as
 [MYK9-388](https://linear.app/myk9-platform/issue/MYK9-388) per the task file's explicit
 instruction to open a fixture-rollforward issue.
 
 The closed-show path itself is **correct**: `/shows/<closed>/register` dead-ends at
-*"ENTRIES CLOSED — This show is no longer accepting normal online entries"* with a
+_"ENTRIES CLOSED — This show is no longer accepting normal online entries"_ with a
 "Message the show team" link. That prior finding stays resolved.
 
 ---
 
 ## Coverage
 
-| # | Task area | Walked | Account | Notes |
-| --- | --- | --- | --- | --- |
-| 1 | Manage dog records | **Yes** | `exhibitor@` | Created a dog, added an AKC registration, edited it, deleted it — all through the UI, all verified in the DB. **Empty-state half not covered** (gap 1) |
-| 2 | Find and enter shows | **Yes** | signed-out + `exhibitor@` | Signed-out discovery **broken at the click-through** (E27). Wizard walked to the payment step. Closed-show path correct |
-| 3 | Pay entry fees | **Yes** (2026-09-05) | `exhibitor@` | Walked end to end after the fixture fix. Money correct at every step; **confirmation fails — E31** |
-| 4 | View entry status | **Yes** | `exhibitor@` | The strongest area this run. Counts now reconcile exactly to the database |
-| 5 | Running order / ring assignments | **Yes** | `exhibitor@` | Judge never resolves (E19 → MYK9-381). No published times in the fixtures, so ordering itself is untested |
-| 6 | Announcements inbox | **Partial** | `exhibitor@` | `/notifications` renders a correct empty state. **The DB holds 0 announcements platform-wide**, so the empty state is truthful and nothing else can be tested |
-| 7 | Check in on show day | **Partial** | `exhibitor@` | Early self-check-in reachable and correct (61 buttons, dialog opens, no write before confirm); **E25** on its copy. No show is live, so the day-of path is untested — and `/at-show` dead-ends, which MYK9-379 already owns |
-| 8 | Review results | **Yes** | `exhibitor@` | **Fails** — E29. Statistics and Past Results are correct; the show's own surfaces are not |
-| 9 | Review statistics | **Yes** | `exhibitor@` | **Accurate.** Willow: 2 entries, Q rate 100%, fastest 38.50s, avg 45.45s — reconciles exactly |
+| #   | Task area                        | Walked               | Account                   | Notes                                                                                                                                                                                                                       |
+| --- | -------------------------------- | -------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Manage dog records               | **Yes**              | `exhibitor@`              | Created a dog, added an AKC registration, edited it, deleted it — all through the UI, all verified in the DB. **Empty-state half not covered** (gap 1)                                                                      |
+| 2   | Find and enter shows             | **Yes**              | signed-out + `exhibitor@` | Signed-out discovery **broken at the click-through** (E27). Wizard walked to the payment step. Closed-show path correct                                                                                                     |
+| 3   | Pay entry fees                   | **Yes** (2026-09-05) | `exhibitor@`              | Walked end to end after the fixture fix. Money correct at every step; **confirmation fails — E31**                                                                                                                          |
+| 4   | View entry status                | **Yes**              | `exhibitor@`              | The strongest area this run. Counts now reconcile exactly to the database                                                                                                                                                   |
+| 5   | Running order / ring assignments | **Yes**              | `exhibitor@`              | Judge never resolves (E19 → MYK9-381). No published times in the fixtures, so ordering itself is untested                                                                                                                   |
+| 6   | Announcements inbox              | **Partial**          | `exhibitor@`              | `/notifications` renders a correct empty state. **The DB holds 0 announcements platform-wide**, so the empty state is truthful and nothing else can be tested                                                               |
+| 7   | Check in on show day             | **Partial**          | `exhibitor@`              | Early self-check-in reachable and correct (61 buttons, dialog opens, no write before confirm); **E25** on its copy. No show is live, so the day-of path is untested — and `/at-show` dead-ends, which MYK9-379 already owns |
+| 8   | Review results                   | **Yes**              | `exhibitor@`              | **Fails** — E29. Statistics and Past Results are correct; the show's own surfaces are not                                                                                                                                   |
+| 9   | Review statistics                | **Yes**              | `exhibitor@`              | **Accurate.** Willow: 2 entries, Q rate 100%, fastest 38.50s, avg 45.45s — reconciles exactly                                                                                                                               |
 
 ### Coverage gaps (not passes)
 
@@ -105,21 +105,21 @@ The closed-show path itself is **correct**: `/shows/<closed>/register` dead-ends
 
 E-series continuing from **E23** (2026-09-01 walk).
 
-| ID | P | Title | Status vs prior | Filed |
-| --- | --- | --- | --- | --- |
-| **E27** | **P1** | Signed-out visitors get "Show Not Found" on every show they click from Find Shows | new | [MYK9-380](https://linear.app/myk9-platform/issue/MYK9-380) |
-| **E29** | **P1** | Run schedule can never show a result: 958 "Awaiting results" over scored, released entries | new | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) |
-| **E19** | P2→**P1** | "Judge TBD" on 967 rows while 9/9 classes carry a judge name | **unchanged** (E6, 3rd sighting) | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) |
-| **E24** | P2 | "Finish Payment" on entry cards still leads to a cart that refuses | **MYK9-336 AC unmet** | MYK9-336 reopened |
-| **E25** | P2 | Check-in dialog offers "I need to withdraw from this class", 127 days out | new | [MYK9-383](https://linear.app/myk9-platform/issue/MYK9-383) |
-| **E26** | P2 | Dog Career → Past Results dates an Aug 1 trial to 7/31 | new (MYK9-366 family) | [MYK9-384](https://linear.app/myk9-platform/issue/MYK9-384) |
-| **E28** | P2 | My Shows says entries close Jan 1; the show page says Jan 2 | new (same family) | [MYK9-384](https://linear.app/myk9-platform/issue/MYK9-384) |
-| **E16** | P2 | 191 dog cards say "Not entered"; every one of those dogs has entries | **unchanged** (E1, 3rd sighting) | [MYK9-385](https://linear.app/myk9-platform/issue/MYK9-385) |
-| **E15** | P2 | A waived entry badges as "Unknown" | **unchanged** | [MYK9-385](https://linear.app/myk9-platform/issue/MYK9-385) |
-| **E20** | P2 | Card payment offered end to end for a club that cannot accept it | **unchanged** | [MYK9-386](https://linear.app/myk9-platform/issue/MYK9-386) |
-| **E9** | P2 | My Shows fires 389 requests, 252 of them one per dog | **unchanged** | commented on MYK9-289 |
-| **E30** | P3 | Show page states one entry count three ways: tab 485, header 482, DB 486 | new | [MYK9-387](https://linear.app/myk9-platform/issue/MYK9-387) |
-| **E31** | **P1** | Confirmation can never find the payment — Stripe is sent a percent-encoded placeholder | new; **MYK9-294 reopened** | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) |
+| ID      | P         | Title                                                                                      | Status vs prior                  | Filed                                                       |
+| ------- | --------- | ------------------------------------------------------------------------------------------ | -------------------------------- | ----------------------------------------------------------- |
+| **E27** | **P1**    | Signed-out visitors get "Show Not Found" on every show they click from Find Shows          | new                              | [MYK9-380](https://linear.app/myk9-platform/issue/MYK9-380) |
+| **E29** | **P1**    | Run schedule can never show a result: 958 "Awaiting results" over scored, released entries | new                              | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) |
+| **E19** | P2→**P1** | "Judge TBD" on 967 rows while 9/9 classes carry a judge name                               | **unchanged** (E6, 3rd sighting) | [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) |
+| **E24** | P2        | "Finish Payment" on entry cards still leads to a cart that refuses                         | **MYK9-336 AC unmet**            | MYK9-336 reopened                                           |
+| **E25** | P2        | Check-in dialog offers "I need to withdraw from this class", 127 days out                  | new                              | [MYK9-383](https://linear.app/myk9-platform/issue/MYK9-383) |
+| **E26** | P2        | Dog Career → Past Results dates an Aug 1 trial to 7/31                                     | new (MYK9-366 family)            | [MYK9-384](https://linear.app/myk9-platform/issue/MYK9-384) |
+| **E28** | P2        | My Shows says entries close Jan 1; the show page says Jan 2                                | new (same family)                | [MYK9-384](https://linear.app/myk9-platform/issue/MYK9-384) |
+| **E16** | P2        | 191 dog cards say "Not entered"; every one of those dogs has entries                       | **unchanged** (E1, 3rd sighting) | [MYK9-385](https://linear.app/myk9-platform/issue/MYK9-385) |
+| **E15** | P2        | A waived entry badges as "Unknown"                                                         | **unchanged**                    | [MYK9-385](https://linear.app/myk9-platform/issue/MYK9-385) |
+| **E20** | P2        | Card payment offered end to end for a club that cannot accept it                           | **unchanged**                    | [MYK9-386](https://linear.app/myk9-platform/issue/MYK9-386) |
+| **E9**  | P2        | My Shows fires 389 requests, 252 of them one per dog                                       | **unchanged**                    | commented on MYK9-289                                       |
+| **E30** | P3        | Show page states one entry count three ways: tab 485, header 482, DB 486                   | new                              | [MYK9-387](https://linear.app/myk9-platform/issue/MYK9-387) |
+| **E31** | **P1**    | Confirmation can never find the payment — Stripe is sent a percent-encoded placeholder     | new; **MYK9-294 reopened**       | [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) |
 
 ---
 
@@ -138,8 +138,8 @@ In a fresh context with no cookies and no storage:
    confidently.
 
 Verified on three published, non-deleted shows; reproduced both by direct navigation and by
-the real click-through. The same URLs render fully for a signed-in exhibitor, *including from
-a fresh context with cold IndexedDB* — so this is guest-only.
+the real click-through. The same URLs render fully for a signed-in exhibitor, _including from
+a fresh context with cold IndexedDB_ — so this is guest-only.
 
 **The decisive evidence is what is missing.** The complete `/rest/v1/` traffic on that page is:
 
@@ -153,11 +153,11 @@ decides the show does not exist without asking. `ShowDetailsPage` resolves it fr
 `useFastShowDetails` → `getShowById` and a fallback `useShowsQuery` → `getAllShows`, both
 through `withReplicationFallback` (`services/database/shows/reads.ts:117-152`). For a guest
 the replicated store is **cold but well-formed**, returning `{data: [], error: null}`, and
-the network fallback only fires on a *throw*. `/shows/:id` lives in `publicRoutes.tsx:158`
+the network fallback only fires on a _throw_. `/shows/:id` lives in `publicRoutes.tsx:158`
 and is not wrapped in `ProtectedRoute`, so it is meant to be public.
 
-`docs/roles/exhibitor.md`, under "Should never have to think about": *"Setting up an account
-just to browse shows — discovery is open."* Discovery is half-open: findable, unopenable,
+`docs/roles/exhibitor.md`, under "Should never have to think about": _"Setting up an account
+just to browse shows — discovery is open."_ Discovery is half-open: findable, unopenable,
 and the app blames the show rather than asking for a sign-in.
 
 ---
@@ -178,8 +178,8 @@ Thirty-four days later, on the show page:
 
 - All three render **"Awaiting results"**. Counted by DOM leaf node: **958** elements whose
   entire text is `Awaiting results`; **zero** rows carry a result.
-- The **Results tab reads `0`**: *"Results are being reviewed — Placements will appear here
-  after the secretary releases them."* The placement half of that copy is defensible
+- The **Results tab reads `0`**: _"Results are being reviewed — Placements will appear here
+  after the secretary releases them."_ The placement half of that copy is defensible
   (`final_placement` is NULL, class not fully scored); withholding the **Q and the time**,
   both set to `immediate`, is not.
 - **967** rows read `Saturday Trial · Judge TBD`; **zero** name a judge. All 9 Heartland
@@ -188,13 +188,13 @@ Thirty-four days later, on the show page:
 **The same dog's other tabs are exactly right** — this is the two-surfaces-one-fact defect
 the task file says to hunt, and here it is four surfaces:
 
-| Surface | Willow's Heartland results |
-| --- | --- |
-| Career → **Statistics** | `2 entries · Q rate 100% (2 of 2) · fastest 38.50s · avg 45.45s` — exact |
-| Career → **Past Results** | Both Qs listed |
-| Overview / **Title Progress** | `SCN 33% · 1/3 legs`, `SIA 33% · 1/3` |
-| Show → **My run schedule** | **"Awaiting results"** |
-| Show → **Results** tab | **0** |
+| Surface                       | Willow's Heartland results                                               |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| Career → **Statistics**       | `2 entries · Q rate 100% (2 of 2) · fastest 38.50s · avg 45.45s` — exact |
+| Career → **Past Results**     | Both Qs listed                                                           |
+| Overview / **Title Progress** | `SCN 33% · 1/3 legs`, `SIA 33% · 1/3`                                    |
+| Show → **My run schedule**    | **"Awaiting results"**                                                   |
+| Show → **Results** tab        | **0**                                                                    |
 
 **Mechanism, traced.** `getPendingResultLabel` (`components/shows/tabs/entryResultDisplay.ts:61`)
 emits the string unless `entry.hasResult && entry.result`. `hasResult` is
@@ -209,12 +209,12 @@ For the judge: `classes.judge_name` **is** on the wire (confirmed in the classes
 `mapDatabaseToClass` derives the judge **only** from a joined `judge_assignments` relation,
 never from `judge_name` (`services/mappers/classMappers.ts:218-237`); the replication mapper
 hard-codes `judge: '', // Local-only` (`store/class-store-helpers.ts:21`). And the source it
-*does* read yields nothing either — the `judge_assignments` request carries no `people(...)`
+_does_ read yields nothing either — the `judge_assignments` request carries no `people(...)`
 embed, while `readAssignmentJudgeName` needs it. Both conditions hold, which is why the count
 is 967/967 rather than partial.
 
-On the screen the product itself labels *"Times, armbands, judges, and results stay together
-here"*, none of the three that depend on these fields is ever populated. E19 is now its third
+On the screen the product itself labels _"Times, armbands, judges, and results stay together
+here"_, none of the three that depend on these fields is ever populated. E19 is now its third
 consecutive sighting (E6 → E19 → E19) and had never been filed.
 
 ---
@@ -229,14 +229,14 @@ reconciles exactly ($90 Heartland + $90 fixture show).
 The **per-entry CTA on the My Shows cards** was not covered and still dead-ends. Three cards
 render **Finish Payment**; following one to
 `/cart?showId=dededede-…&entryIds=dededede-…0054` renders the full cart —
-`Entry Fees $35.00 · Service fee (7%) $2.45 · Total $37.45` — above *"Entries are closed for
-this show"* and a disabled **"Entries closed. Cannot pay online"**.
+`Entry Fees $35.00 · Service fee (7%) $2.45 · Total $37.45` — above _"Entries are closed for
+this show"_ and a disabled **"Entries closed. Cannot pay online"**.
 
 The `isPastShow` guard lives only in `AmountDueSection.tsx:107-115`. `MyEntryCard.tsx:234-253`
-gates the link on whether a `paymentHref` could be *built*, and `buildFinishPaymentHref` is a
+gates the link on whether a `paymentHref` could be _built_, and `buildFinishPaymentHref` is a
 pure URL builder with no notion of the entry window, so it always can. The block even carries
 the right intent — `// INTENT: an exhibitor who owes money must never face a dead end` — on
-the *other* branch. Three call sites now have to agree about one fact.
+the _other_ branch. Three call sites now have to agree about one fact.
 
 ---
 
@@ -253,8 +253,8 @@ I NEED TO WITHDRAW FROM THIS CLASS
 
 That is the exhibitor-facing label for the check-in status `pulled`
 (`types/check-in-types.ts:90-95`) — a day-of ring signal. But "withdraw" is the word this
-product already uses for something heavier: `docs/roles/exhibitor.md` lists *"Self-service
-withdraws and refunds"* as deferred, and `entry_status = 'withdrawn'` renders on the very same
+product already uses for something heavier: `docs/roles/exhibitor.md` lists _"Self-service
+withdraws and refunds"_ as deferred, and `entry_status = 'withdrawn'` renders on the very same
 screen as **"Withdrawn · Refunded"**. An exhibitor four months out who wants out of a class
 will read this as the withdraw control, select it, and believe they are done. The entry and
 the fee are untouched, and the dialog says nothing about either.
@@ -269,11 +269,11 @@ Recorded here because the task file asks explicitly for sightings of withdraw/re
 Fourth appearance of a pattern with three prior issues (MYK9-311, MYK9-352 → MYK9-377,
 MYK9-366), each fixed only at the call site reported.
 
-| Surface | Says | Truth |
-| --- | --- | --- |
-| My Shows entry card ×**61** | `Entries close Jan 1, 2027` | `entry_close_date = 2027-01-02` |
-| Show detail page | `ENTRIES CLOSE  Jan 2` | ✓ |
-| Career → Past Results ×2 | `7/31/2026` | trial is **Aug 1**; the run schedule says `SATURDAY, AUG 1` and the header `AUG 1–3` |
+| Surface                     | Says                        | Truth                                                                                |
+| --------------------------- | --------------------------- | ------------------------------------------------------------------------------------ |
+| My Shows entry card ×**61** | `Entries close Jan 1, 2027` | `entry_close_date = 2027-01-02`                                                      |
+| Show detail page            | `ENTRIES CLOSE  Jan 2`      | ✓                                                                                    |
+| Career → Past Results ×2    | `7/31/2026`                 | trial is **Aug 1**; the run schedule says `SATURDAY, AUG 1` and the header `AUG 1–3` |
 
 `formatShortDate` (`lib/format/dates.ts:130`) resolves an **instant**; the calendar-safe
 `formatEntryDate` sits 50 lines above it in the same file and is what MYK9-366's PR #2005
@@ -291,12 +291,12 @@ by appending `T00:00:00` — a tell that the trap has been hit and worked around
 
 Measured with one fresh browser context per route, tracking every request to a terminal event:
 
-| Route | requests | settled | unsettled | load |
-| --- | --- | --- | --- | --- |
-| `/exhibitor/entries` | **389** | 389 | **0** | 8.1 s |
-| `/account` | 43 | 43 | 0 | 5.3 s |
-| `/shows` | 44 | 44 | 0 | 5.1 s |
-| `/notifications` | 43 | 43 | 0 | 4.5 s |
+| Route                | requests | settled | unsettled | load  |
+| -------------------- | -------- | ------- | --------- | ----- |
+| `/exhibitor/entries` | **389**  | 389     | **0**     | 8.1 s |
+| `/account`           | 43       | 43      | 0         | 5.3 s |
+| `/shows`             | 44       | 44      | 0         | 5.1 s |
+| `/notifications`     | 43       | 43      | 0         | 4.5 s |
 
 ```
 252  /rest/v1/manual_results   <- one per dog
@@ -322,18 +322,18 @@ idle-window assertion.
 
 **Resolved — confirmed in the browser, not merely merged.**
 
-| Prior | Verdict | Evidence |
-| --- | --- | --- |
-| **E10** / MYK9-290 — list truncated at 1000 rows | **RESOLVED** | Two requests, `0-999/*` (1000 rows) + `1000-1274/*` (275 rows) = 1275, the full row count including soft-deleted. The page reads `253 entries`, which equals distinct (dog, show) registrations **exactly** |
-| **E11** / MYK9-291 — soft-deleted entries say "Show cancelled" | **RESOLVED** | **0** occurrences of "Show cancelled", **0** of "Unknown Dog" (was 40 of each) |
-| **E14** / MYK9-292 — "Paid in full" while $90 owed | **RESOLVED** | `ENTRY FEES $180.00 outstanding balance · Contact the club to settle`. Reconciles exactly: $90 Heartland (3×$30) + $90 fixture show |
-| **E18** / MYK9-293 — dog delete fails silently | **RESOLVED** | Deleting a dog with paid entries surfaces *"This dog has paid or scored entries. Scratch or refund them before deleting."* verbatim, and the row is **not** removed (`dogs_live` unchanged at 252) |
-| **E17** — 41 entries in no status bucket | **RESOLVED** | `Any status 253 = Pending 4 + Accepted 249 + Waitlist 0`. `All 253 = Upcoming 61 + Completed 192`. Both reconcile to the DB (61 upcoming / 192 past registrations) |
-| **E13** / MYK9-367 — wizard quotes less than the cart | **RESOLVED** | Wizard step 3 now reads `Amount Due: $32.10` with the 7% service fee itemised, matching the cart |
-| **E21** / MYK9-369 — no search across 252 dogs | **RESOLVED** | `Search dogs by call name`, `1 of 252 dogs shown`. Verified across 8 queries |
-| **E22** / MYK9-370 — no show names, inconsistent receipts | **RESOLVED** | Recent rows name the show; older ones are labelled `Historical payment` with *"Historical receipt unavailable — Contact support"*. Arithmetic exact: `$321.00 − $112.35 = $208.65`, "8 payments, 3 refunds" reconciles to the rows |
-| Closed show's Enter CTA | **RESOLVED** (holds) | `/shows/<closed>/register` dead-ends at "ENTRIES CLOSED" with "Message the show team" |
-| MYK9-218 — dogs list unbounded | **RESOLVED** | `Showing 1 to 25 of 252` |
+| Prior                                                          | Verdict              | Evidence                                                                                                                                                                                                                           |
+| -------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **E10** / MYK9-290 — list truncated at 1000 rows               | **RESOLVED**         | Two requests, `0-999/*` (1000 rows) + `1000-1274/*` (275 rows) = 1275, the full row count including soft-deleted. The page reads `253 entries`, which equals distinct (dog, show) registrations **exactly**                        |
+| **E11** / MYK9-291 — soft-deleted entries say "Show cancelled" | **RESOLVED**         | **0** occurrences of "Show cancelled", **0** of "Unknown Dog" (was 40 of each)                                                                                                                                                     |
+| **E14** / MYK9-292 — "Paid in full" while $90 owed             | **RESOLVED**         | `ENTRY FEES $180.00 outstanding balance · Contact the club to settle`. Reconciles exactly: $90 Heartland (3×$30) + $90 fixture show                                                                                                |
+| **E18** / MYK9-293 — dog delete fails silently                 | **RESOLVED**         | Deleting a dog with paid entries surfaces _"This dog has paid or scored entries. Scratch or refund them before deleting."_ verbatim, and the row is **not** removed (`dogs_live` unchanged at 252)                                 |
+| **E17** — 41 entries in no status bucket                       | **RESOLVED**         | `Any status 253 = Pending 4 + Accepted 249 + Waitlist 0`. `All 253 = Upcoming 61 + Completed 192`. Both reconcile to the DB (61 upcoming / 192 past registrations)                                                                 |
+| **E13** / MYK9-367 — wizard quotes less than the cart          | **RESOLVED**         | Wizard step 3 now reads `Amount Due: $32.10` with the 7% service fee itemised, matching the cart                                                                                                                                   |
+| **E21** / MYK9-369 — no search across 252 dogs                 | **RESOLVED**         | `Search dogs by call name`, `1 of 252 dogs shown`. Verified across 8 queries                                                                                                                                                       |
+| **E22** / MYK9-370 — no show names, inconsistent receipts      | **RESOLVED**         | Recent rows name the show; older ones are labelled `Historical payment` with _"Historical receipt unavailable — Contact support"_. Arithmetic exact: `$321.00 − $112.35 = $208.65`, "8 payments, 3 refunds" reconciles to the rows |
+| Closed show's Enter CTA                                        | **RESOLVED** (holds) | `/shows/<closed>/register` dead-ends at "ENTRIES CLOSED" with "Message the show team"                                                                                                                                              |
+| MYK9-218 — dogs list unbounded                                 | **RESOLVED**         | `Showing 1 to 25 of 252`                                                                                                                                                                                                           |
 
 **Unchanged:** E9, E15, E16, E19, E20 — all filed this run.
 
@@ -359,7 +359,7 @@ section the secretary walks showed carries the most signal, so it is recorded in
 2. **"Title Progress says 0/3 for titles the Overview says 1 of 3."** Career → Title Progress
    appeared to contradict the Overview card. It does not: `SCN 33% · 1/3 qualifying legs` and
    `SIA 33% · 1/3` are both there and agree. I had read only the tail of a long list of
-   *unearned* titles, which are correctly `0/3`.
+   _unearned_ titles, which are correctly `0/3`.
 
 3. **"The sex picker renders no options."** `getByRole('option', {name: /^female$/i})` timed
    out and `$$eval` for exact `Male`/`Female` text returned `[]`. The options are proper
@@ -371,7 +371,7 @@ section the secretary walks showed carries the most signal, so it is recorded in
    proper sweep of 8 queries showed `ZZ`, `Walk`, `ZZ Walk` and `zz walk dog` all return
    `1 of 252 dogs shown`. The first probe read the DOM before the debounce settled.
 
-One near-miss worth recording as a *non*-finding: the guarded dog delete fires
+One near-miss worth recording as a _non_-finding: the guarded dog delete fires
 `POST /rpc/soft_delete_dog` **twice** for one confirm click. I nearly filed a double-submit.
 The successful delete on a different dog fires it exactly **once** — so this is React Query
 retrying a failed mutation, not a double write. Checking the success case is what
@@ -390,12 +390,12 @@ number: **zero** rows show a result, and that is what the assertion rests on.
 
 **Everything created this run was undone. Counts asserted before and after.**
 
-| Object | Action | Verified |
-| --- | --- | --- |
+| Object                                      | Action                              | Verified                            |
+| ------------------------------------------- | ----------------------------------- | ----------------------------------- |
 | Dog `ZZ Walk Dog 2026-09-04` (`19ca3071-…`) | created → edited → **soft-deleted** | `deleted_at = 2026-09-04 21:51:05Z` |
-| AKC registration `ZZWALK0904` | created on that dog | removed with the dog |
-| `dogs_live` | 252 → 253 → **252** | asserted at each step |
-| `entries_live` | **1235 → 1235** | unchanged — no entry created |
+| AKC registration `ZZWALK0904`               | created on that dog                 | removed with the dog                |
+| `dogs_live`                                 | 252 → 253 → **252**                 | asserted at each step               |
+| `entries_live`                              | **1235 → 1235**                     | unchanged — no entry created        |
 
 No payment was made (none was possible). No entry, show, or record I did not create was
 modified. No withdraw or refund was attempted. Every destructive click was anchored to the
@@ -420,19 +420,19 @@ Every dedup search used `includeArchived: true`, matched on task area / route / 
 symptom rather than title, and was run against the 2026-09-03 Codex walk's issues
 (MYK9-366..370) as well as the 2026-09-01 walk's.
 
-| Issue | Finding | Priority |
-| --- | --- | --- |
-| [MYK9-380](https://linear.app/myk9-platform/issue/MYK9-380) | **E27** — signed-out visitors get "Show Not Found" on every show | High |
-| [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) | **E29 + E19** — run schedule can never show a result or a judge | High |
-| [MYK9-336](https://linear.app/myk9-platform/issue/MYK9-336) | **E24** — **reopened**, AC 2 unmet on a third surface | Medium |
-| [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289) | **E9** — commented with the settle measurement and the 389-request breakdown the issue asked for | High |
-| [MYK9-382](https://linear.app/myk9-platform/issue/MYK9-382) | P2/P3 parent | Medium |
-| ├ [MYK9-383](https://linear.app/myk9-platform/issue/MYK9-383) | **E25** — "I need to withdraw from this class" | Medium |
-| ├ [MYK9-384](https://linear.app/myk9-platform/issue/MYK9-384) | **E26 + E28** — two more calendar-dates-as-instants | Medium |
-| ├ [MYK9-385](https://linear.app/myk9-platform/issue/MYK9-385) | **E16 + E15** — "Not entered" on 191 entered dogs; waived → "Unknown" | Medium |
-| ├ [MYK9-386](https://linear.app/myk9-platform/issue/MYK9-386) | **E20** — card offered for a club with no Stripe account | Medium |
-| ├ [MYK9-387](https://linear.app/myk9-platform/issue/MYK9-387) | **E30** — one entry count stated three ways | Low |
-| └ [MYK9-388](https://linear.app/myk9-platform/issue/MYK9-388) | fixture rollforward + `exhibitor2` credential drift | Medium |
+| Issue                                                         | Finding                                                                                          | Priority |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
+| [MYK9-380](https://linear.app/myk9-platform/issue/MYK9-380)   | **E27** — signed-out visitors get "Show Not Found" on every show                                 | High     |
+| [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381)   | **E29 + E19** — run schedule can never show a result or a judge                                  | High     |
+| [MYK9-336](https://linear.app/myk9-platform/issue/MYK9-336)   | **E24** — **reopened**, AC 2 unmet on a third surface                                            | Medium   |
+| [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289)   | **E9** — commented with the settle measurement and the 389-request breakdown the issue asked for | High     |
+| [MYK9-382](https://linear.app/myk9-platform/issue/MYK9-382)   | P2/P3 parent                                                                                     | Medium   |
+| ├ [MYK9-383](https://linear.app/myk9-platform/issue/MYK9-383) | **E25** — "I need to withdraw from this class"                                                   | Medium   |
+| ├ [MYK9-384](https://linear.app/myk9-platform/issue/MYK9-384) | **E26 + E28** — two more calendar-dates-as-instants                                              | Medium   |
+| ├ [MYK9-385](https://linear.app/myk9-platform/issue/MYK9-385) | **E16 + E15** — "Not entered" on 191 entered dogs; waived → "Unknown"                            | Medium   |
+| ├ [MYK9-386](https://linear.app/myk9-platform/issue/MYK9-386) | **E20** — card offered for a club with no Stripe account                                         | Medium   |
+| ├ [MYK9-387](https://linear.app/myk9-platform/issue/MYK9-387) | **E30** — one entry count stated three ways                                                      | Low      |
+| └ [MYK9-388](https://linear.app/myk9-platform/issue/MYK9-388) | fixture rollforward + `exhibitor2` credential drift                                              | Medium   |
 
 **Label deviation, recorded deliberately.** The task file asks for `p0`/`p1`, `source:claude`,
 `walk:exhibitor` labels. **None of those four labels exists in this workspace** (the full team
@@ -450,15 +450,15 @@ is enterable.
 
 ## Confidence
 
-| Finding | Confidence | Basis |
-| --- | --- | --- |
-| E27 | **High** | Reproduced 3 shows × 2 paths in fresh guest contexts; the absent network request is decisive; code path traced |
-| E29, E19 | **High** | DB-to-pixel reconciliation on named entries; both mappers read and quoted; wire selects inspected |
-| E24 | **High** | Followed the CTA to the refusing cart; the missing guard named against the one that exists |
-| E26, E28 | **High** | Three surfaces compared against the DB value; both helpers read; the fixed sibling identified |
-| E15, E16, E20, E30 | **High** | Browser counts reconciled to SQL; source line named for each |
-| E25 | **High** on the copy, **medium** on impact | Dialog text captured verbatim; the harm is inferred from the vocabulary collision, not observed |
-| E9 | **High** | Two independent measurements, four routes, fresh context each |
+| Finding            | Confidence                                 | Basis                                                                                                          |
+| ------------------ | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| E27                | **High**                                   | Reproduced 3 shows × 2 paths in fresh guest contexts; the absent network request is decisive; code path traced |
+| E29, E19           | **High**                                   | DB-to-pixel reconciliation on named entries; both mappers read and quoted; wire selects inspected              |
+| E24                | **High**                                   | Followed the CTA to the refusing cart; the missing guard named against the one that exists                     |
+| E26, E28           | **High**                                   | Three surfaces compared against the DB value; both helpers read; the fixed sibling identified                  |
+| E15, E16, E20, E30 | **High**                                   | Browser counts reconciled to SQL; source line named for each                                                   |
+| E25                | **High** on the copy, **medium** on impact | Dialog text captured verbatim; the harm is inferred from the vocabulary collision, not observed                |
+| E9                 | **High**                                   | Two independent measurements, four routes, fresh context each                                                  |
 
 ---
 
@@ -472,21 +472,21 @@ fixture to be fixed so the task could be tested properly. This addendum records 
 missing was a single `club_stripe_accounts` row for `MYK9-109 Load Club 1`, and the
 `stripe-checkout` gate reads only `payouts_enabled` and `livemode` — it never validates the
 account id (`index.ts:547-563`). Heartland's own id is a placeholder, and `seed-demo.sql`
-already says why that is safe: *"The session itself doesn't use Connect (no transfer_data),
-so a sandbox placeholder account id is safe for testing."* Fixed in
+already says why that is safe: _"The session itself doesn't use Connect (no transfer_data),
+so a sandbox placeholder account id is safe for testing."_ Fixed in
 [PR #2032](https://github.com/rbeezley/myk9-platform/pull/2032), merged as `36ba17858`, which
 declares the row for Load Club 1 only — clubs 2 and 3 stay unpayable on purpose, because
-MYK9-386 needs a club that genuinely cannot take money — and asserts *exactly one* payable
+MYK9-386 needs a club that genuinely cannot take money — and asserts _exactly one_ payable
 load club so either direction fails a reseed loudly.
 
 ## The money is correct at every step
 
-| Step | Amount |
-| --- | --- |
-| Wizard step 3 — "Amount Due" | **$32.10** |
-| Cart — "Total" and the pay button | **$32.10** |
-| Stripe's own Checkout page | **$32.10** ($30.00 + $2.10) |
-| `stripe_orders.amount_cents` | **3210** |
+| Step                              | Amount                      |
+| --------------------------------- | --------------------------- |
+| Wizard step 3 — "Amount Due"      | **$32.10**                  |
+| Cart — "Total" and the pay button | **$32.10**                  |
+| Stripe's own Checkout page        | **$32.10** ($30.00 + $2.10) |
+| `stripe_orders.amount_cents`      | **3210**                    |
 
 Four surfaces, one number. **E13 / MYK9-367 is confirmed fixed end to end** — the defect the
 2026-09-01 walk found (wizard quoting $30.00 against a $32.10 charge) is gone, and this is the
@@ -500,8 +500,8 @@ Everything downstream of payment is also correct. My Shows showed the entry with
 arithmetic reconciles exactly: gross `$321.00 + $32.10 = $353.10`, net
 `$353.10 − $112.35 = $240.75`, "9 payments" up from 8.
 
-*(The "Sep 4" date is correct, not an instance of E26/E28: `paid_at` is `2026-09-05 00:58 UTC`,
-which is Sep 4 19:58 in America/Chicago. It is a genuine instant, correctly rendered local.)*
+_(The "Sep 4" date is correct, not an instance of E26/E28: `paid_at` is `2026-09-05 00:58 UTC`,
+which is Sep 4 19:58 in America/Chicago. It is a genuine instant, correctly rendered local.)_
 
 ---
 
@@ -556,10 +556,10 @@ entries       98c0df55-…  entry_status = paid  payment_status = paid
 
 **A/B proof, same page and same order, one parameter apart:**
 
-| `session_id` | Result |
-| --- | --- |
-| `%7BCHECKOUT_SESSION_ID%7D` (what Stripe returns) | "Payment Not Found Yet", never recovers |
-| `cs_test_b132…EfrI` (the real id) | **"Entry Submitted Successfully!"** immediately — confirmation #, $32.10, dog, class |
+| `session_id`                                      | Result                                                                               |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `%7BCHECKOUT_SESSION_ID%7D` (what Stripe returns) | "Payment Not Found Yet", never recovers                                              |
+| `cs_test_b132…EfrI` (the real id)                 | **"Entry Submitted Successfully!"** immediately — confirmation #, $32.10, dog, class |
 
 The confirmation page is correct. It is only ever handed the wrong parameter. `stripe.ts:93-94`
 is the **only** call site using the placeholder; the other four client `success_url` builders
@@ -581,7 +581,7 @@ worth recording, because each is a fact about the fixtures rather than about the
 
 1. **It deleted the manually-applied Stripe row** — `payable_load_clubs` went 1 → 0. The
    load-fixture cleanup drops the whole `…-0013-*` club range and the FK is `ON DELETE
-   CASCADE`. This is exactly why the fix belonged in `seed-demo.sql` rather than in a one-off
+CASCADE`. This is exactly why the fix belonged in `seed-demo.sql` rather than in a one-off
    INSERT, and merging #2032 is what makes the walk repeatable.
 2. **It reset the show's dates to the seed formula** — `CURRENT_DATE + 45` / `+ 76`. So the
    "make the demo window relative to `now()`" request in MYK9-388 was **already satisfied in
@@ -597,13 +597,13 @@ worth recording, because each is a fact about the fixtures rather than about the
 
 ## Safe-mutation accounting for this addendum
 
-| Object | State |
-| --- | --- |
-| Dog `ZZ Walk Dog 2026-09-05` (`28718a3b-…`) | **soft-deleted through the app**, 01:10:13 UTC |
-| Its AKC registration `ZZWALK0905` | removed with the dog |
-| Entry `98c0df55-…` (paid $32.10) | hard-deleted by the reseed before I could reach it |
-| `stripe_orders dd1bb1c7-…` ($32.10, succeeded) | **persists** — by design, now orphaned |
-| Stripe sandbox payment intent `pi_3UC7wQ…` | persists by design |
+| Object                                         | State                                              |
+| ---------------------------------------------- | -------------------------------------------------- |
+| Dog `ZZ Walk Dog 2026-09-05` (`28718a3b-…`)    | **soft-deleted through the app**, 01:10:13 UTC     |
+| Its AKC registration `ZZWALK0905`              | removed with the dog                               |
+| Entry `98c0df55-…` (paid $32.10)               | hard-deleted by the reseed before I could reach it |
+| `stripe_orders dd1bb1c7-…` ($32.10, succeeded) | **persists** — by design, now orphaned             |
+| Stripe sandbox payment intent `pi_3UC7wQ…`     | persists by design                                 |
 
 The planned cleanup was "secretary soft-deletes the entry, then the exhibitor deletes the dog".
 Two corrections to that plan, both discovered rather than assumed:
@@ -637,7 +637,7 @@ Two corrections to that plan, both discovered rather than assumed:
 
 Recording this because the walk is otherwise a defect list. When I tried to enter a dog with no
 AKC registration into an AKC show, the wizard blocked each class with
-*"Add this dog's AKC registration before selecting this class."* and an **"Add required
+_"Add this dog's AKC registration before selecting this class."_ and an **"Add required
 registration"** button beside it. Specific, actionable, and placed at the point of the
 decision — the opposite of E20, where the impossibility is disclosed only after the job is
 done. That is the pattern E20 should copy.

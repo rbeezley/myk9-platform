@@ -21,24 +21,23 @@ class TypeSafetyMonitor {
       errorCount: 0,
       errors: [],
       metrics: {},
-      recommendations: []
+      recommendations: [],
     };
   }
 
   async runCheck() {
     console.log('🔍 Running TypeScript type safety check...');
-    
+
     try {
       // Run TypeScript check
-      const output = execSync('npm run typecheck', { 
+      const output = execSync('npm run typecheck', {
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
-      
+
       this.results.status = 'passing';
       this.results.errorCount = 0;
       console.log('✅ Type safety check passed!');
-      
     } catch (error) {
       this.results.status = 'failing';
       const errorOutput = error.stdout || error.stderr || '';
@@ -55,7 +54,7 @@ class TypeSafetyMonitor {
   parseErrors(output) {
     const lines = output.split('\n').filter(line => line.includes('error TS'));
     this.results.errorCount = lines.length;
-    
+
     this.results.errors = lines.map(line => {
       const match = line.match(/^(.+?)\((\d+),(\d+)\): error (TS\d+): (.+)$/);
       if (match) {
@@ -64,7 +63,7 @@ class TypeSafetyMonitor {
           line: parseInt(match[2]),
           column: parseInt(match[3]),
           code: match[4],
-          message: match[5]
+          message: match[5],
         };
       }
       return { raw: line };
@@ -76,7 +75,7 @@ class TypeSafetyMonitor {
       // Count TypeScript files
       const tsFiles = execSync('find src -name "*.ts" -o -name "*.tsx" | wc -l', {
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore']
+        stdio: ['ignore', 'pipe', 'ignore'],
       }).trim();
 
       // Get bundle size
@@ -84,7 +83,7 @@ class TypeSafetyMonitor {
       try {
         const stats = execSync('npm run analyze:size 2>/dev/null || echo "unknown"', {
           encoding: 'utf8',
-          stdio: ['ignore', 'pipe', 'ignore']
+          stdio: ['ignore', 'pipe', 'ignore'],
         });
         bundleSize = stats.includes('unknown') ? 'unknown' : stats.trim();
       } catch (e) {
@@ -95,7 +94,7 @@ class TypeSafetyMonitor {
         typeScriptFiles: parseInt(tsFiles) || 0,
         errorDensity: this.results.errorCount / (parseInt(tsFiles) || 1),
         bundleSize,
-        timestamp: this.timestamp
+        timestamp: this.timestamp,
       };
     } catch (error) {
       console.warn('⚠️ Could not generate all metrics:', error.message);
@@ -110,20 +109,20 @@ class TypeSafetyMonitor {
         priority: 'high',
         type: 'fix_errors',
         message: `Fix ${this.results.errorCount} TypeScript errors immediately`,
-        action: 'npm run typecheck'
+        action: 'npm run typecheck',
       });
     }
 
     // Check for common error patterns
     const errorCodes = this.results.errors.map(e => e.code).filter(Boolean);
     const commonCodes = [...new Set(errorCodes)];
-    
+
     if (commonCodes.includes('TS2322')) {
       recommendations.push({
         priority: 'medium',
         type: 'type_alignment',
         message: 'Multiple type assignment errors detected - review interface definitions',
-        action: 'Review and align TypeScript interfaces with actual data structures'
+        action: 'Review and align TypeScript interfaces with actual data structures',
       });
     }
 
@@ -132,7 +131,7 @@ class TypeSafetyMonitor {
         priority: 'medium',
         type: 'parameter_types',
         message: 'Function parameter type mismatches detected',
-        action: 'Review function signatures and parameter types'
+        action: 'Review function signatures and parameter types',
       });
     }
 
@@ -141,7 +140,7 @@ class TypeSafetyMonitor {
         priority: 'low',
         type: 'maintenance',
         message: 'Type safety is excellent! Consider upgrading TypeScript for latest features',
-        action: 'npm update typescript @types/node'
+        action: 'npm update typescript @types/node',
       });
     }
 
@@ -152,7 +151,7 @@ class TypeSafetyMonitor {
     try {
       // Ensure reports directory exists
       execSync('mkdir -p reports', { stdio: 'ignore' });
-      
+
       // Load previous reports
       let history = [];
       if (existsSync(REPORT_FILE)) {
@@ -167,7 +166,7 @@ class TypeSafetyMonitor {
 
       // Add current result
       history.push(this.results);
-      
+
       // Keep only last 30 days of reports
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       history = history.filter(report => new Date(report.timestamp) > thirtyDaysAgo);
@@ -182,9 +181,9 @@ class TypeSafetyMonitor {
   async logResult() {
     try {
       execSync('mkdir -p logs', { stdio: 'ignore' });
-      
+
       const logEntry = `${this.timestamp} | Status: ${this.results.status} | Errors: ${this.results.errorCount}\n`;
-      
+
       if (existsSync(MONITORING_LOG)) {
         const existingLog = readFileSync(MONITORING_LOG, 'utf8');
         writeFileSync(MONITORING_LOG, existingLog + logEntry);
@@ -202,25 +201,27 @@ class TypeSafetyMonitor {
     console.log(`Status: ${this.results.status === 'passing' ? '✅ PASSING' : '❌ FAILING'}`);
     console.log(`Error Count: ${this.results.errorCount}`);
     console.log(`TypeScript Files: ${this.results.metrics.typeScriptFiles}`);
-    
+
     if (this.results.recommendations.length > 0) {
       console.log('\n💡 Recommendations:');
       this.results.recommendations.forEach((rec, index) => {
-        const priorityIcon = rec.priority === 'high' ? '🚨' : rec.priority === 'medium' ? '⚠️' : '💡';
+        const priorityIcon =
+          rec.priority === 'high' ? '🚨' : rec.priority === 'medium' ? '⚠️' : '💡';
         console.log(`${priorityIcon} ${rec.message}`);
         if (rec.action) {
           console.log(`   Action: ${rec.action}`);
         }
       });
     }
-    
+
     console.log(`\n📊 Full report available in: ${REPORT_FILE}`);
   }
 }
 
 // Run the monitor
 const monitor = new TypeSafetyMonitor();
-monitor.runCheck()
+monitor
+  .runCheck()
   .then(() => {
     monitor.printSummary();
     process.exit(monitor.results.status === 'passing' ? 0 : 1);

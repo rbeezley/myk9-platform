@@ -208,8 +208,7 @@ export function useUrlFilters<T extends StringValued<T>>(
           const scheduled = scheduledNavRef.current;
           const now = getLiveNavigation();
           const leftTheRoute = scheduled !== null && now.pathname !== scheduled.pathname;
-          const wentBack =
-            scheduled !== null && now.key !== scheduled.key && now.action === 'POP';
+          const wentBack = scheduled !== null && now.key !== scheduled.key && now.action === 'POP';
           if (leftTheRoute || wentBack) {
             setPending(null);
             // Belt-and-braces: on the route-change path the component is

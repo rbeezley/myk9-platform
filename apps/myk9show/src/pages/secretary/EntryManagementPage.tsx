@@ -328,23 +328,23 @@ const EntryManagementPage: React.FC = () => {
 
       {/* Page-level tabs: Entries | Move-ups | Pulls | Waitlist */}
       {selectedShowId && (
-      <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
-        <TabsContent value="registrations">
-          {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
-          {/*
+        <PrimaryTabs tabs={PAGE_TABS} value={activePageTab} onValueChange={handlePageTabChange}>
+          <TabsContent value="registrations">
+            {/* No Show Selected — kept as loading guard while useEntryManagementData resolves the show */}
+            {/*
             Loading State — a table-shaped skeleton (not a bare spinner) so the
             pending UI previews the entries table's layout. Motion-language
             policy: page/section loads use Skeleton; animate-spin is reserved for
             inline button/pending states. Error + empty states below stay
             distinct (never a skeleton that shimmers forever).
           */}
-          {isLoading && selectedShowId && (
-            <div role="status" aria-label="Loading entries" className="py-4">
-              <TableSkeleton rows={8} columns={5} />
-            </div>
-          )}
+            {isLoading && selectedShowId && (
+              <div role="status" aria-label="Loading entries" className="py-4">
+                <TableSkeleton rows={8} columns={5} />
+              </div>
+            )}
 
-          {/*
+            {/*
             Load Error State
 
             Replaces the misleading zero-entry main content when
@@ -361,22 +361,22 @@ const EntryManagementPage: React.FC = () => {
             successfully-loaded entries table. See the action-error
             Alert at the top of the page for that surface.
           */}
-          {loadError && selectedShowId && !isLoading && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                <h2 className="mb-2 text-lg font-medium">Couldn't load entries</h2>
-                <Alert variant="destructive" className="text-left mb-4 max-w-md mx-auto">
-                  <AlertDescription>{loadError}</AlertDescription>
-                </Alert>
-                <Button onClick={() => loadEntries(selectedShowId)} disabled={isLoading}>
-                  Retry
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+            {loadError && selectedShowId && !isLoading && (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+                  <h2 className="mb-2 text-lg font-medium">Couldn't load entries</h2>
+                  <Alert variant="destructive" className="text-left mb-4 max-w-md mx-auto">
+                    <AlertDescription>{loadError}</AlertDescription>
+                  </Alert>
+                  <Button onClick={() => loadEntries(selectedShowId)} disabled={isLoading}>
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
-          {/*
+            {/*
             Main Content — only when a show is selected, loading
             finished, AND no LOAD error. The `!loadError` gate keeps
             the page usable when an action error fires (which
@@ -384,114 +384,114 @@ const EntryManagementPage: React.FC = () => {
             inline Alert at the top while the entries table remains
             interactive.
           */}
-          {selectedShowId && !isLoading && !loadError && (
-            <div className="mt-6">
-              <EntryManagementCockpit
-                entries={entries}
-                registrationGroups={registrationGroups}
-                cockpitState={cockpitUrl.state}
-                trials={trials}
-                trialClasses={trialClasses}
-                trialClassIds={trialClassIds}
-                trialClassesUnknown={trialClassesUnknown}
-                onRetryTrialClasses={() => void refetchTrialClasses()}
-                isLoadingTrials={isLoadingTrials}
-                isLoadingClasses={isLoadingClasses}
-                canValidateFocus={canValidateFocus}
-                showId={selectedShowId}
-                {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
-                busy={isProcessing}
-                lastEmailedMap={lastEmailedMap}
-                onStatusChange={handleStatusChange}
-                onCheckInStatusChange={handleCheckInStatusChange}
-                onOpenEditEntry={openEditEntry}
-                onOpenArmbandDialog={entry =>
-                  setArmbandDialog({
-                    open: true,
-                    entry,
-                    value: entry.armbandNumber || '',
-                  })
-                }
-                onOpenCompDialog={entry =>
-                  setCompDialog({
-                    open: true,
-                    entryId: entry.id,
-                    entryNumber: entry.entryNumber,
-                    dogName: entry.dogName,
-                    className: entry.classes[0]?.name ?? '',
-                  })
-                }
-                onUncompEntry={handleUncompEntry}
-                onRemoveEntry={handleRemoveEntry}
-                onBulkStatusChange={handleEnrollmentBulkStatusChange}
-                onPaymentStatusChange={handleEnrollmentPaymentChange}
-                onSendDecisionEmail={async (registrationId, message, amountDue) => {
-                  await handleSendDecisionEmail(registrationId, message, amountDue);
-                  const registrationIds = [
-                    ...new Set(entries.map(entry => entry.registrationId).filter(Boolean)),
-                  ];
-                  refreshEmailLog(registrationIds);
-                }}
-                onRefresh={() => loadEntries(selectedShowId)}
-              />
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="exceptions">
-          <div className="mt-6 space-y-4">
-            <div className="flex flex-wrap gap-2" aria-label="Entry exceptions">
-              {(
-                [
-                  ['move-ups', 'Move-ups'],
-                  ['pulls', 'Pulls / scratches'],
-                  ['waitlist', 'Waitlist'],
-                ] as const
-              ).map(([exception, label]) => (
-                <Button
-                  key={exception}
-                  type="button"
-                  variant={cockpitUrl.state.exception === exception ? 'secondary' : 'ghost'}
-                  aria-pressed={cockpitUrl.state.exception === exception}
-                  onClick={() =>
-                    setSearchParams(previous => writeCockpitException(previous, exception), {
-                      replace: true,
+            {selectedShowId && !isLoading && !loadError && (
+              <div className="mt-6">
+                <EntryManagementCockpit
+                  entries={entries}
+                  registrationGroups={registrationGroups}
+                  cockpitState={cockpitUrl.state}
+                  trials={trials}
+                  trialClasses={trialClasses}
+                  trialClassIds={trialClassIds}
+                  trialClassesUnknown={trialClassesUnknown}
+                  onRetryTrialClasses={() => void refetchTrialClasses()}
+                  isLoadingTrials={isLoadingTrials}
+                  isLoadingClasses={isLoadingClasses}
+                  canValidateFocus={canValidateFocus}
+                  showId={selectedShowId}
+                  {...(selectedShow?.name ? { showName: selectedShow.name } : {})}
+                  busy={isProcessing}
+                  lastEmailedMap={lastEmailedMap}
+                  onStatusChange={handleStatusChange}
+                  onCheckInStatusChange={handleCheckInStatusChange}
+                  onOpenEditEntry={openEditEntry}
+                  onOpenArmbandDialog={entry =>
+                    setArmbandDialog({
+                      open: true,
+                      entry,
+                      value: entry.armbandNumber || '',
                     })
                   }
-                >
-                  {label}
-                </Button>
-              ))}
+                  onOpenCompDialog={entry =>
+                    setCompDialog({
+                      open: true,
+                      entryId: entry.id,
+                      entryNumber: entry.entryNumber,
+                      dogName: entry.dogName,
+                      className: entry.classes[0]?.name ?? '',
+                    })
+                  }
+                  onUncompEntry={handleUncompEntry}
+                  onRemoveEntry={handleRemoveEntry}
+                  onBulkStatusChange={handleEnrollmentBulkStatusChange}
+                  onPaymentStatusChange={handleEnrollmentPaymentChange}
+                  onSendDecisionEmail={async (registrationId, message, amountDue) => {
+                    await handleSendDecisionEmail(registrationId, message, amountDue);
+                    const registrationIds = [
+                      ...new Set(entries.map(entry => entry.registrationId).filter(Boolean)),
+                    ];
+                    refreshEmailLog(registrationIds);
+                  }}
+                  onRefresh={() => loadEntries(selectedShowId)}
+                />
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="exceptions">
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-wrap gap-2" aria-label="Entry exceptions">
+                {(
+                  [
+                    ['move-ups', 'Move-ups'],
+                    ['pulls', 'Pulls / scratches'],
+                    ['waitlist', 'Waitlist'],
+                  ] as const
+                ).map(([exception, label]) => (
+                  <Button
+                    key={exception}
+                    type="button"
+                    variant={cockpitUrl.state.exception === exception ? 'secondary' : 'ghost'}
+                    aria-pressed={cockpitUrl.state.exception === exception}
+                    onClick={() =>
+                      setSearchParams(previous => writeCockpitException(previous, exception), {
+                        replace: true,
+                      })
+                    }
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              {selectedShowId && cockpitUrl.state.exception === 'move-ups' && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <MoveUpRequestsTab
+                      showId={selectedShowId}
+                      onRefresh={() => loadEntries(selectedShowId)}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {selectedShowId && cockpitUrl.state.exception === 'pulls' && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <PullManagementTab
+                      showId={selectedShowId}
+                      processedEntries={pulledEntries}
+                      processedEntriesUnknown={Boolean(loadError)}
+                      processedEntriesLoading={isLoading}
+                      onRefresh={() => loadEntries(selectedShowId)}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+              {cockpitUrl.state.exception === 'waitlist' && (
+                <WaitlistManagementPage showId={selectedShowId || undefined} />
+              )}
             </div>
-            {selectedShowId && cockpitUrl.state.exception === 'move-ups' && (
-              <Card>
-                <CardContent className="pt-6">
-                  <MoveUpRequestsTab
-                    showId={selectedShowId}
-                    onRefresh={() => loadEntries(selectedShowId)}
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {selectedShowId && cockpitUrl.state.exception === 'pulls' && (
-              <Card>
-                <CardContent className="pt-6">
-                  <PullManagementTab
-                    showId={selectedShowId}
-                    processedEntries={pulledEntries}
-                processedEntriesUnknown={Boolean(loadError)}
-                processedEntriesLoading={isLoading}
-                    onRefresh={() => loadEntries(selectedShowId)}
-                  />
-                </CardContent>
-              </Card>
-            )}
-            {cockpitUrl.state.exception === 'waitlist' && (
-              <WaitlistManagementPage showId={selectedShowId || undefined} />
-            )}
-          </div>
-        </TabsContent>
-      </PrimaryTabs>
+          </TabsContent>
+        </PrimaryTabs>
       )}
 
       {/* Armband Assignment Dialog */}

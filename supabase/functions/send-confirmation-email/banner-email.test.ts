@@ -127,8 +127,20 @@ describe('buildBannerHtml', () => {
     const html = buildBannerHtml(
       makeData({
         runs: [
-          { numeral: 'I', dayLabel: 'Fri 12 Jun', classLabel: 'Containers', judgeName: 'C. Beagles', armband: '142' },
-          { numeral: 'II', dayLabel: 'Sat 13 Jun', classLabel: 'Interiors', judgeName: 'C. Beagles', armband: null },
+          {
+            numeral: 'I',
+            dayLabel: 'Fri 12 Jun',
+            classLabel: 'Containers',
+            judgeName: 'C. Beagles',
+            armband: '142',
+          },
+          {
+            numeral: 'II',
+            dayLabel: 'Sat 13 Jun',
+            classLabel: 'Interiors',
+            judgeName: 'C. Beagles',
+            armband: null,
+          },
         ],
       })
     );

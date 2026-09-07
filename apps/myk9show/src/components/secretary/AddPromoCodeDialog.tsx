@@ -145,7 +145,10 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
             </div>
           </FormField>
 
-          <FormField label={discountType === 'percentage' ? 'Discount (%)' : 'Discount ($)'} fieldId="discount-value">
+          <FormField
+            label={discountType === 'percentage' ? 'Discount (%)' : 'Discount ($)'}
+            fieldId="discount-value"
+          >
             <Input
               id="discount-value"
               type="number"
@@ -178,7 +181,11 @@ export const AddPromoCodeDialog: React.FC<AddPromoCodeDialogProps> = ({
             />
           </FormField>
 
-          {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

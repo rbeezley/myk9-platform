@@ -21,7 +21,15 @@ const PAYMENT_OPTIONS = [
   { key: 'online', label: 'Paid online' },
 ] as const;
 
-function FeeRow({ label, value, total = false }: { label: string; value: string; total?: boolean }) {
+function FeeRow({
+  label,
+  value,
+  total = false,
+}: {
+  label: string;
+  value: string;
+  total?: boolean;
+}) {
   return (
     <View
       style={{

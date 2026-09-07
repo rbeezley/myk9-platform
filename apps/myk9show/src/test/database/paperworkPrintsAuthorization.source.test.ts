@@ -31,7 +31,9 @@ describe('paperwork print authorization contract', () => {
     expect(migration.match(/public\.can_manage_show\(show_id\)/g)).toHaveLength(4);
     expect(migration).toContain('printed_by = (SELECT auth.uid())');
     expect(migration).toContain('voided_by = (SELECT auth.uid())');
-    expect(migration).toContain('REVOKE ALL ON TABLE public.paperwork_prints FROM anon, authenticated');
+    expect(migration).toContain(
+      'REVOKE ALL ON TABLE public.paperwork_prints FROM anon, authenticated'
+    );
     expect(migration).toContain(
       'GRANT UPDATE (voided_at, voided_by, void_reason) ON TABLE public.paperwork_prints TO authenticated'
     );

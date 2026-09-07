@@ -1,6 +1,6 @@
 /**
  * Achievement and Competition System Types
- * 
+ *
  * Types for tracking dog achievements, competition results, and performance history.
  * Supports multi-organization tracking (AKC, UKC, etc.) with comprehensive scoring.
  */
@@ -272,12 +272,12 @@ export const ACHIEVEMENT_TYPES = [
   'Recognition',
   'Qualification',
   'License',
-  'Other'
+  'Other',
 ] as const;
 
 export const COMPETITION_PLACEMENTS = [
   '1st',
-  '2nd', 
+  '2nd',
   '3rd',
   '4th',
   'Q', // Qualified
@@ -286,19 +286,19 @@ export const COMPETITION_PLACEMENTS = [
   'DQ', // Disqualified
   'E', // Eliminated
   'A', // Absent
-  'T' // Tied
+  'T', // Tied
 ] as const;
 
 export const ORGANIZATIONS = [
   'AKC',
-  'UKC', 
+  'UKC',
   'CKC',
   'USDAA',
   'CPE',
   'NADAC',
   'TDAA',
   'PSA',
-  'Other'
+  'Other',
 ] as const;
 
 export const DISCIPLINES = [
@@ -318,10 +318,10 @@ export const DISCIPLINES = [
   'Scent Work',
   'Therapy',
   'Service',
-  'Other'
+  'Other',
 ] as const;
 
-export type AchievementType = typeof ACHIEVEMENT_TYPES[number];
-export type CompetitionPlacement = typeof COMPETITION_PLACEMENTS[number];
-export type Organization = typeof ORGANIZATIONS[number];
-export type Discipline = typeof DISCIPLINES[number];
+export type AchievementType = (typeof ACHIEVEMENT_TYPES)[number];
+export type CompetitionPlacement = (typeof COMPETITION_PLACEMENTS)[number];
+export type Organization = (typeof ORGANIZATIONS)[number];
+export type Discipline = (typeof DISCIPLINES)[number];

@@ -3,17 +3,13 @@
  * Handles all validation logic without requiring server connectivity
  */
 
-import { 
-  validateTimeFormat, 
-  validateScore, 
-  validatePlacement, 
-  validateStatus
+import {
+  validateTimeFormat,
+  validateScore,
+  validatePlacement,
+  validateStatus,
 } from '@/utils/entryValidation';
-import type { 
-  ShowEntry, 
-  ShowEntryInput, 
-  RegistrationData 
-} from '@/store/entryStore';
+import type { ShowEntry, ShowEntryInput, RegistrationData } from '@/store/entryStore';
 import type { Dog } from '@/types/dog-types';
 import type { Show, Trial, Class } from '@/types/show-types';
 import type { User } from '@/types/user-types';
@@ -91,16 +87,16 @@ export class EntryValidator {
       isValid: errors.length === 0,
       errors,
       warnings,
-      normalizedData: errors.length === 0 ? normalizedData : undefined
+      normalizedData: errors.length === 0 ? normalizedData : undefined,
     };
   }
 
   /**
    * Validate basic required fields
    */
-  private static validateBasicRequirements(
-    _entryData: ShowEntryInput
-  ): { errors: EntryValidationError[] } {
+  private static validateBasicRequirements(_entryData: ShowEntryInput): {
+    errors: EntryValidationError[];
+  } {
     const entryData = _entryData;
     const errors: EntryValidationError[] = [];
 
@@ -109,7 +105,7 @@ export class EntryValidator {
         field: 'showId',
         code: 'REQUIRED_FIELD',
         message: 'Show ID is required',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -118,7 +114,7 @@ export class EntryValidator {
         field: 'classId',
         code: 'REQUIRED_FIELD',
         message: 'Class ID is required',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -127,7 +123,7 @@ export class EntryValidator {
         field: 'dogId',
         code: 'REQUIRED_FIELD',
         message: 'Dog ID is required',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -136,7 +132,7 @@ export class EntryValidator {
         field: 'handler',
         code: 'REQUIRED_FIELD',
         message: 'Handler name is required',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -145,7 +141,7 @@ export class EntryValidator {
         field: 'entryFee',
         code: 'INVALID_VALUE',
         message: 'Entry fee cannot be negative',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -172,7 +168,7 @@ export class EntryValidator {
           field: 'jumpHeight',
           code: 'INVALID_JUMP_HEIGHT',
           message: `Invalid jump height. Valid options: ${validHeights.join(', ')}`,
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -183,7 +179,7 @@ export class EntryValidator {
         field: 'entryFee',
         code: 'FEE_MISMATCH',
         message: `Entry fee (${registrationData.entryFee}) differs from class fee (${context.class.entryFee})`,
-        severity: 'warning'
+        severity: 'warning',
       });
     }
 
@@ -193,7 +189,7 @@ export class EntryValidator {
         field: 'specialRequests',
         code: 'TEXT_TOO_LONG',
         message: 'Special requests are quite long. Consider shortening for readability.',
-        severity: 'warning'
+        severity: 'warning',
       });
     }
 
@@ -217,7 +213,7 @@ export class EntryValidator {
         field: 'show',
         code: 'SHOW_CLOSED',
         message: 'This show is no longer accepting entries',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -226,7 +222,7 @@ export class EntryValidator {
         field: 'show',
         code: 'SHOW_CANCELLED',
         message: 'This show has been cancelled',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -238,7 +234,7 @@ export class EntryValidator {
           field: 'class',
           code: 'LEVEL_MISMATCH',
           message: `Dog's current level (${dogLevel}) may not be eligible for ${context.class.level} class`,
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -250,7 +246,7 @@ export class EntryValidator {
           field: 'breed',
           code: 'BREED_RESTRICTION',
           message: `${context.dog.breed} is not eligible for this class`,
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -271,14 +267,17 @@ export class EntryValidator {
 
     // Age restrictions
     if (context.class.ageRestrictions) {
-      const dogAge = this.calculateDogAge(context.dog.birthDate || context.dog.dateOfBirth || '', context.show.startDate);
-      
+      const dogAge = this.calculateDogAge(
+        context.dog.birthDate || context.dog.dateOfBirth || '',
+        context.show.startDate
+      );
+
       if (context.class.ageRestrictions.min && dogAge < context.class.ageRestrictions.min) {
         errors.push({
           field: 'age',
           code: 'AGE_TOO_YOUNG',
           message: `Dog must be at least ${context.class.ageRestrictions.min} months old`,
-          severity: 'error'
+          severity: 'error',
         });
       }
 
@@ -287,7 +286,7 @@ export class EntryValidator {
           field: 'age',
           code: 'AGE_TOO_OLD',
           message: `Dog cannot be older than ${context.class.ageRestrictions.max} months`,
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -297,20 +296,26 @@ export class EntryValidator {
       if (context.class.heightRestrictions) {
         const dogHeight = context.dog.measurements.height;
         if (dogHeight) {
-          if (context.class.heightRestrictions.min && dogHeight < context.class.heightRestrictions.min) {
+          if (
+            context.class.heightRestrictions.min &&
+            dogHeight < context.class.heightRestrictions.min
+          ) {
             errors.push({
               field: 'height',
               code: 'HEIGHT_TOO_SHORT',
               message: `Dog height (${dogHeight}") below minimum (${context.class.heightRestrictions.min}")`,
-              severity: 'error'
+              severity: 'error',
             });
           }
-          if (context.class.heightRestrictions.max && dogHeight > context.class.heightRestrictions.max) {
+          if (
+            context.class.heightRestrictions.max &&
+            dogHeight > context.class.heightRestrictions.max
+          ) {
             errors.push({
               field: 'height',
               code: 'HEIGHT_TOO_TALL',
               message: `Dog height (${dogHeight}") above maximum (${context.class.heightRestrictions.max}")`,
-              severity: 'error'
+              severity: 'error',
             });
           }
         }
@@ -341,18 +346,20 @@ export class EntryValidator {
           field: 'deadline',
           code: 'DEADLINE_PASSED',
           message: `Entry deadline has passed (${deadline.toLocaleDateString()})`,
-          severity: 'error'
+          severity: 'error',
         });
       }
 
       // Warning for entries close to deadline
-      const daysUntilDeadline = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilDeadline = Math.ceil(
+        (deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      );
       if (daysUntilDeadline <= 3 && daysUntilDeadline > 0) {
         warnings.push({
           field: 'deadline',
           code: 'DEADLINE_APPROACHING',
           message: `Entry deadline is in ${daysUntilDeadline} day(s)`,
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -365,7 +372,7 @@ export class EntryValidator {
           field: 'lateFee',
           code: 'LATE_ENTRY_PERIOD',
           message: 'Late entry fees may apply',
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -389,7 +396,7 @@ export class EntryValidator {
         field: 'handler',
         code: 'HANDLER_NOT_FOUND',
         message: 'Handler information not found',
-        severity: 'error'
+        severity: 'error',
       });
       return { errors, warnings };
     }
@@ -397,22 +404,28 @@ export class EntryValidator {
     // Age restrictions for handlers
     if (context.handler.birthDate) {
       const handlerAge = this.calculateAge(context.handler.birthDate, context.show.startDate);
-      
-      if (context.class.handlerAgeRestrictions?.min && handlerAge < context.class.handlerAgeRestrictions.min) {
+
+      if (
+        context.class.handlerAgeRestrictions?.min &&
+        handlerAge < context.class.handlerAgeRestrictions.min
+      ) {
         errors.push({
           field: 'handlerAge',
           code: 'HANDLER_TOO_YOUNG',
           message: `Handler must be at least ${context.class.handlerAgeRestrictions.min} years old`,
-          severity: 'error'
+          severity: 'error',
         });
       }
 
-      if (context.class.handlerAgeRestrictions?.max && handlerAge > context.class.handlerAgeRestrictions.max) {
+      if (
+        context.class.handlerAgeRestrictions?.max &&
+        handlerAge > context.class.handlerAgeRestrictions.max
+      ) {
         errors.push({
           field: 'handlerAge',
           code: 'HANDLER_TOO_OLD',
           message: `Handler cannot be older than ${context.class.handlerAgeRestrictions.max} years`,
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -424,14 +437,14 @@ export class EntryValidator {
           field: 'handler',
           code: 'NON_OWNER_NOT_ALLOWED',
           message: 'This show does not allow non-owner handlers',
-          severity: 'error'
+          severity: 'error',
         });
       } else {
         warnings.push({
           field: 'handler',
           code: 'NON_OWNER_HANDLER',
           message: 'Handler is not the dog owner - additional documentation may be required',
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -460,7 +473,7 @@ export class EntryValidator {
           field: 'time',
           code: 'INVALID_TIME_FORMAT',
           message: timeValidation.error || 'Invalid time format',
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -473,7 +486,7 @@ export class EntryValidator {
           field: 'score',
           code: 'INVALID_SCORE',
           message: scoreValidation.error || 'Invalid score',
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -486,7 +499,7 @@ export class EntryValidator {
           field: 'placement',
           code: 'INVALID_PLACEMENT',
           message: placementValidation.error || 'Invalid placement',
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -499,7 +512,7 @@ export class EntryValidator {
           field: 'status',
           code: 'INVALID_STATUS',
           message: statusValidation.error || 'Invalid status',
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
@@ -511,7 +524,7 @@ export class EntryValidator {
           field: 'faults',
           code: 'INVALID_FAULTS',
           message: 'Faults cannot be negative',
-          severity: 'error'
+          severity: 'error',
         });
       }
       if (data.faults > 100) {
@@ -519,7 +532,7 @@ export class EntryValidator {
           field: 'faults',
           code: 'HIGH_FAULTS',
           message: 'Unusually high number of faults',
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -530,7 +543,7 @@ export class EntryValidator {
         field: 'time',
         code: 'TIME_REQUIRED_FOR_Q',
         message: 'Time is required for qualified runs',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
@@ -539,14 +552,14 @@ export class EntryValidator {
         field: 'time',
         code: 'TIME_REQUIRED_FOR_PLACEMENT',
         message: 'Time is required when placement is specified',
-        severity: 'error'
+        severity: 'error',
       });
     }
 
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -564,32 +577,32 @@ export class EntryValidator {
     const levelHierarchy = ['Novice', 'Open', 'Excellent', 'Master'];
     const dogIndex = levelHierarchy.indexOf(dogLevel);
     const classIndex = levelHierarchy.indexOf(classLevel);
-    
+
     return dogIndex >= 0 && classIndex >= 0 && dogIndex <= classIndex;
   }
 
   private static calculateDogAge(birthDate: string, eventDate: string): number {
     const birth = new Date(birthDate);
     const event = new Date(eventDate);
-    
+
     // Calculate age in months
     const years = event.getFullYear() - birth.getFullYear();
     const months = event.getMonth() - birth.getMonth();
-    
+
     return years * 12 + months;
   }
 
   private static calculateAge(birthDate: string, eventDate: string): number {
     const birth = new Date(birthDate);
     const event = new Date(eventDate);
-    
+
     let age = event.getFullYear() - birth.getFullYear();
     const monthDiff = event.getMonth() - birth.getMonth();
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && event.getDate() < birth.getDate())) {
       age--;
     }
-    
+
     return age;
   }
 }

@@ -19,7 +19,7 @@ export const AUTO_SORT_UNDO_BANNER_TIMEOUT_MS = 8000;
 const SUCCESS_LABELS: Record<ShowMapAutoSortKind, string> = {
   'armband-asc': 'Sorted by armband (ascending)',
   'armband-desc': 'Sorted by armband (descending)',
-  'random': 'Run order randomized',
+  random: 'Run order randomized',
 };
 
 export interface ShowMapAutoSortInput {

@@ -65,9 +65,9 @@ describe('RoleManager role assignment audit trail', () => {
     });
 
     const { manager, auditLogger } = buildManager();
-    await expect(
-      manager.assignRole({ userId: 'person-1', roleName: 'secretary' })
-    ).rejects.toThrow('Failed to assign role');
+    await expect(manager.assignRole({ userId: 'person-1', roleName: 'secretary' })).rejects.toThrow(
+      'Failed to assign role'
+    );
     expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
   });
 
@@ -117,9 +117,9 @@ describe('RoleManager role assignment audit trail', () => {
     });
 
     const { manager, auditLogger } = buildManager();
-    await expect(
-      manager.revokeRole({ userId: 'person-1', roleName: 'secretary' })
-    ).rejects.toThrow('Failed to revoke role');
+    await expect(manager.revokeRole({ userId: 'person-1', roleName: 'secretary' })).rejects.toThrow(
+      'Failed to revoke role'
+    );
     expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
   });
 
@@ -136,9 +136,9 @@ describe('RoleManager role assignment audit trail', () => {
 
     const { manager, auditLogger } = buildManager();
 
-    await expect(
-      manager.revokeRole({ userId: 'person-1', roleName: 'secretary' })
-    ).resolves.toBe(false);
+    await expect(manager.revokeRole({ userId: 'person-1', roleName: 'secretary' })).resolves.toBe(
+      false
+    );
     expect(auditLogger.logAuditEvent).not.toHaveBeenCalled();
   });
 

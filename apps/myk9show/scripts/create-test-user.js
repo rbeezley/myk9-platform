@@ -14,8 +14,8 @@ const TEST_USER = {
   password: 'TestUser123!',
   user_metadata: {
     first_name: 'Test',
-    last_name: 'User'
-  }
+    last_name: 'User',
+  },
 };
 
 async function createTestUser() {
@@ -30,19 +30,19 @@ async function createTestUser() {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   });
 
   try {
     console.log('🔧 Creating Playwright test user...');
-    
+
     // Create the user in auth.users using the admin API
     const { data, error } = await supabase.auth.admin.createUser({
       email: TEST_USER.email,
       password: TEST_USER.password,
       email_confirm: true, // Skip email confirmation for testing
-      user_metadata: TEST_USER.user_metadata
+      user_metadata: TEST_USER.user_metadata,
     });
 
     if (error) {
@@ -57,11 +57,10 @@ async function createTestUser() {
     console.log('📧 Email:', TEST_USER.email);
     console.log('🔑 Password:', TEST_USER.password);
     console.log('🆔 User ID:', data.user?.id);
-    
+
     // The user profile should be automatically created by the database trigger
     console.log('\n🎯 The user profile will be created automatically by database triggers');
     console.log('💡 You can now run Playwright tests with this user');
-
   } catch (error) {
     console.error('❌ Error creating test user:', error.message);
     process.exit(1);

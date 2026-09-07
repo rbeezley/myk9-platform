@@ -6,10 +6,7 @@ import {
   type JudgeHospitalityJudge,
 } from './judgeHospitality';
 
-function readReminderCount(
-  showId: string,
-  judges: readonly JudgeHospitalityJudge[]
-): number {
+function readReminderCount(showId: string, judges: readonly JudgeHospitalityJudge[]): number {
   const state = readJudgeHospitalityState(showId, judges);
   const summary = summarizeJudgeHospitality(judges, state);
   // Mirror JudgeHospitalityCard's `reminders` so the trigger badge and the

@@ -112,7 +112,9 @@ describe('ClassSelectionStep retained cloned classes', () => {
     classes.unmount();
     render(<ReviewStep />);
 
-    const classesTile = screen.getByText(/^Classes$/, { selector: 'p' }).closest('div') as HTMLElement;
+    const classesTile = screen
+      .getByText(/^Classes$/, { selector: 'p' })
+      .closest('div') as HTMLElement;
     expect(within(classesTile).getByText('1')).toBeInTheDocument();
     const judgesTile = screen.getByText(/classes with a judge/i).closest('div') as HTMLElement;
     expect(within(judgesTile).getByText('1')).toBeInTheDocument();

@@ -115,7 +115,7 @@ describe('Input Component', () => {
     it('should handle onFocus events', () => {
       const handleFocus = vi.fn();
       render(<Input onFocus={handleFocus} />);
-      
+
       const input = screen.getByRole('textbox');
       fireEvent.focus(input);
       expect(handleFocus).toHaveBeenCalledTimes(1);
@@ -124,7 +124,7 @@ describe('Input Component', () => {
     it('should handle onBlur events', () => {
       const handleBlur = vi.fn();
       render(<Input onBlur={handleBlur} />);
-      
+
       const input = screen.getByRole('textbox');
       fireEvent.focus(input);
       fireEvent.blur(input);
@@ -170,14 +170,14 @@ describe('Input Component', () => {
     it('should forward ref to input element', () => {
       const ref = React.createRef<HTMLInputElement>();
       render(<Input ref={ref} />);
-      
+
       expect(ref.current).toBeInstanceOf(HTMLInputElement);
     });
 
     it('should allow ref methods to be called', () => {
       const ref = React.createRef<HTMLInputElement>();
       render(<Input ref={ref} />);
-      
+
       ref.current?.focus();
       expect(ref.current).toHaveFocus();
     });
@@ -196,7 +196,7 @@ describe('Input Component', () => {
           <div id="help-text">This is help text</div>
         </>
       );
-      
+
       const input = screen.getByRole('textbox');
       expect(input).toHaveAttribute('aria-describedby', 'help-text');
     });
@@ -210,7 +210,7 @@ describe('Input Component', () => {
     it('should be focusable', () => {
       render(<Input />);
       const input = screen.getByRole('textbox');
-      
+
       input.focus();
       expect(input).toHaveFocus();
     });
@@ -219,14 +219,14 @@ describe('Input Component', () => {
   describe('Validation', () => {
     it('should support HTML5 validation attributes', () => {
       render(
-        <Input 
-          type="email" 
-          required 
+        <Input
+          type="email"
+          required
           pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
           title="Please enter a valid email address"
         />
       );
-      
+
       const input = screen.getByRole('textbox');
       expect(input).toHaveAttribute('pattern');
       expect(input).toHaveAttribute('title');
@@ -235,7 +235,7 @@ describe('Input Component', () => {
 
     it('should handle number input validation', () => {
       render(<Input type="number" min="0" max="100" step="5" />);
-      
+
       const input = screen.getByRole('spinbutton');
       expect(input).toHaveAttribute('min', '0');
       expect(input).toHaveAttribute('max', '100');
@@ -255,7 +255,7 @@ describe('Input Component', () => {
       const TestComponent = () => {
         const [hasError, setHasError] = React.useState(true);
         return (
-          <Input 
+          <Input
             aria-invalid={hasError}
             onChange={() => setHasError(false)}
             className={hasError ? 'border-red-500' : ''}
@@ -265,10 +265,10 @@ describe('Input Component', () => {
 
       const user = userEvent.setup();
       render(<TestComponent />);
-      
+
       const input = screen.getByRole('textbox');
       expect(input).toHaveAttribute('aria-invalid', 'true');
-      
+
       await user.type(input, 'test');
       expect(input).toHaveAttribute('aria-invalid', 'false');
     });

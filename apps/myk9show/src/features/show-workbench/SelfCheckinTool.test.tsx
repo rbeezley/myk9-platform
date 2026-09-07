@@ -81,9 +81,7 @@ describe('SelfCheckinTool', () => {
   });
 
   it('renders the saved check-in cascade without result visibility controls', async () => {
-    const { user } = render(
-      <SelfCheckinTool showId="show-1" trials={trials} classes={classes} />
-    );
+    const { user } = render(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);
 
     expect(screen.getByRole('switch', { name: 'Allow self check-in for show' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Self check-in for Trial A' })).toBeChecked();
@@ -163,9 +161,7 @@ describe('SelfCheckinTool', () => {
   it('keeps cached controls visible when a background refresh fails', async () => {
     queryState.settings.isError = true;
 
-    const { user } = render(
-      <SelfCheckinTool showId="show-1" trials={trials} classes={classes} />
-    );
+    const { user } = render(<SelfCheckinTool showId="show-1" trials={trials} classes={classes} />);
 
     expect(screen.getByRole('switch', { name: 'Allow self check-in for show' })).toBeChecked();
     expect(screen.getByText(/saved settings shown below may be out of date/i)).toBeInTheDocument();

@@ -86,13 +86,13 @@ export class PerformanceService {
 
   constructor() {
     this.budget = {
-      pageLoadTime: 3000,           // 3 seconds
-      firstContentfulPaint: 1500,   // 1.5 seconds
-      firstInputDelay: 100,         // 100ms
-      cumulativeLayoutShift: 0.1,   // CLS score
+      pageLoadTime: 3000, // 3 seconds
+      firstContentfulPaint: 1500, // 1.5 seconds
+      firstInputDelay: 100, // 100ms
+      cumulativeLayoutShift: 0.1, // CLS score
       largestContentfulPaint: 2500, // 2.5 seconds
-      bundleSize: 500 * 1024,       // 500KB
-      imageOptimization: 85         // 85% compression ratio
+      bundleSize: 500 * 1024, // 500KB
+      imageOptimization: 85, // 85% compression ratio
     };
 
     this.initializeMonitoring();
@@ -130,7 +130,7 @@ export class PerformanceService {
       timeToInteractive: await this.getTimeToInteractive(),
       resourceLoadTimes: this.processResourceTimings(resources),
       ...(memoryUsage !== undefined && { memoryUsage }),
-      ...(connectionInfo !== undefined && { connectionInfo })
+      ...(connectionInfo !== undefined && { connectionInfo }),
     };
 
     this.metrics.push(metrics);
@@ -142,12 +142,12 @@ export class PerformanceService {
 
   async measurePageLoad(pageId: string): Promise<void> {
     const startTime = performance.now();
-    
-    return new Promise((resolve) => {
+
+    return new Promise(resolve => {
       const handleLoad = () => {
         const endTime = performance.now();
         const loadTime = endTime - startTime;
-        
+
         this.logPageLoadMetric(pageId, loadTime);
         resolve();
       };
@@ -166,16 +166,19 @@ export class PerformanceService {
     context: Record<string, unknown> = {}
   ): Promise<T> {
     const startTime = performance.now();
-    
+
     return operation().then(
-      (result) => {
+      result => {
         const duration = performance.now() - startTime;
         this.logAsyncOperation(operationName, duration, 'success', context);
         return result;
       },
-      (error) => {
+      error => {
         const duration = performance.now() - startTime;
-        this.logAsyncOperation(operationName, duration, 'error', { ...context, error: error.message });
+        this.logAsyncOperation(operationName, duration, 'error', {
+          ...context,
+          error: error.message,
+        });
         throw error;
       }
     );
@@ -183,7 +186,7 @@ export class PerformanceService {
 
   measureComponentRender(componentName: string): () => void {
     const startTime = performance.now();
-    
+
     return () => {
       const endTime = performance.now();
       const renderTime = endTime - startTime;
@@ -193,7 +196,7 @@ export class PerformanceService {
 
   trackUserInteraction(interactionType: string, element: string, duration?: number): void {
     const timestamp = Date.now();
-    
+
     auditService.log({
       action: AuditAction.READ,
       entityType: 'user_interaction',
@@ -203,8 +206,8 @@ export class PerformanceService {
         element,
         duration,
         timestamp,
-        url: window.location.pathname
-      }
+        url: window.location.pathname,
+      },
     });
   }
 
@@ -215,12 +218,12 @@ export class PerformanceService {
     budgetStatus: Record<string, { current: number; budget: number; status: 'pass' | 'fail' }>;
   } {
     const latestMetrics = this.metrics[this.metrics.length - 1];
-    
+
     return {
       summary: latestMetrics || this.getEmptyMetrics(),
       trends: this.getMetricsTrends(),
       alerts: this.alerts.slice(-10), // Last 10 alerts
-      budgetStatus: this.getBudgetStatus(latestMetrics)
+      budgetStatus: this.getBudgetStatus(latestMetrics),
     };
   }
 
@@ -246,7 +249,7 @@ export class PerformanceService {
     if (!('PerformanceObserver' in window)) return;
 
     // Largest Contentful Paint
-    const lcpObserver = new PerformanceObserver((entryList) => {
+    const lcpObserver = new PerformanceObserver(entryList => {
       const entries = entryList.getEntries();
       entries.forEach(entry => {
         if (entry.entryType === 'largest-contentful-paint') {
@@ -258,7 +261,7 @@ export class PerformanceService {
     this.observers.set('lcp', lcpObserver);
 
     // First Input Delay
-    const fidObserver = new PerformanceObserver((entryList) => {
+    const fidObserver = new PerformanceObserver(entryList => {
       const entries = entryList.getEntries();
       entries.forEach(entry => {
         if (entry.entryType === 'first-input') {
@@ -273,14 +276,14 @@ export class PerformanceService {
     this.observers.set('fid', fidObserver);
 
     // Cumulative Layout Shift
-    const clsObserver = new PerformanceObserver((entryList) => {
+    const clsObserver = new PerformanceObserver(entryList => {
       let clsScore = 0;
       entryList.getEntries().forEach(entry => {
         if (entry.entryType === 'layout-shift') {
           const layoutEntry = entry as PerformanceEntryWithValue & PerformanceEntryWithInput;
           const hadRecentInput = layoutEntry.hadRecentInput ?? false;
           const value = layoutEntry.value ?? 0;
-          
+
           if (!hadRecentInput) {
             clsScore += value;
           }
@@ -297,46 +300,53 @@ export class PerformanceService {
   private monitorResourceLoading(): void {
     if (!('PerformanceObserver' in window)) return;
 
-    const observer = new PerformanceObserver((entryList) => {
+    const observer = new PerformanceObserver(entryList => {
       entryList.getEntries().forEach(entry => {
         if (entry.entryType === 'resource') {
           const resource = entry as PerformanceResourceTiming;
-          
+
           // Check for slow resources
-          if (resource.duration > 1000) { // > 1 second
+          if (resource.duration > 1000) {
+            // > 1 second
             this.createAlert('slowResource', resource.duration, 1000, {
               resourceName: resource.name,
-              resourceType: resource.initiatorType
+              resourceType: resource.initiatorType,
             });
           }
 
           // Check for large resources
-          if (resource.transferSize > 1024 * 1024) { // > 1MB
+          if (resource.transferSize > 1024 * 1024) {
+            // > 1MB
             this.createAlert('largeResource', resource.transferSize, 1024 * 1024, {
               resourceName: resource.name,
-              resourceType: resource.initiatorType
+              resourceType: resource.initiatorType,
             });
           }
         }
       });
     });
-    
+
     observer.observe({ entryTypes: ['resource'] });
     this.observers.set('resource', observer);
   }
 
   private trackUserInteractions(): void {
     const events = ['click', 'input', 'scroll', 'keydown'];
-    
+
     events.forEach(eventType => {
-      document.addEventListener(eventType, (event) => {
-        const target = event.target as HTMLElement;
-        const element = target.tagName.toLowerCase() + 
-                       (target.id ? `#${target.id}` : '') +
-                       (target.className ? `.${target.className.split(' ').join('.')}` : '');
-        
-        this.trackUserInteraction(eventType, element);
-      }, { passive: true });
+      document.addEventListener(
+        eventType,
+        event => {
+          const target = event.target as HTMLElement;
+          const element =
+            target.tagName.toLowerCase() +
+            (target.id ? `#${target.id}` : '') +
+            (target.className ? `.${target.className.split(' ').join('.')}` : '');
+
+          this.trackUserInteraction(eventType, element);
+        },
+        { passive: true }
+      );
     });
   }
 
@@ -347,7 +357,7 @@ export class PerformanceService {
         if (memory && memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.9) {
           this.createAlert('highMemoryUsage', memory.usedJSHeapSize, memory.jsHeapSizeLimit * 0.9, {
             totalHeapSize: memory.totalJSHeapSize,
-            heapSizeLimit: memory.jsHeapSizeLimit
+            heapSizeLimit: memory.jsHeapSizeLimit,
           });
         }
       }, 30000); // Check every 30 seconds
@@ -362,7 +372,7 @@ export class PerformanceService {
   private async getFirstInputDelay(): Promise<number> {
     return new Promise(resolve => {
       if ('PerformanceObserver' in window) {
-        const observer = new PerformanceObserver((entryList) => {
+        const observer = new PerformanceObserver(entryList => {
           const entries = entryList.getEntries();
           if (entries.length > 0) {
             const inputEntry = entries[0] as PerformanceEntryWithInput;
@@ -373,7 +383,7 @@ export class PerformanceService {
           }
         });
         observer.observe({ entryTypes: ['first-input'] });
-        
+
         // Timeout after 5 seconds
         setTimeout(() => {
           observer.disconnect();
@@ -389,19 +399,19 @@ export class PerformanceService {
     return new Promise(resolve => {
       if ('PerformanceObserver' in window) {
         let clsScore = 0;
-        const observer = new PerformanceObserver((entryList) => {
+        const observer = new PerformanceObserver(entryList => {
           entryList.getEntries().forEach(entry => {
             const layoutEntry = entry as PerformanceEntryWithValue & PerformanceEntryWithInput;
             const hadRecentInput = layoutEntry.hadRecentInput ?? false;
             const value = layoutEntry.value ?? 0;
-            
+
             if (!hadRecentInput) {
               clsScore += value;
             }
           });
         });
         observer.observe({ entryTypes: ['layout-shift'] });
-        
+
         // Calculate final score after 5 seconds
         setTimeout(() => {
           observer.disconnect();
@@ -417,14 +427,14 @@ export class PerformanceService {
     return new Promise(resolve => {
       if ('PerformanceObserver' in window) {
         let lcp = 0;
-        const observer = new PerformanceObserver((entryList) => {
+        const observer = new PerformanceObserver(entryList => {
           const entries = entryList.getEntries();
           if (entries.length > 0) {
             lcp = entries[entries.length - 1].startTime;
           }
         });
         observer.observe({ entryTypes: ['largest-contentful-paint'] });
-        
+
         // Finalize after 5 seconds
         setTimeout(() => {
           observer.disconnect();
@@ -448,7 +458,7 @@ export class PerformanceService {
       type: resource.initiatorType,
       duration: resource.duration,
       size: resource.transferSize,
-      startTime: resource.startTime
+      startTime: resource.startTime,
     }));
   }
 
@@ -458,7 +468,7 @@ export class PerformanceService {
       return {
         usedJSHeapSize: memory.usedJSHeapSize,
         totalJSHeapSize: memory.totalJSHeapSize,
-        jsHeapSizeLimit: memory.jsHeapSizeLimit
+        jsHeapSizeLimit: memory.jsHeapSizeLimit,
       };
     }
     return undefined;
@@ -471,7 +481,7 @@ export class PerformanceService {
         effectiveType: connection.effectiveType,
         downlink: connection.downlink,
         rtt: connection.rtt,
-        saveData: connection.saveData
+        saveData: connection.saveData,
       };
     }
     return undefined;
@@ -480,10 +490,26 @@ export class PerformanceService {
   private checkPerformanceBudget(metrics: PerformanceMetrics): void {
     const checks = [
       { metric: 'pageLoadTime', value: metrics.pageLoadTime, budget: this.budget.pageLoadTime },
-      { metric: 'firstContentfulPaint', value: metrics.firstContentfulPaint, budget: this.budget.firstContentfulPaint },
-      { metric: 'firstInputDelay', value: metrics.firstInputDelay, budget: this.budget.firstInputDelay },
-      { metric: 'cumulativeLayoutShift', value: metrics.cumulativeLayoutShift, budget: this.budget.cumulativeLayoutShift },
-      { metric: 'largestContentfulPaint', value: metrics.largestContentfulPaint, budget: this.budget.largestContentfulPaint }
+      {
+        metric: 'firstContentfulPaint',
+        value: metrics.firstContentfulPaint,
+        budget: this.budget.firstContentfulPaint,
+      },
+      {
+        metric: 'firstInputDelay',
+        value: metrics.firstInputDelay,
+        budget: this.budget.firstInputDelay,
+      },
+      {
+        metric: 'cumulativeLayoutShift',
+        value: metrics.cumulativeLayoutShift,
+        budget: this.budget.cumulativeLayoutShift,
+      },
+      {
+        metric: 'largestContentfulPaint',
+        value: metrics.largestContentfulPaint,
+        budget: this.budget.largestContentfulPaint,
+      },
     ];
 
     checks.forEach(check => {
@@ -497,7 +523,7 @@ export class PerformanceService {
     const thresholds: Record<string, number> = {
       largestContentfulPaint: this.budget.largestContentfulPaint,
       firstInputDelay: this.budget.firstInputDelay,
-      cumulativeLayoutShift: this.budget.cumulativeLayoutShift
+      cumulativeLayoutShift: this.budget.cumulativeLayoutShift,
     };
 
     const threshold = thresholds[metric];
@@ -507,13 +533,13 @@ export class PerformanceService {
   }
 
   private createAlert(
-    metric: string, 
-    value: number, 
-    threshold: number, 
+    metric: string,
+    value: number,
+    threshold: number,
     context: Record<string, unknown> = {}
   ): void {
     const severity = value > threshold * 2 ? 'critical' : 'warning';
-    
+
     const alert: PerformanceAlert = {
       id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date(),
@@ -524,12 +550,12 @@ export class PerformanceService {
       context: {
         ...context,
         url: window.location.pathname,
-        userAgent: navigator.userAgent
-      }
+        userAgent: navigator.userAgent,
+      },
     };
 
     this.alerts.push(alert);
-    
+
     // Keep only last 100 alerts
     if (this.alerts.length > 100) {
       this.alerts = this.alerts.slice(-100);
@@ -548,14 +574,14 @@ export class PerformanceService {
         pageId,
         loadTime,
         timestamp: Date.now(),
-        url: window.location.pathname
-      }
+        url: window.location.pathname,
+      },
     });
   }
 
   private async logAsyncOperation(
-    operationName: string, 
-    duration: number, 
+    operationName: string,
+    duration: number,
     status: 'success' | 'error',
     context: Record<string, unknown>
   ): Promise<void> {
@@ -569,8 +595,8 @@ export class PerformanceService {
         duration,
         status,
         ...context,
-        timestamp: Date.now()
-      }
+        timestamp: Date.now(),
+      },
     });
   }
 
@@ -583,8 +609,8 @@ export class PerformanceService {
         type: 'component_render',
         componentName,
         renderTime,
-        timestamp: Date.now()
-      }
+        timestamp: Date.now(),
+      },
     });
   }
 
@@ -596,8 +622,8 @@ export class PerformanceService {
       metadata: {
         ...metrics,
         timestamp: Date.now(),
-        url: window.location.pathname
-      }
+        url: window.location.pathname,
+      },
     });
   }
 
@@ -609,7 +635,7 @@ export class PerformanceService {
       cumulativeLayoutShift: 0,
       largestContentfulPaint: 0,
       timeToInteractive: 0,
-      resourceLoadTimes: []
+      resourceLoadTimes: [],
     };
   }
 
@@ -617,39 +643,43 @@ export class PerformanceService {
     // Return last 7 days of metrics (simplified)
     return this.metrics.slice(-7).map((metrics, index) => ({
       date: new Date(Date.now() - (6 - index) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      metrics
+      metrics,
     }));
   }
 
-  private getBudgetStatus(metrics: PerformanceMetrics | undefined): Record<string, { current: number; budget: number; status: 'pass' | 'fail' }> {
+  private getBudgetStatus(
+    metrics: PerformanceMetrics | undefined
+  ): Record<string, { current: number; budget: number; status: 'pass' | 'fail' }> {
     if (!metrics) return {};
 
     return {
       pageLoadTime: {
         current: metrics.pageLoadTime,
         budget: this.budget.pageLoadTime,
-        status: metrics.pageLoadTime <= this.budget.pageLoadTime ? 'pass' : 'fail'
+        status: metrics.pageLoadTime <= this.budget.pageLoadTime ? 'pass' : 'fail',
       },
       firstContentfulPaint: {
         current: metrics.firstContentfulPaint,
         budget: this.budget.firstContentfulPaint,
-        status: metrics.firstContentfulPaint <= this.budget.firstContentfulPaint ? 'pass' : 'fail'
+        status: metrics.firstContentfulPaint <= this.budget.firstContentfulPaint ? 'pass' : 'fail',
       },
       firstInputDelay: {
         current: metrics.firstInputDelay,
         budget: this.budget.firstInputDelay,
-        status: metrics.firstInputDelay <= this.budget.firstInputDelay ? 'pass' : 'fail'
+        status: metrics.firstInputDelay <= this.budget.firstInputDelay ? 'pass' : 'fail',
       },
       cumulativeLayoutShift: {
         current: metrics.cumulativeLayoutShift,
         budget: this.budget.cumulativeLayoutShift,
-        status: metrics.cumulativeLayoutShift <= this.budget.cumulativeLayoutShift ? 'pass' : 'fail'
+        status:
+          metrics.cumulativeLayoutShift <= this.budget.cumulativeLayoutShift ? 'pass' : 'fail',
       },
       largestContentfulPaint: {
         current: metrics.largestContentfulPaint,
         budget: this.budget.largestContentfulPaint,
-        status: metrics.largestContentfulPaint <= this.budget.largestContentfulPaint ? 'pass' : 'fail'
-      }
+        status:
+          metrics.largestContentfulPaint <= this.budget.largestContentfulPaint ? 'pass' : 'fail',
+      },
     };
   }
 }

@@ -113,7 +113,10 @@ export function FeesSection({ fees }: { fees: EntryBlankFees }) {
             Payment method
           </Text>
           {PAYMENT_OPTIONS.map(opt => (
-            <View key={opt.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <View
+              key={opt.key}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}
+            >
               <Checkbox checked={fees.paymentMethod === opt.key} />
               <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{opt.label}</Text>
             </View>

@@ -29,7 +29,7 @@ describe('resolveRingsideEntry', () => {
     expect(liveShows).toEqual([{ showId: 's1', showName: null, phase: 'live' }]);
   });
 
-  it("treats a judge class whose trial date is today as live", () => {
+  it('treats a judge class whose trial date is today as live', () => {
     const { liveShows } = resolveRingsideEntry(
       input({ judgeClasses: [{ showId: 's1', status: 'pending', trialDate: TODAY }] })
     );
@@ -105,7 +105,9 @@ describe('resolveRingsideEntry', () => {
       input({ exhibitorUpcoming: [{ showId: 's5', showName: 'Autumn Classic' }] })
     );
     expect(liveShows).toEqual([]);
-    expect(upcomingShows).toEqual([{ showId: 's5', showName: 'Autumn Classic', phase: 'upcoming' }]);
+    expect(upcomingShows).toEqual([
+      { showId: 's5', showName: 'Autumn Classic', phase: 'upcoming' },
+    ]);
   });
 
   it('does not list an exhibitor upcoming show that is already live today', () => {

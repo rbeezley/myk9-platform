@@ -3,11 +3,7 @@ import { reconcileCartToSelections } from '../ClassSelectionStep.helpers';
 import type { CartItemWithDetails } from '@/store/cartStore';
 import type { ClassSelectionData } from '@/types/show-registration-types';
 
-const makeCartItem = (
-  dogId: string,
-  classId: string,
-  trialId: string
-): CartItemWithDetails =>
+const makeCartItem = (dogId: string, classId: string, trialId: string): CartItemWithDetails =>
   ({
     id: `item-${dogId}-${classId}`,
     dog_id: dogId,

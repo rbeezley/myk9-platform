@@ -154,7 +154,9 @@ vi.mock('@/components/common/PrimaryTabs', () => ({
   }) => (
     <div>
       <nav aria-label="Trial sections">
-        {tabs?.map(tab => <button key={tab.id}>{tab.label}</button>)}
+        {tabs?.map(tab => (
+          <button key={tab.id}>{tab.label}</button>
+        ))}
       </nav>
       {children}
     </div>

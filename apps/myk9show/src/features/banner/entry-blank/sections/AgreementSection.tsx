@@ -1,13 +1,7 @@
 import { Text, View } from '@react-pdf/renderer';
 import { BODY, INK, MUTE, PAPER_WARM, SectionHeader } from './pdfPrimitives';
 
-export function AgreementSection({
-  agreementText,
-  flag,
-}: {
-  agreementText: string;
-  flag: string;
-}) {
+export function AgreementSection({ agreementText, flag }: { agreementText: string; flag: string }) {
   const firstParagraph = agreementText.split('\n\n')[0] ?? agreementText;
 
   return (
@@ -71,7 +65,6 @@ export function AgreementSection({
           </Text>
         </View>
       </View>
-
     </View>
   );
 }

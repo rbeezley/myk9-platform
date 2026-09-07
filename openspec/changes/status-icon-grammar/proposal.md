@@ -3,7 +3,7 @@
 Entry, class, and trial statuses are rendered by many independently maintained status→icon/color maps and several separate badge components (`components/shows/EntryStatusBadge.tsx`, `components/common/CheckInStatusBadge.tsx`, `components/exhibitor/CheckInStatusBadge.tsx`, `components/classes/ClassResultsTable/StatusBadge.tsx`, plus inline maps in `utils/entryStatusUtils.ts`, `utils/entryManagementUtils.ts`, table and card components, and more). Two problems follow:
 
 1. **Correctness.** Divergent, sometimes unguarded `MAP[status]` lookups have already produced a status-map lookup crash. Each duplicate map is another place a new or renamed status can crash or render blank.
-2. **Legibility.** The same status can look different on different surfaces, and today's badges lean on color to carry meaning. Linear's status circles work because *shape* encodes state (dashed / empty / half-filled / filled), readable at small sizes and independent of color perception. myK9Show's users skew older and work on tablets in bright venues, so shape-coded status helps them more than most audiences.
+2. **Legibility.** The same status can look different on different surfaces, and today's badges lean on color to carry meaning. Linear's status circles work because _shape_ encodes state (dashed / empty / half-filled / filled), readable at small sizes and independent of color perception. myK9Show's users skew older and work on tablets in bright venues, so shape-coded status helps them more than most audiences.
 
 Consolidating to one shape grammar removes the crash class and makes status readable everywhere at once. This is consolidation work, in keeping with the current phase: converge, then delete the duplicates.
 
@@ -24,7 +24,7 @@ Consolidating to one shape grammar removes the crash class and makes status read
 
 ### Modified Capabilities
 
-None. Status taxonomy, values, and transition rules are unchanged; only how a status is *rendered* is unified.
+None. Status taxonomy, values, and transition rules are unchanged; only how a status is _rendered_ is unified.
 
 ## Impact
 

@@ -31,12 +31,16 @@ export function StatusFilter({ filter, onFilterChange, counts, className }: Stat
             'h-10 rounded-md px-3 text-sm font-medium transition-colors',
             filter === key
               ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground',
+              : 'text-muted-foreground hover:text-foreground'
           )}
           onClick={() => onFilterChange(key)}
         >
-          <span className="hidden sm:inline">{label} ({counts[key]})</span>
-          <span className="sm:hidden">{shortLabel} ({counts[key]})</span>
+          <span className="hidden sm:inline">
+            {label} ({counts[key]})
+          </span>
+          <span className="sm:hidden">
+            {shortLabel} ({counts[key]})
+          </span>
         </button>
       ))}
     </div>

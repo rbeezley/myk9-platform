@@ -19,10 +19,7 @@ export interface CommandMenuCommands {
 export function useCommandMenuCommands(): CommandMenuCommands {
   const context = useCommandMenuContext();
 
-  const navigationCommands = useMemo(
-    () => buildContextualNavigationCommands(context),
-    [context]
-  );
+  const navigationCommands = useMemo(() => buildContextualNavigationCommands(context), [context]);
 
   return { navigationCommands };
 }

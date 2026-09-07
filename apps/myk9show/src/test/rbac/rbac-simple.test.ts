@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { 
-  UserRole, 
-  PERMISSIONS, 
+import {
+  UserRole,
+  PERMISSIONS,
   DEFAULT_ROLE_PERMISSIONS,
   MOCK_USERS,
-  ScopeType 
+  ScopeType,
 } from '../../types/auth-types';
 
 describe('RBAC Types and Constants', () => {
@@ -32,7 +32,7 @@ describe('RBAC Types and Constants', () => {
 
     it('should follow resource:action naming convention', () => {
       const allPermissions = Object.values(PERMISSIONS);
-      
+
       allPermissions.forEach(permission => {
         expect(permission).toMatch(/^[a-z_]+:[a-z_]+$/);
       });
@@ -139,7 +139,7 @@ describe('RBAC Types and Constants', () => {
 
   describe('Permission Logic', () => {
     it('should correctly identify registration permissions', () => {
-      const registrationPermissions = Object.values(PERMISSIONS).filter(p => 
+      const registrationPermissions = Object.values(PERMISSIONS).filter(p =>
         p.startsWith('registration:')
       );
 
@@ -174,7 +174,7 @@ describe('RBAC Types and Constants', () => {
 
       // Secretary should have all exhibitor permissions plus more
       const exhibitorPermsArray = Array.from(exhibitorPerms);
-      const secretaryHasAllExhibitorPerms = exhibitorPermsArray.every(perm => 
+      const secretaryHasAllExhibitorPerms = exhibitorPermsArray.every(perm =>
         secretaryPerms.has(perm)
       );
       expect(secretaryHasAllExhibitorPerms).toBe(false); // Different permission sets

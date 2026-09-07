@@ -59,7 +59,9 @@ describe('resolve_class_result_visibility resolver migration (20260617150000)', 
     // the preset over NOT NULL columns would silently discard it and over-expose.
     // Pin the direct COALESCE column read from show_visibility_settings.
     expect(body).toContain('COALESCE(s.placement_timing,');
-    expect(body).toMatch(/COALESCE\(s\.qualification_timing,[\s\S]*?FROM public\.show_visibility_settings/);
+    expect(body).toMatch(
+      /COALESCE\(s\.qualification_timing,[\s\S]*?FROM public\.show_visibility_settings/
+    );
   });
 
   it('keeps fail-closed behaviour for an unknown class', () => {

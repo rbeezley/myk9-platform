@@ -97,9 +97,7 @@ function FixedQuickInfoCards({ entryCount }: { entryCount?: number }) {
         secondary={`Day of show: $${SHOW.dayOfShowFee}`}
       />
       <div className="flex-1 min-w-[120px] px-4 py-2.5">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">
-          Payment
-        </div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1.5">Payment</div>
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline" className={WARM_CHIP}>
             Card

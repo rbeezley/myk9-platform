@@ -21,16 +21,16 @@
 
 ## Batch order
 
-| Order | Batch | Issues | Parallelism | Why |
-| --- | --- | --- | --- | --- |
-| 0 | Coordination and baseline | all | one coordinator | Resolve the MYK9-350 consolidation choice and capture current branch/PR overlap before workers edit. |
-| 1 | Protect unsynced work | MYK9-348 | one worker | Prevents irreversible show-day data loss and establishes safe cache boundaries for later cleanup. |
-| 2 | Offline identity gate | MYK9-347 | one worker | Restores exhibitor access during cold offline boot; independent of the form and cache code. |
-| 3 | Show Edit validation | MYK9-346 | one worker | Restores Nationals persistence and makes entry-limit validation visible and savable. |
-| 4 | Role-surface consolidation or scoped repair | MYK9-350 | one worker after Batch 0 | Avoids fixing a redundant surface if the canonical role-management link can replace it. |
-| 5 | Atomic judge qualification save | MYK9-351 | one worker, migration review required | Requires explicit authorization and a transaction boundary. |
-| 6 | Inclusive local show dates | MYK9-352 | one worker | Isolated low-risk date classification fix. |
-| 7 | Dead-code cleanup, in deletion batches | MYK9-353 | one worker per sequential deletion batch | Deletion is safest after live P1/P2 paths and shared imports have stabilized. |
+| Order | Batch                                       | Issues   | Parallelism                              | Why                                                                                                  |
+| ----- | ------------------------------------------- | -------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 0     | Coordination and baseline                   | all      | one coordinator                          | Resolve the MYK9-350 consolidation choice and capture current branch/PR overlap before workers edit. |
+| 1     | Protect unsynced work                       | MYK9-348 | one worker                               | Prevents irreversible show-day data loss and establishes safe cache boundaries for later cleanup.    |
+| 2     | Offline identity gate                       | MYK9-347 | one worker                               | Restores exhibitor access during cold offline boot; independent of the form and cache code.          |
+| 3     | Show Edit validation                        | MYK9-346 | one worker                               | Restores Nationals persistence and makes entry-limit validation visible and savable.                 |
+| 4     | Role-surface consolidation or scoped repair | MYK9-350 | one worker after Batch 0                 | Avoids fixing a redundant surface if the canonical role-management link can replace it.              |
+| 5     | Atomic judge qualification save             | MYK9-351 | one worker, migration review required    | Requires explicit authorization and a transaction boundary.                                          |
+| 6     | Inclusive local show dates                  | MYK9-352 | one worker                               | Isolated low-risk date classification fix.                                                           |
+| 7     | Dead-code cleanup, in deletion batches      | MYK9-353 | one worker per sequential deletion batch | Deletion is safest after live P1/P2 paths and shared imports have stabilized.                        |
 
 ## Batch 0: Coordination and baseline
 

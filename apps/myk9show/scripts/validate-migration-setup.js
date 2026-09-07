@@ -14,17 +14,14 @@ console.log('🔍 Validating migration setup...\n');
 // Check if migration files exist
 const migrationFiles = [
   'supabase/migrations/20250126_singular_table_names.sql',
-  'supabase/migrations/rollback_20250126_singular_table_names.sql'
+  'supabase/migrations/rollback_20250126_singular_table_names.sql',
 ];
 
-const scriptFiles = [
-  'scripts/migrate-to-singular-tables.ts',
-  'scripts/document-current-state.ts'
-];
+const scriptFiles = ['scripts/migrate-to-singular-tables.ts', 'scripts/document-current-state.ts'];
 
 const documentationFiles = [
   'docs/database-naming-refactor-plan.md',
-  'docs/migration-execution-guide.md'
+  'docs/migration-execution-guide.md',
 ];
 
 let allValid = true;
@@ -35,7 +32,7 @@ migrationFiles.forEach(file => {
   const fullPath = path.join(process.cwd(), file);
   if (fs.existsSync(fullPath)) {
     const size = fs.statSync(fullPath).size;
-    console.log(`  ✅ ${file} (${Math.round(size/1024)}KB)`);
+    console.log(`  ✅ ${file} (${Math.round(size / 1024)}KB)`);
   } else {
     console.log(`  ❌ ${file} - MISSING`);
     allValid = false;
@@ -48,7 +45,7 @@ scriptFiles.forEach(file => {
   const fullPath = path.join(process.cwd(), file);
   if (fs.existsSync(fullPath)) {
     const size = fs.statSync(fullPath).size;
-    console.log(`  ✅ ${file} (${Math.round(size/1024)}KB)`);
+    console.log(`  ✅ ${file} (${Math.round(size / 1024)}KB)`);
   } else {
     console.log(`  ❌ ${file} - MISSING`);
     allValid = false;
@@ -61,7 +58,7 @@ documentationFiles.forEach(file => {
   const fullPath = path.join(process.cwd(), file);
   if (fs.existsSync(fullPath)) {
     const size = fs.statSync(fullPath).size;
-    console.log(`  ✅ ${file} (${Math.round(size/1024)}KB)`);
+    console.log(`  ✅ ${file} (${Math.round(size / 1024)}KB)`);
   } else {
     console.log(`  ❌ ${file} - MISSING`);
     allValid = false;
@@ -72,11 +69,7 @@ documentationFiles.forEach(file => {
 console.log('\n📦 Checking package.json scripts:');
 try {
   const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  const requiredScripts = [
-    'migration:document',
-    'migration:migrate-code',
-    'migration:full'
-  ];
+  const requiredScripts = ['migration:document', 'migration:migrate-code', 'migration:full'];
 
   requiredScripts.forEach(script => {
     if (packageJson.scripts && packageJson.scripts[script]) {
@@ -107,15 +100,18 @@ try {
 // Check SQL file content for critical operations
 console.log('\n🔍 Validating SQL migration content:');
 try {
-  const migrationContent = fs.readFileSync('supabase/migrations/20250126_singular_table_names.sql', 'utf8');
-  
+  const migrationContent = fs.readFileSync(
+    'supabase/migrations/20250126_singular_table_names.sql',
+    'utf8'
+  );
+
   const criticalOperations = [
     'people RENAME TO "user"',
     'dogs RENAME TO dog',
     'shows RENAME TO show',
     'show_trials RENAME TO trial',
     'BEGIN;',
-    'COMMIT;'
+    'COMMIT;',
   ];
 
   criticalOperations.forEach(operation => {
@@ -148,14 +144,14 @@ if (allValid) {
 console.log('\n📋 Table Rename Summary:');
 const tableRenames = [
   'people → user',
-  'dogs → dog', 
+  'dogs → dog',
   'shows → show',
   'clubs → club',
   'show_trials → trial',
   'classes → class',
   'entries → entry',
   'results → result',
-  '+ 39 more tables'
+  '+ 39 more tables',
 ];
 
 tableRenames.forEach(rename => {

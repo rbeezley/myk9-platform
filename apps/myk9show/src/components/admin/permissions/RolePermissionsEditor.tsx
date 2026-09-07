@@ -11,15 +11,15 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Search, 
-  Shield, 
-  CheckSquare, 
+import {
+  Search,
+  Shield,
+  CheckSquare,
   Square,
   ChevronDown,
   ChevronRight,
   Info,
-  Zap
+  Zap,
 } from 'lucide-react';
 import { Role, Permission } from '@/types/rbac-types';
 import {
@@ -40,29 +40,34 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
   role,
   permissions,
   grantedPermissionIds,
-  onPermissionChange
+  onPermissionChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['show', 'entry', 'dog']));
-
+  const [expandedResources, setExpandedResources] = useState<Set<string>>(
+    new Set(['show', 'entry', 'dog'])
+  );
 
   // Group permissions by resource
   const permissionsByResource = useMemo(() => {
-    const filtered = permissions.filter(permission =>
-      permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getDisplayName(permission).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      permission.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getResource(permission).toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = permissions.filter(
+      permission =>
+        permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getDisplayName(permission).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        permission.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getResource(permission).toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const grouped = filtered.reduce((acc, permission) => {
-      const resource = getResource(permission);
-      if (!acc[resource]) {
-        acc[resource] = [];
-      }
-      acc[resource].push(permission);
-      return acc;
-    }, {} as Record<string, Permission[]>);
+    const grouped = filtered.reduce(
+      (acc, permission) => {
+        const resource = getResource(permission);
+        if (!acc[resource]) {
+          acc[resource] = [];
+        }
+        acc[resource].push(permission);
+        return acc;
+      },
+      {} as Record<string, Permission[]>
+    );
 
     // Sort permissions within each resource group
     Object.keys(grouped).forEach(resource => {
@@ -85,8 +90,8 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
 
   // Permission inheritance rules
   const inheritanceRules = {
-    'manage': ['create', 'read', 'update', 'delete'],
-    'admin': ['create', 'read', 'update', 'delete', 'manage']
+    manage: ['create', 'read', 'update', 'delete'],
+    admin: ['create', 'read', 'update', 'delete', 'manage'],
   };
 
   const toggleResourceExpansion = (resource: string) => {
@@ -107,32 +112,35 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
     // Check if this permission is inherited from a higher-level permission
     const resource = getResource(permission);
     const action = getAction(permission);
-    
+
     // Look for higher-level permissions that would grant this one
     for (const [parentAction, childActions] of Object.entries(inheritanceRules)) {
       if (childActions.includes(action)) {
-        const parentPermission = permissions.find(p =>
-          getResource(p) === resource && getAction(p) === parentAction
+        const parentPermission = permissions.find(
+          p => getResource(p) === resource && getAction(p) === parentAction
         );
         if (parentPermission && grantedPermissionIds.includes(parentPermission.id)) {
           return true;
         }
       }
     }
-    
+
     return false;
   };
 
   const getResourceStats = (resource: string) => {
     const resourcePermissions = permissionsByResource[resource] || [];
-    const granted = resourcePermissions.filter(p => 
-      isPermissionGranted(p.id) || isPermissionInherited(p)
+    const granted = resourcePermissions.filter(
+      p => isPermissionGranted(p.id) || isPermissionInherited(p)
     ).length;
-    
+
     return {
       total: resourcePermissions.length,
       granted,
-      percentage: resourcePermissions.length > 0 ? Math.round((granted / resourcePermissions.length) * 100) : 0
+      percentage:
+        resourcePermissions.length > 0
+          ? Math.round((granted / resourcePermissions.length) * 100)
+          : 0,
     };
   };
 
@@ -148,7 +156,10 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
   const totalStats = {
     total: permissions.length,
     granted: grantedPermissionIds.length,
-    percentage: permissions.length > 0 ? Math.round((grantedPermissionIds.length / permissions.length) * 100) : 0
+    percentage:
+      permissions.length > 0
+        ? Math.round((grantedPermissionIds.length / permissions.length) * 100)
+        : 0,
   };
 
   return (
@@ -161,7 +172,8 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
             Permission Editor for {role.display_name}
           </CardTitle>
           <CardDescription>
-            Grant or revoke permissions for this role. Permissions with inheritance are automatically granted.
+            Grant or revoke permissions for this role. Permissions with inheritance are
+            automatically granted.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -190,7 +202,7 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
             <Input
               placeholder="Search permissions by name, resource, or description..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -202,8 +214,9 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            <strong>System Role:</strong> This is a built-in role. Changes will affect all users with this role.
-            Some permissions may be automatically inherited based on permission hierarchy.
+            <strong>System Role:</strong> This is a built-in role. Changes will affect all users
+            with this role. Some permissions may be automatically inherited based on permission
+            hierarchy.
           </AlertDescription>
         </Alert>
       )}
@@ -221,8 +234,8 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
 
             return (
               <Card key={resource}>
-                <Collapsible 
-                  open={isExpanded} 
+                <Collapsible
+                  open={isExpanded}
                   onOpenChange={() => toggleResourceExpansion(resource)}
                 >
                   <CollapsibleTrigger asChild>
@@ -239,18 +252,21 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
                               {resource} Permissions
                             </CardTitle>
                             <CardDescription>
-                              {stats.granted} of {stats.total} permissions granted ({stats.percentage}%)
+                              {stats.granted} of {stats.total} permissions granted (
+                              {stats.percentage}%)
                             </CardDescription>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={allGranted ? "default" : someGranted ? "secondary" : "outline"}>
+                          <Badge
+                            variant={allGranted ? 'default' : someGranted ? 'secondary' : 'outline'}
+                          >
                             {stats.percentage}%
                           </Badge>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               handleSelectAllResource(resource, !allGranted);
                             }}
@@ -271,7 +287,7 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
                       </div>
                     </CardHeader>
                   </CollapsibleTrigger>
-                  
+
                   <CollapsibleContent>
                     <CardContent className="pt-0">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -284,14 +300,16 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
                             <div
                               key={permission.id}
                               className={`p-3 border rounded-lg hover:bg-muted/30 transition-colors ${
-                                isEffectivelyGranted ? 'border-green-200 bg-green-50/50' : 'border-border'
+                                isEffectivelyGranted
+                                  ? 'border-green-200 bg-green-50/50'
+                                  : 'border-border'
                               }`}
                             >
                               <div className="flex items-start gap-3">
                                 <Checkbox
                                   checked={isGranted}
                                   disabled={isInherited}
-                                  onCheckedChange={(checked) => 
+                                  onCheckedChange={checked =>
                                     onPermissionChange(permission.id, !!checked)
                                   }
                                   className="mt-0.5"
@@ -337,10 +355,9 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No permissions found</h3>
             <p className="text-muted-foreground">
-              {searchTerm 
+              {searchTerm
                 ? `No permissions match your search term "${searchTerm}"`
-                : 'No permissions available for this role'
-              }
+                : 'No permissions available for this role'}
             </p>
             {searchTerm && (
               <Button variant="outline" onClick={() => setSearchTerm('')} className="mt-4">

@@ -7,6 +7,7 @@ role guides (`docs/user-guides/*-guide.md`) and screenshots (`docs/screenshots/`
 so a non-author reviewer — and eventually customers — can read them on the web.
 
 ## Goals
+
 - Render the three ready guides (exhibitor, secretary, club-admin) in the warm
   myK9Show brand (terracotta / cream / sage), matching the approved prototypes.
 - Source of truth stays `docs/user-guides/*.md` — editing words never touches design.
@@ -14,10 +15,12 @@ so a non-author reviewer — and eventually customers — can read them on the w
 - Mobile responsive.
 
 ## Stack
+
 - **Astro** (static output) — content-driven, markdown-native, free, Vercel-friendly.
 - Lives at `apps/docs` in the monorepo (workspace already globs `apps/*`).
 
 ## Architecture
+
 - **Prebuild step** (`scripts/prepare-content.mjs`): copies `docs/user-guides/*-guide.md`
   → `src/content/guides/` (rewriting `../screenshots/` → `/screenshots/` and stripping
   internal "Screenshot Checklist" sections), and `docs/screenshots/*` → `public/screenshots/`.
@@ -28,6 +31,7 @@ so a non-author reviewer — and eventually customers — can read them on the w
 - **Design**: `styles/global.css` ports the approved prototype (Fraunces display + Inter body).
 
 ## Phases
+
 1. Scaffold Astro app + config + prebuild. ✅ in progress
 2. Design system (global.css) + BaseLayout + GuideLayout.
 3. Landing page + guide template wired to the collection.
@@ -37,6 +41,7 @@ so a non-author reviewer — and eventually customers — can read them on the w
 6. Vercel config + deploy (user connects the project on their account).
 
 ## Draft gate (review fixes, PR after #869)
+
 - The guides are still `qa-draft` ("do not publish to customers until verified"). The
   site is a **reviewer preview**, not a customer publish: every page carries
   `<meta robots="noindex,nofollow">` and a visible "Draft preview" banner. The banner
@@ -46,6 +51,7 @@ so a non-author reviewer — and eventually customers — can read them on the w
   validates this package (was a false green before).
 
 ## Deferred (v2)
+
 - Client-side search with Pagefind (the non-functional search box was removed for v1).
 - Split each `## Section` into its own page with prev/next (v1 = one page per guide, anchored).
 - Judge/steward guide (blocked on the ringside flag).

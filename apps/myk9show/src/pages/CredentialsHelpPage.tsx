@@ -29,7 +29,8 @@ const ROLE_ROWS: RoleRow[] = [
     example: 'aa260',
     icon: ShieldCheck,
     role: 'Administrator',
-    blurb: 'Full ring access — manage classes, run order, check-in, scoring, and view every passcode.',
+    blurb:
+      'Full ring access — manage classes, run order, check-in, scoring, and view every passcode.',
   },
   {
     prefix: 'j',
@@ -69,13 +70,10 @@ const CredentialsHelpPage: React.FC = () => {
 
         {/* Header */}
         <header className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Email or passcode?
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Email or passcode?</h1>
           <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-            There are two ways to sign in to myK9Show. Most people use an email and
-            password. At a show, you can also use a short passcode for instant,
-            account-free access to the ring.
+            There are two ways to sign in to myK9Show. Most people use an email and password. At a
+            show, you can also use a short passcode for instant, account-free access to the ring.
           </p>
         </header>
 
@@ -89,8 +87,8 @@ const CredentialsHelpPage: React.FC = () => {
               <h2 className="text-lg font-semibold text-foreground">Your account</h2>
             </div>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              An email address and password. This is your home in myK9Show — your dogs,
-              entries, results, and history all live here, show after show.
+              An email address and password. This is your home in myK9Show — your dogs, entries,
+              results, and history all live here, show after show.
             </p>
           </section>
 
@@ -102,29 +100,24 @@ const CredentialsHelpPage: React.FC = () => {
               <h2 className="text-lg font-semibold text-foreground">A show passcode</h2>
             </div>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              A <strong>5-character code</strong> the secretary hands out for a single
-              show — like{' '}
+              A <strong>5-character code</strong> the secretary hands out for a single show — like{' '}
               <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
                 aa260
               </code>
-              . No account needed. Drops you straight into the ring with exactly the
-              access your role needs.
+              . No account needed. Drops you straight into the ring with exactly the access your
+              role needs.
             </p>
           </section>
         </div>
 
         {/* How a passcode reads */}
         <section className="mb-12">
-          <h2 className="mb-2 text-xl font-semibold text-foreground">
-            How to read a passcode
-          </h2>
+          <h2 className="mb-2 text-xl font-semibold text-foreground">How to read a passcode</h2>
           <p className="mb-6 text-sm leading-relaxed text-muted-foreground">
             Every passcode is exactly five characters. The{' '}
-            <strong>first letter is your role</strong>; the four characters after it
-            are the show-specific secret code. So{' '}
-            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">
-              aa260
-            </code>{' '}
+            <strong>first letter is your role</strong>; the four characters after it are the
+            show-specific secret code. So{' '}
+            <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground">aa260</code>{' '}
             is an <strong>admin</strong> passcode because it starts with{' '}
             <code className="font-mono">a</code>.
           </p>
@@ -154,9 +147,7 @@ const CredentialsHelpPage: React.FC = () => {
                       </code>
                     </span>
                   </div>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                    {blurb}
-                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{blurb}</p>
                 </div>
               </li>
             ))}
@@ -172,8 +163,8 @@ const CredentialsHelpPage: React.FC = () => {
                 &bull;
               </span>
               <span>
-                Passcodes aren&apos;t case-sensitive — <code className="font-mono">AA260</code>{' '}
-                and <code className="font-mono">aa260</code> are the same code.
+                Passcodes aren&apos;t case-sensitive — <code className="font-mono">AA260</code> and{' '}
+                <code className="font-mono">aa260</code> are the same code.
               </span>
             </li>
             <li className="flex gap-2">
@@ -181,8 +172,8 @@ const CredentialsHelpPage: React.FC = () => {
                 &bull;
               </span>
               <span>
-                A passcode is tied to one show. Your account follows you everywhere; a
-                passcode does not.
+                A passcode is tied to one show. Your account follows you everywhere; a passcode does
+                not.
               </span>
             </li>
             <li className="flex gap-2">
@@ -190,8 +181,8 @@ const CredentialsHelpPage: React.FC = () => {
                 &bull;
               </span>
               <span>
-                Don&apos;t have your code? Ask the show secretary — they generate and hand
-                out passcodes for the event.
+                Don&apos;t have your code? Ask the show secretary — they generate and hand out
+                passcodes for the event.
               </span>
             </li>
           </ul>

@@ -13,7 +13,7 @@ export function useSyncStatus() {
   const setOfflineMode = useOfflineScoringStore(state => state.setOfflineMode);
 
   const [isOnline, setIsOnline] = useState(
-    typeof navigator !== 'undefined' ? navigator.onLine : true,
+    typeof navigator !== 'undefined' ? navigator.onLine : true
   );
 
   useEffect(() => {

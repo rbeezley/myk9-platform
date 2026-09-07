@@ -38,9 +38,9 @@ export function DeleteEntryDialog({
   onConfirm,
 }: DeleteEntryDialogProps) {
   const entry = entryId
-    ? (rawEntries.find((e) => (e as ShowEntry).id === entryId) as ShowEntry | undefined)
+    ? (rawEntries.find(e => (e as ShowEntry).id === entryId) as ShowEntry | undefined)
     : undefined;
-  const dog = entry ? dogs.find((d) => d.id === entry.dogId) : undefined;
+  const dog = entry ? dogs.find(d => d.id === entry.dogId) : undefined;
   const hasResults =
     entry?.competitionData?.time ||
     entry?.competitionData?.score ||

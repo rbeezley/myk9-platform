@@ -57,9 +57,7 @@ export function MagazineCover({
     );
   }
 
-  const classes = ['mz-cover', 'mz-cover--placeholder', className ?? '']
-    .filter(Boolean)
-    .join(' ');
+  const classes = ['mz-cover', 'mz-cover--placeholder', className ?? ''].filter(Boolean).join(' ');
 
   return (
     <figure className={classes} aria-label="Cover photograph placeholder">

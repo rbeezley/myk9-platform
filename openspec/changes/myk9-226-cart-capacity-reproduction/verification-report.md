@@ -2,11 +2,11 @@
 
 ### Summary
 
-| Dimension | Status |
-| --- | --- |
-| Completeness | 9/11 tasks complete; two coordinator/shared-system gates remain |
-| Correctness | Source-level conclusion supported by route inventory, predicate parity, history, and 6× focused tests; hosted real-flow proof remains open |
-| Coherence | Followed the reproduction-first, no-charge design; no production code changed |
+| Dimension    | Status                                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Completeness | 9/11 tasks complete; two coordinator/shared-system gates remain                                                                            |
+| Correctness  | Source-level conclusion supported by route inventory, predicate parity, history, and 6× focused tests; hosted real-flow proof remains open |
+| Coherence    | Followed the reproduction-first, no-charge design; no production code changed                                                              |
 
 ### Reproduction result
 

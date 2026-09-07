@@ -1,10 +1,10 @@
 import { logger } from '@/services/LoggingService';
 import {
-  ShowRegistration, 
-  EntryStatus, 
+  ShowRegistration,
+  EntryStatus,
   PaymentStatus,
   migratePaymentStatus,
-  isLegacyPaymentStatus
+  isLegacyPaymentStatus,
 } from '../types/show-registration-types';
 
 /**
@@ -16,10 +16,10 @@ import {
  */
 export function migrateRegistration(registration: unknown): ShowRegistration {
   const reg = registration as Record<string, unknown>;
-  
+
   // Handle payment status migration
   let paymentStatus: PaymentStatus;
-  
+
   if (typeof reg.paymentStatus === 'string') {
     if (isLegacyPaymentStatus(reg.paymentStatus)) {
       paymentStatus = migratePaymentStatus(reg.paymentStatus);
@@ -33,12 +33,12 @@ export function migrateRegistration(registration: unknown): ShowRegistration {
   }
 
   // Migrate entries to include new fields
-  const migratedEntries = (reg.entries as unknown[] || []).map((entry: unknown) => ({
+  const migratedEntries = ((reg.entries as unknown[]) || []).map((entry: unknown) => ({
     ...(entry as Record<string, unknown>),
     handler: (entry as Record<string, unknown>).handler || undefined,
     isHandlerValidated: (entry as Record<string, unknown>).isHandlerValidated ?? false,
     handlerOverrideReason: (entry as Record<string, unknown>).handlerOverrideReason || undefined,
-    armbandAssignment: (entry as Record<string, unknown>).armbandAssignment || undefined
+    armbandAssignment: (entry as Record<string, unknown>).armbandAssignment || undefined,
   }));
 
   // Build the migrated registration
@@ -49,7 +49,7 @@ export function migrateRegistration(registration: unknown): ShowRegistration {
     entries: migratedEntries,
     statusHistory: reg.statusHistory || [],
     createdByUserId: reg.createdByUserId || reg.userId,
-    lastModifiedByUserId: reg.lastModifiedByUserId || reg.userId
+    lastModifiedByUserId: reg.lastModifiedByUserId || reg.userId,
   } as ShowRegistration;
 
   return migrated;
@@ -68,21 +68,25 @@ export function migrateRegistrations(registrations: unknown[]): ShowRegistration
 export function needsMigration(registration: unknown): boolean {
   const registrationRecord = registration as Record<string, unknown>;
   // Check if payment status needs migration
-  if (typeof registrationRecord.paymentStatus === 'string' && 
-      isLegacyPaymentStatus(registrationRecord.paymentStatus)) {
+  if (
+    typeof registrationRecord.paymentStatus === 'string' &&
+    isLegacyPaymentStatus(registrationRecord.paymentStatus)
+  ) {
     return true;
   }
 
   // Check if missing new required fields
-  if (!registrationRecord.entryStatus || 
-      !registrationRecord.statusHistory ||
-      !registrationRecord.createdByUserId) {
+  if (
+    !registrationRecord.entryStatus ||
+    !registrationRecord.statusHistory ||
+    !registrationRecord.createdByUserId
+  ) {
     return true;
   }
 
   // Check if any entry is missing new fields
-  const entriesNeedMigration = (registrationRecord.entries as unknown[] || []).some((entry: unknown) => 
-    (entry as Record<string, unknown>).isHandlerValidated === undefined
+  const entriesNeedMigration = ((registrationRecord.entries as unknown[]) || []).some(
+    (entry: unknown) => (entry as Record<string, unknown>).isHandlerValidated === undefined
   );
 
   return entriesNeedMigration;
@@ -95,9 +99,9 @@ export function createBackup(registrations: unknown[]): string {
   const backup = {
     timestamp: new Date().toISOString(),
     version: '1.0',
-    data: registrations
+    data: registrations,
   };
-  
+
   return JSON.stringify(backup, null, 2);
 }
 
@@ -114,7 +118,7 @@ export function validateMigration(original: unknown[], migrated: ShowRegistratio
   // Check that all IDs are preserved
   const originalIds = new Set(original.map(r => (r as Record<string, unknown>).id));
   const migratedIds = new Set(migrated.map(r => r.id));
-  
+
   if (originalIds.size !== migratedIds.size) {
     logger.error('Migration error: ID mismatch', 'lib', {});
     return false;
@@ -124,11 +128,13 @@ export function validateMigration(original: unknown[], migrated: ShowRegistratio
   for (let i = 0; i < original.length; i++) {
     const orig = original[i] as Record<string, unknown>;
     const mig = migrated[i];
-    
-    if (orig.id !== mig.id || 
-        orig.showId !== mig.showId || 
-        orig.userId !== mig.userId ||
-        (orig.entries as unknown[]).length !== mig.entries.length) {
+
+    if (
+      orig.id !== mig.id ||
+      orig.showId !== mig.showId ||
+      orig.userId !== mig.userId ||
+      (orig.entries as unknown[]).length !== mig.entries.length
+    ) {
       logger.error(`Migration error: Data mismatch for registration ${orig.id}`, 'lib', {});
       return false;
     }
@@ -141,7 +147,7 @@ export function validateMigration(original: unknown[], migrated: ShowRegistratio
  * Run the migration with safety checks
  */
 export async function runMigrationSafely(
-  registrations: unknown[], 
+  registrations: unknown[],
   onBackup?: (backup: string) => void
 ): Promise<{ success: boolean; data?: ShowRegistration[]; error?: string }> {
   try {
@@ -156,20 +162,20 @@ export async function runMigrationSafely(
 
     // Validate
     if (!validateMigration(registrations, migrated)) {
-      return { 
-        success: false, 
-        error: 'Migration validation failed' 
+      return {
+        success: false,
+        error: 'Migration validation failed',
       };
     }
 
-    return { 
-      success: true, 
-      data: migrated 
+    return {
+      success: true,
+      data: migrated,
     };
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown migration error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown migration error',
     };
   }
 }

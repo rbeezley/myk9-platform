@@ -21,7 +21,6 @@ export interface ReleaseResultsResult {
   failed: string[];
 }
 
-
 export function useReleaseResults() {
   const queryClient = useQueryClient();
   const { user } = useAuth();

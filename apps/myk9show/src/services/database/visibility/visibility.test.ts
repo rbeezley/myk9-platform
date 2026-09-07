@@ -72,10 +72,18 @@ describe('visibility database module', () => {
       updated_by: null,
     };
 
-    const showQuery = chain({ maybeSingle: vi.fn().mockResolvedValue({ data: showDefaults, error: null }) });
-    const trialsQuery = chain({ eq: vi.fn().mockResolvedValue({ data: [{ id: 'trial-1' }], error: null }) });
-    const trialOverridesQuery = chain({ in: vi.fn().mockResolvedValue({ data: [trialOverride], error: null }) });
-    const classOverridesQuery = chain({ in: vi.fn().mockResolvedValue({ data: [classOverride], error: null }) });
+    const showQuery = chain({
+      maybeSingle: vi.fn().mockResolvedValue({ data: showDefaults, error: null }),
+    });
+    const trialsQuery = chain({
+      eq: vi.fn().mockResolvedValue({ data: [{ id: 'trial-1' }], error: null }),
+    });
+    const trialOverridesQuery = chain({
+      in: vi.fn().mockResolvedValue({ data: [trialOverride], error: null }),
+    });
+    const classOverridesQuery = chain({
+      in: vi.fn().mockResolvedValue({ data: [classOverride], error: null }),
+    });
 
     mockFrom
       .mockReturnValueOnce(showQuery)

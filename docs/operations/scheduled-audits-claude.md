@@ -210,7 +210,6 @@ Do not edit source. Do not open a PR. Do not merge. The report file is the only 
 Prompt source of truth: docs/operations/scheduled-audits-claude.md — edit there first, then update this task.
 ```
 
-
 ## Task 2 — `claude-findings-reconcile`
 
 **Cadence:** Weekly, Thursday 6:00 AM — the day before the Codex Friday consolidation.

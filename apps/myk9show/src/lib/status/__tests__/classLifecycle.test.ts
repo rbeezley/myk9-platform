@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  deriveClassLifecycleValue,
-  shouldShowClassLifecycle,
-} from '../classLifecycle';
+import { deriveClassLifecycleValue, shouldShowClassLifecycle } from '../classLifecycle';
 
 describe('deriveClassLifecycleValue', () => {
   it.each([

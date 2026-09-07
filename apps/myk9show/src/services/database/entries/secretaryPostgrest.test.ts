@@ -90,8 +90,7 @@ describe('postgrestGetSecretaryEntriesForShow — payment bookkeeping compatibil
             data: null,
             error: {
               code: '42703',
-              message:
-                'column view_authenticated_entry_results.payment_received_on does not exist',
+              message: 'column view_authenticated_entry_results.payment_received_on does not exist',
             },
           };
         }

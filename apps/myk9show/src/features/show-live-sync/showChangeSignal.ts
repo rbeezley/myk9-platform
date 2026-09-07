@@ -76,9 +76,7 @@ function parseShowChangeSignal(value: unknown): ShowChangeSignal | null {
   }
 
   const databaseSignal = record as unknown as DatabaseShowChangeSignal;
-  const parsedId = parseDatabaseSignalId(
-    typeof record.id === 'string' ? record.id : undefined
-  );
+  const parsedId = parseDatabaseSignalId(typeof record.id === 'string' ? record.id : undefined);
   return {
     table: databaseSignal.table,
     ...parsedId,

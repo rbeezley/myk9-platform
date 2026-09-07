@@ -103,13 +103,13 @@ serializes.
 Five distinct paths take a row-exclusive lock on a class row, held to commit. All but
 the last reach it through `refresh_class_scoring_state`:
 
-| Actor | Write |
-| --- | --- |
-| Judge scoring | `is_scored`, `result_status`, faults / time / points |
-| Steward or secretary check-in | `check_in_status` |
-| Exhibitor self-check-in | `check_in_status` (online-only) |
-| Scratch, pull or move | `entry_status`, `class_id`, `deleted_at` |
-| Secretary editing the class | `classes` directly, via `ReplicatedClassesTable.updateClass` |
+| Actor                         | Write                                                        |
+| ----------------------------- | ------------------------------------------------------------ |
+| Judge scoring                 | `is_scored`, `result_status`, faults / time / points         |
+| Steward or secretary check-in | `check_in_status`                                            |
+| Exhibitor self-check-in       | `check_in_status` (online-only)                              |
+| Scratch, pull or move         | `entry_status`, `class_id`, `deleted_at`                     |
+| Secretary editing the class   | `classes` directly, via `ReplicatedClassesTable.updateClass` |
 
 When a class is called, several of these overlap: the steward checks dogs in while
 exhibitors self-check-in, the judge begins scoring, and the secretary may adjust the

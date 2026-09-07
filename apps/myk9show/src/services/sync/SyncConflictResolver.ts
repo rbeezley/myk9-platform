@@ -1,6 +1,6 @@
 /**
  * Sync Conflict Resolver - Stub Implementation
- * 
+ *
  * This is a temporary stub to resolve import errors.
  * Full implementation will be added when sync functionality is developed.
  */
@@ -17,15 +17,19 @@ export class SyncConflictResolver {
     remoteData: unknown,
     strategy: ResolutionStrategy = 'user_decides'
   ): Promise<ConflictResolution> {
-    logger.warn('SyncConflictResolver stub: resolveConflict called but not implemented', 'sync', {});
-    
+    logger.warn(
+      'SyncConflictResolver stub: resolveConflict called but not implemented',
+      'sync',
+      {}
+    );
+
     return {
       conflictId: `stub-${Date.now()}`,
       strategy,
       resolvedEntity: localData, // Default to local for now
       resolvedAt: new Date(),
       resolvedBy: 'system',
-      automatic: false
+      automatic: false,
     } as ConflictResolution;
   }
 

@@ -1,8 +1,7 @@
 import type { Dog } from '@/types/dog-types';
 
 export type SelectedDogsOwnerResult =
-  | { ok: true; ownerId: string }
-  | { ok: false; owners: string[] };
+  { ok: true; ownerId: string } | { ok: false; owners: string[] };
 
 /**
  * Compute the unique owner across a set of selected dogs.

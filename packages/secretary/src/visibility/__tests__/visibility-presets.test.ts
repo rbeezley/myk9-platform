@@ -77,12 +77,9 @@ describe('fieldTimingsFromVisibility', () => {
 });
 
 describe('detectPreset', () => {
-  it.each<VisibilityPreset>(['open', 'standard', 'review'])(
-    'detects %s timings',
-    preset => {
-      expect(detectPreset(PRESET_CONFIGS[preset])).toBe(preset);
-    }
-  );
+  it.each<VisibilityPreset>(['open', 'standard', 'review'])('detects %s timings', preset => {
+    expect(detectPreset(PRESET_CONFIGS[preset])).toBe(preset);
+  });
 
   it('returns null for custom timings', () => {
     const customTimings: FieldTimings = {

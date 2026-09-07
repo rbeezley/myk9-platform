@@ -1,6 +1,6 @@
 /**
  * Unified Conflict Type System
- * 
+ *
  * This file provides a centralized, extensible conflict type system to replace
  * the scattered conflict interfaces throughout the codebase. It follows a
  * hierarchical approach with base types and domain-specific extensions.
@@ -33,17 +33,17 @@ export interface BaseConflict<TData = Record<string, unknown>> extends BaseConfl
   entityType: string;
   entityId: string;
   entityName?: string;
-  
+
   // Data versions involved in conflict
   localData: TData;
   remoteData: TData;
   serverData?: TData; // For three-way conflicts
-  baseData?: TData;   // Common ancestor for merge conflicts
-  
+  baseData?: TData; // Common ancestor for merge conflicts
+
   // Conflict analysis
   conflictFields: string[];
   fieldPath?: string; // Specific path for nested conflicts
-  
+
   // Modification tracking
   lastModified: {
     local: Date;
@@ -55,7 +55,7 @@ export interface BaseConflict<TData = Record<string, unknown>> extends BaseConfl
     remote: string;
     server?: string;
   };
-  
+
   // Additional context
   metadata?: ConflictMetadata;
 }
@@ -64,30 +64,30 @@ export interface BaseConflict<TData = Record<string, unknown>> extends BaseConfl
 // Enums and Union Types
 // ============================================================================
 
-export type ConflictType = 
-  | 'version_mismatch'       // Different versions of same entity
-  | 'concurrent_edit'        // Simultaneous modifications
-  | 'delete_update'          // One side deleted, other updated
-  | 'constraint_violation'   // Business rule violations
-  | 'data_mismatch'          // Unexpected data differences
-  | 'merge_conflict'         // Git-style merge conflicts
-  | 'sync_conflict'          // Synchronization failures
-  | 'scoring_conflict'       // Competition scoring conflicts
-  | 'schedule_conflict'      // Time/resource scheduling conflicts
-  | 'armband_conflict'       // Armband number conflicts
-  | 'checkin_conflict'       // Check-in status conflicts
-  | 'handler_conflict';      // Handler assignment conflicts
+export type ConflictType =
+  | 'version_mismatch' // Different versions of same entity
+  | 'concurrent_edit' // Simultaneous modifications
+  | 'delete_update' // One side deleted, other updated
+  | 'constraint_violation' // Business rule violations
+  | 'data_mismatch' // Unexpected data differences
+  | 'merge_conflict' // Git-style merge conflicts
+  | 'sync_conflict' // Synchronization failures
+  | 'scoring_conflict' // Competition scoring conflicts
+  | 'schedule_conflict' // Time/resource scheduling conflicts
+  | 'armband_conflict' // Armband number conflicts
+  | 'checkin_conflict' // Check-in status conflicts
+  | 'handler_conflict'; // Handler assignment conflicts
 
 export type ConflictPriority = 'low' | 'medium' | 'high' | 'critical';
 
-export type ConflictStatus = 
-  | 'detected'     // Just discovered
-  | 'pending'      // Awaiting resolution
-  | 'resolving'    // Currently being resolved
-  | 'resolved'     // Successfully resolved
-  | 'dismissed'    // Ignored/dismissed
-  | 'escalated'    // Escalated to higher authority
-  | 'expired';     // Resolution deadline passed
+export type ConflictStatus =
+  | 'detected' // Just discovered
+  | 'pending' // Awaiting resolution
+  | 'resolving' // Currently being resolved
+  | 'resolved' // Successfully resolved
+  | 'dismissed' // Ignored/dismissed
+  | 'escalated' // Escalated to higher authority
+  | 'expired'; // Resolution deadline passed
 
 // ============================================================================
 // Conflict Metadata Extensions
@@ -102,28 +102,28 @@ export interface ConflictMetadata {
     id: string;
     name?: string;
   }>;
-  
+
   // Legacy fields for backward compatibility
   autoResolvable?: boolean;
   affectedUsers?: string[];
   deadline?: Date;
-  
+
   // Resolution context
   suggestedResolution?: ResolutionStrategy;
   resolutionConfidence?: number; // 0-1 scale
   previousResolutions?: string[]; // History of similar resolutions
-  
+
   // Escalation
   escalationLevel?: number;
   escalationReason?: string;
   escalatedTo?: string;
   escalatedAt?: Date;
-  
+
   // Timing
   resolutionDeadline?: Date;
   maxRetries?: number;
   retryCount?: number;
-  
+
   // Technical details
   stackTrace?: string;
   debugInfo?: Record<string, unknown>;
@@ -138,7 +138,7 @@ export interface ConflictMetadata {
  */
 export interface SyncConflict<T = Record<string, unknown>> extends BaseConflict<T> {
   conflictType: 'version_mismatch' | 'concurrent_edit' | 'sync_conflict';
-  
+
   // Sync-specific metadata
   syncMetadata: {
     localVersion: number;
@@ -155,13 +155,13 @@ export interface SyncConflict<T = Record<string, unknown>> extends BaseConflict<
 export interface ScoringConflict extends BaseConflict {
   conflictType: 'scoring_conflict';
   entityType: 'score' | 'placement' | 'entry';
-  
+
   // Competition context
   classId: string;
   showId?: string | undefined;
   entryId: string;
   judgeIds: string[];
-  
+
   // Scoring details
   scoringDetails: {
     conflictReason: 'judge_conflict' | 'score_mismatch' | 'placement_conflict' | 'timing_conflict';
@@ -181,7 +181,7 @@ export interface ScoringConflict extends BaseConflict {
 export interface ScheduleConflict extends BaseConflict {
   conflictType: 'schedule_conflict';
   entityType: 'show' | 'class' | 'judge' | 'ring' | 'resource';
-  
+
   // Scheduling details
   scheduleDetails: {
     conflictReason: 'time_overlap' | 'resource_double_booking' | 'dependency_violation';
@@ -207,7 +207,7 @@ export interface ScheduleConflict extends BaseConflict {
 export interface ArmbandConflict extends BaseConflict {
   conflictType: 'armband_conflict';
   entityType: 'entry';
-  
+
   // Armband details
   armbandDetails: {
     conflictingArmband: string;
@@ -225,7 +225,7 @@ export interface ArmbandConflict extends BaseConflict {
 export interface CheckInConflict extends BaseConflict {
   conflictType: 'checkin_conflict';
   entityType: 'entry' | 'exhibitor';
-  
+
   // Check-in details
   checkInDetails: {
     currentStatus: string;
@@ -233,7 +233,8 @@ export interface CheckInConflict extends BaseConflict {
     checkInTime?: Date;
     checkInLocation?: string;
     expectedTime?: Date;
-    conflictReason: 'duplicate_checkin' | 'status_mismatch' | 'timing_conflict' | 'location_mismatch';
+    conflictReason:
+      'duplicate_checkin' | 'status_mismatch' | 'timing_conflict' | 'location_mismatch';
   };
 }
 
@@ -243,7 +244,7 @@ export interface CheckInConflict extends BaseConflict {
 export interface HandlerConflict extends BaseConflict {
   conflictType: 'handler_conflict';
   entityType: 'entry' | 'dog';
-  
+
   // Handler details
   handlerDetails: {
     currentHandlerId: string;
@@ -259,18 +260,18 @@ export interface HandlerConflict extends BaseConflict {
 // Resolution System
 // ============================================================================
 
-export type ResolutionStrategy = 
-  | 'local_wins'          // Keep local version
-  | 'remote_wins'         // Keep remote version
-  | 'server_wins'         // Keep server version (for 3-way)
-  | 'merge_automatic'     // Auto-merge non-conflicting fields
-  | 'merge_manual'        // Manual field-by-field resolution
-  | 'newest_wins'         // Use most recently modified
-  | 'user_decides'        // Delegate to user choice
-  | 'escalate'            // Escalate to authority
-  | 'retry_later'         // Defer resolution
-  | 'ignore'              // Dismiss conflict
-  | 'rollback';           // Revert to previous state
+export type ResolutionStrategy =
+  | 'local_wins' // Keep local version
+  | 'remote_wins' // Keep remote version
+  | 'server_wins' // Keep server version (for 3-way)
+  | 'merge_automatic' // Auto-merge non-conflicting fields
+  | 'merge_manual' // Manual field-by-field resolution
+  | 'newest_wins' // Use most recently modified
+  | 'user_decides' // Delegate to user choice
+  | 'escalate' // Escalate to authority
+  | 'retry_later' // Defer resolution
+  | 'ignore' // Dismiss conflict
+  | 'rollback'; // Revert to previous state
 
 export interface BaseConflictResolution<T = unknown> {
   conflictId: string;
@@ -278,15 +279,15 @@ export interface BaseConflictResolution<T = unknown> {
   resolvedAt: Date;
   resolvedBy: string;
   automatic: boolean;
-  
+
   // Resolution result
   resolvedEntity?: T;
   resolutionNotes?: string;
   confidence?: number; // 0-1 scale for automatic resolutions
-  
+
   // Field-specific resolutions for manual merges
   fieldResolutions?: FieldResolution[];
-  
+
   // Metadata
   resolutionTime?: number; // ms taken to resolve
   retryCount?: number;
@@ -309,10 +310,10 @@ export interface EnhancedConflictResolution<T = unknown> extends BaseConflictRes
   approvalRequired?: boolean;
   approvedBy?: string;
   approvedAt?: Date;
-  
+
   // Learning for future conflicts
   similar_conflicts?: string[]; // IDs of similar past conflicts
-  resolution_pattern?: string;  // Pattern for ML learning
+  resolution_pattern?: string; // Pattern for ML learning
   success_metrics?: ResolutionMetrics;
 }
 
@@ -348,7 +349,7 @@ export interface ResolutionMetrics {
 // ============================================================================
 
 // Union type of all specific conflict types
-export type AnyConflict = 
+export type AnyConflict =
   | SyncConflict
   | ScoringConflict
   | ScheduleConflict
@@ -385,43 +386,49 @@ export function isHandlerConflict(conflict: AnyConflict): conflict is HandlerCon
 // Conflict severity helpers
 export function getConflictSeverity(conflict: AnyConflict): 'low' | 'medium' | 'high' | 'critical' {
   // Critical conflicts
-  if (conflict.conflictType === 'constraint_violation' || 
-      conflict.priority === 'critical' ||
-      conflict.metadata?.impactLevel === 'critical') {
+  if (
+    conflict.conflictType === 'constraint_violation' ||
+    conflict.priority === 'critical' ||
+    conflict.metadata?.impactLevel === 'critical'
+  ) {
     return 'critical';
   }
-  
+
   // High severity
-  if (conflict.conflictType === 'scoring_conflict' ||
-      conflict.conflictType === 'schedule_conflict' ||
-      conflict.priority === 'high') {
+  if (
+    conflict.conflictType === 'scoring_conflict' ||
+    conflict.conflictType === 'schedule_conflict' ||
+    conflict.priority === 'high'
+  ) {
     return 'high';
   }
-  
+
   // Medium severity
-  if (conflict.conflictType === 'concurrent_edit' ||
-      conflict.conflictType === 'version_mismatch' ||
-      conflict.priority === 'medium') {
+  if (
+    conflict.conflictType === 'concurrent_edit' ||
+    conflict.conflictType === 'version_mismatch' ||
+    conflict.priority === 'medium'
+  ) {
     return 'medium';
   }
-  
+
   return 'low';
 }
 
 // Default conflict priorities by type
 export const DEFAULT_CONFLICT_PRIORITIES: Record<ConflictType, ConflictPriority> = {
-  'constraint_violation': 'critical',
-  'scoring_conflict': 'high',
-  'schedule_conflict': 'high',
-  'delete_update': 'high',
-  'concurrent_edit': 'medium',
-  'version_mismatch': 'medium',
-  'armband_conflict': 'medium',
-  'checkin_conflict': 'medium',
-  'handler_conflict': 'medium',
-  'data_mismatch': 'low',
-  'merge_conflict': 'low',
-  'sync_conflict': 'low'
+  constraint_violation: 'critical',
+  scoring_conflict: 'high',
+  schedule_conflict: 'high',
+  delete_update: 'high',
+  concurrent_edit: 'medium',
+  version_mismatch: 'medium',
+  armband_conflict: 'medium',
+  checkin_conflict: 'medium',
+  handler_conflict: 'medium',
+  data_mismatch: 'low',
+  merge_conflict: 'low',
+  sync_conflict: 'low',
 };
 
 // ============================================================================

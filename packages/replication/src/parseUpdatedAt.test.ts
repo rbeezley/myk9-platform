@@ -7,7 +7,9 @@ import {
 
 describe('parseUpdatedAtMs', () => {
   it('parses an ISO timestamp string to epoch ms', () => {
-    expect(parseUpdatedAtMs('2026-06-09T14:26:04.040Z')).toBe(Date.parse('2026-06-09T14:26:04.040Z'));
+    expect(parseUpdatedAtMs('2026-06-09T14:26:04.040Z')).toBe(
+      Date.parse('2026-06-09T14:26:04.040Z')
+    );
   });
 
   it('passes a finite numeric epoch through unchanged', () => {
@@ -32,7 +34,9 @@ describe('parseUpdatedAtMs', () => {
   });
 
   it('high-churn buffer is smaller than the default buffer', () => {
-    expect(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBeLessThan(REPLICATION_INCREMENTAL_BUFFER_MS);
+    expect(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBeLessThan(
+      REPLICATION_INCREMENTAL_BUFFER_MS
+    );
     expect(REPLICATION_INCREMENTAL_BUFFER_MS).toBe(60_000);
     expect(REPLICATION_INCREMENTAL_BUFFER_MS_HIGH_CHURN).toBe(5_000);
   });

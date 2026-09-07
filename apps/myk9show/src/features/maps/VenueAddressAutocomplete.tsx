@@ -107,7 +107,11 @@ export function VenueAddressAutocomplete({
 
     const details = token ? await fetchPlaceDetails(suggestion.placeId, token) : null;
     if (details) {
-      onPlaceSelected({ location: formatVenueLocation(details), lat: details.lat, lng: details.lng });
+      onPlaceSelected({
+        location: formatVenueLocation(details),
+        lat: details.lat,
+        lng: details.lng,
+      });
     } else {
       // Details lookup failed — keep the chosen text; the secretary can still
       // place the pin via the map's Locate button.

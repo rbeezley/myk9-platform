@@ -91,7 +91,10 @@ export interface ClassStoreState {
   setSelectedClassId: (id: string) => void;
 
   // Template methods
-  addClassesFromTemplate: (trialId: string, generatedClasses: GeneratedClass[]) => SyncableClassData[];
+  addClassesFromTemplate: (
+    trialId: string,
+    generatedClasses: GeneratedClass[]
+  ) => SyncableClassData[];
 
   // Legacy methods for compatibility
   addClassLegacy: (data: ClassData) => void;
@@ -107,5 +110,7 @@ export interface ClassStoreState {
   cleanup: () => void;
 }
 
-export type StoreSet = (partial: Partial<ClassStoreState> | ((state: ClassStoreState) => Partial<ClassStoreState>)) => void;
+export type StoreSet = (
+  partial: Partial<ClassStoreState> | ((state: ClassStoreState) => Partial<ClassStoreState>)
+) => void;
 export type StoreGet = () => ClassStoreState;

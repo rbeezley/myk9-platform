@@ -5,7 +5,11 @@ import { Field, SectionHeader } from './pdfPrimitives';
 export function DogParticularsSection({ dog }: { dog: EntryBlankDog }) {
   return (
     <View>
-      <SectionHeader number="01" title="Particulars of the dog" kicker="all fields required · print in ink" />
+      <SectionHeader
+        number="01"
+        title="Particulars of the dog"
+        kicker="all fields required · print in ink"
+      />
 
       <View style={{ flexDirection: 'row' }}>
         <Field label="Registered name" value={dog.registeredName} width="66%" />

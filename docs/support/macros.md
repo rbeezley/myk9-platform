@@ -3,6 +3,7 @@
 Reusable reply snippets for email, chat, and follow-up. Each macro is 2–4 sentences maximum plus a link or action.
 
 **Usage rules:**
+
 - Replace `[brackets]` before sending. Never send a macro with unfilled placeholders.
 - Every macro ends with a specific link or a clear next step — the customer should not need to reply asking "what do I do now?"
 - Tone: warm, specific, not corporate. Write as if you know them from the last show.

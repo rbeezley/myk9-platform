@@ -1,7 +1,4 @@
-export {
-  PosterEntryBlankDocument,
-  type PosterEntryBlankProps,
-} from './PosterEntryBlankDocument';
+export { PosterEntryBlankDocument, type PosterEntryBlankProps } from './PosterEntryBlankDocument';
 export { PosterEntryBlankButton } from './PosterEntryBlankButton';
 // Re-export Heritage's prop-assembly builder so Poster consumers can use
 // `import { buildEntryBlankProps } from '@/features/poster/entry-blank'`

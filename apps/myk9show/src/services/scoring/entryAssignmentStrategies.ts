@@ -10,26 +10,20 @@ import type { EntryAssignment, AssignmentStrategy, JudgeSession } from './judge-
 /**
  * Create sequential assignments (entries in original order)
  */
-export function createSequentialAssignments(
-  entries: string[],
-  judgeId: string
-): EntryAssignment[] {
+export function createSequentialAssignments(entries: string[], judgeId: string): EntryAssignment[] {
   return entries.map((entryId, index) => ({
     entryId,
     judgeId,
     assignedAt: new Date(),
     priority: index + 1,
-    status: 'assigned'
+    status: 'assigned',
   }));
 }
 
 /**
  * Create random assignments (shuffled order)
  */
-export function createRandomAssignments(
-  entries: string[],
-  judgeId: string
-): EntryAssignment[] {
+export function createRandomAssignments(entries: string[], judgeId: string): EntryAssignment[] {
   const shuffled = [...entries].sort(() => Math.random() - 0.5);
   return createSequentialAssignments(shuffled, judgeId);
 }

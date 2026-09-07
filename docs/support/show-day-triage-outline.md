@@ -8,11 +8,11 @@ Outline for the live show-day support runbook. This file governs what gets draft
 
 ## Severity Levels
 
-| Level | Definition | Response target | Example |
-|---|---|---|---|
-| P0 | Show cannot proceed or ring is stopped | Respond in 5 minutes | Secretary locked out, scoring down, no entries visible |
-| P1 | A role is blocked but the show can continue | Respond in 15 minutes | One exhibitor can't check in; judge dashboard not loading |
-| P2 | Non-blocking: something is wrong or confusing | Respond in 2 hours | An entry shows the wrong armband; a report won't print |
+| Level | Definition                                    | Response target       | Example                                                   |
+| ----- | --------------------------------------------- | --------------------- | --------------------------------------------------------- |
+| P0    | Show cannot proceed or ring is stopped        | Respond in 5 minutes  | Secretary locked out, scoring down, no entries visible    |
+| P1    | A role is blocked but the show can continue   | Respond in 15 minutes | One exhibitor can't check in; judge dashboard not loading |
+| P2    | Non-blocking: something is wrong or confusing | Respond in 2 hours    | An entry shows the wrong armband; a report won't print    |
 
 ---
 
@@ -131,13 +131,13 @@ Include in the final runbook for cases where the app is down and the show must c
 
 ## Escalation Paths
 
-| Issue type | Escalate to | What to provide |
-|---|---|---|
-| Data missing or incorrect in the database | Engineering | Cookbook recipe followed, exact symptom, table/entry IDs |
-| Supabase service outage | Wait for Supabase status resolution | Status page URL, estimated ETA for customer |
-| Stripe payout blocked during show | Stripe support (treasurer) | Connect account ID |
-| App completely inaccessible (not offline) | Engineering (P0) | Device, browser, error message, time it started |
-| Scoring data inconsistency | Engineering (P0) | Class ID, entry IDs, what was expected vs. actual |
+| Issue type                                | Escalate to                         | What to provide                                          |
+| ----------------------------------------- | ----------------------------------- | -------------------------------------------------------- |
+| Data missing or incorrect in the database | Engineering                         | Cookbook recipe followed, exact symptom, table/entry IDs |
+| Supabase service outage                   | Wait for Supabase status resolution | Status page URL, estimated ETA for customer              |
+| Stripe payout blocked during show         | Stripe support (treasurer)          | Connect account ID                                       |
+| App completely inaccessible (not offline) | Engineering (P0)                    | Device, browser, error message, time it started          |
+| Scoring data inconsistency                | Engineering (P0)                    | Class ID, entry IDs, what was expected vs. actual        |
 
 ---
 
@@ -156,6 +156,7 @@ After a show-day incident closes, run this checklist before marking it resolved.
 ## Triage Sections to Draft in Final Runbook
 
 The final `docs/support/show-day-triage.md` will expand each outline section above into a numbered resolution path with:
+
 - Symptom as the user says it
 - Confirm severity
 - First steps (offline check, filter check)
@@ -164,6 +165,7 @@ The final `docs/support/show-day-triage.md` will expand each outline section abo
 - Escalation path
 
 Sections to expand (in priority order):
+
 1. App shows offline for secretary (P0 risk)
 2. Secretary cannot see any entries (P0 risk)
 3. Scoring surface not loading (P0 risk)

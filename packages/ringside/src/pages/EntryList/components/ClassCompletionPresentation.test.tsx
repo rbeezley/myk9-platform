@@ -9,7 +9,9 @@ import {
   markClassCompletionPending,
 } from './ClassCompletionPresentation';
 import {
-  __resetClassCompletionMemoForTests, COMPLETION_INTENT_MAX_AGE_MS } from './classCompletionStorage';
+  __resetClassCompletionMemoForTests,
+  COMPLETION_INTENT_MAX_AGE_MS,
+} from './classCompletionStorage';
 
 const { confettiBurst } = vi.hoisted(() => ({
   confettiBurst: vi.fn(),
@@ -316,7 +318,6 @@ describe('ClassCompletionPresentation', () => {
     expect(screen.queryByText('No Qualifier')).toBeNull();
   });
 });
-
 
 /**
  * A combined Novice A/B pair is TWO competitions that ran together. The sections

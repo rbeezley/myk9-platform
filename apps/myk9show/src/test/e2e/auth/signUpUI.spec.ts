@@ -31,7 +31,9 @@ test.describe('Sign-up page — initial state', () => {
 
     // Exhibitor is pre-checked; other roles are not
     await expect(page.getByRole('checkbox', { name: 'Exhibitor (I show dogs)' })).toBeChecked();
-    await expect(page.getByRole('checkbox', { name: 'Club officer / show host' })).not.toBeChecked();
+    await expect(
+      page.getByRole('checkbox', { name: 'Club officer / show host' })
+    ).not.toBeChecked();
     await expect(page.getByRole('checkbox', { name: 'Show secretary' })).not.toBeChecked();
 
     // TOS is unchecked; submit + Google buttons are disabled

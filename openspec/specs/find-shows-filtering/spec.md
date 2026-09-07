@@ -1,8 +1,11 @@
 # find-shows-filtering Specification
 
 ## Purpose
+
 Find Shows filtering is dependable: filter dropdowns render through portals so they always paint above surrounding content, and discipline filters match shows by normalized comparison so stored trial-type variants never produce false empty results.
+
 ## Requirements
+
 ### Requirement: Filter dropdowns paint above surrounding content
 
 Filter chip dropdown menus on Find Shows SHALL render through a portal-based popover primitive so they are fully opaque and paint above all subsequent page content (including the Upcoming/Past Shows tab strip), regardless of stacking contexts created by ancestor containers (e.g., `backdrop-blur`).
@@ -30,4 +33,3 @@ The discipline filter SHALL match shows by normalized comparison (case-, whitesp
 
 - **WHEN** the discipline-matching unit tests run
 - **THEN** they assert a match for each known stored trial-type variant and a non-match for unrelated disciplines
-

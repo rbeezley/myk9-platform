@@ -25,7 +25,7 @@
 1. Mark the **original** entry `entry_status: 'moved'` (line 279).
 2. **Then** create the new entry in the target class (line 287).
 3. If step 2 throws, attempt a rollback that restores the original (line 306);
-   if the rollback *also* throws, it is only logged (line 315).
+   if the rollback _also_ throws, it is only logged (line 315).
 
 The failure mode: step 1 succeeds, step 2 fails (network blip mid-write on venue
 WiFi — exactly when this runs), and the rollback fails too. The dog's entry is
@@ -36,7 +36,7 @@ front of the first club, a dog just disappears from its class.
 
 The fix inverts the order: create the new entry **first**, then mark the
 original moved. Now if the create fails, the original is untouched (the dog
-still runs where it was — safe). If the *second* write fails, roll back by
+still runs where it was — safe). If the _second_ write fails, roll back by
 deleting the just-created entry; and even if that rollback fails, the worst case
 is a **visible duplicate** entry the secretary can see and scratch — strictly
 better than a silently disabled dog. After this plan, a test pins the write
@@ -76,7 +76,7 @@ try {
   });
 } catch (error) {
   try {
-    await replicatedEntriesTable.updateEntry(entryId, { /* restore original */ });
+    await replicatedEntriesTable.updateEntry(entryId, {/* restore original */});
   } catch (rollbackError) {
     logger.error('[show-map] Failed to roll back move-up after create failure', rollbackError);
   }
@@ -97,19 +97,21 @@ try {
 
 ## Commands you will need
 
-| Purpose   | Command                                                                                                            | Expected |
-|-----------|-------------------------------------------------------------------------------------------------------------------|----------|
-| Typecheck | `pnpm typecheck`                                                                                                   | exit 0   |
-| One test  | `cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapActionMutations.test.ts`                | all pass |
-| Lint      | `pnpm lint`                                                                                                        | exit 0   |
+| Purpose   | Command                                                                                             | Expected |
+| --------- | --------------------------------------------------------------------------------------------------- | -------- |
+| Typecheck | `pnpm typecheck`                                                                                    | exit 0   |
+| One test  | `cd apps/myk9show && npx vitest run src/features/show-map/__tests__/showMapActionMutations.test.ts` | all pass |
+| Lint      | `pnpm lint`                                                                                         | exit 0   |
 
 ## Scope
 
 **In scope**:
+
 - `apps/myk9show/src/features/show-map/showMapActionMutations.ts` (reorder writes in `moveUpShowMapEntry` only)
 - `apps/myk9show/src/features/show-map/__tests__/showMapActionMutations.test.ts` (add tests)
 
 **Out of scope**:
+
 - `undoShowMapMoveUp` and its restore logic — unchanged. The result shape
   (`originalEntryId`, `newEntryId`, `previousEntryStatus`, …) must stay identical
   so undo keeps working.
@@ -180,7 +182,10 @@ try {
   try {
     await replicatedEntriesTable.deleteEntry(newEntryId);
   } catch (rollbackError) {
-    logger.error('[show-map] Failed to delete move-up entry after mark-moved failure', rollbackError);
+    logger.error(
+      '[show-map] Failed to delete move-up entry after mark-moved failure',
+      rollbackError
+    );
   }
   throw createDatabaseError(error, 'entries', 'show_map_move_up');
 }
@@ -213,7 +218,7 @@ passes:
 - [ ] In `showMapActionMutations.ts`, `createEntry(` appears **before** the
       `entry_status: 'moved'` `updateEntry(` within `moveUpShowMapEntry`
       (`grep -n` to confirm line order)
-- [ ] No `updateEntry(entryId, { … 'moved' … })` remains *before* the create
+- [ ] No `updateEntry(entryId, { … 'moved' … })` remains _before_ the create
 - [ ] Only the two in-scope files modified (`git status`)
 - [ ] `plans/README.md` row for 002 updated
 

@@ -33,7 +33,7 @@ Define a small, explicit grammar where each status maps to a shape variant (e.g.
 
 The shared component is presentation-only: it takes a status value and family and renders shape + color + accessible label. It performs no data access and no mutation.
 
-Alternative considered: one universal map across all families. Rejected — the families have different state sets and conflating them invites the same drift in reverse. Shared *vocabulary*, separate *maps*.
+Alternative considered: one universal map across all families. Rejected — the families have different state sets and conflating them invites the same drift in reverse. Shared _vocabulary_, separate _maps_.
 
 ### 2. Mandatory fallback — the crash-class fix
 

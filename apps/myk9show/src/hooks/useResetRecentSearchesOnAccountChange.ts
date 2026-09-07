@@ -18,7 +18,9 @@
 import { useEffect, useRef } from 'react';
 import { clearAllRecentSearchesForUser } from '@/hooks/useRecentSearches';
 
-export function useResetRecentSearchesOnAccountChange(currentUserId: string | null | undefined): void {
+export function useResetRecentSearchesOnAccountChange(
+  currentUserId: string | null | undefined
+): void {
   const prevUserIdRef = useRef<string | null | undefined>(currentUserId);
 
   useEffect(() => {

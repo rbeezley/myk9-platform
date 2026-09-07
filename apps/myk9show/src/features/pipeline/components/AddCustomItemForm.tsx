@@ -8,10 +8,7 @@ interface AddCustomItemFormProps {
   disabled?: boolean | undefined;
 }
 
-export const AddCustomItemForm: React.FC<AddCustomItemFormProps> = ({
-  onAdd,
-  disabled,
-}) => {
+export const AddCustomItemForm: React.FC<AddCustomItemFormProps> = ({ onAdd, disabled }) => {
   const [label, setLabel] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
@@ -43,11 +40,11 @@ export const AddCustomItemForm: React.FC<AddCustomItemFormProps> = ({
     <form onSubmit={handleSubmit} className="flex items-center gap-2 px-1">
       <Input
         value={label}
-        onChange={(e) => setLabel(e.target.value)}
+        onChange={e => setLabel(e.target.value)}
         placeholder="e.g., Order ribbons"
         className="h-8 text-sm"
         autoFocus
-        onKeyDown={(e) => {
+        onKeyDown={e => {
           if (e.key === 'Escape') {
             setIsOpen(false);
             setLabel('');

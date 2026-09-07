@@ -83,9 +83,7 @@ export function MoreFromClub({ clubId, clubName, currentShowId }: MoreFromClubPr
               <div className="space-y-1 text-xs text-muted-foreground">
                 <div className="flex items-center gap-1.5">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  {show.startDate
-                    ? formatShortCalendarDate(show.startDate)
-                    : 'Date TBD'}
+                  {show.startDate ? formatShortCalendarDate(show.startDate) : 'Date TBD'}
                 </div>
                 {show.location && (
                   <div className="flex items-center gap-1.5">

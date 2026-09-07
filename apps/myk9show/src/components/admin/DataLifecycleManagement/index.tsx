@@ -14,8 +14,7 @@ export function DataLifecycleManagement() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Deleted Items</h1>
           <p className="text-muted-foreground">
-            Restore soft-deleted records or permanently delete records that should not be
-            recovered.
+            Restore soft-deleted records or permanently delete records that should not be recovered.
           </p>
         </div>
 

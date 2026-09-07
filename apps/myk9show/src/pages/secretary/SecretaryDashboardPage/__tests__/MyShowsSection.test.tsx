@@ -17,12 +17,7 @@ function makeShow(id: string) {
 function renderSection(props: Partial<Parameters<typeof MyShowsSection>[0]> = {}) {
   return render(
     <MemoryRouter>
-      <MyShowsSection
-        phase="upcoming"
-        title="Upcoming shows"
-        shows={[makeShow('s1')]}
-        {...props}
-      />
+      <MyShowsSection phase="upcoming" title="Upcoming shows" shows={[makeShow('s1')]} {...props} />
     </MemoryRouter>
   );
 }

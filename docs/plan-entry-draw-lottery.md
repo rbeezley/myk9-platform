@@ -6,13 +6,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development or superpowers:executing-plans. Checkbox (`- [ ]`) steps. Touches payment/Stripe + a fairness-critical randomization path — run `/codex:review` alongside `/review`, and treat the draw's auditability as load-bearing.
 
-**Goal:** Offer clubs a **random-draw (lottery) entry mode** as an alternative to first-come-first-served for over-subscribed shows. Every entry received by the closing date — online *and* secretary-keyed mail-in — has equal odds; a seeded, auditable draw fills capacity and orders the waitlist. This neutralizes both the online-opening-rush and the mail-delay disadvantage in one mechanism.
+**Goal:** Offer clubs a **random-draw (lottery) entry mode** as an alternative to first-come-first-served for over-subscribed shows. Every entry received by the closing date — online _and_ secretary-keyed mail-in — has equal odds; a seeded, auditable draw fills capacity and orders the waitlist. This neutralizes both the online-opening-rush and the mail-delay disadvantage in one mechanism.
 
-**Why this is fair (and why it exists):** "Fastest internet wins" and "fastest mail wins" are the two loudest entry complaints. A draw removes both. It is arguably *more* fair to the retired/mail-in population than the FCFS + mail-in-reservation model, because a mailed entry that arrives by closing has identical odds to an online one — no reservation needed.
+**Why this is fair (and why it exists):** "Fastest internet wins" and "fastest mail wins" are the two loudest entry complaints. A draw removes both. It is arguably _more_ fair to the retired/mail-in population than the FCFS + mail-in-reservation model, because a mailed entry that arrives by closing has identical odds to an online one — no reservation needed.
 
 ## Architecture — reuse, do not rebuild
 
-The key realization: **a draw is incompatible with charge-at-entry** (you don't know who's in until closing, weeks later; Stripe auth holds expire in ~7 days so authorize-and-capture-later won't span it). So draw mode **defers the charge entirely** — which means it is just *"every entry is pending until closing, then the drawn-in entries are promoted"*. That is exactly the pay-to-claim flow the dependency plan builds:
+The key realization: **a draw is incompatible with charge-at-entry** (you don't know who's in until closing, weeks later; Stripe auth holds expire in ~7 days so authorize-and-capture-later won't span it). So draw mode **defers the charge entirely** — which means it is just _"every entry is pending until closing, then the drawn-in entries are promoted"_. That is exactly the pay-to-claim flow the dependency plan builds:
 
 - Draw mode entries are created **pending, no charge** (online checkout suppressed — register intent, don't pay).
 - At closing, the draw promotes the winners → each gets a **payment link** (pay-to-claim, same 48h-online / offline-for-mail-in rules).
@@ -29,22 +29,22 @@ So this plan is mostly an **intake + ordering layer** on top of existing primiti
 - **Entry "draw"** = entry lottery for over-subscribed/limited shows (the impactful meaning), not merely randomizing waitlist order (that falls out for free once the draw orders the losers).
 - **Reuses from the dependency plan:** `stripe-payment-link` + webhook reconciliation, `promote_waitlist_entry`-style atomic promotion, `cron-waitlist-expiration` cascade, offline-payment-for-mail-in, and the Task 5.5 transparency surfaces (position, notifications).
 - **Capacity model:** judge-day capacity already exists (migration 114, `get_judge_day_capacity`). The draw fills up to capacity.
-- **Intent (`docs/INTENT.md`):** exhibitor feeling = "this is fair and I'm not being cheated." A draw only delivers that if it is *provably* fair — auditability is a feature requirement, not a nicety.
+- **Intent (`docs/INTENT.md`):** exhibitor feeling = "this is fair and I'm not being cheated." A draw only delivers that if it is _provably_ fair — auditability is a feature requirement, not a nicety.
 - **Refund note:** in draw mode nobody is charged until drawn AND paid, so there is no charge-then-refund cycle for non-drawn entrants (same fairness win as the waitlist).
 
 ## Out of scope / non-goals
 
 - Authorize-at-entry / capture-later (Stripe hold expiry makes it unworkable across a weeks-long entry window).
-- Replacing FCFS — draw is an *opt-in per-show mode*, FCFS stays the default.
+- Replacing FCFS — draw is an _opt-in per-show mode_, FCFS stays the default.
 - Voluntary/cancellation refund policy — still the deferred sibling item in `OPEN-TODOS.md`.
 
 ## Open questions to resolve in Task 1 (do not guess)
 
-- [ ] **Draw vs mail-in reserve relationship (DEFERRED to this plan's design — owner, 2026-06-20).** Decide: (a) **per-show pick-one** — a show is FCFS+reserve OR draw, and choosing draw makes the reserve moot (simplest, matches how clubs think); vs (b) **compose** — draw the online pool for `capacity − reserved` and a separate mail-in pool for the reserved spots (guarantees mail-in representation *and* fairness within each channel, more complex). Default to (a) unless a real club needs (b).
+- [ ] **Draw vs mail-in reserve relationship (DEFERRED to this plan's design — owner, 2026-06-20).** Decide: (a) **per-show pick-one** — a show is FCFS+reserve OR draw, and choosing draw makes the reserve moot (simplest, matches how clubs think); vs (b) **compose** — draw the online pool for `capacity − reserved` and a separate mail-in pool for the reserved spots (guarantees mail-in representation _and_ fairness within each channel, more complex). Default to (a) unless a real club needs (b).
 - [ ] **Closing trigger:** cron fires the draw at the show's closing datetime, vs secretary-triggered with confirm. Auditability favors a single logged trigger; consider "cron arms it, secretary confirms" to avoid a surprise auto-draw.
 - [ ] **Randomization + audit method:** seeded shuffle with stored seed + full ordered result; ideally **commit-reveal** (publish a hash of the seed before closing, reveal after) so no one can re-roll. Confirm a CSPRNG source available server-side (note: workflow/script `Math.random` is unavailable in some sandboxes — this runs in an edge fn/RPC, not a workflow script).
 - [ ] **Multi-dog / per-person rules:** default = each entry drawn independently. Decide whether any club wants "don't draw a 3rd dog from one person before everyone has one" (advanced; likely defer).
-- [ ] **Mail-in cutoff for inclusion:** the secretary must key all mailed entries *before* the draw runs, so closing needs a buffer. Define the operational window and a "ready to draw?" checklist.
+- [ ] **Mail-in cutoff for inclusion:** the secretary must key all mailed entries _before_ the draw runs, so closing needs a buffer. Define the operational window and a "ready to draw?" checklist.
 
 ## Files (provisional — confirm in Task 1)
 

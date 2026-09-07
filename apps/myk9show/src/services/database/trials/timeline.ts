@@ -193,10 +193,7 @@ async function postgrestGetShowScheduleTimelineRows(
       .filter(cls => cls.deleted_at === null)
       .map(cls => cls.id)
   );
-  const entryCountsMap = await fetchEntryCountsByClassIds(
-    classIds,
-    'select_schedule_entry_counts'
-  );
+  const entryCountsMap = await fetchEntryCountsByClassIds(classIds, 'select_schedule_entry_counts');
 
   const rows: ShowScheduleTimelineRow[] = [];
   for (const trial of data ?? []) {
@@ -267,10 +264,7 @@ async function postgrestGetTrialTimelineRows(
   if (error) throw createDatabaseError(error, 'trial', 'select_trial_timeline');
 
   const classIds = (data ?? []).map(cls => cls.id);
-  const entryCountsMap = await fetchEntryCountsByClassIds(
-    classIds,
-    'select_trial_entry_counts'
-  );
+  const entryCountsMap = await fetchEntryCountsByClassIds(classIds, 'select_trial_entry_counts');
 
   return {
     data: (data ?? []).map(cls => {

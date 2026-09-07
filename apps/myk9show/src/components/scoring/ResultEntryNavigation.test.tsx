@@ -112,7 +112,9 @@ describe('ResultEntryNavigation', () => {
     );
 
     expect(screen.getByText('Checked-in')).toBeInTheDocument();
-    expect(container.querySelector('[data-family="entry"][data-shape="in-progress"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-family="entry"][data-shape="in-progress"]')
+    ).not.toBeNull();
   });
 
   it('renders navigation lifecycle states through the shared status grammar', () => {

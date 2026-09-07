@@ -1,6 +1,6 @@
 /**
  * Role-Based Data Scoping Profiles
- * 
+ *
  * Defines what data each user role needs access to, enabling efficient
  * data loading that only includes necessary information for each user type.
  * This prevents loading unnecessary data and improves performance.
@@ -51,19 +51,8 @@ export interface DataFilter {
  * - Limited health record access (vaccination status only)
  */
 export const SECRETARY_SCOPE: DataScope = {
-  criticalStores: [
-    'navigationStore',
-    'showStore',
-    'registrationStore',
-  ],
-  lazyStores: [
-    'dogStore',
-    'userStore',
-    'classStore',
-    'templateStore',
-    'clubStore',
-    'healthStore',
-  ],
+  criticalStores: ['navigationStore', 'showStore', 'registrationStore'],
+  lazyStores: ['dogStore', 'userStore', 'classStore', 'templateStore', 'clubStore', 'healthStore'],
   dataFilters: {
     shows: {
       where: { status: ['draft', 'upcoming', 'active'] },
@@ -113,18 +102,8 @@ export const SECRETARY_SCOPE: DataScope = {
  * - Limited show administration access
  */
 export const JUDGE_SCOPE: DataScope = {
-  criticalStores: [
-    'navigationStore',
-    'classStore',
-    'judgingStore',
-  ],
-  lazyStores: [
-    'dogStore',
-    'userStore',
-    'showStore',
-    'registrationStore',
-    'healthStore',
-  ],
+  criticalStores: ['navigationStore', 'classStore', 'judgingStore'],
+  lazyStores: ['dogStore', 'userStore', 'showStore', 'registrationStore', 'healthStore'],
   dataFilters: {
     classes: {
       where: { judgeId: 'CURRENT_USER_ID' },
@@ -170,18 +149,8 @@ export const JUDGE_SCOPE: DataScope = {
  * - Full health record access for owned dogs only
  */
 export const EXHIBITOR_SCOPE: DataScope = {
-  criticalStores: [
-    'navigationStore',
-    'dogStore',
-    'registrationStore',
-  ],
-  lazyStores: [
-    'userStore',
-    'showStore',
-    'classStore',
-    'healthStore',
-    'clubStore',
-  ],
+  criticalStores: ['navigationStore', 'dogStore', 'registrationStore'],
+  lazyStores: ['userStore', 'showStore', 'classStore', 'healthStore', 'clubStore'],
   dataFilters: {
     dogs: {
       where: { ownerId: 'CURRENT_USER_ID' },
@@ -225,10 +194,7 @@ export const EXHIBITOR_SCOPE: DataScope = {
  * - System management and configuration access
  */
 export const ADMIN_SCOPE: DataScope = {
-  criticalStores: [
-    'navigationStore',
-    'adminStore',
-  ],
+  criticalStores: ['navigationStore', 'adminStore'],
   lazyStores: [
     'dogStore',
     'userStore',
@@ -307,7 +273,11 @@ export function getDataScopeForRole(role: string): DataScope {
 /**
  * Check if a user role has access to specific data
  */
-export function hasDataAccess(role: string, dataType: string, operation: 'read' | 'write' | 'delete'): boolean {
+export function hasDataAccess(
+  role: string,
+  dataType: string,
+  operation: 'read' | 'write' | 'delete'
+): boolean {
   const scope = getDataScopeForRole(role);
 
   const accessMatrix: Record<string, Record<string, string[]>> = {
@@ -360,15 +330,15 @@ export function hasDataAccess(role: string, dataType: string, operation: 'read' 
  * Apply data filters based on role and context
  */
 export function applyRoleDataFilter<T>(
-  data: T[], 
-  role: string, 
-  dataType: string, 
+  data: T[],
+  role: string,
+  dataType: string,
   userId?: string,
   showId?: string
 ): T[] {
   const scope = getDataScopeForRole(role);
   const filter = scope.dataFilters[dataType as keyof typeof scope.dataFilters];
-  
+
   if (!filter) return data;
 
   let filteredData = data;
@@ -380,10 +350,15 @@ export function applyRoleDataFilter<T>(
         // Handle special filter values
         if (value === 'CURRENT_USER_ID') value = userId;
         if (value === 'CURRENT_SHOW_ID') value = showId;
-        
+
         // Get nested property value
-        const itemValue = key.split('.').reduce((obj: Record<string, unknown>, k) => obj?.[k] as Record<string, unknown>, item as Record<string, unknown>);
-        
+        const itemValue = key
+          .split('.')
+          .reduce(
+            (obj: Record<string, unknown>, k) => obj?.[k] as Record<string, unknown>,
+            item as Record<string, unknown>
+          );
+
         if (Array.isArray(value)) {
           return value.includes(itemValue);
         }

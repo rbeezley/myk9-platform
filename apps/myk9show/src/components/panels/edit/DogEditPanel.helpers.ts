@@ -4,27 +4,26 @@ import type { DogFormData, DogType, Registration } from './DogEditPanel.types';
 import { UserRole } from './DogEditPanel.types';
 
 /** Zod schema for DogFormData validation. */
-export const dogFormSchema = z
-  .object({
-    // MYK9-90 §5.1 — `.trim()` before `.min(1)`; see AddDogPanel/validation.ts.
-    // `dogs.call_name` is NOT NULL, so "   " is not an acceptable identifier.
-    callName: z.string().trim().min(1, 'Please enter a call name'),
-    gender: z.string().min(1, 'Please select a gender'),
-    dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
-    color: z.string(),
-    weight: z.string(),
-    height: z.string(),
-    microchip: z.string(),
-    imageUrl: z.string().optional(),
-    ownerId: z.string(),
-    registrations: z.custom<Registration[]>(val => Array.isArray(val)),
-    healthRecords: z.custom<DogType['healthRecords']>(
-      val => val === undefined || val === null || typeof val === 'object'
-    ),
-    notes: z.string().optional(),
-    specialNeeds: z.string().optional(),
-    spayedNeutered: z.boolean().optional(),
-  }) as unknown as z.ZodSchema<DogFormData>;
+export const dogFormSchema = z.object({
+  // MYK9-90 §5.1 — `.trim()` before `.min(1)`; see AddDogPanel/validation.ts.
+  // `dogs.call_name` is NOT NULL, so "   " is not an acceptable identifier.
+  callName: z.string().trim().min(1, 'Please enter a call name'),
+  gender: z.string().min(1, 'Please select a gender'),
+  dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
+  color: z.string(),
+  weight: z.string(),
+  height: z.string(),
+  microchip: z.string(),
+  imageUrl: z.string().optional(),
+  ownerId: z.string(),
+  registrations: z.custom<Registration[]>(val => Array.isArray(val)),
+  healthRecords: z.custom<DogType['healthRecords']>(
+    val => val === undefined || val === null || typeof val === 'object'
+  ),
+  notes: z.string().optional(),
+  specialNeeds: z.string().optional(),
+  spayedNeutered: z.boolean().optional(),
+}) as unknown as z.ZodSchema<DogFormData>;
 
 /** Convert DogType to form data for the edit panel. */
 export const dogToFormData = (dog: Partial<DogType>): DogFormData => {

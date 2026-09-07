@@ -41,7 +41,7 @@ const DEFAULT_CONFIG: Required<LazyLoadConfig> = {
   threshold: 0.1,
   prefetch: true,
   enableCache: true,
-  debug: false
+  debug: false,
 };
 
 /**
@@ -59,87 +59,114 @@ export function useLazyLoading<T extends { id: string }>(
     error: null,
     hasMore: true,
     totalCount: 0,
-    loadedCount: 0
+    loadedCount: 0,
   });
 
   const cacheRef = useRef(new LazyLoadCache<T>());
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const log = useCallback((message: string, ...args: unknown[]) => {
-    if (debug) {
-      logger.debug(`[LazyLoading] ${message}`, 'hooks', { args });
-    }
-  }, [debug]);
+  const log = useCallback(
+    (message: string, ...args: unknown[]) => {
+      if (debug) {
+        logger.debug(`[LazyLoading] ${message}`, 'hooks', { args });
+      }
+    },
+    [debug]
+  );
 
   // Prefetch next batch in background
-  const schedulePrefetch = useCallback((nextOffset: number, cacheKey: string) => {
-    if (cacheRef.current.get(cacheKey)) return;
+  const schedulePrefetch = useCallback(
+    (nextOffset: number, cacheKey: string) => {
+      if (cacheRef.current.get(cacheKey)) return;
 
-    setTimeout(async () => {
-      try {
-        const result = await dataSource.fetchBatch(nextOffset, batchSize);
-        if (enableCache) {
-          cacheRef.current.set(cacheKey, result.items, result.totalCount);
-          log('Prefetched batch for offset:', nextOffset);
+      setTimeout(async () => {
+        try {
+          const result = await dataSource.fetchBatch(nextOffset, batchSize);
+          if (enableCache) {
+            cacheRef.current.set(cacheKey, result.items, result.totalCount);
+            log('Prefetched batch for offset:', nextOffset);
+          }
+        } catch (err) {
+          log('Prefetch failed:', err);
         }
-      } catch (err) {
-        log('Prefetch failed:', err);
-      }
-    }, 100);
-  }, [dataSource, batchSize, enableCache, log]);
+      }, 100);
+    },
+    [dataSource, batchSize, enableCache, log]
+  );
 
   // Load next batch of items
-  const loadNextBatch = useCallback(async (reset = false) => {
-    if (loadingRef.current || (!state.hasMore && !reset)) return;
+  const loadNextBatch = useCallback(
+    async (reset = false) => {
+      if (loadingRef.current || (!state.hasMore && !reset)) return;
 
-    if (abortControllerRef.current) abortControllerRef.current.abort();
-    abortControllerRef.current = new AbortController();
-    loadingRef.current = true;
-    setState(prev => ({ ...prev, loading: true, error: null }));
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+      loadingRef.current = true;
+      setState(prev => ({ ...prev, loading: true, error: null }));
 
-    const offset = reset ? 0 : state.loadedCount;
-    const cacheKey = `${dataSource.cacheKey}-${offset}-${batchSize}`;
+      const offset = reset ? 0 : state.loadedCount;
+      const cacheKey = `${dataSource.cacheKey}-${offset}-${batchSize}`;
 
-    try {
-      // Try cache first
-      const cached = enableCache ? cacheRef.current.get(cacheKey) : null;
-      const result = cached ?? await dataSource.fetchBatch(offset, batchSize);
+      try {
+        // Try cache first
+        const cached = enableCache ? cacheRef.current.get(cacheKey) : null;
+        const result = cached ?? (await dataSource.fetchBatch(offset, batchSize));
 
-      if (cached) {
-        log('Using cached data for offset:', offset);
-      } else if (enableCache) {
-        cacheRef.current.set(cacheKey, result.items, result.totalCount);
+        if (cached) {
+          log('Using cached data for offset:', offset);
+        } else if (enableCache) {
+          cacheRef.current.set(cacheKey, result.items, result.totalCount);
+        }
+
+        const newState = computeLoadState(state.items, result.items, result.totalCount, reset);
+        setState({
+          ...newState,
+          loading: false,
+          error: null,
+        });
+
+        log(
+          'Loaded batch:',
+          result.items.length,
+          'items. Total loaded:',
+          offset + result.items.length
+        );
+
+        // Prefetch next batch if we have more data
+        if (prefetch && offset + result.items.length < result.totalCount) {
+          schedulePrefetch(
+            offset + batchSize,
+            `${dataSource.cacheKey}-${offset + batchSize}-${batchSize}`
+          );
+        }
+      } catch (error: unknown) {
+        if ((error as Error).name === 'AbortError') {
+          log('Request aborted');
+          return;
+        }
+        log('Load failed:', error);
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: (error as Error).message || 'Failed to load data',
+        }));
+      } finally {
+        loadingRef.current = false;
       }
-
-      const newState = computeLoadState(state.items, result.items, result.totalCount, reset);
-      setState({
-        ...newState,
-        loading: false,
-        error: null,
-      });
-
-      log('Loaded batch:', result.items.length, 'items. Total loaded:', offset + result.items.length);
-
-      // Prefetch next batch if we have more data
-      if (prefetch && (offset + result.items.length) < result.totalCount) {
-        schedulePrefetch(offset + batchSize, `${dataSource.cacheKey}-${offset + batchSize}-${batchSize}`);
-      }
-    } catch (error: unknown) {
-      if ((error as Error).name === 'AbortError') {
-        log('Request aborted');
-        return;
-      }
-      log('Load failed:', error);
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        error: (error as Error).message || 'Failed to load data'
-      }));
-    } finally {
-      loadingRef.current = false;
-    }
-  }, [state.hasMore, state.loadedCount, state.items, dataSource, batchSize, enableCache, prefetch, log, schedulePrefetch]);
+    },
+    [
+      state.hasMore,
+      state.loadedCount,
+      state.items,
+      dataSource,
+      batchSize,
+      enableCache,
+      prefetch,
+      log,
+      schedulePrefetch,
+    ]
+  );
 
   // Refresh data (reload from beginning)
   const refresh = useCallback(() => {
@@ -149,20 +176,23 @@ export function useLazyLoading<T extends { id: string }>(
   }, [loadNextBatch, dataSource.cacheKey, enableCache, log]);
 
   // Get item by ID (for lazy item details)
-  const getItem = useCallback(async (id: string): Promise<T | null> => {
-    const existingItem = state.items.find(item => item.id === id);
-    if (existingItem) return existingItem;
+  const getItem = useCallback(
+    async (id: string): Promise<T | null> => {
+      const existingItem = state.items.find(item => item.id === id);
+      if (existingItem) return existingItem;
 
-    if (!dataSource.getItemById) return null;
+      if (!dataSource.getItemById) return null;
 
-    try {
-      log('Fetching item by ID:', id);
-      return await dataSource.getItemById(id);
-    } catch (err) {
-      log('Failed to fetch item by ID:', err);
-      return null;
-    }
-  }, [state.items, dataSource, log]);
+      try {
+        log('Fetching item by ID:', id);
+        return await dataSource.getItemById(id);
+      } catch (err) {
+        log('Failed to fetch item by ID:', err);
+        return null;
+      }
+    },
+    [state.items, dataSource, log]
+  );
 
   // Clear cache
   const clearCache = useCallback(() => {
@@ -175,7 +205,7 @@ export function useLazyLoading<T extends { id: string }>(
     if (state.items.length === 0 && !loadingRef.current) {
       loadNextBatch();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cleanup on unmount
@@ -204,6 +234,6 @@ export function useLazyLoading<T extends { id: string }>(
     getCacheStats: () => ({
       entries: cacheRef.current.size,
       totalSize: cacheRef.current.totalItemCount,
-    })
+    }),
   };
 }

@@ -87,11 +87,7 @@ export const mergeSelectedClassesWithExisting = (
   const selectedClassItems = selectedClasses
     .filter(classDefinition => !existingDBKeys.has(getClassIdentityKey(classDefinition)))
     .map(classDefinition =>
-      buildWizardClassItem(
-        classDefinition,
-        templateId,
-        judgeAssignments[classDefinition.className]
-      )
+      buildWizardClassItem(classDefinition, templateId, judgeAssignments[classDefinition.className])
     );
 
   const selectedItemsByKey = new Map(

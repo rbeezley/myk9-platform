@@ -231,7 +231,12 @@ describe('ResultsSubmissionPage', () => {
         { resultStatus: 'qualified' },
         // Never paid for, and moved to another class: neither ran here.
         { armbandNumber: 102, entryStatus: 'promotion-expired', resultStatus: 'pending' },
-        { armbandNumber: 103, entryStatus: 'moved', resultStatus: 'pending', registrationNumber: null },
+        {
+          armbandNumber: 103,
+          entryStatus: 'moved',
+          resultStatus: 'pending',
+          registrationNumber: null,
+        },
       ],
     });
 
@@ -324,9 +329,7 @@ describe('ResultsSubmissionPage', () => {
 
     it('warns in the confirm dialog that these results were already sent', async () => {
       mockAKCData.data = makeAKCSubmissionData();
-      mockHistoryData.rows = [
-        makeHistoryRow({ organization: 'AKC', status: 'sent' }),
-      ];
+      mockHistoryData.rows = [makeHistoryRow({ organization: 'AKC', status: 'sent' })];
 
       renderPage();
       fireEvent.click(await screen.findByTestId('send-btn'));

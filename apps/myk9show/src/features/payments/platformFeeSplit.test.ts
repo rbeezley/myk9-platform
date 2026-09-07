@@ -5,10 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  calculatePlatformFeeCents,
-  type PlatformFeeRates,
-} from '@/store/cartStore.helpers';
+import { calculatePlatformFeeCents, type PlatformFeeRates } from '@/store/cartStore.helpers';
 import {
   CARD_PROCESSING_COVERS_FEE_FOOTNOTE,
   CARD_PROCESSING_COVERS_FEE_NOTE,
@@ -49,7 +46,9 @@ describe('splitPlatformFee — the parts always reconstruct the charged fee', ()
   it('tracks a rate change rather than a compiled-in percentage', () => {
     // A hardcoded 7% would keep returning 175 here.
     const doubled = splitPlatformFee(2500, { percent: 14, flatCents: 0, minCents: 0 });
-    expect(doubled.feeCents).toBe(calculatePlatformFeeCents(2500, { percent: 14, flatCents: 0, minCents: 0 }));
+    expect(doubled.feeCents).toBe(
+      calculatePlatformFeeCents(2500, { percent: 14, flatCents: 0, minCents: 0 })
+    );
     expect(doubled.feeCents).toBe(350);
     expect(splitPlatformFee(2500, LIVE).feeCents).toBe(175);
   });

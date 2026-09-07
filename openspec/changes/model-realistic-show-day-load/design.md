@@ -54,16 +54,16 @@ Either way, a single-show fixture cannot surface any of it, because there is no 
 
 Split generation by what each session actually proves:
 
-| Session class                        | Count               | Generator              | Rationale                                                                             |
-| ------------------------------------ | ------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
-| Writers — scoring, both check-in kinds | 84                | Real browser           | Exercise the full client path: OCC, replication queue, offline store, mutation upload |
-| Reader sample                        | 16 (one per runner) | Real browser           | Preserve rendering and hydration evidence; catch client-side regressions              |
-| Reader bulk                          | 248                 | API-level virtual user | Backend load from a reader is HTTP — replication delta polls and PostgREST reads      |
-| Ops, including secretary class edits | 10                  | Real browser           | Low count, distinct surface, and the one lock holder outside the entries trigger      |
+| Session class                          | Count               | Generator              | Rationale                                                                             |
+| -------------------------------------- | ------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
+| Writers — scoring, both check-in kinds | 84                  | Real browser           | Exercise the full client path: OCC, replication queue, offline store, mutation upload |
+| Reader sample                          | 16 (one per runner) | Real browser           | Preserve rendering and hydration evidence; catch client-side regressions              |
+| Reader bulk                            | 248                 | API-level virtual user | Backend load from a reader is HTTP — replication delta polls and PostgREST reads      |
+| Ops, including secretary class edits   | 10                  | Real browser           | Low count, distinct surface, and the one lock holder outside the entries trigger      |
 
 That is **110 browser contexts across sixteen runners — six or seven each, the same as today** — plus 248 lightweight virtual users. Modelled load rises about 3.6× at unchanged per-runner browser cost.
 
-An earlier draft of this section put writers at 64 and claimed browser contexts per runner would *fall*. Adding steward check-in and secretary class edits raised writers to 84, so the correct claim is parity, not improvement. Every writer session must stay on a real browser: OCC, the replication queue and the mutation upload path are exactly what a write workload has to exercise, and an API-level virtual user would bypass all three.
+An earlier draft of this section put writers at 64 and claimed browser contexts per runner would _fall_. Adding steward check-in and secretary class edits raised writers to 84, so the correct claim is parity, not improvement. Every writer session must stay on a real browser: OCC, the replication queue and the mutation upload path are exactly what a write workload has to exercise, and an API-level virtual user would bypass all three.
 
 **The tradeoff, stated plainly:** an API-level reader cannot catch a client-side rendering regression. It issues the same requests but never paints. The sixteen browser readers exist precisely to keep that coverage, and the split must be documented in the evidence so a reader of a passing run knows which sessions proved what.
 
@@ -98,13 +98,13 @@ Per-target gating needs each failure to carry whether it gates, and the evaluati
 
 One scorer per class removes the invalid 55-scorer contention, but it does not make a class row single-writer. Five paths take a row-exclusive lock on it, held to commit — all but the last reaching it through `refresh_class_scoring_state`:
 
-| Actor | Write |
-| --- | --- |
-| Judge scoring | `is_scored`, `result_status`, faults / time / points |
-| Steward or secretary check-in | `check_in_status` |
-| Exhibitor self-check-in | `check_in_status` (online-only) |
-| Scratch, pull or move | `entry_status`, `class_id`, `deleted_at` |
-| Secretary editing the class | `classes` directly, via `ReplicatedClassesTable.updateClass` |
+| Actor                         | Write                                                        |
+| ----------------------------- | ------------------------------------------------------------ |
+| Judge scoring                 | `is_scored`, `result_status`, faults / time / points         |
+| Steward or secretary check-in | `check_in_status`                                            |
+| Exhibitor self-check-in       | `check_in_status` (online-only)                              |
+| Scratch, pull or move         | `entry_status`, `class_id`, `deleted_at`                     |
+| Secretary editing the class   | `classes` directly, via `ReplicatedClassesTable.updateClass` |
 
 When a class is called these overlap: the steward works the gate while exhibitors self-check-in, the judge starts scoring, and the secretary may adjust the ring. Four to ten concurrent writers on one row is plausible.
 

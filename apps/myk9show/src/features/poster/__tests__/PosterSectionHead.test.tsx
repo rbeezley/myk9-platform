@@ -33,12 +33,7 @@ describe('PosterSectionHead', () => {
 
   it('honours numberColor and titleColor overrides (used on dark/olive bands)', () => {
     const { container } = render(
-      <PosterSectionHead
-        number="06"
-        label="On the day"
-        numberColor="#ffffff"
-        titleColor="#f3ede0"
-      >
+      <PosterSectionHead number="06" label="On the day" numberColor="#ffffff" titleColor="#f3ede0">
         Title
       </PosterSectionHead>
     );

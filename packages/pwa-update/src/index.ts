@@ -23,10 +23,7 @@ export type UpdateSWFn = (reloadPage?: boolean) => Promise<void>;
 export interface RegisterSWOptions {
   onNeedRefresh?: () => void;
   onOfflineReady?: () => void;
-  onRegisteredSW?: (
-    swUrl: string,
-    registration: ServiceWorkerRegistration | undefined
-  ) => void;
+  onRegisteredSW?: (swUrl: string, registration: ServiceWorkerRegistration | undefined) => void;
   onRegisterError?: (error: unknown) => void;
 }
 
@@ -122,8 +119,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
   const pollIntervalMs = opts.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const initialCheckDelayMs = opts.initialCheckDelayMs ?? DEFAULT_INITIAL_CHECK_DELAY_MS;
   const deferralRetryMs = opts.deferralRetryMs ?? DEFAULT_DEFERRAL_RETRY_MS;
-  const applyReloadFallbackMs =
-    opts.applyReloadFallbackMs ?? DEFAULT_APPLY_RELOAD_FALLBACK_MS;
+  const applyReloadFallbackMs = opts.applyReloadFallbackMs ?? DEFAULT_APPLY_RELOAD_FALLBACK_MS;
   const reloadPage = (): void => {
     if (opts.reloadPage) {
       opts.reloadPage();
@@ -300,8 +296,7 @@ export const setupPwaUpdate = (opts: SetupPwaUpdateOptions): PwaUpdateController
   const checkForUpdate = async (): Promise<boolean> => {
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return false;
     try {
-      const registration =
-        activeRegistration ?? (await navigator.serviceWorker.getRegistration());
+      const registration = activeRegistration ?? (await navigator.serviceWorker.getRegistration());
       if (!registration) return false;
       await registration.update();
       updateKnownAvailable =

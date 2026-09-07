@@ -1,6 +1,7 @@
 # site-admin-troubleshooting-routing Specification
 
 ## Purpose
+
 Site-admin troubleshooting starts from concise health, support, access, and
 recovery signals, then routes to the existing owner surfaces with enough context
 to act. The dashboard and support inbox should guide investigation without

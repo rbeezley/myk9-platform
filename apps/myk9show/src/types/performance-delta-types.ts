@@ -169,10 +169,7 @@ export interface SyncConflict {
  * Strategy for resolving sync conflicts
  */
 export type ConflictResolutionStrategy =
-  | 'last-write-wins'
-  | 'first-write-wins'
-  | 'manual'
-  | 'merge';
+  'last-write-wins' | 'first-write-wins' | 'manual' | 'merge';
 
 /**
  * Extended performance metrics for differential sync

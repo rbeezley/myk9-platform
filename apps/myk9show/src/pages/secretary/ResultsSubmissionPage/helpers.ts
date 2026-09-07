@@ -100,7 +100,8 @@ export function buildAKCSubmissionReadiness(input: {
       verdict: `${input.missingRegistrationNumberCount} ${
         input.missingRegistrationNumberCount === 1 ? 'entry needs' : 'entries need'
       } AKC registration ${input.missingRegistrationNumberCount === 1 ? 'number' : 'numbers'} before sending.`,
-      details: 'You can still download a draft XML file, but Send to AKC stays disabled until the missing registration numbers are added.',
+      details:
+        'You can still download a draft XML file, but Send to AKC stays disabled until the missing registration numbers are added.',
       canSend: false,
     };
   }

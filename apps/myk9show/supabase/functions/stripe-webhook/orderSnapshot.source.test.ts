@@ -125,9 +125,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
   });
 
   it('gates newly created auto-refunds on Stripe status before booking', () => {
-    const helperStart = webhookSource.indexOf(
-      'async function reconcileCreatedMakeWholeRefund'
-    );
+    const helperStart = webhookSource.indexOf('async function reconcileCreatedMakeWholeRefund');
     const helperEnd = webhookSource.indexOf('\nasync function', helperStart + 1);
     const helper = webhookSource.slice(helperStart, helperEnd);
     expect(helper).toContain('resolveRefundLedgerAction(refund.status)');
@@ -137,10 +135,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(helper).toMatch(/amountCents:\s*refund\.amount/);
     expect(helper).toMatch(/kind:\s*'make_whole'/);
 
-    for (const functionName of [
-      'issueCartOverflowAutoRefund',
-      'issueEntryPaymentAutoRefund',
-    ]) {
+    for (const functionName of ['issueCartOverflowAutoRefund', 'issueEntryPaymentAutoRefund']) {
       const start = webhookSource.indexOf(`async function ${functionName}`);
       const end = webhookSource.indexOf('\nasync function', start + 1);
       const body = webhookSource.slice(start, end);

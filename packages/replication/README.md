@@ -154,6 +154,7 @@ replicatedDogsTable.off('sync:success', handler);
 ### Data Flow
 
 #### Create/Update/Delete Flow
+
 ```
 User Action
    ↓
@@ -173,6 +174,7 @@ ReplicatedTable.create/update/delete()
 ```
 
 #### Sync Flow
+
 ```
 Trigger Sync (periodic or manual)
    ↓
@@ -199,13 +201,13 @@ Base class for creating replicated tables.
 
 ```typescript
 interface ReplicatedTableOptions<T> {
-  storeName: string;           // IndexedDB store name
-  tableName: string;            // Supabase table name
-  supabase: SupabaseClient;     // Supabase client
-  syncIntervalMs?: number;      // Sync interval (default: 30000)
-  batchSize?: number;           // Batch size (default: 100)
+  storeName: string; // IndexedDB store name
+  tableName: string; // Supabase table name
+  supabase: SupabaseClient; // Supabase client
+  syncIntervalMs?: number; // Sync interval (default: 30000)
+  batchSize?: number; // Batch size (default: 100)
   conflictStrategy?: ConflictStrategy; // Conflict resolution
-  logger?: Logger;              // Custom logger
+  logger?: Logger; // Custom logger
 }
 ```
 
@@ -287,16 +289,12 @@ const result = resolver.resolveLWW(localEntity, remoteEntity);
 
 ```typescript
 // Merge specific fields with authority
-const result = resolver.resolveFieldLevel(
-  localEntity,
-  remoteEntity,
-  {
-    // Field authorities: 'local', 'remote', 'latest'
-    name: 'local',        // Local always wins
-    score: 'remote',      // Remote always wins
-    notes: 'latest',      // Latest timestamp wins
-  }
-);
+const result = resolver.resolveFieldLevel(localEntity, remoteEntity, {
+  // Field authorities: 'local', 'remote', 'latest'
+  name: 'local', // Local always wins
+  score: 'remote', // Remote always wins
+  notes: 'latest', // Latest timestamp wins
+});
 ```
 
 #### Server Authoritative
@@ -317,10 +315,7 @@ const result = resolver.resolveClientAuthoritative(local, remote);
 
 ```typescript
 class CustomDogsTable extends ReplicatedTable<Dog> {
-  protected async resolveConflict(
-    local: Dog,
-    remote: Dog
-  ): Promise<Dog> {
+  protected async resolveConflict(local: Dog, remote: Dog): Promise<Dog> {
     // Custom logic: Handler name from local, rest from remote
     return {
       ...remote,
@@ -363,17 +358,17 @@ no data migration or cache clear is needed for the TTL removal.
 ```typescript
 import {
   // Database
-  DB_NAME,                  // 'myk9-replication'
-  DB_VERSION,               // 1
-  TOTAL_REPLICATED_TABLES,  // 16
+  DB_NAME, // 'myk9-replication'
+  DB_VERSION, // 1
+  TOTAL_REPLICATED_TABLES, // 16
 
   // Sync
-  SYNC_INTERVAL_MS,         // 30 seconds
-  MAX_SYNC_RETRIES,         // 3
+  SYNC_INTERVAL_MS, // 30 seconds
+  MAX_SYNC_RETRIES, // 3
 
   // Batch
-  DEFAULT_CHUNK_SIZE,       // 100
-  MAX_CHUNK_SIZE,           // 500
+  DEFAULT_CHUNK_SIZE, // 100
+  MAX_CHUNK_SIZE, // 500
 } from '@myk9/replication';
 ```
 
@@ -384,9 +379,9 @@ import {
 ```typescript
 // Sync with custom options
 await table.sync({
-  forcePull: true,          // Force pull even if no changes
-  forcePush: true,          // Force push all local changes
-  batchSize: 50,            // Custom batch size
+  forcePull: true, // Force pull even if no changes
+  forcePush: true, // Force push all local changes
+  batchSize: 50, // Custom batch size
   filter: { show_id: '123' }, // Filter what to sync
 });
 ```
@@ -398,7 +393,7 @@ await table.sync({
 const results = await table.query({
   where: {
     breed: 'Golden Retriever',
-    handler_name: { $like: 'John%' }
+    handler_name: { $like: 'John%' },
   },
   orderBy: 'name',
   order: 'asc',
@@ -436,7 +431,7 @@ await table.prefetch({
 import {
   trackTransaction,
   getActiveTransactionCount,
-  waitForActiveTransactions
+  waitForActiveTransactions,
 } from '@myk9/replication';
 
 // Track transaction
@@ -498,11 +493,7 @@ interface Conflict<T> {
 
 ```typescript
 type ConflictStrategy =
-  | 'last-write-wins'
-  | 'server-authoritative'
-  | 'client-authoritative'
-  | 'field-level'
-  | 'manual';
+  'last-write-wins' | 'server-authoritative' | 'client-authoritative' | 'field-level' | 'manual';
 
 interface ConflictResolutionResult<T> {
   resolvedEntity: T;
@@ -580,7 +571,7 @@ useEffect(() => {
 ### 3. Handle Errors Gracefully
 
 ```typescript
-table.on('sync:error', (error) => {
+table.on('sync:error', error => {
   // Log error
   console.error('Sync failed:', error);
   // Show user notification
@@ -654,13 +645,13 @@ await table.init();
 
 ## Performance Characteristics
 
-| Operation | Local (IndexedDB) | Remote (Supabase) |
-|-----------|-------------------|-------------------|
-| Read | <1ms | 50-200ms |
-| Write | 1-5ms | 100-500ms |
-| Query (100 items) | 5-10ms | 200-800ms |
-| Bulk Insert (100) | 10-20ms | 500-2000ms |
-| Sync (100 items) | - | 1000-3000ms |
+| Operation         | Local (IndexedDB) | Remote (Supabase) |
+| ----------------- | ----------------- | ----------------- |
+| Read              | <1ms              | 50-200ms          |
+| Write             | 1-5ms             | 100-500ms         |
+| Query (100 items) | 5-10ms            | 200-800ms         |
+| Bulk Insert (100) | 10-20ms           | 500-2000ms        |
+| Sync (100 items)  | -                 | 1000-3000ms       |
 
 ## Migration from Legacy Code
 
@@ -670,10 +661,7 @@ If you have existing replication code, here's how to migrate:
 
 ```typescript
 // Direct Supabase calls
-const { data } = await supabase
-  .from('dogs')
-  .select('*')
-  .eq('breed', 'Golden Retriever');
+const { data } = await supabase.from('dogs').select('*').eq('breed', 'Golden Retriever');
 ```
 
 ### After (Replicated)
@@ -681,7 +669,7 @@ const { data } = await supabase
 ```typescript
 // Works offline, syncs automatically
 const dogs = await replicatedDogsTable.query({
-  where: { breed: 'Golden Retriever' }
+  where: { breed: 'Golden Retriever' },
 });
 ```
 
@@ -734,6 +722,7 @@ Private - myK9 Platform
 ## Support
 
 For questions or issues:
+
 - Review this README and source code
 - Check CLAUDE.md for patterns
 - See examples in app implementations

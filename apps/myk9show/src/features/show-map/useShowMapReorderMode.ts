@@ -15,10 +15,7 @@ import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { entryInvalidationKeys } from '@/services/database/entries/invalidation';
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import {
-  computeShowMapReorderAssignments,
-  getReorderableEntryIds,
-} from './showMapReorderMode';
+import { computeShowMapReorderAssignments, getReorderableEntryIds } from './showMapReorderMode';
 
 export interface ShowMapReorderEnterInput {
   classId: string;
@@ -126,9 +123,7 @@ export function useShowMapReorderMode({ showId, onActivate }: UseShowMapReorderM
       const assignments = computeShowMapReorderAssignments(entries, input.activeId, input.overId);
       if (assignments.length === 0) return;
       const results = await Promise.allSettled(
-        assignments.map(a =>
-          replicatedEntriesTable.updateEntry(a.id, { runOrder: a.runOrder })
-        )
+        assignments.map(a => replicatedEntriesTable.updateEntry(a.id, { runOrder: a.runOrder }))
       );
       const failedCount = results.filter(r => r.status === 'rejected').length;
       if (failedCount > 0) {

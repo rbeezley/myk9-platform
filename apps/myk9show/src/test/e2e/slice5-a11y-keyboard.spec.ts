@@ -334,29 +334,32 @@ async function walkTabOrder(page: Page, label: string, maxStops = 40): Promise<n
    * reading go through this single function, so the two sides are guaranteed to
    * carry identical keys — the vacuous-pass trap is closed by construction.
    */
-  await page.evaluate(props => {
-    (
-      window as unknown as { __readFocusStyle: (el: Element) => Record<string, string> }
-    ).__readFocusStyle = (el: Element) => {
-      const reading: Record<string, string> = {};
-      // The focused node plus two ancestors: rings are frequently drawn by a
-      // wrapper via :focus-within rather than by the control itself.
-      const scopes = [el, el.parentElement, el.parentElement?.parentElement ?? null];
-      scopes.forEach((node, depth) => {
-        if (!node) return;
-        ([null, '::before', '::after'] as const).forEach(pseudo => {
-          const cs = window.getComputedStyle(node, pseudo);
-          props.forEach(p => {
-            reading[`${depth}|${pseudo ?? 'self'}|${p}`] = String(
-              cs[p as keyof CSSStyleDeclaration]
-            );
+  await page.evaluate(
+    props => {
+      (
+        window as unknown as { __readFocusStyle: (el: Element) => Record<string, string> }
+      ).__readFocusStyle = (el: Element) => {
+        const reading: Record<string, string> = {};
+        // The focused node plus two ancestors: rings are frequently drawn by a
+        // wrapper via :focus-within rather than by the control itself.
+        const scopes = [el, el.parentElement, el.parentElement?.parentElement ?? null];
+        scopes.forEach((node, depth) => {
+          if (!node) return;
+          ([null, '::before', '::after'] as const).forEach(pseudo => {
+            const cs = window.getComputedStyle(node, pseudo);
+            props.forEach(p => {
+              reading[`${depth}|${pseudo ?? 'self'}|${p}`] = String(
+                cs[p as keyof CSSStyleDeclaration]
+              );
+            });
+            if (pseudo) reading[`${depth}|${pseudo}|content`] = String(cs.content);
           });
-          if (pseudo) reading[`${depth}|${pseudo}|content`] = String(cs.content);
         });
-      });
-      return reading;
-    };
-  }, STYLE_PROPS as unknown as string[]);
+        return reading;
+      };
+    },
+    STYLE_PROPS as unknown as string[]
+  );
 
   const readFocused = async (index: number) =>
     page.evaluate(idx => {
@@ -417,7 +420,9 @@ async function walkTabOrder(page: Page, label: string, maxStops = 40): Promise<n
       const focusedSig = ringSignature(rec.focused, prefix);
       const unfocusedSig = ringSignature(unfocused, prefix);
       if (focusedSig !== '' && focusedSig !== unfocusedSig) {
-        evidence.push(`${prefix} → ${focusedSig || '(nothing)'}  (unfocused: ${unfocusedSig || '(nothing)'})`);
+        evidence.push(
+          `${prefix} → ${focusedSig || '(nothing)'}  (unfocused: ${unfocusedSig || '(nothing)'})`
+        );
       } else if (focusedSig !== '') {
         identical.push(`${prefix} → ${focusedSig}`);
       }
@@ -463,7 +468,7 @@ async function walkTabOrder(page: Page, label: string, maxStops = 40): Promise<n
       break;
     }
 
-    pending.set(i,{ tag: info.tag, name: info.name, focused: info.focused });
+    pending.set(i, { tag: info.tag, name: info.name, focused: info.focused });
     stops += 1;
   }
 

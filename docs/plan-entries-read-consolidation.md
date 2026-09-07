@@ -28,68 +28,69 @@ All 7 modules are listed below. `secretaryReadReplication.ts` and `secretaryPost
 
 ### `reads.ts` (24,161 b)
 
-| Export | Kind |
-|--------|------|
-| `getAllEntries` | read function |
-| `getEntryById` | read function |
-| `getEntriesByShow` | read function |
-| `getEntriesByShowForFinancials` | read function |
-| `getEntriesByTrial` | read function |
-| `getEntriesByClass` | read function |
-| `getEntriesByClassId` | read function (compat alias → `getEntriesByClass`) |
-| `getEntriesByDog` | read function |
-| `countActiveEntriesByDog` | read function |
-| `getEntriesByStatus` | read function |
+| Export                          | Kind                                               |
+| ------------------------------- | -------------------------------------------------- |
+| `getAllEntries`                 | read function                                      |
+| `getEntryById`                  | read function                                      |
+| `getEntriesByShow`              | read function                                      |
+| `getEntriesByShowForFinancials` | read function                                      |
+| `getEntriesByTrial`             | read function                                      |
+| `getEntriesByClass`             | read function                                      |
+| `getEntriesByClassId`           | read function (compat alias → `getEntriesByClass`) |
+| `getEntriesByDog`               | read function                                      |
+| `countActiveEntriesByDog`       | read function                                      |
+| `getEntriesByStatus`            | read function                                      |
 
 ### `secretary.ts` (15,700 b)
 
-| Export | Kind |
-|--------|------|
-| `PendingEntry` (type re-export) | type |
-| `SecretaryEntry` (type re-export) | type |
-| `SecretaryStatusEntrySeed` (type re-export) | type |
-| `getPendingEntries` | read function |
-| `getEntriesForShow` | read function |
-| `getEntryCountsByStatus` | read function |
-| `updateEntryStatus` | write function |
-| `bulkUpdateEntryStatus` | write function |
-| `updateCheckInStatus` | write function |
-| `bulkCheckIn` | write function |
-| `checkArmbandConflicts` | read function |
-| `getEntriesForExport` | read function (RPC) |
-| `updateRunOrder` | write function |
+| Export                                      | Kind                |
+| ------------------------------------------- | ------------------- |
+| `PendingEntry` (type re-export)             | type                |
+| `SecretaryEntry` (type re-export)           | type                |
+| `SecretaryStatusEntrySeed` (type re-export) | type                |
+| `getPendingEntries`                         | read function       |
+| `getEntriesForShow`                         | read function       |
+| `getEntryCountsByStatus`                    | read function       |
+| `updateEntryStatus`                         | write function      |
+| `bulkUpdateEntryStatus`                     | write function      |
+| `updateCheckInStatus`                       | write function      |
+| `bulkCheckIn`                               | write function      |
+| `checkArmbandConflicts`                     | read function       |
+| `getEntriesForExport`                       | read function (RPC) |
+| `updateRunOrder`                            | write function      |
 
 ### `secretaryReadReplication.ts` (9,607 b) — internal helper, not in barrel
 
-| Export | Kind |
-|--------|------|
+| Export                                 | Kind                     |
+| -------------------------------------- | ------------------------ |
 | `getReplicatedSecretaryEntriesForShow` | read function (internal) |
 
 ### `secretaryPostgrest.ts` (1,907 b) — internal helper, not in barrel
 
-| Export | Kind |
-|--------|------|
+| Export                                | Kind                     |
+| ------------------------------------- | ------------------------ |
 | `postgrestGetSecretaryEntriesForShow` | read function (internal) |
 
 ### `publicReads.ts` (3,620 b)
 
-| Export | Kind |
-|--------|------|
-| `PublicEntryRow` (interface) | type |
-| `getPublicEntriesByClass` | read function |
-| `getPublicEntriesByShow` | read function |
-| `getPublicEntriesByTrial` | read function |
+| Export                       | Kind          |
+| ---------------------------- | ------------- |
+| `PublicEntryRow` (interface) | type          |
+| `getPublicEntriesByClass`    | read function |
+| `getPublicEntriesByShow`     | read function |
+| `getPublicEntriesByTrial`    | read function |
 
 ### `userEntriesReplication.ts` (4,585 b) — not in barrel
 
-| Export | Kind |
-|--------|------|
+| Export                                    | Kind             |
+| ----------------------------------------- | ---------------- |
 | `findMissingReplicatedUserEntryRelations` | utility function |
-| `buildReplicatedUserEntryRows` | utility function |
+| `buildReplicatedUserEntryRows`            | utility function |
 
 ### `index.ts` (1,240 b) — public barrel
 
 Re-exports from: `reads`, `publicReads`, `lifecycle`, `moveUpNote`, `search`, `secretary`, `admin`, `invalidation`, `management-actions`. Notable exclusions:
+
 - `updateEntryStatus` from `writes.ts` is aliased to `updateEntryStatusWithAudit` to avoid colliding with `secretary.ts`'s `updateEntryStatus`.
 - `secretaryReadReplication`, `secretaryPostgrest`, and `userEntriesReplication` are **not re-exported** — they are internal-only modules used as helpers within sibling files.
 
@@ -101,55 +102,55 @@ Tags: `replication` = offline-safe (backed by replication layer), `postgrest-pub
 
 ### `reads.ts`
 
-| Function | Tag | Evidence |
-|----------|-----|----------|
-| `getAllEntries` | `replication` | `readWithReplicationFallback(...)` (line 479); tries `replicatedEntriesTable.getAll()` first |
-| `getEntryById` | `replication` | `readWithReplicationFallback(...)` (line 503); tries `replicatedEntriesTable.getEntryById(id)` first |
-| `getEntriesByShow` | `replication` | `readWithReplicationFallback(...)` (line 524); tries `replicatedEntriesTable.getEntriesByShow(showId)` first |
-| `getEntriesByShowForFinancials` | `replication` | `readWithReplicationFallback(...)` (line 552); replication branch fetches trials, promo codes via PostgREST side-call (non-replicated entity) — core data path is replication-backed |
-| `getEntriesByTrial` | `replication` | `readWithReplicationFallback(...)` (line 613); replication branch resolves via `replicatedClassesTable.getClassesByTrial` + `replicatedEntriesTable.getAll()` |
-| `getEntriesByClass` | `replication` | `readWithReplicationFallback(...)` (line 645); tries `replicatedEntriesTable.getEntriesByClass(classId)` first |
-| `getEntriesByClassId` | `replication` | Compat wrapper — delegates to `getEntriesByClass` (line 688), inherits tag |
-| `getEntriesByDog` | `replication` | `readWithReplicationFallback(...)` (line 699); tries `replicatedEntriesTable.getAll()` filtered by dogId first |
-| `countActiveEntriesByDog` | `postgrest-core` (intentional) | Direct `supabase.from('entries').select('id', {count:'exact',...})` (line 732); code comment (lines 724–731) documents the deliberate choice: entries replicate per-show, so a cold store would return 0 (false count). Drives the delete-dog confirmation warning which must be accurate regardless of sync state. |
-| `getEntriesByStatus` | `replication` | `readWithReplicationFallback(...)` (line 743) |
+| Function                        | Tag                            | Evidence                                                                                                                                                                                                                                                                                                            |
+| ------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getAllEntries`                 | `replication`                  | `readWithReplicationFallback(...)` (line 479); tries `replicatedEntriesTable.getAll()` first                                                                                                                                                                                                                        |
+| `getEntryById`                  | `replication`                  | `readWithReplicationFallback(...)` (line 503); tries `replicatedEntriesTable.getEntryById(id)` first                                                                                                                                                                                                                |
+| `getEntriesByShow`              | `replication`                  | `readWithReplicationFallback(...)` (line 524); tries `replicatedEntriesTable.getEntriesByShow(showId)` first                                                                                                                                                                                                        |
+| `getEntriesByShowForFinancials` | `replication`                  | `readWithReplicationFallback(...)` (line 552); replication branch fetches trials, promo codes via PostgREST side-call (non-replicated entity) — core data path is replication-backed                                                                                                                                |
+| `getEntriesByTrial`             | `replication`                  | `readWithReplicationFallback(...)` (line 613); replication branch resolves via `replicatedClassesTable.getClassesByTrial` + `replicatedEntriesTable.getAll()`                                                                                                                                                       |
+| `getEntriesByClass`             | `replication`                  | `readWithReplicationFallback(...)` (line 645); tries `replicatedEntriesTable.getEntriesByClass(classId)` first                                                                                                                                                                                                      |
+| `getEntriesByClassId`           | `replication`                  | Compat wrapper — delegates to `getEntriesByClass` (line 688), inherits tag                                                                                                                                                                                                                                          |
+| `getEntriesByDog`               | `replication`                  | `readWithReplicationFallback(...)` (line 699); tries `replicatedEntriesTable.getAll()` filtered by dogId first                                                                                                                                                                                                      |
+| `countActiveEntriesByDog`       | `postgrest-core` (intentional) | Direct `supabase.from('entries').select('id', {count:'exact',...})` (line 732); code comment (lines 724–731) documents the deliberate choice: entries replicate per-show, so a cold store would return 0 (false count). Drives the delete-dog confirmation warning which must be accurate regardless of sync state. |
+| `getEntriesByStatus`            | `replication`                  | `readWithReplicationFallback(...)` (line 743)                                                                                                                                                                                                                                                                       |
 
 ### `secretary.ts`
 
-| Function | Tag | Evidence |
-|----------|-----|----------|
-| `getPendingEntries` | `postgrest-core` | Direct `supabase.from('entries')` (line 46); no replication path, no fallback wrapper. Reads `entry_status = 'submitted'` across all shows (cross-show scope). Cross-show offline reading is a known replication scope constraint (sync is per-show). |
-| `getEntriesForShow` | `replication` (branching) | Calls `getReplicatedSecretaryEntriesForShow(showId)` first (line 74). If `isColdStore` (zero rows → never synced in /at-show context), falls through to `postgrestGetSecretaryEntriesForShow` (line 96). Branch behavior: warm-store → replication, cold-store → PostgREST. |
-| `getEntryCountsByStatus` | `postgrest-core` | Direct `supabase.from('entries')` (line 117); no replication path. Count/summary query for the secretary dashboard. |
-| `checkArmbandConflicts` | `postgrest-core` | Direct `supabase.from('entries')` (line 333); no replication path. Pre-show setup operation, not realtime show-day. |
-| `getEntriesForExport` | `postgrest-core` (RPC) | `supabase.rpc('get_entries_for_export', ...)` (line 391); SECURITY DEFINER RPC. Export is intentionally a live-data, secretary-gated operation — not a candidate for replication. |
+| Function                 | Tag                       | Evidence                                                                                                                                                                                                                                                                    |
+| ------------------------ | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getPendingEntries`      | `postgrest-core`          | Direct `supabase.from('entries')` (line 46); no replication path, no fallback wrapper. Reads `entry_status = 'submitted'` across all shows (cross-show scope). Cross-show offline reading is a known replication scope constraint (sync is per-show).                       |
+| `getEntriesForShow`      | `replication` (branching) | Calls `getReplicatedSecretaryEntriesForShow(showId)` first (line 74). If `isColdStore` (zero rows → never synced in /at-show context), falls through to `postgrestGetSecretaryEntriesForShow` (line 96). Branch behavior: warm-store → replication, cold-store → PostgREST. |
+| `getEntryCountsByStatus` | `postgrest-core`          | Direct `supabase.from('entries')` (line 117); no replication path. Count/summary query for the secretary dashboard.                                                                                                                                                         |
+| `checkArmbandConflicts`  | `postgrest-core`          | Direct `supabase.from('entries')` (line 333); no replication path. Pre-show setup operation, not realtime show-day.                                                                                                                                                         |
+| `getEntriesForExport`    | `postgrest-core` (RPC)    | `supabase.rpc('get_entries_for_export', ...)` (line 391); SECURITY DEFINER RPC. Export is intentionally a live-data, secretary-gated operation — not a candidate for replication.                                                                                           |
 
 ### `secretaryReadReplication.ts`
 
-| Function | Tag | Evidence |
-|----------|-----|----------|
+| Function                               | Tag           | Evidence                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `getReplicatedSecretaryEntriesForShow` | `replication` | Direct replication reads: `replicatedEntriesTable.getEntriesByShow(showId)` (line 246), `replicatedDogsTable.getAllDogs()` (line 252), `replicatedClassesTable.getAll()` (line 253), `replicatedArmbandsTable.getByShow(showId)` (line 254). Side-calls to PostgREST for `people` (line 105) and `enrollments` (line 126) — not replicated entities; best-effort enrichment, not the core entry data path. |
 
 ### `secretaryPostgrest.ts`
 
-| Function | Tag | Evidence |
-|----------|-----|----------|
+| Function                              | Tag              | Evidence                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `postgrestGetSecretaryEntriesForShow` | `postgrest-core` | Direct `supabase.from('entries')` (line 70); the cold-store fallback for `getEntriesForShow`. Appropriate as a fallback when the replication store has never been seeded for this show (before an /at-show session starts). The offline risk is mitigated only by `getEntriesForShow`'s cold-store guard. |
 
 ### `publicReads.ts`
 
-| Function | Tag | Evidence |
-|----------|-----|----------|
+| Function                  | Tag                | Evidence                                                                                                                                               |
+| ------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `getPublicEntriesByClass` | `postgrest-public` | Reads from `view_public_entry_results` (line 59); anon-accessible DB view with scored columns NULLed by DB-level cascade. Only for public/anon routes. |
-| `getPublicEntriesByShow` | `postgrest-public` | Same view (line 69). |
-| `getPublicEntriesByTrial` | `postgrest-public` | Same view (line 80). |
+| `getPublicEntriesByShow`  | `postgrest-public` | Same view (line 69).                                                                                                                                   |
+| `getPublicEntriesByTrial` | `postgrest-public` | Same view (line 80).                                                                                                                                   |
 
 ### `userEntriesReplication.ts`
 
-| Function | Tag | Evidence |
-|----------|-----|----------|
-| `findMissingReplicatedUserEntryRelations` | n/a (utility) | Pure function — detects missing relations in provided maps (line 23). No DB calls. |
-| `buildReplicatedUserEntryRows` | `replication` | Takes already-fetched `ReplicatedEntry[]`; only PostgREST call is for `enrollments` (line 61), which is not replicated — best-effort enrichment. Calls `withholdScoredResultColumns` for result-visibility safety (line 109). |
+| Function                                  | Tag           | Evidence                                                                                                                                                                                                                      |
+| ----------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findMissingReplicatedUserEntryRelations` | n/a (utility) | Pure function — detects missing relations in provided maps (line 23). No DB calls.                                                                                                                                            |
+| `buildReplicatedUserEntryRows`            | `replication` | Takes already-fetched `ReplicatedEntry[]`; only PostgREST call is for `enrollments` (line 61), which is not replicated — best-effort enrichment. Calls `withholdScoredResultColumns` for result-visibility safety (line 109). |
 
 ---
 
@@ -157,50 +158,50 @@ Tags: `replication` = offline-safe (backed by replication layer), `postgrest-pub
 
 ### `reads.ts` exports
 
-| Function | Production callers |
-|----------|-------------------|
-| `getAllEntries` | `hooks/queries/useEntriesDatabase.ts:33`, `hooks/queries/useClassesDatabase.ts:149` |
-| `getEntryById` | `hooks/queries/useEntriesDatabase.ts:46` |
-| `getEntriesByShow` | `hooks/queries/useEntriesDatabase.ts:71`, `components/shows/ShowDetails/EntriesTab.tsx:101`, `hooks/queries/useReportData.ts:56` |
-| `getEntriesByShowForFinancials` | `components/secretary/ShowFinancialSummary.tsx:68` |
-| `getEntriesByTrial` | `hooks/queries/useTrialEntries.ts:101` |
-| `getEntriesByClass` | `hooks/queries/useEntriesDatabase.ts:96`, `hooks/queries/useClassEntriesRaw.ts:111`, `features/pipeline/print/usePipelinePrint.ts:108`, `hooks/queries/useReportData.ts:52` |
-| `getEntriesByClassId` | `hooks/queries/useClassesDatabase.ts:165` |
-| `getEntriesByDog` | `hooks/queries/useEntriesDatabase.ts:110` |
-| `countActiveEntriesByDog` | **Zero production callers found** — test-only (see STOP condition below) |
-| `getEntriesByStatus` | `hooks/queries/useEntriesDatabase.ts:136` |
+| Function                        | Production callers                                                                                                                                                          |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getAllEntries`                 | `hooks/queries/useEntriesDatabase.ts:33`, `hooks/queries/useClassesDatabase.ts:149`                                                                                         |
+| `getEntryById`                  | `hooks/queries/useEntriesDatabase.ts:46`                                                                                                                                    |
+| `getEntriesByShow`              | `hooks/queries/useEntriesDatabase.ts:71`, `components/shows/ShowDetails/EntriesTab.tsx:101`, `hooks/queries/useReportData.ts:56`                                            |
+| `getEntriesByShowForFinancials` | `components/secretary/ShowFinancialSummary.tsx:68`                                                                                                                          |
+| `getEntriesByTrial`             | `hooks/queries/useTrialEntries.ts:101`                                                                                                                                      |
+| `getEntriesByClass`             | `hooks/queries/useEntriesDatabase.ts:96`, `hooks/queries/useClassEntriesRaw.ts:111`, `features/pipeline/print/usePipelinePrint.ts:108`, `hooks/queries/useReportData.ts:52` |
+| `getEntriesByClassId`           | `hooks/queries/useClassesDatabase.ts:165`                                                                                                                                   |
+| `getEntriesByDog`               | `hooks/queries/useEntriesDatabase.ts:110`                                                                                                                                   |
+| `countActiveEntriesByDog`       | **Zero production callers found** — test-only (see STOP condition below)                                                                                                    |
+| `getEntriesByStatus`            | `hooks/queries/useEntriesDatabase.ts:136`                                                                                                                                   |
 
 ### `secretary.ts` read exports
 
-| Function | Production callers |
-|----------|-------------------|
-| `getPendingEntries` | `hooks/queries/usePendingEntries.ts:10` |
-| `getEntriesForShow` | `hooks/useEntryManagementData.ts:140` |
+| Function                 | Production callers                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `getPendingEntries`      | `hooks/queries/usePendingEntries.ts:10`                                              |
+| `getEntriesForShow`      | `hooks/useEntryManagementData.ts:140`                                                |
 | `getEntryCountsByStatus` | **Zero production callers** — one seam-violating test import only (see Flag a below) |
-| `checkArmbandConflicts` | **Zero production callers** — test-only |
-| `getEntriesForExport` | `hooks/useEntryManagementActions.ts:434` |
+| `checkArmbandConflicts`  | **Zero production callers** — test-only                                              |
+| `getEntriesForExport`    | `hooks/useEntryManagementActions.ts:434`                                             |
 
 ### `publicReads.ts` exports
 
-| Function | Production callers |
-|----------|-------------------|
-| `getPublicEntriesByClass` | `hooks/queries/useClassEntriesRaw.ts:108`, `hooks/queries/useEntriesDatabase.ts:93` |
-| `getPublicEntriesByShow` | `components/shows/ShowDetails/EntriesTab.tsx:98`, `hooks/queries/useEntriesDatabase.ts:68` |
-| `getPublicEntriesByTrial` | `hooks/queries/useTrialEntries.ts:98` |
+| Function                  | Production callers                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------ |
+| `getPublicEntriesByClass` | `hooks/queries/useClassEntriesRaw.ts:108`, `hooks/queries/useEntriesDatabase.ts:93`        |
+| `getPublicEntriesByShow`  | `components/shows/ShowDetails/EntriesTab.tsx:98`, `hooks/queries/useEntriesDatabase.ts:68` |
+| `getPublicEntriesByTrial` | `hooks/queries/useTrialEntries.ts:98`                                                      |
 
 ### `userEntriesReplication.ts` exports
 
-| Function | Production callers |
-|----------|-------------------|
-| `findMissingReplicatedUserEntryRelations` | `services/database/entries/search.ts:349` (internal sibling) |
-| `buildReplicatedUserEntryRows` | `services/database/entries/search.ts:377,388` (internal sibling) |
+| Function                                  | Production callers                                               |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| `findMissingReplicatedUserEntryRelations` | `services/database/entries/search.ts:349` (internal sibling)     |
+| `buildReplicatedUserEntryRows`            | `services/database/entries/search.ts:377,388` (internal sibling) |
 
 ### `secretaryReadReplication.ts` and `secretaryPostgrest.ts` exports
 
-| Function | Production callers |
-|----------|-------------------|
+| Function                               | Production callers                   |
+| -------------------------------------- | ------------------------------------ |
 | `getReplicatedSecretaryEntriesForShow` | `secretary.ts:74` (internal sibling) |
-| `postgrestGetSecretaryEntriesForShow` | `secretary.ts:96` (internal sibling) |
+| `postgrestGetSecretaryEntriesForShow`  | `secretary.ts:96` (internal sibling) |
 
 ---
 
@@ -209,9 +210,11 @@ Tags: `replication` = offline-safe (backed by replication layer), `postgrest-pub
 **One violation found:**
 
 `apps/myk9show/src/services/database/queries/__tests__/entryStatusEnumValues.test.ts:22`:
+
 ```typescript
 import { getEntryCountsByStatus } from '../../entries/secretary';
 ```
+
 This bypasses the barrel (`@/services/database/entries`). Since `secretary.ts` is re-exported via `export * from './secretary'` in `index.ts`, this import should target the barrel. Fix: change to `import { getEntryCountsByStatus } from '@/services/database/entries'`. (Or delete the import if the export is removed per proposal 4b.)
 
 **None found** in production code outside the entries directory.
@@ -229,13 +232,13 @@ This is correct dual-path design. The authed path uses the full `entries` table 
 
 ### Flag (c): `postgrest-core`-tagged reads called from authed, offline-relevant surfaces
 
-| Function | Caller | Offline relevance | Assessment |
-|----------|--------|-------------------|------------|
-| `getPendingEntries` | `hooks/queries/usePendingEntries.ts` → secretary attention strip | Secretary dashboard / pre-show; cross-show aggregate. Replication scope is per-show — a replication path is architecturally blocked. **Acceptable; annotate.** |
-| `getEntryCountsByStatus` | No production caller — dead export | n/a |
-| `checkArmbandConflicts` | No production caller — dead export | n/a |
-| `countActiveEntriesByDog` | No production caller — test-only | n/a |
-| `postgrestGetSecretaryEntriesForShow` | `secretary.ts` cold-store branch only | Only reached before /at-show syncs. Appropriate as cold-store fallback. |
+| Function                              | Caller                                                           | Offline relevance                                                                                                                                              | Assessment |
+| ------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `getPendingEntries`                   | `hooks/queries/usePendingEntries.ts` → secretary attention strip | Secretary dashboard / pre-show; cross-show aggregate. Replication scope is per-show — a replication path is architecturally blocked. **Acceptable; annotate.** |
+| `getEntryCountsByStatus`              | No production caller — dead export                               | n/a                                                                                                                                                            |
+| `checkArmbandConflicts`               | No production caller — dead export                               | n/a                                                                                                                                                            |
+| `countActiveEntriesByDog`             | No production caller — test-only                                 | n/a                                                                                                                                                            |
+| `postgrestGetSecretaryEntriesForShow` | `secretary.ts` cold-store branch only                            | Only reached before /at-show syncs. Appropriate as cold-store fallback.                                                                                        |
 
 ---
 

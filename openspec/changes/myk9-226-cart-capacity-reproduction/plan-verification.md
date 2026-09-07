@@ -2,18 +2,18 @@
 
 ### Requirements Audit
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| Reproduce before changing code | Covered | `tasks.md` sections 1–2 put inventory and a red-capable page seam before any implementation decision. |
-| Exercise judge-day-full plus `allow_waitlist = false` | Covered | `design.md` goal and task 2.1 name the exact case. |
-| Prove whether a payable line reaches Stripe | Covered | `design.md` and task 1.3 require the exact negative assertions at both submission and Stripe boundaries. |
-| Avoid charges and shared mutations | Covered | `proposal.md` non-goals and `design.md` primary-reproduction decision reject a live checkout. |
-| Compare client and server decisions | Partial | The first draft named both paths but did not require predicate-by-predicate parity. |
-| Explain the dated evidence | Covered | Task 2.3 compares August 18 incidents with the August 20 refresh. |
-| Implement only if current main fails | Covered | `proposal.md` explicitly branches on reproduction outcome. |
-| Testing and failure handling | Partial | The first draft required six shuffled runs but omitted the app working directory; the root config cannot resolve `@/` aliases. |
-| Preserve operator safety | Covered | `design.md` retains authoritative denial, refund, and error alert. |
-| Deployment/rollback | Covered | `design.md` states no deploy or rollback is required for an evidence-only outcome. |
+| Requirement                                           | Status  | Evidence                                                                                                                       |
+| ----------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Reproduce before changing code                        | Covered | `tasks.md` sections 1–2 put inventory and a red-capable page seam before any implementation decision.                          |
+| Exercise judge-day-full plus `allow_waitlist = false` | Covered | `design.md` goal and task 2.1 name the exact case.                                                                             |
+| Prove whether a payable line reaches Stripe           | Covered | `design.md` and task 1.3 require the exact negative assertions at both submission and Stripe boundaries.                       |
+| Avoid charges and shared mutations                    | Covered | `proposal.md` non-goals and `design.md` primary-reproduction decision reject a live checkout.                                  |
+| Compare client and server decisions                   | Partial | The first draft named both paths but did not require predicate-by-predicate parity.                                            |
+| Explain the dated evidence                            | Covered | Task 2.3 compares August 18 incidents with the August 20 refresh.                                                              |
+| Implement only if current main fails                  | Covered | `proposal.md` explicitly branches on reproduction outcome.                                                                     |
+| Testing and failure handling                          | Partial | The first draft required six shuffled runs but omitted the app working directory; the root config cannot resolve `@/` aliases. |
+| Preserve operator safety                              | Covered | `design.md` retains authoritative denial, refund, and error alert.                                                             |
+| Deployment/rollback                                   | Covered | `design.md` states no deploy or rollback is required for an evidence-only outcome.                                             |
 
 ### Coverage: 92/100
 

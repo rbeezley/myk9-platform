@@ -7,41 +7,49 @@ Four parallel read-only audits of `packages/replication` and the `/at-show` scor
 
 ## Verdict
 
-The core architecture is sound: writes are IndexedDB-first with a synchronous localStorage backup, dirty rows are protected from server pulls at three layers, quota eviction never touches unsynced rows, OCC conflicts preserve the local score, and the PWA update flow can't reload out from under pending work. But there are **five confirmed paths where a score can be lost or shown as saved when it wasn't**, plus a sync-status UI that shows *randomized fake data*.
+The core architecture is sound: writes are IndexedDB-first with a synchronous localStorage backup, dirty rows are protected from server pulls at three layers, quota eviction never touches unsynced rows, OCC conflicts preserve the local score, and the PWA update flow can't reload out from under pending work. But there are **five confirmed paths where a score can be lost or shown as saved when it wasn't**, plus a sync-status UI that shows _randomized fake data_.
 
 ## Critical findings (fix before launch)
 
 ### C1. Scoring submit swallows queue failures — green UI on a lost score
+
 `apps/myk9show/src/hooks/useOptimisticScoring.ts:126-134` wraps the ONLY real persistence call (`replicatedEntriesTable.updateEntry`, line 108) in a try/catch that logs "Non-fatal" and continues. `updateEntry` throws on: entry missing from local cache, IDB/quota write failure, and **queue overflow** (hard cap 1000 — `MutationManager.ts:141-152`). The subsequent `serverUpdate` (lines 152-163) is a no-op that always resolves when online, so `onSuccess` fires, the scoresheet transitions to completed and navigates away. Once a stale offline device hits the 1000-mutation cap, **every subsequent score "saves" successfully and is silently discarded.** Related: `queueMutation` returns `null` when no MutationManager is wired (`ReplicatedTable.ts:176-179`, warn-only) and the return value is discarded.
 **Fix:** rethrow from the catch; treat a thrown/`null` queue result as a blocking, visible error.
 
 ### C2. Circuit-breaker recovery deletes pending and failed mutations
+
 `DatabaseManager.recover()` runs `deleteDB` after 3 consecutive IDB failures (`core/DatabaseManager.ts:460-508`; same wipe on the corrupted-DB path at 299-309) — destroying `pending_mutations` and `failed_mutations`. It neither snapshots them first nor calls `restoreMutationsFromLocalStorage()` afterward (restore only runs on startup and offline→online — `ReplicationSyncProvider.tsx:431,447`). And `failed_mutations` are **never** in the localStorage backup (`mutation-backup.ts:49-51` filters `status === 'failed'`). Transient IDB flakiness mid-show → unsynced scores deleted; dead-lettered scores gone permanently.
 **Fix:** snapshot both stores to localStorage before `deleteDB`; restore after re-open; include failed mutations in the backup.
 
 ### C3. Dirty-flag clobber race in `getReplicatedRow`
+
 `core/ReplicatedTable.ts:279-301`: access-tracking does a `get` then a `put` of the whole row in **separate auto-commit transactions**. A concurrent dirty write (score save) landing between them is overwritten by the stale clean row — dirty flag and score silently dropped; next pull replaces it with server data. The identical race was already fixed in `markAsSynced` and `reconcileDirtyRow` (single readwrite tx); this hot read path — also called at the top of every sync loop — was missed.
 **Fix:** single readwrite transaction, or persist access stats without rewriting `data`/`isDirty`.
 
 ### C4. No `navigator.storage.persist()` — browser can evict everything
+
 Zero calls anywhere. Storage is best-effort; Safari/iOS ITP purges IndexedDB **and** localStorage after 7 days of non-use for non-installed web apps, so the localStorage backup is not a safety net on judge iPads. Chrome can also evict under pressure.
 **Fix:** call `navigator.storage.persist()` at startup and on entering `/at-show`; surface the `persisted()` result; prompt "Add to Home Screen" on iOS Safari when unsynced work exists (installed PWAs are exempt from the 7-day purge).
 
 ### C5. Sync-status UI shows randomized fake data
+
 `apps/myk9show/src/hooks/useGlobalSyncStatus.ts:43-64` and `useEntitySyncStatus` (101-141) return `Math.random()`-driven statuses (5% phantom errors, fake "last sync just now") — consumed by real UI (`AccountMenuContent.tsx:44`, `SyncStatusPanel.tsx:52`). A judge checking whether scores synced sees fiction. The real state exists on `useReplicationSync()` / `mutationManager.getPendingCount()`.
 **Fix:** rewrite both hooks to read real replication state, or delete the surfaces.
 
 ## High findings
 
 ### H1. Same-millisecond edits can upload out of order and keep the stale value
-`sequenceNumber` is defined (`types.ts:121`) but never assigned; ordering falls back to timestamp with ties resolved by effectively-random UUID order (`mutation-ordering.ts:50`). Worse, after the first upload `updateMutationServerVersions` (`MutationManager.ts:586-592`) re-stamps the *older* mutation with the fresh OCC version, so the stale payload then uploads **validly**, overwriting the correction. Scenario: judge enters a fault, immediately corrects it — correction can be silently reverted.
+
+`sequenceNumber` is defined (`types.ts:121`) but never assigned; ordering falls back to timestamp with ties resolved by effectively-random UUID order (`mutation-ordering.ts:50`). Worse, after the first upload `updateMutationServerVersions` (`MutationManager.ts:586-592`) re-stamps the _older_ mutation with the fresh OCC version, so the stale payload then uploads **validly**, overwriting the correction. Scenario: judge enters a fault, immediately corrects it — correction can be silently reverted.
 **Fix:** assign a persisted monotonic `sequenceNumber` in `queueMutation` and make it the primary sort key.
 
 ### H2. Unknown errors dead-letter on the FIRST attempt
+
 `isRetryableError` defaults to `false` (`mutation-utils.ts`); anything not matching network/timeout/5xx strings (e.g. `AbortError`, PostgREST `57014` statement timeout) skips all retries and dead-letters immediately. Combined with C2, this is the plausible real-world path to permanent score loss.
 **Fix:** fail open — unknown errors get the full retry budget; only affirmatively-permanent errors (RLS, 4xx, constraint) dead-letter immediately.
 
 ### H3. No truthful "safe to close the iPad" signal in ringside
+
 The `SyncIndicator` slot supports `pendingCount` but no caller passes it; `EntryListHeader.tsx:219-231` renders it only while actively syncing or errored — idle-with-queued-mutations shows **nothing**. Failures do surface eventually via the `replication:sync-failed` persistent toast (good: Retry/Discard, re-surfaced next sign-in), but not attributably ("which dog?") and typically after the judge navigated away.
 **Fix:** plumb real `pendingCount` + last-sync time into the ringside header, rendered whenever `pendingCount > 0`; include armband/entry context in failure toasts.
 

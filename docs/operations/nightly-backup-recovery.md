@@ -27,6 +27,7 @@ Formal accepted data-loss and recovery-time objectives remain outstanding.
 
    Copied jobs may run before this step. The owner accepted that risk for these prelaunch tests;
    startup suppression remains unresolved with Supabase support. Do not assume a clone is inert.
+
 4. Verify restored core tables, relationships, and the affected records. For a single-show
    incident, follow [the partial-recovery procedure](go-live-runbook.md#241-partial-recovery--one-show-without-rolling-back-the-project).
    Select membership through entry.show_id OR class→trial→show OR entry.trial→show.
@@ -55,20 +56,20 @@ See [Supabase restore documentation](https://supabase.com/docs/guides/platform/b
 Both restores used the physical backup at **2026-09-07 11:27:09 UTC**. Source application data
 was not changed by these tests. These are observed clone durations, not accepted recovery targets.
 
-| Test | Observed evidence |
-| --- | --- |
-| Database clone `xnnraqzhyvoflmzzfahg` | Started 16:15:07 UTC; complete observed 16:19:23 (~4m16s) |
-| Core data validation | Counts and full-row digests matched source: 10 shows, 16 trials, 33 classes, 1,278 entries, 266 dogs |
-| Other database checks | 27 auth users; no orphan entry→class, class→trial, trial→show; RLS enabled on five core tables; 337 public-schema policies |
-| First clone jobs | 14 disabled; one recorded containment-sampler execution during startup |
-| First clone cleanup | Deleted with owner approval; source and legacy project remained |
-| Single-show clone `yltegnpcnqrtjurxdmon` | Started 16:30:30 UTC; complete observed 16:34:35 (~4m05s); 14 cron jobs disabled, zero active |
-| Test show | Heartland Scent Work Classic, `dededede-0000-0000-0000-000000000010`, 516 entries |
-| Simulated damage | Five scored entries had `total_score`, `search_time_seconds`, `total_faults`, `points_earned` cleared and `is_scored` set false; 5/5 confirmed damaged |
-| Recovery | 5/5 exactly matched backup scoring values; 5/5 advanced version and timestamp |
-| Preservation | Newer secretary note survived; zero non-scoring-field changes against pre-damage baseline; zero changes to other-show entries/classes or any shows/trials |
-| Placements | Zero mismatches against independent ranking; Container Novice A [1,2,3], Interior Advanced Preliminary [1,2]; both completed and finalized |
-| Second clone cleanup | Awaiting owner confirmation for permanent deletion |
+| Test                                     | Observed evidence                                                                                                                                         |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Database clone `xnnraqzhyvoflmzzfahg`    | Started 16:15:07 UTC; complete observed 16:19:23 (~4m16s)                                                                                                 |
+| Core data validation                     | Counts and full-row digests matched source: 10 shows, 16 trials, 33 classes, 1,278 entries, 266 dogs                                                      |
+| Other database checks                    | 27 auth users; no orphan entry→class, class→trial, trial→show; RLS enabled on five core tables; 337 public-schema policies                                |
+| First clone jobs                         | 14 disabled; one recorded containment-sampler execution during startup                                                                                    |
+| First clone cleanup                      | Deleted with owner approval; source and legacy project remained                                                                                           |
+| Single-show clone `yltegnpcnqrtjurxdmon` | Started 16:30:30 UTC; complete observed 16:34:35 (~4m05s); 14 cron jobs disabled, zero active                                                             |
+| Test show                                | Heartland Scent Work Classic, `dededede-0000-0000-0000-000000000010`, 516 entries                                                                         |
+| Simulated damage                         | Five scored entries had `total_score`, `search_time_seconds`, `total_faults`, `points_earned` cleared and `is_scored` set false; 5/5 confirmed damaged    |
+| Recovery                                 | 5/5 exactly matched backup scoring values; 5/5 advanced version and timestamp                                                                             |
+| Preservation                             | Newer secretary note survived; zero non-scoring-field changes against pre-damage baseline; zero changes to other-show entries/classes or any shows/trials |
+| Placements                               | Zero mismatches against independent ranking; Container Novice A [1,2,3], Interior Advanced Preliminary [1,2]; both completed and finalized                |
+| Second clone cleanup                     | Awaiting owner confirmation for permanent deletion                                                                                                        |
 
 The second test saved backup rows in private `dr_myk9110` staging, added a newer secretary note,
 saved a pre-damage baseline, committed damage, then recovered five columns by ID. Staging schema
@@ -83,14 +84,14 @@ in the temporary restore and `myK9-platform`, identified each project, and suppl
 All six counts and fingerprints matched. Fingerprints used
 `md5(string_agg(to_jsonb(t)::text, '' ORDER BY id))`, covering every column in each row.
 
-| Table | Rows in each project | Matching fingerprint |
-| --- | --- | --- |
-| dogs | 266 | `ca05243eeb8da96fac7ea31275ac67b9` |
-| people | 17 | `1ed139d9908c1c856c23dbc4cde27c14` |
-| clubs | 5 | `6e04a8a44a9493c783ca86028903a905` |
-| club_members | 9 | `1a648e68267b48014a6220724beb41c2` |
-| club_officers | 0 | NULL in both (empty tables) |
-| exhibitor_profiles | 15 | `c0a4b78a63e14834c14555ef84480fce` |
+| Table              | Rows in each project | Matching fingerprint               |
+| ------------------ | -------------------- | ---------------------------------- |
+| dogs               | 266                  | `ca05243eeb8da96fac7ea31275ac67b9` |
+| people             | 17                   | `1ed139d9908c1c856c23dbc4cde27c14` |
+| clubs              | 5                    | `6e04a8a44a9493c783ca86028903a905` |
+| club_members       | 9                    | `1a648e68267b48014a6220724beb41c2` |
+| club_officers      | 0                    | NULL in both (empty tables)        |
+| exhibitor_profiles | 15                   | `c0a4b78a63e14834c14555ef84480fce` |
 
 This verifies the stored rows, including their relationship-ID values, match the source.
 It does not independently establish absence of pre-existing orphan references, validate separate

@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
 import { useAccountTodayEntries, usePreFavoriteAccountTodayEntries } from './accountTodayEntries';
-import {
-  buildShowTodayBannerItems,
-  getShowTodayBannerVariant,
-} from './showTodayBanner.helpers';
+import { buildShowTodayBannerItems, getShowTodayBannerVariant } from './showTodayBanner.helpers';
 
 export function useShowTodayBanner() {
   const accountEntries = useAccountTodayEntries();

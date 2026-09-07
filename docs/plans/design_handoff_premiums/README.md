@@ -47,29 +47,37 @@ The prototypes use realistic Scent Work trial data (Bexar County Kennel Club, Sa
 ## The 8 Styles
 
 ### 01 · Monogram (existing)
+
 Centered TC monogram, large serif title, 4-stat row, two-column info grid. Conservative, currently shipped.
 
 ### 02 · Banner (existing)
+
 Black bar across top, left-aligned title, 4-stat row. Conservative, currently shipped.
 
 ### 03 · Headline (existing)
+
 Stacked header with double-rule divider, 4-stat row. Conservative, currently shipped.
 
 ### 04 · Magazine (new)
+
 Editorial magazine spread. Cover page with large "Spring Scent Work" display serif (Cormorant Garamond), tagline, and an info card / image slot. The image area defaults to an "At a Glance" panel listing trials/elements/levels/sanctioning/field limit; if a club provides a venue photo or crest, it replaces the panel. Inner pages have section headers in Inter Tight, body copy in Source Serif 4, pull quotes, judge cards.
 
 **Image slot behavior:** if the club uploads no image, the "At a Glance" fallback shows. If they upload one, it fills the cover area edge-to-edge.
 
 ### 05 · Poster (new)
+
 Bold single-page hero. Archivo Black headline ("SPRING / SCENT / WORK / '26") in red and dark olive on cream. Big graphic accents (red ink-blot circle), monospace meta strip across the bottom, dark "closing" call-out card. Inner pages keep the bold-headline language but pull back to readable body copy. **Most ink-hungry of the 8** — Ink Saver mode is recommended for printing.
 
 ### 06 · Gazette (new)
+
 Newspaper broadsheet. Playfair Display masthead with date/edition meta row, multi-column body in Source Serif 4. Front page leads with a feature article ("Bexar County Kennel Club to Hold Spring Scent Work Trial"), photo placeholder, judges strip. Inner pages styled as classifieds (entry methods, lodging, awards, notices).
 
 ### 07 · Field Guide (new)
+
 Utility / scannable reference. Cream paper background, sections numbered §01–§07 in IBM Plex Mono, dense data tables and stat grids. Designed to be easy to find a piece of info quickly while at a trial.
 
 ### 08 · Heritage (new)
+
 Traditional kennel club / certificate aesthetic. Cream paper, double-line border frame, EB Garamond + Cormorant Garamond, hand-engraved feel. Roman numerals for page count, ornamental rule dividers, Latin-style "By way of Welcome" subheads. Five folios.
 
 ## Print Mode (Ink Saver)

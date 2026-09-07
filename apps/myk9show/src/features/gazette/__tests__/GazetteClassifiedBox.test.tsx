@@ -22,7 +22,11 @@ describe('GazetteClassifiedBox', () => {
     const { container } = render(
       <GazetteClassifiedBox
         category="LODGING"
-        title={<>Hampton Inn <em>Live Oak</em></>}
+        title={
+          <>
+            Hampton Inn <em>Live Oak</em>
+          </>
+        }
         body="body"
       />
     );

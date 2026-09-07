@@ -96,10 +96,7 @@ describe('buildPsqlArgs', () => {
 
 describe('hosted Phase 2 SQL contract', () => {
   it('checks the canonical stale-anon cleanup cron job identity', () => {
-    const sql = readFileSync(
-      path.resolve(__dirname, 'phase-2-data-access.sql'),
-      'utf8'
-    );
+    const sql = readFileSync(path.resolve(__dirname, 'phase-2-data-access.sql'), 'utf8');
 
     expect(sql).toContain("WHERE jobname = 'cleanup-ringside-anon'");
     expect(sql).not.toContain("WHERE jobname = 'cleanup_stale_ringside_anon_users'");

@@ -128,7 +128,9 @@ describe('scanForBulkPii', () => {
   it('does not flag a unit test full of fixture clubs', () => {
     // The real false positive this rule was written for: 33 made-up club
     // addresses in a replication test.
-    const files = { 'src/services/__tests__/ReplicatedClubsTable.test.ts': exportOf(33, 'club.com') };
+    const files = {
+      'src/services/__tests__/ReplicatedClubsTable.test.ts': exportOf(33, 'club.com'),
+    };
     expect(scanForBulkPii(Object.keys(files), read(files)).findings).toEqual([]);
   });
 
@@ -162,12 +164,12 @@ describe('isScannable', () => {
     expect(isScannable('scripts/qa/check-bulk-pii.ts')).toBe(false);
   });
 
-  it.each([
-    'src/services/__tests__/ReplicatedClubsTable.test.ts',
-    'src/pages/Thing.spec.tsx',
-  ])('skips the test source file %s, whose addresses are fixtures', file => {
-    expect(isScannable(file)).toBe(false);
-  });
+  it.each(['src/services/__tests__/ReplicatedClubsTable.test.ts', 'src/pages/Thing.spec.tsx'])(
+    'skips the test source file %s, whose addresses are fixtures',
+    file => {
+      expect(isScannable(file)).toBe(false);
+    }
+  );
 
   it('STILL scans a data fixture inside a test directory', () => {
     // The exemption is the file suffix, not the directory: a real export
@@ -196,7 +198,6 @@ describe('grandfathered exemptions', () => {
     expect(isGrandfathered('docs/qa/findings.md')).toBe(false);
   });
 });
-
 
 /**
  * Both regressions below were real bypasses in the first version of this guard,

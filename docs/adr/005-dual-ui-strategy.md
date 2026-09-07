@@ -1,11 +1,13 @@
 # ADR-005: Dual UI Strategy -- Tailwind/shadcn for myK9Show, Semantic CSS for myK9Q
 
 ## Status
+
 **Superseded (2026-06-14).** This ADR's premise — preserving myK9Q's mature semantic-CSS stack as a separate app — no longer holds. The standalone `apps/myk9q` app has been removed and ringside scoring now lives inside myK9Show at `/at-show`, rebuilt **Tailwind-native** (the `@myk9/ringside` package; `ringside.css` was deleted). There is now a single styling paradigm across the platform: Tailwind CSS + shadcn/ui (Base UI) via `@myk9/ui`. The "dual UI" decision below is retained for historical context only.
 
 (Originally: Accepted, 2026-01-02.)
 
 ## Date
+
 2026-01-02
 
 ## Context
@@ -17,6 +19,7 @@ The two apps in the platform have fundamentally different histories and constrai
 **myK9Q** is a production scoring application actively used by judges at dog shows. It has a mature, carefully tuned UI built with semantic CSS: custom design tokens (`design-tokens.css`), purpose-built stylesheets for touch optimization (`touch-targets.css`, `touch-feedback.css`, `one-handed-mode.css`), mobile-specific layouts (`mobile-optimizations.css`, `viewport.css`), accessibility features (`high-contrast.css`, `reduce-motion.css`), and an Apple-inspired design system (`apple-design-system.css`). This CSS represents significant UX investment -- over 20 stylesheet files covering everything from page transitions to container queries.
 
 Rewriting myK9Q's styles to Tailwind would:
+
 - Risk visual regressions for active production users
 - Invalidate months of touch/mobile optimization work
 - Provide no functional benefit (the app already looks and works well)
@@ -42,6 +45,7 @@ The shared `@myk9/ui` package is consumed by myK9Show. myK9Q uses `@myk9/scoring
 ## Consequences
 
 ### Positive
+
 - Zero risk of visual regression in the production scoring app
 - myK9Q's carefully optimized touch/mobile styles are preserved intact
 - myK9Show benefits from Tailwind's rapid prototyping and consistent utility classes
@@ -49,10 +53,12 @@ The shared `@myk9/ui` package is consumed by myK9Show. myK9Q uses `@myk9/scoring
 - Shared logic (scoring, replication) is decoupled from shared styles
 
 ### Negative
+
 - Two different styling paradigms in one monorepo increases cognitive load for developers working across both apps
 - Shared visual components (if ever needed by both apps) would require dual implementations or a framework-agnostic approach
 - No single design system governs both apps -- visual consistency relies on manual coordination
 
 ### Neutral
+
 - myK9Q has a `tailwind-utilities.css` file, suggesting a possible incremental Tailwind adoption path in the future if desired
 - The `@myk9/scoring-ui` package bridges the gap by sharing behavioral hooks (stopwatch, entry list filters, drag-and-drop) without imposing a styling framework

@@ -1,6 +1,6 @@
 /**
  * Real-time Optimization Utilities
- * 
+ *
  * Utility functions for optimizing Phase 6 real-time features performance
  * Provides helpers for connection management, message optimization, and resource efficiency
  */
@@ -19,7 +19,10 @@ type EventListener = (...args: unknown[]) => void;
  */
 class ConnectionPool {
   private static instance: ConnectionPool;
-  private connections = new Map<string, { channel: RealtimeChannel; lastUsed: number; inUse: boolean }>();
+  private connections = new Map<
+    string,
+    { channel: RealtimeChannel; lastUsed: number; inUse: boolean }
+  >();
   private maxConnections = 10;
   private connectionTTL = 300000; // 5 minutes
 
@@ -32,13 +35,13 @@ class ConnectionPool {
 
   getConnection(channelName: string): RealtimeChannel | null {
     const connection = this.connections.get(channelName);
-    
+
     if (connection && !connection.inUse && Date.now() - connection.lastUsed < this.connectionTTL) {
       connection.inUse = true;
       connection.lastUsed = Date.now();
       return connection.channel;
     }
-    
+
     return null;
   }
 
@@ -51,7 +54,7 @@ class ConnectionPool {
     this.connections.set(channelName, {
       channel,
       lastUsed: Date.now(),
-      inUse: true
+      inUse: true,
     });
   }
 
@@ -83,7 +86,10 @@ class ConnectionPool {
  */
 class MessageBatcher {
   private static instance: MessageBatcher;
-  private batches = new Map<string, { messages: RealtimeMessage[]; timeout: NodeJS.Timeout | null }>();
+  private batches = new Map<
+    string,
+    { messages: RealtimeMessage[]; timeout: NodeJS.Timeout | null }
+  >();
   private batchDelay = 16; // ~60fps
   private maxBatchSize = 50;
 
@@ -146,11 +152,14 @@ class MessageBatcher {
  */
 class MessageCompressor {
   private static instance: MessageCompressor;
-  private compressionStats = new Map<string, { 
-    totalMessages: number; 
-    totalSavings: number; 
-    avgCompressionRatio: number; 
-  }>();
+  private compressionStats = new Map<
+    string,
+    {
+      totalMessages: number;
+      totalSavings: number;
+      avgCompressionRatio: number;
+    }
+  >();
 
   static getInstance(): MessageCompressor {
     if (!MessageCompressor.instance) {
@@ -159,7 +168,10 @@ class MessageCompressor {
     return MessageCompressor.instance;
   }
 
-  compressMessage(channel: string, message: RealtimeMessage): {
+  compressMessage(
+    channel: string,
+    message: RealtimeMessage
+  ): {
     compressed: RealtimeMessage;
     originalSize: number;
     compressedSize: number;
@@ -175,7 +187,7 @@ class MessageCompressor {
       if (originalSize > 1024) {
         compressedData = this.applyCompression(message);
         const compressedSize = new Blob([JSON.stringify(compressedData)]).size;
-        compressionRatio = 1 - (compressedSize / originalSize);
+        compressionRatio = 1 - compressedSize / originalSize;
         this.updateCompressionStats(channel, originalSize, compressedSize, compressionRatio);
       }
 
@@ -183,7 +195,7 @@ class MessageCompressor {
         compressed: compressedData,
         originalSize,
         compressedSize: new Blob([JSON.stringify(compressedData)]).size,
-        ratio: compressionRatio
+        ratio: compressionRatio,
       };
     } catch {
       const originalSize = new Blob([JSON.stringify(message)]).size;
@@ -191,7 +203,7 @@ class MessageCompressor {
         compressed: message,
         originalSize,
         compressedSize: originalSize,
-        ratio: 0
+        ratio: 0,
       };
     }
   }
@@ -202,23 +214,23 @@ class MessageCompressor {
     return {
       _compressed: true,
       _algorithm: 'simple',
-      data: this.removeRedundantData(message)
+      data: this.removeRedundantData(message),
     };
   }
 
   private removeRedundantData(data: RealtimeMessage): RealtimeMessage {
     if (typeof data !== 'object' || data === null) return data;
-    
+
     const optimized: RealtimeMessage = {};
-    
+
     for (const [key, value] of Object.entries(data)) {
       // Skip null/undefined values
       if (value == null) continue;
-      
+
       // Skip empty arrays/objects
       if (Array.isArray(value) && value.length === 0) continue;
       if (typeof value === 'object' && Object.keys(value).length === 0) continue;
-      
+
       // Recursively optimize nested objects
       if (typeof value === 'object' && value !== null && 'type' in value && 'data' in value) {
         const optimizedValue = this.removeRedundantData(value as RealtimeMessage);
@@ -229,28 +241,29 @@ class MessageCompressor {
         optimized[key] = value;
       }
     }
-    
+
     return optimized;
   }
 
   private updateCompressionStats(
-    channel: string, 
-    originalSize: number, 
-    compressedSize: number, 
+    channel: string,
+    originalSize: number,
+    compressedSize: number,
     ratio: number
   ): void {
     if (!this.compressionStats.has(channel)) {
       this.compressionStats.set(channel, {
         totalMessages: 0,
         totalSavings: 0,
-        avgCompressionRatio: 0
+        avgCompressionRatio: 0,
       });
     }
 
     const stats = this.compressionStats.get(channel)!;
     stats.totalMessages++;
     stats.totalSavings += originalSize - compressedSize;
-    stats.avgCompressionRatio = (stats.avgCompressionRatio * (stats.totalMessages - 1) + ratio) / stats.totalMessages;
+    stats.avgCompressionRatio =
+      (stats.avgCompressionRatio * (stats.totalMessages - 1) + ratio) / stats.totalMessages;
   }
 
   getCompressionStats(channel?: string): Record<string, unknown> {
@@ -268,11 +281,14 @@ class SmartHeartbeat {
   private static instance: SmartHeartbeat;
   private intervals = new Map<string, NodeJS.Timeout>();
   private adaptiveIntervals = new Map<string, number>();
-  private connectionHealth = new Map<string, { 
-    latency: number; 
-    missedBeats: number; 
-    lastResponse: number; 
-  }>();
+  private connectionHealth = new Map<
+    string,
+    {
+      latency: number;
+      missedBeats: number;
+      lastResponse: number;
+    }
+  >();
 
   static getInstance(): SmartHeartbeat {
     if (!SmartHeartbeat.instance) {
@@ -282,15 +298,15 @@ class SmartHeartbeat {
   }
 
   startHeartbeat(
-    channel: string, 
-    sendFn: () => Promise<void>, 
+    channel: string,
+    sendFn: () => Promise<void>,
     initialInterval: number = 30000
   ): void {
     this.adaptiveIntervals.set(channel, initialInterval);
     this.connectionHealth.set(channel, {
       latency: 0,
       missedBeats: 0,
-      lastResponse: Date.now()
+      lastResponse: Date.now(),
     });
 
     this.scheduleNextHeartbeat(channel, sendFn);
@@ -312,7 +328,7 @@ class SmartHeartbeat {
       health.latency = latency;
       health.missedBeats = 0;
       health.lastResponse = Date.now();
-      
+
       // Adapt interval based on latency
       this.adaptHeartbeatInterval(channel, latency);
     }
@@ -322,7 +338,7 @@ class SmartHeartbeat {
     const health = this.connectionHealth.get(channel);
     if (health) {
       health.missedBeats++;
-      
+
       // Increase frequency if missing heartbeats
       if (health.missedBeats >= 2) {
         this.adaptHeartbeatInterval(channel, health.latency, true);
@@ -332,10 +348,10 @@ class SmartHeartbeat {
 
   private scheduleNextHeartbeat(channel: string, sendFn: () => Promise<void>): void {
     const interval = this.adaptiveIntervals.get(channel) || 30000;
-    
+
     const timeoutId = setTimeout(async () => {
       const startTime = Date.now();
-      
+
       try {
         await sendFn();
         const latency = Date.now() - startTime;
@@ -344,15 +360,19 @@ class SmartHeartbeat {
         this.recordMissedHeartbeat(channel);
         logger.warn(`Heartbeat failed for channel ${channel}:`, 'utils', {}, error as Error);
       }
-      
+
       // Schedule next heartbeat
       this.scheduleNextHeartbeat(channel, sendFn);
     }, interval);
-    
+
     this.intervals.set(channel, timeoutId);
   }
 
-  private adaptHeartbeatInterval(channel: string, latency: number, forceFaster: boolean = false): void {
+  private adaptHeartbeatInterval(
+    channel: string,
+    latency: number,
+    forceFaster: boolean = false
+  ): void {
     const currentInterval = this.adaptiveIntervals.get(channel) || 30000;
     let newInterval = currentInterval;
 
@@ -369,12 +389,12 @@ class SmartHeartbeat {
 
     if (newInterval !== currentInterval) {
       this.adaptiveIntervals.set(channel, newInterval);
-      
+
       eventEmitter.emit('realtime:heartbeat-adapted', {
         channel,
         oldInterval: currentInterval,
         newInterval,
-        latency
+        latency,
       });
     }
   }
@@ -400,9 +420,9 @@ class EventListenerManager {
   }
 
   addListener(
-    channel: string, 
-    event: string, 
-    listener: EventListener, 
+    channel: string,
+    event: string,
+    listener: EventListener,
     component?: object
   ): () => void {
     if (component) {
@@ -424,7 +444,7 @@ class EventListenerManager {
     // Return cleanup function
     return () => {
       channelListeners.get(event)?.delete(listener);
-      
+
       // Cleanup empty structures
       if (channelListeners.get(event)?.size === 0) {
         channelListeners.delete(event);
@@ -460,7 +480,7 @@ class EventListenerManager {
     if (channel) {
       const channelListeners = this.listeners.get(channel);
       if (!channelListeners) return 0;
-      
+
       let count = 0;
       channelListeners.forEach(eventListeners => {
         count += eventListeners.size;
@@ -494,7 +514,6 @@ void EventListenerManager;
 // Export singleton instances
 export const smartHeartbeat = SmartHeartbeat.getInstance();
 
-
 /**
  * Utility functions for real-time optimization
  */
@@ -517,14 +536,14 @@ export function setupOptimizedPresence(
   } = {}
 ): () => void {
   const channelName = channel.topic;
-  
+
   // Track presence
   channel.on('presence', { event: 'sync' }, () => {
     const presenceState = channel.presenceState();
     eventEmitter.emit('presence:sync', {
       channel: channelName,
       users: Object.keys(presenceState).length,
-      state: presenceState
+      state: presenceState,
     });
   });
 

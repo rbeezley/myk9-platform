@@ -5,10 +5,10 @@ secretary's Accept / Waitlist / Bulk-email flows.
 
 ## Test Accounts
 
-| Role      | Email                       | Password           |
-| --------- | --------------------------- | ------------------ |
-| Exhibitor | exhibitor@myk9t.com | see `.env.local`   |
-| Secretary | e2e-secretary@test.myk9.com | see `.env.local`   |
+| Role      | Email                       | Password         |
+| --------- | --------------------------- | ---------------- |
+| Exhibitor | exhibitor@myk9t.com         | see `.env.local` |
+| Secretary | e2e-secretary@test.myk9.com | see `.env.local` |
 
 ## Seeded Show
 

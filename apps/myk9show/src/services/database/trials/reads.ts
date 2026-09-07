@@ -16,7 +16,10 @@ type DbTrialInsert = Database['public']['Tables']['trials']['Insert'];
 type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
 
 async function loadShowsMap(): Promise<Map<string, ReplicatedShow>> {
-  return loadLookupMap(() => replicatedShowsTable.getAllShows(), s => s.id);
+  return loadLookupMap(
+    () => replicatedShowsTable.getAllShows(),
+    s => s.id
+  );
 }
 
 function mapTrialsWithJoins(
@@ -103,8 +106,14 @@ async function postgrestGetTrialsByShow(showId: string) {
 export const getAllTrials = async () => {
   return readWithReplicationFallback({
     replication: async () => {
-      const [trials, showsMap] = await Promise.all([replicatedTrialsTable.getAll(), loadShowsMap()]);
-      const sortedTrials = sortedCopy(trials, compareDateAsc(trial => trial.date));
+      const [trials, showsMap] = await Promise.all([
+        replicatedTrialsTable.getAll(),
+        loadShowsMap(),
+      ]);
+      const sortedTrials = sortedCopy(
+        trials,
+        compareDateAsc(trial => trial.date)
+      );
       const data = mapTrialsWithJoins(sortedTrials, showsMap);
       return { data, error: null };
     },
@@ -150,7 +159,10 @@ export const getTrialsByShow = async (showId: string) => {
         return await postgrestGetTrialsByShow(showId);
       }
 
-      const sortedTrials = sortedCopy(trials, compareDateAsc(trial => trial.date));
+      const sortedTrials = sortedCopy(
+        trials,
+        compareDateAsc(trial => trial.date)
+      );
       const data = sortedTrials.map(trial => mapReplicatedTrialToDbRow(trial, { show }));
       return { data, error: null };
     },

@@ -38,11 +38,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -64,9 +60,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "internal SQL helper invoked from other SECURITY DEFINER bodies (5 in-SQL call sites); direct rpc use only in DB contract tests"
     },
@@ -87,11 +81,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -113,9 +103,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "internal authz helper called via IF NOT public._can_manage_show_passcodes(...) inside definer bodies; no client call sites"
     },
@@ -137,11 +125,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -163,9 +147,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "internal SQL helper (9 in-SQL call sites); no client call sites"
     },
@@ -192,11 +174,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -218,10 +196,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -242,11 +217,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -268,9 +239,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "internal SQL helper called from _generate_unique_role_code; no client call sites"
     },
@@ -288,20 +257,14 @@
           "apps/myk9show/src/services/database/role-requests/index.ts",
           "apps/myk9show/src/services/database/role-requests/role-requests.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/role-requests/index.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/role-requests/index.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524195251_create_role_requests.sql",
@@ -323,10 +286,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -358,11 +318,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/083_security_sa007_assign_armband_auth.sql",
@@ -388,10 +344,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -415,10 +368,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260704160000_audit_cron_vault_secrets.sql",
@@ -444,9 +394,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -503,11 +451,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -525,10 +469,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     },
@@ -553,11 +494,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql",
@@ -579,10 +516,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     },
@@ -599,18 +533,12 @@
         "edge_functions": [],
         "app_rpc_calls": [],
         "triggers": [],
-        "rls_policies": [
-          "supabase/migrations/20260708120000_show_lifecycle_emails.sql"
-        ],
+        "rls_policies": ["supabase/migrations/20260708120000_show_lifecycle_emails.sql"],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260708120000_show_lifecycle_emails.sql",
@@ -632,10 +560,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     },
@@ -665,11 +590,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql",
@@ -691,10 +612,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     },
@@ -703,12 +621,8 @@
       "function_name": "can_manage_show_person_for_show",
       "identity_args": "p_show_id uuid, p_person_id uuid",
       "callers": {
-        "migrations": [
-          "supabase/migrations/20260605192839_tighten_people_delete_scope.sql"
-        ],
-        "edge_functions": [
-          "apps/myk9show/src/test/database/dbMigrationSanityContract.test.ts"
-        ],
+        "migrations": ["supabase/migrations/20260605192839_tighten_people_delete_scope.sql"],
+        "edge_functions": ["apps/myk9show/src/test/database/dbMigrationSanityContract.test.ts"],
         "app_rpc_calls": [],
         "triggers": [],
         "rls_policies": [],
@@ -716,11 +630,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [],
         "migration_revoke_statements": [
           {
@@ -729,9 +639,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "internal authz helper called via IF NOT ... inside delete_show_managed_person definer body (20260605192839_tighten_people_delete_scope.sql); no client call sites"
     },
@@ -763,11 +671,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -785,10 +689,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     },
@@ -815,10 +716,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -836,9 +734,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -863,10 +759,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260712120000_premium_generation_throttle.sql",
@@ -892,9 +785,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -910,23 +801,15 @@
           "supabase/migrations/20260622000222_link_waitlist_promotions.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"
-        ],
-        "app_rpc_calls": [
-          "apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"
-        ],
+        "edge_functions": ["apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"],
+        "app_rpc_calls": ["apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/009_online_entry_system.sql",
@@ -956,10 +839,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -985,10 +865,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260710140000_create_passcode_login_rate_limit.sql",
@@ -1014,9 +891,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -1034,17 +909,11 @@
         "app_rpc_calls": [],
         "triggers": [],
         "rls_policies": [],
-        "cron": [
-          "supabase/migrations/20260625000100_cleanup_stale_ringside_anon_users.sql"
-        ]
+        "cron": ["supabase/migrations/20260625000100_cleanup_stale_ringside_anon_users.sql"]
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260625000100_cleanup_stale_ringside_anon_users.sql",
@@ -1070,10 +939,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -1090,20 +956,14 @@
           "apps/myk9show/src/features/at-show/RingsideSessionHeartbeat.tsx",
           "apps/myk9show/src/features/at-show/__tests__/RingsideSessionHeartbeat.test.tsx"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/features/at-show/RingsideSessionHeartbeat.tsx"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/features/at-show/RingsideSessionHeartbeat.tsx"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260530210555_phase_3_ringside_sessions.sql",
@@ -1129,10 +989,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -1162,11 +1019,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260618150000_create_dog_with_registrations_rpc.sql",
@@ -1200,10 +1053,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -1221,19 +1071,14 @@
           "apps/myk9show/src/test/database/stripeWebhookCapacityGate.source.test.ts",
           "apps/myk9show/supabase/functions/stripe-webhook/index.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/supabase/functions/stripe-webhook/index.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/supabase/functions/stripe-webhook/index.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260628202146_create_online_paid_entry_capacity_gate.sql",
@@ -1267,9 +1112,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -1287,20 +1130,14 @@
           "apps/myk9show/src/test/services/database/queries/clubQueries.test.ts",
           "apps/myk9show/src/test/database/coreIdentityDeduplication.source.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/clubs/reads.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/clubs/reads.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260707130000_prevent_duplicate_club_identities.sql",
@@ -1326,10 +1163,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -1350,11 +1184,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql",
@@ -1376,10 +1206,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -1400,11 +1227,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524121000_scope_secretary_people_dog_access.sql",
@@ -1426,10 +1249,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -1463,11 +1283,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/145_create_show_with_children_rpc.sql",
@@ -1549,10 +1365,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -1574,11 +1387,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524122000_club_role_review_fixes.sql",
@@ -1604,10 +1413,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -1624,20 +1430,14 @@
           "apps/myk9show/src/services/database/role-requests/index.ts",
           "apps/myk9show/src/services/database/role-requests/role-requests.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/role-requests/index.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/role-requests/index.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524195251_create_role_requests.sql",
@@ -1659,10 +1459,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -1684,11 +1481,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -1710,9 +1503,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "invoked via PERFORM from ensure_show_lifecycle_email_steps_for_new_show trigger wrapper; live authenticated grant is unused surface — flagged for review"
     },
@@ -1728,18 +1519,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260708120000_show_lifecycle_emails.sql"
-        ],
+        "triggers": ["supabase/migrations/20260708120000_show_lifecycle_emails.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -1757,9 +1543,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -1774,18 +1558,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260611240000_entries_protect_payment_fields.sql"
-        ],
+        "triggers": ["supabase/migrations/20260611240000_entries_protect_payment_fields.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -1803,9 +1582,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -1828,10 +1605,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -1849,9 +1623,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -1866,18 +1638,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260705200000_entries_protect_payment_status.sql"
-        ],
+        "triggers": ["supabase/migrations/20260705200000_entries_protect_payment_status.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -1895,9 +1662,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -1912,18 +1677,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260611230000_cart_status_and_cartid_guards.sql"
-        ],
+        "triggers": ["supabase/migrations/20260611230000_cart_status_and_cartid_guards.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -1941,9 +1701,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -1958,18 +1716,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260611210000_cart_session_forgeability_close.sql"
-        ],
+        "triggers": ["supabase/migrations/20260611210000_cart_session_forgeability_close.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -1987,9 +1740,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -2004,18 +1755,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260611230000_cart_status_and_cartid_guards.sql"
-        ],
+        "triggers": ["supabase/migrations/20260611230000_cart_status_and_cartid_guards.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -2033,9 +1779,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -2060,10 +1804,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260712200000_entry_capacity_enforcement.sql",
@@ -2097,9 +1838,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -2128,11 +1867,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260526085224_get_account_today_entries.sql",
@@ -2166,10 +1901,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2183,23 +1915,15 @@
           "supabase/migrations/066_unify_role_systems.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "apps/myk9show/src/hooks/queries/useUsersQuery.ts"
-        ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/hooks/queries/useUsersQuery.ts"
-        ],
+        "edge_functions": ["apps/myk9show/src/hooks/queries/useUsersQuery.ts"],
+        "app_rpc_calls": ["apps/myk9show/src/hooks/queries/useUsersQuery.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -2217,10 +1941,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2238,20 +1959,14 @@
           "apps/myk9show/src/services/database/club-memberships/show-managers.ts",
           "apps/myk9show/src/test/database/rbacRoleMapSelectRlsContract.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/club-memberships/show-managers.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/club-memberships/show-managers.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260703180000_restrict_rbac_role_map_select.sql",
@@ -2285,10 +2000,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2316,11 +2028,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260616140000_deleted_entity_read_rpcs.sql",
@@ -2346,10 +2054,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2377,11 +2082,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260616140000_deleted_entity_read_rpcs.sql",
@@ -2407,10 +2108,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2438,11 +2136,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260616140000_deleted_entity_read_rpcs.sql",
@@ -2468,10 +2162,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2499,11 +2190,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260616140000_deleted_entity_read_rpcs.sql",
@@ -2529,10 +2216,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2562,11 +2246,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/017_rbac_functions.sql",
@@ -2596,10 +2276,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2617,20 +2294,14 @@
           "apps/myk9show/src/services/database/entries/secretary.ts",
           "apps/myk9show/src/test/services/database/queries/secretaryEntryExport.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/entries/secretary.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/entries/secretary.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/113_secure_entries_export_function.sql",
@@ -2652,10 +2323,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -2680,11 +2348,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/114_wait_list_capacity.sql",
@@ -2722,10 +2386,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -2749,10 +2410,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260628202146_create_online_paid_entry_capacity_gate.sql",
@@ -2786,9 +2444,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -2809,17 +2465,11 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [],
         "migration_revoke_statements": []
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "unconfident",
       "notes": "live authenticated grant but no repo call site (rpc/policy/trigger/SQL) found; possible legacy myK9Q licensing path — needs human disposition"
     },
@@ -2842,11 +2492,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260612090000_fix_dogs_select_handler_recursion.sql",
@@ -2872,10 +2518,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     },
@@ -2946,12 +2589,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/016_fix_permissive_rls_policies.sql",
@@ -2973,11 +2611,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "RLS policy predicate evaluated under querying role; anon-readable tables reference it; NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -3007,11 +2641,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260703180000_restrict_rbac_role_map_select.sql",
@@ -3049,10 +2679,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -3090,11 +2717,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/011_fix_exhibitor_profile_rls.sql",
@@ -3136,10 +2759,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -3172,11 +2792,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/017_rbac_functions.sql",
@@ -3206,10 +2822,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -3224,18 +2837,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260511100000_grant_club_admin_to_club_creator.sql"
-        ],
+        "triggers": ["supabase/migrations/20260511100000_grant_club_admin_to_club_creator.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -3253,9 +2861,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -3276,11 +2882,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524120000_club_access_requests.sql",
@@ -3302,10 +2904,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -3336,11 +2935,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/144_grant_show_official_rpc.sql",
@@ -3374,10 +2969,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -3392,18 +2984,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260615180000_platform_settings.sql"
-        ],
+        "triggers": ["supabase/migrations/20260615180000_platform_settings.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -3421,9 +3008,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -3449,10 +3034,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -3470,9 +3052,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -3496,18 +3076,13 @@
           "apps/myk9show/supabase/migrations/20250801000020_fix_authentication_issues.sql"
         ],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/009_online_entry_system.sql"
-        ],
+        "triggers": ["supabase/migrations/009_online_entry_system.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -3525,9 +3100,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -3552,11 +3125,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/075_hard_delete_show_rpc.sql",
@@ -3578,10 +3147,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -3629,12 +3195,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/009_online_entry_system.sql",
@@ -3656,11 +3217,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "RLS policy predicate evaluated under querying role; anon-readable tables reference it; NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -3673,23 +3230,15 @@
           "supabase/migrations/085_security_sa012_promo_codes_update.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "apps/myk9show/src/services/database/promo-codes/writes.ts"
-        ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/promo-codes/writes.ts"
-        ],
+        "edge_functions": ["apps/myk9show/src/services/database/promo-codes/writes.ts"],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/promo-codes/writes.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/085_security_sa012_promo_codes_update.sql",
@@ -3715,10 +3264,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -3742,12 +3288,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "supabase_auth_admin",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "supabase_auth_admin", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524120000_club_access_requests.sql",
@@ -3769,11 +3310,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "supabase_auth_admin",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "supabase_auth_admin", "authenticated"],
       "disposition": "authenticated",
       "notes": "supabase_auth_admin grant preserved (auth hook / signup materialization path)"
     },
@@ -3800,11 +3337,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260525180000_show_passcodes.sql",
@@ -3830,10 +3363,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -3855,10 +3385,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -3888,9 +3415,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -4025,12 +3550,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/016_fix_permissive_rls_policies.sql",
@@ -4064,11 +3584,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "anon EXECUTE preserved: live anon grant + client call site (public results / RLS-adjacent read path); NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -4187,12 +3703,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/016_fix_permissive_rls_policies.sql",
@@ -4214,11 +3725,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "anon EXECUTE preserved: live anon grant + client call site (public results / RLS-adjacent read path); NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -4245,11 +3752,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260611120000_tighten_dogs_people_select_rls.sql",
@@ -4275,10 +3778,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     },
@@ -4310,12 +3810,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/099_migrate_officials_to_user_roles.sql",
@@ -4337,11 +3832,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "RLS policy predicate evaluated under querying role; anon-readable tables reference it; NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -4425,12 +3916,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/024_add_missing_is_show_secretary.sql",
@@ -4468,11 +3954,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "anon EXECUTE preserved: live anon grant + client call site (public results / RLS-adjacent read path); NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -4556,12 +4038,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/024_add_missing_is_show_secretary.sql",
@@ -4599,11 +4076,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "anon EXECUTE preserved: live anon grant + client call site (public results / RLS-adjacent read path); NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -4775,12 +4248,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/124_rename_is_platform_admin_to_is_site_admin.sql",
@@ -4814,11 +4282,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "anon EXECUTE preserved: live anon grant + client call site (public results / RLS-adjacent read path); NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -4934,12 +4398,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/016_fix_permissive_rls_policies.sql",
@@ -4973,11 +4432,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "RLS policy predicate evaluated under querying role; anon-readable tables reference it; NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -5000,10 +4455,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260704170000_list_cron_vault_secret_refs.sql",
@@ -5029,9 +4481,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -5047,19 +4497,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260524120000_club_access_requests.sql"
-        ],
+        "triggers": ["supabase/migrations/20260524120000_club_access_requests.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "supabase_auth_admin"
-        ],
+        "direct_grants": ["postgres", "service_role", "supabase_auth_admin"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524120000_club_access_requests.sql",
@@ -5081,10 +4525,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "supabase_auth_admin"
-      ],
+      "desired_roles": ["service_role", "supabase_auth_admin"],
       "disposition": "service-only",
       "notes": "supabase_auth_admin grant preserved (auth hook / signup materialization path); trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5105,18 +4546,13 @@
           "apps/myk9show/src/features/show-workbench/__tests__/announcementPushFunctionContract.test.ts"
         ],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/104_announcement_push_webhook.sql"
-        ],
+        "triggers": ["supabase/migrations/104_announcement_push_webhook.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5134,9 +4570,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5163,10 +4597,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5184,9 +4615,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5201,18 +4630,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260703122000_push_trigger_webhook_secret.sql"
-        ],
+        "triggers": ["supabase/migrations/20260703122000_push_trigger_webhook_secret.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5230,9 +4654,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5247,18 +4669,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260703122000_push_trigger_webhook_secret.sql"
-        ],
+        "triggers": ["supabase/migrations/20260703122000_push_trigger_webhook_secret.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5276,9 +4693,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5295,18 +4710,13 @@
           "apps/myk9show/src/features/support/supportNotificationsContract.test.ts"
         ],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260705013523_support_tickets.sql"
-        ],
+        "triggers": ["supabase/migrations/20260705013523_support_tickets.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5328,9 +4738,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5345,18 +4753,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260703170000_waitlist_invite_trigger_secret.sql"
-        ],
+        "triggers": ["supabase/migrations/20260703170000_waitlist_invite_trigger_secret.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5374,9 +4777,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5403,10 +4804,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5424,9 +4822,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5442,18 +4838,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/157_remove_recursive_with_check_on_people.sql"
-        ],
+        "triggers": ["supabase/migrations/157_remove_recursive_with_check_on_people.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/157_remove_recursive_with_check_on_people.sql",
@@ -5479,9 +4870,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5498,18 +4887,13 @@
           "apps/myk9show/src/services/database/__tests__/blockPersonDeleteWithDogs.source.test.ts"
         ],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260617130000_block_person_delete_with_dogs.sql"
-        ],
+        "triggers": ["supabase/migrations/20260617130000_block_person_delete_with_dogs.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5527,9 +4911,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5559,11 +4941,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/114_wait_list_capacity.sql",
@@ -5593,10 +4971,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -5609,22 +4984,15 @@
           "supabase/migrations/20260622000222_link_waitlist_promotions.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"
-        ],
-        "app_rpc_calls": [
-          "apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"
-        ],
+        "edge_functions": ["apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"],
+        "app_rpc_calls": ["apps/myk9show/supabase/functions/cron-waitlist-expiration/index.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260622000222_link_waitlist_promotions.sql",
@@ -5650,9 +5018,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -5673,10 +5039,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260622000222_link_waitlist_promotions.sql",
@@ -5702,9 +5065,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -5719,18 +5080,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/159_sync_user_roles_auth_user_id_on_people_backfill.sql"
-        ],
+        "triggers": ["supabase/migrations/159_sync_user_roles_auth_user_id_on_people_backfill.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5748,9 +5104,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -5769,16 +5123,11 @@
         "app_rpc_calls": [],
         "triggers": [],
         "rls_policies": [],
-        "cron": [
-          "supabase/migrations/20260712120000_premium_generation_throttle.sql"
-        ]
+        "cron": ["supabase/migrations/20260712120000_premium_generation_throttle.sql"]
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260712120000_premium_generation_throttle.sql",
@@ -5804,9 +5153,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -5824,16 +5171,11 @@
         "app_rpc_calls": [],
         "triggers": [],
         "rls_policies": [],
-        "cron": [
-          "supabase/migrations/20260530210555_phase_3_ringside_sessions.sql"
-        ]
+        "cron": ["supabase/migrations/20260530210555_phase_3_ringside_sessions.sql"]
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260530210555_phase_3_ringside_sessions.sql",
@@ -5875,9 +5217,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -5894,9 +5234,7 @@
           "supabase/migrations/20260712180000_class_status_auto_derivation.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "apps/myk9show/src/test/database/classPlacementContract.test.ts"
-        ],
+        "edge_functions": ["apps/myk9show/src/test/database/classPlacementContract.test.ts"],
         "app_rpc_calls": [],
         "triggers": [],
         "rls_policies": [],
@@ -5904,10 +5242,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -5929,9 +5264,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -5944,9 +5277,7 @@
           "supabase/migrations/20260710140000_create_passcode_login_rate_limit.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "supabase/functions/validate-passcode/index.ts"
-        ],
+        "edge_functions": ["supabase/functions/validate-passcode/index.ts"],
         "app_rpc_calls": [],
         "triggers": [],
         "rls_policies": [],
@@ -5954,10 +5285,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260710140000_create_passcode_login_rate_limit.sql",
@@ -5983,9 +5311,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -6015,10 +5341,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -6040,9 +5363,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -6062,20 +5383,14 @@
           "apps/myk9show/src/test/database/ringsidePasscodeGenerationRevocationCompleteContract.test.ts",
           "apps/myk9show/src/test/database/classPlacementContract.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/features/at-show/useAtShowEntryListHandlers.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/features/at-show/useAtShowEntryListHandlers.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260703120000_revoke_scoring_fns_from_public.sql",
@@ -6109,10 +5424,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6132,20 +5444,14 @@
           "apps/myk9show/src/components/secretary/ShowAccessCodesCard.tsx",
           "apps/myk9show/src/features/show-map/__tests__/ShowDeskToolsSheet.test.tsx"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/components/secretary/ShowAccessCodesCard.tsx"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/components/secretary/ShowAccessCodesCard.tsx"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260525180000_show_passcodes.sql",
@@ -6171,10 +5477,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6210,12 +5513,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated",
-          "anon"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated", "anon"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260616120000_public_results_release_gate.sql",
@@ -6241,11 +5539,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated",
-        "anon"
-      ],
+      "desired_roles": ["service_role", "authenticated", "anon"],
       "disposition": "anon-preserving",
       "notes": "consumed via CROSS JOIN LATERAL inside view_public_entry_results / view_authenticated_entry_results (task 9.3); anon EXECUTE preserved for public results reads; NOTE: ringside passcode sessions use Supabase anonymous sign-in (JWT role = authenticated); true anon here serves public/unauthenticated reads"
     },
@@ -6258,23 +5552,15 @@
           "supabase/migrations/20260709130000_create_operator_alerts.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "apps/myk9show/src/features/admin-system-health/useOperatorAlerts.ts"
-        ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/features/admin-system-health/useOperatorAlerts.ts"
-        ],
+        "edge_functions": ["apps/myk9show/src/features/admin-system-health/useOperatorAlerts.ts"],
+        "app_rpc_calls": ["apps/myk9show/src/features/admin-system-health/useOperatorAlerts.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260709130000_create_operator_alerts.sql",
@@ -6300,10 +5586,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6320,20 +5603,14 @@
           "apps/myk9show/src/services/database/__tests__/restoreEntityWrites.source.test.ts",
           "apps/myk9show/src/services/database/classes/reads.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/classes/reads.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/classes/reads.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260617120000_restore_entity_rpcs.sql",
@@ -6359,10 +5636,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6379,20 +5653,14 @@
           "apps/myk9show/src/services/database/__tests__/restoreEntityWrites.source.test.ts",
           "apps/myk9show/src/services/database/dogs/reads.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/dogs/reads.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/dogs/reads.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260617120000_restore_entity_rpcs.sql",
@@ -6418,10 +5686,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6438,20 +5703,14 @@
           "apps/myk9show/src/services/database/__tests__/restoreEntityWrites.source.test.ts",
           "apps/myk9show/src/services/database/users/reads.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/users/reads.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/users/reads.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260617120000_restore_entity_rpcs.sql",
@@ -6477,10 +5736,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6497,20 +5753,14 @@
           "apps/myk9show/src/services/database/__tests__/restoreEntityWrites.source.test.ts",
           "apps/myk9show/src/services/database/shows/writes.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/shows/writes.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/shows/writes.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260617120000_restore_entity_rpcs.sql",
@@ -6536,10 +5786,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6565,10 +5812,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -6586,9 +5830,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -6604,18 +5846,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/110_restrict_payment_status_column.sql"
-        ],
+        "triggers": ["supabase/migrations/110_restrict_payment_status_column.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -6633,9 +5870,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -6651,18 +5886,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/109_restrict_subscription_columns.sql"
-        ],
+        "triggers": ["supabase/migrations/109_restrict_subscription_columns.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -6680,9 +5910,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -6695,22 +5923,15 @@
           "supabase/migrations/20260705013523_support_tickets.sql",
           "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql"
         ],
-        "edge_functions": [
-          "apps/myk9show/src/test/database/supportTicketsRlsContract.test.ts"
-        ],
+        "edge_functions": ["apps/myk9show/src/test/database/supportTicketsRlsContract.test.ts"],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260705013523_support_tickets.sql"
-        ],
+        "triggers": ["supabase/migrations/20260705013523_support_tickets.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -6732,9 +5953,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -6755,11 +5974,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524120000_club_access_requests.sql",
@@ -6781,10 +5996,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -6806,11 +6018,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260524120000_club_access_requests.sql",
@@ -6836,10 +6044,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -6859,20 +6064,14 @@
           "apps/myk9show/src/features/at-show/__tests__/RingsideSessionHeartbeat.test.tsx",
           "apps/myk9show/src/test/database/ringsidePasscodeGenerationRevocationCompleteContract.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/features/at-show/RingsideSessionHeartbeat.tsx"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/features/at-show/RingsideSessionHeartbeat.tsx"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260710160000_ringside_passcode_generation_revocation_complete.sql",
@@ -6898,10 +6097,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -6959,11 +6155,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260621171500_ringside_update_entry.sql",
@@ -7053,10 +6245,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7091,11 +6280,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/118_self_checkin_rpc.sql",
@@ -7129,10 +6314,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7150,20 +6332,14 @@
           "apps/myk9show/src/test/e2e/entities/classesUI.spec.ts",
           "apps/myk9show/src/test/services/database/queries/classQueries.deleteCascade.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/classes/reads.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/classes/reads.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/172_soft_delete_class_cascade.sql",
@@ -7185,10 +6361,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7220,11 +6393,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/028_soft_delete_dog_rpc.sql",
@@ -7246,10 +6415,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7268,20 +6434,14 @@
           "apps/myk9show/src/services/database/users/reads.ts",
           "apps/myk9show/src/test/services/database/queries/userQueries.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/users/reads.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/users/reads.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260617140000_soft_delete_person_rpc.sql",
@@ -7315,10 +6475,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7351,11 +6508,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/036_soft_delete_show_rpc.sql",
@@ -7381,10 +6534,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7399,18 +6549,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260627000000_entries_withdrawn_at.sql"
-        ],
+        "triggers": ["supabase/migrations/20260627000000_entries_withdrawn_at.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -7428,9 +6573,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -7448,19 +6591,14 @@
           "apps/myk9show/src/test/database/stripeRefundShow.source.test.ts",
           "apps/myk9show/supabase/functions/stripe-refund-show/index.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/supabase/functions/stripe-refund-show/index.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/supabase/functions/stripe-refund-show/index.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260628000000_stamp_show_refund_entries.sql",
@@ -7494,9 +6632,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "called only from edge functions running with service-role key"
     },
@@ -7517,11 +6653,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260525140000_club_access_requests_submit_rpc.sql",
@@ -7551,10 +6683,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -7575,11 +6704,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260525130000_role_requests_submit_rpc.sql",
@@ -7609,10 +6734,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -7640,20 +6762,14 @@
           "apps/myk9show/src/services/database/queries/__tests__/submitShowEntries.test.ts",
           "apps/myk9show/src/test/e2e/entities/secretaryEntryCreationUI.spec.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/entries/writes.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/entries/writes.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/151_submit_show_entries_rpc.sql",
@@ -7675,10 +6791,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7693,18 +6806,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260707120000_prevent_duplicate_dog_identities.sql"
-        ],
+        "triggers": ["supabase/migrations/20260707120000_prevent_duplicate_dog_identities.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -7722,9 +6830,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -7739,18 +6845,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/20260707120000_prevent_duplicate_dog_identities.sql"
-        ],
+        "triggers": ["supabase/migrations/20260707120000_prevent_duplicate_dog_identities.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -7768,9 +6869,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -7785,18 +6884,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/132_wire_enrollment_on_payment.sql"
-        ],
+        "triggers": ["supabase/migrations/132_wire_enrollment_on_payment.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -7814,9 +6908,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -7831,18 +6923,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/156_denormalize_auth_user_id_into_user_roles.sql"
-        ],
+        "triggers": ["supabase/migrations/156_denormalize_auth_user_id_into_user_roles.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -7860,9 +6947,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -7881,20 +6966,14 @@
           "apps/myk9show/supabase/functions/cron-health-check/index.ts",
           "apps/myk9show/supabase/functions/_shared/systemHealthChecks.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/supabase/functions/cron-health-check/index.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/supabase/functions/cron-health-check/index.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260704130000_system_health_probe.sql",
@@ -7928,10 +7007,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -7952,10 +7028,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -7977,9 +7050,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -8000,10 +7071,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -8025,9 +7093,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -8048,10 +7114,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -8073,9 +7136,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "migration grants EXECUTE to service roles only; live client grant (if any) is drift — flagged for review"
     },
@@ -8096,11 +7157,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260606170000_exhibitor_update_entry_handler_rpc.sql",
@@ -8126,10 +7183,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "migration contains explicit GRANT EXECUTE TO authenticated (deliberate client RPC surface)"
     },
@@ -8146,20 +7200,14 @@
           "apps/myk9show/src/services/database/entries/writes.ts",
           "apps/myk9show/src/services/database/queries/__tests__/submitShowEntries.test.ts"
         ],
-        "app_rpc_calls": [
-          "apps/myk9show/src/services/database/entries/writes.ts"
-        ],
+        "app_rpc_calls": ["apps/myk9show/src/services/database/entries/writes.ts"],
         "triggers": [],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260707123000_entry_management_handler_corrections.sql",
@@ -8185,10 +7233,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -8204,18 +7249,13 @@
         ],
         "edge_functions": [],
         "app_rpc_calls": [],
-        "triggers": [
-          "supabase/migrations/106_show_messages.sql"
-        ],
+        "triggers": ["supabase/migrations/106_show_messages.sql"],
         "rls_policies": [],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role"
-        ],
+        "direct_grants": ["postgres", "service_role"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -8233,9 +7273,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role"
-      ],
+      "desired_roles": ["service_role"],
       "disposition": "service-only",
       "notes": "trigger-target: executes as table owner; no client EXECUTE needed"
     },
@@ -8269,11 +7307,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260530210555_phase_3_ringside_sessions.sql",
@@ -8343,10 +7377,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -8378,11 +7409,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/017_rbac_functions.sql",
@@ -8412,10 +7439,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -8446,11 +7470,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260525180000_show_passcodes.sql",
@@ -8492,10 +7512,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -8524,11 +7541,7 @@
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260703123000_scope_promo_codes_rls.sql",
@@ -8554,10 +7567,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": ""
     },
@@ -8573,18 +7583,12 @@
         "edge_functions": [],
         "app_rpc_calls": [],
         "triggers": [],
-        "rls_policies": [
-          "supabase/migrations/100_add_results_released_by.sql"
-        ],
+        "rls_policies": ["supabase/migrations/100_add_results_released_by.sql"],
         "cron": []
       },
       "current_grants": {
         "public_execute": false,
-        "direct_grants": [
-          "postgres",
-          "service_role",
-          "authenticated"
-        ],
+        "direct_grants": ["postgres", "service_role", "authenticated"],
         "migration_grant_statements": [
           {
             "file": "supabase/migrations/20260713090000_draft_definer_grant_hardening_pending_review.sql",
@@ -8602,10 +7606,7 @@
           }
         ]
       },
-      "desired_roles": [
-        "service_role",
-        "authenticated"
-      ],
+      "desired_roles": ["service_role", "authenticated"],
       "disposition": "authenticated",
       "notes": "RLS policy predicate / helper; needs EXECUTE for authenticated policy evaluation"
     }

@@ -40,7 +40,11 @@ export function toTrialLabel(trial: {
   name?: string | null;
   trial_number?: string | number | null;
 }): string | undefined {
-  if (trial.trial_number !== null && trial.trial_number !== undefined && trial.trial_number !== '') {
+  if (
+    trial.trial_number !== null &&
+    trial.trial_number !== undefined &&
+    trial.trial_number !== ''
+  ) {
     return `Trial ${trial.trial_number}`;
   }
   return trial.name ?? undefined;

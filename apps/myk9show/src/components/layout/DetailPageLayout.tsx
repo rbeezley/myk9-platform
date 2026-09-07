@@ -36,9 +36,7 @@ const DetailPageLayout: React.FC<DetailPageLayoutProps> = ({
         </div>
       </div>
       {/* Tabs Section (tab bar + content) */}
-      <div className="container mx-auto px-4 pt-2 pb-10">
-        {tabs}
-      </div>
+      <div className="container mx-auto px-4 pt-2 pb-10">{tabs}</div>
     </AppShellPage>
   );
 };

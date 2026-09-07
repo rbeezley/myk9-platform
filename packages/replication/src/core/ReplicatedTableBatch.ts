@@ -64,8 +64,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
 
       // Guard: skip if existing row is locally-dirty (pending local mutation).
       const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-        | ReplicatedRow<T>
-        | undefined;
+        ReplicatedRow<T> | undefined;
       if (existingRow?.isDirty) {
         this.logger.log(
           `[${this.tableName}] Skipped server push for row ${normalizedId} — local mutation pending`
@@ -118,7 +117,11 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    * chunks would re-introduce the timeout risk.  The write-ahead log gives us
    * atomicity without that constraint.
    */
-  async batchSetChunked(items: T[], chunkSize: number = MAX_CHUNK_SIZE, serverVersions?: Map<string, number>): Promise<void> {
+  async batchSetChunked(
+    items: T[],
+    chunkSize: number = MAX_CHUNK_SIZE,
+    serverVersions?: Map<string, number>
+  ): Promise<void> {
     const totalRows = items.length;
 
     if (totalRows <= chunkSize) {
@@ -153,8 +156,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     const preState = new Map<string, ReplicatedRow<T> | undefined>();
     for (const id of affectedIds) {
       const existing = (await walTx.store.get([this.tableName, id])) as
-        | ReplicatedRow<T>
-        | undefined;
+        ReplicatedRow<T> | undefined;
       preState.set(id, existing);
     }
     await walTx.done;
@@ -174,8 +176,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
 
           // Guard: skip if existing row is locally-dirty (pending local mutation).
           const existingRow = (await tx.store.get([this.tableName, normalizedId])) as
-            | ReplicatedRow<T>
-            | undefined;
+            ReplicatedRow<T> | undefined;
           if (existingRow?.isDirty) {
             this.logger.log(
               `[${this.tableName}] Skipped server push for row ${normalizedId} — local mutation pending`
@@ -221,8 +222,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
         const rbTx = rbDb.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
         for (const [id, snapshot] of preState) {
           const current = (await rbTx.store.get([this.tableName, id])) as
-            | ReplicatedRow<T>
-            | undefined;
+            ReplicatedRow<T> | undefined;
           if (current?.isDirty) {
             this.logger.log(
               `[${this.tableName}] Rollback skipped row ${id} — concurrent local mutation pending`

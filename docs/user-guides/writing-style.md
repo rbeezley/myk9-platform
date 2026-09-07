@@ -24,30 +24,30 @@ Every guide section, KB article, and macro should feel like a calm, competent co
 
 ### Use dog-show terminology, not software terminology
 
-| Say this | Not this |
-|---|---|
-| Entry | Registration (in the software sense; "registration" to a dog person means the AKC/UKC number) |
-| Approved / Accepted | Confirmed, processed |
-| Pulled | Scratched (preferred label — "scratch" is still understood but "pulled" is the platform standard) |
-| Move up | Class transfer |
-| Run order | Class order, sequence |
-| Armband number | Entry number, bib |
-| Secretary dashboard | Mission Control, management panel |
-| Check in | Self-check-in, marking present |
-| Show day | Day of (avoid as a heading) |
-| Send to AKC | Submit, export, transmit |
+| Say this            | Not this                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| Entry               | Registration (in the software sense; "registration" to a dog person means the AKC/UKC number)     |
+| Approved / Accepted | Confirmed, processed                                                                              |
+| Pulled              | Scratched (preferred label — "scratch" is still understood but "pulled" is the platform standard) |
+| Move up             | Class transfer                                                                                    |
+| Run order           | Class order, sequence                                                                             |
+| Armband number      | Entry number, bib                                                                                 |
+| Secretary dashboard | Mission Control, management panel                                                                 |
+| Check in            | Self-check-in, marking present                                                                    |
+| Show day            | Day of (avoid as a heading)                                                                       |
+| Send to AKC         | Submit, export, transmit                                                                          |
 
 ### Use task language in headings and buttons
 
 Write headings as user actions, not feature names.
 
-| Say this | Not this |
-|---|---|
-| Enter a show | Registration Wizard |
-| Approve an entry | Entry Management |
-| Handle a scratch | ScratchDialog |
-| Print scoresheets | ReportsPage |
-| Release results | Results & Check-In |
+| Say this                         | Not this                  |
+| -------------------------------- | ------------------------- |
+| Enter a show                     | Registration Wizard       |
+| Approve an entry                 | Entry Management          |
+| Handle a scratch                 | ScratchDialog             |
+| Print scoresheets                | ReportsPage               |
+| Release results                  | Results & Check-In        |
 | Connect your club's bank account | Stripe Express Onboarding |
 
 ### Keep sentences short
@@ -65,6 +65,7 @@ Never surface technical strings in guides. If you are documenting what happens w
 ### KB articles: answer first
 
 Structure every KB article:
+
 1. **Answer** (1 sentence) — what they should do or know
 2. **Steps** — numbered if sequential, bulleted if not
 3. **Still stuck?** — one link to the next escalation (support contact or related article)
@@ -89,12 +90,12 @@ The first paragraph answers the core question the post is about. Remaining parag
 
 Sourced from `docs/INTENT.md` § Role Intent Map. When writing for a specific role, the finished doc should feel like it produces this emotion.
 
-| Role | Intent word | What this means in writing |
-|---|---|---|
-| Trial Secretary | "That was easy" | No jargon. Confident guidance. Every step is completable in one motion. |
-| Exhibitor | "This respects my time" | Short steps. Pre-filled context. No re-explanation of what they already know. |
-| Judge / Steward | "Invisible technology" | Minimal words. Action-oriented. Written for a person whose eyes are on the dog. |
-| Club Admin / Treasurer | "The platform is healthy" | Factual, reassuring. Numbers and status at a glance. |
+| Role                   | Intent word               | What this means in writing                                                      |
+| ---------------------- | ------------------------- | ------------------------------------------------------------------------------- |
+| Trial Secretary        | "That was easy"           | No jargon. Confident guidance. Every step is completable in one motion.         |
+| Exhibitor              | "This respects my time"   | Short steps. Pre-filled context. No re-explanation of what they already know.   |
+| Judge / Steward        | "Invisible technology"    | Minimal words. Action-oriented. Written for a person whose eyes are on the dog. |
+| Club Admin / Treasurer | "The platform is healthy" | Factual, reassuring. Numbers and status at a glance.                            |
 
 ---
 

@@ -41,11 +41,8 @@ export interface ShowDeskActionable {
   incomplete: boolean;
 }
 
-export function computeShowDeskActionable(
-  signals: ShowDeskActionableSignals
-): ShowDeskActionable {
-  const incomplete =
-    signals.incidentReportableCount === null || signals.tasksOpenCount === null;
+export function computeShowDeskActionable(signals: ShowDeskActionableSignals): ShowDeskActionable {
+  const incomplete = signals.incidentReportableCount === null || signals.tasksOpenCount === null;
 
   // Sum only what was actually read. An unread source contributes nothing to
   // the count and instead sets `incomplete`, so the caller can distinguish

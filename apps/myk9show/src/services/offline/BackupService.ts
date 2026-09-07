@@ -1,6 +1,6 @@
 /**
  * BackupService - Handle data backup and restoration operations
- * 
+ *
  * Provides:
  * - Automated backup scheduling
  * - Manual backup creation
@@ -62,7 +62,7 @@ export class BackupService {
       frequency: 'weekly',
       time: '02:00',
       maxBackups: 10,
-      autoCleanup: true
+      autoCleanup: true,
     };
     this.initializeScheduler();
   }
@@ -81,9 +81,12 @@ export class BackupService {
     if (!this.schedule.enabled) return;
 
     // Check for scheduled backups every hour
-    setInterval(() => {
-      this.checkScheduledBackups();
-    }, 60 * 60 * 1000);
+    setInterval(
+      () => {
+        this.checkScheduledBackups();
+      },
+      60 * 60 * 1000
+    );
   }
 
   /**
@@ -92,7 +95,7 @@ export class BackupService {
   private checkScheduledBackups(): void {
     const now = new Date();
     const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
+
     if (currentTime !== this.schedule.time) return;
 
     const shouldRun = this.shouldRunScheduledBackup(now);
@@ -131,7 +134,7 @@ export class BackupService {
     const autoBackups = Array.from(this.activeBackups.values())
       .filter(backup => backup.type === 'auto')
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    
+
     return autoBackups.length > 0 ? autoBackups[0] : null;
   }
 
@@ -143,7 +146,7 @@ export class BackupService {
       format: 'json',
       entities: ['shows', 'entries', 'dogs', 'people', 'classes', 'results'],
       includeDeleted: false,
-      compressed: true
+      compressed: true,
     };
 
     return this.createBackup(options, 'auto');
@@ -161,7 +164,7 @@ export class BackupService {
       format: 'json',
       entities,
       includeDeleted: false,
-      compressed
+      compressed,
     };
 
     return this.createBackup(options, 'manual', name);
@@ -176,25 +179,25 @@ export class BackupService {
     customName?: string
   ): Promise<BackupInfo> {
     const startTime = performance.now();
-    
+
     try {
       // Gather data from all specified entities
       const data = await this.gatherEntityData(options.entities);
-      
+
       // Apply filters
       const filteredData = this.applyDataFilters(data, options);
-      
+
       // Generate backup metadata
       const metadata = {
         version: '1.0.0',
         deviceId: this.getDeviceId(),
         entryCount: this.calculateEntryCount(filteredData),
         createdAt: new Date().toISOString(),
-        options
+        options,
       };
 
       // Compress data if requested
-      const finalData = options.compressed 
+      const finalData = options.compressed
         ? await this.compressData({ data: filteredData, metadata })
         : { data: filteredData, metadata };
 
@@ -214,8 +217,8 @@ export class BackupService {
         metadata: {
           version: metadata.version,
           deviceId: metadata.deviceId,
-          entryCount: metadata.entryCount
-        }
+          entryCount: metadata.entryCount,
+        },
       };
 
       // Store backup
@@ -228,12 +231,17 @@ export class BackupService {
       }
 
       const endTime = performance.now();
-      logger.info('Backup created', 'backup', { name: backup.name, durationMs: Math.round(endTime - startTime) });
+      logger.info('Backup created', 'backup', {
+        name: backup.name,
+        durationMs: Math.round(endTime - startTime),
+      });
 
       return backup;
     } catch (error) {
       logger.error('Backup creation failed', 'backup', {}, error as Error);
-      throw new Error(`Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -286,7 +294,7 @@ export class BackupService {
   private async getEntityData(entityType: string): Promise<unknown[]> {
     // Simulate data retrieval from stores
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Return mock data - in real implementation, get from actual stores
     const mockData = {
       shows: this.generateMockShows(),
@@ -295,7 +303,7 @@ export class BackupService {
       people: this.generateMockPeople(),
       classes: this.generateMockClasses(),
       results: this.generateMockResults(),
-      settings: this.generateMockSettings()
+      settings: this.generateMockSettings(),
     };
 
     return mockData[entityType as keyof typeof mockData] || [];
@@ -304,7 +312,10 @@ export class BackupService {
   /**
    * Apply data filters based on export options
    */
-  private applyDataFilters(data: Record<string, unknown[]>, options: ExportOptions): Record<string, unknown[]> {
+  private applyDataFilters(
+    data: Record<string, unknown[]>,
+    options: ExportOptions
+  ): Record<string, unknown[]> {
     const filtered: Record<string, unknown[]> = {};
 
     for (const [entityType, entityData] of Object.entries(data)) {
@@ -312,7 +323,9 @@ export class BackupService {
 
       // Filter out deleted items if not included
       if (!options.includeDeleted) {
-        filteredEntityData = filteredEntityData.filter(item => !(item as Record<string, unknown>).isDeleted);
+        filteredEntityData = filteredEntityData.filter(
+          item => !(item as Record<string, unknown>).isDeleted
+        );
       }
 
       // Apply date range filter if specified
@@ -320,9 +333,9 @@ export class BackupService {
         filteredEntityData = filteredEntityData.filter(item => {
           const itemRecord = item as Record<string, unknown>;
           const itemDate = new Date(
-            (itemRecord.createdAt as string) || 
-            (itemRecord.date as string) || 
-            (itemRecord.updatedAt as string)
+            (itemRecord.createdAt as string) ||
+              (itemRecord.date as string) ||
+              (itemRecord.updatedAt as string)
           );
           return itemDate >= options.dateRange!.start && itemDate <= options.dateRange!.end;
         });
@@ -344,7 +357,7 @@ export class BackupService {
       compressed: true,
       originalSize: JSON.stringify(data).length,
       compressedSize: compressed.length,
-      data: compressed
+      data: compressed,
     };
   }
 
@@ -359,7 +372,7 @@ export class BackupService {
         errors: ['Backup not found'],
         warnings: [],
         size: 0,
-        checksum: ''
+        checksum: '',
       };
     }
 
@@ -368,17 +381,17 @@ export class BackupService {
       errors: [],
       warnings: [],
       size: backup.size,
-      checksum: ''
+      checksum: '',
     };
 
     try {
       // Retrieve backup data
       const backupData = await this.retrieveBackup(backupId);
-      
+
       // Verify checksum
       const currentChecksum = await this.generateChecksum(backupData);
       const storedChecksum = await this.getStoredChecksum(backupId);
-      
+
       if (currentChecksum !== storedChecksum) {
         validation.errors.push('Checksum mismatch - backup may be corrupted');
         validation.isValid = false;
@@ -410,9 +423,10 @@ export class BackupService {
         validation.errors.push('Missing backup data');
         validation.isValid = false;
       }
-
     } catch (error) {
-      validation.errors.push(`Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      validation.errors.push(
+        `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
       validation.isValid = false;
     }
 
@@ -423,7 +437,7 @@ export class BackupService {
    * Restore data from backup
    */
   public async restoreBackup(
-    backupId: string, 
+    backupId: string,
     options: {
       entities?: string[];
       overwriteExisting?: boolean;
@@ -453,11 +467,9 @@ export class BackupService {
 
       // Retrieve backup data
       const backupData = await this.retrieveBackup(backupId);
-      
+
       // Decompress if necessary
-      const restoredData = backup.compressed 
-        ? await this.decompressData(backupData)
-        : backupData;
+      const restoredData = backup.compressed ? await this.decompressData(backupData) : backupData;
 
       // Restore entities
       const entitiesToRestore = options.entities || backup.entities;
@@ -471,7 +483,9 @@ export class BackupService {
       logger.info('Successfully restored backup', 'backup', { name: backup.name });
     } catch (error) {
       logger.error('Backup restoration failed', 'backup', {}, error as Error);
-      throw new Error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -490,7 +504,9 @@ export class BackupService {
       logger.info('Backup deleted', 'backup', { name: backup.name });
     } catch (error) {
       logger.error('Failed to delete backup', 'backup', { name: backup.name }, error as Error);
-      throw new Error(`Failed to delete backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to delete backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -498,8 +514,9 @@ export class BackupService {
    * Get all available backups
    */
   public getBackups(): BackupInfo[] {
-    return Array.from(this.activeBackups.values())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return Array.from(this.activeBackups.values()).sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
   }
 
   /**
@@ -507,7 +524,7 @@ export class BackupService {
    */
   public updateSchedule(schedule: Partial<BackupSchedule>): void {
     this.schedule = { ...this.schedule, ...schedule };
-    
+
     // Reinitialize scheduler if enabled status changed
     if (schedule.enabled !== undefined) {
       this.initializeScheduler();
@@ -552,7 +569,7 @@ export class BackupService {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(16);
@@ -598,9 +615,17 @@ export class BackupService {
     return data;
   }
 
-  private async restoreEntityData(entityType: string, data: unknown[], overwrite = false): Promise<void> {
+  private async restoreEntityData(
+    entityType: string,
+    data: unknown[],
+    overwrite = false
+  ): Promise<void> {
     // In real implementation, restore data to actual stores
-    logger.debug('Restoring entity data', 'backup', { entityType, itemCount: data.length, overwrite });
+    logger.debug('Restoring entity data', 'backup', {
+      entityType,
+      itemCount: data.length,
+      overwrite,
+    });
 
     // Simulate restore delay
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -613,7 +638,7 @@ export class BackupService {
 
     if (autoBackups.length > this.schedule.maxBackups) {
       const backupsToDelete = autoBackups.slice(this.schedule.maxBackups);
-      
+
       for (const backup of backupsToDelete) {
         await this.deleteBackup(backup.id);
       }
@@ -628,7 +653,7 @@ export class BackupService {
       date: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000),
       location: `Location ${i + 1}`,
       createdAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     }));
   }
 
@@ -638,7 +663,7 @@ export class BackupService {
       showId: `show-${Math.floor(Math.random() * 25) + 1}`,
       dogId: `dog-${Math.floor(Math.random() * 450) + 1}`,
       createdAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     }));
   }
 
@@ -648,7 +673,7 @@ export class BackupService {
       name: `Dog ${i + 1}`,
       breed: 'Labrador',
       createdAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     }));
   }
 
@@ -658,7 +683,7 @@ export class BackupService {
       name: `User ${i + 1}`,
       email: `person${i + 1}@example.com`,
       createdAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     }));
   }
 
@@ -668,7 +693,7 @@ export class BackupService {
       name: `Class ${i + 1}`,
       showId: `show-${Math.floor(Math.random() * 25) + 1}`,
       createdAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     }));
   }
 
@@ -678,18 +703,20 @@ export class BackupService {
       entryId: `entry-${Math.floor(Math.random() * 1250) + 1}`,
       placement: Math.floor(Math.random() * 10) + 1,
       createdAt: new Date(),
-      isDeleted: false
+      isDeleted: false,
     }));
   }
 
   private generateMockSettings(): unknown[] {
-    return [{
-      id: 'settings-1',
-      syncEnabled: true,
-      autoBackup: true,
-      createdAt: new Date(),
-      isDeleted: false
-    }];
+    return [
+      {
+        id: 'settings-1',
+        syncEnabled: true,
+        autoBackup: true,
+        createdAt: new Date(),
+        isDeleted: false,
+      },
+    ];
   }
 }
 

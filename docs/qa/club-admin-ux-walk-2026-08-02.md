@@ -34,22 +34,22 @@ Required proof fixture: the existing MYK9-137 contract — a dedicated account w
 
 ## Coverage and evidence
 
-| Workflow | Browser result | Evidence and boundary |
-| --- | --- | --- |
-| Sign-in, reload recovery, sign-out | Passed | Two-step sign-in succeeded; protected-route reload restored the authenticated UI; sign-out returned to the public surface; revisiting `/club-admin/members` redirected to sign-in with the intended return route. |
-| Club selection and active context | Passed for UI; authorization blocked | Club choice listed four clubs. Selecting Heartland showed the club in the breadcrumb, heading, switcher, and sidebar. Selecting E2E Club A on Payments and using SPA navigation preserved that selection. |
-| Members and officers | Passed read-only | Heartland showed three active members, zero officers; search reduced the roster to the expected row; empty-officer guidance and assignment dialog were explicit. Add Member and Assign Officer dialogs were opened and cancelled. |
-| Member row actions | Passed reachability; mutation blocked | The last-row action menu was pointer-operable and fully inside desktop and mobile viewports. Change Type, Change Status, Show Access, and Remove were discoverable but not invoked. |
-| Club profile/contact | Passed read-only | About, Members, and Branding tabs activated; Edit exposed Basic Info and Contact with Save disabled until a change; no value was changed. Existing contact behavior remained usable. |
-| Membership consistency | **Failed** | `/club-admin/members` reported three active Heartland members while the profile reported `Active Members 0`, `Members 0`, and `No Members Yet` at every viewport. See CUX-2026-08-02-01. |
-| Staff invitations | Partially verified; delivery blocked | Club Add Member supports existing people. Site-admin User Management has Create & Invite plus Send Invitation for an existing no-account person. No email was sent. Invitation delivery, expiry, resend history, and club-admin authority require an interception fixture or approval. |
-| Club-scoped roles | UI present; authorization blocked | Manage Roles reveals club selection when Club Admin is checked, but the unsaved dialog was cancelled. Assignments are read from the permissions ledger and grants are consolidated in User Management. No role was saved. |
-| Payment-account setup | Passed safe boundary | On no-account E2E Club A, `Connect payment account` opened the preflight checklist and `Not now` closed it by pointer at desktop and mobile. `Continue to Stripe` was not activated. A Stripe-verification failure showed calm explanatory copy and `Try again`. |
-| Reconciliation and payouts | Passed available read-only states | Heartland showed payouts enabled and an empty per-show reconciliation state. No connected payment account, payout, transfer, or Stripe record was changed. Amount-level reconciliation could not be verified because the seeded view was empty. |
-| Club show oversight | Passed navigation | `Our Shows` deep-linked to the existing Shows page with the club filter visibly applied. Opening the Heartland show led to the existing Show Desk, Entry Management, Reports, Results, and Check-In surfaces; secretary operations were not repeated. |
-| Audit/history | Partial, site-admin only | Roles & Permissions exposed a read-only assignments ledger and grant/revoke audit tab. The audit used raw IDs and no club-officer-specific history surface was discoverable. This is a governance enhancement, not a new-page recommendation. |
-| Loading/empty/error/retry/stale/confirmation | Covered | Protected-route loading, empty members/officers/reconciliation, payment no-account, Stripe verification error/retry, dialog cancellation, and the stale membership contradiction were observed. Saved confirmations and interrupted persisted mutations were intentionally not exercised. |
-| Responsive usability | Passed except shared defect | No page-level horizontal overflow at 768×1024 or 390×844. The member table removes secondary columns on mobile; row actions remain reachable. The membership contradiction persists at all viewports. |
+| Workflow                                     | Browser result                        | Evidence and boundary                                                                                                                                                                                                                                                                     |
+| -------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-in, reload recovery, sign-out           | Passed                                | Two-step sign-in succeeded; protected-route reload restored the authenticated UI; sign-out returned to the public surface; revisiting `/club-admin/members` redirected to sign-in with the intended return route.                                                                         |
+| Club selection and active context            | Passed for UI; authorization blocked  | Club choice listed four clubs. Selecting Heartland showed the club in the breadcrumb, heading, switcher, and sidebar. Selecting E2E Club A on Payments and using SPA navigation preserved that selection.                                                                                 |
+| Members and officers                         | Passed read-only                      | Heartland showed three active members, zero officers; search reduced the roster to the expected row; empty-officer guidance and assignment dialog were explicit. Add Member and Assign Officer dialogs were opened and cancelled.                                                         |
+| Member row actions                           | Passed reachability; mutation blocked | The last-row action menu was pointer-operable and fully inside desktop and mobile viewports. Change Type, Change Status, Show Access, and Remove were discoverable but not invoked.                                                                                                       |
+| Club profile/contact                         | Passed read-only                      | About, Members, and Branding tabs activated; Edit exposed Basic Info and Contact with Save disabled until a change; no value was changed. Existing contact behavior remained usable.                                                                                                      |
+| Membership consistency                       | **Failed**                            | `/club-admin/members` reported three active Heartland members while the profile reported `Active Members 0`, `Members 0`, and `No Members Yet` at every viewport. See CUX-2026-08-02-01.                                                                                                  |
+| Staff invitations                            | Partially verified; delivery blocked  | Club Add Member supports existing people. Site-admin User Management has Create & Invite plus Send Invitation for an existing no-account person. No email was sent. Invitation delivery, expiry, resend history, and club-admin authority require an interception fixture or approval.    |
+| Club-scoped roles                            | UI present; authorization blocked     | Manage Roles reveals club selection when Club Admin is checked, but the unsaved dialog was cancelled. Assignments are read from the permissions ledger and grants are consolidated in User Management. No role was saved.                                                                 |
+| Payment-account setup                        | Passed safe boundary                  | On no-account E2E Club A, `Connect payment account` opened the preflight checklist and `Not now` closed it by pointer at desktop and mobile. `Continue to Stripe` was not activated. A Stripe-verification failure showed calm explanatory copy and `Try again`.                          |
+| Reconciliation and payouts                   | Passed available read-only states     | Heartland showed payouts enabled and an empty per-show reconciliation state. No connected payment account, payout, transfer, or Stripe record was changed. Amount-level reconciliation could not be verified because the seeded view was empty.                                           |
+| Club show oversight                          | Passed navigation                     | `Our Shows` deep-linked to the existing Shows page with the club filter visibly applied. Opening the Heartland show led to the existing Show Desk, Entry Management, Reports, Results, and Check-In surfaces; secretary operations were not repeated.                                     |
+| Audit/history                                | Partial, site-admin only              | Roles & Permissions exposed a read-only assignments ledger and grant/revoke audit tab. The audit used raw IDs and no club-officer-specific history surface was discoverable. This is a governance enhancement, not a new-page recommendation.                                             |
+| Loading/empty/error/retry/stale/confirmation | Covered                               | Protected-route loading, empty members/officers/reconciliation, payment no-account, Stripe verification error/retry, dialog cancellation, and the stale membership contradiction were observed. Saved confirmations and interrupted persisted mutations were intentionally not exercised. |
+| Responsive usability                         | Passed except shared defect           | No page-level horizontal overflow at 768×1024 or 390×844. The member table removes secondary columns on mobile; row actions remain reachable. The membership contradiction persists at all viewports.                                                                                     |
 
 ## Safe mutation ledger
 
@@ -62,17 +62,17 @@ No persistent record was created, edited, removed, granted, revoked, invited, pa
 
 ## Finding counts
 
-| Dimension | Count |
-| --- | ---: |
-| New | 1 |
-| Resolved | 1 |
-| Blocked | 1 coverage contract |
-| Unchanged confirmed defects | 0 |
-| Confirmed defect | 2 total outcomes: 1 new, 1 resolved |
-| Authorization/scope | 1 blocked, not confirmed by this account |
-| Financial | 1 resolved interaction finding; empty-data reconciliation gap remains |
-| Accessibility | 0 new |
-| Test/environment | 0 confirmed |
+| Dimension                   |                                                                 Count |
+| --------------------------- | --------------------------------------------------------------------: |
+| New                         |                                                                     1 |
+| Resolved                    |                                                                     1 |
+| Blocked                     |                                                   1 coverage contract |
+| Unchanged confirmed defects |                                                                     0 |
+| Confirmed defect            |                                   2 total outcomes: 1 new, 1 resolved |
+| Authorization/scope         |                              1 blocked, not confirmed by this account |
+| Financial                   | 1 resolved interaction finding; empty-data reconciliation gap remains |
+| Accessibility               |                                                                 0 new |
+| Test/environment            |                                                           0 confirmed |
 
 ## Findings by severity
 
@@ -126,19 +126,19 @@ No finding reached two consecutive automation runs, so nothing was promoted as r
 
 ## Recent merged PR verification (previous 48 hours)
 
-| PR | Status | Browser evidence |
-| --- | --- | --- |
-| #1564 row-action portals | **Verified** | Last member-row menu opened by pointer and stayed within 1440×900 and 390×844. |
-| #1562 role-assignment consolidation | **Blocked** | Browser confirmed grants originate in User Management and the permissions ledger is read-oriented; role save/bulk replacement was unsafe, and MYK9-152 remains open. |
-| #1559 user search | **Verified** | User Management search found the intended existing people before invitation/role inspection. |
-| #1555 site-admin club recovery | **Verified** for its stated site-admin path | Site admin reached club pages, received an explicit four-club choice, and retained the selected club during SPA navigation. It cannot prove club-admin-only scope. |
-| #1553 User Management truth/a11y | **Verified** in bounded read-only use | The person surface distinguished an identity with no sign-in account and exposed labelled actions. Full accessibility conformance was not re-audited. |
-| #1551 existing-person invitations | **Blocked** | `Send Invitation` was visible for a no-account person, but sending email was an external/shared mutation. |
-| #1550 Create & Invite | **Blocked** | Dialog and default invitation switch were browser-visible; submission and delivery were not authorized. |
-| #1547 club readiness stability | **Verified** | Club choices reached terminal states, and the no-account payment checklist passed the previously blocked pointer replay. |
-| #1541 cross-tenant SQL test | **Not applicable** | Database test hardening is not browser evidence for a club-admin role, and the contaminated account cannot verify it. |
-| #1538 cross-tenant show creation | **Blocked** | The security boundary needs a single-role fixture and safe rejected mutation; secretary show creation was outside this walk. |
-| #1561 security remediation batch | **Not applicable** | No directly affected club-governance browser acceptance criterion was identified beyond the separately tracked RBAC work above. |
+| PR                                  | Status                                      | Browser evidence                                                                                                                                                     |
+| ----------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1564 row-action portals            | **Verified**                                | Last member-row menu opened by pointer and stayed within 1440×900 and 390×844.                                                                                       |
+| #1562 role-assignment consolidation | **Blocked**                                 | Browser confirmed grants originate in User Management and the permissions ledger is read-oriented; role save/bulk replacement was unsafe, and MYK9-152 remains open. |
+| #1559 user search                   | **Verified**                                | User Management search found the intended existing people before invitation/role inspection.                                                                         |
+| #1555 site-admin club recovery      | **Verified** for its stated site-admin path | Site admin reached club pages, received an explicit four-club choice, and retained the selected club during SPA navigation. It cannot prove club-admin-only scope.   |
+| #1553 User Management truth/a11y    | **Verified** in bounded read-only use       | The person surface distinguished an identity with no sign-in account and exposed labelled actions. Full accessibility conformance was not re-audited.                |
+| #1551 existing-person invitations   | **Blocked**                                 | `Send Invitation` was visible for a no-account person, but sending email was an external/shared mutation.                                                            |
+| #1550 Create & Invite               | **Blocked**                                 | Dialog and default invitation switch were browser-visible; submission and delivery were not authorized.                                                              |
+| #1547 club readiness stability      | **Verified**                                | Club choices reached terminal states, and the no-account payment checklist passed the previously blocked pointer replay.                                             |
+| #1541 cross-tenant SQL test         | **Not applicable**                          | Database test hardening is not browser evidence for a club-admin role, and the contaminated account cannot verify it.                                                |
+| #1538 cross-tenant show creation    | **Blocked**                                 | The security boundary needs a single-role fixture and safe rejected mutation; secretary show creation was outside this walk.                                         |
+| #1561 security remediation batch    | **Not applicable**                          | No directly affected club-governance browser acceptance criterion was identified beyond the separately tracked RBAC work above.                                      |
 
 ## Existing references
 

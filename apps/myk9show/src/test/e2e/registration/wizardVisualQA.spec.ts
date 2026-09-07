@@ -43,7 +43,9 @@ async function assertWizardShell(page: Page, consoleErrors: string[]) {
   expect(connector!.x).toBeGreaterThanOrEqual(firstCircle!.x + firstCircle!.width - 1);
   expect(connector!.x + connector!.width).toBeLessThanOrEqual(secondCircle!.x + 1);
 
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth
+  );
   expect(Math.max(0, overflow)).toBe(0);
   expect(consoleErrors).toEqual([]);
 }
@@ -74,7 +76,9 @@ async function selectFirstClass(page: Page) {
 }
 
 for (const scenario of VISUAL_MATRIX) {
-  test(`registration wizard ${scenario.name} has no shell regressions`, async ({ page }, testInfo) => {
+  test(`registration wizard ${scenario.name} has no shell regressions`, async ({
+    page,
+  }, testInfo) => {
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
     await page.emulateMedia({ colorScheme: scenario.colorScheme });
     await page.addInitScript(({ colorScheme }) => {
@@ -114,7 +118,9 @@ for (const scenario of VISUAL_MATRIX) {
   });
 }
 
-test('registration wizard covers dog, class, payment, and draft dialog states', async ({ page }, testInfo) => {
+test('registration wizard covers dog, class, payment, and draft dialog states', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'light' });
   await page.addInitScript(() => {

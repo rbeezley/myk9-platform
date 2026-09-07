@@ -72,8 +72,8 @@ describe('ReplicatedTableBatchManager', () => {
 
       const rows = await getAllRows();
       expect(rows).toHaveLength(2);
-      expect(rows.every((r) => typeof r.id === 'string')).toBe(true);
-      expect(rows.map((r) => r.id).sort()).toEqual(['123', '42']);
+      expect(rows.every(r => typeof r.id === 'string')).toBe(true);
+      expect(rows.map(r => r.id).sort()).toEqual(['123', '42']);
     });
 
     it('should set all rows as synced and not dirty', async () => {

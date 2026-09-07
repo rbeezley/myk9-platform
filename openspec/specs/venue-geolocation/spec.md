@@ -1,8 +1,11 @@
 # venue-geolocation Specification
 
 ## Purpose
+
 Shows carry optional venue coordinates, captured by the secretary via a geocoded, draggable map pin in the show-creation wizard and Show Settings, with geocoding failures never blocking show management.
+
 ## Requirements
+
 ### Requirement: Shows store optional venue coordinates
 
 The `public.shows` table SHALL have nullable `latitude` and `longitude` (double precision) columns. Anonymous and authenticated clients SHALL be able to SELECT both columns (the browse surface is public). Column access SHALL be verified against the applied database (`pg_class.relacl` / `pg_attribute.attacl`), not the migration text alone.

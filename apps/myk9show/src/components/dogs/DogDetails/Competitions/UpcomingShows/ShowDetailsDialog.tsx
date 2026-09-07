@@ -15,7 +15,7 @@ interface ShowDetailsDialogProps {
 
 const ShowDetailsDialog: React.FC<ShowDetailsDialogProps> = ({ open, show, onClose }) => {
   if (!show) return null;
-  
+
   return (
     <StandardDialog
       open={open}
@@ -34,7 +34,13 @@ const ShowDetailsDialog: React.FC<ShowDetailsDialogProps> = ({ open, show, onClo
         </div>
         <div>
           <label className="block text-xs font-medium mb-1">Date</label>
-          <div>{'startDate' in show ? formatDateMMDDYYYY(show.startDate) : 'date' in show ? formatDateMMDDYYYY(show.date) : ''}</div>
+          <div>
+            {'startDate' in show
+              ? formatDateMMDDYYYY(show.startDate)
+              : 'date' in show
+                ? formatDateMMDDYYYY(show.date)
+                : ''}
+          </div>
         </div>
         <div>
           <label className="block text-xs font-medium mb-1">Location</label>
@@ -50,7 +56,11 @@ const ShowDetailsDialog: React.FC<ShowDetailsDialogProps> = ({ open, show, onClo
         </div>
         <div>
           <label className="block text-xs font-medium mb-1">Events</label>
-          <div>{'events' in show && Array.isArray(show.events) && show.events.length > 0 ? show.events.join(', ') : '-'}</div>
+          <div>
+            {'events' in show && Array.isArray(show.events) && show.events.length > 0
+              ? show.events.join(', ')
+              : '-'}
+          </div>
         </div>
       </div>
     </StandardDialog>

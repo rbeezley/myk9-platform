@@ -19,8 +19,8 @@ if (!supabaseUrl || !serviceRoleKey) {
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
     autoRefreshToken: false,
-    persistSession: false
-  }
+    persistSession: false,
+  },
 });
 
 export const SECRETARY_TEST_USER = {
@@ -28,7 +28,7 @@ export const SECRETARY_TEST_USER = {
   password: 'SecretaryTest123!',
   id: 'b1ffbc99-9c0b-4ef8-bb6d-6bb9bd380a22',
   firstName: 'Secretary',
-  lastName: 'Tester'
+  lastName: 'Tester',
 };
 
 async function createSecretaryTestUser() {
@@ -65,8 +65,8 @@ async function createSecretaryTestUser() {
       email_confirm: true,
       user_metadata: {
         first_name: SECRETARY_TEST_USER.firstName,
-        last_name: SECRETARY_TEST_USER.lastName
-      }
+        last_name: SECRETARY_TEST_USER.lastName,
+      },
     });
 
     if (authError) {
@@ -77,17 +77,15 @@ async function createSecretaryTestUser() {
 
     // Create public user record with secretary role
     console.log('Creating user profile with secretary role...');
-    const { error: profileError } = await supabase
-      .from('user')
-      .insert([
-        {
-          user_id: SECRETARY_TEST_USER.id,
-          first_name: SECRETARY_TEST_USER.firstName,
-          last_name: SECRETARY_TEST_USER.lastName,
-          email: SECRETARY_TEST_USER.email,
-          roles: ['secretary', 'exhibitor']
-        }
-      ]);
+    const { error: profileError } = await supabase.from('user').insert([
+      {
+        user_id: SECRETARY_TEST_USER.id,
+        first_name: SECRETARY_TEST_USER.firstName,
+        last_name: SECRETARY_TEST_USER.lastName,
+        email: SECRETARY_TEST_USER.email,
+        roles: ['secretary', 'exhibitor'],
+      },
+    ]);
 
     if (profileError) {
       console.warn('Profile creation failed (may already exist):', profileError.message);
@@ -99,7 +97,7 @@ async function createSecretaryTestUser() {
     console.log('Testing authentication...');
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: SECRETARY_TEST_USER.email,
-      password: SECRETARY_TEST_USER.password
+      password: SECRETARY_TEST_USER.password,
     });
 
     if (signInError) {
@@ -115,7 +113,6 @@ async function createSecretaryTestUser() {
     console.log('Roles: secretary, exhibitor');
 
     return authData.user;
-
   } catch (error) {
     console.error('Failed to create secretary test user:', error.message);
     process.exit(1);

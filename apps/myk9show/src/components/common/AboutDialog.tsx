@@ -8,11 +8,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog/dialog';
 import { productVersion, formattedBuildLabel } from '@/config/appVersion';
-import {
-  applyPwaUpdate,
-  checkForPwaUpdate,
-  onUpdateAvailable,
-} from '@/services/pwa/pwaUpdate';
+import { applyPwaUpdate, checkForPwaUpdate, onUpdateAvailable } from '@/services/pwa/pwaUpdate';
 
 interface AboutDialogProps {
   open: boolean;

@@ -27,7 +27,7 @@ Evaluate the Information Architecture of an existing role surface, feature area,
 - **Visual / interaction issues only** → use `UX-Audit` instead (its Pass 2 covers IA as one of 6 dimensions; that's enough if IA isn't the primary suspect)
 - **Operational health** (console errors, broken UI) → use `audit-pages`
 - **Single-feature task walks** → use `qa-feature`
-- **Greenfield design from a PRD** → IA review is for *existing* implementations; for new features use `UX-to-Prompt`
+- **Greenfield design from a PRD** → IA review is for _existing_ implementations; for new features use `UX-to-Prompt`
 
 If unsure: run UX-Audit's Pass 2 first as a screening step. If Pass 2 surfaces 3+ IA findings or any Critical/High IA issue, escalate to a full IA-Review.
 
@@ -35,14 +35,14 @@ If unsure: run UX-Audit's Pass 2 first as a screening step. If Pass 2 surfaces 3
 
 The audit can work from any of these (combine for deeper analysis):
 
-| Source                             | How to Provide                                      | Best For                                |
-| ---------------------------------- | --------------------------------------------------- | --------------------------------------- |
-| **Route map**                      | The repo's route definitions (e.g., `routes/`)      | Step 1 — Route audit                    |
-| **Live walkthrough**               | Drive the app via `qa-feature` or playwright-cli    | Step 2 — Task flow walk                 |
-| **Codebase**                       | Page components + nav config + breadcrumb logic     | Identifying duplication, orphan pages   |
-| **Screenshots**                    | Annotated screenshots of current navigation         | Visualizing the mental model mismatch   |
-| **Product owner intuition**        | Conversation with the user about felt friction      | Step 3 — Mental model check             |
-| **Existing Linear issues / brainstorm** | Captured user-felt friction may already name issues | Speeds up Step 1 and Step 4             |
+| Source                                  | How to Provide                                      | Best For                              |
+| --------------------------------------- | --------------------------------------------------- | ------------------------------------- |
+| **Route map**                           | The repo's route definitions (e.g., `routes/`)      | Step 1 — Route audit                  |
+| **Live walkthrough**                    | Drive the app via `qa-feature` or playwright-cli    | Step 2 — Task flow walk               |
+| **Codebase**                            | Page components + nav config + breadcrumb logic     | Identifying duplication, orphan pages |
+| **Screenshots**                         | Annotated screenshots of current navigation         | Visualizing the mental model mismatch |
+| **Product owner intuition**             | Conversation with the user about felt friction      | Step 3 — Mental model check           |
+| **Existing Linear issues / brainstorm** | Captured user-felt friction may already name issues | Speeds up Step 1 and Step 4           |
 
 ## Output Location
 
@@ -70,7 +70,7 @@ When in doubt, scope to one surface. A deep audit of one feels-spread-out surfac
 
 ## Before You Begin: Check Architectural Commitments
 
-Before naming things "wrong," confirm they aren't *deliberate*. Read:
+Before naming things "wrong," confirm they aren't _deliberate_. Read:
 
 - `CLAUDE.md` and any `docs/INTENT.md` — both may specify intentional design choices.
 - Any `// INTENT:` code comments on routes or page components.
@@ -107,9 +107,9 @@ Execute IN ORDER. Each step produces findings before the next begins.
 
 **Surface scope:** [Name]
 
-| Route | Purpose | Target user | Parent in IA | Component |
-|-------|---------|-------------|--------------|-----------|
-| `/...` | [One sentence] | [Role] | [Parent or "(top)"] | `path/to/Component.tsx` |
+| Route  | Purpose        | Target user | Parent in IA        | Component               |
+| ------ | -------------- | ----------- | ------------------- | ----------------------- |
+| `/...` | [One sentence] | [Role]      | [Parent or "(top)"] | `path/to/Component.tsx` |
 
 **Orphan routes:** [Routes that exist but no nav links to them]
 **Duplicate-purpose routes:** [Routes serving overlapping purposes]
@@ -136,9 +136,10 @@ Execute IN ORDER. Each step produces findings before the next begins.
 **Tasks tested:** [List]
 
 ### Task: [Name]
-| Step | Action | Route | Friction | Severity |
-|------|--------|-------|----------|----------|
-| 1 | [User action] | [Route] | [Issue or "none"] | High/Med/Low/None |
+
+| Step | Action        | Route   | Friction          | Severity          |
+| ---- | ------------- | ------- | ----------------- | ----------------- |
+| 1    | [User action] | [Route] | [Issue or "none"] | High/Med/Low/None |
 
 **Context switches:** [Number of distinct routes traversed]
 **Dead ends:** [Where the user was stuck with no clear next step]
@@ -155,7 +156,7 @@ Repeat per task. Highlight tasks with >2 context switches or any "broken" verdic
 
 **How to execute:**
 
-1. List the surface's distinct *capabilities* (not pages — what a user can DO).
+1. List the surface's distinct _capabilities_ (not pages — what a user can DO).
 2. Ask: how would the target user group these? (5–9 groups is typical; >12 indicates either real complexity or poor grouping.)
 3. Compare to the actual route grouping.
 4. Mismatch between user-mental-grouping and actual-route-grouping is IA debt.
@@ -178,22 +179,26 @@ Document which method was used.
 **Method used:** [Product owner / fresh contributor / domain expert / multiple]
 
 **Capabilities (what users can DO):**
+
 - [Capability 1]
 - [Capability 2]
 - ...
 
 **User mental grouping:**
+
 - [Group A]: [capabilities]
 - [Group B]: [capabilities]
 
 **Actual route grouping:**
+
 - `/route-prefix-1/`: [capabilities surfaced]
 - `/route-prefix-2/`: [capabilities surfaced]
 
 **Mismatches:**
-| Capability | User expects in | Actually lives in | Severity |
-|------------|-----------------|-------------------|----------|
-| [What] | [Group user expects] | [Where it actually is] | High/Med/Low |
+
+| Capability | User expects in      | Actually lives in      | Severity     |
+| ---------- | -------------------- | ---------------------- | ------------ |
+| [What]     | [Group user expects] | [Where it actually is] | High/Med/Low |
 ```
 
 ---
@@ -214,13 +219,15 @@ Document which method was used.
 ## Step 4: Duplication & Orphan Scan
 
 **Task duplication:**
-| Task | Paths available | Recommended consolidation |
-|------|-----------------|---------------------------|
+
+| Task   | Paths available  | Recommended consolidation         |
+| ------ | ---------------- | --------------------------------- |
 | [Task] | [Routes A, B, C] | [Pick one + redirect from others] |
 
 **Orphan routes:**
-| Route | Status | Recommendation |
-|-------|--------|----------------|
+
+| Route  | Status                  | Recommendation                                          |
+| ------ | ----------------------- | ------------------------------------------------------- |
 | `/...` | No incoming links found | Delete / link from [where] / keep for direct URL access |
 
 **Modal/inline duplications:** [Cases where the same UI exists as both a modal and a route — usually pick one]
@@ -234,29 +241,29 @@ Document which method was used.
 
 **Scoring rubric:** rate each finding from Steps 1–4 on three axes (1–5 each, sum = total):
 
-| Axis | 1 (low) | 3 (medium) | 5 (high) |
-|------|---------|------------|----------|
-| **Frequency** — how often a user hits the issue | Rare edge case | Common task | Every session |
+| Axis                                               | 1 (low)             | 3 (medium)                    | 5 (high)                       |
+| -------------------------------------------------- | ------------------- | ----------------------------- | ------------------------------ |
+| **Frequency** — how often a user hits the issue    | Rare edge case      | Common task                   | Every session                  |
 | **Friction** — how much it costs the user when hit | Minor inconvenience | Wrong turn or repeated clicks | User abandons / can't complete |
-| **Fix invasiveness** (INVERSE — lower is better) | One small change | Moderate refactor | Architecture-level migration |
+| **Fix invasiveness** (INVERSE — lower is better)   | One small change    | Moderate refactor             | Architecture-level migration   |
 
 Sum is 3–15. Map to priority:
 
-| Sum | Priority   | Action                                  |
-|-----|------------|-----------------------------------------|
-| 11+ | **Critical** | Fix immediately; blocks other IA work |
-| 8–10 | **High**    | Fix in the next phase                  |
-| 5–7  | **Medium**  | Plan for a later phase                 |
-| 3–4  | **Low**     | Document only; don't fix unless cheap   |
+| Sum  | Priority     | Action                                |
+| ---- | ------------ | ------------------------------------- |
+| 11+  | **Critical** | Fix immediately; blocks other IA work |
+| 8–10 | **High**     | Fix in the next phase                 |
+| 5–7  | **Medium**   | Plan for a later phase                |
+| 3–4  | **Low**      | Document only; don't fix unless cheap |
 
 **Required output:**
 
 ```markdown
 ## Step 5: Severity Scoring
 
-| Finding | Step | Frequency | Friction | Fix invasiveness | Sum | Priority |
-|---------|------|-----------|----------|------------------|-----|----------|
-| [Finding text] | [#] | [1–5] | [1–5] | [1–5] | [3–15] | Critical/High/Med/Low |
+| Finding        | Step | Frequency | Friction | Fix invasiveness | Sum    | Priority              |
+| -------------- | ---- | --------- | -------- | ---------------- | ------ | --------------------- |
+| [Finding text] | [#]  | [1–5]     | [1–5]    | [1–5]            | [3–15] | Critical/High/Med/Low |
 
 **Top 20% to fix in the next phase:** [List the Critical + High findings]
 **Documented but not fixed:** [Medium + Low summary]
@@ -284,9 +291,10 @@ Sum is 3–15. Map to priority:
 **Plan doc:** [Link to `docs/plan-ia-{surface}.md`]
 
 **Phase summary:**
-| Phase | Scope | Entry trigger | Exit criterion | Estimated PRs |
-|-------|-------|---------------|----------------|---------------|
-| A | [What lands] | [What gates start] | [What marks done] | [N] |
+
+| Phase | Scope        | Entry trigger      | Exit criterion    | Estimated PRs |
+| ----- | ------------ | ------------------ | ----------------- | ------------- |
+| A     | [What lands] | [What gates start] | [What marks done] | [N]           |
 ```
 
 ---
@@ -295,16 +303,16 @@ Sum is 3–15. Map to priority:
 
 Use these as a quick screening tool. Any single signal warrants further investigation; 3+ signals on the same surface strongly suggest a full IA-Review is needed.
 
-| Signal | What it means | Often found in |
-|--------|---------------|----------------|
-| **Same task, multiple homes** | "Can I do X here or do I have to go over there?" | Surfaces with overlapping role panels |
-| **Mode-dependent navigation** | Features depend on remembering which page you're on | Tab-heavy interfaces |
-| **Inconsistent breadcrumbs / parent relationships** | URL hierarchy doesn't match visual nesting | Deep route trees |
-| **Adjacent features in distant locations** | Tasks done together are nav-separated | Organically grown surfaces |
-| **Search as the *only* path to a feature** | Can't navigate to it via clicks | Large surfaces, admin tools |
-| **Tabs that aren't mutually exclusive** | "Both tabs apply to me at once" | Dashboard-style pages |
-| **Orphan pages** | Routes that exist but nothing links to them | Legacy routes, dead exits |
-| **Different routes doing the same thing** | Overlapping URLs serve overlapping purposes | Refactor-debt accumulation |
+| Signal                                              | What it means                                       | Often found in                        |
+| --------------------------------------------------- | --------------------------------------------------- | ------------------------------------- |
+| **Same task, multiple homes**                       | "Can I do X here or do I have to go over there?"    | Surfaces with overlapping role panels |
+| **Mode-dependent navigation**                       | Features depend on remembering which page you're on | Tab-heavy interfaces                  |
+| **Inconsistent breadcrumbs / parent relationships** | URL hierarchy doesn't match visual nesting          | Deep route trees                      |
+| **Adjacent features in distant locations**          | Tasks done together are nav-separated               | Organically grown surfaces            |
+| **Search as the _only_ path to a feature**          | Can't navigate to it via clicks                     | Large surfaces, admin tools           |
+| **Tabs that aren't mutually exclusive**             | "Both tabs apply to me at once"                     | Dashboard-style pages                 |
+| **Orphan pages**                                    | Routes that exist but nothing links to them         | Legacy routes, dead exits             |
+| **Different routes doing the same thing**           | Overlapping URLs serve overlapping purposes         | Refactor-debt accumulation            |
 
 ## Target State (what "connected" looks like)
 
@@ -315,20 +323,20 @@ For comparison — what good IA produces:
 3. **Adjacent things live adjacent.** Features users invoke together are nav-adjacent; tasks don't context-switch across the app.
 4. **Predictability.** A user who hasn't seen a screen before can guess what's behind a tab or button with ~80% accuracy.
 
-When all four are true, the surface feels *coherent*.
+When all four are true, the surface feels _coherent_.
 
 ## App-Specific Surface Priors
 
 Working knowledge of this app's surfaces, with current IA-debt estimates (refine as audits complete):
 
-| Surface              | Estimated IA debt | Status (2026-05-16)                                                  |
-| -------------------- | ----------------- | -------------------------------------------------------------------- |
-| **Secretary**        | High (in remediation) | Phase B IA consolidation in progress (see `docs/plan-show-day-sequencing.md`) |
-| **Exhibitor entry flow** | Medium-high      | High-traffic; revenue-critical; not yet audited                       |
-| **Admin / Site admin** | Medium             | Often accumulates one-off tools without IA discipline; not yet audited |
-| **Judge (myK9Q)**    | Low                | Separate app — strong IA decision; verify before assuming             |
-| **Public / browse**  | Medium             | Shows / clubs / people are three hierarchies that may not share a model |
-| **Club admin**       | Unknown            | Not yet audited; likely similar to secretary at smaller scale         |
+| Surface                  | Estimated IA debt     | Status (2026-05-16)                                                           |
+| ------------------------ | --------------------- | ----------------------------------------------------------------------------- |
+| **Secretary**            | High (in remediation) | Phase B IA consolidation in progress (see `docs/plan-show-day-sequencing.md`) |
+| **Exhibitor entry flow** | Medium-high           | High-traffic; revenue-critical; not yet audited                               |
+| **Admin / Site admin**   | Medium                | Often accumulates one-off tools without IA discipline; not yet audited        |
+| **Judge (myK9Q)**        | Low                   | Separate app — strong IA decision; verify before assuming                     |
+| **Public / browse**      | Medium                | Shows / clubs / people are three hierarchies that may not share a model       |
+| **Club admin**           | Unknown               | Not yet audited; likely similar to secretary at smaller scale                 |
 
 Update this table as audits complete.
 
@@ -343,21 +351,27 @@ Update this table as audits complete.
 **Scope:** [Surface name + boundary]
 
 ## Step 1: Route Audit
+
 [Required content]
 
 ## Step 2: Task Flow Walk
+
 [Required content]
 
 ## Step 3: Mental Model Check
+
 [Required content]
 
 ## Step 4: Duplication & Orphan Scan
+
 [Required content]
 
 ## Step 5: Severity Scoring
+
 [Required content]
 
 ## Step 6: Phased Remediation Plan
+
 [Required content + link to separate plan doc if produced]
 
 ---
@@ -366,6 +380,7 @@ Update this table as audits complete.
 
 **Overall IA health:** [Good / Needs Work / Critical Issues]
 **Top 3 findings:**
+
 1. [Finding] — [Priority]
 2. [Finding] — [Priority]
 3. [Finding] — [Priority]
@@ -376,13 +391,13 @@ Update this table as audits complete.
 
 ## Chaining With Other Skills
 
-| When you find...                                | Delegate to...                                                                 |
-| ----------------------------------------------- | ------------------------------------------------------------------------------ |
-| Visual / interaction issues during the audit    | `UX-Audit` — capture findings there, not in the IA review                      |
-| Real-browser flows are needed for Step 2        | `qa-feature` or `playwright-cli`                                               |
-| Console errors / broken UI surface during walk  | `audit-pages` — file the bug separately                                        |
-| Findings warrant a new feature                  | `UX-to-Prompt` (for redesigns) once the remediation plan is approved          |
-| Ready to implement a phase                      | Standard implementation flow → `simplify` → `commit` → `ship-pr`               |
+| When you find...                               | Delegate to...                                                       |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| Visual / interaction issues during the audit   | `UX-Audit` — capture findings there, not in the IA review            |
+| Real-browser flows are needed for Step 2       | `qa-feature` or `playwright-cli`                                     |
+| Console errors / broken UI surface during walk | `audit-pages` — file the bug separately                              |
+| Findings warrant a new feature                 | `UX-to-Prompt` (for redesigns) once the remediation plan is approved |
+| Ready to implement a phase                     | Standard implementation flow → `simplify` → `commit` → `ship-pr`     |
 
 ## v1.1 Refinement Notes
 

@@ -49,11 +49,33 @@ async function documentCurrentStateSimple(): Promise<void> {
 
   // List of known tables to check
   const knownTables = [
-    'people', 'dogs', 'shows', 'clubs', 'show_trials', 'classes', 'entries', 'results',
-    'dog_registrations', 'health_records', 'vaccinations', 'medications', 'allergies',
-    'vet_visits', 'achievements', 'judge_qualifications', 'class_templates', 'show_templates',
-    'template_fields', 'template_rules', 'sync_operations', 'sync_conflicts', 'sync_logs',
-    'user_preferences', 'search_queries', 'search_results', 'audit_logs'
+    'people',
+    'dogs',
+    'shows',
+    'clubs',
+    'show_trials',
+    'classes',
+    'entries',
+    'results',
+    'dog_registrations',
+    'health_records',
+    'vaccinations',
+    'medications',
+    'allergies',
+    'vet_visits',
+    'achievements',
+    'judge_qualifications',
+    'class_templates',
+    'show_templates',
+    'template_fields',
+    'template_rules',
+    'sync_operations',
+    'sync_conflicts',
+    'sync_logs',
+    'user_preferences',
+    'search_queries',
+    'search_results',
+    'audit_logs',
   ];
 
   // Check each table
@@ -67,14 +89,11 @@ async function documentCurrentStateSimple(): Promise<void> {
         documentation.tables_found.push({
           name: table,
           exists: true,
-          row_count: count || 0
+          row_count: count || 0,
         });
 
         // Get a sample row
-        const { data: sample } = await supabase
-          .from(table)
-          .select('*')
-          .limit(1);
+        const { data: sample } = await supabase.from(table).select('*').limit(1);
 
         if (sample && sample.length > 0) {
           documentation.sample_data[table] = sample[0];
@@ -83,7 +102,7 @@ async function documentCurrentStateSimple(): Promise<void> {
         documentation.tables_found.push({
           name: table,
           exists: false,
-          row_count: 0
+          row_count: 0,
         });
       }
     } catch {
@@ -91,7 +110,7 @@ async function documentCurrentStateSimple(): Promise<void> {
       documentation.tables_found.push({
         name: table,
         exists: false,
-        row_count: 0
+        row_count: 0,
       });
     }
   }

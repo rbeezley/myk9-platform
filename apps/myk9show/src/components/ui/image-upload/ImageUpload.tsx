@@ -135,25 +135,12 @@ export function ImageUpload({
 
       {/* Avatar with upload overlay */}
       <div
-        className={cn(
-          'relative cursor-pointer group',
-          disabled && 'cursor-not-allowed opacity-50'
-        )}
+        className={cn('relative cursor-pointer group', disabled && 'cursor-not-allowed opacity-50')}
         onClick={handleClick}
       >
-        <Avatar
-          className={cn(
-            sizeClasses[size],
-            shape === 'square' && 'rounded-lg'
-          )}
-        >
+        <Avatar className={cn(sizeClasses[size], shape === 'square' && 'rounded-lg')}>
           {displayImage && <AvatarImage src={displayImage} />}
-          <AvatarFallback
-            className={cn(
-              'bg-muted',
-              shape === 'square' && 'rounded-lg'
-            )}
-          >
+          <AvatarFallback className={cn('bg-muted', shape === 'square' && 'rounded-lg')}>
             {fallback}
           </AvatarFallback>
         </Avatar>
@@ -191,11 +178,7 @@ export function ImageUpload({
       )}
 
       {/* Error message */}
-      {error && (
-        <p className="text-xs text-destructive mt-2 text-center max-w-[150px]">
-          {error}
-        </p>
-      )}
+      {error && <p className="text-xs text-destructive mt-2 text-center max-w-[150px]">{error}</p>}
     </div>
   );
 }
@@ -308,7 +291,8 @@ export function ImageUploadButton({
 
       {error && <p className="text-xs text-destructive">{error}</p>}
       <p className="text-xs text-muted-foreground">
-        Max {validationInfo.maxSizeMB}MB. {validationInfo.allowedExtensions.join(', ').toUpperCase()}
+        Max {validationInfo.maxSizeMB}MB.{' '}
+        {validationInfo.allowedExtensions.join(', ').toUpperCase()}
       </p>
     </div>
   );

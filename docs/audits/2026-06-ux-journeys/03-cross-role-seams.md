@@ -15,32 +15,32 @@
 
 ## Evidence Index
 
-| Evidence | Artifact |
-| --- | --- |
-| Exhibitor My Shows / entry status hub | `artifacts/phase4-exhibitor-my-shows.png` |
-| Secretary dashboard | `artifacts/phase4-secretary-dashboard.png` |
-| Secretary Show Map entry actions | `artifacts/phase4-secretary-show-map-entry-actions.png` |
-| Exhibitor Edit Entry deadline block | `artifacts/phase4-exhibitor-edit-entry-deadline.png` |
-| Exhibitor message route blank state | `artifacts/phase4-exhibitor-message-route-empty.png` |
-| Secretary message history empty state | `artifacts/phase4-secretary-messages-empty.png` |
-| Secretary Message Center compose | `artifacts/phase4-secretary-message-center-compose.png` |
+| Evidence                                        | Artifact                                                         |
+| ----------------------------------------------- | ---------------------------------------------------------------- |
+| Exhibitor My Shows / entry status hub           | `artifacts/phase4-exhibitor-my-shows.png`                        |
+| Secretary dashboard                             | `artifacts/phase4-secretary-dashboard.png`                       |
+| Secretary Show Map entry actions                | `artifacts/phase4-secretary-show-map-entry-actions.png`          |
+| Exhibitor Edit Entry deadline block             | `artifacts/phase4-exhibitor-edit-entry-deadline.png`             |
+| Exhibitor message route blank state             | `artifacts/phase4-exhibitor-message-route-empty.png`             |
+| Secretary message history empty state           | `artifacts/phase4-secretary-messages-empty.png`                  |
+| Secretary Message Center compose                | `artifacts/phase4-secretary-message-center-compose.png`          |
 | Secretary Entry Management waitlist empty state | `artifacts/phase4-secretary-entry-management-waitlist-empty.png` |
-| Exhibitor waitlist empty state | `artifacts/phase4-exhibitor-waitlist-empty.png` |
-| Secretary Pulled tab empty state | `artifacts/phase4-secretary-entry-management-pulled-empty.png` |
-| Secretary Headline withdrawn/refund row | `artifacts/phase4-secretary-headline-withdrawn-refund-row.png` |
-| Exhibitor Headline upcoming mismatch | `artifacts/phase4-exhibitor-headline-upcoming-mismatch.png` |
-| Secretary Heritage Results Control | `artifacts/phase4-secretary-heritage-results-control.png` |
-| Exhibitor Heritage results empty state | `artifacts/phase4-exhibitor-results-empty.png` |
+| Exhibitor waitlist empty state                  | `artifacts/phase4-exhibitor-waitlist-empty.png`                  |
+| Secretary Pulled tab empty state                | `artifacts/phase4-secretary-entry-management-pulled-empty.png`   |
+| Secretary Headline withdrawn/refund row         | `artifacts/phase4-secretary-headline-withdrawn-refund-row.png`   |
+| Exhibitor Headline upcoming mismatch            | `artifacts/phase4-exhibitor-headline-upcoming-mismatch.png`      |
+| Secretary Heritage Results Control              | `artifacts/phase4-secretary-heritage-results-control.png`        |
+| Exhibitor Heritage results empty state          | `artifacts/phase4-exhibitor-results-empty.png`                   |
 
 ## Seam Walk Summary
 
-| Seam | Planned flow | Read-only result | State agreement | Latency check | Tone |
-| --- | --- | --- | --- | --- | --- |
-| Scratch request | Exhibitor requests -> secretary sees -> exhibitor confirmation | Not implemented/visible from exhibitor path after deadline; secretary can scratch/no-show from Show Map | Fails: no shared request state observed | Blocked by no mutating request fixture | Stressful for exhibitor: dead-end after deadline |
-| Waitlist offer | Secretary offers -> exhibitor notification -> acceptance -> both sides update | Fixture has zero waitlist rows; code path sends offer via message thread, but not visible in live data | Inconclusive | Blocked by no waitlist fixture | Empty states are calm but generic |
-| Entry question | Exhibitor messages -> secretary reply -> thread visibility | Secretary history has clear empty state; exhibitor direct `/messages/:showId` route rendered blank main content | Fails on exhibitor entry point | Blocked by no send approval | Secretary side calm; exhibitor side dead-end |
-| Refund/withdrawal | Exhibitor withdraws -> secretary accounting view | Real Headline row shows secretary: withdrawn, reason, $30 refunded; exhibitor show detail still says Upcoming | Fails: roles disagree | Existing data only; no live mutation | Trust-breaking |
-| Results publish | Secretary publishes -> exhibitor reveal | Same-show controls and results tab visible; no publish mutation submitted | Partial: secretary "After Class"; exhibitor "No results yet" without release status explanation | Blocked by no publish approval | Calm but under-explained |
+| Seam              | Planned flow                                                                  | Read-only result                                                                                                | State agreement                                                                                 | Latency check                          | Tone                                             |
+| ----------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------ |
+| Scratch request   | Exhibitor requests -> secretary sees -> exhibitor confirmation                | Not implemented/visible from exhibitor path after deadline; secretary can scratch/no-show from Show Map         | Fails: no shared request state observed                                                         | Blocked by no mutating request fixture | Stressful for exhibitor: dead-end after deadline |
+| Waitlist offer    | Secretary offers -> exhibitor notification -> acceptance -> both sides update | Fixture has zero waitlist rows; code path sends offer via message thread, but not visible in live data          | Inconclusive                                                                                    | Blocked by no waitlist fixture         | Empty states are calm but generic                |
+| Entry question    | Exhibitor messages -> secretary reply -> thread visibility                    | Secretary history has clear empty state; exhibitor direct `/messages/:showId` route rendered blank main content | Fails on exhibitor entry point                                                                  | Blocked by no send approval            | Secretary side calm; exhibitor side dead-end     |
+| Refund/withdrawal | Exhibitor withdraws -> secretary accounting view                              | Real Headline row shows secretary: withdrawn, reason, $30 refunded; exhibitor show detail still says Upcoming   | Fails: roles disagree                                                                           | Existing data only; no live mutation   | Trust-breaking                                   |
+| Results publish   | Secretary publishes -> exhibitor reveal                                       | Same-show controls and results tab visible; no publish mutation submitted                                       | Partial: secretary "After Class"; exhibitor "No results yet" without release status explanation | Blocked by no publish approval         | Calm but under-explained                         |
 
 ---
 
@@ -52,15 +52,15 @@
 
 **Misalignment gaps:**
 
-| UI Element | User Expects | Actually Does | Severity |
-| --- | --- | --- | --- |
-| Exhibitor `Edit Entry` after deadline | A path to request a pull/scratch or contact the secretary | Shows only "Entry deadline has passed" with Cancel/Close | High |
-| Secretary Show Map entry actions | Row action includes every urgent action and contact fallback | Offers Mark checked in, Move up, Scratch/no-show; no message action for the observed Ziva row | Medium |
-| Exhibitor `/messages/:showId` | Conversation starter or clear empty state | Renders the shell/sidebar with blank main content | High |
-| Secretary Communication History | Clear show-scoped message state | Shows "No messages in June 2026 yet" and Clear filter | Low |
-| Message Center compose from show-filtered page | Inherits selected show | Opens with "Select a show to continue" | Medium |
-| Headline withdrawn/refunded entry | Both roles show the same withdrawn/refunded state | Secretary sees Withdrawn + reason + $30 refunded; exhibitor sees Upcoming | High |
-| Heritage Results Control vs Results tab | Secretary release setting explains exhibitor visibility | Secretary sees "After Class"; exhibitor sees "No results yet" with no release-state explanation | Medium |
+| UI Element                                     | User Expects                                                 | Actually Does                                                                                   | Severity |
+| ---------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | -------- |
+| Exhibitor `Edit Entry` after deadline          | A path to request a pull/scratch or contact the secretary    | Shows only "Entry deadline has passed" with Cancel/Close                                        | High     |
+| Secretary Show Map entry actions               | Row action includes every urgent action and contact fallback | Offers Mark checked in, Move up, Scratch/no-show; no message action for the observed Ziva row   | Medium   |
+| Exhibitor `/messages/:showId`                  | Conversation starter or clear empty state                    | Renders the shell/sidebar with blank main content                                               | High     |
+| Secretary Communication History                | Clear show-scoped message state                              | Shows "No messages in June 2026 yet" and Clear filter                                           | Low      |
+| Message Center compose from show-filtered page | Inherits selected show                                       | Opens with "Select a show to continue"                                                          | Medium   |
+| Headline withdrawn/refunded entry              | Both roles show the same withdrawn/refunded state            | Secretary sees Withdrawn + reason + $30 refunded; exhibitor sees Upcoming                       | High     |
+| Heritage Results Control vs Results tab        | Secretary release setting explains exhibitor visibility      | Secretary sees "After Class"; exhibitor sees "No results yet" with no release-state explanation | Medium   |
 
 **Jargon found:** `entryTab=scratches`, Pulled/Pull Requests/Scratch used interchangeably, "After Class" without exhibitor-facing translation, "Partial Refund" where the full $30 entry fee is refunded.
 
@@ -74,13 +74,13 @@
 
 **IA issues:**
 
-| Issue | Location | Problem | Recommendation |
-| --- | --- | --- | --- |
-| Scratch is secretary-owned, not request-owned | Exhibitor My Shows / Edit Entry vs Show Map | Exhibitor has no post-deadline request path, while secretary can pull a dog | Add a link/action into the existing message or pull-request surface; do not add a second scratch table. |
-| Waitlist offer lacks live fixture coverage | Entry Management / My Shows | Both sides show zero waitlist inventory, so the acceptance/reveal path is unproven | Seed one offered waitlist row for Phase 4 completion or Dynamic QA. |
-| Message creation split by role | Exhibitor message route vs secretary Message Center | Secretary has clear history/compose; exhibitor direct route can be blank | Give exhibitor route the same empty-state quality and start-conversation affordance. |
-| Refund accounting hidden from exhibitor | Show Details My Entries | Secretary sees refund state; exhibitor sees the class as Upcoming | Reuse the entry status/payment display source in exhibitor My Entries/show detail. |
-| Result release explanation is one-sided | Results Control / Results tab | Secretary understands release preset; exhibitor only sees generic no-results copy | Add released/unreleased/not-scored explanation to the existing Results tab. |
+| Issue                                         | Location                                            | Problem                                                                            | Recommendation                                                                                          |
+| --------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Scratch is secretary-owned, not request-owned | Exhibitor My Shows / Edit Entry vs Show Map         | Exhibitor has no post-deadline request path, while secretary can pull a dog        | Add a link/action into the existing message or pull-request surface; do not add a second scratch table. |
+| Waitlist offer lacks live fixture coverage    | Entry Management / My Shows                         | Both sides show zero waitlist inventory, so the acceptance/reveal path is unproven | Seed one offered waitlist row for Phase 4 completion or Dynamic QA.                                     |
+| Message creation split by role                | Exhibitor message route vs secretary Message Center | Secretary has clear history/compose; exhibitor direct route can be blank           | Give exhibitor route the same empty-state quality and start-conversation affordance.                    |
+| Refund accounting hidden from exhibitor       | Show Details My Entries                             | Secretary sees refund state; exhibitor sees the class as Upcoming                  | Reuse the entry status/payment display source in exhibitor My Entries/show detail.                      |
+| Result release explanation is one-sided       | Results Control / Results tab                       | Secretary understands release preset; exhibitor only sees generic no-results copy  | Add released/unreleased/not-scored explanation to the existing Results tab.                             |
 
 **Visibility problems:**
 
@@ -91,16 +91,16 @@
 
 **Affordance audit:**
 
-| Element | Looks Like | Actually Is | Clear? |
-| --- | --- | --- | --- |
-| Exhibitor Edit Entry | Recovery/action path | Deadline block only | No |
-| Secretary entry kebab | Operational row actions | Check-in, move-up, scratch/no-show | Yes |
-| Exhibitor message route | Message page | Blank content for the tested show | No |
-| Secretary Communication History | History/filter page | Read-only thread list | Yes |
-| Message Center Compose | Contextual show message | Requires show selection again | Partial |
-| Pull Management tab | Pull/refund queue | Empty queue below large entry list | Partial |
-| Results Control presets | Release policy controls | Mutating visibility presets | Yes, but dangerous to click during audit |
-| Results empty state | No-results explanation | Generic pending-results copy | Partial |
+| Element                         | Looks Like              | Actually Is                        | Clear?                                   |
+| ------------------------------- | ----------------------- | ---------------------------------- | ---------------------------------------- |
+| Exhibitor Edit Entry            | Recovery/action path    | Deadline block only                | No                                       |
+| Secretary entry kebab           | Operational row actions | Check-in, move-up, scratch/no-show | Yes                                      |
+| Exhibitor message route         | Message page            | Blank content for the tested show  | No                                       |
+| Secretary Communication History | History/filter page     | Read-only thread list              | Yes                                      |
+| Message Center Compose          | Contextual show message | Requires show selection again      | Partial                                  |
+| Pull Management tab             | Pull/refund queue       | Empty queue below large entry list | Partial                                  |
+| Results Control presets         | Release policy controls | Mutating visibility presets        | Yes, but dangerous to click during audit |
+| Results empty state             | No-results explanation  | Generic pending-results copy       | Partial                                  |
 
 **False affordances:** `Edit Entry` suggests changes are possible, then dead-ends. Pulled tab appears selected, but a long entry list still dominates above the Pull Management panel.
 
@@ -116,13 +116,13 @@
 
 **Decision points:**
 
-| Screen/Step | Decisions Required | Can Be Reduced? |
-| --- | --- | --- |
-| Exhibitor deadline block | Decide what to do when editing is blocked | Yes: provide the one next action. |
-| Secretary Show Map row action | Pick check-in, move-up, scratch/no-show | Mostly fine; add contact fallback when no message action is available. |
-| Secretary Message Center compose | Pick show, recipient, message type | Yes: inherit the show context. |
-| Pull Management | Interpret Pulled vs Pull Requests vs scratches | Yes: one vocabulary. |
-| Exhibitor result empty state | Infer no scores vs not released vs no result | Yes: show release/status reason. |
+| Screen/Step                      | Decisions Required                             | Can Be Reduced?                                                        |
+| -------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------- |
+| Exhibitor deadline block         | Decide what to do when editing is blocked      | Yes: provide the one next action.                                      |
+| Secretary Show Map row action    | Pick check-in, move-up, scratch/no-show        | Mostly fine; add contact fallback when no message action is available. |
+| Secretary Message Center compose | Pick show, recipient, message type             | Yes: inherit the show context.                                         |
+| Pull Management                  | Interpret Pulled vs Pull Requests vs scratches | Yes: one vocabulary.                                                   |
+| Exhibitor result empty state     | Infer no scores vs not released vs no result   | Yes: show release/status reason.                                       |
 
 **Missing defaults:**
 
@@ -132,11 +132,11 @@
 
 **Unnecessary complexity:**
 
-| Complexity | Who Needs It | Recommendation |
-| --- | --- | --- |
-| Pulled/Pull Requests/`scratches` naming split | No one | Standardize on one user-facing term. |
-| Re-selecting show in context | No one | Carry the route filter into compose. |
-| Showing terminal entries as Upcoming | No one | Apply the same terminal-state normalization used by secretary surfaces. |
+| Complexity                                    | Who Needs It | Recommendation                                                          |
+| --------------------------------------------- | ------------ | ----------------------------------------------------------------------- |
+| Pulled/Pull Requests/`scratches` naming split | No one       | Standardize on one user-facing term.                                    |
+| Re-selecting show in context                  | No one       | Carry the route filter into compose.                                    |
+| Showing terminal entries as Upcoming          | No one       | Apply the same terminal-state normalization used by secretary surfaces. |
 
 **Cognitive load score:** Medium-high. The secretary can usually find an operation, but exhibitors have to infer what happens after a deadline, message gap, withdrawal, or unreleased result.
 
@@ -144,53 +144,53 @@
 
 ### Scratch / Pull
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes | Mixed | Secretary Pull Management empty state is calm; exhibitor has no request empty state. |
-| Loading | Yes | Good | Pages resolve. |
-| Success | Partial | Mixed | Secretary-side scratch/no-show exists; exhibitor-originated request not observed. |
-| Partial | Yes | Poor | Post-deadline exhibitor state blocks action without recovery. |
-| Error | Not induced | Unknown | Needs Dynamic QA/local seed. |
+| State   | Implemented? | Quality | Issue                                                                                |
+| ------- | ------------ | ------- | ------------------------------------------------------------------------------------ |
+| Empty   | Yes          | Mixed   | Secretary Pull Management empty state is calm; exhibitor has no request empty state. |
+| Loading | Yes          | Good    | Pages resolve.                                                                       |
+| Success | Partial      | Mixed   | Secretary-side scratch/no-show exists; exhibitor-originated request not observed.    |
+| Partial | Yes          | Poor    | Post-deadline exhibitor state blocks action without recovery.                        |
+| Error   | Not induced  | Unknown | Needs Dynamic QA/local seed.                                                         |
 
 ### Waitlist Offer
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes | Generic | Both sides show zero waitlist, but no offer fixture exists. |
-| Loading | Yes | Good | Pages resolve. |
-| Success | Not observed | Unknown | No waitlist rows in shared seed. |
-| Partial | Not observed | Unknown | Offered/expired/accepted states not visible. |
-| Error | Not induced | Unknown | Needs seeded Dynamic QA. |
+| State   | Implemented? | Quality | Issue                                                       |
+| ------- | ------------ | ------- | ----------------------------------------------------------- |
+| Empty   | Yes          | Generic | Both sides show zero waitlist, but no offer fixture exists. |
+| Loading | Yes          | Good    | Pages resolve.                                              |
+| Success | Not observed | Unknown | No waitlist rows in shared seed.                            |
+| Partial | Not observed | Unknown | Offered/expired/accepted states not visible.                |
+| Error   | Not induced  | Unknown | Needs seeded Dynamic QA.                                    |
 
 ### Entry Question / Messages
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes/No | Split | Secretary empty state is clear; exhibitor route blank. |
-| Loading | Yes | Good | Pages resolve. |
-| Success | Not submitted | Unknown | Send/reply not tested due shared-data mutation gate. |
-| Partial | Yes | Poor | Compose does not inherit show context. |
-| Error | Not induced | Unknown | Needs message send failure test. |
+| State   | Implemented?  | Quality | Issue                                                  |
+| ------- | ------------- | ------- | ------------------------------------------------------ |
+| Empty   | Yes/No        | Split   | Secretary empty state is clear; exhibitor route blank. |
+| Loading | Yes           | Good    | Pages resolve.                                         |
+| Success | Not submitted | Unknown | Send/reply not tested due shared-data mutation gate.   |
+| Partial | Yes           | Poor    | Compose does not inherit show context.                 |
+| Error   | Not induced   | Unknown | Needs message send failure test.                       |
 
 ### Refund / Withdrawal
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes | Mixed | Pull Management pending empty state exists. |
-| Loading | Yes | Good | Pages resolve. |
-| Success | Yes | Split | Secretary row shows withdrawn/refunded; exhibitor row still says Upcoming. |
-| Partial | Yes | Poor | "Partial Refund" appears with `$30.00 refunded` for a $30 entry. |
-| Error | Not induced | Unknown | Needs refund failure test. |
+| State   | Implemented? | Quality | Issue                                                                      |
+| ------- | ------------ | ------- | -------------------------------------------------------------------------- |
+| Empty   | Yes          | Mixed   | Pull Management pending empty state exists.                                |
+| Loading | Yes          | Good    | Pages resolve.                                                             |
+| Success | Yes          | Split   | Secretary row shows withdrawn/refunded; exhibitor row still says Upcoming. |
+| Partial | Yes          | Poor    | "Partial Refund" appears with `$30.00 refunded` for a $30 entry.           |
+| Error   | Not induced  | Unknown | Needs refund failure test.                                                 |
 
 ### Results Publish
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty | Yes | Calm | Exhibitor sees "No results yet." |
-| Loading | Yes | Good | Pages resolve. |
-| Success | Not submitted | Unknown | Publish/release mutation not tested. |
-| Partial | Yes | Mixed | Secretary release preset visible; exhibitor has no matching release explanation. |
-| Error | Not induced | Unknown | Needs release failure test. |
+| State   | Implemented?  | Quality | Issue                                                                            |
+| ------- | ------------- | ------- | -------------------------------------------------------------------------------- |
+| Empty   | Yes           | Calm    | Exhibitor sees "No results yet."                                                 |
+| Loading | Yes           | Good    | Pages resolve.                                                                   |
+| Success | Not submitted | Unknown | Publish/release mutation not tested.                                             |
+| Partial | Yes           | Mixed   | Secretary release preset visible; exhibitor has no matching release explanation. |
+| Error   | Not induced   | Unknown | Needs release failure test.                                                      |
 
 **Dead ends found:** Exhibitor post-deadline Edit Entry, exhibitor direct message route.
 
@@ -202,17 +202,17 @@
 
 **Step-by-step findings:**
 
-| Step | Action | Friction | Severity |
-| --- | --- | --- | --- |
-| 1 | Exhibitor tries to edit after deadline | Dialog says deadline passed; no request/contact path | High |
-| 2 | Secretary opens Show Map row actions | Scratch/no-show and move-up are available | Low |
-| 3 | Secretary looks for row-level message action | Not present for observed Ziva row | Medium |
-| 4 | Exhibitor opens direct message route | Blank main content | High |
-| 5 | Secretary opens Communication History | Clear show-filtered no-message state | None |
-| 6 | Secretary opens Message Center compose | Does not inherit selected show | Medium |
-| 7 | Secretary opens Waitlist/Pulled tabs | Waitlist has zero fixture rows; Pulled queue empty below entry list | Medium |
-| 8 | Compare Headline withdrawn/refund state | Secretary and exhibitor disagree | High |
-| 9 | Compare Heritage result controls/results | Secretary sees release preset; exhibitor sees generic no-results state | Medium |
+| Step | Action                                       | Friction                                                               | Severity |
+| ---- | -------------------------------------------- | ---------------------------------------------------------------------- | -------- |
+| 1    | Exhibitor tries to edit after deadline       | Dialog says deadline passed; no request/contact path                   | High     |
+| 2    | Secretary opens Show Map row actions         | Scratch/no-show and move-up are available                              | Low      |
+| 3    | Secretary looks for row-level message action | Not present for observed Ziva row                                      | Medium   |
+| 4    | Exhibitor opens direct message route         | Blank main content                                                     | High     |
+| 5    | Secretary opens Communication History        | Clear show-filtered no-message state                                   | None     |
+| 6    | Secretary opens Message Center compose       | Does not inherit selected show                                         | Medium   |
+| 7    | Secretary opens Waitlist/Pulled tabs         | Waitlist has zero fixture rows; Pulled queue empty below entry list    | Medium   |
+| 8    | Compare Headline withdrawn/refund state      | Secretary and exhibitor disagree                                       | High     |
+| 9    | Compare Heritage result controls/results     | Secretary sees release preset; exhibitor sees generic no-results state | Medium   |
 
 **Abandonment risks:**
 
@@ -240,27 +240,27 @@ No P0/Critical finding observed in this read-only baseline.
 
 ### High Priority
 
-| Finding | Pass | Impact | Effort |
-| --- | --- | --- | --- |
-| Exhibitor has no post-deadline pull/scratch request or contact path | 1, 3, 5, 6 | Blocks the planned scratch-request seam and pushes users outside the app | Medium |
-| Exhibitor `/messages/:showId` can render blank main content | 1, 3, 5, 6 | Blocks the entry-question seam from the exhibitor side | Low-Medium |
-| Withdrawn/refunded Headline entry disagrees across roles | 1, 2, 5, 6 | Breaks trust in refund/withdrawal status | Medium |
+| Finding                                                             | Pass       | Impact                                                                   | Effort     |
+| ------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------ | ---------- |
+| Exhibitor has no post-deadline pull/scratch request or contact path | 1, 3, 5, 6 | Blocks the planned scratch-request seam and pushes users outside the app | Medium     |
+| Exhibitor `/messages/:showId` can render blank main content         | 1, 3, 5, 6 | Blocks the entry-question seam from the exhibitor side                   | Low-Medium |
+| Withdrawn/refunded Headline entry disagrees across roles            | 1, 2, 5, 6 | Breaks trust in refund/withdrawal status                                 | Medium     |
 
 ### Medium Priority
 
-| Finding | Pass | Impact | Effort |
-| --- | --- | --- | --- |
-| Message Center compose does not inherit show context | 1, 3, 4, 6 | Adds avoidable show-day friction | Low |
-| Waitlist offer seam has no seeded row to verify notification/acceptance | 5, 6 | Launch path remains unproven | Low seed, medium verification |
-| Pull Management vocabulary is split across Pulled/Pull Requests/scratches | 1, 2, 4 | Increases pressure-state ambiguity | Low |
-| Results tab does not explain release state from secretary settings | 1, 2, 5, 6 | Exhibitors cannot tell no results vs not released | Low-Medium |
-| Row-level message fallback absent for observed Show Map entry | 1, 3, 6 | Secretary may need to leave context to contact exhibitor | Medium |
+| Finding                                                                   | Pass       | Impact                                                   | Effort                        |
+| ------------------------------------------------------------------------- | ---------- | -------------------------------------------------------- | ----------------------------- |
+| Message Center compose does not inherit show context                      | 1, 3, 4, 6 | Adds avoidable show-day friction                         | Low                           |
+| Waitlist offer seam has no seeded row to verify notification/acceptance   | 5, 6       | Launch path remains unproven                             | Low seed, medium verification |
+| Pull Management vocabulary is split across Pulled/Pull Requests/scratches | 1, 2, 4    | Increases pressure-state ambiguity                       | Low                           |
+| Results tab does not explain release state from secretary settings        | 1, 2, 5, 6 | Exhibitors cannot tell no results vs not released        | Low-Medium                    |
+| Row-level message fallback absent for observed Show Map entry             | 1, 3, 6    | Secretary may need to leave context to contact exhibitor | Medium                        |
 
 ### Low Priority
 
-| Finding | Pass | Impact | Effort |
-| --- | --- | --- | --- |
-| "Partial Refund" with full amount refunded is confusing | 1, 4, 5 | Minor accounting wording distrust | Low |
+| Finding                                                 | Pass    | Impact                            | Effort |
+| ------------------------------------------------------- | ------- | --------------------------------- | ------ |
+| "Partial Refund" with full amount refunded is confusing | 1, 4, 5 | Minor accounting wording distrust | Low    |
 
 ### Quick Wins
 
@@ -297,22 +297,22 @@ the read-only baseline above, which could not submit any mutating action.
 
 **Shipped (safe, no shared-Supabase risk):**
 
-| Artifact | Purpose |
-| --- | --- |
-| `apps/myk9show/src/test/e2e/fixtures/phase4SeamFixture.ts` | One complete cross-role show (secretary + two exhibitors, dogs, classes, entries, enrollment, waitlist row) with the five seed states from the plan; `createPhase4SeamState()` returns a fresh deep clone per test. |
-| `apps/myk9show/src/test/e2e/fixtures/phase4SeamRoutes.ts` | Pure request handler that fulfils every seam write in memory + `assertNoSharedWrites` / `assertNoUnhandledAppDataMutations` + the Playwright `installPhase4SeamRoutes(page, state)` wrapper. |
-| `apps/myk9show/src/test/phase4-seam/phase4SeamRoutes.test.ts` | 18 vitest cases — each seam's transition, cross-role agreement, malformed/unknown-row rejection, and the write-safety guarantees. All green. |
-| `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts` | Two-context live walk (latency + screenshots), ready to run; self-skips until a read strategy is wired (see below) so it never touches shared data. |
+| Artifact                                                       | Purpose                                                                                                                                                                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/myk9show/src/test/e2e/fixtures/phase4SeamFixture.ts`     | One complete cross-role show (secretary + two exhibitors, dogs, classes, entries, enrollment, waitlist row) with the five seed states from the plan; `createPhase4SeamState()` returns a fresh deep clone per test. |
+| `apps/myk9show/src/test/e2e/fixtures/phase4SeamRoutes.ts`      | Pure request handler that fulfils every seam write in memory + `assertNoSharedWrites` / `assertNoUnhandledAppDataMutations` + the Playwright `installPhase4SeamRoutes(page, state)` wrapper.                        |
+| `apps/myk9show/src/test/phase4-seam/phase4SeamRoutes.test.ts`  | 18 vitest cases — each seam's transition, cross-role agreement, malformed/unknown-row rejection, and the write-safety guarantees. All green.                                                                        |
+| `apps/myk9show/src/test/e2e/show/phase4CrossRoleSeams.spec.ts` | Two-context live walk (latency + screenshots), ready to run; self-skips until a read strategy is wired (see below) so it never touches shared data.                                                                 |
 
 **Seam transitions now proven by the harness unit tests:**
 
-| Seam | Proven transition (write-safe) | Real-browser latency |
-| --- | --- | --- |
-| Scratch / pull | exhibitor `scratch-requested` → secretary guard-approve (`.single()`) → `scratched` + `pulled`; stale-guard = PGRST116/`data:null` (approve throws) | Pending live walk |
-| Waitlist | seed `waiting` → secretary `offered` → `acceptWaitlistOffer` guarded offered fetch (`.single()`) → entry insert (`confirmed`) → waitlist row **DELETEd** | Pending live walk |
-| Entry question | thread `.single()` read = 406/`data:null` before create → INSERT → reuse on next `.single()`; message send → secretary read → reply → exhibitor read | Pending live walk |
-| Refund / withdrawal | `stripe-refund-entry` → entry `refunded`/`withdrawn` + enrollment refund metadata; partial-refund clamps to fee | **PASS — live walk 2026-06-18** (see below) |
-| Results release | class `results_released_at` set → `view_entry_with_results` flips hidden → visible | Pending live walk |
+| Seam                | Proven transition (write-safe)                                                                                                                           | Real-browser latency                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Scratch / pull      | exhibitor `scratch-requested` → secretary guard-approve (`.single()`) → `scratched` + `pulled`; stale-guard = PGRST116/`data:null` (approve throws)      | Pending live walk                           |
+| Waitlist            | seed `waiting` → secretary `offered` → `acceptWaitlistOffer` guarded offered fetch (`.single()`) → entry insert (`confirmed`) → waitlist row **DELETEd** | Pending live walk                           |
+| Entry question      | thread `.single()` read = 406/`data:null` before create → INSERT → reuse on next `.single()`; message send → secretary read → reply → exhibitor read     | Pending live walk                           |
+| Refund / withdrawal | `stripe-refund-entry` → entry `refunded`/`withdrawn` + enrollment refund metadata; partial-refund clamps to fee                                          | **PASS — live walk 2026-06-18** (see below) |
+| Results release     | class `results_released_at` set → `view_entry_with_results` flips hidden → visible                                                                       | Pending live walk                           |
 
 > **Fidelity fixes (2026-06-15, post-review).** The harness now honors PostgREST
 > `.single()` semantics — a no-row match returns HTTP 406 / `PGRST116`
@@ -375,11 +375,11 @@ a site-admin, who gets the management `EntriesTab` instead — `ShowDetailsPage`
 
 **Surfaces verified (as `e2e-exhibitor`, fresh incognito):**
 
-| Surface | Data path | Result |
-| --- | --- | --- |
-| Standalone My Entries (`/exhibitor/entries`) | direct PostgREST (`getUserEntries`) | Withdrawn + Refunded |
-| Show Details → My Entries tab (`MyEntriesTab`/`DogEntriesSection`) | replication store (`useEntryStore`) | **Withdrawn · Refunded** |
-| Secretary Entry Management | direct read | Withdrawn + reason + $30 refunded |
+| Surface                                                            | Data path                           | Result                            |
+| ------------------------------------------------------------------ | ----------------------------------- | --------------------------------- |
+| Standalone My Entries (`/exhibitor/entries`)                       | direct PostgREST (`getUserEntries`) | Withdrawn + Refunded              |
+| Show Details → My Entries tab (`MyEntriesTab`/`DogEntriesSection`) | replication store (`useEntryStore`) | **Withdrawn · Refunded**          |
+| Secretary Entry Management                                         | direct read                         | Withdrawn + reason + $30 refunded |
 
 **Two real bugs the walk surfaced (neither caught by the unit harness):**
 

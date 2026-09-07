@@ -72,7 +72,9 @@ export function MailToPanel({ mailTo }: { mailTo: EntryBlankMailTo }) {
             <Text style={{ fontFamily: BODY, fontSize: 8, color: QUILL }}>{mailTo.poBox}</Text>
           )}
           {mailTo.cityStateZip && (
-            <Text style={{ fontFamily: BODY, fontSize: 8, color: QUILL }}>{mailTo.cityStateZip}</Text>
+            <Text style={{ fontFamily: BODY, fontSize: 8, color: QUILL }}>
+              {mailTo.cityStateZip}
+            </Text>
           )}
         </PanelColumn>
 

@@ -34,9 +34,7 @@ function setStores(state: Partial<StoreState> = {}) {
   } as unknown as ReturnType<typeof useShowStore>);
 }
 
-function setTrialQuery(
-  result: { data?: unknown; isSuccess?: boolean; isError?: boolean } = {}
-) {
+function setTrialQuery(result: { data?: unknown; isSuccess?: boolean; isError?: boolean } = {}) {
   vi.mocked(useTrialQuery).mockReturnValue({
     data: result.data ?? null,
     isSuccess: result.isSuccess ?? false,
@@ -58,7 +56,11 @@ describe('useTrialDetailData', () => {
   });
 
   it('uses the store trial when warm and disables the anon fallback query', () => {
-    setStores({ trials: [{ id: 't1', showId: 's1' }], selectedTrialId: 't1', shows: [{ id: 's1' }] });
+    setStores({
+      trials: [{ id: 't1', showId: 's1' }],
+      selectedTrialId: 't1',
+      shows: [{ id: 's1' }],
+    });
     const { result } = renderHook(() => useTrialDetailData('t1'));
     expect(result.current.currentTrial?.id).toBe('t1');
     expect(result.current.parentShow?.id).toBe('s1');

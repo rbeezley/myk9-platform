@@ -121,8 +121,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const { sensors, handleDragStart, handleDragEnd } = drag;
   const { isSyncing, hasError } = actions;
 
-  const { handlePrintSortOrder, handleOpenDragMode, handleApplyRunOrder } =
-    useEntryListPageActions({ handlers, uiActions, printDialogType, currentEntries });
+  const { handlePrintSortOrder, handleOpenDragMode, handleApplyRunOrder } = useEntryListPageActions(
+    { handlers, uiActions, printDialogType, currentEntries }
+  );
 
   const statusTabs = useMemo(
     () => buildStatusTabs({ pending: entryCounts.pending, completed: entryCounts.completed }),

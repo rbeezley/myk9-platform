@@ -56,16 +56,19 @@ describe('useDogsQuery roster scope', () => {
     ['steward + exhibitor', [UserRole.STEWARD, UserRole.EXHIBITOR], false],
     ['chairman + exhibitor', [UserRole.CHAIRMAN, UserRole.EXHIBITOR], false],
     ['site admin + exhibitor', [UserRole.SITE_ADMIN, UserRole.EXHIBITOR], true],
-  ] as const)('passes the canonical showAll value for %s', async (_label, roles, expectedShowAll) => {
-    mockGetUserRoles.mockReturnValue(roles);
-    mockHasRole.mockImplementation((role: UserRole) =>
-      (roles as readonly UserRole[]).includes(role)
-    );
+  ] as const)(
+    'passes the canonical showAll value for %s',
+    async (_label, roles, expectedShowAll) => {
+      mockGetUserRoles.mockReturnValue(roles);
+      mockHasRole.mockImplementation((role: UserRole) =>
+        (roles as readonly UserRole[]).includes(role)
+      );
 
-    renderHook(() => useDogsQuery(), { wrapper: createWrapper() });
+      renderHook(() => useDogsQuery(), { wrapper: createWrapper() });
 
-    await waitFor(() => expect(mockGetAllDogs).toHaveBeenCalledWith('person-1', expectedShowAll));
-  });
+      await waitFor(() => expect(mockGetAllDogs).toHaveBeenCalledWith('person-1', expectedShowAll));
+    }
+  );
 });
 
 /**

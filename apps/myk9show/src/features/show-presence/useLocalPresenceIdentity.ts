@@ -45,9 +45,7 @@ export function roleLabel(role: string): string {
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
-export function useLocalPresenceIdentity(
-  showId: string | undefined
-): LocalPresenceIdentity | null {
+export function useLocalPresenceIdentity(showId: string | undefined): LocalPresenceIdentity | null {
   const { user, firstName, lastName, getUserRoles } = useAuthContext();
   const activeGrant = useRingsideGrantStore(state => state.activeGrant);
 
@@ -91,5 +89,16 @@ export function useLocalPresenceIdentity(
       };
     }
     return null;
-  }, [enabled, userId, email, firstName, lastName, accountRole, grantRole, grantName, grantSessionId, avatarUrl]);
+  }, [
+    enabled,
+    userId,
+    email,
+    firstName,
+    lastName,
+    accountRole,
+    grantRole,
+    grantName,
+    grantSessionId,
+    avatarUrl,
+  ]);
 }

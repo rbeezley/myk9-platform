@@ -102,7 +102,7 @@ export interface DeliverStoredPacketDeps {
 /** The show fields delivery needs, or an HttpError naming which step failed. */
 export async function loadPacketShow(
   supabase: SupabaseClient,
-  showId: string,
+  showId: string
 ): Promise<PacketShow> {
   const { data: show, error } = await supabase
     .from('shows')
@@ -124,11 +124,11 @@ export async function loadPacketShow(
  */
 export async function loadPacketRoleRows(
   supabase: SupabaseClient,
-  show: PacketShow,
+  show: PacketShow
 ): Promise<PacketRoleRow[]> {
   const queries = [
     applyActiveRoleValidity(
-      supabase.from('user_roles').select(PACKET_ROLE_SELECT).eq('show_id', show.id),
+      supabase.from('user_roles').select(PACKET_ROLE_SELECT).eq('show_id', show.id)
     ),
   ];
   if (show.club_id) {
@@ -138,8 +138,8 @@ export async function loadPacketRoleRows(
           .from('user_roles')
           .select(PACKET_ROLE_SELECT)
           .eq('club_id', show.club_id)
-          .is('show_id', null),
-      ),
+          .is('show_id', null)
+      )
     );
   }
 
@@ -160,7 +160,7 @@ export async function loadPacketRoleRows(
 export async function resolveRecipients(
   supabase: SupabaseClient,
   show: PacketShow,
-  roleRows: PacketRoleRow[],
+  roleRows: PacketRoleRow[]
 ): Promise<string[]> {
   const clubPersonIds = roleRows
     .filter(row => row.show_id === null && row.club_id === show.club_id && row.user_id)
@@ -180,17 +180,15 @@ export async function resolveRecipients(
   try {
     return requirePacketRecipients(
       resolvePacketRecipients(
-        roleRows.map(
-          (row): PacketRecipientRole => ({
-            roleName: row.roles?.name ?? null,
-            showId: row.show_id,
-            clubId: row.club_id,
-            email: row.people?.email ?? null,
-            activeClubMember: row.user_id ? activeClubMembers.has(row.user_id) : false,
-          }),
-        ),
-        { id: show.id, clubId: show.club_id },
-      ),
+        roleRows.map((row): PacketRecipientRole => ({
+          roleName: row.roles?.name ?? null,
+          showId: row.show_id,
+          clubId: row.club_id,
+          email: row.people?.email ?? null,
+          activeClubMember: row.user_id ? activeClubMembers.has(row.user_id) : false,
+        })),
+        { id: show.id, clubId: show.club_id }
+      )
     );
   } catch (error) {
     throw new HttpError(422, error instanceof Error ? error.message : 'No packet recipients.');
@@ -201,7 +199,7 @@ export async function deliverStoredPacket(
   supabase: SupabaseClient,
   show: PacketShow,
   packet: StoredPacket,
-  deps: DeliverStoredPacketDeps = {},
+  deps: DeliverStoredPacketDeps = {}
 ): Promise<PacketDeliveryResult> {
   const getEnv = deps.getEnv ?? ((name: string) => Deno.env.get(name));
   const now = deps.now ?? (() => new Date());
@@ -218,7 +216,7 @@ export async function deliverStoredPacket(
   const recipients = await resolveRecipients(
     supabase,
     show,
-    await loadPacketRoleRows(supabase, show),
+    await loadPacketRoleRows(supabase, show)
   );
 
   // The object must already exist: delivery mails a link, and a signed URL is

@@ -18,10 +18,7 @@ interface WithdrawalPolicyDisclosureProps {
   className?: string;
 }
 
-export function WithdrawalPolicyDisclosure({
-  showId,
-  className,
-}: WithdrawalPolicyDisclosureProps) {
+export function WithdrawalPolicyDisclosure({ showId, className }: WithdrawalPolicyDisclosureProps) {
   const { data: policy, isLoading, isError } = useEffectiveWithdrawalPolicy(showId);
 
   if (!showId || isLoading || isError) return null;

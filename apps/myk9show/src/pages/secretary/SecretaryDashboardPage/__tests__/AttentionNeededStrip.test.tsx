@@ -54,15 +54,33 @@ describe('AttentionNeededStrip', () => {
 
   it('renders the "Needs attention" header when items exist', () => {
     renderStrip([
-      { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Check-in open', href: '/shows/s1' },
+      {
+        showId: 's1',
+        showName: 'Spring Trial',
+        kind: 'urgent',
+        text: 'Check-in open',
+        href: '/shows/s1',
+      },
     ]);
     expect(screen.getByText(/needs attention/i)).toBeInTheDocument();
   });
 
   it('renders each item text and show name', () => {
     renderStrip([
-      { showId: 's1', showName: 'Spring Trial', kind: 'urgent', text: 'Check-in open', href: '/shows/s1' },
-      { showId: 's2', showName: 'Fall Classic', kind: 'info', text: 'Entries close in 3 days', href: '/shows/s2' },
+      {
+        showId: 's1',
+        showName: 'Spring Trial',
+        kind: 'urgent',
+        text: 'Check-in open',
+        href: '/shows/s1',
+      },
+      {
+        showId: 's2',
+        showName: 'Fall Classic',
+        kind: 'info',
+        text: 'Entries close in 3 days',
+        href: '/shows/s2',
+      },
     ]);
     expect(screen.getByText('Check-in open')).toBeInTheDocument();
     expect(screen.getByText('Spring Trial')).toBeInTheDocument();

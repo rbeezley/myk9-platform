@@ -13,12 +13,12 @@ The audit reopened the seeded Heartland Scent Work Classic by moving its **test-
 
 ## Pass 1: Mental Model Alignment
 
-| UI element | A novice expects | Observed behavior | Severity |
-|---|---|---|---|
-| Browse Shows card | A clear answer to “am I entered?” | Says **Entry Submitted** | High |
-| Same show’s My Entries tab | The same answer and a list of entries | Says **My Entries 0** and “You haven't entered any classes” | High |
-| Same show’s Classes tab / wizard | Entry state consistent with the prior two places | Shows “My entry” classes and dogs already entered; the existing cart is reconciled into the wizard | High |
-| Registration wizard | A short, guided way to enter | Correctly communicates a three-step sequence: Classes, Payment, Receipt | Good |
+| UI element                       | A novice expects                                 | Observed behavior                                                                                  | Severity |
+| -------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- | -------- |
+| Browse Shows card                | A clear answer to “am I entered?”                | Says **Entry Submitted**                                                                           | High     |
+| Same show’s My Entries tab       | The same answer and a list of entries            | Says **My Entries 0** and “You haven't entered any classes”                                        | High     |
+| Same show’s Classes tab / wizard | Entry state consistent with the prior two places | Shows “My entry” classes and dogs already entered; the existing cart is reconciled into the wizard | High     |
+| Registration wizard              | A short, guided way to enter                     | Correctly communicates a three-step sequence: Classes, Payment, Receipt                            | Good     |
 
 The intended mental model is simple: find a show, choose a dog/class, review, pay. The contradictory entry status forces the user to decide which screen is telling the truth before they can confidently proceed.
 
@@ -32,15 +32,15 @@ The wizard header repeats breadcrumb, show name, stepper, step label, Save Draft
 
 ## Pass 3: Affordance Clarity
 
-| Element | Assessment |
-|---|---|
-| “Add or Change Entries” | Clear, specific, and safer than a vague “Enter” label. |
-| Three-step progress | Clear on phone and desktop; current step is obvious. |
-| Dog tabs and entered/cart badges | Helpful evidence, but six tabs require horizontal scrolling on phone. |
-| Class cards and checkboxes | Clear selection and disabled “Already entered” state. |
-| Payment card | Clearly identifies credit/debit checkout and explains when the entry is confirmed. |
-| Payment remove icon | Icon-only and 32×32px in source; too small for the project’s 44px touch target. |
-| Cart “Continue Shopping” | Clear wording, but the default button is 40px high rather than 44px. |
+| Element                          | Assessment                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| “Add or Change Entries”          | Clear, specific, and safer than a vague “Enter” label.                             |
+| Three-step progress              | Clear on phone and desktop; current step is obvious.                               |
+| Dog tabs and entered/cart badges | Helpful evidence, but six tabs require horizontal scrolling on phone.              |
+| Class cards and checkboxes       | Clear selection and disabled “Already entered” state.                              |
+| Payment card                     | Clearly identifies credit/debit checkout and explains when the entry is confirmed. |
+| Payment remove icon              | Icon-only and 32×32px in source; too small for the project’s 44px touch target.    |
+| Cart “Continue Shopping”         | Clear wording, but the default button is 40px high rather than 44px.               |
 
 ## Pass 4: Cognitive Load
 
@@ -53,24 +53,24 @@ Two areas add unnecessary load:
 
 ## Pass 5: State Coverage
 
-| State | Quality | Evidence |
-|---|---|---|
-| Entries closed | Good recovery | The closed state plainly explains that normal online entry is unavailable and offers show-team contact. |
-| Entries open | Functionally good | Existing cart state reconciles into class selection; Next leads to payment review without creating new data. |
-| Existing entry / no entry | Broken | Browse card, My Entries tab, Classes tab, and wizard disagree. |
-| Payment not ready | Good | Submit & pay remains disabled and explains that agreement review is needed. |
-| Error/diagnostics | Good for this walk | No console warnings or errors on the open show, class selection, or payment review. |
+| State                     | Quality            | Evidence                                                                                                     |
+| ------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Entries closed            | Good recovery      | The closed state plainly explains that normal online entry is unavailable and offers show-team contact.      |
+| Entries open              | Functionally good  | Existing cart state reconciles into class selection; Next leads to payment review without creating new data. |
+| Existing entry / no entry | Broken             | Browse card, My Entries tab, Classes tab, and wizard disagree.                                               |
+| Payment not ready         | Good               | Submit & pay remains disabled and explains that agreement review is needed.                                  |
+| Error/diagnostics         | Good for this walk | No console warnings or errors on the open show, class selection, or payment review.                          |
 
 ## Pass 6: Flow Integrity
 
-| Step | Result | Friction |
-|---|---|---|
-| Find the Heartland show | Completed | None once its test entry window was reopened. |
-| Decide whether already entered | Contradictory | Browse says submitted; My Entries says zero; classes/wizard show entered state. |
-| Open registration | Completed | “Add or Change Entries” is clear. |
-| Review classes | Completed without mutation | Readable cards and entered/cart badges; many dog tabs create phone scanning overhead. |
-| Move to payment | Completed without mutation | Existing cart item carried through. |
-| Understand payment / avoid accidental charge | Completed | Clear total, agreement gate, disabled submit button. |
+| Step                                         | Result                     | Friction                                                                              |
+| -------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------- |
+| Find the Heartland show                      | Completed                  | None once its test entry window was reopened.                                         |
+| Decide whether already entered               | Contradictory              | Browse says submitted; My Entries says zero; classes/wizard show entered state.       |
+| Open registration                            | Completed                  | “Add or Change Entries” is clear.                                                     |
+| Review classes                               | Completed without mutation | Readable cards and entered/cart badges; many dog tabs create phone scanning overhead. |
+| Move to payment                              | Completed without mutation | Existing cart item carried through.                                                   |
+| Understand payment / avoid accidental charge | Completed                  | Clear total, agreement gate, disabled submit button.                                  |
 
 **Flow verdict: completable, but not trustworthy at the show-detail decision point.** An older exhibitor may abandon the self-service flow or contact the secretary because the app first appears to deny that their existing entries exist.
 

@@ -36,7 +36,7 @@ interface DraftStore {
   config: DraftConfig;
   isAutoSaving: boolean;
   lastAutoSave: Date | null;
-  
+
   // CRUD Operations
   saveDraft: <T>(
     showId: string,
@@ -45,34 +45,36 @@ interface DraftStore {
     data: Partial<T>,
     metadata?: Partial<DraftMetadata>
   ) => string;
-  
+
   loadDraft: <T>(draftId: string) => SavedDraft<T> | null;
   updateDraft: <T>(draftId: string, data: Partial<T>, metadata?: Partial<DraftMetadata>) => boolean;
   deleteDraft: (draftId: string) => boolean;
-  
+
   // Batch Operations
-  saveBulkDrafts: <T>(drafts: Array<{
-    showId: string;
-    userId: string;
-    draftType: DraftMetadata['draftType'];
-    data: Partial<T>;
-    metadata?: Partial<DraftMetadata>;
-  }>) => string[];
-  
+  saveBulkDrafts: <T>(
+    drafts: Array<{
+      showId: string;
+      userId: string;
+      draftType: DraftMetadata['draftType'];
+      data: Partial<T>;
+      metadata?: Partial<DraftMetadata>;
+    }>
+  ) => string[];
+
   deleteBulkDrafts: (draftIds: string[]) => number;
-  
+
   // Query Operations
   getDraftsByShow: (showId: string) => SavedDraft[];
   getDraftsByUser: (userId: string) => SavedDraft[];
   getDraftsByType: (draftType: DraftMetadata['draftType']) => SavedDraft[];
   getDraftsByShowAndUser: (showId: string, userId: string) => SavedDraft[];
   getDraftsByShowAndType: (showId: string, draftType: DraftMetadata['draftType']) => SavedDraft[];
-  
+
   // Search Operations
   searchDrafts: (query: string) => SavedDraft[];
   getRecentDrafts: (limit?: number) => SavedDraft[];
   getDraftsModifiedSince: (since: Date) => SavedDraft[];
-  
+
   // Auto-save Management
   startAutoSave: (intervalMs?: number) => void;
   stopAutoSave: () => void;
@@ -82,18 +84,18 @@ interface DraftStore {
     draftType: DraftMetadata['draftType'],
     data: Partial<T>
   ) => string | null;
-  
+
   // Cleanup Operations
   cleanupExpiredDrafts: () => number;
   cleanupOldDrafts: (showId: string, maxDrafts: number) => number;
   clearAllDrafts: () => void;
   clearDraftsByShow: (showId: string) => number;
   clearDraftsByUser: (userId: string) => number;
-  
+
   // Configuration
   updateConfig: (config: Partial<DraftConfig>) => void;
   resetConfig: () => void;
-  
+
   // Utilities
   exportDrafts: (showId?: string, userId?: string) => SavedDraft[];
   importDrafts: (drafts: SavedDraft[]) => number;
@@ -105,7 +107,7 @@ interface DraftStore {
     newestDraft: Date | null;
     totalSize: number;
   };
-  
+
   // Migration utilities
   migrateLegacyDrafts: () => number;
 }
@@ -115,7 +117,7 @@ const DEFAULT_CONFIG: DraftConfig = {
   maxDraftsPerShow: 10,
   maxDraftsPerUser: 50,
   enableCompression: false,
-  retentionDays: 30
+  retentionDays: 30,
 };
 
 let autoSaveTimer: NodeJS.Timeout | null = null;
@@ -133,7 +135,7 @@ export const useDraftStore = create<DraftStore>()(
       saveDraft: (showId, userId, draftType, data, metadata = {}) => {
         const now = new Date();
         const draftId = `draft-${now.getTime()}-${Math.random().toString(36).substring(2, 9)}`;
-        
+
         const draftMetadata: DraftMetadata = {
           id: draftId,
           showId,
@@ -145,43 +147,43 @@ export const useDraftStore = create<DraftStore>()(
           draftType,
           lastModified: now,
           autoSaved: metadata.autoSaved || false,
-          ...metadata
+          ...metadata,
         };
 
         const newDraft: SavedDraft = {
           metadata: draftMetadata,
           data,
-          version: 1
+          version: 1,
         };
 
         set(state => {
           const updatedDrafts = [...state.drafts, newDraft];
-          
+
           // Cleanup old drafts if over limit
           const userDrafts = updatedDrafts.filter(d => d.metadata.userId === userId);
           const showDrafts = updatedDrafts.filter(d => d.metadata.showId === showId);
-          
+
           let finalDrafts = updatedDrafts;
-          
+
           // Apply per-show limit
           if (showDrafts.length > state.config.maxDraftsPerShow) {
             const showDraftsToRemove = showDrafts
               .sort((a, b) => a.metadata.timestamp - b.metadata.timestamp)
               .slice(0, showDrafts.length - state.config.maxDraftsPerShow);
-            
-            finalDrafts = finalDrafts.filter(d => 
-              !showDraftsToRemove.some(remove => remove.metadata.id === d.metadata.id)
+
+            finalDrafts = finalDrafts.filter(
+              d => !showDraftsToRemove.some(remove => remove.metadata.id === d.metadata.id)
             );
           }
-          
+
           // Apply per-user limit
           if (userDrafts.length > state.config.maxDraftsPerUser) {
             const userDraftsToRemove = userDrafts
               .sort((a, b) => a.metadata.timestamp - b.metadata.timestamp)
               .slice(0, userDrafts.length - state.config.maxDraftsPerUser);
-            
-            finalDrafts = finalDrafts.filter(d => 
-              !userDraftsToRemove.some(remove => remove.metadata.id === d.metadata.id)
+
+            finalDrafts = finalDrafts.filter(
+              d => !userDraftsToRemove.some(remove => remove.metadata.id === d.metadata.id)
             );
           }
 
@@ -211,32 +213,32 @@ export const useDraftStore = create<DraftStore>()(
                     ...d.metadata,
                     ...metadata,
                     lastModified: now,
-                    timestamp: now.getTime()
+                    timestamp: now.getTime(),
                   },
-                  version: d.version + 1
+                  version: d.version + 1,
                 }
               : d
-          )
+          ),
         }));
 
         return true;
       },
 
-      deleteDraft: (draftId) => {
+      deleteDraft: draftId => {
         const draftExists = get().drafts.some(d => d.metadata.id === draftId);
         if (!draftExists) return false;
 
         set(state => ({
-          drafts: state.drafts.filter(d => d.metadata.id !== draftId)
+          drafts: state.drafts.filter(d => d.metadata.id !== draftId),
         }));
 
         return true;
       },
 
       // Batch Operations
-      saveBulkDrafts: (drafts) => {
+      saveBulkDrafts: drafts => {
         const savedIds: string[] = [];
-        
+
         drafts.forEach(({ showId, userId, draftType, data, metadata }) => {
           const draftId = get().saveDraft(showId, userId, draftType, data, metadata);
           savedIds.push(draftId);
@@ -245,73 +247,74 @@ export const useDraftStore = create<DraftStore>()(
         return savedIds;
       },
 
-      deleteBulkDrafts: (draftIds) => {
-        const existingIds = get().drafts
-          .filter(d => draftIds.includes(d.metadata.id))
+      deleteBulkDrafts: draftIds => {
+        const existingIds = get()
+          .drafts.filter(d => draftIds.includes(d.metadata.id))
           .map(d => d.metadata.id);
 
         set(state => ({
-          drafts: state.drafts.filter(d => !draftIds.includes(d.metadata.id))
+          drafts: state.drafts.filter(d => !draftIds.includes(d.metadata.id)),
         }));
 
         return existingIds.length;
       },
 
       // Query Operations
-      getDraftsByShow: (showId) => {
+      getDraftsByShow: showId => {
         return get().drafts.filter(d => d.metadata.showId === showId);
       },
 
-      getDraftsByUser: (userId) => {
+      getDraftsByUser: userId => {
         return get().drafts.filter(d => d.metadata.userId === userId);
       },
 
-      getDraftsByType: (draftType) => {
+      getDraftsByType: draftType => {
         return get().drafts.filter(d => d.metadata.draftType === draftType);
       },
 
       getDraftsByShowAndUser: (showId, userId) => {
-        return get().drafts.filter(d => 
-          d.metadata.showId === showId && d.metadata.userId === userId
+        return get().drafts.filter(
+          d => d.metadata.showId === showId && d.metadata.userId === userId
         );
       },
 
       getDraftsByShowAndType: (showId, draftType) => {
-        return get().drafts.filter(d => 
-          d.metadata.showId === showId && d.metadata.draftType === draftType
+        return get().drafts.filter(
+          d => d.metadata.showId === showId && d.metadata.draftType === draftType
         );
       },
 
       // Search Operations
-      searchDrafts: (query) => {
+      searchDrafts: query => {
         const lowerQuery = query.toLowerCase();
-        return get().drafts.filter(d =>
-          d.metadata.title.toLowerCase().includes(lowerQuery) ||
-          d.metadata.preview.toLowerCase().includes(lowerQuery) ||
-          d.metadata.draftType.toLowerCase().includes(lowerQuery)
+        return get().drafts.filter(
+          d =>
+            d.metadata.title.toLowerCase().includes(lowerQuery) ||
+            d.metadata.preview.toLowerCase().includes(lowerQuery) ||
+            d.metadata.draftType.toLowerCase().includes(lowerQuery)
         );
       },
 
       getRecentDrafts: (limit = 10) => {
-        return get().drafts
-          .sort((a, b) => b.metadata.timestamp - a.metadata.timestamp)
+        return get()
+          .drafts.sort((a, b) => b.metadata.timestamp - a.metadata.timestamp)
           .slice(0, limit);
       },
 
-      getDraftsModifiedSince: (since) => {
+      getDraftsModifiedSince: since => {
         return get().drafts.filter(d => d.metadata.lastModified > since);
       },
 
       // Auto-save Management
-      startAutoSave: (intervalMs) => {
+      startAutoSave: intervalMs => {
         const interval = intervalMs || get().config.autoSaveInterval;
-        
+
         if (autoSaveTimer) {
           clearInterval(autoSaveTimer);
         }
 
         set({ isAutoSaving: true });
-        
+
         autoSaveTimer = setInterval(() => {
           set({ lastAutoSave: new Date() });
         }, interval);
@@ -338,20 +341,18 @@ export const useDraftStore = create<DraftStore>()(
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - get().config.retentionDays);
 
-        const expiredDrafts = get().drafts.filter(d => 
-          d.metadata.lastModified < cutoffDate
-        );
+        const expiredDrafts = get().drafts.filter(d => d.metadata.lastModified < cutoffDate);
 
         set(state => ({
-          drafts: state.drafts.filter(d => d.metadata.lastModified >= cutoffDate)
+          drafts: state.drafts.filter(d => d.metadata.lastModified >= cutoffDate),
         }));
 
         return expiredDrafts.length;
       },
 
       cleanupOldDrafts: (showId, maxDrafts) => {
-        const showDrafts = get().drafts
-          .filter(d => d.metadata.showId === showId)
+        const showDrafts = get()
+          .drafts.filter(d => d.metadata.showId === showId)
           .sort((a, b) => b.metadata.timestamp - a.metadata.timestamp);
 
         if (showDrafts.length <= maxDrafts) {
@@ -362,7 +363,7 @@ export const useDraftStore = create<DraftStore>()(
         const idsToRemove = draftsToRemove.map(d => d.metadata.id);
 
         set(state => ({
-          drafts: state.drafts.filter(d => !idsToRemove.includes(d.metadata.id))
+          drafts: state.drafts.filter(d => !idsToRemove.includes(d.metadata.id)),
         }));
 
         return draftsToRemove.length;
@@ -372,30 +373,30 @@ export const useDraftStore = create<DraftStore>()(
         set({ drafts: [] });
       },
 
-      clearDraftsByShow: (showId) => {
+      clearDraftsByShow: showId => {
         const removedCount = get().drafts.filter(d => d.metadata.showId === showId).length;
-        
+
         set(state => ({
-          drafts: state.drafts.filter(d => d.metadata.showId !== showId)
+          drafts: state.drafts.filter(d => d.metadata.showId !== showId),
         }));
 
         return removedCount;
       },
 
-      clearDraftsByUser: (userId) => {
+      clearDraftsByUser: userId => {
         const removedCount = get().drafts.filter(d => d.metadata.userId === userId).length;
-        
+
         set(state => ({
-          drafts: state.drafts.filter(d => d.metadata.userId !== userId)
+          drafts: state.drafts.filter(d => d.metadata.userId !== userId),
         }));
 
         return removedCount;
       },
 
       // Configuration
-      updateConfig: (configUpdates) => {
+      updateConfig: configUpdates => {
         set(state => ({
-          config: { ...state.config, ...configUpdates }
+          config: { ...state.config, ...configUpdates },
         }));
       },
 
@@ -406,11 +407,11 @@ export const useDraftStore = create<DraftStore>()(
       // Utilities
       exportDrafts: (showId, userId) => {
         let drafts = get().drafts;
-        
+
         if (showId) {
           drafts = drafts.filter(d => d.metadata.showId === showId);
         }
-        
+
         if (userId) {
           drafts = drafts.filter(d => d.metadata.userId === userId);
         }
@@ -418,18 +419,18 @@ export const useDraftStore = create<DraftStore>()(
         return drafts;
       },
 
-      importDrafts: (drafts) => {
-        const validDrafts = drafts.filter(draft => 
-          draft.metadata && draft.data && draft.metadata.id
+      importDrafts: drafts => {
+        const validDrafts = drafts.filter(
+          draft => draft.metadata && draft.data && draft.metadata.id
         );
 
         set(state => {
           // Merge with existing drafts, replacing any with same ID
           const existingIds = state.drafts.map(d => d.metadata.id);
           const newDrafts = validDrafts.filter(d => !existingIds.includes(d.metadata.id));
-          
+
           return {
-            drafts: [...state.drafts, ...newDrafts]
+            drafts: [...state.drafts, ...newDrafts],
           };
         });
 
@@ -438,7 +439,7 @@ export const useDraftStore = create<DraftStore>()(
 
       getDraftStatistics: () => {
         const drafts = get().drafts;
-        
+
         const draftsByType: Record<string, number> = {};
         const draftsByShow: Record<string, number> = {};
         let oldestDraft: Date | null = null;
@@ -446,13 +447,12 @@ export const useDraftStore = create<DraftStore>()(
 
         drafts.forEach(draft => {
           // Count by type
-          draftsByType[draft.metadata.draftType] = 
+          draftsByType[draft.metadata.draftType] =
             (draftsByType[draft.metadata.draftType] || 0) + 1;
-          
+
           // Count by show
-          draftsByShow[draft.metadata.showId] = 
-            (draftsByShow[draft.metadata.showId] || 0) + 1;
-          
+          draftsByShow[draft.metadata.showId] = (draftsByShow[draft.metadata.showId] || 0) + 1;
+
           // Track oldest/newest
           const draftDate = draft.metadata.lastModified;
           if (!oldestDraft || draftDate < oldestDraft) {
@@ -472,14 +472,14 @@ export const useDraftStore = create<DraftStore>()(
           draftsByShow,
           oldestDraft,
           newestDraft,
-          totalSize
+          totalSize,
         };
       },
 
       // Migration utilities
       migrateLegacyDrafts: () => {
         let migratedCount = 0;
-        
+
         // Scan localStorage for legacy draft keys
         const legacyPatterns = [
           'registration-draft-',
@@ -487,7 +487,7 @@ export const useDraftStore = create<DraftStore>()(
           'class-draft-',
           'trial-draft-',
           'person-draft-',
-          'dog-draft-'
+          'dog-draft-',
         ];
 
         legacyPatterns.forEach(pattern => {
@@ -495,17 +495,19 @@ export const useDraftStore = create<DraftStore>()(
             if (key.startsWith(pattern)) {
               try {
                 const data = JSON.parse(localStorage.getItem(key) || '{}');
-                
+
                 if (data && Object.keys(data).length > 0) {
-                  const draftType = pattern.replace('draft-', '').replace('-', '') as DraftMetadata['draftType'];
+                  const draftType = pattern
+                    .replace('draft-', '')
+                    .replace('-', '') as DraftMetadata['draftType'];
                   const showId = extractShowIdFromKey(key) || 'unknown-show';
                   const userId = extractUserIdFromData(data) || 'unknown-user';
-                  
+
                   get().saveDraft(showId, userId, draftType, data, {
                     title: `Migrated ${draftType} draft`,
-                    stepCompleted: 'migrated'
+                    stepCompleted: 'migrated',
                   });
-                  
+
                   // Remove legacy entry
                   localStorage.removeItem(key);
                   migratedCount++;
@@ -518,12 +520,12 @@ export const useDraftStore = create<DraftStore>()(
         });
 
         return migratedCount;
-      }
+      },
     }),
     {
       name: 'draft-storage',
       storage: createJSONStorage(() => getOptimalStorage('drafts')),
-      partialize: (state) => ({
+      partialize: state => ({
         drafts: state.drafts,
         config: state.config,
       }),
@@ -545,10 +547,12 @@ export const useDraftStore = create<DraftStore>()(
                   version: d.version || 1,
                   metadata: {
                     ...metadata,
-                    lastModified: metadata.lastModified || new Date(metadata.timestamp as string | number | Date),
+                    lastModified:
+                      metadata.lastModified ||
+                      new Date(metadata.timestamp as string | number | Date),
                     autoSaved: metadata.autoSaved || false,
-                    draftType: metadata.draftType || 'registration'
-                  }
+                    draftType: metadata.draftType || 'registration',
+                  },
                 };
               });
             }
@@ -570,19 +574,22 @@ function generatePreview<T>(data: Partial<T>, draftType: DraftMetadata['draftTyp
   }
 
   const registrationData = data as Partial<RegistrationFormData>;
-  
+
   switch (draftType) {
     case 'registration': {
       const selectedDogs = registrationData.selectedDogs?.length || 0;
-      const selectedClasses = registrationData.entries?.reduce((total, entry) => 
-        total + (entry.classes?.length || 0), 0) || 0;
-      
+      const selectedClasses =
+        registrationData.entries?.reduce(
+          (total, entry) => total + (entry.classes?.length || 0),
+          0
+        ) || 0;
+
       if (selectedDogs > 0 || selectedClasses > 0) {
         return `${selectedDogs} dog${selectedDogs !== 1 ? 's' : ''}, ${selectedClasses} class${selectedClasses !== 1 ? 'es' : ''}`;
       }
       break;
     }
-    
+
     default: {
       const fieldCount = Object.keys(data).length;
       return `${fieldCount} field${fieldCount !== 1 ? 's' : ''} saved`;
@@ -605,5 +612,10 @@ function extractShowIdFromKey(key: string): string | null {
 
 function extractUserIdFromData(data: Record<string, unknown>): string | null {
   // Try to extract user ID from the data
-  return (data.userId as string) || ((data.user as Record<string, unknown>)?.id as string) || (data.createdBy as string) || null;
+  return (
+    (data.userId as string) ||
+    ((data.user as Record<string, unknown>)?.id as string) ||
+    (data.createdBy as string) ||
+    null
+  );
 }

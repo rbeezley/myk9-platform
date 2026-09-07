@@ -35,18 +35,23 @@ describe('support tickets', () => {
   it('creates the ticket and first message through one transactional RPC', async () => {
     mockRpc.mockResolvedValue({ data: [{ id: 'ticket-1' }], error: null });
 
-    await expect(createSupportTicket({
-      ownerId: 'owner-1',
-      body: 'Missing armband',
-      diagnostics: {} as never,
-      showId: 'show-1',
-      isShowDayPriority: true,
-    })).resolves.toEqual({ id: 'ticket-1' });
+    await expect(
+      createSupportTicket({
+        ownerId: 'owner-1',
+        body: 'Missing armband',
+        diagnostics: {} as never,
+        showId: 'show-1',
+        isShowDayPriority: true,
+      })
+    ).resolves.toEqual({ id: 'ticket-1' });
 
-    expect(mockRpc).toHaveBeenCalledWith('create_support_ticket', expect.objectContaining({
-      p_owner_id: 'owner-1',
-      p_body: 'Missing armband',
-    }));
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_support_ticket',
+      expect.objectContaining({
+        p_owner_id: 'owner-1',
+        p_body: 'Missing armband',
+      })
+    );
     expect(mockFrom).not.toHaveBeenCalled();
   });
 

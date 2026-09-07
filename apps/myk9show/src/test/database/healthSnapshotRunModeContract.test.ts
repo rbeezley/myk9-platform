@@ -46,7 +46,9 @@ describe('QA-HEALTH-WATCHDOG-INERT-2026-08-22 run_mode discriminator', () => {
 
   it('preserves the dedupe key and conflict guard the original watchdog relied on', () => {
     const body = watchdogBody(runModeMigration);
-    expect(body).toContain("'daily-health-check:' || to_char(run_window.expected_at at time zone 'utc', 'yyyy-mm-dd')");
+    expect(body).toContain(
+      "'daily-health-check:' || to_char(run_window.expected_at at time zone 'utc', 'yyyy-mm-dd')"
+    );
     expect(body).toContain('on conflict (source, dedupe_key)');
     expect(body).toContain('where resolved_at is null and dedupe_key is not null');
     expect(body).toContain('do nothing');

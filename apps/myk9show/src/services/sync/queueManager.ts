@@ -1,12 +1,7 @@
 // Queue management for offline sync operations
 import { db } from '../database/connection';
 import { logger } from '@/services/LoggingService';
-import type {
-  SyncQueueItem, 
-  SyncConfiguration, 
-  SyncEventMap,
-  SyncQueueRecord 
-} from './types';
+import type { SyncQueueItem, SyncConfiguration, SyncEventMap, SyncQueueRecord } from './types';
 import { EventEmitter } from './eventEmitter';
 
 export class QueueManager {
@@ -24,17 +19,22 @@ export class QueueManager {
     await this.resetStuckItems();
   }
 
-  async addToQueue(item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'retryCount' | 'status'>): Promise<string> {
+  async addToQueue(
+    item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'retryCount' | 'status'>
+  ): Promise<string> {
     const queueItem: SyncQueueItem = {
       id: `queue-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       timestamp: new Date(),
       retryCount: 0,
       status: 'pending',
-      ...item
+      ...item,
     };
 
     // Check queue size limit
-    const queueSize = await db.instance.syncQueue.where('status').anyOf(['pending', 'processing']).count();
+    const queueSize = await db.instance.syncQueue
+      .where('status')
+      .anyOf(['pending', 'processing'])
+      .count();
     if (queueSize >= this.config.maxQueueSize) {
       // Remove oldest low priority items
       await this.cleanupQueue();
@@ -51,7 +51,7 @@ export class QueueManager {
       retryCount: queueItem.retryCount,
       status: queueItem.status,
       error: queueItem.error,
-      priority: queueItem.priority
+      priority: queueItem.priority,
     };
 
     await db.instance.syncQueue.add(record);
@@ -103,7 +103,7 @@ export class QueueManager {
       db.instance.syncQueue.where('status').equals('pending').count(),
       db.instance.syncQueue.where('status').equals('processing').count(),
       db.instance.syncQueue.where('status').equals('failed').count(),
-      db.instance.syncQueue.where('status').equals('completed').count()
+      db.instance.syncQueue.where('status').equals('completed').count(),
     ]);
 
     return { pending, processing, failed, completed };
@@ -136,7 +136,7 @@ export class QueueManager {
         retryCount: record.retryCount,
         status: record.status,
         error: record.error,
-        priority: record.priority
+        priority: record.priority,
       };
 
       await this.executeOperation(item);
@@ -144,31 +144,30 @@ export class QueueManager {
       // Mark as completed
       await db.instance.syncQueue.update(record.id, {
         status: 'completed',
-        error: undefined
+        error: undefined,
       });
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       // Increment retry count
       const newRetryCount = record.retryCount + 1;
-      
+
       if (newRetryCount >= this.config.maxRetries) {
         // Max retries reached, mark as failed
         await db.instance.syncQueue.update(record.id, {
           status: 'failed',
           retryCount: newRetryCount,
-          error: errorMessage
+          error: errorMessage,
         });
       } else {
         // Retry later with backoff
         const backoffMs = this.config.retryBackoffMs * Math.pow(2, newRetryCount - 1);
-        
+
         setTimeout(async () => {
           await db.instance.syncQueue.update(record.id, {
             status: 'pending',
             retryCount: newRetryCount,
-            error: errorMessage
+            error: errorMessage,
           });
         }, backoffMs);
       }
@@ -180,7 +179,7 @@ export class QueueManager {
   private async executeOperation(item: SyncQueueItem): Promise<void> {
     // This would integrate with the actual sync operations
     // For now, we'll simulate the operation
-    
+
     switch (item.operation) {
       case 'create':
         await this.executeCreate(item);
@@ -214,10 +213,7 @@ export class QueueManager {
 
   private async resetStuckItems(): Promise<void> {
     // Reset any items that were left in 'processing' state
-    await db.instance.syncQueue
-      .where('status')
-      .equals('processing')
-      .modify({ status: 'pending' });
+    await db.instance.syncQueue.where('status').equals('processing').modify({ status: 'pending' });
   }
 
   private async cleanupQueue(): Promise<void> {
@@ -230,19 +226,20 @@ export class QueueManager {
       .delete();
 
     // If still over limit, remove oldest low priority pending items
-    const queueSize = await db.instance.syncQueue.where('status').anyOf(['pending', 'processing']).count();
+    const queueSize = await db.instance.syncQueue
+      .where('status')
+      .anyOf(['pending', 'processing'])
+      .count();
     if (queueSize >= this.config.maxQueueSize) {
       const itemsToRemove = queueSize - this.config.maxQueueSize + 10; // Remove extra for buffer
-      
+
       const oldestLowPriority = await db.instance.syncQueue
         .where('status')
         .equals('pending')
         .and(item => item.priority <= 3) // Low priority
         .sortBy('timestamp');
 
-      const idsToRemove = oldestLowPriority
-        .slice(0, itemsToRemove)
-        .map(item => item.id);
+      const idsToRemove = oldestLowPriority.slice(0, itemsToRemove).map(item => item.id);
 
       if (idsToRemove.length > 0) {
         await db.instance.syncQueue.where('id').anyOf(idsToRemove).delete();

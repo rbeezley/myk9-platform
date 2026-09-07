@@ -1,5 +1,9 @@
 import { ShowEntry, RegistrationData } from '../store/entryStore';
-import { ShowRegistration, ShowEntry as OldShowEntry, ClassEntry } from '../types/show-registration-types';
+import {
+  ShowRegistration,
+  ShowEntry as OldShowEntry,
+  ClassEntry,
+} from '../types/show-registration-types';
 
 /**
  * Utility to migrate data from old store architecture to new unified entry store
@@ -9,13 +13,17 @@ export function migrateRegistrationToEntries(
   registration: ShowRegistration,
   showId: string
 ): Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>[] {
-  const entries: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>[] = [];
-  
+  const entries: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>[] =
+    [];
+
   registration.entries.forEach((showEntry: OldShowEntry) => {
     showEntry.classes.forEach((classEntry: ClassEntry) => {
       // Map old registration data to new format
       const registrationData: RegistrationData = {
-        submittedAt: (registration.createdAt instanceof Date ? registration.createdAt.toISOString() : registration.createdAt) || new Date().toISOString(),
+        submittedAt:
+          (registration.createdAt instanceof Date
+            ? registration.createdAt.toISOString()
+            : registration.createdAt) || new Date().toISOString(),
         handler: showEntry.handler?.name || showEntry.handlerName || 'Unknown Handler',
         handlerId: showEntry.handler?.id || showEntry.handlerId,
         entryFee: classEntry.fee || 25, // Default fee if not specified
@@ -25,26 +33,26 @@ export function migrateRegistrationToEntries(
         runOrder: classEntry.runOrder,
         jumpHeight: classEntry.jumpHeight,
         preferredJudge: classEntry.preferredJudge,
-        moveUpRequested: classEntry.moveUpRequested
+        moveUpRequested: classEntry.moveUpRequested,
       };
-      
+
       const newEntry = {
         showId,
         classId: classEntry.classId,
         dogId: showEntry.dogId,
-        registrationData
+        registrationData,
       };
-      
+
       entries.push(newEntry);
     });
   });
-  
+
   return entries;
 }
 
 function mapPaymentStatus(oldStatus?: string): 'pending' | 'paid' | 'refunded' {
   if (!oldStatus) return 'pending';
-  
+
   switch (oldStatus.toLowerCase()) {
     case 'paid':
     case 'completed':
@@ -87,7 +95,7 @@ export function migrateClassEntryToCompetition(
   if (!oldEntry.score && !oldEntry.time && !oldEntry.placement) {
     return null;
   }
-  
+
   return {
     entryId,
     competitionData: {
@@ -97,22 +105,25 @@ export function migrateClassEntryToCompetition(
       qualified: oldEntry.status === 'Qualified',
       judgeNotes: oldEntry.notes || '',
       recordedBy: 'migrated-data',
-      recordedAt: new Date().toISOString()
-    }
+      recordedAt: new Date().toISOString(),
+    },
   };
 }
 
 /**
  * Create sample entries for development
  */
-export function createSampleEntries(): Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>[] {
+export function createSampleEntries(): Omit<
+  ShowEntry,
+  'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'
+>[] {
   // Get the current class ID from the URL if available
   const currentUrl = typeof window !== 'undefined' ? window.location.pathname : '';
   const urlClassId = currentUrl.match(/\/classes\/(.+)$/)?.[1];
-  
+
   // Use the current class ID if available, otherwise use a default pattern
   const targetClassId = urlClassId || '1-class-1749403840319-0';
-  
+
   return [
     {
       showId: '1', // Summer Specialty Show
@@ -124,8 +135,8 @@ export function createSampleEntries(): Omit<ShowEntry, 'id' | 'status' | 'status
         handlerId: '1',
         entryFee: 25,
         paymentStatus: 'paid',
-        armband: 'A101'
-      }
+        armband: 'A101',
+      },
     },
     {
       showId: '1',
@@ -137,9 +148,9 @@ export function createSampleEntries(): Omit<ShowEntry, 'id' | 'status' | 'status
         handlerId: '3',
         entryFee: 25,
         paymentStatus: 'pending',
-        specialRequests: 'First time showing'
-      }
-    }
+        specialRequests: 'First time showing',
+      },
+    },
   ];
 }
 

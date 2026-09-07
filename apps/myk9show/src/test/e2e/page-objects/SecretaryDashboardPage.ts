@@ -5,7 +5,9 @@ export class SecretaryDashboardPage {
 
   // Locators
   private get createShowButton() {
-    return this.page.locator('button:has-text("Create Show"), a:has-text("Create Show"), [data-testid="create-show-button"]');
+    return this.page.locator(
+      'button:has-text("Create Show"), a:has-text("Create Show"), [data-testid="create-show-button"]'
+    );
   }
 
   private get showsList() {

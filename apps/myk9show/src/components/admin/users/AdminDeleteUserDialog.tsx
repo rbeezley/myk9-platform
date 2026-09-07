@@ -166,55 +166,55 @@ export function AdminDeleteUserDialog({
               when the viewer cannot destroy the record at all */}
           {!alreadyRemoved && allowPermanent && (
             <>
-          {/* Soft Delete Option */}
-          <label
-            className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors
+              {/* Soft Delete Option */}
+              <label
+                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors
               ${mode === 'soft' ? 'border-primary bg-primary/5' : 'border-border hover:border-border/80'}`}
-          >
-            <input
-              type="radio"
-              name="deleteMode"
-              value="soft"
-              checked={mode === 'soft'}
-              onChange={() => setMode('soft')}
-              className="mt-1"
-              aria-label="Deactivate"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <UserX className="h-4 w-4 text-warning" />
-                <span className="font-medium">Deactivate</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Hides the user from the system. Records are preserved and can be restored later.
-              </p>
-            </div>
-          </label>
+              >
+                <input
+                  type="radio"
+                  name="deleteMode"
+                  value="soft"
+                  checked={mode === 'soft'}
+                  onChange={() => setMode('soft')}
+                  className="mt-1"
+                  aria-label="Deactivate"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <UserX className="h-4 w-4 text-warning" />
+                    <span className="font-medium">Deactivate</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Hides the user from the system. Records are preserved and can be restored later.
+                  </p>
+                </div>
+              </label>
 
-          {/* Permanent Delete Option */}
-          <label
-            className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors
+              {/* Permanent Delete Option */}
+              <label
+                className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-colors
               ${mode === 'permanent' ? 'border-destructive bg-destructive/5' : 'border-border hover:border-border/80'}`}
-          >
-            <input
-              type="radio"
-              name="deleteMode"
-              value="permanent"
-              checked={mode === 'permanent'}
-              onChange={() => setMode('permanent')}
-              className="mt-1"
-              aria-label="Permanently delete"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Trash2 className="h-4 w-4 text-destructive" />
-                <span className="font-medium">Permanently delete</span>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Removes all data and the login account. This cannot be undone.
-              </p>
-            </div>
-          </label>
+              >
+                <input
+                  type="radio"
+                  name="deleteMode"
+                  value="permanent"
+                  checked={mode === 'permanent'}
+                  onChange={() => setMode('permanent')}
+                  className="mt-1"
+                  aria-label="Permanently delete"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <span className="font-medium">Permanently delete</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Removes all data and the login account. This cannot be undone.
+                  </p>
+                </div>
+              </label>
             </>
           )}
 

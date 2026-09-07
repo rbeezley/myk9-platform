@@ -268,10 +268,7 @@ const AppHeader: React.FC = () => {
                 {/* Account access lives in the sidebar on desktop. Routes
                     without a registered sidebar keep this trigger at every
                     width so Account and Sign out are never stranded. */}
-                <AccountMenu
-                  variant="header"
-                  {...(openMobileNav && { className: 'md:hidden' })}
-                />
+                <AccountMenu variant="header" {...(openMobileNav && { className: 'md:hidden' })} />
               </>
             ) : (
               <>

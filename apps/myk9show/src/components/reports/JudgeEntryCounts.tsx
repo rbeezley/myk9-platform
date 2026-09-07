@@ -58,7 +58,12 @@ export const JudgeEntryCounts: React.FC<ReportProps> = ({
       <div className="report-header">
         <div className="report-logo">myK9Show</div>
         <h1 className="report-title">Judge Entry Counts</h1>
-        {showName && <p className="report-subtitle">{orgTitle}{showName}</p>}
+        {showName && (
+          <p className="report-subtitle">
+            {orgTitle}
+            {showName}
+          </p>
+        )}
       </div>
 
       {judgeData.map(({ judge, rows, judgeTotal, judgeTimeSeconds }) => {
@@ -88,14 +93,16 @@ export const JudgeEntryCounts: React.FC<ReportProps> = ({
               </tbody>
             </table>
             <div className="stats-element-total">
-              {judge}: {judgeTotal} entries{showTime ? ` — estimated ${formatHHMM(judgeTimeSeconds)}` : ''}
+              {judge}: {judgeTotal} entries
+              {showTime ? ` — estimated ${formatHHMM(judgeTimeSeconds)}` : ''}
             </div>
           </div>
         );
       })}
 
       <div className="stats-footer">
-        Grand Total: {grandTotal} entries{showTime ? ` — estimated ${formatHHMM(grandTimeSeconds)}` : ''}
+        Grand Total: {grandTotal} entries
+        {showTime ? ` — estimated ${formatHHMM(grandTimeSeconds)}` : ''}
       </div>
     </div>
   );

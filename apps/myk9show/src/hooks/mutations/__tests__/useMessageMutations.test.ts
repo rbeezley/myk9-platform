@@ -114,8 +114,6 @@ describe('useMessageMutations', () => {
 
     expect(sendResult).toBeNull();
     expect(notifications.error).toHaveBeenCalledWith('No matching recipients to message');
-    expect(notifications.success).not.toHaveBeenCalledWith(
-      expect.stringContaining('0 exhibitors')
-    );
+    expect(notifications.success).not.toHaveBeenCalledWith(expect.stringContaining('0 exhibitors'));
   });
 });

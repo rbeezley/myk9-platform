@@ -45,9 +45,7 @@ const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
 
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 
-const VolunteerSchedulingPage = lazy(
-  () => import('@/pages/secretary/VolunteerSchedulingPage')
-);
+const VolunteerSchedulingPage = lazy(() => import('@/pages/secretary/VolunteerSchedulingPage'));
 const ShowSettingsPage = lazy(() => import('@/pages/secretary/ShowSettingsPage'));
 const SecretaryMessagesPage = lazy(() => import('@/features/messages/pages/SecretaryMessagesPage'));
 // Scoring pages
@@ -208,9 +206,7 @@ const SecretaryShowRedirect = ({ subPath }: { subPath: 'show-desk' | '' }) => {
     return <Navigate to="/secretary/dashboard" replace />;
   }
 
-  const to = subPath
-    ? `/shows/${showId}/${subPath}`
-    : `/shows/${showId}/setup`;
+  const to = subPath ? `/shows/${showId}/${subPath}` : `/shows/${showId}/setup`;
 
   return <Navigate to={to} replace />;
 };
@@ -504,7 +500,9 @@ export const SecretaryRoutes = () => (
     <Route
       path="/secretary/messages"
       element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}>
+        <ProtectedRoute
+          requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+        >
           <SuspenseWrapper>
             <PageTransition>
               <SecretaryMessagesPage />
@@ -516,7 +514,9 @@ export const SecretaryRoutes = () => (
     <Route
       path="/secretary/messages/:showId"
       element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}>
+        <ProtectedRoute
+          requiredRole={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
+        >
           <SecretaryMessagesShowIdRedirect />
         </ProtectedRoute>
       }

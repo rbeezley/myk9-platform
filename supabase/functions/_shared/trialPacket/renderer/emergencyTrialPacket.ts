@@ -92,9 +92,7 @@ function compareEntries(a: PacketReportEntry, b: PacketReportEntry): number {
   // a suffixed "12A" sorts beside 12, and an unassigned dog sorts LAST
   // rather than leading the running order as the old `0` sentinel did
   // (MYK9-243).
-  return (
-    runOrderA - runOrderB || compareArmbands(a.armband, b.armband) || compareText(a.id, b.id)
-  );
+  return runOrderA - runOrderB || compareArmbands(a.armband, b.armband) || compareText(a.id, b.id);
 }
 
 function chunks<T>(items: T[], size: number): T[][] {

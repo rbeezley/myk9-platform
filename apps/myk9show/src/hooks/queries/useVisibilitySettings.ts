@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { cacheStrategies } from '@/lib/queryClient';
-import {
-  getVisibilitySettings,
-  visibilityKeys,
-} from '@/services/database/visibility';
+import { getVisibilitySettings, visibilityKeys } from '@/services/database/visibility';
 export {
   getDefaultShowSettings,
   visibilityKeys,

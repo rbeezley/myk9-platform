@@ -108,8 +108,8 @@ export const JudgeSupplyChecklistReport: React.FC<ReportProps> = ({
           {showName && <p className="report-subtitle">{showName}</p>}
         </div>
         <p>
-          No judge supplies have been configured for this show yet. Open a trial detail page and
-          use the "Judge Supplies" section to set them up.
+          No judge supplies have been configured for this show yet. Open a trial detail page and use
+          the "Judge Supplies" section to set them up.
         </p>
       </div>
     );

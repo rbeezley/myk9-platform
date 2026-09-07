@@ -211,10 +211,7 @@ describe('ConflictManager', () => {
       });
       const mgr = new ConflictManager(customResolver);
 
-      await mgr.handleSyncConflict(
-        { id: '1', name: 'local' },
-        { id: '1', name: 'remote' }
-      );
+      await mgr.handleSyncConflict({ id: '1', name: 'local' }, { id: '1', name: 'remote' });
 
       const pending = mgr.getPendingConflicts();
       const conflict = mgr.getConflictById(pending[0]!.id);
@@ -252,10 +249,7 @@ describe('ConflictManager', () => {
       const handler = vi.fn();
       mgr.addEventListener('manual_resolution_required', handler);
 
-      await mgr.handleSyncConflict(
-        { id: '1', name: 'local' },
-        { id: '1', name: 'remote' }
-      );
+      await mgr.handleSyncConflict({ id: '1', name: 'local' }, { id: '1', name: 'remote' });
 
       expect(handler).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -282,10 +276,7 @@ describe('ConflictManager', () => {
       mgr.addEventListener('manual_resolution_required', handler1);
       mgr.addEventListener('manual_resolution_required', handler2);
 
-      await mgr.handleSyncConflict(
-        { id: '1', name: 'local' },
-        { id: '1', name: 'remote' }
-      );
+      await mgr.handleSyncConflict({ id: '1', name: 'local' }, { id: '1', name: 'remote' });
 
       expect(handler1).toHaveBeenCalledTimes(1);
       expect(handler2).toHaveBeenCalledTimes(1);

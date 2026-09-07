@@ -127,7 +127,9 @@ describe('useClassBulkActions — bulk status change (MYK9-59)', () => {
 
     await act(async () => {
       retryActionFromCall().onClick();
-      await waitFor(() => expect(applyManualClassStatusMock).not.toHaveBeenCalledWith('c1', expect.anything()));
+      await waitFor(() =>
+        expect(applyManualClassStatusMock).not.toHaveBeenCalledWith('c1', expect.anything())
+      );
     });
 
     expect(applyManualClassStatusMock).not.toHaveBeenCalledWith('c1', CLASS_STATUS.IN_PROGRESS);

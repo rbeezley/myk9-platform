@@ -16,10 +16,7 @@ import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicy
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 /** Minimal shape required by RequestPaymentDialog. */
-export type RequestableEntry = Pick<
-  EntryManagementEntry,
-  'id' | 'dogName' | 'totalFee' | 'showId'
->;
+export type RequestableEntry = Pick<EntryManagementEntry, 'id' | 'dogName' | 'totalFee' | 'showId'>;
 
 interface RequestPaymentDialogProps {
   open: boolean;
@@ -164,7 +161,12 @@ export function RequestPaymentDialog({
             <div className="space-y-1">
               <Label htmlFor="payment-link">Payment link</Label>
               <div className="flex gap-2">
-                <Input id="payment-link" readOnly value={result.url} onFocus={e => e.target.select()} />
+                <Input
+                  id="payment-link"
+                  readOnly
+                  value={result.url}
+                  onFocus={e => e.target.select()}
+                />
                 <Button type="button" variant="outline" onClick={handleCopy}>
                   {copied ? 'Copied' : 'Copy'}
                 </Button>

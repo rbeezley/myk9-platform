@@ -6,7 +6,7 @@ Covers **SA-011** from [`../security-audit-2026-07-03.md`](../security-audit-202
 `upsert_ringside_session(text, text, text[], text)` is `GRANT`ed to `anon` and
 `authenticated` (mig `20260531175637_fix_ringside_session_upsert_conflict.sql:117-118`)
 and validates a passcode inline via `validate_passcode(...)` with **no attempt
-throttle**. The `validate-passcode` *edge function* IP-rate-limits; this direct RPC
+throttle**. The `validate-passcode` _edge function_ IP-rate-limits; this direct RPC
 does not, so it's a bypass of that limiter for passcode brute-force. Also flagged in
 the July bug-audit's "direction" list — this plan covers it.
 
@@ -16,7 +16,7 @@ Bounded: a cracked passcode grants one show's ringside **read/score**, never
 financial/PII (the claim tier was verified to never widen `can_view_admin`). Viability
 depends entirely on passcode entropy. LOW severity, but it's a real
 authentication-throttle gap on a launch-critical sign-in path (passcode is the
-*primary* ringside identity per project memory), so worth closing before real shows.
+_primary_ ringside identity per project memory), so worth closing before real shows.
 
 ## Design decision — throttle-in-RPC vs. close-the-direct-path
 
@@ -28,7 +28,7 @@ Two viable strategies; pick one:
    which reads request headers) — you'd key on `auth.uid()` (the anon user id) or a
    passed fingerprint, which is weaker (an attacker can churn anon sessions). Weigh
    whether this materially raises the bar.
-2. **Close the direct path (recommended).** Route *all* passcode entry through the
+2. **Close the direct path (recommended).** Route _all_ passcode entry through the
    rate-limited `validate-passcode` edge function, and change
    `upsert_ringside_session` so the anon/authenticated grant no longer accepts a raw
    passcode — i.e. it consumes an already-validated claim/token minted by the edge

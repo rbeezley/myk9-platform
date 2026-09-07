@@ -10,13 +10,13 @@ interface AchievementDetailsDialogProps {
   onClose: () => void;
 }
 
-const AchievementDetailsDialog: React.FC<AchievementDetailsDialogProps> = ({ 
-  open, 
-  achievement, 
-  onClose 
+const AchievementDetailsDialog: React.FC<AchievementDetailsDialogProps> = ({
+  open,
+  achievement,
+  onClose,
 }) => {
   if (!achievement) return null;
-  
+
   return (
     <CommonDialog
       open={open}
@@ -34,33 +34,33 @@ const AchievementDetailsDialog: React.FC<AchievementDetailsDialogProps> = ({
               <span className="sr-only">Close</span>
             </button>
           </div>
-          
+
           <div className="space-y-4">
             <div className="grid grid-cols-[100px_1fr] gap-2">
               <span className="font-medium text-muted-foreground">Date:</span>
               <span>{achievement.date}</span>
             </div>
-            
+
             {achievement.description && (
               <div className="grid grid-cols-[100px_1fr] gap-2">
                 <span className="font-medium text-muted-foreground">Description:</span>
                 <span className="whitespace-pre-line">{achievement.description}</span>
               </div>
             )}
-            
+
             {achievement.color && (
               <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
                 <span className="font-medium text-muted-foreground">Color:</span>
                 <div className="flex items-center gap-2">
-                  <div 
-                    className="h-4 w-4 rounded-full border" 
+                  <div
+                    className="h-4 w-4 rounded-full border"
                     style={{ backgroundColor: achievement.color }}
                   />
                   <span className="text-sm">{achievement.color}</span>
                 </div>
               </div>
             )}
-            
+
             {achievement.icon && (
               <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
                 <span className="font-medium text-muted-foreground">Icon:</span>
@@ -72,20 +72,13 @@ const AchievementDetailsDialog: React.FC<AchievementDetailsDialogProps> = ({
       }
       footer={
         <div className="flex justify-end gap-2">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onClose}
-            className="px-4"
-          >
+          <Button type="button" variant="outline" onClick={onClose} className="px-4">
             Close
           </Button>
         </div>
       }
     >
-      <div className="mt-4">
-        {/* Additional content if needed */}
-      </div>
+      <div className="mt-4">{/* Additional content if needed */}</div>
     </CommonDialog>
   );
 };

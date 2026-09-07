@@ -31,7 +31,8 @@ const ERROR_MESSAGES: Record<string, string> = {
     'This show’s entry fees were already paid out to the club, so bulk refunds can’t be issued from here. They are still possible — contact the site operator, who issues them manually and recovers the club’s share (post-payout clawback runbook, docs/operations/post-payout-clawback.md).',
   payout_in_progress: 'A payout to the club is in flight — try again after it completes.',
   show_not_cancelled: 'Mark the show cancelled before refunding all entries.',
-  refund_failed: 'The bulk refund could not be completed. Re-run it — completed refunds are never repeated.',
+  refund_failed:
+    'The bulk refund could not be completed. Re-run it — completed refunds are never repeated.',
 };
 
 export function useShowRefundAll() {

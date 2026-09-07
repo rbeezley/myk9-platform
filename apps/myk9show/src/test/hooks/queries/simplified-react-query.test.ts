@@ -17,7 +17,7 @@ describe('React Query Integration Tests', () => {
       },
     });
 
-    return ({ children }: { children: React.ReactNode }) => 
+    return ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: queryClient }, children);
   };
 
@@ -35,10 +35,11 @@ describe('React Query Integration Tests', () => {
       const mockQueryFn = vi.fn().mockResolvedValue(mockData);
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['test'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['test'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -56,10 +57,11 @@ describe('React Query Integration Tests', () => {
       const mockQueryFn = vi.fn().mockRejectedValue(mockError);
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['test-error'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['test-error'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -73,18 +75,20 @@ describe('React Query Integration Tests', () => {
 
     it('should validate query performance', async () => {
       const mockData = { id: '1', name: 'Performance Test' };
-      const mockQueryFn = vi.fn().mockImplementation(() => 
-        new Promise((resolve) => {
-          setTimeout(() => resolve(mockData), 50);
-        })
+      const mockQueryFn = vi.fn().mockImplementation(
+        () =>
+          new Promise(resolve => {
+            setTimeout(() => resolve(mockData), 50);
+          })
       );
 
       const startTime = Date.now();
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['performance'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['performance'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -103,11 +107,12 @@ describe('React Query Integration Tests', () => {
       const mockQueryFn = vi.fn();
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['disabled'],
-          queryFn: mockQueryFn,
-          enabled: false
-        }),
+        () =>
+          useQuery({
+            queryKey: ['disabled'],
+            queryFn: mockQueryFn,
+            enabled: false,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -127,11 +132,12 @@ describe('React Query Integration Tests', () => {
 
       // First query
       const { result: result1 } = renderHook(
-        () => useQuery({
-          queryKey: ['cache-test'],
-          queryFn: mockQueryFn,
-          staleTime: 60000 // Keep fresh for 60s to test caching
-        }),
+        () =>
+          useQuery({
+            queryKey: ['cache-test'],
+            queryFn: mockQueryFn,
+            staleTime: 60000, // Keep fresh for 60s to test caching
+          }),
         { wrapper }
       );
 
@@ -141,11 +147,12 @@ describe('React Query Integration Tests', () => {
 
       // Second query with same key should use cache from the shared QueryClient
       const { result: result2 } = renderHook(
-        () => useQuery({
-          queryKey: ['cache-test'],
-          queryFn: mockQueryFn,
-          staleTime: 60000
-        }),
+        () =>
+          useQuery({
+            queryKey: ['cache-test'],
+            queryFn: mockQueryFn,
+            staleTime: 60000,
+          }),
         { wrapper }
       );
 
@@ -163,17 +170,18 @@ describe('React Query Integration Tests', () => {
       const mockData1 = { id: '1', name: 'Original Data' };
       const mockData2 = { id: '1', name: 'Updated Data' };
       let callCount = 0;
-      
+
       const mockQueryFn = vi.fn().mockImplementation(() => {
         callCount++;
         return Promise.resolve(callCount === 1 ? mockData1 : mockData2);
       });
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['invalidation-test'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['invalidation-test'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -198,11 +206,12 @@ describe('React Query Integration Tests', () => {
       const mockQueryFn = vi.fn().mockResolvedValue(mockData);
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['stale-test'],
-          queryFn: mockQueryFn,
-          staleTime: 1000 // 1 second
-        }),
+        () =>
+          useQuery({
+            queryKey: ['stale-test'],
+            queryFn: mockQueryFn,
+            staleTime: 1000, // 1 second
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -218,12 +227,13 @@ describe('React Query Integration Tests', () => {
       const mockData = { id: '1', name: 'Concurrent Data' };
       const mockQueryFn = vi.fn().mockResolvedValue(mockData);
 
-      const createQuery = (key: string) => 
+      const createQuery = (key: string) =>
         renderHook(
-          () => useQuery({
-            queryKey: [key],
-            queryFn: mockQueryFn
-          }),
+          () =>
+            useQuery({
+              queryKey: [key],
+              queryFn: mockQueryFn,
+            }),
           { wrapper: createWrapper() }
         );
 
@@ -231,14 +241,12 @@ describe('React Query Integration Tests', () => {
       const queries = [
         createQuery('concurrent-1'),
         createQuery('concurrent-2'),
-        createQuery('concurrent-3')
+        createQuery('concurrent-3'),
       ];
 
       // Wait for all queries to complete
       await Promise.all(
-        queries.map(({ result }) => 
-          waitFor(() => expect(result.current.isSuccess).toBe(true))
-        )
+        queries.map(({ result }) => waitFor(() => expect(result.current.isSuccess).toBe(true)))
       );
 
       const duration = Date.now() - startTime;
@@ -253,17 +261,19 @@ describe('React Query Integration Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle network timeouts', async () => {
-      const mockQueryFn = vi.fn().mockImplementation(() => 
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Network timeout')), 100);
-        })
+      const mockQueryFn = vi.fn().mockImplementation(
+        () =>
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Network timeout')), 100);
+          })
       );
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['timeout'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['timeout'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -278,10 +288,11 @@ describe('React Query Integration Tests', () => {
       const mockQueryFn = vi.fn().mockResolvedValue(null);
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['malformed'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['malformed'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -299,10 +310,11 @@ describe('React Query Integration Tests', () => {
       });
 
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['exception'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['exception'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -316,23 +328,27 @@ describe('React Query Integration Tests', () => {
 
   describe('Performance Validation', () => {
     it('should handle large datasets efficiently', async () => {
-      const largeDataset = Array(1000).fill(null).map((_, i) => ({
-        id: `item-${i}`,
-        name: `Item ${i}`
-      }));
+      const largeDataset = Array(1000)
+        .fill(null)
+        .map((_, i) => ({
+          id: `item-${i}`,
+          name: `Item ${i}`,
+        }));
 
-      const mockQueryFn = vi.fn().mockImplementation(() => 
-        new Promise((resolve) => {
-          setTimeout(() => resolve(largeDataset), 100);
-        })
+      const mockQueryFn = vi.fn().mockImplementation(
+        () =>
+          new Promise(resolve => {
+            setTimeout(() => resolve(largeDataset), 100);
+          })
       );
 
       const startTime = Date.now();
       const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['large-dataset'],
-          queryFn: mockQueryFn
-        }),
+        () =>
+          useQuery({
+            queryKey: ['large-dataset'],
+            queryFn: mockQueryFn,
+          }),
         { wrapper: createWrapper() }
       );
 
@@ -354,23 +370,24 @@ describe('React Query Integration Tests', () => {
 
       const createLoadQuery = (index: number) =>
         renderHook(
-          () => useQuery({
-            queryKey: [`load-${index}`],
-            queryFn: mockQueryFn
-          }),
+          () =>
+            useQuery({
+              queryKey: [`load-${index}`],
+              queryFn: mockQueryFn,
+            }),
           { wrapper }
         );
 
       const startTime = Date.now();
 
       // Create multiple queries simultaneously
-      const queries = Array(10).fill(null).map((_, i) => createLoadQuery(i));
+      const queries = Array(10)
+        .fill(null)
+        .map((_, i) => createLoadQuery(i));
 
       // Wait for all to complete
       await Promise.all(
-        queries.map(({ result }) =>
-          waitFor(() => expect(result.current.isSuccess).toBe(true))
-        )
+        queries.map(({ result }) => waitFor(() => expect(result.current.isSuccess).toBe(true)))
       );
 
       const duration = Date.now() - startTime;

@@ -12,8 +12,7 @@ import { FieldGuideEntryBlankDocument } from '../FieldGuideEntryBlankDocument';
 // Stringify the style as a JSON data-attribute since react-dom rejects
 // PDF-only properties (flexDirection, padding shorthands like '6 14', etc).
 vi.mock('@react-pdf/renderer', () => {
-  const styleAttr = (style: unknown) =>
-    style ? { 'data-style': JSON.stringify(style) } : {};
+  const styleAttr = (style: unknown) => (style ? { 'data-style': JSON.stringify(style) } : {});
   return {
     Document: ({ children, style }: { children: ReactNode; style?: unknown }) => (
       <div data-testid="pdf-document" {...styleAttr(style)}>

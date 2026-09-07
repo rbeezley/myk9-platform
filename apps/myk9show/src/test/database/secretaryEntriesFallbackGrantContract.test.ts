@@ -80,7 +80,10 @@ function readsWithSelect(src: string): Array<{ relation: string; columns: string
   }
   // SECRETARY_ENTRIES_SELECT is defined by interpolating the BASE one.
   for (const [name, body] of [...constants]) {
-    constants.set(name, body.replace(/\$\{(SECRETARY_ENTRIES_[A-Z_]+)\}/g, (_, ref) => constants.get(ref) ?? ''));
+    constants.set(
+      name,
+      body.replace(/\$\{(SECRETARY_ENTRIES_[A-Z_]+)\}/g, (_, ref) => constants.get(ref) ?? '')
+    );
   }
 
   const out: Array<{ relation: string; columns: string[] }> = [];
@@ -92,7 +95,10 @@ function readsWithSelect(src: string): Array<{ relation: string; columns: string
       ? named.map(n => constants.get(n) ?? '')
       : [...arg.matchAll(/'([^']*)'/g)].map(x => x[1]);
     for (const body of bodies) {
-      out.push({ relation, columns: topLevelColumns(body.includes('\n') ? body : body.split(',').join('\n')) });
+      out.push({
+        relation,
+        columns: topLevelColumns(body.includes('\n') ? body : body.split(',').join('\n')),
+      });
     }
   }
   return out;
@@ -120,13 +126,16 @@ describe('secretary cold-store entry fallback â€” authenticated grant contract â
   });
 
   it('still asks the view for the scored columns the reports need', () => {
-    const viewRead = readsWithSelect(source).find(
-      r => r.relation === GATED_RESULT_VIEW
-    );
+    const viewRead = readsWithSelect(source).find(r => r.relation === GATED_RESULT_VIEW);
     expect(viewRead, `no .from('${GATED_RESULT_VIEW}') select found`).toBeDefined();
     // ReportsPage/reportDataMapping.ts consumes these; a trimmed select would
     // silently blank the secretary's printed registry paperwork.
-    for (const needed of ['result_status', 'search_time_seconds', 'total_faults', 'final_placement']) {
+    for (const needed of [
+      'result_status',
+      'search_time_seconds',
+      'total_faults',
+      'final_placement',
+    ]) {
       expect(viewRead!.columns).toContain(needed);
     }
   });

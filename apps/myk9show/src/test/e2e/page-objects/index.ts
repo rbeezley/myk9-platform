@@ -5,5 +5,5 @@ export {
   generateTestShowData,
   generateTestTrialData,
   type ShowDetails,
-  type TrialDetails
+  type TrialDetails,
 } from './ShowCreationWizardPage';

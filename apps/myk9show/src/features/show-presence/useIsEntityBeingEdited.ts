@@ -19,10 +19,7 @@ export interface EntityEditingState {
   editorName: string | null;
 }
 
-export function useIsEntityBeingEdited(
-  entityType: string,
-  entityId: string
-): EntityEditingState {
+export function useIsEntityBeingEdited(entityType: string, entityId: string): EntityEditingState {
   const { present, viewerId } = useShowPresenceRoster();
   const editor = whoIsEditing(present, viewerId, entityType, entityId);
   return { isEditing: Boolean(editor), editorName: editor?.name ?? null };

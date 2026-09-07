@@ -121,10 +121,7 @@ function ExhibitorOnboardingWizard({ user }: { user: User }) {
 
   const firstAvailableStep = exhibitorProfile ? DOGS_STEP : PROFILE_STEP;
   const visibleSteps = useMemo<number[]>(
-    () =>
-      exhibitorProfile
-        ? [DOGS_STEP, WELCOME_STEP]
-        : [PROFILE_STEP, DOGS_STEP, WELCOME_STEP],
+    () => (exhibitorProfile ? [DOGS_STEP, WELCOME_STEP] : [PROFILE_STEP, DOGS_STEP, WELCOME_STEP]),
     [exhibitorProfile]
   );
 

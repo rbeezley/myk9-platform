@@ -43,10 +43,7 @@ export function PaymentYearFilter({
     <Select value={value} onValueChange={onChange}>
       {/* min-h-11 keeps the trigger on the 44px touch floor the rest of this
           page holds to (see ExhibitorPaymentsPage's PaymentActionContent). */}
-      <SelectTrigger
-        aria-label="Filter payment history by year"
-        className="min-h-11 w-[11rem]"
-      >
+      <SelectTrigger aria-label="Filter payment history by year" className="min-h-11 w-[11rem]">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

@@ -167,8 +167,7 @@ export function deriveEntryPresentation(
   const raw = input.entryStatus ?? null;
   const kind = getEntryStatusKind(raw);
   const wording =
-    (raw !== null ? RAW_WORDING.get(raw) : undefined) ??
-    (KIND_WORDING[kind] ?? KIND_WORDING.unknown);
+    (raw !== null ? RAW_WORDING.get(raw) : undefined) ?? KIND_WORDING[kind] ?? KIND_WORDING.unknown;
   const voice = wording[viewer];
 
   let statusLine = voice.line;

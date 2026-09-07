@@ -27,7 +27,7 @@ The replication layer uploads queued mutations to Supabase. For INSERTs it runs
 `supabase.from(tableName).insert(data).select('id')` and treats a 0-row result as
 an RLS block. If a network timeout fires **after** the server commits the INSERT
 but **before** the client receives the response, the mutation is retried — and if
-the row's primary key is server-generated, the retry inserts a *second* row,
+the row's primary key is server-generated, the retry inserts a _second_ row,
 corrupting offline-originated data (entries, scores). If, instead, the PK is a
 **client-generated UUID** carried in `data`, the retry hits a duplicate-key error
 and no second row is created — but then the queue must treat that duplicate-key
@@ -67,28 +67,30 @@ that with evidence before anyone touches the upload path.
   `ReplicatedJudgeAssignmentsTable.ts`.
 - **Architecture note** (replication memory / `CLAUDE.md`): the replication layer
   is UUID-native (the ringside id→string migration made ids client-side UUID
-  strings). That is a strong *hint* the PK is client-generated and included in
+  strings). That is a strong _hint_ the PK is client-generated and included in
   `data`, but you must confirm it per the entities that actually originate
   offline INSERTs (entries/scores matter most), not assume it.
 
 ## Commands you will need
 
-| Purpose                          | Command                                                                                          |
-|----------------------------------|--------------------------------------------------------------------------------------------------|
-| Inspect INSERT execution         | `sed -n '580,640p' packages/replication/src/MutationManager.ts`                                   |
+| Purpose                            | Command                                                                                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Inspect INSERT execution           | `sed -n '580,640p' packages/replication/src/MutationManager.ts`                                                                       |
 | See how `data` is built for INSERT | `grep -rn "queueMutation\|enqueue\|'INSERT'\|\"INSERT\"\|\.insert(" apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts` |
-| Check if id is set client-side   | `grep -rn "id:\|randomUUID\|uuid(" apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts` |
-| Find duplicate-key handling      | `grep -rn "23505\|duplicate key\|on_conflict\|upsert\|onConflict" packages/replication/src apps/myk9show/src/services/replication` |
-| Look for existing idempotency    | `grep -rn "idempot\|already.*exist\|conflict" packages/replication/src`                            |
+| Check if id is set client-side     | `grep -rn "id:\|randomUUID\|uuid(" apps/myk9show/src/services/replication/ReplicatedEntriesTable.ts`                                  |
+| Find duplicate-key handling        | `grep -rn "23505\|duplicate key\|on_conflict\|upsert\|onConflict" packages/replication/src apps/myk9show/src/services/replication`    |
+| Look for existing idempotency      | `grep -rn "idempot\|already.*exist\|conflict" packages/replication/src`                                                               |
 
 ## Scope
 
 **In scope** (the only file you create):
+
 - `docs/plan-replication-insert-idempotency.md` — the investigation verdict +
   recommended action. Add the `> **Status:** Active` line and a `docs/README.md`
   row per `CLAUDE.md`.
 
 **Out of scope** (do NOT touch):
+
 - `MutationManager.ts` and any `Replicated*Table.ts` — no code changes. This is
   a read-only investigation; the fix (if any) is a separate plan.
 
@@ -116,6 +118,7 @@ client PK, each with a `file:line` citation.
 Read the upload/retry path in `MutationManager.ts` (the catch/re-queue around
 line 217 and the INSERT case). Answer: if the server already committed the row
 and the same INSERT is retried, what happens?
+
 - If PK is client-UUID in `data` → the retry returns a Postgres unique-violation
   (SQLSTATE `23505`). Does the code catch `23505` and treat it as success, or
   does it `throw` and re-queue forever? (Use the "Find duplicate-key handling"
@@ -131,6 +134,7 @@ which.
 ### Step 3: Write the verdict and scope the fix (if any)
 
 Based on Steps 1–2:
+
 - Verdict **A (safe)**: write "no fix needed," note the reasoning so this is not
   re-audited, done.
 - Verdict **B (wedge)**: scope a fix — catch SQLSTATE `23505` in the INSERT case

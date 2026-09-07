@@ -663,7 +663,6 @@
   .myk9-trial-card:hover {
     transform: none;
   }
-
 }
 
 /* Smooth animations */
@@ -821,7 +820,6 @@
   margin-bottom: 6px;
 }
 
-
 .myk9-entries-badges {
   display: flex;
   flex-direction: row;
@@ -830,7 +828,6 @@
   align-items: flex-end;
   justify-content: flex-end;
 }
-
 
 .myk9-entries-details-grid {
   display: grid;
@@ -863,7 +860,6 @@
 .myk9-entries-classes-section {
   margin: 14px 0;
 }
-
 
 .myk9-entries-classes-list {
   display: flex;
@@ -899,7 +895,6 @@
   overflow-wrap: anywhere;
   text-wrap: pretty;
 }
-
 
 /* Wrapping is UNCONDITIONAL, not breakpoint-gated (MYK9-124). Browser zoom
    shrinks the CSS-pixel viewport continuously — 1440px at 125% is 1152 CSS px —

@@ -94,7 +94,10 @@ export function getDefaultShowSettings(): VisibilitySettings & { selfCheckinEnab
   };
 }
 
-function buildShowRow(input: ShowVisibilityInput, userId: string | undefined): ShowVisibilityInsert {
+function buildShowRow(
+  input: ShowVisibilityInput,
+  userId: string | undefined
+): ShowVisibilityInsert {
   const preset = input.presetName ?? 'open';
   const config = PRESET_CONFIGS[preset];
 
@@ -142,7 +145,9 @@ export async function updateShowVisibility(
   input: ShowVisibilityInput,
   userId: string | undefined
 ): Promise<void> {
-  const { error } = await supabase.from('show_visibility_settings').upsert(buildShowRow(input, userId));
+  const { error } = await supabase
+    .from('show_visibility_settings')
+    .upsert(buildShowRow(input, userId));
   if (error) throw error;
 }
 

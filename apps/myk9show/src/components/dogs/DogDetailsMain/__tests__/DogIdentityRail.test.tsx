@@ -99,7 +99,10 @@ describe('DogIdentityRail', () => {
 
   it('links the owner and offers Enter a show for an exhibitor', () => {
     renderRail(base);
-    expect(screen.getByRole('link', { name: 'Jane Smith' })).toHaveAttribute('href', '/people/owner-1');
+    expect(screen.getByRole('link', { name: 'Jane Smith' })).toHaveAttribute(
+      'href',
+      '/people/owner-1'
+    );
     expect(screen.getByRole('link', { name: /enter a show/i })).toHaveAttribute('href', '/shows');
   });
 

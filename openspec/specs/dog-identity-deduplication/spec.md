@@ -1,12 +1,14 @@
 # dog-identity-deduplication Specification
 
 ## Purpose
+
 Dog records use registry organization and number as an exact identity signal
 when those values are present. Duplicate prevention happens in the database and
 inside the existing Add Dog and Dog Details surfaces, so users can reuse or fix
 records without a separate duplicate-management workflow.
 
 ## Requirements
+
 ### Requirement: Exact registry identities are unique across live dogs
 
 The system SHALL prevent the same non-empty normalized organization and registration number from being attached to more than one live dog.

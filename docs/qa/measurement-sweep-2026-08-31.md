@@ -76,7 +76,7 @@ number is not finished until the number has been re-measured:
   below appear **200 times** on one route and were invisible in the first run.
 - **The spacing exception was under-strict.** It compared centre distances only,
   which tests circle-against-circle and misses WCAG 2.5.8's other half — the
-  24px circle must not intersect *another target* either. A 16px control beside
+  24px circle must not intersect _another target_ either. A 16px control beside
   a large button 20px away passed a test that was not looking. Now checked
   against neighbouring bounding boxes as well. The conclusion below survived the
   stricter check, which is the only reason it is stated.
@@ -113,7 +113,7 @@ number is not finished until the number has been re-measured:
   it is user data, so an unlabelled prefilled field reported as accessible and
   an identical empty one reported as a defect. Fixing that took the count from
   **4 to 28** — and 18 of those 24 were false, because `accessibleName` checked
-  `label[for]` but never a *wrapping* `<label>`, which is an equally valid
+  `label[for]` but never a _wrapping_ `<label>`, which is an equally valid
   association. The landing page's waitlist radios and the sign-up consent
   checkbox are all correctly labelled that way. The probe already knew about
   implicit labels — `effectiveBox` walks to `closest('label')` for the target
@@ -142,11 +142,11 @@ were this artefact.
 
 Fixed in `measurementProbe.ts`, and the numbers below are from a full re-run.
 
-| Metric | First run | Corrected |
-| --- | --- | --- |
-| Small-target findings | 620 | **620** |
-| `a` 24px cluster | 66 instances / 18 routes | **16 / 16** — breadcrumbs only |
-| `/dogs` findings | 26 | **1** (a genuine 40px "Add Dog") |
+| Metric                | First run                | Corrected                        |
+| --------------------- | ------------------------ | -------------------------------- |
+| Small-target findings | 620                      | **620**                          |
+| `a` 24px cluster      | 66 instances / 18 routes | **16 / 16** — breadcrumbs only   |
+| `/dogs` findings      | 26                       | **1** (a genuine 40px "Add Dog") |
 
 Two things worth stating rather than glossing:
 
@@ -193,9 +193,9 @@ Fixed with real source-over compositing that preserves alpha. When the lower
 layer is opaque it reduces exactly to the previous formula, so every
 already-correct call is unchanged.
 
-| | Before | After |
-| --- | --- | --- |
-| Contrast findings | 67 | **49** |
+|                     | Before                | After           |
+| ------------------- | --------------------- | --------------- |
+| Contrast findings   | 67                    | **49**          |
 | "In progress" badge | 1.17:1 (worst in app) | absent — passes |
 
 The `rgb(201,100,66)` show-detail cluster (24 instances) also went, for the same
@@ -216,7 +216,7 @@ discriminates completely.
 
 ### What this says about the four earlier gaps
 
-The ancestor-opacity gap recorded below is a *different* bug from this one and
+The ancestor-opacity gap recorded below is a _different_ bug from this one and
 is still latent. But the pattern is now unmistakable: every part of this probe
 that was never given a known answer has eventually been found wrong — colour
 notation, geometry, and now compositing. The remaining unverified areas
@@ -241,17 +241,17 @@ three answers — `#ffffff`, `#000000`, `#767676` — never exercised
 Proven by simulating a total CSS Color 4 parsing failure (the round-5 bug) and
 re-running `public` in dark:
 
-| | Broken, old guards | Broken, new guards |
-| --- | --- | --- |
-| Fabricated findings published | **56** | **0** |
-| Pages excluded | 2 of 8 | **8 of 8** |
-| Sanity line | `21/1/4.54/120px` — unmoved | `syntaxAgreement=16.33` |
+|                               | Broken, old guards          | Broken, new guards      |
+| ----------------------------- | --------------------------- | ----------------------- |
+| Fabricated findings published | **56**                      | **0**                   |
+| Pages excluded                | 2 of 8                      | **8 of 8**              |
+| Sanity line                   | `21/1/4.54/120px` — unmoved | `syntaxAgreement=16.33` |
 
 Every guard reported healthy while the report published 56 findings that did not
 exist. Three pages failed 100% of their text. The implausible-failure-rate guard
 caught only the two largest: `sign-in` failed 14 of 14 but sits under the
 `measured > 20` sample floor, and `show-detail` failed 19 of 137 — a plausible
-*minority* of false findings, which is the dangerous case, because nothing about
+_minority_ of false findings, which is the dangerous case, because nothing about
 it looks broken.
 
 This was worse than the geometry gap in one respect. There, no guard existed.
@@ -276,7 +276,7 @@ and two are not even quantified:
 
 - **Ancestor-opacity compositing (latent).** `backdropOf` returns raw ancestor
   background colours while `effectiveOpacity` dims only the foreground. If a
-  card *with a background* carried `opacity`, the group composites as a unit and
+  card _with a background_ carried `opacity`, the group composites as a unit and
   both would dim — the probe would report contrast worse than it renders. Six
   findings carry `opacity: 0.8`, but all trace to
   `.myk9-template-card-date { opacity: 0.8 }`, where the opacity is on the text
@@ -295,20 +295,20 @@ and two are not even quantified:
 Two measurements per route, light and dark. Club-admin is absent because
 `E2E_CLUB_ADMIN_PASSWORD` is local-only and wired into no workflow.
 
-| Metric | Value |
-| --- | --- |
-| Routes | 42 |
-| Route × theme measurements expected | 84 |
-| Route × theme measurements attempted | 84 |
-| Never attempted (group skipped) | 0 |
-| Usable | 80 |
-| Excluded | 4 |
-| Text nodes measured for contrast | 30,914 |
-| Text nodes not measurable (image/gradient backdrop) | 164 |
-| Contrast findings | 931 |
-| Small-target findings | 620 |
-| Controls with no accessible name | 10 |
-| **Measurements with horizontal overflow** | **0** |
+| Metric                                              | Value  |
+| --------------------------------------------------- | ------ |
+| Routes                                              | 42     |
+| Route × theme measurements expected                 | 84     |
+| Route × theme measurements attempted                | 84     |
+| Never attempted (group skipped)                     | 0      |
+| Usable                                              | 80     |
+| Excluded                                            | 4      |
+| Text nodes measured for contrast                    | 30,914 |
+| Text nodes not measurable (image/gradient backdrop) | 164    |
+| Contrast findings                                   | 931    |
+| Small-target findings                               | 620    |
+| Controls with no accessible name                    | 10     |
+| **Measurements with horizontal overflow**           | **0**  |
 
 The four exclusions are all the same honest result: `/secretary/tasks` and
 `/secretary/waitlist` redirect to `/secretary/dashboard` in both themes. Those
@@ -334,18 +334,18 @@ comfort standard, so these are polish, not conformance defects.
 This is the ranking that answers the original question. A single low reading is
 a page nit; the same colour pair across many routes is **one token edit**.
 
-| Colour pair | Routes | Instances | Worst | Detail |
-| --- | --- | --- | --- | --- |
-| `--muted-foreground` @ 70% on card | **5 light + 5 dark** | 40 | 3.04 / 3.40 | 14px "Entries Close", "Total Entries" |
-| `--muted-foreground` @ 60% on page bg | 2 light + 2 dark | 12 | 2.49 / 2.90 | 10px "Your account", "Notifications" |
-| `--muted-foreground` @ 80% on card | 2 light + 2 dark | 16 | 3.80 / 3.99 | 14px form labels — "First name" |
-| zinc/slate greys on dark cards | 1 | **200** | 1.88 | class-code badges "L0"–"L3", avatar initials "TJ" |
-| `rgb(255,255,255)` on emerald `rgb(52,211,153)` | 2 | 12 | 1.92 | 14px badge "6 elements", admin/templates |
-| near-white on `rgb(255,251,235)` | 1 | 4 | **1.03** | 16px "Directory drift", admin/help dark |
-| `rgb(201,100,66)` ↔ `rgb(245,244,237)` | 2 | 32 | 3.54 | "Enter this show", "An A.K.C. Licensed Trial" |
-| `rgb(255,255,255)` on terracotta `rgb(217,119,87)` | 2 | 2 | 3.12 | 16px "Table" toggle, browse-shows dark |
-| amber on amber — `rgb(146,64,14)` on `rgb(165,69,45)` | 1 | 1 | **1.17** | "In progress" badge, secretary/show-desk |
-| green/amber stat numbers | 3 | 3 | 2.06 | 36–42px bold "0", "2", "90%" — judge/stats, admin/sync |
+| Colour pair                                           | Routes               | Instances | Worst       | Detail                                                 |
+| ----------------------------------------------------- | -------------------- | --------- | ----------- | ------------------------------------------------------ |
+| `--muted-foreground` @ 70% on card                    | **5 light + 5 dark** | 40        | 3.04 / 3.40 | 14px "Entries Close", "Total Entries"                  |
+| `--muted-foreground` @ 60% on page bg                 | 2 light + 2 dark     | 12        | 2.49 / 2.90 | 10px "Your account", "Notifications"                   |
+| `--muted-foreground` @ 80% on card                    | 2 light + 2 dark     | 16        | 3.80 / 3.99 | 14px form labels — "First name"                        |
+| zinc/slate greys on dark cards                        | 1                    | **200**   | 1.88        | class-code badges "L0"–"L3", avatar initials "TJ"      |
+| `rgb(255,255,255)` on emerald `rgb(52,211,153)`       | 2                    | 12        | 1.92        | 14px badge "6 elements", admin/templates               |
+| near-white on `rgb(255,251,235)`                      | 1                    | 4         | **1.03**    | 16px "Directory drift", admin/help dark                |
+| `rgb(201,100,66)` ↔ `rgb(245,244,237)`                | 2                    | 32        | 3.54        | "Enter this show", "An A.K.C. Licensed Trial"          |
+| `rgb(255,255,255)` on terracotta `rgb(217,119,87)`    | 2                    | 2         | 3.12        | 16px "Table" toggle, browse-shows dark                 |
+| amber on amber — `rgb(146,64,14)` on `rgb(165,69,45)` | 1                    | 1         | **1.17**    | "In progress" badge, secretary/show-desk               |
+| green/amber stat numbers                              | 3                    | 3         | 2.06        | 36–42px bold "0", "2", "90%" — judge/stats, admin/sync |
 
 ### What the top three rows mean
 
@@ -371,7 +371,7 @@ text on a near-white amber callout, invisible. `1.17:1` for the show-desk's
 The zinc/slate class-code badges on `exhibitor/show-detail` are the largest
 single block: four hardcoded greys outside the token system, 200 rendered
 instances, all around 1.9:1 on dark cards. This one is only visible because
-clustering counts instances — by *route* spread it is a single-route finding,
+clustering counts instances — by _route_ spread it is a single-route finding,
 and by worst-ratio it sits mid-table.
 
 The 36–42px stat numbers only need 3:1 as large text, and miss it by a little.
@@ -379,16 +379,16 @@ Whether that is worth changing is a design call, not a defect report.
 
 ## Small targets — the 44px bar
 
-| Control | Routes | Instances | Size | Examples |
-| --- | --- | --- | --- | --- |
-| `button` | 20 | 50 | 32px | "Change photo", "See classes", "Copy Admin code" |
-| `button` | 20 | 50 | 40px | "Add Dog", "Copy link", "Print", "Regenerate codes" |
-| `a` | 16 | 16 | 24px | "Shows" / "Admin" breadcrumbs |
-| `a` | 14 | 28 | 36px | "Sign In", "Sign Up" |
-| `button` | 14 | 138 | 36px | "More show actions", "Move up — #100 Willow" |
-| `combobox` | 12 | 18 | 40px | "Trial", "Sort", "Report", "Organization *" |
-| `input` | 8 | 24 | 40px | form fields on account and create-show |
-| `checkbox` | 4 | 6 | 16px | "Select all registrations on this page" |
+| Control    | Routes | Instances | Size | Examples                                            |
+| ---------- | ------ | --------- | ---- | --------------------------------------------------- |
+| `button`   | 20     | 50        | 32px | "Change photo", "See classes", "Copy Admin code"    |
+| `button`   | 20     | 50        | 40px | "Add Dog", "Copy link", "Print", "Regenerate codes" |
+| `a`        | 16     | 16        | 24px | "Shows" / "Admin" breadcrumbs                       |
+| `a`        | 14     | 28        | 36px | "Sign In", "Sign Up"                                |
+| `button`   | 14     | 138       | 36px | "More show actions", "Move up — #100 Willow"        |
+| `combobox` | 12     | 18        | 40px | "Trial", "Sort", "Report", "Organization *"         |
+| `input`    | 8      | 24        | 40px | form fields on account and create-show              |
+| `checkbox` | 4      | 6         | 16px | "Select all registrations on this page"             |
 
 The shape here is a **shared-component** story, not a per-page one: the 32px and
 40px button clusters each span 20 route-measurements, which means they are
@@ -414,7 +414,7 @@ reader user needs it.
 2. **Act on clusters, not on rows.** The `--muted-foreground` opacity family and
    the `Button` size variants are two decisions that clear most of this report.
 3. **Reserve the full impeccable playbook** for money/trust-path pages, or for a
-   page where the sweep shows a *cluster of its own* — that is the tell for a
+   page where the sweep shows a _cluster of its own_ — that is the tell for a
    structural cause, as it was for MYK9-260.
 4. **Do not turn this into a gate yet.** A gate needs a baseline nobody has
    established, and a gate that starts red gets suppressed rather than fixed.
@@ -427,14 +427,14 @@ reader user needs it.
 Every finding above is tracked. None is fixed in PR #1911 — that PR adds the
 sweep and this report, and touches no application code.
 
-| Issue | Priority | Scope |
-| --- | --- | --- |
-| [MYK9-274](https://linear.app/myk9-platform/issue/MYK9-274) | High | `text-muted-foreground` opacity family — 14 route-measurements, both themes |
-| [MYK9-275](https://linear.app/myk9-platform/issue/MYK9-275) | High | The two unreadable badges — 1.03:1 on `/admin/help`, 1.17:1 on show-desk |
-| [MYK9-276](https://linear.app/myk9-platform/issue/MYK9-276) | Medium | Hardcoded zinc/slate class-code badges, ~1.9:1, 200 instances |
-| [MYK9-277](https://linear.app/myk9-platform/issue/MYK9-277) | Medium | Shared `Button`/input/combobox size variants under 44px |
-| [MYK9-278](https://linear.app/myk9-platform/issue/MYK9-278) | Medium | Five placeholder-only inputs with no accessible name |
-| [MYK9-279](https://linear.app/myk9-platform/issue/MYK9-279) | Low | `/secretary/tasks` and `/secretary/waitlist` redirect to the dashboard |
+| Issue                                                       | Priority | Scope                                                                       |
+| ----------------------------------------------------------- | -------- | --------------------------------------------------------------------------- |
+| [MYK9-274](https://linear.app/myk9-platform/issue/MYK9-274) | High     | `text-muted-foreground` opacity family — 14 route-measurements, both themes |
+| [MYK9-275](https://linear.app/myk9-platform/issue/MYK9-275) | High     | The two unreadable badges — 1.03:1 on `/admin/help`, 1.17:1 on show-desk    |
+| [MYK9-276](https://linear.app/myk9-platform/issue/MYK9-276) | Medium   | Hardcoded zinc/slate class-code badges, ~1.9:1, 200 instances               |
+| [MYK9-277](https://linear.app/myk9-platform/issue/MYK9-277) | Medium   | Shared `Button`/input/combobox size variants under 44px                     |
+| [MYK9-278](https://linear.app/myk9-platform/issue/MYK9-278) | Medium   | Five placeholder-only inputs with no accessible name                        |
+| [MYK9-279](https://linear.app/myk9-platform/issue/MYK9-279) | Low      | `/secretary/tasks` and `/secretary/waitlist` redirect to the dashboard      |
 
 Already open from the round-5 pass, and not re-filed:
 [MYK9-269](https://linear.app/myk9-platform/issue/MYK9-269) — sonner toast at

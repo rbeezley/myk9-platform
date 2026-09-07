@@ -2,35 +2,29 @@
 // These components provide comprehensive sync status monitoring, payment processing,
 // conflict resolution, offline entry creation, and performance metrics.
 
-export { 
+export {
   EntrySyncStatusBar,
   ShowEntrySyncBar,
   ClassEntrySyncBar,
-  default as EntrySyncStatusBarDefault
+  default as EntrySyncStatusBarDefault,
 } from './EntrySyncStatusBar';
 
-export { 
+export {
   PaymentPendingIndicator,
   EntryPaymentIndicator,
   PaymentQueueIndicator,
   default as PaymentPendingIndicatorDefault,
-  type PaymentStatus
+  type PaymentStatus,
 } from './PaymentPendingIndicator';
 
-export { 
+export {
   EntryConflictResolutionWizard,
-  default as EntryConflictResolutionWizardDefault
+  default as EntryConflictResolutionWizardDefault,
 } from './EntryConflictResolutionWizard';
 
-export { 
-  OfflineEntryForm,
-  default as OfflineEntryFormDefault
-} from './OfflineEntryForm';
+export { OfflineEntryForm, default as OfflineEntryFormDefault } from './OfflineEntryForm';
 
-export { 
-  EntrySyncMetrics,
-  default as EntrySyncMetricsDefault
-} from './EntrySyncMetrics';
+export { EntrySyncMetrics, default as EntrySyncMetricsDefault } from './EntrySyncMetrics';
 
 // Re-export common types used across entry sync components
 export type { SyncableShowEntry, EntryStatus } from '@/store/entryStore';

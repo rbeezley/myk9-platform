@@ -26,11 +26,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { logger } from '@myk9/core';
 import type { UserRole } from '../../../auth/passcodes';
 import type { Entry } from '../../../stores/entryStore';
-import type {
-  ClassInfo,
-  EntryListData,
-  EntryListDataDependencies,
-} from '../types';
+import type { ClassInfo, EntryListData, EntryListDataDependencies } from '../types';
 
 // Re-export the data-shape types for downstream consumers so they can
 // import them from the package root without reaching into ./types.
@@ -78,7 +74,13 @@ export const useEntryListData = ({
 }: UseEntryListDataOptions) => {
   const queryClient = useQueryClient();
 
-  const { auth, fetchSingleClass, fetchCombinedClasses, forceSyncEntriesAndClasses, subscribeToReplicationChanges } = dependencies;
+  const {
+    auth,
+    fetchSingleClass,
+    fetchCombinedClasses,
+    forceSyncEntriesAndClasses,
+    subscribeToReplicationChanges,
+  } = dependencies;
 
   const isCombinedView = !!(classIdA && classIdB);
   const licenseKey = auth.showContext?.licenseKey;
@@ -118,9 +120,7 @@ export const useEntryListData = ({
   const query = useQuery({
     queryKey,
     queryFn: isCombinedView ? runCombinedFetch : runSingleFetch,
-    enabled: isCombinedView
-      ? !!(classIdA && classIdB && licenseKey)
-      : !!(classId && licenseKey),
+    enabled: isCombinedView ? !!(classIdA && classIdB && licenseKey) : !!(classId && licenseKey),
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     networkMode: 'always',
@@ -220,7 +220,7 @@ export const useEntryListData = ({
       // Refetch from cache (which is now updated if sync succeeded).
       await query.refetch();
     },
-    [licenseKey, query.refetch, forceSyncEntriesAndClasses],
+    [licenseKey, query.refetch, forceSyncEntriesAndClasses]
   );
 
   return {

@@ -29,9 +29,14 @@ export function JudgesSection({ judges, volumeRoman }: JudgesSectionProps) {
         kicker="The bench"
         title={
           judges.length === 1 ? (
-            <>One judge, <em>{romanCountWord(judges[0].trials.length)} trials</em></>
+            <>
+              One judge, <em>{romanCountWord(judges[0].trials.length)} trials</em>
+            </>
           ) : (
-            <>{wordForJudgeCount(judges.length)} judges, <em>{judges.reduce((s, j) => s + j.trials.length, 0)} trials</em></>
+            <>
+              {wordForJudgeCount(judges.length)} judges,{' '}
+              <em>{judges.reduce((s, j) => s + j.trials.length, 0)} trials</em>
+            </>
           )
         }
         dek="Each judging an announced rotation of the trial week."
@@ -44,11 +49,7 @@ export function JudgesSection({ judges, volumeRoman }: JudgesSectionProps) {
         }
       >
         {judges.map(judge => (
-          <article
-            key={judge.id}
-            className="pt-3"
-            style={{ borderTop: '3px solid var(--gz-ink)' }}
-          >
+          <article key={judge.id} className="pt-3" style={{ borderTop: '3px solid var(--gz-ink)' }}>
             {judge.trials.length > 0 && (
               <div
                 className="mb-2 text-[10.5px] font-semibold uppercase"

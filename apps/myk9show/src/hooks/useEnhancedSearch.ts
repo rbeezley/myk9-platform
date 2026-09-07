@@ -17,27 +17,27 @@ export interface EnhancedSearchResult<T> {
   query: string;
   isSearching: boolean;
   error: Error | null;
-  
+
   // Results
   results: SearchResult<T> | null;
   items: T[];
   totalCount: number;
   hasMore: boolean;
-  
+
   // Performance
   responseTime: number;
   cacheHit: boolean;
-  
+
   // Recent searches
   recentSearches: ReturnType<typeof useRecentSearches>['recentSearches'];
   suggestions: ReturnType<typeof useRecentSearches>['recentSearches'];
-  
+
   // Actions
   search: (newQuery: string, additionalFilters?: Record<string, unknown>) => void;
   clearSearch: () => void;
   selectSuggestion: (suggestion: string) => void;
   loadMore: () => void;
-  
+
   // Cache management
   invalidateCache: () => void;
   prefetchSearch: (searchQuery: string, filters?: Record<string, unknown>) => Promise<void>;
@@ -83,7 +83,7 @@ export function useEnhancedSearch<T = unknown>(
         getSuggestions: () => [],
         removeSearch: () => {},
         clearSearches: () => {},
-        getFrequentSearches: () => []
+        getFrequentSearches: () => [],
       };
 
   // Search cache utilities
@@ -94,13 +94,16 @@ export function useEnhancedSearch<T = unknown>(
   const { logSearch } = enableAnalytics ? searchAnalyticsHook : { logSearch: () => {} };
 
   // Prepare search options
-  const searchParams: UseSearchOptions = useMemo(() => ({
-    ...searchOptions,
-    query: debouncedQuery,
-    filters,
-    context,
-    enabled: debouncedQuery.length >= minQueryLength
-  }), [debouncedQuery, filters, context, minQueryLength, searchOptions]);
+  const searchParams: UseSearchOptions = useMemo(
+    () => ({
+      ...searchOptions,
+      query: debouncedQuery,
+      filters,
+      context,
+      enabled: debouncedQuery.length >= minQueryLength,
+    }),
+    [debouncedQuery, filters, context, minQueryLength, searchOptions]
+  );
 
   // Execute search with the provided hook
   const searchQuery = searchHook(searchParams);
@@ -141,7 +144,7 @@ export function useEnhancedSearch<T = unknown>(
             resultCount: searchQuery.data?.totalCount || 0,
             responseTime: duration,
             cacheHit: !searchQuery.isFetched,
-            timestamp: endTime
+            timestamp: endTime,
           });
         }
 
@@ -149,12 +152,23 @@ export function useEnhancedSearch<T = unknown>(
         if (enableRecentSearches && debouncedQuery.trim()) {
           recentSearchesHook.addSearch(debouncedQuery, {
             resultCount: searchQuery.data?.totalCount || 0,
-            filters
+            filters,
           });
         }
       }
     }
-  }, [searchQuery.data, searchQuery.isFetching, enableAnalytics, debouncedQuery, context, searchQuery.isFetched, logSearch, enableRecentSearches, recentSearchesHook, filters]);
+  }, [
+    searchQuery.data,
+    searchQuery.isFetching,
+    enableAnalytics,
+    debouncedQuery,
+    context,
+    searchQuery.isFetched,
+    logSearch,
+    enableRecentSearches,
+    recentSearchesHook,
+    filters,
+  ]);
 
   // Prefetch related searches
   useEffect(() => {
@@ -164,14 +178,14 @@ export function useEnhancedSearch<T = unknown>(
         debouncedQuery + 's', // plural
         debouncedQuery.slice(0, -1), // singular
         debouncedQuery + ' dog',
-        debouncedQuery + ' puppy'
+        debouncedQuery + ' puppy',
       ];
 
       prefetchQueries.forEach(prefetchQuery => {
         if (prefetchQuery !== debouncedQuery) {
           prefetchSearch({
             ...searchParams,
-            query: prefetchQuery
+            query: prefetchQuery,
           }).catch(() => {}); // Ignore prefetch errors
         }
       });
@@ -209,13 +223,16 @@ export function useEnhancedSearch<T = unknown>(
     invalidateSearches(context);
   }, [invalidateSearches, context]);
 
-  const prefetchSearchAction = useCallback(async (searchQuery: string, prefetchFilters?: Record<string, unknown>) => {
-    await prefetchSearch({
-      ...searchParams,
-      query: searchQuery,
-      filters: prefetchFilters || filters
-    });
-  }, [prefetchSearch, searchParams, filters]);
+  const prefetchSearchAction = useCallback(
+    async (searchQuery: string, prefetchFilters?: Record<string, unknown>) => {
+      await prefetchSearch({
+        ...searchParams,
+        query: searchQuery,
+        filters: prefetchFilters || filters,
+      });
+    },
+    [prefetchSearch, searchParams, filters]
+  );
 
   // Get suggestions
   const suggestions = useMemo(() => {
@@ -256,7 +273,7 @@ export function useEnhancedSearch<T = unknown>(
 
     // Cache management
     invalidateCache,
-    prefetchSearch: prefetchSearchAction
+    prefetchSearch: prefetchSearchAction,
   };
 }
 
@@ -274,7 +291,7 @@ export const useEnhancedDogSearch = (options: Omit<EnhancedSearchOptions, 'conte
     isFetching: false,
     error: null,
     isFetched: false,
-    isPreviousData: false
+    isPreviousData: false,
   });
 
   return useEnhancedSearch(searchHook, { ...options, context: 'dogs' });
@@ -292,7 +309,7 @@ export const useEnhancedPeopleSearch = (options: Omit<EnhancedSearchOptions, 'co
     isFetching: false,
     error: null,
     isFetched: false,
-    isPreviousData: false
+    isPreviousData: false,
   });
 
   return useEnhancedSearch(searchHook, { ...options, context: 'people' });
@@ -310,7 +327,7 @@ export const useEnhancedShowSearch = (options: Omit<EnhancedSearchOptions, 'cont
     isFetching: false,
     error: null,
     isFetched: false,
-    isPreviousData: false
+    isPreviousData: false,
   });
 
   return useEnhancedSearch(searchHook, { ...options, context: 'shows' });

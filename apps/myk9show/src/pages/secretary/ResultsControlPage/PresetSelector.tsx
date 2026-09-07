@@ -146,11 +146,7 @@ export function PresetSelector({ showId, settings }: PresetSelectorProps) {
       {/* Advanced accordion */}
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
         <CollapsibleTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex min-h-[44px] items-center gap-1"
-          >
+          <Button variant="outline" size="sm" className="flex min-h-[44px] items-center gap-1">
             <ChevronDown
               className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
             />

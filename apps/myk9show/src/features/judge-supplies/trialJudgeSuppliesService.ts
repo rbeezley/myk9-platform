@@ -70,9 +70,7 @@ export const trialJudgeSuppliesService = {
       is_custom: false,
     }));
 
-    const { error } = await supabase
-      .from('trial_judge_supplies')
-      .insert(rowsToInsert);
+    const { error } = await supabase.from('trial_judge_supplies').insert(rowsToInsert);
 
     // 23505 = unique_violation. Concurrent seed race — re-fetch.
     if (error && (error as { code?: string }).code !== '23505') throw error;
@@ -87,9 +85,10 @@ export const trialJudgeSuppliesService = {
       .select(SELECT_COLUMNS)
       .eq('trial_id', trialId);
 
-    query = judge.person_id !== null
-      ? query.eq('person_id', judge.person_id)
-      : query.is('person_id', null).eq('judge_name', judge.judge_name);
+    query =
+      judge.person_id !== null
+        ? query.eq('person_id', judge.person_id)
+        : query.is('person_id', null).eq('judge_name', judge.judge_name);
 
     const { data, error } = await query.order('sort_order');
     if (error) throw error;

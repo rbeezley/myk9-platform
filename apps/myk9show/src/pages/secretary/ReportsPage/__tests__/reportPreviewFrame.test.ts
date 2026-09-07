@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  isDisplayingPdf,
-  releasePdfFrame,
-  writeMarkupIntoFrame,
-} from '../reportPreviewFrame';
+import { isDisplayingPdf, releasePdfFrame, writeMarkupIntoFrame } from '../reportPreviewFrame';
 
 /**
  * Regression guard for the wrong-document print bug.

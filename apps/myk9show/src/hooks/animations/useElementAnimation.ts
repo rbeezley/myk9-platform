@@ -57,7 +57,8 @@ export function useElementAnimation(
       const animationOptions: KeyframeAnimationOptions = {
         duration: finalConfig.duration,
         easing: finalConfig.easing,
-        iterations: finalConfig.iterations === 'infinite' ? Infinity : (finalConfig.iterations ?? 1),
+        iterations:
+          finalConfig.iterations === 'infinite' ? Infinity : (finalConfig.iterations ?? 1),
       };
       if (finalConfig.delay !== undefined) {
         animationOptions.delay = finalConfig.delay;
@@ -126,8 +127,8 @@ export function useElementAnimation(
     if (!triggerOnVisible || !elementRef.current) return;
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting && !hasAnimated) {
             animate();
           }
@@ -163,14 +164,7 @@ export function useElementAnimation(
 
 // Predefined animation hooks
 export function useFadeIn(config?: Partial<AnimationConfig>, options?: ElementAnimationOptions) {
-  return useElementAnimation(
-    [
-      { opacity: 0 },
-      { opacity: 1 },
-    ],
-    config,
-    options
-  );
+  return useElementAnimation([{ opacity: 0 }, { opacity: 1 }], config, options);
 }
 
 export function useSlideIn(
@@ -236,11 +230,7 @@ export function useBounce(config?: Partial<AnimationConfig>) {
 
 export function usePulse(config?: Partial<AnimationConfig>) {
   return useElementAnimation(
-    [
-      { transform: 'scale(1)' },
-      { transform: 'scale(1.05)' },
-      { transform: 'scale(1)' },
-    ],
+    [{ transform: 'scale(1)' }, { transform: 'scale(1.05)' }, { transform: 'scale(1)' }],
     { ...config, iterations: 'infinite', duration: 2000 }
   );
 }
@@ -277,8 +267,9 @@ export function useStaggerAnimation(
         const animationOptions: KeyframeAnimationOptions = {
           duration: finalConfig.duration,
           easing: finalConfig.easing,
-          delay: (finalConfig.delay ?? 0) + (index * staggerDelay),
-          iterations: finalConfig.iterations === 'infinite' ? Infinity : (finalConfig.iterations ?? 1),
+          delay: (finalConfig.delay ?? 0) + index * staggerDelay,
+          iterations:
+            finalConfig.iterations === 'infinite' ? Infinity : (finalConfig.iterations ?? 1),
         };
         if (finalConfig.fillMode !== undefined) {
           animationOptions.fill = finalConfig.fillMode;

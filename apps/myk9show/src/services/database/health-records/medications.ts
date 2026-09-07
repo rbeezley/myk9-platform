@@ -12,10 +12,7 @@ export type DbMedicationUpdate = Database['public']['Tables']['medications']['Up
 
 export const getAllMedications = (dogId?: string) =>
   wrapQuery('medication', 'select_all', [] as DbMedicationRow[], () => {
-    let query = supabase
-      .from('medications')
-      .select('*')
-      .order('start_date', { ascending: false });
+    let query = supabase.from('medications').select('*').order('start_date', { ascending: false });
     if (dogId) query = query.eq('dog_id', dogId);
     return query;
   });
@@ -42,6 +39,4 @@ export const updateMedication = (id: string, updates: DbMedicationUpdate) =>
   );
 
 export const deleteMedication = (id: string) =>
-  wrapMutation('medication', 'delete', () =>
-    supabase.from('medications').delete().eq('id', id)
-  );
+  wrapMutation('medication', 'delete', () => supabase.from('medications').delete().eq('id', id));

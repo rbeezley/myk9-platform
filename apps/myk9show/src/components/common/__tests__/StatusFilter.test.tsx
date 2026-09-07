@@ -33,14 +33,14 @@ describe('StatusFilter', () => {
 
   it('returns null when all items are pending', () => {
     const { container } = render(
-      <StatusFilter {...defaultProps} counts={{ all: 10, pending: 10, completed: 0 }} />,
+      <StatusFilter {...defaultProps} counts={{ all: 10, pending: 10, completed: 0 }} />
     );
     expect(container.firstChild).toBeNull();
   });
 
   it('returns null when all items are completed', () => {
     const { container } = render(
-      <StatusFilter {...defaultProps} counts={{ all: 10, pending: 0, completed: 10 }} />,
+      <StatusFilter {...defaultProps} counts={{ all: 10, pending: 0, completed: 10 }} />
     );
     expect(container.firstChild).toBeNull();
   });

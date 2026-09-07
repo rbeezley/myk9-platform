@@ -13,7 +13,15 @@ interface ContactInfoProps {
   cardClassName?: string;
 }
 
-const ContactInfo: React.FC<ContactInfoProps> = ({ email, phone, address, city, state, zipCode, cardClassName }) => (
+const ContactInfo: React.FC<ContactInfoProps> = ({
+  email,
+  phone,
+  address,
+  city,
+  state,
+  zipCode,
+  cardClassName,
+}) => (
   <Card className={`h-full ${cardClassName || ''}`}>
     <div className="p-6 h-full flex flex-col justify-between">
       <h2 className="text-xl font-bold mb-6">Contact Information</h2>
@@ -26,8 +34,8 @@ const ContactInfo: React.FC<ContactInfoProps> = ({ email, phone, address, city, 
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-medium text-muted-foreground mb-1">Email</h3>
-              <a 
-                href={`mailto:${email}`} 
+              <a
+                href={`mailto:${email}`}
                 className="text-foreground hover:text-primary transition-colors duration-200"
               >
                 {email}
@@ -35,7 +43,7 @@ const ContactInfo: React.FC<ContactInfoProps> = ({ email, phone, address, city, 
             </div>
           </div>
         )}
-        
+
         {/* Phone */}
         {phone && (
           <div className="flex items-center space-x-3">
@@ -44,7 +52,7 @@ const ContactInfo: React.FC<ContactInfoProps> = ({ email, phone, address, city, 
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-medium text-muted-foreground mb-1">Phone</h3>
-              <a 
+              <a
                 href={`tel:${phone.replace(/[^\d]/g, '')}`}
                 className="text-foreground hover:text-primary transition-colors duration-200"
               >
@@ -53,7 +61,7 @@ const ContactInfo: React.FC<ContactInfoProps> = ({ email, phone, address, city, 
             </div>
           </div>
         )}
-        
+
         {/* Address */}
         {(address || city || state || zipCode) && (
           <div className="flex items-start space-x-3">
@@ -65,9 +73,7 @@ const ContactInfo: React.FC<ContactInfoProps> = ({ email, phone, address, city, 
               <div className="text-foreground">
                 {address && <p>{address}</p>}
                 {(city || state || zipCode) && (
-                  <p>
-                    {[city, state, zipCode].filter(Boolean).join(', ')}
-                  </p>
+                  <p>{[city, state, zipCode].filter(Boolean).join(', ')}</p>
                 )}
               </div>
             </div>

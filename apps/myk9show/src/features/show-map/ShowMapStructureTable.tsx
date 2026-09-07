@@ -66,9 +66,7 @@ interface ShowMapStructureTableProps {
           classLabel: string;
         }) => void;
         isAutoSorting: boolean;
-        onEnterReorderMode?:
-          | ((input: { classId: string; classLabel: string }) => void)
-          | undefined;
+        onEnterReorderMode?: ((input: { classId: string; classLabel: string }) => void) | undefined;
       }
     | undefined;
   // When set, the active class is in drag-and-drop reorder mode. The tree
@@ -301,9 +299,7 @@ export function ShowMapStructureTable({
             depth={depth}
             isPinned={isShowMapEntryPinnedForReorder(node)}
             isDimmed={isDimmed}
-            attentionCount={
-              attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0
-            }
+            attentionCount={attentionCountsByNodeId?.get(node.id) ?? node.attentionCount ?? 0}
             isPersisting={reorderMode?.isPersisting ?? false}
             onKeyboardReorder={
               reorderMode?.onKeyboardReorder
@@ -331,10 +327,7 @@ export function ShowMapStructureTable({
             {node.type === 'dog-entry' ? (
               <DogEntryIdentity node={node} />
             ) : (
-              <EntryIdentity
-                node={node}
-                onNavigate={isAnyReorderActive ? undefined : onNavigate}
-              />
+              <EntryIdentity node={node} onNavigate={isAnyReorderActive ? undefined : onNavigate} />
             )}
             <StatusCell
               node={node}
@@ -436,32 +429,36 @@ export function ShowMapStructureTable({
               onAction={onAction}
             />
           )}
-          {enableRowActions && node.type === 'class' && runOrderControls && (() => {
-            // INTENT: When the entry preview is truncated (synthetic 'more'
-            // child present), manual drag-and-drop reorder is disabled —
-            // dragging would silently shuffle entries that aren't on
-            // screen. Auto-sort still works because it always reads the
-            // full live entry list from the replicated table.
-            const classChildren = tree.childIdsByParentId[node.id] ?? [];
-            const isTruncated = classChildren.some(
-              childId => tree.nodesById[childId]?.type === 'more'
-            );
-            const enterReorderProp =
-              isTruncated ? undefined : runOrderControls.onEnterReorderMode;
-            return (
-              <ShowMapRunOrderMenu
-                classId={node.id.replace(/^class:/, '')}
-                classLabel={node.label}
-                entryCount={node.childrenCount}
-                onAutoSort={runOrderControls.onAutoSort}
-                isAutoSorting={runOrderControls.isAutoSorting}
-                {...(enterReorderProp !== undefined
-                  ? { onEnterReorderMode: enterReorderProp }
-                  : {})}
-                isReordering={isAnyReorderActive}
-              />
-            );
-          })()}
+          {enableRowActions &&
+            node.type === 'class' &&
+            runOrderControls &&
+            (() => {
+              // INTENT: When the entry preview is truncated (synthetic 'more'
+              // child present), manual drag-and-drop reorder is disabled —
+              // dragging would silently shuffle entries that aren't on
+              // screen. Auto-sort still works because it always reads the
+              // full live entry list from the replicated table.
+              const classChildren = tree.childIdsByParentId[node.id] ?? [];
+              const isTruncated = classChildren.some(
+                childId => tree.nodesById[childId]?.type === 'more'
+              );
+              const enterReorderProp = isTruncated
+                ? undefined
+                : runOrderControls.onEnterReorderMode;
+              return (
+                <ShowMapRunOrderMenu
+                  classId={node.id.replace(/^class:/, '')}
+                  classLabel={node.label}
+                  entryCount={node.childrenCount}
+                  onAutoSort={runOrderControls.onAutoSort}
+                  isAutoSorting={runOrderControls.isAutoSorting}
+                  {...(enterReorderProp !== undefined
+                    ? { onEnterReorderMode: enterReorderProp }
+                    : {})}
+                  isReordering={isAnyReorderActive}
+                />
+              );
+            })()}
           {enableRowActions && (
             <ShowMapRowActionsMenu
               node={node}
@@ -522,9 +519,10 @@ export function ShowMapStructureTable({
       const remainder = visibleChildIds.filter(id => !ordered.includes(id));
       return [...ordered, ...remainder];
     })();
-    const childList = isExpanded && hasChildren ? (
-      <ul role="group">{reorderedChildIds.map(id => renderNode(id, depth + 1))}</ul>
-    ) : null;
+    const childList =
+      isExpanded && hasChildren ? (
+        <ul role="group">{reorderedChildIds.map(id => renderNode(id, depth + 1))}</ul>
+      ) : null;
     const wrappedChildList =
       isReorderingThisClass && childList && reorderMode ? (
         <DndContext

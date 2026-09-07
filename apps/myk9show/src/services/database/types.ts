@@ -5,20 +5,24 @@ export interface DatabaseAPI {
   read<T>(store: string, id: string): Promise<T | null>;
   update<T>(store: string, id: string, data: Partial<T>): Promise<void>;
   deleteData(store: string, id: string): Promise<void>;
-  
+
   // Bulk operations
   bulkCreate<T>(store: string, data: T[]): Promise<string[]>;
-  bulkUpdate<T>(store: string, updates: Array<{id: string, data: Partial<T>}>): Promise<void>;
+  bulkUpdate<T>(store: string, updates: Array<{ id: string; data: Partial<T> }>): Promise<void>;
   bulkDelete(store: string, ids: string[]): Promise<void>;
-  
+
   // Query operations
   query<T>(store: string, filter: QueryFilter): Promise<T[]>;
   count(store: string, filter?: QueryFilter): Promise<number>;
   paginate<T>(store: string, options: PaginationOptions): Promise<PaginatedResult<T>>;
-  
-  // Transaction support  
-  executeTransaction<T>(stores: string[], mode: 'readonly' | 'readwrite', callback: TransactionCallback<T>): Promise<T>;
-  
+
+  // Transaction support
+  executeTransaction<T>(
+    stores: string[],
+    mode: 'readonly' | 'readwrite',
+    callback: TransactionCallback<T>
+  ): Promise<T>;
+
   // Utility methods
   clearStore(storeName: string): Promise<void>;
 }
@@ -55,7 +59,7 @@ export type MigrationOptions<T> = {
   transformer?: ((data: unknown) => T) | undefined;
   batchSize?: number | undefined;
   onProgress?: ((progress: MigrationProgress) => void) | undefined;
-}
+};
 
 export interface MigrationProgress {
   total: number;

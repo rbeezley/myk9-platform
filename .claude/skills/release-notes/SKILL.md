@@ -2,7 +2,7 @@
 name: release-notes
 description: "Use when asked to write a changelog, release notes, 'what shipped this week/month', a launch announcement digest, or an update post for the docs site covering recently merged work."
 user-invocable: true
-argument-hint: "[since-date | since-tag | last week]"
+argument-hint: '[since-date | since-tag | last week]'
 ---
 
 # Release Notes

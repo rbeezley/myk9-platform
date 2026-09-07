@@ -2,7 +2,7 @@
 name: deploy
 description: "Use when deploying anything to the live Supabase project or verifying a deploy — edge functions, database migrations (db push), Vault secrets — or when a merge landed and someone asks 'is it live?'. Also use when a deploy fails with password, linking, or wrong-project errors."
 user-invocable: true
-argument-hint: "[functions|migrations|verify] [names...]"
+argument-hint: '[functions|migrations|verify] [names...]'
 ---
 
 # Deploy (Supabase edge functions + migrations)
@@ -42,9 +42,9 @@ Consider dispatching the `migration-auditor` agent on any new migration file bef
 
 ## Common failure signatures
 
-| Symptom | Cause |
-| --- | --- |
+| Symptom                                                 | Cause                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
 | "Deployed Functions on project" names an unfamiliar ref | Stale `.temp/project-ref` — redeploy with explicit `--project-ref` |
-| Client 404 on a brand-new table | Missing `GRANT`s (Supabase no longer auto-exposes public tables) |
-| Function 401 from cron | Vault secret ≠ edge-function secret |
-| "db push" password errors | Use `db-push` skill; password lives in `supabase/.env` |
+| Client 404 on a brand-new table                         | Missing `GRANT`s (Supabase no longer auto-exposes public tables)   |
+| Function 401 from cron                                  | Vault secret ≠ edge-function secret                                |
+| "db push" password errors                               | Use `db-push` skill; password lives in `supabase/.env`             |

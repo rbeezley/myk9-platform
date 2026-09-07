@@ -63,7 +63,10 @@ export function formatDateInTimezone(
  * long format, suitable for the IBM Plex Mono tracked label inside the
  * masthead strip.
  */
-export function formatMastheadDate(iso: string | null | undefined, timezone: string): string | null {
+export function formatMastheadDate(
+  iso: string | null | undefined,
+  timezone: string
+): string | null {
   if (!iso) return null;
   const long = formatDateInTimezone(iso, timezone, 'long');
   return long ? long.toUpperCase() : null;

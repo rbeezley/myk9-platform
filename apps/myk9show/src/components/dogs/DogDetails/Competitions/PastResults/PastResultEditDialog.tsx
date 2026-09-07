@@ -23,7 +23,12 @@ const DEFAULT_FORM: PastResult = {
   notes: '',
 };
 
-const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClose, onSave, initialResult }) => {
+const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({
+  open,
+  onClose,
+  onSave,
+  initialResult,
+}) => {
   const [form, setForm] = useState<PastResult>(initialResult || DEFAULT_FORM);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [wasOpen, setWasOpen] = useState(open);
@@ -46,11 +51,12 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
     setWasOpen(false);
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
   };
-
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
@@ -75,9 +81,17 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
     <StandardDialog
       open={open}
       onClose={onClose}
-      onSave={() => document.getElementById('past-result-edit-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))}
+      onSave={() =>
+        document
+          .getElementById('past-result-edit-form')
+          ?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
+      }
       title={initialResult ? 'Edit Past Result' : 'Add Past Result'}
-      description={initialResult ? 'Edit the details of this past result.' : 'Enter details for the new past result.'}
+      description={
+        initialResult
+          ? 'Edit the details of this past result.'
+          : 'Enter details for the new past result.'
+      }
       formId="past-result-edit-form"
     >
       <form id="past-result-edit-form" className="space-y-4" onSubmit={handleSubmit}>
@@ -94,19 +108,14 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
         <FormField label="Date" fieldId="date" required error={errors.date}>
           <DatePickerField
             value={form.date}
-            onChange={(value) => setForm(prev => ({ ...prev, date: value }))}
+            onChange={value => setForm(prev => ({ ...prev, date: value }))}
             required
             name="date"
             id="date"
           />
         </FormField>
         <FormField label="Judge" fieldId="judge">
-          <Input
-            id="judge"
-            name="judge"
-            value={form.judge}
-            onChange={handleChange}
-          />
+          <Input id="judge" name="judge" value={form.judge} onChange={handleChange} />
         </FormField>
         <FormField label="Class" fieldId="className" required error={errors.className}>
           <Input
@@ -129,13 +138,7 @@ const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClo
           />
         </FormField>
         <FormField label="Notes" fieldId="notes">
-          <Textarea
-            id="notes"
-            name="notes"
-            value={form.notes}
-            onChange={handleChange}
-            rows={3}
-          />
+          <Textarea id="notes" name="notes" value={form.notes} onChange={handleChange} rows={3} />
         </FormField>
       </form>
     </StandardDialog>

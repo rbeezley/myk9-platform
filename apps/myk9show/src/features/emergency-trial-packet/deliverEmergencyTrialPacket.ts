@@ -80,15 +80,13 @@ export async function deliverEmergencyTrialPacket(
   const storagePath = buildEmergencyPacketStoragePath(input.showId, input.snapshotId);
   const pdf = bytesToBlob(input.bytes);
   const sha256 = sha256Hex(input.bytes);
-  const { error: uploadError } = await client.storage.from(TRIAL_PACKET_BUCKET).upload(
-    storagePath,
-    pdf,
-    {
+  const { error: uploadError } = await client.storage
+    .from(TRIAL_PACKET_BUCKET)
+    .upload(storagePath, pdf, {
       cacheControl: '0',
       contentType: 'application/pdf',
       upsert: false,
-    }
-  );
+    });
 
   if (uploadError) {
     throw new Error('Could not store the emergency packet. Check the connection and try again.');

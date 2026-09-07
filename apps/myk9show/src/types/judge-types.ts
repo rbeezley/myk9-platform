@@ -21,18 +21,20 @@ export interface LegacyJudgeAssignment {
 export const convertShowJudgeToLegacy = (judge: ShowJudgeAssignment): LegacyJudgeAssignment => ({
   id: judge.judgeId,
   name: judge.judgeName,
-  assignments: judge.assignedClasses || []
+  assignments: judge.assignedClasses || [],
 });
 
 export const convertLegacyToShowJudge = (legacy: LegacyJudgeAssignment): ShowJudgeAssignment => ({
   judgeId: legacy.id,
   judgeName: legacy.name,
   assignedDate: new Date().toISOString().split('T')[0],
-  assignedClasses: legacy.assignments
+  assignedClasses: legacy.assignments,
 });
 
-export const convertShowJudgeArrayToLegacy = (judges: ShowJudgeAssignment[]): LegacyJudgeAssignment[] => 
-  judges.map(convertShowJudgeToLegacy);
+export const convertShowJudgeArrayToLegacy = (
+  judges: ShowJudgeAssignment[]
+): LegacyJudgeAssignment[] => judges.map(convertShowJudgeToLegacy);
 
-export const convertLegacyArrayToShowJudge = (legacy: LegacyJudgeAssignment[]): ShowJudgeAssignment[] => 
-  legacy.map(convertLegacyToShowJudge);
+export const convertLegacyArrayToShowJudge = (
+  legacy: LegacyJudgeAssignment[]
+): ShowJudgeAssignment[] => legacy.map(convertLegacyToShowJudge);

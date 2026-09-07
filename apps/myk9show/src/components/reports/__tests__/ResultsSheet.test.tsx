@@ -34,7 +34,13 @@ const threeEntries: ReportEntry[] = [
     finalPlacement: 2,
     searchTimeSeconds: 55.3,
   }),
-  makeEntry({ id: '2', armband: '108', callName: 'Max', finalPlacement: 1, searchTimeSeconds: 45.2 }),
+  makeEntry({
+    id: '2',
+    armband: '108',
+    callName: 'Max',
+    finalPlacement: 1,
+    searchTimeSeconds: 45.2,
+  }),
   makeEntry({
     id: '3',
     armband: '215',

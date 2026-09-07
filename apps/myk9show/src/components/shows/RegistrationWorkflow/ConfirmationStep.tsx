@@ -107,9 +107,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     const receiptDogs = receiptSelectedDogs
       .map(dogId => {
         const dog = dogs.find(d => d.id === dogId);
-        const selection = receiptClassSelections.find(
-          (s: ClassSelectionData) => s.dogId === dogId
-        );
+        const selection = receiptClassSelections.find((s: ClassSelectionData) => s.dogId === dogId);
         if (!dog || !selection) return null;
 
         const trial = trials.find(t => t.id === selection.trialId);

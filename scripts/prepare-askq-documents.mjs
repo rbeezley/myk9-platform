@@ -9,14 +9,36 @@ const outFile = join(repoRoot, 'supabase/functions/_shared/askq/documentAssets.t
 const guides = [
   ['secretary-guide', 'Secretary Guide', 'Trial secretaries', 'secretary-guide.md'],
   ['exhibitor-guide', 'Exhibitor Guide', 'Dog exhibitors', 'exhibitor-guide.md'],
-  ['judge-steward-quickstart', 'Ringside Quickstart', 'Judges and stewards', 'judge-steward-quickstart.md'],
-  ['club-admin-guide', 'Club Admin & Treasurer Guide', 'Club admins and treasurers', 'club-admin-guide.md'],
+  [
+    'judge-steward-quickstart',
+    'Ringside Quickstart',
+    'Judges and stewards',
+    'judge-steward-quickstart.md',
+  ],
+  [
+    'club-admin-guide',
+    'Club Admin & Treasurer Guide',
+    'Club admins and treasurers',
+    'club-admin-guide.md',
+  ],
 ];
 
 const rulebooks = [
-  ['akc-scent-work', 'AKC', 'akc-scent-work', 'AKC Scent Work Regulations', 'akc-scent-work-regulations.txt'],
+  [
+    'akc-scent-work',
+    'AKC',
+    'akc-scent-work',
+    'AKC Scent Work Regulations',
+    'akc-scent-work-regulations.txt',
+  ],
   ['ukc-nosework', 'UKC', 'ukc-nosework', 'UKC Nose Work Rules', 'ukc-nose-work-rules.txt'],
-  ['asca-scent-detection', 'ASCA', 'asca-scent-detection', 'ASCA Scent Detection Rules', 'asca-scent-detection-rules.txt'],
+  [
+    'asca-scent-detection',
+    'ASCA',
+    'asca-scent-detection',
+    'ASCA Scent Detection Rules',
+    'asca-scent-detection-rules.txt',
+  ],
 ];
 
 function cleanGuide(markdown) {
@@ -52,7 +74,9 @@ export const ASKQ_RULEBOOKS: AskQRulebookAsset[] = ${JSON.stringify(rulebookAsse
 
   await mkdir(dirname(outFile), { recursive: true });
   await writeFile(outFile, body);
-  console.log(`[prepare-askq-documents] ${guideAssets.length} guides + ${rulebookAssets.length} rulebooks written.`);
+  console.log(
+    `[prepare-askq-documents] ${guideAssets.length} guides + ${rulebookAssets.length} rulebooks written.`
+  );
 }
 
 run().catch(error => {

@@ -29,7 +29,7 @@ The **steward ↔ judge half is effectively un-walkable on the current seed**, a
 
 - **S1 (HIGH):** Public `/results` deep link dead-ends for a guest ("No Classes Available") — the
   page reads the class through the **replication layer only**, with no `getPublicClassById`
-  direct read. The released results *view* returns 200, but the page bails before rendering it.
+  direct read. The released results _view_ returns 200, but the page bails before rendering it.
 - **S2 (HIGH):** Judge ringside handoff fully blocked — **no `judge_assignments` fixture**, so the
   judge dashboard has no route to a ring, and a judge admitted to ringside directly sees **0
   entries everywhere** ("No Entries Yet") due to entry-visibility RLS.
@@ -46,14 +46,14 @@ and S2/S3 fixtures exist so the judge and steward paths are walkable end to end.
 
 ## Phase → surface map (confirmed live)
 
-| Phase | Arc step | Surface walked |
-| ----- | -------- | -------------- |
-| **A** | Setup / check-in | `/shows/:showId/setup` + `/shows/:showId/show-desk` (status chips, Show Map) + Entry Management |
-| **B** | Gate / run order | Show Desk → per-class **Run order** / **Mark Class Started**; ringside **Change Status** dialog (steward states) |
-| **C** | Scoring (judge/steward) | `/at-show/:showId/class/:classId/score/:entryId` (timer + Q/NQ/Absent/Excused) |
-| **D** | Results recording | Ringside class **Completed** tab (placements/medals/time); `/submit-results` |
-| **E** | Results release | `/shows/:showId/results-control` (presets) → public `/results` view |
-| **F** | Wrap-up | `/shows/:showId/reports` (check-in / catalog / results); Closeout reconciliation |
+| Phase | Arc step                | Surface walked                                                                                                   |
+| ----- | ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **A** | Setup / check-in        | `/shows/:showId/setup` + `/shows/:showId/show-desk` (status chips, Show Map) + Entry Management                  |
+| **B** | Gate / run order        | Show Desk → per-class **Run order** / **Mark Class Started**; ringside **Change Status** dialog (steward states) |
+| **C** | Scoring (judge/steward) | `/at-show/:showId/class/:classId/score/:entryId` (timer + Q/NQ/Absent/Excused)                                   |
+| **D** | Results recording       | Ringside class **Completed** tab (placements/medals/time); `/submit-results`                                     |
+| **E** | Results release         | `/shows/:showId/results-control` (presets) → public `/results` view                                              |
+| **F** | Wrap-up                 | `/shows/:showId/reports` (check-in / catalog / results); Closeout reconciliation                                 |
 
 ---
 
@@ -65,6 +65,7 @@ and S2/S3 fixtures exist so the judge and steward paths are walkable end to end.
 **Observed (cold anon session):** hard-loading the released Container Novice A results link shows
 **"No Classes Available"** (a create-a-show empty state), not the 3 placements.
 **Root cause (confirmed in code + network):**
+
 - The page bails to the empty state at
   [`ClassDetailsPage/index.tsx:273`](../../../apps/myk9show/src/pages/ClassDetailsPage/index.tsx)
   (`if (!classId || !currentClass)`).
@@ -74,7 +75,7 @@ and S2/S3 fixtures exist so the judge and steward paths are walkable end to end.
   (guest sync is skipped), so `currentClass` is `null`.
 - Meanwhile the anon network log shows the **release-gated results view succeeds**:
   `GET /rest/v1/view_public_entry_results?...&class_id=eq.dec1a55e-…031 → [200]` with data. PR #799
-  repaired the *results* read; the **class-identity** read on this page is still replication-only.
+  repaired the _results_ read; the **class-identity** read on this page is still replication-only.
 - `getPublicClassById` / `getPublicTrialById` **do not exist** in the codebase (grep empty). The
   precedent to mirror is `getPublicShows` in
   [`services/database/shows/reads.ts:99`](../../../apps/myk9show/src/services/database/shows/reads.ts).
@@ -105,6 +106,7 @@ returns 0 rows to the judge, and the dashboard has nothing to route from. Second
 here" dead-end rather than an explanatory state — at odds with the Judge "invisible technology" /
 Steward "in sync" intents (a judge would think the ring is empty).
 **Consolidation-safe remedy:**
+
 1. **Fixture (DONE — `seed-demo.sql` §11):** seeds a `judge_assignments` row linking
    `judge@myk9t.com` to the Heartland show, so `/judge/dashboard` surfaces the assignment. This
    makes the judge's **scheduling** surface walkable.
@@ -139,6 +141,7 @@ heartbeat. No new UI.
 
 **Surface:** Show Desk → Show Map stats and class nodes; ringside class picker.
 **Observed (same fixture, three places disagree):**
+
 - Show Map header: **"9 Entries"** (8 live + the withdrawn Maple `…059` = counted).
 - Show Map class node: Exterior Excellent **"1/2 entries complete (50%)"** — its only live entry
   (Juniper, unscored) is `0`; the withdrawn entry inflates the denominator **and** is counted as
@@ -146,12 +149,12 @@ heartbeat. No new UI.
 - Ringside picker: Exterior Excellent **"0 / 2"** (same withdrawn entry in the denominator; should
   be `0/1`).
 - Closeout reconciliation **correctly isolates** it: "1 pulled · 0 review."
-**Why it matters:** the operational counts a secretary/steward reads to know "what's left" are
-inflated by an entry that's out of the show, and the "50% complete" reading is actively wrong.
-Two regions on the *same page* count it differently.
-**Consolidation-safe remedy:** exclude `entry_status IN ('withdrawn','scratched')` from the
-live-entry denominator in the shared class-entries query feeding both Show Map and the ringside
-picker (one query, two consumers — fix once). Keep Closeout's separate "pulled" count.
+  **Why it matters:** the operational counts a secretary/steward reads to know "what's left" are
+  inflated by an entry that's out of the show, and the "50% complete" reading is actively wrong.
+  Two regions on the _same page_ count it differently.
+  **Consolidation-safe remedy:** exclude `entry_status IN ('withdrawn','scratched')` from the
+  live-entry denominator in the shared class-entries query feeding both Show Map and the ringside
+  picker (one query, two consumers — fix once). Keep Closeout's separate "pulled" count.
 
 ### S5 — MEDIUM — Contradictory trial status badges (Phase A/B)
 
@@ -219,7 +222,7 @@ screen-reader redundancy. **Remedy:** give the icon button a distinct accessible
   "Max Time: 3:00", Save disabled until a result is chosen (no empty submits).
 - **Results Control presets are legible.** Immediately / After Class / After Review, with the
   active "Immediately" preset matching the seed `open` preset (auto-release on class complete).
-- **Public results *view* read works at the data layer** for anon (`view_public_entry_results`
+- **Public results _view_ read works at the data layer** for anon (`view_public_entry_results`
   → 200) — PR #799 holds; the gap (S1) is the page's class-identity read, not the results gate.
 
 ---
@@ -235,7 +238,7 @@ screen-reader redundancy. **Remedy:** give the icon button a distinct accessible
    staging** to confirm the handoffs — and trace the open entry-visibility-via-passcode RLS question
    (S2.2) end to end.
 3. **S4 / S5** — exclude withdrawn/scratched from the shared live-entry count; collapse trial
-   badges to a single coherent status. *(not in this PR)*
-4. **S6** — update the stale INTENT comment. *(not in this PR)*
+   badges to a single coherent status. _(not in this PR)_
+4. **S6** — update the stale INTENT comment. _(not in this PR)_
 5. The judge/steward phases remain **unverified, not passing** until the seed is applied to staging
    and re-walked.

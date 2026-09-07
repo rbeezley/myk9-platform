@@ -74,7 +74,10 @@ describe('UKC Nosework — generated class catalog', () => {
     const hd = classes.filter(c => c.element === 'Handler Discrimination');
     expect(hd).toHaveLength(8); // 4 levels × A/B
     expect(hd.map(c => c.className)).toEqual(
-      expect.arrayContaining(['Handler Discrimination Excellent A', 'Handler Discrimination Excellent B'])
+      expect.arrayContaining([
+        'Handler Discrimination Excellent A',
+        'Handler Discrimination Excellent B',
+      ])
     );
     expect(hd.some(c => c.level === 'Superior')).toBe(false);
     expect(hd.some(c => c.level === 'Elite')).toBe(false);

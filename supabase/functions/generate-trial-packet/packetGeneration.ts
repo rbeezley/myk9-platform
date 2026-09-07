@@ -396,7 +396,7 @@ export async function generateTrialPackets(
       // retry issued microseconds later lands inside the same outage and only
       // helps the uncorrelated case, which was already benign. A short wait is
       // what actually changes the odds; a restart is seconds, not microseconds.
-      await deps.sleep?.(RETRY_DELAY_MS) ?? (await sleep(RETRY_DELAY_MS));
+      (await deps.sleep?.(RETRY_DELAY_MS)) ?? (await sleep(RETRY_DELAY_MS));
       ({ error: completeError } = await stampComplete());
     }
     // Do not throw: the packet IS stored and emailed. Failing the whole run

@@ -1,8 +1,11 @@
 # testing-e2e-ci Specification
 
 ## Purpose
+
 TBD - created by archiving change resurrect-e2e-ci. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Nightly e2e suite runs on a schedule
 
 A scheduled and manually dispatchable GitHub Actions workflow SHALL run the curated stateful Playwright suite against a disposable, resettable Supabase target. Each successful job MUST prepare deterministic fixtures, expose the generated local app URL and service-role configuration to UAT setup without shared-staging secrets, run the suite twice with a reset between runs, and upload both reports as artifacts. The workflow MUST remain bounded, variable-gated, one-worker, zero-retry, and fail closed before browser execution when target preparation or configuration is incomplete.

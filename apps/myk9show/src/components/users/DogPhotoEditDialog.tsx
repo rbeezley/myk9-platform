@@ -18,17 +18,17 @@ interface DogPhotoEditDialogProps {
   dogName?: string;
 }
 
-const DogPhotoEditDialog: React.FC<DogPhotoEditDialogProps> = (props) => {
+const DogPhotoEditDialog: React.FC<DogPhotoEditDialogProps> = props => {
   const { dogName, ...rest } = props;
   const title = dogName ? `Change Photo for ${dogName}` : 'Change Dog Photo';
   const previewAlt = dogName ? `Photo preview for ${dogName}` : 'Dog photo preview';
 
   return (
-    <PhotoDialog 
-      {...rest} 
-      currentPhoto={props.currentPhoto || ''} 
-      title={title} 
-      previewAlt={previewAlt} 
+    <PhotoDialog
+      {...rest}
+      currentPhoto={props.currentPhoto || ''}
+      title={title}
+      previewAlt={previewAlt}
     />
   );
 };

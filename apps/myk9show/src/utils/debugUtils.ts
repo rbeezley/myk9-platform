@@ -34,7 +34,7 @@ const ALL_KEYS = [
  * Clear app data and reload (preserves templates & UI preferences)
  */
 export function clearAppStorage(): void {
-  DATA_KEYS.forEach((key) => localStorage.removeItem(key));
+  DATA_KEYS.forEach(key => localStorage.removeItem(key));
   logger.info('Cleared app data, reloading...');
   window.location.reload();
 }
@@ -50,7 +50,7 @@ export function resetAllMockData(): void {
  * Nuclear option - reset everything including templates and UI
  */
 export async function resetEverything(): Promise<void> {
-  ALL_KEYS.forEach((key) => localStorage.removeItem(key));
+  ALL_KEYS.forEach(key => localStorage.removeItem(key));
 
   try {
     const databases = await indexedDB.databases();
@@ -106,7 +106,7 @@ export function resetSpecificStore(storeName: string): void {
     return;
   }
 
-  keys.forEach((key) => localStorage.removeItem(key));
+  keys.forEach(key => localStorage.removeItem(key));
 
   // Call store reset functions if available
   try {

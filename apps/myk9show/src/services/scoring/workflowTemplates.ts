@@ -7,7 +7,12 @@
 
 import type { ScoringFormat } from '@/types/scoring-types';
 import { DEFAULT_SCORING_CONFIGS } from '@/types/scoring-types';
-import type { WorkflowTemplate, WorkflowStepDefinition, WorkflowStep, JudgeSession } from './judge-workflow-types';
+import type {
+  WorkflowTemplate,
+  WorkflowStepDefinition,
+  WorkflowStep,
+  JudgeSession,
+} from './judge-workflow-types';
 
 /**
  * Create default workflow template for a scoring format
@@ -21,7 +26,7 @@ export function createDefaultWorkflowTemplate(format: ScoringFormat): WorkflowTe
       required: true,
       allowSkip: false,
       estimatedDuration: 300000, // 5 minutes
-      actions: ['validate_judge', 'setup_interface']
+      actions: ['validate_judge', 'setup_interface'],
     },
     {
       step: 'entry_assignment',
@@ -31,7 +36,7 @@ export function createDefaultWorkflowTemplate(format: ScoringFormat): WorkflowTe
       allowSkip: false,
       prerequisites: ['setup'],
       estimatedDuration: 180000, // 3 minutes
-      actions: ['assign_entries', 'validate_assignments']
+      actions: ['assign_entries', 'validate_assignments'],
     },
     {
       step: 'scoring',
@@ -40,7 +45,7 @@ export function createDefaultWorkflowTemplate(format: ScoringFormat): WorkflowTe
       required: true,
       allowSkip: false,
       prerequisites: ['entry_assignment'],
-      actions: ['enable_scoring', 'track_progress']
+      actions: ['enable_scoring', 'track_progress'],
     },
     {
       step: 'review',
@@ -50,7 +55,7 @@ export function createDefaultWorkflowTemplate(format: ScoringFormat): WorkflowTe
       allowSkip: false,
       prerequisites: ['scoring'],
       estimatedDuration: 600000, // 10 minutes
-      actions: ['calculate_placements', 'check_conflicts', 'generate_summary']
+      actions: ['calculate_placements', 'check_conflicts', 'generate_summary'],
     },
     {
       step: 'finalization',
@@ -60,8 +65,8 @@ export function createDefaultWorkflowTemplate(format: ScoringFormat): WorkflowTe
       allowSkip: false,
       prerequisites: ['review'],
       estimatedDuration: 300000, // 5 minutes
-      actions: ['finalize_scores', 'generate_reports', 'submit_results']
-    }
+      actions: ['finalize_scores', 'generate_reports', 'submit_results'],
+    },
   ];
 
   return {
@@ -73,9 +78,9 @@ export function createDefaultWorkflowTemplate(format: ScoringFormat): WorkflowTe
       allowRetry: true,
       requireConfirmation: true,
       enableRealTimeSync: true,
-      autoAdvance: false
+      autoAdvance: false,
     },
-    isCustom: false
+    isCustom: false,
   };
 }
 
@@ -147,9 +152,9 @@ export function arePrerequisitesMet(
     return false;
   }
 
-  return targetStepDef.prerequisites?.every(prereq =>
-    isStepCompleted(session, prereq, template)
-  ) ?? true;
+  return (
+    targetStepDef.prerequisites?.every(prereq => isStepCompleted(session, prereq, template)) ?? true
+  );
 }
 
 /**

@@ -10,7 +10,16 @@ import { OwnerHandlerSection } from './sections/OwnerHandlerSection';
 import { FeesSection } from './sections/FeesSection';
 import { AgreementSection } from './sections/AgreementSection';
 import { MailToPanel } from './sections/MailToPanel';
-import { BODY, BROWN, DISPLAY, DoubleRule, INK, META, PAPER, QUILL } from './sections/pdfPrimitives';
+import {
+  BODY,
+  BROWN,
+  DISPLAY,
+  DoubleRule,
+  INK,
+  META,
+  PAPER,
+  QUILL,
+} from './sections/pdfPrimitives';
 
 /**
  * Gazette mail-in entry blank. US Letter portrait, single page,
@@ -60,16 +69,40 @@ export function GazetteEntryBlankDocument(props: EntryBlankProps) {
             }}
           >
             {props.closeDate && (
-              <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 6.5, letterSpacing: 1.4, color: BROWN }}>
+              <Text
+                style={{
+                  fontFamily: META,
+                  fontWeight: 500,
+                  fontSize: 6.5,
+                  letterSpacing: 1.4,
+                  color: BROWN,
+                }}
+              >
                 CLOSES {props.closeDate.toUpperCase()}
               </Text>
             )}
             {props.onlineEntryUrl && (
-              <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 6.5, letterSpacing: 1.4, color: BROWN }}>
+              <Text
+                style={{
+                  fontFamily: META,
+                  fontWeight: 500,
+                  fontSize: 6.5,
+                  letterSpacing: 1.4,
+                  color: BROWN,
+                }}
+              >
                 ONLINE · {props.onlineEntryUrl.toUpperCase()}
               </Text>
             )}
-            <Text style={{ fontFamily: META, fontWeight: 500, fontSize: 6.5, letterSpacing: 1.4, color: BROWN }}>
+            <Text
+              style={{
+                fontFamily: META,
+                fontWeight: 500,
+                fontSize: 6.5,
+                letterSpacing: 1.4,
+                color: BROWN,
+              }}
+            >
               PAGE i · CONTINUED ▸
             </Text>
           </View>

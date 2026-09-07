@@ -14,8 +14,32 @@ create index show_officials_created_by_fk_idx
 
 do $$
 declare
+  target_fk_count bigint;
+  target_fk_pair_count bigint;
   missing text[];
 begin
+  select count(*), count(distinct format('%I.%I', t.relname, a.attname))
+  into target_fk_count, target_fk_pair_count
+  from pg_constraint c
+  join pg_class t on t.oid = c.conrelid
+  join pg_namespace n on n.oid = t.relnamespace
+  join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+  where c.contype = 'f'
+    and cardinality(c.conkey) = 1
+    and n.nspname = 'public'
+    and (
+      (t.relname = 'calendar_feed_tokens' and a.attname = 'show_id')
+      or (t.relname = 'show_officials' and a.attname = 'person_id')
+      or (t.relname = 'show_officials' and a.attname = 'created_by')
+    );
+
+  if target_fk_count <> 3 or target_fk_pair_count <> 3 then
+    raise exception
+      'MYK9-439 expected exactly three single-column public target FKs, found % constraint(s) across % pair(s)',
+      target_fk_count,
+      target_fk_pair_count;
+  end if;
+
   select array_agg(format('%I.%I', t.relname, a.attname) order by t.relname, a.attname)
   into missing
   from pg_constraint c

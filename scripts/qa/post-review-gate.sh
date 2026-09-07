@@ -58,8 +58,16 @@ VERDICT_BLOCK="$(awk '/^codex$/{f=1; next} f' "$LOG")"
 # wrapper (the Claude path calls it directly), so it re-checks what the wrapper
 # checks: an interrupted or incomplete review is never evidence, and "no
 # findings" needs a clean sentence in the log, not just a caller's say-so.
-if grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" ||
-   printf '%s' "$VERDICT_BLOCK" | grep -Eiq '\bunable to complete the review\b|\breview (did not run|was interrupted)\b'; then
+#
+# Completeness gates ATTESTATIONS only. A review that found a defect and then
+# hit a blocker has still found a defect, and refusing its withdrawal would
+# leave an earlier clean attestation standing over a head now known to be
+# broken — the completeness rule protecting the very state it exists to
+# prevent (Codex review of #2115, round 4). A withdrawal still has to carry
+# [P*] bullets, which is checked below.
+if [ "$WITHDRAW" != 1 ] &&
+  { grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" ||
+    printf '%s' "$VERDICT_BLOCK" | grep -Eiq '\bunable to complete the review\b|\breview (did not run|was interrupted)\b'; }; then
   echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
   exit 2
 fi

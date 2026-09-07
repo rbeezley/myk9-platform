@@ -165,6 +165,22 @@ describe('post-review-gate.sh', () => {
       expect(body).toContain('[P1] Something is broken');
     });
 
+    it('withdraws from an INCOMPLETE review that still found a defect', () => {
+      // A review that found a defect and then hit a blocker has still found a
+      // defect. Refusing this withdrawal leaves the earlier clean attestation
+      // standing over a head now known to be broken (Codex, #2115 round 4).
+      const gh = stubGh();
+      const log = logFile(
+        'codex\n- [P1] Something is broken\n\nUnable to complete the review because the connection failed.\n'
+      );
+      const r = run(
+        ['--withdraw', '42', 'codex', '0a2020c7a', '5af9af158', '1 findings, not addressed', log],
+        gh.bin
+      );
+      expect(r.code).toBe(0);
+      expect(readFileSync(gh.calls, 'utf8')).toContain('1 findings, not addressed');
+    });
+
     it('refuses to withdraw with a CLEAN verdict — that would post evidence, not remove it', () => {
       const gh = stubGh();
       const log = logFile(FINDINGS);

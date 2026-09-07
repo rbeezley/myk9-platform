@@ -34,6 +34,9 @@ vi.mock('@/lib/supabase', () => ({
 
 import { useMyPaymentYears, useMyPayments } from './useMyPayments';
 
+/** The signed-in viewer these ledger caches belong to (MYK9-429). */
+const VIEWER_ID = 'viewer-1';
+
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: ReactNode }) => (
@@ -67,7 +70,7 @@ describe('useMyPayments', () => {
       ],
       error: null,
     });
-    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([
       {
@@ -105,7 +108,7 @@ describe('useMyPayments', () => {
       ],
       error: null,
     });
-    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.[0]).toMatchObject({
       date: '2026-06-01T00:00:00Z',
@@ -121,7 +124,7 @@ describe('useMyPayments', () => {
 
   it('propagates a query error', async () => {
     stripeOrdersRange.mockResolvedValue({ data: null, error: { message: 'boom' } });
-    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isError).toBe(true));
   });
 
@@ -156,7 +159,7 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(entriesSelect).toHaveBeenCalledWith(
@@ -211,7 +214,7 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data?.[0]).toMatchObject({
@@ -249,7 +252,7 @@ describe('useMyPayments', () => {
         error: null,
       });
 
-    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersRange).toHaveBeenNthCalledWith(1, 0, 99);
@@ -271,7 +274,7 @@ describe('useMyPayments', () => {
       .mockResolvedValueOnce({ data: firstPage, error: null })
       .mockResolvedValueOnce({ data: [{ id: 'e001' }], error: null });
 
-    const { result } = renderHook(() => useMyPayments('2026'), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(refundedEntriesRange).toHaveBeenNthCalledWith(1, 0, 99);
@@ -303,7 +306,7 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPaymentYears(true), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPaymentYears(true, VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersSelect).toHaveBeenCalledWith(
@@ -334,7 +337,7 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments('2026'), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersQuery.or).toHaveBeenCalledOnce();
@@ -367,7 +370,7 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments('2019'), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2019', VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersRange).toHaveBeenNthCalledWith(1, 0, 99);
@@ -411,7 +414,7 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments('2026'), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments('2026', VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(stripeOrdersQuery.overlaps).toHaveBeenCalledWith('entry_ids', ['e-refunded']);
@@ -442,11 +445,123 @@ describe('useMyPayments', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useMyPayments(), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useMyPayments(undefined, VIEWER_ID), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(inFilter).toHaveBeenCalledTimes(2);
     expect(inFilter.mock.calls[0][1]).toHaveLength(100);
     expect(inFilter.mock.calls[1][1]).toEqual(['e100']);
   });
+
+  it('does not serve one viewer the cached payment list of another', async () => {
+    // MYK9-429 AC2. The QueryClient is a module singleton nothing recreated on
+    // an auth change, and this list is cached for five minutes, so a second
+    // account signing in on the same tab could be handed the first account's
+    // whole ledger - amounts, references and show names - with no request made
+    // and therefore no RLS applied.
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    stripeOrdersRange.mockResolvedValue({
+      data: [
+        {
+          id: 'first-viewer-order',
+          amount_cents: 3210,
+          currency: 'usd',
+          status: 'succeeded',
+          paid_at: '2026-06-10T00:00:00Z',
+          created_at: '2026-06-10T00:00:00Z',
+          stripe_payment_intent_id: 'pi_first_viewer',
+          entry_ids: [],
+          show_id: 'show-1',
+          show: { name: 'First Viewer Trial' },
+        },
+      ],
+      error: null,
+    });
+
+    const first = renderHook(() => useMyPayments(undefined, 'viewer-1'), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    expect(first.result.current.data?.[0]?.reference).toBe('pi_first_viewer');
+    first.unmount();
+
+    // Same tab, same client, same selection - a different signed-in account.
+    stripeOrdersRange.mockClear();
+    stripeOrdersRange.mockResolvedValue({
+      data: [
+        {
+          id: 'second-viewer-order',
+          amount_cents: 999,
+          currency: 'usd',
+          status: 'succeeded',
+          paid_at: '2026-07-01T00:00:00Z',
+          created_at: '2026-07-01T00:00:00Z',
+          stripe_payment_intent_id: 'pi_second_viewer',
+          entry_ids: [],
+          show_id: 'show-2',
+          show: { name: 'Second Viewer Trial' },
+        },
+      ],
+      error: null,
+    });
+
+    const second = renderHook(() => useMyPayments(undefined, 'viewer-2'), { wrapper });
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+    // A fresh read happened, so RLS was re-applied for the new account...
+    expect(stripeOrdersRange).toHaveBeenCalled();
+    // ...and nothing of the first account's ledger reached the second.
+    const references = second.result.current.data?.map(payment => payment.reference);
+    expect(references).toEqual(['pi_second_viewer']);
+    expect(references).not.toContain('pi_first_viewer');
+    expect(second.result.current.data?.map(payment => payment.showName)).not.toContain(
+      'First Viewer Trial'
+    );
+  });
+
+  it('keys the payment-year list to the viewer as well', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    stripeOrdersRange.mockResolvedValue({
+      data: [
+        {
+          id: 'o-2024',
+          paid_at: '2024-05-01T00:00:00Z',
+          refunded_at: null,
+          created_at: '2024-05-01T00:00:00Z',
+          entry_ids: [],
+        },
+      ],
+      error: null,
+    });
+    const first = renderHook(() => useMyPaymentYears(true, 'viewer-1'), { wrapper });
+    await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
+    expect(first.result.current.data).toEqual(['2024']);
+    first.unmount();
+
+    stripeOrdersRange.mockClear();
+    stripeOrdersRange.mockResolvedValue({
+      data: [
+        {
+          id: 'o-2026',
+          paid_at: '2026-05-01T00:00:00Z',
+          refunded_at: null,
+          created_at: '2026-05-01T00:00:00Z',
+          entry_ids: [],
+        },
+      ],
+      error: null,
+    });
+    const second = renderHook(() => useMyPaymentYears(true, 'viewer-2'), { wrapper });
+    await waitFor(() => expect(second.result.current.isSuccess).toBe(true));
+
+    expect(stripeOrdersRange).toHaveBeenCalled();
+    expect(second.result.current.data).toEqual(['2026']);
+  });
+
 });

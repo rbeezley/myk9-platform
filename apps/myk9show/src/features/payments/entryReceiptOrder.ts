@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import { viewerScope } from '@/lib/viewerScopedQueryKey';
 
 // Every money column the receipt needs to ADD UP, not just the gross.
 //
@@ -175,7 +176,7 @@ export function useDeepLinkedReceiptOrder(orderId: string | null, viewerId: stri
     // exhibitor signing in after another in the same tab could be served the
     // previous account's amount and payment reference from cache, with no
     // request made and therefore no RLS check.
-    queryKey: ['exhibitor', 'deep-linked-receipt-order', viewerId, orderId],
+    queryKey: ['exhibitor', 'deep-linked-receipt-order', viewerScope(viewerId), orderId],
     queryFn: () => fetchDeepLinkedReceipt(orderId!),
     enabled: Boolean(orderId),
     ...cacheStrategies.moderate,
@@ -198,7 +199,13 @@ export function useEntryReceiptOrders({
 }: UseEntryReceiptOrdersInput) {
   const stableEntryIds = [...entryIds].sort();
   return useQuery({
-    queryKey: ['exhibitor', 'entry-receipt-orders', viewerId, requestedOrderId, stableEntryIds],
+    queryKey: [
+      'exhibitor',
+      'entry-receipt-orders',
+      viewerScope(viewerId),
+      requestedOrderId,
+      stableEntryIds,
+    ],
     queryFn: async () => {
       if (!requestedOrderId) return fetchEntryReceiptOrdersForEntries(stableEntryIds);
 

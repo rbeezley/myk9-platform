@@ -217,6 +217,8 @@ jobs:
           pnpm qa:dist-fresh:test
           pnpm qa:inflight:test
           pnpm qa:ci-concurrency:test
+          pnpm qa:shared-rules:test
+          pnpm qa:shared-rules
 
       # Scheduled-task prompts live outside this repo, so the CLI itself can only
       # run on the machine that owns them. Its tests are repo-only and do run

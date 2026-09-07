@@ -38,6 +38,7 @@ import {
 import { AmountDueSection } from './AmountDueSection';
 import { useElementWidth } from '@/hooks/useElementWidth';
 import { useMyPaymentYears, useMyPayments } from '@/features/payments/useMyPayments';
+import { useViewerId } from '@/hooks/useViewerId';
 import { useMyEntryBalanceSummary } from '@/features/payments/useMyEntryBalanceSummary';
 import { buildFinishPaymentHref } from '@/features/payments/finishPaymentHref';
 import { buildEntryReceiptHref } from '@/features/payments/entryReceiptHref';
@@ -317,13 +318,21 @@ export default function ExhibitorPaymentsPage() {
   const yearParam = searchParams.get('year');
   const queryYear = paymentYearQueryRange(yearParam) ? yearParam! : ALL_PAYMENT_YEARS;
   const needsPaymentYearMetadata = queryYear !== ALL_PAYMENT_YEARS;
-  const { data: payments, isLoading, isError, isFetching, refetch } = useMyPayments(queryYear);
+  // Scopes both ledger caches to the signed-in account (MYK9-429).
+  const viewerId = useViewerId();
+  const {
+    data: payments,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useMyPayments(queryYear, viewerId);
   const {
     data: knownPaymentYears,
     isError: isPaymentYearsError,
     isFetching: isPaymentYearsFetching,
     refetch: refetchPaymentYears,
-  } = useMyPaymentYears(needsPaymentYearMetadata);
+  } = useMyPaymentYears(needsPaymentYearMetadata, viewerId);
   const {
     data: balanceSummary,
     isLoading: isBalanceLoading,

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { cacheStrategies } from '@/lib/queryClient';
+import { viewerScope } from '@/lib/viewerScopedQueryKey';
 import type { PaymentPresentationRefund } from './moneyPresentation';
 import {
   ALL_PAYMENT_YEARS,
@@ -187,10 +188,14 @@ async function fetchEntryRefundDates(entryIds: string[]): Promise<Array<string |
  * enabled only while a year is selected: it pages date/id metadata and chunks
  * entry IDs, retaining picker options without re-fetching unbounded amounts or
  * full order payloads.
+ *
+ * `viewerId` is required, not optional: these years are derived from one
+ * account's own orders, and a caller that could omit the viewer would omit it
+ * (MYK9-429). Pass `useViewerId()`.
  */
-export function useMyPaymentYears(enabled: boolean) {
+export function useMyPaymentYears(enabled: boolean, viewerId: string | null) {
   return useQuery({
-    queryKey: ['exhibitor', 'my-payment-years'],
+    queryKey: ['exhibitor', 'my-payment-years', viewerScope(viewerId)],
     queryFn: async (): Promise<string[]> => {
       const orders = await fetchPaymentYearMetadataOrders();
       const entryIds = [...new Set(orders.flatMap(order => order.entry_ids ?? []))];
@@ -240,10 +245,19 @@ export interface MyPayment {
  * directly — RLS scopes rows to the caller (customer_id → stripe_customers.person_id
  * = get_my_person_id()), so no explicit owner filter is needed here. The show name
  * is embedded via the show_id FK (null for non-entry orders).
+ *
+ * `viewerId` is a REQUIRED argument, not a nicety. The QueryClient is a module
+ * singleton, so an unscoped key held this account's amounts, references and
+ * show names for whoever signed in next on the same tab, served from cache with
+ * no request and therefore no RLS (MYK9-429). Required so a call site cannot
+ * drop it silently; pass `useViewerId()`.
  */
-export function useMyPayments(selection: PaymentYearSelection = ALL_PAYMENT_YEARS) {
+export function useMyPayments(
+  selection: PaymentYearSelection = ALL_PAYMENT_YEARS,
+  viewerId: string | null
+) {
   return useQuery({
-    queryKey: ['exhibitor', 'my-payments', selection],
+    queryKey: ['exhibitor', 'my-payments', viewerScope(viewerId), selection],
     queryFn: async (): Promise<MyPayment[]> => {
       const orders = await fetchOrders(selection);
       const entryIds = [...new Set(orders.flatMap(o => o.entry_ids ?? []))];

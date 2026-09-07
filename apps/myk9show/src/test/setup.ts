@@ -7,6 +7,11 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { resetAllStores } from './mocks/zustandReset';
 import { createSupabaseNetworkGuard } from './supabaseNetworkGuard';
 import 'fake-indexeddb/auto';
+// Side-effect import: the missing-viewer-scope guard patches the shared
+// QueryCache entry point, so it must be installed for the ad-hoc
+// QueryClients tests construct as well as for the app's singleton. Without
+// this a new unscoped exhibitor key would ship green (MYK9-429).
+import '@/lib/viewerScopeGuard';
 import {
   IDBFactory as FDBFactory,
   IDBDatabase as FDBDatabase,

@@ -1,0 +1,74 @@
+# Item 2 of MYK9-110. Keep disabled until a reviewed provider, bucket, key,
+# retention policy, and isolated restore rehearsal exist.
+name: Independent Database Export
+
+on:
+  schedule:
+    - cron: '0 * * * *' # hourly wake-up; TS due selector applies local policy
+  workflow_dispatch: {}
+
+concurrency:
+  group: independent-database-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: Export and verify database
+    if: vars.MYK9_EXPORTS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install PostgreSQL and AWS clients
+        run: |
+          sudo apt-get update
+          # Keep the dump client major explicit; mismatches fail preflight below.
+          sudo apt-get install --yes postgresql-client-18 awscli
+      - name: Export, encrypt, upload, and verify
+        run: pnpm exec tsx scripts/backup/export-cli.ts
+        env:
+          BACKUP_DATABASE_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+          BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.MYK9_EXPORT_ENCRYPTION_KEY }}
+          BACKUP_PG_CLIENT_MAJOR: ${{ vars.MYK9_EXPORT_PG_CLIENT_MAJOR }}
+          BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
+          BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
+          BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Verify latest export freshness
+        run: pnpm exec tsx scripts/backup/verify.ts
+        env:
+          BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          BACKUP_GRACE_MINUTES: '30'
+          BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
+          BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
+          BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Report scheduled failure
+        if: always()
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Independent Database Export
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: 'Independent database export failed or was not verified; check the last successful manifest before show-day recovery decisions.'

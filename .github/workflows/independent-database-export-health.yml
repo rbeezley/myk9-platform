@@ -1,0 +1,52 @@
+name: Independent Database Export Health
+
+on:
+  schedule:
+    - cron: '15 * * * *' # independent freshness check, UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: independent-database-export-health
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify latest export freshness
+    if: vars.MYK9_EXPORTS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install AWS client
+        run: sudo apt-get update && sudo apt-get install --yes awscli
+      - name: Verify latest payloads and freshness
+        run: pnpm exec tsx scripts/backup/verify.ts
+        env:
+          BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          BACKUP_GRACE_MINUTES: '30'
+          BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
+          BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
+          BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Report scheduled failure
+        if: always()
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Independent Database Export Health
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: 'Independent freshness verification failed; a GitHub outage can still hide both export and verification jobs.'

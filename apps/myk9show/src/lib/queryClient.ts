@@ -1,6 +1,9 @@
 import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 import { captureMonitoredQueryFailure } from '@/services/observability/sentry';
+// Side-effect import: installs the missing-viewer-scope check on every
+// QueryCache before this module builds one (MYK9-429).
+import './viewerScopeGuard';
 
 // Create custom query cache with enhanced deduplication
 const queryCache = new QueryCache({

@@ -39,7 +39,12 @@ test.describe('Secretary Class Creation Workflow', () => {
     await expect(page.getByText('AKC selected')).toBeVisible();
     await expect(page.getByText('Scent Work selected')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Step 3: Select Template' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'AKC Scent Work - Official' })).toBeVisible();
+    // MYK9-432: `exact` matters here. Accessible-name matching is a substring match by
+    // default, so without it this passed against a browser offering BOTH the DB
+    // template and a stale persisted offline fallback. Exactly one must be listed.
+    const template = page.getByRole('heading', { name: 'AKC Scent Work - Official', exact: true });
+    await expect(template).toHaveCount(1);
+    await expect(template).toBeVisible();
     await expect(page.getByText(/\d+ classes/).first()).toBeVisible();
     await expect(page.getByText(/\d+ fields/).first()).toBeVisible();
   });
@@ -113,9 +118,7 @@ async function reachOverrideStep(page: Page) {
   await page.getByRole('combobox').nth(1).click();
   await page.getByRole('option', { name: 'Scent Work', exact: true }).click();
 
-  await page
-    .getByRole('button', { name: 'Select AKC Scent Work - Official', exact: true })
-    .click();
+  await page.getByRole('button', { name: 'Select AKC Scent Work - Official', exact: true }).click();
   await page.getByRole('button', { name: /^Next$/ }).click();
 
   await page.getByText('Container Novice A').first().click();

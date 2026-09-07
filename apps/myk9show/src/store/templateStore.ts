@@ -3,7 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { logger } from '@/services/LoggingService';
 import { ClassTemplate } from '@/types/template.types';
-import { AKC_SCENT_WORK_TEMPLATE } from '@/data/templates/akcScentWorkTemplate';
+import {
+  AKC_SCENT_WORK_FALLBACK_TEMPLATE_ID,
+  AKC_SCENT_WORK_TEMPLATE,
+} from '@/data/templates/akcScentWorkTemplate';
 import { STRUCTURED_TEMPLATES } from '@/data/mockTemplatesWithFields';
 import { runTemplateStorageCleanup } from '@/utils/cleanup-localstorage';
 import { fetchAllSportTemplatesWithRules } from '@/services/sportTemplateService';
@@ -139,10 +142,13 @@ export const useTemplateStore = create<TemplateStore>()(
             const templatesToAdd: ClassTemplate[] = [];
             const currentTemplates = get().templates;
 
-            if (force || !currentTemplates.some(t => t.id === 'akc-scent-work-official-2024')) {
+            if (
+              force ||
+              !currentTemplates.some(t => t.id === AKC_SCENT_WORK_FALLBACK_TEMPLATE_ID)
+            ) {
               templatesToAdd.push({
                 ...AKC_SCENT_WORK_TEMPLATE,
-                id: 'akc-scent-work-official-2024',
+                id: AKC_SCENT_WORK_FALLBACK_TEMPLATE_ID,
                 createdAt: new Date(),
                 createdBy: 'system',
               });

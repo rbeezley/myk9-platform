@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { cacheStrategies } from '@/lib/queryClient';
+import { viewerScope } from '@/lib/viewerScopedQueryKey';
 import { getUserEntries } from '@/services/database/entries';
 import {
   mapEntryRowToBalanceSource,
@@ -20,7 +21,10 @@ export function useMyEntryBalanceSummary() {
   const personId = legacyPersonId ?? userWithRoles?.databaseUserId ?? null;
 
   return useQuery({
-    queryKey: ['exhibitor', 'my-entry-balance-summary', personId],
+    // `personId` already varies by account, but only incidentally — it is a
+    // query parameter that happens to be an identity. The marker states the
+    // scoping outright so the guard can see it (MYK9-429).
+    queryKey: ['exhibitor', 'my-entry-balance-summary', viewerScope(personId)],
     enabled: Boolean(user?.id && personId),
     queryFn: async (): Promise<EntryBalanceSummary> => {
       if (!personId) return summarizeEntryBalances([]);

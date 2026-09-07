@@ -20,7 +20,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { EntryClosedNotice } from '@/components/shows/browse/EntryClosedNotice';
-import { ShowCalendar, ShowsMapView } from '@/components/common/LazyComponents';
+import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import '@/styles/myk9-show-details.css';
 
@@ -46,6 +46,7 @@ import { useBrowseShowsData } from '@/hooks/useBrowseShowsData';
 import { ShowCardGrid, ShowsTableView, ShowBulkActionsBar } from '@/components/shows/browse';
 import { MonthScrubber } from '@/components/shows/browse/MonthScrubber';
 import { ShowSearchBar } from '@/components/shows/browse/ShowSearchBar';
+import { ShowsMapPanel } from '@/components/shows/browse/ShowsMapPanel';
 import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
@@ -360,12 +361,10 @@ const BrowseShowsPage: React.FC = () => {
 
       case 'map':
         return (
-          <Suspense fallback={<ShowCalendarSkeleton />}>
-            <ShowsMapView
-              shows={enhancedShows}
-              onSwitchToCards={() => handleViewModeChange('cards')}
-            />
-          </Suspense>
+          <ShowsMapPanel
+            shows={enhancedShows}
+            onSwitchToCards={() => handleViewModeChange('cards')}
+          />
         );
 
       case 'table':

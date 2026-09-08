@@ -2,6 +2,49 @@
 
 > **Status:** Complete — PR 1 #2087 (fe7395706), PR 2 #2090 (9579c09cf), both verified on staging 2026-09-06.
 
+## Reopened fallback correction — 2026-09-08
+
+User request: "can you finish it?" (MYK9-427's remaining signed-in location fallback).
+The redesign stays complete; this narrow correction follows this existing plan
+without a new OpenSpec change or UI surface.
+
+- [x] Reproduce the missing approximate lookup with the real hook and an empty profile.
+- [x] Enable connection lookup after the profile resolves without a usable location.
+      Preserve explicit device choices, account-specific profile keys, and click-only geolocation.
+- [x] Pass hook tests for empty/missing/failed profiles, geocoding miss/failure,
+      valid profile, remembered location/Anywhere, and account switching; pass existing location/filter tests.
+- [x] Verify the real page in a browser with an intercepted empty profile and controlled
+      approximate endpoint: approximate city, Distance chip, miles, no automatic device prompt.
+- [x] Run typecheck, lint, code-quality ratchet and the required shuffled app suite;
+      record the final results below.
+- [ ] Record PR, owner/member fallback attestation, required CI checks, merge,
+      and production deployment evidence before closing the issue.
+
+Evidence: the original hook failed the expected-call assertion (0 approximate
+requests instead of 1). After the fix, 13 real-hook tests and 52 existing
+location/filter/search-bar tests pass. The Chromium replay passed on this
+worktree using the signed-in exhibitor fixture, an intercepted empty address,
+and controlled approximate response. It showed `Fixture City, OK (approximate)`,
+the Distance chip and card miles; Anywhere persisted across reload, with no
+device-location request. No shared profile was edited.
+
+Fallback review: two adversarial Codex reviewers used separate query-state and
+test/acceptance lenses. One found that the app's keep-previous-data default could
+carry profile data across accounts. Matching that default made the isolation
+test fail red; explicitly disabling profile placeholder data fixed it. Both
+reviewers found no remaining defects on re-review. Claude responded to an
+availability probe, but automatic approval review blocked sending the repository
+diff to Claude; this is an authorization blocker, not a confirmed token limit.
+The PR still needs the documented owner/member fallback attestation and required CI checks.
+
+Final local validation (2026-09-08): shuffled app suite passed with 19,451 tests,
+9 skipped, seed `1788904049265`; final real-hook run passed all 13 tests.
+App/test/E2E/edge typechecks passed (E2E ratchet: 0 new errors), focused ESLint,
+Prettier, `git diff --check`, and code-quality ratchet passed. Chromium replay
+passed again after the account-isolation correction. The first sandboxed full
+run had two native filesystem-watch failures; that file and the final full run
+passed outside the sandbox without changing those tests.
+
 Design canvas: <https://claude.ai/code/artifact/21c5d363-1a22-41e5-a1fa-d78836f93b7c>
 (artboard "D · Refined + month scrubber"). Linear: MYK9-427.
 
@@ -114,7 +157,8 @@ match wins:
    so the profile does not reassert itself after the visitor clears it.
 2. Signed in: `people.city` / `state` / `zip_code`, geocoded once through
    `/api/geo?q=` and cached in React Query for a day.
-3. Signed out: `GET /api/geo` (new `apps/myk9show/api/geo.ts`, a Vercel
+3. Signed out, or signed in after a profile lookup yields no usable location:
+   `GET /api/geo` (`apps/myk9show/api/geo.ts`, a Vercel
    function reading `x-vercel-ip-city`, `x-vercel-ip-country-region`,
    `x-vercel-ip-latitude`, `x-vercel-ip-longitude`). Labelled "approximate",
    served `private, no-store`. 204 locally where the headers are absent.

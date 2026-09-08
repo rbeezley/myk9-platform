@@ -152,7 +152,11 @@ if [ -n "$WAIT" ]; then
           cmd="$(ps -o command= -p "$pid" 2>/dev/null)"
           # An empty ps result means ps itself is unavailable or denied, not a
           # dead process: kill -0 already said it exists, so trust that.
-          case "$cmd" in ''|*claude-review*|*"$0"*) alive=1 ;; esac
+          # Otherwise the command line must carry this script's path as an
+          # argument (the child is `bash -c '...' _ <this script> ...`); a
+          # substring like "claude-review" also matched vitest running
+          # claude-review.test.ts (Codex review of #2132).
+          case " $cmd " in '  ') alive=1 ;; *" $0 "*|*" $HERE/claude-review.sh "*) alive=1 ;; esac
         fi
         if [ "$alive" = 0 ]; then
           # Re-read: the child may have written its exit code between our read

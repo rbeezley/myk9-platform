@@ -432,7 +432,7 @@ describe('claude-review.sh', () => {
         join(stateDir, 'claude-review-7.status'),
         'running since=2026-09-08T13:22:36Z\n'
       );
-      writeFileSync(join(stateDir, 'claude-review-7.pid'), '4194305\n');
+      writeFileSync(join(stateDir, 'claude-review-7.pid'), '4194305 claude-review-run-x\n');
       writeFileSync(join(stateDir, 'claude-review-7.out'), '');
       const r = run({ ...stub, stateDir }, gh, ['--wait', '1', '7']);
       expect(r.code).toBe(2);
@@ -461,7 +461,10 @@ describe('claude-review.sh', () => {
         join(stateDir, 'claude-review-7.status'),
         'running since=2026-09-08T13:22:36Z\n'
       );
-      writeFileSync(join(stateDir, 'claude-review-7.pid'), `${process.pid}\n`); // alive, but it is vitest, not the wrapper
+      writeFileSync(
+        join(stateDir, 'claude-review-7.pid'),
+        `${process.pid} claude-review-run-not-this-one\n`
+      ); // alive, but it is vitest, not this run
       expect(run({ ...stub, stateDir }, gh, ['--wait', '1', '7']).code).toBe(2);
     });
 
@@ -486,7 +489,9 @@ describe('claude-review.sh', () => {
       expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8')).toMatch(
         /^running since=/
       );
-      expect(readFileSync(join(stateDir, 'claude-review-7.pid'), 'utf8').trim()).toMatch(/^\d+$/);
+      expect(readFileSync(join(stateDir, 'claude-review-7.pid'), 'utf8').trim()).toMatch(
+        /^\d+ claude-review-run-/
+      );
     });
   });
 

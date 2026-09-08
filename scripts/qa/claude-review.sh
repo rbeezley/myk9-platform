@@ -146,17 +146,17 @@ if [ -n "$WAIT" ]; then
         # spawn, so its absence means the spawn never completed), the pid is
         # gone, or the pid now belongs to an unrelated process (pid reuse) —
         # the child's command line names this script (Codex review of #2132).
-        pid="$(cat "$PID_FILE" 2>/dev/null)"
+        pid_line="$(cat "$PID_FILE" 2>/dev/null)"
+        pid="${pid_line%% *}"; token="${pid_line#* }"
         alive=0
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
           cmd="$(ps -o command= -p "$pid" 2>/dev/null)"
           # An empty ps result means ps itself is unavailable or denied, not a
           # dead process: kill -0 already said it exists, so trust that.
-          # Otherwise the command line must carry this script's path as an
-          # argument (the child is `bash -c '...' _ <this script> ...`); a
-          # substring like "claude-review" also matched vitest running
-          # claude-review.test.ts (Codex review of #2132).
-          case " $cmd " in '  ') alive=1 ;; *" $0 "*|*" $HERE/claude-review.sh "*) alive=1 ;; esac
+          # Otherwise the command line must carry THIS run's token — a reused
+          # pid, even another invocation of this script, cannot match it
+          # (Codex review of #2132).
+          case " $cmd " in '  ') alive=1 ;; *" $token "*) [ "$token" != "$pid_line" ] && alive=1 ;; esac
         fi
         if [ "$alive" = 0 ]; then
           # Re-read: the child may have written its exit code between our read
@@ -204,9 +204,13 @@ if [ "$DETACH" = 1 ]; then
   : > "$OUT_FILE"
   : > "$PID_FILE"
   printf 'running since=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
-  STATUS_FILE="$STATUS_FILE" nohup bash -c 'bash "$1" "${@:2}"; echo "$?" > "$STATUS_FILE"' _ "$0" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"} >> "$OUT_FILE" 2>&1 &
+  # A per-run token rides in the child's argv (ignored by the child, visible
+  # to ps), so liveness is bound to THIS run: a reused pid, even one held by
+  # another invocation of this same script, cannot impersonate it.
+  RUN_TOKEN="claude-review-run-$$-$(date +%s)-$RANDOM"
+  STATUS_FILE="$STATUS_FILE" nohup bash -c 'bash "$2" "${@:3}"; echo "$?" > "$STATUS_FILE"' _ "$RUN_TOKEN" "$0" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"} >> "$OUT_FILE" 2>&1 &
   CHILD_PID=$!
-  echo "$CHILD_PID" > "$PID_FILE"
+  echo "$CHILD_PID $RUN_TOKEN" > "$PID_FILE"
   # Give the child a moment, then confirm it is alive (or already finished with
   # a recorded exit). A child that is gone with no exit code was killed by the
   # environment — report that now rather than from a later --wait.

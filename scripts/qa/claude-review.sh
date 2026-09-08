@@ -25,6 +25,7 @@
 # poll fits inside any tool timeout. Never wrap this script in `timeout`.
 #
 # Env:   CLAUDE_BIN               override the claude executable (tests use a stub)
+#        CLAUDE_REVIEW_NET_PROBE  override the network probe command (tests); "000" output = no network
 #        GH_BIN                   override the gh executable (tests use a stub)
 #        CLAUDE_REVIEW_LOG        override the log path
 #        CLAUDE_REVIEW_STATE_DIR  where --detach writes <pr>.status / <pr>.out (default .logs/)
@@ -63,6 +64,57 @@ if [ "$expect_wait" = 1 ]; then
   echo "claude-review: --wait needs a number of seconds (usage: --wait <seconds> [pr-number])" >&2
   exit 2
 fi
+# The preflight exists for ONE case: first-party claude.ai login, whose
+# credentials live in the macOS Keychain that Codex's sandbox denies. Any auth
+# configured through the environment (API key, bearer token, Bedrock, Vertex)
+# neither uses the Keychain nor calls a host the wrapper can name, so both
+# probes are skipped and the review itself is the check (Codex review of
+# #2127, rounds 5-7).
+# Credentials count when non-empty; provider flags only when set to exactly 1,
+# since an explicit CLAUDE_CODE_USE_BEDROCK=0 means "not Bedrock" (Codex review
+# of #2127, round 8).
+ENV_AUTH=0
+[ -n "${ANTHROPIC_API_KEY:-}" ] && ENV_AUTH=1
+[ -n "${ANTHROPIC_AUTH_TOKEN:-}" ] && ENV_AUTH=1
+[ "${CLAUDE_CODE_USE_BEDROCK:-}" = "1" ] && ENV_AUTH=1
+[ "${CLAUDE_CODE_USE_VERTEX:-}" = "1" ] && ENV_AUTH=1
+if [ -z "$WAIT" ] && [ "$ENV_AUTH" = 0 ]; then
+  # Preflight (before ANY gh/network call, which would hang the same way — Codex
+  # review of #2127): the review needs the macOS Keychain (Claude's credentials) and the
+  # network. Codex's workspace-write sandbox denies both, and the symptoms are
+  # misleading: keychain denied reads as "Not logged in · Please run /login" even
+  # though the user IS logged in, and network denied hangs ~3 minutes before
+  # "Can't reach the API server" (Codex on #2124, 2026-09-07: three timed-out
+  # runs, then a false "not logged in"). Fail in seconds and say what to do.
+  ESCALATE_HINT="This must run OUTSIDE the sandbox: Codex should re-run it with escalated permissions, or — if its approval policy forbids that — stop and ask Richard to run \`bash scripts/qa/claude-review.sh --detach --post ${PR:-<pr>}\` from a terminal."
+  # Both the exit code AND the payload: the CLI has reported {"loggedIn": false}
+  # with exit 0 in some versions (Codex review of #2127, round 4), and the
+  # measured sandbox case is exit 1 — require loggedIn:true either way.
+  AUTH_JSON="$("$CLAUDE" auth status 2>/dev/null)"; AUTH_EXIT=$?
+  if [ "$AUTH_EXIT" -ne 0 ] || ! printf '%s' "$AUTH_JSON" | grep -Eq '"loggedIn":[[:space:]]*true'; then
+    echo "claude-review: \`claude auth status\` says not logged in HERE. If the user is logged in interactively, this shell cannot reach the Keychain (a sandbox). ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
+    exit 2
+  fi
+  # The default lives in its own variable: a `}` inside `${VAR:-default}` (curl's
+  # %{http_code}) closes the expansion early and the rest of the URL leaks into
+  # the probe's output, so "000" never matches.
+  # Probe the endpoint Claude will actually call: ANTHROPIC_BASE_URL when a
+  # Bedrock/Vertex/proxy setup overrides it, first-party otherwise (Codex
+  # review of #2127, round 5).
+  NET_PROBE_DEFAULT="curl -sS -o /dev/null -m 5 -w %{http_code} ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}/"
+  NET_PROBE="${CLAUDE_REVIEW_NET_PROBE:-$NET_PROBE_DEFAULT}"
+  # The probe measures the shell's real capability. Codex's marker
+  # (CODEX_SANDBOX_NETWORK_DISABLED=1) is only a hint: an escalated re-run can
+  # inherit it from the sandboxed parent while actually having network, and
+  # trusting it alone would block the documented escalation path (Codex review
+  # of #2127, round 3).
+  if [ "$($NET_PROBE 2>/dev/null)" = "000" ]; then
+    MARKER=""; [ "${CODEX_SANDBOX_NETWORK_DISABLED:-}" = "1" ] && MARKER=" (Codex sandbox marker present)"
+    echo "claude-review: no network from this shell${MARKER} — ${ANTHROPIC_BASE_URL:-https://api.anthropic.com} unreachable, so the review would hang until killed. ${ESCALATE_HINT} Exit 2; nothing recorded." >&2
+    exit 2
+  fi
+fi
+
 [ -n "$PR" ] || PR="$("$GH" pr view --json number -q .number)"
 if [ -z "$PR" ]; then
   echo "claude-review: no PR number given and gh could not find one" >&2
@@ -153,7 +205,7 @@ echo "$VERDICT"
 # reported a defect and then hit a blocker has still reported a defect, and
 # exiting 2 here would leave an already-green gate green over it (Codex review
 # of #2115, round 5).
-if echo "$VERDICT" | grep -Eq "$REVIEW_FINDING_BULLET"; then
+if review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT"; then
   echo
   echo "claude-review: findings above. Fix them, commit, and re-run — the evidence is for the NEW head."
   if [ "$POST" = 1 ]; then
@@ -187,7 +239,7 @@ if [ "$CLI_EXIT" -ne 0 ]; then
   echo "claude-review: cli exited ${CLI_EXIT}; treating the run as NOT completed (exit 2). No evidence emitted."
   exit 2
 fi
-if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b'; then
+if review_text_imatches '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b' "$VERDICT"; then
   echo
   echo "claude-review: GATE DID NOT RUN (verdict reports an incomplete review). No evidence emitted."
   exit 2

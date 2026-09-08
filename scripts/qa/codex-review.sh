@@ -67,7 +67,7 @@ abort_lines() {
 }
 
 # The verdict is everything after the CLI's own "codex" marker line.
-VERDICT="$(awk '/^codex$/{f=1; next} f' "$LOG")"
+VERDICT="$(review_last_block "$LOG")"
 if [ -z "$VERDICT" ]; then
   if abort_lines > /dev/null; then
     echo "codex-review: GATE DID NOT RUN (usage limit or interrupted; cli exit ${CLI_EXIT}). This is not a verdict."
@@ -88,7 +88,7 @@ fi
 # the anchored grep read as a real abort and threw away a completed review.
 
 echo "$VERDICT"
-if echo "$VERDICT" | grep -Eq "$REVIEW_FINDING_BULLET"; then
+if review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT"; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."
   # Findings belong ON the PR: without this they existed only in a local log,
@@ -138,7 +138,7 @@ fi
 # An incomplete review overrides a clean assertion. Scope this to the review:
 # tests that did not run or interrupted downloads do not invalidate a review.
 # Scan only the verdict, not the CLI's source/diff echo.
-if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b'; then
+if review_text_imatches '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b' "$VERDICT"; then
   echo
   echo "codex-review: GATE DID NOT RUN (verdict reports an incomplete review). No evidence emitted."
   exit 2

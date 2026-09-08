@@ -111,6 +111,7 @@ describe('post-review-gate.sh', () => {
     'codex\nUnable to complete the review because the connection failed.\n',
     "ERROR: You've hit your usage limit\nReview was interrupted\n",
     'codex\n- [P1] Something is broken\n',
+    `codex\n- [P1] a real finding\n\n${Array.from({ length: 6000 }, (_, i) => `- checked file ${i}: ${'x'.repeat(40)}`).join('\n')}\n`,
     'codex\n- **[P1]** Something is broken (bold brackets, as Claude writes them)\n',
     'No findings yet; only the workflow file has been inspected.\n',
     // Opens "No actionable" but asserts no VERDICT is available — the opposite

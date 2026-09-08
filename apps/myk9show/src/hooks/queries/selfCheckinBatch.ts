@@ -1,6 +1,5 @@
 import { resolveCheckinCascade } from '@myk9/secretary';
 import { supabase } from '@/services/database/supabaseClient';
-import { replicatedClassesTable } from '@/services/replication';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 
 type Pending = {
@@ -19,34 +18,16 @@ export function createSelfCheckinBatchLoader() {
       queueMicrotask(() => {
         const batch = pending;
         pending = [];
-        const localValues = readLocalSelfCheckinValues(batch.map(item => item.id));
         for (const group of chunk(batch, ID_CHUNK_SIZE)) {
-          void resolveBatch(group, localValues);
+          void resolveBatch(group);
         }
       });
     });
 }
 
-async function resolveBatch(
-  pending: Pending[],
-  localValuesPromise: Promise<Map<string, boolean>>
-): Promise<void> {
+async function resolveBatch(pending: Pending[]): Promise<void> {
   try {
-    const localValues = await localValuesPromise;
-    const unresolved = pending.filter(item => !localValues.has(item.id));
-
-    for (const item of pending) {
-      const localValue = localValues.get(item.id);
-      if (localValue !== undefined) item.resolve(localValue);
-    }
-
-    // Class replication resolves the same show → trial → class cascade while
-    // syncing. Use it when available so My Shows does not fan out a live read
-    // for every unscored class on an exhibitor's first render. The online path
-    // remains the fallback for a cold or partially enriched replica.
-    if (unresolved.length === 0) return;
-
-    const ids = [...new Set(unresolved.map(item => item.id))];
+    const ids = [...new Set(pending.map(item => item.id))];
     const { data: classes, error } = await supabase
       .from('classes')
       .select('id, trial_id, trials!inner(show_id)')
@@ -80,7 +61,7 @@ async function resolveBatch(
     const byOverride = new Map(
       (overrides.data ?? []).map(row => [row.class_id, row.self_checkin_enabled])
     );
-    for (const item of unresolved) {
+    for (const item of pending) {
       const row = byClass.get(item.id);
       if (!row) {
         item.reject(new Error('Could not find the class self-check-in settings.'));
@@ -96,21 +77,5 @@ async function resolveBatch(
     }
   } catch (error) {
     for (const item of pending) item.reject(error);
-  }
-}
-
-async function readLocalSelfCheckinValues(ids: string[]): Promise<Map<string, boolean>> {
-  try {
-    const requested = new Set(ids);
-    const classes = await replicatedClassesTable.getAll();
-    return new Map(
-      classes
-        .filter(cls => requested.has(cls.id) && cls.selfCheckinEnabled !== undefined)
-        .map(cls => [cls.id, cls.selfCheckinEnabled as boolean])
-    );
-  } catch {
-    // A storage failure should not turn a usable online path into a hard
-    // failure. The caller will resolve all IDs through the bounded fallback.
-    return new Map();
   }
 }

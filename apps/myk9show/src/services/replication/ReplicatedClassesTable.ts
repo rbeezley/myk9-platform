@@ -76,9 +76,11 @@ export interface ReplicatedClass {
    * ringside SortableEntryCard self-check-in gate (`classInfo.selfCheckin`) — so
    * this is enforcement-relevant, not purely cosmetic. It is eventually
    * consistent: refreshed whenever the class row syncs, but a settings-only edit
-   * (no class-row change) won't reflect until the next full sync. The exhibitor
-   * batch loader uses this value to avoid a first-render fan-out, while the live
-   * `self_checkin_entry` RPC rechecks the cascade at the write boundary.
+   * (no class-row change) won't reflect until the next full sync. Acceptable
+   * because /at-show is staff-only (STAFF_ROLES), and staff bypass the
+   * self-check-in gate via `canCheckInDogs`; exhibitor-facing self-check-in
+   * enforcement stays on the live online hook. Replicating the raw cascade
+   * tables (real-time offline) is the deferred alternative.
    */
   selfCheckinEnabled?: boolean | undefined;
   visibilityPreset?: string | undefined;

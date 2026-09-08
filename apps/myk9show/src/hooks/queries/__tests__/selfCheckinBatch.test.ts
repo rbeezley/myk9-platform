@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSelfCheckinBatchLoader } from '../selfCheckinBatch';
 
 const { read } = vi.hoisted(() => ({ read: vi.fn() }));
-const { getAll } = vi.hoisted(() => ({ getAll: vi.fn() }));
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: (table: string) => ({
@@ -12,14 +11,8 @@ vi.mock('@/services/database/supabaseClient', () => ({
     }),
   },
 }));
-vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { getAll },
-}));
-
 beforeEach(() => {
   read.mockReset();
-  getAll.mockReset();
-  getAll.mockResolvedValue([]);
   read.mockImplementation((table: string, _key: string, ids: string[]) => ({
     data:
       table === 'classes'
@@ -30,23 +23,10 @@ beforeEach(() => {
 });
 
 describe('check-in batch loading', () => {
-  it('uses resolved class visibility from replication without an online fan-out', async () => {
-    getAll.mockResolvedValue([
-      { id: 'a', selfCheckinEnabled: false },
-      { id: 'b', selfCheckinEnabled: true },
-    ]);
-
-    const load = createSelfCheckinBatchLoader();
-
-    expect(await Promise.all(['a', 'b'].map(load))).toEqual([false, true]);
-    expect(read).not.toHaveBeenCalled();
-  });
-
   it('bounds filters to 100 classes and deduplicates shared ancestors', async () => {
     const load = createSelfCheckinBatchLoader();
     const ids = Array.from({ length: 205 }, (_, i) => `class-${i}`);
     expect(await Promise.all(ids.map(load))).toEqual(ids.map(() => true));
-    expect(getAll).toHaveBeenCalledTimes(1);
     expect(read).toHaveBeenCalledTimes(12);
     expect(read).toHaveBeenCalledWith('show_visibility_settings', 'show_id', ['show-1']);
     expect(read).toHaveBeenCalledWith('trial_visibility_overrides', 'trial_id', ['trial-1']);

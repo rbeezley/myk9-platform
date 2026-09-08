@@ -9,14 +9,13 @@ const migration = readFileSync(
   ),
   'utf8'
 );
-const accountReadMigration = readFileSync(
+const nullStatusMigration = readFileSync(
   resolve(
     __dirname,
-    '../../../../../supabase/migrations/20260908134500_optimize_account_today_entry_reads.sql'
+    '../../../../../supabase/migrations/20260908134900_reject_null_self_checkin_status.sql'
   ),
   'utf8'
 );
-
 function sliceBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
   expect(startIndex).toBeGreaterThanOrEqual(0);
@@ -56,13 +55,9 @@ describe('self check-in RLS contract', () => {
     expect(migration).not.toContain('judge_notes');
   });
 
-  it('keeps the replicated self-check-in fast path server-authorized', () => {
-    expect(accountReadMigration).toContain('create or replace function public.self_checkin_entry');
-    expect(accountReadMigration).toContain('class_vis.self_checkin_enabled');
-    expect(accountReadMigration).toContain('trial_vis.self_checkin_enabled');
-    expect(accountReadMigration).toContain('show_vis.self_checkin_enabled');
-    expect(accountReadMigration).toContain(
-      'revoke all on function public.self_checkin_entry(uuid, text) from public, anon'
+  it('rejects NULL self-check-in statuses before the whitelist comparison', () => {
+    expect(nullStatusMigration).toContain(
+      'if p_new_status is null or not p_new_status = any(v_allowed_statuses)'
     );
   });
 });

@@ -39,12 +39,18 @@ export function runRetention(): void {
       ...endpointArgs,
     ])
   );
+  const snapshotTimes = new Map<string, number>();
   for (const object of listed.Contents ?? []) {
-    if (object.Key?.endsWith('/manifest.json'))
-      readManifest(aws, bucket, prefix, projectRef, endpointArgs, object.Key);
+    if (object.Key?.endsWith('/manifest.json')) {
+      const manifest = readManifest(aws, bucket, prefix, projectRef, endpointArgs, object.Key);
+      snapshotTimes.set(
+        object.Key.slice(0, -'/manifest.json'.length),
+        Date.parse(manifest.createdAt)
+      );
+    }
   }
   const cutoff = Date.now() - days * 86_400_000;
-  const selected = retentionCandidates(listed.Contents || [], cutoff);
+  const selected = retentionCandidates(listed.Contents || [], cutoff, snapshotTimes);
   const apply = process.env.BACKUP_RETENTION_APPLY === 'true';
   if (apply && process.env.BACKUP_RETENTION_CONFIRM !== `DELETE ${bucket}/${prefix}`) {
     throw new Error(

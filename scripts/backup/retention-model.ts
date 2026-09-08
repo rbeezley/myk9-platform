@@ -6,7 +6,11 @@ export interface StoredObject {
 const REQUIRED_ARTIFACTS = ['manifest.json', 'database.dump.enc', 'globals.sql.enc'] as const;
 const KNOWN_ARTIFACTS = new Set<string>(REQUIRED_ARTIFACTS);
 
-export function retentionCandidates(objects: StoredObject[], cutoff: number): string[] {
+export function retentionCandidates(
+  objects: StoredObject[],
+  cutoff: number,
+  snapshotTimes: ReadonlyMap<string, number>
+): string[] {
   const groups = new Map<string, Array<{ key: string; modified: number }>>();
   for (const item of objects) {
     if (!item.Key || !item.LastModified) throw new Error('incomplete object metadata');
@@ -21,10 +25,15 @@ export function retentionCandidates(objects: StoredObject[], cutoff: number): st
     .filter(group =>
       REQUIRED_ARTIFACTS.every(name => group.some(item => basename(item.key) === name))
     )
-    .sort(
-      (a, b) =>
-        Math.max(...b.map(item => item.modified)) - Math.max(...a.map(item => item.modified))
-    );
+    .map(group => {
+      const stem = group[0].key.slice(0, group[0].key.lastIndexOf('/'));
+      const createdAt = snapshotTimes.get(stem);
+      if (createdAt === undefined || !Number.isFinite(createdAt))
+        throw new Error('complete backup lacks a validated snapshot timestamp');
+      return { group, createdAt };
+    })
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map(item => item.group);
   // An outage must not make retention delete the last complete recovery set.
   const newestComplete =
     complete[0] ??

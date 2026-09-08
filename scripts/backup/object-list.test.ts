@@ -6,7 +6,9 @@ describe('object listing parsing', () => {
   it.each(['', '  \n', '{}', '{"Contents":[]}'])(
     'produces no retention candidates for empty successful output %j',
     raw => {
-      expect(retentionCandidates(parseObjectList(raw).Contents ?? [], Date.now())).toEqual([]);
+      expect(
+        retentionCandidates(parseObjectList(raw).Contents ?? [], Date.now(), new Map())
+      ).toEqual([]);
     }
   );
   it('rejects malformed nonempty output', () => {

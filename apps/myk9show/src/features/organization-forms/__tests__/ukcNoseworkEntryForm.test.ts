@@ -106,9 +106,9 @@ describe('UKC Nosework entry form PDF', () => {
       registration: { ...dog.registration!, organization: 'UKC (United Kennel Club)' },
     });
 
-    expect(
-      values.checkboxes?.[UKC_NOSEWORK_ENTRY_FORM_FIELDS.permanentRegistrationCheckbox]
-    ).toBe(true);
+    expect(values.checkboxes?.[UKC_NOSEWORK_ENTRY_FORM_FIELDS.permanentRegistrationCheckbox]).toBe(
+      true
+    );
   });
 
   it('can build a flattened packet from the official template', async () => {

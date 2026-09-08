@@ -37,6 +37,12 @@ availability probe, but automatic approval review blocked sending the repository
 diff to Claude; this is an authorization blocker, not a confirmed token limit.
 The PR still needs the documented owner/member fallback attestation and required CI checks.
 
+Shipping update: PR #2143 is published. Once the public PR was available,
+approval allowed the normal Claude review; that full review confirmed the weekly
+usage limit and exited 2 without posting evidence. The two completed adversarial
+reviews are therefore the basis of the maintainer-authorized fallback. CI caught
+the new replay's missing suite-map entry; it is now registered under Feature Audit.
+
 Final local validation (2026-09-08): shuffled app suite passed with 19,451 tests,
 9 skipped, seed `1788904049265`; final real-hook run passed all 13 tests.
 App/test/E2E/edge typechecks passed (E2E ratchet: 0 new errors), focused ESLint,

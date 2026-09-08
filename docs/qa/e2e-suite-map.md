@@ -251,6 +251,12 @@ These specs may become Nightly coverage, but they are not in the scheduled comma
 
 ## Feature Audit
 
+MYK9-427 location fallback replay:
+`apps/myk9show/src/test/e2e/viewer-location-fallback.spec.ts` exercises the signed-in
+Near field with isolated empty-profile and approximate-location responses. Run
+with `MYK9_LOCATION_FALLBACK_REPLAY=1 VITE_GEO_API_ENABLED=true`; verifies approximate
+labelling, Distance/miles, remembered Anywhere, and no automatic geolocation prompt.
+
 | Spec                                                                        | Feature                                                                                                                                                |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `apps/myk9show/src/test/e2e/a11y-smoke.spec.ts`                             | Public landing-page accessibility smoke.                                                                                                               |

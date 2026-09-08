@@ -136,7 +136,19 @@ if [ -n "$WAIT" ]; then
   while :; do
     st="$(cat "$STATUS_FILE" 2>/dev/null)"
     case "$st" in
-      ''|*[!0-9]*) ;;  # "running ..." or not yet written
+      ''|*[!0-9]*)
+        # "running pid=N since=T": is N still alive? A sandbox that reaps
+        # background processes when the shell call ends (Codex, #2131 on
+        # 2026-09-08) leaves this file saying "running" forever while nothing
+        # runs; without this check --wait returned 3 for 43 minutes.
+        pid="${st#*pid=}"; pid="${pid%% *}"
+        if [ -n "$pid" ] && [ "$pid" != "$st" ] && ! kill -0 "$pid" 2>/dev/null; then
+          echo "2" > "$STATUS_FILE"
+          [ -f "$OUT_FILE" ] && cat "$OUT_FILE"
+          echo "claude-review: the detached review for PR #${PR} (pid ${pid}) is gone without recording a verdict. A sandbox that kills background processes when the shell call returns does this. Re-run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
+          exit 2
+        fi
+        ;;
       *) [ -f "$OUT_FILE" ] && cat "$OUT_FILE"; echo "claude-review: detached review for PR #${PR} finished with exit ${st}"; exit "$st" ;;
     esac
     if [ "$waited" -ge "$WAIT" ]; then
@@ -166,10 +178,24 @@ fi
 # --detach: run this same review in the background and return at once.
 if [ "$DETACH" = 1 ]; then
   mkdir -p "$STATE_DIR"
-  printf 'running since %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
   : > "$OUT_FILE"
   STATUS_FILE="$STATUS_FILE" nohup bash -c 'bash "$1" "${@:2}"; echo "$?" > "$STATUS_FILE"' _ "$0" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"} >> "$OUT_FILE" 2>&1 &
-  echo "claude-review: detached PR #${PR} review (pid $!). Output: ${OUT_FILE}. Poll with:"
+  CHILD_PID=$!
+  printf 'running pid=%s since=%s\n' "$CHILD_PID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
+  # Give the child a moment, then confirm it is alive (or already finished with
+  # a recorded exit). A child that is gone with no exit code was killed by the
+  # environment — report that now rather than from a later --wait.
+  sleep "${CLAUDE_REVIEW_DETACH_GRACE:-2}"
+  st="$(cat "$STATUS_FILE" 2>/dev/null)"
+  case "$st" in
+    ''|*[!0-9]*)
+      if ! kill -0 "$CHILD_PID" 2>/dev/null; then
+        echo "2" > "$STATUS_FILE"
+        echo "claude-review: the detached review (pid ${CHILD_PID}) died immediately without a verdict. This environment kills background processes; run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
+        exit 2
+      fi ;;
+  esac
+  echo "claude-review: detached PR #${PR} review (pid ${CHILD_PID}). Output: ${OUT_FILE}. Poll with:"
   echo "  bash scripts/qa/claude-review.sh --wait 240 ${PR}    # 0 clean · 1 findings · 2 did not run · 3 still running"
   exit 0
 fi

@@ -421,6 +421,36 @@ describe('claude-review.sh', () => {
     expect(run(stub, gh, ['7']).code).toBe(0);
   });
 
+  describe('a detached child that dies is reported, not waited on forever', () => {
+    it('--wait exits 2 when the recorded pid no longer exists and no exit code was written', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      // A pid that cannot exist on any host: PID_MAX on macOS is 99998, Linux defaults to 4194304.
+      writeFileSync(
+        join(stateDir, 'claude-review-7.status'),
+        'running pid=4194305 since=2026-09-08T13:22:36Z\n'
+      );
+      writeFileSync(join(stateDir, 'claude-review-7.out'), '');
+      const r = run({ ...stub, stateDir }, gh, ['--wait', '1', '7']);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('gone without recording a verdict');
+      expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('2');
+    });
+
+    it('--detach records the child pid in the status file', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 4);
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      expect(run({ ...stub, stateDir }, gh, ['--detach', '7']).code).toBe(0);
+      expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8')).toMatch(
+        /^running pid=\d+ since=/
+      );
+    });
+  });
+
   describe('sandbox preflight (Codex denies the Keychain and the network)', () => {
     it('exits 2 in seconds with the escalation hint when claude reports not logged in', () => {
       const stub = stubClaude('No actionable defects found.', 0, 0, 1);

@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,6 +11,7 @@ import {
 } from './export-model';
 import { exportPrefix, exportSchedule } from './export-config';
 import { latestManifest } from './latest-manifest';
+import { run } from './export';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -20,11 +20,7 @@ function required(name: string): string {
 }
 
 function aws(args: string[]): string {
-  try {
-    return execFileSync('aws', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (error) {
-    throw new Error(redactError(error instanceof Error ? error.message : String(error)));
-  }
+  return run('aws', args, process.env);
 }
 
 function main(): void {

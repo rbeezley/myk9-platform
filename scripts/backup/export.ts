@@ -27,6 +27,7 @@ export function run(command: string, args: string[], env: NodeJS.ProcessEnv): st
       env,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 64 * 1024 * 1024,
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -35,14 +36,7 @@ export function run(command: string, args: string[], env: NodeJS.ProcessEnv): st
 }
 
 export function buildGlobalsDumpArgs(globalsPath: string, databaseUrl: string): string[] {
-  return [
-    '--globals-only',
-    '--no-role-passwords',
-    '--file',
-    globalsPath,
-    '--database',
-    databaseUrl,
-  ];
+  return ['--globals-only', '--no-role-passwords', '--file', globalsPath, '--dbname', databaseUrl];
 }
 
 function upload(

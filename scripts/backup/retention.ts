@@ -1,7 +1,7 @@
-import { execFileSync } from 'node:child_process';
 import { redactError } from './export-model';
 import { retentionCandidates } from './retention-model';
 import { exportPrefix } from './export-config';
+import { run } from './export';
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -10,11 +10,7 @@ const required = (name: string): string => {
 };
 
 function aws(args: string[]): string {
-  try {
-    return execFileSync('aws', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (error) {
-    throw new Error(redactError(error instanceof Error ? error.message : String(error)));
-  }
+  return run('aws', args, process.env);
 }
 
 function main(): void {

@@ -16,7 +16,7 @@ describe('export command boundary', () => {
     expect(() => run(process.execPath, ['-e', 'process.exit(17)'], process.env)).toThrow(/failed/);
   });
 
-  it('passes the database URL through pg_dumpall --database, never positionally', () => {
+  it('passes the database URL through pg_dumpall --dbname, never positionally', () => {
     expect(
       buildGlobalsDumpArgs('/tmp/globals.sql', 'postgresql://example.invalid/postgres')
     ).toEqual([
@@ -24,8 +24,17 @@ describe('export command boundary', () => {
       '--no-role-passwords',
       '--file',
       '/tmp/globals.sql',
-      '--database',
+      '--dbname',
       'postgresql://example.invalid/postgres',
     ]);
+  });
+  it('handles listings larger than the subprocess default buffer', () => {
+    expect(
+      run(
+        process.execPath,
+        ['-e', 'process.stdout.write("x".repeat(2 * 1024 * 1024))'],
+        process.env
+      ).length
+    ).toBe(2 * 1024 * 1024);
   });
 });

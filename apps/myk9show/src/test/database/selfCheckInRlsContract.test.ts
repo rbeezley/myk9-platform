@@ -59,5 +59,8 @@ describe('self check-in RLS contract', () => {
     expect(nullStatusMigration).toContain(
       'if p_new_status is null or not p_new_status = any(v_allowed_statuses)'
     );
+    expect(nullStatusMigration).toContain('class_vis.self_checkin_enabled');
+    expect(nullStatusMigration).toContain('trial_vis.self_checkin_enabled');
+    expect(nullStatusMigration).toContain('show_vis.self_checkin_enabled');
   });
 });

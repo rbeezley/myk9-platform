@@ -6,10 +6,11 @@
 begin;
 
 -- These are ordinary indexes because Supabase runs migrations in a transaction.
--- Refuse to wait behind show-day writes, and require a separately coordinated
--- concurrent-index rollout once either source table reaches 100 MB.
+-- Run this migration before a show-day window: refuse to wait behind live
+-- writes, and require a separately coordinated concurrent-index rollout once
+-- either source table reaches 100 MB.
 set local lock_timeout = '5s';
-set local statement_timeout = '10min';
+set local statement_timeout = '30s';
 
 do $$
 declare

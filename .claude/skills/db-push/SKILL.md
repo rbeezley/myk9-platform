@@ -38,8 +38,15 @@ round number is exactly how versions collide.
 touch supabase/migrations/20260908174500_description_here.sql
 ```
 
-Write the SQL with the Write tool. `pnpm qa:migrations:guard` enforces this in
-CI — run it locally before pushing if the branch has been open more than a day.
+Write the SQL with the Write tool.
+
+`pnpm qa:migrations:guard` runs in CI but does **not** check the format — its
+`^(\d+)_` match accepts any numeric prefix, so a `105_name.sql` passes it. What
+it does catch is version _collision and provenance_: two files claiming one
+version, a version already claimed on `origin/main` or another ref, and an edit
+to a migration body that `main` or the merge base already accepted. Nothing
+enforces the timestamp shape; that one is on you. Run the guard locally before
+pushing if the branch has been open more than a day.
 
 ### Step 2: Grants are not optional
 
@@ -113,12 +120,24 @@ select a.attname, unnest(a.attacl)::text
 from pg_attribute a
 where a.attrelid = 'public.<table>'::regclass and a.attacl is not null;
 
--- sequence: no migration has ever GRANTed one, and a BEFORE INSERT trigger's
--- nextval() fires before RLS WITH CHECK, so a table INSERT grant dies 42501 here
-select c.relname, unnest(c.relacl)::text
-from pg_class c
-join pg_namespace n on n.oid = c.relnamespace
-where c.relkind = 'S' and n.nspname = 'public' and c.relname like '<table>%';
+-- sequences owned by the table (identity / serial columns)
+select s.relname, unnest(s.relacl)::text
+from pg_class s
+join pg_depend d on d.classid = 'pg_class'::regclass and d.objid = s.oid
+join pg_class t on t.oid = d.refobjid
+where s.relkind = 'S' and t.oid = 'public.<table>'::regclass;
+```
+
+A BEFORE INSERT trigger's `nextval()` fires before RLS `WITH CHECK`, so a table
+INSERT grant dies 42501 on the sequence. **The ownership query above does not
+find every sequence that matters** — a standalone sequence a trigger calls has
+no `pg_depend` link to the table (`registrations` uses
+`registration_confirmation_seq`, which neither the ownership query nor a
+name-prefix match returns). Grep the migration for `CREATE SEQUENCE` and
+`nextval(` to get those names, then check each one directly:
+
+```sql
+select unnest(relacl)::text from pg_class where oid = 'public.<sequence>'::regclass;
 ```
 
 Do not use `information_schema.role_table_grants` — it only shows grants visible

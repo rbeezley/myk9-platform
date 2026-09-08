@@ -5,6 +5,7 @@ name: Independent Database Export
 on:
   schedule:
     - cron: '7 * * * *' # avoid top-of-hour congestion; selector applies local due slots
+    - cron: '37 10 * * *' # daily cleanup, following a successful freshness check
   workflow_dispatch: {}
 
 concurrency:
@@ -62,6 +63,34 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Report scheduled failure
+        if: always()
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Independent Database Export
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: 'Independent database export or verification failed; check the last successful manifest before show-day recovery decisions.'
+
+  retention:
+    name: Apply daily backup retention
+    needs: export
+    if: vars.MYK9_EXPORTS_ENABLED == 'true' && github.event_name == 'schedule' && github.event.schedule == '37 10 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install PostgreSQL and AWS clients
+        uses: ./.github/actions/setup-backup-clients
       - name: Apply approved retention after verification
         run: pnpm exec tsx scripts/backup/retention.ts
         env:
@@ -79,7 +108,7 @@ jobs:
         if: always()
         uses: ./.github/actions/report-scheduled-failure
         with:
-          workflow-name: Independent Database Export
+          workflow-name: Independent Database Retention
           outcome: ${{ job.status }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          extra: 'Independent database export, verification, or retention failed; check the last successful manifest before show-day recovery decisions.'
+          extra: 'Backup cleanup failed. Export and freshness verification already passed; inspect retention logs and storage growth before retrying cleanup.'

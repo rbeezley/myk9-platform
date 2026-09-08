@@ -62,6 +62,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-admin-users-ux-fixes-2026-08-18.md](plan-admin-users-ux-fixes-2026-08-18.md)                               | Active    | Admin Users UX Fixes                                                               |
 | [plan-ai-natural-language-access.md](plan-ai-natural-language-access.md)                                         | Active    | AI Natural-Language Access Plan                                                    |
 | [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Active    | MYK9-110 cross-project recovery rehearsal — execution plan                         |
+| [plan-myk9-110-backup-activation.md](plan-myk9-110-backup-activation.md)                                         | Active    | MYK9-110 independent backup activation                                             |
 | [plan-docs-site.md](plan-docs-site.md)                                                                           | Active    | Plan: myK9Show Guides — public docs site                                           |
 | [plan-exhibitor-elderly-ux-remediation.md](plan-exhibitor-elderly-ux-remediation.md)                             | Active    | Exhibitor Elderly UX Remediation Plan                                              |
 | [plan-exhibitor-onboarding-remediation.md](plan-exhibitor-onboarding-remediation.md)                             | Active    | Exhibitor Onboarding Remediation Plan                                              |

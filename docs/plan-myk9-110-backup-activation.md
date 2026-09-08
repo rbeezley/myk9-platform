@@ -1,5 +1,7 @@
 # MYK9-110 backup activation
 
+> **Status:** Active
+
 Owner request: “proceed... use **your suggestions**” (2026-09-08).
 
 Continue the existing independent-export implementation and restore evidence. This is a
@@ -20,9 +22,9 @@ a second OpenSpec change. No app surface, migration, or source database write is
 - [x] Verify public repository and standard hosted runners: no Actions runner charge.
 - [x] Verify R2 pricing and estimate roughly 2.2 GB for 30 days at the measured export size.
 - [x] Dry-run 30-day retention against R2: no objects selected.
-- [x] Add the existing retention CLI after successful export/freshness verification.
+- [x] Add the existing retention CLI in a separate daily job after successful export/freshness verification. Require scheduled activation; manual exports never delete backups. Report cleanup failures separately.
 - [x] Record the tested restore steps, exclusions, and elapsed time in the runbook.
-- [x] Run backup typecheck/tests (63/63), workflow ordering/target validation, formatting, and code-quality ratchet.
+- [x] Run backup typecheck/tests (64/64), red-to-green workflow contract coverage, plan metadata checks, formatting, and code-quality ratchet.
 - [ ] Rehearse failure/recovery issue notification with a clearly labeled test issue. Automatic
       approval review also requires explicit confirmation to create and close that test issue;
       the attempted command was rejected before execution.

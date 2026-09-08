@@ -126,10 +126,15 @@ preserved for recovery investigation. Incomplete sets containing only recognized
 are eligible once all their objects exceed retention; fresh sets and sets containing unknown
 objects remain protected. Dry-run is the
 default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix
-confirmation. The workflow follow-up runs this policy after successful export/freshness verification using
+confirmation. The workflow follow-up runs this policy in a separate daily job at 10:37 UTC,
+after successful export/freshness verification, using
 `MYK9_EXPORT_RETENTION_DAYS` (default 30). Its deletion confirmation is pinned to
 `myk9-database-backups/myk9-platform`; changing bucket/prefix fails closed. Scheduled work
-remains controlled by MYK9_EXPORTS_ENABLED. No provider lifecycle rule is installed.
+requires `MYK9_EXPORTS_ENABLED=true`; manual dispatch never runs retention. Cleanup failures
+open a separate **Independent Database Retention** issue and leave the export job successful.
+An invalid or foreign manifest stops cleanup safely and requires inspection; it does not stop
+future exports. The daily scan has its own 60-minute timeout, avoiding an hourly scan of every
+retained manifest on the export job's time budget. No provider lifecycle rule is installed.
 
 ## Rollback and recovery
 

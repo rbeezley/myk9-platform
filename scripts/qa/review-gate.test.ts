@@ -329,6 +329,21 @@ describe('human fallback policy', () => {
     ])[0];
     expect(humanFallbackAccepted(evidence)).toBe(false);
   });
+
+  it('requires a concrete reason for Claude unavailability', () => {
+    const evidence = parseGateComments([
+      comment(
+        [
+          `Review gate: human-fallback reviewed 0a2020c7a..${H9} — 2 adversarial subagent reviews, all findings addressed`,
+          'Fallback reason: Claude unavailable',
+          'Adversarial subagent review: correctness',
+          'Adversarial subagent review: security',
+          'Required checks: passing',
+        ].join('\n')
+      ),
+    ])[0];
+    expect(humanFallbackAccepted(evidence)).toBe(false);
+  });
 });
 
 describe('required check verification', () => {

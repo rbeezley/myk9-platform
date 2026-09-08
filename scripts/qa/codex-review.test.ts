@@ -130,6 +130,38 @@ function bodies(callsPath: string): string[] {
 }
 
 describe('codex-review.sh', () => {
+  it('counts a bullet whose [P2] tag follows the file path as a finding', () => {
+    const stub = stubCodex(
+      'codex\n' +
+        '- `supabase/migrations/20260907150000_add_missing_fk_leading_indexes.sql:10` — [P2] `set lock_timeout` is session-scoped, not `set local`.' +
+        '\n'
+    );
+    expect(run(stub).code).toBe(1);
+  });
+
+  it('reads the verdict after the LAST codex marker, not the first', () => {
+    // A log can carry several assistant messages; an early one quoting an old
+    // finding must not turn a clean final verdict into findings.
+    const stub = stubCodex(
+      [
+        'codex',
+        'Earlier note: previously we saw - [P1] stale finding',
+        'codex',
+        'No actionable defects found.',
+      ].join('\n')
+    );
+    expect(run(stub).code).toBe(0);
+  });
+
+  it('a 300 KB verdict with findings is still findings (pipefail + grep -q SIGPIPE regression)', () => {
+    const filler = Array.from(
+      { length: 6000 },
+      (_, i) => `- checked file ${i}: ${'x'.repeat(40)}`
+    ).join('\n');
+    const stub = stubCodex(`codex\n- [P2] a real finding\n\n${filler}\n`);
+    expect(run(stub).code).toBe(1);
+  });
+
   it('counts bold-bracket bullets (`- **[P1]**`) as findings', () => {
     const stub = stubCodex('codex\n- **[P1]** bold-bracket finding\n');
     expect(run(stub).code).toBe(1);

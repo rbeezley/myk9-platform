@@ -13,6 +13,10 @@ describe('scheduled export workflow contract', () => {
     );
     expect(exportWorkflow).toContain("cron: '7 * * * *'");
     expect(exportWorkflow).toContain('issues: write');
+    expect(exportWorkflow).toContain('uses: ./.github/actions/setup-backup-clients');
+    expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain(
+      'uses: ./.github/actions/setup-backup-clients'
+    );
     expect(exportWorkflow).toContain(
       "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}"
     );

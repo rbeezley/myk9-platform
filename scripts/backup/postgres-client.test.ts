@@ -8,6 +8,12 @@ const clientMissing = (clientProbe.error as NodeJS.ErrnoException | undefined)?.
 it.skipIf(clientMissing && !process.env.CI)(
   'passes the URI as a libpq connection string to the real pg_dumpall client',
   () => {
+    if (process.env.CI) {
+      expect(clientProbe.stdout).toMatch(/PostgreSQL\) 18\./);
+      const dumpProbe = spawnSync('pg_dump', ['--version'], { encoding: 'utf8', timeout: 5000 });
+      expect(dumpProbe.error).toBeUndefined();
+      expect(dumpProbe.stdout).toMatch(/PostgreSQL\) 18\./);
+    }
     // Port 1 is intentionally closed: verify URI interpretation without requiring a DB or credentials.
     const result = spawnSync(
       'pg_dumpall',

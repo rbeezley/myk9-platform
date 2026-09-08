@@ -29,10 +29,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Install PostgreSQL and AWS clients
-        run: |
-          sudo apt-get update
-          # Keep the dump client major explicit; mismatches fail preflight below.
-          sudo apt-get install --yes postgresql-client-18 awscli
+        uses: ./.github/actions/setup-backup-clients
       - name: Export, encrypt, upload, and verify
         run: pnpm exec tsx scripts/backup/export-cli.ts
         env:

@@ -1,0 +1,19 @@
+name: Install backup clients
+description: Install and select PostgreSQL 18 and AWS CLI for exports and their CI probe.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        source /etc/os-release
+        if ! grep -Rqs 'apt.postgresql.org/pub/repos/apt' /etc/apt/sources.list.d; then
+          curl --fail --silent --show-error --retry 3 https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$RUNNER_TEMP/backup-pgdg.asc"
+          sudo install -m 644 "$RUNNER_TEMP/backup-pgdg.asc" /usr/share/keyrings/backup-pgdg.asc
+          echo "deb [signed-by=/usr/share/keyrings/backup-pgdg.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" | sudo tee /etc/apt/sources.list.d/backup-pgdg.list
+        fi
+        sudo apt-get -o Acquire::Retries=3 update
+        sudo apt-get -o Acquire::Retries=3 install --yes postgresql-client-18 awscli
+        echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+        /usr/lib/postgresql/18/bin/pg_dump --version
+        /usr/lib/postgresql/18/bin/pg_dumpall --version
+        aws --version

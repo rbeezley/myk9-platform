@@ -36,6 +36,17 @@ export function latestManifest(
     .sort();
   const latestKey = keys.at(-1);
   if (!latestKey) return undefined;
+  return readManifest(aws, bucket, prefix, projectRef, endpointArgs, latestKey);
+}
+
+export function readManifest(
+  aws: (args: string[]) => string,
+  bucket: string,
+  prefix: string,
+  projectRef: string,
+  endpointArgs: string[],
+  latestKey: string
+): ExportManifest {
   // Transport/auth errors must propagate separately from invalid marker contents.
   const raw = aws([
     's3',

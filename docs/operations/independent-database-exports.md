@@ -107,7 +107,7 @@ must be dry-run reviewed against the documented policy and must never delete Sup
 data. Rotate CI credentials and the encryption key through an owner-reviewed procedure; old
 exports remain undecryptable after key loss, so retain the recovery key with the incident plan.
 
-`scripts/backup/retention.ts` inventories whole three-object sets and preserves the newest complete
+`scripts/backup/retention.ts` requires `BACKUP_PROJECT_REF` and validates every manifest in the prefix before selecting any deletions. A foreign-project or invalid manifest aborts both dry-run and apply. It inventories whole three-object sets and preserves the newest complete
 set even if it exceeds retention. When no complete set exists, the newest incomplete set is
 preserved for recovery investigation. Incomplete sets containing only recognized export artifacts
 are eligible once all their objects exceed retention; fresh sets and sets containing unknown

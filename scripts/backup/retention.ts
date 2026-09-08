@@ -1,3 +1,6 @@
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+import { readManifest } from './latest-manifest';
 import { parseObjectList } from './object-list';
 import { redactError } from './export-model';
 import { retentionCandidates } from './retention-model';
@@ -14,8 +17,9 @@ function aws(args: string[]): string {
   return run('aws', args, process.env);
 }
 
-function main(): void {
+export function runRetention(): void {
   const bucket = required('BACKUP_BUCKET');
+  const projectRef = required('BACKUP_PROJECT_REF');
   const prefix = exportPrefix();
   const days = Number(process.env.BACKUP_RETENTION_DAYS || 30);
   if (!Number.isInteger(days) || days < 1)
@@ -35,6 +39,10 @@ function main(): void {
       ...endpointArgs,
     ])
   );
+  for (const object of listed.Contents ?? []) {
+    if (object.Key?.endsWith('/manifest.json'))
+      readManifest(aws, bucket, prefix, projectRef, endpointArgs, object.Key);
+  }
   const cutoff = Date.now() - days * 86_400_000;
   const selected = retentionCandidates(listed.Contents || [], cutoff);
   const apply = process.env.BACKUP_RETENTION_APPLY === 'true';
@@ -52,9 +60,11 @@ function main(): void {
   );
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(redactError(error instanceof Error ? error.message : String(error)));
-  process.exitCode = 1;
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    runRetention();
+  } catch (error) {
+    console.error(redactError(error instanceof Error ? error.message : String(error)));
+    process.exitCode = 1;
+  }
 }

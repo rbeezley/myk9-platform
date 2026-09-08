@@ -115,9 +115,8 @@ used the scoped S3 credentials.
 ## Failure and retention operation
 
 An export job failure is actionable even if an older object exists. Preserve the last known good
-manifest, rerun a manual export after fixing the cause, and record the gap. A retention deletion
-must be dry-run reviewed against the documented policy and must never delete Supabase source
-data. Rotate CI credentials and the encryption key through an owner-reviewed procedure; old
+manifest, rerun a manual export after fixing the cause, and record the gap. The retention policy must be dry-run reviewed before activation or a policy change;
+approved daily runs then apply it unattended. Retention must never delete Supabase source data. Rotate CI credentials and the encryption key through an owner-reviewed procedure; old
 exports remain undecryptable after key loss, so retain the recovery key with the incident plan.
 
 `scripts/backup/retention.ts` requires `BACKUP_PROJECT_REF` and validates every manifest in the prefix before selecting any deletions. A foreign-project or invalid manifest aborts both dry-run and apply. It inventories whole three-object sets and preserves the newest complete
@@ -128,9 +127,14 @@ objects remain protected. Dry-run is the
 default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix
 confirmation. The workflow follow-up runs this policy in a separate daily workflow at 10:37 UTC,
 after its own successful freshness verification, using
-`MYK9_EXPORT_RETENTION_DAYS` (default 30). Its verification target, retention target, and deletion confirmation are all pinned to
-`myk9-database-backups/myk9-platform`; changing the cleanup target requires a reviewed code change. Scheduled work
-requires `MYK9_EXPORTS_ENABLED=true`; manual dispatch never runs retention. Cleanup failures
+a reviewed 30-day window fixed in the workflow. Verification and cleanup use the same bucket/prefix
+variables as exports. An explicit preflight compares that configuration to the approved
+`myk9-database-backups/myk9-platform` destination before either step. Destination drift deliberately
+requires renewed review rather than silently authorizing deletion in a new bucket: pause
+`MYK9_RETENTION_ENABLED`, review the new target, update both the guard and deletion confirmation,
+and dispatch a dry-run before re-enabling cleanup. The diagnostic identifies this approval mismatch.
+Scheduled cleanup requires its own `MYK9_RETENTION_ENABLED=true`; disabling it leaves backups enabled.
+Manual dispatch runs verification and a retention dry-run only, even when cleanup is enabled. Cleanup failures
 open a separate **Independent Database Retention** issue and do not change the independent export result.
 An invalid or foreign manifest stops cleanup safely and requires inspection; it does not stop
 future exports. The daily scan has its own 60-minute timeout, avoiding an hourly scan of every

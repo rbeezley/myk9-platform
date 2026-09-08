@@ -22,14 +22,14 @@ a second OpenSpec change. No app surface, migration, or source database write is
 - [x] Verify public repository and standard hosted runners: no Actions runner charge.
 - [x] Verify R2 pricing and estimate roughly 2.2 GB for 30 days at the measured export size.
 - [x] Dry-run 30-day retention against R2: no objects selected.
-- [x] Add the existing retention CLI in an independent daily workflow after its own successful freshness verification. Require scheduled activation; manual exports never delete backups. Report cleanup failures separately.
+- [x] Add the existing retention CLI in an independent daily workflow after its own successful freshness verification. Require the separate MYK9_RETENTION_ENABLED switch and a fixed 30-day window; manual retention dispatch only dry-runs and manual exports never delete backups. Report cleanup failures separately.
 - [x] Record the tested restore steps, exclusions, and elapsed time in the runbook.
 - [x] Run backup typecheck/tests (65/65), red-to-green workflow contract coverage, plan metadata checks, formatting, and code-quality ratchet.
 - [ ] Rehearse failure/recovery issue notification with a clearly labeled test issue. Automatic
       approval review also requires explicit confirmation to create and close that test issue;
       the attempted command was rejected before execution.
 - [ ] Obtain independent review and required CI before merging the workflow change.
-- [ ] Confirm and apply GitHub settings; dispatch export and independent health verification.
+- [ ] Confirm and apply GitHub settings (including separate retention activation); dispatch export and independent health verification.
 - [ ] Enable the recurring jobs and record the first scheduled result before claiming it ran.
 
 ## Limits

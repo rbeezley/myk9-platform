@@ -12,9 +12,9 @@ describe('scheduled export workflow contract', () => {
     expect(workflow).toContain('group: independent-database-retention');
     expect(exportWorkflow).toContain('group: independent-database-export');
     expect(workflow).toContain("cron: '37 10 * * *'");
-    expect(workflow).not.toContain('workflow_dispatch');
+    expect(workflow).toContain('workflow_dispatch: {}');
     expect(workflow.match(/^\s+if:.*$/gm)?.map(line => line.trim())).toEqual([
-      "if: vars.MYK9_EXPORTS_ENABLED == 'true'",
+      "if: vars.MYK9_RETENTION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'",
       'if: always()',
     ]);
     const verify = workflow.indexOf('run: pnpm exec tsx scripts/backup/verify.ts');
@@ -23,9 +23,16 @@ describe('scheduled export workflow contract', () => {
     expect(verify).toBeGreaterThan(-1);
     expect(retention).toBeGreaterThan(verify);
     expect(reporter).toBeGreaterThan(retention);
-    expect(workflow).toContain("BACKUP_RETENTION_APPLY: 'true'");
-    expect(workflow).toContain('BACKUP_BUCKET: myk9-database-backups');
-    expect(workflow).toContain('BACKUP_PREFIX: myk9-platform');
+    expect(workflow).toContain(
+      "BACKUP_RETENTION_APPLY: ${{ github.event_name == 'schedule' && vars.MYK9_RETENTION_ENABLED == 'true' }}"
+    );
+    expect(workflow).toContain("BACKUP_RETENTION_DAYS: '30'");
+    expect(workflow).not.toContain('MYK9_EXPORT_RETENTION_DAYS');
+    expect(workflow.match(/BACKUP_BUCKET: \$\{\{ vars.MYK9_EXPORT_BUCKET \}\}/g)).toHaveLength(3);
+    expect(workflow.match(/BACKUP_PREFIX: \$\{\{ vars.MYK9_EXPORT_PREFIX \}\}/g)).toHaveLength(3);
+    expect(workflow).toContain('[ "$BACKUP_BUCKET" != \'myk9-database-backups\' ]');
+    expect(workflow).toContain('[ "$BACKUP_PREFIX" != \'myk9-platform\' ]');
+    expect(workflow.indexOf('Validate approved retention destination')).toBeLessThan(verify);
     expect(workflow).toContain(
       'BACKUP_RETENTION_CONFIRM: DELETE myk9-database-backups/myk9-platform'
     );

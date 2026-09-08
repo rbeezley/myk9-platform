@@ -4,6 +4,7 @@ name: Independent Database Retention
 on:
   schedule:
     - cron: '37 10 * * *'
+  workflow_dispatch: {}
 
 concurrency:
   group: independent-database-retention
@@ -12,7 +13,7 @@ concurrency:
 jobs:
   retention:
     name: Apply daily backup retention
-    if: vars.MYK9_EXPORTS_ENABLED == 'true'
+    if: vars.MYK9_RETENTION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -28,12 +29,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify AWS client
         run: aws --version
+      - name: Validate approved retention destination
+        run: |
+          if [ "$BACKUP_BUCKET" != 'myk9-database-backups' ] || [ "$BACKUP_PREFIX" != 'myk9-platform' ]; then
+            echo 'Retention approval no longer matches export configuration. Pause MYK9_RETENTION_ENABLED and review the new destination before changing this guard and its deletion confirmation.' >&2
+            exit 1
+          fi
+        env:
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
       - name: Verify latest export freshness
         run: pnpm exec tsx scripts/backup/verify.ts
         env:
           BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
-          BACKUP_BUCKET: myk9-database-backups
-          BACKUP_PREFIX: myk9-platform
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
           BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
           BACKUP_GRACE_MINUTES: '30'
           BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
@@ -46,11 +56,11 @@ jobs:
         run: pnpm exec tsx scripts/backup/retention.ts
         env:
           BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
-          BACKUP_BUCKET: myk9-database-backups
-          BACKUP_PREFIX: myk9-platform
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
           BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
-          BACKUP_RETENTION_DAYS: ${{ vars.MYK9_EXPORT_RETENTION_DAYS || '30' }}
-          BACKUP_RETENTION_APPLY: 'true'
+          BACKUP_RETENTION_DAYS: '30'
+          BACKUP_RETENTION_APPLY: ${{ github.event_name == 'schedule' && vars.MYK9_RETENTION_ENABLED == 'true' }}
           BACKUP_RETENTION_CONFIRM: DELETE myk9-database-backups/myk9-platform
           AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}

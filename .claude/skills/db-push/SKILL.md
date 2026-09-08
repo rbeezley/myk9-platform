@@ -28,6 +28,12 @@ open a while will have gone stale — re-check before pushing.
 git fetch origin main
 git ls-tree -r --name-only origin/main -- supabase/migrations | tail -5
 supabase migration list   # what the linked DB has actually applied
+
+# Neither of the above sees an unmerged branch that already took your version.
+pnpm qa:inflight supabase/migrations
+gh pr list --state open --json headRefName --jq '.[].headRefName' \
+  | xargs -I{} git ls-tree -r --name-only origin/{} -- supabase/migrations \
+  | sort -u | tail -10
 ```
 
 Then choose today's date with a **specific odd time** — `174500`, `142300`,
@@ -45,8 +51,11 @@ Write the SQL with the Write tool.
 it does catch is version _collision and provenance_: two files claiming one
 version, a version already claimed on `origin/main` or another ref, and an edit
 to a migration body that `main` or the merge base already accepted. Nothing
-enforces the timestamp shape; that one is on you. Run the guard locally before
-pushing if the branch has been open more than a day.
+enforces the timestamp shape; that one is on you.
+
+Run the guard locally before every push, not only on a long-lived branch — two
+agents can pick the same version the same afternoon, and the guard is what
+catches it.
 
 ### Step 2: Grants are not optional
 
@@ -129,16 +138,28 @@ where s.relkind = 'S' and t.oid = 'public.<table>'::regclass;
 ```
 
 A BEFORE INSERT trigger's `nextval()` fires before RLS `WITH CHECK`, so a table
-INSERT grant dies 42501 on the sequence. **The ownership query above does not
-find every sequence that matters** — a standalone sequence a trigger calls has
-no `pg_depend` link to the table (`registrations` uses
-`registration_confirmation_seq`, which neither the ownership query nor a
-name-prefix match returns). Grep the migration for `CREATE SEQUENCE` and
-`nextval(` to get those names, then check each one directly:
+INSERT grant dies 42501 on the sequence — RLS never gets to mask it.
+
+**The ownership query above does not find every sequence that matters.** A
+standalone sequence a trigger calls has no `pg_depend` link to its table:
+`registration_confirmation_seq` is reached from `enrollments` through
+`generate_confirmation_number()`, and it was created three renames ago in
+`054_registrations_table.sql`, so it appears in neither the ownership join, a
+name-prefix match, nor the text of the migration you are pushing.
+
+Do not try to resolve reachability. This schema has four public sequences
+(verified 2026-09-08) — list them all and eyeball the one you touched:
 
 ```sql
-select unnest(relacl)::text from pg_class where oid = 'public.<sequence>'::regclass;
+select c.relname, coalesce(array_to_string(c.relacl, E'\n'), '(owner only)')
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where c.relkind = 'S' and n.nspname = 'public'
+order by c.relname;
 ```
+
+Assume a sequence is ungranted until this output says otherwise — only
+`20260730220000_codify_pre_rule_table_grants.sql` has ever GRANTed one.
 
 Do not use `information_schema.role_table_grants` — it only shows grants visible
 to the querying role and returns empty over the MCP connection, so it cannot

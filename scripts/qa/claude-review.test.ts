@@ -576,7 +576,7 @@ describe('claude-review.sh', () => {
       expect(Date.now() - started).toBeLessThan(3000); // did not wait for the 4s stub
       expect(detached.out).toContain('detached PR #7 review');
       expect(readFileSync(join(stub.stateDir, 'claude-review-7.status'), 'utf8')).toMatch(
-        /^running since/
+        /^running pid=\d+ since=/
       );
 
       const early = run(stub, gh, ['--wait', '1', '7']);

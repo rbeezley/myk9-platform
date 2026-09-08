@@ -144,6 +144,10 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       // Focus management - focus the panel container first, then first input
       const timer = setTimeout(() => {
         if (panelRef.current) {
+          // Respect keyboard users and controls that focus themselves while the
+          // opening animation is still running.
+          if (panelRef.current.contains(document.activeElement)) return;
+
           // Focus the first focusable element in the panel
           const firstFocusable = panelRef.current.querySelector(
             'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'

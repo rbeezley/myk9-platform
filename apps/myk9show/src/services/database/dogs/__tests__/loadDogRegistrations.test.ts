@@ -1,21 +1,34 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockServerIn, mockLocalGet, mockPeopleIn, mockReplicatedGetAllDogs, mockPostgrestAllDogs } =
-  vi.hoisted(() => ({
-    mockServerIn: vi.fn(),
-    mockLocalGet: vi.fn(),
-    mockPeopleIn: vi.fn(),
-    mockReplicatedGetAllDogs: vi.fn(),
-    mockPostgrestAllDogs: vi.fn(),
-  }));
+const {
+  mockServerIn,
+  mockServerSelect,
+  mockLocalGet,
+  mockPeopleIn,
+  mockReplicatedGetAllDogs,
+  mockPostgrestAllDogs,
+} = vi.hoisted(() => ({
+  mockServerIn: vi.fn(),
+  mockServerSelect: vi.fn(),
+  mockLocalGet: vi.fn(),
+  mockPeopleIn: vi.fn(),
+  mockReplicatedGetAllDogs: vi.fn(),
+  mockPostgrestAllDogs: vi.fn(),
+}));
 
 vi.mock('../../supabaseClient', () => ({
   supabase: {
     from: (table: string) =>
       table === 'dogs'
         ? { select: () => ({ is: () => ({ order: () => mockPostgrestAllDogs() }) }) }
-        : { select: () => ({ in: table === 'people' ? mockPeopleIn : mockServerIn }) },
+        : {
+            select: (columns?: string) => {
+              if (table === 'people') return { in: mockPeopleIn };
+              mockServerSelect(columns);
+              return { in: mockServerIn };
+            },
+          },
   },
   logQuery: vi.fn(),
   createDatabaseError,
@@ -96,6 +109,9 @@ describe('loadDogRegistrations', () => {
     ]);
 
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
+    expect(mockServerSelect).toHaveBeenCalledWith(
+      'dog_id, id, created_at, registered_name, registration_number, organization, variety, breed, status'
+    );
     expect(resolveDogIdentity(byDog.get('dog-1')!).breed).toBe('Belgian Malinois');
     expect(registrationsReadComplete).toBe(true);
   });

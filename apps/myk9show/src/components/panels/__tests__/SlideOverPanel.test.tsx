@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { SlideOverPanel } from '../SlideOverPanel';
 import { selectReservedBottom, useActionBarStore } from '@/store/actionBarStore';
@@ -180,6 +180,32 @@ describe('SlideOverPanel stacked Escape handling', () => {
 });
 
 describe('SlideOverPanel focus return', () => {
+  it('does not steal focus from a control focused during the opening animation', () => {
+    vi.useFakeTimers();
+
+    try {
+      render(
+        <SlideOverPanel open onClose={vi.fn()} title="Add dog">
+          <label>
+            Sex
+            <input aria-label="Sex" />
+          </label>
+        </SlideOverPanel>
+      );
+
+      const sexInput = screen.getByRole('textbox', { name: 'Sex' });
+      sexInput.focus();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(document.activeElement).toBe(sexInput);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   function TriggerAndPanel({ remountOnToggle = false }: { remountOnToggle?: boolean }) {
     const [open, setOpen] = useState(false);
     const panel = (

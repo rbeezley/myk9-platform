@@ -1,4 +1,5 @@
 import type { ViewerLocation } from './viewerLocation';
+import { shouldMountVercelAnalytics } from '@/services/observability/vercelAnalytics';
 
 interface GeoPayload {
   label?: unknown;
@@ -15,6 +16,10 @@ function parse(payload: unknown, source: ViewerLocation['source']): ViewerLocati
   return { label, lat, lng, source };
 }
 
+function canUseHostedGeoApi(): boolean {
+  return typeof window === 'undefined' || shouldMountVercelAnalytics(window.location.hostname);
+}
+
 /**
  * The approximate city Vercel attaches to the request; null locally, offline,
  * or when the platform has no idea. Never throws — the Near field just reads
@@ -23,6 +28,8 @@ function parse(payload: unknown, source: ViewerLocation['source']): ViewerLocati
 export async function fetchApproximateLocation(
   fetchImpl: typeof fetch = fetch
 ): Promise<ViewerLocation | null> {
+  if (!canUseHostedGeoApi()) return null;
+
   try {
     const response = await fetchImpl('/api/geo', { headers: { Accept: 'application/json' } });
     if (response.status !== 200) return null;
@@ -40,6 +47,8 @@ export async function geocodePlaceQuery(
 ): Promise<ViewerLocation | null> {
   const q = query.trim();
   if (!q) return null;
+  if (!canUseHostedGeoApi()) return null;
+
   try {
     const response = await fetchImpl(`/api/geo?q=${encodeURIComponent(q)}`, {
       headers: { Accept: 'application/json' },

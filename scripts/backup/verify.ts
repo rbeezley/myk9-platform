@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   cadenceForDay,
   isPastDue,
@@ -23,7 +24,7 @@ function aws(args: string[]): string {
   return run('aws', args, process.env);
 }
 
-function main(): void {
+export function verifyBackup(): void {
   const bucket = required('BACKUP_BUCKET');
   const projectRef = required('BACKUP_PROJECT_REF');
   const prefix = exportPrefix();
@@ -77,9 +78,11 @@ function main(): void {
   }
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(redactError(error instanceof Error ? error.message : String(error)));
-  process.exitCode = 1;
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    verifyBackup();
+  } catch (error) {
+    console.error(redactError(error instanceof Error ? error.message : String(error)));
+    process.exitCode = 1;
+  }
 }

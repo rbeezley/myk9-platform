@@ -4,11 +4,12 @@ import { buildGlobalsDumpArgs } from './export';
 
 const clientProbe = spawnSync('pg_dumpall', ['--version'], { encoding: 'utf8', timeout: 5000 });
 const clientMissing = (clientProbe.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT';
-// Pure tests remain portable; CI requires this native integration probe to execute.
-it.skipIf(clientMissing && !process.env.CI)(
+const requiredClient = process.env.BACKUP_REQUIRE_NATIVE_CLIENT === 'true';
+// Backup-related CI requires the probe; unrelated changes avoid installing clients.
+it.skipIf(clientMissing && !requiredClient)(
   'passes the URI as a libpq connection string to the real pg_dumpall client',
   () => {
-    if (process.env.CI) {
+    if (requiredClient) {
       expect(clientProbe.stdout).toMatch(/PostgreSQL\) 18\./);
       const dumpProbe = spawnSync('pg_dump', ['--version'], { encoding: 'utf8', timeout: 5000 });
       expect(dumpProbe.error).toBeUndefined();

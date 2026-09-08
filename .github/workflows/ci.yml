@@ -165,9 +165,22 @@ jobs:
       - name: Nightly health workflow contract
         run: pnpm qa:nightly:workflow:test
 
+      - name: Detect backup integration changes
+        id: backup-scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$BASE_SHA" ]] && git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null && git diff --quiet "$BASE_SHA" HEAD -- scripts/backup .github/actions/setup-backup-clients .github/workflows/independent-database-exports.yml .github/workflows/independent-database-export-health.yml .github/workflows/ci.yml package.json pnpm-lock.yaml; then
+            echo 'native=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'native=true' >> "$GITHUB_OUTPUT"
+          fi
       - name: Install backup clients
+        if: steps.backup-scope.outputs.native == 'true'
         uses: ./.github/actions/setup-backup-clients
       - name: Independent database backup tests
+        env:
+          BACKUP_REQUIRE_NATIVE_CLIENT: ${{ steps.backup-scope.outputs.native }}
         run: |
           pnpm qa:backups:typecheck
           pnpm qa:backups:test

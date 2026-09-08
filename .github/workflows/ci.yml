@@ -169,6 +169,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
+          pnpm qa:backups:typecheck
           pnpm qa:backups:test
 
       # The map (docs/qa/e2e-suite-map.md) is where a spec's suite is decided:

@@ -22,5 +22,6 @@ describe('scheduled export workflow contract', () => {
     expect(healthWorkflow.match(/BACKUP_NIGHTLY_HOUR:/g)).toHaveLength(1);
     expect(healthWorkflow).not.toContain('needs:');
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('pnpm qa:backups:test');
+    expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('pnpm qa:backups:typecheck');
   });
 });

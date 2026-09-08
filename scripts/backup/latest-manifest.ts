@@ -1,3 +1,4 @@
+import { parseObjectList } from './object-list';
 import { assertManifest, type ExportManifest } from './export-model';
 
 export class InvalidManifestError extends Error {}
@@ -10,7 +11,7 @@ export function latestManifest(
   projectRef: string,
   endpointArgs: string[]
 ): ExportManifest | undefined {
-  const listed = JSON.parse(
+  const listed = parseObjectList(
     aws([
       's3api',
       'list-objects-v2',
@@ -22,7 +23,7 @@ export function latestManifest(
       'json',
       ...endpointArgs,
     ])
-  ) as { Contents?: Array<{ Key?: string }> };
+  );
   const keys = (listed.Contents ?? [])
     .map(item => item.Key)
     .filter((key): key is string => {

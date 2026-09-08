@@ -77,13 +77,18 @@ export function assertManifest(manifest: unknown): asserts manifest is ExportMan
       throw new Error(`manifest ${field} is required`);
   }
   for (const field of ['dumpSha256', 'globalsSha256'] as const) {
-    if (!/^[a-f0-9]{64}$/.test(candidate[field])) throw new Error(`manifest ${field} is invalid`);
+    if (typeof candidate[field] !== 'string' || !/^[a-f0-9]{64}$/.test(candidate[field]))
+      throw new Error(`manifest ${field} is invalid`);
   }
-  const createdAt = Date.parse(candidate.createdAt);
+  const createdAt = Date.parse(candidate.createdAt ?? '');
   if (!Number.isFinite(createdAt) || createdAt > Date.now() + 5 * 60_000)
     throw new Error('manifest createdAt is invalid or in the future');
   for (const field of ['dumpBytes', 'globalsBytes'] as const) {
-    if (!Number.isSafeInteger(candidate[field]) || candidate[field] <= 28)
+    if (
+      typeof candidate[field] !== 'number' ||
+      !Number.isSafeInteger(candidate[field]) ||
+      candidate[field] <= 28
+    )
       throw new Error(`manifest ${field} is invalid`);
   }
 }

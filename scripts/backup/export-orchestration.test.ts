@@ -9,6 +9,7 @@ function fixture(failure?: 'dump' | 'upload' | 'corrupt') {
   for (const [name, value] of Object.entries({
     BACKUP_FORCE_RUN: 'true',
     BACKUP_DATABASE_URL: 'postgresql://fixture.invalid/db',
+    BACKUP_DATABASE_PASSWORD: 'fixture-password',
     BACKUP_PROJECT_REF: 'fixture',
     BACKUP_BUCKET: 'fixture',
     BACKUP_PREFIX: 'exports',
@@ -70,6 +71,25 @@ afterEach(() => {
 });
 
 describe('export success publication', () => {
+  it('bootstraps a scheduled export after an empty successful listing', () => {
+    const { objects } = fixture();
+    vi.stubEnv('BACKUP_FORCE_RUN', 'false');
+    vi.mocked(execFileSync).mockReturnValueOnce('');
+    exportDatabase();
+    expect(objects.size).toBe(3);
+  });
+  it.each([
+    ['BACKUP_ENCRYPTION_KEY', 'invalid'],
+    ['BACKUP_DATABASE_PASSWORD', ''],
+    ['BACKUP_PG_CLIENT_MAJOR', 'invalid'],
+  ])('rejects invalid %s even when a recent backup covers the slot', (name, value) => {
+    fixture();
+    vi.stubEnv('BACKUP_FORCE_RUN', 'false');
+    exportDatabase();
+    vi.stubEnv(name, value);
+    expect(() => exportDatabase()).toThrow();
+  });
+
   it('does not dump the database when the schedule lookup cannot access R2', () => {
     fixture();
     vi.stubEnv('BACKUP_FORCE_RUN', 'false');

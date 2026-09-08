@@ -91,6 +91,10 @@ export function exportDatabase(): void {
   const projectRef = required('BACKUP_PROJECT_REF');
   const bucket = required('BACKUP_BUCKET');
   const prefix = exportPrefix();
+  const key = parseEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);
+  const password = required('BACKUP_DATABASE_PASSWORD');
+  const expectedMajor = required('BACKUP_PG_CLIENT_MAJOR');
+  if (!/^\d+$/.test(expectedMajor)) throw new Error('BACKUP_PG_CLIENT_MAJOR must be numeric');
   if (process.env.BACKUP_FORCE_RUN !== 'true') {
     const endpoint = process.env.BACKUP_S3_ENDPOINT;
     let latest: ExportManifest | undefined;
@@ -115,17 +119,14 @@ export function exportDatabase(): void {
       return;
     }
   }
-  const key = parseEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);
-  const expectedMajor = required('BACKUP_PG_CLIENT_MAJOR');
   const root = mkdtempSync(join(tmpdir(), 'myk9-export-'));
   const dumpPath = join(root, 'database.dump');
   const globalsPath = join(root, 'globals.sql');
   const createdAt = new Date().toISOString();
   try {
-    const env = { ...process.env, PGPASSWORD: process.env.BACKUP_DATABASE_PASSWORD };
+    const env = { ...process.env, PGPASSWORD: password };
     const pgDumpVersion = run('pg_dump', ['--version'], env).trim();
     const pgDumpallVersion = run('pg_dumpall', ['--version'], env).trim();
-    if (!/^\d+$/.test(expectedMajor)) throw new Error('BACKUP_PG_CLIENT_MAJOR must be numeric');
     const dumpMajor = pgDumpVersion.match(/(\d+)\./)?.[1];
     const dumpallMajor = pgDumpallVersion.match(/(\d+)\./)?.[1];
     if (dumpMajor !== expectedMajor || dumpallMajor !== expectedMajor) {

@@ -1,3 +1,4 @@
+import { parseObjectList } from './object-list';
 import { redactError } from './export-model';
 import { retentionCandidates } from './retention-model';
 import { exportPrefix } from './export-config';
@@ -21,7 +22,7 @@ function main(): void {
     throw new Error('BACKUP_RETENTION_DAYS must be a positive integer');
   const endpoint = process.env.BACKUP_S3_ENDPOINT;
   const endpointArgs = endpoint ? ['--endpoint-url', endpoint] : [];
-  const listed = JSON.parse(
+  const listed = parseObjectList(
     aws([
       's3api',
       'list-objects-v2',
@@ -33,9 +34,7 @@ function main(): void {
       'json',
       ...endpointArgs,
     ])
-  ) as {
-    Contents?: Array<{ Key?: string; LastModified?: string }>;
-  };
+  );
   const cutoff = Date.now() - days * 86_400_000;
   const selected = retentionCandidates(listed.Contents || [], cutoff);
   const apply = process.env.BACKUP_RETENTION_APPLY === 'true';

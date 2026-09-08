@@ -149,7 +149,10 @@ if [ -n "$WAIT" ]; then
         pid="$(cat "$PID_FILE" 2>/dev/null)"
         alive=0
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-          case "$(ps -o command= -p "$pid" 2>/dev/null)" in *claude-review*|*"$0"*) alive=1 ;; esac
+          cmd="$(ps -o command= -p "$pid" 2>/dev/null)"
+          # An empty ps result means ps itself is unavailable or denied, not a
+          # dead process: kill -0 already said it exists, so trust that.
+          case "$cmd" in ''|*claude-review*|*"$0"*) alive=1 ;; esac
         fi
         if [ "$alive" = 0 ]; then
           # Re-read: the child may have written its exit code between our read

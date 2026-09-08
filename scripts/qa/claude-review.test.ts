@@ -407,6 +407,19 @@ describe('claude-review.sh', () => {
     expect(existsSync(join(stateDir, 'claude-review-7.status'))).toBe(false);
   });
 
+  it('a prose bullet that merely mentions a priority tag is NOT a finding', () => {
+    const stub = stubClaude(
+      [
+        'No actionable defects found.',
+        '',
+        '- checked that no [P1] regression remains in the tracker',
+        '- confirmed the [P2] from last round is fixed',
+      ].join('\n')
+    );
+    const gh = stubGh();
+    expect(run(stub, gh, ['7']).code).toBe(0);
+  });
+
   describe('sandbox preflight (Codex denies the Keychain and the network)', () => {
     it('exits 2 in seconds with the escalation hint when claude reports not logged in', () => {
       const stub = stubClaude('No actionable defects found.', 0, 0, 1);

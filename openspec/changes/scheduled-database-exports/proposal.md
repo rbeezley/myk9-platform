@@ -38,7 +38,7 @@ created by this change.
 
 ## Impact
 
-- New TypeScript export/verification utilities and focused tests under `scripts/qa/`.
+- New TypeScript export/verification utilities and focused tests under `scripts/backup/`.
 - New disabled-until-configured GitHub Actions workflow and operator documentation under
   `docs/operations/`.
 - Requires a future private S3-compatible bucket, server-side/object-lock policy decision,

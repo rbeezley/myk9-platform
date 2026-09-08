@@ -22,7 +22,7 @@ describe('scheduled export workflow contract', () => {
     expect(healthWorkflow.match(/BACKUP_NIGHTLY_HOUR:/g)).toHaveLength(1);
     expect(healthWorkflow).not.toContain('needs:');
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain(
-      'run: pnpm exec vitest run scripts/backup --sequence.shuffle'
+      'pnpm exec vitest run scripts/backup --sequence.shuffle'
     );
   });
 });

@@ -138,18 +138,14 @@ export function latestDueSlot(
     const local = timeZoneParts(slot, timeZone);
     const day = weekdayInTimeZone(slot, timeZone);
     if (weekendDays.includes(day) || local.hour === nightlyHour) return slot;
+    const previous = timeZoneParts(new Date(slot.getTime() - 3_600_000), timeZone);
+    const dayChanged =
+      previous.year !== local.year || previous.month !== local.month || previous.day !== local.day;
+    // Spring-forward can erase the configured hour. The first available hour after
+    // the gap is that day's due slot, shared by the exporter and freshness check.
+    if (local.hour > nightlyHour && (dayChanged || previous.hour < nightlyHour)) return slot;
   }
   throw new Error('unable to find a due export slot in the previous 72 hours');
-}
-
-export function isDueNow(
-  date: Date,
-  timeZone = 'UTC',
-  weekendDays = [0, 5, 6],
-  nightlyHour = 3
-): boolean {
-  const local = timeZoneParts(date, timeZone);
-  return weekendDays.includes(weekdayInTimeZone(date, timeZone)) || local.hour === nightlyHour;
 }
 
 export function isPastDue(createdAt: string, dueSlot: Date): boolean {

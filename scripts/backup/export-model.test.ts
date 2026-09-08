@@ -12,6 +12,11 @@ import {
 } from './export-model';
 
 describe('scheduled export model', () => {
+  it('moves a nonexistent nightly DST hour to the first available hour that day', () => {
+    const slot = latestDueSlot(new Date('2026-03-08T08:45:00Z'), 'America/Chicago', [1], 2);
+    expect(slot.toISOString()).toBe('2026-03-08T08:00:00.000Z');
+    expect(isPastDue('2026-03-07T08:05:00Z', slot)).toBe(true);
+  });
   it('round trips authenticated encryption and detects tampering', () => {
     const key = Buffer.alloc(32, 7);
     const payload = encryptPayload(Buffer.from('score data'), key, Buffer.alloc(12, 2));

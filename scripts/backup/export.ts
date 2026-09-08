@@ -11,6 +11,7 @@ import {
   sha256,
   latestDueSlot,
   isPastDue,
+  type ExportManifest,
 } from './export-model';
 import { exportPrefix, exportSchedule } from './export-config';
 import { latestManifest } from './latest-manifest';
@@ -92,13 +93,19 @@ export function exportDatabase(): void {
   const prefix = exportPrefix();
   if (process.env.BACKUP_FORCE_RUN !== 'true') {
     const endpoint = process.env.BACKUP_S3_ENDPOINT;
-    const latest = latestManifest(
-      args => run('aws', args, process.env),
-      bucket,
-      prefix,
-      projectRef,
-      endpoint ? ['--endpoint-url', endpoint] : []
-    );
+    let latest: ExportManifest | undefined;
+    try {
+      latest = latestManifest(
+        args => run('aws', args, process.env),
+        bucket,
+        prefix,
+        projectRef,
+        endpoint ? ['--endpoint-url', endpoint] : []
+      );
+    } catch {
+      // A marker is only a skip optimization; never let a damaged marker stop new backups.
+      console.warn('Could not validate the latest export marker; attempting a fresh export.');
+    }
     const due = latestDueSlot(new Date(), timeZone, weekendDays, nightlyHour, 0);
     if (latest && !isPastDue(latest.createdAt, due)) {
       console.log(

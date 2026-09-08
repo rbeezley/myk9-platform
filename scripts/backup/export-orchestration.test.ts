@@ -70,6 +70,19 @@ afterEach(() => {
 });
 
 describe('export success publication', () => {
+  it('creates a new scheduled export when the newest marker cannot be validated', () => {
+    const { objects } = fixture();
+    vi.stubEnv('BACKUP_FORCE_RUN', 'false');
+    vi.stubEnv('BACKUP_TIME_ZONE', 'UTC');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-09T04:07:00Z'));
+    exportDatabase();
+    const marker = [...objects.entries()].find(([key]) => key.endsWith('/manifest.json'))!;
+    marker[1].bytes = Buffer.from('{');
+    vi.setSystemTime(new Date('2026-09-09T05:07:00Z'));
+    exportDatabase();
+    expect(objects.size).toBe(6);
+  });
   it('catches up a nightly export when the scheduler starts after the due hour', () => {
     const { objects } = fixture();
     vi.stubEnv('BACKUP_FORCE_RUN', 'false');

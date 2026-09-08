@@ -26,6 +26,9 @@ day policy or manual dispatch; no show calendar is automatically consulted. Each
 wake-up compares the latest successful manifest against the latest due slot and catches up
 if that slot was missed, even when GitHub starts the job after its nominal hour. Invalid
 timezone/day/hour settings fail explicitly in both the exporter and health check.
+If daylight-saving time skips the configured nightly hour, the first available hour after
+the gap is due. An unreadable or invalid marker cannot suppress a fresh export; the exporter
+warns and proceeds, while the separate health check continues to report invalid markers.
 
 The separate health workflow wakes hourly at minute 15 and validates the newest stored payloads
 against the latest due slot whose 30-minute grace has elapsed. Thus detection can take until

@@ -132,7 +132,20 @@ bash scripts/qa/claude-review.sh --wait 240 $PR_NUMBER           # repeat until 
 #   0 clean and evidence posted · 1 findings posted · 2 did not run (not a verdict) · 3 still running, call again
 ```
 
-**Codex: this cannot run inside your sandbox.** The review needs the macOS Keychain (Claude's credentials) and the network; `workspace-write` denies both, which reads as `Not logged in · Please run /login` (Keychain) or a three-minute hang ending in `Can't reach the API server` (network). The wrapper now detects both in seconds and exits 2 with the remedy: re-run it with escalated permissions, and if your approval policy forbids escalation, stop and report exactly: "Richard, run `bash scripts/qa/claude-review.sh --detach --post <pr>` from a terminal." If `--detach` or `--wait` reports that the detached review **died** or is **gone without recording a verdict**, your sandbox killed the background process when the shell call returned (#2131: `--wait` said "still running" for 43 minutes against nothing); that is the same escalate-or-ask case, not something to retry. Do not substitute a same-harness subagent review; that is not the gate.
+**Codex: this cannot run inside your sandbox.** The review needs the macOS Keychain (Claude's credentials) and the network; `workspace-write` denies both, which reads as `Not logged in · Please run /login` (Keychain) or a three-minute hang ending in `Can't reach the API server` (network). The wrapper now detects both in seconds and exits 2 with the remedy: re-run it with escalated permissions, and if your approval policy forbids escalation, stop and report exactly: "Richard, run `bash scripts/qa/claude-review.sh --detach --post <pr>` from a terminal." If `--detach` or `--wait` reports that the detached review **died** or is **gone without recording a verdict**, the attempt has no verdict. A host reaping background processes when a shell call returns is one possible cause (#2131); do not infer the cause from the stale marker alone. Use the current wrapper from main: #2132 added process-liveness detection. Do not repeatedly poll an older wrapper's stale "running" marker. Do not substitute a same-harness subagent review; that is not the gate.
+
+**Observed Codex workaround (#2136, 2026-09-08).** An escalated detached attempt disappeared without a verdict; its cause was not confirmed. Restarting with the supervising shell kept open produced five completed reviews. This is a verified workaround, not proof of a root-cause fix. After establishing that the previous attempt has ended, start and supervise the replacement in **one escalated exec command**, returning a live tool session and polling that session until it exits:
+
+```bash
+bash scripts/qa/claude-review.sh --detach --post "$PR_NUMBER" || exit "$?"
+while true; do
+  review_result=0
+  bash scripts/qa/claude-review.sh --wait 30 "$PR_NUMBER" || review_result=$?
+  if [ "$review_result" -ne 3 ]; then exit "$review_result"; fi
+done
+```
+
+Keep the supervising tool session alive; do not run only the detach command and close its shell. The loop waits on the same attempt and exits on its actual result; it never restarts a failed review automatically. Exit 2 remains **no verdict**. If this supervised attempt also dies, report it and use the operator-terminal route above. Do not kill another task's reviewer or substitute same-harness review evidence.
 
 Two preconditions. Push first: `/code-review` reads the **remote** PR head while the evidence names your local HEAD, so the wrapper refuses (exit 2) when the two differ rather than attesting to a commit the reviewer never saw. And the wrapper lives in the tree: if `scripts/qa/claude-review.sh` is missing on your branch, your base predates it — `git merge origin/main` (that is a new head; push, then gate the new head).
 

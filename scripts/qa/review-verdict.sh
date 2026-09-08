@@ -21,7 +21,33 @@
 # review of #2124 that reported two real findings was discarded as
 # "unrecognized output" because only the plain form was matched. Bold is
 # optional on both sides of the bracket; the priority digit is what counts.
-REVIEW_FINDING_BULLET='^[[:space:]]*- (\*\*)?\[P[0-9]\](\*\*)?'
+# ...and Claude's /code-review also writes `- \`path:line\` — [P2] ...` with the
+# tag AFTER the location (a ten-minute review of #2124 on 2026-09-07 was
+# discarded as "unrecognized output" for this). Exactly those shapes and no
+# more: a prose bullet that merely mentions "[P1]" is not a finding (Codex
+# review of #2130). Shape 3 = a backticked location, then a hyphen, en dash
+# or em dash (spelled out; a wildcard here matched the word "is"), then the tag.
+REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[P[0-9]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[P[0-9]\])'
+
+# SIGPIPE-safe matching. Every wrapper runs under `pipefail`, and
+# `echo "$VERDICT" | grep -q` fails on a large verdict: grep exits at the
+# first match, the writer takes SIGPIPE, and the pipeline reads as "no match".
+# On 2026-09-07 a 184 KB Codex verdict with real findings was reported as
+# "unrecognized output" this way (#2127, round 8). `grep -c` reads all input.
+review_text_matches() {  # PATTERN TEXT  (case-sensitive)
+  [ "$(printf '%s\n' "$2" | grep -Ec "$1")" -gt 0 ]
+}
+review_text_imatches() {  # PATTERN TEXT  (case-insensitive)
+  [ "$(printf '%s\n' "$2" | grep -Eic "$1")" -gt 0 ]
+}
+
+# The verdict is the text after the LAST `codex` marker line; the CLI prints
+# one marker per assistant message, and a review log can carry several
+# (reasoning, tool output, then the verdict). Falls back to the whole file when
+# there is no marker (claude -p prints none).
+review_last_block() {  # FILE
+  awk '/^codex$/{buf=""; f=1; next} f{buf=buf $0 "\n"} END{printf "%s", buf}' "$1"
+}
 
 # The clean-verdict sentence, anchored nowhere: callers add the anchor.
 REVIEW_CLEAN_SENTENCE='No actionable[^.!?]*\b(defect|defects|regression|regressions|issue|issues|finding|findings|problem|problems|concern|concerns|bug|bugs|risk|risks)\b'
@@ -47,7 +73,7 @@ review_first_paragraph() {
 review_verdict_is_clean() {
   local paragraph
   paragraph="$(review_first_paragraph "$1")"
-  printf '%s' "$paragraph" | grep -Eiq "^[[:space:]]*${REVIEW_CLEAN_SENTENCE}" && return 0
-  printf '%s' "$paragraph" | grep -Eq "[.!?][[:space:]]+${REVIEW_CLEAN_SENTENCE}" && return 0
+  review_text_imatches "^[[:space:]]*${REVIEW_CLEAN_SENTENCE}" "$paragraph" && return 0
+  review_text_matches "[.!?][[:space:]]+${REVIEW_CLEAN_SENTENCE}" "$paragraph" && return 0
   return 1
 }

@@ -3,6 +3,9 @@ export interface StoredObject {
   LastModified?: string;
 }
 
+const REQUIRED_ARTIFACTS = ['manifest.json', 'database.dump.enc', 'globals.sql.enc'] as const;
+const KNOWN_ARTIFACTS = new Set<string>(REQUIRED_ARTIFACTS);
+
 export function retentionCandidates(objects: StoredObject[], cutoff: number): string[] {
   const groups = new Map<string, Array<{ key: string; modified: number }>>();
   for (const item of objects) {
@@ -16,17 +19,25 @@ export function retentionCandidates(objects: StoredObject[], cutoff: number): st
   }
   const complete = [...groups.values()]
     .filter(group =>
-      ['manifest.json', 'database.dump.enc', 'globals.sql.enc'].every(name =>
-        group.some(item => item.key.endsWith(`/${name}`))
-      )
+      REQUIRED_ARTIFACTS.every(name => group.some(item => basename(item.key) === name))
     )
     .sort(
       (a, b) =>
         Math.max(...b.map(item => item.modified)) - Math.max(...a.map(item => item.modified))
     );
   // An outage must not make retention delete the last complete recovery set.
-  return complete
-    .slice(1)
-    .filter(group => group.every(item => item.modified < cutoff))
-    .flatMap(group => group.map(item => item.key));
+  const newestComplete = complete[0];
+  return (
+    [...groups.values()]
+      .filter(group => group !== newestComplete)
+      // A group with an unfamiliar object is outside this export contract; preserve it
+      // for operator inspection rather than deleting data we cannot identify.
+      .filter(group => group.every(item => KNOWN_ARTIFACTS.has(basename(item.key))))
+      .filter(group => group.every(item => item.modified < cutoff))
+      .flatMap(group => group.map(item => item.key))
+  );
+}
+
+function basename(key: string): string {
+  return key.slice(key.lastIndexOf('/') + 1);
 }

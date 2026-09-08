@@ -79,4 +79,25 @@ describe('local encrypted artifact validation', () => {
     ).toThrow();
     expect(existsSync(join(failedOutput, 'database.dump'))).toBe(false);
   });
+
+  it('rejects missing and unknown CLI options', () => {
+    const run = (args: string[]) =>
+      execFileSync(process.execPath, ['--import', 'tsx', 'scripts/backup/decrypt.ts', ...args], {
+        env: { ...process.env, BACKUP_ENCRYPTION_KEY: Buffer.alloc(32, 8).toString('base64') },
+      });
+    expect(() => run(['--manifest', 'fixture.json'])).toThrow();
+    expect(() =>
+      run([
+        '--manifest',
+        'fixture.json',
+        '--dump',
+        'dump.enc',
+        '--globals',
+        'globals.enc',
+        '--out-dir',
+        'out',
+        '--typo',
+      ])
+    ).toThrow();
+  });
 });

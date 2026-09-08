@@ -28,6 +28,10 @@ function fixture(failure?: 'dump' | 'upload' | 'corrupt') {
     }
     if (command !== 'aws') throw new Error('unexpected command');
     if (args[0] === 's3api') {
+      if (args[1] === 'list-objects-v2')
+        return JSON.stringify({
+          Contents: [...objects.keys()].map(key => ({ Key: key.replace('s3://fixture/', '') })),
+        });
       const key = `s3://${args[args.indexOf('--bucket') + 1]}/${args[args.indexOf('--key') + 1]}`;
       const object = objects.get(key);
       if (!object) throw new Error('missing object');
@@ -43,6 +47,7 @@ function fixture(failure?: 'dump' | 'upload' | 'corrupt') {
       const bytes = Buffer.from(object.bytes);
       if (failure === 'corrupt') bytes[bytes.length - 1] ^= 1;
       events.push(`download:${source.split('/').at(-1)}`);
+      if (destination === '-') return bytes.toString();
       writeFileSync(destination, bytes);
     } else {
       if (failure === 'upload') throw new Error('synthetic upload failure');
@@ -61,9 +66,36 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 describe('export success publication', () => {
+  it('catches up a nightly export when the scheduler starts after the due hour', () => {
+    const { objects } = fixture();
+    vi.stubEnv('BACKUP_FORCE_RUN', 'false');
+    vi.stubEnv('BACKUP_TIME_ZONE', 'UTC');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-09T04:07:00Z'));
+    exportDatabase();
+    expect(objects.size).toBe(3);
+    vi.setSystemTime(new Date('2026-09-09T05:07:00Z'));
+    exportDatabase();
+    expect(objects.size).toBe(3);
+    vi.setSystemTime(new Date('2026-09-10T04:07:00Z'));
+    exportDatabase();
+    expect(objects.size).toBe(6);
+  });
+
+  it.each([
+    ['BACKUP_WEEKEND_DAYS', 'Fri,Sat,Sun'],
+    ['BACKUP_WEEKEND_DAYS', '7'],
+    ['BACKUP_NIGHTLY_HOUR', '24'],
+  ])('rejects invalid schedule setting %s before exporting', (name, value) => {
+    const { events } = fixture();
+    vi.stubEnv(name, value);
+    expect(() => exportDatabase()).toThrow(name);
+    expect(events).toEqual([]);
+  });
   it.each(['dump', 'upload', 'corrupt'] as const)(
     'does not publish success after %s failure',
     failure => {

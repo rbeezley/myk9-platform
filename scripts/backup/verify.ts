@@ -6,11 +6,12 @@ import {
   cadenceForDay,
   isPastDue,
   latestDueSlot,
-  assertManifest,
   redactError,
   sha256,
   weekdayInTimeZone,
 } from './export-model';
+import { exportPrefix, exportSchedule } from './export-config';
+import { latestManifest } from './latest-manifest';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -29,44 +30,12 @@ function aws(args: string[]): string {
 function main(): void {
   const bucket = required('BACKUP_BUCKET');
   const projectRef = required('BACKUP_PROJECT_REF');
-  const prefix = (process.env.BACKUP_PREFIX ?? 'myk9/database').replace(/^\/|\/$/g, '');
+  const prefix = exportPrefix();
   const graceMinutes = Number(process.env.BACKUP_GRACE_MINUTES ?? 30);
   const endpoint = process.env.BACKUP_S3_ENDPOINT;
-  const timeZone = process.env.BACKUP_TIME_ZONE || 'UTC';
-  const weekendDays = (process.env.BACKUP_WEEKEND_DAYS || '0,5,6').split(',').map(Number);
+  const { timeZone, weekendDays, nightlyHour } = exportSchedule();
   const endpointArgs = endpoint ? ['--endpoint-url', endpoint] : [];
-  const listed = JSON.parse(
-    aws([
-      's3api',
-      'list-objects-v2',
-      '--bucket',
-      bucket,
-      '--prefix',
-      `${prefix}/`,
-      '--output',
-      'json',
-      ...endpointArgs,
-    ])
-  ) as { Contents?: Array<{ Key?: string }> };
-  const manifestKeys = (listed.Contents ?? [])
-    .map(item => item.Key)
-    .filter((key): key is string => Boolean(key?.endsWith('/manifest.json')));
-  const manifests = manifestKeys
-    .map(key => {
-      const raw = aws([
-        's3',
-        'cp',
-        `s3://${bucket}/${key}`,
-        '-',
-        '--only-show-errors',
-        ...endpointArgs,
-      ]);
-      const manifest: unknown = JSON.parse(raw);
-      assertManifest(manifest);
-      return manifest;
-    })
-    .filter(manifest => manifest.projectRef === projectRef);
-  const latest = manifests.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+  const latest = latestManifest(aws, bucket, prefix, projectRef, endpointArgs);
   if (!latest) throw new Error(`no successful manifest found for project ${projectRef}`);
   const scratch = mkdtempSync(join(tmpdir(), 'myk9-verify-'));
   try {
@@ -92,7 +61,6 @@ function main(): void {
     }
     const now = new Date();
     const cadence = cadenceForDay(weekdayInTimeZone(now, timeZone), weekendDays);
-    const nightlyHour = Number(process.env.BACKUP_NIGHTLY_HOUR || 3);
     const dueSlot = latestDueSlot(now, timeZone, weekendDays, nightlyHour, graceMinutes);
     if (isPastDue(latest.createdAt, dueSlot)) {
       throw new Error(

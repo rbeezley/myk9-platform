@@ -22,7 +22,10 @@ The export workflow wakes hourly in UTC. The TypeScript selector uses `MYK9_EXPO
 (default `3`) to export hourly on selected show days and once overnight otherwise. Manual
 dispatch forces an export regardless of the time. America/Chicago and 30-day R2 retention
 are proposed options, not approved settings. Extra show days require changing the reviewed
-day policy or manual dispatch; no show calendar is automatically consulted.
+day policy or manual dispatch; no show calendar is automatically consulted. Each scheduled
+wake-up compares the latest successful manifest against the latest due slot and catches up
+if that slot was missed, even when GitHub starts the job after its nominal hour. Invalid
+timezone/day/hour settings fail explicitly in both the exporter and health check.
 
 The separate health workflow wakes hourly at minute 15 and validates the newest stored payloads
 against the latest due slot whose 30-minute grace has elapsed. Thus detection can take until
@@ -95,7 +98,9 @@ data. Rotate CI credentials and the encryption key through an owner-reviewed pro
 exports remain undecryptable after key loss, so retain the recovery key with the incident plan.
 
 `scripts/backup/retention.ts` inventories whole three-object sets and preserves the newest complete
-set even if it exceeds retention. Incomplete sets are kept for operator inspection. Dry-run is the
+set even if it exceeds retention. Incomplete sets containing only recognized export artifacts
+are eligible once all their objects exceed retention; fresh sets and sets containing unknown
+objects remain protected. Dry-run is the
 default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix
 confirmation. No automatic deletion schedule or provider lifecycle rule is activated by this branch.
 

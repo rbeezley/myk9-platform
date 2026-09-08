@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { redactError } from './export-model';
 import { retentionCandidates } from './retention-model';
+import { exportPrefix } from './export-config';
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -18,7 +19,7 @@ function aws(args: string[]): string {
 
 function main(): void {
   const bucket = required('BACKUP_BUCKET');
-  const prefix = (process.env.BACKUP_PREFIX || 'myk9/database').replace(/^\/|\/$/g, '');
+  const prefix = exportPrefix();
   const days = Number(process.env.BACKUP_RETENTION_DAYS || 30);
   if (!Number.isInteger(days) || days < 1)
     throw new Error('BACKUP_RETENTION_DAYS must be a positive integer');

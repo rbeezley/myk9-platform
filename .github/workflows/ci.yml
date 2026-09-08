@@ -165,6 +165,9 @@ jobs:
       - name: Nightly health workflow contract
         run: pnpm qa:nightly:workflow:test
 
+      - name: Independent database backup tests
+        run: pnpm exec vitest run scripts/backup --sequence.shuffle
+
       # The map (docs/qa/e2e-suite-map.md) is where a spec's suite is decided:
       # PR smoke, nightly, feature-audit, manual-debug, or candidate-delete. A
       # spec absent from it belongs to no suite, so nobody owns its result.

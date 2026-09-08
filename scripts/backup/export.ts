@@ -9,8 +9,11 @@ import {
   parseEncryptionKey,
   redactError,
   sha256,
-  isDueNow,
+  latestDueSlot,
+  isPastDue,
 } from './export-model';
+import { exportPrefix, exportSchedule } from './export-config';
+import { latestManifest } from './latest-manifest';
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -88,20 +91,28 @@ function verifyRemote(
 }
 
 export function exportDatabase(): void {
-  const timeZone = process.env.BACKUP_TIME_ZONE || 'UTC';
-  const weekendDays = (process.env.BACKUP_WEEKEND_DAYS || '0,5,6').split(',').map(Number);
-  const nightlyHour = Number(process.env.BACKUP_NIGHTLY_HOUR || 3);
-  if (
-    process.env.BACKUP_FORCE_RUN !== 'true' &&
-    !isDueNow(new Date(), timeZone, weekendDays, nightlyHour)
-  ) {
-    console.log(JSON.stringify({ status: 'skipped', reason: 'not-due', timeZone, nightlyHour }));
-    return;
-  }
+  const { timeZone, weekendDays, nightlyHour } = exportSchedule();
   const databaseUrl = required('BACKUP_DATABASE_URL');
   const projectRef = required('BACKUP_PROJECT_REF');
   const bucket = required('BACKUP_BUCKET');
-  const prefix = (process.env.BACKUP_PREFIX ?? 'myk9/database').replace(/^\/|\/$/g, '');
+  const prefix = exportPrefix();
+  if (process.env.BACKUP_FORCE_RUN !== 'true') {
+    const endpoint = process.env.BACKUP_S3_ENDPOINT;
+    const latest = latestManifest(
+      args => run('aws', args, process.env),
+      bucket,
+      prefix,
+      projectRef,
+      endpoint ? ['--endpoint-url', endpoint] : []
+    );
+    const due = latestDueSlot(new Date(), timeZone, weekendDays, nightlyHour, 0);
+    if (latest && !isPastDue(latest.createdAt, due)) {
+      console.log(
+        JSON.stringify({ status: 'skipped', reason: 'due-slot-covered', timeZone, nightlyHour })
+      );
+      return;
+    }
+  }
   const key = parseEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);
   const expectedMajor = required('BACKUP_PG_CLIENT_MAJOR');
   const root = mkdtempSync(join(tmpdir(), 'myk9-export-'));

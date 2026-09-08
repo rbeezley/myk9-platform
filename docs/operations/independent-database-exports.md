@@ -134,7 +134,9 @@ requires renewed review rather than silently authorizing deletion in a new bucke
 `MYK9_RETENTION_ENABLED`, review the new target, update both the guard and deletion confirmation,
 and dispatch a dry-run before re-enabling cleanup. The diagnostic identifies this approval mismatch.
 Scheduled cleanup requires both `MYK9_RETENTION_ENABLED=true` and `MYK9_EXPORTS_ENABLED=true`; disabling cleanup alone leaves backups enabled. The :22 schedule uses the same 30-minute freshness grace as the independent health job.
-Manual dispatch runs verification and a retention dry-run only, even when cleanup is enabled. Cleanup failures
+Manual dispatch runs verification and a retention dry-run only, even when cleanup is enabled.
+Manual runs do not reconcile scheduled cleanup alerts, since a successful dry-run cannot prove
+that object deletion has recovered. Cleanup failures
 open a separate **Independent Database Retention** issue and do not change the independent export result.
 An invalid or foreign manifest stops cleanup safely and requires inspection; it does not stop
 future exports. The daily scan has its own 60-minute timeout, avoiding an hourly scan of every

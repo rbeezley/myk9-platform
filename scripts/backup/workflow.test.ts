@@ -27,7 +27,7 @@ describe('scheduled export workflow contract', () => {
     expect(workflow).toContain('workflow_dispatch: {}');
     expect(workflow.match(/^\s+if:.*$/gm)?.map(line => line.trim())).toEqual([
       "if: (vars.MYK9_RETENTION_ENABLED == 'true' && vars.MYK9_EXPORTS_ENABLED == 'true') || github.event_name == 'workflow_dispatch'",
-      'if: always()',
+      "if: always() && github.event_name == 'schedule'",
       "if: github.event_name == 'schedule' && (vars.MYK9_RETENTION_ENABLED != 'true' || vars.MYK9_EXPORTS_ENABLED != 'true')",
     ]);
     const verify = workflow.indexOf('run: pnpm exec tsx scripts/backup/verify.ts');

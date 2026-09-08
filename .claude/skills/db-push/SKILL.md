@@ -58,7 +58,15 @@ enforces the timestamp shape; that one is on you.
 
 Run the guard locally before every push, not only on a long-lived branch — two
 agents can pick the same version the same afternoon, and the guard is what
-catches it.
+catches it. Pass the base explicitly:
+
+```bash
+GITHUB_BASE_REF=main pnpm qa:migrations:guard
+```
+
+A bare `pnpm qa:migrations:guard` diffs only `HEAD^..HEAD`, so one more commit
+after the migration — even a docs commit — and it reports success without ever
+looking at the migration.
 
 ### Step 2: Grants are not optional
 

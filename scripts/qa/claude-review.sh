@@ -142,8 +142,16 @@ if [ -n "$WAIT" ]; then
         # background processes when the shell call ends (Codex, #2131 on
         # 2026-09-08) leaves this file saying "running" forever while nothing
         # runs; without this check --wait returned 3 for 43 minutes.
+        # Dead when: no .pid file beside a running marker (it is written at
+        # spawn, so its absence means the spawn never completed), the pid is
+        # gone, or the pid now belongs to an unrelated process (pid reuse) —
+        # the child's command line names this script (Codex review of #2132).
         pid="$(cat "$PID_FILE" 2>/dev/null)"
-        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+        alive=0
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+          case "$(ps -o command= -p "$pid" 2>/dev/null)" in *claude-review*|*"$0"*) alive=1 ;; esac
+        fi
+        if [ "$alive" = 0 ]; then
           # Re-read: the child may have written its exit code between our read
           # and the liveness probe (Codex review of #2132, round 2).
           st2="$(cat "$STATUS_FILE" 2>/dev/null)"

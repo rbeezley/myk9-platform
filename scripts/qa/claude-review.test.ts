@@ -440,6 +440,31 @@ describe('claude-review.sh', () => {
       expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('2');
     });
 
+    it('a running marker with no .pid file is a dead spawn, not a review to wait for', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      writeFileSync(
+        join(stateDir, 'claude-review-7.status'),
+        'running since=2026-09-08T13:22:36Z\n'
+      );
+      expect(run({ ...stub, stateDir }, gh, ['--wait', '1', '7']).code).toBe(2);
+    });
+
+    it('a reused pid that belongs to an unrelated process counts as dead', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      writeFileSync(
+        join(stateDir, 'claude-review-7.status'),
+        'running since=2026-09-08T13:22:36Z\n'
+      );
+      writeFileSync(join(stateDir, 'claude-review-7.pid'), `${process.pid}\n`); // alive, but it is vitest, not the wrapper
+      expect(run({ ...stub, stateDir }, gh, ['--wait', '1', '7']).code).toBe(2);
+    });
+
     it('a child that finishes before the parent looks keeps its exit code (no overwrite race)', () => {
       // Instant stub: the child writes its exit code before the grace period ends;
       // the running marker was written before the spawn, so nothing clobbers it.

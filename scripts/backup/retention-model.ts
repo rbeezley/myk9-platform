@@ -9,7 +9,7 @@ const KNOWN_ARTIFACTS = new Set<string>(REQUIRED_ARTIFACTS);
 export function retentionCandidates(objects: StoredObject[], cutoff: number): string[] {
   const groups = new Map<string, Array<{ key: string; modified: number }>>();
   for (const item of objects) {
-    if (!item.Key || !item.LastModified) continue;
+    if (!item.Key || !item.LastModified) throw new Error('incomplete object metadata');
     const modified = Date.parse(item.LastModified);
     if (!Number.isFinite(modified)) throw new Error('invalid object modification timestamp');
     const group = item.Key.slice(0, item.Key.lastIndexOf('/'));

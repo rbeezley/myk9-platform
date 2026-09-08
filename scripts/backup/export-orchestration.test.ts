@@ -8,7 +8,7 @@ vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }));
 function fixture(failure?: 'dump' | 'upload' | 'corrupt') {
   for (const [name, value] of Object.entries({
     BACKUP_FORCE_RUN: 'true',
-    BACKUP_DATABASE_URL: 'postgresql://fixture.invalid/db',
+    BACKUP_DATABASE_URL: 'postgresql://postgres.fixture@aws-fixture.pooler.supabase.com/postgres',
     BACKUP_DATABASE_PASSWORD: 'fixture-password',
     BACKUP_PROJECT_REF: 'fixture',
     BACKUP_BUCKET: 'fixture',
@@ -71,12 +71,25 @@ afterEach(() => {
 });
 
 describe('export success publication', () => {
+  it('rejects a database URL for another project before storage or database access', () => {
+    fixture();
+    vi.stubEnv(
+      'BACKUP_DATABASE_URL',
+      'postgresql://postgres.other@aws-fixture.pooler.supabase.com/postgres'
+    );
+    expect(() => exportDatabase()).toThrow('does not match');
+    expect(execFileSync).not.toHaveBeenCalled();
+  });
   it.each(['true', 'false'])('rejects a project mismatch with force=%s', force => {
     const { objects, events } = fixture();
     exportDatabase();
     vi.stubEnv('BACKUP_FORCE_RUN', 'false');
     vi.stubEnv('BACKUP_FORCE_RUN', force);
     vi.stubEnv('BACKUP_PROJECT_REF', 'other-project');
+    vi.stubEnv(
+      'BACKUP_DATABASE_URL',
+      'postgresql://postgres.other-project@aws-fixture.pooler.supabase.com/postgres'
+    );
     const before = events.length;
     expect(() => exportDatabase()).toThrow('another project');
     expect(events.slice(before).filter(event => event.startsWith('upload:'))).toEqual([]);

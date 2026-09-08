@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { latestManifest } from './latest-manifest';
 import { createManifest } from './export-model';
-import { exportPrefix, exportSchedule, secureDatabaseUrl, assertExportSize } from './export-config';
+import {
+  exportPrefix,
+  exportSchedule,
+  secureDatabaseUrl,
+  assertExportSize,
+  assertDatabaseProject,
+} from './export-config';
 
 describe('bounded latest manifest lookup', () => {
   it('accepts an empty successful listing', () => {
@@ -81,4 +87,19 @@ describe('export transport and memory limits', () => {
     expect(() => assertExportSize(256 * 1024 * 1024)).not.toThrow();
     expect(() => assertExportSize(256 * 1024 * 1024 + 1)).toThrow('streaming encryption');
   });
+});
+
+it('uses percent encoding rather than form encoding for libpq certificate paths', () => {
+  const result = secureDatabaseUrl('postgresql://fixture@host/db?application_name=with%20space');
+  expect(result).toContain('application_name=with%20space');
+  expect(result).not.toContain('+');
+});
+
+it('rejects libpq routing parameters that override the checked project identity', () => {
+  expect(() =>
+    assertDatabaseProject(
+      'postgresql://postgres.fixture@aws-1.pooler.supabase.com/postgres?host=other',
+      'fixture'
+    )
+  ).toThrow('override connection identity');
 });

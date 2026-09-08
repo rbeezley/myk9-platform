@@ -13,7 +13,13 @@ import {
   isPastDue,
   type ExportManifest,
 } from './export-model';
-import { exportPrefix, exportSchedule, secureDatabaseUrl, assertExportSize } from './export-config';
+import {
+  exportPrefix,
+  exportSchedule,
+  secureDatabaseUrl,
+  assertExportSize,
+  assertDatabaseProject,
+} from './export-config';
 import { InvalidManifestError, latestManifest } from './latest-manifest';
 
 const required = (name: string): string => {
@@ -89,6 +95,7 @@ export function exportDatabase(): void {
   const { timeZone, weekendDays, nightlyHour } = exportSchedule();
   const databaseUrl = secureDatabaseUrl(required('BACKUP_DATABASE_URL'));
   const projectRef = required('BACKUP_PROJECT_REF');
+  assertDatabaseProject(databaseUrl, projectRef);
   const bucket = required('BACKUP_BUCKET');
   const prefix = exportPrefix();
   const key = parseEncryptionKey(process.env.BACKUP_ENCRYPTION_KEY);

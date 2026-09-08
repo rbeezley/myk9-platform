@@ -8,6 +8,18 @@ const group = (name: string, date: string) =>
   }));
 
 describe('retention safety', () => {
+  it('fails closed if a marker has missing modification metadata', () => {
+    const objects = [
+      ...group('old', '2026-01-01T00:00:00Z'),
+      ...group('new', '2026-09-01T00:00:00Z'),
+    ];
+    expect(() =>
+      retentionCandidates(
+        objects.map(item => (item.Key === 'old/manifest.json' ? { Key: item.Key } : item)),
+        Date.now()
+      )
+    ).toThrow('metadata');
+  });
   it('removes the success marker before payloads regardless of listing order', () => {
     const old = group('old', '2026-01-01T00:00:00Z').sort((a, b) => a.Key.localeCompare(b.Key));
     const newest = group('newest', '2026-09-01T00:00:00Z');

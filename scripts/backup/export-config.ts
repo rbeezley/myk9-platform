@@ -31,6 +31,10 @@ export function secureDatabaseUrl(value: string): string {
     'sslrootcert',
     fileURLToPath(new URL('./supabase-prod-ca-2021.crt', import.meta.url))
   );
+  // libpq decodes %20 but does not interpret form-encoded '+' as a space.
+  url.search = [...url.searchParams]
+    .map(([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
+    .join('&');
   return url.toString();
 }
 
@@ -40,4 +44,20 @@ export function assertExportSize(bytes: number): void {
     throw new Error(
       'Export exceeds the 256 MiB in-memory limit; streaming encryption is required before retrying'
     );
+}
+
+/** Bind the declared backup identity to Supabase's connection address. */
+export function assertDatabaseProject(value: string, projectRef: string): void {
+  const url = new URL(value);
+  if (
+    ['host', 'hostaddr', 'user', 'dbname', 'service', 'port'].some(key => url.searchParams.has(key))
+  )
+    throw new Error(
+      'BACKUP_DATABASE_URL must not override connection identity in query parameters'
+    );
+  const username = decodeURIComponent(url.username);
+  const pooler =
+    url.hostname.endsWith('.pooler.supabase.com') && username === `postgres.${projectRef}`;
+  const direct = url.hostname === `db.${projectRef}.supabase.co` && username === 'postgres';
+  if (!pooler && !direct) throw new Error('BACKUP_DATABASE_URL does not match BACKUP_PROJECT_REF');
 }

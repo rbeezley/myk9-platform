@@ -51,20 +51,35 @@ describe('resolveAKCTrialSecretaryReportPolicy', () => {
     });
   });
 
-  it('preserves withdrawn, scratched, and cancelled run exclusions from MYK9-317', () => {
+  it('charges only AKC-approved post-closing withdrawal reasons', () => {
     const result = resolveAKCTrialSecretaryReportPolicy('2026-06-12', [
       entry({ id: 'entered' }),
-      entry({ id: 'withdrawn', entryStatus: 'withdrawn' }),
-      entry({ id: 'scratched', entryStatus: 'scratched' }),
-      entry({ id: 'cancelled', resultText: 'cancelled' }),
+      entry({
+        id: 'in-season',
+        entryStatus: 'withdrawn',
+        withdrawalReason: 'Bitch in Season',
+      }),
+      entry({ id: 'judge-change', entryStatus: 'withdrawn', withdrawalReason: 'Judge Change' }),
+      entry({ id: 'absent', entryStatus: 'absent', resultText: 'absent' }),
+      entry({ id: 'scratched', entryStatus: 'scratched', withdrawalReason: 'Dog absent' }),
+      entry({ id: 'pulled', checkInStatus: 'pulled', withdrawalReason: 'Pulled day-of' }),
     ]);
 
     expect(result).toMatchObject({
       ok: true,
-      totalEntries: 4,
-      excludedRuns: 3,
-      paidRuns: 1,
-      formattedTotal: '4.50',
+      totalEntries: 6,
+      excludedRuns: 2,
+      paidRuns: 4,
+      formattedTotal: '18.00',
     });
+  });
+
+  it('accepts official AIS and AJC result codes', () => {
+    const result = resolveAKCTrialSecretaryReportPolicy('2026-06-12', [
+      entry({ id: 'ais', resultText: 'AIS' }),
+      entry({ id: 'ajc', resultText: 'AJC' }),
+    ]);
+
+    expect(result).toMatchObject({ excludedRuns: 2, paidRuns: 0, formattedTotal: '0.00' });
   });
 });

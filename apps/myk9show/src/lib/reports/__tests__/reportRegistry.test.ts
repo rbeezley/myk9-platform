@@ -20,13 +20,14 @@ function renderReport(report: ReportDefinition) {
 }
 
 describe('reportRegistry', () => {
-  // 36 since F26 added `high-in-trial` (AKC Scent Work Chapter 6 §8).
-  it('has 36 total entries', () => {
-    expect(reportRegistry).toHaveLength(36);
+  // 37 since F26 added `high-in-trial` (AKC Scent Work Chapter 6 §8) and the
+  // UKC Nosework Trial Report was split from the legacy dynamic report id.
+  it('has 37 total entries', () => {
+    expect(reportRegistry).toHaveLength(37);
   });
 
-  it('has exactly 36 enabled entries', () => {
-    expect(getEnabledReports()).toHaveLength(36);
+  it('has exactly 37 enabled entries', () => {
+    expect(getEnabledReports()).toHaveLength(37);
   });
 
   it('has all unique IDs', () => {
@@ -83,6 +84,7 @@ describe('reportRegistry', () => {
       ];
 
       expect(visibleIds).toContain('ukc-nosework-entry-form');
+      expect(visibleIds).toContain('ukc-nosework-trial-report');
       expect(visibleIds).toContain('ukc-nosework-trial-score-sheet');
       for (const id of akcReportIds) {
         expect(visibleIds, `${id} should be hidden for UKC`).not.toContain(id);
@@ -200,6 +202,7 @@ describe('reportRegistry', () => {
         'check-in-sheet',
         'scoresheet',
         'ukc-nosework-entry-form',
+        'ukc-nosework-trial-report',
         'ukc-nosework-change-entry-form',
         'ukc-nosework-judges-book-element',
         'ukc-nosework-judges-book-handler-discrimination',

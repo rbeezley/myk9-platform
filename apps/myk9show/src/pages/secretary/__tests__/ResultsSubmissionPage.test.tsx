@@ -518,7 +518,7 @@ describe('ResultsSubmissionPage', () => {
       );
       expect(screen.getByRole('link', { name: 'Open Reports' })).toHaveAttribute(
         'href',
-        '/shows/show-1/reports?report=trial-secretary-report'
+        '/shows/show-1/reports?report=ukc-nosework-trial-report'
       );
       expect(screen.getByRole('link', { name: /UKC Nosework Forms & Rules/ })).toHaveAttribute(
         'href',

@@ -1,4 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
+import { normalizeOrganization } from '@/features/dogs/identity';
 import type { EntryFormDog } from '@/lib/reports/entryFormTypes';
 import type { PdfFormFillValues } from './pdfForm';
 import { fillPdfForm } from './pdfForm';
@@ -7,7 +8,7 @@ import { UKC_NOSEWORK_ENTRY_FORM_FIELDS } from './ukcNoseworkEntryFormFields';
 export function buildUKCNoseworkEntryFormValues(dog: EntryFormDog): PdfFormFillValues {
   const text: NonNullable<PdfFormFillValues['text']> = {};
   const checkboxes: NonNullable<PdfFormFillValues['checkboxes']> = {};
-  const registrationOrganization = dog.registration?.organization?.trim().toUpperCase() ?? '';
+  const registrationOrganization = normalizeOrganization(dog.registration?.organization) ?? '';
 
   addText(text, UKC_NOSEWORK_ENTRY_FORM_FIELDS.armband, dog.armband?.toString());
   addText(

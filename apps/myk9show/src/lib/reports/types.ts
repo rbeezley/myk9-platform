@@ -42,6 +42,7 @@ export interface ReportEntry {
   finalPlacement: number | null;
   // Financial fields — populated when DB has entry_fee/payment columns
   entryStatus?: string;
+  withdrawalReason?: string;
   entryFee?: number;
   paymentStatus?: PaymentStatus | 'paid' | 'refunded';
   paymentMethod?: string;

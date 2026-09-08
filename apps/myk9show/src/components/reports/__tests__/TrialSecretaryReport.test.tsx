@@ -83,7 +83,9 @@ describe('TrialSecretaryReport', () => {
     const entries = Array.from({ length: 136 }, (_, index) => ({
       ...baseProps.entries[0],
       id: `entry-${index}`,
-      entryStatus: index === 134 ? 'withdrawn' : index === 135 ? 'scratched' : 'entered',
+      entryStatus: index === 134 || index === 135 ? 'withdrawn' : 'entered',
+      withdrawalReason:
+        index === 134 ? 'Bitch in Season' : index === 135 ? 'Judge Change' : undefined,
     }));
 
     render(<TrialSecretaryReport {...baseProps} entries={entries} />);

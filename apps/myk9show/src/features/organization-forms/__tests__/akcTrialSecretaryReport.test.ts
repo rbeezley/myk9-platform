@@ -42,7 +42,7 @@ const reportProps = {
   clubName: 'Demo Scent Work Club',
   entries: [
     makeEntry({ id: 'entry-1' }),
-    makeEntry({ id: 'entry-2', resultText: 'WD' }),
+    makeEntry({ id: 'entry-2', resultText: 'WD', withdrawalReason: 'Judge Change' }),
     makeEntry({ id: 'entry-3' }),
   ],
   showName: 'Demo Trial',
@@ -73,7 +73,9 @@ describe('buildAKCTrialSecretaryReportValues', () => {
     const entries = Array.from({ length: 136 }, (_, index) =>
       makeEntry({
         id: `entry-${index}`,
-        entryStatus: index === 134 ? 'withdrawn' : index === 135 ? 'scratched' : 'entered',
+        entryStatus: index === 134 || index === 135 ? 'withdrawn' : 'entered',
+        withdrawalReason:
+          index === 134 ? 'Bitch in Season' : index === 135 ? 'Judge Change' : undefined,
       })
     );
 
@@ -121,20 +123,20 @@ describe('buildAKCTrialSecretaryReportValues', () => {
     expect(values.text).not.toHaveProperty(AKC_TRIAL_SECRETARY_REPORT_FIELDS.trialDate);
   });
 
-  it('counts canonical non-running and supported day-of no-show statuses', () => {
+  it('does not report absences, scratches, or pulls as post-closing withdrawals', () => {
     const values = buildAKCTrialSecretaryReportValues({
       ...reportProps,
       entries: [
         makeEntry({ id: 'entry-1', checkInStatus: 'pulled' }),
-        makeEntry({ id: 'entry-2', resultText: 'WD' }),
-        makeEntry({ id: 'entry-3', resultText: 'no-show' }),
-        makeEntry({ id: 'entry-4', resultText: 'judge pulled the class' }),
+        makeEntry({ id: 'entry-2', entryStatus: 'scratched', resultText: 'WD' }),
+        makeEntry({ id: 'entry-3', entryStatus: 'absent', resultText: 'absent' }),
+        makeEntry({ id: 'entry-4', checkInStatus: 'pulled', resultText: 'withdrawn' }),
         makeEntry({ id: 'entry-5', resultText: 'ABS' }),
       ],
     });
 
-    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]).toBe(4);
-    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]).toBe(1);
+    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.withdrawn]).toBe(0);
+    expect(values.text?.[AKC_TRIAL_SECRETARY_REPORT_FIELDS.runsPaid]).toBe(5);
   });
 
   it('omits legal club and event fields when source data is missing', () => {

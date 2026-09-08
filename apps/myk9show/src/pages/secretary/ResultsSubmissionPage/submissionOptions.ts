@@ -39,7 +39,7 @@ const UKC_NOSEWORK_OPTION: RegistrySubmissionOption = {
     ],
     preservation:
       'After you send the UKC paperwork packet, mark it submitted here so the club history shows when the packet left myK9.',
-    reportsQuery: 'report=trial-secretary-report',
+    reportsQuery: 'report=ukc-nosework-trial-report',
     steps: [
       'Open Reports and download the UKC Trial Report plus any entry, change-entry, judges book, and score sheet PDFs needed for the packet.',
       'Use UKC Nosework Forms & Rules for the current paperwork prep and submission instructions.',

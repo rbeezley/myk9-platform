@@ -100,6 +100,17 @@ describe('UKC Nosework entry form PDF', () => {
     );
   });
 
+  it('recognizes the spelled-out UKC organization stored in live registrations', () => {
+    const values = buildUKCNoseworkEntryFormValues({
+      ...dog,
+      registration: { ...dog.registration!, organization: 'UKC (United Kennel Club)' },
+    });
+
+    expect(
+      values.checkboxes?.[UKC_NOSEWORK_ENTRY_FORM_FIELDS.permanentRegistrationCheckbox]
+    ).toBe(true);
+  });
+
   it('can build a flattened packet from the official template', async () => {
     const bytes = await buildUKCNoseworkEntryFormPacketPdfBytes({
       dogs: [dog, { ...dog, dogId: 'dog-2', callName: 'Rocket', armband: 102 }],

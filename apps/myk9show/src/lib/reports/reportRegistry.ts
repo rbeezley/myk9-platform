@@ -210,6 +210,18 @@ export const reportRegistry: ReportDefinition[] = [
     registryId: 'UKC',
   },
   {
+    id: 'ukc-nosework-trial-report',
+    name: 'UKC Nosework Trial Report',
+    category: 'organization',
+    scopes: ['trial'],
+    sortOptions: [],
+    defaultSort: '',
+    component: PlaceholderReport,
+    pdfOnly: true,
+    enabled: true,
+    registryId: 'UKC',
+  },
+  {
     id: 'asca-scent-detection-entry-form',
     name: 'ASCA Scent Detection Entry Form',
     category: 'organization',

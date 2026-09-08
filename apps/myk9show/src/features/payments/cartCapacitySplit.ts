@@ -24,6 +24,14 @@ export function splitCartItemsByJudgeDayCapacity(
   const blockedItems: CartItemWithDetails[] = [];
 
   for (const item of items) {
+    // Recovery carts contain entries that were already submitted before the
+    // class filled. Capacity gates new submissions, but must not strand an
+    // existing unpaid entry that is being recovered for payment.
+    if (item.entry_id) {
+      confirmedItemIds.add(item.id);
+      continue;
+    }
+
     if (!item.class_id) {
       confirmedItemIds.add(item.id);
       continue;

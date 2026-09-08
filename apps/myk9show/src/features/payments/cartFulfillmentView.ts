@@ -41,6 +41,10 @@ export interface CartFulfillmentView {
   waitlistSubtotalCents: number;
 }
 
+export function areAllCartItemsRecovered(items: CartItemWithDetails[]): boolean {
+  return items.length > 0 && items.every(item => Boolean(item.entry_id));
+}
+
 const EMPTY_VIEW: Omit<CartFulfillmentView, 'capacityKnown'> = {
   fulfillmentByItemId: {},
   payableItems: [],
@@ -68,6 +72,18 @@ export function buildCartFulfillmentView(
 ): CartFulfillmentView {
   if (items.length === 0) {
     return { capacityKnown: judgeDays !== null, ...EMPTY_VIEW };
+  }
+
+  if (areAllCartItemsRecovered(items)) {
+    return {
+      capacityKnown: true,
+      fulfillmentByItemId: Object.fromEntries(items.map(item => [item.id, 'payable'])),
+      payableItems: items,
+      waitlistItems: [],
+      blockedItems: [],
+      payableSubtotalCents: sumFees(items),
+      waitlistSubtotalCents: 0,
+    };
   }
 
   if (judgeDays === null) {

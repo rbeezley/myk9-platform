@@ -31,7 +31,10 @@ import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutN
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
-import { buildCartFulfillmentView } from '@/features/payments/cartFulfillmentView';
+import {
+  areAllCartItemsRecovered,
+  buildCartFulfillmentView,
+} from '@/features/payments/cartFulfillmentView';
 import {
   ENTRY_SCOPE_ENTRIES_PARAM,
   ENTRY_SCOPE_SHOW_PARAM,
@@ -230,11 +233,16 @@ export default function CartPage() {
       setError('Could not verify your exhibitor profile. Please sign in again.');
       return;
     }
-    if (isCapacityLoading || isCapacityFetching) {
+    // A Stripe session is cart-wide. Skip the capacity dependency only when
+    // every line is an already-submitted entry; a mixed cart must stay fail
+    // closed so a new line is never charged while availability is unknown.
+    const onlyRecoveredItems = areAllCartItemsRecovered(items);
+
+    if (!onlyRecoveredItems && (isCapacityLoading || isCapacityFetching)) {
       setError('Class availability is still loading. Please try checkout again in a moment.');
       return;
     }
-    if (capacityError) {
+    if (!onlyRecoveredItems && capacityError) {
       setError('Could not verify class availability right now. Please try again.');
       return;
     }
@@ -252,7 +260,7 @@ export default function CartPage() {
       // to Stripe, charged, and then refunded by the server's overflow path -
       // money made whole, but a charge-then-refund the exhibitor never
       // expected. One refetch routes it to the wait list cleanly instead.
-      const fresh = await refetchCapacity();
+      const fresh = onlyRecoveredItems ? null : await refetchCapacity();
 
       // Fail closed. refetch() resolves with the error inside the result rather
       // than rejecting, and on failure `fresh.data` still holds the last
@@ -261,7 +269,7 @@ export default function CartPage() {
       // send the exhibitor to Stripe as though availability had been confirmed.
       // Better to stop and say so than to charge against capacity we could not
       // verify.
-      if (fresh.isError || !fresh.data) {
+      if (!onlyRecoveredItems && (fresh?.isError || !fresh?.data)) {
         setError(
           'We could not confirm which classes are still open. Please check availability and try again.'
         );
@@ -269,8 +277,8 @@ export default function CartPage() {
         return;
       }
 
-      const freshJudgeDays = fresh.data.judgeDays;
-      const freshFullClassIds = fresh.data.fullClassIds;
+      const freshJudgeDays = fresh?.data?.judgeDays ?? [];
+      const freshFullClassIds = fresh?.data?.fullClassIds ?? [];
 
       const splitDecision = splitCartItemsByJudgeDayCapacity(
         items,

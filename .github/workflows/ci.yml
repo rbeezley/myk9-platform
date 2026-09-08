@@ -170,7 +170,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          if [[ -n "$BASE_SHA" ]] && git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null && git diff --quiet "$BASE_SHA" HEAD -- scripts/backup .github/actions/setup-backup-clients .github/workflows/independent-database-exports.yml .github/workflows/independent-database-export-health.yml .github/workflows/ci.yml package.json pnpm-lock.yaml; then
+          if [[ -n "$BASE_SHA" ]] && git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null && git diff --quiet "$BASE_SHA" HEAD -- scripts/backup .github/actions/setup-backup-clients; then
             echo 'native=false' >> "$GITHUB_OUTPUT"
           else
             echo 'native=true' >> "$GITHUB_OUTPUT"

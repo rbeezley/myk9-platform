@@ -4,7 +4,7 @@ name: Independent Database Export
 
 on:
   schedule:
-    - cron: '0 * * * *' # hourly wake-up; TS due selector applies local policy
+    - cron: '7 * * * *' # avoid top-of-hour congestion; selector applies local due slots
   workflow_dispatch: {}
 
 concurrency:
@@ -44,7 +44,7 @@ jobs:
           BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
           BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
           BACKUP_ENCRYPTION_KEY: ${{ secrets.MYK9_EXPORT_ENCRYPTION_KEY }}
-          BACKUP_PG_CLIENT_MAJOR: ${{ vars.MYK9_EXPORT_PG_CLIENT_MAJOR }}
+          BACKUP_PG_CLIENT_MAJOR: ${{ vars.MYK9_EXPORT_PG_CLIENT_MAJOR || '18' }}
           BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
           BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
           BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}

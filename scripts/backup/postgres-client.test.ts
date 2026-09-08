@@ -10,7 +10,13 @@ it('passes the URI as a libpq connection string to the real pg_dumpall client', 
     {
       encoding: 'utf8',
       timeout: 5000,
-      env: { ...process.env, PGCONNECT_TIMEOUT: '1', PGPASSWORD: '' },
+      env: {
+        ...process.env,
+        PGCONNECT_TIMEOUT: '1',
+        PGPASSWORD: '',
+        LC_ALL: 'C',
+        LC_MESSAGES: 'C',
+      },
     }
   );
   expect(result.error).toBeUndefined();

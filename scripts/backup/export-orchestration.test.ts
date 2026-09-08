@@ -70,6 +70,17 @@ afterEach(() => {
 });
 
 describe('export success publication', () => {
+  it('does not dump the database when the schedule lookup cannot access R2', () => {
+    fixture();
+    vi.stubEnv('BACKUP_FORCE_RUN', 'false');
+    vi.mocked(execFileSync).mockImplementationOnce(() => {
+      throw new Error('AccessDenied');
+    });
+    expect(() => exportDatabase()).toThrow('AccessDenied');
+    expect(
+      vi.mocked(execFileSync).mock.calls.some(([command]) => String(command).startsWith('pg_dump'))
+    ).toBe(false);
+  });
   it('creates a new scheduled export when the newest marker cannot be validated', () => {
     const { objects } = fixture();
     vi.stubEnv('BACKUP_FORCE_RUN', 'false');

@@ -14,7 +14,7 @@ import {
   type ExportManifest,
 } from './export-model';
 import { exportPrefix, exportSchedule } from './export-config';
-import { latestManifest } from './latest-manifest';
+import { InvalidManifestError, latestManifest } from './latest-manifest';
 
 const required = (name: string): string => {
   const value = process.env[name];
@@ -102,7 +102,8 @@ export function exportDatabase(): void {
         projectRef,
         endpoint ? ['--endpoint-url', endpoint] : []
       );
-    } catch {
+    } catch (error) {
+      if (!(error instanceof InvalidManifestError)) throw error;
       // A marker is only a skip optimization; never let a damaged marker stop new backups.
       console.warn('Could not validate the latest export marker; attempting a fresh export.');
     }

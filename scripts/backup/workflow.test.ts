@@ -11,18 +11,16 @@ describe('scheduled export workflow contract', () => {
       '.github/workflows/independent-database-export-health.yml',
       'utf8'
     );
-    expect(exportWorkflow).toContain("cron: '0 * * * *'");
+    expect(exportWorkflow).toContain("cron: '7 * * * *'");
     expect(exportWorkflow).toContain('issues: write');
     expect(exportWorkflow).toContain(
       "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}"
     );
-    expect(healthWorkflow).toContain("cron: '15 * * * *'");
+    expect(healthWorkflow).toContain("cron: '22 * * * *'");
     expect(healthWorkflow).toContain('issues: write');
     expect(healthWorkflow).toContain('BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}');
     expect(healthWorkflow.match(/BACKUP_NIGHTLY_HOUR:/g)).toHaveLength(1);
     expect(healthWorkflow).not.toContain('needs:');
-    expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain(
-      'pnpm exec vitest run scripts/backup --sequence.shuffle'
-    );
+    expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('pnpm qa:backups:test');
   });
 });

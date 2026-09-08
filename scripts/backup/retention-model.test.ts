@@ -8,6 +8,13 @@ const group = (name: string, date: string) =>
   }));
 
 describe('retention safety', () => {
+  it('preserves the newest incomplete set when no complete backup exists', () => {
+    const old = group('old', '2026-01-01T00:00:00Z').slice(1);
+    const newest = group('newest', '2026-01-02T00:00:00Z').slice(1);
+    expect(retentionCandidates([...old, ...newest], Date.parse('2026-09-01T00:00:00Z'))).toEqual(
+      old.map(item => item.Key)
+    );
+  });
   it('preserves the newest complete set even when every backup exceeds retention', () => {
     const old = group('old', '2026-01-01T00:00:00Z');
     const newest = group('newest', '2026-01-02T00:00:00Z');

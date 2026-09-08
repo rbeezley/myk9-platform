@@ -27,7 +27,7 @@ function main(): void {
   const bucket = required('BACKUP_BUCKET');
   const projectRef = required('BACKUP_PROJECT_REF');
   const prefix = exportPrefix();
-  const graceMinutes = Number(process.env.BACKUP_GRACE_MINUTES ?? 30);
+  const graceMinutes = Number(process.env.BACKUP_GRACE_MINUTES || 30);
   const endpoint = process.env.BACKUP_S3_ENDPOINT;
   const { timeZone, weekendDays, nightlyHour } = exportSchedule();
   const endpointArgs = endpoint ? ['--endpoint-url', endpoint] : [];

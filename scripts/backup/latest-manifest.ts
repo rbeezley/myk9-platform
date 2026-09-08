@@ -1,5 +1,7 @@
 import { assertManifest, type ExportManifest } from './export-model';
 
+export class InvalidManifestError extends Error {}
+
 /** Each export prefix belongs to one project. Read only its newest success marker. */
 export function latestManifest(
   aws: (args: string[]) => string,
@@ -32,19 +34,30 @@ export function latestManifest(
     .sort();
   const latestKey = keys.at(-1);
   if (!latestKey) return undefined;
-  const manifest: unknown = JSON.parse(
-    aws(['s3', 'cp', `s3://${bucket}/${latestKey}`, '-', '--only-show-errors', ...endpointArgs])
-  );
-  assertManifest(manifest);
-  if (manifest.projectRef !== projectRef)
-    throw new Error('latest manifest belongs to another project');
-  if (`${prefix}/${manifest.createdAt.replace(/[:.]/g, '-')}/manifest.json` !== latestKey)
-    throw new Error('latest manifest timestamp does not match its object key');
-  const stem = latestKey.slice(0, -'manifest.json'.length);
-  if (
-    manifest.dumpKey !== `${stem}database.dump.enc` ||
-    manifest.globalsKey !== `${stem}globals.sql.enc`
-  )
-    throw new Error('latest manifest payload keys do not match its export directory');
-  return manifest;
+  // Transport/auth errors must propagate separately from invalid marker contents.
+  const raw = aws([
+    's3',
+    'cp',
+    `s3://${bucket}/${latestKey}`,
+    '-',
+    '--only-show-errors',
+    ...endpointArgs,
+  ]);
+  try {
+    const manifest: unknown = JSON.parse(raw);
+    assertManifest(manifest);
+    if (manifest.projectRef !== projectRef)
+      throw new Error('latest manifest belongs to another project');
+    if (`${prefix}/${manifest.createdAt.replace(/[:.]/g, '-')}/manifest.json` !== latestKey)
+      throw new Error('latest manifest timestamp does not match its object key');
+    const stem = latestKey.slice(0, -'manifest.json'.length);
+    if (
+      manifest.dumpKey !== `${stem}database.dump.enc` ||
+      manifest.globalsKey !== `${stem}globals.sql.enc`
+    )
+      throw new Error('latest manifest payload keys do not match its export directory');
+    return manifest;
+  } catch (error) {
+    throw new InvalidManifestError(error instanceof Error ? error.message : 'invalid manifest');
+  }
 }

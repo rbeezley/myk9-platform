@@ -17,7 +17,8 @@ for those cases; do not claim zero score loss.
 
 ## Cadence
 
-The export workflow wakes hourly in UTC. The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
+The export workflow wakes hourly at minute 7 in UTC, avoiding the congested top of the hour.
+The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
 (default UTC), `MYK9_EXPORT_WEEKEND_DAYS` (default `0,5,6`), and `MYK9_EXPORT_NIGHTLY_HOUR`
 (default `3`) to export hourly on selected show days and once overnight otherwise. Manual
 dispatch forces an export regardless of the time. America/Chicago and 30-day R2 retention
@@ -29,12 +30,18 @@ timezone/day/hour settings fail explicitly in both the exporter and health check
 If daylight-saving time skips the configured nightly hour, the first available hour after
 the gap is due. An unreadable or invalid marker cannot suppress a fresh export; the exporter
 warns and proceeds, while the separate health check continues to report invalid markers.
+R2 credential, network or bucket access errors stop scheduled runs before a database dump.
 
-The separate health workflow wakes hourly at minute 15 and validates the newest stored payloads
+The separate health workflow wakes hourly at minute 22 and validates the newest stored payloads
 against the latest due slot whose 30-minute grace has elapsed. Thus detection can take until
 the next health run after grace, plus scheduler delays. A GitHub outage can hide both jobs;
 operator checks remain necessary. Both scheduled jobs stay disabled until
 `MYK9_EXPORTS_ENABLED=true`; explicit manual dispatch is available for activation testing.
+The 30-minute grace is intentional: a delayed job beyond the monitored slot is a backup gap
+that should alert, even when caused by GitHub scheduling. It is not a guarantee of hourly recovery.
+The workflow installs PostgreSQL client 18 and defaults `MYK9_EXPORT_PG_CLIENT_MAJOR` to `18`;
+any override must match the installed client. CI explicitly installs a PostgreSQL client and
+runs `pnpm qa:backups:test`, including a locale-independent native-client argument test.
 
 ## Activation checklist
 
@@ -101,7 +108,8 @@ data. Rotate CI credentials and the encryption key through an owner-reviewed pro
 exports remain undecryptable after key loss, so retain the recovery key with the incident plan.
 
 `scripts/backup/retention.ts` inventories whole three-object sets and preserves the newest complete
-set even if it exceeds retention. Incomplete sets containing only recognized export artifacts
+set even if it exceeds retention. When no complete set exists, the newest incomplete set is
+preserved for recovery investigation. Incomplete sets containing only recognized export artifacts
 are eligible once all their objects exceed retention; fresh sets and sets containing unknown
 objects remain protected. Dry-run is the
 default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix

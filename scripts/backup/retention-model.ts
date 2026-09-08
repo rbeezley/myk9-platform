@@ -26,7 +26,12 @@ export function retentionCandidates(objects: StoredObject[], cutoff: number): st
         Math.max(...b.map(item => item.modified)) - Math.max(...a.map(item => item.modified))
     );
   // An outage must not make retention delete the last complete recovery set.
-  const newestComplete = complete[0];
+  const newestComplete =
+    complete[0] ??
+    [...groups.values()].sort(
+      (a, b) =>
+        Math.max(...b.map(item => item.modified)) - Math.max(...a.map(item => item.modified))
+    )[0];
   return (
     [...groups.values()]
       .filter(group => group !== newestComplete)

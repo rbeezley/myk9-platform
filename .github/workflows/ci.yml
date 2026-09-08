@@ -169,7 +169,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes postgresql-client
-          pnpm exec vitest run scripts/backup --sequence.shuffle
+          pnpm qa:backups:test
 
       # The map (docs/qa/e2e-suite-map.md) is where a spec's suite is decided:
       # PR smoke, nightly, feature-audit, manual-debug, or candidate-delete. A

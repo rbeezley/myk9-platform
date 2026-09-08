@@ -2,7 +2,7 @@ name: Independent Database Export Health
 
 on:
   schedule:
-    - cron: '15 * * * *' # independent freshness check, UTC
+    - cron: '22 * * * *' # independent freshness check, UTC
   workflow_dispatch: {}
 
 concurrency:

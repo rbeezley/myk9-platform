@@ -53,3 +53,38 @@ it('refuses applied retention when an older marker belongs to another project', 
   expect(() => runRetention()).toThrow('another project');
   expect(vi.mocked(run).mock.calls.some(([, args]) => args[1] === 'delete-object')).toBe(false);
 });
+
+it('records successful deletions before a later deletion fails', () => {
+  for (const [key, value] of Object.entries({
+    BACKUP_BUCKET: 'bucket',
+    BACKUP_PREFIX: 'exports',
+    BACKUP_PROJECT_REF: 'expected',
+    BACKUP_RETENTION_APPLY: 'true',
+    BACKUP_RETENTION_CONFIRM: 'DELETE bucket/exports',
+  }))
+    vi.stubEnv(key, value);
+  const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  vi.mocked(run).mockImplementation((_command, args) => {
+    if (args[1] === 'list-objects-v2')
+      return JSON.stringify({
+        Contents: [
+          { Key: 'exports/old/database.dump.enc', LastModified: '2020-01-01' },
+          { Key: 'exports/old/globals.sql.enc', LastModified: '2020-01-01' },
+          { Key: 'exports/new/database.dump.enc', LastModified: '2020-01-02' },
+        ],
+      });
+    if (args.includes('exports/old/database.dump.enc')) return '';
+    throw new Error('simulated AWS failure');
+  });
+  expect(() => runRetention()).toThrow('simulated AWS failure');
+  expect(log).toHaveBeenCalledWith(
+    JSON.stringify({
+      mode: 'deleted-object',
+      bucket: 'bucket',
+      key: 'exports/old/database.dump.enc',
+    })
+  );
+  expect(log).not.toHaveBeenCalledWith(
+    expect.stringContaining('"key":"exports/old/globals.sql.enc"')
+  );
+});

@@ -49,7 +49,7 @@ runs `pnpm qa:backups:test`, including a locale-independent native-client argume
 
 Selected provider (owner approved 2026-09-07): **Cloudflare R2 Standard**, private bucket.
 Thirty-day retention was selected on 2026-09-08; the workflow follow-up applies it only after
-a successful export and freshness verification, preserving the newest complete set.
+a successful freshness verification in an independent daily workflow, preserving the newest complete set.
 At the measured size, 1.9–2.2 GB fits within its 10 GB-month free allowance if that allowance
 is available on the account. Estimated request counts also fit the published free allowances;
 existing account usage and future growth must be checked. Standard (not Infrequent Access) is
@@ -126,15 +126,16 @@ preserved for recovery investigation. Incomplete sets containing only recognized
 are eligible once all their objects exceed retention; fresh sets and sets containing unknown
 objects remain protected. Dry-run is the
 default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix
-confirmation. The workflow follow-up runs this policy in a separate daily job at 10:37 UTC,
-after successful export/freshness verification, using
-`MYK9_EXPORT_RETENTION_DAYS` (default 30). Its deletion confirmation is pinned to
-`myk9-database-backups/myk9-platform`; changing bucket/prefix fails closed. Scheduled work
+confirmation. The workflow follow-up runs this policy in a separate daily workflow at 10:37 UTC,
+after its own successful freshness verification, using
+`MYK9_EXPORT_RETENTION_DAYS` (default 30). Its verification target, retention target, and deletion confirmation are all pinned to
+`myk9-database-backups/myk9-platform`; changing the cleanup target requires a reviewed code change. Scheduled work
 requires `MYK9_EXPORTS_ENABLED=true`; manual dispatch never runs retention. Cleanup failures
-open a separate **Independent Database Retention** issue and leave the export job successful.
+open a separate **Independent Database Retention** issue and do not change the independent export result.
 An invalid or foreign manifest stops cleanup safely and requires inspection; it does not stop
 future exports. The daily scan has its own 60-minute timeout, avoiding an hourly scan of every
-retained manifest on the export job's time budget. No provider lifecycle rule is installed.
+retained manifest on the export job's time budget. Its separate concurrency group cannot evict queued exports.
+Each successful deletion is logged immediately, so a later failure preserves the partial audit trail. No provider lifecycle rule is installed.
 
 ## Rollback and recovery
 

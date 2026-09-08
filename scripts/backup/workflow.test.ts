@@ -3,23 +3,33 @@ import { describe, expect, it } from 'vitest';
 
 describe('scheduled export workflow contract', () => {
   it('isolates daily retention behind successful verification and explicit activation', () => {
-    const workflow = readFileSync('.github/workflows/independent-database-exports.yml', 'utf8');
-    const [exportJob, retentionJob] = workflow.split('\n  retention:\n');
-    expect(retentionJob).toBeDefined();
-    expect(exportJob).toContain('Verify latest export freshness');
-    expect(exportJob).not.toContain('scripts/backup/retention.ts');
-    expect(retentionJob).toContain('needs: export');
-    expect(retentionJob).toContain(
-      "if: vars.MYK9_EXPORTS_ENABLED == 'true' && github.event_name == 'schedule' && github.event.schedule == '37 10 * * *'"
+    const workflow = readFileSync('.github/workflows/independent-database-retention.yml', 'utf8');
+    const exportWorkflow = readFileSync(
+      '.github/workflows/independent-database-exports.yml',
+      'utf8'
     );
-    expect(retentionJob).not.toContain('always() &&');
-    expect(retentionJob).toContain('run: pnpm exec tsx scripts/backup/retention.ts');
-    expect(retentionJob).toContain("BACKUP_RETENTION_APPLY: 'true'");
-    expect(retentionJob).toContain(
+    expect(exportWorkflow).not.toContain('scripts/backup/retention.ts');
+    expect(workflow).toContain('group: independent-database-retention');
+    expect(exportWorkflow).toContain('group: independent-database-export');
+    expect(workflow).toContain("cron: '37 10 * * *'");
+    expect(workflow).not.toContain('workflow_dispatch');
+    expect(workflow.match(/^\s+if:.*$/gm)?.map(line => line.trim())).toEqual([
+      "if: vars.MYK9_EXPORTS_ENABLED == 'true'",
+      'if: always()',
+    ]);
+    const verify = workflow.indexOf('run: pnpm exec tsx scripts/backup/verify.ts');
+    const retention = workflow.indexOf('run: pnpm exec tsx scripts/backup/retention.ts');
+    const reporter = workflow.indexOf('if: always()');
+    expect(verify).toBeGreaterThan(-1);
+    expect(retention).toBeGreaterThan(verify);
+    expect(reporter).toBeGreaterThan(retention);
+    expect(workflow).toContain("BACKUP_RETENTION_APPLY: 'true'");
+    expect(workflow).toContain('BACKUP_BUCKET: myk9-database-backups');
+    expect(workflow).toContain('BACKUP_PREFIX: myk9-platform');
+    expect(workflow).toContain(
       'BACKUP_RETENTION_CONFIRM: DELETE myk9-database-backups/myk9-platform'
     );
-    expect(retentionJob).toContain('workflow-name: Independent Database Retention');
-    expect(workflow).toContain("cron: '37 10 * * *'");
+    expect(workflow).toContain('workflow-name: Independent Database Retention');
   });
 
   it('keeps export and independent health jobs actionable and separately scheduled', () => {

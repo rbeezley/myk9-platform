@@ -58,8 +58,10 @@ export function runRetention(): void {
     );
   }
   if (apply) {
-    for (const key of selected)
+    for (const key of selected) {
       aws(['s3api', 'delete-object', '--bucket', bucket, '--key', key, ...endpointArgs]);
+      console.log(JSON.stringify({ mode: 'deleted-object', bucket, key }));
+    }
   }
   console.log(
     JSON.stringify({ mode: apply ? 'deleted' : 'dry-run', bucket, prefix, days, selected })

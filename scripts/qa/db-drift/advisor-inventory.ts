@@ -90,13 +90,21 @@ export function normalizeAdvisorLints(raw: RawAdvisorPayload): AdvisorEntry[] {
 function extractAdvisorLints(raw: RawAdvisorPayload): RawAdvisorLint[] {
   if (Array.isArray(raw)) return raw;
 
+  const hasTopLevelLints = Object.prototype.hasOwnProperty.call(raw, 'lints');
+  const hasNestedResult = Object.prototype.hasOwnProperty.call(raw, 'result');
+  if (hasTopLevelLints && hasNestedResult) {
+    throw new AdvisorPayloadError(
+      'Advisor payload must use either `lints` or `result.lints`, not both'
+    );
+  }
+
   if (Array.isArray(raw.lints)) return raw.lints;
-  if (raw.lints !== undefined) {
+  if (hasTopLevelLints) {
     throw new AdvisorPayloadError('Advisor payload `lints` must be an array');
   }
 
   if (raw.result && Array.isArray(raw.result.lints)) return raw.result.lints;
-  if (raw.result !== undefined) {
+  if (hasNestedResult) {
     throw new AdvisorPayloadError('Advisor payload `result.lints` must be an array');
   }
 

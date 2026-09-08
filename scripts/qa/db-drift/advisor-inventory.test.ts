@@ -142,6 +142,15 @@ describe('normalizeAdvisorLints', () => {
       normalizeAdvisorLints({ lints: [{ name: 'some_code' }] } as RawAdvisorResult)
     ).toThrow('Advisor payload lint at index 0 is malformed');
   });
+
+  it('fails visibly when top-level and nested lint envelopes are mixed', () => {
+    expect(() =>
+      normalizeAdvisorLints({
+        lints: [],
+        result: { lints: [{ name: 'hidden_finding', level: 'WARN' }] },
+      })
+    ).toThrow('Advisor payload must use either `lints` or `result.lints`, not both');
+  });
 });
 
 describe('classifyAdvisorEntries', () => {

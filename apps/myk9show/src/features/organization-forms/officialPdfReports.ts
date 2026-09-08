@@ -143,7 +143,7 @@ export function getOfficialPdfReportConfig(
     case 'trial-secretary-report':
       return isUKCTrial(props) ? UKC_TRIAL_REPORT_CONFIG : AKC_TRIAL_SECRETARY_CONFIG;
     case 'ukc-nosework-trial-report':
-      return UKC_TRIAL_REPORT_CONFIG;
+      return isUKCTrial(props) ? UKC_TRIAL_REPORT_CONFIG : null;
     case 'asca-scent-detection-entry-form':
       return ASCA_ENTRY_FORM_CONFIG;
     case 'asca-scent-detection-trial-report':

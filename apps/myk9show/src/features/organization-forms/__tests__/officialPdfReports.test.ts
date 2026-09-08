@@ -58,6 +58,10 @@ describe('getOfficialPdfReportConfig', () => {
     expect(config?.actionLabel).toBe('Download UKC Trial Report PDF');
   });
 
+  it('does not dispatch the dedicated UKC report for a non-UKC trial', () => {
+    expect(getOfficialPdfReportConfig('ukc-nosework-trial-report', reportProps)).toBeNull();
+  });
+
   it('uses the trial registry instead of the show organization label', () => {
     const config = getOfficialPdfReportConfig('trial-secretary-report', {
       ...reportProps,

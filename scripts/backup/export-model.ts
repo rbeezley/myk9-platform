@@ -97,7 +97,7 @@ export function redactError(message: string): string {
   return message
     .replace(/(postgres(?:ql)?:\/\/)[^\s/@]+(?::[^\s/@]*)?@/gi, '$1[redacted]@')
     .replace(
-      /(SUPABASE_DB_PASSWORD|BACKUP_ENCRYPTION_KEY|AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID)=([^\s]+)/gi,
+      /(SUPABASE_DB_PASSWORD|BACKUP_DATABASE_PASSWORD|PGPASSWORD|BACKUP_ENCRYPTION_KEY|AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID)=([^\s]+)/gi,
       '$1=[redacted]'
     );
 }

@@ -179,3 +179,11 @@ be assumed decryptable without the separately approved key-recovery procedure. S
 warns that custom-role passwords may need resetting and managed-role ownership/grants can fail;
 the isolated restore gate must record those limitations rather than claim a complete project
 reconstruction. See [Supabase backup and restore](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore).
+
+### Transport and growth limits
+
+The exporter forces PostgreSQL `sslmode=verify-full` with the public Supabase CA bundled in `scripts/backup/supabase-prod-ca-2021.crt`. An untrusted certificate or hostname mismatch fails the export; there is no plaintext fallback.
+
+The current encryption path buffers files in memory and rejects combined dump/globals files larger than 256 MiB before reading their contents. Crossing that limit fails the run and triggers the existing failure notification. Implement and test streaming encryption before increasing the limit or approaching that size; the measured export is approximately 6.3 MB.
+
+The CA was downloaded over HTTPS from [Supabase's certificate distribution](https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt). Its SHA-256 certificate fingerprint is `80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA`, expiring April 26, 2031. Update the bundled public certificate through review if Supabase rotates its CA. A read-only source globals export with this CA and hostname verification passed on September 8, 2026: 17 roles, 6,003 bytes, 3.062 seconds; temporary SQL was removed. System CA trust alone failed for this pooler.

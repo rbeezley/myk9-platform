@@ -71,10 +71,11 @@ afterEach(() => {
 });
 
 describe('export success publication', () => {
-  it('rejects a project mismatch without exporting into another project prefix', () => {
+  it.each(['true', 'false'])('rejects a project mismatch with force=%s', force => {
     const { objects, events } = fixture();
     exportDatabase();
     vi.stubEnv('BACKUP_FORCE_RUN', 'false');
+    vi.stubEnv('BACKUP_FORCE_RUN', force);
     vi.stubEnv('BACKUP_PROJECT_REF', 'other-project');
     const before = events.length;
     expect(() => exportDatabase()).toThrow('another project');

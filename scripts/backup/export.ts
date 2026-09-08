@@ -13,7 +13,7 @@ import {
   isPastDue,
   type ExportManifest,
 } from './export-model';
-import { exportPrefix, exportSchedule } from './export-config';
+import { exportPrefix, exportSchedule, secureDatabaseUrl, assertExportSize } from './export-config';
 import { InvalidManifestError, latestManifest } from './latest-manifest';
 
 const required = (name: string): string => {
@@ -87,7 +87,7 @@ function verifyRemote(
 
 export function exportDatabase(): void {
   const { timeZone, weekendDays, nightlyHour } = exportSchedule();
-  const databaseUrl = required('BACKUP_DATABASE_URL');
+  const databaseUrl = secureDatabaseUrl(required('BACKUP_DATABASE_URL'));
   const projectRef = required('BACKUP_PROJECT_REF');
   const bucket = required('BACKUP_BUCKET');
   const prefix = exportPrefix();
@@ -95,7 +95,7 @@ export function exportDatabase(): void {
   const password = required('BACKUP_DATABASE_PASSWORD');
   const expectedMajor = required('BACKUP_PG_CLIENT_MAJOR');
   if (!/^\d+$/.test(expectedMajor)) throw new Error('BACKUP_PG_CLIENT_MAJOR must be numeric');
-  if (process.env.BACKUP_FORCE_RUN !== 'true') {
+  {
     const endpoint = process.env.BACKUP_S3_ENDPOINT;
     let latest: ExportManifest | undefined;
     try {
@@ -112,7 +112,7 @@ export function exportDatabase(): void {
       console.warn('Could not validate the latest export marker; attempting a fresh export.');
     }
     const due = latestDueSlot(new Date(), timeZone, weekendDays, nightlyHour, 0);
-    if (latest && !isPastDue(latest.createdAt, due)) {
+    if (process.env.BACKUP_FORCE_RUN !== 'true' && latest && !isPastDue(latest.createdAt, due)) {
       console.log(
         JSON.stringify({ status: 'skipped', reason: 'due-slot-covered', timeZone, nightlyHour })
       );
@@ -136,6 +136,7 @@ export function exportDatabase(): void {
     // Supabase-managed roles do not expose password hashes to this export role.
     // Role definitions are retained; provider-managed passwords are recreated on restore.
     run('pg_dumpall', buildGlobalsDumpArgs(globalsPath, databaseUrl), env);
+    assertExportSize(statSync(dumpPath).size + statSync(globalsPath).size);
     const dump = readFileSync(dumpPath);
     const globals = readFileSync(globalsPath);
     const encryptedDump = encryptPayload(dump, key);

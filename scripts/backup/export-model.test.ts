@@ -97,3 +97,9 @@ describe('scheduled export model', () => {
     ).toBe('postgresql://[redacted]@example.test/x SUPABASE_DB_PASSWORD=[redacted]');
   });
 });
+
+it('redacts both live database password environment names', () => {
+  expect(redactError('BACKUP_DATABASE_PASSWORD=secret PGPASSWORD=secret')).toBe(
+    'BACKUP_DATABASE_PASSWORD=[redacted] PGPASSWORD=[redacted]'
+  );
+});

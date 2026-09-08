@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { latestManifest } from './latest-manifest';
 import { createManifest } from './export-model';
-import { exportPrefix, exportSchedule } from './export-config';
+import { exportPrefix, exportSchedule, secureDatabaseUrl, assertExportSize } from './export-config';
 
 describe('bounded latest manifest lookup', () => {
   it('accepts an empty successful listing', () => {
@@ -66,5 +66,19 @@ describe('shared export configuration', () => {
     );
     expect(() => exportSchedule({ BACKUP_TIME_ZONE: 'bad-zone' })).toThrow('BACKUP_TIME_ZONE');
     expect(() => exportSchedule({ BACKUP_NIGHTLY_HOUR: '-1' })).toThrow('BACKUP_NIGHTLY_HOUR');
+  });
+});
+
+describe('export transport and memory limits', () => {
+  it('enforces verified TLS even when the supplied URL disables SSL', () => {
+    const url = new URL(secureDatabaseUrl('postgresql://fixture@host/db?sslmode=disable'));
+    expect(url.searchParams.get('sslmode')).toBe('verify-full');
+    expect(url.searchParams.get('sslrootcert')).toMatch(
+      /\/scripts\/backup\/supabase-prod-ca-2021\.crt$/
+    );
+  });
+  it('fails explicitly before oversized exports can be buffered', () => {
+    expect(() => assertExportSize(256 * 1024 * 1024)).not.toThrow();
+    expect(() => assertExportSize(256 * 1024 * 1024 + 1)).toThrow('streaming encryption');
   });
 });

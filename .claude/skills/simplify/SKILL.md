@@ -94,7 +94,7 @@ Hunt for duplication and missed reuse opportunities. This is the highest-judgmen
 2. **Duplication with existing code**: Grep the codebase (especially `packages/*`, `apps/*/src/utils`, `apps/*/src/features/*/hooks`, `apps/*/src/components/ui`) for similar logic. If a helper, hook, or component already exists that does ~80% of what the new code does, flag it.
 3. **Premature abstraction**: A helper added "for future use" with exactly one caller in the diff and no obvious second caller. Inline it.
 4. **Wrong abstraction level**: A 200-line component doing data fetching + transform + render. A hook returning 8 unrelated values. A utility function taking 6 boolean flags.
-5. **Pattern violations**: Direct `supabase.from()` calls in `apps/myk9q` (should use `@myk9/replication`). Raw `useState` for shared UI state that already has a Zustand store. New `fetch()` instead of React Query.
+5. **Pattern violations**: Direct `supabase.from()` calls on a core read/write path that should go through `@myk9/replication` — offline-first coverage is the test, not the app (`apps/myk9q` was deleted after being absorbed into myK9Show `/at-show`). Direct PostgREST is still fine for the online-only paths the migration design names: auth/user queries, RPCs, checkout/promo. Raw `useState` for shared UI state that already has a Zustand store. New `fetch()` instead of React Query.
 6. **shadcn/ui reuse (myK9Show)**: Custom button/dialog/dropdown built from scratch instead of `apps/myk9show/src/components/ui/*`. Custom date picker instead of the registry one.
 
 For each finding, provide:

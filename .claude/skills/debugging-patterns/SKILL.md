@@ -57,12 +57,12 @@ Specific to Supabase/Postgres.
 
 ## TypeScript & Build Bugs
 
-| Pattern                  | Symptoms                                                                | Investigation Approach                                                                                           |
-| ------------------------ | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Type narrowing lost**  | `as any` needed to make it compile, property access on union type fails | Callback or async boundary resets narrowing. Extract to variable before the boundary, or use type guard function |
-| **Circular import**      | `undefined` at runtime for something that exists, works after reorder   | Module A imports B imports A. Check with: `madge --circular src/` or trace the import chain manually             |
-| **Barrel export order**  | Intermittent `undefined` import, works in some files but not others     | `index.ts` re-export order matters when circular deps exist. Import directly from source file, not barrel        |
-| **Stale build artifact** | "Fixed" code still shows old behavior, `pnpm build` fixes it            | Turborepo cache served old output. Run `pnpm clean && pnpm build` to verify                                      |
+| Pattern                  | Symptoms                                                                | Investigation Approach                                                                                                                                                                                                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Type narrowing lost**  | `as any` needed to make it compile, property access on union type fails | Callback or async boundary resets narrowing. Extract to variable before the boundary, or use type guard function                                                                                                                                                                             |
+| **Circular import**      | `undefined` at runtime for something that exists, works after reorder   | Module A imports B imports A. Check with: `madge --circular src/` or trace the import chain manually                                                                                                                                                                                         |
+| **Barrel export order**  | Intermittent `undefined` import, works in some files but not others     | `index.ts` re-export order matters when circular deps exist. Import directly from source file, not barrel                                                                                                                                                                                    |
+| **Stale build artifact** | "Fixed" code still shows old behavior, `pnpm build` fixes it            | Turborepo cache served old output. Run `pnpm clean && pnpm build` to verify. App tests import each package's built `dist`, so a stale build gives a false `tsc` failure and a false vitest pass at once — run `pnpm qa:dist-fresh` (the app's `pnpm test` does; `pnpm exec vitest` does not) |
 
 ## Browser & UI Bugs
 

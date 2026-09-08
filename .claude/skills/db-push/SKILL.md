@@ -26,7 +26,7 @@ open a while will have gone stale — re-check before pushing.
 
 ```bash
 git fetch origin main
-git ls-tree --name-only origin/main -- supabase/migrations | tail -5
+git ls-tree -r --name-only origin/main -- supabase/migrations | tail -5
 supabase migration list   # what the linked DB has actually applied
 ```
 
@@ -99,12 +99,32 @@ to — verify grants against the **database**, never against the migration text.
 supabase migration list   # remote now matches supabase/migrations/
 ```
 
-For a migration that created a table or changed access, run the `relacl` /
-`attacl` / sequence queries from CLAUDE.md § Database Migrations against the live
-DB. Do not use `information_schema.role_table_grants` — it only shows grants
-visible to the querying role and returns empty over the MCP connection, so it
-cannot prove absence. Then run `get_advisors` (Supabase MCP) to catch new
-RLS/security warnings.
+For a migration that created a table or changed access, run all three ACL checks
+against the live DB — table, column, and sequence. CLAUDE.md § Database
+Migrations carries the first two; the sequence query is not written down there,
+so it is inlined here:
+
+```sql
+-- table
+select unnest(relacl)::text from pg_class where oid = 'public.<table>'::regclass;
+
+-- column (a blanket REVOKE drops these silently and relacl will not show it)
+select a.attname, unnest(a.attacl)::text
+from pg_attribute a
+where a.attrelid = 'public.<table>'::regclass and a.attacl is not null;
+
+-- sequence: no migration has ever GRANTed one, and a BEFORE INSERT trigger's
+-- nextval() fires before RLS WITH CHECK, so a table INSERT grant dies 42501 here
+select c.relname, unnest(c.relacl)::text
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where c.relkind = 'S' and n.nspname = 'public' and c.relname like '<table>%';
+```
+
+Do not use `information_schema.role_table_grants` — it only shows grants visible
+to the querying role and returns empty over the MCP connection, so it cannot
+prove absence. Then run `get_advisors` (Supabase MCP) to catch new RLS/security
+warnings.
 
 ## Common Errors
 

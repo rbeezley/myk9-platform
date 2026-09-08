@@ -14,6 +14,16 @@ const expectedIndexes = [
     columns: 'show_id',
   },
   {
+    name: 'email_log_show_id_fk_idx',
+    table: 'public.email_log',
+    columns: 'show_id',
+  },
+  {
+    name: 'entry_cart_items_entry_id_fk_idx',
+    table: 'public.entry_cart_items',
+    columns: 'entry_id',
+  },
+  {
     name: 'show_officials_person_id_fk_idx',
     table: 'public.show_officials',
     columns: 'person_id',
@@ -51,7 +61,7 @@ function parseCreateIndexes(sql: string) {
 }
 
 describe('MYK9-439 missing FK-leading indexes', () => {
-  it('adds exactly the three requested leading-column indexes', () => {
+  it('adds every requested leading-column index', () => {
     const sql = readMigration();
     const createdIndexes = parseCreateIndexes(sql);
     const createIndexStatements = [
@@ -92,14 +102,14 @@ describe('MYK9-439 missing FK-leading indexes', () => {
       '(i.indkey::smallint[])[0:cardinality(c.conkey) - 1] @> c.conkey'
     );
     expect(catalogSql).toContain('raise exception');
-    expect(normalizedCatalogSql).toContain("set lock_timeout = '5s';");
-    expect(normalizedCatalogSql).toContain("set statement_timeout = '10min';");
+    expect(normalizedCatalogSql).toContain("set local lock_timeout = '5s';");
+    expect(normalizedCatalogSql).toContain("set local statement_timeout = '10min';");
     expect(normalizedCatalogSql).toContain('pg_relation_size(c.oid) >= 100 * 1024 * 1024');
     expect(normalizedCatalogSql).toContain(
-      "c.relname in ('calendar_feed_tokens', 'show_officials')"
+      "c.relname in ('calendar_feed_tokens', 'email_log', 'entry_cart_items', 'show_officials')"
     );
 
-    const fkGuard = 'if target_fk_count <> 3 or target_fk_pair_count <> 3 then';
+    const fkGuard = 'if target_fk_count <> 5 or target_fk_pair_count <> 5 then';
     const indexCheck = 'and not exists ( select 1 from pg_index';
     expect(normalizedCatalogSql).toContain(fkGuard);
     expect(normalizedCatalogSql.indexOf(fkGuard)).toBeLessThan(
@@ -110,6 +120,9 @@ describe('MYK9-439 missing FK-leading indexes', () => {
     expect(normalizedCatalogSql).toContain("n.nspname = 'public'");
     expect(normalizedCatalogSql).toContain("t.relname = 'calendar_feed_tokens'");
     expect(normalizedCatalogSql).toContain("a.attname = 'show_id'");
+    expect(normalizedCatalogSql).toContain("t.relname = 'email_log'");
+    expect(normalizedCatalogSql).toContain("t.relname = 'entry_cart_items'");
+    expect(normalizedCatalogSql).toContain("a.attname = 'entry_id'");
     expect(normalizedCatalogSql).toContain("t.relname = 'show_officials'");
     expect(normalizedCatalogSql).toContain("a.attname = 'person_id'");
     expect(normalizedCatalogSql).toContain("a.attname = 'created_by'");

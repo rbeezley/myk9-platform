@@ -22,6 +22,13 @@ export type RawAdvisorResult = {
 
 export type RawAdvisorPayload = RawAdvisorResult | RawAdvisorLint[];
 
+export class AdvisorPayloadError extends Error {
+  constructor(message = 'Advisor payload is malformed; refusing to treat it as clean') {
+    super(message);
+    this.name = 'AdvisorPayloadError';
+  }
+}
+
 export type AdvisorEntry = {
   code: string;
   level: AdvisorLevel;
@@ -73,11 +80,27 @@ export const DEFAULT_CONFIG: AdvisorInventoryConfig = {
  * or `{ result: { lints: [...] } }`) into a flat, stably-sortable entry list.
  */
 export function normalizeAdvisorLints(raw: RawAdvisorPayload): AdvisorEntry[] {
-  const lints = Array.isArray(raw) ? raw : (raw.result?.lints ?? raw.lints ?? []);
+  const lints = extractAdvisorLints(raw);
 
   return lints
     .map(normalizeLint)
     .sort((a, b) => a.identity.localeCompare(b.identity) || a.code.localeCompare(b.code));
+}
+
+function extractAdvisorLints(raw: RawAdvisorPayload): RawAdvisorLint[] {
+  if (Array.isArray(raw)) return raw;
+
+  if (Array.isArray(raw.lints)) return raw.lints;
+  if (raw.lints !== undefined) {
+    throw new AdvisorPayloadError('Advisor payload `lints` must be an array');
+  }
+
+  if (raw.result && Array.isArray(raw.result.lints)) return raw.result.lints;
+  if (raw.result !== undefined) {
+    throw new AdvisorPayloadError('Advisor payload `result.lints` must be an array');
+  }
+
+  throw new AdvisorPayloadError('Advisor payload is missing a `lints` array');
 }
 
 function normalizeLint(lint: RawAdvisorLint): AdvisorEntry {

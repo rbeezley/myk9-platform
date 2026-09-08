@@ -1,14 +1,15 @@
--- MYK9-439: add the three foreign-key indexes introduced after the MYK9-113 sweep.
+-- MYK9-439: close the strict foreign-key index coverage gaps identified after
+-- the MYK9-113 sweep.
 --
 -- These are additive only. Each index puts its foreign-key column first so
 -- PostgreSQL can use it for parent-row referential checks and joins.
 
--- These indexes intentionally run outside an explicit transaction so each
--- non-concurrent build releases its table lock before the next one starts.
+-- Supabase applies migrations transactionally. Keep these limits local to this
+-- migration so they cannot leak into later migrations on the same connection.
 -- Refuse to wait behind live writes for more than five seconds, and require a
 -- separate concurrent-index plan before any target relation reaches 100 MB.
-set lock_timeout = '5s';
-set statement_timeout = '10min';
+set local lock_timeout = '5s';
+set local statement_timeout = '10min';
 
 do $$
 declare
@@ -24,7 +25,7 @@ begin
   join pg_namespace n on n.oid = c.relnamespace
   where c.relkind in ('r', 'p')
     and n.nspname = 'public'
-    and c.relname in ('calendar_feed_tokens', 'show_officials')
+    and c.relname in ('calendar_feed_tokens', 'email_log', 'entry_cart_items', 'show_officials')
     and pg_relation_size(c.oid) >= 100 * 1024 * 1024;
 
   if oversized is not null then
@@ -37,6 +38,10 @@ $$;
 
 create index if not exists calendar_feed_tokens_show_id_fk_idx
   on public.calendar_feed_tokens (show_id);
+create index if not exists email_log_show_id_fk_idx
+  on public.email_log (show_id);
+create index if not exists entry_cart_items_entry_id_fk_idx
+  on public.entry_cart_items (entry_id);
 create index if not exists show_officials_person_id_fk_idx
   on public.show_officials (person_id);
 create index if not exists show_officials_created_by_fk_idx
@@ -59,13 +64,15 @@ begin
     and n.nspname = 'public'
     and (
       (t.relname = 'calendar_feed_tokens' and a.attname = 'show_id')
+      or (t.relname = 'email_log' and a.attname = 'show_id')
+      or (t.relname = 'entry_cart_items' and a.attname = 'entry_id')
       or (t.relname = 'show_officials' and a.attname = 'person_id')
       or (t.relname = 'show_officials' and a.attname = 'created_by')
     );
 
-  if target_fk_count <> 3 or target_fk_pair_count <> 3 then
+  if target_fk_count <> 5 or target_fk_pair_count <> 5 then
     raise exception
-      'MYK9-439 expected exactly three single-column public target FKs, found % constraint(s) across % pair(s)',
+      'MYK9-439 expected exactly five single-column public target FKs, found % constraint(s) across % pair(s)',
       target_fk_count,
       target_fk_pair_count;
   end if;
@@ -81,6 +88,8 @@ begin
     and n.nspname = 'public'
     and (
       (t.relname = 'calendar_feed_tokens' and a.attname = 'show_id')
+      or (t.relname = 'email_log' and a.attname = 'show_id')
+      or (t.relname = 'entry_cart_items' and a.attname = 'entry_id')
       or (t.relname = 'show_officials' and a.attname = 'person_id')
       or (t.relname = 'show_officials' and a.attname = 'created_by')
     )

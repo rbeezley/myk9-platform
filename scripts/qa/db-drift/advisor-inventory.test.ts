@@ -115,8 +115,20 @@ describe('normalizeAdvisorLints', () => {
     expect(normalizeAdvisorLints(raw)[0]?.level).toBe('INFO');
   });
 
-  it('returns an empty array when the raw payload has no lints', () => {
-    expect(normalizeAdvisorLints({})).toEqual([]);
+  it('fails visibly when the raw payload has no lints array', () => {
+    expect(() => normalizeAdvisorLints({})).toThrow('Advisor payload is missing a `lints` array');
+  });
+
+  it('fails visibly when the raw lints field is malformed', () => {
+    expect(() => normalizeAdvisorLints({ lints: {} } as RawAdvisorResult)).toThrow(
+      'Advisor payload `lints` must be an array'
+    );
+  });
+
+  it('fails visibly when the nested result has no lints array', () => {
+    expect(() => normalizeAdvisorLints({ result: {} })).toThrow(
+      'Advisor payload `result.lints` must be an array'
+    );
   });
 });
 

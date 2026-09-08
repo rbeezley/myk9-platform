@@ -11,9 +11,7 @@
 // loose visual parity — exact-match is not required since both sides
 // derive from the same DB inputs.
 
-const NOISE_WORDS = new Set([
-  'the', 'and', 'of', 'at', 'a', 'an', 'for', 'in', 'on', 'to',
-]);
+const NOISE_WORDS = new Set(['the', 'and', 'of', 'at', 'a', 'an', 'for', 'in', 'on', 'to']);
 
 /** Word-initials extractor used by deriveShowCode + deriveShowAbbreviation. */
 export function initialsOf(text: string, maxChars: number): string {
@@ -24,7 +22,11 @@ export function initialsOf(text: string, maxChars: number): string {
     .filter(t => !NOISE_WORDS.has(t.toLowerCase()));
   if (tokens.length === 0) return '';
   if (tokens.length === 1) return tokens[0].slice(0, maxChars).toUpperCase();
-  return tokens.map(t => t[0]).join('').slice(0, maxChars).toUpperCase();
+  return tokens
+    .map(t => t[0])
+    .join('')
+    .slice(0, maxChars)
+    .toUpperCase();
 }
 
 /** Compact ID for Field Guide top strip, e.g. "BCKC.2026.SS". Mirrors
@@ -66,9 +68,13 @@ export function deriveMagazineEditionLabel(startDateIso: string | null): string 
   const date = startDateIso ? new Date(startDateIso) : new Date();
   const month = date.getMonth(); // 0-11
   const season =
-    month <= 1 || month === 11 ? 'Winter' :
-    month <= 4 ? 'Spring' :
-    month <= 7 ? 'Summer' : 'Autumn';
+    month <= 1 || month === 11
+      ? 'Winter'
+      : month <= 4
+        ? 'Spring'
+        : month <= 7
+          ? 'Summer'
+          : 'Autumn';
   return `${season} ${date.getFullYear()}`;
 }
 

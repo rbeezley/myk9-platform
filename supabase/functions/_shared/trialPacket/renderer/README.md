@@ -2,10 +2,10 @@
 
 The model builder and PDF renderer for the emergency trial packet (MYK9-198), shared by two runtimes.
 
-| Caller | Entry point |
-| --- | --- |
-| Browser | `apps/myk9show/src/features/emergency-trial-packet/renderPacketPdf.ts` |
-| Edge function | `supabase/functions/generate-trial-packet/index.ts` |
+| Caller        | Entry point                                                            |
+| ------------- | ---------------------------------------------------------------------- |
+| Browser       | `apps/myk9show/src/features/emergency-trial-packet/renderPacketPdf.ts` |
+| Edge function | `supabase/functions/generate-trial-packet/index.ts`                    |
 
 ## Constraints these files must keep
 

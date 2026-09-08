@@ -62,7 +62,7 @@ export function computeLoadState<T>(
   prevItems: T[],
   newItems: T[],
   totalCount: number,
-  reset: boolean,
+  reset: boolean
 ): { items: T[]; loadedCount: number; hasMore: boolean; totalCount: number } {
   const items = reset ? newItems : [...prevItems, ...newItems];
   const loadedCount = items.length;

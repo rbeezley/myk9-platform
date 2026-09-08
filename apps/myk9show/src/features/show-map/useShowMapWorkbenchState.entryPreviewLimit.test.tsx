@@ -74,15 +74,17 @@ function countEntryNodes(tree: { nodesById: Record<string, { type: string }> }):
 
 describe('useShowMapWorkbenchState entryPreviewLimit', () => {
   it('forwards the limit to buildShowMapTree', () => {
-    const { result } = renderHook(() =>
-      useShowMapWorkbenchState({
-        show: SHOW,
-        trials: TRIALS,
-        classes: CLASSES,
-        entries: ENTRIES,
-        showId: 'show-1',
-        entryPreviewLimit: Number.POSITIVE_INFINITY,
-      } as unknown as Parameters<typeof useShowMapWorkbenchState>[0]), { wrapper }
+    const { result } = renderHook(
+      () =>
+        useShowMapWorkbenchState({
+          show: SHOW,
+          trials: TRIALS,
+          classes: CLASSES,
+          entries: ENTRIES,
+          showId: 'show-1',
+          entryPreviewLimit: Number.POSITIVE_INFINITY,
+        } as unknown as Parameters<typeof useShowMapWorkbenchState>[0]),
+      { wrapper }
     );
 
     expect(countEntryNodes(result.current.tree)).toBe(ENTRY_COUNT);
@@ -90,14 +92,16 @@ describe('useShowMapWorkbenchState entryPreviewLimit', () => {
 
   it('still caps at the default when no limit is given', () => {
     // The default protects the Show Map table from rendering hundreds of rows.
-    const { result } = renderHook(() =>
-      useShowMapWorkbenchState({
-        show: SHOW,
-        trials: TRIALS,
-        classes: CLASSES,
-        entries: ENTRIES,
-        showId: 'show-1',
-      } as unknown as Parameters<typeof useShowMapWorkbenchState>[0]), { wrapper }
+    const { result } = renderHook(
+      () =>
+        useShowMapWorkbenchState({
+          show: SHOW,
+          trials: TRIALS,
+          classes: CLASSES,
+          entries: ENTRIES,
+          showId: 'show-1',
+        } as unknown as Parameters<typeof useShowMapWorkbenchState>[0]),
+      { wrapper }
     );
 
     expect(countEntryNodes(result.current.tree)).toBe(25);

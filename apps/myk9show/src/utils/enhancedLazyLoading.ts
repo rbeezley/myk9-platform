@@ -38,8 +38,12 @@ export interface PreloadableComponent {
 
 /** Type guard to check if a value has preload capability */
 function isPreloadable(value: unknown): value is PreloadableComponent {
-  return typeof value === 'object' && value !== null && 'preload' in value
-    && typeof (value as PreloadableComponent).preload === 'function';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'preload' in value &&
+    typeof (value as PreloadableComponent).preload === 'function'
+  );
 }
 
 // Lazy loading with enhanced options
@@ -54,7 +58,7 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
     priority: _priority = 'medium',
     timeout = 30000,
     retryAttempts = 2,
-    displayName = 'LazyComponent'
+    displayName = 'LazyComponent',
   } = options;
 
   let preloadPromise: Promise<{ default: T } | T> | null = null;
@@ -84,25 +88,36 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
       retryCount++;
 
       if (retryCount <= retryAttempts) {
-        logger.warn(`🔄 Retrying import for ${displayName} (attempt ${retryCount}/${retryAttempts})`, 'utils', {});
+        logger.warn(
+          `🔄 Retrying import for ${displayName} (attempt ${retryCount}/${retryAttempts})`,
+          'utils',
+          {}
+        );
         // Exponential backoff
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
         return enhancedImport();
       }
 
-      logger.error(`❌ Failed to load ${displayName} after ${retryAttempts} attempts:`, 'utils', {}, error as Error);
+      logger.error(
+        `❌ Failed to load ${displayName} after ${retryAttempts} attempts:`,
+        'utils',
+        {},
+        error as Error
+      );
       throw error;
     }
   };
 
   // Create the lazy component
-  const LazyComponent = lazy(() => enhancedImport().then(module => {
-    // Handle both { default: T } and T patterns
-    if (typeof module === 'object' && module !== null && 'default' in module) {
-      return module as { default: T };
-    }
-    return { default: module as T };
-  }));
+  const LazyComponent = lazy(() =>
+    enhancedImport().then(module => {
+      // Handle both { default: T } and T patterns
+      if (typeof module === 'object' && module !== null && 'default' in module) {
+        return module as { default: T };
+      }
+      return { default: module as T };
+    })
+  );
 
   // Preload functions
   const preload = () => {
@@ -116,9 +131,12 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
   if (preloadOnIdle) {
     // Preload when browser is idle
     if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        preload();
-      }, { timeout: 5000 });
+      requestIdleCallback(
+        () => {
+          preload();
+        },
+        { timeout: 5000 }
+      );
     } else {
       // Fallback for browsers without requestIdleCallback
       setTimeout(preload, 2000);
@@ -136,7 +154,7 @@ export const RouteLazyPresets = {
     priority: 'high' as const,
     preloadOnIdle: true,
     timeout: 15000,
-    retryAttempts: 3
+    retryAttempts: 3,
   },
 
   // Medium priority routes (common user flows)
@@ -145,7 +163,7 @@ export const RouteLazyPresets = {
     preloadOnHover: true,
     preloadOnIdle: false,
     timeout: 20000,
-    retryAttempts: 2
+    retryAttempts: 2,
   },
 
   // Low priority routes (admin/advanced features)
@@ -154,7 +172,7 @@ export const RouteLazyPresets = {
     preloadOnHover: false,
     preloadOnIdle: false,
     timeout: 30000,
-    retryAttempts: 1
+    retryAttempts: 1,
   },
 
   // Critical routes (core app functionality)
@@ -162,8 +180,8 @@ export const RouteLazyPresets = {
     priority: 'high' as const,
     preloadOnIdle: true,
     timeout: 10000,
-    retryAttempts: 5
-  }
+    retryAttempts: 5,
+  },
 };
 
 // Intelligent preloader that analyzes user navigation patterns
@@ -278,27 +296,31 @@ export class LazyLoadingMonitor {
     return total > 0 ? failed / total : 0;
   }
 
-  static getPerformanceReport(): Record<string, {
-    averageLoadTime: number;
-    failureRate: number;
-    totalLoads: number;
-  }> {
-    const report: Record<string, {
+  static getPerformanceReport(): Record<
+    string,
+    {
       averageLoadTime: number;
       failureRate: number;
       totalLoads: number;
-    }> = {};
+    }
+  > {
+    const report: Record<
+      string,
+      {
+        averageLoadTime: number;
+        failureRate: number;
+        totalLoads: number;
+      }
+    > = {};
 
-    const allComponents = new Set([
-      ...this.loadTimes.keys(),
-      ...this.failedLoads.keys()
-    ]);
+    const allComponents = new Set([...this.loadTimes.keys(), ...this.failedLoads.keys()]);
 
     for (const component of allComponents) {
       report[component] = {
         averageLoadTime: this.getAverageLoadTime(component),
         failureRate: this.getFailureRate(component),
-        totalLoads: (this.loadTimes.get(component)?.length || 0) + (this.failedLoads.get(component) || 0)
+        totalLoads:
+          (this.loadTimes.get(component)?.length || 0) + (this.failedLoads.get(component) || 0),
       };
     }
 
@@ -314,6 +336,6 @@ if (process.env.NODE_ENV === 'development') {
     LazyLoadingMonitor,
     routePatterns: () => IntelligentPreloader['routePatterns'],
     navigationHistory: () => IntelligentPreloader['navigationHistory'],
-    performanceReport: () => LazyLoadingMonitor.getPerformanceReport()
+    performanceReport: () => LazyLoadingMonitor.getPerformanceReport(),
   };
 }

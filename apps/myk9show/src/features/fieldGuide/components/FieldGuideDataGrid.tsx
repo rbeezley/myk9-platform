@@ -57,8 +57,7 @@ export function FieldGuideDataGrid({
           className="fg-quickref-cell"
           style={{
             padding: '14px 16px',
-            borderRight:
-              i === cells.length - 1 ? 'none' : `1px solid ${fieldGuideColors.hair}`,
+            borderRight: i === cells.length - 1 ? 'none' : `1px solid ${fieldGuideColors.hair}`,
           }}
         >
           <div

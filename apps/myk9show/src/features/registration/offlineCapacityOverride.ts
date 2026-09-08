@@ -125,8 +125,7 @@ export function calculateOfflineCapacityOverrides({
       : [];
     const judgeDayFull = judgeDayKeys.some(
       key =>
-        (judgeDayCounts.get(key) ?? 0) >=
-        (judgeDayCapacities.get(key) ?? defaultJudgeDayCapacity)
+        (judgeDayCounts.get(key) ?? 0) >= (judgeDayCapacities.get(key) ?? defaultJudgeDayCapacity)
     );
 
     overrides[selection.key] = classFull || judgeDayFull;

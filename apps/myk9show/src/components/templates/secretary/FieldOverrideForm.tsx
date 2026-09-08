@@ -39,7 +39,6 @@ interface FieldOverrideFormProps {
   showAdvanced?: boolean;
 }
 
-
 export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
   template,
   selectedClasses,
@@ -298,7 +297,6 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
     );
   };
 
-
   const overrideCount = Object.keys(fieldOverrides).length;
 
   return (
@@ -348,7 +346,10 @@ export const FieldOverrideForm: React.FC<FieldOverrideFormProps> = ({
       {/* Field Override Tabs */}
       <Card>
         <CardContent className="pt-6">
-          <Tabs value={activeTab} onValueChange={value => setActiveTab(value as FieldOverrideTabKey)}>
+          <Tabs
+            value={activeTab}
+            onValueChange={value => setActiveTab(value as FieldOverrideTabKey)}
+          >
             <FieldOverrideTabsList />
 
             {/* Basic Fields */}

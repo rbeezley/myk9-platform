@@ -1,9 +1,11 @@
 # secretary-close-out-show Specification
 
 ## Purpose
+
 Define the secretary-facing Show Desk closeout behavior for marking a show complete after results, reports, incidents, and reconciliation concerns have been reviewed. This spec preserves Show Desk as the canonical closeout surface and requires offline-first replicated mutations for the final show, trial, and class status cascade.
 
 ## Requirements
+
 ### Requirement: Secretary can close out a show from Show Desk
 
 The system SHALL provide a secretary-facing **Close Out Show** action in the existing Show Desk closeout section when the closeout section is available.

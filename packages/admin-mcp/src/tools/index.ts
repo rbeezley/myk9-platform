@@ -18,9 +18,5 @@ export interface ToolContext {
 }
 
 export function buildAdminTools(ctx: ToolContext): AdminToolDefinition[] {
-  return [
-    diagnoseConfirmationEmailTool(ctx),
-    diagnosePaymentTool(ctx),
-    listShowAccessTool(ctx),
-  ];
+  return [diagnoseConfirmationEmailTool(ctx), diagnosePaymentTool(ctx), listShowAccessTool(ctx)];
 }

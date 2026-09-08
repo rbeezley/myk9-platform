@@ -382,8 +382,7 @@ export function useRegistrationWizardState() {
   const agreementLoadingNow =
     agreementGateApplies && !agreementAnswered && (agreementLoading || agreementFetching);
   // Paused offline, or failed. Not "still arriving".
-  const agreementUnavailable =
-    agreementGateApplies && !agreementAnswered && !agreementLoadingNow;
+  const agreementUnavailable = agreementGateApplies && !agreementAnswered && !agreementLoadingNow;
 
   const liveTotalFees = useMemo(
     () =>

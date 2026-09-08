@@ -33,8 +33,7 @@ export function CopyViewLinkButton({ href, label = 'Copy view link' }: CopyViewL
   const [fallbackOpen, setFallbackOpen] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
 
-  const absoluteUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}${href}` : href;
+  const absoluteUrl = typeof window !== 'undefined' ? `${window.location.origin}${href}` : href;
 
   const handleCopy = async () => {
     try {

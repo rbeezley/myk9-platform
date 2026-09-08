@@ -5,6 +5,7 @@
 Defines the secretary Entry Management cockpit: one Show Registration queue, whole-show search, URL-backed scope and focus, responsive queue-to-detail navigation, canonical child Entry actions, and compact registration-level bulk selection without reviving superseded table/card or Day-of presentations.
 
 ## Requirements
+
 ### Requirement: Entry Management uses one Show Registration queue
 
 Entry Management SHALL render one canonical queue whose visible row unit is a Show Registration or its established payment-intent/single-Entry fallback group. A row SHALL summarize Exhibitor, confirmation/submission identity, Dogs and Entry/Class counts, primary review state, payment state, and one next action without repeating child Entry detail as peer columns.

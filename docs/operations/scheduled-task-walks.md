@@ -16,17 +16,17 @@ files never reach CI.
 ## Why these are a separate file
 
 [`scheduled-audits-claude.md`](scheduled-audits-claude.md) holds the Claude tasks paired against the
-Codex nightly set, and its taxonomy is relative to Codex: *complements* run alongside a Codex task
-to disagree with it, *substitutes* replace one while it is dark. These three fit neither. They have
+Codex nightly set, and its taxonomy is relative to Codex: _complements_ run alongside a Codex task
+to disagree with it, _substitutes_ replace one while it is dark. These three fit neither. They have
 no Codex counterpart and are not seeking a second opinion.
 
 ## The three walks, and the line between them
 
-| Task | Roles | Asks |
-| --- | --- | --- |
-| `secretary-task-walk` | secretary | Does the job work end to end? |
-| `exhibitor-task-walk` | exhibitor | Does the job work end to end? |
-| `role-intent-walk` | judge, club-admin, site-admin | Does it *feel* the way INTENT.md says it should? |
+| Task                  | Roles                         | Asks                                             |
+| --------------------- | ----------------------------- | ------------------------------------------------ |
+| `secretary-task-walk` | secretary                     | Does the job work end to end?                    |
+| `exhibitor-task-walk` | exhibitor                     | Does the job work end to end?                    |
+| `role-intent-walk`    | judge, club-admin, site-admin | Does it _feel_ the way INTENT.md says it should? |
 
 The two task walks ask whether the role can actually do its job — a route that renders beautifully
 and cannot complete the task is a P1. `role-intent-walk` asks the emotional-design question against
@@ -75,11 +75,11 @@ pasted into a scheduler; change it everywhere or nowhere.
 
 ## Schedule
 
-| Task                  | Cadence           | Time (local) | Enabled |
-| --------------------- | ----------------- | ------------ | ------- |
-| `secretary-task-walk` | Weekly, Wednesday | 3:05 AM      | yes     |
+| Task                  | Cadence           | Time (local) | Enabled                                                              |
+| --------------------- | ----------------- | ------------ | -------------------------------------------------------------------- |
+| `secretary-task-walk` | Weekly, Wednesday | 3:05 AM      | yes                                                                  |
 | `role-intent-walk`    | Weekly, Friday    | 3:00 AM      | **no** — needs one supervised run to grant browser-control approvals |
-| `exhibitor-task-walk` | Weekly, Sunday    | 3:05 AM      | yes     |
+| `exhibitor-task-walk` | Weekly, Sunday    | 3:05 AM      | yes                                                                  |
 
 Spread across three mornings on purpose: two walks against shared staging at the same hour collide.
 Claude Code scheduled tasks run **locally, and only while the desktop app is open** — if the app is
@@ -108,7 +108,7 @@ site admin.
 
 Weekly, Wednesday. Setup, entries, permissions, reports, money.
 
-````
+```
 Run a FUNCTIONAL walk of the secretary's real task surface in a real browser, and write an audit report. **Nothing else walks the secretary.** `claude-role-ux-walk` was retired on 2026-09-01 and its replacement, `role-intent-walk`, rotates only through judge / club-admin / site-admin. So this walk carries both questions: the functional one — **does the secretary's job actually work end to end?** — and the INTENT lens in Judgment rules below.
 
 Working directory: /Users/richardbeezley/AI Projects/myk9-platform
@@ -203,7 +203,7 @@ Read `docs/audits/2026-08-28-secretary-task-walk.md` (F1–F35) and `docs/audits
 ## Hard constraint
 
 **Audit only, with one exception.** No source edits, no PRs, no merges, no `supabase db push`, no function deploys. If you find something trivial to fix, still do not fix it — record it and let a human decide. The single repo write permitted is committing and pushing your own report file, per the Output section above.
-````
+```
 
 ---
 
@@ -356,7 +356,7 @@ Read the three prior exhibitor audits in `docs/audits/` (`2026-07-02-exhibitor-e
 
 Weekly, Friday. Rotates judge / club-admin / site-admin by ISO week mod 3.
 
-````
+```
 Run an INTENT-driven UX walk of ONE myK9Show role in a real browser.
 
 Working directory: /Users/richardbeezley/AI Projects/myk9-platform
@@ -451,6 +451,6 @@ Re-walk any finding from this role's last two walks that is marked fixed and con
 **Audit only, with one exception.** No source edits, no PRs, no merges, no pushes beyond the report file, no `supabase db push`, no function deploys. If you find something trivial to fix, still do not fix it — record it and let a human decide. The single repo write permitted is committing and pushing your own report file.
 
 Prompt source of truth: docs/operations/scheduled-task-walks.md — edit there first, then update this task.
-````
+```
 
 ---

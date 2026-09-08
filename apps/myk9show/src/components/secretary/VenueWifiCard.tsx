@@ -1,11 +1,5 @@
 import { useState } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -58,7 +52,7 @@ export function VenueWifiCard({
             <Input
               id="wifi-network"
               value={network}
-              onChange={(e) => setNetwork(e.target.value)}
+              onChange={e => setNetwork(e.target.value)}
               placeholder="e.g. VenueWiFi"
               disabled={!canSave}
             />
@@ -68,18 +62,14 @@ export function VenueWifiCard({
             <Input
               id="wifi-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               placeholder="Leave blank if open"
               disabled={!canSave}
             />
           </div>
         </div>
         {canSave && hasChanges && (
-          <Button
-            size="sm"
-            onClick={() => onSave(network, password)}
-            disabled={isSaving}
-          >
+          <Button size="sm" onClick={() => onSave(network, password)} disabled={isSaving}>
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
         )}

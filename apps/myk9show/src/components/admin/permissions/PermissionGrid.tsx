@@ -56,7 +56,6 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
     new Set(['show', 'entry'])
   );
 
-
   // Get unique resources for filter
   const resources = useMemo(() => {
     const uniqueResources = [...new Set(permissions.map(p => getResource(p)))].sort();

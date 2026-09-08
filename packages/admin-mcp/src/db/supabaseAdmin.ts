@@ -13,17 +13,11 @@ import type { AdminMcpConfig } from '../config';
 
 export type AdminSupabaseClient = SupabaseClient<Database>;
 
-export function createSupabaseAdminClient(
-  config: AdminMcpConfig,
-): AdminSupabaseClient {
-  return createClient<Database>(
-    config.supabaseUrl,
-    config.supabaseServiceRoleKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
+export function createSupabaseAdminClient(config: AdminMcpConfig): AdminSupabaseClient {
+  return createClient<Database>(config.supabaseUrl, config.supabaseServiceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
     },
-  );
+  });
 }

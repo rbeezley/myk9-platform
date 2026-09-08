@@ -17,11 +17,7 @@ interface OfficersSectionProps {
  * Returns null when there are no officers at all (a secretary-only show
  * still renders since `secretaryName` is appended into the same list).
  */
-export function OfficersSection({
-  officers,
-  secretaryName,
-  secretaryEmail,
-}: OfficersSectionProps) {
+export function OfficersSection({ officers, secretaryName, secretaryEmail }: OfficersSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   const allOfficers: MagazineOfficer[] = [

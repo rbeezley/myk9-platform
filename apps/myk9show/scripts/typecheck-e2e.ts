@@ -47,10 +47,7 @@ function countDiagnostics(diagnostics: E2EDiagnostic[]) {
   return counts;
 }
 
-function subtractDiagnostics(
-  left: E2EDiagnostic[],
-  right: E2EDiagnostic[]
-): E2EDiagnostic[] {
+function subtractDiagnostics(left: E2EDiagnostic[], right: E2EDiagnostic[]): E2EDiagnostic[] {
   const remaining = countDiagnostics(right);
   return left.filter(diagnostic => {
     const key = diagnosticKey(diagnostic);
@@ -87,11 +84,9 @@ function renderDiagnostics(title: string, diagnostics: E2EDiagnostic[]) {
     .join('\n')}`;
 }
 
-export function runCli(
-  args: string[] = process.argv.slice(2),
-  rootDir = process.cwd()
-) {
-  const configPath = args.find(arg => arg.startsWith('--config='))?.split('=')[1] ?? DEFAULT_CONFIG_PATH;
+export function runCli(args: string[] = process.argv.slice(2), rootDir = process.cwd()) {
+  const configPath =
+    args.find(arg => arg.startsWith('--config='))?.split('=')[1] ?? DEFAULT_CONFIG_PATH;
   const baselinePath = join(
     rootDir,
     args.find(arg => arg.startsWith('--baseline='))?.split('=')[1] ?? DEFAULT_BASELINE_PATH

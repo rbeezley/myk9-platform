@@ -2,10 +2,7 @@ import type { CheckInStatus } from '@myk9/core';
 import type { EmailLogEntry } from '@/hooks/useEmailStatus';
 import type { EntryClass, EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntryStatus } from '@/types/show-registration-types';
-import type {
-  EntryDecisionEmailJob,
-  EntryDecisionEmailStatus,
-} from '@/features/lifecycle-emails';
+import type { EntryDecisionEmailJob, EntryDecisionEmailStatus } from '@/features/lifecycle-emails';
 
 export interface EntryListCardProps {
   entries: EntryManagementEntry[];

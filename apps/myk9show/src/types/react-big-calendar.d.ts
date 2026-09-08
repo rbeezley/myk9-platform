@@ -1,6 +1,6 @@
 declare module 'react-big-calendar' {
   import { ComponentType } from 'react';
-  
+
   export interface Event {
     id?: string;
     title: string;
@@ -8,12 +8,12 @@ declare module 'react-big-calendar' {
     end: Date;
     resource?: Record<string, unknown>;
   }
-  
+
   export type ViewName = 'month' | 'week' | 'work_week' | 'day' | 'agenda';
   export type View = ViewName;
-  
+
   export const Views: Record<string, ViewName>;
-  
+
   export interface Localizer {
     formats: Record<string, string>;
     messages: Record<string, string>;
@@ -43,7 +43,12 @@ declare module 'react-big-calendar' {
   }
 
   export interface EventPropGetter {
-    (event: Event, start: Date, end: Date, isSelected: boolean): {
+    (
+      event: Event,
+      start: Date,
+      end: Date,
+      isSelected: boolean
+    ): {
       className?: string;
       style?: React.CSSProperties;
     };
@@ -67,9 +72,9 @@ declare module 'react-big-calendar' {
     components?: CalendarComponents;
     eventPropGetter?: EventPropGetter;
   }
-  
+
   export const Calendar: ComponentType<CalendarProps>;
-  
+
   interface MomentInstance {
     locale: (locale?: string) => void;
     format: (format?: string) => string;

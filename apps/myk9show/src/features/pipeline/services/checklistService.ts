@@ -5,7 +5,9 @@ export const checklistService = {
   async getByTrial(trialId: string): Promise<ChecklistItemRow[]> {
     const { data, error } = await supabase
       .from('trial_checklist_state')
-      .select('id, trial_id, stage, item_key, item_type, label, completed, completed_at, completed_by, auto_completed, sort_order, created_at, updated_at')
+      .select(
+        'id, trial_id, stage, item_key, item_type, label, completed, completed_at, completed_by, auto_completed, sort_order, created_at, updated_at'
+      )
       .eq('trial_id', trialId)
       .order('stage')
       .order('sort_order');

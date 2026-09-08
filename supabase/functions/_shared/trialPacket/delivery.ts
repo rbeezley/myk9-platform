@@ -100,7 +100,7 @@ export function callerRoleAuthorizesPacket(role: PacketRoleScope, show: PacketSh
 export function storagePathBelongsToSnapshot(
   storagePath: string,
   showId: string,
-  snapshotId: string,
+  snapshotId: string
 ): boolean {
   if (!showId || !snapshotId || showId.includes('/') || snapshotId.includes('/')) return false;
   return storagePath === `${showId}/${snapshotId}.pdf`;
@@ -108,7 +108,7 @@ export function storagePathBelongsToSnapshot(
 
 export function resolvePacketRecipients(
   roles: PacketRecipientRole[],
-  show: PacketShowScope,
+  show: PacketShowScope
 ): string[] {
   const byNormalizedEmail = new Map<string, string>();
   for (const role of roles) {

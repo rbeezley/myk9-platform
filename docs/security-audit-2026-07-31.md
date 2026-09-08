@@ -27,35 +27,35 @@ inspection alone.
 
 ### Active findings
 
-| Source severity | Count |
-| --- | ---: |
-| CRITICAL | 0 |
-| HIGH | 3 |
-| MEDIUM | 3 |
-| LOW | 2 |
-| INFO | 2 |
+| Source severity  |  Count |
+| ---------------- | -----: |
+| CRITICAL         |      0 |
+| HIGH             |      3 |
+| MEDIUM           |      3 |
+| LOW              |      2 |
+| INFO             |      2 |
 | **Total active** | **10** |
 
 | Canonical launch severity | Count |
-| --- | ---: |
-| P0 | 2 |
-| P1 | 1 |
-| P2 | 4 |
-| P3 | 3 |
+| ------------------------- | ----: |
+| P0                        |     2 |
+| P1                        |     1 |
+| P2                        |     4 |
+| P3                        |     3 |
 
 ### This run's complete transition set
 
 The transition set contains **13** tracked records: source severities HIGH 5, MEDIUM 4, LOW 2,
 and INFO 2. Three are resolved transitions and are therefore excluded from the active table above.
 
-| Lifecycle status | Count | Records |
-| --- | ---: | --- |
-| new | 1 | SA-2026-07-31-01 |
-| unchanged | 7 | SA-2026-07-29-01, -03, -05, -06, -08, -12, and SA-027 |
-| resolved | 3 | SA-2026-07-29-02, SA-2026-07-29-13, SA-2026-07-30-01 |
-| blocked | 2 | SA-2026-07-29-11 and SA-2026-07-30-02 |
-| duplicate | 1 historical alias | SA-2026-07-29-09 -> SA-027 |
-| rejected | 3 historical candidates | SA-2026-07-29-04, -07 as security, and -10 |
+| Lifecycle status |                   Count | Records                                               |
+| ---------------- | ----------------------: | ----------------------------------------------------- |
+| new              |                       1 | SA-2026-07-31-01                                      |
+| unchanged        |                       7 | SA-2026-07-29-01, -03, -05, -06, -08, -12, and SA-027 |
+| resolved         |                       3 | SA-2026-07-29-02, SA-2026-07-29-13, SA-2026-07-30-01  |
+| blocked          |                       2 | SA-2026-07-29-11 and SA-2026-07-30-02                 |
+| duplicate        |      1 historical alias | SA-2026-07-29-09 -> SA-027                            |
+| rejected         | 3 historical candidates | SA-2026-07-29-04, -07 as security, and -10            |
 
 Auto-fixable: **4 of 10 active findings** (SA-2026-07-29-03, SA-2026-07-29-08,
 SA-2026-07-30-02, and SA-2026-07-31-01). **6 require a design, policy, or accepted-risk
@@ -418,27 +418,27 @@ documentation. **Auto-fixable: No.**
 
 ## Candidate dispositions
 
-| Candidate | Status | Evidence |
-| --- | --- | --- |
-| SA-2026-07-31-01 | **new/confirmed** | Complete role model, envelope, side-effect, and fanout paths establish expired/revoked privilege retention. |
-| SA-2026-07-29-04 (`people.email`) | **rejected** | Documented PostgREST embed dependency; people RLS returns no cold-anon rows. |
-| SA-2026-07-29-07 (branding storage predicate) | **rejected as security** | Ambiguous binding fails closed; product correctness only. |
-| SA-2026-07-29-09 | **duplicate** | Canonical SA-027. |
-| SA-2026-07-29-10 (advisor comments) | **rejected** | Required deny-all rationale comments exist. |
-| Expired secretary/chairman contact in generated premium | **not promoted** | Authorized managers may receive stale presentation data; it is not a caller authorization decision and no additional unauthorized path was established. |
+| Candidate                                               | Status                   | Evidence                                                                                                                                                |
+| ------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SA-2026-07-31-01                                        | **new/confirmed**        | Complete role model, envelope, side-effect, and fanout paths establish expired/revoked privilege retention.                                             |
+| SA-2026-07-29-04 (`people.email`)                       | **rejected**             | Documented PostgREST embed dependency; people RLS returns no cold-anon rows.                                                                            |
+| SA-2026-07-29-07 (branding storage predicate)           | **rejected as security** | Ambiguous binding fails closed; product correctness only.                                                                                               |
+| SA-2026-07-29-09                                        | **duplicate**            | Canonical SA-027.                                                                                                                                       |
+| SA-2026-07-29-10 (advisor comments)                     | **rejected**             | Required deny-all rationale comments exist.                                                                                                             |
+| Expired secretary/chairman contact in generated premium | **not promoted**         | Authorized managers may receive stale presentation data; it is not a caller authorization decision and no additional unauthorized path was established. |
 
 ## Categories checked
 
-| Category | Scope examined | Findings | Incomplete/blocked |
-| --- | --- | ---: | --- |
-| RLS Policy Integrity | 446 migrations; final grants/policies/helpers; FORCE-RLS, migration-grant, anon-grant, and behavioral registry contracts | 01, 02, 03, 08, 13, 30-01, 30-02 | No new live catalog query |
-| Edge Function Auth | all 36 entrypoints inventoried; complete shared envelope and implicated handlers/dependencies read; all changed entrypoints reviewed | 11, 12, 31-01; INFO 05 | No destructive/paid live invocation |
-| RBAC & Privilege Escalation | roles, permissions, role_permissions, user_roles, expiry model, helpers, definer RPCs, direct service-role queries | 06, 13, 30-01, 31-01; INFO SA-027 | Expired-role endpoint matrix not replayed |
-| Client Auth Patterns | Auth lifecycle, anonymous session, route guards, passcode claims/revocation, 13 route files | 01, 02 | Static/shared-browser only |
-| Data Exposure & Replication | AskQ tenant scope/tools; 16-table offline database; class RPC/enrichment; support/chat fanout; storage/input scans | 01, 02, 03, 08, 12, 31-01 | Public bucket objects not fetched |
-| Payment Security | 12 app Edge entrypoints including checkout, Connect, portal, payment link, entry/show refund, subscription, webhook, waitlist cron, and payout cron; locks, livemode, snapshots, signatures | 0 | No paid/refund/payout smoke |
-| Multi-registry | registry migrations/helpers and 41 matched catalog/title/scoring files; authorization-coupling search | 0 | Static only |
-| Input Validation | UUIDs, same-origin redirects, HTML escaping/sinks, upload validation, webhook secrets/signatures, URL params | 0 | Static only |
+| Category                    | Scope examined                                                                                                                                                                              |                          Findings | Incomplete/blocked                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------: | ----------------------------------------- |
+| RLS Policy Integrity        | 446 migrations; final grants/policies/helpers; FORCE-RLS, migration-grant, anon-grant, and behavioral registry contracts                                                                    |  01, 02, 03, 08, 13, 30-01, 30-02 | No new live catalog query                 |
+| Edge Function Auth          | all 36 entrypoints inventoried; complete shared envelope and implicated handlers/dependencies read; all changed entrypoints reviewed                                                        |            11, 12, 31-01; INFO 05 | No destructive/paid live invocation       |
+| RBAC & Privilege Escalation | roles, permissions, role_permissions, user_roles, expiry model, helpers, definer RPCs, direct service-role queries                                                                          | 06, 13, 30-01, 31-01; INFO SA-027 | Expired-role endpoint matrix not replayed |
+| Client Auth Patterns        | Auth lifecycle, anonymous session, route guards, passcode claims/revocation, 13 route files                                                                                                 |                            01, 02 | Static/shared-browser only                |
+| Data Exposure & Replication | AskQ tenant scope/tools; 16-table offline database; class RPC/enrichment; support/chat fanout; storage/input scans                                                                          |         01, 02, 03, 08, 12, 31-01 | Public bucket objects not fetched         |
+| Payment Security            | 12 app Edge entrypoints including checkout, Connect, portal, payment link, entry/show refund, subscription, webhook, waitlist cron, and payout cron; locks, livemode, snapshots, signatures |                                 0 | No paid/refund/payout smoke               |
+| Multi-registry              | registry migrations/helpers and 41 matched catalog/title/scoring files; authorization-coupling search                                                                                       |                                 0 | Static only                               |
+| Input Validation            | UUIDs, same-origin redirects, HTML escaping/sinks, upload validation, webhook secrets/signatures, URL params                                                                                |                                 0 | Static only                               |
 
 ### Focus areas with no additional concrete finding
 
@@ -480,37 +480,37 @@ The delta from `18e560c6c` to `1f5ccb8a4` is 87 files (+10,389/-1,747) and inclu
 guard/locking, behavioral SQL registration, hide-count gating, anonymous-read scoping, premium
 authorization, admin invitations, and support triage.
 
-| Prior tracked item | Transition |
-| --- | --- |
-| SA-2026-07-29-01 | **unchanged/partial:** wire/predicate denials proved; shared cache lifecycle remains exploitable |
-| SA-2026-07-29-02 | **resolved:** applied negative and positive anonymous-session proof |
-| SA-2026-07-29-03, -05, -06, -08, -12, SA-027 | **unchanged** |
-| SA-2026-07-29-11 | **blocked:** unauthorized path closed; full accepted closure proof incomplete |
-| SA-2026-07-29-13 | **resolved:** registered fresh-database behavioral SQL proof |
-| SA-2026-07-30-01 | **resolved:** locked guards and exploit-path proof |
-| SA-2026-07-30-02 | **blocked:** source/live-fact check fixed; real scheduled snapshot pending |
-| SA-2026-07-31-01 | **new:** expired/revoked roles retain Edge capabilities and fanout |
+| Prior tracked item                           | Transition                                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| SA-2026-07-29-01                             | **unchanged/partial:** wire/predicate denials proved; shared cache lifecycle remains exploitable |
+| SA-2026-07-29-02                             | **resolved:** applied negative and positive anonymous-session proof                              |
+| SA-2026-07-29-03, -05, -06, -08, -12, SA-027 | **unchanged**                                                                                    |
+| SA-2026-07-29-11                             | **blocked:** unauthorized path closed; full accepted closure proof incomplete                    |
+| SA-2026-07-29-13                             | **resolved:** registered fresh-database behavioral SQL proof                                     |
+| SA-2026-07-30-01                             | **resolved:** locked guards and exploit-path proof                                               |
+| SA-2026-07-30-02                             | **blocked:** source/live-fact check fixed; real scheduled snapshot pending                       |
+| SA-2026-07-31-01                             | **new:** expired/revoked roles retain Edge capabilities and fanout                               |
 
 Historical closures SA-020, SA-021, SA-023, SA-024, SA-025, SA-028, SA-029, and SA-030 retain
 their prior status and proof. They were not re-resolved from inspection.
 
 ## Independent `/codex:review` disposition
 
-| Item | Verdict |
-| --- | --- |
+| Item          | Verdict                                                                          |
+| ------------- | -------------------------------------------------------------------------------- |
 | 2026-07-31-01 | confirmed new HIGH/P0; umbrella finding covers caller gates and recipient fanout |
-| 2026-07-29-01 | confirmed unchanged HIGH/P0; shared IndexedDB residue survives the wire fix |
-| 2026-07-29-02 | confirmed resolved HIGH/P1 with source plus applied proof |
-| 2026-07-29-03 | confirmed unchanged MEDIUM/P2 |
-| 2026-07-29-05 | INFO/P3; no victim-token path |
-| 2026-07-29-06 | confirmed unchanged MEDIUM/P2 |
-| 2026-07-29-08 | confirmed unchanged LOW/P3 |
-| SA-027 | duplicate/accepted-dependency INFO/P3 |
-| 2026-07-29-11 | confirmed blocked HIGH/P1; unauthorized path closed, proof incomplete |
-| 2026-07-29-12 | confirmed unchanged MEDIUM/P2 |
-| 2026-07-29-13 | confirmed resolved MEDIUM/P2 with behavioral proof |
-| 2026-07-30-01 | confirmed resolved HIGH/P0 with exploit-path proof |
-| 2026-07-30-02 | confirmed blocked LOW/P2 pending the scheduled snapshot |
+| 2026-07-29-01 | confirmed unchanged HIGH/P0; shared IndexedDB residue survives the wire fix      |
+| 2026-07-29-02 | confirmed resolved HIGH/P1 with source plus applied proof                        |
+| 2026-07-29-03 | confirmed unchanged MEDIUM/P2                                                    |
+| 2026-07-29-05 | INFO/P3; no victim-token path                                                    |
+| 2026-07-29-06 | confirmed unchanged MEDIUM/P2                                                    |
+| 2026-07-29-08 | confirmed unchanged LOW/P3                                                       |
+| SA-027        | duplicate/accepted-dependency INFO/P3                                            |
+| 2026-07-29-11 | confirmed blocked HIGH/P1; unauthorized path closed, proof incomplete            |
+| 2026-07-29-12 | confirmed unchanged MEDIUM/P2                                                    |
+| 2026-07-29-13 | confirmed resolved MEDIUM/P2 with behavioral proof                               |
+| 2026-07-30-01 | confirmed resolved HIGH/P0 with exploit-path proof                               |
+| 2026-07-30-02 | confirmed blocked LOW/P2 pending the scheduled snapshot                          |
 
 The independent review did not perform runtime mutations and found no contradictory payment,
 multi-registry, passcode-claim, or AskQ tenant-scope path.
@@ -538,22 +538,22 @@ No Linear issue was created, updated, or closed during the read-only audit. On 2
 approved issue creation for every active finding without a dedicated issue. Seven issues were
 created; no existing issue was modified or closed.
 
-| Finding | Existing issue | Current state |
-| --- | --- | --- |
-| SA-2026-07-29-01 | [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116) | Done for cold-anon scope |
-| SA-2026-07-29-01 | [MYK9-127](https://linear.app/myk9-platform/issue/MYK9-127) | Todo; offline/cache proof remains |
-| SA-2026-07-29-01 | MYK9-128 | Duplicate of MYK9-127 |
-| SA-2026-07-29-02 | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117) | Done |
-| SA-2026-07-29-03 | [MYK9-146](https://linear.app/myk9-platform/issue/MYK9-146) | Todo |
+| Finding          | Existing issue                                              | Current state                             |
+| ---------------- | ----------------------------------------------------------- | ----------------------------------------- |
+| SA-2026-07-29-01 | [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116) | Done for cold-anon scope                  |
+| SA-2026-07-29-01 | [MYK9-127](https://linear.app/myk9-platform/issue/MYK9-127) | Todo; offline/cache proof remains         |
+| SA-2026-07-29-01 | MYK9-128                                                    | Duplicate of MYK9-127                     |
+| SA-2026-07-29-02 | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117) | Done                                      |
+| SA-2026-07-29-03 | [MYK9-146](https://linear.app/myk9-platform/issue/MYK9-146) | Todo                                      |
 | SA-2026-07-29-05 | [MYK9-150](https://linear.app/myk9-platform/issue/MYK9-150) | Backlog; hardening/accepted-risk decision |
-| SA-2026-07-29-06 | [MYK9-147](https://linear.app/myk9-platform/issue/MYK9-147) | Todo |
-| SA-2026-07-29-08 | [MYK9-149](https://linear.app/myk9-platform/issue/MYK9-149) | Todo |
-| SA-2026-07-29-11 | [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) | Todo |
-| SA-2026-07-29-12 | [MYK9-148](https://linear.app/myk9-platform/issue/MYK9-148) | Todo |
-| SA-027 | [MYK9-151](https://linear.app/myk9-platform/issue/MYK9-151) | Backlog; hardening/accepted-risk decision |
-| SA-2026-07-30-01 | [MYK9-130](https://linear.app/myk9-platform/issue/MYK9-130) | Done |
-| SA-2026-07-30-02 | [MYK9-132](https://linear.app/myk9-platform/issue/MYK9-132) | Todo, awaiting snapshot |
-| SA-2026-07-31-01 | [MYK9-145](https://linear.app/myk9-platform/issue/MYK9-145) | Todo |
+| SA-2026-07-29-06 | [MYK9-147](https://linear.app/myk9-platform/issue/MYK9-147) | Todo                                      |
+| SA-2026-07-29-08 | [MYK9-149](https://linear.app/myk9-platform/issue/MYK9-149) | Todo                                      |
+| SA-2026-07-29-11 | [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) | Todo                                      |
+| SA-2026-07-29-12 | [MYK9-148](https://linear.app/myk9-platform/issue/MYK9-148) | Todo                                      |
+| SA-027           | [MYK9-151](https://linear.app/myk9-platform/issue/MYK9-151) | Backlog; hardening/accepted-risk decision |
+| SA-2026-07-30-01 | [MYK9-130](https://linear.app/myk9-platform/issue/MYK9-130) | Done                                      |
+| SA-2026-07-30-02 | [MYK9-132](https://linear.app/myk9-platform/issue/MYK9-132) | Todo, awaiting snapshot                   |
+| SA-2026-07-31-01 | [MYK9-145](https://linear.app/myk9-platform/issue/MYK9-145) | Todo                                      |
 
 ### Approved Linear draft — SA-2026-07-31-01 / MYK9-145
 

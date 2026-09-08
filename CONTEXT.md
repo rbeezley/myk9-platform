@@ -16,6 +16,7 @@ named function (`scratchEntry`, `scratchEntryDayOf`, `requestScratch`,
 `approveScratchRequest`, `denyScratchRequest`, `markEntryMoved`,
 `rollbackEntryMove`, `denyMoveUpRequest`, `restoreEntryStatus`,
 `acceptEntry`, `rejectEntry`, `waitlistEntry`) that:
+
 - Writes the status field + any side-effect fields the transition implies
   (e.g., `check_in_status='pulled'` for day-of scratch).
 - Emits an `auditService.log` entry recording the from/to status and the
@@ -335,7 +336,7 @@ handle<PayloadType>(
   async ({ body, user, supabase }) => {
     // domain logic; throw HttpError for known errors
     return { success: true };
-  },
+  }
 );
 ```
 

@@ -106,7 +106,9 @@ describe('UserDetailsView — removed people', () => {
     renderView(person({ deletedAt: '2026-07-30T00:00:00Z' } as Partial<User>));
 
     expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /invitation|sign-in link/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitem', { name: /invitation|sign-in link/i })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps edit affordances on a live record', () => {

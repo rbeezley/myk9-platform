@@ -46,9 +46,7 @@ describe('MagazineJudgePortrait', () => {
     const { container } = render(
       <MagazineJudgePortrait imageUrl={null} initials="CB" plateLabel="Plate III" />
     );
-    expect(container.querySelector('.mz-judge-portrait__caption')).toHaveTextContent(
-      'Plate III'
-    );
+    expect(container.querySelector('.mz-judge-portrait__caption')).toHaveTextContent('Plate III');
   });
 
   it('aria-hides the initials overlay (decorative, name carries semantic content)', () => {

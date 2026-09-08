@@ -265,13 +265,7 @@ export type EntrySortField =
   | 'createdAt';
 
 export type ClassEntrySortField =
-  | 'dogName'
-  | 'handlerName'
-  | 'armband'
-  | 'runOrder'
-  | 'status'
-  | 'jumpHeight'
-  | 'entryFee';
+  'dogName' | 'handlerName' | 'armband' | 'runOrder' | 'status' | 'jumpHeight' | 'entryFee';
 
 // ============================================================================
 // Validation Types

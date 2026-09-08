@@ -91,10 +91,8 @@ function mapReportEntry(
   const armbandLabel = (e.armband ?? null) as string | number | null;
   const entrySource = readEntrySource(e.entry_source);
   const registrationNumber = trial
-    ? resolveDogIdentityForOrganization(
-        dog?.registrations,
-        readTrialRegistryId(trial)
-      ).registrationNumber
+    ? resolveDogIdentityForOrganization(dog?.registrations, readTrialRegistryId(trial))
+        .registrationNumber
     : null;
   const base = mapDbEntryToReportEntry(
     {

@@ -18,9 +18,7 @@ export function useJudgeAuth() {
     }
 
     const displayName =
-      [user.user_metadata?.firstName, user.user_metadata?.lastName]
-        .filter(Boolean)
-        .join(' ') ||
+      [user.user_metadata?.firstName, user.user_metadata?.lastName].filter(Boolean).join(' ') ||
       user.email ||
       'Unknown Judge';
 

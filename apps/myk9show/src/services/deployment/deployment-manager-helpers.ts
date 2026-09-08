@@ -11,7 +11,7 @@ import type {
   FeatureFlagConfig,
   HealthCheckConfig,
   MigrationTask,
-  RollbackPlan
+  RollbackPlan,
 } from '../../types/deployment-types';
 import type { FeatureFlagEvalContext } from './deployment-manager-types';
 
@@ -30,12 +30,15 @@ export function generateId(prefix: string): string {
  * Hash a feature flag ID and user context to a deterministic number
  * for consistent percentage-based rollout.
  */
-export function hashContext(flagId: string, context: FeatureFlagEvalContext | Record<string, unknown>): number {
+export function hashContext(
+  flagId: string,
+  context: FeatureFlagEvalContext | Record<string, unknown>
+): number {
   const str = `${flagId}:${(context as Record<string, unknown>).userId || 'anonymous'}`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash);
@@ -45,7 +48,10 @@ export function hashContext(flagId: string, context: FeatureFlagEvalContext | Re
  * Evaluate a single feature-flag condition against a user context.
  * Currently a simplified stub that always returns true.
  */
-export function evaluateCondition(_condition: Record<string, unknown>, _context: Record<string, unknown>): boolean {
+export function evaluateCondition(
+  _condition: Record<string, unknown>,
+  _context: Record<string, unknown>
+): boolean {
   return true;
 }
 
@@ -107,7 +113,7 @@ export function generatePreDeploymentTasks(): ChecklistTask[] {
       estimatedDuration: 300,
       status: 'pending',
       artifacts: [],
-      dependencies: []
+      dependencies: [],
     },
     {
       id: 'pre_002',
@@ -119,8 +125,8 @@ export function generatePreDeploymentTasks(): ChecklistTask[] {
       estimatedDuration: 600,
       status: 'pending',
       artifacts: [],
-      dependencies: []
-    }
+      dependencies: [],
+    },
   ];
 }
 
@@ -138,7 +144,7 @@ export function generateMigrationTasks(migrations: MigrationTask[]): ChecklistTa
     estimatedDuration: migration.estimatedDuration,
     status: 'pending' as const,
     artifacts: [],
-    dependencies: migration.dependencies.map(dep => `migration_${dep}`)
+    dependencies: migration.dependencies.map(dep => `migration_${dep}`),
   }));
 }
 
@@ -157,7 +163,7 @@ export function generateDeploymentTasks(): ChecklistTask[] {
       estimatedDuration: 180,
       status: 'pending',
       artifacts: [],
-      dependencies: []
+      dependencies: [],
     },
     {
       id: 'deploy_002',
@@ -169,8 +175,8 @@ export function generateDeploymentTasks(): ChecklistTask[] {
       estimatedDuration: 30,
       status: 'pending',
       artifacts: [],
-      dependencies: ['deploy_001']
-    }
+      dependencies: ['deploy_001'],
+    },
   ];
 }
 
@@ -189,7 +195,7 @@ export function generatePostDeploymentTasks(): ChecklistTask[] {
       estimatedDuration: 300,
       status: 'pending',
       artifacts: [],
-      dependencies: []
+      dependencies: [],
     },
     {
       id: 'post_002',
@@ -201,8 +207,8 @@ export function generatePostDeploymentTasks(): ChecklistTask[] {
       estimatedDuration: 900,
       status: 'pending',
       artifacts: [],
-      dependencies: ['post_001']
-    }
+      dependencies: ['post_001'],
+    },
   ];
 }
 
@@ -223,7 +229,7 @@ export function generateRollbackPlan(deployment: DeploymentConfig): RollbackPlan
         type: 'code_deployment',
         automated: true,
         estimatedDuration: 120,
-        dependencies: []
+        dependencies: [],
       },
       {
         id: 'rollback_002',
@@ -233,13 +239,13 @@ export function generateRollbackPlan(deployment: DeploymentConfig): RollbackPlan
         type: 'database_migration',
         automated: true,
         estimatedDuration: 300,
-        dependencies: ['rollback_001']
-      }
+        dependencies: ['rollback_001'],
+      },
     ],
     estimatedDuration: 420,
     dataBackups: [],
     riskAssessment: 'Low risk rollback with automated procedures',
-    approvalRequired: false
+    approvalRequired: false,
   };
 }
 
@@ -276,7 +282,7 @@ export function getDefaultMigrations(): MigrationTask[] {
       dependencies: [],
       estimatedDuration: 30,
       riskLevel: 'low',
-      status: 'pending'
+      status: 'pending',
     },
     {
       id: 'migration_002',
@@ -300,8 +306,8 @@ export function getDefaultMigrations(): MigrationTask[] {
       dependencies: ['migration_001'],
       estimatedDuration: 15,
       riskLevel: 'medium',
-      status: 'pending'
-    }
+      status: 'pending',
+    },
   ];
 }
 
@@ -321,12 +327,12 @@ export function getDefaultFeatureFlags(): FeatureFlagConfig[] {
         organizations: [],
         betaUsers: true,
         newUsers: false,
-        regions: []
+        regions: [],
       },
       conditions: [],
       createdBy: 'system',
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     },
     {
       id: 'performance_monitoring',
@@ -339,13 +345,13 @@ export function getDefaultFeatureFlags(): FeatureFlagConfig[] {
         organizations: [],
         betaUsers: false,
         newUsers: true,
-        regions: []
+        regions: [],
       },
       conditions: [],
       createdBy: 'system',
       createdAt: new Date(),
-      updatedAt: new Date()
-    }
+      updatedAt: new Date(),
+    },
   ];
 }
 
@@ -363,7 +369,7 @@ export function getDefaultHealthChecks(): HealthCheckConfig[] {
       interval: 30000,
       retries: 3,
       severity: 'critical',
-      enabled: true
+      enabled: true,
     },
     {
       id: 'api_health',
@@ -376,7 +382,7 @@ export function getDefaultHealthChecks(): HealthCheckConfig[] {
       interval: 15000,
       retries: 2,
       severity: 'critical',
-      enabled: true
+      enabled: true,
     },
     {
       id: 'sync_service',
@@ -387,7 +393,7 @@ export function getDefaultHealthChecks(): HealthCheckConfig[] {
       interval: 60000,
       retries: 3,
       severity: 'error',
-      enabled: true
-    }
+      enabled: true,
+    },
   ];
 }

@@ -58,8 +58,8 @@ export function ClubFeatures() {
             Run a trial without <em>the paperwork</em> — from premium list to final placements.
           </h2>
           <div className="l-aside">
-            One system replaces the spreadsheet, the entry form, the catalog, and the
-            scoresheet. Offline at the venue, synced when you're back.
+            One system replaces the spreadsheet, the entry form, the catalog, and the scoresheet.
+            Offline at the venue, synced when you're back.
           </div>
         </div>
         <div className="l-features-grid">

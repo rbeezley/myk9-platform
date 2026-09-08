@@ -4,15 +4,15 @@ export function cleanupOldLocalStorage() {
     'template-storage',
     'myk9show-template-storage',
     'template-store',
-    'templates'
+    'templates',
   ];
-  
+
   storageKeys.forEach(key => {
     if (localStorage.getItem(key)) {
       localStorage.removeItem(key);
     }
   });
-  
+
   // Mark cleanup as done
   localStorage.setItem('template-storage-cleanup-v1', 'done');
 }

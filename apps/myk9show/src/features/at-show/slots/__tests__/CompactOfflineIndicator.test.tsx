@@ -51,12 +51,14 @@ describe('CompactOfflineIndicator', () => {
     // synced here, so an offline promise would be unfounded even though the
     // other three tables are ready.
     renderChip(
-      syncStatus(false, {
-        shows: 'success',
-        trials: 'success',
-        classes: 'success',
-        entries: 'idle',
-      },
+      syncStatus(
+        false,
+        {
+          shows: 'success',
+          trials: 'success',
+          classes: 'success',
+          entries: 'idle',
+        },
         null
       )
     );

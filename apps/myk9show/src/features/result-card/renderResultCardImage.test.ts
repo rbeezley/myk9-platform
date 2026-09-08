@@ -112,7 +112,8 @@ describe('renderResultCardImage', () => {
 
   it('fits long labels inside the share image width', async () => {
     const fillText = vi.fn();
-    const longDogName = 'Ditto The Extremely Accomplished Fast Dog With A Very Long Registered Name';
+    const longDogName =
+      'Ditto The Extremely Accomplished Fast Dog With A Very Long Registered Name';
     const longShowName =
       'The Extraordinarily Long Invitational Scent Work Classic Hosted At The Biggest Fairgrounds';
     const canvas = {

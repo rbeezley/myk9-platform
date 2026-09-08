@@ -11,12 +11,7 @@ interface ShowMapReorderBannerProps {
 // INTENT: The banner is the only modal cue that reorder mode is active.
 // Keep it visible at the top of the workbench so the secretary always sees
 // the way out (Done + Escape) and the current persistence state.
-export function ShowMapReorderBanner({
-  active,
-  isPersisting,
-  onDone,
-}: ShowMapReorderBannerProps) {
-
+export function ShowMapReorderBanner({ active, isPersisting, onDone }: ShowMapReorderBannerProps) {
   return (
     <div
       role="status"

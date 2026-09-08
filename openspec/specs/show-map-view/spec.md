@@ -1,8 +1,11 @@
 # show-map-view Specification
 
 ## Purpose
+
 Find Shows offers a map view mode rendering the filtered show list as status-colored venue pins, with popup show cards linking to show details and graceful handling of shows without coordinates.
+
 ## Requirements
+
 ### Requirement: Map is a fourth view mode of the existing Find Shows list
 
 Find Shows SHALL offer a `map` view mode alongside `cards`, `table`, and `calendar`, URL-synced via the existing `?view=` parameter, rendering the same filtered show list the other view modes consume. Switching filters, tabs, or search SHALL update the map's markers without any map-specific filter logic.

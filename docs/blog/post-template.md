@@ -6,15 +6,15 @@ Use this structure for every customer education post. Fill in the frontmatter, t
 
 ```markdown
 ---
-title: "Title in sentence case — state the benefit or answer, not the topic"
+title: 'Title in sentence case — state the benefit or answer, not the topic'
 audience: secretary | exhibitor | club | treasurer | judge | all
 category: secretary-tips | exhibitor-tips | club-operations | payments-explained | show-day-reliability | release-notes
-customer_question: "The verbatim question this post answers, as a customer would say it"
-related_guide: docs/user-guides/<guide>.md  # section that covers this topic in depth
+customer_question: 'The verbatim question this post answers, as a customer would say it'
+related_guide: docs/user-guides/<guide>.md # section that covers this topic in depth
 related_kb:
-  - <article-slug>         # KB article this post supplements
+  - <article-slug> # KB article this post supplements
   - <article-slug>
-last_verified: YYYY-MM-DD  # date the described workflow was confirmed in the live app
+last_verified: YYYY-MM-DD # date the described workflow was confirmed in the live app
 status: draft | draft-ready | published
 ---
 ```
@@ -25,7 +25,7 @@ status: draft | draft-ready | published
 
 **One sentence:** what this post covers and who it is for.
 
-*Example: If you've ever wondered why your entry says "Pending" after you pay, this post walks through exactly what happens — and when it changes.*
+_Example: If you've ever wondered why your entry says "Pending" after you pay, this post walks through exactly what happens — and when it changes._
 
 ---
 

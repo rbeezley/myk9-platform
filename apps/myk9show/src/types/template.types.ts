@@ -228,8 +228,7 @@ export interface ClassDefinition {
 
   // Class-specific default values for fields marked as defaultVariesByClass
   classSpecificDefaults?:
-    | Record<string, string | number | boolean | Date | string[] | number[]>
-    | undefined;
+    Record<string, string | number | boolean | Date | string[] | number[]> | undefined;
 
   // Class-specific settings
   settings?:

@@ -53,7 +53,7 @@ class DataBackupService {
     try {
       const timestamp = new Date();
       const backupData = await this.gatherBackupData(options);
-      
+
       // Create ZIP archive if compression is enabled
       if (options.compressData) {
         return await this.createCompressedBackup(backupData, options, timestamp);
@@ -67,7 +67,7 @@ class DataBackupService {
         fileSize: 0,
         itemCount: 0,
         timestamp: new Date(),
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -77,7 +77,7 @@ class DataBackupService {
    */
   async restoreFromBackup(
     file: File,
-    options: { 
+    options: {
       mergeWithExisting: boolean;
       password?: string;
       selectiveRestore?: string[];
@@ -87,7 +87,7 @@ class DataBackupService {
       success: false,
       itemsRestored: 0,
       warnings: [],
-      errors: []
+      errors: [],
     };
 
     try {
@@ -147,17 +147,17 @@ class DataBackupService {
       }
 
       const validation = this.validateBackup(backupData);
-      
+
       return {
         metadata: backupData.metadata,
         isValid: validation.isValid,
-        errors: validation.errors
+        errors: validation.errors,
       };
     } catch (error) {
       return {
         metadata: {} as BackupMetadata,
         isValid: false,
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
       };
     }
   }
@@ -183,13 +183,13 @@ class DataBackupService {
     if (options.removeOldShows) {
       const threshold = new Date();
       threshold.setDate(threshold.getDate() - (options.oldShowsThresholdDays || 365));
-      
+
       const showsData = localStorage.getItem('show-store');
       if (showsData) {
         const parsed = JSON.parse(showsData);
         const originalCount = parsed.state.shows.length;
         const originalSize = showsData.length;
-        
+
         parsed.state.shows = parsed.state.shows.filter((show: Record<string, unknown>) => {
           const dateField = show.date || show.startDate;
           if (!dateField || typeof dateField !== 'string') {
@@ -197,12 +197,12 @@ class DataBackupService {
           }
           return new Date(dateField) > threshold;
         });
-        
+
         const removedShows = originalCount - parsed.state.shows.length;
         if (removedShows > 0) {
           localStorage.setItem('show-store', JSON.stringify(parsed));
           const newSize = JSON.stringify(parsed).length;
-          
+
           itemsRemoved += removedShows;
           spaceFreed += originalSize - newSize;
           summary.push(`Removed ${removedShows} old shows`);
@@ -212,16 +212,16 @@ class DataBackupService {
 
     // Clean up cache
     if (options.removeCache) {
-      const cacheKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith('cache-') || key.startsWith('query-')
+      const cacheKeys = Object.keys(localStorage).filter(
+        key => key.startsWith('cache-') || key.startsWith('query-')
       );
-      
+
       let cacheSize = 0;
       cacheKeys.forEach(key => {
         cacheSize += localStorage.getItem(key)?.length || 0;
         localStorage.removeItem(key);
       });
-      
+
       if (cacheKeys.length > 0) {
         itemsRemoved += cacheKeys.length;
         spaceFreed += cacheSize * 2; // UTF-16 approximation
@@ -232,7 +232,7 @@ class DataBackupService {
     return {
       itemsRemoved,
       spaceFreed,
-      summary
+      summary,
     };
   }
 
@@ -244,13 +244,13 @@ class DataBackupService {
         appVersion: this.APP_VERSION,
         dataTypes: [],
         itemCounts: {},
-        checksum: ''
-      }
+        checksum: '',
+      },
     };
 
     // Gather data from localStorage
     const storeKeys = ['dog-store', 'people-store', 'show-store', 'club-store'];
-    
+
     for (const key of storeKeys) {
       const data = localStorage.getItem(key);
       if (data) {
@@ -260,8 +260,9 @@ class DataBackupService {
         const storeData = backupData[key] as Record<string, unknown>;
         const state = storeData.state as Record<string, unknown>;
         const entityArray = state?.[entityType + 's'];
-        backupData.metadata.itemCounts[entityType] = 
-          Array.isArray(entityArray) ? entityArray.length : 0;
+        backupData.metadata.itemCounts[entityType] = Array.isArray(entityArray)
+          ? entityArray.length
+          : 0;
       }
     }
 
@@ -276,10 +277,10 @@ class DataBackupService {
 
     // Include cache if requested
     if (options.includeCache) {
-      const cacheKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith('cache-') || key.startsWith('query-')
+      const cacheKeys = Object.keys(localStorage).filter(
+        key => key.startsWith('cache-') || key.startsWith('query-')
       );
-      
+
       if (cacheKeys.length > 0) {
         backupData.cache = {};
         cacheKeys.forEach(key => {
@@ -304,13 +305,13 @@ class DataBackupService {
   }
 
   private async createSimpleBackup(
-    backupData: BackupData, 
-    options: BackupOptions, 
+    backupData: BackupData,
+    options: BackupOptions,
     timestamp: Date
   ): Promise<BackupResult> {
-    const filename = options.filename || 
-      `myK9Show-backup-${timestamp.toISOString().split('T')[0]}.json`;
-    
+    const filename =
+      options.filename || `myK9Show-backup-${timestamp.toISOString().split('T')[0]}.json`;
+
     const jsonString = JSON.stringify(backupData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     saveAs(blob, filename);
@@ -319,9 +320,11 @@ class DataBackupService {
       success: true,
       filename,
       fileSize: blob.size,
-      itemCount: Object.values(backupData.metadata.itemCounts)
-        .reduce((sum: number, count: number) => sum + count, 0),
-      timestamp
+      itemCount: Object.values(backupData.metadata.itemCounts).reduce(
+        (sum: number, count: number) => sum + count,
+        0
+      ),
+      timestamp,
     };
   }
 
@@ -331,13 +334,13 @@ class DataBackupService {
     timestamp: Date
   ): Promise<BackupResult> {
     const zip = new JSZip();
-    
+
     // Add main backup data
     zip.file('backup.json', JSON.stringify(backupData, null, 2));
-    
+
     // Add metadata file
     zip.file('metadata.json', JSON.stringify(backupData.metadata, null, 2));
-    
+
     // Add readme
     const readme = this.generateReadme(backupData.metadata);
     zip.file('README.txt', readme);
@@ -345,32 +348,34 @@ class DataBackupService {
     // Note: Password protection would require additional setup with JSZip-utils
     // For now, we'll generate without password protection
 
-    const zipBlob = await zip.generateAsync({ type: 'blob' }) as Blob;
-    
-    const filename = options.filename || 
-      `myK9Show-backup-${timestamp.toISOString().split('T')[0]}.zip`;
-    
+    const zipBlob = (await zip.generateAsync({ type: 'blob' })) as Blob;
+
+    const filename =
+      options.filename || `myK9Show-backup-${timestamp.toISOString().split('T')[0]}.zip`;
+
     saveAs(zipBlob, filename);
 
     return {
       success: true,
       filename,
       fileSize: zipBlob.size,
-      itemCount: Object.values(backupData.metadata.itemCounts)
-        .reduce((sum: number, count: number) => sum + count, 0),
-      timestamp
+      itemCount: Object.values(backupData.metadata.itemCounts).reduce(
+        (sum: number, count: number) => sum + count,
+        0
+      ),
+      timestamp,
     };
   }
 
   private async extractCompressedBackup(file: File): Promise<BackupData> {
     const zip = new JSZip();
     const zipContent = await zip.loadAsync(file);
-    
+
     const backupFile = zipContent.file('backup.json');
     if (!backupFile) {
       throw new Error('Invalid backup file: missing backup.json');
     }
-    
+
     const backupText = await backupFile.async('text');
     return JSON.parse(backupText);
   }
@@ -415,7 +420,7 @@ class DataBackupService {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -432,7 +437,7 @@ class DataBackupService {
     let itemCount = 0;
 
     const storeKeys = ['dog-store', 'people-store', 'show-store', 'club-store'];
-    
+
     for (const key of storeKeys) {
       if (backupData[key]) {
         // Check if selective restore is requested
@@ -448,16 +453,16 @@ class DataBackupService {
             if (existing) {
               const existingData = JSON.parse(existing);
               const backupStoreData = backupData[key];
-              
+
               // Simple merge - could be enhanced with conflict resolution
               const backupState = (backupStoreData as Record<string, unknown>).state;
               const existingState = (existingData as Record<string, unknown>).state;
-              
+
               if (existingState && backupState) {
                 const entityKey = entityType + 's';
                 const existingArray = (existingState as Record<string, unknown>)[entityKey];
                 const backupArray = (backupState as Record<string, unknown>)[entityKey];
-                
+
                 if (Array.isArray(existingArray) && Array.isArray(backupArray)) {
                   // Merge arrays, avoiding duplicates by ID
                   const existingIds = new Set(existingArray.map((item: { id: string }) => item.id));
@@ -479,7 +484,9 @@ class DataBackupService {
             itemCount += backupData.metadata.itemCounts[entityType] || 0;
           }
         } catch (error) {
-          errors.push(`Failed to restore ${entityType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          errors.push(
+            `Failed to restore ${entityType}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
         }
       }
     }
@@ -490,7 +497,9 @@ class DataBackupService {
         localStorage.setItem('user-preferences', JSON.stringify(backupData['user-preferences']));
         itemCount += 1;
       } catch (error) {
-        errors.push(`Failed to restore preferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        errors.push(
+          `Failed to restore preferences: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
     }
 
@@ -502,7 +511,9 @@ class DataBackupService {
         });
         itemCount += Object.keys(backupData.cache).length;
       } catch (error) {
-        warnings.push(`Failed to restore some cache data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        warnings.push(
+          `Failed to restore some cache data: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
     }
 
@@ -514,7 +525,7 @@ class DataBackupService {
     let hash = 0;
     for (let i = 0; i < data.length; i++) {
       const char = data.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return hash.toString(16);

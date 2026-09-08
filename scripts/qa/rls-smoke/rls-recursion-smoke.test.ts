@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildSmokeQueries,
-  classifyPostgrestFailure,
-  parseEnvFile,
-} from './rls-recursion-smoke';
+import { buildSmokeQueries, classifyPostgrestFailure, parseEnvFile } from './rls-recursion-smoke';
 
 describe('parseEnvFile', () => {
   it('parses KEY=value lines and strips quotes', () => {
@@ -35,7 +31,7 @@ describe('parseEnvFile', () => {
 describe('buildSmokeQueries', () => {
   it('scopes entries reads to the show and embeds dogs through the FK', () => {
     const showId = '4584f257-19b5-4016-aae6-5e7827b769cb';
-    const paths = buildSmokeQueries(showId).map((q) => q.path);
+    const paths = buildSmokeQueries(showId).map(q => q.path);
 
     expect(paths).toEqual([
       `entries?select=id,dog_id&show_id=eq.${showId}&limit=5`,

@@ -1,9 +1,5 @@
 export type ClassLifecycleValue =
-  | 'not_started'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled'
-  | 'unknown';
+  'not_started' | 'in_progress' | 'completed' | 'cancelled' | 'unknown';
 
 const UNKNOWN_LIFECYCLE: ClassLifecycleValue = 'unknown';
 
@@ -43,7 +39,12 @@ const CLASS_LIFECYCLE_SHOW_VISIBILITY: Record<string, boolean> = {
 };
 
 function lookupKey(value: string | null | undefined): string {
-  return value?.trim().toLowerCase().replace(/[\s-]+/g, '_') || 'unknown';
+  return (
+    value
+      ?.trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, '_') || 'unknown'
+  );
 }
 
 export function shouldShowClassLifecycle(showStatus?: string | null | undefined): boolean {

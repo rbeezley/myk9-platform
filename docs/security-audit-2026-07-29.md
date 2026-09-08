@@ -13,30 +13,30 @@ but live HTTP/database probes were not repeated because the security-audit skill
 
 ## Summary
 
-| Source severity | Count |
-| --- | ---: |
-| CRITICAL | 0 |
-| HIGH | 3 |
-| MEDIUM | 4 |
-| LOW | 1 |
-| INFO | 2 |
+| Source severity          |  Count |
+| ------------------------ | -----: |
+| CRITICAL                 |      0 |
+| HIGH                     |      3 |
+| MEDIUM                   |      4 |
+| LOW                      |      1 |
+| INFO                     |      2 |
 | **Total current ledger** | **10** |
 
 | Canonical launch severity | Count |
-| --- | ---: |
-| P0 | 1 |
-| P1 | 2 |
-| P2 | 4 |
-| P3 | 3 |
+| ------------------------- | ----: |
+| P0                        |     1 |
+| P1                        |     2 |
+| P2                        |     4 |
+| P3                        |     3 |
 
-| Lifecycle transition | Count | Meaning |
-| --- | ---: | --- |
-| new | 3 | SA-2026-07-29-11 through -13 |
-| unchanged | 7 | Reconfirmed findings/informational records |
-| resolved | 0 | No finding was closed from code alone |
-| duplicate | 1 | SA-2026-07-29-09 is the prior alias for canonical SA-027 |
-| rejected | 3 | SA-2026-07-29-04, -07, and -10 |
-| blocked | 0 findings | Five coverage gaps are recorded separately |
+| Lifecycle transition |      Count | Meaning                                                  |
+| -------------------- | ---------: | -------------------------------------------------------- |
+| new                  |          3 | SA-2026-07-29-11 through -13                             |
+| unchanged            |          7 | Reconfirmed findings/informational records               |
+| resolved             |          0 | No finding was closed from code alone                    |
+| duplicate            |          1 | SA-2026-07-29-09 is the prior alias for canonical SA-027 |
+| rejected             |          3 | SA-2026-07-29-04, -07, and -10                           |
+| blocked              | 0 findings | Five coverage gaps are recorded separately               |
 
 Auto-fixable: **3 of 10** (SA-2026-07-29-03, SA-2026-07-29-08, and
 SA-2026-07-29-13). **7 require a design or policy decision.**
@@ -358,27 +358,27 @@ body and set `search_path=''`, with focused tests. **Auto-fixable: No.**
 
 ## Rejected and duplicate transitions
 
-| Prior ID/candidate | Current status | Evidence |
-| --- | --- | --- |
-| SA-2026-07-29-04 (`people.email` anon column grant) | **rejected** | Migration `20260725180000` explicitly limits the grant to public embeds; `people_select` remains `TO authenticated`, so direct/embed rows are null. Revocation previously broke the public show route. No current email disclosure path. |
-| SA-2026-07-29-07 (show-branding storage predicate) | **rejected as security** | The unqualified `name` binds to the inner show title, making the secretary limb fail closed. This remains a P2 product/correctness defect, not unauthorized access, and belongs outside the security ledger. |
-| SA-2026-07-29-09 | **duplicate** | Reuse canonical SA-027. |
-| SA-2026-07-29-10 (missing advisor comments) | **rejected** | Current source already comments all six no-policy tables in migrations `20260712130000`, `20260712170000`, and `20260728120000`. A live mismatch would be deployment drift, not missing source. |
-| Anonymous session → RBAC RPC chain | **duplicate attack leg** | Covered by SA-2026-07-29-02 (bare anonymous role) and SA-2026-07-29-13 (arbitrary-user RPCs), not a third defect. |
-| Admin routes unguarded | **rejected, retained** | `adminGuard()` wraps the routes in `ProtectedRoute`. |
-| `send-results` trusts `app_metadata` | **rejected, retained** | Authorization queries active/unexpired `user_roles`; the grep hit was a comment. |
+| Prior ID/candidate                                  | Current status           | Evidence                                                                                                                                                                                                                                 |
+| --------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SA-2026-07-29-04 (`people.email` anon column grant) | **rejected**             | Migration `20260725180000` explicitly limits the grant to public embeds; `people_select` remains `TO authenticated`, so direct/embed rows are null. Revocation previously broke the public show route. No current email disclosure path. |
+| SA-2026-07-29-07 (show-branding storage predicate)  | **rejected as security** | The unqualified `name` binds to the inner show title, making the secretary limb fail closed. This remains a P2 product/correctness defect, not unauthorized access, and belongs outside the security ledger.                             |
+| SA-2026-07-29-09                                    | **duplicate**            | Reuse canonical SA-027.                                                                                                                                                                                                                  |
+| SA-2026-07-29-10 (missing advisor comments)         | **rejected**             | Current source already comments all six no-policy tables in migrations `20260712130000`, `20260712170000`, and `20260728120000`. A live mismatch would be deployment drift, not missing source.                                          |
+| Anonymous session → RBAC RPC chain                  | **duplicate attack leg** | Covered by SA-2026-07-29-02 (bare anonymous role) and SA-2026-07-29-13 (arbitrary-user RPCs), not a third defect.                                                                                                                        |
+| Admin routes unguarded                              | **rejected, retained**   | `adminGuard()` wraps the routes in `ProtectedRoute`.                                                                                                                                                                                     |
+| `send-results` trusts `app_metadata`                | **rejected, retained**   | Authorization queries active/unexpired `user_roles`; the grep hit was a comment.                                                                                                                                                         |
 
 ## Categories Checked
 
-| Category | Scope examined | Findings | Incomplete/blocked |
-| --- | --- | ---: | --- |
-| RLS Policy Integrity | 429 migration files inventoried; final policies/grants/helpers and prior 119-table applied proof reconciled | 01, 02, 03, 08 | Applied DB not re-queried |
-| Edge Function Auth | all 35 `index.ts` entrypoints inventoried; complete implicated functions/shared helpers read | 11, 12; INFO 05 | No live model/anonymous invocation |
-| RBAC & Privilege Escalation | roles/permissions/user_roles policies; final helper bodies; client callers; current-main RBAC delta | 06, 13; INFO SA-027 | No role-token live replay |
-| Client Auth Patterns | auth lifecycle, anonymous-session flow, 15 route files, current Auth/RBAC delta | 02 | Static only |
-| Data Exposure | AskQ service-role tools and scope helper; grants/policies; public/replication paths; error/logging sinks | 01, 02, 03, 08, 13 | Public bucket object inventory not replayed |
-| Payment Security | 9 Stripe/refund/payout entrypoints plus shared locks/calculators and withdrawal snapshots | 0 | No paid/refund/payout smoke |
-| Input Validation | request parsing, UUID/redirect validation, HTML sinks, uploads/forms/params inventory | 0 | Static only |
+| Category                    | Scope examined                                                                                              |            Findings | Incomplete/blocked                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------: | ------------------------------------------- |
+| RLS Policy Integrity        | 429 migration files inventoried; final policies/grants/helpers and prior 119-table applied proof reconciled |      01, 02, 03, 08 | Applied DB not re-queried                   |
+| Edge Function Auth          | all 35 `index.ts` entrypoints inventoried; complete implicated functions/shared helpers read                |     11, 12; INFO 05 | No live model/anonymous invocation          |
+| RBAC & Privilege Escalation | roles/permissions/user_roles policies; final helper bodies; client callers; current-main RBAC delta         | 06, 13; INFO SA-027 | No role-token live replay                   |
+| Client Auth Patterns        | auth lifecycle, anonymous-session flow, 15 route files, current Auth/RBAC delta                             |                  02 | Static only                                 |
+| Data Exposure               | AskQ service-role tools and scope helper; grants/policies; public/replication paths; error/logging sinks    |  01, 02, 03, 08, 13 | Public bucket object inventory not replayed |
+| Payment Security            | 9 Stripe/refund/payout entrypoints plus shared locks/calculators and withdrawal snapshots                   |                   0 | No paid/refund/payout smoke                 |
+| Input Validation            | request parsing, UUID/redirect validation, HTML sinks, uploads/forms/params inventory                       |                   0 | Static only                                 |
 
 ### Focus areas with no concrete finding
 
@@ -421,13 +421,13 @@ optimization in PR #1522 and the prior report commit. The only security-relevant
 RBAC client/RPC rewrite; its arbitrary-user behavior is SA-2026-07-29-13. No RLS table, Stripe,
 ringside, AskQ, or registry authorization source changed between baselines.
 
-| Prior tracked item | Transition |
-| --- | --- |
-| SA-2026-07-29-01, -02, -03, -06, -08 | **unchanged**, independently confirmed |
-| SA-2026-07-29-05 | **unchanged**, downgraded to INFO |
-| SA-2026-07-29-04, -07, -10 | **rejected** for the reasons above |
-| SA-2026-07-29-09 | **duplicate** of unchanged canonical SA-027 |
-| SA-2026-07-29-11, -12, -13 | **new**, independently confirmed |
+| Prior tracked item                   | Transition                                  |
+| ------------------------------------ | ------------------------------------------- |
+| SA-2026-07-29-01, -02, -03, -06, -08 | **unchanged**, independently confirmed      |
+| SA-2026-07-29-05                     | **unchanged**, downgraded to INFO           |
+| SA-2026-07-29-04, -07, -10           | **rejected** for the reasons above          |
+| SA-2026-07-29-09                     | **duplicate** of unchanged canonical SA-027 |
+| SA-2026-07-29-11, -12, -13           | **new**, independently confirmed            |
 
 Historical closures SA-020, SA-021, SA-023, SA-024, SA-025, SA-028, SA-029, and SA-030 retain their
 prior resolved status and prior replay proof. They were not marked resolved again from source
@@ -436,21 +436,21 @@ the distinct authorization/identity-key bypass around its intended threat model.
 
 ## Independent `/codex:review` disposition
 
-| Item | Verdict |
-| --- | --- |
-| 01 | confirmed HIGH/P0 |
-| 02 | confirmed HIGH/P1 |
-| 03 | confirmed MEDIUM/P2 |
-| 04 | rejected: no reachable disclosure; documented embed dependency |
-| 05 | downgraded INFO/P3 |
-| 06 | confirmed MEDIUM/P2; broadened to enrollments |
-| 07 | confirmed fail-closed product defect; rejected as security |
-| 08 | confirmed LOW/P3 |
-| 09 | duplicate SA-027; INFO/P3 |
-| 10 | rejected: comments already exist |
-| 11 | confirmed HIGH/P1 |
-| 12 | confirmed MEDIUM/P2 |
-| 13 | confirmed MEDIUM/P2 |
+| Item | Verdict                                                        |
+| ---- | -------------------------------------------------------------- |
+| 01   | confirmed HIGH/P0                                              |
+| 02   | confirmed HIGH/P1                                              |
+| 03   | confirmed MEDIUM/P2                                            |
+| 04   | rejected: no reachable disclosure; documented embed dependency |
+| 05   | downgraded INFO/P3                                             |
+| 06   | confirmed MEDIUM/P2; broadened to enrollments                  |
+| 07   | confirmed fail-closed product defect; rejected as security     |
+| 08   | confirmed LOW/P3                                               |
+| 09   | duplicate SA-027; INFO/P3                                      |
+| 10   | rejected: comments already exist                               |
+| 11   | confirmed HIGH/P1                                              |
+| 12   | confirmed MEDIUM/P2                                            |
+| 13   | confirmed MEDIUM/P2                                            |
 
 The independent review also confirmed AskQ's tenant scope, ringside claim/write boundaries, and
 Stripe refund/withdrawal/payout source paths had no concrete contradictory authorization path.
@@ -476,11 +476,11 @@ complete role-token matrix.
 
 Read-only Linear reconciliation found:
 
-| Finding | Issue | Priority/state |
-| --- | --- | --- |
-| SA-2026-07-29-01 | [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116) | Urgent / Todo |
-| SA-2026-07-29-02 | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117) | High / Todo |
-| SA-2026-07-29-11 | [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) | High / Todo |
+| Finding          | Issue                                                       | Priority/state |
+| ---------------- | ----------------------------------------------------------- | -------------- |
+| SA-2026-07-29-01 | [MYK9-116](https://linear.app/myk9-platform/issue/MYK9-116) | Urgent / Todo  |
+| SA-2026-07-29-02 | [MYK9-117](https://linear.app/myk9-platform/issue/MYK9-117) | High / Todo    |
+| SA-2026-07-29-11 | [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125) | High / Todo    |
 
 After batch approval on 2026-07-30, one issue was created for the only new HIGH finding:
 [MYK9-125](https://linear.app/myk9-platform/issue/MYK9-125). No other issue or comment was created

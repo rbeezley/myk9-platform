@@ -16,7 +16,12 @@ const baseProps: ReportProps = {
       element: 'Container',
       level: 'Novice',
       section: null,
-      stewards: { 'Table Steward': 'Alice B', Timer: 'Bob C', 'Gate Steward': '', 'Ring Steward': 'Dana E' },
+      stewards: {
+        'Table Steward': 'Alice B',
+        Timer: 'Bob C',
+        'Gate Steward': '',
+        'Ring Steward': 'Dana E',
+      },
     },
     {
       id: 'c2',
@@ -24,7 +29,12 @@ const baseProps: ReportProps = {
       element: 'Interior',
       level: 'Advanced',
       section: null,
-      stewards: { 'Table Steward': 'Eve F', Timer: '', 'Gate Steward': 'Frank G', 'Ring Steward': '' },
+      stewards: {
+        'Table Steward': 'Eve F',
+        Timer: '',
+        'Gate Steward': 'Frank G',
+        'Ring Steward': '',
+      },
     },
     {
       id: 'c3',

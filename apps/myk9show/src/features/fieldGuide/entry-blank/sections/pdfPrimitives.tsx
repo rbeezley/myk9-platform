@@ -139,9 +139,7 @@ export function Field({
         {value ? <Text style={{ fontFamily: BODY, fontSize: 9, color: INK }}>{value}</Text> : null}
       </View>
       {hint ? (
-        <Text style={{ fontFamily: MONO, fontSize: 6.5, color: MUTE, marginTop: 1 }}>
-          {hint}
-        </Text>
+        <Text style={{ fontFamily: MONO, fontSize: 6.5, color: MUTE, marginTop: 1 }}>{hint}</Text>
       ) : null}
     </View>
   );
@@ -161,7 +159,15 @@ export function Checkbox({ checked = false }: { checked?: boolean }) {
       }}
     >
       {checked ? (
-        <Text style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 9, color: ORANGE, lineHeight: 1 }}>
+        <Text
+          style={{
+            fontFamily: DISPLAY,
+            fontWeight: 700,
+            fontSize: 9,
+            color: ORANGE,
+            lineHeight: 1,
+          }}
+        >
           {'✕'}
         </Text>
       ) : null}

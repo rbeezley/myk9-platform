@@ -55,7 +55,9 @@ test.describe('People UI — Browse (secretary)', () => {
     // toggle (BrowsePeoplePage uses the default CARD_TABLE_MODES). Scope the chip
     // and target the toggles by exact aria-label ("Table view" not "Table", which
     // also matches "Reset table view").
-    await expect(page.getByTestId('filter-chips').getByRole('button', { name: 'Role' })).toBeVisible();
+    await expect(
+      page.getByTestId('filter-chips').getByRole('button', { name: 'Role' })
+    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
     await expect(page.getByText(/of \d+ (people|person)/)).toBeVisible();
@@ -391,7 +393,9 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     await signInAsAdmin(page);
   });
 
-  test('site admin can create, read, edit, cancel delete, and delete a person', async ({ page }) => {
+  test('site admin can create, read, edit, cancel delete, and delete a person', async ({
+    page,
+  }) => {
     await gotoPeopleBrowse(page);
     await page.getByRole('button', { name: 'New Person' }).click();
     await expect(page.getByRole('dialog', { name: 'Edit User' })).toBeVisible();

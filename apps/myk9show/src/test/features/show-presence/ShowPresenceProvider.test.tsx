@@ -5,9 +5,30 @@ import { useShowPresenceRoster } from '@/features/show-presence/showPresenceCont
 
 const h = vi.hoisted(() => ({
   roster: [
-    { userId: 'sec', name: 'Sue', role: 'secretary', location: { page: '/' }, activity: 'viewing', ts: 0 },
-    { userId: 'ex1', name: 'Ann', role: 'exhibitor', location: { page: '/' }, activity: 'viewing', ts: 0 },
-    { userId: 'ex2', name: 'Bob', role: 'exhibitor', location: { page: '/' }, activity: 'viewing', ts: 0 },
+    {
+      userId: 'sec',
+      name: 'Sue',
+      role: 'secretary',
+      location: { page: '/' },
+      activity: 'viewing',
+      ts: 0,
+    },
+    {
+      userId: 'ex1',
+      name: 'Ann',
+      role: 'exhibitor',
+      location: { page: '/' },
+      activity: 'viewing',
+      ts: 0,
+    },
+    {
+      userId: 'ex2',
+      name: 'Bob',
+      role: 'exhibitor',
+      location: { page: '/' },
+      activity: 'viewing',
+      ts: 0,
+    },
   ],
   // The local user's resolved presence identity (account OR anon passcode grant).
   viewer: { userId: 'sec', name: 'Sue', role: 'secretary' } as {

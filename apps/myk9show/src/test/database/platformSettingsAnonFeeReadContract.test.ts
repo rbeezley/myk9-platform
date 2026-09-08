@@ -205,8 +205,8 @@ describe('the column set the anonymous-session trade-off was judged against', ()
 
     const dropped = ALL_STATEMENTS.flatMap(({ statement }) => {
       if (!/^ALTER\s+TABLE\s+(?:public\.)?platform_settings\b/i.test(statement)) return [];
-      return [...statement.matchAll(/DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?"?([a-z_]+)"?/gi)].map(
-        m => m[1].toLowerCase()
+      return [...statement.matchAll(/DROP\s+COLUMN\s+(?:IF\s+EXISTS\s+)?"?([a-z_]+)"?/gi)].map(m =>
+        m[1].toLowerCase()
       );
     });
     const live = [...CREATED_COLUMNS, ...ADDED_COLUMNS].filter(c => !dropped.includes(c));

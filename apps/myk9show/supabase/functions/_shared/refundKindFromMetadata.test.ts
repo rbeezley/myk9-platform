@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  MAKE_WHOLE_METADATA_KEY,
-  refundKindFromMetadata,
-} from './orderSnapshot';
+import { MAKE_WHOLE_METADATA_KEY, refundKindFromMetadata } from './orderSnapshot';
 
 describe('refundKindFromMetadata', () => {
   it('reads make_whole from the Stripe object so delivery order cannot mislabel it', () => {

@@ -25,7 +25,7 @@ export const EntryActionsMenu: React.FC<EntryActionsMenuProps> = ({
   onView,
   onEdit,
   onEnterResults,
-  onDelete
+  onDelete,
 }) => {
   if (enableInlineEditing) {
     // Show edit status for inline editing mode
@@ -81,7 +81,7 @@ const ActionDropdown: React.FC<ActionDropdownProps> = ({
   onEdit,
   onEnterResults,
   onDelete,
-  showEnterResults
+  showEnterResults,
 }) => {
   const actions: RowAction[] = [
     { id: 'view', label: 'View Details', icon: <Eye />, onSelect: onView },

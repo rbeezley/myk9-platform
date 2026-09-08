@@ -17,19 +17,45 @@ function createEntry(overrides: Partial<BaseEntry> & { id: number }): BaseEntry 
 }
 
 const sampleEntries: BaseEntry[] = [
-  createEntry({ id: 1, armband: 301, callName: 'Zeus', handler: 'Alice', breed: 'Golden Retriever' }),
+  createEntry({
+    id: 1,
+    armband: 301,
+    callName: 'Zeus',
+    handler: 'Alice',
+    breed: 'Golden Retriever',
+  }),
   createEntry({ id: 2, armband: 102, callName: 'Apollo', handler: 'Bob', breed: 'Beagle' }),
-  createEntry({ id: 3, armband: 203, callName: 'Luna', handler: 'Carol', breed: 'Poodle', isScored: true }),
-  createEntry({ id: 4, armband: 404, callName: 'Max', handler: 'Dave', breed: 'German Shepherd', status: 'in-ring', inRing: true }),
-  createEntry({ id: 5, armband: 505, callName: 'Bella', handler: 'Eve', breed: 'Labrador', status: 'pulled' }),
+  createEntry({
+    id: 3,
+    armband: 203,
+    callName: 'Luna',
+    handler: 'Carol',
+    breed: 'Poodle',
+    isScored: true,
+  }),
+  createEntry({
+    id: 4,
+    armband: 404,
+    callName: 'Max',
+    handler: 'Dave',
+    breed: 'German Shepherd',
+    status: 'in-ring',
+    inRing: true,
+  }),
+  createEntry({
+    id: 5,
+    armband: 505,
+    callName: 'Bella',
+    handler: 'Eve',
+    breed: 'Labrador',
+    status: 'pulled',
+  }),
 ];
 
 describe('useEntryListFilters', () => {
   describe('initial state', () => {
     it('should default to pending tab and armband sort', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       expect(result.current.activeTab).toBe('pending');
       expect(result.current.sortBy).toBe('armband');
@@ -46,9 +72,7 @@ describe('useEntryListFilters', () => {
 
   describe('tab filtering', () => {
     it('should show only pending entries on pending tab', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       // Entry id 3 is scored, so pending tab should have 4 entries
       expect(result.current.filteredEntries.every(e => !e.isScored)).toBe(true);
@@ -56,9 +80,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should show only completed entries on completed tab', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setActiveTab('completed');
@@ -71,9 +93,7 @@ describe('useEntryListFilters', () => {
 
   describe('entry counts', () => {
     it('should count pending and completed entries', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       expect(result.current.entryCounts.pending).toBe(4);
       expect(result.current.entryCounts.completed).toBe(1);
@@ -82,9 +102,7 @@ describe('useEntryListFilters', () => {
 
   describe('search filtering', () => {
     it('should filter by callName', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSearchTerm('zeus');
@@ -95,9 +113,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should filter by armband number', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSearchTerm('301');
@@ -108,9 +124,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should filter by handler name', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSearchTerm('bob');
@@ -121,9 +135,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should filter by breed', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSearchTerm('beagle');
@@ -133,9 +145,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should return empty when search does not match', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSearchTerm('zzzzz');
@@ -147,9 +157,7 @@ describe('useEntryListFilters', () => {
 
   describe('sorting', () => {
     it('should sort by armband number', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       const armbands = result.current.filteredEntries.map(e => e.armband!);
       for (let i = 1; i < armbands.length; i++) {
@@ -158,9 +166,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should sort by name', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSortBy('name');
@@ -173,9 +179,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should sort by handler', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSortBy('handler');
@@ -188,9 +192,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should sort by breed', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSortBy('breed');
@@ -203,9 +205,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should sort by run order (exhibitorOrder)', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSortBy('run');
@@ -293,9 +293,7 @@ describe('useEntryListFilters', () => {
     });
 
     it('should return null sectionCounts when supportSectionFilter is false', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sectionEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sectionEntries }));
 
       expect(result.current.sectionCounts).toBeNull();
     });
@@ -303,9 +301,7 @@ describe('useEntryListFilters', () => {
 
   describe('pendingEntries / completedEntries', () => {
     it('should split filtered entries into pending and completed', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       // On pending tab, pending = filtered, completed = empty
       expect(result.current.pendingEntries.length).toBe(result.current.filteredEntries.length);
@@ -315,9 +311,7 @@ describe('useEntryListFilters', () => {
 
   describe('resetFilters', () => {
     it('should reset all filters to defaults', () => {
-      const { result } = renderHook(() =>
-        useEntryListFilters({ entries: sampleEntries })
-      );
+      const { result } = renderHook(() => useEntryListFilters({ entries: sampleEntries }));
 
       act(() => {
         result.current.setSearchTerm('test');

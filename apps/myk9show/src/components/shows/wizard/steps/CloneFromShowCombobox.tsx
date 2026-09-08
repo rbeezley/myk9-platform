@@ -256,9 +256,7 @@ export const CloneFromShowCombobox: React.FC<CloneFromShowComboboxProps> = ({ cl
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {show.organization}
-                        {show.startDate
-                          ? ` · ${formatShortCalendarDate(show.startDate)}`
-                          : ''}
+                        {show.startDate ? ` · ${formatShortCalendarDate(show.startDate)}` : ''}
                         {show.location ? ` · ${show.location.split('\n')[0].split(',')[0]}` : ''}
                       </span>
                     </button>

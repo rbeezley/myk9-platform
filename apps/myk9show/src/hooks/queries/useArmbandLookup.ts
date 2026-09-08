@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { cacheStrategies } from '@/lib/queryClient';
-import {
-  getArmbandCountForShow,
-  lookupDogByArmband,
-} from '@/services/database/armbands';
+import { getArmbandCountForShow, lookupDogByArmband } from '@/services/database/armbands';
 
 export const armbandQueryKeys = {
   count: (showId: string) => ['armbands', 'count', showId] as const,

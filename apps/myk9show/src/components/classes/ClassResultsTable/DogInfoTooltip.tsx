@@ -3,11 +3,7 @@
  */
 
 import React from 'react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip/tooltip';
 import type { Registration } from '@/types/dog-types';
 
 interface DogInfoTooltipProps {
@@ -40,21 +36,15 @@ function RegistrationDetails({ registration }: { registration: Registration }) {
   );
 }
 
-export const DogInfoTooltip: React.FC<DogInfoTooltipProps> = ({
-  dogName,
-  registrations,
-}) => {
+export const DogInfoTooltip: React.FC<DogInfoTooltipProps> = ({ dogName, registrations }) => {
   // Scent Work is typically AKC, so prefer AKC registration if available
   const dogRegistration =
-    registrations?.find((reg) => reg.organization === 'AKC') ||
-    registrations?.[0]; // fallback to first registration
+    registrations?.find(reg => reg.organization === 'AKC') || registrations?.[0]; // fallback to first registration
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="font-medium cursor-pointer hover:text-blue-600">
-          {dogName}
-        </div>
+        <div className="font-medium cursor-pointer hover:text-blue-600">{dogName}</div>
       </TooltipTrigger>
       <TooltipContent>
         <div className="text-sm">
@@ -65,9 +55,7 @@ export const DogInfoTooltip: React.FC<DogInfoTooltipProps> = ({
               <div>
                 <strong>Dog Name:</strong> {dogName}
               </div>
-              <div className="text-muted-foreground">
-                No AKC registration found
-              </div>
+              <div className="text-muted-foreground">No AKC registration found</div>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 /**
  * Tracking Scoresheet Component
- * 
+ *
  * Specialized scoring interface for tracking tests including:
  * - Pass/fail scoring system
  * - Track details (length, age, articles)
@@ -16,7 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -47,7 +53,7 @@ export function TrackingScoresheet({
   onSave,
   onCancel,
   disabled = false,
-  className
+  className,
 }: TrackingScoresheetProps) {
   const [score, setScore] = useState<Partial<TrackingScore>>(() => ({
     format: 'tracking',
@@ -57,7 +63,7 @@ export function TrackingScoresheet({
     passed: false,
     articlesFindRequired: 3,
     articlesFound: 0,
-    ...initialScore
+    ...initialScore,
   }));
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -72,24 +78,30 @@ export function TrackingScoresheet({
   }
 
   // Handle pass/fail toggle
-  const handlePassFailChange = useCallback((passed: boolean) => {
-    const updatedScore = { ...score, passed };
-    setScore(updatedScore);
-    onScoreChange(updatedScore);
-  }, [score, onScoreChange]);
+  const handlePassFailChange = useCallback(
+    (passed: boolean) => {
+      const updatedScore = { ...score, passed };
+      setScore(updatedScore);
+      onScoreChange(updatedScore);
+    },
+    [score, onScoreChange]
+  );
 
   // Handle articles found change
-  const handleArticlesFoundChange = useCallback((value: string) => {
-    const articlesFound = parseInt(value) || 0;
-    const updatedScore = {
-      ...score,
-      articlesFound,
-      // Auto-fail if not all articles found
-      passed: articlesFound >= (score.articlesFindRequired || 0) && score.passed
-    };
-    setScore(updatedScore);
-    onScoreChange(updatedScore);
-  }, [score, onScoreChange]);
+  const handleArticlesFoundChange = useCallback(
+    (value: string) => {
+      const articlesFound = parseInt(value) || 0;
+      const updatedScore = {
+        ...score,
+        articlesFound,
+        // Auto-fail if not all articles found
+        passed: articlesFound >= (score.articlesFindRequired || 0) && score.passed,
+      };
+      setScore(updatedScore);
+      onScoreChange(updatedScore);
+    },
+    [score, onScoreChange]
+  );
 
   // Validate score before submission
   const validateScore = useCallback((): string[] => {
@@ -124,7 +136,7 @@ export function TrackingScoresheet({
     if (errors.length === 0) {
       const finalScore: TrackingScore = {
         ...score,
-        timestamp: new Date()
+        timestamp: new Date(),
       } as TrackingScore;
 
       onSave(finalScore);
@@ -132,7 +144,7 @@ export function TrackingScoresheet({
   }, [score, validateScore, onSave]);
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Entry Information */}
       <Card>
         <CardHeader className="pb-3">
@@ -154,7 +166,7 @@ export function TrackingScoresheet({
         <CardContent className="space-y-4">
           <div className="flex items-center justify-center space-x-8">
             <Button
-              variant={score.passed === true ? "default" : "outline"}
+              variant={score.passed === true ? 'default' : 'outline'}
               onClick={() => handlePassFailChange(true)}
               disabled={disabled}
               className="flex items-center gap-2 h-16 px-8"
@@ -162,9 +174,9 @@ export function TrackingScoresheet({
               <CheckCircle className="h-6 w-6" />
               PASS
             </Button>
-            
+
             <Button
-              variant={score.passed === false ? "destructive" : "outline"}
+              variant={score.passed === false ? 'destructive' : 'outline'}
               onClick={() => handlePassFailChange(false)}
               disabled={disabled}
               className="flex items-center gap-2 h-16 px-8"
@@ -173,14 +185,11 @@ export function TrackingScoresheet({
               FAIL
             </Button>
           </div>
-          
+
           {score.passed !== undefined && (
             <div className="text-center">
-              <Badge 
-                variant={score.passed ? "default" : "destructive"}
-                className="text-sm"
-              >
-                {score.passed ? "PASSED" : "FAILED"}
+              <Badge variant={score.passed ? 'default' : 'destructive'} className="text-sm">
+                {score.passed ? 'PASSED' : 'FAILED'}
               </Badge>
             </div>
           )}
@@ -200,8 +209,11 @@ export function TrackingScoresheet({
                 id="track-length"
                 type="number"
                 value={score.trackLength || ''}
-                onChange={(e) => {
-                  const updatedScore = { ...score, trackLength: parseInt(e.target.value) || undefined };
+                onChange={e => {
+                  const updatedScore = {
+                    ...score,
+                    trackLength: parseInt(e.target.value) || undefined,
+                  };
                   setScore(updatedScore);
                   onScoreChange(updatedScore);
                 }}
@@ -216,8 +228,11 @@ export function TrackingScoresheet({
                 id="track-age"
                 type="number"
                 value={score.trackAge || ''}
-                onChange={(e) => {
-                  const updatedScore = { ...score, trackAge: parseInt(e.target.value) || undefined };
+                onChange={e => {
+                  const updatedScore = {
+                    ...score,
+                    trackAge: parseInt(e.target.value) || undefined,
+                  };
                   setScore(updatedScore);
                   onScoreChange(updatedScore);
                 }}
@@ -232,7 +247,7 @@ export function TrackingScoresheet({
               <Label htmlFor="articles-required">Articles Required *</Label>
               <Select
                 value={score.articlesFindRequired?.toString() || ''}
-                onValueChange={(value) => {
+                onValueChange={value => {
                   const updatedScore = { ...score, articlesFindRequired: parseInt(value) };
                   setScore(updatedScore);
                   onScoreChange(updatedScore);
@@ -260,7 +275,7 @@ export function TrackingScoresheet({
                 min="0"
                 max={score.articlesFindRequired || 5}
                 value={score.articlesFound || ''}
-                onChange={(e) => handleArticlesFoundChange(e.target.value)}
+                onChange={e => handleArticlesFoundChange(e.target.value)}
                 disabled={disabled}
                 placeholder="0"
               />
@@ -272,17 +287,19 @@ export function TrackingScoresheet({
             <div className="p-3 bg-muted rounded-lg">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Articles Progress</span>
-                <Badge variant={
-                  score.articlesFound === score.articlesFindRequired ? "default" : "secondary"
-                }>
+                <Badge
+                  variant={
+                    score.articlesFound === score.articlesFindRequired ? 'default' : 'secondary'
+                  }
+                >
                   {score.articlesFound || 0} / {score.articlesFindRequired}
                 </Badge>
               </div>
               <div className="w-full bg-background rounded-full h-2">
-                <div 
+                <div
                   className="bg-primary h-2 rounded-full transition-all"
                   style={{
-                    width: `${((score.articlesFound || 0) / score.articlesFindRequired) * 100}%`
+                    width: `${((score.articlesFound || 0) / score.articlesFindRequired) * 100}%`,
                   }}
                 />
               </div>
@@ -307,8 +324,11 @@ export function TrackingScoresheet({
                 id="temperature"
                 type="number"
                 value={score.temperature || ''}
-                onChange={(e) => {
-                  const updatedScore = { ...score, temperature: parseInt(e.target.value) || undefined };
+                onChange={e => {
+                  const updatedScore = {
+                    ...score,
+                    temperature: parseInt(e.target.value) || undefined,
+                  };
                   setScore(updatedScore);
                   onScoreChange(updatedScore);
                 }}
@@ -321,7 +341,7 @@ export function TrackingScoresheet({
               <Label htmlFor="wind-direction">Wind Direction</Label>
               <Select
                 value={score.windDirection || ''}
-                onValueChange={(value) => {
+                onValueChange={value => {
                   const updatedScore = { ...score, windDirection: value };
                   setScore(updatedScore);
                   onScoreChange(updatedScore);
@@ -351,7 +371,7 @@ export function TrackingScoresheet({
             <Textarea
               id="weather-conditions"
               value={score.weatherConditions || ''}
-              onChange={(e) => {
+              onChange={e => {
                 const updatedScore = { ...score, weatherConditions: e.target.value };
                 setScore(updatedScore);
                 onScoreChange(updatedScore);
@@ -384,14 +404,10 @@ export function TrackingScoresheet({
 
       {/* Action Buttons */}
       <div className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          disabled={disabled}
-        >
+        <Button variant="outline" onClick={onCancel} disabled={disabled}>
           Cancel
         </Button>
-        
+
         <Button
           onClick={handleSave}
           disabled={disabled || validationErrors.length > 0}

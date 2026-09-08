@@ -17,28 +17,28 @@ export function getBaseValidationRules(): ValidationRule[] {
     {
       field: 'entryId',
       rule: 'required',
-      errorMessage: 'Entry ID is required'
+      errorMessage: 'Entry ID is required',
     },
     {
       field: 'classId',
       rule: 'required',
-      errorMessage: 'Class ID is required'
+      errorMessage: 'Class ID is required',
     },
     {
       field: 'judgeId',
       rule: 'required',
-      errorMessage: 'Judge ID is required'
+      errorMessage: 'Judge ID is required',
     },
     {
       field: 'qualification',
       rule: 'required',
-      errorMessage: 'Qualification status is required'
+      errorMessage: 'Qualification status is required',
     },
     {
       field: 'recordedBy',
       rule: 'required',
-      errorMessage: 'Recorded by field is required'
-    }
+      errorMessage: 'Recorded by field is required',
+    },
   ];
 }
 
@@ -52,14 +52,14 @@ export function getScentWorkRules(): ValidationRule[] {
       field: 'searchTime',
       rule: 'range',
       parameters: { min: 0, max: 600000 }, // 0 to 10 minutes
-      errorMessage: 'Search time must be between 0 and 10 minutes'
+      errorMessage: 'Search time must be between 0 and 10 minutes',
     },
     {
       field: 'faults',
       rule: 'range',
       parameters: { min: 0, max: 99 },
-      errorMessage: 'Faults must be between 0 and 99'
-    }
+      errorMessage: 'Faults must be between 0 and 99',
+    },
   ];
 }
 
@@ -69,20 +69,20 @@ export function getAgilityRules(): ValidationRule[] {
       field: 'courseTime',
       rule: 'range',
       parameters: { min: 0, max: 300000 }, // 0 to 5 minutes
-      errorMessage: 'Course time must be between 0 and 5 minutes'
+      errorMessage: 'Course time must be between 0 and 5 minutes',
     },
     {
       field: 'jumpFaults',
       rule: 'range',
       parameters: { min: 0, max: 50 },
-      errorMessage: 'Jump faults must be between 0 and 50'
+      errorMessage: 'Jump faults must be between 0 and 50',
     },
     {
       field: 'refusals',
       rule: 'range',
       parameters: { min: 0, max: 10 },
-      errorMessage: 'Refusals must be between 0 and 10'
-    }
+      errorMessage: 'Refusals must be between 0 and 10',
+    },
   ];
 }
 
@@ -92,14 +92,14 @@ export function getObedienceRules(): ValidationRule[] {
       field: 'totalScore',
       rule: 'range',
       parameters: { min: 0, max: 200 },
-      errorMessage: 'Total score must be between 0 and 200'
+      errorMessage: 'Total score must be between 0 and 200',
     },
     {
       field: 'qualifyingScore',
       rule: 'range',
       parameters: { min: 0, max: 200 },
-      errorMessage: 'Qualifying score must be between 0 and 200'
-    }
+      errorMessage: 'Qualifying score must be between 0 and 200',
+    },
   ];
 }
 
@@ -109,14 +109,14 @@ export function getRallyRules(): ValidationRule[] {
       field: 'finalScore',
       rule: 'range',
       parameters: { min: 0, max: 210 },
-      errorMessage: 'Final score must be between 0 and 210'
+      errorMessage: 'Final score must be between 0 and 210',
     },
     {
       field: 'totalDeductions',
       rule: 'range',
       parameters: { min: 0, max: 210 },
-      errorMessage: 'Total deductions cannot exceed 210'
-    }
+      errorMessage: 'Total deductions cannot exceed 210',
+    },
   ];
 }
 
@@ -126,8 +126,8 @@ export function getConformationRules(): ValidationRule[] {
       field: 'pointsAwarded',
       rule: 'range',
       parameters: { min: 0, max: 10 },
-      errorMessage: 'Points awarded must be between 0 and 10'
-    }
+      errorMessage: 'Points awarded must be between 0 and 10',
+    },
   ];
 }
 
@@ -137,8 +137,8 @@ export function getTrackingRules(): ValidationRule[] {
       field: 'articlesFound',
       rule: 'range',
       parameters: { min: 0, max: 10 },
-      errorMessage: 'Articles found must be between 0 and 10'
-    }
+      errorMessage: 'Articles found must be between 0 and 10',
+    },
   ];
 }
 
@@ -148,8 +148,8 @@ export function getLureCoursingRules(): ValidationRule[] {
       field: 'totalScore',
       rule: 'range',
       parameters: { min: 0, max: 125 }, // 5 categories × 25 points each
-      errorMessage: 'Total score must be between 0 and 125'
-    }
+      errorMessage: 'Total score must be between 0 and 125',
+    },
   ];
 }
 
@@ -159,8 +159,8 @@ export function getBarnHuntRules(): ValidationRule[] {
       field: 'ratsFound',
       rule: 'range',
       parameters: { min: 0, max: 10 },
-      errorMessage: 'Rats found must be between 0 and 10'
-    }
+      errorMessage: 'Rats found must be between 0 and 10',
+    },
   ];
 }
 
@@ -170,8 +170,8 @@ export function getFastCatRules(): ValidationRule[] {
       field: 'speed',
       rule: 'range',
       parameters: { min: 0, max: 50 }, // mph
-      errorMessage: 'Speed must be between 0 and 50 mph'
-    }
+      errorMessage: 'Speed must be between 0 and 50 mph',
+    },
   ];
 }
 
@@ -181,8 +181,8 @@ export function getDockDivingRules(): ValidationRule[] {
       field: 'distance',
       rule: 'range',
       parameters: { min: 0, max: 50 }, // feet
-      errorMessage: 'Distance must be between 0 and 50 feet'
-    }
+      errorMessage: 'Distance must be between 0 and 50 feet',
+    },
   ];
 }
 
@@ -227,7 +227,7 @@ export function createValidationRulesForFormat(format: ScoringFormat): ScoringVa
 
   return {
     format,
-    rules: [...baseRules, ...formatSpecificRules]
+    rules: [...baseRules, ...formatSpecificRules],
   };
 }
 

@@ -64,10 +64,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
 }));
 
 // Now import the functions under test
-import {
-  getWaitlistByClass,
-  getClassesWithWaitlistCounts,
-} from '@/services/database/waitlists';
+import { getWaitlistByClass, getClassesWithWaitlistCounts } from '@/services/database/waitlists';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -252,5 +249,4 @@ describe('waitlistQueries (replication)', () => {
       expect(result.data[0].waitlist_count).toBe(0);
     });
   });
-
 });

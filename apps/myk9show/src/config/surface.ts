@@ -58,8 +58,8 @@ export function isPathInWizardAllowlist(pathname: string): boolean {
     return false;
   }
 
-  return WIZARD_SURFACE_PATHS.some((pattern) =>
-    matchPath({ path: pattern, end: !pattern.endsWith('*') }, pathname) !== null
+  return WIZARD_SURFACE_PATHS.some(
+    pattern => matchPath({ path: pattern, end: !pattern.endsWith('*') }, pathname) !== null
   );
 }
 

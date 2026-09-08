@@ -454,13 +454,13 @@ supabase functions deploy sms-stop-webhook --project-ref sojmvhhwsjxmfistvzbe --
 Secrets and configuration, all operator-set (never paste a value into a command,
 issue, PR, or log):
 
-| Name | Where | Purpose |
-| -- | -- | -- |
-| `TWILIO_AUTH_TOKEN` | Edge Function secret | Verifies the inbound signature. **Absent means the webhook refuses every request** — it fails closed rather than accepting unsigned writes. |
-| `TWILIO_WEBHOOK_URL` | Edge Function secret, optional | The exact URL configured in the Twilio console. Set it if a proxy rewrites scheme or host, which otherwise breaks every signature and presents as "Twilio is sending garbage". |
-| `VITE_SMS_SENDING_NUMBER` | Vercel env | The sending number, shown in settings to an exhibitor who replied STOP. Without it the app points at support instead — it never invents a number, because the exhibitor would text it and conclude the opt-out is permanent. |
+| Name                      | Where                          | Purpose                                                                                                                                                                                                                      |
+| ------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TWILIO_AUTH_TOKEN`       | Edge Function secret           | Verifies the inbound signature. **Absent means the webhook refuses every request** — it fails closed rather than accepting unsigned writes.                                                                                  |
+| `TWILIO_WEBHOOK_URL`      | Edge Function secret, optional | The exact URL configured in the Twilio console. Set it if a proxy rewrites scheme or host, which otherwise breaks every signature and presents as "Twilio is sending garbage".                                               |
+| `VITE_SMS_SENDING_NUMBER` | Vercel env                     | The sending number, shown in settings to an exhibitor who replied STOP. Without it the app points at support instead — it never invents a number, because the exhibitor would text it and conclude the opt-out is permanent. |
 
-**Enable inbound webhook retry, or set a Fallback URL.** Twilio does *not*
+**Enable inbound webhook retry, or set a Fallback URL.** Twilio does _not_
 retry an inbound messaging webhook by default — on a 5xx it raises error 11200
 and calls the Fallback URL if one is configured. With neither, a transient
 database blip means that STOP is permanently absent from our row: the carrier

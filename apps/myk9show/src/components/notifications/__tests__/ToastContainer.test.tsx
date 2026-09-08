@@ -127,9 +127,7 @@ describe('ToastContainer', () => {
     // reddened the A11y smoke gate whenever a live toast was on the
     // secretary-dashboard scan. Pin the AA-safe classes so an accent token can't
     // creep back.
-    useToastStore
-      .getState()
-      .addToast({ ...makePayload('1'), actionUrl: '/classes/abc' });
+    useToastStore.getState().addToast({ ...makePayload('1'), actionUrl: '/classes/abc' });
     render(<ToastContainer />);
 
     const link = screen.getByRole('link', { name: /view/i });

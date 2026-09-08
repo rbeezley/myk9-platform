@@ -90,7 +90,9 @@ describe('reviewStateLabels', () => {
     it('gives exhibitors pending wording rather than refusal wording', () => {
       expect(getReviewStateLabel('needs_review', 'exhibitor')).toBe('Pending review');
       expect(getEntryStatusStateLabel(EntryStatus.PENDING, 'exhibitor')).toBe('Pending review');
-      expect(getReviewStateLabel('needs_review', 'exhibitor')).not.toMatch(/not accepted|declined/i);
+      expect(getReviewStateLabel('needs_review', 'exhibitor')).not.toMatch(
+        /not accepted|declined/i
+      );
     });
 
     it('reserves declined wording for a genuinely rejected entry', () => {

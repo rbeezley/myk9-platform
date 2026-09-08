@@ -4,7 +4,6 @@
  * Pure helper functions extracted from the component for reuse and testing.
  */
 
-
 /** Convert a time string in MM:SS.HH format to milliseconds */
 export function timeStringToMs(timeStr: string): number {
   const match = timeStr.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/);
@@ -74,4 +73,3 @@ export function formatPlacement(placement: number): string {
       return `${placement}th`;
   }
 }
-

@@ -21,7 +21,7 @@
 - Write final user-facing docs late enough that screenshots, labels, routes, and workflows are unlikely to churn.
 - Support-operations docs are different: they serve the support operator, not end users, and are needed from the first real user onward. They are not gated on UI stability.
 - Every support artifact should reduce repeated questions or make the answer pointable in under one minute.
-- Make answers findable by what the user *says*: index KB content by verbatim error strings and the phrases customers actually use, not internal feature names.
+- Make answers findable by what the user _says_: index KB content by verbatim error strings and the phrases customers actually use, not internal feature names.
 - Use one source, many formats: guide section -> KB article -> support macro -> slide/demo/blog snippet.
 - Diagrams are an asset class, not decoration: a flowchart earns its place only when it answers a question faster than prose (a branching decision, a multi-surface handoff, a role's end-to-end path). Author them in user language, keep the `.drawio`/JSON source in the repo, and regenerate from source — never redraw by hand.
 - Prefer short, searchable, task-specific answers over giant manuals for common questions.
@@ -33,44 +33,44 @@ Does this duplicate an existing page or feature surface? No. This plan creates a
 
 ## File Map
 
-| Action | Path | Purpose |
-| --- | --- | --- |
-| Create | `docs/user-guides/README.md` | Index of all user-facing guides and their status |
-| Create | `docs/user-guides/workflow-source-map.md` | Workflow → canonical route mapping layered on `pageDirectory.ts` |
-| Create | `docs/user-guides/writing-style.md` | Style, tone, and structure rules for all customer-facing docs |
-| Create | `docs/support/README.md` | Support-doc index for internal/admin support |
-| Create | `docs/support/intake-template.md` | Universal "what to ask first" checklist + intake macro |
-| Create | `docs/support/error-message-inventory.md` | Verbatim user-facing error/toast/status strings mapped to answers |
-| Create | `docs/support/question-bank.md` | Common customer questions, answer owner, and target artifact |
-| Create | `docs/support/common-issues-outline.md` | Troubleshooting taxonomy by symptom, role, and workflow |
-| Create | `docs/support/investigation-cookbook.md` | Per-symptom admin recipes: Supabase queries, Stripe dashboard paths |
-| Create | `docs/support/macros.md` | Reusable reply snippets for email, chat, and phone follow-up |
-| Create | `docs/support/show-day-triage-outline.md` | Outline for the live show-day support runbook |
-| Create later | `docs/support/common-issues.md` | Final troubleshooting doc grown from the outline |
-| Create later | `docs/support/show-day-triage.md` | Final support runbook for live show-day issues |
-| Create | `docs/knowledge-base/README.md` | Customer-facing KB index and article status |
-| Create | `docs/knowledge-base/article-template.md` | Standard article structure with search-alias frontmatter |
-| Create later | `docs/knowledge-base/articles/*.md` | Future customer-facing help articles |
-| Create | `docs/user-guides/secretary-guide-outline.md` | Secretary guide outline + QA-draft steps (Task 12) |
-| Create | `docs/user-guides/exhibitor-guide-outline.md` | Exhibitor guide outline + QA-draft steps (Task 13) |
-| Create | `docs/user-guides/judge-steward-quickstart-outline.md` | Ringside quickstart outline (Task 14) |
-| Create | `docs/user-guides/club-admin-guide-outline.md` | Club admin/treasurer guide outline (Task 15) |
-| Create later | `docs/user-guides/secretary-guide.md` | Secretary setup, entry management, show-day, and closeout guide |
-| Create later | `docs/user-guides/exhibitor-guide.md` | Exhibitor account, dog, entry, check-in, payment, and results guide |
-| Create later | `docs/user-guides/judge-steward-quickstart.md` | Ringside quickstart for judges and gate stewards |
-| Create later | `docs/user-guides/club-admin-guide.md` | Club setup, show access, payments, and operational responsibilities |
-| Create | `docs/training/README.md` | Training material index and asset checklist |
-| Create | `docs/training/myk9show-overview-deck-outline.md` | Slide-deck outline before creating PowerPoint |
-| Create | `docs/training/role-based-deck-outlines.md` | Secretary, exhibitor, club, judge/steward deck outlines |
-| Create | `docs/training/screenshot-shot-list.md` | Required screenshots/video captures by workflow |
-| Create | `docs/diagrams/README.md` | Diagram index + per-diagram regeneration command (`.drawio`/JSON → SVG via draw.io CLI) |
-| Create | `docs/diagrams/diagram-conventions.md` | Shared draw.io style preset + node/label rules for user-facing flowcharts |
-| Create later | `docs/diagrams/*.drawio` + `*.svg` | Final per-workflow flowcharts (gated like screenshots; SVG embedded in guides/KB/decks) |
-| Create | `docs/blog/README.md` | Customer education/blog content calendar and article status |
-| Create | `docs/blog/post-template.md` | Standard structure for educational posts |
-| Create | `docs/blog/content-calendar-outline.md` | First 12 blog/post ideas by title and audience (Task 20) |
-| Create | `docs/user-guides/documentation-qa-checklist.md` | Verification checklist for final guides |
-| Modify | `OPEN-TODOS.md` | Track when documentation tasks become ready to execute |
+| Action       | Path                                                   | Purpose                                                                                 |
+| ------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Create       | `docs/user-guides/README.md`                           | Index of all user-facing guides and their status                                        |
+| Create       | `docs/user-guides/workflow-source-map.md`              | Workflow → canonical route mapping layered on `pageDirectory.ts`                        |
+| Create       | `docs/user-guides/writing-style.md`                    | Style, tone, and structure rules for all customer-facing docs                           |
+| Create       | `docs/support/README.md`                               | Support-doc index for internal/admin support                                            |
+| Create       | `docs/support/intake-template.md`                      | Universal "what to ask first" checklist + intake macro                                  |
+| Create       | `docs/support/error-message-inventory.md`              | Verbatim user-facing error/toast/status strings mapped to answers                       |
+| Create       | `docs/support/question-bank.md`                        | Common customer questions, answer owner, and target artifact                            |
+| Create       | `docs/support/common-issues-outline.md`                | Troubleshooting taxonomy by symptom, role, and workflow                                 |
+| Create       | `docs/support/investigation-cookbook.md`               | Per-symptom admin recipes: Supabase queries, Stripe dashboard paths                     |
+| Create       | `docs/support/macros.md`                               | Reusable reply snippets for email, chat, and phone follow-up                            |
+| Create       | `docs/support/show-day-triage-outline.md`              | Outline for the live show-day support runbook                                           |
+| Create later | `docs/support/common-issues.md`                        | Final troubleshooting doc grown from the outline                                        |
+| Create later | `docs/support/show-day-triage.md`                      | Final support runbook for live show-day issues                                          |
+| Create       | `docs/knowledge-base/README.md`                        | Customer-facing KB index and article status                                             |
+| Create       | `docs/knowledge-base/article-template.md`              | Standard article structure with search-alias frontmatter                                |
+| Create later | `docs/knowledge-base/articles/*.md`                    | Future customer-facing help articles                                                    |
+| Create       | `docs/user-guides/secretary-guide-outline.md`          | Secretary guide outline + QA-draft steps (Task 12)                                      |
+| Create       | `docs/user-guides/exhibitor-guide-outline.md`          | Exhibitor guide outline + QA-draft steps (Task 13)                                      |
+| Create       | `docs/user-guides/judge-steward-quickstart-outline.md` | Ringside quickstart outline (Task 14)                                                   |
+| Create       | `docs/user-guides/club-admin-guide-outline.md`         | Club admin/treasurer guide outline (Task 15)                                            |
+| Create later | `docs/user-guides/secretary-guide.md`                  | Secretary setup, entry management, show-day, and closeout guide                         |
+| Create later | `docs/user-guides/exhibitor-guide.md`                  | Exhibitor account, dog, entry, check-in, payment, and results guide                     |
+| Create later | `docs/user-guides/judge-steward-quickstart.md`         | Ringside quickstart for judges and gate stewards                                        |
+| Create later | `docs/user-guides/club-admin-guide.md`                 | Club setup, show access, payments, and operational responsibilities                     |
+| Create       | `docs/training/README.md`                              | Training material index and asset checklist                                             |
+| Create       | `docs/training/myk9show-overview-deck-outline.md`      | Slide-deck outline before creating PowerPoint                                           |
+| Create       | `docs/training/role-based-deck-outlines.md`            | Secretary, exhibitor, club, judge/steward deck outlines                                 |
+| Create       | `docs/training/screenshot-shot-list.md`                | Required screenshots/video captures by workflow                                         |
+| Create       | `docs/diagrams/README.md`                              | Diagram index + per-diagram regeneration command (`.drawio`/JSON → SVG via draw.io CLI) |
+| Create       | `docs/diagrams/diagram-conventions.md`                 | Shared draw.io style preset + node/label rules for user-facing flowcharts               |
+| Create later | `docs/diagrams/*.drawio` + `*.svg`                     | Final per-workflow flowcharts (gated like screenshots; SVG embedded in guides/KB/decks) |
+| Create       | `docs/blog/README.md`                                  | Customer education/blog content calendar and article status                             |
+| Create       | `docs/blog/post-template.md`                           | Standard structure for educational posts                                                |
+| Create       | `docs/blog/content-calendar-outline.md`                | First 12 blog/post ideas by title and audience (Task 20)                                |
+| Create       | `docs/user-guides/documentation-qa-checklist.md`       | Verification checklist for final guides                                                 |
+| Modify       | `OPEN-TODOS.md`                                        | Track when documentation tasks become ready to execute                                  |
 
 ## Support Operating Model
 
@@ -78,15 +78,15 @@ This documentation system exists because support will start as a one-person oper
 
 Every repeated customer question should end in one of these outcomes:
 
-| Question type | Best artifact | Example |
-| --- | --- | --- |
-| "How do I do this?" | KB article or user-guide section | "How do I enter a dog in a show?" |
-| "What does this mean?" | Short KB explainer | "What does Under review by Stripe mean?" |
-| "I got an error saying…" | Error-inventory entry → KB article or macro | "It says Payment could not be processed" |
-| "I am stuck right now" | Support macro + troubleshooting article | "My payment went through but my entry is missing" |
-| "Can you train our club?" | Slide deck + printable quickstart | "Secretary show-day overview" |
-| "Why should we use this?" | Blog post or overview deck | "How myK9Show helps trial secretaries on show day" |
-| "What changed?" | Blog/changelog-style post | "What exhibitors need to know before entering online" |
+| Question type             | Best artifact                               | Example                                               |
+| ------------------------- | ------------------------------------------- | ----------------------------------------------------- |
+| "How do I do this?"       | KB article or user-guide section            | "How do I enter a dog in a show?"                     |
+| "What does this mean?"    | Short KB explainer                          | "What does Under review by Stripe mean?"              |
+| "I got an error saying…"  | Error-inventory entry → KB article or macro | "It says Payment could not be processed"              |
+| "I am stuck right now"    | Support macro + troubleshooting article     | "My payment went through but my entry is missing"     |
+| "Can you train our club?" | Slide deck + printable quickstart           | "Secretary show-day overview"                         |
+| "Why should we use this?" | Blog post or overview deck                  | "How myK9Show helps trial secretaries on show day"    |
+| "What changed?"           | Blog/changelog-style post                   | "What exhibitors need to know before entering online" |
 
 Support material should be written so Richard can say: "Here is the exact page for that," instead of rewriting the answer each time. Two lookup paths must work: by task ("check in a dog") and by symptom ("entry not showing" or a quoted error string).
 
@@ -108,7 +108,7 @@ Decided 2026-06-17. Flowcharts and architecture diagrams for the documentation s
 
 How the docs effort takes advantage of it:
 
-- **Two audiences, two registers — never reuse an engineering diagram as a user diagram.** An internal flow diagram speaks in code (`setGrant()`, `/at-show/:showId`, `hasPermission('canScore')`); a user diagram speaks the user's mental model (*"Enter your passcode → Confirm the show → You're in the ring"*). User-facing diagrams obey `docs/user-guides/writing-style.md` and `docs/INTENT.md` tone exactly as the prose does — no route names, store names, or feature-flag names.
+- **Two audiences, two registers — never reuse an engineering diagram as a user diagram.** An internal flow diagram speaks in code (`setGrant()`, `/at-show/:showId`, `hasPermission('canScore')`); a user diagram speaks the user's mental model (_"Enter your passcode → Confirm the show → You're in the ring"_). User-facing diagrams obey `docs/user-guides/writing-style.md` and `docs/INTENT.md` tone exactly as the prose does — no route names, store names, or feature-flag names.
 - **One shared style preset = one visual language.** A single saved preset (`~/.drawio-skill/styles/myk9-docs.json`) fixes palette, font, and edge style so every diagram across guides, KB, and decks reads as one family. Define it once in `docs/diagrams/diagram-conventions.md`; apply it to every export.
 - **One source, many formats — extends the existing principle.** The same `.drawio` source feeds a guide's inline SVG, a KB article, and a training-deck slide. Diagrams ride the shot-list discipline (Task 18) alongside screenshots and carry their own `diagram` artifact type.
 - **Drawing a flow is a QA instrument, like drafting prose.** Per QA-Draft Mode, if a user-facing flowchart cannot be drawn without a tangle of branches, back-tracks, or "if you came from page X" caveats, that complexity is a product finding — file it to the backlog; the diagram never papers over it. Diagrams of unstable flows are `qa-draft` and disposable.
@@ -130,7 +130,7 @@ This repository is **public**. Every doc written under this plan is world-readab
 
 Drafting docs during development is deliberate, not premature. Writing a task-based guide is the cheapest UX audit available: to write "Step 3: Click **Approve Entries**," you must walk the real flow, and friction becomes visible in the prose itself. The rules that keep this from backfiring:
 
-- **Draft now, publish later.** The Phase 0 readiness gate governs *publication* (screenshots, `verified`, customer-facing status), not *writing*. Any guide may be drafted at any time as a QA instrument.
+- **Draft now, publish later.** The Phase 0 readiness gate governs _publication_ (screenshots, `verified`, customer-facing status), not _writing_. Any guide may be drafted at any time as a QA instrument.
 - **Drafts are disposable.** Early drafts carry `status: qa-draft`. When drafting reveals friction, the **app** changes and the draft is cheerfully thrown away or rewritten. Never let an existing draft create pressure to keep the UI matching the doc — the arrow points from app to doc, always.
 - **Friction findings go to the backlog, not the doc.** While drafting, every one of these is a product finding, not something to write around:
   - A step that is hard to write ("click the three-dot menu, then Manage, then scroll to…") — UI friction.
@@ -190,6 +190,7 @@ Do not publish final customer-facing documentation until the relevant workflow m
 ### Task 1: Create the Documentation Source Map
 
 **Files:**
+
 - Create: `docs/user-guides/README.md`
 - Create: `docs/support/README.md`
 - Create: `docs/knowledge-base/README.md`
@@ -206,9 +207,10 @@ Do not publish final customer-facing documentation until the relevant workflow m
 ### Task 2: Map Workflows onto the Canonical Page Directory
 
 **Files:**
+
 - Create: `docs/user-guides/workflow-source-map.md`
 
-The route inventory already exists: `pageDirectory.ts` lists every user-facing page with roles, classification, status, and link graph, and a test keeps it in sync with the route registry. This task adds only the layer that file does not have — the mapping from *user workflows* to routes. Do not restate per-route data that `pageDirectory.ts` already holds.
+The route inventory already exists: `pageDirectory.ts` lists every user-facing page with roles, classification, status, and link graph, and a test keeps it in sync with the route registry. This task adds only the layer that file does not have — the mapping from _user workflows_ to routes. Do not restate per-route data that `pageDirectory.ts` already holds.
 
 - [ ] Read `pageDirectory.ts` and confirm its coverage matches the current sidebar navigation in `apps/myk9show/src/components/layout/sidebar/`; fix the directory (not the doc) if they disagree.
 - [ ] Define the user workflows per role (secretary, exhibitor, club admin, judge, steward, site admin, public/guest) and map each workflow to its route(s) by path reference.
@@ -219,6 +221,7 @@ The route inventory already exists: `pageDirectory.ts` lists every user-facing p
 ### Task 3: Define Documentation Style Rules
 
 **Files:**
+
 - Create: `docs/user-guides/writing-style.md`
 
 - [ ] Write for non-technical volunteers and exhibitors.
@@ -234,6 +237,7 @@ The route inventory already exists: `pageDirectory.ts` lists every user-facing p
 ### Task 4: Build the Support Question Bank
 
 **Files:**
+
 - Create: `docs/support/question-bank.md`
 
 - [ ] Seed the question bank from known workflows, golden-path audits, payment walkthroughs, and likely first-club questions.
@@ -250,6 +254,7 @@ These artifacts are what a one-person support team needs from the first real use
 ### Task 5: Support Intake Template
 
 **Files:**
+
 - Create: `docs/support/intake-template.md`
 
 - [ ] Define the universal intake checklist: name/email, role, club/show, the page they were on, what they were trying to do, exact error text or screenshot, device and browser, and whether they were online or offline at the time.
@@ -260,6 +265,7 @@ These artifacts are what a one-person support team needs from the first real use
 ### Task 6: Error Message Inventory
 
 **Files:**
+
 - Create: `docs/support/error-message-inventory.md`
 
 The most common support report quotes an error verbatim. This inventory makes the support library searchable by exactly what the user says.
@@ -273,6 +279,7 @@ The most common support report quotes an error verbatim. This inventory makes th
 ### Task 7: Knowledge Base Article System
 
 **Files:**
+
 - Create: `docs/knowledge-base/README.md`
 - Create: `docs/knowledge-base/article-template.md`
 
@@ -287,6 +294,7 @@ The most common support report quotes an error verbatim. This inventory makes th
 ### Task 8: Admin Investigation Cookbook
 
 **Files:**
+
 - Create: `docs/support/investigation-cookbook.md`
 
 Internal-only. For each symptom support cannot resolve from docs alone, the exact recipe to investigate it — written for future-Richard at 7am on a show day.
@@ -301,6 +309,7 @@ Internal-only. For each symptom support cannot resolve from docs alone, the exac
 ### Task 9: Common Issues Taxonomy
 
 **Files:**
+
 - Create: `docs/support/common-issues-outline.md`
 
 - [ ] Group issues by user symptom: cannot sign in, cannot find show, entry not visible, payment trouble, check-in problem, scoring issue, results missing, sync/offline concern.
@@ -312,6 +321,7 @@ Internal-only. For each symptom support cannot resolve from docs alone, the exac
 ### Task 10: Support Macro Library
 
 **Files:**
+
 - Create: `docs/support/macros.md`
 
 - [ ] Define reusable answer snippets for email, chat, and phone follow-up.
@@ -323,6 +333,7 @@ Internal-only. For each symptom support cannot resolve from docs alone, the exac
 ### Task 11: Show-Day Triage Runbook Outline
 
 **Files:**
+
 - Create: `docs/support/show-day-triage-outline.md`
 
 - [ ] Define support severity levels for live shows.
@@ -338,6 +349,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 12: Secretary Guide Outline
 
 **Files:**
+
 - Create: `docs/user-guides/secretary-guide-outline.md`
 
 - [ ] Outline show setup, entry management, communications, show-day operations, scoring oversight, closeout, reports, payments, and support escalation.
@@ -350,6 +362,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 13: Exhibitor Guide Outline
 
 **Files:**
+
 - Create: `docs/user-guides/exhibitor-guide-outline.md`
 
 - [ ] Outline account setup, dogs, browsing shows, entering a show, payment, check-in, messages, results, and profile/history.
@@ -361,6 +374,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 14: Ringside Quickstart Outline
 
 **Files:**
+
 - Create: `docs/user-guides/judge-steward-quickstart-outline.md`
 
 - [ ] Outline judge scoring, steward check-in/run order, offline expectations, sync status, and what to do if the tablet loses connectivity.
@@ -372,6 +386,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 15: Club Admin and Treasurer Outline
 
 **Files:**
+
 - Create: `docs/user-guides/club-admin-guide-outline.md`
 
 - [ ] Outline club access, show responsibilities, payment setup, payout expectations, and support escalation.
@@ -385,6 +400,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 16: Overview Deck Outline
 
 **Files:**
+
 - Create: `docs/training/myk9show-overview-deck-outline.md`
 
 - [ ] Create a slide outline only, not the PowerPoint file.
@@ -397,6 +413,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 17: Role-Based Slide Deck Outlines
 
 **Files:**
+
 - Create: `docs/training/role-based-deck-outlines.md`
 
 - [ ] Create short deck outlines for secretary onboarding, exhibitor onboarding, club/treasurer setup, and judge/steward show-day use.
@@ -407,6 +424,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 18: Screenshot and Demo Asset Shot List
 
 **Files:**
+
 - Create: `docs/training/screenshot-shot-list.md`
 
 - [ ] List required screenshots by workflow and role.
@@ -418,6 +436,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 18a: Diagram Asset Plan and draw.io Conventions [ADDED]
 
 **Files:**
+
 - Create: `docs/diagrams/README.md`
 - Create: `docs/diagrams/diagram-conventions.md`
 
@@ -433,6 +452,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 19: Blog Content System
 
 **Files:**
+
 - Create: `docs/blog/README.md`
 - Create: `docs/blog/post-template.md`
 
@@ -444,6 +464,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 20: First 12 Blog/Post Ideas
 
 **Files:**
+
 - Create: `docs/blog/content-calendar-outline.md`
 
 - [ ] Draft the first 12 article ideas by title and audience.
@@ -457,6 +478,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 21: Draft Only Stable Sections
 
 **Files:**
+
 - Create later: final files listed in the File Map
 
 - [ ] Draft a section only when its readiness gate passes.
@@ -468,6 +490,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 22: Documentation Accuracy Testing
 
 **Files:**
+
 - Create: `docs/user-guides/documentation-qa-checklist.md`
 
 - [ ] Recruit the non-author reviewer early (a friendly secretary or club contact) — this is the one task in this plan a one-person team cannot do alone; name the person before drafting begins.
@@ -482,6 +505,7 @@ Outlines may begin immediately and should include rough numbered-step drafts (`q
 ### Task 23: Tracking and Maintenance
 
 **Files:**
+
 - Modify: `OPEN-TODOS.md`
 - Modify later: relevant guide indexes
 

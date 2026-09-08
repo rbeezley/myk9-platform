@@ -75,16 +75,22 @@ body.ink-saver .s4-judge-card {
   background: #ffffff !important;
   border: 1px solid #000 !important;
 }
-body.ink-saver .s4-judge-card * { color: #000 !important; }
+body.ink-saver .s4-judge-card * {
+  color: #000 !important;
+}
 body.ink-saver .s4-fee-pill {
   background: #ffffff !important;
   color: #000 !important;
   border: 1px solid #000 !important;
 }
-body.ink-saver .s4-rule { background: #000 !important; }
+body.ink-saver .s4-rule {
+  background: #000 !important;
+}
 
 /* ============= STYLE 5 · POSTER ============= */
-body.ink-saver .s5 .sheet { background: #ffffff !important; }
+body.ink-saver .s5 .sheet {
+  background: #ffffff !important;
+}
 body.ink-saver .s5-poster {
   background: #ffffff !important;
 }
@@ -96,8 +102,12 @@ body.ink-saver .s5-poster *,
 body.ink-saver .s5-inner * {
   color: #000 !important;
 }
-body.ink-saver .s5-title .accent { color: #000 !important; }
-body.ink-saver .s5-title .scribe { color: #000 !important; }
+body.ink-saver .s5-title .accent {
+  color: #000 !important;
+}
+body.ink-saver .s5-title .scribe {
+  color: #000 !important;
+}
 body.ink-saver .s5-fee-card,
 body.ink-saver .s5-fee-card.alt {
   background: #ffffff !important;
@@ -107,12 +117,16 @@ body.ink-saver .s5-fee-card *,
 body.ink-saver .s5-fee-card.alt * {
   color: #000 !important;
 }
-body.ink-saver .s5-block .lbl { color: #000 !important; }
+body.ink-saver .s5-block .lbl {
+  color: #000 !important;
+}
 body.ink-saver .s5-poster-bottom .closing {
   background: #ffffff !important;
   border: 2px solid #000 !important;
 }
-body.ink-saver .s5-poster-bottom .closing * { color: #000 !important; }
+body.ink-saver .s5-poster-bottom .closing * {
+  color: #000 !important;
+}
 body.ink-saver .s5-meta-strip .cell {
   border-right: 2px solid #000 !important;
 }
@@ -166,7 +180,9 @@ body.ink-saver .s7-stat-grid .s {
   background: #ffffff !important;
   border: 1px solid #000 !important;
 }
-body.ink-saver .s7-stat-grid .s * { color: #000 !important; }
+body.ink-saver .s7-stat-grid .s * {
+  color: #000 !important;
+}
 body.ink-saver .s7-callout {
   background: #ffffff !important;
   border: 1px solid #000 !important;
@@ -207,7 +223,9 @@ body.ink-saver .ex1-monogram {
   background: #000 !important;
   color: #fff !important;
 }
-body.ink-saver .ex1-monogram * { color: #fff !important; }
+body.ink-saver .ex1-monogram * {
+  color: #fff !important;
+}
 body.ink-saver .ex2-bar {
   background: #000 !important;
 }
@@ -221,5 +239,7 @@ body.ink-saver .ex-doc .footer-stripe {
    even if the user forgot to toggle it on. They can override
    by checking "Print backgrounds" in the print dialog. */
 @media print {
-  body .sheet { background: #ffffff !important; }
+  body .sheet {
+    background: #ffffff !important;
+  }
 }

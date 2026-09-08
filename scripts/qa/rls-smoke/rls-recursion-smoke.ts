@@ -74,10 +74,7 @@ export function buildSmokeQueries(showId: string): SmokeQuery[] {
 }
 
 /** Distinguish the recursion regression from other PostgREST failures. */
-export function classifyPostgrestFailure(
-  status: number,
-  body: string
-): FailureClassification {
+export function classifyPostgrestFailure(status: number, body: string): FailureClassification {
   let code = '';
   let message = '';
   try {
@@ -87,8 +84,7 @@ export function classifyPostgrestFailure(
   } catch {
     message = body.slice(0, 200);
   }
-  const recursion =
-    code === '42P17' || /infinite recursion detected in policy/i.test(message);
+  const recursion = code === '42P17' || /infinite recursion detected in policy/i.test(message);
   const summary = recursion
     ? `RLS POLICY RECURSION (42P17): ${message} — the dogs/entries policy cycle is back; see migration 20260612090000.`
     : `HTTP ${status}${code ? ` code=${code}` : ''}: ${message}`;
@@ -120,9 +116,7 @@ const FETCH_TIMEOUT_MS = 10_000;
 function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  return fetch(url, { ...init, signal: controller.signal }).finally(() =>
-    clearTimeout(timer)
-  );
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
 async function signIn(url: string, anonKey: string): Promise<string> {

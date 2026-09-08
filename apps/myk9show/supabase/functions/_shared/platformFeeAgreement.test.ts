@@ -175,11 +175,7 @@ describe('client and server platform fee implementations agree', () => {
     // Guards the loop itself: a broken matrix that compares nothing would
     // otherwise pass silently.
     expect(compared).toBe(
-      ENTRY_FEES_CENTS.length *
-        CART_SIZES.length *
-        PERCENTS.length *
-        FLATS.length *
-        FLOORS.length
+      ENTRY_FEES_CENTS.length * CART_SIZES.length * PERCENTS.length * FLATS.length * FLOORS.length
     );
   });
 

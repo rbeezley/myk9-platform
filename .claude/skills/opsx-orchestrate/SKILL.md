@@ -26,13 +26,13 @@ rather than salvage.
 Follow the `opsx:ship` phase pipeline (branch safety → propose → verify artifacts → apply →
 verify implementation → PR → archive → cleanup). The split:
 
-| Phase | Who |
-|---|---|
-| Branch safety, propose, verify artifacts | Orchestrator |
-| **Apply (implementation tasks)** | **Implementer sub-agents (cheap model)** |
-| Review gate per task/batch | Orchestrator |
-| Verify implementation, PR, review fixes | Orchestrator dispatches; reviews everything |
-| Merge, archive, cleanup | Orchestrator |
+| Phase                                    | Who                                         |
+| ---------------------------------------- | ------------------------------------------- |
+| Branch safety, propose, verify artifacts | Orchestrator                                |
+| **Apply (implementation tasks)**         | **Implementer sub-agents (cheap model)**    |
+| Review gate per task/batch               | Orchestrator                                |
+| Verify implementation, PR, review fixes  | Orchestrator dispatches; reviews everything |
+| Merge, archive, cleanup                  | Orchestrator                                |
 
 ## Model tiering
 
@@ -88,8 +88,8 @@ Do not trust the report — verify. For each returned batch:
    defects and re-review. **Max 3 rounds per batch** — after that, either escalate the
    dispatch to opus with a rewritten prompt, or implement that batch yourself. Don't loop
    a cheap model past the point where doing it yourself is cheaper.
-4. Only the orchestrator updates `tasks.md` checkboxes — a checkbox means *reviewed and
-   accepted*, not *implementer says done*.
+4. Only the orchestrator updates `tasks.md` checkboxes — a checkbox means _reviewed and
+   accepted_, not _implementer says done_.
 5. Commit a checkpoint after each accepted batch.
 
 ## Finishing

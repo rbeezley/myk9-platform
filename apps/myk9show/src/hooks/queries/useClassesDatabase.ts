@@ -26,7 +26,12 @@ import {
   getDeletedEntries,
   entryInvalidationKeys,
 } from '@/services/database/entries';
-import type { DbClassInsert, DbClassUpdate, DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
+import type {
+  DbClassInsert,
+  DbClassUpdate,
+  DbEntryInsert,
+  DbEntryUpdate,
+} from '@/types/database-mappings';
 
 // ===== QUERY KEYS =====
 
@@ -186,18 +191,18 @@ export const useCreateClassMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (newClass) => {
+    onSuccess: newClass => {
       // Invalidate and refetch class lists
       queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-      
+
       // Add the new class to trial-specific cache if trial_id exists
       if (newClass?.trial_id) {
         queryClient.invalidateQueries({ queryKey: classKeys.byTrial(newClass.trial_id) });
       }
-      
+
       // Update statistics
       queryClient.invalidateQueries({ queryKey: classKeys.statistics() });
-      
+
       // Set the new class in cache
       if (newClass?.id) {
         queryClient.setQueryData(classKeys.detail(newClass.id), newClass);
@@ -221,10 +226,10 @@ export const useUpdateClassMutation = () => {
     onSuccess: (updatedClass, { id }) => {
       // Update the specific class in cache
       queryClient.setQueryData(classKeys.detail(id), updatedClass);
-      
+
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-      
+
       // Invalidate trial-specific cache if trial changed
       if (updatedClass?.trial_id) {
         queryClient.invalidateQueries({ queryKey: classKeys.byTrial(updatedClass.trial_id) });
@@ -248,14 +253,14 @@ export const useDeleteClassMutation = () => {
     onSuccess: (_data, { id }) => {
       // Remove from cache
       queryClient.removeQueries({ queryKey: classKeys.detail(id) });
-      
+
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: classKeys.lists() });
       queryClient.invalidateQueries({ queryKey: classKeys.statistics() });
-      
+
       // Invalidate trial-specific caches (we don't know which trial, so invalidate all)
       queryClient.invalidateQueries({ queryKey: [...classKeys.all, 'trial'] });
-      
+
       entryInvalidationKeys({ classId: id }).forEach(k =>
         queryClient.invalidateQueries({ queryKey: k })
       );
@@ -277,7 +282,7 @@ export const useCreateEntryMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (newEntry) => {
+    onSuccess: newEntry => {
       if (newEntry?.class_id) {
         entryInvalidationKeys({
           classId: newEntry.class_id,
@@ -304,7 +309,7 @@ export const useUpdateEntryMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (updatedEntry) => {
+    onSuccess: updatedEntry => {
       if (updatedEntry?.class_id) {
         entryInvalidationKeys({
           classId: updatedEntry.class_id,
@@ -337,8 +342,7 @@ export const useDeleteEntryMutation = () => {
       for (const [, data] of entryData) {
         if (Array.isArray(data)) {
           const entry = data.find((e: unknown) => (e as { id: string }).id === id) as
-            | { id: string; class_id?: string; show_id?: string; dog_id?: string }
-            | undefined;
+            { id: string; class_id?: string; show_id?: string; dog_id?: string } | undefined;
           if (entry?.class_id) {
             classId = entry.class_id;
             showId = entry.show_id ?? null;
@@ -354,9 +358,7 @@ export const useDeleteEntryMutation = () => {
     },
     onSuccess: ({ classId, showId, dogId }) => {
       entryInvalidationKeys(
-        classId
-          ? { classId, ...(showId ? { showId } : {}), ...(dogId ? { dogId } : {}) }
-          : {}
+        classId ? { classId, ...(showId ? { showId } : {}), ...(dogId ? { dogId } : {}) } : {}
       ).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
       if (classId) {
         queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
@@ -464,7 +466,7 @@ export const useRestoreEntryMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (restoredEntry) => {
+    onSuccess: restoredEntry => {
       if (restoredEntry?.class_id) {
         entryInvalidationKeys({
           classId: restoredEntry.class_id,

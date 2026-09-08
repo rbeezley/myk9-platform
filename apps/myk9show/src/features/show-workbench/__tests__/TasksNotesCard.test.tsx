@@ -41,7 +41,11 @@ describe('TasksNotesCard', () => {
 
   it('renders heading and scoped open-count badge', () => {
     mockUseSecretaryTasks.mockReturnValue({
-      data: [makeTask({ id: 't1' }), makeTask({ id: 't2' }), makeTask({ id: 't3', status: 'done' })],
+      data: [
+        makeTask({ id: 't1' }),
+        makeTask({ id: 't2' }),
+        makeTask({ id: 't3', status: 'done' }),
+      ],
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -81,7 +85,7 @@ describe('TasksNotesCard', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
-  it('creating a task locks the showId to this card\'s show', () => {
+  it("creating a task locks the showId to this card's show", () => {
     render(<TasksNotesCard showId="show-42" clubId="club-1" />);
     fireEvent.click(screen.getByRole('button', { name: /add task/i }));
     fireEvent.change(screen.getByPlaceholderText('Task title…'), {

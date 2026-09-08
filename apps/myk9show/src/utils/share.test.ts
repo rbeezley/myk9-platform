@@ -119,12 +119,18 @@ describe('shareOrCopy', () => {
 describe('shareFile', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: false }))
+    );
   });
 
   it('uses native file share when supported on a coarse-pointer device', async () => {
     const fileShare = vi.fn().mockResolvedValue(undefined);
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true }))
+    );
     Object.defineProperty(navigator, 'canShare', {
       value: vi.fn(() => true),
       configurable: true,
@@ -251,7 +257,10 @@ describe('shareFile', () => {
   });
 
   it('[ADDED] returns cancelled when the native file share sheet is dismissed', async () => {
-    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true }))
+    );
     Object.defineProperty(navigator, 'canShare', {
       value: vi.fn(() => true),
       configurable: true,

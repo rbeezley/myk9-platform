@@ -111,10 +111,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
         mail_in_release_date: config.mailInReleaseDate,
         waitlist_payment_deadline_hours: config.waitlistPaymentDeadlineHours,
       };
-      const { error } = await supabase
-        .from('shows')
-        .update(payload)
-        .eq('id', showId);
+      const { error } = await supabase.from('shows').update(payload).eq('id', showId);
       if (error) throw error;
     },
     onSuccess: () => {

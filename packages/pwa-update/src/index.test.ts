@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  setupPwaUpdate,
-  __resetPwaUpdateSingleton,
-  type RegisterSWOptions,
-} from './index';
+import { setupPwaUpdate, __resetPwaUpdateSingleton, type RegisterSWOptions } from './index';
 
 const makeRegisterSWMock = () => {
   const updateSW = vi.fn(async (_reload?: boolean) => {});

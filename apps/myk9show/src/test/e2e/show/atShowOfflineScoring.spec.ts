@@ -253,7 +253,9 @@ function getIsolatedAdminClient() {
 
   const hostname = new URL(url).hostname;
   if (hostname !== '127.0.0.1' && hostname !== 'localhost') {
-    throw new Error('Offline scoring persistence verification requires an isolated Supabase target');
+    throw new Error(
+      'Offline scoring persistence verification requires an isolated Supabase target'
+    );
   }
 
   return createClient(url, serviceKey, {

@@ -232,7 +232,8 @@ if (process.env.VITEST !== 'true' && process.argv[1]?.includes('support-triage')
   main().catch((error: unknown) => {
     // Log message and stack only. Some SDK error objects carry request headers as
     // properties; logging the object wholesale could put a credential in CI output.
-    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+    const detail =
+      error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
     console.error('support-triage pass failed:', detail);
     process.exitCode = 1;
   });

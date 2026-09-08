@@ -19,8 +19,8 @@ if (!supabaseUrl || !serviceRoleKey) {
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
     autoRefreshToken: false,
-    persistSession: false
-  }
+    persistSession: false,
+  },
 });
 
 const TEST_USER = {
@@ -28,16 +28,16 @@ const TEST_USER = {
   password: 'TestUser123!',
   id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   firstName: 'Playwright',
-  lastName: 'Tester'
+  lastName: 'Tester',
 };
 
 async function createTestUser() {
   console.log('🎭 Creating Playwright test user...');
-  
+
   try {
     // Check if user already exists
     const { data: existingUser } = await supabase.auth.admin.getUserById(TEST_USER.id);
-    
+
     if (existingUser.user) {
       console.log('✅ Test user already exists:', TEST_USER.email);
       return existingUser.user;
@@ -52,8 +52,8 @@ async function createTestUser() {
       email_confirm: true,
       user_metadata: {
         first_name: TEST_USER.firstName,
-        last_name: TEST_USER.lastName
-      }
+        last_name: TEST_USER.lastName,
+      },
     });
 
     if (authError) {
@@ -64,17 +64,15 @@ async function createTestUser() {
 
     // Create public user record
     console.log('📝 Creating user profile...');
-    const { error: profileError } = await supabase
-      .from('user')
-      .insert([
-        {
-          user_id: TEST_USER.id,
-          first_name: TEST_USER.firstName,
-          last_name: TEST_USER.lastName,
-          email: TEST_USER.email,
-          roles: ['exhibitor']
-        }
-      ]);
+    const { error: profileError } = await supabase.from('user').insert([
+      {
+        user_id: TEST_USER.id,
+        first_name: TEST_USER.firstName,
+        last_name: TEST_USER.lastName,
+        email: TEST_USER.email,
+        roles: ['exhibitor'],
+      },
+    ]);
 
     if (profileError) {
       console.warn('⚠️ Profile creation failed (may already exist):', profileError.message);
@@ -86,7 +84,7 @@ async function createTestUser() {
     console.log('🔐 Testing authentication...');
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: TEST_USER.email,
-      password: TEST_USER.password
+      password: TEST_USER.password,
     });
 
     if (signInError) {
@@ -98,7 +96,7 @@ async function createTestUser() {
     // Test data access
     console.log('📊 Testing data access...');
     supabase.auth.setSession(signInData.session);
-    
+
     const { data: shows, error: showsError } = await supabase
       .from('show')
       .select('id, name')
@@ -114,9 +112,8 @@ async function createTestUser() {
     console.log('📧 Email:', TEST_USER.email);
     console.log('🔑 Password:', TEST_USER.password);
     console.log('🆔 User ID:', TEST_USER.id);
-    
-    return authData.user;
 
+    return authData.user;
   } catch (error) {
     console.error('❌ Failed to create test user:', error.message);
     process.exit(1);

@@ -2,7 +2,12 @@ import React from 'react';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportDate } from '@/lib/reports/reportUtils';
 
-export const AKCJudgeReport: React.FC<ReportProps> = ({ showName, clubName, trial, allClasses = [] }) => {
+export const AKCJudgeReport: React.FC<ReportProps> = ({
+  showName,
+  clubName,
+  trial,
+  allClasses = [],
+}) => {
   const trialDate = trial?.date ? formatReportDate(trial.date) : '___________';
   const judgeName = trial?.judgeName ?? '___________';
   const trialNumber = trial?.trialNumber ?? '___';

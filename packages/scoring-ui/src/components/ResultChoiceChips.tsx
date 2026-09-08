@@ -140,9 +140,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
               key={opt.value}
               className={cn(
                 chipBase,
-                isActive
-                  ? `-translate-y-px ${opt.activeClass}`
-                  : chipInactive
+                isActive ? `-translate-y-px ${opt.activeClass}` : chipInactive
               )}
               onClick={() => {
                 haptic.medium();

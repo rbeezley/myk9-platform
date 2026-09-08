@@ -94,7 +94,9 @@ it('shows an exhibitor start state instead of blank content when no thread exist
     error: null,
   });
 
-  expect(await screen.findByRole('heading', { name: /Message the show team/i })).toBeInTheDocument();
+  expect(
+    await screen.findByRole('heading', { name: /Message the show team/i })
+  ).toBeInTheDocument();
   expect(screen.getByText(/Ask a question about this show/i)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Start message/i })).toBeEnabled();
 });

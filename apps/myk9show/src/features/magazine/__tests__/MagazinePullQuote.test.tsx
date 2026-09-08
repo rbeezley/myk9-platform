@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { MagazinePullQuote } from '../components/MagazinePullQuote';
 
-const QUOTE =
-  'The point of a trial is the dog and the work. The point of a club is the people.';
+const QUOTE = 'The point of a trial is the dog and the work. The point of a club is the people.';
 
 describe('MagazinePullQuote', () => {
   it('renders inside a blockquote element', () => {

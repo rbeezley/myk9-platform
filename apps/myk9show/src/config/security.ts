@@ -2,7 +2,7 @@ import { logger } from '@/services/LoggingService';
 
 /**
  * Security Configuration for MyK9Show
- * 
+ *
  * Centralizes security settings and environment validation
  * Prevents exposure of sensitive configuration to client-side
  */
@@ -24,7 +24,7 @@ export interface SecurityConfig {
  */
 function validateEnvironment(): SecurityConfig {
   const env = import.meta.env.MODE || 'development';
-  
+
   // Only allow specific environment variables to be exposed client-side
   const config: SecurityConfig = {
     enableCSP: env === 'production',
@@ -35,11 +35,12 @@ function validateEnvironment(): SecurityConfig {
     maxFailedAttempts: parseInt(import.meta.env.VITE_MAX_FAILED_ATTEMPTS || '5', 10),
     rateLimitWindow: 60000, // 1 minute
     rateLimitMaxRequests: 100,
-    environment: env as 'development' | 'production' | 'test'
+    environment: env as 'development' | 'production' | 'test',
   };
 
   // Validate configuration values
-  if (config.sessionTimeout < 300000) { // Minimum 5 minutes
+  if (config.sessionTimeout < 300000) {
+    // Minimum 5 minutes
     logger.warn('Session timeout too short, setting to minimum 5 minutes', 'app', {});
     config.sessionTimeout = 300000;
   }
@@ -96,7 +97,7 @@ export const SECURITY_HEADERS = {
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
 };
 
 /**
@@ -104,7 +105,7 @@ export const SECURITY_HEADERS = {
  */
 export function getSecureEnvironmentVar(key: string, defaultValue: string = ''): string {
   const value = import.meta.env[key];
-  
+
   if (!value) {
     if (import.meta.env.MODE === 'production' && !defaultValue) {
       throw new Error(`Required environment variable ${key} is not set`);
@@ -139,7 +140,11 @@ export const securityConfig = validateEnvironment();
  * Check if we're in a secure context
  */
 export function isSecureContext(): boolean {
-  return window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+  return (
+    window.isSecureContext ||
+    window.location.protocol === 'https:' ||
+    window.location.hostname === 'localhost'
+  );
 }
 
 /**
@@ -150,7 +155,7 @@ export function generateSecureToken(length: number = 32): string {
   if (!isSecureContext()) {
     throw new Error(
       'generateSecureToken requires a secure context (HTTPS or localhost). ' +
-      'Ensure the app is served over HTTPS in production.'
+        'Ensure the app is served over HTTPS in production.'
     );
   }
 
@@ -167,7 +172,7 @@ export async function secureHash(data: string): Promise<string> {
   if (!isSecureContext()) {
     throw new Error(
       'secureHash requires a secure context (HTTPS or localhost). ' +
-      'Ensure the app is served over HTTPS in production.'
+        'Ensure the app is served over HTTPS in production.'
     );
   }
 
@@ -195,19 +200,19 @@ export class CSRFTokenManager {
 
   generateToken(): string {
     this.token = generateSecureToken(32);
-    this.expiry = Date.now() + (15 * 60 * 1000); // 15 minutes
-    
+    this.expiry = Date.now() + 15 * 60 * 1000; // 15 minutes
+
     // Store in sessionStorage for form validation
     sessionStorage.setItem('csrf_token', this.token);
     sessionStorage.setItem('csrf_expiry', this.expiry.toString());
-    
+
     return this.token;
   }
 
   validateToken(token: string): boolean {
     const storedToken = sessionStorage.getItem('csrf_token');
     const storedExpiry = sessionStorage.getItem('csrf_expiry');
-    
+
     if (!storedToken || !storedExpiry || !token) {
       return false;
     }

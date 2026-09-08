@@ -5,10 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle, Calendar, Trophy, Users, Trash2 } from 'lucide-react';
 import { CascadingDeletePreview } from '@/utils/cascadingDelete';
-import {
-  buildCascadingDeleteBody,
-  buildCascadingDeleteHeading,
-} from './cascadingDeleteDialogCopy';
+import { buildCascadingDeleteBody, buildCascadingDeleteHeading } from './cascadingDeleteDialogCopy';
 import { format, parseISO } from 'date-fns';
 
 const ELEMENT_ORDER = ['interior', 'exterior', 'container', 'buried'];

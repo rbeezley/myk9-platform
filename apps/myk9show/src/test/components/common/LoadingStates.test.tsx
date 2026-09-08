@@ -7,13 +7,13 @@ import userEvent from '@testing-library/user-event';
 const LoadingSpinner = ({ size = 'md', text }: { size?: 'sm' | 'md' | 'lg'; text?: string }) => {
   const sizeClasses = {
     sm: 'h-4 w-4',
-    md: 'h-8 w-8', 
-    lg: 'h-12 w-12'
+    md: 'h-8 w-8',
+    lg: 'h-12 w-12',
   };
 
   return (
     <div className="flex flex-col items-center justify-center p-4" data-testid="loading-spinner">
-      <div 
+      <div
         className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${sizeClasses[size]}`}
         aria-label="Loading"
       />
@@ -26,7 +26,7 @@ const LoadingSpinner = ({ size = 'md', text }: { size?: 'sm' | 'md' | 'lg'; text
 const SkeletonLoader = ({ lines = 3, width = '100%' }: { lines?: number; width?: string }) => (
   <div className="animate-pulse" data-testid="skeleton-loader">
     {Array.from({ length: lines }).map((_, index) => (
-      <div 
+      <div
         key={index}
         className={`h-4 bg-gray-200 rounded mb-2 ${index === lines - 1 ? 'w-3/4' : 'w-full'}`}
         style={{ width: index === 0 ? width : undefined }}
@@ -36,12 +36,12 @@ const SkeletonLoader = ({ lines = 3, width = '100%' }: { lines?: number; width?:
 );
 
 // Button with Loading State
-const LoadingButton = ({ 
-  children, 
-  onClick, 
-  loading = false, 
+const LoadingButton = ({
+  children,
+  onClick,
+  loading = false,
   disabled = false,
-  ...props 
+  ...props
 }: {
   children: React.ReactNode;
   onClick?: () => void;
@@ -53,8 +53,8 @@ const LoadingButton = ({
     onClick={onClick}
     disabled={loading || disabled}
     className={`px-4 py-2 rounded flex items-center gap-2 ${
-      loading || disabled 
-        ? 'bg-gray-300 cursor-not-allowed' 
+      loading || disabled
+        ? 'bg-gray-300 cursor-not-allowed'
         : 'bg-blue-500 hover:bg-blue-600 text-white'
     }`}
     {...props}
@@ -77,10 +77,10 @@ const DataLoader = ({ delay = 1000 }: { delay?: number }) => {
       try {
         setLoading(true);
         setError(null);
-        
+
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, delay));
-        
+
         setData(['Item 1', 'Item 2', 'Item 3']);
       } catch {
         setError('Failed to load data');
@@ -97,7 +97,11 @@ const DataLoader = ({ delay = 1000 }: { delay?: number }) => {
   }
 
   if (error) {
-    return <div data-testid="error-state" className="text-red-500">{error}</div>;
+    return (
+      <div data-testid="error-state" className="text-red-500">
+        {error}
+      </div>
+    );
   }
 
   return (
@@ -137,7 +141,7 @@ const ProgressiveLoader = () => {
       <LoadingSpinner text={steps[step]} />
       <div className="mt-2">
         <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
+          <div
             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
             style={{ width: `${((step + 1) / steps.length) * 100}%` }}
           />
@@ -234,7 +238,7 @@ describe('Loading States', () => {
       const user = userEvent.setup();
 
       render(<LoadingButton onClick={handleClick}>Click</LoadingButton>);
-      
+
       await user.click(screen.getByRole('button'));
       expect(handleClick).toHaveBeenCalledTimes(1);
     });
@@ -243,8 +247,12 @@ describe('Loading States', () => {
       const handleClick = vi.fn();
       const user = userEvent.setup();
 
-      render(<LoadingButton loading onClick={handleClick}>Click</LoadingButton>);
-      
+      render(
+        <LoadingButton loading onClick={handleClick}>
+          Click
+        </LoadingButton>
+      );
+
       await user.click(screen.getByRole('button'));
       expect(handleClick).not.toHaveBeenCalled();
     });
@@ -373,7 +381,7 @@ describe('Loading States', () => {
     it('should handle multiple loading states in sequence', async () => {
       const MultiStateComponent = () => {
         const [state, setState] = React.useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-        
+
         const handleLoad = async () => {
           setState('loading');
           try {
@@ -396,12 +404,12 @@ describe('Loading States', () => {
 
       const user = userEvent.setup();
       render(<MultiStateComponent />);
-      
+
       const startButton = screen.getByText('Start Loading');
       await user.click(startButton);
-      
+
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
-      
+
       await waitFor(() => {
         expect(screen.getByTestId('success')).toBeInTheDocument();
       });

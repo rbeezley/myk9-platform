@@ -46,7 +46,7 @@ export interface StateLogging {
   <
     T,
     Mps extends [StoreMutatorIdentifier, unknown][] = [],
-    Mcs extends [StoreMutatorIdentifier, unknown][] = []
+    Mcs extends [StoreMutatorIdentifier, unknown][] = [],
   >(
     f: StateCreator<T, Mps, Mcs>,
     config?: StateLoggingConfig
@@ -82,17 +82,17 @@ export const createStateLoggingMiddleware = (defaultConfig?: StateLoggingConfig)
         if (!stateHistory.has(finalConfig.storeName)) {
           stateHistory.set(finalConfig.storeName, []);
         }
-        
+
         const sanitizedState = sanitizeState(previousState, finalConfig);
         stateHistory.get(finalConfig.storeName)!.push({
           timestamp: Date.now(),
           state: sanitizedState,
-          action: 'INITIAL_STATE'
+          action: 'INITIAL_STATE',
         });
 
         logger.debug(`Store initialized: ${finalConfig.storeName}`, 'state-change', {
           storeName: finalConfig.storeName,
-          initialState: sanitizedState
+          initialState: sanitizedState,
         });
       }
 
@@ -132,7 +132,7 @@ export const createStateLoggingMiddleware = (defaultConfig?: StateLoggingConfig)
         history.push({
           timestamp: now,
           state: sanitizeState(nextState, finalConfig),
-          action: detectAction(partial)
+          action: detectAction(partial),
         });
 
         // Keep only last 50 entries
@@ -158,12 +158,12 @@ function detectAction(partial: unknown): string {
 
   if (typeof partial === 'object' && partial !== null) {
     const keys = Object.keys(partial);
-    
+
     // Common action patterns
     if (keys.includes('isLoading')) {
       return (partial as { isLoading: boolean }).isLoading ? 'START_LOADING' : 'STOP_LOADING';
     }
-    
+
     if (keys.includes('error')) {
       return (partial as { error: unknown }).error ? 'SET_ERROR' : 'CLEAR_ERROR';
     }
@@ -231,14 +231,23 @@ function sanitizeState(state: unknown, config: StateLoggingConfig, depth = 0): u
 /**
  * Calculate differences between two states
  */
-function calculateStateDifferences(previous: unknown, next: unknown, path = ''): Record<string, { from: unknown; to: unknown }> {
+function calculateStateDifferences(
+  previous: unknown,
+  next: unknown,
+  path = ''
+): Record<string, { from: unknown; to: unknown }> {
   const differences: Record<string, { from: unknown; to: unknown }> = {};
 
   if (previous === next) {
     return differences;
   }
 
-  if (typeof previous !== 'object' || typeof next !== 'object' || previous === null || next === null) {
+  if (
+    typeof previous !== 'object' ||
+    typeof next !== 'object' ||
+    previous === null ||
+    next === null
+  ) {
     differences[path || 'root'] = { from: previous, to: next };
     return differences;
   }
@@ -260,9 +269,14 @@ function calculateStateDifferences(previous: unknown, next: unknown, path = ''):
     const nextValue = (next as Record<string, unknown>)[key];
 
     if (prevValue !== nextValue) {
-      if (typeof prevValue === 'object' && typeof nextValue === 'object' && 
-          prevValue !== null && nextValue !== null && 
-          !Array.isArray(prevValue) && !Array.isArray(nextValue)) {
+      if (
+        typeof prevValue === 'object' &&
+        typeof nextValue === 'object' &&
+        prevValue !== null &&
+        nextValue !== null &&
+        !Array.isArray(prevValue) &&
+        !Array.isArray(nextValue)
+      ) {
         Object.assign(differences, calculateStateDifferences(prevValue, nextValue, currentPath));
       } else {
         differences[currentPath] = { from: prevValue, to: nextValue };
@@ -285,7 +299,7 @@ function logStateChange(
 ): void {
   const sanitizedPrevious = sanitizeState(previousState, config);
   const sanitizedNext = sanitizeState(nextState, config);
-  
+
   const changes = config.logDifferences
     ? calculateStateDifferences(sanitizedPrevious, sanitizedNext)
     : {};
@@ -308,10 +322,10 @@ function logStateChange(
     changeCount,
     changedFields: Object.keys(changes),
     changes: changeCount <= 5 ? changes : '[Too many changes]',
-    ...(config.logFullState && { 
-      previousState: sanitizedPrevious, 
-      nextState: sanitizedNext 
-    })
+    ...(config.logFullState && {
+      previousState: sanitizedPrevious,
+      nextState: sanitizedNext,
+    }),
   });
 
   // Log warnings for large state changes
@@ -320,7 +334,7 @@ function logStateChange(
       storeName,
       action,
       changeCount,
-      recommendation: 'Consider batching updates or optimizing state structure'
+      recommendation: 'Consider batching updates or optimizing state structure',
     });
   }
 }
@@ -353,12 +367,18 @@ export function clearAllStateHistories(): void {
 /**
  * Get summary of all store activities
  */
-export function getStateActivitySummary(): Record<string, {
-  totalChanges: number;
-  lastActivity: number;
-  mostRecentAction: string;
-}> {
-  const summary: Record<string, { totalChanges: number; lastActivity: number; mostRecentAction: string }> = {};
+export function getStateActivitySummary(): Record<
+  string,
+  {
+    totalChanges: number;
+    lastActivity: number;
+    mostRecentAction: string;
+  }
+> {
+  const summary: Record<
+    string,
+    { totalChanges: number; lastActivity: number; mostRecentAction: string }
+  > = {};
 
   for (const [storeName, history] of stateHistory.entries()) {
     if (history.length > 0) {
@@ -366,7 +386,7 @@ export function getStateActivitySummary(): Record<string, {
       summary[storeName] = {
         totalChanges: history.length - 1, // Exclude initial state
         lastActivity: lastEntry.timestamp,
-        mostRecentAction: lastEntry.action
+        mostRecentAction: lastEntry.action,
       };
     }
   }
@@ -383,7 +403,7 @@ export const stateLogging = createStateLoggingMiddleware({
   logDifferences: true,
   maxDepth: 3,
   throttleMs: 100,
-  excludeFields: ['password', 'token', 'secret', 'apiKey']
+  excludeFields: ['password', 'token', 'secret', 'apiKey'],
 });
 
 /**
@@ -395,7 +415,7 @@ export const productionStateLogging = createStateLoggingMiddleware({
   logDifferences: false, // Only log action names in production
   maxDepth: 1,
   throttleMs: 1000, // More aggressive throttling
-  excludeFields: ['password', 'token', 'secret', 'apiKey', 'email', 'phone']
+  excludeFields: ['password', 'token', 'secret', 'apiKey', 'email', 'phone'],
 });
 
 /**
@@ -407,7 +427,7 @@ export const debugStateLogging = createStateLoggingMiddleware({
   logDifferences: true,
   maxDepth: 5,
   throttleMs: 0, // No throttling for debugging
-  excludeFields: ['password', 'token', 'secret']
+  excludeFields: ['password', 'token', 'secret'],
 });
 
 // State history storage

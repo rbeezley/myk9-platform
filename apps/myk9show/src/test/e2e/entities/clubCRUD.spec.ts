@@ -26,7 +26,7 @@ test.describe('Club CRUD Operations', () => {
       return {
         success: true,
         count: data.length,
-        clubs: data.slice(0, 5).map(c => ({ id: c.id, name: c.name }))
+        clubs: data.slice(0, 5).map(c => ({ id: c.id, name: c.name })),
       };
     });
 
@@ -52,7 +52,7 @@ test.describe('Club CRUD Operations', () => {
         phone: '555-0199',
         description: 'E2E Test Club - Created for testing',
         address: '123 Test St, Test City, TS 12345',
-        website: 'https://testclub.example.com'
+        website: 'https://testclub.example.com',
       };
 
       const { data: createdClub, error: createError } = await createClub(testClubData);
@@ -69,7 +69,7 @@ test.describe('Club CRUD Operations', () => {
       return {
         success: true,
         clubId: createdClub?.id,
-        clubName: createdClub?.name
+        clubName: createdClub?.name,
       };
     });
 
@@ -87,14 +87,15 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createClub, updateClub, deleteClub, getClubById } = await import('/src/services/database/clubs/index.ts');
+      const { createClub, updateClub, deleteClub, getClubById } =
+        await import('/src/services/database/clubs/index.ts');
 
       // Create a test club
       const testClubData = {
         name: `Update Test Club ${Date.now()}`,
         email: 'update-test@testclub.com',
         phone: '555-0200',
-        description: 'Club to be updated'
+        description: 'Club to be updated',
       };
 
       const { data: createdClub, error: createError } = await createClub(testClubData);
@@ -108,7 +109,7 @@ test.describe('Club CRUD Operations', () => {
       const updatedDescription = 'Updated description';
       const { data: _updatedClub, error: updateError } = await updateClub(createdClub.id, {
         phone: updatedPhone,
-        description: updatedDescription
+        description: updatedDescription,
       });
 
       if (updateError) {
@@ -129,7 +130,7 @@ test.describe('Club CRUD Operations', () => {
         updatedPhone: fetchedClub?.phone,
         updatedDescription: fetchedClub?.description,
         phoneMatches: fetchedClub?.phone === updatedPhone,
-        descriptionMatches: fetchedClub?.description === updatedDescription
+        descriptionMatches: fetchedClub?.description === updatedDescription,
       };
     });
 
@@ -147,14 +148,15 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createClub, deleteClub, getClubById } = await import('/src/services/database/clubs/index.ts');
+      const { createClub, deleteClub, getClubById } =
+        await import('/src/services/database/clubs/index.ts');
 
       // Create a test club
       const testClubData = {
         name: `Delete Test Club ${Date.now()}`,
         email: 'delete-test@testclub.com',
         phone: '555-0300',
-        description: 'Club to be deleted'
+        description: 'Club to be deleted',
       };
 
       const { data: createdClub, error: createError } = await createClub(testClubData);
@@ -178,7 +180,7 @@ test.describe('Club CRUD Operations', () => {
       return {
         success: true,
         clubId,
-        clubDeleted: !fetchedClub || !!fetchError
+        clubDeleted: !fetchedClub || !!fetchError,
       };
     });
 
@@ -195,14 +197,15 @@ test.describe('Club CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createClub, deleteClub, searchClubs } = await import('/src/services/database/clubs/index.ts');
+      const { createClub, deleteClub, searchClubs } =
+        await import('/src/services/database/clubs/index.ts');
 
       // Create a test club with a unique name
       const uniqueName = `SearchTest-${Date.now()}`;
       const testClubData = {
         name: uniqueName,
         email: 'search-test@testclub.com',
-        address: '999 Search Ave, SearchCity, SC 99999'
+        address: '999 Search Ave, SearchCity, SC 99999',
       };
 
       const { data: createdClub, error: createError } = await createClub(testClubData);
@@ -227,7 +230,7 @@ test.describe('Club CRUD Operations', () => {
         success: true,
         searchTerm: 'SearchTest',
         resultsCount: searchResults.length,
-        foundTestClub: !!foundClub
+        foundTestClub: !!foundClub,
       };
     });
 

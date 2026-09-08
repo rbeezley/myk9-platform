@@ -16,12 +16,14 @@ the only cross-tenant data-tampering vector found. Do it first.
 
 **Files:** new migration `supabase/migrations/<ts>_revoke_scoring_fns_from_public.sql`
 **Fix:**
+
 ```sql
 REVOKE ALL ON FUNCTION public.recalculate_class_placements(uuid[], boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.refresh_class_scoring_state(uuid) FROM PUBLIC, anon, authenticated;
 -- Trigger handle_entry_scoring_state_change still fires (definer rights).
 -- GRANT ... TO service_role ONLY if a direct server-side call path exists (verify first).
 ```
+
 **Pre-check:** grep callers of both functions across `apps/`, `packages/`,
 `supabase/functions/` — confirm nothing invokes them via the anon/authenticated
 client (the trigger path is unaffected by the REVOKE). If a legit direct caller
@@ -130,7 +132,7 @@ content.
 `platform_waitlist`, `result_submissions`, `role_requests`, `show_incidents`,
 `show_messages`, `show_message_threads`, `training_goals`, `trial_judge_supplies`.
 **Pre-check:** confirm each table still exists and isn't already FORCEd in a later
-migration (re-run the final-state grep). Verify no SECURITY DEFINER function *relies*
+migration (re-run the final-state grep). Verify no SECURITY DEFINER function _relies_
 on RLS being skipped for the table owner (unlikely, but FORCE changes owner-role
 behavior).
 **Test:** `migration-auditor` clean; smoke that app reads/writes to these tables
@@ -144,6 +146,7 @@ without confirmation.
 ## Testing phase (gate for this doc's completion)
 
 This plan is not complete until:
+
 - Each SA-NNN above has its named test written and passing (red→green captured).
 - `pnpm typecheck` + `pnpm lint` clean across the monorepo.
 - `cd apps/myk9show && pnpm test` green for the client-side items.

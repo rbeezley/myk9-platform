@@ -41,18 +41,54 @@ interface AppShortcutMeta {
  * AppHeader (to bind actions) and CommandPalette (to derive badges) without
  * creating a circular import. */
 export const APP_SHORTCUTS: readonly AppShortcutMeta[] = [
-  { id: 'command-palette', label: 'Open command palette', keys: 'Meta+K', category: 'general', global: true },
+  {
+    id: 'command-palette',
+    label: 'Open command palette',
+    keys: 'Meta+K',
+    category: 'general',
+    global: true,
+  },
   // `?` fires only when no input is focused and no dialog is open (NOT
   // `global`) — a printable key must never be swallowed while typing. From
   // inside the palette, the footer's "All shortcuts" BUTTON is the path to
   // the overlay (pointer-primary per design.md Decision 5).
   { id: 'shortcuts-overlay', label: 'Show keyboard shortcuts', keys: '?', category: 'general' },
-  { id: 'go-dogs', label: 'Go to Dogs', keys: 'G D', category: 'navigation', commandId: 'nav-dogs' },
-  { id: 'go-people', label: 'Go to People', keys: 'G P', category: 'navigation', commandId: 'nav-people' },
-  { id: 'go-shows', label: 'Go to Shows', keys: 'G S', category: 'navigation', commandId: 'nav-shows' },
-  { id: 'go-clubs', label: 'Go to Clubs', keys: 'G C', category: 'navigation', commandId: 'nav-clubs' },
+  {
+    id: 'go-dogs',
+    label: 'Go to Dogs',
+    keys: 'G D',
+    category: 'navigation',
+    commandId: 'nav-dogs',
+  },
+  {
+    id: 'go-people',
+    label: 'Go to People',
+    keys: 'G P',
+    category: 'navigation',
+    commandId: 'nav-people',
+  },
+  {
+    id: 'go-shows',
+    label: 'Go to Shows',
+    keys: 'G S',
+    category: 'navigation',
+    commandId: 'nav-shows',
+  },
+  {
+    id: 'go-clubs',
+    label: 'Go to Clubs',
+    keys: 'G C',
+    category: 'navigation',
+    commandId: 'nav-clubs',
+  },
   { id: 'create-dog', label: 'Create Dog', keys: 'C D', category: 'actions', commandId: 'add-dog' },
-  { id: 'create-person', label: 'Create Person', keys: 'C P', category: 'actions', commandId: 'add-person' },
+  {
+    id: 'create-person',
+    label: 'Create Person',
+    keys: 'C P',
+    category: 'actions',
+    commandId: 'add-person',
+  },
   { id: 'create-show', label: 'New Show', keys: 'C S', category: 'actions', commandId: 'add-show' },
 ];
 

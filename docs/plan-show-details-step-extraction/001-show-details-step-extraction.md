@@ -12,6 +12,7 @@
 > <!-- [EXPANDED] added the payment test file to the drift check — it's quoted verbatim in
 > "Current state" as the regression guard and is load-bearing for Step 2's verification;
 > if it drifted, the quoted className assertions may no longer match. -->
+>
 > If any of these files changed since this plan was written, compare the
 > "Current state" excerpts below against the live code before proceeding; on a
 > mismatch, treat it as a STOP condition.
@@ -36,7 +37,7 @@ The file is not actually disorganized — it already delegates to four sibling m
 
 Pulling these two concerns out mirrors the file's own existing pattern (it already does this for `ClubSection`) rather than inventing a new structure, brings it from 486 to roughly 230 LOC, and gives `ShowDetailsStep.tsx` a single remaining job: own wizard-store-derived state (search terms, scoped clubs, auto-fill effects) and compose sections.
 
-**No duplication with `ShowDetailsPage.tsx` was found.** That file is the post-creation show *viewer/manager* (tabs, stats, audience routing for an existing show); this file is the pre-creation wizard *step* that builds a draft `show` object in `wizardStore`. They share no logic or component — this is two different concerns on two different pages, not a "one concern, two places" situation, so no link-instead-of-duplicate fix applies here.
+**No duplication with `ShowDetailsPage.tsx` was found.** That file is the post-creation show _viewer/manager_ (tabs, stats, audience routing for an existing show); this file is the pre-creation wizard _step_ that builds a draft `show` object in `wizardStore`. They share no logic or component — this is two different concerns on two different pages, not a "one concern, two places" situation, so no link-instead-of-duplicate fix applies here.
 
 ## Current state
 
@@ -124,7 +125,7 @@ Pulling these two concerns out mirrors the file's own existing pattern (it alrea
     });
     if (result.error) throw result.error;
     const personId = result.data!.id;
-    await createJudgeQualification({ /* same shape as above */ });
+    await createJudgeQualification({/* same shape as above */});
     await loadPeople();
     return personId;
   };
@@ -134,16 +135,17 @@ Pulling these two concerns out mirrors the file's own existing pattern (it alrea
 
 ## Commands you will need
 
-| Purpose   | Command                                                                                       | Expected on success |
-|-----------|--------------------------------------------------------------------------------------------------|----------------------|
-| Typecheck | `pnpm typecheck` (run from repo root)                                                          | exit 0, no errors    |
-| Lint      | `pnpm lint`                                                                                     | exit 0               |
-| Tests     | `cd apps/myk9show && npx vitest run src/components/shows/wizard/steps/__tests__/ShowDetailsStep.payment.test.tsx` | all pass, 0 failures |
-| Full app tests (final gate only) | `cd apps/myk9show && pnpm test`                                       | exit 0, no new failures |
+| Purpose                          | Command                                                                                                           | Expected on success     |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Typecheck                        | `pnpm typecheck` (run from repo root)                                                                             | exit 0, no errors       |
+| Lint                             | `pnpm lint`                                                                                                       | exit 0                  |
+| Tests                            | `cd apps/myk9show && npx vitest run src/components/shows/wizard/steps/__tests__/ShowDetailsStep.payment.test.tsx` | all pass, 0 failures    |
+| Full app tests (final gate only) | `cd apps/myk9show && pnpm test`                                                                                   | exit 0, no new failures |
 
 ## Scope
 
 **In scope** (the only files you should modify or create):
+
 - `apps/myk9show/src/test/components/wizard/wizardThemingA11y.test.ts` (modify — line 92 only; see Step 6 below) <!-- [ADDED] unblocks the STOP condition the run-2 executor correctly hit on the final pnpm test gate -->
 - `apps/myk9show/src/store/wizardStore.ts` (modify — add exactly one new named type export; see Step 0 below. Do not touch anything else in this file.) <!-- [ADDED] unblocks the STOP condition the first executor run correctly hit -->
 - `apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx` (modify — remove extracted code, compose new pieces)
@@ -152,6 +154,7 @@ Pulling these two concerns out mirrors the file's own existing pattern (it alrea
 - `apps/myk9show/src/components/shows/wizard/steps/__tests__/useShowDetailsStepActions.test.ts` (create — new unit tests)
 
 **Out of scope** (do NOT touch, even though they look related):
+
 - `apps/myk9show/src/components/shows/wizard/steps/__tests__/ShowDetailsStep.payment.test.tsx` — must keep passing unmodified; do not edit its assertions to make a different DOM shape pass.
 - `apps/myk9show/src/pages/ShowDetailsPage.tsx` and its `ShowDetails/*` components — confirmed unrelated concern (post-creation show viewer, not the creation wizard). No changes needed there.
 - `ShowDetailsStep.helpers.ts`, `ShowDetailsStep.types.ts`, `ShowDetailsStep.FeeField.tsx`, `CloneFromShowCombobox.tsx`, `OfficialPicker.tsx`, `JudgesPicker.tsx` — already appropriately scoped; do not refactor them as part of this plan.
@@ -196,6 +199,7 @@ This is a forward reference (TypeScript allows referencing `WizardState` before 
 Add a new exported component to `ShowDetailsStep.sections.tsx`, following the exact shape of the existing `ClubSection` (props interface + `React.FC`, using the file's shared `HEADING_CLASS` constant). It must render **byte-identical markup** to `ShowDetailsStep.tsx:211-395` (the same JSX, just moved) — do not "clean up" classNames or structure, since `ShowDetailsStep.payment.test.tsx` asserts on the exact className strings.
 
 Props interface (name it `BasicShowInfoSectionProps`):
+
 ```ts
 interface BasicShowInfoSectionProps {
   show: ShowDraft; // import from '@/store/wizardStore' — added in Step 0 of this plan
@@ -204,9 +208,11 @@ interface BasicShowInfoSectionProps {
   onUpdate: (patch: Partial<ShowDraft>) => void; // maps to updateShowData
 }
 ```
+
 `ShowDraft` must come from Step 0's new export in `@/store/wizardStore` — do not invent or duplicate a type. (Step 0 must be complete and verified before this step.)
 
 Move into this component, verbatim:
+
 - The full "Basic Show Information" `<div>` block (`ShowDetailsStep.tsx:211-395`), including the `PREMIUM_STYLE_OPTIONS`/`PREMIUM_STYLE_LABEL_BY_VALUE`/`getPremiumStyleLabel` helpers (`ShowDetailsStep.tsx:46-57`) — move these three module-scope declarations to `ShowDetailsStep.sections.tsx` since they are only used by this section.
 - All imports this block needs that aren't already imported in `ShowDetailsStep.sections.tsx`: `Input`, `Textarea`, `Select`/`SelectContent`/`SelectItem`/`SelectTrigger`/`SelectValue`, `DateRangePicker`, `HelpCircle`, `Tooltip`/`TooltipContent`/`TooltipProvider`/`TooltipTrigger`, `ORGANIZATIONS` (from `./ShowDetailsStep.types`), `FeeField` (from `./ShowDetailsStep.FeeField`), `getPremiumStyleOptions`/`resolvePremiumStyle`/`PremiumStyle` (from `@/types/premium-types`).
 
@@ -215,6 +221,7 @@ Move into this component, verbatim:
 ### Step 2: Replace inline markup in `ShowDetailsStep.tsx` with `<BasicShowInfoSection />`
 
 In `ShowDetailsStep.tsx`:
+
 - Remove the moved JSX block and the three module-scope premium-style helpers (now living in `.sections.tsx`).
 - Remove now-unused imports (`Input`, `Textarea`, `Select*`, `DateRangePicker`, `HelpCircle`, `Tooltip*`, `ORGANIZATIONS`, `FeeField`, `getPremiumStyleOptions`/`resolvePremiumStyle`/`PremiumStyle` — keep any of these only if still used elsewhere in the file; check before deleting).
 - Import `BasicShowInfoSection` from `./ShowDetailsStep.sections` (it will sit alongside the existing `ClubSection` import).
@@ -243,12 +250,46 @@ export function useShowDetailsStepActions() {
   const { people, loadPeople } = useUserStore();
   const { updateShowData } = useWizardStore();
 
-  const handleCreateClub = useCallback(async (data: CreateClubData): Promise<void> => { /* moved body */ }, [loadClubs, updateShowData]);
-  const handleCreateOfficialPerson = useCallback(async (data: { firstName: string; lastName: string; email: string }): Promise<string> => { /* moved body */ }, [loadPeople]);
-  const handleSaveJudgeCredentials = useCallback(async (personId: string, data: { organization: string; judgeNumber: string; email: string }): Promise<void> => { /* moved body, still reads `people` */ }, [people, loadPeople]);
-  const handleCreateNewJudge = useCallback(async (data: { firstName: string; lastName: string; organization: string; judgeNumber: string; email: string }): Promise<string> => { /* moved body */ }, [loadPeople]);
+  const handleCreateClub = useCallback(
+    async (data: CreateClubData): Promise<void> => {
+      /* moved body */
+    },
+    [loadClubs, updateShowData]
+  );
+  const handleCreateOfficialPerson = useCallback(
+    async (data: { firstName: string; lastName: string; email: string }): Promise<string> => {
+      /* moved body */
+    },
+    [loadPeople]
+  );
+  const handleSaveJudgeCredentials = useCallback(
+    async (
+      personId: string,
+      data: { organization: string; judgeNumber: string; email: string }
+    ): Promise<void> => {
+      /* moved body, still reads `people` */
+    },
+    [people, loadPeople]
+  );
+  const handleCreateNewJudge = useCallback(
+    async (data: {
+      firstName: string;
+      lastName: string;
+      organization: string;
+      judgeNumber: string;
+      email: string;
+    }): Promise<string> => {
+      /* moved body */
+    },
+    [loadPeople]
+  );
 
-  return { handleCreateClub, handleCreateOfficialPerson, handleSaveJudgeCredentials, handleCreateNewJudge };
+  return {
+    handleCreateClub,
+    handleCreateOfficialPerson,
+    handleSaveJudgeCredentials,
+    handleCreateNewJudge,
+  };
 }
 ```
 
@@ -259,6 +300,7 @@ Move the corresponding imports too: `createUser`, `updateUser` (from `@/services
 ### Step 4: Wire the hook into `ShowDetailsStep.tsx`
 
 In `ShowDetailsStep.tsx`:
+
 - Remove the four moved handler functions and their now-unused direct imports (`createUser`, `updateUser`, `createJudgeQualification`, `createClub` — keep `createClub`'s sibling `CreateClubData` type import only if still referenced directly; it likely isn't once the hook owns it).
 - Import and call the new hook: `const { handleCreateClub, handleCreateOfficialPerson, handleSaveJudgeCredentials, handleCreateNewJudge } = useShowDetailsStepActions();`
 - Confirm `people` is still imported/used directly in `ShowDetailsStep.tsx` for the `selectedJudges` memo and `OfficialPicker`/`JudgesPicker` props (`people={people}`) — it is, so the `useUserStore()` destructure stays in `ShowDetailsStep.tsx` too (the hook has its own independent `useUserStore()` call; this is an accepted minor duplication of store access, not of logic — Zustand selector hooks are cheap and idiomatic to call from multiple places in this codebase, see `useShowCreationWizardActions.ts` doing the same alongside its owning page).
@@ -273,6 +315,7 @@ In `ShowDetailsStep.tsx`:
 Create `apps/myk9show/src/components/shows/wizard/steps/__tests__/useShowDetailsStepActions.test.ts`. Use `@testing-library/react`'s `renderHook` (check an existing hook test in the repo for the exact import/setup pattern, e.g. search `renderHook` under `apps/myk9show/src/hooks/__tests__/` for a model) and mock `@/services/database/users`, `@/services/database/judges`, `@/services/database/clubs`, `@/store/clubStore`, `@/store/userStore`, `@/store/wizardStore` the same way `ShowDetailsStep.payment.test.tsx` mocks the stores.
 
 Cover:
+
 - `handleCreateClub`: calls `createClub` with `{ name, email }`, throws on `result.error`, calls `loadClubs()` and `updateShowData({ clubId })` on success.
 - `handleCreateOfficialPerson`: calls `createUser`, throws on error, calls `loadPeople()`, returns the new id.
 - `handleSaveJudgeCredentials`: throws `'Judge number is required'` when `judgeNumber` is blank/whitespace; calls `createJudgeQualification` with the right shape; calls `updateUser` only when the person has no existing email and one was provided; always calls `loadPeople()`.
@@ -297,10 +340,7 @@ This file already has the exact precedent for this situation, a few lines above 
 // into its own sibling component; the a11y guard follows the markup to its new
 // home. The pinned aria string-literals stay byte-identical.
 const validationBanner = read(
-  path.join(
-    __dirname,
-    '../../../pages/secretary/ShowCreationWizard/WizardValidationBanner.tsx'
-  )
+  path.join(__dirname, '../../../pages/secretary/ShowCreationWizard/WizardValidationBanner.tsx')
 );
 ```
 
@@ -336,7 +376,7 @@ Machine-checkable. ALL must hold:
 - [ ] `cd apps/myk9show && npx vitest run src/components/shows/wizard/steps/__tests__/useShowDetailsStepActions.test.ts` — all pass, covers all 4 handlers
 - [ ] `cd apps/myk9show && pnpm test` exits 0
 - [ ] `wc -l apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx` reports a value under 260
-- [ ] `grep -n "handleCreateClub\|handleCreateOfficialPerson\|handleSaveJudgeCredentials\|handleCreateNewJudge" apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx` returns no function *definitions* in this file (only the destructured call to `useShowDetailsStepActions()` and the JSX prop usages)
+- [ ] `grep -n "handleCreateClub\|handleCreateOfficialPerson\|handleSaveJudgeCredentials\|handleCreateNewJudge" apps/myk9show/src/components/shows/wizard/steps/ShowDetailsStep.tsx` returns no function _definitions_ in this file (only the destructured call to `useShowDetailsStepActions()` and the JSX prop usages)
 - [ ] No files outside the in-scope list are modified (`git status`)
 - [ ] `docs/plan-show-details-step-extraction/README.md` status row updated, and (per CLAUDE.md) the plan's `> **Status:**` line flipped to `Complete` and the file `git mv`'d into `docs/archive/plan-show-details-step-extraction/` once merged <!-- [ADDED] plan-hygiene close-out step -->
 - [ ] `docs/README.md` row for this plan removed once archived <!-- [ADDED] plan-hygiene close-out step -->
@@ -356,5 +396,5 @@ Stop and report back (do not improvise) if:
 - If a future change adds a fifth "create X inline" handler to this wizard step (e.g. inline steward creation), it belongs in `useShowDetailsStepActions.ts`, not back in `ShowDetailsStep.tsx` — keep the convention this plan establishes.
 - `BasicShowInfoSection` and `ClubSection` now share the `HEADING_CLASS`/style constants in `ShowDetailsStep.sections.tsx` — if a future design pass changes section heading styling, it only needs to change in one place.
 - This plan does not touch the `useEffect` auto-fill/auto-select block or the search-term `useState` pair left in `ShowDetailsStep.tsx` — if those grow further, a follow-up plan extracting them into a `useShowDetailsStepClubAutoSelect`-style hook would be the natural next step, but two extractions in one pass is enough for one review.
-- A reviewer should scrutinize: that `useCallback` dependency arrays in the new hook are correct (stale closures on `people` in `handleSaveJudgeCredentials` would silently use an outdated person list — write the corresponding test in Step 5 with a *changing* `people` list across renders, not just a static mock, so this would actually be caught), and that no behavior changed in error handling (all four handlers must still throw the same errors under the same conditions).
+- A reviewer should scrutinize: that `useCallback` dependency arrays in the new hook are correct (stale closures on `people` in `handleSaveJudgeCredentials` would silently use an outdated person list — write the corresponding test in Step 5 with a _changing_ `people` list across renders, not just a static mock, so this would actually be caught), and that no behavior changed in error handling (all four handlers must still throw the same errors under the same conditions).
 - This is a pure refactor with no behavior change, no new endpoints, no schema/migration, and no deploy/env steps — operational and security review surface for this PR should be limited to "did the DOM/behavior actually stay identical," not broader system risk.

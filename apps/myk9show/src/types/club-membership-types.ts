@@ -1,11 +1,7 @@
 export type MembershipType = 'full' | 'associate' | 'junior' | 'honorary';
 export type MembershipStatus = 'active' | 'lapsed' | 'suspended' | 'resigned';
 export type OfficerPosition =
-  | 'president'
-  | 'vice_president'
-  | 'secretary'
-  | 'treasurer'
-  | 'board_member';
+  'president' | 'vice_president' | 'secretary' | 'treasurer' | 'board_member';
 
 export interface ClubMember {
   id: string;

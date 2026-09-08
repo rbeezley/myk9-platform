@@ -10,7 +10,7 @@ vi.mock('@/services/LoggingService', () => ({
     warn: vi.fn(),
     error: vi.fn(),
     fatal: vi.fn(),
-  }
+  },
 }));
 
 // Mock the Zustand stores with getState() API
@@ -25,7 +25,7 @@ vi.mock('@/store/dogStore', () => ({
           sex: 'male',
           ownerId: 'person-1',
           dateOfBirth: '2022-01-15',
-          isActive: true
+          isActive: true,
         },
         {
           id: 'dog-2',
@@ -34,8 +34,8 @@ vi.mock('@/store/dogStore', () => ({
           sex: 'female',
           ownerId: 'person-2',
           dateOfBirth: '2021-06-10',
-          isActive: true
-        }
+          isActive: true,
+        },
       ],
       getDogById: vi.fn((id: string) => {
         const dogs: Record<string, unknown> = {
@@ -46,7 +46,7 @@ vi.mock('@/store/dogStore', () => ({
             sex: 'male',
             ownerId: 'person-1',
             dateOfBirth: '2022-01-15',
-            isActive: true
+            isActive: true,
           },
           'dog-2': {
             id: 'dog-2',
@@ -55,13 +55,13 @@ vi.mock('@/store/dogStore', () => ({
             sex: 'female',
             ownerId: 'person-2',
             dateOfBirth: '2021-06-10',
-            isActive: true
-          }
+            isActive: true,
+          },
         };
         return dogs[id] || null;
-      })
-    })
-  }
+      }),
+    }),
+  },
 }));
 
 vi.mock('@/store/userStore', () => ({
@@ -72,18 +72,18 @@ vi.mock('@/store/userStore', () => ({
           id: 'person-1',
           firstName: 'Test',
           lastName: 'User',
-          city: 'Test City'
+          city: 'Test City',
         },
         {
           id: 'person-2',
           firstName: 'Other',
           lastName: 'Person',
-          city: 'Other City'
-        }
+          city: 'Other City',
+        },
       ],
-      users: []
-    })
-  }
+      users: [],
+    }),
+  },
 }));
 
 vi.mock('@/store/showStore', () => ({
@@ -95,18 +95,18 @@ vi.mock('@/store/showStore', () => ({
           name: 'Test Show 1',
           startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           type: 'All Breed',
-          location: 'Test City, TS'
+          location: 'Test City, TS',
         },
         {
           id: 'show-2',
           name: 'Test Show 2',
           startDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
           type: 'Specialty',
-          location: 'Other City, OT'
-        }
-      ]
-    })
-  }
+          location: 'Other City, OT',
+        },
+      ],
+    }),
+  },
 }));
 
 vi.mock('@/store/clubStore', () => ({
@@ -115,22 +115,22 @@ vi.mock('@/store/clubStore', () => ({
       clubs: [
         {
           id: 'club-1',
-          name: 'Test Club'
-        }
-      ]
-    })
-  }
+          name: 'Test Club',
+        },
+      ],
+    }),
+  },
 }));
 
 // Mock localStorage
 const mockLocalStorage = {
   getItem: vi.fn(),
   setItem: vi.fn(),
-  removeItem: vi.fn()
+  removeItem: vi.fn(),
 };
 
 Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage
+  value: mockLocalStorage,
 });
 
 // Mock console methods
@@ -345,7 +345,9 @@ describe('PredictiveLoader', () => {
 
       // Should have processed some tasks
       const analytics = loader.getAnalytics();
-      expect(analytics.preloadQueue.completed + analytics.preloadQueue.failed).toBeGreaterThanOrEqual(0);
+      expect(
+        analytics.preloadQueue.completed + analytics.preloadQueue.failed
+      ).toBeGreaterThanOrEqual(0);
     });
 
     it('should retry failed tasks', async () => {
@@ -459,14 +461,17 @@ describe('PredictiveLoader', () => {
 
     it('should load data from localStorage', () => {
       const mockNavPatterns = JSON.stringify([
-        ['test->test2', {
-          fromRoute: 'test',
-          toRoute: 'test2',
-          frequency: 5,
-          avgLoadTime: 2000,
-          lastAccessed: new Date().toISOString(),
-          confidence: 0.5
-        }]
+        [
+          'test->test2',
+          {
+            fromRoute: 'test',
+            toRoute: 'test2',
+            frequency: 5,
+            avgLoadTime: 2000,
+            lastAccessed: new Date().toISOString(),
+            confidence: 0.5,
+          },
+        ],
       ]);
 
       mockLocalStorage.getItem.mockImplementation((key: string) => {

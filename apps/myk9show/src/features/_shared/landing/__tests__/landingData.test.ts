@@ -100,10 +100,7 @@ describe('buildLandingData', () => {
     const data = buildLandingData(show, textTrials[0], textTrials, 12);
 
     // "Trial 2" before "Trial 10" — lexicographic ordering would invert these.
-    expect(data.trials.map(t => t.trialNumber)).toEqual([
-      'Friday Trial 2',
-      'Friday Trial 10',
-    ]);
+    expect(data.trials.map(t => t.trialNumber)).toEqual(['Friday Trial 2', 'Friday Trial 10']);
   });
 
   it('still orders a purely numeric fixture, proving the sort runs at all', () => {

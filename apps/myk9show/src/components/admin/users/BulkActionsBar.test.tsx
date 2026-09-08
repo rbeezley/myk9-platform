@@ -457,7 +457,7 @@ describe('BulkActionsBar', () => {
         resendConfirmationEmail: vi.fn(),
         signOut: vi.fn(),
         signInWithGoogle: vi.fn(),
-      signInWithApple: vi.fn(),
+        signInWithApple: vi.fn(),
         resetPassword: vi.fn(),
         updatePassword: vi.fn(),
         updateProfile: vi.fn(),

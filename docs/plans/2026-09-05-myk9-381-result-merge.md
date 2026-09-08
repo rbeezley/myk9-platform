@@ -29,7 +29,7 @@ add no new page or affordance. Preserve the exhibitor's trust in released result
       record Q/time and judge evidence without changing shared fixtures.
 - [x] Prepare the verified fix and PR description for review.
 - [x] Publish the PR and update Linear after confirmation; keep it open until
-  required verification and delivery gates are satisfied.
+      required verification and delivery gates are satisfied.
 
 ## Scope and evidence
 
@@ -87,9 +87,9 @@ partial caches. This is a narrow continuation of the same read-path fix, using
 the existing plan rather than a new OpenSpec change or UI surface.
 
 - [x] Regression test: populated cache missing the Interior entry fails before
-  the fix (expected Interior ID, received Container ID only).
+      the fix (expected Interior ID, received Container ID only).
 - [x] Refresh the scoped entry replica before reading; preserve existing
-  conflict/tombstone handling and cached offline reads.
+      conflict/tombstone handling and cached offline reads.
 - [x] Run scoped read, visibility, render, and tombstone tests plus type/lint checks.
 - [x] Replay the original named browser fixture and save screenshot evidence.
 - [x] Publish the follow-up for delivery; close only after deployed evidence passes.

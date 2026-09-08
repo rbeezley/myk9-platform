@@ -38,12 +38,7 @@ export interface GeneratedClass {
 // AKC Scent Work specific types
 export interface AKCScentWorkClass {
   element:
-    | 'Interior'
-    | 'Exterior'
-    | 'Container'
-    | 'Buried'
-    | 'Handler Discrimination'
-    | 'Detective';
+    'Interior' | 'Exterior' | 'Container' | 'Buried' | 'Handler Discrimination' | 'Detective';
   level?: 'Novice' | 'Advanced' | 'Excellent' | 'Masters';
   section?: 'A' | 'B';
 }

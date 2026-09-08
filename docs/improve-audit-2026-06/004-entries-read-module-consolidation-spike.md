@@ -31,7 +31,7 @@ The Entry entity's data-access layer is split across seven sibling modules under
 `publicReads.ts`, `userEntriesReplication.ts`, plus the `index.ts` barrel. A
 public seam already exists and is enforced (the barrel's header says "All callers
 import from here — never from the sibling implementation files below"), so this
-is **not** a missing-abstraction problem. The real risk is *internal*: there are
+is **not** a missing-abstraction problem. The real risk is _internal_: there are
 multiple read paths (replication-backed vs. direct PostgREST) with overlapping
 responsibilities, and it is not obvious which one a given caller should use or
 whether the choice is consistent. The project is in a "consolidate, don't
@@ -68,32 +68,34 @@ A blind merge here could break offline reads, so the spike comes first.
   Supabase/PostgREST read that bypasses replication. A direct-PostgREST read is
   acceptable only on public/unauth routes (where the replication store is cold
   and would return false-empty). The spike must classify each read path against
-  this rule — that classification *is* the core deliverable.
+  this rule — that classification _is_ the core deliverable.
 - **Vocabulary** (from `CONTEXT.md`): each entity is meant to have a canonical
   "Data Access Module" seam — use that term in the findings doc.
 
 ## Commands you will need
 
-| Purpose                     | Command                                                                                                  |
-|-----------------------------|----------------------------------------------------------------------------------------------------------|
-| List the modules            | `ls -la apps/myk9show/src/services/database/entries/`                                                     |
-| Find each module's exports  | `grep -rn "^export " apps/myk9show/src/services/database/entries/<file>.ts`                               |
-| Find callers of an export   | `grep -rn "<exportedName>" apps/myk9show/src --include=*.ts --include=*.tsx | grep -v /entries/`           |
-| Detect replication usage    | `grep -rn "replicat\|withReplicationFallback\|ReplicatedEntriesTable" apps/myk9show/src/services/database/entries/<file>.ts` |
-| Detect direct PostgREST     | `grep -rn "supabase.from('entries')\|\.from(\"entries\")" apps/myk9show/src/services/database/entries/<file>.ts` |
-| Typecheck (sanity only)     | `cd apps/myk9show && pnpm typecheck`                                                                      |
+| Purpose                    | Command                                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| List the modules           | `ls -la apps/myk9show/src/services/database/entries/`                                                                        |
+| Find each module's exports | `grep -rn "^export " apps/myk9show/src/services/database/entries/<file>.ts`                                                  |
+| Find callers of an export  | `grep -rn "<exportedName>" apps/myk9show/src --include=_.ts --include=_.tsx                                                  | grep -v /entries/` |
+| Detect replication usage   | `grep -rn "replicat\|withReplicationFallback\|ReplicatedEntriesTable" apps/myk9show/src/services/database/entries/<file>.ts` |
+| Detect direct PostgREST    | `grep -rn "supabase.from('entries')\|\.from(\"entries\")" apps/myk9show/src/services/database/entries/<file>.ts`             |
+| Typecheck (sanity only)    | `cd apps/myk9show && pnpm typecheck`                                                                                         |
 
 ## Scope
 
 **In scope** (the only file you create):
+
 - `docs/plan-entries-read-consolidation.md` — the findings + refactor proposal.
   (Use `docs/` because this repo registers plans there; add the required
   `> **Status:** Active` line under the title per `CLAUDE.md`, and add a row to
   `docs/README.md`.)
 
 **Out of scope** (do NOT touch in this plan):
+
 - Any file under `apps/myk9show/src/services/database/entries/` — no moves, no
-  merges, no deletions. Those are the *follow-up* plan's job.
+  merges, no deletions. Those are the _follow-up_ plan's job.
 - Any caller. You are reading and documenting only.
 
 ## Git workflow
@@ -116,7 +118,7 @@ full list of exported functions/types in a table in the findings doc.
 
 ### Step 2: Classify each read path as replication-backed or direct-PostgREST
 
-For each *read* export, run the "Detect replication usage" and "Detect direct
+For each _read_ export, run the "Detect replication usage" and "Detect direct
 PostgREST" commands against its module and read the function body. Tag each read
 as one of: `replication` (offline-safe), `postgrest-public` (intended for
 anon/cold routes), or `postgrest-core` (a direct read on a core authed flow —
@@ -130,7 +132,7 @@ quoting the relevant line.
 For each read export, run the "Find callers" command. Record which
 pages/hooks/components call it. Flag: (a) any caller importing from a sibling
 module directly instead of the barrel (seam violation); (b) two different read
-exports used by the *same* surface for the *same* data (duplication); (c) any
+exports used by the _same_ surface for the _same_ data (duplication); (c) any
 `postgrest-core`-tagged read called from an authed, offline-relevant surface.
 
 **Verify**: the doc lists callers per export, with the three flag categories

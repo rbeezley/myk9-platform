@@ -2,7 +2,8 @@
 
 /* Typography - San Francisco inspired (copied from myk9-show-details.css) */
 .myk9-club-page {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
@@ -39,7 +40,9 @@
   border-radius: 20px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.08), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.5;
 }
@@ -156,7 +159,7 @@
   gap: 4px;
   padding: 4px 10px;
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
   border: 1px solid rgba(52, 199, 89, 0.2);
   border-radius: 50px;
   font-size: 14px;
@@ -217,7 +220,9 @@
   border-radius: 16px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -271,19 +276,19 @@
 
 .myk9-club-show-status-upcoming {
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
 .myk9-club-show-status-registration {
   background: rgba(0, 122, 255, 0.1);
-  color: #007AFF;
+  color: #007aff;
   border: 1px solid rgba(0, 122, 255, 0.2);
 }
 
 .myk9-club-show-status-completed {
   background: rgba(88, 86, 214, 0.1);
-  color: #5856D6;
+  color: #5856d6;
   border: 1px solid rgba(88, 86, 214, 0.2);
 }
 
@@ -387,7 +392,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #007AFF;
+  background: #007aff;
   color: white;
   border: none;
   border-radius: 8px;
@@ -398,7 +403,7 @@
 }
 
 .myk9-club-empty-action:hover {
-  background: #0056CC;
+  background: #0056cc;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
@@ -426,10 +431,18 @@
   animation: fadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.myk9-club-stat-card:nth-child(1) { animation-delay: 0.1s; }
-.myk9-club-stat-card:nth-child(2) { animation-delay: 0.2s; }
-.myk9-club-stat-card:nth-child(3) { animation-delay: 0.3s; }
-.myk9-club-stat-card:nth-child(4) { animation-delay: 0.4s; }
+.myk9-club-stat-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.myk9-club-stat-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.myk9-club-stat-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.myk9-club-stat-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
 
 @keyframes fadeInUp {
   from {
@@ -472,7 +485,9 @@
   background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  transition: width 0.3s ease, height 0.3s ease;
+  transition:
+    width 0.3s ease,
+    height 0.3s ease;
 }
 
 .myk9-club-empty-action:active::before {
@@ -486,7 +501,8 @@
 }
 
 @keyframes iconPulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
   }
   50% {
@@ -504,7 +520,7 @@
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #007AFF, #5856D6, #AF52DE);
+  background: linear-gradient(135deg, #007aff, #5856d6, #af52de);
   opacity: 0;
   transition: opacity 0.3s ease;
   z-index: -1;
@@ -530,92 +546,90 @@
     @apply px-4;
     padding-top: 16px;
   }
-  
+
   .myk9-club-header {
     padding: 24px 20px;
     margin-bottom: 24px;
   }
-  
+
   .myk9-club-title {
     font-size: 26px;
   }
-  
+
   .myk9-club-logo {
     width: 100px;
     height: 100px;
   }
-  
+
   .myk9-club-stats-grid {
     @apply grid-cols-1 gap-4;
   }
-  
+
   .myk9-club-stat-card {
     padding: 20px;
   }
-  
+
   .myk9-club-stat-number {
     font-size: 28px;
   }
-  
-  
-  
+
   .myk9-club-show-card {
     padding: 16px;
   }
-  
+
   .myk9-club-show-card:hover {
     transform: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
-  
+
   .myk9-club-show-title {
     font-size: 16px;
   }
-  
+
   .myk9-club-show-metadata {
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     padding: 10px;
     font-size: 14px;
   }
-  
+
   .myk9-club-show-title-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
   }
-  
+
   .myk9-club-show-header {
     align-items: flex-start;
   }
-  
+
   .myk9-club-empty {
     padding: 48px 20px;
   }
-  
+
   .myk9-club-empty-icon {
     width: 48px;
     height: 48px;
   }
-  
+
   .myk9-club-empty-title {
     font-size: 16px;
   }
-  
+
   .myk9-club-empty-text {
     font-size: 14px;
   }
-  
+
   .myk9-club-contact-actions {
     justify-content: center;
   }
-  
+
   /* Disable animations on mobile for better performance */
   .myk9-club-stat-card,
   .myk9-club-show-card {
     animation: none;
   }
-  
+
   .myk9-club-stat-icon {
     animation: none;
   }
@@ -627,15 +641,15 @@
     padding-left: 48px;
     padding-right: 48px;
   }
-  
+
   .myk9-club-stats-grid {
     gap: 8px;
   }
-  
+
   .myk9-club-stat-card {
     padding: 28px;
   }
-  
+
   .myk9-club-show-card {
     padding: 24px;
   }
@@ -682,24 +696,24 @@
   justify-content: center;
   font-size: 20px;
   color: white;
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
   flex-shrink: 0;
 }
 
 .myk9-club-stat-icon.shows {
-  background: linear-gradient(135deg, #007AFF 0%, #00C7BE 100%);
+  background: linear-gradient(135deg, #007aff 0%, #00c7be 100%);
 }
 
 .myk9-club-stat-icon.members {
-  background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
 }
 
 .myk9-club-stat-icon.events {
-  background: linear-gradient(135deg, #5856D6 0%, #AF52DE 100%);
+  background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);
 }
 
 .myk9-club-stat-icon.rating {
-  background: linear-gradient(135deg, #FF9500 0%, #FF6200 100%);
+  background: linear-gradient(135deg, #ff9500 0%, #ff6200 100%);
 }
 
 .myk9-club-stat-header {
@@ -715,7 +729,7 @@
   padding: 4px 8px;
   border-radius: 8px;
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
 }
 
 .myk9-club-stat-content {
@@ -735,7 +749,7 @@
 .myk9-club-stat-number {
   font-size: 32px;
   font-weight: 700;
-  line-height: 1.0;
+  line-height: 1;
   color: var(--foreground);
   margin-bottom: 12px;
 }
@@ -758,25 +772,25 @@
 
 .myk9-club-stat-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(90deg, #007aff 0%, #5856d6 100%);
   border-radius: 2px;
   transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .myk9-club-stat-progress-bar.shows {
-  background: linear-gradient(90deg, #007AFF 0%, #00C7BE 100%);
+  background: linear-gradient(90deg, #007aff 0%, #00c7be 100%);
 }
 
 .myk9-club-stat-progress-bar.members {
-  background: linear-gradient(90deg, #34C759 0%, #30D158 100%);
+  background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
 }
 
 .myk9-club-stat-progress-bar.events {
-  background: linear-gradient(90deg, #5856D6 0%, #AF52DE 100%);
+  background: linear-gradient(90deg, #5856d6 0%, #af52de 100%);
 }
 
 .myk9-club-stat-progress-bar.rating {
-  background: linear-gradient(90deg, #FF9500 0%, #FF6200 100%);
+  background: linear-gradient(90deg, #ff9500 0%, #ff6200 100%);
 }
 
 /* Dropdown trigger styling - matches myk9-show-details.css */

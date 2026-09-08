@@ -18,103 +18,102 @@ const {
   mockUseEntryFormData,
   mockDefaultReturn,
 } = vi.hoisted(() => {
-    const dogs: EntryFormDog[] = [
-      {
-        dogId: 'dog-1',
-        callName: 'Star',
-        breed: 'Golden Retriever',
-        sex: 'Female',
-        dateOfBirth: '2022-03-15',
-        registration: {
-          registeredName: "GCH Oakwood's Rising Star",
-          registrationNumber: 'DN12345678',
-          organization: 'AKC',
-          variety: null,
-        },
-        breeder: 'John Doe',
-        sire: "CH Oakwood's Golden Boy",
-        dam: "Oakwood's Shining Light",
-        owner: {
-          firstName: 'Sarah',
-          lastName: 'Johnson',
-          streetAddress: '456 Oak Ave',
-          city: 'Dallas',
-          state: 'TX',
-          zipCode: '75001',
-          phone: '(214) 555-0123',
-          email: 'sarah@example.com',
-        },
-        handler: null,
-        armband: 101,
-        entries: [
-          {
-            id: 'e1',
-            trialId: 'trial-1',
-            classId: 'c1',
-            element: 'Container',
-            level: 'Excellent',
-            armband: 101,
-            handler: null,
-            submittedAt: '2026-04-01T12:00:00Z',
-          },
-          {
-            id: 'e2',
-            trialId: 'trial-1',
-            classId: 'c2',
-            element: 'Interior',
-            level: 'Excellent',
-            armband: 101,
-            handler: null,
-            submittedAt: '2026-04-01T12:00:00Z',
-          },
-        ],
-        agreementDate: '2026-04-01T12:00:00Z',
+  const dogs: EntryFormDog[] = [
+    {
+      dogId: 'dog-1',
+      callName: 'Star',
+      breed: 'Golden Retriever',
+      sex: 'Female',
+      dateOfBirth: '2022-03-15',
+      registration: {
+        registeredName: "GCH Oakwood's Rising Star",
+        registrationNumber: 'DN12345678',
+        organization: 'AKC',
+        variety: null,
       },
-    ];
+      breeder: 'John Doe',
+      sire: "CH Oakwood's Golden Boy",
+      dam: "Oakwood's Shining Light",
+      owner: {
+        firstName: 'Sarah',
+        lastName: 'Johnson',
+        streetAddress: '456 Oak Ave',
+        city: 'Dallas',
+        state: 'TX',
+        zipCode: '75001',
+        phone: '(214) 555-0123',
+        email: 'sarah@example.com',
+      },
+      handler: null,
+      armband: 101,
+      entries: [
+        {
+          id: 'e1',
+          trialId: 'trial-1',
+          classId: 'c1',
+          element: 'Container',
+          level: 'Excellent',
+          armband: 101,
+          handler: null,
+          submittedAt: '2026-04-01T12:00:00Z',
+        },
+        {
+          id: 'e2',
+          trialId: 'trial-1',
+          classId: 'c2',
+          element: 'Interior',
+          level: 'Excellent',
+          armband: 101,
+          handler: null,
+          submittedAt: '2026-04-01T12:00:00Z',
+        },
+      ],
+      agreementDate: '2026-04-01T12:00:00Z',
+    },
+  ];
 
-    const secretary: EntryFormSecretary = {
-      name: 'Jane Smith',
-      streetAddress: '123 Main St',
-      city: 'Anytown',
-      state: 'TX',
-      zipCode: '75001',
-    };
+  const secretary: EntryFormSecretary = {
+    name: 'Jane Smith',
+    streetAddress: '123 Main St',
+    city: 'Anytown',
+    state: 'TX',
+    zipCode: '75001',
+  };
 
-    const trials: EntryFormTrial[] = [
-      // MYK9-282: trials.trial_number is TEXT. Real rows hold labels like
-      // "Friday Trial 1"; every trial on staging is non-numeric. The old fixture
-      // used numbers, so the component printed "Trial NaN" in production while
-      // these tests stayed green.
-      { id: 'trial-1', date: '2026-04-12', trialNumber: 'Friday Trial 1' },
-      { id: 'trial-2', date: '2026-04-12', trialNumber: 'Friday Trial 2' },
-    ];
+  const trials: EntryFormTrial[] = [
+    // MYK9-282: trials.trial_number is TEXT. Real rows hold labels like
+    // "Friday Trial 1"; every trial on staging is non-numeric. The old fixture
+    // used numbers, so the component printed "Trial NaN" in production while
+    // these tests stayed green.
+    { id: 'trial-1', date: '2026-04-12', trialNumber: 'Friday Trial 1' },
+    { id: 'trial-2', date: '2026-04-12', trialNumber: 'Friday Trial 2' },
+  ];
 
-    const classes: EntryFormClass[] = [
-      { id: 'c1', trialId: 'trial-1', element: 'Container', level: 'Excellent' },
-      { id: 'c2', trialId: 'trial-1', element: 'Interior', level: 'Excellent' },
-    ];
+  const classes: EntryFormClass[] = [
+    { id: 'c1', trialId: 'trial-1', element: 'Container', level: 'Excellent' },
+    { id: 'c2', trialId: 'trial-1', element: 'Interior', level: 'Excellent' },
+  ];
 
-    // Create the mock fn here so it's available in the factory
-    const defaultReturn = {
-      dogs,
-      secretary,
-      trials,
-      classes,
-      isLoading: false,
-      isError: false,
-    };
-    const mockFn = vi.fn().mockReturnValue(defaultReturn);
+  // Create the mock fn here so it's available in the factory
+  const defaultReturn = {
+    dogs,
+    secretary,
+    trials,
+    classes,
+    isLoading: false,
+    isError: false,
+  };
+  const mockFn = vi.fn().mockReturnValue(defaultReturn);
 
-    return {
-      mockDogs: dogs,
-      mockSecretary: secretary,
-      mockTrials: trials,
-      mockClasses: classes,
-      mockUseEntryFormData: mockFn,
-      mockDefaultReturn: defaultReturn,
-    };
-  }
-);
+  return {
+    mockDogs: dogs,
+    mockSecretary: secretary,
+    mockTrials: trials,
+    mockClasses: classes,
+    mockUseEntryFormData: mockFn,
+    mockDefaultReturn: defaultReturn,
+  };
+});
 
 // MYK9-280: AKCScentWorkEntryForm no longer fetches — ReportPreview renders it
 // through renderToStaticMarkup, where a React Query hook throws. The mock is kept

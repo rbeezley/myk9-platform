@@ -3,8 +3,7 @@
 // can be unit-tested directly.
 
 // Subtitle shown under the dialog title.
-export const deleteDogSubtitle =
-  'This marks the dog as deleted and hides it from normal view.';
+export const deleteDogSubtitle = 'This marks the dog as deleted and hides it from normal view.';
 
 const entryNoun = (count: number): string => (count === 1 ? 'entry' : 'entries');
 
@@ -46,7 +45,6 @@ export function buildWarningText(
   const blocked = buildBlockedText(blockingEntryCount);
   if (blocked) return blocked;
   if (!canRestore) return 'This action cannot be undone.';
-  const what =
-    !activeEntryCount || activeEntryCount <= 0 ? 'The dog' : 'The dog and its entries';
+  const what = !activeEntryCount || activeEntryCount <= 0 ? 'The dog' : 'The dog and its entries';
   return `${what} can be restored by an administrator from Admin → Deleted Items.`;
 }

@@ -7,21 +7,21 @@ second opinion.
 
 ## Window
 
-| Field                 | Value                                                                       |
-| --------------------- | --------------------------------------------------------------------------- |
-| Stream                | `daily-commit-review`                                                       |
-| Committed cursor read | `d5a495862785711608e275d87da335633e4ed853` (2026-09-03T12:30:00Z, claude)    |
+| Field                 | Value                                                                          |
+| --------------------- | ------------------------------------------------------------------------------ |
+| Stream                | `daily-commit-review`                                                          |
+| Committed cursor read | `d5a495862785711608e275d87da335633e4ed853` (2026-09-03T12:30:00Z, claude)      |
 | Window reviewed       | `d5a495862`..`589b06fcaba3510e8a41316ac7c36e888fe4323e` (exclusive..inclusive) |
-| Commits               | 34 (33 + this stream's own 2026-09-03 report commit `d17e5749c`)             |
-| Files changed         | 333 (+5,240 / −27,215)                                                       |
-| Baseline SHA          | `589b06fcaba3510e8a41316ac7c36e888fe4323e`                                  |
-| Window end            | 2026-09-04T12:20:00Z                                                        |
-| Coverage gap          | **None.** See "Boundary anomaly" below.                                      |
+| Commits               | 34 (33 + this stream's own 2026-09-03 report commit `d17e5749c`)               |
+| Files changed         | 333 (+5,240 / −27,215)                                                         |
+| Baseline SHA          | `589b06fcaba3510e8a41316ac7c36e888fe4323e`                                     |
+| Window end            | 2026-09-04T12:20:00Z                                                           |
+| Coverage gap          | **None.** See "Boundary anomaly" below.                                        |
 
 ### Boundary anomaly — an uncommitted stamp claiming this window
 
 The primary checkout held an **uncommitted** edit to `docs/qa/audit-boundary.md` stamping
-`589b06fca` / 2026-09-04T10:13:07Z / `codex-daily-commit-review`. The *committed* row said
+`589b06fca` / 2026-09-04T10:13:07Z / `codex-daily-commit-review`. The _committed_ row said
 `d5a495862` / 2026-09-03 / `claude-daily-commit-review`.
 
 Per traps 1 and 3 in the stream's automation memory, the committed row is authoritative and the
@@ -43,13 +43,13 @@ away.** The finding itself stands; its blast radius does not.
 
 I wrote that the red `main` had **stopped staging release promotion**, and that twelve commits sat
 unpromoted. That was an inference from reading `Deploy Staging: skipped` next to each `cancelled` CI
-run. I never checked *why* it was skipping.
+run. I never checked _why_ it was skipping.
 
 The real reason: **`STAGING_RELEASE_ENABLED=false`** at the repository level. That variable is the
 FIRST condition in the promote job's `if:`, so the job skips unconditionally — it would have logged
 exactly the same `skipped` line beside a perfectly green run. The protected release refs
-(`staging-release`, `guides-release`) both point at `5975adadb`, *"fix(access): persist role-scoped
-show codes (#1498)"*, dated **2026-07-27** — 620 commits behind `main`. Nothing in this window moved
+(`staging-release`, `guides-release`) both point at `5975adadb`, _"fix(access): persist role-scoped
+show codes (#1498)"_, dated **2026-07-27** — 620 commits behind `main`. Nothing in this window moved
 them, and nothing in this window could have.
 
 What survives unchanged:
@@ -58,7 +58,7 @@ What survives unchanged:
   `Smoke build`, `A11y smoke` and `E2E PR Smoke` genuinely did not run for that whole window. That
   half of the impact stands and was the reason to fix it.
 - The `--coverage`-on-push-only gate hole was real (`NCR-2026-09-04-01`) and is now closed by #2017.
-- A *separate* promotion defect was found later the same day and fixed by #2020: the run-level
+- A _separate_ promotion defect was found later the same day and fixed by #2020: the run-level
   conclusion is an AND over every job including the informational `Test myK9Show (coverage)`, which
   the concurrency group cancels on rapid merges. That is a genuine blocker — but a **latent** one.
   It will bite the first time `STAGING_RELEASE_ENABLED` is turned on; it was not biting on
@@ -72,18 +72,18 @@ same discipline as dating a red CI check before believing it.
 
 ## Counts
 
-| Category                        | Count |
-| ------------------------------- | ----- |
-| New                             | 3     |
-| Unchanged                       | 3     |
-| Resolved                        | 1     |
-| Duplicate                       | 1     |
-| Rejected                        | 3     |
-| Blocked                         | 0     |
-| Fixes found in later commits    | 1     |
-| Existing QA/Linear referenced   | 5     |
-| Linear issues filed             | **0 — see "Linear write failure"** |
-| Linear drafts prepared          | 3     |
+| Category                      | Count                              |
+| ----------------------------- | ---------------------------------- |
+| New                           | 3                                  |
+| Unchanged                     | 3                                  |
+| Resolved                      | 1                                  |
+| Duplicate                     | 1                                  |
+| Rejected                      | 3                                  |
+| Blocked                       | 0                                  |
+| Fixes found in later commits  | 1                                  |
+| Existing QA/Linear referenced | 5                                  |
+| Linear issues filed           | **0 — see "Linear write failure"** |
+| Linear drafts prepared        | 3                                  |
 
 ## Linear write failure (reportable, not a silent skip)
 
@@ -107,19 +107,19 @@ wall.
 
 ## Checks run
 
-| Check                                            | Result                                                          |
-| ------------------------------------------------ | --------------------------------------------------------------- |
-| `pnpm typecheck` (worktree, full turbo graph)     | **PASS** (exit 0) — no dangling imports from the 100 deleted modules |
-| `pnpm vitest run --sequence.shuffle` (myK9Show)   | **PASS** — 1961 files, 18,803 passed / 9 skipped, 250s, exit 0   |
-| `packages/core` `pnpm run test --sequence.shuffle --coverage` | **FAIL** (exit 1) — reproduces CI exactly, see NCR-2026-09-04-01 |
-| `gh run list --branch main` (trap 2)              | **RED** — CI failing on 6 consecutive head SHAs                 |
-| Nightly Health (2026-09-04 11:00 UTC)             | **RED** — root-caused to the harness, see below                 |
-| Live DB: migration `20260903150000` applied       | **YES**                                                          |
-| Live DB: `replace_judge_qualifications` definition | Self-service arm **absent**                                     |
-| Live DB: `judge_qualifications` policies          | INSERT/UPDATE secretary+site_admin, DELETE site_admin only       |
-| Live DB: `refresh_class_scoring_state` definition  | `'absent'` still missing from the `entry_status` exclusion list  |
-| Dangling-reference sweep over 100 deleted files    | 22 apparent hits, all false positives (see Rejected)            |
-| Migration-version-guard ref-scan simulation        | 22 refs flagged for an already-merged version (see NCR-...-02)   |
+| Check                                                         | Result                                                               |
+| ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `pnpm typecheck` (worktree, full turbo graph)                 | **PASS** (exit 0) — no dangling imports from the 100 deleted modules |
+| `pnpm vitest run --sequence.shuffle` (myK9Show)               | **PASS** — 1961 files, 18,803 passed / 9 skipped, 250s, exit 0       |
+| `packages/core` `pnpm run test --sequence.shuffle --coverage` | **FAIL** (exit 1) — reproduces CI exactly, see NCR-2026-09-04-01     |
+| `gh run list --branch main` (trap 2)                          | **RED** — CI failing on 6 consecutive head SHAs                      |
+| Nightly Health (2026-09-04 11:00 UTC)                         | **RED** — root-caused to the harness, see below                      |
+| Live DB: migration `20260903150000` applied                   | **YES**                                                              |
+| Live DB: `replace_judge_qualifications` definition            | Self-service arm **absent**                                          |
+| Live DB: `judge_qualifications` policies                      | INSERT/UPDATE secretary+site_admin, DELETE site_admin only           |
+| Live DB: `refresh_class_scoring_state` definition             | `'absent'` still missing from the `entry_status` exclusion list      |
+| Dangling-reference sweep over 100 deleted files               | 22 apparent hits, all false positives (see Rejected)                 |
+| Migration-version-guard ref-scan simulation                   | 22 refs flagged for an already-merged version (see NCR-...-02)       |
 
 ### Verification limits
 
@@ -127,7 +127,7 @@ wall.
   MYK9-354 closure rests on CI's `SQL tests` job, which was **green** on `589b06fca`, plus live
   `pg_get_functiondef`.
 - The MCP role gets `42501: permission denied for function is_site_admin`, so a definer RPC's guard
-  cannot be *called* under a simulated JWT from this connection. Authorization conclusions rest on
+  cannot be _called_ under a simulated JWT from this connection. Authorization conclusions rest on
   `pg_get_functiondef` + `pg_policy`, which proves a widening but not a call.
 - **`NCR-2026-09-04-02` is reasoned + simulated, not observed on a live PR.** No migration PR has
   been opened since the guard merged 18 hours ago, so its first real exercise has not happened. The
@@ -143,22 +143,22 @@ wall.
 
 ## NCR-2026-09-04-01 — `main` CI has been red for 18 hours; the coverage gate that catches it does not run on PRs
 
-| Field              | Value                                                                    |
-| ------------------ | ------------------------------------------------------------------------ |
-| Status             | new                                                                      |
+| Field              | Value                                                                         |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Status             | new                                                                           |
 | Canonical severity | **P1** (golden-path task — shipping — cannot complete without developer help) |
-| Source label       | `source: claude`, `audit:commit-review`                                  |
-| First seen         | 2026-09-04                                                               |
-| Last seen          | 2026-09-04                                                               |
-| Consecutive runs   | 1                                                                        |
-| Baseline SHA       | `589b06fca`                                                              |
-| Affected role      | All — release/delivery workflow                                          |
-| Confidence         | **High** — reproduced locally with byte-identical numbers                |
+| Source label       | `source: claude`, `audit:commit-review`                                       |
+| First seen         | 2026-09-04                                                                    |
+| Last seen          | 2026-09-04                                                                    |
+| Consecutive runs   | 1                                                                             |
+| Baseline SHA       | `589b06fca`                                                                   |
+| Affected role      | All — release/delivery workflow                                               |
+| Confidence         | **High** — reproduced locally with byte-identical numbers                     |
 
 ### Problem statement
 
 `04be60937` ("refactor(packages): complete internal dead-code sweep (MYK9-328)", PR #1990) deleted
-2,228 lines from `packages/core`, including the *subjects* of five well-covered test files. Deleting
+2,228 lines from `packages/core`, including the _subjects_ of five well-covered test files. Deleting
 covered code shrinks the coverage denominator, so the surviving uncovered lines now dominate the
 ratio and `packages/core` fell below its own thresholds. `main` CI has failed on every push since.
 
@@ -191,23 +191,23 @@ Denominator after the sweep: 347 statements, 59 functions.
 
 Red run history on `main` (`Test packages` + the aggregating `Test` job):
 
-| Head SHA    | Run          | Time (UTC)       | Verdict |
-| ----------- | ------------ | ---------------- | ------- |
-| `d5a495862` | 33743620453  | 2026-09-03 10:18 | success (last green) |
-| `1bf735486` | 33786327334  | 2026-09-03 17:44 | failure — same two coverage errors, on a **docs-only** commit |
-| `f558bc675` | 33792494952  | 2026-09-03 18:46 | failure |
-| `7fcfe1646` | 33798221032  | 2026-09-03 19:44 | failure |
-| `e29a10e98` | 33804297211  | 2026-09-03 20:47 | failure |
-| `deda679ee` | 33809934074  | 2026-09-03 21:48 | failure |
-| `6c99ec946` | 33813969383  | 2026-09-03 22:37 | failure |
-| `039af3946` | 33818260794  | 2026-09-03 23:35 | failure |
-| `b85bab82d` | 33821412583  | 2026-09-04 00:20 | failure |
-| `568eddfb9` | 33824081518  | 2026-09-04 01:00 | failure |
-| `7a1f5a8ee` | 33829811221  | 2026-09-04 02:31 | failure |
-| `589b06fca` | 33832052383  | 2026-09-04 03:07 | failure |
+| Head SHA    | Run         | Time (UTC)       | Verdict                                                       |
+| ----------- | ----------- | ---------------- | ------------------------------------------------------------- |
+| `d5a495862` | 33743620453 | 2026-09-03 10:18 | success (last green)                                          |
+| `1bf735486` | 33786327334 | 2026-09-03 17:44 | failure — same two coverage errors, on a **docs-only** commit |
+| `f558bc675` | 33792494952 | 2026-09-03 18:46 | failure                                                       |
+| `7fcfe1646` | 33798221032 | 2026-09-03 19:44 | failure                                                       |
+| `e29a10e98` | 33804297211 | 2026-09-03 20:47 | failure                                                       |
+| `deda679ee` | 33809934074 | 2026-09-03 21:48 | failure                                                       |
+| `6c99ec946` | 33813969383 | 2026-09-03 22:37 | failure                                                       |
+| `039af3946` | 33818260794 | 2026-09-03 23:35 | failure                                                       |
+| `b85bab82d` | 33821412583 | 2026-09-04 00:20 | failure                                                       |
+| `568eddfb9` | 33824081518 | 2026-09-04 01:00 | failure                                                       |
+| `7a1f5a8ee` | 33829811221 | 2026-09-04 02:31 | failure                                                       |
+| `589b06fca` | 33832052383 | 2026-09-04 03:07 | failure                                                       |
 
 Attribution is by elimination and is conclusive: `main` was green at `d5a495862`; the first
-*completed* run after it that reached `Test packages` (`1bf735486`) failed with the identical
+_completed_ run after it that reached `Test packages` (`1bf735486`) failed with the identical
 numbers; `1bf735486` is docs-only; and **`04be60937` is the only commit between them that touches
 `packages/`**. `04be60937`'s own push run was `cancelled` (superseded), which is why it did not
 show the failure under its own SHA.
@@ -228,7 +228,7 @@ show the failure under its own SHA.
 2. **Nothing in this window has been build- or E2E-verified on `main`.** `Build`, `Smoke build`,
    `A11y smoke` and `E2E PR Smoke` are all `skipped` on every run because they need `Test`. An 18-hour
    window of merges has had no build gate at all.
-3. **Signal loss.** A permanently red `main` trains everyone to ignore it, so the next *real*
+3. **Signal loss.** A permanently red `main` trains everyone to ignore it, so the next _real_
    breakage arrives invisible.
 
 ### Likely root cause
@@ -275,16 +275,16 @@ proof.
 
 ## NCR-2026-09-04-02 — the new migration-version guard will fail every migration PR
 
-| Field              | Value                                                                    |
-| ------------------ | ------------------------------------------------------------------------ |
-| Status             | new                                                                      |
-| Canonical severity | **P1** (blocks the whole schema-change workflow; no migration can pass CI) |
-| Source label       | `source: claude`, `audit:commit-review`                                  |
-| First seen         | 2026-09-04                                                               |
-| Last seen          | 2026-09-04                                                               |
-| Consecutive runs   | 1                                                                        |
-| Baseline SHA       | `589b06fca`                                                              |
-| Affected role      | All — any developer landing a migration                                  |
+| Field              | Value                                                                                                                                                                                               |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status             | new                                                                                                                                                                                                 |
+| Canonical severity | **P1** (blocks the whole schema-change workflow; no migration can pass CI)                                                                                                                          |
+| Source label       | `source: claude`, `audit:commit-review`                                                                                                                                                             |
+| First seen         | 2026-09-04                                                                                                                                                                                          |
+| Last seen          | 2026-09-04                                                                                                                                                                                          |
+| Consecutive runs   | 1                                                                                                                                                                                                   |
+| Baseline SHA       | `589b06fca`                                                                                                                                                                                         |
+| Affected role      | All — any developer landing a migration                                                                                                                                                             |
 | Confidence         | **High on the ref-scan defect** (simulated on real refs). **Medium on the end-to-end PR failure** — no migration PR has been opened since the guard merged, so its first real run has not happened. |
 
 ### Problem statement
@@ -333,7 +333,7 @@ branches (CLAUDE.md § Worktree rules: merge with `--squash` and **without** `--
 
 **Mode 3 — the live check inverts after deploy.** `liveMigrationCount()`
 (`migration-version-guard.ts:41-56`) fails when the version is present in
-`supabase_migrations.schema_migrations`. Being present there is the *desired* steady state once the
+`supabase_migrations.schema_migrations`. Being present there is the _desired_ steady state once the
 migration is pushed. Any CI re-run, or any later push touching that migration file, is then
 permanently red.
 
@@ -343,7 +343,7 @@ permanently red.
 
 ### Expected vs actual
 
-- **Expected:** the guard fails only when a *different, unmerged* ref has already claimed the
+- **Expected:** the guard fails only when a _different, unmerged_ ref has already claimed the
   version, or when the version is in the live database **and not yet in this branch's history**.
 - **Actual:** it fails when the PR's own branch carries the version (always), when any stale branch
   carries it (usually), and once the migration is deployed (always).
@@ -357,7 +357,7 @@ presents as a mystery red on an unrelated-looking job, which is expensive to dia
 
 ### Likely root cause
 
-The guard reasons over *ref trees* when the question is about *history*. "Is this version claimed by
+The guard reasons over _ref trees_ when the question is about _history_. "Is this version claimed by
 work not in my ancestry" is answerable with `git merge-base --is-ancestor` / `git branch --contains`,
 not with "does the file exist on that ref".
 
@@ -371,13 +371,13 @@ not with "does the file exist on that ref".
    `origin/main`'s tree** — present in both means "already deployed", which is fine.
 4. Give `runGuard` a real test: stub the three `execFileSync` seams and assert it stays silent for
    (a) a version only on HEAD, (b) a version merged into `main` and inherited by stale branches, and
-   (c) a deployed version already on `main`; and that it fires for a version on a *different*
+   (c) a deployed version already on `main`; and that it fires for a version on a _different_
    unmerged branch. Mutate each arm and confirm the test fails.
 
 ### Acceptance criteria
 
 - A scratch PR adding a brand-new migration version passes `Quality Checks`.
-- A scratch PR adding a version that a *different* open PR already claims **fails**, naming that PR's
+- A scratch PR adding a version that a _different_ open PR already claims **fails**, naming that PR's
   branch.
 - A push to `main` carrying an already-deployed migration passes.
 - The `runGuard` tests above exist and each one fails when its arm is mutated.
@@ -402,16 +402,16 @@ scratch PR. Do not close on the unit test alone — that is what missed this.
 
 ## NCR-2026-09-04-03 — new plan docs land without the required status line or index row, and nothing enforces it
 
-| Field              | Value                                                        |
-| ------------------ | ------------------------------------------------------------ |
-| Status             | new                                                          |
-| Canonical severity | **P3** (docs hygiene; does not block launch)                 |
-| Source label       | `source: claude`, `audit:commit-review`                      |
-| First seen         | 2026-09-04                                                   |
-| Consecutive runs   | 1                                                            |
-| Baseline SHA       | `589b06fca`                                                  |
-| Affected role      | Developer / agent onboarding                                 |
-| Confidence         | High                                                         |
+| Field              | Value                                        |
+| ------------------ | -------------------------------------------- |
+| Status             | new                                          |
+| Canonical severity | **P3** (docs hygiene; does not block launch) |
+| Source label       | `source: claude`, `audit:commit-review`      |
+| First seen         | 2026-09-04                                   |
+| Consecutive runs   | 1                                            |
+| Baseline SHA       | `589b06fca`                                  |
+| Affected role      | Developer / agent onboarding                 |
+| Confidence         | High                                         |
 
 ### Problem statement
 
@@ -470,22 +470,22 @@ The check red on a scratch commit that omits the line, green after adding it.
 These were confirmed still unresolved against live state this run. Do not re-file; reference the
 existing IDs.
 
-| ID | Linear | Sev | Evidence this run | Next proof |
-| -- | ------ | --- | ----------------- | ---------- |
-| `NCR-2026-09-03-02` | MYK9-356 | P2 | Deployed `refresh_class_scoring_state` still reads `entry_status NOT IN ('scratched','withdrawn','moved','not_accepted')` — `'absent'` absent. The only `'absent'` occurrence is `result_status IN ('absent','excused')`, a different column. `01fff877b` recorded a research note (`docs/research/2026-09-03-absent-entry-accounting-mismatch.md`), not a fix. | Mutation: reinstating `'absent'` must fail a test |
-| `NCR-2026-09-03-03` | MYK9-357 | P2 | `supabase/functions/validate-passcode/rateLimitGate.ts:76-81` still returns `kind: 'allowed'` when `clientIP` is null. No commit in this window touched `validate-passcode/`. | A test asserting not-allowed that fails if the early return returns |
-| `NCR-2026-09-03-04` | MYK9-358 | P3 | `20260902180000`'s header still claims a role-name fix that `068` had already made. Superseded in effect by `20260903150000`, but the misleading header stands. | Corrected header |
+| ID                  | Linear   | Sev | Evidence this run                                                                                                                                                                                                                                                                                                                                               | Next proof                                                          |
+| ------------------- | -------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `NCR-2026-09-03-02` | MYK9-356 | P2  | Deployed `refresh_class_scoring_state` still reads `entry_status NOT IN ('scratched','withdrawn','moved','not_accepted')` — `'absent'` absent. The only `'absent'` occurrence is `result_status IN ('absent','excused')`, a different column. `01fff877b` recorded a research note (`docs/research/2026-09-03-absent-entry-accounting-mismatch.md`), not a fix. | Mutation: reinstating `'absent'` must fail a test                   |
+| `NCR-2026-09-03-03` | MYK9-357 | P2  | `supabase/functions/validate-passcode/rateLimitGate.ts:76-81` still returns `kind: 'allowed'` when `clientIP` is null. No commit in this window touched `validate-passcode/`.                                                                                                                                                                                   | A test asserting not-allowed that fails if the early return returns |
+| `NCR-2026-09-03-04` | MYK9-358 | P3  | `20260902180000`'s header still claims a role-name fix that `068` had already made. Superseded in effect by `20260903150000`, but the misleading header stands.                                                                                                                                                                                                 | Corrected header                                                    |
 
 # Resolved
 
-| ID | Linear | Sev | Proof |
-| -- | ------ | --- | ----- |
-| `NCR-2026-09-03-01` | MYK9-354 | P1 | Fixed by `29f76327a` (PR #1992). **Deployed:** `supabase_migrations.schema_migrations` contains `20260903150000`. **Live definition:** `pg_get_functiondef` for `public.replace_judge_qualifications` no longer contains `get_my_person_id`, and contains both `is_site_admin` and `has_role`. **Passing focused proof:** CI job `SQL tests` **green** on `589b06fca` (run 33832052383) with `judge_qualification_rpc_authorization_test.sql` registered in both allowlists (`run-behavioral-sql-tests.sh` and its `.test.ts` contract list). Not closed on the merge alone. |
+| ID                  | Linear   | Sev | Proof                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------- | -------- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NCR-2026-09-03-01` | MYK9-354 | P1  | Fixed by `29f76327a` (PR #1992). **Deployed:** `supabase_migrations.schema_migrations` contains `20260903150000`. **Live definition:** `pg_get_functiondef` for `public.replace_judge_qualifications` no longer contains `get_my_person_id`, and contains both `is_site_admin` and `has_role`. **Passing focused proof:** CI job `SQL tests` **green** on `589b06fca` (run 33832052383) with `judge_qualification_rpc_authorization_test.sql` registered in both allowlists (`run-behavioral-sql-tests.sh` and its `.test.ts` contract list). Not closed on the merge alone. |
 
 # Duplicate
 
-| Candidate | Resolution |
-| --------- | ---------- |
+| Candidate                                                                                                                                                                                                                | Resolution                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | `computeClubPermissions` grants `canManageMembers` on `isClubAdmin \|\| hasManageMembersPermission`, so a global `club:manage` holder can manage any club's members (`clubPermissions.ts:57`, introduced by `1de4adbc3`) | Already addressed by **open PR #2011**, "fix(clubs): tie canManageMembers to the club-scoped role alone (MYK9-371)". Not filed. |
 
 # Rejected after investigation — do not re-file
@@ -493,7 +493,7 @@ existing IDs.
 1. **`replace_judge_qualifications` lets a secretary clear every qualification row despite
    site-admin-only DELETE RLS.** Real, and **deliberate**. `supabase/tests/judge_qualification_rpc_authorization_test.sql`
    pins it explicitly — line 145 reads "The empty replacement is an authorized save, not direct
-   DELETE access", and lines 146-165 assert both that the secretary RPC *can* clear the list and that
+   DELETE access", and lines 146-165 assert both that the secretary RPC _can_ clear the list and that
    the secretary still has no direct table DELETE. This is the "definer-only edge, not drift" case
    from LESSONS; gating it would revert a decision with a test behind it.
 
@@ -518,20 +518,20 @@ Per the brief these are tracked separately. Both records below are complete enou
 ## H-1 — Nightly Health's route-settle assertion strands requests, so one slow read fails every remaining route
 
 **This is the mechanism behind the MYK9-289 recurrence.** Nightly Health has been red on 5 of the
-last 7 runs, and the failing *role* migrates between runs — exhibitor on 2026-09-01 and 2026-09-03,
+last 7 runs, and the failing _role_ migrates between runs — exhibitor on 2026-09-01 and 2026-09-03,
 **secretary** on 2026-09-04, with exhibitor clean that day. A migrating failure is the signature of a
 timing-dependent harness leak, not a role-specific product bug.
 
 **Root cause.** `watchAppApiRequests` (`apps/myk9show/src/test/harness/appApiRequestTracker.ts:21-45`)
 returns a tracker whose `pending` set is created **once per role** — `route-health-by-role.spec.ts:363`
 constructs it and passes it into `sweepRoutes`, which loops over every route without ever clearing it.
-The loop *does* reset the browser-health arrays each iteration
+The loop _does_ reset the browser-health arrays each iteration
 (`route-health-by-role.spec.ts:215-218`) but not `pending`. Any request still in flight when the next
 `page.goto` tears down the document is stranded in `pending` forever, and
 `waitForAppApiRequestsToSettle` — whose default budget is 5,000 ms
 (`appApiRequestTracker.ts:5`) — then fails for **every subsequent route in that sweep**.
 
-**Evidence.** The 2026-09-04 run (33865556960) reports the *same two URLs* as unsettled on all five
+**Evidence.** The 2026-09-04 run (33865556960) reports the _same two URLs_ as unsettled on all five
 failing secretary routes (`entries`, `reports`, `settings`, `people`, `workbench`):
 
 - `/rest/v1/dog_registrations?select=*&dog_id=in.(…)` — **exactly 100 ids**, URL ≈ 3,940 chars
@@ -540,7 +540,7 @@ failing secretary routes (`entries`, `reports`, `settings`, `people`, `workbench
 A 3-id `people` read cannot plausibly exceed 5 s on five consecutive routes. Identical URLs repeated
 across routes is only possible if the set is never cleared.
 
-The 100-id batch is *correct* — `ID_CHUNK_SIZE = 100` (`apps/myk9show/src/utils/chunkIds.ts:30`),
+The 100-id batch is _correct_ — `ID_CHUNK_SIZE = 100` (`apps/myk9show/src/utils/chunkIds.ts:30`),
 applied at `services/database/dogs/reads.ts:187`, which is the MYK9-272 fix. So there is no unbounded
 `.in()` here; the batch is simply slower than the 5 s budget on a loaded runner, and the strand does
 the rest.
@@ -635,7 +635,7 @@ Recorded so the next run does not re-derive them.
   positive control in the same test — the shape the "green test in a dead suite" LESSON asks for.
   The momentary `setOnline(false); setOnline(true)` pair lands in one tick, so no query is left
   paused.
-- **`8c89cb536`** — moving the connectivity test *into*
+- **`8c89cb536`** — moving the connectivity test _into_
   `areReplicationTablesPendingFirstSync` covers the three call sites that had hand-rolled it wrong,
   and the `status.isSyncing` early return keeps a genuinely running sync bounded. Mutation-verified
   by the author.
@@ -643,7 +643,7 @@ Recorded so the next run does not re-derive them.
   was unsatisfiable by construction, and distinguishes `rosterData === undefined` (never read) from
   `users.length === 0` (read and empty), which is the exact trap in memory
   `project_disabled_query_renders_false_zero`.
-- **`039af3946`** — the self-navigation counter is raised around the navigating *call only*, never
+- **`039af3946`** — the self-navigation counter is raised around the navigating _call only_, never
   across an `await`, so a slow save leaves the form guarded. Failure direction is fail-safe (the
   prompt still shows). 300 lines of route-guard tests.
 - **`5359df474`** — a genuine TOCTOU fix on a destructive action; the confirm click now re-checks the

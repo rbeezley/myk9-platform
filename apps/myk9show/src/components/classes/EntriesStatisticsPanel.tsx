@@ -4,13 +4,7 @@
  */
 
 import React from 'react';
-import {
-  Users,
-  AlertCircle,
-  Edit3,
-  Trophy,
-  type LucideIcon,
-} from 'lucide-react';
+import { Users, AlertCircle, Edit3, Trophy, type LucideIcon } from 'lucide-react';
 import { StatCard, StatsGrid, type StatColor } from '@myk9/ui';
 import { StatusIcon } from '@/components/status';
 import { cn } from '@/lib/utils';

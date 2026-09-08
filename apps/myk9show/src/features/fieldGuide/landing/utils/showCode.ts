@@ -11,18 +11,7 @@
  * column later — the derivation is intentionally cheap and overridable.
  */
 
-const NOISE_WORDS = new Set([
-  'the',
-  'and',
-  'of',
-  'at',
-  'a',
-  'an',
-  'for',
-  'in',
-  'on',
-  'to',
-]);
+const NOISE_WORDS = new Set(['the', 'and', 'of', 'at', 'a', 'an', 'for', 'in', 'on', 'to']);
 
 function initialsOf(text: string, maxChars: number): string {
   const tokens = text

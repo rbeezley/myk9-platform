@@ -177,9 +177,13 @@ export function buildLandingData(
         if (!rightDate) return -1;
         return leftDate.localeCompare(rightDate);
       }
-      return String(left.trialNumber ?? '').localeCompare(String(right.trialNumber ?? ''), undefined, {
-        numeric: true,
-      });
+      return String(left.trialNumber ?? '').localeCompare(
+        String(right.trialNumber ?? ''),
+        undefined,
+        {
+          numeric: true,
+        }
+      );
     })
     .map<LandingTrial>(trial => ({
       id: trial.id,

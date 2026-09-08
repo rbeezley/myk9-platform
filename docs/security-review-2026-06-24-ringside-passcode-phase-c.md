@@ -6,12 +6,12 @@
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| CRITICAL | 0 |
-| HIGH | 0 |
-| MEDIUM | 0 |
-| LOW | 2 |
+| Severity  | Count |
+| --------- | ----- |
+| CRITICAL  | 0     |
+| HIGH      | 0     |
+| MEDIUM    | 0     |
+| LOW       | 2     |
 | **Total** | **2** |
 
 Auto-fixable: 0 of 2 (both are design/ops items tied to planned Phase E, not mechanical code fixes)
@@ -61,7 +61,7 @@ direct SQL `DELETE FROM auth.users` (cascade-clean post-fix), NOT the admin API.
 ringside). Each sign-in mints an anon user; an invalid passcode after sign-in leaves
 a claimless orphan (cleaned by SA-001's job).
 **Risk:** A bot could mass-create anonymous users. The `validate-passcode` IP rate
-limit (5/15min, 30min block) caps passcode *guessing*, but anon *sign-in* itself is
+limit (5/15min, 30min block) caps passcode _guessing_, but anon _sign-in_ itself is
 not rate-limited by this function. Bounded: a claimless anon user gets **0 rows + writes
 rejected** by the shipped A+B gate (verified live — unmarked claim reads nothing).
 **Fix:** Phase E (recommended, operator): enable CAPTCHA on anonymous sign-ins in
@@ -97,15 +97,15 @@ These were checked against the session-minting threat model and **pass**:
 
 ## Categories Checked
 
-| Category | Files Examined | Findings | Skipped |
-|----------|---------------|----------|---------|
-| RLS Policy Integrity | 0 | 0 | No migration changed |
-| Edge Function Auth | 1 | 2 (LOW) | — |
-| RBAC & Privilege Escalation | 0 | 0 | No RBAC/migration changed |
-| Client Auth Patterns | 0 | 0 | No client change in this diff (Phase D separate) |
-| Data Exposure | 1 | 0 | — |
-| Payment Security | 0 | 0 | No Stripe code changed |
-| Input Validation | 1 | 0 | — |
+| Category                    | Files Examined | Findings | Skipped                                          |
+| --------------------------- | -------------- | -------- | ------------------------------------------------ |
+| RLS Policy Integrity        | 0              | 0        | No migration changed                             |
+| Edge Function Auth          | 1              | 2 (LOW)  | —                                                |
+| RBAC & Privilege Escalation | 0              | 0        | No RBAC/migration changed                        |
+| Client Auth Patterns        | 0              | 0        | No client change in this diff (Phase D separate) |
+| Data Exposure               | 1              | 0        | —                                                |
+| Payment Security            | 0              | 0        | No Stripe code changed                           |
+| Input Validation            | 1              | 0        | —                                                |
 
 ## Previous Audit Comparison
 

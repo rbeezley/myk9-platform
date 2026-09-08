@@ -455,9 +455,8 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                     <AlertCircle className="h-4 w-4" aria-hidden />
                     <AlertDescription>
                       We couldn&rsquo;t load this show&rsquo;s classes, so we can&rsquo;t tell which
-                      ones{' '}
-                      <strong>{selectedRequest?.dog?.call_name ?? 'this dog'}</strong> could move up
-                      to. Retry from the move-up list before approving or denying.
+                      ones <strong>{selectedRequest?.dog?.call_name ?? 'this dog'}</strong> could
+                      move up to. Retry from the move-up list before approving or denying.
                     </AlertDescription>
                   </Alert>
                 );

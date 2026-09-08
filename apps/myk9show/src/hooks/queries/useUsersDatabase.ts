@@ -1,7 +1,7 @@
 // React Query hooks for database user operations
 // User Store Integration - Following Dog Store Pattern
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import {
   getAllUsers,
   getUserById,
   createUser,
@@ -14,7 +14,7 @@ import {
   getUsersByRole,
   getUsersWithDogCounts,
   getUsersStatistics,
-  checkEmailExists
+  checkEmailExists,
 } from '@/services/database/users';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { invalidateQueries } from '@/services/database/queryClient';
@@ -125,7 +125,7 @@ export const useCreateUserMutation = () => {
       if (error) throw error;
       return data;
     },
-    onMutate: async (newUser) => {
+    onMutate: async newUser => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.people });
 
@@ -149,15 +149,15 @@ export const useCreateUserMutation = () => {
         queryClient.setQueryData(queryKeys.people, context.previousUsers);
       }
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       // Invalidate and refetch
       invalidateQueries.all('people');
-      
+
       // Update the cache with the new user data
       if (data) {
         queryClient.setQueryData(queryKeys.person(data.id), data);
       }
-      
+
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
@@ -200,10 +200,10 @@ export const useUpdateUserMutation = () => {
     onSuccess: (data, { id }) => {
       // Update specific user cache
       queryClient.setQueryData(queryKeys.person(id), data);
-      
+
       // Invalidate users list to ensure consistency
       invalidateQueries.lists('people');
-      
+
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
     },
@@ -341,17 +341,17 @@ export const useUserManagement = () => {
     users: usersQuery.data,
     isLoading: usersQuery.isLoading,
     error: usersQuery.error,
-    
+
     // Mutations
     createUser: createMutation.mutate,
     isCreating: createMutation.isPending,
-    
+
     updateUser: updateMutation.mutate,
     isUpdating: updateMutation.isPending,
-    
+
     deleteUser: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
-    
+
     // Utilities
     prefetchUser,
     refetch: usersQuery.refetch,

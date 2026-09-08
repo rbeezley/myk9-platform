@@ -15,7 +15,7 @@ interface ClubPhotoDialogProps {
   onSave: (previewImage: string | null) => void;
 }
 
-const ClubPhotoDialog: React.FC<ClubPhotoDialogProps> = (props) => (
+const ClubPhotoDialog: React.FC<ClubPhotoDialogProps> = props => (
   <PhotoDialog {...props} title="Update Club Logo" previewAlt="Club Logo Preview" />
 );
 

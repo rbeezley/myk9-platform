@@ -24,7 +24,11 @@ function get(url: string): SeamRequest {
   return { method: 'GET', url, postData: null, headers: {} };
 }
 
-function body(state: Phase4SeamState, url: string, options?: Parameters<typeof handleSeamRequest>[2]) {
+function body(
+  state: Phase4SeamState,
+  url: string,
+  options?: Parameters<typeof handleSeamRequest>[2]
+) {
   const { response } = handleSeamRequest(state, get(url), options);
   expect(response.action).toBe('fulfill');
   expect(response.status).toBe(200);

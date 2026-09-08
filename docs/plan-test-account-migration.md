@@ -14,7 +14,7 @@ there with `550 … No unauthenticated relaying permitted`. 22 of 69 logged send
 way, a 32% bounce rate on a domain whose sender reputation we need for real exhibitor mail.
 
 `myk9t.com` has real MX (`mx1`/`mx2.hostinger.com`) and real mailboxes, so a test send can be
-*read* rather than inferred from a provider dashboard. That closes the gap found in MYK9-228: the
+_read_ rather than inferred from a provider dashboard. That closes the gap found in MYK9-228: the
 packet reported delivered while nobody could produce the email.
 
 ## Target account set
@@ -22,17 +22,17 @@ packet reported delivered while nobody could produce the email.
 Twelve accounts. Every one has a real mailbox. The eight below are the sign-in fixtures;
 `exhibitor1/3/4/5@myk9t.com` stay as demo fixture data (see "Kept" below).
 
-| Address | Source | Roles |
-| --- | --- | --- |
-| `secretary@myk9t.com` | rename `e2e-secretary@` | secretary, steward, exhibitor |
-| `exhibitor@myk9t.com` | rename `e2e-exhibitor@` | exhibitor |
-| `exhibitor2@myk9t.com` | **already exists** (`a1000002…`) — grant roles | exhibitor |
-| `judge@myk9t.com` | rename `e2e-judge@` | judge ONLY (see invariant below) |
-| `testadmin@myk9t.com` | rename `e2e-admin@` | site_admin, secretary, club_admin, exhibitor |
-| `steward@myk9t.com` | rename `e2e-steward@` | steward, exhibitor |
-| `clubadmin@myk9t.com` | **create** — no auth user ever existed | club_admin ONLY |
-| `chairman@myk9t.com` | **create** | chairman |
-| `exhibitor1/3/4/5@myk9t.com` | keep as-is | none — demo fixture data |
+| Address                      | Source                                         | Roles                                        |
+| ---------------------------- | ---------------------------------------------- | -------------------------------------------- |
+| `secretary@myk9t.com`        | rename `e2e-secretary@`                        | secretary, steward, exhibitor                |
+| `exhibitor@myk9t.com`        | rename `e2e-exhibitor@`                        | exhibitor                                    |
+| `exhibitor2@myk9t.com`       | **already exists** (`a1000002…`) — grant roles | exhibitor                                    |
+| `judge@myk9t.com`            | rename `e2e-judge@`                            | judge ONLY (see invariant below)             |
+| `testadmin@myk9t.com`        | rename `e2e-admin@`                            | site_admin, secretary, club_admin, exhibitor |
+| `steward@myk9t.com`          | rename `e2e-steward@`                          | steward, exhibitor                           |
+| `clubadmin@myk9t.com`        | **create** — no auth user ever existed         | club_admin ONLY                              |
+| `chairman@myk9t.com`         | **create**                                     | chairman                                     |
+| `exhibitor1/3/4/5@myk9t.com` | keep as-is                                     | none — demo fixture data                     |
 
 Two role changes fall out of this, both deliberate:
 
@@ -60,7 +60,7 @@ passes whether or not judge scoping exists (MYK9-141).
 `E2E_JUDGE_EMPTY_PASSWORD` through four `nightly-e2e.yml` steps.
 
 **No e2e spec signs in as it, and no auth user for it has ever existed.** The two contract
-assertions are self-referential — they assert the fixture *declaration* appears in the setup
+assertions are self-referential — they assert the fixture _declaration_ appears in the setup
 script, not that anything works. Its intended purpose (a judge with zero assignments, for the
 empty-dashboard state) was never written.
 

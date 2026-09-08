@@ -1,6 +1,6 @@
 /**
  * Deployment Types
- * 
+ *
  * Type definitions for production deployment, database migrations,
  * feature flags, and deployment monitoring systems.
  */
@@ -20,13 +20,8 @@ export interface DeploymentConfig {
 
 export type DeploymentEnvironment = 'development' | 'staging' | 'production';
 
-export type DeploymentStatus = 
-  | 'pending' 
-  | 'in_progress' 
-  | 'completed' 
-  | 'failed' 
-  | 'rolled_back' 
-  | 'cancelled';
+export type DeploymentStatus =
+  'pending' | 'in_progress' | 'completed' | 'failed' | 'rolled_back' | 'cancelled';
 
 // === Database Migrations ===
 
@@ -46,21 +41,16 @@ export interface MigrationTask {
   errorMessage?: string;
 }
 
-export type MigrationType = 
-  | 'schema_change' 
-  | 'data_migration' 
-  | 'index_creation' 
-  | 'rls_policy' 
-  | 'function_deployment' 
+export type MigrationType =
+  | 'schema_change'
+  | 'data_migration'
+  | 'index_creation'
+  | 'rls_policy'
+  | 'function_deployment'
   | 'trigger_update';
 
-export type MigrationStatus = 
-  | 'pending' 
-  | 'running' 
-  | 'completed' 
-  | 'failed' 
-  | 'skipped' 
-  | 'rolled_back';
+export type MigrationStatus =
+  'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'rolled_back';
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
@@ -120,23 +110,23 @@ export interface FeatureCondition {
   value: unknown;
 }
 
-export type ConditionType = 
-  | 'user_id' 
-  | 'organization_id' 
-  | 'user_type' 
-  | 'registration_date' 
-  | 'device_type' 
-  | 'platform' 
+export type ConditionType =
+  | 'user_id'
+  | 'organization_id'
+  | 'user_type'
+  | 'registration_date'
+  | 'device_type'
+  | 'platform'
   | 'app_version';
 
-export type ConditionOperator = 
-  | 'equals' 
-  | 'not_equals' 
-  | 'contains' 
-  | 'not_contains' 
-  | 'greater_than' 
-  | 'less_than' 
-  | 'in' 
+export type ConditionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'not_contains'
+  | 'greater_than'
+  | 'less_than'
+  | 'in'
   | 'not_in';
 
 // === Deployment Checklist ===
@@ -174,22 +164,16 @@ export interface ChecklistTask {
   dependencies: string[];
 }
 
-export type TaskCategory = 
-  | 'database' 
-  | 'application' 
-  | 'infrastructure' 
-  | 'security' 
-  | 'monitoring' 
-  | 'testing' 
+export type TaskCategory =
+  | 'database'
+  | 'application'
+  | 'infrastructure'
+  | 'security'
+  | 'monitoring'
+  | 'testing'
   | 'documentation';
 
-export type TaskStatus = 
-  | 'pending' 
-  | 'in_progress' 
-  | 'completed' 
-  | 'failed' 
-  | 'skipped' 
-  | 'blocked';
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'skipped' | 'blocked';
 
 export interface TaskArtifact {
   type: ArtifactType;
@@ -200,12 +184,12 @@ export interface TaskArtifact {
   checksum?: string;
 }
 
-export type ArtifactType = 
-  | 'migration_script' 
-  | 'backup_file' 
-  | 'log_file' 
-  | 'test_report' 
-  | 'documentation' 
+export type ArtifactType =
+  | 'migration_script'
+  | 'backup_file'
+  | 'log_file'
+  | 'test_report'
+  | 'documentation'
   | 'configuration';
 
 // === Rollback Strategy ===
@@ -221,12 +205,8 @@ export interface RollbackPlan {
   approvalRequired: boolean;
 }
 
-export type RollbackStrategy = 
-  | 'blue_green' 
-  | 'rolling_back' 
-  | 'feature_toggle' 
-  | 'database_restore' 
-  | 'code_revert';
+export type RollbackStrategy =
+  'blue_green' | 'rolling_back' | 'feature_toggle' | 'database_restore' | 'code_revert';
 
 export interface RollbackStep {
   id: string;
@@ -240,12 +220,12 @@ export interface RollbackStep {
   dependencies: string[];
 }
 
-export type RollbackStepType = 
-  | 'code_deployment' 
-  | 'database_migration' 
-  | 'feature_flag_toggle' 
-  | 'cache_invalidation' 
-  | 'service_restart' 
+export type RollbackStepType =
+  | 'code_deployment'
+  | 'database_migration'
+  | 'feature_flag_toggle'
+  | 'cache_invalidation'
+  | 'service_restart'
   | 'dns_update';
 
 export interface BackupInfo {
@@ -258,12 +238,8 @@ export interface BackupInfo {
   retentionPeriod: number;
 }
 
-export type BackupType = 
-  | 'database_full' 
-  | 'database_incremental' 
-  | 'file_system' 
-  | 'configuration' 
-  | 'user_data';
+export type BackupType =
+  'database_full' | 'database_incremental' | 'file_system' | 'configuration' | 'user_data';
 
 // === Health Checks ===
 
@@ -281,12 +257,12 @@ export interface HealthCheckConfig {
   enabled: boolean;
 }
 
-export type HealthCheckType = 
-  | 'http_endpoint' 
-  | 'database_connection' 
-  | 'external_service' 
-  | 'file_system' 
-  | 'memory_usage' 
+export type HealthCheckType =
+  | 'http_endpoint'
+  | 'database_connection'
+  | 'external_service'
+  | 'file_system'
+  | 'memory_usage'
   | 'cpu_usage';
 
 export type Severity = 'info' | 'warning' | 'error' | 'critical';
@@ -315,16 +291,16 @@ export interface DeploymentEvent {
   source: string;
 }
 
-export type DeploymentEventType = 
-  | 'deployment_started' 
-  | 'deployment_completed' 
-  | 'deployment_failed' 
-  | 'migration_started' 
-  | 'migration_completed' 
-  | 'migration_failed' 
-  | 'rollback_initiated' 
-  | 'rollback_completed' 
-  | 'health_check_failed' 
+export type DeploymentEventType =
+  | 'deployment_started'
+  | 'deployment_completed'
+  | 'deployment_failed'
+  | 'migration_started'
+  | 'migration_completed'
+  | 'migration_failed'
+  | 'rollback_initiated'
+  | 'rollback_completed'
+  | 'health_check_failed'
   | 'feature_flag_updated';
 
 // === Monitoring Integration ===
@@ -379,18 +355,9 @@ export interface AlertThreshold {
   notification: NotificationChannel[];
 }
 
-export type ThresholdCondition = 
-  | 'greater_than' 
-  | 'less_than' 
-  | 'equals' 
-  | 'change_rate';
+export type ThresholdCondition = 'greater_than' | 'less_than' | 'equals' | 'change_rate';
 
-export type NotificationChannel = 
-  | 'email' 
-  | 'slack' 
-  | 'webhook' 
-  | 'sms' 
-  | 'pagerduty';
+export type NotificationChannel = 'email' | 'slack' | 'webhook' | 'sms' | 'pagerduty';
 
 // === Load Testing ===
 

@@ -8,12 +8,7 @@ import {
 } from 'pdf-lib';
 
 export type PdfFormFieldType =
-  | 'checkbox'
-  | 'dropdown'
-  | 'option-list'
-  | 'radio-group'
-  | 'text'
-  | 'unknown';
+  'checkbox' | 'dropdown' | 'option-list' | 'radio-group' | 'text' | 'unknown';
 
 export interface PdfFormFieldSummary {
   name: string;

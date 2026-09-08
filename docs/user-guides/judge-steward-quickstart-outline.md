@@ -14,13 +14,13 @@
 
 ## Readiness Gate
 
-| Gate | Status |
-|---|---|
-| At-show surface open to all shows | Yes — `unified_ringside_enabled` flag removed 2026-06-23; access gated only by `AtShowAccessGate` |
-| At-show route and scoresheet are stable | Yes (golden path § Part 6 confirms) |
-| Passcode access path works | Yes (golden path § 6.10) |
-| Combined A/B section view works | Yes (golden path § 6.9) |
-| Results persist to secretary view | Yes (golden path § 6.7) |
+| Gate                                    | Status                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| At-show surface open to all shows       | Yes — `unified_ringside_enabled` flag removed 2026-06-23; access gated only by `AtShowAccessGate` |
+| At-show route and scoresheet are stable | Yes (golden path § Part 6 confirms)                                                               |
+| Passcode access path works              | Yes (golden path § 6.10)                                                                          |
+| Combined A/B section view works         | Yes (golden path § 6.9)                                                                           |
+| Results persist to secretary view       | Yes (golden path § 6.7)                                                                           |
 
 **No longer flag-blocked.** (Updated 2026-06-23: flag removed — see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md).) Publish once the at-show screenshots are captured against staging post-redeploy.
 
@@ -29,6 +29,7 @@
 ## Intended Format
 
 The final `judge-steward-quickstart.md` should be:
+
 - **One printed page** or less — landscape A5/half-letter
 - Numbered steps only — no prose paragraphs
 - Bold all UI elements
@@ -42,11 +43,13 @@ The final `judge-steward-quickstart.md` should be:
 **Two paths to ringside:**
 
 **Path A — Staff account (for secretaries and assigned judges):**
+
 1. Sign in with your myK9Show account.
 2. Navigate to **At the Show** for this show.
 3. You are admitted immediately — no passcode needed.
 
 **Path B — Show passcode (for ringside volunteers, guest judges, stewards):**
+
 1. Get the show passcode or QR code from the trial secretary before the show starts.
 2. Open myK9Show in your browser.
 3. Enter the show passcode when prompted.
@@ -66,6 +69,7 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 **User outcome:** Judge or steward sees all trials and classes for today's show.
 
 **Rough steps:**
+
 1. After access, you see the **Class List** — all trials and their classes.
 2. Each class row shows: class name, level, judge, entry count.
 3. Tap a class to open its entry list.
@@ -81,6 +85,7 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 **Canonical route:** `/at-show/:showId/class/:classId`
 
 **Rough steps:**
+
 1. Tap a class name → the **Entry List** opens.
 2. Entries are shown in run order: dog call name, armband number, handler name.
 3. Tap the star (favorite) icon on an entry to pin it — stays pinned across reloads.
@@ -99,6 +104,7 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 **Canonical route:** `/at-show/:showId/class/:classId/score/:entryId`
 
 **Rough steps:**
+
 1. Tap the entry card → the **Scoresheet** opens.
 2. Tap **Start Timer** when the dog begins.
 3. Tap **Stop** when the dog finishes or the time limit is reached.
@@ -109,6 +115,7 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 **Screenshots:** Scoresheet with timer active; result buttons; entry list showing saved result.
 
 **Stability notes:**
+
 - Scoresheet is stable (golden path § 6.5–6.6).
 - Results saved here persist to the secretary's Results & Check-In page immediately — the secretary does not need to re-enter them.
 
@@ -117,12 +124,14 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 ## Section 5 — Offline Expectations
 
 **What happens when signal is lost at the venue:**
+
 - The app continues to work — scoring, favoriting, and viewing the run order all work offline.
 - Changes are saved locally and sync to the server automatically when signal returns.
 - An **Offline** banner appears at the top — this is expected at most show venues.
 - Do not refresh the page while offline — the local data is safe as long as you stay in the app.
 
 **What if data does not appear after signal returns:**
+
 - Tap the sync indicator or reload the page once you have a solid connection.
 - If entries are still missing after reconnecting, contact the trial secretary.
 
@@ -130,13 +139,13 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 
 ## Section 6 — When Things Go Wrong
 
-| Symptom | What to do |
-|---|---|
-| "I can't find my class" | Check with the secretary — the class may not have been published yet |
-| "The passcode doesn't work" | Ask the secretary for the current code (they regenerate from Show Access Codes) |
-| "My scores aren't showing up for the secretary" | Check the offline banner — scores sync when connection restores |
-| "The timer reset itself" | Restart timing; scores are saved manually (tap Save), not auto-saved |
-| "The app is completely unresponsive" | Close and reopen the browser tab; if you used the QR code, scan it again |
+| Symptom                                         | What to do                                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------------------------- |
+| "I can't find my class"                         | Check with the secretary — the class may not have been published yet            |
+| "The passcode doesn't work"                     | Ask the secretary for the current code (they regenerate from Show Access Codes) |
+| "My scores aren't showing up for the secretary" | Check the offline banner — scores sync when connection restores                 |
+| "The timer reset itself"                        | Restart timing; scores are saved manually (tap Save), not auto-saved            |
+| "The app is completely unresponsive"            | Close and reopen the browser tab; if you used the QR code, scan it again        |
 
 ---
 
@@ -149,9 +158,9 @@ Show Desk → Tools panel → **Show Access Codes** → share the QR code or the
 
 ## QA-Draft Friction Findings
 
-| Finding | Section | Backlog action |
-|---|---|---|
-| ~~`unified_ringside_enabled` is DEV-only~~ | All | Resolved 2026-06-23 — flag removed; surface open to all shows (see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)) |
-| No nav link to `/at-show/:showId` — entry is only via ShowTodayBanner or direct link | § 1 | Describe passcode/QR path as the primary access for non-staff |
-| Timer reset behavior is unclear — scores are only saved on explicit Save, not on timer stop | § 4 | Confirm save behavior during live walk; add to quickstart explicitly |
-| Combined A/B section URL shape (`/:classIdA/:classIdB`) needs confirmation | § 3 | Verify routing during live walk before publishing |
+| Finding                                                                                     | Section | Backlog action                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ~~`unified_ringside_enabled` is DEV-only~~                                                  | All     | Resolved 2026-06-23 — flag removed; surface open to all shows (see [`../archive/plan-remove-unified-ringside-flag.md`](../archive/plan-remove-unified-ringside-flag.md)) |
+| No nav link to `/at-show/:showId` — entry is only via ShowTodayBanner or direct link        | § 1     | Describe passcode/QR path as the primary access for non-staff                                                                                                            |
+| Timer reset behavior is unclear — scores are only saved on explicit Save, not on timer stop | § 4     | Confirm save behavior during live walk; add to quickstart explicitly                                                                                                     |
+| Combined A/B section URL shape (`/:classIdA/:classIdB`) needs confirmation                  | § 3     | Verify routing during live walk before publishing                                                                                                                        |

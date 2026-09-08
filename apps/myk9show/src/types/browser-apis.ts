@@ -19,7 +19,8 @@ export interface NetworkInformation extends EventTarget {
   /** Whether data saver mode is enabled */
   readonly saveData: boolean;
   /** Connection type (if available) */
-  readonly type?: 'bluetooth' | 'cellular' | 'ethernet' | 'none' | 'wifi' | 'wimax' | 'other' | 'unknown';
+  readonly type?:
+    'bluetooth' | 'cellular' | 'ethernet' | 'none' | 'wifi' | 'wimax' | 'other' | 'unknown';
   /** Downlink max in Mbps (if available) */
   readonly downlinkMax?: number;
   /** Event handler for connection changes */
@@ -104,28 +105,36 @@ export interface WindowExtended extends Window {
 /**
  * Type guard to check if navigator has Network Information API
  */
-export function hasNetworkInformation(nav: Navigator): nav is NavigatorExtended & { connection: NetworkInformation } {
+export function hasNetworkInformation(
+  nav: Navigator
+): nav is NavigatorExtended & { connection: NetworkInformation } {
   return 'connection' in nav && nav.connection != null;
 }
 
 /**
  * Type guard to check if navigator has Device Memory API
  */
-export function hasDeviceMemory(nav: Navigator): nav is NavigatorExtended & { deviceMemory: number } {
+export function hasDeviceMemory(
+  nav: Navigator
+): nav is NavigatorExtended & { deviceMemory: number } {
   return 'deviceMemory' in nav && typeof (nav as NavigatorExtended).deviceMemory === 'number';
 }
 
 /**
  * Type guard to check if navigator has Battery API
  */
-export function hasBatteryAPI(nav: Navigator): nav is NavigatorExtended & { getBattery: () => Promise<BatteryManager> } {
+export function hasBatteryAPI(
+  nav: Navigator
+): nav is NavigatorExtended & { getBattery: () => Promise<BatteryManager> } {
   return 'getBattery' in nav && typeof (nav as NavigatorExtended).getBattery === 'function';
 }
 
 /**
  * Type guard to check if performance has memory info (Chrome)
  */
-export function hasPerformanceMemory(perf: Performance): perf is PerformanceExtended & { memory: PerformanceMemory } {
+export function hasPerformanceMemory(
+  perf: Performance
+): perf is PerformanceExtended & { memory: PerformanceMemory } {
   return 'memory' in perf && perf.memory != null;
 }
 
@@ -150,7 +159,9 @@ export function getDeviceMemory(nav: Navigator = navigator, fallback = 4): numbe
 /**
  * Get battery manager if available
  */
-export async function getBatteryManager(nav: Navigator = navigator): Promise<BatteryManager | null> {
+export async function getBatteryManager(
+  nav: Navigator = navigator
+): Promise<BatteryManager | null> {
   if (hasBatteryAPI(nav)) {
     try {
       return await nav.getBattery();

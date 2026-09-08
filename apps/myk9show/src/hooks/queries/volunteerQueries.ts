@@ -123,14 +123,12 @@ export function useSearchPeople(query: string) {
         .or(`first_name.ilike.%${sanitized}%,last_name.ilike.%${sanitized}%`)
         .limit(20);
       if (error) throw error;
-      return (data ?? []).map(
-        (row): PersonSearchResult => ({
-          id: row.id,
-          firstName: row.first_name ?? '',
-          lastName: row.last_name ?? '',
-          phone: row.phone ?? null,
-        })
-      );
+      return (data ?? []).map((row): PersonSearchResult => ({
+        id: row.id,
+        firstName: row.first_name ?? '',
+        lastName: row.last_name ?? '',
+        phone: row.phone ?? null,
+      }));
     },
     enabled: query.length >= 2,
     ...cacheStrategies.moderate,

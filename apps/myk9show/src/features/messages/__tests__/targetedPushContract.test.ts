@@ -24,7 +24,9 @@ describe('targeted message push contract', () => {
   it('adds an explicit push_alert flag to show messages', () => {
     const migration = readFileSync(migrationPath, 'utf8');
 
-    expect(migration).toContain('add column if not exists push_alert boolean not null default true');
+    expect(migration).toContain(
+      'add column if not exists push_alert boolean not null default true'
+    );
   });
 
   it('writes push_alert from send_push when creating targeted message rows', () => {

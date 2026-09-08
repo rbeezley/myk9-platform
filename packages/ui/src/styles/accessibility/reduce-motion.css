@@ -39,7 +39,7 @@
   opacity: 1 !important;
 }
 
-.reduce-motion [class*="parallax"] {
+.reduce-motion [class*='parallax'] {
   transform: none !important;
 }
 
@@ -148,7 +148,10 @@
 .reduce-motion input,
 .reduce-motion select,
 .reduce-motion textarea {
-  transition: background-color 0.01ms, border-color 0.01ms, color 0.01ms !important;
+  transition:
+    background-color 0.01ms,
+    border-color 0.01ms,
+    color 0.01ms !important;
 }
 
 .reduce-motion button:active,
@@ -242,14 +245,14 @@
 
 /* Essential animations — kept very short */
 .reduce-motion .essential-animation,
-.reduce-motion [data-essential-animation="true"] {
+.reduce-motion [data-essential-animation='true'] {
   animation-duration: 0.1s !important;
   transition-duration: 0.1s !important;
 }
 
 /* Loading indicators with ARIA live regions */
-.reduce-motion .loading[aria-live="polite"],
-.reduce-motion .loading[aria-live="assertive"] {
+.reduce-motion .loading[aria-live='polite'],
+.reduce-motion .loading[aria-live='assertive'] {
   animation-duration: 0.5s !important;
 }
 

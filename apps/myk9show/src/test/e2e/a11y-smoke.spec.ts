@@ -85,12 +85,7 @@ async function waitForAppShell(page: Page) {
  * of known-debt rules to disable for this surface.
  */
 async function assertNoBlockingViolations(page: Page, name: string, excludedRules: string[]) {
-  const builder = new AxeBuilder({ page }).withTags([
-    'wcag2a',
-    'wcag2aa',
-    'wcag21a',
-    'wcag21aa',
-  ]);
+  const builder = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
   if (excludedRules.length > 0) {
     builder.disableRules(excludedRules);
   }
@@ -113,12 +108,17 @@ async function assertNoBlockingViolations(page: Page, name: string, excludedRule
         // a CI failure names the exact element (e.g. the offending color pair)
         // inline — no need to download the screenshot artifact to diagnose it.
         const nodes = v.nodes
-          .map(n => `      • ${n.target.join(' ')}\n        ${(n.failureSummary ?? '').replace(/\n/g, '\n        ')}`)
+          .map(
+            n =>
+              `      • ${n.target.join(' ')}\n        ${(n.failureSummary ?? '').replace(/\n/g, '\n        ')}`
+          )
           .join('\n');
         return `  - ${v.id} (${v.impact}): ${v.help} [${v.nodes.length} node(s)]\n    ${v.helpUrl}\n${nodes}`;
       })
       .join('\n');
-    throw new Error(`${name} has ${blocking.length} serious/critical a11y violation(s):\n${detail}`);
+    throw new Error(
+      `${name} has ${blocking.length} serious/critical a11y violation(s):\n${detail}`
+    );
   }
 
   expect(blocking, `${name} serious/critical a11y violations`).toHaveLength(0);

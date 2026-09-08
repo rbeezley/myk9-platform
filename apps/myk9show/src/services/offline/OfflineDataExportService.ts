@@ -65,10 +65,10 @@ class OfflineDataExportService {
 
     try {
       this.reportProgress(0, 'Preparing export...', 0, 0);
-      
+
       // Gather data based on options
       const data = await this.gatherExportData(options);
-      
+
       if (this.abortController.signal.aborted) {
         throw new Error('Export cancelled');
       }
@@ -77,7 +77,7 @@ class OfflineDataExportService {
 
       // Generate export based on format
       let result: ExportResult;
-      
+
       switch (options.format) {
         case 'csv':
           result = await this.exportToCSV(data, options);
@@ -94,7 +94,6 @@ class OfflineDataExportService {
 
       this.reportProgress(100, 'Export complete', result.itemCount, result.itemCount);
       return result;
-
     } catch (error) {
       return {
         success: false,
@@ -103,7 +102,7 @@ class OfflineDataExportService {
         itemCount: 0,
         fileSize: 0,
         timestamp: new Date(),
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     } finally {
       this.abortController = null;
@@ -125,12 +124,16 @@ class OfflineDataExportService {
    */
   getAvailableEntities(): { key: EntityType; label: string; description: string }[] {
     return [
-      { key: 'dogs', label: 'Dogs', description: 'Dog profiles, registrations, and health records' },
+      {
+        key: 'dogs',
+        label: 'Dogs',
+        description: 'Dog profiles, registrations, and health records',
+      },
       { key: 'people', label: 'Users', description: 'Exhibitors, handlers, judges, and officials' },
       { key: 'shows', label: 'Shows', description: 'Show details, schedules, and results' },
       { key: 'clubs', label: 'Clubs', description: 'Club information and memberships' },
       { key: 'entries', label: 'Entries', description: 'Show entries and registrations' },
-      { key: 'classes', label: 'Classes', description: 'Class definitions and results' }
+      { key: 'classes', label: 'Classes', description: 'Class definitions and results' },
     ];
   }
 
@@ -143,20 +146,23 @@ class OfflineDataExportService {
     estimatedTime: string;
   }> {
     const data = await this.gatherExportData(options, true); // Sample only
-    
+
     const baseItemSize = options.format === 'pdf' ? 1000 : 100;
-    
+
     const estimatedBytes = data.totalItems * baseItemSize;
     const estimatedMinutes = Math.ceil(data.totalItems / 1000); // ~1000 items per minute
 
     return {
       estimatedItems: data.totalItems,
       estimatedSize: this.formatFileSize(estimatedBytes),
-      estimatedTime: estimatedMinutes > 1 ? `${estimatedMinutes} minutes` : '< 1 minute'
+      estimatedTime: estimatedMinutes > 1 ? `${estimatedMinutes} minutes` : '< 1 minute',
     };
   }
 
-  private async gatherExportData(options: ExportOptions, sampleOnly = false): Promise<{
+  private async gatherExportData(
+    options: ExportOptions,
+    sampleOnly = false
+  ): Promise<{
     dogs: Dog[];
     people: User[];
     shows: Show[];
@@ -172,7 +178,7 @@ class OfflineDataExportService {
       clubs: [] as Club[],
       entries: [] as ExportEntry[],
       classes: [] as ExportClass[],
-      totalItems: 0
+      totalItems: 0,
     };
 
     // Get data from localStorage (simulating store access)
@@ -224,13 +230,21 @@ class OfflineDataExportService {
       data.classes = data.classes.filter((cls: ExportClass) => cls.showId === options.showId);
     }
 
-    data.totalItems = data.dogs.length + data.people.length + data.shows.length + 
-                     data.clubs.length + data.entries.length + data.classes.length;
+    data.totalItems =
+      data.dogs.length +
+      data.people.length +
+      data.shows.length +
+      data.clubs.length +
+      data.entries.length +
+      data.classes.length;
 
     return data;
   }
 
-  private async exportToCSV(data: Record<string, unknown>, options: ExportOptions): Promise<ExportResult> {
+  private async exportToCSV(
+    data: Record<string, unknown>,
+    options: ExportOptions
+  ): Promise<ExportResult> {
     const csvContent: string[] = [];
     let totalItems = 0;
 
@@ -239,21 +253,21 @@ class OfflineDataExportService {
       if (entityData && Array.isArray(entityData) && entityData.length > 0) {
         // Add entity header
         csvContent.push(`\n# ${entityType.toUpperCase()}`);
-        
+
         // Add column headers
         const headers = Object.keys(entityData[0]);
         csvContent.push(headers.join(','));
-        
+
         // Add data rows
         entityData.forEach((item: Record<string, unknown>, index: number) => {
           const row = headers.map(header => {
             const value = item[header];
-            return typeof value === 'string' && value.includes(',') 
-              ? `"${value.replace(/"/g, '""')}"` 
+            return typeof value === 'string' && value.includes(',')
+              ? `"${value.replace(/"/g, '""')}"`
               : value;
           });
           csvContent.push(row.join(','));
-          
+
           totalItems++;
           if (index % 100 === 0) {
             this.reportProgress(
@@ -277,18 +291,21 @@ class OfflineDataExportService {
       format: 'csv',
       itemCount: totalItems,
       fileSize: blob.size,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 
-  private async exportToJSON(data: Record<string, unknown>, options: ExportOptions): Promise<ExportResult> {
+  private async exportToJSON(
+    data: Record<string, unknown>,
+    options: ExportOptions
+  ): Promise<ExportResult> {
     const exportData: Record<string, unknown> = {
       metadata: {
         exportDate: new Date().toISOString(),
         format: 'json',
         entities: options.entities,
-        includeMetadata: options.includeMetadata
-      }
+        includeMetadata: options.includeMetadata,
+      },
     };
 
     let totalItems = 0;
@@ -316,11 +333,14 @@ class OfflineDataExportService {
       format: 'json',
       itemCount: totalItems,
       fileSize: blob.size,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 
-  private async exportToPDF(data: Record<string, unknown>, options: ExportOptions): Promise<ExportResult> {
+  private async exportToPDF(
+    data: Record<string, unknown>,
+    options: ExportOptions
+  ): Promise<ExportResult> {
     const doc = new jsPDF();
     let yPosition = 20;
     let totalItems = 0;
@@ -353,20 +373,27 @@ class OfflineDataExportService {
 
         // Prepare table data
         const headers = Object.keys(entityData[0]);
-        const rows = entityData.map((item: Record<string, unknown>) => 
+        const rows = entityData.map((item: Record<string, unknown>) =>
           headers.map(header => String(item[header] || ''))
         );
 
         // Add table
-        (doc as unknown as jsPDF & { autoTable: (options: unknown) => void; lastAutoTable: { finalY: number } }).autoTable({
+        (
+          doc as unknown as jsPDF & {
+            autoTable: (options: unknown) => void;
+            lastAutoTable: { finalY: number };
+          }
+        ).autoTable({
           head: [headers],
           body: rows,
           startY: yPosition,
           styles: { fontSize: 8 },
-          headStyles: { fillColor: [66, 139, 202] }
+          headStyles: { fillColor: [66, 139, 202] },
         });
 
-        yPosition = (doc as unknown as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+        yPosition =
+          (doc as unknown as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY +
+          10;
         totalItems += entityData.length;
 
         this.reportProgress(
@@ -387,10 +414,9 @@ class OfflineDataExportService {
       format: 'pdf',
       itemCount: totalItems,
       fileSize: 0, // PDF size not easily calculable
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
-
 
   private reportProgress(
     progress: number,
@@ -399,16 +425,17 @@ class OfflineDataExportService {
     processedItems: number
   ): void {
     if (this.progressCallback) {
-      const estimatedTimeRemaining = processedItems > 0 && progress > 0
-        ? ((100 - progress) / progress) * (Date.now() / 1000)
-        : undefined;
+      const estimatedTimeRemaining =
+        processedItems > 0 && progress > 0
+          ? ((100 - progress) / progress) * (Date.now() / 1000)
+          : undefined;
 
       this.progressCallback({
         progress: Math.min(100, Math.max(0, progress)),
         stage,
         totalItems,
         processedItems,
-        estimatedTimeRemaining
+        estimatedTimeRemaining,
       });
     }
   }

@@ -23,9 +23,7 @@ const DEFAULT_ENTRY_FEE_DOLLARS = 25;
 const parseFeeDollars = (value: number | string | null): number | null => {
   if (value == null) return null;
   const parsed =
-    typeof value === 'number'
-      ? value
-      : Number.parseFloat(String(value).replace(/[$,]/g, ''));
+    typeof value === 'number' ? value : Number.parseFloat(String(value).replace(/[$,]/g, ''));
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 };
 

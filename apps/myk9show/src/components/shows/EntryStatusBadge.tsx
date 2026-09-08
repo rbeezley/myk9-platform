@@ -7,7 +7,11 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, AlertCircle, XCircle, CalendarClock } from 'lucide-react';
 import type { Show } from '@/types/show-types';
-import { getEntryStatus, getEntryStatusBadgeStyle, type EntryStatus } from '@/utils/entryStatusUtils';
+import {
+  getEntryStatus,
+  getEntryStatusBadgeStyle,
+  type EntryStatus,
+} from '@/utils/entryStatusUtils';
 
 interface EntryStatusBadgeProps {
   show: Show;

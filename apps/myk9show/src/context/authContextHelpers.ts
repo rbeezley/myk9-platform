@@ -16,10 +16,7 @@ export function getPrimaryRole(roles: UserRole[]): UserRole {
   return UserRole.EXHIBITOR;
 }
 
-export function buildActiveRoleScopes(
-  roles: UserRoleWithDetails[],
-  userId: string
-): RoleScope[] {
+export function buildActiveRoleScopes(roles: UserRoleWithDetails[], userId: string): RoleScope[] {
   return roles
     .filter(ur => ur.is_active && ur.scope_type && ur.scope_id)
     .map(ur => ({

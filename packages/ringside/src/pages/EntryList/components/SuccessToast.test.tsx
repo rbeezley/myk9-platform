@@ -18,9 +18,7 @@ import { SuccessToast } from './SuccessToast';
 
 describe('SuccessToast', () => {
   it('renders nothing when not visible', () => {
-    const { container } = render(
-      <SuccessToast isVisible={false} message="Saved" />,
-    );
+    const { container } = render(<SuccessToast isVisible={false} message="Saved" />);
     expect(container.querySelector('[role="status"]')).toBeNull();
   });
 

@@ -109,10 +109,9 @@ function isUncollectedRefund(entry: LedgerEntryRow): boolean {
  * supported write path, so the signal must not be removed as unreachable.
  */
 export function sumUncollectedRefundCents(entries: LedgerEntryRow[]): number {
-  return entries.filter(isUncollectedRefund).reduce(
-    (sum, entry) => sum + Math.round((entry.refund_amount ?? 0) * 100),
-    0
-  );
+  return entries
+    .filter(isUncollectedRefund)
+    .reduce((sum, entry) => sum + Math.round((entry.refund_amount ?? 0) * 100), 0);
 }
 
 export function countUncollectedRefunds(entries: LedgerEntryRow[]): number {

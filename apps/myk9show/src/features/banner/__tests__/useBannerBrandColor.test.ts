@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import {
-  deriveBannerBrandColors,
-  useBannerBrandColor,
-} from '../hooks/useBannerBrandColor';
+import { deriveBannerBrandColors, useBannerBrandColor } from '../hooks/useBannerBrandColor';
 
 describe('deriveBannerBrandColors', () => {
   it('returns default deep teal when input is null', () => {
@@ -60,9 +57,7 @@ describe('deriveBannerBrandColors', () => {
 
 describe('useBannerBrandColor', () => {
   it('reads brand_color off the show row', () => {
-    const { result } = renderHook(() =>
-      useBannerBrandColor({ brand_color: '#1a4d80' })
-    );
+    const { result } = renderHook(() => useBannerBrandColor({ brand_color: '#1a4d80' }));
     expect(result.current.flag).toBe('#1a4d80');
   });
 

@@ -72,12 +72,14 @@ describe('ClassCard', () => {
           inRingArmband: '205',
           nextArmbands: ['206', '207'],
         }}
-      />,
+      />
     );
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
     expect(screen.getByText('#205')).toBeInTheDocument();
     expect(screen.getByText('#206')).toBeInTheDocument();
-    expect(container.querySelector('[data-status="in-ring"][data-shape="in-progress"]')).toBeTruthy();
+    expect(
+      container.querySelector('[data-status="in-ring"][data-shape="in-progress"]')
+    ).toBeTruthy();
   });
 
   it('does not show live data for scheduled class even if provided', () => {
@@ -90,7 +92,7 @@ describe('ClassCard', () => {
           inRingArmband: '100',
           nextArmbands: [],
         }}
-      />,
+      />
     );
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.queryByText('#100')).not.toBeInTheDocument();

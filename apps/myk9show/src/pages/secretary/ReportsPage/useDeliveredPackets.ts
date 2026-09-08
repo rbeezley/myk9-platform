@@ -68,13 +68,11 @@ export function useDeliveredPackets(
   return {
     rows: buildDeliveredPacketRows({
       snapshots: data ?? [],
-      confirmations: (prints.data ?? []).map(
-        (record): PacketPrintConfirmation => ({
-          reportId: record.reportId,
-          coverage: record.coverage as PacketPrintConfirmation['coverage'],
-          voidedAt: record.voidedAt ?? null,
-        })
-      ),
+      confirmations: (prints.data ?? []).map((record): PacketPrintConfirmation => ({
+        reportId: record.reportId,
+        coverage: record.coverage as PacketPrintConfirmation['coverage'],
+        voidedAt: record.voidedAt ?? null,
+      })),
       packetData,
     }),
     // `prints.isError` alone is not enough: that query reads IndexedDB and

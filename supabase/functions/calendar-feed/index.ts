@@ -114,9 +114,7 @@ serve(async (req: Request) => {
     trials?: Array<{ id: string; name: string | null; date: string; timezone: string | null }>;
   };
 
-  const trialsById = new Map(
-    (showRow.trials ?? []).map(t => [t.id, t] as const)
-  );
+  const trialsById = new Map((showRow.trials ?? []).map(t => [t.id, t] as const));
   if (trialsById.size === 0) {
     console.error('calendar-feed: show has no trials', showId);
   }
@@ -147,10 +145,7 @@ serve(async (req: Request) => {
   const personId = (person as { id?: string } | null)?.id ?? null;
 
   const venue =
-    [
-      showRow.venue_name,
-      [showRow.address, showRow.city, showRow.state].filter(Boolean).join(', '),
-    ]
+    [showRow.venue_name, [showRow.address, showRow.city, showRow.state].filter(Boolean).join(', ')]
       .filter(Boolean)
       .join('\n') || null;
 

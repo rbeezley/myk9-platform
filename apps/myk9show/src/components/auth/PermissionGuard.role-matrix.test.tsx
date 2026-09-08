@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
-import {
-  PermissionGuard,
-} from './PermissionGuard';
+import { PermissionGuard } from './PermissionGuard';
 
 // Live component: components/auth/PermissionGuard.tsx (imported by
 // RBACUtilityComponents, RegistrationWorkflow panels, CalendarPage,

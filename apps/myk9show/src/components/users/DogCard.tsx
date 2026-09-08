@@ -126,9 +126,7 @@ const DogCard: React.FC<DogCardProps> = ({
           </Avatar>
           <div className="min-w-0">
             <h3 className="font-semibold text-lg truncate">{dog.callName}</h3>
-            <p className="text-sm text-muted-foreground truncate">
-              {getDogBreedLabel(dog)}
-            </p>
+            <p className="text-sm text-muted-foreground truncate">{getDogBreedLabel(dog)}</p>
           </div>
         </div>
 

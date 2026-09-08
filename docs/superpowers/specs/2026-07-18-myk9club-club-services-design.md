@@ -54,13 +54,13 @@ is deliberate; do not add these tables to the sync engine.
 
 ## Scope decisions (agreed)
 
-| Question              | Decision                                                                 |
-| --------------------- | ------------------------------------------------------------------------ |
-| Primary slice         | Classes-first (training director), then dues CRM, then member portal     |
-| Course shape          | Multi-week courses only in v1; drop-ins/punch-cards deferred             |
-| Payment at enrollment | Online preferred, offline recordable ("pay club directly") — like shows  |
-| Who can enroll        | Per-course setting; default open-to-all with member/non-member pricing   |
-| Capacity              | Hard cap + manual waitlist ("Offer spot" button); no auto-promotion v1   |
+| Question              | Decision                                                                  |
+| --------------------- | ------------------------------------------------------------------------- |
+| Primary slice         | Classes-first (training director), then dues CRM, then member portal      |
+| Course shape          | Multi-week courses only in v1; drop-ins/punch-cards deferred              |
+| Payment at enrollment | Online preferred, offline recordable ("pay club directly") — like shows   |
+| Who can enroll        | Per-course setting; default open-to-all with member/non-member pricing    |
+| Capacity              | Hard cap + manual waitlist ("Offer spot" button); no auto-promotion v1    |
 | Dues                  | Ledger + online payment + full renewal automation (reminders, auto-lapse) |
 | Volunteer hours       | Self-reported entries, admin-verifiable; no approval workflow v1          |
 | Meeting minutes       | Future Phase 5 — out of scope for this build                              |

@@ -26,7 +26,7 @@ export function useTemplates() {
   return {
     templates,
     isLoading: isLoading || (!isInitialized && templates.length === 0),
-    isInitialized
+    isInitialized,
   };
 }
 
@@ -40,7 +40,7 @@ export function useOfficialTemplates() {
   return {
     templates: officialTemplates,
     isLoading,
-    isInitialized
+    isInitialized,
   };
 }
 
@@ -49,13 +49,13 @@ export function useOfficialTemplates() {
  */
 export function useTemplatesByOrganization(organization: string | null) {
   const { templates, isLoading, isInitialized } = useTemplates();
-  const filteredTemplates = organization 
+  const filteredTemplates = organization
     ? templates.filter(t => t.organization === organization && t.isActive)
     : templates.filter(t => t.isActive);
 
   return {
     templates: filteredTemplates,
     isLoading,
-    isInitialized
+    isInitialized,
   };
 }

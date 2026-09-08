@@ -1,7 +1,11 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
 import { HttpError } from '../_shared/http/responses.ts';
-import { loadPacketShow, resolveRecipients, loadPacketRoleRows } from '../_shared/trialPacket/deliverStoredPacket.ts';
+import {
+  loadPacketShow,
+  resolveRecipients,
+  loadPacketRoleRows,
+} from '../_shared/trialPacket/deliverStoredPacket.ts';
 import { isUuidShaped, isValidTrialDate } from '../_shared/trialPacket/delivery.ts';
 import { recordEmailLog, type EmailAttempt } from '../_shared/trialPacket/emailLog.ts';
 import { sendTrialPacketEmail, TrialPacketProviderError } from '../_shared/trialPacket/email.ts';
@@ -166,11 +170,7 @@ export async function runPrintReminder(
 
   let recipients: string[];
   try {
-    recipients = await resolveRecipients(
-      supabase,
-      show,
-      await loadPacketRoleRows(supabase, show)
-    );
+    recipients = await resolveRecipients(supabase, show, await loadPacketRoleRows(supabase, show));
   } catch (error) {
     // Release: a show with no reachable officials today may have one tomorrow,
     // and a held claim would silence the morning send too.

@@ -1,27 +1,36 @@
 # exhibitor-show-day-access Specification
 
 ## Purpose
+
 Entered exhibitors reaching show-day surfaces get exhibitor-relevant guidance in exhibitor voice — never a worker-passcode dead end, staff jargon, or staff-only controls — while staff surfaces keep their existing behavior.
+
 ## Requirements
+
 ### Requirement: Show day path never dead-ends entered exhibitors in worker jargon
+
 When a signed-in exhibitor with entries in a show reaches the show's at-show gate without ringside access, the gate SHALL present exhibitor-voiced guidance and links to the exhibitor's own show-day information (their entries and check-in on My Shows), with the worker-passcode path presented as secondary. Gate copy for non-workers SHALL NOT assume the visitor was given a passcode.
 
 #### Scenario: Entered exhibitor taps Show day
+
 - **WHEN** an exhibitor with entries in a show navigates from the Show day nav item to that show and lacks ringside access
 - **THEN** the page explains, in exhibitor language, where their check-in and show-day details live, and links there — the passcode prompt is available but not the primary message
 
 #### Scenario: Visitor with no entries and no access
+
 - **WHEN** a user with neither entries nor ringside access opens the at-show gate
 - **THEN** the copy explains both audiences' paths (exhibitors → their entries; show workers → passcode) without assuming either
 
 ### Requirement: Check-in dialog speaks in exhibitor voice for exhibitors
+
 When the check-in dialog is opened by an exhibitor for their own entry, status labels and descriptions SHALL be first-person exhibitor voice, staff-only statuses (Conflict, Pulled) SHALL NOT be selectable, and the identifying number SHALL be labeled with its actual type (confirmation number vs armband number). Staff surfaces retain the existing staff voice and full status set.
 
 #### Scenario: Exhibitor updates own check-in
+
 - **WHEN** an exhibitor opens check-in for their entry
 - **THEN** the selectable statuses are limited to self-service ones (e.g. not checked in / checked in / at gate) with first-person labels, and no third-person "Exhibitor has…" copy is shown
 
 #### Scenario: Identifier labeled correctly
+
 - **WHEN** the check-in dialog header shows the entry's identifying number
 - **THEN** the label matches the value's actual type and no dangling "#" placeholder renders when a number is absent
 
@@ -38,7 +47,7 @@ The exhibitor sidebar item linking to `/at-show` SHALL be labeled "Ringside", ma
 
 An authenticated user navigating to ringside from in-app navigation SHALL NOT be shown the passcode entry form. Authenticated users with a grant, staff role, or an entry for the show SHALL pass the access gate as today; authenticated users without any of these SHALL see a signed-in explanatory state (e.g., "Ringside isn't open yet" or no-live-show guidance) instead of the passcode prompt. The passcode form SHALL remain available to anonymous visitors and to the explicit `?passcode=1` flow. The gate SHALL wait for RBAC role resolution before deciding, so staff never flash the restricted state.
 
-A secondary, clearly-labelled LINK into the explicit `?passcode=1` flow is not the passcode form and SHALL be offered on every signed-in no-access state, entered or not. A signed-in exhibitor volunteering as a steward at a show they have no entry in is the case this serves: the passcode is their only route in, and withholding the link because they are signed in dead-ends the person most likely to need it — at a ring, on show day. The requirement above governs what is *rendered in the gate* (never the form itself), not whether the opt-in path is reachable from it.
+A secondary, clearly-labelled LINK into the explicit `?passcode=1` flow is not the passcode form and SHALL be offered on every signed-in no-access state, entered or not. A signed-in exhibitor volunteering as a steward at a show they have no entry in is the case this serves: the passcode is their only route in, and withholding the link because they are signed in dead-ends the person most likely to need it — at a ring, on show day. The requirement above governs what is _rendered in the gate_ (never the form itself), not whether the opt-in path is reachable from it.
 
 #### Scenario: Authenticated exhibitor without entry sees guidance, not passcode
 
@@ -59,4 +68,3 @@ A secondary, clearly-labelled LINK into the explicit `?passcode=1` flow is not t
 
 - **WHEN** a signed-in secretary opens `/at-show/:showId` while RBAC roles are still loading
 - **THEN** the gate shows a loading state and then admits them, never rendering the passcode or restricted state in between
-

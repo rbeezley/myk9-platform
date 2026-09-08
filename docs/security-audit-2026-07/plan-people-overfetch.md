@@ -26,6 +26,7 @@ gated, lazy-loaded, or scoped — get it wrong and an admin picker goes empty.
 
 Grep for reads of the store `loadUsers()` populates (`useUserStore`, the users slice)
 and classify:
+
 - Admin/secretary surfaces that genuinely need a people directory (owner pickers,
   user management, judge assignment). These are role-gated already.
 - Anything an exhibitor session touches. Expected: **none** — an exhibitor has no
@@ -57,7 +58,7 @@ scope here; cross-link only.
 - **Fetch-gating test** — render the app initializer as an exhibitor role (custom
   render from `src/test/utils/testUtils.tsx`); assert `loadUsers`/the `people` query
   is **not** called (assert the spy has zero calls — write it red against current
-  behavior). As an admin, assert it *is* called.
+  behavior). As an admin, assert it _is_ called.
 - **Column-shape test** — assert the query builder is called with the explicit column
   list, not `'*'` (assertion-first: `expect(select).toHaveBeenCalledWith(<list>)`,
   per the repo's value-sensitive convention).

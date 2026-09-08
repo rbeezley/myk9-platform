@@ -15,7 +15,11 @@ describe('Badge', () => {
   });
 
   it('should pass through HTML attributes', () => {
-    render(<Badge data-testid="badge" aria-label="status">Label</Badge>);
+    render(
+      <Badge data-testid="badge" aria-label="status">
+        Label
+      </Badge>
+    );
     const badge = screen.getByTestId('badge');
     expect(badge).toHaveAttribute('aria-label', 'status');
   });
@@ -32,7 +36,7 @@ describe('Badge', () => {
       'approved',
       'rejected',
       'draft',
-    ] as const)('should render %s variant', (variant) => {
+    ] as const)('should render %s variant', variant => {
       render(<Badge variant={variant}>{variant}</Badge>);
       expect(screen.getByText(variant)).toBeInTheDocument();
     });

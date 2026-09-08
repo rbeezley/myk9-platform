@@ -148,22 +148,19 @@ describe('selectExhibitorUpcomingShows', () => {
   // A terminal status WINS over the date range, matching useMyShows.toPhase.
   // A show the secretary cancelled next month is over, and pointing an
   // exhibitor at its ringside is a dead end. (Codex review, MYK9-379.)
-  it.each(['cancelled', 'completed', 'draft'])(
-    'drops a future show whose status is %s',
-    status => {
-      const terminal = row({
-        show: {
-          id: 'show-1',
-          name: 'Autumn Classic',
-          status,
-          start_date: '2026-07-04',
-          end_date: '2026-07-05',
-          deleted_at: null,
-        },
-      });
-      expect(selectExhibitorUpcomingShows([terminal], NOW)).toEqual([]);
-    }
-  );
+  it.each(['cancelled', 'completed', 'draft'])('drops a future show whose status is %s', status => {
+    const terminal = row({
+      show: {
+        id: 'show-1',
+        name: 'Autumn Classic',
+        status,
+        start_date: '2026-07-04',
+        end_date: '2026-07-05',
+        deleted_at: null,
+      },
+    });
+    expect(selectExhibitorUpcomingShows([terminal], NOW)).toEqual([]);
+  });
 
   it.each(['published', 'upcoming', 'in_progress'])('keeps a future show in %s', status => {
     const live = row({

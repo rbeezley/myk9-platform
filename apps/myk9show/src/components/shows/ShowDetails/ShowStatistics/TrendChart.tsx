@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 const TrendChart: React.FC = () => {
   return <div>TrendChart</div>;

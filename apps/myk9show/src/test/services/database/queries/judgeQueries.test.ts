@@ -38,8 +38,8 @@ describe('Judge queries', () => {
 
       // The select must inner-join judge_qualifications (the source of truth) and
       // must NOT reference user_roles — the prior gate that hid account-less judges.
-      const selectArg = (chain as unknown as { select: { mock: { calls: unknown[][] } } })
-        .select.mock.calls[0][0] as string;
+      const selectArg = (chain as unknown as { select: { mock: { calls: unknown[][] } } }).select
+        .mock.calls[0][0] as string;
       expect(selectArg).toContain('judge_qualifications!inner');
       expect(selectArg).not.toContain('user_roles');
 

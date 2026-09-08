@@ -23,8 +23,6 @@ describe('resolveFixtureEmail', () => {
   });
 
   it('honours a real override, trimmed', () => {
-    expect(resolveFixtureEmail(' someone@myk9t.com ', 'judge@myk9t.com')).toBe(
-      'someone@myk9t.com'
-    );
+    expect(resolveFixtureEmail(' someone@myk9t.com ', 'judge@myk9t.com')).toBe('someone@myk9t.com');
   });
 });

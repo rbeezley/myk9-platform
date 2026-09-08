@@ -49,7 +49,6 @@ export function resolveHealthCheckRun(headers: Headers): HealthCheckRun {
   return {
     mode,
     runToken: headers.get(HEALTH_RUN_TOKEN_HEADER),
-    monitorSlug:
-      mode === 'continuous' ? CONTINUOUS_HEALTH_MONITOR_SLUG : DAILY_HEALTH_MONITOR_SLUG,
+    monitorSlug: mode === 'continuous' ? CONTINUOUS_HEALTH_MONITOR_SLUG : DAILY_HEALTH_MONITOR_SLUG,
   };
 }

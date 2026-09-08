@@ -1,18 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
-import {
-  ScopeType,
-  UserRole,
-  type RoleScope,
-  type UserWithRoles,
-} from '@/types/auth-types';
+import { ScopeType, UserRole, type RoleScope, type UserWithRoles } from '@/types/auth-types';
 import { hasRingsideAccountShowAccess } from './ringsideAccountAccess';
 
-function makeScope(
-  roleId: UserRole,
-  scopeType: ScopeType,
-  scopeId: string
-): RoleScope {
+function makeScope(roleId: UserRole, scopeType: ScopeType, scopeId: string): RoleScope {
   return {
     userId: 'user-1',
     roleId,
@@ -38,10 +29,7 @@ function hasRoleFrom(roles: UserRole[]) {
 describe('hasRingsideAccountShowAccess', () => {
   it('keeps club staff scoped to their own club shows', () => {
     const roles = [UserRole.CLUB_ADMIN];
-    const user = makeUser(
-      roles,
-      [makeScope(UserRole.CLUB_ADMIN, ScopeType.CLUB, 'club-a')]
-    );
+    const user = makeUser(roles, [makeScope(UserRole.CLUB_ADMIN, ScopeType.CLUB, 'club-a')]);
     const shows = [
       { id: 'own-show', clubId: 'club-a' },
       { id: 'unrelated-public-show', clubId: 'club-b' },
@@ -56,10 +44,7 @@ describe('hasRingsideAccountShowAccess', () => {
 
   it('admits a show-scoped official only to the assigned show', () => {
     const roles = [UserRole.SECRETARY];
-    const user = makeUser(
-      roles,
-      [makeScope(UserRole.SECRETARY, ScopeType.SHOW, 'assigned-show')]
-    );
+    const user = makeUser(roles, [makeScope(UserRole.SECRETARY, ScopeType.SHOW, 'assigned-show')]);
 
     expect(
       hasRingsideAccountShowAccess(user, hasRoleFrom(roles), {

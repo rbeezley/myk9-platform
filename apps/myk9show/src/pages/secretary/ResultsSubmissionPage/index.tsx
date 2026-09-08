@@ -161,8 +161,7 @@ export default function ResultsSubmissionPage() {
    */
   const unscoredAKCCount = countUnscoredAKCEntries(submittableAKCEntries);
   /** Nothing to send. An empty XML is still valid XML, so this must be its own gate. */
-  const hasNoAKCEntries =
-    isAKCScentWork && Boolean(akcData) && submittableAKCEntries.length === 0;
+  const hasNoAKCEntries = isAKCScentWork && Boolean(akcData) && submittableAKCEntries.length === 0;
   const hasBlockingAKCPreflightIssue =
     isAKCScentWork && (missingAKCCount > 0 || unscoredAKCCount > 0 || hasNoAKCEntries);
   const akcReadiness = akcData
@@ -532,9 +531,8 @@ export default function ResultsSubmissionPage() {
         >
           <p className="font-medium">The results were sent, but we couldn&rsquo;t log them.</p>
           <p className="mt-1 text-muted-foreground">
-            The email reached {recordFailed}. Submission History below will
-            not show it, so note it elsewhere and do not send again on the strength of an empty
-            history.
+            The email reached {recordFailed}. Submission History below will not show it, so note it
+            elsewhere and do not send again on the strength of an empty history.
           </p>
         </div>
       )}

@@ -120,9 +120,7 @@ describe('TrialsTab', () => {
     const trials = [makeTrial({ id: 't1', status: 'Scheduled' })];
     const stats = { t1: { classCount: 5, entryCount: 42, completedClasses: 3 } };
 
-    const { container } = render(
-      <TrialsTab trials={trials} showId="show-1" trialStats={stats} />
-    );
+    const { container } = render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
     expect(screen.getByText('In progress')).toBeInTheDocument();
     expect(container.querySelector('[data-status="in-progress"]')).toHaveAttribute(
@@ -152,9 +150,7 @@ describe('TrialsTab', () => {
       'derived-pending': { classCount: 2, entryCount: 8, completedClasses: 0 },
     };
 
-    const { user } = render(
-      <TrialsTab trials={trials} showId="show-1" trialStats={stats} />
-    );
+    const { user } = render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
 
     await user.click(screen.getByRole('button', { name: /Completed \(1\)/ }));
     expect(screen.getByText('Derived Complete')).toBeInTheDocument();

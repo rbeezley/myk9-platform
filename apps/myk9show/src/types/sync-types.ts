@@ -2,7 +2,13 @@
 // Re-exports from centralized type system
 
 import { SyncMetadata, SyncableEntity, SyncStatus } from './core-types';
-import { BaseConflict, SyncConflict as UnifiedSyncConflict, BaseConflictResolution, ResolutionStrategy, EnhancedConflictResolution } from './conflict-types';
+import {
+  BaseConflict,
+  SyncConflict as UnifiedSyncConflict,
+  BaseConflictResolution,
+  ResolutionStrategy,
+  EnhancedConflictResolution,
+} from './conflict-types';
 
 // Re-export core types for backward compatibility
 export type { SyncMetadata, SyncableEntity, SyncStatus };
@@ -184,7 +190,16 @@ export interface NetworkState {
 
 // Sync events for real-time updates
 export interface SyncEvent {
-  type: 'sync-started' | 'sync-completed' | 'sync-failed' | 'conflict-detected' | 'conflict-resolved' | 'connection-restored' | 'connection-lost' | 'storage-warning' | 'operation-queued';
+  type:
+    | 'sync-started'
+    | 'sync-completed'
+    | 'sync-failed'
+    | 'conflict-detected'
+    | 'conflict-resolved'
+    | 'connection-restored'
+    | 'connection-lost'
+    | 'storage-warning'
+    | 'operation-queued';
   entityType?: string | undefined;
   entityId?: string | undefined;
   details?: Record<string, unknown> | undefined;

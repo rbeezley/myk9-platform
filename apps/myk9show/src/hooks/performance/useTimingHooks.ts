@@ -22,12 +22,15 @@ export const useThrottle = <T extends (...args: unknown[]) => unknown>(
 ): T => {
   const lastRun = useRef<number>(0);
 
-  return useCallback((...args: Parameters<T>) => {
-    const now = Date.now();
-    if (now - lastRun.current >= delay) {
-      lastRun.current = now;
-      return callback(...args);
-    }
-    return undefined;
-  }, [callback, delay]) as T;
+  return useCallback(
+    (...args: Parameters<T>) => {
+      const now = Date.now();
+      if (now - lastRun.current >= delay) {
+        lastRun.current = now;
+        return callback(...args);
+      }
+      return undefined;
+    },
+    [callback, delay]
+  ) as T;
 };

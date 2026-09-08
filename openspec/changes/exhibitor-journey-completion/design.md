@@ -41,11 +41,11 @@ This is primarily an online account/dog-record experience. It does not change ri
 
 `/dogs/:id` remains the sole dog workspace. Replace the seven-item peer tab strip with three top-level concerns:
 
-| Top level | Secondary views | Access |
-| --- | --- | --- |
-| Overview | Identity, registrations, activity | Free |
-| Career | Competitions, Title Progress, Statistics | Competitions free; Title Progress and Statistics Premium |
-| Records | Health, Training, Pedigree | Premium |
+| Top level | Secondary views                          | Access                                                   |
+| --------- | ---------------------------------------- | -------------------------------------------------------- |
+| Overview  | Identity, registrations, activity        | Free                                                     |
+| Career    | Competitions, Title Progress, Statistics | Competitions free; Title Progress and Statistics Premium |
+| Records   | Health, Training, Pedigree               | Premium                                                  |
 
 Top-level state uses stable URL parameters such as `section=career&view=titles`. Existing `tab=registrations|competitions|title-progress|statistics|health|training|pedigree` links map to the corresponding new section/view so bookmarks and upgrade returns remain valid. Activity renders once on Overview rather than below every selected view. The Title Progress sidebar card/teaser is removed or reduced to a deep link when it repeats Career content.
 
@@ -113,11 +113,13 @@ interface EffectiveEntitlement {
 ```
 
 <!-- [ADDED after design review] -->
+
 The interface above is the contract shape; the implementation SHOULD model it as a discriminated union (for example, discriminated on `status`) so inconsistent combinations such as `tier: 'premium'` with `status: 'expired'` are unrepresentable, and resolver tests must reject any combination outside the scenarios in `exhibitor-entitlement-management`.
 
 Precedence for account Premium is active paid Premium, active founding/complimentary grant, then free. If no account source is active but a paid subscription or grant ended, the resolver returns free with `status: 'expired'` and the most relevant end date. An active grant can therefore keep Premium available after a paid subscription ends without claiming that billing is active.
 
 <!-- [EXPANDED after plan verification] -->
+
 The existing first-three-scored-shows trial remains scoped to Premium Analytics, matching the current product copy and avoiding an unapproved expansion of Premium pricing terms. A server-evaluated, account-scoped entitlement-context RPC returns database evaluation time, a sanitized active/most-recent grant projection, and the distinct scored-show count needed by the existing Analytics trial rule. This removes caller-provided `trialShowCount` while preserving the existing capability boundary: paid/founding/complimentary access unlocks all five dog capabilities, while an Analytics trial unlocks only the currently trialed Analytics content. The account query uses one React Query key and is deduplicated across all consumers.
 
 The resolver uses server `evaluatedAt`, not the device clock, for paid/grant boundaries. Each result has a bounded `trustedUntil`, no later than the active source end or the cache's short maximum-stale interval. The hook schedules invalidation at that boundary and revalidates on focus/reconnect. If refresh fails, the last trusted value may remain visible only until `trustedUntil`; Premium creation/update actions then fail closed even if the page stays open.
@@ -155,6 +157,7 @@ Alternative considered: a new Admin Subscriptions page. Rejected because user-sc
 ### 7A. Enforce Premium record and manual-result creation and updates on the server
 
 <!-- [ADDED after plan verification] -->
+
 Add one server-side `has_effective_premium_access(person_id, evaluated_at)` helper that uses paid profile state and the active grant. The Analytics-scoped trial does not authorize dog-record or Premium manual-result creation/updates. Premium record and manual-result create/update policies or their established mutation RPCs call this helper in addition to ownership checks. Client gates remain the presentation layer; they are not the authorization boundary.
 
 The implementation inventory decides the narrowest established enforcement point for Health, Training, Pedigree, and manual results created from the Premium competition UI. If a mutation already uses a security-definer RPC, enforce there. If it writes a table directly, add an RLS `WITH CHECK` condition for inserts/updates without weakening owner isolation. Existing owner reads and deletes remain available after downgrade; existing export actions remain available only where the feature already supports export. The canonical Records/manual-results views become read-only and explain that account Premium is required to add or edit. This change does not invent Pedigree or manual-result export. Title Progress and Statistics remain derived read features over legitimately visible owner data, with paid presentation gated consistently.

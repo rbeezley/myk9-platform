@@ -21,10 +21,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { buildSecretaryCockpitModel } from '../secretaryCockpitModel';
-import type {
-  SecretaryCockpitSnapshot,
-  SecretaryCockpitState,
-} from '../secretaryCockpitTypes';
+import type { SecretaryCockpitSnapshot, SecretaryCockpitState } from '../secretaryCockpitTypes';
 
 function snapshotWithCounts(
   entryCount: number | null,
@@ -54,7 +51,7 @@ function snapshotWithCounts(
         attention: [],
         actions: [],
         paperwork: [],
-  entryRows: [],
+        entryRows: [],
       },
     ],
   };

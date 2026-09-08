@@ -70,7 +70,7 @@ export const TabBar: React.FC<TabBarProps> = ({
           variant === 'compact' && 'p-0'
         )}
       >
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <button
             key={tab.id}
             className={cn(
@@ -110,9 +110,7 @@ export const TabBar: React.FC<TabBarProps> = ({
                 {tab.icon}
               </span>
             )}
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-              {tab.label}
-            </span>
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{tab.label}</span>
             {tab.count !== undefined && (
               <span
                 className={cn(
@@ -131,9 +129,7 @@ export const TabBar: React.FC<TabBarProps> = ({
           </button>
         ))}
       </div>
-      {rightElement && (
-        <div className="flex-shrink-0">{rightElement}</div>
-      )}
+      {rightElement && <div className="flex-shrink-0">{rightElement}</div>}
     </div>
   );
 };

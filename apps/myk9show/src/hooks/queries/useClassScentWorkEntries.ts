@@ -159,11 +159,7 @@ export function useClassScentWorkEntries(
   const safeClassId = classId || '';
   const enabled = Boolean(classId);
 
-  const {
-    entries: dbEntries,
-    isLoading,
-    error,
-  } = useClassEntriesWithQuery(safeClassId, enabled);
+  const { entries: dbEntries, isLoading, error } = useClassEntriesWithQuery(safeClassId, enabled);
 
   const localEntries = useEntriesByClass(safeClassId);
 

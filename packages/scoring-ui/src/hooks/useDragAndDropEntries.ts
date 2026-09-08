@@ -21,16 +21,13 @@ import {
   DragEndEvent,
   DragStartEvent,
 } from '@dnd-kit/core';
-import {
-  arrayMove,
-  sortableKeyboardCoordinates,
-} from '@dnd-kit/sortable';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import type { BaseEntry, DragAndDropOptions } from '../types';
 
 // Default no-op logger
 const defaultLogger = {
   log: () => {},
-  error: () => {}
+  error: () => {},
 };
 
 /**
@@ -77,7 +74,7 @@ export function useDragAndDropEntries<T extends BaseEntry>({
   setManualOrder: externalSetManualOrder,
   gracePeriodMs = 1500,
   onUpdateOrder,
-  logger = defaultLogger
+  logger = defaultLogger,
 }: DragAndDropOptions<T>) {
   // Drag state refs - prevent race conditions with sync
   const dragSnapshotRef = useRef<T[] | null>(null);
@@ -104,8 +101,8 @@ export function useDragAndDropEntries<T extends BaseEntry>({
     // Touch/mobile support with long-press activation
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,      // 250ms long-press to activate drag
-        tolerance: 5,    // Allow 5px of movement during long-press
+        delay: 250, // 250ms long-press to activate drag
+        tolerance: 5, // Allow 5px of movement during long-press
       },
     }),
     // Keyboard accessibility
@@ -117,103 +114,117 @@ export function useDragAndDropEntries<T extends BaseEntry>({
   /**
    * Handle drag start - Snapshot the array to prevent race conditions
    */
-  const handleDragStart = useCallback((_event: DragStartEvent) => {
-    // Set dragging flag to prevent sync-triggered refreshes
-    isDraggingRef.current = true;
-    setIsDragging(true);
+  const handleDragStart = useCallback(
+    (_event: DragStartEvent) => {
+      // Set dragging flag to prevent sync-triggered refreshes
+      isDraggingRef.current = true;
+      setIsDragging(true);
 
-    // Haptic feedback for mobile devices
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(50); // Short 50ms vibration
-    }
+      // Haptic feedback for mobile devices
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(50); // Short 50ms vibration
+      }
 
-    // Capture the current state at drag start - this won't change during the drag
-    dragSnapshotRef.current = [...currentEntries];
-  }, [currentEntries, isDraggingRef]);
+      // Capture the current state at drag start - this won't change during the drag
+      dragSnapshotRef.current = [...currentEntries];
+    },
+    [currentEntries, isDraggingRef]
+  );
 
   /**
    * Handle drag end - Uses snapshot for stable index calculations
    */
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
 
-    // Use the snapshot we captured at drag start
-    const snapshot = dragSnapshotRef.current;
+      // Use the snapshot we captured at drag start
+      const snapshot = dragSnapshotRef.current;
 
-    // Clear the snapshot (but keep isDraggingRef true until DB update completes)
-    dragSnapshotRef.current = null;
+      // Clear the snapshot (but keep isDraggingRef true until DB update completes)
+      dragSnapshotRef.current = null;
 
-    // Must have a valid drop target and snapshot
-    if (!over || active.id === over.id || !snapshot) {
-      isDraggingRef.current = false;
-      setIsDragging(false);
-      return;
-    }
-
-    // Find indices in the SNAPSHOT (stable, won't have changed during drag)
-    const oldIndex = snapshot.findIndex(entry => entry.id === active.id);
-    const targetIndex = snapshot.findIndex(entry => entry.id === over.id);
-
-    if (oldIndex === -1 || targetIndex === -1) {
-      isDraggingRef.current = false;
-      setIsDragging(false);
-      return;
-    }
-
-    // Prevent moving dogs before in-ring dogs
-    const inRingDogs = snapshot.filter(e => e.inRing || e.status === 'in-ring');
-    if (inRingDogs.length > 0 && targetIndex === 0) {
-      const draggedEntry = snapshot[oldIndex];
-      if (draggedEntry && !draggedEntry.inRing && draggedEntry.status !== 'in-ring') {
+      // Must have a valid drop target and snapshot
+      if (!over || active.id === over.id || !snapshot) {
         isDraggingRef.current = false;
         setIsDragging(false);
         return;
       }
-    }
 
-    // Create new reordered array from the snapshot
-    const reorderedEntries = arrayMove(snapshot, oldIndex, targetIndex);
+      // Find indices in the SNAPSHOT (stable, won't have changed during drag)
+      const oldIndex = snapshot.findIndex(entry => entry.id === active.id);
+      const targetIndex = snapshot.findIndex(entry => entry.id === over.id);
 
-    // Update exhibitor_order values locally
-    const entriesWithNewOrder = reorderedEntries.map((entry, index) => ({
-      ...entry,
-      exhibitorOrder: index + 1
-    }));
-
-    // Merge reordered entries back into localEntries (preserving entries not in current view)
-    const reorderedIds = new Set(entriesWithNewOrder.map(e => e.id));
-    const otherEntries = localEntries.filter(entry => !reorderedIds.has(entry.id));
-    const newAllEntries = [...otherEntries, ...entriesWithNewOrder];
-
-    // Single atomic state update for smooth UX
-    setLocalEntries(newAllEntries);
-    setManualOrder(entriesWithNewOrder);
-
-    // Update database and AWAIT it to prevent race conditions with sync
-    setIsUpdatingOrder(true);
-    try {
-      if (onUpdateOrder) {
-        await onUpdateOrder(entriesWithNewOrder);
-      }
-    } catch (error) {
-      logger.error('Failed to update run order in database:', error);
-      // The optimistic update already happened, so UI shows new order
-      // If offline, the sync will happen later
-    } finally {
-      setIsUpdatingOrder(false);
-      // IMPORTANT: Add a grace period before accepting new sync data
-      // The updateExhibitorOrder triggers triggerImmediateEntrySync which can
-      // arrive after we return here. Delay clearing the flag to let syncs settle.
-      setTimeout(() => {
+      if (oldIndex === -1 || targetIndex === -1) {
         isDraggingRef.current = false;
         setIsDragging(false);
-        // Scroll back to top after drag completes for better UX
-        if (typeof window !== 'undefined') {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      // Prevent moving dogs before in-ring dogs
+      const inRingDogs = snapshot.filter(e => e.inRing || e.status === 'in-ring');
+      if (inRingDogs.length > 0 && targetIndex === 0) {
+        const draggedEntry = snapshot[oldIndex];
+        if (draggedEntry && !draggedEntry.inRing && draggedEntry.status !== 'in-ring') {
+          isDraggingRef.current = false;
+          setIsDragging(false);
+          return;
         }
-      }, gracePeriodMs);
-    }
-  }, [localEntries, setLocalEntries, setManualOrder, isDraggingRef, gracePeriodMs, onUpdateOrder, logger]);
+      }
+
+      // Create new reordered array from the snapshot
+      const reorderedEntries = arrayMove(snapshot, oldIndex, targetIndex);
+
+      // Update exhibitor_order values locally
+      const entriesWithNewOrder = reorderedEntries.map((entry, index) => ({
+        ...entry,
+        exhibitorOrder: index + 1,
+      }));
+
+      // Merge reordered entries back into localEntries (preserving entries not in current view)
+      const reorderedIds = new Set(entriesWithNewOrder.map(e => e.id));
+      const otherEntries = localEntries.filter(entry => !reorderedIds.has(entry.id));
+      const newAllEntries = [...otherEntries, ...entriesWithNewOrder];
+
+      // Single atomic state update for smooth UX
+      setLocalEntries(newAllEntries);
+      setManualOrder(entriesWithNewOrder);
+
+      // Update database and AWAIT it to prevent race conditions with sync
+      setIsUpdatingOrder(true);
+      try {
+        if (onUpdateOrder) {
+          await onUpdateOrder(entriesWithNewOrder);
+        }
+      } catch (error) {
+        logger.error('Failed to update run order in database:', error);
+        // The optimistic update already happened, so UI shows new order
+        // If offline, the sync will happen later
+      } finally {
+        setIsUpdatingOrder(false);
+        // IMPORTANT: Add a grace period before accepting new sync data
+        // The updateExhibitorOrder triggers triggerImmediateEntrySync which can
+        // arrive after we return here. Delay clearing the flag to let syncs settle.
+        setTimeout(() => {
+          isDraggingRef.current = false;
+          setIsDragging(false);
+          // Scroll back to top after drag completes for better UX
+          if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }, gracePeriodMs);
+      }
+    },
+    [
+      localEntries,
+      setLocalEntries,
+      setManualOrder,
+      isDraggingRef,
+      gracePeriodMs,
+      onUpdateOrder,
+      logger,
+    ]
+  );
 
   return {
     sensors,
@@ -221,6 +232,6 @@ export function useDragAndDropEntries<T extends BaseEntry>({
     handleDragEnd,
     isUpdatingOrder,
     isDragging,
-    isDraggingRef
+    isDraggingRef,
   };
 }

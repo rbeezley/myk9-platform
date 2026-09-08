@@ -62,10 +62,7 @@ export const ListPagination: React.FC<ListPaginationProps> = ({
   });
 
   return (
-    <nav
-      aria-label={label}
-      className="flex flex-wrap items-center justify-between gap-4 pt-6 pb-2"
-    >
+    <nav aria-label={label} className="flex flex-wrap items-center justify-between gap-4 pt-6 pb-2">
       {/* Results summary & page size */}
       <div className="flex flex-wrap items-center gap-3">
         {onPageSizeChange && (

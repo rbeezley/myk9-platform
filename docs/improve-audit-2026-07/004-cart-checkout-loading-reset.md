@@ -28,7 +28,7 @@ loading state on the frame(s) before navigation, and if navigation is delayed or
 the page doesn't unmount immediately, the exhibitor sees a frozen "Checking out…"
 button after their request actually succeeded — inviting a confused re-click.
 
-Every *other* branch resets it: blocked items (line 171), null split result
+Every _other_ branch resets it: blocked items (line 171), null split result
 (178), removal failure (190), and the catch (221). Only this one success path
 was missed. Small, but it's the exhibitor's first checkout — polish matters.
 
@@ -58,19 +58,21 @@ await createEntryCheckoutSession(cart.id, splitCheckoutId ? { splitCheckoutId } 
 
 ## Commands you will need
 
-| Purpose   | Command                                                                                          | Expected |
-|-----------|--------------------------------------------------------------------------------------------------|----------|
-| Typecheck | `pnpm typecheck`                                                                                  | exit 0   |
-| One test  | `cd apps/myk9show && npx vitest run src/pages/__tests__/CartPage.splitCheckout.test.tsx`          | all pass |
-| Lint      | `pnpm lint`                                                                                       | exit 0   |
+| Purpose   | Command                                                                                  | Expected |
+| --------- | ---------------------------------------------------------------------------------------- | -------- |
+| Typecheck | `pnpm typecheck`                                                                         | exit 0   |
+| One test  | `cd apps/myk9show && npx vitest run src/pages/__tests__/CartPage.splitCheckout.test.tsx` | all pass |
+| Lint      | `pnpm lint`                                                                              | exit 0   |
 
 ## Scope
 
 **In scope**:
+
 - `apps/myk9show/src/pages/CartPage.tsx` (one line in the waitlist-only branch)
 - `apps/myk9show/src/pages/__tests__/CartPage.splitCheckout.test.tsx` (add a case)
 
 **Out of scope**:
+
 - The Stripe-redirect branch (line 217) — leave it; not resetting is correct there.
 - The cart-hydration effect and any other handler.
 
@@ -100,6 +102,7 @@ Model the arrange/act on the existing waitlist test already in this file.
 ### Step 2: reset before navigating
 
 In the waitlist-only branch, add the reset immediately before `navigate(...)`:
+
 ```ts
 if (splitResult.confirmed.length === 0) {
   setIsCheckingOut(false);

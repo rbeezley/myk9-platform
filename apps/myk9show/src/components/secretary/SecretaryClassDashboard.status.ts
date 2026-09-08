@@ -1,10 +1,6 @@
 import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 
-export type SecretaryDashboardClassStatus =
-  | 'pending'
-  | 'in-progress'
-  | 'completed'
-  | 'cancelled';
+export type SecretaryDashboardClassStatus = 'pending' | 'in-progress' | 'completed' | 'cancelled';
 
 export function normalizeSecretaryDashboardClassStatus(
   status: string | null | undefined

@@ -56,12 +56,9 @@ interface ShowDeskToolsSheetProps {
 // The sheet owns only the section shell; the caller still composes each tool's
 // content so this component never needs judge, class, incident, or access-code
 // data dependencies.
-export function ShowDeskToolsSheet({
-  ...props
-}: ShowDeskToolsSheetProps) {
+export function ShowDeskToolsSheet({ ...props }: ShowDeskToolsSheetProps) {
   const [searchParams] = useSearchParams();
-  const effectiveRequestedToolId =
-    props.requestedToolId ?? searchParams.get('tool') ?? undefined;
+  const effectiveRequestedToolId = props.requestedToolId ?? searchParams.get('tool') ?? undefined;
 
   return (
     <ShowDeskToolsSheetState
@@ -121,12 +118,7 @@ function ShowDeskToolsSheetState({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="min-h-11 gap-2"
-        >
+        <Button type="button" variant="outline" size="sm" className="min-h-11 gap-2">
           <Wrench className="h-4 w-4" aria-hidden="true" />
           Tools
           <Badge

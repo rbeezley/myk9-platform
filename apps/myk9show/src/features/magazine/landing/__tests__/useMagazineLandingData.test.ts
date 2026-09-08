@@ -177,9 +177,7 @@ describe('useMagazineLandingData', () => {
   });
 
   it('singularizes "Trial" when there is exactly one', () => {
-    const allTrials = [
-      { id: 't1', trialNumber: 1, trialDate: '2026-06-12' },
-    ] as unknown as Trial[];
+    const allTrials = [{ id: 't1', trialNumber: 1, trialDate: '2026-06-12' }] as unknown as Trial[];
     const show = {
       id: 'show-1',
       name: 'X',

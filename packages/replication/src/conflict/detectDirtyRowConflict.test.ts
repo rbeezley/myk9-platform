@@ -60,7 +60,11 @@ describe('mergeNonConflictingServerFields', () => {
       remote: { id: '1', checkInStatus: 'no-status', resultStatus: 'qualified' },
     });
 
-    expect(result.merged).toEqual({ id: '1', checkInStatus: 'checked-in', resultStatus: 'qualified' });
+    expect(result.merged).toEqual({
+      id: '1',
+      checkInStatus: 'checked-in',
+      resultStatus: 'qualified',
+    });
     expect(result.appliedFields).toEqual(['resultStatus']);
   });
 

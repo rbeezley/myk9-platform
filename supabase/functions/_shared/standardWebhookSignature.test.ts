@@ -173,5 +173,4 @@ describe('Standard-Webhooks signature verification', () => {
 
     expect(result).toEqual({ ok: true, status: 200 });
   });
-
 });

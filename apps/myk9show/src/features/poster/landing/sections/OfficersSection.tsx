@@ -1,10 +1,6 @@
 import { PosterSectionHead } from '../../components/PosterSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
-import {
-  POSTER_BODY_FAMILY,
-  POSTER_DISPLAY_TIGHT_FAMILY,
-  POSTER_MONO_FAMILY,
-} from '../../fonts';
+import { POSTER_BODY_FAMILY, POSTER_DISPLAY_TIGHT_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
 import type { PosterOfficer } from '../types';
 
@@ -19,11 +15,7 @@ interface OfficersSectionProps {
  * cards with mono red role label and Inter Tight 800 name (NOT Archivo
  * Black — names get too long at 24px+ for the column width).
  */
-export function OfficersSection({
-  officers,
-  secretaryName,
-  secretaryEmail,
-}: OfficersSectionProps) {
+export function OfficersSection({ officers, secretaryName, secretaryEmail }: OfficersSectionProps) {
   const { ref, revealed } = useRevealOnScroll<HTMLDivElement>();
 
   const items =

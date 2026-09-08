@@ -27,7 +27,9 @@ export const SearchTimeCell: React.FC<SearchTimeCellProps> = ({
           <div className="flex items-center gap-1">
             <TimeInput
               value={item.searchTime}
-              onChange={digits => onFieldChange(item.entryId, 'searchTime', formatSearchTime(digits))}
+              onChange={digits =>
+                onFieldChange(item.entryId, 'searchTime', formatSearchTime(digits))
+              }
               onCommit={() => {
                 // INTENT: committing a time jumps focus to the same row's Faults input
                 // (Enter/Tab field navigation). Keep this selector in sync with FaultsCell's

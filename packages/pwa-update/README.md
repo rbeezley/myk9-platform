@@ -29,12 +29,12 @@ import { setupPwaUpdate } from '@myk9/pwa-update';
 
 setupPwaUpdate({
   registerSW,
-  version: buildTimestamp,        // unique per deploy
-  onPrompt: showToast,            // your toast
+  version: buildTimestamp, // unique per deploy
+  onPrompt: showToast, // your toast
   shouldDefer: isOnSensitiveRoute, // optional — defers prompt mid-task
   onRegistered: reg => initSW(reg),
   onOfflineReady: () => {},
-  logger: { info, warn, error },  // optional
+  logger: { info, warn, error }, // optional
 });
 ```
 
@@ -69,9 +69,9 @@ Without this, `applyPwaUpdate()` falls back to a 3-second timeout reload, which 
 
 ## App wiring
 
-| App | Sensitive routes (deferred) |
-|---|---|
-| myK9Q | `/score`, `/entry/` (scoresheets) |
+| App      | Sensitive routes (deferred)                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------ |
+| myK9Q    | `/score`, `/entry/` (scoresheets)                                                                |
 | myK9Show | `/checkout/`, `/shows/:id/register`, `/exhibitor/check-in/`, `/secretary/register/`, `/scoring/` |
 
 ## Tests

@@ -29,9 +29,7 @@ describe('GazetteDropCap', () => {
 
   it('appends rest content after the lead text', () => {
     const { container } = render(
-      <GazetteDropCap rest={<em data-testid="tail">— Ed.</em>}>
-        Lead sentence.
-      </GazetteDropCap>
+      <GazetteDropCap rest={<em data-testid="tail">— Ed.</em>}>Lead sentence.</GazetteDropCap>
     );
     const tail = container.querySelector('[data-testid="tail"]');
     expect(tail).toBeInTheDocument();
@@ -40,9 +38,7 @@ describe('GazetteDropCap', () => {
   });
 
   it('skips a leading quotation mark so the cap is the first letter', () => {
-    const { container } = render(
-      <GazetteDropCap>{'"For seventy-nine years."'}</GazetteDropCap>
-    );
+    const { container } = render(<GazetteDropCap>{'"For seventy-nine years."'}</GazetteDropCap>);
     // The cap glyph should be 'F', not '"'
     expect(container.querySelector('.gz-dropcap')).toHaveTextContent('F');
     // The opening quote still appears in the paragraph body before the cap
@@ -50,9 +46,7 @@ describe('GazetteDropCap', () => {
   });
 
   it('skips leading whitespace AND punctuation together', () => {
-    const { container } = render(
-      <GazetteDropCap>{'  …(Yes,) we begin.'}</GazetteDropCap>
-    );
+    const { container } = render(<GazetteDropCap>{'  …(Yes,) we begin.'}</GazetteDropCap>);
     expect(container.querySelector('.gz-dropcap')).toHaveTextContent('Y');
   });
 

@@ -1,6 +1,6 @@
 # Dev Process Hardening Implementation Plan
 
-> **Status:** Active
+> **Status:** Complete
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task, one task per PR, in the order given. Steps use checkbox (`- [ ]`) syntax for tracking. Every PR goes through `/ship-pr` (in-flight check, Codex gate, squash merge).
 
@@ -1430,3 +1430,37 @@ Nothing above is done until these are recorded in this file under a `## Evidence
 - [ ] **Skill count**: `ls .agents/skills | wc -l` recorded; `skillTrees.test.ts` green on `main`.
 - [ ] **Mutation workflow ran once**: `gh workflow run mutation-tests.yml`; conclusion and runtime recorded.
 - [ ] Flip this file's status to `Complete`, `git mv` it to `docs/archive/`, and drop its `docs/README.md` row.
+
+## Evidence
+
+Recorded 2026-09-07. Every task shipped as its own PR through the Codex gate; each line names the command that produced the fact.
+
+| Task | PR | Merged | Review rounds |
+| ---- | -- | ------ | ------------- |
+| 1 CI concurrency (plus this plan) | #2110 | `427e57069` | 10 (1 P1 on the code, 22 on the plan; one dedicated plan-level `codex exec` review) |
+| 2 dependency advisories | #2112 | `261734e17` | 1 |
+| 3 nightly reds | #2114 | `5750562b5` | 1 (Opus sub-agent) |
+| 4 shared rulebook | #2117 | `13dc986a0` | 1 |
+| 5 LESSONS slimming | #2118 | `b8b279f1d` | 1 |
+| 6 deploy-path truth | #2119 | `bb0ed47e7` | 1 |
+| 7 review-gate poster | #2115 | `0c0c83678` | 6 (Opus sub-agent; 7 findings) |
+| 8 formatting | #2121 | `d6e775f9d` | 3 (1 P2 each round) |
+| 9 skill pruning | #2116 | `0c590755d` | 1 (Opus sub-agent) |
+| 10 drift sweep | #2120 | `4d7d9d0e5` | 3 (4 findings) |
+| triage of nightly failures found by Task 3's run | #2122 | `7820e6c45` | 1 (Opus sub-agent) |
+
+- **`main` runs complete.** `gh run list --workflow ci.yml --branch main --event push`: `427e57069` (Task 1 merge) success; `0c0c83678` success; `4d7d9d0e5` success with `Test myK9Show (coverage)` at 31m32s under the new 45-minute cap. The eight `cancelled` runs between `261734e17` and `e3ca44d1d` were NOT concurrency: every gating job passed and only the push-only coverage job hit its own 30-minute cap (`gh run view <id> --json jobs`), which cancel-on-push had been hiding. Task 10 raised the cap.
+- **Dependency audit green.** `gh workflow run dependency-audit.yml` → run at 16:26 UTC `success`. GitHub's Dependabot banner on pushes went from "13 vulnerabilities (10 high, 3 moderate)" to "3 vulnerabilities (3 moderate)".
+- **Nightly workflows.** Dispatched after Task 3 merged; both red, and every failure is named: nightly-health fails on the `secretary/reports` and `exhibitor/account` settle timeout (MYK9-441) and on browser-health violations from the `/api/geo` 500 (MYK9-440); nightly-e2e fails on the same 500 (now named by URL in the assertion) and on `dogPanelAccessibleNames` (MYK9-443, a real focus defect in `SlideOverPanel`). The five `authentication-validation` failures were a spec racing a deliberate redirect and are fixed in #2122. None was a regression from the day's PRs.
+- **Shared rules in CI.** Quality Checks on #2118 and later print `shared-rules: in sync`.
+- **Instruction file budgets.** `wc -w`: CLAUDE.md 6,920 (was 12,546; 14,154 after the shared block landed), AGENTS.md 4,472, LESSONS section 2,764 (was 10,097). `instructionFileBudget.test.ts` green on `main`.
+- **Review gate self-posted.** #2120, #2121 and #2122 carry evidence comments written by `post-review-gate.sh` with a `log sha256:` line and the verdict block; #2120 also shows the withdraw path (`6 findings, not addressed` posted on a head that later went clean).
+- **Prettier in CI.** #2121's Quality Checks runs `Prettier (changed files vs merge base)`; `pnpm exec prettier --check .` on the merged tree exits 0 except the six files held back for the `wt-myk9-quick-wins` worktree.
+- **Skill count.** `ls .agents/skills | wc -l` = 29 (was 69); `skillTrees.test.ts` green on `main`.
+- **Mutation workflow ran once.** `gh workflow run mutation-tests.yml` → `success`, 9m35s; cart target 71.79% against the new 60% `break` floor. The runner had been unable to run at all since #2062 (Stryker sandbox `copyFile` on the skill symlinks).
+
+### Left open, on purpose
+
+- Six files were excluded from the reformat because another worktree has uncommitted edits on them (`MonthScrubber.tsx`, `monthScrubber.helpers.ts`, `OperatorAlertDetail.tsx`, `appApiRequestTracker.test.ts`, `advisor-inventory.ts` and its test). The changed-files check will ask that PR to format them; nothing else is needed.
+- `Stateful Playwright Regression` stays red until MYK9-440 and MYK9-443 land; nightly-health until MYK9-441. All three are filed with reproductions.
+- Task 7's poster over-counts findings by 2× because the Codex CLI prints its verdict twice; cosmetic, noted in #2115.

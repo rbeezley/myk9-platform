@@ -52,38 +52,34 @@ describe('buildRunSheetEntries', () => {
   });
 
   it('prefers call_name over name', () => {
-    const [e] = buildRunSheetEntries(
-      [
-        makeRow({
-          dog: {
-            id: 'd1',
-            name: 'Registered Name',
-            call_name: 'Buddy',
-            breed: null,
-            registrations: null,
-            owner: null,
-          },
-        }),
-      ]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        dog: {
+          id: 'd1',
+          name: 'Registered Name',
+          call_name: 'Buddy',
+          breed: null,
+          registrations: null,
+          owner: null,
+        },
+      }),
+    ]);
     expect(e.dogName).toBe('Buddy');
   });
 
   it('falls back to name when call_name is null', () => {
-    const [e] = buildRunSheetEntries(
-      [
-        makeRow({
-          dog: {
-            id: 'd1',
-            name: 'Registered Name',
-            call_name: null,
-            breed: null,
-            registrations: null,
-            owner: null,
-          },
-        }),
-      ]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        dog: {
+          id: 'd1',
+          name: 'Registered Name',
+          call_name: null,
+          breed: null,
+          registrations: null,
+          owner: null,
+        },
+      }),
+    ]);
     expect(e.dogName).toBe('Registered Name');
   });
 
@@ -138,18 +134,16 @@ describe('buildRunSheetEntries', () => {
   });
 
   it('builds a qualified result from a scored row', () => {
-    const [e] = buildRunSheetEntries(
-      [
-        makeRow({
-          is_scored: true,
-          result_status: 'qualified',
-          search_time_seconds: 95.5,
-          total_faults: 0,
-          final_placement: 1,
-          judge_notes: 'Good search',
-        }),
-      ]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 95.5,
+        total_faults: 0,
+        final_placement: 1,
+        judge_notes: 'Good search',
+      }),
+    ]);
     expect(e.isScored).toBe(true);
     expect(e.result).not.toBeNull();
     expect(e.result!.qualified).toBe(true);
@@ -160,17 +154,17 @@ describe('buildRunSheetEntries', () => {
   });
 
   it('builds an NQ result with empty timeStr when no time recorded', () => {
-    const [e] = buildRunSheetEntries(
-      [makeRow({ is_scored: true, result_status: 'nq', search_time_seconds: null })]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({ is_scored: true, result_status: 'nq', search_time_seconds: null }),
+    ]);
     expect(e.result!.qualified).toBe(false);
     expect(e.result!.timeStr).toBe('');
   });
 
   it('maps final_placement 0 to null', () => {
-    const [e] = buildRunSheetEntries(
-      [makeRow({ is_scored: true, result_status: 'qualified', final_placement: 0 })]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({ is_scored: true, result_status: 'qualified', final_placement: 0 }),
+    ]);
     expect(e.result!.placement).toBeNull();
   });
 
@@ -184,77 +178,69 @@ describe('buildRunSheetEntries', () => {
   });
 
   it('builds ownerName from first + last', () => {
-    const [e] = buildRunSheetEntries(
-      [
-        makeRow({
-          dog: {
-            id: 'd1',
-            name: 'Rex',
-            call_name: null,
-            breed: null,
-            registrations: null,
-            owner: { id: 'o1', first_name: 'John', last_name: 'Doe' },
-          },
-        }),
-      ]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        dog: {
+          id: 'd1',
+          name: 'Rex',
+          call_name: null,
+          breed: null,
+          registrations: null,
+          owner: { id: 'o1', first_name: 'John', last_name: 'Doe' },
+        },
+      }),
+    ]);
     expect(e.ownerName).toBe('John Doe');
   });
 
   it('uses entry handler name for the visible handler', () => {
-    const [e] = buildRunSheetEntries(
-      [
-        makeRow({
-          handler: 'Liz Beezley',
-          dog: {
-            id: 'd1',
-            name: 'Ziva',
-            call_name: null,
-            breed: null,
-            registrations: null,
-            owner: { id: 'o1', first_name: 'Richard', last_name: 'Beezley' },
-          },
-        }),
-      ]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        handler: 'Liz Beezley',
+        dog: {
+          id: 'd1',
+          name: 'Ziva',
+          call_name: null,
+          breed: null,
+          registrations: null,
+          owner: { id: 'o1', first_name: 'Richard', last_name: 'Beezley' },
+        },
+      }),
+    ]);
     expect(e.handlerName).toBe('Liz Beezley');
     expect(e.ownerName).toBe('Richard Beezley');
   });
 
   it('falls back to owner name when entry handler is blank', () => {
-    const [e] = buildRunSheetEntries(
-      [
-        makeRow({
-          handler: '  ',
-          dog: {
-            id: 'd1',
-            name: 'Ziva',
-            call_name: null,
-            breed: null,
-            registrations: null,
-            owner: { id: 'o1', first_name: 'Liz', last_name: 'Beezley' },
-          },
-        }),
-      ]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        handler: '  ',
+        dog: {
+          id: 'd1',
+          name: 'Ziva',
+          call_name: null,
+          breed: null,
+          registrations: null,
+          owner: { id: 'o1', first_name: 'Liz', last_name: 'Beezley' },
+        },
+      }),
+    ]);
     expect(e.handlerName).toBe('Liz Beezley');
   });
 
   it('returns empty ownerName when owner is null', () => {
-    const [e] = buildRunSheetEntries(
-      [
-        makeRow({
-          dog: {
-            id: 'd1',
-            name: 'Rex',
-            call_name: null,
-            breed: null,
-            registrations: null,
-            owner: null,
-          },
-        }),
-      ]
-    );
+    const [e] = buildRunSheetEntries([
+      makeRow({
+        dog: {
+          id: 'd1',
+          name: 'Rex',
+          call_name: null,
+          breed: null,
+          registrations: null,
+          owner: null,
+        },
+      }),
+    ]);
     expect(e.ownerName).toBe('');
   });
 });

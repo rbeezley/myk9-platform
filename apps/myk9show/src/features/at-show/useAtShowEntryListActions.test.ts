@@ -44,9 +44,7 @@ describe('useAtShowEntryListActions', () => {
   afterEach(() => vi.clearAllMocks());
 
   const render = (writer?: CheckInWriter) =>
-    renderHook(() =>
-      useAtShowEntryListActions(writer ? { refresh, writer } : { refresh })
-    );
+    renderHook(() => useAtShowEntryListActions(writer ? { refresh, writer } : { refresh }));
 
   it('handleStatusChange writes the exact check-in status (camel + snake), then refreshes', async () => {
     const { result } = render();
@@ -98,8 +96,14 @@ describe('useAtShowEntryListActions', () => {
     await act(async () => {
       await result.current.handleBatchStatusUpdate(['a', 'b'], 'pulled');
     });
-    expect(updateEntry).toHaveBeenCalledWith('a', { checkInStatus: 'pulled', check_in_status: 'pulled' });
-    expect(updateEntry).toHaveBeenCalledWith('b', { checkInStatus: 'pulled', check_in_status: 'pulled' });
+    expect(updateEntry).toHaveBeenCalledWith('a', {
+      checkInStatus: 'pulled',
+      check_in_status: 'pulled',
+    });
+    expect(updateEntry).toHaveBeenCalledWith('b', {
+      checkInStatus: 'pulled',
+      check_in_status: 'pulled',
+    });
   });
 
   it('handleResetScore clears the scored fields back to pending, then refreshes', async () => {

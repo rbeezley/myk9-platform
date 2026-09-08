@@ -64,12 +64,9 @@ describe('groupPeopleForOfficial', () => {
   });
 
   it('excludes a role-holder from the suggested group when its id is excluded', () => {
-    const result = groupPeopleForOfficial(
-      [chairman, exhibitor],
-      [UserRole.CHAIRMAN],
-      '',
-      [chairman.id]
-    );
+    const result = groupPeopleForOfficial([chairman, exhibitor], [UserRole.CHAIRMAN], '', [
+      chairman.id,
+    ]);
     expect(result.suggested).toHaveLength(0);
     expect(result.others).toEqual([exhibitor]);
   });
@@ -86,7 +83,11 @@ describe('groupPeopleForOfficial', () => {
   });
 
   it('defaults to no exclusions when the arg is omitted', () => {
-    const result = groupPeopleForOfficial([chairman, secretary, exhibitor], [UserRole.CHAIRMAN], '');
+    const result = groupPeopleForOfficial(
+      [chairman, secretary, exhibitor],
+      [UserRole.CHAIRMAN],
+      ''
+    );
     expect([...result.suggested, ...result.others]).toHaveLength(3);
   });
 });

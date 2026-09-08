@@ -153,7 +153,12 @@ describe('fetchPlaceDetails', () => {
 describe('formatVenueLocation', () => {
   it('prefixes the venue name when the address lacks it', () => {
     expect(
-      formatVenueLocation({ name: 'Purina Farms', address: '200 Checkerboard Loop', lat: 0, lng: 0 })
+      formatVenueLocation({
+        name: 'Purina Farms',
+        address: '200 Checkerboard Loop',
+        lat: 0,
+        lng: 0,
+      })
     ).toBe('Purina Farms, 200 Checkerboard Loop');
   });
 

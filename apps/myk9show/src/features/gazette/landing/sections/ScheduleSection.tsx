@@ -28,7 +28,11 @@ export function ScheduleSection({ schedule, volumeRoman }: ScheduleSectionProps)
         page={5}
         volume={volumeRoman}
         kicker="Show hours · Each day"
-        title={<>The day, <em>hour by hour</em></>}
+        title={
+          <>
+            The day, <em>hour by hour</em>
+          </>
+        }
       />
       <div
         className="mx-auto max-w-[760px]"

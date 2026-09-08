@@ -3,7 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { AdminDeleteUserDialog } from './AdminDeleteUserDialog';
 
 // Control the owns-dogs guard query directly; default = owns nothing.
-const mockOwnedDogs = vi.fn(() => ({ data: [] as { id: string; name: string }[], isLoading: false }));
+const mockOwnedDogs = vi.fn(() => ({
+  data: [] as { id: string; name: string }[],
+  isLoading: false,
+}));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useOwnedLiveDogsByPersonQuery: (...args: unknown[]) => mockOwnedDogs(...(args as [])),
 }));

@@ -79,7 +79,7 @@ export class SecureStorage {
         name: 'PBKDF2',
         salt: new TextEncoder().encode('myK9Show-salt-v1'),
         iterations: 100000,
-        hash: 'SHA-256'
+        hash: 'SHA-256',
       },
       keyMaterial,
       { name: 'AES-GCM', length: 256 },
@@ -96,11 +96,7 @@ export class SecureStorage {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const encodedText = new TextEncoder().encode(plaintext);
 
-    const ciphertext = await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv },
-      key,
-      encodedText
-    );
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encodedText);
 
     return {
       data: Array.from(new Uint8Array(ciphertext))
@@ -110,7 +106,7 @@ export class SecureStorage {
         .map(b => b.toString(16).padStart(2, '0'))
         .join(''),
       timestamp: Date.now(),
-      version: 1
+      version: 1,
     };
   }
 
@@ -119,20 +115,14 @@ export class SecureStorage {
    */
   private async decrypt(encryptedData: EncryptedData): Promise<string> {
     const key = await this.getEncryptionKey();
-    
-    const iv = new Uint8Array(
-      encryptedData.iv.match(/.{2}/g)!.map(byte => parseInt(byte, 16))
-    );
-    
+
+    const iv = new Uint8Array(encryptedData.iv.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
+
     const ciphertext = new Uint8Array(
       encryptedData.data.match(/.{2}/g)!.map(byte => parseInt(byte, 16))
     );
 
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      key,
-      ciphertext
-    );
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
 
     return new TextDecoder().decode(decrypted);
   }
@@ -150,7 +140,7 @@ export class SecureStorage {
       }
 
       const encrypted = await this.encrypt(value);
-      
+
       // Add TTL if specified
       if (options.ttl) {
         encrypted.timestamp = Date.now() + options.ttl;
@@ -158,7 +148,6 @@ export class SecureStorage {
 
       const storage = options.useSessionStorage ? sessionStorage : localStorage;
       storage.setItem(key, JSON.stringify(encrypted));
-      
     } catch (error) {
       logger.error(`SecureStorage: Failed to encrypt ${key}:`, 'utils', {}, error as Error);
       // Fallback to regular storage
@@ -174,7 +163,7 @@ export class SecureStorage {
     try {
       const storage = options.useSessionStorage ? sessionStorage : localStorage;
       const stored = storage.getItem(key);
-      
+
       if (!stored) {
         return null;
       }
@@ -203,7 +192,6 @@ export class SecureStorage {
       }
 
       return await this.decrypt(encryptedData);
-      
     } catch (error) {
       logger.error(`SecureStorage: Failed to decrypt ${key}:`, 'utils', {}, error as Error);
       return null;
@@ -224,14 +212,14 @@ export class SecureStorage {
   clear(): void {
     // Only clear items that look like they might be ours
     const keysToRemove: string[] = [];
-    
+
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && (key.startsWith('myk9show-') || key.startsWith('_sec_'))) {
         keysToRemove.push(key);
       }
     }
-    
+
     keysToRemove.forEach(key => localStorage.removeItem(key));
   }
 }
@@ -274,18 +262,18 @@ export async function migrateToSecureStorage(keys: string[]): Promise<void> {
  */
 export function createSecureStorageAdapter(options: StorageOptions = {}) {
   const storage = secureStorage;
-  
+
   return {
     getItem: async (name: string): Promise<string | null> => {
       return storage.getItem(name, options);
     },
-    
+
     setItem: async (name: string, value: string): Promise<void> => {
       return storage.setItem(name, value, options);
     },
-    
+
     removeItem: (name: string): void => {
       storage.removeItem(name, options);
-    }
+    },
   };
 }

@@ -1,18 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://eergfbehjghvfqvzkhsu.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlcmdmYmVoamdodmZxdnpraHN1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTUwNTM1NiwiZXhwIjoyMDYxMDgxMzU2fQ.v-3F6uxGBhQTIgV1OgFR8LpGkGfPZ7JqIm9wxhEMkEM';
+const supabaseServiceKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlcmdmYmVoamdodmZxdnpraHN1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTUwNTM1NiwiZXhwIjoyMDYxMDgxMzU2fQ.v-3F6uxGBhQTIgV1OgFR8LpGkGfPZ7JqIm9wxhEMkEM';
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Test the function exists
 async function testFunction() {
   console.log('🧪 Testing get_user_permissions function...');
-  
+
   const { data, error } = await supabase.rpc('get_user_permissions', {
-    p_user_id: '49bb6813-99c1-4f5a-a9fb-b596601a7353'
+    p_user_id: '49bb6813-99c1-4f5a-a9fb-b596601a7353',
   });
-  
+
   if (error) {
     console.error('❌ Function test failed:', error);
     return false;
@@ -25,7 +26,7 @@ async function testFunction() {
 // Create function using SQL execution
 async function createRBACFunction() {
   console.log('🔧 Creating get_user_permissions function...');
-  
+
   // Let's create the function using a direct SQL approach
   const sql = `
     CREATE OR REPLACE FUNCTION public.get_user_permissions(p_user_id UUID)
@@ -47,12 +48,12 @@ async function createRBACFunction() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-        'apikey': supabaseServiceKey
+        Authorization: `Bearer ${supabaseServiceKey}`,
+        apikey: supabaseServiceKey,
       },
-      body: JSON.stringify({ query: sql })
+      body: JSON.stringify({ query: sql }),
     });
-    
+
     if (response.ok) {
       console.log('✅ Function created successfully via SQL API');
       return true;
@@ -62,20 +63,20 @@ async function createRBACFunction() {
   } catch (err) {
     console.error('❌ Error creating function via SQL API:', err);
   }
-  
+
   return false;
 }
 
 async function main() {
   console.log('🚀 RBAC Function Fix Script');
-  
+
   // First test if function exists
   const functionExists = await testFunction();
-  
+
   if (!functionExists) {
     console.log('📝 Function missing, attempting to create...');
     const created = await createRBACFunction();
-    
+
     if (created) {
       // Test again
       await testFunction();

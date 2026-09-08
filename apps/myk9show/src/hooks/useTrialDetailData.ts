@@ -44,9 +44,7 @@ export function useTrialDetailData(trialId: string | undefined): TrialDetailData
   } = useTrialQuery(storeTrial ? undefined : trialId);
   const currentTrial = (storeTrial ?? fallbackTrial ?? undefined) as TrialWithClasses | undefined;
 
-  const storeShow = currentTrial
-    ? shows.find(show => show.id === currentTrial.showId)
-    : undefined;
+  const storeShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
   // Same cold-store gap for the parent show — getShowById is already anon-safe.
   const { data: fallbackShow } = useShowQuery(
     !storeShow && currentTrial?.showId ? currentTrial.showId : ''

@@ -8,8 +8,18 @@ export function OwnerHandlerSection({ owner, flag }: { owner: EntryBlankOwner; f
       <SectionHeader number="03" title="Owner & handler" flag={flag} />
 
       <View style={{ flexDirection: 'row' }}>
-        <Field label="Owner's name (as on registration)" value={owner.ownerName} width="50%" flag={flag} />
-        <Field label="Handler at this trial (if not owner)" value={owner.handlerName} width="50%" flag={flag} />
+        <Field
+          label="Owner's name (as on registration)"
+          value={owner.ownerName}
+          width="50%"
+          flag={flag}
+        />
+        <Field
+          label="Handler at this trial (if not owner)"
+          value={owner.handlerName}
+          width="50%"
+          flag={flag}
+        />
       </View>
 
       <Field label="Mailing address" value={owner.mailingAddress} width="100%" flag={flag} />

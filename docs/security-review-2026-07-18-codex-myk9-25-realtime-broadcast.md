@@ -5,12 +5,12 @@
 
 ## Summary
 
-| Severity | Count |
-|----------|------:|
-| CRITICAL | 0 |
-| HIGH | 0 |
-| MEDIUM | 0 |
-| LOW | 0 |
+| Severity  | Count |
+| --------- | ----: |
+| CRITICAL  |     0 |
+| HIGH      |     0 |
+| MEDIUM    |     0 |
+| LOW       |     0 |
 | **Total** | **0** |
 
 Auto-fixable: 0 of 0 findings.
@@ -34,15 +34,15 @@ source-table write.
 
 ## Categories Checked
 
-| Category | Files Examined | Findings | Skipped |
-|----------|---------------:|---------:|---------|
-| RLS Policy Integrity | 1 migration | 0 | — |
-| Edge Function Auth | 0 | 0 | No edge-function changes |
-| RBAC & Privilege Escalation | 1 migration | 0 | — |
-| Client Auth Patterns | 0 | 0 | No auth or route changes |
-| Data Exposure | 9 production TypeScript files, 1 migration | 0 | — |
-| Payment Security | 0 | 0 | No payment changes |
-| Input Validation | 9 production TypeScript files | 0 | — |
+| Category                    |                             Files Examined | Findings | Skipped                  |
+| --------------------------- | -----------------------------------------: | -------: | ------------------------ |
+| RLS Policy Integrity        |                                1 migration |        0 | —                        |
+| Edge Function Auth          |                                          0 |        0 | No edge-function changes |
+| RBAC & Privilege Escalation |                                1 migration |        0 | —                        |
+| Client Auth Patterns        |                                          0 |        0 | No auth or route changes |
+| Data Exposure               | 9 production TypeScript files, 1 migration |        0 | —                        |
+| Payment Security            |                                          0 |        0 | No payment changes       |
+| Input Validation            |              9 production TypeScript files |        0 | —                        |
 
 Immediate dependencies inspected included the centralized Supabase client,
 notification snapshot query path, replication sync nudge, React Query

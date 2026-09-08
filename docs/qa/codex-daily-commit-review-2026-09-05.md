@@ -25,14 +25,14 @@ No application code changed.
 
 ## Counts
 
-| Lifecycle status | Count | Meaning |
-| --- | ---: | --- |
-| New | 0 | No new underlying finding identity; reused existing QA/Linear IDs |
-| Unchanged | 4 | MYK9-381, MYK9-405, MYK9-358, MYK9-406; residual evidence reconfirmed |
-| Resolved | 2 | MYK9-348 and NCR-2026-09-04-01, with focused proof |
-| Duplicate | 0 | Candidates reconciled before filing; no duplicate records created |
-| Rejected | 0 | No additional candidate promoted to a finding |
-| Blocked | 3 | MYK9-294, MYK9-356, MYK9-289 await specific closure proof |
+| Lifecycle status | Count | Meaning                                                               |
+| ---------------- | ----: | --------------------------------------------------------------------- |
+| New              |     0 | No new underlying finding identity; reused existing QA/Linear IDs     |
+| Unchanged        |     4 | MYK9-381, MYK9-405, MYK9-358, MYK9-406; residual evidence reconfirmed |
+| Resolved         |     2 | MYK9-348 and NCR-2026-09-04-01, with focused proof                    |
+| Duplicate        |     0 | Candidates reconciled before filing; no duplicate records created     |
+| Rejected         |     0 | No additional candidate promoted to a finding                         |
+| Blocked          |     3 | MYK9-294, MYK9-356, MYK9-289 await specific closure proof             |
 
 **Linear writes:** created **MYK9-405** and **MYK9-406** from still-actionable unfiled failover
 findings; updated **MYK9-381, MYK9-358, MYK9-356, MYK9-294, MYK9-289**. The first four updated
@@ -207,39 +207,39 @@ The separate current security audit already tracks its findings in MYK9-398–40
 All commits below were reviewed; the documentation stamp/report commit produced by this run will
 naturally be a descendant for the next reviewer.
 
-| SHA | Subject |
-| --- | --- |
-| dc9c899da | docs(qa): claude daily commit review 2026-09-04 |
-| 6d7a2db9a | fix(core): restore packages/core coverage above threshold, unblocking main (#2015) |
-| f7876cd6a | ci: enforce package coverage thresholds on pull requests (#2017) |
-| 68a0bd813 | fix(qa): reset the route-health request tracker between routes (#2018) |
-| ad060903c | fix(payments): recover historical payment provenance (#2019) |
-| a5d8af4cf | fix(quality): close residual Linear findings (#2016) |
-| 791abef73 | ci(deploy): gate staging promotion on CI's jobs, not its rollup conclusion (#2020) |
-| 80465c3a4 | docs(qa): retract the staging-promotion impact claim from the 2026-09-04 review |
-| 1265654fb | docs(qa): record the Nightly Health harness defect as NCR-2026-09-04-04 |
-| cc410fe8c | docs(qa): queue the unfiled Linear corrections instead of losing them |
-| caddbd636 | fix(auth): reconcile app permission vocabulary (#2021) |
-| c7cf4fc6a | docs(qa): bug audit scope walk — components (non-show-ops), week 36 third pass |
-| 42e52143a | docs(qa): apply the queued Linear writes — MYK9-373..377 filed, MYK9-289 reopened |
-| afd642a37 | chore(show): remove orphaned dead components (#2024) |
-| 2213504bf | fix(judges): preserve qualification calendar dates (#2023) |
-| b86fd6a88 | fix(admin): remove fabricated sync monitoring dashboard (#2022) |
-| d4f841f01 | fix(secretary): enable class override tabs (#2026) |
-| 44c6c153d | fix(admin): resolve component audit findings (#2025) |
-| 1d3d21a94 | docs(audits): exhibitor task walk 2026-09-04 |
-| 98f4ce668 | fix(ringside): give exhibitors an upcoming-show path and volunteers a passcode path (#2028) |
-| c98ad84d3 | fix(titles): seed the AKC Scent Work prerequisite chain (MYK9-378) (#2027) |
-| cb4b06fac | fix(shows): accept deterministic UUID-shaped ids (#2029) |
-| 6d7dc9057 | fix(exhibitor): clarify pulled check-in status (#2030) |
-| 94c99a358 | fix(exhibitor): show released results and judges (#2031) |
-| 257b0e321 | fix(payments): remove past-show entry cart actions (#2033) |
-| 36ba17858 | fix(seed): make one load club payable so the exhibitor walk can reach checkout (#2032) |
-| 2e7116609 | docs(audits): complete the exhibitor payment walk (task 3) |
+| SHA       | Subject                                                                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| dc9c899da | docs(qa): claude daily commit review 2026-09-04                                                                          |
+| 6d7a2db9a | fix(core): restore packages/core coverage above threshold, unblocking main (#2015)                                       |
+| f7876cd6a | ci: enforce package coverage thresholds on pull requests (#2017)                                                         |
+| 68a0bd813 | fix(qa): reset the route-health request tracker between routes (#2018)                                                   |
+| ad060903c | fix(payments): recover historical payment provenance (#2019)                                                             |
+| a5d8af4cf | fix(quality): close residual Linear findings (#2016)                                                                     |
+| 791abef73 | ci(deploy): gate staging promotion on CI's jobs, not its rollup conclusion (#2020)                                       |
+| 80465c3a4 | docs(qa): retract the staging-promotion impact claim from the 2026-09-04 review                                          |
+| 1265654fb | docs(qa): record the Nightly Health harness defect as NCR-2026-09-04-04                                                  |
+| cc410fe8c | docs(qa): queue the unfiled Linear corrections instead of losing them                                                    |
+| caddbd636 | fix(auth): reconcile app permission vocabulary (#2021)                                                                   |
+| c7cf4fc6a | docs(qa): bug audit scope walk — components (non-show-ops), week 36 third pass                                           |
+| 42e52143a | docs(qa): apply the queued Linear writes — MYK9-373..377 filed, MYK9-289 reopened                                        |
+| afd642a37 | chore(show): remove orphaned dead components (#2024)                                                                     |
+| 2213504bf | fix(judges): preserve qualification calendar dates (#2023)                                                               |
+| b86fd6a88 | fix(admin): remove fabricated sync monitoring dashboard (#2022)                                                          |
+| d4f841f01 | fix(secretary): enable class override tabs (#2026)                                                                       |
+| 44c6c153d | fix(admin): resolve component audit findings (#2025)                                                                     |
+| 1d3d21a94 | docs(audits): exhibitor task walk 2026-09-04                                                                             |
+| 98f4ce668 | fix(ringside): give exhibitors an upcoming-show path and volunteers a passcode path (#2028)                              |
+| c98ad84d3 | fix(titles): seed the AKC Scent Work prerequisite chain (MYK9-378) (#2027)                                               |
+| cb4b06fac | fix(shows): accept deterministic UUID-shaped ids (#2029)                                                                 |
+| 6d7dc9057 | fix(exhibitor): clarify pulled check-in status (#2030)                                                                   |
+| 94c99a358 | fix(exhibitor): show released results and judges (#2031)                                                                 |
+| 257b0e321 | fix(payments): remove past-show entry cart actions (#2033)                                                               |
+| 36ba17858 | fix(seed): make one load club payable so the exhibitor walk can reach checkout (#2032)                                   |
+| 2e7116609 | docs(audits): complete the exhibitor payment walk (task 3)                                                               |
 | 27856c4a5 | fix(exhibitor): three exhibitor-surface defects — calendar dates, dog-card copy, entry counts (MYK9-384/385/387) (#2037) |
-| 696235319 | fix(checkout): send Stripe the literal session-id token (MYK9-294) (#2036) |
-| e8a410f6e | fix(dates): sweep the date-fns calendar-date family (MYK9-384 follow-up) (#2039) |
-| a25d99671 | docs(security): full-surface security audit 2026-09-05 |
+| 696235319 | fix(checkout): send Stripe the literal session-id token (MYK9-294) (#2036)                                               |
+| e8a410f6e | fix(dates): sweep the date-fns calendar-date family (MYK9-384 follow-up) (#2039)                                         |
+| a25d99671 | docs(security): full-surface security audit 2026-09-05                                                                   |
 
 ## MYK9-294 closure addendum — 2026-09-05 13:00 UTC
 

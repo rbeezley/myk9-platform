@@ -5,9 +5,9 @@ import type { RingRole } from '@/types/volunteer';
 
 const ROLE_COLUMNS: { key: RingRole; label: string }[] = [
   { key: 'Table Steward', label: 'Table Steward' },
-  { key: 'Timer',         label: 'Timer Steward' },
-  { key: 'Gate Steward',  label: 'Gate Steward'  },
-  { key: 'Ring Steward',  label: 'Ring Steward'  },
+  { key: 'Timer', label: 'Timer Steward' },
+  { key: 'Gate Steward', label: 'Gate Steward' },
+  { key: 'Ring Steward', label: 'Ring Steward' },
 ];
 
 export const StewardReport: React.FC<ReportProps> = ({

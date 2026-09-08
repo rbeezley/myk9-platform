@@ -12,9 +12,7 @@ describe('buildFinishPaymentHref', () => {
   });
 
   it('url-encodes ids that contain reserved characters', () => {
-    expect(buildFinishPaymentHref('show 1', ['a/b'])).toBe(
-      '/cart?showId=show+1&entryIds=a%2Fb'
-    );
+    expect(buildFinishPaymentHref('show 1', ['a/b'])).toBe('/cart?showId=show+1&entryIds=a%2Fb');
   });
 
   it('emits an empty entryIds param when given no entries', () => {

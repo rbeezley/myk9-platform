@@ -36,7 +36,10 @@ describe('useEntriesByShowQuery anon/auth routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetEntriesByShow.mockResolvedValue({ data: [{ id: 'authed' }], error: null } as never);
-    mockGetPublicEntriesByShow.mockResolvedValue({ data: [{ id: 'public' }], error: null } as never);
+    mockGetPublicEntriesByShow.mockResolvedValue({
+      data: [{ id: 'public' }],
+      error: null,
+    } as never);
   });
 
   it('routes anonymous visitors through the cascade-gated public view', async () => {

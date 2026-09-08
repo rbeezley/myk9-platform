@@ -256,11 +256,11 @@ function SupplyRow({ row, onToggle, onEditNote, onDelete }: SupplyRowProps) {
         aria-label={`Include ${row.item_label}`}
       />
 
-      <span className={`flex-1 text-sm ${row.included ? '' : 'text-muted-foreground line-through'}`}>
+      <span
+        className={`flex-1 text-sm ${row.included ? '' : 'text-muted-foreground line-through'}`}
+      >
         {row.item_label}
-        {row.is_custom && (
-          <span className="ml-2 text-xs text-muted-foreground">(custom)</span>
-        )}
+        {row.is_custom && <span className="ml-2 text-xs text-muted-foreground">(custom)</span>}
       </span>
 
       <Input

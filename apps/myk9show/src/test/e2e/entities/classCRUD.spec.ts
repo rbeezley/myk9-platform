@@ -26,7 +26,7 @@ test.describe('Class CRUD Operations', () => {
       return {
         success: true,
         count: data?.length || 0,
-        classes: data?.slice(0, 5).map(c => ({ id: c.id, name: c.name })) || []
+        classes: data?.slice(0, 5).map(c => ({ id: c.id, name: c.name })) || [],
       };
     });
 
@@ -58,7 +58,7 @@ test.describe('Class CRUD Operations', () => {
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft'
+        status: 'draft',
       };
 
       const { data: createdShow, error: showError } = await createShow(showData);
@@ -72,7 +72,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Test Trial for Class ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'upcoming'
+        status: 'upcoming',
       };
 
       const { data: createdTrial, error: trialError } = await createTrial(trialData);
@@ -86,7 +86,7 @@ test.describe('Class CRUD Operations', () => {
         trial_id: createdTrial.id,
         name: `E2E Test Class ${Date.now()}`,
         level: 'Novice',
-        status: 'upcoming'
+        status: 'upcoming',
       };
 
       const { data: createdClass, error: classError } = await createClass(classData);
@@ -106,7 +106,7 @@ test.describe('Class CRUD Operations', () => {
         success: true,
         classId: createdClass?.id,
         className: createdClass?.name,
-        trialId: createdTrial.id
+        trialId: createdTrial.id,
       };
     });
 
@@ -125,7 +125,8 @@ test.describe('Class CRUD Operations', () => {
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
-      const { createClass, updateClass, deleteClass } = await import('/src/services/database/classes/index.ts');
+      const { createClass, updateClass, deleteClass } =
+        await import('/src/services/database/classes/index.ts');
 
       // Create show
       const showStartDate = new Date();
@@ -138,7 +139,7 @@ test.describe('Class CRUD Operations', () => {
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft'
+        status: 'draft',
       });
 
       if (showError || !createdShow) {
@@ -151,7 +152,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Update Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'upcoming'
+        status: 'upcoming',
       });
 
       if (trialError || !createdTrial) {
@@ -164,7 +165,7 @@ test.describe('Class CRUD Operations', () => {
         trial_id: createdTrial.id,
         name: `Update Test Class ${Date.now()}`,
         level: 'Novice',
-        status: 'upcoming'
+        status: 'upcoming',
       });
 
       if (classError || !createdClass) {
@@ -176,7 +177,7 @@ test.describe('Class CRUD Operations', () => {
       // Update the class
       const { data: updatedClass, error: updateError } = await updateClass(createdClass.id, {
         level: 'Open',
-        description: 'Updated description'
+        description: 'Updated description',
       });
 
       // Clean up
@@ -192,7 +193,7 @@ test.describe('Class CRUD Operations', () => {
         success: true,
         originalLevel: 'Novice',
         updatedLevel: updatedClass?.level,
-        levelMatches: updatedClass?.level === 'Open'
+        levelMatches: updatedClass?.level === 'Open',
       };
     });
 
@@ -210,7 +211,8 @@ test.describe('Class CRUD Operations', () => {
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
-      const { createClass, deleteClass, getClassById } = await import('/src/services/database/classes/index.ts');
+      const { createClass, deleteClass, getClassById } =
+        await import('/src/services/database/classes/index.ts');
 
       // Create show
       const showStartDate = new Date();
@@ -223,7 +225,7 @@ test.describe('Class CRUD Operations', () => {
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft'
+        status: 'draft',
       });
 
       if (showError || !createdShow) {
@@ -236,7 +238,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Delete Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'upcoming'
+        status: 'upcoming',
       });
 
       if (trialError || !createdTrial) {
@@ -249,7 +251,7 @@ test.describe('Class CRUD Operations', () => {
         trial_id: createdTrial.id,
         name: `Delete Test Class ${Date.now()}`,
         level: 'Novice',
-        status: 'upcoming'
+        status: 'upcoming',
       });
 
       if (classError || !createdClass) {
@@ -272,7 +274,7 @@ test.describe('Class CRUD Operations', () => {
         success: !deleteError,
         classId: createdClass.id,
         classDeleted: !checkClass,
-        error: deleteError?.message
+        error: deleteError?.message,
       };
     });
 
@@ -290,7 +292,8 @@ test.describe('Class CRUD Operations', () => {
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
-      const { createClass, deleteClass, getClassesByTrialId } = await import('/src/services/database/classes/index.ts');
+      const { createClass, deleteClass, getClassesByTrialId } =
+        await import('/src/services/database/classes/index.ts');
 
       // Create show
       const showStartDate = new Date();
@@ -303,7 +306,7 @@ test.describe('Class CRUD Operations', () => {
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
         end_date: showEndDate.toISOString().split('T')[0],
-        status: 'draft'
+        status: 'draft',
       });
 
       if (showError || !createdShow) {
@@ -316,7 +319,7 @@ test.describe('Class CRUD Operations', () => {
         name: `Classes By Trial Test Trial ${Date.now()}`,
         date: showStartDate.toISOString().split('T')[0],
         trial_number: 'T1',
-        status: 'upcoming'
+        status: 'upcoming',
       });
 
       if (trialError || !createdTrial) {
@@ -325,8 +328,18 @@ test.describe('Class CRUD Operations', () => {
       }
 
       // Create two classes for this trial
-      const class1Data = { trial_id: createdTrial.id, name: 'Class A', level: 'Novice', status: 'upcoming' };
-      const class2Data = { trial_id: createdTrial.id, name: 'Class B', level: 'Open', status: 'upcoming' };
+      const class1Data = {
+        trial_id: createdTrial.id,
+        name: 'Class A',
+        level: 'Novice',
+        status: 'upcoming',
+      };
+      const class2Data = {
+        trial_id: createdTrial.id,
+        name: 'Class B',
+        level: 'Open',
+        status: 'upcoming',
+      };
 
       const { data: class1 } = await createClass(class1Data);
       const { data: class2 } = await createClass(class2Data);
@@ -348,7 +361,7 @@ test.describe('Class CRUD Operations', () => {
         success: true,
         trialId: createdTrial.id,
         classesCount: classes?.length || 0,
-        foundClasses: classes?.map(c => c.name) || []
+        foundClasses: classes?.map(c => c.name) || [],
       };
     });
 

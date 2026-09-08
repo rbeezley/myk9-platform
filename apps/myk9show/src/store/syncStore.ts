@@ -51,25 +51,25 @@ export interface SyncState {
   failedOperations: SyncOperation[];
   operations: SyncOperation[];
   syncStats: SyncStats;
-  
+
   // Network status
   isOnline: boolean;
   networkQuality: 'good' | 'poor' | 'offline';
-  
+
   // Sync status
   isSyncing: boolean;
   lastSyncAt: Date | null;
-  
+
   // Conflicts
   conflicts: SyncConflict[];
-  
+
   // Settings
   syncSettings: SyncSettings;
   updateSyncSettings: (settings: Partial<SyncSettings>) => void;
   pauseAllSync: () => void;
   resumeAllSync: () => void;
   forceFullSync: () => void;
-  
+
   // Actions
   addOperation: (operation: SyncOperation) => void;
   removeOperation: (id: string) => void;
@@ -102,7 +102,7 @@ export const useSyncStore = create<SyncState>()(
         successTrend: 0,
         conflicts: 0,
         conflictTrend: 0,
-        lastSync: null
+        lastSync: null,
       },
       isOnline: true,
       networkQuality: 'good',
@@ -113,79 +113,93 @@ export const useSyncStore = create<SyncState>()(
         autoSync: true,
         syncInterval: 30000,
         batchSize: 10,
-        retryAttempts: 3
+        retryAttempts: 3,
       },
-      
+
       // Actions
-      addOperation: (operation) => set((state) => ({
-        syncOperations: [...state.syncOperations, operation],
-        pendingOperations: [...state.pendingOperations, operation]
-      })),
-      
-      removeOperation: (id) => set((state) => ({
-        syncOperations: state.syncOperations.filter(op => op.id !== id),
-        pendingOperations: state.pendingOperations.filter(op => op.id !== id),
-        failedOperations: state.failedOperations.filter(op => op.id !== id)
-      })),
-      
-      updateOperationStatus: (id, status) => set((state) => ({
-        syncOperations: state.syncOperations.map(op => 
-          op.id === id ? { ...op, status } : op
-        ),
-        pendingOperations: status === 'pending' 
-          ? state.pendingOperations 
-          : state.pendingOperations.filter(op => op.id !== id),
-        failedOperations: status === 'failed'
-          ? [...state.failedOperations.filter(op => op.id !== id), 
-             state.syncOperations.find(op => op.id === id)].filter((op): op is SyncOperation => op !== undefined)
-          : state.failedOperations.filter(op => op.id !== id)
-      })),
-      
-      clearOperations: () => set({
-        syncOperations: [],
-        pendingOperations: [],
-        failedOperations: []
-      }),
-      
-      setNetworkStatus: (online, quality = 'good') => set({
-        isOnline: online,
-        networkQuality: online ? (quality as 'good' | 'poor') : 'offline'
-      }),
-      
-      setSyncStatus: (syncing) => set({
-        isSyncing: syncing,
-        lastSyncAt: syncing ? get().lastSyncAt : new Date()
-      }),
-      
-      addConflict: (conflict) => set((state) => ({
-        conflicts: [...state.conflicts, conflict]
-      })),
-      
-      removeConflict: (id) => set((state) => ({
-        conflicts: state.conflicts.filter(c => c.id !== id)
-      })),
-      
-      updateSyncSettings: (settings) => set({
-        syncSettings: { ...get().syncSettings, ...settings }
-      }),
-      
-      pauseAllSync: () => set({
-        isSyncing: false
-      }),
-      
-      resumeAllSync: () => set({
-        isSyncing: true
-      }),
-      
-      forceFullSync: () => set({
-        isSyncing: true,
-        lastSyncAt: new Date()
-      })
+      addOperation: operation =>
+        set(state => ({
+          syncOperations: [...state.syncOperations, operation],
+          pendingOperations: [...state.pendingOperations, operation],
+        })),
+
+      removeOperation: id =>
+        set(state => ({
+          syncOperations: state.syncOperations.filter(op => op.id !== id),
+          pendingOperations: state.pendingOperations.filter(op => op.id !== id),
+          failedOperations: state.failedOperations.filter(op => op.id !== id),
+        })),
+
+      updateOperationStatus: (id, status) =>
+        set(state => ({
+          syncOperations: state.syncOperations.map(op => (op.id === id ? { ...op, status } : op)),
+          pendingOperations:
+            status === 'pending'
+              ? state.pendingOperations
+              : state.pendingOperations.filter(op => op.id !== id),
+          failedOperations:
+            status === 'failed'
+              ? [
+                  ...state.failedOperations.filter(op => op.id !== id),
+                  state.syncOperations.find(op => op.id === id),
+                ].filter((op): op is SyncOperation => op !== undefined)
+              : state.failedOperations.filter(op => op.id !== id),
+        })),
+
+      clearOperations: () =>
+        set({
+          syncOperations: [],
+          pendingOperations: [],
+          failedOperations: [],
+        }),
+
+      setNetworkStatus: (online, quality = 'good') =>
+        set({
+          isOnline: online,
+          networkQuality: online ? (quality as 'good' | 'poor') : 'offline',
+        }),
+
+      setSyncStatus: syncing =>
+        set({
+          isSyncing: syncing,
+          lastSyncAt: syncing ? get().lastSyncAt : new Date(),
+        }),
+
+      addConflict: conflict =>
+        set(state => ({
+          conflicts: [...state.conflicts, conflict],
+        })),
+
+      removeConflict: id =>
+        set(state => ({
+          conflicts: state.conflicts.filter(c => c.id !== id),
+        })),
+
+      updateSyncSettings: settings =>
+        set({
+          syncSettings: { ...get().syncSettings, ...settings },
+        }),
+
+      pauseAllSync: () =>
+        set({
+          isSyncing: false,
+        }),
+
+      resumeAllSync: () =>
+        set({
+          isSyncing: true,
+        }),
+
+      forceFullSync: () =>
+        set({
+          isSyncing: true,
+          lastSyncAt: new Date(),
+        }),
     }),
     {
       name: 'myk9show-sync-storage',
       storage: createJSONStorage(() => getOptimalStorage('sync')),
-      version: 1
+      version: 1,
     }
   )
 );

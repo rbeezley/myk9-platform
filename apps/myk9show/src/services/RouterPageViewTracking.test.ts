@@ -1,12 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import {
-  createMemoryRouter,
-  RouterProvider,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
+import { createMemoryRouter, RouterProvider, useLocation, useNavigate } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { setupRouterPageViewTracking } from './RouterPageViewTracking';
 
@@ -89,10 +84,6 @@ function NavigationFixture() {
     'main',
     null,
     React.createElement('h1', null, location.pathname),
-    React.createElement(
-      'button',
-      { onClick: () => void navigate('/details') },
-      'Open details'
-    )
+    React.createElement('button', { onClick: () => void navigate('/details') }, 'Open details')
   );
 }

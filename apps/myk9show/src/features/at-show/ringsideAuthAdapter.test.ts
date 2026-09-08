@@ -68,7 +68,11 @@ describe('buildRingsideAuth', () => {
 
   // Phase 1c — passcode grant precedence over the account RBAC mapping.
   it('grantRole overrides the account RBAC role (exhibitor account + judge passcode → judge)', () => {
-    const auth = buildRingsideAuth({ showRole: ShowRole.EXHIBITOR, showContext, grantRole: 'judge' });
+    const auth = buildRingsideAuth({
+      showRole: ShowRole.EXHIBITOR,
+      showContext,
+      grantRole: 'judge',
+    });
     expect(auth.role).toBe('judge');
     expect(auth.canAccess('canScore')).toBe(true);
   });

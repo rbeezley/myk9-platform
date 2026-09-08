@@ -76,8 +76,11 @@ export const useNetworkStatus = (): NetworkStatus => {
     }
 
     const navWithConnection = navigator as NavigatorWithConnection;
-    const connection = navWithConnection.connection || navWithConnection.mozConnection || navWithConnection.webkitConnection;
-    
+    const connection =
+      navWithConnection.connection ||
+      navWithConnection.mozConnection ||
+      navWithConnection.webkitConnection;
+
     return {
       isOnline: navigator.onLine,
       connectionType: (connection?.type as NetworkStatus['connectionType']) || 'unknown',
@@ -92,7 +95,10 @@ export const useNetworkStatus = (): NetworkStatus => {
 
     const updateNetworkStatus = () => {
       const navWithConnection = navigator as NavigatorWithConnection;
-      const connection = navWithConnection.connection || navWithConnection.mozConnection || navWithConnection.webkitConnection;
+      const connection =
+        navWithConnection.connection ||
+        navWithConnection.mozConnection ||
+        navWithConnection.webkitConnection;
       const isOnline = navigator.onLine;
 
       setNetworkStatus(prev => {
@@ -122,7 +128,10 @@ export const useNetworkStatus = (): NetworkStatus => {
 
     // Listen for connection quality changes
     const navWithConnection = navigator as NavigatorWithConnection;
-    const connection = navWithConnection.connection || navWithConnection.mozConnection || navWithConnection.webkitConnection;
+    const connection =
+      navWithConnection.connection ||
+      navWithConnection.mozConnection ||
+      navWithConnection.webkitConnection;
     if (connection) {
       connection.addEventListener?.('change', handleConnectionChange);
     }
@@ -215,7 +224,11 @@ export class OfflineStorageManager {
   }
 
   // Get operations by priority
-  getOperationsByPriority(): { high: OfflineOperation[]; medium: OfflineOperation[]; low: OfflineOperation[] } {
+  getOperationsByPriority(): {
+    high: OfflineOperation[];
+    medium: OfflineOperation[];
+    low: OfflineOperation[];
+  } {
     const operations = this.getOperations();
     return {
       high: operations.filter(op => op.priority === 'high'),
@@ -233,19 +246,25 @@ export class OfflineStorageManager {
   getStats() {
     const operations = this.getOperations();
     const failed = this.getFailedOperations();
-    
+
     return {
       total: operations.length,
       pending: operations.length - failed.length,
       failed: failed.length,
-      byType: operations.reduce((acc, op) => {
-        acc[op.type] = (acc[op.type] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-      byPriority: operations.reduce((acc, op) => {
-        acc[op.priority] = (acc[op.priority] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      byType: operations.reduce(
+        (acc, op) => {
+          acc[op.type] = (acc[op.type] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
+      byPriority: operations.reduce(
+        (acc, op) => {
+          acc[op.priority] = (acc[op.priority] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
     };
   }
 }
@@ -318,7 +337,11 @@ export class GracefulDegradationManager {
     }
   }
 
-  private updateDogCache(type: 'create' | 'update' | 'delete', data: unknown, entityId?: string): void {
+  private updateDogCache(
+    type: 'create' | 'update' | 'delete',
+    data: unknown,
+    entityId?: string
+  ): void {
     if (type === 'create') {
       const dataObj = data as Record<string, unknown>;
       const newDog = { ...dataObj, id: `temp_${Date.now()}` };
@@ -330,7 +353,7 @@ export class GracefulDegradationManager {
       const dataObj = data as Record<string, unknown>;
       this.queryClient.setQueryData(queryKeys.dogs, (old: Dog[] | undefined) => {
         if (!old) return old;
-        return old.map((dog: Dog) => dog.id === entityId ? { ...dog, ...dataObj } : dog);
+        return old.map((dog: Dog) => (dog.id === entityId ? { ...dog, ...dataObj } : dog));
       });
     } else if (type === 'delete' && entityId) {
       this.queryClient.setQueryData(queryKeys.dogs, (old: Dog[] | undefined) => {
@@ -341,7 +364,11 @@ export class GracefulDegradationManager {
     }
   }
 
-  private updateUserCache(type: 'create' | 'update' | 'delete', data: unknown, entityId?: string): void {
+  private updateUserCache(
+    type: 'create' | 'update' | 'delete',
+    data: unknown,
+    entityId?: string
+  ): void {
     if (type === 'create') {
       const dataObj = data as Record<string, unknown>;
       const newUser = { ...dataObj, id: `temp_${Date.now()}` };
@@ -353,7 +380,7 @@ export class GracefulDegradationManager {
       const dataObj = data as Record<string, unknown>;
       this.queryClient.setQueryData(queryKeys.users.all, (old: User[] | undefined) => {
         if (!old) return old;
-        return old.map((user: User) => user.id === entityId ? { ...user, ...dataObj } : user);
+        return old.map((user: User) => (user.id === entityId ? { ...user, ...dataObj } : user));
       });
     } else if (type === 'delete' && entityId) {
       this.queryClient.setQueryData(queryKeys.users.all, (old: User[] | undefined) => {
@@ -364,7 +391,11 @@ export class GracefulDegradationManager {
     }
   }
 
-  private updateShowCache(type: 'create' | 'update' | 'delete', data: unknown, entityId?: string): void {
+  private updateShowCache(
+    type: 'create' | 'update' | 'delete',
+    data: unknown,
+    entityId?: string
+  ): void {
     if (type === 'create') {
       const dataObj = data as Record<string, unknown>;
       const newShow = { ...dataObj, id: `temp_${Date.now()}` };
@@ -376,7 +407,7 @@ export class GracefulDegradationManager {
       const dataObj = data as Record<string, unknown>;
       this.queryClient.setQueryData(queryKeys.shows, (old: Show[] | undefined) => {
         if (!old) return old;
-        return old.map((show: Show) => show.id === entityId ? { ...show, ...dataObj } : show);
+        return old.map((show: Show) => (show.id === entityId ? { ...show, ...dataObj } : show));
       });
     } else if (type === 'delete' && entityId) {
       this.queryClient.setQueryData(queryKeys.shows, (old: Show[] | undefined) => {
@@ -387,7 +418,11 @@ export class GracefulDegradationManager {
     }
   }
 
-  private updateClubCache(type: 'create' | 'update' | 'delete', data: unknown, entityId?: string): void {
+  private updateClubCache(
+    type: 'create' | 'update' | 'delete',
+    data: unknown,
+    entityId?: string
+  ): void {
     if (type === 'create') {
       const dataObj = data as Record<string, unknown>;
       const newClub = { ...dataObj, id: `temp_${Date.now()}` };
@@ -399,7 +434,7 @@ export class GracefulDegradationManager {
       const dataObj = data as Record<string, unknown>;
       this.queryClient.setQueryData(queryKeys.clubs, (old: Club[] | undefined) => {
         if (!old) return old;
-        return old.map((club: Club) => club.id === entityId ? { ...club, ...dataObj } : club);
+        return old.map((club: Club) => (club.id === entityId ? { ...club, ...dataObj } : club));
       });
     } else if (type === 'delete' && entityId) {
       this.queryClient.setQueryData(queryKeys.clubs, (old: Club[] | undefined) => {
@@ -435,7 +470,12 @@ export class GracefulDegradationManager {
         this.offlineStorage.removeOperation(operation.id);
         synced++;
       } catch (error) {
-        logger.error('Failed to sync operation', 'offline', { operationId: operation.id }, error as Error);
+        logger.error(
+          'Failed to sync operation',
+          'offline',
+          { operationId: operation.id },
+          error as Error
+        );
         this.offlineStorage.incrementRetryCount(operation.id);
         failed++;
       }
@@ -449,7 +489,7 @@ export class GracefulDegradationManager {
     // This would call the actual API endpoints
     // For now, we'll simulate the sync
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // In production, this would make actual API calls:
     // switch (operation.type) {
     //   case 'create':
@@ -468,13 +508,14 @@ export class GracefulDegradationManager {
   getOfflineCapabilities() {
     const operations = this.offlineStorage.getOperations();
     const stats = this.offlineStorage.getStats();
-    
+
     return {
       isOfflineCapable: true,
       pendingOperations: stats.pending,
       failedOperations: stats.failed,
       totalOperations: stats.total,
-      lastSync: operations.length > 0 ? new Date(Math.max(...operations.map(op => op.timestamp))) : null,
+      lastSync:
+        operations.length > 0 ? new Date(Math.max(...operations.map(op => op.timestamp))) : null,
       storageUsage: JSON.stringify(operations).length,
       maxStorageSize: 5 * 1024 * 1024, // 5MB limit
     };
@@ -496,10 +537,11 @@ export const useOfflineFirst = () => {
   useEffect(() => {
     if (networkStatus.isOnline && networkStatus.lastConnected) {
       const timeSinceConnected = Date.now() - networkStatus.lastConnected.getTime();
-      
+
       // Only auto-sync if we just came back online (within last 5 seconds)
       if (timeSinceConnected < 5000) {
-        degradationManager.syncOfflineOperations()
+        degradationManager
+          .syncOfflineOperations()
           .then(({ synced, failed }) => {
             if (synced > 0) {
               logger.info('Successfully synced offline operations', 'offline', { synced });
@@ -515,34 +557,42 @@ export const useOfflineFirst = () => {
     }
   }, [networkStatus.isOnline, networkStatus.lastConnected, degradationManager]);
 
-  const performOperation = useCallback(async (
-    type: 'create' | 'update' | 'delete',
-    entityType: string,
-    data: unknown,
-    options: {
-      entityId?: string;
-      priority?: 'high' | 'medium' | 'low';
-      forceOffline?: boolean;
-    } = {}
-  ) => {
-    const { forceOffline = false } = options;
+  const performOperation = useCallback(
+    async (
+      type: 'create' | 'update' | 'delete',
+      entityType: string,
+      data: unknown,
+      options: {
+        entityId?: string;
+        priority?: 'high' | 'medium' | 'low';
+        forceOffline?: boolean;
+      } = {}
+    ) => {
+      const { forceOffline = false } = options;
 
-    // If offline or forced offline, handle gracefully
-    if (!networkStatus.isOnline || forceOffline) {
-      return degradationManager.handleOfflineOperation(type, entityType, data, options);
-    }
+      // If offline or forced offline, handle gracefully
+      if (!networkStatus.isOnline || forceOffline) {
+        return degradationManager.handleOfflineOperation(type, entityType, data, options);
+      }
 
-    // If online, attempt normal operation
-    try {
-      // This would be the actual API call in production
-      await new Promise(resolve => setTimeout(resolve, 100));
-      return { success: true };
-    } catch (error) {
-      // If online operation fails, fallback to offline
-      logger.warn('Online operation failed, falling back to offline mode', 'offline', {}, error as Error);
-      return degradationManager.handleOfflineOperation(type, entityType, data, options);
-    }
-  }, [networkStatus.isOnline, degradationManager]);
+      // If online, attempt normal operation
+      try {
+        // This would be the actual API call in production
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return { success: true };
+      } catch (error) {
+        // If online operation fails, fallback to offline
+        logger.warn(
+          'Online operation failed, falling back to offline mode',
+          'offline',
+          {},
+          error as Error
+        );
+        return degradationManager.handleOfflineOperation(type, entityType, data, options);
+      }
+    },
+    [networkStatus.isOnline, degradationManager]
+  );
 
   const manualSync = useCallback(async () => {
     if (!networkStatus.isOnline) {

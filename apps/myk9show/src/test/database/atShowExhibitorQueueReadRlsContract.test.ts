@@ -61,13 +61,23 @@ describe('at-show exhibitor queue read — RLS contract', () => {
     const canViewScores = sliceBetween(access, '(\n      flags.can_manage', ') AS can_view_scores');
     expect(canViewScores).not.toContain('is_show_exhibitor');
 
-    expect(view).toContain('CASE WHEN access.can_view_admin THEN e.payment_method END AS payment_method');
-    expect(view).toContain('CASE WHEN access.can_view_scores THEN e.judge_notes END AS judge_notes');
+    expect(view).toContain(
+      'CASE WHEN access.can_view_admin THEN e.payment_method END AS payment_method'
+    );
+    expect(view).toContain(
+      'CASE WHEN access.can_view_scores THEN e.judge_notes END AS judge_notes'
+    );
   });
 
   it('keeps the authenticated-only view grant boundary', () => {
-    expect(migration).toContain('GRANT SELECT ON public.view_authenticated_entry_results TO authenticated');
-    expect(migration).toContain('GRANT SELECT ON public.view_authenticated_entry_results TO service_role');
-    expect(migration).toContain('REVOKE SELECT ON public.view_authenticated_entry_results FROM anon');
+    expect(migration).toContain(
+      'GRANT SELECT ON public.view_authenticated_entry_results TO authenticated'
+    );
+    expect(migration).toContain(
+      'GRANT SELECT ON public.view_authenticated_entry_results TO service_role'
+    );
+    expect(migration).toContain(
+      'REVOKE SELECT ON public.view_authenticated_entry_results FROM anon'
+    );
   });
 });

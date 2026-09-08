@@ -59,9 +59,7 @@ describe('describeWithdrawalPolicy', () => {
 
   it('unset policy returns a neutral "contact the club" line, never blank', () => {
     const d = describeWithdrawalPolicy(null);
-    expect(d.refundLine).toBe(
-      'Refund policy: contact the club. Service fees are non-refundable.'
-    );
+    expect(d.refundLine).toBe('Refund policy: contact the club. Service fees are non-refundable.');
     expect(d.notes).toBeNull();
   });
 

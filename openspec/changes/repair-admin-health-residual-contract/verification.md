@@ -1,10 +1,10 @@
 # Implementation verification — 2026-09-05
 
-| Dimension | Result |
-| --- | --- |
-| Completeness | 8/10 tasks complete after recording this verification; deployment and delivery remain open. Both delta requirements implemented locally. |
-| Correctness | 2/2 requirements and 4/4 specified scenarios covered by passing tests. Hosted cadence remains unverified after a new deployment. |
-| Coherence | Shared cadence table and one remediation renderer follow the design. Existing pages, offline paths and RBAC retained. Owner approved the protected INTENT extension before implementation. |
+| Dimension    | Result                                                                                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Completeness | 8/10 tasks complete after recording this verification; deployment and delivery remain open. Both delta requirements implemented locally.                                                   |
+| Correctness  | 2/2 requirements and 4/4 specified scenarios covered by passing tests. Hosted cadence remains unverified after a new deployment.                                                           |
+| Coherence    | Shared cadence table and one remediation renderer follow the design. Existing pages, offline paths and RBAC retained. Owner approved the protected INTENT extension before implementation. |
 
 Requirement mapping:
 

@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { AdminMcpConfig } from '../config';
 import { createDiagnosticResult } from '../diagnostics/types';
-import type {
-  AdminToolDefinition,
-  AllowedToolName,
-  ToolCallLog,
-} from '../mcp/server';
+import type { AdminToolDefinition, AllowedToolName, ToolCallLog } from '../mcp/server';
 import { createToolDispatcher } from '../mcp/server';
 
 const CONFIG: AdminMcpConfig = {
@@ -23,7 +19,7 @@ function tool(overrides: Partial<AdminToolDefinition>): AdminToolDefinition {
     name: 'list_show_access',
     description: 'fake tool',
     inputSchema: { type: 'object' },
-    parseInput: (raw) => raw,
+    parseInput: raw => raw,
     handle: async () => createDiagnosticResult(CONFIG.envLabel, 'found'),
     ...overrides,
   };
@@ -44,7 +40,7 @@ describe('createToolDispatcher', () => {
       ],
     });
 
-    const names = dispatcher.listTools().map((t) => t.name);
+    const names = dispatcher.listTools().map(t => t.name);
     expect(names).toEqual(['list_show_access']);
   });
 
@@ -88,7 +84,7 @@ describe('createToolDispatcher', () => {
     });
 
     const body = parseBody(
-      (await dispatcher.callTool('list_show_access', {})).content[0]?.text ?? '',
+      (await dispatcher.callTool('list_show_access', {})).content[0]?.text ?? ''
     );
     expect(body.state).toBe('error');
     expect(body.limitations.join(' ')).not.toContain('zod: invalid');
@@ -119,7 +115,7 @@ describe('createToolDispatcher', () => {
     const dispatcher = createToolDispatcher({
       config: CONFIG,
       tools: [tool({})],
-      log: (entry) => logs.push(entry),
+      log: entry => logs.push(entry),
       now: () => clock,
     });
 

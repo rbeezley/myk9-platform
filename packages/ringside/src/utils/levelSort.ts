@@ -17,23 +17,23 @@
 export function getLevelSortOrder(level: string): number {
   // Define exact level mappings
   const levelOrder: Record<string, number> = {
-    'Novice': 1,
+    Novice: 1,
     'Novice A': 1,
     'Novice B': 1,
     'Novice Preferred': 1,
-    'Advanced': 2,
+    Advanced: 2,
     'Advanced A': 2,
     'Advanced B': 2,
     'Advanced Preferred': 2,
-    'Excellent': 3,
+    Excellent: 3,
     'Excellent A': 3,
     'Excellent B': 3,
     'Excellent Preferred': 3,
-    'Master': 4,
-    'Masters': 4,
+    Master: 4,
+    Masters: 4,
     'Master Elite': 4,
-    'Detective': 4,
-    'Summit': 5,
+    Detective: 4,
+    Summit: 5,
   };
 
   // Check exact match first

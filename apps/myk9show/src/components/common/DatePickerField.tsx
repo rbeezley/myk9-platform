@@ -1,12 +1,12 @@
-import React from "react";
-import { DatePicker } from "@/components/ui/date-picker";
+import React from 'react';
+import { DatePicker } from '@/components/ui/date-picker';
 
 /**
  * Helper to parse a YYYY-MM-DD string to date parts without timezone issues
  * @param dateStr Date string in YYYY-MM-DD format
  * @returns Object with year, month, day or null if invalid format
  */
-function parseDateString(dateStr: string): { year: number, month: number, day: number } | null {
+function parseDateString(dateStr: string): { year: number; month: number; day: number } | null {
   if (!dateStr || !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
     return null;
   }
@@ -22,7 +22,7 @@ function parseDateString(dateStr: string): { year: number, month: number, day: n
  * @returns Formatted date string in YYYY-MM-DD format
  */
 function formatDateString(year: number, month: number, day: number): string {
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 export interface DatePickerFieldProps {
@@ -45,21 +45,21 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
   name,
   id,
   disabled = false,
-  placeholder = "Select date",
+  placeholder = 'Select date',
   className,
 }) => {
   // Create a Date object from the stored value
   let date: Date | undefined = undefined;
   const dateParts = parseDateString(value);
-  
+
   if (dateParts) {
     const { year, month, day } = dateParts;
-    
+
     // Create a local date object - no timezone compensation needed because
     // the DatePicker component handles display values on its own
     date = new Date(year, month - 1, day);
   }
-  
+
   /**
    * Handles date changes from the date picker component
    * Converts the Date object to a YYYY-MM-DD string for storage
@@ -71,18 +71,18 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
       const year = newDate.getFullYear();
       const month = newDate.getMonth() + 1; // Months are 0-based
       const day = newDate.getDate();
-      
+
       // Format as YYYY-MM-DD for storage
       const formattedDate = formatDateString(year, month, day);
-      
+
       onChange(formattedDate);
     } else {
-      onChange("");
+      onChange('');
     }
   };
-  
+
   return (
-    <div className={className ?? "space-y-2"}>
+    <div className={className ?? 'space-y-2'}>
       {label && (
         <div className="flex items-center gap-1">
           <label htmlFor={id} className="block text-sm font-medium">
@@ -91,7 +91,7 @@ const DatePickerField: React.FC<DatePickerFieldProps> = ({
           </label>
         </div>
       )}
-      <DatePicker 
+      <DatePicker
         date={date}
         setDate={handleDateChange}
         required={required}

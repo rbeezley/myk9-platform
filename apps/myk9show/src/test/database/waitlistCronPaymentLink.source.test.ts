@@ -8,7 +8,10 @@ const cronSource = readFileSync(
 );
 
 const promotionMigration = readFileSync(
-  resolve(__dirname, '../../../../../supabase/migrations/20260622000222_link_waitlist_promotions.sql'),
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260622000222_link_waitlist_promotions.sql'
+  ),
   'utf8'
 );
 
@@ -72,7 +75,9 @@ describe('waitlist expiration cron offer wiring', () => {
   it('does not re-offer a just-expired class in the same cron run', () => {
     expect(cronSource).toContain('const classesExpiredThisRun = new Set<string>()');
     expect(cronSource).toContain('classesExpiredThisRun.add(offer.class_id)');
-    expect(cronSource).toContain('await processClassesWithOpenSpots(results, classesExpiredThisRun)');
+    expect(cronSource).toContain(
+      'await processClassesWithOpenSpots(results, classesExpiredThisRun)'
+    );
     expect(cronSource).toContain('if (skipClassIds.has(classId))');
   });
 

@@ -1,10 +1,6 @@
 import { PosterSectionHead } from '../../components/PosterSectionHead';
 import { useRevealOnScroll } from '@/features/_shared/hooks/useRevealOnScroll';
-import {
-  POSTER_BODY_FAMILY,
-  POSTER_DISPLAY_FAMILY,
-  POSTER_MONO_FAMILY,
-} from '../../fonts';
+import { POSTER_BODY_FAMILY, POSTER_DISPLAY_FAMILY, POSTER_MONO_FAMILY } from '../../fonts';
 import { posterColors, posterSpacing } from '../../tokens';
 import type { PosterJudge } from '../types';
 
@@ -25,9 +21,7 @@ export function JudgesSection({ judges, trialsCount }: JudgesSectionProps) {
   const judgesCount = judges.length;
   const judgesNumeralWord = judgesCount === 1 ? 'One judge' : `${judgesCount} judges`;
   const trialsAccent =
-    trialsCount > 0
-      ? `${trialsCount} ${trialsCount === 1 ? 'trial' : 'trials'}.`
-      : 'panel.';
+    trialsCount > 0 ? `${trialsCount} ${trialsCount === 1 ? 'trial' : 'trials'}.` : 'panel.';
 
   return (
     <section

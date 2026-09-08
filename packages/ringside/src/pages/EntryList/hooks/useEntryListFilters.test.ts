@@ -105,7 +105,6 @@ describe('useEntryListFilters — gate bubble (MYK9-83)', () => {
   });
 });
 
-
 /**
  * A and B are two competitions that ran together. The sections exist PRECISELY
  * so each is placed independently, which means the merged set holds two 1sts,

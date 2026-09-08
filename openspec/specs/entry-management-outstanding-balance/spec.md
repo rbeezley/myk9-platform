@@ -1,9 +1,11 @@
 # entry-management-outstanding-balance Specification
 
 ## Purpose
+
 Surface show-level outstanding balances on Entry Management using the same inclusion rules and computation as the Financial Report, so secretaries can reconcile without leaving the page.
 
 ## Requirements
+
 ### Requirement: Entry Management surfaces outstanding balances
 
 The Entry Management page SHALL display the show's total outstanding balance (amounts owed on entries that are not fully paid, net of waived/comped and refunds) using the same computation as the Financial Report, so a secretary can reconcile accepted entries without leaving the page.

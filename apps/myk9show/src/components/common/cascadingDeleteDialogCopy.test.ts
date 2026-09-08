@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildCascadingDeleteBody,
-  buildCascadingDeleteHeading,
-} from './cascadingDeleteDialogCopy';
+import { buildCascadingDeleteBody, buildCascadingDeleteHeading } from './cascadingDeleteDialogCopy';
 
 /**
  * MYK9-285: the dialog claimed permanent, irreversible deletion regardless of
@@ -34,9 +31,7 @@ describe('cascading delete copy', () => {
     it('names who can reverse it, rather than implying the reader can', () => {
       // Restore lives at /admin/deleted-items and is admin-only, so the copy
       // must not tell a secretary they can undo it themselves.
-      expect(buildCascadingDeleteBody('show', 3, false)).toMatch(
-        /restored by an administrator/i
-      );
+      expect(buildCascadingDeleteBody('show', 3, false)).toMatch(/restored by an administrator/i);
     });
   });
 

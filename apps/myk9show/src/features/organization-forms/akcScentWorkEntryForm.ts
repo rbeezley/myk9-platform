@@ -6,12 +6,7 @@ import { AKC_SCENT_WORK_ENTRY_FORM_FIELDS } from './akcScentWorkEntryFormFields'
 import { PDFDocument } from 'pdf-lib';
 
 type EntryGridLevel = 'Novice' | 'Advanced' | 'Excellent' | 'Master';
-type EntryGridElement =
-  | 'Container'
-  | 'Interior'
-  | 'Exterior'
-  | 'Buried'
-  | 'Handler Discrimination';
+type EntryGridElement = 'Container' | 'Interior' | 'Exterior' | 'Buried' | 'Handler Discrimination';
 
 type EntryGridRow = Record<EntryGridElement, Record<EntryGridLevel, string>> & {
   Detective: string;
@@ -237,7 +232,11 @@ export function buildAKCScentWorkEntryFormValues(input: {
   const checkboxes: NonNullable<PdfFormFillValues['checkboxes']> = {};
 
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.akcRegisteredName, registeredName(dog));
-  addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.akcRegistrationNumber, dog.registration?.registrationNumber);
+  addText(
+    text,
+    AKC_SCENT_WORK_ENTRY_FORM_FIELDS.akcRegistrationNumber,
+    dog.registration?.registrationNumber
+  );
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.callName, dog.callName);
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.dateOfBirth, formatDate(dog.dateOfBirth));
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.gender, dog.sex);
@@ -257,8 +256,10 @@ export function buildAKCScentWorkEntryFormValues(input: {
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.emailSignature, dog.owner.email);
   addText(text, AKC_SCENT_WORK_ENTRY_FORM_FIELDS.handlerName, dog.handler);
 
-  const isForeignRegistration = dog.registration?.organization?.toLowerCase().includes('foreign') ?? false;
-  checkboxes[AKC_SCENT_WORK_ENTRY_FORM_FIELDS.akcCheckbox] = Boolean(dog.registration) && !isForeignRegistration;
+  const isForeignRegistration =
+    dog.registration?.organization?.toLowerCase().includes('foreign') ?? false;
+  checkboxes[AKC_SCENT_WORK_ENTRY_FORM_FIELDS.akcCheckbox] =
+    Boolean(dog.registration) && !isForeignRegistration;
   checkboxes[AKC_SCENT_WORK_ENTRY_FORM_FIELDS.foreignCheckbox] = isForeignRegistration;
 
   addGridValues({ checkboxes, dog, text, trials });
@@ -272,7 +273,9 @@ export function buildAKCScentWorkEntryFormFilename(dog: EntryFormDog): string {
   return `akc-entry-form-${dogToken}${armbandToken}.pdf`;
 }
 
-export function buildAKCScentWorkEntryFormPacketFilename(showName: string | null | undefined): string {
+export function buildAKCScentWorkEntryFormPacketFilename(
+  showName: string | null | undefined
+): string {
   const showToken = sanitizeFilenameToken(showName ?? '') || 'show';
   return `akc-entry-form-packet-${showToken}.pdf`;
 }

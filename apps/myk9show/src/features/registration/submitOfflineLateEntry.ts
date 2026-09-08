@@ -1,5 +1,8 @@
 import type { ArmbandAssignment } from '@/components/shows/RegistrationWorkflow/ConfirmationStep.types';
-import { getShowEntryFee, type ShowFeeInfo } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
+import {
+  getShowEntryFee,
+  type ShowFeeInfo,
+} from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import {
   replicatedArmbandsTable,
   replicatedDogRegistrationsTable,
@@ -146,7 +149,8 @@ export async function submitOfflineLateEntry({
     for (const selectedClass of selection.selectedClasses) {
       const handler = handlerAssignments[makeHandlerKey(selection.dogId, selectedClass.classId)];
       const classData = classesById.get(selectedClass.classId);
-      const entryFee = paymentMethod === 'waived' ? 0 : getShowEntryFee(showFeeInfo, classData?.entryFee);
+      const entryFee =
+        paymentMethod === 'waived' ? 0 : getShowEntryFee(showFeeInfo, classData?.entryFee);
       const capacityOverride =
         capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();

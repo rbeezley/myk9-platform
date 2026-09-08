@@ -249,7 +249,9 @@ export function getVisiblePageSelectionState(
   visibleGroups: ShowRegistrationGroup[],
   selectedIds: ReadonlySet<string>
 ): { allSelected: boolean; partiallySelected: boolean } {
-  const selectedVisibleCount = visibleGroups.filter(group => selectedIds.has(group.groupKey)).length;
+  const selectedVisibleCount = visibleGroups.filter(group =>
+    selectedIds.has(group.groupKey)
+  ).length;
   const allSelected = visibleGroups.length > 0 && selectedVisibleCount === visibleGroups.length;
 
   return {

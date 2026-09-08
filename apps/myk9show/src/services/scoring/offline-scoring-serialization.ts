@@ -11,7 +11,7 @@ import type {
   BaseScore,
   MultiJudgeScore,
   ScoringSession,
-  ConflictResolution
+  ConflictResolution,
 } from '@/types/scoring-types';
 
 /**
@@ -23,7 +23,7 @@ export function serializeScore(score: BaseScore): Record<string, unknown> {
     ...score,
     timestamp: score.timestamp.toISOString(),
     recordedAt: score.recordedAt.toISOString(),
-    lastModified: score.lastModified.toISOString()
+    lastModified: score.lastModified.toISOString(),
   };
 }
 
@@ -37,7 +37,7 @@ export function deserializeScore(data: unknown): BaseScore {
     ...scoreData,
     timestamp: new Date(scoreData.timestamp as string),
     recordedAt: new Date(scoreData.recordedAt as string),
-    lastModified: new Date(scoreData.lastModified as string)
+    lastModified: new Date(scoreData.lastModified as string),
   } as BaseScore;
 }
 
@@ -50,10 +50,12 @@ export function serializeMultiJudgeScore(score: MultiJudgeScore): Record<string,
     ...score,
     judgeScores: Object.fromEntries(score.judgeScores),
     lastUpdated: score.lastUpdated.toISOString(),
-    conflictResolution: score.conflictResolution ? {
-      ...score.conflictResolution,
-      resolvedAt: score.conflictResolution.resolvedAt.toISOString()
-    } : undefined
+    conflictResolution: score.conflictResolution
+      ? {
+          ...score.conflictResolution,
+          resolvedAt: score.conflictResolution.resolvedAt.toISOString(),
+        }
+      : undefined,
   };
 }
 
@@ -65,12 +67,16 @@ export function deserializeMultiJudgeScore(data: unknown): MultiJudgeScore {
   const multiData = data as Record<string, unknown>;
   return {
     ...multiData,
-    judgeScores: new Map(Object.entries(multiData.judgeScores || {} as Record<string, BaseScore>)),
+    judgeScores: new Map(
+      Object.entries(multiData.judgeScores || ({} as Record<string, BaseScore>))
+    ),
     lastUpdated: new Date(multiData.lastUpdated as string),
-    conflictResolution: multiData.conflictResolution ? {
-      ...(multiData.conflictResolution as ConflictResolution),
-      resolvedAt: new Date((multiData.conflictResolution as ConflictResolution).resolvedAt)
-    } : undefined
+    conflictResolution: multiData.conflictResolution
+      ? {
+          ...(multiData.conflictResolution as ConflictResolution),
+          resolvedAt: new Date((multiData.conflictResolution as ConflictResolution).resolvedAt),
+        }
+      : undefined,
   } as MultiJudgeScore;
 }
 
@@ -84,7 +90,7 @@ export function serializeSession(session: ScoringSession): Record<string, unknow
     startTime: session.startTime.toISOString(),
     endTime: session.endTime?.toISOString(),
     lastSyncAt: session.lastSyncAt?.toISOString(),
-    pendingSync: session.pendingSync.map(score => serializeScore(score))
+    pendingSync: session.pendingSync.map(score => serializeScore(score)),
   };
 }
 
@@ -99,6 +105,8 @@ export function deserializeSession(data: unknown): ScoringSession {
     startTime: new Date(sessionData.startTime as string),
     endTime: sessionData.endTime ? new Date(sessionData.endTime as string) : undefined,
     lastSyncAt: sessionData.lastSyncAt ? new Date(sessionData.lastSyncAt as string) : undefined,
-    pendingSync: ((sessionData.pendingSync || []) as unknown[]).map((score) => deserializeScore(score))
+    pendingSync: ((sessionData.pendingSync || []) as unknown[]).map(score =>
+      deserializeScore(score)
+    ),
   } as ScoringSession;
 }

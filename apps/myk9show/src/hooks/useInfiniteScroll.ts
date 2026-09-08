@@ -57,7 +57,7 @@ const DEFAULT_CONFIG: Required<InfiniteScrollConfig> = {
   maxCachedPages: 10,
   autoRetry: true,
   maxRetries: 3,
-  debug: false
+  debug: false,
 };
 
 /**
@@ -67,15 +67,10 @@ export function useInfiniteScroll<T extends { id: string }>(
   loadPage: LoadPage<T>,
   config: InfiniteScrollConfig = {}
 ) {
-  const {
-    pageSize,
-    prefetch,
-    enableCache,
-    maxCachedPages,
-    autoRetry,
-    maxRetries,
-    debug
-  } = { ...DEFAULT_CONFIG, ...config };
+  const { pageSize, prefetch, enableCache, maxCachedPages, autoRetry, maxRetries, debug } = {
+    ...DEFAULT_CONFIG,
+    ...config,
+  };
 
   const [state, setState] = useState<InfiniteScrollState<T>>({
     items: [],
@@ -86,106 +81,120 @@ export function useInfiniteScroll<T extends { id: string }>(
     loading: false,
     error: null,
     hasMore: true,
-    retryCount: 0
+    retryCount: 0,
   });
 
   const loadingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const prefetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const log = useCallback((message: string, ...args: unknown[]) => {
-    if (debug) {
-      logger.debug(`[InfiniteScroll] ${message}`, 'hooks', { args });
-    }
-  }, [debug]);
+  const log = useCallback(
+    (message: string, ...args: unknown[]) => {
+      if (debug) {
+        logger.debug(`[InfiniteScroll] ${message}`, 'hooks', { args });
+      }
+    },
+    [debug]
+  );
 
   // Load a specific page
-  const loadPageData = useCallback(async (
-    pageNumber: number,
-    isRetry = false,
-    isBackground = false
-  ) => {
-    if (loadingRef.current && !isRetry) return null;
+  const loadPageData = useCallback(
+    async (pageNumber: number, isRetry = false, isBackground = false) => {
+      if (loadingRef.current && !isRetry) return null;
 
-    // Check cache first
-    if (enableCache && state.pages.has(pageNumber)) {
-      log('Using cached page:', pageNumber);
-      return state.pages.get(pageNumber)!;
-    }
-
-    loadingRef.current = true;
-    
-    // Cancel any previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    if (!isBackground) {
-      setState(prev => ({
-        ...prev,
-        loading: true,
-        error: null,
-        retryCount: isRetry ? prev.retryCount + 1 : 0
-      }));
-    }
-
-    try {
-      log('Loading page:', pageNumber, 'pageSize:', pageSize);
-      const pageData = await loadPage(pageNumber, pageSize);
-
-      // Cache the page
-      if (enableCache) {
-        setState(prev => {
-          const newPages = new Map(prev.pages);
-          
-          // Remove oldest pages if cache is full
-          if (newPages.size >= maxCachedPages) {
-            const oldestKey = Math.min(...Array.from(newPages.keys()));
-            newPages.delete(oldestKey);
-          }
-          
-          newPages.set(pageNumber, pageData);
-          
-          return { ...prev, pages: newPages };
-        });
+      // Check cache first
+      if (enableCache && state.pages.has(pageNumber)) {
+        log('Using cached page:', pageNumber);
+        return state.pages.get(pageNumber)!;
       }
 
-      log('Loaded page:', pageNumber, 'items:', pageData.items.length);
-      return pageData;
+      loadingRef.current = true;
 
-    } catch (error: unknown) {
-      const errorObj = error as Error;
-      if (errorObj?.name === 'AbortError') {
-        log('Page load aborted:', pageNumber);
-        return null;
+      // Cancel any previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-
-      const errorMessage = errorObj?.message || 'Unknown error';
-      log('Page load failed:', pageNumber, errorMessage);
-      
-      // Auto-retry logic
-      if (!isBackground && autoRetry && state.retryCount < maxRetries) {
-        log('Retrying page load:', pageNumber, 'attempt:', state.retryCount + 1);
-        setTimeout(() => {
-          loadPageData(pageNumber, true, isBackground);
-        }, Math.pow(2, state.retryCount) * 1000); // Exponential backoff
-        return null;
-      }
+      abortControllerRef.current = new AbortController();
 
       if (!isBackground) {
         setState(prev => ({
           ...prev,
-          loading: false,
-          error: errorMessage || `Failed to load page ${pageNumber}`
+          loading: true,
+          error: null,
+          retryCount: isRetry ? prev.retryCount + 1 : 0,
         }));
       }
-      
-      return null;
-    } finally {
-      loadingRef.current = false;
-    }
-  }, [loadPage, pageSize, enableCache, maxCachedPages, autoRetry, maxRetries, state.pages, state.retryCount, log]);
+
+      try {
+        log('Loading page:', pageNumber, 'pageSize:', pageSize);
+        const pageData = await loadPage(pageNumber, pageSize);
+
+        // Cache the page
+        if (enableCache) {
+          setState(prev => {
+            const newPages = new Map(prev.pages);
+
+            // Remove oldest pages if cache is full
+            if (newPages.size >= maxCachedPages) {
+              const oldestKey = Math.min(...Array.from(newPages.keys()));
+              newPages.delete(oldestKey);
+            }
+
+            newPages.set(pageNumber, pageData);
+
+            return { ...prev, pages: newPages };
+          });
+        }
+
+        log('Loaded page:', pageNumber, 'items:', pageData.items.length);
+        return pageData;
+      } catch (error: unknown) {
+        const errorObj = error as Error;
+        if (errorObj?.name === 'AbortError') {
+          log('Page load aborted:', pageNumber);
+          return null;
+        }
+
+        const errorMessage = errorObj?.message || 'Unknown error';
+        log('Page load failed:', pageNumber, errorMessage);
+
+        // Auto-retry logic
+        if (!isBackground && autoRetry && state.retryCount < maxRetries) {
+          log('Retrying page load:', pageNumber, 'attempt:', state.retryCount + 1);
+          setTimeout(
+            () => {
+              loadPageData(pageNumber, true, isBackground);
+            },
+            Math.pow(2, state.retryCount) * 1000
+          ); // Exponential backoff
+          return null;
+        }
+
+        if (!isBackground) {
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: errorMessage || `Failed to load page ${pageNumber}`,
+          }));
+        }
+
+        return null;
+      } finally {
+        loadingRef.current = false;
+      }
+    },
+    [
+      loadPage,
+      pageSize,
+      enableCache,
+      maxCachedPages,
+      autoRetry,
+      maxRetries,
+      state.pages,
+      state.retryCount,
+      log,
+    ]
+  );
 
   // Load next page and append to items
   const loadNextPage = useCallback(async () => {
@@ -193,11 +202,11 @@ export function useInfiniteScroll<T extends { id: string }>(
 
     const nextPage = state.currentPage + 1;
     const pageData = await loadPageData(nextPage);
-    
+
     if (pageData) {
       setState(prev => {
         const newItems = [...prev.items, ...pageData.items];
-        
+
         return {
           ...prev,
           items: newItems,
@@ -207,7 +216,7 @@ export function useInfiniteScroll<T extends { id: string }>(
           hasMore: pageData.hasNextPage,
           loading: false,
           error: null,
-          retryCount: 0
+          retryCount: 0,
         };
       });
 
@@ -216,7 +225,7 @@ export function useInfiniteScroll<T extends { id: string }>(
         if (prefetchTimeoutRef.current) {
           clearTimeout(prefetchTimeoutRef.current);
         }
-        
+
         prefetchTimeoutRef.current = setTimeout(() => {
           loadPageData(nextPage + 1, false, true);
         }, 500);
@@ -227,12 +236,12 @@ export function useInfiniteScroll<T extends { id: string }>(
   // Reset pagination (reload from beginning)
   const reset = useCallback(() => {
     log('Resetting infinite scroll');
-    
+
     // Cancel any ongoing requests
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
     // Clear prefetch timeout
     if (prefetchTimeoutRef.current) {
       clearTimeout(prefetchTimeoutRef.current);
@@ -247,39 +256,42 @@ export function useInfiniteScroll<T extends { id: string }>(
       loading: false,
       error: null,
       hasMore: true,
-      retryCount: 0
+      retryCount: 0,
     });
 
     loadingRef.current = false;
   }, [log]);
 
   // Go to specific page (for pagination controls)
-  const goToPage = useCallback(async (pageNumber: number) => {
-    if (pageNumber < 1) return;
+  const goToPage = useCallback(
+    async (pageNumber: number) => {
+      if (pageNumber < 1) return;
 
-    const pageData = await loadPageData(pageNumber);
-    
-    if (pageData) {
-      setState(prev => ({
-        ...prev,
-        items: pageData.items,
-        currentPage: pageNumber,
-        totalPages: pageData.totalPages,
-        totalCount: pageData.totalCount,
-        hasMore: pageData.hasNextPage,
-        loading: false,
-        error: null,
-        retryCount: 0
-      }));
-    }
-  }, [loadPageData]);
+      const pageData = await loadPageData(pageNumber);
+
+      if (pageData) {
+        setState(prev => ({
+          ...prev,
+          items: pageData.items,
+          currentPage: pageNumber,
+          totalPages: pageData.totalPages,
+          totalCount: pageData.totalCount,
+          hasMore: pageData.hasNextPage,
+          loading: false,
+          error: null,
+          retryCount: 0,
+        }));
+      }
+    },
+    [loadPageData]
+  );
 
   // Load initial page
   useEffect(() => {
     if (state.items.length === 0 && !loadingRef.current) {
       loadNextPage();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cleanup on unmount
@@ -303,25 +315,26 @@ export function useInfiniteScroll<T extends { id: string }>(
     currentPage: state.currentPage,
     totalPages: state.totalPages,
     totalCount: state.totalCount,
-    
+
     // Actions
     loadMore: loadNextPage,
     reset,
     goToPage,
     retry: () => loadPageData(state.currentPage + 1),
-    
+
     // Status
     isEmpty: state.items.length === 0 && !state.loading,
     isInitialLoad: state.items.length === 0 && state.loading,
     loadedPages: state.pages.size,
-    
+
     // Cache stats
     getCacheStats: () => ({
       cachedPages: state.pages.size,
       totalCachedItems: Array.from(state.pages.values()).reduce(
-        (sum, page) => sum + page.items.length, 0
-      )
-    })
+        (sum, page) => sum + page.items.length,
+        0
+      ),
+    }),
   };
 }
 

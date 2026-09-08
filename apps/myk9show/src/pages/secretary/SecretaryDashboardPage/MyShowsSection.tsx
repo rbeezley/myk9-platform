@@ -65,7 +65,9 @@ export function MyShowsSection({
           className={`h-3 w-3 rounded-full shrink-0 ${dotClass} ${pulse ? 'animate-pulse' : ''}`}
         />
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-semibold font-sans text-foreground leading-tight">{title}</h2>
+          <h2 className="text-base font-semibold font-sans text-foreground leading-tight">
+            {title}
+          </h2>
           {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
         <span className="shrink-0 flex items-center gap-2">
@@ -76,11 +78,7 @@ export function MyShowsSection({
             {shows.length} {shows.length === 1 ? 'show' : 'shows'}
           </span>
           <span className="text-muted-foreground">
-            {open ? (
-              <ChevronUp className="h-3.5 w-3.5" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
-            )}
+            {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </span>
         </span>
       </button>

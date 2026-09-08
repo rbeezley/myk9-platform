@@ -62,18 +62,18 @@ export class VirtualUserFleet {
       const show = LOAD_SHOWS[assignment.target.showIndex];
       const role = assignment.role === 'exhibitor' ? 'exhibitor' : 'secretary';
       const user = new LoadVirtualUser(
-          {
-            supabaseUrl: options.supabaseUrl,
-            anonKey: options.anonKey,
-            accessToken: options.accessTokenFor(role, assignment.target.showIndex),
-            showId: show.showId,
-            // A reader replicates the trial its class belongs to. Staff readers
-            // carry no owner scope, which is what makes their dog sync unscoped.
-            trialId: assignment.target.trialId,
-            role,
-            ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
-          },
-          options.classColumnSelect
+        {
+          supabaseUrl: options.supabaseUrl,
+          anonKey: options.anonKey,
+          accessToken: options.accessTokenFor(role, assignment.target.showIndex),
+          showId: show.showId,
+          // A reader replicates the trial its class belongs to. Staff readers
+          // carry no owner scope, which is what makes their dog sync unscoped.
+          trialId: assignment.target.trialId,
+          role,
+          ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
+        },
+        options.classColumnSelect
       );
       this.entries.push({ assignment, user });
     }

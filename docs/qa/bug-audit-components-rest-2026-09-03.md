@@ -21,27 +21,27 @@ was corrected on that re-read (see MYK9-361).
 
 ## Part A — did the overnight fixes hold?
 
-| Fix | Verdict | Evidence |
-| -- | -- | -- |
-| MYK9-346 Fees tab schema drift | **holds** | `lib/validation.ts:149-193` carries every `ShowEditFormData` key the mapper reads; `EditPanelWrapper.tsx:461-465` gates Save on `!isValid`; `tsc -p tsconfig.app.json` exit 0 |
-| MYK9-347 paused profile → `/onboarding` | **partial → recurrence** | see below |
-| MYK9-348 Clear Cache outbox | **holds** | guard re-runs at click and at confirm (`DataSettings.tsx:54-72, 93-115`); `DISPOSABLE_DATABASES` never names `myK9_Replication` |
-| MYK9-350 scope-blind role write | **holds** | `personRolesService.ts` deleted; `BasicInfoTab.tsx:146-150` links to permissions instead of writing |
-| MYK9-351 / MYK9-354 judge qualifications | **holds** | `JudgeQualificationPanel.tsx:232-258` → `replace_judge_qualifications` RPC, error toasted; migration `20260903150000` gates on `is_site_admin() OR has_role('secretary')` |
-| MYK9-352 UTC end-date parse | **holds** | `useClubDetailsState.ts:134` → `showDateRangeStatus` → `toLocalDate` |
-| MYK9-353 / #1984 dead-code deletion | **holds** | every row confirmed gone; barrels re-export only live modules; typecheck clean |
+| Fix                                      | Verdict                  | Evidence                                                                                                                                                                      |
+| ---------------------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MYK9-346 Fees tab schema drift           | **holds**                | `lib/validation.ts:149-193` carries every `ShowEditFormData` key the mapper reads; `EditPanelWrapper.tsx:461-465` gates Save on `!isValid`; `tsc -p tsconfig.app.json` exit 0 |
+| MYK9-347 paused profile → `/onboarding`  | **partial → recurrence** | see below                                                                                                                                                                     |
+| MYK9-348 Clear Cache outbox              | **holds**                | guard re-runs at click and at confirm (`DataSettings.tsx:54-72, 93-115`); `DISPOSABLE_DATABASES` never names `myK9_Replication`                                               |
+| MYK9-350 scope-blind role write          | **holds**                | `personRolesService.ts` deleted; `BasicInfoTab.tsx:146-150` links to permissions instead of writing                                                                           |
+| MYK9-351 / MYK9-354 judge qualifications | **holds**                | `JudgeQualificationPanel.tsx:232-258` → `replace_judge_qualifications` RPC, error toasted; migration `20260903150000` gates on `is_site_admin() OR has_role('secretary')`     |
+| MYK9-352 UTC end-date parse              | **holds**                | `useClubDetailsState.ts:134` → `showDateRangeStatus` → `toLocalDate`                                                                                                          |
+| MYK9-353 / #1984 dead-code deletion      | **holds**                | every row confirmed gone; barrels re-export only live modules; typecheck clean                                                                                                |
 
 ## Findings
 
-| Issue | Sev | Title | Evidence |
-| -- | -- | -- | -- |
-| [MYK9-359](https://linear.app/myk9-platform/issue/MYK9-359) | P1 | Club Details permission gate is backed by `MOCK_USERS` fixtures and a permission code no migration seeds — every real club admin gets a read-only `/clubs/:id` | `services/clubAdminService.ts:96-105`; `clubs/ClubDetails/useClubDetailsState.ts:113-130`; `clubs/members/MemberList.tsx:70-72`; `layout/sidebar/unifiedSidebarConfig.ts:298-302` |
-| [MYK9-347](https://linear.app/myk9-platform/issue/MYK9-347) | P1 | **Recurrence** — #1980 gated `needsOnboarding` but not the `\|\| !onboardingCompleted` operand, so a paused query still redirects | `exhibitor/ExhibitorOnboardingChecker.tsx:65-67`; `hooks/useExhibitorProfile.ts:258-260` — commented on the original and reopened to Todo, no new id |
-| [MYK9-360](https://linear.app/myk9-platform/issue/MYK9-360) | — | Parent: P2/P3 findings | — |
-| [MYK9-361](https://linear.app/myk9-platform/issue/MYK9-361) | P2 | Create User offers club-scoped roles with no club; the grant is rejected by migration 102's trigger; the dialog still toasts success and emails an invitation naming the role | `admin/users/CreateUserDialog.tsx:99-108, 154-168, 180`; `services/rbac/RoleManager.ts:305-336`; `102_fix_trial_secretary_rls_bypass.sql:78-97` |
-| [MYK9-362](https://linear.app/myk9-platform/issue/MYK9-362) | P3 | Passport rail's primary secretary action "Verify for entry" has no handler (pre-existing, promoted by #1974) | `dogs/DogDetailsMain/DogIdentityRail.tsx:205-209` |
-| [MYK9-363](https://linear.app/myk9-platform/issue/MYK9-363) | P3 | Health timeline cards styled clickable with `onEventClick={() => {}}` | `dogs/DogDetails/HealthRecords/HealthRecordsSection.tsx:433`; `HealthTimelineEvent.tsx:62-67` |
-| [MYK9-364](https://linear.app/myk9-platform/issue/MYK9-364) | P3 | Dead-code residue: 15 zero-importer modules (~3.1k lines) + `LazyDogCard` orphaned via two unimported show-ops steps | per-symbol grep table in the issue; counts re-run by the orchestrator, all 0 |
+| Issue                                                       | Sev | Title                                                                                                                                                                         | Evidence                                                                                                                                                                          |
+| ----------------------------------------------------------- | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [MYK9-359](https://linear.app/myk9-platform/issue/MYK9-359) | P1  | Club Details permission gate is backed by `MOCK_USERS` fixtures and a permission code no migration seeds — every real club admin gets a read-only `/clubs/:id`                | `services/clubAdminService.ts:96-105`; `clubs/ClubDetails/useClubDetailsState.ts:113-130`; `clubs/members/MemberList.tsx:70-72`; `layout/sidebar/unifiedSidebarConfig.ts:298-302` |
+| [MYK9-347](https://linear.app/myk9-platform/issue/MYK9-347) | P1  | **Recurrence** — #1980 gated `needsOnboarding` but not the `\|\| !onboardingCompleted` operand, so a paused query still redirects                                             | `exhibitor/ExhibitorOnboardingChecker.tsx:65-67`; `hooks/useExhibitorProfile.ts:258-260` — commented on the original and reopened to Todo, no new id                              |
+| [MYK9-360](https://linear.app/myk9-platform/issue/MYK9-360) | —   | Parent: P2/P3 findings                                                                                                                                                        | —                                                                                                                                                                                 |
+| [MYK9-361](https://linear.app/myk9-platform/issue/MYK9-361) | P2  | Create User offers club-scoped roles with no club; the grant is rejected by migration 102's trigger; the dialog still toasts success and emails an invitation naming the role | `admin/users/CreateUserDialog.tsx:99-108, 154-168, 180`; `services/rbac/RoleManager.ts:305-336`; `102_fix_trial_secretary_rls_bypass.sql:78-97`                                   |
+| [MYK9-362](https://linear.app/myk9-platform/issue/MYK9-362) | P3  | Passport rail's primary secretary action "Verify for entry" has no handler (pre-existing, promoted by #1974)                                                                  | `dogs/DogDetailsMain/DogIdentityRail.tsx:205-209`                                                                                                                                 |
+| [MYK9-363](https://linear.app/myk9-platform/issue/MYK9-363) | P3  | Health timeline cards styled clickable with `onEventClick={() => {}}`                                                                                                         | `dogs/DogDetails/HealthRecords/HealthRecordsSection.tsx:433`; `HealthTimelineEvent.tsx:62-67`                                                                                     |
+| [MYK9-364](https://linear.app/myk9-platform/issue/MYK9-364) | P3  | Dead-code residue: 15 zero-importer modules (~3.1k lines) + `LazyDogCard` orphaned via two unimported show-ops steps                                                          | per-symbol grep table in the issue; counts re-run by the orchestrator, all 0                                                                                                      |
 
 ### The two that matter
 
@@ -53,14 +53,14 @@ created. Both arms are structurally false for every real account, so `computeClu
 returns all-false for anyone who is not `site_admin`, while `clubs_update` RLS would allow the
 write. The sidebar's "Club Profile" item sends club admins straight to that page. The file has not
 changed since the app was imported; the reason nothing caught it is MYK9-137 — until 2026-08-05 the
-e2e `clubAdmin` fixture *was* the site admin.
+e2e `clubAdmin` fixture _was_ the site admin.
 
 **MYK9-347 recurrence — the fix satisfied its acceptance criterion literally.** The AC asked for
 `needsOnboarding === false` when the query is paused, and #1980 delivered exactly that. The
 redirect is `needsOnboarding || !onboardingCompleted`, and `onboardingCompleted` is
 `!!profile?.onboarding_completed_at` — `false` whenever `profile` is undefined, which it is while
 paused. Same cold-offline boot, same `/onboarding` destination, second operand. The test file's
-`needsOnboarding:false, onboardingCompleted:false` case models a *present but incomplete* profile
+`needsOnboarding:false, onboardingCompleted:false` case models a _present but incomplete_ profile
 (where redirecting is correct), so the fix has to distinguish "row with null completion" from "row
 unknown" — gate the whole redirect on `status === 'success'`.
 

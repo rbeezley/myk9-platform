@@ -12,7 +12,7 @@ export const clearMyK9ShowStorage = () => {
     'myk9show-classes-storage',
     'template-storage',
     'class-template-storage',
-    'show-template-storage'
+    'show-template-storage',
   ];
 
   storageKeys.forEach(key => {

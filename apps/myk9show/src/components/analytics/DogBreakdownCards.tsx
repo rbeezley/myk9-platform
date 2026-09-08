@@ -24,7 +24,7 @@ export function DogBreakdownCards({ dogs, onDogClick }: DogBreakdownCardsProps) 
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {dogs.map((dog) => (
+          {dogs.map(dog => (
             <div
               key={dog.dogId}
               className={`relative rounded-lg border border-border/50 bg-card p-4 transition-all${
@@ -35,7 +35,7 @@ export function DogBreakdownCards({ dogs, onDogClick }: DogBreakdownCardsProps) 
               tabIndex={onDogClick ? 0 : undefined}
               onKeyDown={
                 onDogClick
-                  ? (e) => {
+                  ? e => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
                         onDogClick(dog.dogId);
@@ -63,7 +63,9 @@ export function DogBreakdownCards({ dogs, onDogClick }: DogBreakdownCardsProps) 
                 <div className="mt-1 h-[3px] overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(0, Math.round(dog.qualificationRate * 100)))}%` }}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, Math.round(dog.qualificationRate * 100)))}%`,
+                    }}
                   />
                 </div>
               </div>

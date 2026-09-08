@@ -1,6 +1,6 @@
 /**
  * Base class for show-scoped store functionality
- * 
+ *
  * Provides common functionality for stores that need to operate within
  * show-specific contexts, including role-based data filtering, pagination,
  * and automatic data cleanup.
@@ -71,20 +71,25 @@ export function createShowScopedState(): ShowScopedData {
  */
 export function createShowScopedActions<T>(
   dataType: string,
-  loadDataFn: (showId: string, userRole: string, userId?: string, page?: number, pageSize?: number) => Promise<{ data: T[], totalPages: number }>,
+  loadDataFn: (
+    showId: string,
+    userRole: string,
+    userId?: string,
+    page?: number,
+    pageSize?: number
+  ) => Promise<{ data: T[]; totalPages: number }>,
   setDataFn: (data: T[]) => void,
   getAllDataFn: () => T[]
 ): Partial<ShowScopedActions<T>> {
-  
   return {
     loadShowData: async (showId: string, userRole: string, userId?: string) => {
       // eslint-disable-next-line prefer-rest-params
       const state = arguments[3] as ShowScopedData; // Pass state as 4th argument
       // eslint-disable-next-line prefer-rest-params
       const setState = arguments[4] as (updates: Partial<ShowScopedData>) => void; // Pass setState as 5th argument
-      
-      setState({ 
-        isLoading: true, 
+
+      setState({
+        isLoading: true,
         error: null,
         activeShowId: showId,
         userRole,
@@ -94,20 +99,19 @@ export function createShowScopedActions<T>(
 
       try {
         const result = await loadDataFn(showId, userRole, userId, 1, state.pageSize);
-        
+
         setDataFn(result.data);
-        setState({ 
+        setState({
           isLoading: false,
           lastLoaded: Date.now(),
           currentPage: 1,
           totalPages: result.totalPages,
         });
-
       } catch (error) {
         logger.error(`Failed to load ${dataType} data:`, 'store', {}, error as Error);
-        setState({ 
-          isLoading: false, 
-          error: error instanceof Error ? error.message : `Failed to load ${dataType} data` 
+        setState({
+          isLoading: false,
+          error: error instanceof Error ? error.message : `Failed to load ${dataType} data`,
         });
       }
     },
@@ -115,7 +119,7 @@ export function createShowScopedActions<T>(
     clearShowData: () => {
       // eslint-disable-next-line prefer-rest-params
       const setState = arguments[0] as (updates: Partial<ShowScopedData>) => void;
-      
+
       setDataFn([]);
       setState({
         activeShowId: null,
@@ -127,13 +131,12 @@ export function createShowScopedActions<T>(
         currentPage: 1,
         totalPages: 1,
       });
-
     },
 
     setShowContext: (showId: string | null, userRole: string, userId?: string) => {
       // eslint-disable-next-line prefer-rest-params
       const setState = arguments[3] as (updates: Partial<ShowScopedData>) => void;
-      
+
       setState({
         activeShowId: showId,
         userRole,
@@ -146,15 +149,15 @@ export function createShowScopedActions<T>(
       // eslint-disable-next-line prefer-rest-params
       const state = arguments[0] as ShowScopedData;
       const allData = getAllDataFn();
-      
+
       if (!state.userRole || !state.activeShowId) {
         return allData;
       }
 
       return applyRoleDataFilter(
-        allData, 
-        state.userRole, 
-        dataType, 
+        allData,
+        state.userRole,
+        dataType,
         state.userId || undefined,
         state.activeShowId
       );
@@ -163,7 +166,7 @@ export function createShowScopedActions<T>(
     loadNextPage: async () => {
       // eslint-disable-next-line prefer-rest-params
       const state = arguments[0] as ShowScopedData;
-      
+
       if (state.currentPage < state.totalPages) {
         // eslint-disable-next-line prefer-rest-params
         await arguments[2](state.currentPage + 1); // Call loadPage
@@ -175,7 +178,7 @@ export function createShowScopedActions<T>(
       const state = arguments[1] as ShowScopedData;
       // eslint-disable-next-line prefer-rest-params
       const setState = arguments[2] as (updates: Partial<ShowScopedData>) => void;
-      
+
       if (!state.activeShowId || !state.userRole) {
         return;
       }
@@ -183,10 +186,16 @@ export function createShowScopedActions<T>(
       setState({ isLoading: true, error: null });
 
       try {
-        const result = await loadDataFn(state.activeShowId, state.userRole, state.userId || undefined, page, state.pageSize);
-        
+        const result = await loadDataFn(
+          state.activeShowId,
+          state.userRole,
+          state.userId || undefined,
+          page,
+          state.pageSize
+        );
+
         setDataFn(result.data);
-        setState({ 
+        setState({
           isLoading: false,
           currentPage: page,
           totalPages: result.totalPages,
@@ -194,9 +203,9 @@ export function createShowScopedActions<T>(
         });
       } catch (error) {
         logger.error(`Failed to load page ${page}:`, 'store', {}, error as Error);
-        setState({ 
-          isLoading: false, 
-          error: error instanceof Error ? error.message : `Failed to load page ${page}` 
+        setState({
+          isLoading: false,
+          error: error instanceof Error ? error.message : `Failed to load page ${page}`,
         });
       }
     },
@@ -206,7 +215,7 @@ export function createShowScopedActions<T>(
       const state = arguments[0] as ShowScopedData;
       // eslint-disable-next-line prefer-rest-params
       const loadShowData = arguments[1] as ShowScopedActions<T>['loadShowData'];
-      
+
       if (state.activeShowId && state.userRole) {
         await loadShowData!(state.activeShowId, state.userRole, state.userId || undefined);
       }
@@ -224,7 +233,10 @@ export function createShowScopedStorage(storeName: string): StateStorage {
 /**
  * Utility function to check if data needs refresh based on age
  */
-export function shouldRefreshData(lastLoaded: number | null, maxAgeMs: number = 5 * 60 * 1000): boolean {
+export function shouldRefreshData(
+  lastLoaded: number | null,
+  maxAgeMs: number = 5 * 60 * 1000
+): boolean {
   if (!lastLoaded) return true;
   return Date.now() - lastLoaded > maxAgeMs;
 }
@@ -232,7 +244,12 @@ export function shouldRefreshData(lastLoaded: number | null, maxAgeMs: number = 
 /**
  * Create pagination info object
  */
-export function createPaginationInfo(currentPage: number, totalPages: number, pageSize: number, totalItems: number) {
+export function createPaginationInfo(
+  currentPage: number,
+  totalPages: number,
+  pageSize: number,
+  totalItems: number
+) {
   return {
     currentPage,
     totalPages,
@@ -252,10 +269,10 @@ export function mockPaginatedData<T>(
   allData: T[],
   page: number,
   pageSize: number
-): { data: T[], totalPages: number } {
+): { data: T[]; totalPages: number } {
   const startIndex = (page - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  
+
   return {
     data: allData.slice(startIndex, endIndex),
     totalPages: Math.ceil(allData.length / pageSize),

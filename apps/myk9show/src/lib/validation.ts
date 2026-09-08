@@ -227,13 +227,10 @@ export const showSchemas = {
         path: ['entryCloseDate'],
       }
     )
-    .refine(
-      data => !data.publishExperience || Boolean(data.generatedPremium),
-      {
-        message: 'Wait for shared show content to finish before publishing to exhibitors',
-        path: ['generatedPremium'],
-      }
-    ),
+    .refine(data => !data.publishExperience || Boolean(data.generatedPremium), {
+      message: 'Wait for shared show content to finish before publishing to exhibitors',
+      path: ['generatedPremium'],
+    }),
 
   trial: z.object({
     name: commonValidations.name,

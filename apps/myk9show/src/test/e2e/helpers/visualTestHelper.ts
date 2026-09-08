@@ -9,15 +9,15 @@ export class VisualTestHelper {
   async waitForPageLoad() {
     await this.page.waitForLoadState('networkidle');
     await this.page.waitForLoadState('domcontentloaded');
-    
+
     // Wait for fonts to load
     await this.page.waitForFunction(() => document.fonts.ready);
-    
+
     // Wait for any loading spinners to disappear
     try {
-      await this.page.waitForSelector('[data-testid="loading-spinner"]', { 
-        state: 'hidden', 
-        timeout: 5000 
+      await this.page.waitForSelector('[data-testid="loading-spinner"]', {
+        state: 'hidden',
+        timeout: 5000,
       });
     } catch {
       // Ignore if no loading spinner exists
@@ -25,9 +25,9 @@ export class VisualTestHelper {
 
     // Wait for any skeleton loaders to disappear
     try {
-      await this.page.waitForSelector('[data-testid="skeleton-loader"]', { 
-        state: 'hidden', 
-        timeout: 5000 
+      await this.page.waitForSelector('[data-testid="skeleton-loader"]', {
+        state: 'hidden',
+        timeout: 5000,
       });
     } catch {
       // Ignore if no skeleton loader exists
@@ -41,7 +41,7 @@ export class VisualTestHelper {
    * Mock dog list data for consistent testing
    */
   async mockDogListData() {
-    await this.page.route('**/api/dogs', async (route) => {
+    await this.page.route('**/api/dogs', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -54,7 +54,7 @@ export class VisualTestHelper {
             sex: 'Male',
             birthDate: '2020-01-15',
             ownerId: 'user-1',
-            status: 'active'
+            status: 'active',
           },
           {
             id: 'dog-2',
@@ -64,7 +64,7 @@ export class VisualTestHelper {
             sex: 'Female',
             birthDate: '2019-05-20',
             ownerId: 'user-1',
-            status: 'active'
+            status: 'active',
           },
           {
             id: 'dog-3',
@@ -74,9 +74,9 @@ export class VisualTestHelper {
             sex: 'Male',
             birthDate: '2021-03-10',
             ownerId: 'user-1',
-            status: 'active'
-          }
-        ])
+            status: 'active',
+          },
+        ]),
       });
     });
   }
@@ -85,11 +85,11 @@ export class VisualTestHelper {
    * Mock empty dog list for empty state testing
    */
   async mockEmptyDogList() {
-    await this.page.route('**/api/dogs', async (route) => {
+    await this.page.route('**/api/dogs', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify([])
+        body: JSON.stringify([]),
       });
     });
   }
@@ -98,7 +98,7 @@ export class VisualTestHelper {
    * Mock dog details data
    */
   async mockDogDetailsData() {
-    await this.page.route('**/api/dogs/dog-123', async (route) => {
+    await this.page.route('**/api/dogs/dog-123', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -114,31 +114,31 @@ export class VisualTestHelper {
             {
               organization: 'AKC',
               number: 'WS12345678',
-              status: 'active'
-            }
+              status: 'active',
+            },
           ],
           healthRecords: [
             {
               type: 'vaccination',
               name: 'Rabies',
               date: '2023-01-15',
-              vetName: 'Dr. Smith'
+              vetName: 'Dr. Smith',
             },
             {
               type: 'examination',
               name: 'Annual Checkup',
               date: '2023-06-10',
-              vetName: 'Dr. Johnson'
-            }
+              vetName: 'Dr. Johnson',
+            },
           ],
           achievements: [
             {
               title: 'Best in Show',
               date: '2023-05-15',
-              event: 'Regional Dog Show'
-            }
-          ]
-        })
+              event: 'Regional Dog Show',
+            },
+          ],
+        }),
       });
     });
   }
@@ -147,7 +147,7 @@ export class VisualTestHelper {
    * Mock show list data
    */
   async mockShowListData() {
-    await this.page.route('**/api/shows', async (route) => {
+    await this.page.route('**/api/shows', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -162,7 +162,7 @@ export class VisualTestHelper {
             organization: 'AKC',
             entryDeadline: '2024-04-01',
             maxEntries: 150,
-            currentEntries: 87
+            currentEntries: 87,
           },
           {
             id: 'show-2',
@@ -174,7 +174,7 @@ export class VisualTestHelper {
             organization: 'NACSW',
             entryDeadline: '2024-06-05',
             maxEntries: 100,
-            currentEntries: 45
+            currentEntries: 45,
           },
           {
             id: 'show-3',
@@ -186,9 +186,9 @@ export class VisualTestHelper {
             organization: 'UKC',
             entryDeadline: '2024-08-25',
             maxEntries: 200,
-            currentEntries: 0
-          }
-        ])
+            currentEntries: 0,
+          },
+        ]),
       });
     });
   }
@@ -197,7 +197,7 @@ export class VisualTestHelper {
    * Mock show details data
    */
   async mockShowDetailsData() {
-    await this.page.route('**/api/shows/show-123', async (route) => {
+    await this.page.route('**/api/shows/show-123', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -209,8 +209,9 @@ export class VisualTestHelper {
           endDate: '2024-04-16',
           status: 'upcoming',
           organization: 'AKC',
-          description: 'Annual spring agility championship featuring novice through masters levels.',
-          entryFee: 35.00,
+          description:
+            'Annual spring agility championship featuring novice through masters levels.',
+          entryFee: 35.0,
           entryDeadline: '2024-04-01',
           maxEntries: 150,
           currentEntries: 87,
@@ -221,7 +222,7 @@ export class VisualTestHelper {
               level: 'Novice',
               type: 'Standard',
               maxTime: 60,
-              entries: 25
+              entries: 25,
             },
             {
               id: 'class-2',
@@ -229,18 +230,18 @@ export class VisualTestHelper {
               level: 'Open',
               type: 'Jumpers',
               maxTime: 45,
-              entries: 18
-            }
+              entries: 18,
+            },
           ],
           judges: [
             {
               id: 'judge-1',
               name: 'Sarah Johnson',
               level: 'Masters',
-              assignments: ['Novice Standard', 'Open Standard']
-            }
-          ]
-        })
+              assignments: ['Novice Standard', 'Open Standard'],
+            },
+          ],
+        }),
       });
     });
   }
@@ -250,8 +251,8 @@ export class VisualTestHelper {
    */
   async mockRegistrationData() {
     await this.mockDogListData();
-    
-    await this.page.route('**/api/shows/show-123/classes', async (route) => {
+
+    await this.page.route('**/api/shows/show-123/classes', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -261,32 +262,32 @@ export class VisualTestHelper {
             name: 'Novice Standard',
             level: 'Novice',
             type: 'Standard',
-            entryFee: 35.00,
+            entryFee: 35.0,
             maxEntries: 30,
             currentEntries: 15,
-            available: true
+            available: true,
           },
           {
             id: 'class-2',
             name: 'Open Jumpers',
             level: 'Open',
             type: 'Jumpers',
-            entryFee: 32.00,
+            entryFee: 32.0,
             maxEntries: 25,
             currentEntries: 20,
-            available: true
+            available: true,
           },
           {
             id: 'class-3',
             name: 'Masters Standard',
             level: 'Masters',
             type: 'Standard',
-            entryFee: 38.00,
+            entryFee: 38.0,
             maxEntries: 20,
             currentEntries: 20,
-            available: false
-          }
-        ])
+            available: false,
+          },
+        ]),
       });
     });
   }
@@ -317,7 +318,7 @@ export class VisualTestHelper {
   async completeFullRegistration() {
     await this.completeRegistrationStep1();
     await this.completeRegistrationStep2();
-    
+
     // Payment step
     await this.page.click('[data-testid="payment-method-check"]');
     await this.page.fill('[data-testid="check-number"]', '12345');
@@ -329,7 +330,7 @@ export class VisualTestHelper {
    * Mock template list data
    */
   async mockTemplateListData() {
-    await this.page.route('**/api/templates', async (route) => {
+    await this.page.route('**/api/templates', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -342,7 +343,7 @@ export class VisualTestHelper {
             description: 'Standard AKC agility class template',
             createdDate: '2023-01-15',
             lastModified: '2023-06-10',
-            isActive: true
+            isActive: true,
           },
           {
             id: 'template-2',
@@ -352,7 +353,7 @@ export class VisualTestHelper {
             description: 'NACSW scent work trial template',
             createdDate: '2023-02-20',
             lastModified: '2023-05-15',
-            isActive: true
+            isActive: true,
           },
           {
             id: 'template-3',
@@ -362,9 +363,9 @@ export class VisualTestHelper {
             description: 'UKC obedience trial template',
             createdDate: '2023-03-01',
             lastModified: '2023-04-20',
-            isActive: false
-          }
-        ])
+            isActive: false,
+          },
+        ]),
       });
     });
   }
@@ -373,7 +374,7 @@ export class VisualTestHelper {
    * Mock template edit data
    */
   async mockTemplateEditData() {
-    await this.page.route('**/api/templates/template-123', async (route) => {
+    await this.page.route('**/api/templates/template-123', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -390,7 +391,7 @@ export class VisualTestHelper {
               dataType: 'number',
               displayName: 'Maximum Entries',
               defaultValue: '30',
-              required: true
+              required: true,
             },
             {
               name: 'entryFee',
@@ -398,7 +399,7 @@ export class VisualTestHelper {
               dataType: 'currency',
               displayName: 'Entry Fee',
               defaultValue: '35.00',
-              required: true
+              required: true,
             },
             {
               name: 'maxTime',
@@ -406,18 +407,18 @@ export class VisualTestHelper {
               dataType: 'number',
               displayName: 'Maximum Time (seconds)',
               defaultValue: '60',
-              required: false
-            }
+              required: false,
+            },
           ],
           rules: [
             {
               condition: 'level === "Masters"',
               action: 'setField',
               target: 'entryFee',
-              value: '38.00'
-            }
-          ]
-        })
+              value: '38.00',
+            },
+          ],
+        }),
       });
     });
   }
@@ -426,15 +427,15 @@ export class VisualTestHelper {
    * Mock search suggestions
    */
   async mockSearchSuggestions() {
-    await this.page.route('**/api/search/suggestions**', async (route) => {
+    await this.page.route('**/api/search/suggestions**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([
           { type: 'show', name: 'Agility Championship', id: 'show-1' },
           { type: 'location', name: 'Agility Training Center', id: 'loc-1' },
-          { type: 'organization', name: 'American Kennel Club', id: 'org-1' }
-        ])
+          { type: 'organization', name: 'American Kennel Club', id: 'org-1' },
+        ]),
       });
     });
   }
@@ -443,7 +444,7 @@ export class VisualTestHelper {
    * Mock entries table data
    */
   async mockEntriesTableData() {
-    await this.page.route('**/api/entries', async (route) => {
+    await this.page.route('**/api/entries', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -456,7 +457,7 @@ export class VisualTestHelper {
             className: 'Novice Standard',
             status: 'confirmed',
             paymentStatus: 'paid',
-            entryFee: 35.00
+            entryFee: 35.0,
           },
           {
             id: 'entry-2',
@@ -466,7 +467,7 @@ export class VisualTestHelper {
             className: 'Open Jumpers',
             status: 'pending',
             paymentStatus: 'pending',
-            entryFee: 32.00
+            entryFee: 32.0,
           },
           {
             id: 'entry-3',
@@ -476,9 +477,9 @@ export class VisualTestHelper {
             className: 'Masters Standard',
             status: 'confirmed',
             paymentStatus: 'paid',
-            entryFee: 38.00
-          }
-        ])
+            entryFee: 38.0,
+          },
+        ]),
       });
     });
   }
@@ -488,8 +489,8 @@ export class VisualTestHelper {
    */
   async mockEntryManagementData() {
     await this.mockEntriesTableData();
-    
-    await this.page.route('**/api/shows/show-123/statistics', async (route) => {
+
+    await this.page.route('**/api/shows/show-123/statistics', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -497,10 +498,10 @@ export class VisualTestHelper {
           totalEntries: 87,
           confirmedEntries: 65,
           pendingEntries: 22,
-          totalRevenue: 2845.00,
-          paidRevenue: 2175.00,
-          pendingRevenue: 670.00
-        })
+          totalRevenue: 2845.0,
+          paidRevenue: 2175.0,
+          pendingRevenue: 670.0,
+        }),
       });
     });
   }
@@ -561,7 +562,7 @@ export class VisualTestHelper {
           transition-delay: 0s !important;
           scroll-behavior: auto !important;
         }
-      `
+      `,
     });
   }
 
@@ -569,7 +570,7 @@ export class VisualTestHelper {
    * Simulate slow network for loading states
    */
   async simulateSlowNetwork() {
-    await this.page.route('**/api/**', async (route) => {
+    await this.page.route('**/api/**', async route => {
       // Delay all API responses by 2 seconds
       await new Promise(resolve => setTimeout(resolve, 2000));
       await route.continue();
@@ -590,9 +591,9 @@ export class VisualTestHelper {
     const defaultOptions = {
       fullPage: true,
       animations: 'disabled' as const,
-      ...options
+      ...options,
     };
-    
+
     await expect(this.page).toHaveScreenshot(`${name}.png`, defaultOptions);
   }
 

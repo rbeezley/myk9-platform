@@ -25,7 +25,10 @@ import {
   saveLocalView,
   type SavedViewShowScope,
 } from '@/features/operational-views/localViewPreferences';
-import type { OperationalView, OperationalViewSurfaceId } from '@/features/operational-views/operationalViews';
+import type {
+  OperationalView,
+  OperationalViewSurfaceId,
+} from '@/features/operational-views/operationalViews';
 
 interface SavedViewsControlProps<TView extends OperationalView> {
   surface: OperationalViewSurfaceId;

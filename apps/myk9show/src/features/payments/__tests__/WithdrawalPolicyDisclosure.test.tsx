@@ -8,7 +8,9 @@ vi.mock('../useEffectiveWithdrawalPolicy', () => ({
   useEffectiveWithdrawalPolicy: (showId: string | null | undefined) => mockHook(showId),
 }));
 
-function hookState(over: Partial<{ data: WithdrawalPolicy | null; isLoading: boolean; isError: boolean }>) {
+function hookState(
+  over: Partial<{ data: WithdrawalPolicy | null; isLoading: boolean; isError: boolean }>
+) {
   return { data: null, isLoading: false, isError: false, ...over };
 }
 
@@ -18,12 +20,19 @@ describe('WithdrawalPolicyDisclosure', () => {
   it('renders the described policy line for a resolved policy', () => {
     mockHook.mockReturnValue(
       hookState({
-        data: { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: 1000, notes: null },
+        data: {
+          cutoffDate: '2026-06-01',
+          retentionType: 'flat',
+          retentionValue: 1000,
+          notes: null,
+        },
       })
     );
     render(<WithdrawalPolicyDisclosure showId="show-1" />);
     expect(
-      screen.getByText(/Full refund of the entry fee until June 1, 2026; after that, \$10\.00 is kept/)
+      screen.getByText(
+        /Full refund of the entry fee until June 1, 2026; after that, \$10\.00 is kept/
+      )
     ).toBeInTheDocument();
     expect(screen.getByText(/Service fees are non-refundable\./)).toBeInTheDocument();
   });

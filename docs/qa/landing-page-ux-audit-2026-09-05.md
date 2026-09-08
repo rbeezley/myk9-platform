@@ -14,13 +14,13 @@ The prototype compares three structures: A keeps photography central; B leads wi
 
 **What it actually does:** also exposes show browsing, sign-in, and an account-gated club onboarding request. Local waitlist code gives club/secretary submissions different success messaging from exhibitor/judge submissions.
 
-| UI element | User expects | Observed behavior or claim | Severity |
-|---|---|---|---|
-| Waitlist alongside “Run your next trial” | A clear answer about availability | Future availability and current onboarding coexist without an up-front explanation | High for launch |
-| “Browse shows” | Real events suitable for discovery | Public directory shows three “MYK9-109 Load Show” entries; fourth event's authenticity not established | High |
-| “No conflicts, no lost scores” | Unconditional reliability | Absolute marketing promise; this audit does not establish that guarantee | High claim-review priority |
-| Offline paragraph includes exhibitors and live updates | All roles see fresh information without a connection | Copy does not clearly distinguish local scoring from cross-device communication | High |
-| “Forever,” “never lost,” and 2027 sport dates | Durable commitments | Strong promises presented without qualifications or launch evidence | Medium |
+| UI element                                             | User expects                                         | Observed behavior or claim                                                                             | Severity                   |
+| ------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------- |
+| Waitlist alongside “Run your next trial”               | A clear answer about availability                    | Future availability and current onboarding coexist without an up-front explanation                     | High for launch            |
+| “Browse shows”                                         | Real events suitable for discovery                   | Public directory shows three “MYK9-109 Load Show” entries; fourth event's authenticity not established | High                       |
+| “No conflicts, no lost scores”                         | Unconditional reliability                            | Absolute marketing promise; this audit does not establish that guarantee                               | High claim-review priority |
+| Offline paragraph includes exhibitors and live updates | All roles see fresh information without a connection | Copy does not clearly distinguish local scoring from cross-device communication                        | High                       |
+| “Forever,” “never lost,” and 2027 sport dates          | Durable commitments                                  | Strong promises presented without qualifications or launch evidence                                    | Medium                     |
 
 **Jargon found:** “replication queues,” “offline-first,” “Modern Web,” and “ringside-resilient.” Prefer “Prepare your devices online. Record scores without a signal. Share updates when connected.” Keep familiar sport terms such as premium list and placements.
 
@@ -28,44 +28,44 @@ The prototype compares three structures: A keeps photography central; B leads wi
 
 **Current structure:** navigation → large dog photo → headline and waitlist form → highlights → company history → club features → exhibitor features → offline example → account-gated onboarding → another waitlist form → footer.
 
-| Issue | Location | Problem | Recommendation |
-|---|---|---|---|
-| Hero delays the next step | First desktop screen | At the observed viewport, photo consumes much of the screen; the form submission is below the fold | Put compact copy and two actions beside the photo |
-| Product proof arrives late | Offline example | Visitors read many claims before seeing software | Bring one sanitized real screenshot near the hero; caption the task it solves |
-| Repeated feature narrative | Headline, club cards, offline section | Repeats paperwork/offline benefits without answering more objections | Organize around before, during, and after the trial |
-| Pricing hidden in footer | “How Our Fees Work” | A decision-critical question is easy to miss | Add Fees in navigation and a short explanation near conversion |
-| Company history occupies substantial early space | Trust section | Four historical products require extra interpretation | Keep concise RyKris credibility near the hero; put longer story lower |
-| Future roadmap competes with current value | Hero and highlight strip | 2027 sports distract from launch scope | Put future sports in a clearly labeled FAQ or roadmap link |
+| Issue                                            | Location                              | Problem                                                                                            | Recommendation                                                                |
+| ------------------------------------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Hero delays the next step                        | First desktop screen                  | At the observed viewport, photo consumes much of the screen; the form submission is below the fold | Put compact copy and two actions beside the photo                             |
+| Product proof arrives late                       | Offline example                       | Visitors read many claims before seeing software                                                   | Bring one sanitized real screenshot near the hero; caption the task it solves |
+| Repeated feature narrative                       | Headline, club cards, offline section | Repeats paperwork/offline benefits without answering more objections                               | Organize around before, during, and after the trial                           |
+| Pricing hidden in footer                         | “How Our Fees Work”                   | A decision-critical question is easy to miss                                                       | Add Fees in navigation and a short explanation near conversion                |
+| Company history occupies substantial early space | Trust section                         | Four historical products require extra interpretation                                              | Keep concise RyKris credibility near the hero; put longer story lower         |
+| Future roadmap competes with current value       | Hero and highlight strip              | 2027 sports distract from launch scope                                                             | Put future sports in a clearly labeled FAQ or roadmap link                    |
 
 **Visibility:** make current availability, supported launch sports, fees, and onboarding process visible. Reduce prominence of internal version numbers, architecture language, historical product taxonomy, and distant roadmap dates.
 
 ## Pass 3: Affordance Clarity
 
-| Element | Looks like | Actually is | Clear? |
-|---|---|---|---|
-| Header waitlist button | Primary conversion | Moves visitors to waitlist | Yes, but conflicts with other conversion paths |
+| Element                         | Looks like                        | Actually is                                            | Clear?                                                                        |
+| ------------------------------- | --------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Header waitlist button          | Primary conversion                | Moves visitors to waitlist                             | Yes, but conflicts with other conversion paths                                |
 | Club feature card under pointer | Raised, outlined interactive card | Descriptive content in the observed accessibility tree | Potentially misleading; remove action-like hover treatment for static content |
-| Footer “For exhibitors” | Jump to exhibitor content | Same #features destination as clubs | No; link to the exhibitor section |
-| Name field | Similar requirement to email | Optional in local source | No; label “Name (optional)” |
-| Ringside example | Real product evidence | Illustrative static view | Label clearly as example; use real capture for launch proof |
+| Footer “For exhibitors”         | Jump to exhibitor content         | Same #features destination as clubs                    | No; link to the exhibitor section                                             |
+| Name field                      | Similar requirement to email      | Optional in local source                               | No; label “Name (optional)”                                                   |
+| Ringside example                | Real product evidence             | Illustrative static view                               | Label clearly as example; use real capture for launch proof                   |
 
 **False affordances:** static cards with strong hover elevation. **Hidden affordances:** no decisive finding beyond the footer anchor mismatch. Recommend consistent action styling and keeping readable links at adequate touch sizes.
 
 ## Pass 4: Cognitive Load
 
-| Screen/step | Decisions required | Can be reduced? |
-|---|---|---|
-| Header + hero | Waitlist, shows, sign-in, three explanatory links; name/email/role | Two prominent outcomes: bring a club aboard or find a show; sign-in remains utility navigation |
-| Current waitlist | Name, email, role | Respect the intentional lightweight form; explicitly mark name optional |
-| Club request | Account creation/sign-in before seeing full request | Explain the steps and what happens afterward before asking for an account |
+| Screen/step      | Decisions required                                                 | Can be reduced?                                                                                |
+| ---------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Header + hero    | Waitlist, shows, sign-in, three explanatory links; name/email/role | Two prominent outcomes: bring a club aboard or find a show; sign-in remains utility navigation |
+| Current waitlist | Name, email, role                                                  | Respect the intentional lightweight form; explicitly mark name optional                        |
+| Club request     | Account creation/sign-in before seeing full request                | Explain the steps and what happens afterward before asking for an account                      |
 
 **Missing defaults:** no clear missing default; exhibitor is already selected. Do not add more waitlist targeting fields (intentional per source comment).
 
-| Complexity | Who needs it | Recommendation |
-|---|---|---|
-| Replication terminology | Technical reviewers | Replace with outcome and preparation requirements |
+| Complexity                  | Who needs it           | Recommendation                                            |
+| --------------------------- | ---------------------- | --------------------------------------------------------- |
+| Replication terminology     | Technical reviewers    | Replace with outcome and preparation requirements         |
 | Historical product sequence | Returning RyKris users | Condense; retain useful continuity and migration guidance |
-| All future capabilities | Roadmap readers | Separate available-at-launch from planned |
+| All future capabilities     | Roadmap readers        | Separate available-at-launch from planned                 |
 
 **Cognitive load: Medium.** Individual sections are understandable; cumulative repetition and competing conversion goals create hesitation.
 
@@ -73,24 +73,24 @@ The prototype compares three structures: A keeps photography central; B leads wi
 
 ### Waitlist (local source review; submission not tested live)
 
-| State | Implemented? | Quality | Issue |
-|---|---|---|---|
-| Empty | Yes | Partial | Name optionality is not labeled |
-| Loading | Yes | Good basic coverage | Button changes to Joining and disables |
-| Success | Yes | Partial | Club success says a sign-in link was sent based on role after insert, rather than verified email delivery |
-| Partial/duplicate | Yes | Partial | Duplicate email returns generic success and does not provide invite recovery in the displayed copy |
-| Error | Yes | Partial | Generic retry copy; no dedicated thrown-request recovery in the handler |
-| Invalid email | Partial | Needs verification | Form uses noValidate and handler checks non-empty only; malformed email is not rejected by that client path |
+| State             | Implemented? | Quality             | Issue                                                                                                       |
+| ----------------- | ------------ | ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Empty             | Yes          | Partial             | Name optionality is not labeled                                                                             |
+| Loading           | Yes          | Good basic coverage | Button changes to Joining and disables                                                                      |
+| Success           | Yes          | Partial             | Club success says a sign-in link was sent based on role after insert, rather than verified email delivery   |
+| Partial/duplicate | Yes          | Partial             | Duplicate email returns generic success and does not provide invite recovery in the displayed copy          |
+| Error             | Yes          | Partial             | Generic retry copy; no dedicated thrown-request recovery in the handler                                     |
+| Invalid email     | Partial      | Needs verification  | Form uses noValidate and handler checks non-empty only; malformed email is not rejected by that client path |
 
 ### Club onboarding (local source review)
 
-| State | Implemented? | Quality | Issue |
-|---|---|---|---|
-| Signed out | Yes | Good basic explanation | State the complete process before the sign-in gate |
-| Loading | Yes | Good basic coverage | Existing request check has busy/loading text |
-| Success | Yes | Good basic coverage | Submission explains review and expected response; do not repeat timing claims publicly without operating commitment |
-| Existing request | Yes | Partial | Raw status vocabulary and limited next-step/support guidance |
-| Error | Yes | Partial | Duplicate/auth-specific handling exists; an existing-request lookup failure logs and then permits a fresh form |
+| State            | Implemented? | Quality                | Issue                                                                                                               |
+| ---------------- | ------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Signed out       | Yes          | Good basic explanation | State the complete process before the sign-in gate                                                                  |
+| Loading          | Yes          | Good basic coverage    | Existing request check has busy/loading text                                                                        |
+| Success          | Yes          | Good basic coverage    | Submission explains review and expected response; do not repeat timing claims publicly without operating commitment |
+| Existing request | Yes          | Partial                | Raw status vocabulary and limited next-step/support guidance                                                        |
+| Error            | Yes          | Partial                | Duplicate/auth-specific handling exists; an existing-request lookup failure logs and then permits a fresh form      |
 
 **Dead-end risks:** delayed/missing invitation email without a resend/support path; existing onboarding request without clear follow-up contact. These are source-based review observations, not experimentally reproduced delivery failures.
 
@@ -102,14 +102,14 @@ Observed loading resolves to four listings. Three have load-test names. No claim
 
 **Primary flow inspected:** arrive as a prospective club or exhibitor, understand availability, locate a next step. Stopped before any live submission.
 
-| Step | Action | Friction | Severity |
-|---|---|---|---|
-| 1 | Read hero | Clear domain, but conversion below large photo | Medium |
-| 2 | Decide whether product is available | Waitlist and live onboarding conflict | High |
-| 3 | Assess product fit | Numerous claims, limited real product evidence | Medium |
-| 4 | Assess cost | Existing fee page accessible mainly from footer | Medium |
-| 5a | Browse shows | Public load-test names undermine trust | High |
-| 5b | Start club onboarding | Account required; request/review model should be stated earlier | Medium |
+| Step | Action                              | Friction                                                        | Severity |
+| ---- | ----------------------------------- | --------------------------------------------------------------- | -------- |
+| 1    | Read hero                           | Clear domain, but conversion below large photo                  | Medium   |
+| 2    | Decide whether product is available | Waitlist and live onboarding conflict                           | High     |
+| 3    | Assess product fit                  | Numerous claims, limited real product evidence                  | Medium   |
+| 4    | Assess cost                         | Existing fee page accessible mainly from footer                 | Medium   |
+| 5a   | Browse shows                        | Public load-test names undermine trust                          | High     |
+| 5b   | Start club onboarding               | Account required; request/review model should be stated earlier | Medium   |
 
 **Abandonment risks:** unclear launch state, test inventory, unproven broad claims, uncertainty about cost and adoption work. **Recovery:** no destructive actions inspected; live submission, email delivery, auth return, and payment recovery remain untested. **Flow verdict:** discovery is completable with friction; conversion end-to-end is unverified.
 
@@ -117,15 +117,15 @@ Observed loading resolves to four listings. Three have load-test names. No claim
 
 **Overall UX health: Needs work for production conversion; good visual foundation.** No observed critical crash or data loss.
 
-| Priority | Finding | Pass | Impact | Relative effort |
-|---|---|---|---|---|
-| High, before launch | Exclude test fixtures from public discovery | 1, 6 | Trust and event selection | Depends on existing publication model |
-| High, before launch | Align availability and conversion paths | 1, 2 | Visitors know what they can do now | Small–medium |
-| High, before launch | Validate/qualify offline and permanence claims | 1 | Sets accurate expectations | Copy small; evidence varies |
-| Medium | Bring product proof and fees earlier | 2 | Reduces uncertainty | Small–medium |
-| Medium | Improve waitlist validation/invite recovery if retained | 5 | Reduces silent or confusing failures | Medium |
-| Medium | Explain account → request → review path | 4, 6 | Makes club adoption predictable | Small |
-| Low | Fix exhibitor anchor, optional label, static-card hover | 3 | Reduces minor confusion | Small |
+| Priority            | Finding                                                 | Pass | Impact                               | Relative effort                       |
+| ------------------- | ------------------------------------------------------- | ---- | ------------------------------------ | ------------------------------------- |
+| High, before launch | Exclude test fixtures from public discovery             | 1, 6 | Trust and event selection            | Depends on existing publication model |
+| High, before launch | Align availability and conversion paths                 | 1, 2 | Visitors know what they can do now   | Small–medium                          |
+| High, before launch | Validate/qualify offline and permanence claims          | 1    | Sets accurate expectations           | Copy small; evidence varies           |
+| Medium              | Bring product proof and fees earlier                    | 2    | Reduces uncertainty                  | Small–medium                          |
+| Medium              | Improve waitlist validation/invite recovery if retained | 5    | Reduces silent or confusing failures | Medium                                |
+| Medium              | Explain account → request → review path                 | 4, 6 | Makes club adoption predictable      | Small                                 |
+| Low                 | Fix exhibitor anchor, optional label, static-card hover | 3    | Reduces minor confusion              | Small                                 |
 
 **Quick wins now:** label name optional; fix exhibitor anchor; make fees visible; clarify whether clubs get early access; shorten technical offline copy. Keep the waitlist until the corresponding production destinations are ready.
 

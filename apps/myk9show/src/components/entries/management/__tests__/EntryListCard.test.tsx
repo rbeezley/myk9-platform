@@ -91,7 +91,9 @@ describe('EntryListCard - check-in button affordance', () => {
     );
 
     const armband = screen.getByRole('button', { name: /change armband for Fido/i });
-    const status = screen.getByRole('button', { name: /change entry status for Fido in Novice A/i });
+    const status = screen.getByRole('button', {
+      name: /change entry status for Fido in Novice A/i,
+    });
     const checkIn = screen.getByRole('button', {
       name: /change check-in status for Fido in Novice A/i,
     });

@@ -1,6 +1,6 @@
 /**
  * Scoring Conflict Handler Component
- * 
+ *
  * Handles conflicts between judges/scores in multi-judge scenarios.
  * Provides resolution interfaces and conflict management workflows
  * with Premium design for clear decision making.
@@ -19,43 +19,42 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { logger } from '@/services/LoggingService';
 import {
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 
 // Icons
-import { 
-  AlertTriangle, 
-  Users, 
-  Scale, 
-  Clock, 
-  CheckCircle2, 
- 
+import {
+  AlertTriangle,
+  Users,
+  Scale,
+  Clock,
+  CheckCircle2,
   Eye,
   Gavel,
   ArrowRight,
   Info,
-  User
+  User,
 } from 'lucide-react';
 
 // Types
-import type { 
-  BaseScore, 
-  MultiJudgeScore, 
+import type {
+  BaseScore,
+  MultiJudgeScore,
   ConflictResolution,
-  ScoringFormat 
+  ScoringFormat,
 } from '@/types/scoring-types';
 import type { QualificationStatus } from '@/types/scent-work-types';
 
@@ -93,28 +92,28 @@ const CONFLICT_RESOLUTION_STRATEGIES = [
   {
     value: 'manual_override' as const,
     label: 'Manual Override',
-    description: 'Head judge or show manager makes final decision'
+    description: 'Head judge or show manager makes final decision',
   },
   {
     value: 'average' as const,
     label: 'Average Scores',
-    description: 'Use mathematical average of all judge scores'
+    description: 'Use mathematical average of all judge scores',
   },
   {
     value: 'judge_hierarchy' as const,
     label: 'Judge Hierarchy',
-    description: 'Use score from highest-ranking judge'
+    description: 'Use score from highest-ranking judge',
   },
   {
     value: 'head_judge_final' as const,
     label: 'Head Judge Final',
-    description: 'Head judge reviews and makes binding decision'
+    description: 'Head judge reviews and makes binding decision',
   },
   {
     value: 'disqualify' as const,
     label: 'Disqualify Entry',
-    description: 'Remove entry due to irreconcilable differences'
-  }
+    description: 'Remove entry due to irreconcilable differences',
+  },
 ] as const;
 
 /**
@@ -125,7 +124,7 @@ export function ScoringConflictHandler({
   format,
   onConflictResolved,
   onViewScore,
-  className
+  className,
 }: ScoringConflictHandlerProps) {
   // Store hooks
   const { getScoresByClass } = useOfflineScoringStore();
@@ -137,7 +136,7 @@ export function ScoringConflictHandler({
     conflict: null,
     selectedResolution: null,
     resolutionNotes: '',
-    isSubmitting: false
+    isSubmitting: false,
   });
   const [resolvedConflicts, setResolvedConflicts] = useState<Set<string>>(new Set());
 
@@ -145,7 +144,7 @@ export function ScoringConflictHandler({
   const loadConflicts = useCallback(async () => {
     try {
       const scores = getScoresByClass(classId);
-      
+
       // Group scores by entry
       const entryScores = new Map<string, BaseScore[]>();
       scores.forEach(score => {
@@ -178,7 +177,7 @@ export function ScoringConflictHandler({
             judgeScores: judgeScoresMap,
             hasConflicts: true,
             lastUpdated: new Date(),
-            syncStatus: 'pending'
+            syncStatus: 'pending',
           };
 
           // Determine conflict severity
@@ -196,7 +195,7 @@ export function ScoringConflictHandler({
             armband: entryId.slice(-3),
             multiJudgeScore,
             severity,
-            conflictType: 'qualification'
+            conflictType: 'qualification',
           });
         }
       }
@@ -227,8 +226,8 @@ export function ScoringConflictHandler({
   }, [classId, loadConflicts]);
 
   // Filter unresolved conflicts
-  const unresolvedConflicts = useMemo(() => 
-    conflicts.filter(c => !resolvedConflicts.has(c.entryId)),
+  const unresolvedConflicts = useMemo(
+    () => conflicts.filter(c => !resolvedConflicts.has(c.entryId)),
     [conflicts, resolvedConflicts]
   );
 
@@ -239,7 +238,7 @@ export function ScoringConflictHandler({
       conflict,
       selectedResolution: null,
       resolutionNotes: '',
-      isSubmitting: false
+      isSubmitting: false,
     });
   }, []);
 
@@ -249,7 +248,7 @@ export function ScoringConflictHandler({
       conflict: null,
       selectedResolution: null,
       resolutionNotes: '',
-      isSubmitting: false
+      isSubmitting: false,
     });
   }, []);
 
@@ -264,7 +263,7 @@ export function ScoringConflictHandler({
         strategy: resolutionDialog.selectedResolution,
         resolvedBy: 'head_judge', // Would come from current user context
         resolvedAt: new Date(),
-        resolutionNotes: resolutionDialog.resolutionNotes || 'Manual resolution applied'
+        resolutionNotes: resolutionDialog.resolutionNotes || 'Manual resolution applied',
       };
 
       // Mark conflict as resolved
@@ -332,20 +331,18 @@ export function ScoringConflictHandler({
 
   if (unresolvedConflicts.length === 0) {
     return (
-      <Card className={cn("bg-card/95 backdrop-blur-sm border-border/50", className)}>
+      <Card className={cn('bg-card/95 backdrop-blur-sm border-border/50', className)}>
         <CardContent className="p-6 text-center">
           <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success" />
           <h3 className="text-lg font-semibold mb-2">No Conflicts</h3>
-          <p className="text-sm text-muted-foreground">
-            All judge scores are in agreement
-          </p>
+          <p className="text-sm text-muted-foreground">All judge scores are in agreement</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn('space-y-4', className)}>
       {/* Header */}
       <Card className="bg-card/95 backdrop-blur-sm border-border/50">
         <CardHeader className="pb-3">
@@ -371,10 +368,10 @@ export function ScoringConflictHandler({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
-                transition={{ 
+                transition={{
                   duration: 0.3,
                   delay: index * 0.05,
-                  ease: [0.25, 0.46, 0.45, 0.94]
+                  ease: [0.25, 0.46, 0.45, 0.94],
                 }}
               >
                 <Card className="bg-background/50 border-border/50 hover:bg-accent/30 transition-colors">
@@ -383,15 +380,13 @@ export function ScoringConflictHandler({
                       <div className="flex items-center gap-3">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-foreground">
-                              {conflict.dogName}
-                            </span>
+                            <span className="font-medium text-foreground">{conflict.dogName}</span>
                             <Badge variant="outline" className="text-xs">
                               #{conflict.armband}
                             </Badge>
-                            <Badge 
-                              variant="outline" 
-                              className={cn("text-xs", getSeverityStyling(conflict.severity))}
+                            <Badge
+                              variant="outline"
+                              className={cn('text-xs', getSeverityStyling(conflict.severity))}
                             >
                               {conflict.severity} priority
                             </Badge>
@@ -423,40 +418,45 @@ export function ScoringConflictHandler({
                       </div>
 
                       <div className="grid gap-2">
-                        {Array.from(conflict.multiJudgeScore.judgeScores.entries()).map(([judgeId, score]) => (
-                          <div 
-                            key={judgeId}
-                            className="flex items-center justify-between p-2 rounded bg-background/70 border border-border/30"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">
-                                Judge {judgeId.slice(-3)}
-                              </span>
-                              <Badge 
-                                variant="outline" 
-                                className={cn("text-xs", getQualificationStyling(score.qualification))}
-                              >
-                                {score.qualification === 'Qualified' ? 'Q' :
-                                 score.qualification === 'Not Qualified' ? 'NQ' :
-                                 score.qualification.charAt(0)}
-                              </Badge>
-                            </div>
+                        {Array.from(conflict.multiJudgeScore.judgeScores.entries()).map(
+                          ([judgeId, score]) => (
+                            <div
+                              key={judgeId}
+                              className="flex items-center justify-between p-2 rounded bg-background/70 border border-border/30"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  Judge {judgeId.slice(-3)}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-xs',
+                                    getQualificationStyling(score.qualification)
+                                  )}
+                                >
+                                  {score.qualification === 'Qualified'
+                                    ? 'Q'
+                                    : score.qualification === 'Not Qualified'
+                                      ? 'NQ'
+                                      : score.qualification.charAt(0)}
+                                </Badge>
+                              </div>
 
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-mono">
-                                {formatScore(score)}
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => onViewScore?.(conflict.entryId, judgeId)}
-                                className="h-6 px-2"
-                              >
-                                <Eye className="h-3 w-3" />
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-mono">{formatScore(score)}</span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => onViewScore?.(conflict.entryId, judgeId)}
+                                  className="h-6 px-2"
+                                >
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        )}
                       </div>
                     </div>
 
@@ -464,7 +464,7 @@ export function ScoringConflictHandler({
                     <Alert className="mt-3 bg-warning/5 border-warning/20">
                       <Info className="h-4 w-4 text-warning" />
                       <AlertDescription className="text-xs">
-                        <strong>Conflict:</strong> Judges disagree on qualification status. 
+                        <strong>Conflict:</strong> Judges disagree on qualification status.
                         Resolution required before final placements.
                       </AlertDescription>
                     </Alert>
@@ -494,9 +494,12 @@ export function ScoringConflictHandler({
                   <span className="font-medium">
                     {resolutionDialog.conflict.dogName} (#{resolutionDialog.conflict.armband})
                   </span>
-                  <Badge 
-                    variant="outline" 
-                    className={cn("text-xs", getSeverityStyling(resolutionDialog.conflict.severity))}
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-xs',
+                      getSeverityStyling(resolutionDialog.conflict.severity)
+                    )}
                   >
                     {resolutionDialog.conflict.severity} priority
                   </Badge>
@@ -513,10 +516,10 @@ export function ScoringConflictHandler({
                 </Label>
                 <Select
                   value={resolutionDialog.selectedResolution || ''}
-                  onValueChange={(value) => 
-                    setResolutionDialog(prev => ({ 
-                      ...prev, 
-                      selectedResolution: value as ConflictResolution['strategy']
+                  onValueChange={value =>
+                    setResolutionDialog(prev => ({
+                      ...prev,
+                      selectedResolution: value as ConflictResolution['strategy'],
                     }))
                   }
                 >
@@ -524,7 +527,7 @@ export function ScoringConflictHandler({
                     <SelectValue placeholder="Select resolution method" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CONFLICT_RESOLUTION_STRATEGIES.map((strategy) => (
+                    {CONFLICT_RESOLUTION_STRATEGIES.map(strategy => (
                       <SelectItem key={strategy.value} value={strategy.value}>
                         <div>
                           <div className="font-medium">{strategy.label}</div>
@@ -547,10 +550,10 @@ export function ScoringConflictHandler({
                   id="resolution-notes"
                   placeholder="Enter notes about this resolution decision..."
                   value={resolutionDialog.resolutionNotes}
-                  onChange={(e) => 
-                    setResolutionDialog(prev => ({ 
-                      ...prev, 
-                      resolutionNotes: e.target.value 
+                  onChange={e =>
+                    setResolutionDialog(prev => ({
+                      ...prev,
+                      resolutionNotes: e.target.value,
                     }))
                   }
                   rows={3}
@@ -562,8 +565,11 @@ export function ScoringConflictHandler({
                 <Alert className="bg-primary/5 border-primary/20">
                   <ArrowRight className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm">
-                    <strong>Final Decision:</strong> {
-                      CONFLICT_RESOLUTION_STRATEGIES.find(s => s.value === resolutionDialog.selectedResolution)?.description
+                    <strong>Final Decision:</strong>{' '}
+                    {
+                      CONFLICT_RESOLUTION_STRATEGIES.find(
+                        s => s.value === resolutionDialog.selectedResolution
+                      )?.description
                     }
                   </AlertDescription>
                 </Alert>

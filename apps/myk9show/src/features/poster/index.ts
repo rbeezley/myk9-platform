@@ -40,10 +40,7 @@ export {
   type PosterHeadingLevel,
   type PosterHeadingVariant,
 } from './components/PosterHeading';
-export {
-  PosterSectionHead,
-  type PosterSectionHeadProps,
-} from './components/PosterSectionHead';
+export { PosterSectionHead, type PosterSectionHeadProps } from './components/PosterSectionHead';
 export {
   PosterTitleStack,
   type PosterTitleStackProps,

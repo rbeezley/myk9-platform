@@ -34,13 +34,19 @@ describe('packetDayIsPrinted', () => {
     // A check-in sheet is not the emergency packet. Counting it would silence
     // the reminder for paperwork that was never printed.
     expect(
-      packetDayIsPrinted([confirmation('2026-10-04', { report_id: 'check-in-sheet' })], '2026-10-04')
+      packetDayIsPrinted(
+        [confirmation('2026-10-04', { report_id: 'check-in-sheet' })],
+        '2026-10-04'
+      )
     ).toBe(false);
   });
 
   it('treats a voided confirmation as retracted, not weaker', () => {
     expect(
-      packetDayIsPrinted([confirmation('2026-10-04', { voided_at: '2026-10-04T01:00:00Z' })], '2026-10-04')
+      packetDayIsPrinted(
+        [confirmation('2026-10-04', { voided_at: '2026-10-04T01:00:00Z' })],
+        '2026-10-04'
+      )
     ).toBe(false);
   });
 
@@ -122,8 +128,20 @@ describe('reminder wording', () => {
     });
     expect(morning).toMatch(/is today/);
     expect(morning).toMatch(/last chance/i);
-    expect(buildPrintReminderSubject({ showName: 'Heartland', trialDate: '2026-10-04', kind: 'morning-of' })).toMatch(/^Today:/);
-    expect(buildPrintReminderSubject({ showName: 'Heartland', trialDate: '2026-10-04', kind: 'evening-before' })).toMatch(/^Tonight:/);
+    expect(
+      buildPrintReminderSubject({
+        showName: 'Heartland',
+        trialDate: '2026-10-04',
+        kind: 'morning-of',
+      })
+    ).toMatch(/^Today:/);
+    expect(
+      buildPrintReminderSubject({
+        showName: 'Heartland',
+        trialDate: '2026-10-04',
+        kind: 'evening-before',
+      })
+    ).toMatch(/^Tonight:/);
   });
 
   it('escapes a show name that contains markup', () => {
@@ -160,8 +178,9 @@ describe('shouldReclaimStaleReminder', () => {
     // Deliberate asymmetry, worth pinning: a duplicate email is recoverable,
     // a trial day with no paper and no chase is the failure this exists to
     // prevent. So an unparseable claim retries rather than silencing forever.
-    expect(shouldReclaimStaleReminder({ claimed_at: 'not a date', sent_at: null }, base)).toBe(true);
+    expect(shouldReclaimStaleReminder({ claimed_at: 'not a date', sent_at: null }, base)).toBe(
+      true
+    );
     expect(shouldReclaimStaleReminder({ claimed_at: '', sent_at: null }, base)).toBe(true);
   });
 });
-

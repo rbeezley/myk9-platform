@@ -154,9 +154,7 @@ describe('DeletedEntitiesTab', () => {
       expect(screen.getByText('Trash is empty')).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText('Deleted items will appear here for review.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Deleted items will appear here for review.')).toBeInTheDocument();
   });
 
   it('renders sections for entities with non-zero counts', async () => {

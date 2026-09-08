@@ -27,17 +27,16 @@ export default function handler(req, res) {
     // Write the file
     fs.writeFileSync(mockDataPath, fileContent, 'utf8');
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Successfully saved ${templates.length} templates to mockTemplatesWithFields.ts`,
-      templatesCount: templates.length
+      templatesCount: templates.length,
     });
-
   } catch (error) {
     console.error('Error saving templates:', error);
-    res.status(500).json({ 
-      error: 'Failed to save templates', 
-      details: error.message 
+    res.status(500).json({
+      error: 'Failed to save templates',
+      details: error.message,
     });
   }
 }
@@ -58,7 +57,7 @@ import { TemplateFieldConfiguration, ShowTypeField } from '@/types/field-definit
   templates.forEach((template, index) => {
     const safeName = generateSafeConstantName(template.templateName);
     exportNames.push(safeName);
-    
+
     content += `export const ${safeName}: ClassTemplate = ${formatTemplateForTypeScript(template)};
 
 `;
@@ -78,52 +77,59 @@ export const STRUCTURED_TEMPLATES = [
 }
 
 function generateSafeConstantName(templateName) {
-  return templateName
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '') + '_TEMPLATE';
+  return (
+    templateName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') + '_TEMPLATE'
+  );
 }
 
 function formatTemplateForTypeScript(template) {
   // Create a clean copy
   const formatted = { ...template };
-  
+
   // Convert enum strings to proper enum references
   const organizationMap = {
-    'AKC': 'Organization.AKC',
-    'UKC': 'Organization.UKC',
-    'CKC': 'Organization.CKC'
+    AKC: 'Organization.AKC',
+    UKC: 'Organization.UKC',
+    CKC: 'Organization.CKC',
   };
-  
+
   const showTypeMap = {
     'Scent Work': 'ShowType.SCENT_WORK',
-    'Agility': 'ShowType.AGILITY', 
-    'Conformation': 'ShowType.CONFORMATION',
-    'Obedience': 'ShowType.OBEDIENCE',
-    'Rally': 'ShowType.RALLY'
+    Agility: 'ShowType.AGILITY',
+    Conformation: 'ShowType.CONFORMATION',
+    Obedience: 'ShowType.OBEDIENCE',
+    Rally: 'ShowType.RALLY',
   };
-  
+
   const statusMap = {
-    'active': 'TemplateStatus.ACTIVE',
-    'draft': 'TemplateStatus.DRAFT',
-    'archived': 'TemplateStatus.ARCHIVED',
-    'deprecated': 'TemplateStatus.DEPRECATED'
+    active: 'TemplateStatus.ACTIVE',
+    draft: 'TemplateStatus.DRAFT',
+    archived: 'TemplateStatus.ARCHIVED',
+    deprecated: 'TemplateStatus.DEPRECATED',
   };
-  
+
   const typeMap = {
-    'official': 'TemplateType.OFFICIAL',
-    'custom': 'TemplateType.CUSTOM',
-    'fork': 'TemplateType.FORK'
+    official: 'TemplateType.OFFICIAL',
+    custom: 'TemplateType.CUSTOM',
+    fork: 'TemplateType.FORK',
   };
 
   // Replace with enum references
-  formatted.organization = organizationMap[template.organization] || `Organization.${template.organization.toUpperCase().replace(/\s+/g, '_')}`;
-  formatted.showType = showTypeMap[template.showType] || `ShowType.${template.showType.toUpperCase().replace(/\s+/g, '_')}`;
-  
+  formatted.organization =
+    organizationMap[template.organization] ||
+    `Organization.${template.organization.toUpperCase().replace(/\s+/g, '_')}`;
+  formatted.showType =
+    showTypeMap[template.showType] ||
+    `ShowType.${template.showType.toUpperCase().replace(/\s+/g, '_')}`;
+
   if (template.status) {
-    formatted.status = statusMap[template.status] || `TemplateStatus.${template.status.toUpperCase()}`;
+    formatted.status =
+      statusMap[template.status] || `TemplateStatus.${template.status.toUpperCase()}`;
   }
-  
+
   if (template.type) {
     formatted.type = typeMap[template.type] || `TemplateType.${template.type.toUpperCase()}`;
   }
@@ -138,15 +144,18 @@ function formatTemplateForTypeScript(template) {
 
   // Convert to JSON string
   let jsonString = JSON.stringify(formatted, null, 2);
-  
+
   // Fix enum references (remove quotes around enum values)
-  jsonString = jsonString.replace(/"(Organization|ShowType|TemplateStatus|TemplateType)\.[A-Z_]+"/g, '$1');
-  
+  jsonString = jsonString.replace(
+    /"(Organization|ShowType|TemplateStatus|TemplateType)\.[A-Z_]+"/g,
+    '$1'
+  );
+
   // Fix date objects (remove quotes around new Date calls)
   jsonString = jsonString.replace(/"(new Date\([^)]+\))"/g, '$1');
-  
+
   // Fix string escaping for apostrophes
   jsonString = jsonString.replace(/(?<!\\)'/g, "\\'");
-  
+
   return jsonString;
 }

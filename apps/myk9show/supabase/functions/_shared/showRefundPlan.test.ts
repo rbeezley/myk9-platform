@@ -119,7 +119,10 @@ describe('buildShowRefundPlan', () => {
     expect(plan.intents[0].entryIds).toEqual(['clean']);
     // The refunded entry and its tainted sibling are both skipped (distinct reasons).
     expect(plan.skipped).toContainEqual({ entryId: 'refunded', reason: 'already_refunded' });
-    expect(plan.skipped).toContainEqual({ entryId: 'sibling', reason: 'intent_partially_refunded' });
+    expect(plan.skipped).toContainEqual({
+      entryId: 'sibling',
+      reason: 'intent_partially_refunded',
+    });
   });
 
   it('handles an empty entry list', () => {

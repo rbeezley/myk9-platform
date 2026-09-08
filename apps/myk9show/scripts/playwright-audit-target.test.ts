@@ -70,7 +70,11 @@ describe('verifyAuditServerIdentity — Supabase target', () => {
 
   it('rejects a server that reports no Supabase target at all', () => {
     expect(() =>
-      verifyAuditServerIdentity(identity(null), 'judge-walk-2026-08-01', SHARED_STAGING_SUPABASE_HOST)
+      verifyAuditServerIdentity(
+        identity(null),
+        'judge-walk-2026-08-01',
+        SHARED_STAGING_SUPABASE_HOST
+      )
     ).toThrow(/Supabase host/);
   });
 

@@ -3,26 +3,26 @@
 /* Use CSS custom properties to reduce redundancy and improve maintainability */
 :root {
   /* Design System Colors */
-  --myk9-blue: #007AFF;
-  --myk9-blue-dark: #0056CC;
-  --myk9-purple: #5856D6;
-  --myk9-green: #34C759;
-  --myk9-orange: #FF9500;
-  --myk9-red: #FF3B30;
-  --myk9-yellow: #FFCC00;
-  
+  --myk9-blue: #007aff;
+  --myk9-blue-dark: #0056cc;
+  --myk9-purple: #5856d6;
+  --myk9-green: #34c759;
+  --myk9-orange: #ff9500;
+  --myk9-red: #ff3b30;
+  --myk9-yellow: #ffcc00;
+
   /* Optimized gradients */
   --myk9-gradient-blue: linear-gradient(135deg, var(--myk9-blue) 0%, var(--myk9-purple) 100%);
-  --myk9-gradient-trials: linear-gradient(135deg, var(--myk9-blue) 0%, #00C7BE 100%);
-  --myk9-gradient-classes: linear-gradient(135deg, var(--myk9-purple) 0%, #AF52DE 100%);
-  --myk9-gradient-entries: linear-gradient(135deg, var(--myk9-green) 0%, #30D158 100%);
-  
+  --myk9-gradient-trials: linear-gradient(135deg, var(--myk9-blue) 0%, #00c7be 100%);
+  --myk9-gradient-classes: linear-gradient(135deg, var(--myk9-purple) 0%, #af52de 100%);
+  --myk9-gradient-entries: linear-gradient(135deg, var(--myk9-green) 0%, #30d158 100%);
+
   /* Optimized animations - reduced complexity */
   --myk9-transition-fast: all 0.15s ease;
   --myk9-transition-standard: all 0.2s ease;
   --myk9-shadow-light: 0 2px 8px rgba(0, 0, 0, 0.08);
   --myk9-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.12);
-  
+
   /* Optimized blur effects - reduced intensity for better performance */
   --myk9-blur-light: blur(8px);
   --myk9-blur-standard: blur(12px);
@@ -30,7 +30,8 @@
 
 /* Typography - San Francisco inspired */
 .myk9-show-page {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
@@ -85,7 +86,7 @@
 
 .myk9-show-status-draft {
   background: rgba(162, 162, 167, 0.1);
-  color: #8E8E93;
+  color: #8e8e93;
   border: 1px solid rgba(162, 162, 167, 0.2);
 }
 
@@ -179,7 +180,7 @@
 .myk9-show-stat-number {
   font-size: 32px;
   font-weight: 700;
-  line-height: 1.0;
+  line-height: 1;
   color: var(--foreground);
   margin-bottom: 12px;
 }
@@ -242,7 +243,9 @@
   border-radius: 20px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
   pointer-events: none;
@@ -424,27 +427,27 @@
   .myk9-show-container {
     @apply px-4 py-6;
   }
-  
+
   .myk9-show-title {
     font-size: 28px;
   }
-  
+
   .myk9-show-subtitle {
     font-size: 17px;
   }
-  
+
   .myk9-show-stats-grid {
     @apply grid-cols-1 gap-4;
   }
-  
+
   .myk9-show-info-grid {
     @apply grid-cols-1 gap-4;
   }
-  
+
   .myk9-trials-grid {
     @apply grid-cols-1;
   }
-  
+
   /* Disable hover effects on mobile for better performance */
   .myk9-show-stat-card:hover,
   .myk9-trial-card:hover {

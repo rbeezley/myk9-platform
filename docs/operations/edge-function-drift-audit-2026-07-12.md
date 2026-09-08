@@ -16,12 +16,12 @@ post-audit deployments are recorded below.
 
 ## Result
 
-| Classification | Count | Functions | Disposition |
-| --- | ---: | --- | --- |
-| Exact bundle match | 26 | All remaining repository-backed functions | No action. |
-| Repo-ahead shared HTTP helper | 4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | **Resolved 2026-07-13:** deployed after approval; all ACTIVE; no-auth smokes returned 401 and a non-owner push smoke returned 403. |
-| Deployed-ahead source | 1 | `stripe-upgrade-subscription` | **Resolved 2026-07-13:** deployed after approval; downloaded `premiumPrices.ts` and `index.ts` exactly match repository source. |
-| Retired deployed-only legacy function | 1 | `send-notification` | **Retired 2026-07-12.** Dashboard Logs showed no events in the prior 30 days; removed from Supabase after approval and confirmed absent from the inventory. |
+| Classification                        | Count | Functions                                                                                           | Disposition                                                                                                                                                 |
+| ------------------------------------- | ----: | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Exact bundle match                    |    26 | All remaining repository-backed functions                                                           | No action.                                                                                                                                                  |
+| Repo-ahead shared HTTP helper         |     4 | `admin-delete-user`, `admin-generate-reset-link`, `send-push-notification`, `send-targeted-message` | **Resolved 2026-07-13:** deployed after approval; all ACTIVE; no-auth smokes returned 401 and a non-owner push smoke returned 403.                          |
+| Deployed-ahead source                 |     1 | `stripe-upgrade-subscription`                                                                       | **Resolved 2026-07-13:** deployed after approval; downloaded `premiumPrices.ts` and `index.ts` exactly match repository source.                             |
+| Retired deployed-only legacy function |     1 | `send-notification`                                                                                 | **Retired 2026-07-12.** Dashboard Logs showed no events in the prior 30 days; removed from Supabase after approval and confirmed absent from the inventory. |
 
 The live inventory now has 31 repository-name matches, zero deployed-only functions, and zero
 repo-only functions; `push-trigger-support-message` is deployed and matches current source.
@@ -108,6 +108,6 @@ deployed-only functions, and zero repo-only functions.
 Runbook 0.4 is complete:
 
 1. [x] `stripe-upgrade-subscription` was separately approved and deployed, and its downloaded
-   `premiumPrices.ts` matches repository fallback-extension source (2026-07-13);
+       `premiumPrices.ts` matches repository fallback-extension source (2026-07-13);
 2. [x] the four-function helper catch-up batch was approved, deployed, and smoke-verified
-   (2026-07-13).
+       (2026-07-13).

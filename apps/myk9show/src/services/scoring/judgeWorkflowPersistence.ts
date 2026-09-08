@@ -11,7 +11,7 @@ import type {
   EntryAssignment,
   WorkflowTemplate,
   JudgePerformanceMetrics,
-  WorkflowAction
+  WorkflowAction,
 } from './judge-workflow-types';
 import type { StateStorage } from 'zustand/middleware';
 import { logger } from '@/services/LoggingService';
@@ -22,7 +22,7 @@ const STORAGE_KEYS = {
   CREDENTIALS: 'judge_credentials',
   ASSIGNMENTS: 'entry_assignments',
   TEMPLATES: 'workflow_templates',
-  PERFORMANCE: 'judge_performance'
+  PERFORMANCE: 'judge_performance',
 } as const;
 
 // ============================================================================
@@ -40,8 +40,8 @@ export function serializeSession(session: JudgeSession): Record<string, unknown>
     lastActivity: session.lastActivity.toISOString(),
     pendingActions: session.pendingActions.map(action => ({
       ...action,
-      timestamp: action.timestamp.toISOString()
-    }))
+      timestamp: action.timestamp.toISOString(),
+    })),
   };
 }
 
@@ -55,10 +55,10 @@ export function deserializeSession(data: unknown): JudgeSession {
     startTime: new Date(sessionData.startTime as string),
     endTime: sessionData.endTime ? new Date(sessionData.endTime as string) : undefined,
     lastActivity: new Date(sessionData.lastActivity as string),
-    pendingActions: ((sessionData.pendingActions || []) as WorkflowAction[]).map((action) => ({
+    pendingActions: ((sessionData.pendingActions || []) as WorkflowAction[]).map(action => ({
       ...action,
-      timestamp: new Date(action.timestamp as string | Date)
-    })) as WorkflowAction[]
+      timestamp: new Date(action.timestamp as string | Date),
+    })) as WorkflowAction[],
   } as JudgeSession;
 }
 
@@ -73,7 +73,7 @@ export function serializeMetrics(metrics: JudgePerformanceMetrics): Record<strin
   return {
     ...metrics,
     periodStart: metrics.periodStart.toISOString(),
-    periodEnd: metrics.periodEnd.toISOString()
+    periodEnd: metrics.periodEnd.toISOString(),
   };
 }
 
@@ -85,7 +85,7 @@ export function deserializeMetrics(data: unknown): JudgePerformanceMetrics {
   return {
     ...metricsData,
     periodStart: new Date(metricsData.periodStart),
-    periodEnd: new Date(metricsData.periodEnd)
+    periodEnd: new Date(metricsData.periodEnd),
   };
 }
 
@@ -110,45 +110,44 @@ export async function loadPersistedData(storage: StateStorage): Promise<LoadedWo
     credentials: new Map(),
     assignments: new Map(),
     templates: new Map(),
-    metrics: new Map()
+    metrics: new Map(),
   };
 
   try {
     // Load active sessions
-    const sessions = await storage.getItem(STORAGE_KEYS.SESSIONS) || '{}';
+    const sessions = (await storage.getItem(STORAGE_KEYS.SESSIONS)) || '{}';
     const sessionData = JSON.parse(sessions);
     Object.entries(sessionData).forEach(([id, data]: [string, unknown]) => {
       result.sessions.set(id, deserializeSession(data));
     });
 
     // Load judge credentials
-    const credentials = await storage.getItem(STORAGE_KEYS.CREDENTIALS) || '{}';
+    const credentials = (await storage.getItem(STORAGE_KEYS.CREDENTIALS)) || '{}';
     const credData = JSON.parse(credentials);
     Object.entries(credData).forEach(([id, cred]: [string, unknown]) => {
       result.credentials.set(id, cred as JudgeCredentials);
     });
 
     // Load entry assignments
-    const assignments = await storage.getItem(STORAGE_KEYS.ASSIGNMENTS) || '{}';
+    const assignments = (await storage.getItem(STORAGE_KEYS.ASSIGNMENTS)) || '{}';
     const assignData = JSON.parse(assignments);
     Object.entries(assignData).forEach(([classId, assigns]: [string, unknown]) => {
       result.assignments.set(classId, assigns as EntryAssignment[]);
     });
 
     // Load workflow templates
-    const templates = await storage.getItem(STORAGE_KEYS.TEMPLATES) || '{}';
+    const templates = (await storage.getItem(STORAGE_KEYS.TEMPLATES)) || '{}';
     const templateData = JSON.parse(templates);
     Object.entries(templateData).forEach(([id, template]: [string, unknown]) => {
       result.templates.set(id, template as WorkflowTemplate);
     });
 
     // Load performance metrics
-    const metrics = await storage.getItem(STORAGE_KEYS.PERFORMANCE) || '{}';
+    const metrics = (await storage.getItem(STORAGE_KEYS.PERFORMANCE)) || '{}';
     const metricsData = JSON.parse(metrics);
     Object.entries(metricsData).forEach(([judgeId, metric]: [string, unknown]) => {
       result.metrics.set(judgeId, deserializeMetrics(metric));
     });
-
   } catch (error) {
     logger.error('Failed to load persisted workflow data:', 'scoring', {}, error as Error);
   }
@@ -168,10 +167,7 @@ export async function persistSessions(
   sessions: Map<string, JudgeSession>
 ): Promise<void> {
   const data = Object.fromEntries(
-    Array.from(sessions.entries()).map(([id, session]) => [
-      id,
-      serializeSession(session)
-    ])
+    Array.from(sessions.entries()).map(([id, session]) => [id, serializeSession(session)])
   );
   await storage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(data));
 }
@@ -206,10 +202,7 @@ export async function persistMetrics(
   metrics: Map<string, JudgePerformanceMetrics>
 ): Promise<void> {
   const data = Object.fromEntries(
-    Array.from(metrics.entries()).map(([judgeId, metric]) => [
-      judgeId,
-      serializeMetrics(metric)
-    ])
+    Array.from(metrics.entries()).map(([judgeId, metric]) => [judgeId, serializeMetrics(metric)])
   );
   await storage.setItem(STORAGE_KEYS.PERFORMANCE, JSON.stringify(data));
 }

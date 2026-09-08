@@ -1,7 +1,7 @@
 # Handoff — Execute the July 2026 bug-audit plans
 
 > **Status:** Active
-> *(Archive alongside this audit's README once all five plans are DONE/closed.)*
+> _(Archive alongside this audit's README once all five plans are DONE/closed.)_
 
 **Date:** 2026-07-02
 **From:** the `/improve` audit session (read-only; plans landed on `main` @ `8015d34c9`)
@@ -28,13 +28,13 @@ red, then make the fix flip it green. The red→green transition is the proof.
 
 ## Execution order, model tier & status
 
-| Plan | Order | Model | Status | Notes |
-|------|-------|-------|--------|-------|
-| [001 — AI-assistant scope fails open (cross-tenant leak)](001-askq-show-scope-fail-closed.md) | **DO FIRST** | Sonnet OK | DONE + DEPLOYED | Code merged [#1089](https://github.com/rbeezley/myk9-platform/pull/1089); `ask-myk9show` redeployed 2026-07-04 as version 34 (`updated_at` = `2026-07-04 19:44:05 UTC`). |
-| [002 — Move-up write-order corruption](002-move-up-create-before-mark.md) | 2 | Sonnet OK, strong model on review | TODO | Offline-critical path, MED risk — honor the STOP conditions. |
-| [004 — Checkout spinner stuck](004-cart-checkout-loading-reset.md) | anytime | Sonnet OK | TODO | One line + one test. |
-| [005 — Replication OCC/watermark spike](005-replication-occ-watermark-spike.md) | anytime (parallel) | **STRONG model** | TODO | READ-ONLY investigation → findings doc only. Judgment-heavy; a cheaper model tends to produce shallow verdicts here. |
-| [003 — Silent secretary mutation failures](003-surface-mutation-errors.md) | **after Phase 3** | Sonnet OK | BLOCKED | Edits `apps/myk9show/src/pages/secretary/ClassManagementPage.tsx`, which the in-flight UX Phase 3 (task 3.E) also edits. Run as its own PR ONLY AFTER Phase 3's edits to that file land — do NOT inject into 3.E mid-flight. |
+| Plan                                                                                          | Order              | Model                             | Status          | Notes                                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------- | ------------------ | --------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [001 — AI-assistant scope fails open (cross-tenant leak)](001-askq-show-scope-fail-closed.md) | **DO FIRST**       | Sonnet OK                         | DONE + DEPLOYED | Code merged [#1089](https://github.com/rbeezley/myk9-platform/pull/1089); `ask-myk9show` redeployed 2026-07-04 as version 34 (`updated_at` = `2026-07-04 19:44:05 UTC`).                                                     |
+| [002 — Move-up write-order corruption](002-move-up-create-before-mark.md)                     | 2                  | Sonnet OK, strong model on review | TODO            | Offline-critical path, MED risk — honor the STOP conditions.                                                                                                                                                                 |
+| [004 — Checkout spinner stuck](004-cart-checkout-loading-reset.md)                            | anytime            | Sonnet OK                         | TODO            | One line + one test.                                                                                                                                                                                                         |
+| [005 — Replication OCC/watermark spike](005-replication-occ-watermark-spike.md)               | anytime (parallel) | **STRONG model**                  | TODO            | READ-ONLY investigation → findings doc only. Judgment-heavy; a cheaper model tends to produce shallow verdicts here.                                                                                                         |
+| [003 — Silent secretary mutation failures](003-surface-mutation-errors.md)                    | **after Phase 3**  | Sonnet OK                         | BLOCKED         | Edits `apps/myk9show/src/pages/secretary/ClassManagementPage.tsx`, which the in-flight UX Phase 3 (task 3.E) also edits. Run as its own PR ONLY AFTER Phase 3's edits to that file land — do NOT inject into 3.E mid-flight. |
 
 **Why the model split:** the expensive work (understanding the code, judging
 which findings are real, writing the exact proof-test) is frozen in the plans;
@@ -49,7 +49,7 @@ the UX plan's own model-guidance policy).
 at handoff: Phases 0–1 **done**, Phases 2–3 **in flight**, Phases 4–6 not
 started). This audit is a **different lens** — correctness/security/data
 integrity, not usability — so 001/002/005 are net-new (a UX walk can't find a
-cross-tenant leak or a write-ordering bug). Only 003 overlaps, on the *file*
+cross-tenant leak or a write-ordering bug). Only 003 overlaps, on the _file_
 `ClassManagementPage.tsx`; that's why 003 is gated behind Phase 3. Do not fold
 003 into a UX task — 1.E (its apparent home) already shipped without the error
 handling, and 3.E is mid-flight. See the README's reconciliation section.

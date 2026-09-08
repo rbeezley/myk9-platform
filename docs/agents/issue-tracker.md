@@ -13,13 +13,13 @@ grant carries over.
 ## Querying — archived issues are the closed backlog
 
 The workspace moved to a **paid plan on 2026-09-01**, retiring the old free-tier ceiling of 250
-non-archived issues. That removed the *pressure* to archive aggressively — it did not remove the
+non-archived issues. That removed the _pressure_ to archive aggressively — it did not remove the
 archiving. Auto-archive is a team **setting** (Team settings → **Workflows & automations** →
-"Auto-archive closed issues, cycles, and projects" — *not* Issue statuses, which is only the status
+"Auto-archive closed issues, cycles, and projects" — _not_ Issue statuses, which is only the status
 list), and it keeps running at whatever window it was left on. **That window is 30 days as of
 2026-09-01, and is deliberately being left there.** Until someone changes it, closed issues still
 leave the active set after 30 days and every rule below still holds — a short window makes
-`includeArchived: true` *more* load-bearing, not less. The recurrence checks the scheduled walks
+`includeArchived: true` _more_ load-bearing, not less. The recurrence checks the scheduled walks
 run (MYK9-245, MYK9-215, MYK9-208, MYK9-122, MYK9-196) all name issues closed well beyond 30 days,
 so they are archived right now and a default query would read every one as never-seen.
 Do not treat the upgrade as having fixed this. Archived issues still exist — searchable,
@@ -27,25 +27,25 @@ restorable, and `get_issue`-able by id — but they are **invisible to a default
 which sends `includeArchived: false`.
 
 That default is right for "what is open" and **wrong for every reconciliation query**. Any search
-whose purpose is *"has this already been filed / fixed / rejected?"* must pass
+whose purpose is _"has this already been filed / fixed / rejected?"_ must pass
 `includeArchived: true`, or it reads an empty result as "never seen" and re-files work that is
 already Done. Closed issues here demonstrably recur — the overnight audits reopened six previously
 Done issues on 2026-08-20 — so a duplicate is not a harmless extra row; it re-runs the remediation.
 
-| Query intent | `includeArchived` |
-| --- | --- |
-| What's open / what to work on next | `false` (default) |
-| Dedupe a new finding against prior ones | **`true`** |
-| Check whether a fix already shipped | **`true`** |
-| Reconcile an audit ledger across runs | **`true`** |
-| Resolve a specific `MYK9-<n>` cited in code or docs | **`true`** |
+| Query intent                                        | `includeArchived` |
+| --------------------------------------------------- | ----------------- |
+| What's open / what to work on next                  | `false` (default) |
+| Dedupe a new finding against prior ones             | **`true`**        |
+| Check whether a fix already shipped                 | **`true`**        |
+| Reconcile an audit ledger across runs               | **`true`**        |
+| Resolve a specific `MYK9-<n>` cited in code or docs | **`true`**        |
 
 `get_issue` by id is unaffected — it resolves archived issues without a flag. Prefer it whenever
 you already know the id (and remember the LESSONS rule: never close from a `list_issues` result,
 because it truncates acceptance criteria).
 
 Archiving is automatic and cannot be triggered per-issue; Team settings → Workflows & automations
-sets the window. The *Auto-close stale issues* automation on that same page is a different thing and
+sets the window. The _Auto-close stale issues_ automation on that same page is a different thing and
 is currently on (6 months → Canceled): it closes **open** issues, so the deliberately parked Backlog
 items here — Stripe live-mode cutover, 10DLC registration, DR posture — are on a path to Canceled
 around 2027-01. Cycles are off and there are no projects, so none of Linear's auto-close exemptions
@@ -64,9 +64,9 @@ after 30 days and orphans the ~197 distinct `MYK9-<n>` ids cited across ~737 fil
 
 ## Division of labor with OpenSpec
 
-Linear holds *state* (status, priority, sequencing). `openspec/changes/<id>/` holds *content*
+Linear holds _state_ (status, priority, sequencing). `openspec/changes/<id>/` holds _content_
 and is cited in the issue body as "Source of truth" with spec + task-section pointers. They
-are not duplicating — an OpenSpec change *is* the plan; don't also author a `docs/plan-*.md`
+are not duplicating — an OpenSpec change _is_ the plan; don't also author a `docs/plan-*.md`
 for the same work.
 
 ## PRs as a request surface

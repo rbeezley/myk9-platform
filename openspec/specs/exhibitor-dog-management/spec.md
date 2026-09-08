@@ -1,8 +1,11 @@
 # exhibitor-dog-management Specification
 
 ## Purpose
+
 Exhibitor dog management stays simple and trustworthy: the My Dogs list is card-only with the card itself as the sole navigation affordance, Dog Details keeps a compact tab strip with activity as a plain section, every visible CTA works, the Add-a-Dog wizard keeps essentials minimal with optional detail deferred, and dialogs follow the app's slide-out panel language and theme tokens in both color modes.
+
 ## Requirements
+
 ### Requirement: My Dogs is card-only for exhibitors
 
 For exhibitor-only users, the My Dogs page SHALL render the card grid exclusively: no table view and no view-mode toggle. Secretary and admin dog lists SHALL retain their table view and toggle unchanged.
@@ -75,4 +78,3 @@ The dog photo upload dialog SHALL use theme tokens/standard button variants (no 
 
 - **WHEN** the photo dialog opens in dark mode with an image selected
 - **THEN** the Save button renders with the standard default Button variant styling and its label is clearly readable
-

@@ -9,8 +9,4 @@ export {
   calculatePromoDiscount,
 } from './reads';
 
-export {
-  createPromoCode,
-  deletePromoCode,
-  incrementPromoCodeUsage,
-} from './writes';
+export { createPromoCode, deletePromoCode, incrementPromoCodeUsage } from './writes';

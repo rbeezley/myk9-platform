@@ -99,8 +99,8 @@ export function AdminHelpPage() {
           /account, is invisible to the panel, so promising it flags anything
           uncatalogued would be the same overclaim a third time. */}
         <p className="text-sm text-muted-foreground">
-          myK9Show&apos;s user-facing pages, grouped by role. The list is hand-authored;
-          registered routes it does not carry are flagged under Directory drift below.
+          myK9Show&apos;s user-facing pages, grouped by role. The list is hand-authored; registered
+          routes it does not carry are flagged under Directory drift below.
         </p>
       </header>
 

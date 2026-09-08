@@ -1,13 +1,5 @@
 import { Text, View } from '@react-pdf/renderer';
-import {
-  BODY,
-  BRONZE,
-  DISPLAY,
-  INK,
-  PAPER_DEEP,
-  QUILL,
-  SectionHeader,
-} from './pdfPrimitives';
+import { BODY, BRONZE, DISPLAY, INK, PAPER_DEEP, QUILL, SectionHeader } from './pdfPrimitives';
 
 export function AgreementSection({ agreementText }: { agreementText: string }) {
   // Show only the first paragraph — the condensed version used on physical entry blanks.

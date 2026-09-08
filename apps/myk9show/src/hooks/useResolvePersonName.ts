@@ -21,7 +21,7 @@ export function useResolvePersonName() {
   return useCallback(
     (personId: string | undefined | null): string => {
       if (!personId) return 'Not assigned';
-      const person = people.find((p) => p.id === personId);
+      const person = people.find(p => p.id === personId);
       if (person) return `${person.firstName} ${person.lastName}`;
       return personId;
     },
@@ -36,7 +36,7 @@ export function useResolvePersonName() {
 export function resolvePersonNameFromStore(personId: string | undefined | null): string {
   if (!personId) return '';
   const { people } = useUserStore.getState();
-  const person = people.find((p) => p.id === personId);
+  const person = people.find(p => p.id === personId);
   if (person) return `${person.firstName} ${person.lastName}`;
   return personId;
 }

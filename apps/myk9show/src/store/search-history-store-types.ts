@@ -15,11 +15,13 @@ export interface SearchHistoryItem {
   resultCount?: number | undefined;
   selectedResultId?: string | undefined;
   filters?: Record<string, unknown> | undefined;
-  context?: {
-    page: string;
-    section?: string | undefined;
-    previousQuery?: string | undefined;
-  } | undefined;
+  context?:
+    | {
+        page: string;
+        section?: string | undefined;
+        previousQuery?: string | undefined;
+      }
+    | undefined;
 }
 
 export interface SearchSuggestion {
@@ -86,13 +88,24 @@ export interface HistoryActions {
 }
 
 export interface QueryActions {
-  getRecentSearches: (userId: string, limit?: number, searchType?: SearchHistoryItem['searchType']) => SearchHistoryItem[];
-  getPopularSearches: (userId: string, limit?: number, searchType?: SearchHistoryItem['searchType']) => SearchFrequency[];
+  getRecentSearches: (
+    userId: string,
+    limit?: number,
+    searchType?: SearchHistoryItem['searchType']
+  ) => SearchHistoryItem[];
+  getPopularSearches: (
+    userId: string,
+    limit?: number,
+    searchType?: SearchHistoryItem['searchType']
+  ) => SearchFrequency[];
   getSearchesByContext: (userId: string, page: string, section?: string) => SearchHistoryItem[];
 }
 
 export interface SuggestionActions {
-  generateSuggestions: (userId: string, searchType?: SearchHistoryItem['searchType']) => SearchSuggestion[];
+  generateSuggestions: (
+    userId: string,
+    searchType?: SearchHistoryItem['searchType']
+  ) => SearchSuggestion[];
   getSuggestions: (
     userId: string,
     partialQuery?: string,
@@ -178,14 +191,14 @@ export interface UtilityActions {
 
 // ── Composed Store Type ────────────────────────────────────────────────
 
-export type SearchHistoryStore = SearchHistoryState
-  & HistoryActions
-  & QueryActions
-  & SuggestionActions
-  & BookmarkActions
-  & AnalyticsActions
-  & SmartFeatureActions
-  & DataManagementActions
-  & ConfigurationActions
-  & PrivacyActions
-  & UtilityActions;
+export type SearchHistoryStore = SearchHistoryState &
+  HistoryActions &
+  QueryActions &
+  SuggestionActions &
+  BookmarkActions &
+  AnalyticsActions &
+  SmartFeatureActions &
+  DataManagementActions &
+  ConfigurationActions &
+  PrivacyActions &
+  UtilityActions;

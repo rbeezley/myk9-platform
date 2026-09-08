@@ -42,11 +42,7 @@ import type {
   RunOrderPreset,
   AreaCountRequirements,
 } from '../dialogSlots';
-import {
-  ResetConfirmDialog,
-  ResetMenuPopup,
-  SelfCheckinDisabledDialog,
-} from './index';
+import { ResetConfirmDialog, ResetMenuPopup, SelfCheckinDisabledDialog } from './index';
 
 export interface EntryListDialogsProps {
   classId: string | undefined;
@@ -73,7 +69,10 @@ export interface EntryListDialogsProps {
   // ── Checkin status dialog ─────────────────────────────────────────
   activeStatusPopup: string | null;
   setActiveStatusPopup: Dispatch<SetStateAction<string | null>>;
-  handleStatusChange: (entryId: string, status: NonNullable<Entry['checkinStatus']> | 'in-ring' | 'completed') => Promise<void>;
+  handleStatusChange: (
+    entryId: string,
+    status: NonNullable<Entry['checkinStatus']> | 'in-ring' | 'completed'
+  ) => Promise<void>;
 
   // ── Run order dialog ──────────────────────────────────────────────
   runOrderDialogOpen: boolean;
@@ -210,7 +209,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
       <CheckinStatusDialog
         isOpen={activeStatusPopup !== null}
         onClose={() => setActiveStatusPopup(null)}
-        onStatusChange={(status) => {
+        onStatusChange={status => {
           if (activeStatusPopup !== null) {
             handleStatusChange(activeStatusPopup, status);
           }
@@ -218,7 +217,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
         dogInfo={{
           armband: localEntries.find(e => e.id === activeStatusPopup)?.armband || 0,
           callName: localEntries.find(e => e.id === activeStatusPopup)?.callName || '',
-          handler: localEntries.find(e => e.id === activeStatusPopup)?.handler || ''
+          handler: localEntries.find(e => e.id === activeStatusPopup)?.handler || '',
         }}
         showDescriptions={true}
         showRingManagement={hasPermission('canScore')}
@@ -243,13 +242,25 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             class_name: classInfo.className,
             entry_count: localEntries.length,
             completed_count: completedEntries.length,
-            class_status: classInfo.classStatus
+            class_status: classInfo.classStatus,
           }}
-          onRequirements={() => { setRequirementsDialogOpen(true); return false; }}
-          onSetMaxTime={() => { setMaxTimeDialogOpen(true); return false; }}
-          onSettings={() => { setSettingsDialogOpen(true); return false; }}
+          onRequirements={() => {
+            setRequirementsDialogOpen(true);
+            return false;
+          }}
+          onSetMaxTime={() => {
+            setMaxTimeDialogOpen(true);
+            return false;
+          }}
+          onSettings={() => {
+            setSettingsDialogOpen(true);
+            return false;
+          }}
           onStatistics={handleStatisticsClick}
-          onStatus={() => { setStatusDialogOpen(true); return false; }}
+          onStatus={() => {
+            setStatusDialogOpen(true);
+            return false;
+          }}
           onPrintCheckIn={handlePrintCheckIn}
           onPrintResults={handlePrintResults}
           onPrintScoresheet={handlePrintScoresheet}
@@ -262,16 +273,20 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
         <ClassRequirementsDialog
           isOpen={requirementsDialogOpen}
           onClose={() => setRequirementsDialogOpen(false)}
-          onSetMaxTime={hideMaxTimeOption ? undefined : () => {
-            setRequirementsDialogOpen(false);
-            setMaxTimeDialogOpen(true);
-          }}
+          onSetMaxTime={
+            hideMaxTimeOption
+              ? undefined
+              : () => {
+                  setRequirementsDialogOpen(false);
+                  setMaxTimeDialogOpen(true);
+                }
+          }
           classData={{
             id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
-            entry_count: localEntries.length
+            entry_count: localEntries.length,
           }}
         />
       )}
@@ -293,9 +308,13 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             level: classInfo.level,
             class_name: classInfo.className,
             time_limit_seconds: classInfo.timeLimit ? parseInt(classInfo.timeLimit) : undefined,
-            time_limit_area2_seconds: classInfo.timeLimit2 ? parseInt(classInfo.timeLimit2) : undefined,
-            time_limit_area3_seconds: classInfo.timeLimit3 ? parseInt(classInfo.timeLimit3) : undefined,
-            area_count: classInfo.areas
+            time_limit_area2_seconds: classInfo.timeLimit2
+              ? parseInt(classInfo.timeLimit2)
+              : undefined,
+            time_limit_area3_seconds: classInfo.timeLimit3
+              ? parseInt(classInfo.timeLimit3)
+              : undefined,
+            area_count: classInfo.areas,
           }}
           onTimeUpdate={refresh}
         />
@@ -310,7 +329,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             element: classInfo.element,
             level: classInfo.level,
             class_name: classInfo.className,
-            self_checkin_enabled: classInfo.selfCheckin
+            self_checkin_enabled: classInfo.selfCheckin,
           }}
           onSettingsUpdate={refresh}
         />
@@ -333,7 +352,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             level: classInfo.level,
             class_name: classInfo.className,
             class_status: classInfo.classStatus || 'no-status',
-            entry_count: localEntries.length
+            entry_count: localEntries.length,
           }}
           currentStatus={classInfo.classStatus || 'no-status'}
         />
@@ -350,7 +369,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             id: classId ?? '',
             element: classInfo.element,
             level: classInfo.level,
-            class_name: classInfo.className
+            class_name: classInfo.className,
           }}
           areaCountRequirements={areaCountRequirements}
           onSave={() => {

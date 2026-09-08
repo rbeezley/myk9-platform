@@ -24,7 +24,7 @@ async function measureWordmark(page: Page) {
     const nav = document.querySelector('nav');
     if (!nav) throw new Error('header nav not found — selector drifted');
     const span = [...nav.querySelectorAll('span')].find(
-      (s) => s.textContent?.trim() === 'myK9Show'
+      s => s.textContent?.trim() === 'myK9Show'
     ) as HTMLElement | undefined;
 
     const markVisible = (() => {
@@ -96,7 +96,9 @@ test.describe('header wordmark fits', () => {
     await page.getByTestId('credential-input').waitFor();
     const m = await measureWordmark(page);
     expect(m.rendered, 'wordmark should be hidden, not truncated, below 360px').toBe(false);
-    expect(m.markVisible, 'the brand mark must carry the brand where the name is hidden').toBe(true);
+    expect(m.markVisible, 'the brand mark must carry the brand where the name is hidden').toBe(
+      true
+    );
   });
 
   test('exactly one appearance control at every width', async ({ page }) => {

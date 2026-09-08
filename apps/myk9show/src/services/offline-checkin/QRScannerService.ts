@@ -7,11 +7,7 @@
 
 import { EventEmitter } from '../sync/eventEmitter';
 import { logger } from '@/services/LoggingService';
-import type {
-  QRScanResult,
-  QRCode,
-  CheckInEntry
-} from '@/types/offline-checkin-types';
+import type { QRScanResult, QRCode, CheckInEntry } from '@/types/offline-checkin-types';
 // Removed unused import: generateId
 
 export interface QRScannerConfig {
@@ -43,7 +39,7 @@ const DEFAULT_CONFIG: QRScannerConfig = {
   validationRequired: true,
   checksumValidation: true,
   maxScanAttempts: 10,
-  scanTimeout: 30000
+  scanTimeout: 30000,
 };
 
 export class QRScannerService extends EventEmitter {
@@ -98,8 +94,8 @@ export class QRScannerService extends EventEmitter {
         video: {
           facingMode: this.config.preferredCamera,
           width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
+          height: { ideal: 720 },
+        },
       };
 
       const mediaConstraints = constraints || defaultConstraints;
@@ -116,7 +112,7 @@ export class QRScannerService extends EventEmitter {
       await this.videoElement.play();
 
       // Wait for video to be ready
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         if (this.videoElement!.readyState >= 2) {
           resolve();
         } else {
@@ -132,7 +128,9 @@ export class QRScannerService extends EventEmitter {
 
       this.emit('camera_started', {});
     } catch (error) {
-      this.emit('camera_error', { error: error instanceof Error ? error.message : 'Camera start failed' });
+      this.emit('camera_error', {
+        error: error instanceof Error ? error.message : 'Camera start failed',
+      });
       throw error;
     }
   }
@@ -204,17 +202,14 @@ export class QRScannerService extends EventEmitter {
       // Draw video frame to canvas
       this.context.drawImage(
         this.videoElement,
-        0, 0,
+        0,
+        0,
         this.canvasElement.width,
         this.canvasElement.height
       );
 
       // Get image data
-      this.context.getImageData(
-        0, 0,
-        this.canvasElement.width,
-        this.canvasElement.height
-      );
+      this.context.getImageData(0, 0, this.canvasElement.width, this.canvasElement.height);
 
       // Scan for QR codes (this would integrate with a QR scanning library)
       const scanResult = await this.processImageData();
@@ -227,7 +222,10 @@ export class QRScannerService extends EventEmitter {
       // Check if we've exceeded max attempts
       if (this.currentAttempts >= this.config.maxScanAttempts) {
         await this.stopScanning();
-        this.emit('scan_failed', { reason: 'max_attempts_exceeded', attempts: this.currentAttempts });
+        this.emit('scan_failed', {
+          reason: 'max_attempts_exceeded',
+          attempts: this.currentAttempts,
+        });
       }
     } catch (error) {
       logger.error('Frame scanning error', 'checkin', {}, error as Error);
@@ -242,14 +240,15 @@ export class QRScannerService extends EventEmitter {
     const result: QRScanResult = {
       success: false,
       scannedAt: new Date(),
-      scannerType: 'camera'
+      scannerType: 'camera',
     };
 
     try {
       // Simulate QR detection probability (in real implementation, use jsQR or similar)
       const detectionProbability = Math.random();
 
-      if (detectionProbability > 0.95) { // 5% chance of successful scan per frame
+      if (detectionProbability > 0.95) {
+        // 5% chance of successful scan per frame
         // Simulate successful QR code detection
         const mockQRData: Record<string, string> = {
           entryId: 'entry-123',
@@ -324,7 +323,7 @@ export class QRScannerService extends EventEmitter {
       classId: entry.classId,
       dogName: entry.dogName,
       handlerName: entry.handlerName,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     const checksum = this.calculateChecksum(qrData);
@@ -333,7 +332,7 @@ export class QRScannerService extends EventEmitter {
       ...qrData,
       checksum,
       generatedAt: new Date(),
-      isValid: true
+      isValid: true,
     };
 
     return qrCode;
@@ -349,7 +348,7 @@ export class QRScannerService extends EventEmitter {
     const result: QRScanResult = {
       success: false,
       scannedAt: new Date(),
-      scannerType: 'manual'
+      scannerType: 'manual',
     };
 
     try {
@@ -374,7 +373,6 @@ export class QRScannerService extends EventEmitter {
       result.data = typeof parsedData === 'string' ? parsedData : JSON.stringify(parsedData);
       result.entryId = parsedData.entryId;
       result.armband = parsedData.armband;
-
     } catch (error) {
       result.error = error instanceof Error ? error.message : 'Manual entry processing failed';
     }
@@ -392,8 +390,8 @@ export class QRScannerService extends EventEmitter {
         video: {
           facingMode: newFacingMode,
           width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
+          height: { ideal: 720 },
+        },
       });
     }
 
@@ -423,7 +421,7 @@ export class QRScannerService extends EventEmitter {
 
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
 
@@ -467,7 +465,6 @@ export class QRScannerService extends EventEmitter {
     this.context = null;
     this.emit('disposed', {});
   }
-
 }
 
 // Export singleton instance

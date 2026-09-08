@@ -43,7 +43,9 @@ export function useExistingEntries(showId: string) {
 
       const { data, error } = await supabase
         .from('entries')
-        .select('id, dog_id, class_id, registration_id, entry_status, check_in_status, payment_status')
+        .select(
+          'id, dog_id, class_id, registration_id, entry_status, check_in_status, payment_status'
+        )
         .eq('show_id', showId)
         .is('deleted_at', null);
 

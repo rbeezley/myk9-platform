@@ -1,6 +1,16 @@
 import { Text, View } from '@react-pdf/renderer';
 import type { EntryBlankLevelCell, EntryBlankTrialRow } from '../types';
-import { BODY, BROWN, Checkbox, DISPLAY, HAIR, INK, META, QUILL, SectionHead } from './pdfPrimitives';
+import {
+  BODY,
+  BROWN,
+  Checkbox,
+  DISPLAY,
+  HAIR,
+  INK,
+  META,
+  QUILL,
+  SectionHead,
+} from './pdfPrimitives';
 
 function groupByLevel(cells: EntryBlankLevelCell[]) {
   const map = new Map<string, EntryBlankLevelCell[]>();

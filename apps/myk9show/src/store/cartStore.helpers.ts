@@ -89,10 +89,7 @@ export function normalizePlatformFeeRates(rates: PlatformFeeRates): PlatformFeeR
 }
 
 /** Mirrors `calculatePlatformFeeCents` on the server — see the note above. */
-export function calculatePlatformFeeCents(
-  subtotalCents: number,
-  rates: PlatformFeeRates
-): number {
+export function calculatePlatformFeeCents(subtotalCents: number, rates: PlatformFeeRates): number {
   if (!Number.isFinite(subtotalCents) || subtotalCents <= 0) return 0;
   const { percent, flatCents, minCents } = normalizePlatformFeeRates(rates);
   const percentCents = percent > 0 ? Math.round((subtotalCents * percent) / 100) : 0;

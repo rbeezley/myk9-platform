@@ -62,7 +62,9 @@ describe('buildContextualNavigationCommands', () => {
 
   it('includes the Class Management link with the canonical href when a trial is selected', () => {
     const commands = buildContextualNavigationCommands(baseCtx({ trialId: 'trial-1' }));
-    const classMgmt = commands.find(cmd => cmd.id === 'command-menu-class-management-current-trial');
+    const classMgmt = commands.find(
+      cmd => cmd.id === 'command-menu-class-management-current-trial'
+    );
     expect(classMgmt?.href).toBe(getClassManagementHref({ showId: 'show-1', trialId: 'trial-1' }));
   });
 

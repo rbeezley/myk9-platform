@@ -145,5 +145,4 @@ describe('show-registrations', () => {
       expect(result.error).toBeDefined();
     });
   });
-
 });

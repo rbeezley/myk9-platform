@@ -6,14 +6,7 @@
 import { TrialType } from './template.types';
 
 export type ColumnDataType =
-  | 'string'
-  | 'number'
-  | 'time'
-  | 'score'
-  | 'status'
-  | 'placement'
-  | 'boolean'
-  | 'armband';
+  'string' | 'number' | 'time' | 'score' | 'status' | 'placement' | 'boolean' | 'armband';
 
 export type ColumnAlignment = 'left' | 'center' | 'right';
 

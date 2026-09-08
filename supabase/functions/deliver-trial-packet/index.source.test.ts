@@ -32,7 +32,7 @@ describe('deliver-trial-packet handler contract', () => {
     // private link to show officials; reaching it without the role check would
     // let any signed-in user trigger it for any show.
     const authorize = source.indexOf('callerRoleAuthorizesPacket');
-    const forbid = source.indexOf("throw new HttpError(403");
+    const forbid = source.indexOf('throw new HttpError(403');
     const deliver = source.indexOf('deliverStoredPacket(');
     expect(authorize).toBeGreaterThan(0);
     expect(forbid).toBeGreaterThan(authorize);

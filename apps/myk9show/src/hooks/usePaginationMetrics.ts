@@ -8,7 +8,7 @@ export function usePaginationMetrics() {
     renderStartTime: 0,
     renderEndTime: 0,
     itemsRendered: 0,
-    cacheStats: { hits: 0, misses: 0, size: 0 }
+    cacheStats: { hits: 0, misses: 0, size: 0 },
   });
 
   const startRender = useCallback(() => {
@@ -20,7 +20,7 @@ export function usePaginationMetrics() {
     setMetrics(prev => ({
       ...prev,
       renderEndTime: endTime,
-      itemsRendered: itemCount
+      itemsRendered: itemCount,
     }));
   }, []);
 
@@ -40,7 +40,7 @@ export function usePaginationMetrics() {
     metrics: {
       renderTime: getRenderTime(),
       itemsRendered: metrics.itemsRendered,
-      cacheStats: metrics.cacheStats
-    }
+      cacheStats: metrics.cacheStats,
+    },
   };
 }

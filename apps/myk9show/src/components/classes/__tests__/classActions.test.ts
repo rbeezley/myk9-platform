@@ -32,7 +32,9 @@ describe('classActions bulk status projection (MYK9-59)', () => {
     ];
 
     const bulk = toBulkActions(items, handlers, classActions);
-    const markInProgress = bulk.find(action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`);
+    const markInProgress = bulk.find(
+      action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`
+    );
 
     // Only the two Scheduled classes are eligible for "In Progress".
     expect(markInProgress?.label).toBe(`Mark 2 of 3 ${CLASS_STATUS.IN_PROGRESS}`);
@@ -57,7 +59,9 @@ describe('classActions bulk status projection (MYK9-59)', () => {
     const items = [cls('1', CLASS_STATUS.SCHEDULED)];
 
     const bulk = toBulkActions(items, {}, classActions);
-    const markInProgress = bulk.find(action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`);
+    const markInProgress = bulk.find(
+      action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`
+    );
 
     expect(markInProgress?.disabled).toBe(true);
   });
@@ -69,7 +73,9 @@ describe('classActions bulk status projection (MYK9-59)', () => {
     const items = [cls('1', CLASS_STATUS.SCHEDULED), cls('2', CLASS_STATUS.IN_PROGRESS)];
 
     const bulk = toBulkActions(items, handlers, classActions);
-    const markInProgress = bulk.find(action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`);
+    const markInProgress = bulk.find(
+      action => action.id === `set-status-${CLASS_STATUS.IN_PROGRESS}`
+    );
     await markInProgress?.onSelect();
 
     expect(onBulkStatusChange).toHaveBeenCalledWith(

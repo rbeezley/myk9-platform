@@ -141,6 +141,6 @@ export function useElementTimer(): ElementTimerReturn {
     stop,
     resume,
     reset,
-    formatTime
+    formatTime,
   };
 }

@@ -34,7 +34,7 @@ let mockRegistrations: Registration[] = [
 export function useRegistrations() {
   return useQuery<Registration[]>({
     queryKey: ['registrations'],
-    queryFn: () => new Promise(resolve => setTimeout(() => resolve([...mockRegistrations]), 500))
+    queryFn: () => new Promise(resolve => setTimeout(() => resolve([...mockRegistrations]), 500)),
   });
 }
 
@@ -44,7 +44,7 @@ export function useAddRegistration() {
     mutationFn: async (newRegistration: Registration) => {
       mockRegistrations = [...mockRegistrations, { ...newRegistration, id: Date.now().toString() }];
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['registrations'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['registrations'] }),
   });
 }
 
@@ -52,9 +52,11 @@ export function useUpdateRegistration() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (updatedRegistration: Registration) => {
-      mockRegistrations = mockRegistrations.map(r => r.id === updatedRegistration.id ? { ...updatedRegistration } : r);
+      mockRegistrations = mockRegistrations.map(r =>
+        r.id === updatedRegistration.id ? { ...updatedRegistration } : r
+      );
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['registrations'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['registrations'] }),
   });
 }
 
@@ -64,8 +66,6 @@ export function useDeleteRegistration() {
     mutationFn: async (registrationId: string) => {
       mockRegistrations = mockRegistrations.filter(r => r.id !== registrationId);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['registrations'] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['registrations'] }),
   });
 }
-
-

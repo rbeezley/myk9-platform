@@ -136,35 +136,35 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
               )}
               {/* See the note in ClassEditForm: a stale assignment still needs TBD. */}
               {(assignedJudges.length > 0 || !!data.judgeId) && (
-              <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
-                <SelectTrigger
-                  id="judgeId"
-                  className={cn(judgeError && 'border-destructive')}
-                  aria-invalid={!!judgeError}
-                  aria-describedby={judgeError ? 'judgeId-error' : undefined}
-                >
-                  <SelectValue placeholder="Select a judge">
-                    {/* Resolve UUID → name explicitly: Radix doesn't re-resolve
+                <Select value={data.judgeId} onValueChange={handleSelectChange('judgeId')}>
+                  <SelectTrigger
+                    id="judgeId"
+                    className={cn(judgeError && 'border-destructive')}
+                    aria-invalid={!!judgeError}
+                    aria-describedby={judgeError ? 'judgeId-error' : undefined}
+                  >
+                    <SelectValue placeholder="Select a judge">
+                      {/* Resolve UUID → name explicitly: Radix doesn't re-resolve
                         the SelectItem display when assignedJudges loads after
                         the form mounts, so the trigger would otherwise show the
                         raw judgeId. */}
-                    {resolveJudgeDisplay(data.judgeId, data.judgeName, assignedJudges)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {assignedJudges.map(judge => (
-                    <SelectItem key={judge.judgeId} value={judge.judgeId}>
-                      {judge.judgeName}
-                      {formatJudgeAvailabilityWindow(judge) && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          {formatJudgeAvailabilityWindow(judge)}
-                        </span>
-                      )}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="TBD">TBD</SelectItem>
-                </SelectContent>
-              </Select>
+                      {resolveJudgeDisplay(data.judgeId, data.judgeName, assignedJudges)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {assignedJudges.map(judge => (
+                      <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                        {judge.judgeName}
+                        {formatJudgeAvailabilityWindow(judge) && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {formatJudgeAvailabilityWindow(judge)}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="TBD">TBD</SelectItem>
+                  </SelectContent>
+                </Select>
               )}
             </FormField>
             <FormField label="Status" fieldId="trialStatus" required error={statusError}>

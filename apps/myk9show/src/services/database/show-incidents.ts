@@ -66,7 +66,9 @@ export async function listShowIncidentCloseout(showId: string): Promise<ShowInci
   return listShowIncidentsForShow(showId, CLOSEOUT_INCIDENT_LIMIT);
 }
 
-export async function createShowIncident(input: ShowIncidentFormInput): Promise<ShowIncidentRecord> {
+export async function createShowIncident(
+  input: ShowIncidentFormInput
+): Promise<ShowIncidentRecord> {
   const payload = buildShowIncidentPayload(input);
   const { data, error } = await db
     .from('show_incidents')

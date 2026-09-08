@@ -79,13 +79,14 @@ export function ParticularsSection({
         page={2}
         volume={volumeRoman}
         kicker="Notice to Exhibitors"
-        title={<>The trial, <em>in particular</em></>}
+        title={
+          <>
+            The trial, <em>in particular</em>
+          </>
+        }
         dek="All the facts an entrant requires, set out in the customary manner."
       />
-      <dl
-        className="grid grid-cols-1 gap-x-12 md:grid-cols-2"
-        style={{ columnGap: 48 }}
-      >
+      <dl className="grid grid-cols-1 gap-x-12 md:grid-cols-2" style={{ columnGap: 48 }}>
         {rows.map(row => (
           <div
             key={row.label}

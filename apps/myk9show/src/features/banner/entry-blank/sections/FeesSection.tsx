@@ -58,7 +58,11 @@ export function FeesSection({ fees, flag }: { fees: EntryBlankFees; flag: string
             value="$ ______"
             flag={flag}
           />
-          <FeeRow label={`Junior handler · ${fees.juniorHandlerFee}`} value="$ ______" flag={flag} />
+          <FeeRow
+            label={`Junior handler · ${fees.juniorHandlerFee}`}
+            value="$ ______"
+            flag={flag}
+          />
           <FeeRow label={`Mail-in · ${fees.mailProcessingFee}`} value="$ ______" flag={flag} />
         </View>
 
@@ -105,7 +109,13 @@ export function FeesSection({ fees, flag }: { fees: EntryBlankFees; flag: string
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 7 }}>
         <Text
-          style={{ fontFamily: BODY, fontWeight: 500, fontSize: 8, letterSpacing: 1.6, color: MUTE }}
+          style={{
+            fontFamily: BODY,
+            fontWeight: 500,
+            fontSize: 8,
+            letterSpacing: 1.6,
+            color: MUTE,
+          }}
         >
           PAYMENT BY:
         </Text>

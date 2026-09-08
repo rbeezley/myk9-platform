@@ -94,8 +94,7 @@ export function PlanSection({ accommodations, hospitalityNotes }: PlanSectionPro
       >
         <MagazineSectionFolio label="Plan your weekend" className="mb-6" />
         <MagazineHeading level={2}>
-          Where to <em className="em-gold">stay</em>, where to{' '}
-          <em className="em-gold">eat</em>
+          Where to <em className="em-gold">stay</em>, where to <em className="em-gold">eat</em>
         </MagazineHeading>
       </div>
 

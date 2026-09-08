@@ -24,9 +24,7 @@ describe('trial packet automation columns', () => {
     // The whole risk of dropping the NOT NULL: a manual packet with no
     // generated_by would be a row claiming a person asked for it while
     // recording no person. The CHECK is what keeps the relaxation scoped.
-    expect(sql).toMatch(
-      /CHECK \(generated_source <> 'manual' OR generated_by IS NOT NULL\)/
-    );
+    expect(sql).toMatch(/CHECK \(generated_source <> 'manual' OR generated_by IS NOT NULL\)/);
     expect(sql).toMatch(/CHECK \(generated_source IN \('manual', 'automated'\)\)/);
   });
 

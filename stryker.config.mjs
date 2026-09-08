@@ -44,7 +44,19 @@ export default {
     configFile: 'vitest.mutation.config.ts',
     related: false,
   },
-  ignorePatterns: ['.agents/**', '.claude/**', '.worktrees/**', 'reports/**', 'skills/**'],
+  // Stryker copies the tree into a sandbox with copyFile, which rejects a
+  // symlink (ENOTSUP). Every skill tree holds symlinks since #2062/#2064, so
+  // all three are ignored, plus the per-worktree log directory and docs.
+  ignorePatterns: [
+    '.agents/**',
+    '.claude/**',
+    '.codex/**',
+    '.logs/**',
+    '.worktrees/**',
+    'docs/**',
+    'reports/**',
+    'skills/**',
+  ],
   reporters: ['clear-text', 'progress', 'json', 'html'],
   jsonReporter: {
     fileName: `reports/mutation/${targetName}/mutation.json`,
@@ -53,10 +65,14 @@ export default {
     fileName: `reports/mutation/${targetName}/index.html`,
   },
   tempDirName: `.stryker-tmp/${targetName}`,
+  // `break` makes the weekly run (.github/workflows/mutation-tests.yml) fail
+  // when a target's score falls below the `low` floor; with `null` a 0% score
+  // exited 0 and the notifier could never fire (Codex review of #2120).
+  // cart measured 71.79% on 2026-09-07.
   thresholds: {
     high: 80,
     low: 60,
-    break: null,
+    break: 60,
   },
   concurrency: 2,
 };

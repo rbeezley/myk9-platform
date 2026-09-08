@@ -49,14 +49,54 @@ vi.mock('@/store/trialStore', () => ({
 }));
 
 const classRows = [
-  { id: 'class-1', name: 'Container Novice A', element: 'Container', level: 'Novice',
-    section: 'A', status: 'scheduled', class_order: 1, max_entries: 50, entries: [], judge_assignments: [] },
-  { id: 'class-2', name: 'Interior Novice A', element: 'Interior', level: 'Novice',
-    section: 'A', status: 'upcoming', class_order: 2, max_entries: 50, entries: [], judge_assignments: [] },
-  { id: 'class-3', name: 'Buried Master', element: 'Buried', level: 'Master',
-    section: 'A', status: 'in_progress', class_order: 3, max_entries: 50, entries: [], judge_assignments: [] },
-  { id: 'class-4', name: 'Exterior Excellent', element: 'Exterior', level: 'Excellent',
-    section: 'A', status: 'completed', class_order: 4, max_entries: 50, entries: [], judge_assignments: [] },
+  {
+    id: 'class-1',
+    name: 'Container Novice A',
+    element: 'Container',
+    level: 'Novice',
+    section: 'A',
+    status: 'scheduled',
+    class_order: 1,
+    max_entries: 50,
+    entries: [],
+    judge_assignments: [],
+  },
+  {
+    id: 'class-2',
+    name: 'Interior Novice A',
+    element: 'Interior',
+    level: 'Novice',
+    section: 'A',
+    status: 'upcoming',
+    class_order: 2,
+    max_entries: 50,
+    entries: [],
+    judge_assignments: [],
+  },
+  {
+    id: 'class-3',
+    name: 'Buried Master',
+    element: 'Buried',
+    level: 'Master',
+    section: 'A',
+    status: 'in_progress',
+    class_order: 3,
+    max_entries: 50,
+    entries: [],
+    judge_assignments: [],
+  },
+  {
+    id: 'class-4',
+    name: 'Exterior Excellent',
+    element: 'Exterior',
+    level: 'Excellent',
+    section: 'A',
+    status: 'completed',
+    class_order: 4,
+    max_entries: 50,
+    entries: [],
+    judge_assignments: [],
+  },
 ];
 
 function renderPage() {
@@ -76,10 +116,12 @@ function rowFor(name: string): HTMLElement {
 
 /** Read a summary-tile count by its label (the tile number is the label's previous sibling). */
 function tileCount(label: string): string | undefined {
-  return screen
-    .getAllByText(label)
-    .map(el => el.previousElementSibling)
-    .find(prev => prev?.className.includes('text-2xl'))?.textContent ?? undefined;
+  return (
+    screen
+      .getAllByText(label)
+      .map(el => el.previousElementSibling)
+      .find(prev => prev?.className.includes('text-2xl'))?.textContent ?? undefined
+  );
 }
 
 describe('ClassManagementPage lifecycle chips (2.B)', () => {

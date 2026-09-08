@@ -72,8 +72,20 @@ describe('DogsGridView', () => {
     const mixed = {
       ...dog,
       registrations: [
-        { id: 'r1', organization: 'AKC', breed: 'All-American Dog', registrationNumber: 'PAL1', status: 'Active' },
-        { id: 'r2', organization: 'UKC', breed: 'Mixed Breed', registrationNumber: 'P7', status: 'Active' },
+        {
+          id: 'r1',
+          organization: 'AKC',
+          breed: 'All-American Dog',
+          registrationNumber: 'PAL1',
+          status: 'Active',
+        },
+        {
+          id: 'r2',
+          organization: 'UKC',
+          breed: 'Mixed Breed',
+          registrationNumber: 'P7',
+          status: 'Active',
+        },
       ],
     } as unknown as Dog;
     render(<DogsGridView dogs={[mixed]} showOwner={false} />);

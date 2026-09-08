@@ -27,8 +27,7 @@ interface ShowMapRowActionsMenuProps {
   scopeNow?: Date | undefined;
   onNavigate?: ((href: string) => void) | undefined;
   onAction?:
-    | ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void)
-    | undefined;
+    ((action: ShowMapAction, execution: ExecutableShowMapActionExecution) => void) | undefined;
   openSignal?: number | undefined;
 }
 

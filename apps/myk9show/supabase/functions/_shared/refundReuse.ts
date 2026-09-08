@@ -20,9 +20,7 @@ export function findReusableRefund<T extends PriorRefund>(
   refunds: T[],
   entryId: string
 ): T | undefined {
-  return refunds.find(
-    r => r.metadata?.entry_id === entryId && !DEAD_STATUSES.has(r.status ?? '')
-  );
+  return refunds.find(r => r.metadata?.entry_id === entryId && !DEAD_STATUSES.has(r.status ?? ''));
 }
 
 /** Idempotency-key attempt counter. Counts only THIS entry's prior refunds —

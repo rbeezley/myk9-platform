@@ -27,7 +27,13 @@ export const BODY = 'Source Serif 4';
 export const META = 'IBM Plex Mono';
 
 /** 4px double horizontal rule. Emulated with two 0.5px stacked borders. */
-export function DoubleRule({ color = INK, marginVertical = 6 }: { color?: string; marginVertical?: number }) {
+export function DoubleRule({
+  color = INK,
+  marginVertical = 6,
+}: {
+  color?: string;
+  marginVertical?: number;
+}) {
   return (
     <View style={{ marginVertical }}>
       <View style={{ borderBottomWidth: 0.6, borderBottomColor: color }} />
@@ -37,7 +43,13 @@ export function DoubleRule({ color = INK, marginVertical = 6 }: { color?: string
 }
 
 /** Single-pixel hairline in hair tone. */
-export function Hairline({ color = HAIR, marginVertical = 4 }: { color?: string; marginVertical?: number }) {
+export function Hairline({
+  color = HAIR,
+  marginVertical = 4,
+}: {
+  color?: string;
+  marginVertical?: number;
+}) {
   return <View style={{ marginVertical, borderBottomWidth: 0.4, borderBottomColor: color }} />;
 }
 
@@ -141,7 +153,9 @@ export function Field({
         }}
       >
         {value && (
-          <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, paddingBottom: 1 }}>{value}</Text>
+          <Text style={{ fontFamily: BODY, fontSize: 9, color: INK, paddingBottom: 1 }}>
+            {value}
+          </Text>
         )}
       </View>
       {hint && (

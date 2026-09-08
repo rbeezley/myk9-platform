@@ -10,12 +10,17 @@ describe('formatJudgeAvailabilityWindow', () => {
 
   it('renders nothing for a full-day judge', () => {
     expect(
-      formatJudgeAvailabilityWindow({ availableStartTime: 'Full Day', availableEndTime: 'Full Day' })
+      formatJudgeAvailabilityWindow({
+        availableStartTime: 'Full Day',
+        availableEndTime: 'Full Day',
+      })
     ).toBeNull();
   });
 
   it('renders nothing when the times are blank (F13: "Test Judge( - )")', () => {
-    expect(formatJudgeAvailabilityWindow({ availableStartTime: '', availableEndTime: '' })).toBeNull();
+    expect(
+      formatJudgeAvailabilityWindow({ availableStartTime: '', availableEndTime: '' })
+    ).toBeNull();
     expect(formatJudgeAvailabilityWindow({})).toBeNull();
     expect(
       formatJudgeAvailabilityWindow({ availableStartTime: '   ', availableEndTime: '17:00' })

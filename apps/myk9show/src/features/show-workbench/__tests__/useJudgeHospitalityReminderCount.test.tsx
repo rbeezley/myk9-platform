@@ -1,9 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  writeJudgeHospitalityState,
-  type JudgeHospitalityJudge,
-} from '../judgeHospitality';
+import { writeJudgeHospitalityState, type JudgeHospitalityJudge } from '../judgeHospitality';
 import { useJudgeHospitalityReminderCount } from '../useJudgeHospitalityReminderCount';
 
 const JUDGES: JudgeHospitalityJudge[] = [

@@ -106,9 +106,7 @@ describe('DogsBulkActionsBar', () => {
   it('mark retired dispatches useUpdateDogMutation for eligible dogs and clears selection', async () => {
     const { user, onClear } = setup([dog('1', 'active'), dog('2', 'retired')]);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(
-      await screen.findByRole('menuitem', { name: /mark 1 of 2 dogs retired/i })
-    );
+    await user.click(await screen.findByRole('menuitem', { name: /mark 1 of 2 dogs retired/i }));
 
     await waitFor(() => {
       expect(updateDogMutateAsync).toHaveBeenCalledWith({
@@ -143,9 +141,7 @@ describe('DogsBulkActionsBar', () => {
     updateDogMutateAsync.mockImplementation(() => new Promise<void>(r => (resolve = r)));
     const { user } = setup([dog('1', 'active'), dog('2', 'active')]);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(
-      await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i })
-    );
+    await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
 
     // In flight: Clear is disabled so the selection can't be dropped mid-batch.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Clear' })).toBeDisabled());
@@ -156,16 +152,16 @@ describe('DogsBulkActionsBar', () => {
     const { user } = setup([dog('1'), dog('2')], false);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
     // Status change (dog:update) is still offered; Delete (dog:delete) is absent.
-    expect(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i })
+    ).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
   });
 
   it('dispatches one update per eligible dog when marking several at once', async () => {
     const { user } = setup([dog('1', 'active'), dog('2', 'active'), dog('3', 'active')]);
     await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-    await user.click(
-      await screen.findByRole('menuitem', { name: /mark 3 dogs retired/i })
-    );
+    await user.click(await screen.findByRole('menuitem', { name: /mark 3 dogs retired/i }));
 
     // Regression guard: a per-dog dispatch would trip the in-flight latch and
     // update only the first dog. All three must be updated.

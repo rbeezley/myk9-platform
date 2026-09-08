@@ -79,11 +79,7 @@ describe('seed-demo officials + RBAC completeness contract', () => {
       expect(seed).toContain(`'${role}'`);
     }
     // The new judge/steward accounts must be in the non-null auth_user_id guard.
-    for (const email of [
-      'testadmin@myk9t.com',
-      'judge@myk9t.com',
-      'secretary@myk9t.com',
-    ]) {
+    for (const email of ['testadmin@myk9t.com', 'judge@myk9t.com', 'secretary@myk9t.com']) {
       expect(seed).toContain(email);
     }
   });

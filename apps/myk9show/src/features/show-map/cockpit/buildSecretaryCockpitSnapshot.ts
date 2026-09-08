@@ -112,10 +112,7 @@ function actionFor(
  */
 const STRANDED_ENTRY_ACTION_IDS: ReadonlySet<string> = new Set(['move-up-entry']);
 
-function entryRowsForClass(
-  classId: string,
-  tree: ShowMapTree
-): SecretaryCockpitEntryRow[] {
+function entryRowsForClass(classId: string, tree: ShowMapTree): SecretaryCockpitEntryRow[] {
   const classNodeId = getShowMapNodeId('class', classId);
   const childIds = tree.childIdsByParentId[classNodeId] ?? [];
   const rows: SecretaryCockpitEntryRow[] = [];

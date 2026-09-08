@@ -15,10 +15,7 @@ import { useCallback, useEffect, useRef } from 'react';
  * this hook only owns the timer. Replaces the fire-and-forget
  * `setTimeout(() => setVisible(false), …)` anti-pattern.
  */
-export function useAutoDismiss(
-  setVisible: (visible: boolean) => void,
-  delayMs = 2000
-): () => void {
+export function useAutoDismiss(setVisible: (visible: boolean) => void, delayMs = 2000): () => void {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clear = useCallback(() => {

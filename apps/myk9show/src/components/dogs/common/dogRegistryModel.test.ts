@@ -54,6 +54,10 @@ describe('buildDogCardRegistryModel', () => {
   });
 
   it('returns an empty model with no registrations', () => {
-    expect(buildDogCardRegistryModel(undefined)).toEqual({ breed: null, breedVaries: false, rows: [] });
+    expect(buildDogCardRegistryModel(undefined)).toEqual({
+      breed: null,
+      breedVaries: false,
+      rows: [],
+    });
   });
 });

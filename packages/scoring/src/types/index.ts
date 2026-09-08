@@ -105,11 +105,7 @@ export interface TimerArea {
  * Nationals element types
  */
 export type NationalsElementType =
-  | 'CONTAINER'
-  | 'BURIED'
-  | 'INTERIOR'
-  | 'EXTERIOR'
-  | 'HD_CHALLENGE';
+  'CONTAINER' | 'BURIED' | 'INTERIOR' | 'EXTERIOR' | 'HD_CHALLENGE';
 
 /**
  * Competition day for Nationals

@@ -16,13 +16,13 @@ import {
   getUpcomingShows,
   getShowStatistics,
   getShowsWithEntryCounts,
-  getShowsByDateRange
+  getShowsByDateRange,
 } from '@/services/database/shows';
 import {
   mapShowInputToInsert,
   mapShowInputToUpdate,
   mapDatabaseToShow,
-  mapDatabaseShowsArray
+  mapDatabaseShowsArray,
 } from '@/services/mappers/showMappers';
 
 // Query Keys
@@ -38,7 +38,8 @@ export const showQueryKeys = {
   upcoming: () => [...showQueryKeys.all, 'upcoming'] as const,
   statistics: () => [...showQueryKeys.all, 'statistics'] as const,
   withEntryCounts: () => [...showQueryKeys.all, 'withEntryCounts'] as const,
-  byDateRange: (startDate: string, endDate: string) => [...showQueryKeys.all, 'dateRange', startDate, endDate] as const,
+  byDateRange: (startDate: string, endDate: string) =>
+    [...showQueryKeys.all, 'dateRange', startDate, endDate] as const,
   deleted: () => [...showQueryKeys.all, 'deleted'] as const,
 };
 
@@ -200,7 +201,7 @@ export const useShowsWithEntryCountsQuery = () => {
       if (error) throw error;
       return data.map(show => ({
         ...mapDatabaseToShow(show as unknown as Parameters<typeof mapDatabaseToShow>[0]),
-        entryCount: show.entry_count || 0
+        entryCount: show.entry_count || 0,
       }));
     },
     ...cacheStrategies.moderate,
@@ -222,23 +223,23 @@ export const useCreateShowMutation = () => {
       if (error) throw error;
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
-    onSuccess: (newShow) => {
+    onSuccess: newShow => {
       // Update the shows list cache
-      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), (old) => {
+      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
         if (!old) return [newShow];
         return [newShow, ...old];
       });
 
       // Update club-specific cache if available
       if (newShow.clubId) {
-        queryClient.setQueryData<Show[]>(showQueryKeys.byClub(newShow.clubId), (old) => {
+        queryClient.setQueryData<Show[]>(showQueryKeys.byClub(newShow.clubId), old => {
           if (!old) return [newShow];
           return [newShow, ...old];
         });
       }
 
       // Update status-specific cache if available
-      queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(newShow.status), (old) => {
+      queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(newShow.status), old => {
         if (!old) return [newShow];
         return [newShow, ...old];
       });
@@ -264,28 +265,28 @@ export const useUpdateShowMutation = () => {
       if (error) throw error;
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
-    onSuccess: (updatedShow) => {
+    onSuccess: updatedShow => {
       // Update the specific show cache
       queryClient.setQueryData<Show>(showQueryKeys.detail(updatedShow.id), updatedShow);
 
       // Update the shows list cache
-      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), (old) => {
+      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
         if (!old) return [updatedShow];
-        return old.map(show => show.id === updatedShow.id ? updatedShow : show);
+        return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
       });
 
       // Update club-specific cache
       if (updatedShow.clubId) {
-        queryClient.setQueryData<Show[]>(showQueryKeys.byClub(updatedShow.clubId), (old) => {
+        queryClient.setQueryData<Show[]>(showQueryKeys.byClub(updatedShow.clubId), old => {
           if (!old) return [updatedShow];
-          return old.map(show => show.id === updatedShow.id ? updatedShow : show);
+          return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
         });
       }
 
       // Update status-specific cache
-      queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(updatedShow.status), (old) => {
+      queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(updatedShow.status), old => {
         if (!old) return [updatedShow];
-        return old.map(show => show.id === updatedShow.id ? updatedShow : show);
+        return old.map(show => (show.id === updatedShow.id ? updatedShow : show));
       });
 
       // Invalidate related queries
@@ -317,7 +318,7 @@ export const useDeleteShowMutation = () => {
 
       // Optimistically update by removing the show
       if (previousShows) {
-        queryClient.setQueryData<Show[]>(showQueryKeys.lists(), (old) => {
+        queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
           if (!old) return [];
           return old.filter(show => show.id !== deletedId);
         });
@@ -372,7 +373,7 @@ export const useRestoreShowMutation = () => {
     },
     onSuccess: (restoredShow, { id }) => {
       // Add back to the main shows list
-      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), (old) => {
+      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
         if (!old) return [restoredShow];
         return [restoredShow, ...old];
       });
@@ -402,7 +403,7 @@ export const useHardDeleteShowMutation = () => {
     },
     onSuccess: (_data, id) => {
       // Remove from deleted shows cache
-      queryClient.setQueryData<Show[]>(showQueryKeys.deleted(), (old) => {
+      queryClient.setQueryData<Show[]>(showQueryKeys.deleted(), old => {
         if (!old) return [];
         return old.filter(show => show.id !== id);
       });

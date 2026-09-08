@@ -448,5 +448,4 @@ describe('ReportPreview', () => {
       expect(screen.queryByText(/Loading report data/i)).toBeNull();
     });
   });
-
 });

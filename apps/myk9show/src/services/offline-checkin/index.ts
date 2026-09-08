@@ -1,6 +1,6 @@
 /**
  * Offline Check-In Services Export
- * 
+ *
  * Central export point for all offline check-in services and utilities
  */
 
@@ -48,7 +48,7 @@ export type {
   OfflineCheckInServiceConfig,
   TimeSyncStatus,
   CheckInTimeWindow,
-  OfflineCheckInQueue
+  OfflineCheckInQueue,
 } from '@/types/offline-checkin-types';
 
 // Utility functions
@@ -58,7 +58,7 @@ export const initializeAllServices = async () => {
       offlineCheckInService.initialize(),
       armbandManager.initialize(),
       gateCoordinator.initialize(),
-      qrScannerService.initialize()
+      qrScannerService.initialize(),
     ]);
     logger.debug('All offline check-in services initialized successfully', 'services', {});
   } catch (error) {
@@ -72,7 +72,7 @@ export const shutdownAllServices = async () => {
     await Promise.all([
       offlineCheckInService.shutdown(),
       gateCoordinator.shutdown(),
-      qrScannerService.dispose()
+      qrScannerService.dispose(),
     ]);
     logger.debug('All offline check-in services shut down successfully', 'services', {});
   } catch (error) {
@@ -86,20 +86,20 @@ export const checkServiceStatus = () => {
   return {
     checkInService: {
       initialized: true, // Would check actual status in real implementation
-      online: navigator.onLine
+      online: navigator.onLine,
     },
     armbandManager: {
-      initialized: true
+      initialized: true,
     },
     gateCoordinator: {
       initialized: true,
       activeGates: gateCoordinator.getActiveGates().length,
-      activeStewards: gateCoordinator.getActiveStewards().length
+      activeStewards: gateCoordinator.getActiveStewards().length,
     },
     qrScanner: {
       initialized: true,
       cameraActive: qrScannerService.isCameraActive(),
-      scanningActive: qrScannerService.isScanningActive()
-    }
+      scanningActive: qrScannerService.isScanningActive(),
+    },
   };
 };

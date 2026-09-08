@@ -98,8 +98,7 @@ export function packetDayIsPrinted(
 }
 
 export type ReminderDecision =
-  | { remind: true }
-  | { remind: false; reason: 'no-packet' | 'already-printed' };
+  { remind: true } | { remind: false; reason: 'no-packet' | 'already-printed' };
 
 /**
  * A reminder to print something that does not exist is noise that trains

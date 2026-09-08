@@ -1,11 +1,7 @@
 export type MessageShowRecipientType = 'all_show' | 'class' | 'checked_in';
 export type MessageShowDeliveryLane = 'announcement' | 'targeted';
 export type MessageShowTemplateId =
-  | 'lunch-ready'
-  | 'ring-paused'
-  | 'results-posted'
-  | 'report-to-gate'
-  | 'class-delayed';
+  'lunch-ready' | 'ring-paused' | 'results-posted' | 'report-to-gate' | 'class-delayed';
 
 export interface MessageShowTemplate {
   id: MessageShowTemplateId;
@@ -125,9 +121,7 @@ function displayText(value: string | null | undefined): string | null {
 }
 
 function isUuidLike(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  );
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function hasTrailingSection(name: string, section: string): boolean {

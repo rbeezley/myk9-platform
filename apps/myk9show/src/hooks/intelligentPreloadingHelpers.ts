@@ -21,9 +21,7 @@ export type EnhancedLazyComponent<P = Record<string, unknown>> = ComponentType<P
 /**
  * Checks whether a component has a `.preload()` method.
  */
-export function isPreloadable(
-  component: ComponentType<Record<string, unknown>>,
-): boolean {
+export function isPreloadable(component: ComponentType<Record<string, unknown>>): boolean {
   return typeof (component as EnhancedLazyComponent).preload === 'function';
 }
 
@@ -41,7 +39,7 @@ export function filterPreloadableRoutes(
   routes: string[],
   queued: Set<string>,
   active: Set<string>,
-  maxConcurrent: number,
+  maxConcurrent: number
 ): string[] {
   return routes
     .filter(route => !queued.has(route))
@@ -56,7 +54,7 @@ export function filterPreloadableRoutes(
 export async function preloadSingleComponent(
   route: string,
   component: ComponentType<Record<string, unknown>>,
-  enablePerformanceMonitoring: boolean,
+  enablePerformanceMonitoring: boolean
 ): Promise<void> {
   const startTime = performance.now();
 

@@ -6,7 +6,7 @@ import {
   ClassDefinition,
   ClassSelectionItem,
   CreatedClass,
-  ClassStatus
+  ClassStatus,
 } from '@/types/template.types';
 import { useTemplateStore } from './templateStore';
 
@@ -16,13 +16,13 @@ interface ClassCreationStore {
   selectedTemplate: ClassTemplate | null;
   selectedClasses: ClassSelectionItem[];
   fieldOverrides: Record<string, unknown>; // fieldName -> value
-  
+
   // UI state
   currentStep: number;
   validationErrors: Record<string, string[]>; // classKey -> errors
   createdClasses: CreatedClass[];
   trialId: string | null;
-  
+
   // Actions
   selectTemplate: (templateId: string) => void;
   setTemplateData: (template: ClassTemplate) => void;
@@ -35,31 +35,34 @@ interface ClassCreationStore {
   updateBulkFieldOverride: (fieldName: string, value: unknown) => void;
   updateFieldOverrides: (overrides: Record<string, unknown>) => void;
   resetFieldOverride: (fieldName: string) => void;
-  
+
   // Validation
   validateSelections: () => boolean;
   validateSelection: () => { isValid: boolean; errors: string[] };
   getFieldValue: (className: string, fieldName: string) => unknown;
-  
+
   // Class creation
-  createClasses: (trialId: string, userId: string) => { success: boolean; classes: CreatedClass[]; errors: string[] };
+  createClasses: (
+    trialId: string,
+    userId: string
+  ) => { success: boolean; classes: CreatedClass[]; errors: string[] };
   getClassesByTrial: (trialId: string) => CreatedClass[];
   updateClassRunOrder: (classId: string, runOrder: number) => void;
   updateClassTime: (classId: string, time: Date) => void;
   updateClassJudge: (classId: string, judgeId: string) => void;
   updateClassStatus: (classId: string, status: ClassStatus) => void;
   deleteClass: (classId: string) => void;
-  
+
   // Element and level filtering
   getAvailableElements: () => string[];
   getAvailableLevels: () => string[];
-  
+
   // Step management
   nextStep: () => void;
   previousStep: () => void;
   setStep: (step: number) => void;
   resetSteps: () => void;
-  
+
   // Reset
   resetCreation: () => void;
   resetWorkflow: () => void;
@@ -69,520 +72,538 @@ interface ClassCreationStore {
 export const useClassCreationStore = create<ClassCreationStore>()(
   persist(
     (set, get) => ({
-  // Initial state
-  selectedTemplateId: null,
-  selectedTemplate: null,
-  selectedClasses: [],
-  fieldOverrides: {},
-  currentStep: 1,
-  validationErrors: {},
-  createdClasses: [],
-  trialId: null,
-
-  // Select template and initialize class list
-  selectTemplate: (templateId) => {
-    const template = useTemplateStore.getState().getTemplate(templateId);
-
-    if (!template) {
-      set({ selectedTemplateId: templateId, selectedTemplate: null });
-      return;
-    }
-
-    // Initialize selection items for all classes
-    const selectionItems: ClassSelectionItem[] = template.classDefinitions.map((classDef: ClassDefinition) => ({
-      classDefinition: classDef,
-      selected: false,
+      // Initial state
+      selectedTemplateId: null,
+      selectedTemplate: null,
+      selectedClasses: [],
       fieldOverrides: {},
-      validationErrors: []
-    }));
-
-    set({
-      selectedTemplateId: templateId,
-      selectedTemplate: template,
-      selectedClasses: selectionItems,
-      fieldOverrides: {},
+      currentStep: 1,
       validationErrors: {},
-      currentStep: 1
-    });
-  },
+      createdClasses: [],
+      trialId: null,
 
-  // New method to set template data (called by components)
-  setTemplateData: (template: ClassTemplate) => {
+      // Select template and initialize class list
+      selectTemplate: templateId => {
+        const template = useTemplateStore.getState().getTemplate(templateId);
 
-    // Initialize selection items for all classes
-    const selectionItems: ClassSelectionItem[] = template.classDefinitions.map((classDef: ClassDefinition) => ({
-      classDefinition: classDef,
-      selected: false,
-      fieldOverrides: {},
-      validationErrors: []
-    }));
+        if (!template) {
+          set({ selectedTemplateId: templateId, selectedTemplate: null });
+          return;
+        }
 
-    set(state => ({
-      ...state,
-      selectedTemplate: template,
-      selectedClasses: selectionItems,
-      fieldOverrides: {},
-      validationErrors: {},
-      currentStep: 1
-    }));
-  },
+        // Initialize selection items for all classes
+        const selectionItems: ClassSelectionItem[] = template.classDefinitions.map(
+          (classDef: ClassDefinition) => ({
+            classDefinition: classDef,
+            selected: false,
+            fieldOverrides: {},
+            validationErrors: [],
+          })
+        );
 
-  // Toggle individual class selection
-  toggleClassSelection: (className) => {
-    set(state => ({
-      selectedClasses: state.selectedClasses.map(item =>
-        item.classDefinition.className === className
-          ? { ...item, selected: !item.selected }
-          : item
-      )
-    }));
-  },
+        set({
+          selectedTemplateId: templateId,
+          selectedTemplate: template,
+          selectedClasses: selectionItems,
+          fieldOverrides: {},
+          validationErrors: {},
+          currentStep: 1,
+        });
+      },
 
-  // Select all classes
-  selectAllClasses: () => {
-    set(state => ({
-      selectedClasses: state.selectedClasses.map(item => ({
-        ...item,
-        selected: true
-      }))
-    }));
-  },
+      // New method to set template data (called by components)
+      setTemplateData: (template: ClassTemplate) => {
+        // Initialize selection items for all classes
+        const selectionItems: ClassSelectionItem[] = template.classDefinitions.map(
+          (classDef: ClassDefinition) => ({
+            classDefinition: classDef,
+            selected: false,
+            fieldOverrides: {},
+            validationErrors: [],
+          })
+        );
 
-  // Deselect all classes
-  deselectAllClasses: () => {
-    set(state => ({
-      selectedClasses: state.selectedClasses.map(item => ({
-        ...item,
-        selected: false
-      }))
-    }));
-  },
+        set(state => ({
+          ...state,
+          selectedTemplate: template,
+          selectedClasses: selectionItems,
+          fieldOverrides: {},
+          validationErrors: {},
+          currentStep: 1,
+        }));
+      },
 
-  // Update field override for specific field
-  updateFieldOverride: (fieldName, value) => {
-    set(state => ({
-      fieldOverrides: {
-        ...state.fieldOverrides,
-        [fieldName]: value
-      }
-    }));
-  },
+      // Toggle individual class selection
+      toggleClassSelection: className => {
+        set(state => ({
+          selectedClasses: state.selectedClasses.map(item =>
+            item.classDefinition.className === className
+              ? { ...item, selected: !item.selected }
+              : item
+          ),
+        }));
+      },
 
-  // Clear a field override
-  resetFieldOverride: (fieldName) => {
-    set(state => {
-      const newOverrides = { ...state.fieldOverrides };
-      delete newOverrides[fieldName];
-      return { fieldOverrides: newOverrides };
-    });
-  },
+      // Select all classes
+      selectAllClasses: () => {
+        set(state => ({
+          selectedClasses: state.selectedClasses.map(item => ({
+            ...item,
+            selected: true,
+          })),
+        }));
+      },
 
-  // Update multiple field overrides at once
-  updateFieldOverrides: (overrides) => {
-    set(state => ({
-      fieldOverrides: {
-        ...state.fieldOverrides,
-        ...overrides
-      }
-    }));
-  },
+      // Deselect all classes
+      deselectAllClasses: () => {
+        set(state => ({
+          selectedClasses: state.selectedClasses.map(item => ({
+            ...item,
+            selected: false,
+          })),
+        }));
+      },
 
-  // Update field override for all selected classes
-  updateBulkFieldOverride: (fieldName, value) => {
-    // Since we've changed the structure to store field overrides directly by field name,
-    // this method now simply calls updateFieldOverride
-    get().updateFieldOverride(fieldName, value);
-  },
+      // Update field override for specific field
+      updateFieldOverride: (fieldName, value) => {
+        set(state => ({
+          fieldOverrides: {
+            ...state.fieldOverrides,
+            [fieldName]: value,
+          },
+        }));
+      },
 
-  // Validate all selections
-  validateSelections: () => {
-    const { selectedTemplate, selectedClasses } = get();
-    if (!selectedTemplate) return false;
+      // Clear a field override
+      resetFieldOverride: fieldName => {
+        set(state => {
+          const newOverrides = { ...state.fieldOverrides };
+          delete newOverrides[fieldName];
+          return { fieldOverrides: newOverrides };
+        });
+      },
 
-    const errors: Record<string, string[]> = {};
-    let isValid = true;
+      // Update multiple field overrides at once
+      updateFieldOverrides: overrides => {
+        set(state => ({
+          fieldOverrides: {
+            ...state.fieldOverrides,
+            ...overrides,
+          },
+        }));
+      },
 
-    selectedClasses
-      .filter(item => item.selected)
-      .forEach(item => {
-        const classErrors: string[] = [];
+      // Update field override for all selected classes
+      updateBulkFieldOverride: (fieldName, value) => {
+        // Since we've changed the structure to store field overrides directly by field name,
+        // this method now simply calls updateFieldOverride
+        get().updateFieldOverride(fieldName, value);
+      },
 
-        // Validate required fields
-        selectedTemplate.fieldSpecifications
-          .filter(field => field.required)
-          .forEach(field => {
-            const value = get().getFieldValue(item.classDefinition.className, field.fieldName);
-            if (value === undefined || value === null || value === '') {
-              classErrors.push(`${field.fieldName} is required`);
+      // Validate all selections
+      validateSelections: () => {
+        const { selectedTemplate, selectedClasses } = get();
+        if (!selectedTemplate) return false;
+
+        const errors: Record<string, string[]> = {};
+        let isValid = true;
+
+        selectedClasses
+          .filter(item => item.selected)
+          .forEach(item => {
+            const classErrors: string[] = [];
+
+            // Validate required fields
+            selectedTemplate.fieldSpecifications
+              .filter(field => field.required)
+              .forEach(field => {
+                const value = get().getFieldValue(item.classDefinition.className, field.fieldName);
+                if (value === undefined || value === null || value === '') {
+                  classErrors.push(`${field.fieldName} is required`);
+                }
+              });
+
+            // Validate field-specific rules
+            selectedTemplate.fieldSpecifications.forEach(field => {
+              const value = get().getFieldValue(item.classDefinition.className, field.fieldName);
+              if (value !== undefined && value !== null && value !== '') {
+                // Numeric validation
+                if (field.dataType === 'number') {
+                  const numValue = Number(value);
+                  if (isNaN(numValue)) {
+                    classErrors.push(`${field.fieldName} must be a number`);
+                  } else {
+                    if (
+                      field.allowedRange?.min !== undefined &&
+                      numValue < Number(field.allowedRange.min)
+                    ) {
+                      classErrors.push(
+                        `${field.fieldName} must be at least ${field.allowedRange.min}`
+                      );
+                    }
+                    if (
+                      field.allowedRange?.max !== undefined &&
+                      numValue > Number(field.allowedRange.max)
+                    ) {
+                      classErrors.push(
+                        `${field.fieldName} must be at most ${field.allowedRange.max}`
+                      );
+                    }
+                  }
+                }
+
+                // String length validation
+                if (field.dataType === 'text' || field.dataType === 'rich-text') {
+                  const strValue = String(value);
+                  const minLength =
+                    field.allowedRange?.min !== undefined
+                      ? Number(field.allowedRange.min)
+                      : undefined;
+                  const maxLength =
+                    field.allowedRange?.max !== undefined
+                      ? Number(field.allowedRange.max)
+                      : undefined;
+
+                  if (minLength !== undefined && strValue.length < minLength) {
+                    classErrors.push(`${field.fieldName} must be at least ${minLength} characters`);
+                  }
+                  if (maxLength !== undefined && strValue.length > maxLength) {
+                    classErrors.push(`${field.fieldName} must be at most ${maxLength} characters`);
+                  }
+                }
+              }
+            });
+
+            if (classErrors.length > 0) {
+              errors[item.classDefinition.className] = classErrors;
+              isValid = false;
             }
           });
 
-        // Validate field-specific rules
-        selectedTemplate.fieldSpecifications.forEach(field => {
-          const value = get().getFieldValue(item.classDefinition.className, field.fieldName);
-          if (value !== undefined && value !== null && value !== '') {
-            // Numeric validation
-            if (field.dataType === 'number') {
-              const numValue = Number(value);
-              if (isNaN(numValue)) {
-                classErrors.push(`${field.fieldName} must be a number`);
-              } else {
-                if (field.allowedRange?.min !== undefined && numValue < Number(field.allowedRange.min)) {
-                  classErrors.push(`${field.fieldName} must be at least ${field.allowedRange.min}`);
-                }
-                if (field.allowedRange?.max !== undefined && numValue > Number(field.allowedRange.max)) {
-                  classErrors.push(`${field.fieldName} must be at most ${field.allowedRange.max}`);
-                }
-              }
+        set({ validationErrors: errors });
+        return isValid;
+      },
+
+      // Validate selection with detailed return value
+      validateSelection: () => {
+        const { selectedTemplate, selectedClasses } = get();
+        if (!selectedTemplate) return { isValid: false, errors: ['No template selected'] };
+
+        const errors: string[] = [];
+        const selectedItems = selectedClasses.filter(item => item.selected);
+
+        if (selectedItems.length === 0) {
+          errors.push('No classes selected');
+          return { isValid: false, errors };
+        }
+
+        // Check for any validation errors in the store
+        const { validationErrors } = get();
+        const hasErrors = Object.values(validationErrors).some(errs => errs.length > 0);
+
+        if (hasErrors) {
+          // Flatten all validation errors into a single array
+          Object.values(validationErrors).forEach(errs => {
+            errors.push(...errs);
+          });
+        }
+
+        return { isValid: errors.length === 0, errors };
+      },
+
+      // Get field value with overrides and defaults
+      getFieldValue: (className: string, fieldName: string) => {
+        const { selectedTemplate, fieldOverrides } = get();
+        if (!selectedTemplate) return undefined;
+
+        // Check for bulk field override first (applies to all classes)
+        if (fieldOverrides[fieldName] !== undefined) {
+          return fieldOverrides[fieldName];
+        }
+
+        // Check for class-specific user override
+        const classOverrides = fieldOverrides[className] as Record<string, unknown> | undefined;
+        if (classOverrides?.[fieldName] !== undefined) {
+          return classOverrides[fieldName];
+        }
+
+        // Find the class definition
+        const classDef = selectedTemplate.classDefinitions.find(c => c.className === className);
+        if (!classDef) return undefined;
+
+        // Check for class-specific override
+        if (classDef.fieldOverrides?.[fieldName]?.ruleValue !== undefined) {
+          return classDef.fieldOverrides[fieldName].ruleValue;
+        }
+        if (classDef.fieldOverrides?.[fieldName]?.defaultValue !== undefined) {
+          return classDef.fieldOverrides[fieldName].defaultValue;
+        }
+
+        // Get field specification
+        const fieldSpec = selectedTemplate.fieldSpecifications.find(f => f.fieldName === fieldName);
+        if (!fieldSpec) return undefined;
+
+        // Return rule value or default value
+        return fieldSpec.ruleValue !== undefined ? fieldSpec.ruleValue : fieldSpec.defaultValue;
+      },
+
+      // Create classes from selections
+      createClasses: (trialId, userId) => {
+        const { selectedTemplate, selectedClasses } = get();
+        if (!selectedTemplate)
+          return { success: false, classes: [], errors: ['No template selected'] };
+
+        const createdClasses: CreatedClass[] = [];
+        const errors: string[] = [];
+        let runOrder = 1;
+
+        const selectedItems = selectedClasses.filter(item => item.selected);
+        if (selectedItems.length === 0) {
+          return { success: false, classes: [], errors: ['No classes selected'] };
+        }
+
+        selectedItems.forEach(item => {
+          const classDef = item.classDefinition;
+          const className = classDef.className;
+
+          // Gather all field values
+          const fieldValues: Record<string, unknown> = {};
+          selectedTemplate.fieldSpecifications.forEach(field => {
+            const value = get().getFieldValue(className, field.fieldName);
+            if (value !== undefined) {
+              fieldValues[field.fieldName] = value;
             }
-            
-            // String length validation
-            if (field.dataType === 'text' || field.dataType === 'rich-text') {
-              const strValue = String(value);
-              const minLength = field.allowedRange?.min !== undefined ? Number(field.allowedRange.min) : undefined;
-              const maxLength = field.allowedRange?.max !== undefined ? Number(field.allowedRange.max) : undefined;
-              
-              if (minLength !== undefined && strValue.length < minLength) {
-                classErrors.push(`${field.fieldName} must be at least ${minLength} characters`);
-              }
-              if (maxLength !== undefined && strValue.length > maxLength) {
-                classErrors.push(`${field.fieldName} must be at most ${maxLength} characters`);
-              }
-            }
-          }
+          });
+
+          // Create the class
+          const createdClass: CreatedClass = {
+            id: `class-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            templateId: selectedTemplate.id,
+            templateVersion: selectedTemplate.version,
+            trialId,
+
+            // Identity
+            organization: selectedTemplate.organization,
+            trialType: selectedTemplate.trialType,
+            element: classDef.element,
+            level: classDef.level,
+            section: classDef.section,
+            className: classDef.className,
+            classNumber: classDef.classNumber || runOrder.toString().padStart(3, '0'),
+
+            // Status
+            status: 'Scheduled' as const,
+            runOrder: Number(fieldValues.runOrder) || runOrder,
+
+            // Field values (convert to proper types)
+            fieldValues: Object.fromEntries(
+              Object.entries(fieldValues).map(([k, v]) => [
+                k,
+                typeof v === 'string' ||
+                typeof v === 'number' ||
+                typeof v === 'boolean' ||
+                Array.isArray(v) ||
+                v instanceof Date
+                  ? v
+                  : String(v),
+              ])
+            ) as Record<string, string | number | boolean | string[] | Date>,
+
+            // Personnel (extract from field values)
+            personnel: {
+              judgeName: String(fieldValues.judgeName || ''),
+              stewards: {
+                gate: String(fieldValues.gateSteward || ''),
+                table: String(fieldValues.tableSteward || ''),
+                timer: String(fieldValues.timerSteward || ''),
+                ring: [
+                  String(fieldValues.ringSteward1 || ''),
+                  String(fieldValues.ringSteward2 || ''),
+                  String(fieldValues.ringSteward3 || ''),
+                ].filter(Boolean),
+              },
+            },
+
+            // Entries
+            entries: {
+              maxEntries: Number(fieldValues.maxEntries) || 40,
+              currentEntries: 0,
+              waitlistEntries: 0,
+            },
+
+            // Audit
+            createdBy: userId,
+            createdAt: new Date(),
+          };
+
+          createdClasses.push(createdClass);
+          runOrder++;
         });
 
-        if (classErrors.length > 0) {
-          errors[item.classDefinition.className] = classErrors;
-          isValid = false;
-        }
-      });
+        // Store created classes
+        set(state => ({
+          createdClasses: [...state.createdClasses, ...createdClasses],
+          trialId,
+        }));
 
-    set({ validationErrors: errors });
-    return isValid;
-  },
+        // Reset creation state
+        get().resetCreation();
 
-  // Validate selection with detailed return value
-  validateSelection: () => {
-    const { selectedTemplate, selectedClasses } = get();
-    if (!selectedTemplate) return { isValid: false, errors: ['No template selected'] };
+        return {
+          success: true,
+          classes: createdClasses,
+          errors: errors,
+        };
+      },
 
-    const errors: string[] = [];
-    const selectedItems = selectedClasses.filter(item => item.selected);
-    
-    if (selectedItems.length === 0) {
-      errors.push('No classes selected');
-      return { isValid: false, errors };
-    }
+      // Clear template selection
+      clearTemplateSelection: () => {
+        set({
+          selectedTemplateId: null,
+          selectedTemplate: null,
+          selectedClasses: [],
+          fieldOverrides: {},
+          validationErrors: {},
+        });
+      },
 
-    // Check for any validation errors in the store
-    const { validationErrors } = get();
-    const hasErrors = Object.values(validationErrors).some(errs => errs.length > 0);
-    
-    if (hasErrors) {
-      // Flatten all validation errors into a single array
-      Object.values(validationErrors).forEach(errs => {
-        errors.push(...errs);
-      });
-    }
+      // Toggle class by class definition
+      toggleClass: classDefinition => {
+        set(state => {
+          const className = classDefinition.className;
+          return {
+            selectedClasses: state.selectedClasses.map(item =>
+              item.classDefinition.className === className
+                ? { ...item, selected: !item.selected }
+                : item
+            ),
+          };
+        });
+      },
 
-    return { isValid: errors.length === 0, errors };
-  },
+      // Get classes by trial ID
+      getClassesByTrial: trialId => {
+        return get().createdClasses.filter(cls => cls.trialId === trialId);
+      },
 
-  // Get field value with overrides and defaults
-  getFieldValue: (className: string, fieldName: string) => {
-    const { selectedTemplate, fieldOverrides } = get();
-    if (!selectedTemplate) return undefined;
+      // Update class run order
+      updateClassRunOrder: (classId, runOrder) => {
+        set(state => ({
+          createdClasses: state.createdClasses.map(cls =>
+            cls.id === classId ? { ...cls, runOrder } : cls
+          ),
+        }));
+      },
 
-    // Check for bulk field override first (applies to all classes)
-    if (fieldOverrides[fieldName] !== undefined) {
-      return fieldOverrides[fieldName];
-    }
-    
-    // Check for class-specific user override
-    const classOverrides = fieldOverrides[className] as Record<string, unknown> | undefined;
-    if (classOverrides?.[fieldName] !== undefined) {
-      return classOverrides[fieldName];
-    }
+      // Update class time
+      updateClassTime: (classId, time) => {
+        set(state => ({
+          createdClasses: state.createdClasses.map(cls =>
+            cls.id === classId ? { ...cls, plannedStartTime: time } : cls
+          ),
+        }));
+      },
 
-    // Find the class definition
-    const classDef = selectedTemplate.classDefinitions.find(
-      c => c.className === className
-    );
-    if (!classDef) return undefined;
+      // Update class judge
+      updateClassJudge: (classId, judgeId) => {
+        set(state => ({
+          createdClasses: state.createdClasses.map(cls =>
+            cls.id === classId ? { ...cls, personnel: { ...cls.personnel, judgeId } } : cls
+          ),
+        }));
+      },
 
-    // Check for class-specific override
-    if (classDef.fieldOverrides?.[fieldName]?.ruleValue !== undefined) {
-      return classDef.fieldOverrides[fieldName].ruleValue;
-    }
-    if (classDef.fieldOverrides?.[fieldName]?.defaultValue !== undefined) {
-      return classDef.fieldOverrides[fieldName].defaultValue;
-    }
+      // Update class status
+      updateClassStatus: (classId, status) => {
+        set(state => ({
+          createdClasses: state.createdClasses.map(cls =>
+            cls.id === classId ? { ...cls, status } : cls
+          ),
+        }));
+      },
 
-    // Get field specification
-    const fieldSpec = selectedTemplate.fieldSpecifications.find(
-      f => f.fieldName === fieldName
-    );
-    if (!fieldSpec) return undefined;
+      // Delete class
+      deleteClass: classId => {
+        set(state => ({
+          createdClasses: state.createdClasses.filter(cls => cls.id !== classId),
+        }));
+      },
 
-    // Return rule value or default value
-    return fieldSpec.ruleValue !== undefined ? fieldSpec.ruleValue : fieldSpec.defaultValue;
-  },
+      // Get available elements
+      getAvailableElements: () => {
+        const { selectedTemplate } = get();
+        if (!selectedTemplate) return [];
 
-  // Create classes from selections
-  createClasses: (trialId, userId) => {
-    const { selectedTemplate, selectedClasses } = get();
-    if (!selectedTemplate) return { success: false, classes: [], errors: ['No template selected'] };
+        return Array.from(new Set(selectedTemplate.classDefinitions.map(cls => cls.element)));
+      },
 
-    const createdClasses: CreatedClass[] = [];
-    const errors: string[] = [];
-    let runOrder = 1;
+      // Get available levels
+      getAvailableLevels: () => {
+        const { selectedTemplate } = get();
+        if (!selectedTemplate) return [];
 
-    const selectedItems = selectedClasses.filter(item => item.selected);
-    if (selectedItems.length === 0) {
-      return { success: false, classes: [], errors: ['No classes selected'] };
-    }
+        return Array.from(
+          new Set(
+            selectedTemplate.classDefinitions.map(cls => cls.level).filter(Boolean) as string[]
+          )
+        );
+      },
 
-    selectedItems.forEach(item => {
-      const classDef = item.classDefinition;
-      const className = classDef.className;
+      // Step management
+      nextStep: () => {
+        set(state => ({
+          currentStep: Math.min(state.currentStep + 1, 4), // Assuming max 4 steps
+        }));
+      },
 
-      // Gather all field values
-      const fieldValues: Record<string, unknown> = {};
-      selectedTemplate.fieldSpecifications.forEach(field => {
-        const value = get().getFieldValue(className, field.fieldName);
-        if (value !== undefined) {
-          fieldValues[field.fieldName] = value;
-        }
-      });
+      previousStep: () => {
+        set(state => ({
+          currentStep: Math.max(state.currentStep - 1, 1),
+        }));
+      },
 
-      // Create the class
-      const createdClass: CreatedClass = {
-        id: `class-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        templateId: selectedTemplate.id,
-        templateVersion: selectedTemplate.version,
-        trialId,
-        
-        // Identity
-        organization: selectedTemplate.organization,
-        trialType: selectedTemplate.trialType,
-        element: classDef.element,
-        level: classDef.level,
-        section: classDef.section,
-        className: classDef.className,
-        classNumber: classDef.classNumber || runOrder.toString().padStart(3, '0'),
-        
-        // Status
-        status: 'Scheduled' as const,
-        runOrder: Number(fieldValues.runOrder) || runOrder,
-        
-        // Field values (convert to proper types)
-        fieldValues: Object.fromEntries(
-          Object.entries(fieldValues).map(([k, v]) => [
-            k, 
-            typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' || Array.isArray(v) || v instanceof Date 
-              ? v 
-              : String(v)
-          ])
-        ) as Record<string, string | number | boolean | string[] | Date>,
-        
-        // Personnel (extract from field values)
-        personnel: {
-          judgeName: String(fieldValues.judgeName || ''),
-          stewards: {
-            gate: String(fieldValues.gateSteward || ''),
-            table: String(fieldValues.tableSteward || ''),
-            timer: String(fieldValues.timerSteward || ''),
-            ring: [
-              String(fieldValues.ringSteward1 || ''),
-              String(fieldValues.ringSteward2 || ''),
-              String(fieldValues.ringSteward3 || '')
-            ].filter(Boolean)
-          }
-        },
-        
-        // Entries
-        entries: {
-          maxEntries: Number(fieldValues.maxEntries) || 40,
-          currentEntries: 0,
-          waitlistEntries: 0
-        },
-        
-        // Audit
-        createdBy: userId,
-        createdAt: new Date()
-      };
+      setStep: step => {
+        set({ currentStep: Math.max(1, Math.min(step, 4)) });
+      },
 
-      createdClasses.push(createdClass);
-      runOrder++;
-    });
+      resetSteps: () => {
+        set({ currentStep: 1 });
+      },
 
-    // Store created classes
-    set(state => ({
-      createdClasses: [...state.createdClasses, ...createdClasses],
-      trialId
-    }));
+      // Reset entire workflow
+      resetWorkflow: () => {
+        set({
+          selectedTemplateId: null,
+          selectedTemplate: null,
+          selectedClasses: [],
+          fieldOverrides: {},
+          currentStep: 1,
+          validationErrors: {},
+          trialId: null,
+        });
+      },
 
-    // Reset creation state
-    get().resetCreation();
-    
-    return { 
-      success: true, 
-      classes: createdClasses, 
-      errors: errors 
-    };
-  },
+      // Reset creation state
+      resetCreation: () => {
+        set({
+          selectedTemplateId: null,
+          selectedTemplate: null,
+          selectedClasses: [],
+          fieldOverrides: {},
+          currentStep: 1,
+          validationErrors: {},
+        });
+      },
 
-  // Clear template selection
-  clearTemplateSelection: () => {
-    set({
-      selectedTemplateId: null,
-      selectedTemplate: null,
-      selectedClasses: [],
-      fieldOverrides: {},
-      validationErrors: {}
-    });
-  },
-
-  // Toggle class by class definition
-  toggleClass: (classDefinition) => {
-    set(state => {
-      const className = classDefinition.className;
-      return {
-        selectedClasses: state.selectedClasses.map(item =>
-          item.classDefinition.className === className
-            ? { ...item, selected: !item.selected }
-            : item
-        )
-      };
-    });
-  },
-
-  // Get classes by trial ID
-  getClassesByTrial: (trialId) => {
-    return get().createdClasses.filter(cls => cls.trialId === trialId);
-  },
-
-  // Update class run order
-  updateClassRunOrder: (classId, runOrder) => {
-    set(state => ({
-      createdClasses: state.createdClasses.map(cls =>
-        cls.id === classId ? { ...cls, runOrder } : cls
-      )
-    }));
-  },
-
-  // Update class time
-  updateClassTime: (classId, time) => {
-    set(state => ({
-      createdClasses: state.createdClasses.map(cls =>
-        cls.id === classId ? { ...cls, plannedStartTime: time } : cls
-      )
-    }));
-  },
-
-  // Update class judge
-  updateClassJudge: (classId, judgeId) => {
-    set(state => ({
-      createdClasses: state.createdClasses.map(cls =>
-        cls.id === classId ? { ...cls, personnel: { ...cls.personnel, judgeId } } : cls
-      )
-    }));
-  },
-
-  // Update class status
-  updateClassStatus: (classId, status) => {
-    set(state => ({
-      createdClasses: state.createdClasses.map(cls =>
-        cls.id === classId ? { ...cls, status } : cls
-      )
-    }));
-  },
-
-  // Delete class
-  deleteClass: (classId) => {
-    set(state => ({
-      createdClasses: state.createdClasses.filter(cls => cls.id !== classId)
-    }));
-  },
-
-  // Get available elements
-  getAvailableElements: () => {
-    const { selectedTemplate } = get();
-    if (!selectedTemplate) return [];
-    
-    return Array.from(new Set(
-      selectedTemplate.classDefinitions.map(cls => cls.element)
-    ));
-  },
-
-  // Get available levels
-  getAvailableLevels: () => {
-    const { selectedTemplate } = get();
-    if (!selectedTemplate) return [];
-    
-    return Array.from(new Set(
-      selectedTemplate.classDefinitions
-        .map(cls => cls.level)
-        .filter(Boolean) as string[]
-    ));
-  },
-
-  // Step management
-  nextStep: () => {
-    set(state => ({
-      currentStep: Math.min(state.currentStep + 1, 4) // Assuming max 4 steps
-    }));
-  },
-
-  previousStep: () => {
-    set(state => ({
-      currentStep: Math.max(state.currentStep - 1, 1)
-    }));
-  },
-
-  setStep: (step) => {
-    set({ currentStep: Math.max(1, Math.min(step, 4)) });
-  },
-
-  resetSteps: () => {
-    set({ currentStep: 1 });
-  },
-
-  // Reset entire workflow
-  resetWorkflow: () => {
-    set({
-      selectedTemplateId: null,
-      selectedTemplate: null,
-      selectedClasses: [],
-      fieldOverrides: {},
-      currentStep: 1,
-      validationErrors: {},
-      trialId: null
-    });
-  },
-
-  // Reset creation state
-  resetCreation: () => {
-    set({
-      selectedTemplateId: null,
-      selectedTemplate: null,
-      selectedClasses: [],
-      fieldOverrides: {},
-      currentStep: 1,
-      validationErrors: {}
-    });
-  },
-
-  // Set current step
-  setCurrentStep: (step) => {
-    set({ currentStep: step });
-  }
+      // Set current step
+      setCurrentStep: step => {
+        set({ currentStep: step });
+      },
     }),
     {
       name: 'class-creation-storage',
       storage: createJSONStorage(() => getOptimalStorage('classCreation')),
-      partialize: (state) => ({
+      partialize: state => ({
         createdClasses: state.createdClasses,
         // Don't persist UI state like selectedTemplate, currentStep, etc.
       }),
@@ -604,7 +625,7 @@ export const useClassCreationStore = create<ClassCreationStore>()(
                   entries: cc.entries || {
                     maxEntries: 40,
                     currentEntries: 0,
-                    waitlistEntries: 0
+                    waitlistEntries: 0,
                   },
                   personnel: cc.personnel || {
                     judgeName: '',
@@ -612,9 +633,9 @@ export const useClassCreationStore = create<ClassCreationStore>()(
                       gate: '',
                       table: '',
                       timer: '',
-                      ring: []
-                    }
-                  }
+                      ring: [],
+                    },
+                  },
                 };
               });
             }

@@ -52,7 +52,7 @@ export interface BannerEmailData {
   totalFeesFormatted: string;
   receiptNumber: string | null;
   venue: string | null;
-  venueMap?: import("./confirmation-email-shared.ts").VenueMapAssetsRef | null;
+  venueMap?: import('./confirmation-email-shared.ts').VenueMapAssetsRef | null;
   doorsTime: string | null;
   firstClassTime: string | null;
   parkingNotes: string | null;
@@ -187,7 +187,9 @@ export function buildBannerHtml(data: BannerEmailData): string {
   const hospitalityBlock = infoCell('Hospitality', data.hospitalityNotes);
   const cratingBlock = infoCell('Crating', data.cratingNotes);
 
-  const contactPieces: string[] = ['To withdraw or amend your entry, please contact the trial secretary'];
+  const contactPieces: string[] = [
+    'To withdraw or amend your entry, please contact the trial secretary',
+  ];
   if (data.secretaryEmail) {
     contactPieces.push(
       ` at <a href="mailto:${esc(data.secretaryEmail)}" style="color:${flag};text-decoration:none;">${esc(data.secretaryEmail)}</a>`

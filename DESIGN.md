@@ -2,116 +2,116 @@
 name: myK9 Platform
 description: Calm, warm, outdoor-legible design system for the myK9Show dog-show platform
 colors:
-  clay: "#c96442"
-  clay-bright: "#d97757"
-  clay-deep: "#b05338"
-  grove: "#2f8a7f"
-  dusk: "#3d6d8c"
-  heather: "#7b5aa6"
-  catalog-cream: "#faf7f2"
-  card-white: "#ffffff"
-  ivory: "#faf9f5"
-  sidebar-sand: "#ede9e0"
-  cream-border: "#f0eee6"
-  sand: "#e8e6dc"
-  border-sand: "#e4dccc"
-  ink: "#181411"
-  card-dark: "#1e1c19"
-  border-dark: "#2e2b27"
-  olive: "#5e5d59"
-  stone: "#8c8376"
-  silver-warm: "#b0aea5"
-  ring-green: "#4e7c53"
-  success: "#4e7c53"
-  warning: "#c88b1a"
-  danger: "#b04835"
-  info: "#3d6d8c"
+  clay: '#c96442'
+  clay-bright: '#d97757'
+  clay-deep: '#b05338'
+  grove: '#2f8a7f'
+  dusk: '#3d6d8c'
+  heather: '#7b5aa6'
+  catalog-cream: '#faf7f2'
+  card-white: '#ffffff'
+  ivory: '#faf9f5'
+  sidebar-sand: '#ede9e0'
+  cream-border: '#f0eee6'
+  sand: '#e8e6dc'
+  border-sand: '#e4dccc'
+  ink: '#181411'
+  card-dark: '#1e1c19'
+  border-dark: '#2e2b27'
+  olive: '#5e5d59'
+  stone: '#8c8376'
+  silver-warm: '#b0aea5'
+  ring-green: '#4e7c53'
+  success: '#4e7c53'
+  warning: '#c88b1a'
+  danger: '#b04835'
+  info: '#3d6d8c'
 typography:
   display:
-    fontFamily: "Montserrat, system-ui, sans-serif"
-    fontSize: "clamp(36px, 5vw, 60px)"
+    fontFamily: 'Montserrat, system-ui, sans-serif'
+    fontSize: 'clamp(36px, 5vw, 60px)'
     fontWeight: 600
     lineHeight: 1.05
-    letterSpacing: "-0.01em"
+    letterSpacing: '-0.01em'
   headline:
-    fontFamily: "Montserrat, system-ui, sans-serif"
-    fontSize: "clamp(28px, 3.5vw, 40px)"
+    fontFamily: 'Montserrat, system-ui, sans-serif'
+    fontSize: 'clamp(28px, 3.5vw, 40px)'
     fontWeight: 600
     lineHeight: 1.2
-    letterSpacing: "-0.01em"
+    letterSpacing: '-0.01em'
   celebration:
-    fontFamily: "Fraunces, Georgia, serif"
+    fontFamily: 'Fraunces, Georgia, serif'
     fontWeight: 450
     lineHeight: 1.2
   title:
-    fontFamily: "Montserrat, system-ui, sans-serif"
-    fontSize: "1.25rem"
+    fontFamily: 'Montserrat, system-ui, sans-serif'
+    fontSize: '1.25rem'
     fontWeight: 600
     lineHeight: 1.3
   body:
-    fontFamily: "Montserrat, system-ui, sans-serif"
-    fontSize: "1rem"
+    fontFamily: 'Montserrat, system-ui, sans-serif'
+    fontSize: '1rem'
     fontWeight: 400
     lineHeight: 1.6
   label:
-    fontFamily: "Montserrat, system-ui, sans-serif"
-    fontSize: "0.875rem"
+    fontFamily: 'Montserrat, system-ui, sans-serif'
+    fontSize: '0.875rem'
     fontWeight: 500
     lineHeight: 1.25
   mono:
-    fontFamily: "JetBrains Mono, SF Mono, Consolas, monospace"
-    fontSize: "0.94rem"
+    fontFamily: 'JetBrains Mono, SF Mono, Consolas, monospace'
+    fontSize: '0.94rem'
     fontWeight: 400
 rounded:
-  sm: "4px"
-  md: "8px"
-  lg: "12px"
-  xl: "16px"
-  pill: "9999px"
+  sm: '4px'
+  md: '8px'
+  lg: '12px'
+  xl: '16px'
+  pill: '9999px'
 spacing:
-  "1": "4px"
-  "2": "8px"
-  "3": "12px"
-  "4": "16px"
-  "5": "20px"
-  "6": "24px"
-  "8": "32px"
-  "10": "40px"
-  "12": "48px"
-  "16": "64px"
-  "24": "96px"
+  '1': '4px'
+  '2': '8px'
+  '3': '12px'
+  '4': '16px'
+  '5': '20px'
+  '6': '24px'
+  '8': '32px'
+  '10': '40px'
+  '12': '48px'
+  '16': '64px'
+  '24': '96px'
 components:
   button-primary:
-    backgroundColor: "var(--primary)"
-    textColor: "#ffffff"
-    rounded: "{rounded.md}"
-    height: "44px"
-    padding: "8px 24px"
+    backgroundColor: 'var(--primary)'
+    textColor: '#ffffff'
+    rounded: '{rounded.md}'
+    height: '44px'
+    padding: '8px 24px'
   button-outline:
-    backgroundColor: "{colors.sand}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    height: "44px"
-    padding: "8px 24px"
+    backgroundColor: '{colors.sand}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.md}'
+    height: '44px'
+    padding: '8px 24px'
   button-icon:
-    backgroundColor: "transparent"
-    rounded: "{rounded.md}"
-    size: "44px"
+    backgroundColor: 'transparent'
+    rounded: '{rounded.md}'
+    size: '44px'
   card:
-    backgroundColor: "{colors.card-white}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.lg}"
-    padding: "24px"
+    backgroundColor: '{colors.card-white}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.lg}'
+    padding: '24px'
   input:
-    backgroundColor: "{colors.card-white}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    height: "44px"
-    padding: "8px 12px"
+    backgroundColor: '{colors.card-white}'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.md}'
+    height: '44px'
+    padding: '8px 12px'
   chip-status:
-    rounded: "{rounded.pill}"
-    padding: "2px 10px"
-    typography: "{typography.label}"
+    rounded: '{rounded.pill}'
+    padding: '2px 10px'
+    typography: '{typography.label}'
 ---
 
 # Design System: myK9 Platform
@@ -182,16 +182,16 @@ The canonical surface values live in `index.css`'s `@layer base :root` block (th
 **Celebration Font:** Fraunces (with Georgia fallback) — variable; `.display-serif` (450, `opsz 144`) for large moments, `.celebration-serif` (500, `opsz 24`) at text sizes
 **Mono Font:** JetBrains Mono (with SF Mono, Consolas fallback) — tabular numerals
 
-**Character:** Montserrat carries everything with quiet geometric clarity — the software disappearing behind the task. Fraunces appears only when a dog earns it: podium names, class titles on result cards. Its rarity is what makes it festive; the typeface change *is* the celebration.
+**Character:** Montserrat carries everything with quiet geometric clarity — the software disappearing behind the task. Fraunces appears only when a dog earns it: podium names, class titles on result cards. Its rarity is what makes it festive; the typeface change _is_ the celebration.
 
 ### Hierarchy
 
 - **Display / h1** (Montserrat 600, `clamp(36px, 5vw, 60px)`, 1.05, -0.01em): Page titles.
 - **Headline / h2** (Montserrat 600, `clamp(28px, 3.5vw, 40px)`, 1.2, -0.01em): Major section headings.
 - **Title / h3–h4** (Montserrat 600, 1.125–1.25rem × `--font-scale`, 1.3): Card titles, sub-sections.
-- **Body / prose** (Montserrat 400, 1rem × `--font-scale`, 1.6): Text meant to be *read* — paragraphs, empty states, help and error copy. 16px before scaling; generous book-like line height is deliberate. Respect a 65–75ch line cap.
-- **Working UI** (Montserrat 400, 0.875rem × `--font-scale`, 1.4): Text meant to be *scanned* — table cells, form values, dense list rows. 14px before scaling. This is the app's real default and it is deliberate: tabular density earns its keep on a secretary's laptop, and the font-scale preference (below) is how a user who needs larger gets it.
-- **Label** (Montserrat 500, 0.875rem, 1.25): Chips, badges, form labels, metadata. Note this is the *same rendered size* as working UI — `text-xs` is remapped to 0.875rem (see The 14px Floor Rule), so `text-xs` and `text-sm` are aliases. A label is distinguished from its value by **weight, letter-spacing and color, never by size.**
+- **Body / prose** (Montserrat 400, 1rem × `--font-scale`, 1.6): Text meant to be _read_ — paragraphs, empty states, help and error copy. 16px before scaling; generous book-like line height is deliberate. Respect a 65–75ch line cap.
+- **Working UI** (Montserrat 400, 0.875rem × `--font-scale`, 1.4): Text meant to be _scanned_ — table cells, form values, dense list rows. 14px before scaling. This is the app's real default and it is deliberate: tabular density earns its keep on a secretary's laptop, and the font-scale preference (below) is how a user who needs larger gets it.
+- **Label** (Montserrat 500, 0.875rem, 1.25): Chips, badges, form labels, metadata. Note this is the _same rendered size_ as working UI — `text-xs` is remapped to 0.875rem (see The 14px Floor Rule), so `text-xs` and `text-sm` are aliases. A label is distinguished from its value by **weight, letter-spacing and color, never by size.**
 - **Eyebrow** (Montserrat 600, 12px, 0.12em tracking, uppercase, terra-700): Kicker labels above display headings.
 - **Celebration** (Fraunces via `.display-serif` at heading sizes, `.celebration-serif` at text sizes): The Podium and result celebrations only.
 - **Mono** (JetBrains Mono 400, `tabular-nums`): Armband numbers, times, scores — the `.numeric` utility, plus `code` and `kbd`.
@@ -211,7 +211,7 @@ The canonical surface values live in `index.css`'s `@layer base :root` block (th
 
 ## 4. Elevation
 
-Flat by default, lift on touch. Surfaces at rest sit flush on the warm canvas, separated by sand borders and tone shifts (cream → white), not by floating. Shadows are warm-tinted (brown-black `rgba(61,37,22,…)`, never cool gray-black) and appear as a *response* — hover, focus, drag, or a modal taking the stage. Dark mode deepens shadows rather than adding glow.
+Flat by default, lift on touch. Surfaces at rest sit flush on the warm canvas, separated by sand borders and tone shifts (cream → white), not by floating. Shadows are warm-tinted (brown-black `rgba(61,37,22,…)`, never cool gray-black) and appear as a _response_ — hover, focus, drag, or a modal taking the stage. Dark mode deepens shadows rather than adding glow.
 
 ### Shadow Vocabulary
 
@@ -289,7 +289,7 @@ One learnable motion vocabulary across myK9Show + ringside. **Durations and easi
 - **Don't** use "wizard-heavy workflows for interrupt-driven show-day tasks" or confirmation dialogs for routine actions — show-day changes are one or two taps, calm and recoverable.
 - **Don't** ship "tiny controls, hover-only affordances, gesture-only actions, or text that is hard to read outdoors" — every interaction must work with a thumb in sunlight.
 - **Don't** show "technical error messages, sync anxiety, or anything that makes poor connectivity feel like user failure."
-- **Don't** use pure white as a *page background* (cards and inputs are the sanctioned white surfaces), pure black as text, or cool blue-grays anywhere outside the status vocabulary.
+- **Don't** use pure white as a _page background_ (cards and inputs are the sanctioned white surfaces), pure black as text, or cool blue-grays anywhere outside the status vocabulary.
 - **Don't** hardcode `#c96442` (or any accent hex) in a component — it breaks the other three accents.
 - **Don't** restore `text-xs` to 0.75rem to "repair" the flat step between it and `text-sm` — they are aliases at 14px on purpose, and 12px is what the floor exists to keep out. Use weight and color for that contrast.
 - **Don't** use Fraunces in working UI (headings, body, buttons, labels, tables), Ring Green outside live-judging, or status colors as decoration.

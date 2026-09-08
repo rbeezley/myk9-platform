@@ -15,7 +15,7 @@ function resolveChecklist(
   dbItems: ChecklistItemRow[],
   evalCtx: ChecklistEvalContext
 ): ResolvedChecklistItem[] {
-  const dbMap = new Map(dbItems.map((r) => [r.item_key, r]));
+  const dbMap = new Map(dbItems.map(r => [r.item_key, r]));
   const resolved: ResolvedChecklistItem[] = [];
 
   // Canned items for this stage
@@ -43,9 +43,7 @@ function resolveChecklist(
   }
 
   // Custom items for this stage
-  const customItems = dbItems.filter(
-    (r) => r.item_type === 'custom' && r.stage === stage
-  );
+  const customItems = dbItems.filter(r => r.item_type === 'custom' && r.stage === stage);
   for (const item of customItems) {
     resolved.push({
       key: item.item_key,
@@ -78,7 +76,7 @@ export function useTrialChecklist(
     queryFn: () => checklistService.getByTrial(trialId!),
     enabled: !!trialId,
     ...cacheStrategies.dynamic,
-    select: (dbItems) => {
+    select: dbItems => {
       if (!evalCtx) return [];
       return resolveChecklist(stage, dbItems, evalCtx);
     },
@@ -86,9 +84,7 @@ export function useTrialChecklist(
 }
 
 /** Check whether all blocking items are complete for a stage */
-export function canAdvanceStage(
-  items: ResolvedChecklistItem[] | undefined
-): boolean {
+export function canAdvanceStage(items: ResolvedChecklistItem[] | undefined): boolean {
   if (!items) return false;
-  return items.filter((i) => i.blocking).every((i) => i.completed);
+  return items.filter(i => i.blocking).every(i => i.completed);
 }

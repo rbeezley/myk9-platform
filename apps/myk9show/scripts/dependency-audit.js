@@ -2,7 +2,7 @@
 
 /**
  * Dependency Audit Script
- * 
+ *
  * Analyzes project dependencies for optimization opportunities:
  * - Identifies heavy dependencies
  * - Suggests lighter alternatives
@@ -19,42 +19,42 @@ const __dirname = path.dirname(__filename);
 
 // Known heavy dependencies and their lighter alternatives
 const HEAVY_DEPENDENCIES = {
-  'moment': {
+  moment: {
     size: '329KB',
     alternatives: ['date-fns', 'dayjs'],
     reason: 'Large bundle size with locale data',
-    recommendation: 'Replace with date-fns for better tree-shaking'
+    recommendation: 'Replace with date-fns for better tree-shaking',
   },
-  'lodash': {
+  lodash: {
     size: '545KB',
     alternatives: ['lodash-es', 'individual lodash functions'],
     reason: 'Full library imported instead of individual functions',
-    recommendation: 'Use individual imports: import debounce from "lodash/debounce"'
+    recommendation: 'Use individual imports: import debounce from "lodash/debounce"',
   },
   'react-big-calendar': {
     size: '257KB',
     alternatives: ['@fullcalendar/react', 'react-calendar'],
     reason: 'Heavy calendar component with many features',
-    recommendation: 'Consider lazy loading or lighter calendar component'
+    recommendation: 'Consider lazy loading or lighter calendar component',
   },
-  'recharts': {
+  recharts: {
     size: '484KB',
     alternatives: ['react-chartjs-2', 'victory'],
     reason: 'Full charting library with all chart types',
-    recommendation: 'Lazy load chart components or use modular chart library'
+    recommendation: 'Lazy load chart components or use modular chart library',
   },
-  'xlsx': {
+  xlsx: {
     size: '800KB+',
     alternatives: ['papaparse', 'csv-parser'],
     reason: 'Full Excel processing library',
-    recommendation: 'Consider server-side processing or CSV-only approach'
+    recommendation: 'Consider server-side processing or CSV-only approach',
   },
-  'jspdf': {
+  jspdf: {
     size: '500KB+',
     alternatives: ['puppeteer', 'server-side PDF generation'],
     reason: 'Client-side PDF generation library',
-    recommendation: 'Move PDF generation to server or lazy load'
-  }
+    recommendation: 'Move PDF generation to server or lazy load',
+  },
 };
 
 // Dependencies that should be code-split
@@ -64,16 +64,11 @@ const CODE_SPLIT_CANDIDATES = [
   '@tiptap/react',
   'react-to-print',
   'jspdf',
-  'xlsx'
+  'xlsx',
 ];
 
 // Utility libraries that benefit from tree-shaking
-const TREE_SHAKEABLE = [
-  'lodash',
-  'date-fns',
-  'lucide-react',
-  '@radix-ui/*'
-];
+const TREE_SHAKEABLE = ['lodash', 'date-fns', 'lucide-react', '@radix-ui/*'];
 
 class DependencyAuditor {
   constructor() {
@@ -85,7 +80,7 @@ class DependencyAuditor {
       unused: [],
       recommendations: [],
       totalDependencies: 0,
-      estimatedSavings: 0
+      estimatedSavings: 0,
     };
   }
 
@@ -101,10 +96,9 @@ class DependencyAuditor {
       await this.generateRecommendations();
       await this.estimateSavings();
       await this.generateReport();
-      
+
       console.log('✅ Dependency audit complete!\n');
       this.printSummary();
-      
     } catch (error) {
       console.error('❌ Dependency audit failed:', error.message);
       process.exit(1);
@@ -119,7 +113,7 @@ class DependencyAuditor {
 
     const packageJson = JSON.parse(fs.readFileSync(this.packageJsonPath, 'utf8'));
     const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
-    
+
     this.analysis.totalDependencies = Object.keys(dependencies).length;
 
     // Check for heavy dependencies
@@ -128,7 +122,7 @@ class DependencyAuditor {
         this.analysis.heavy.push({
           name: depName,
           version: dependencies[depName],
-          ...depInfo
+          ...depInfo,
         });
       }
     }
@@ -139,7 +133,7 @@ class DependencyAuditor {
         this.analysis.codeSplitCandidates.push({
           name: candidate,
           version: dependencies[candidate],
-          recommendation: 'Implement lazy loading'
+          recommendation: 'Implement lazy loading',
         });
       }
     }
@@ -154,14 +148,14 @@ class DependencyAuditor {
           this.analysis.treeShakeOpportunities.push({
             name: match,
             version: dependencies[match],
-            recommendation: 'Ensure proper tree-shaking with named imports'
+            recommendation: 'Ensure proper tree-shaking with named imports',
           });
         });
       } else if (dependencies[treeShakeable]) {
         this.analysis.treeShakeOpportunities.push({
           name: treeShakeable,
           version: dependencies[treeShakeable],
-          recommendation: 'Use individual function imports for better tree-shaking'
+          recommendation: 'Use individual function imports for better tree-shaking',
         });
       }
     }
@@ -169,7 +163,9 @@ class DependencyAuditor {
     console.log(`   Found ${this.analysis.totalDependencies} total dependencies`);
     console.log(`   Identified ${this.analysis.heavy.length} heavy dependencies`);
     console.log(`   Found ${this.analysis.codeSplitCandidates.length} code-split candidates`);
-    console.log(`   Identified ${this.analysis.treeShakeOpportunities.length} tree-shake opportunities\n`);
+    console.log(
+      `   Identified ${this.analysis.treeShakeOpportunities.length} tree-shake opportunities\n`
+    );
   }
 
   /**
@@ -180,16 +176,18 @@ class DependencyAuditor {
 
     const packageJson = JSON.parse(fs.readFileSync(this.packageJsonPath, 'utf8'));
     const dependencies = Object.keys(packageJson.dependencies || {});
-    
+
     // Get all source files
     const sourceFiles = this.getSourceFiles();
-    const allSourceCode = sourceFiles.map(file => {
-      try {
-        return fs.readFileSync(file, 'utf8');
-      } catch {
-        return '';
-      }
-    }).join(' ');
+    const allSourceCode = sourceFiles
+      .map(file => {
+        try {
+          return fs.readFileSync(file, 'utf8');
+        } catch {
+          return '';
+        }
+      })
+      .join(' ');
 
     // Check each dependency for usage
     for (const dep of dependencies) {
@@ -210,7 +208,7 @@ class DependencyAuditor {
           name: dep,
           version: packageJson.dependencies[dep],
           confidence: 'medium', // Static analysis has limitations
-          recommendation: 'Verify if dependency is actually unused and can be removed'
+          recommendation: 'Verify if dependency is actually unused and can be removed',
         });
       }
     }
@@ -223,11 +221,15 @@ class DependencyAuditor {
    */
   isIndirectDependency(dep) {
     const indirectDeps = [
-      'react', 'react-dom', // Core React
-      'typescript', 'vite', // Build tools
+      'react',
+      'react-dom', // Core React
+      'typescript',
+      'vite', // Build tools
       '@types/', // TypeScript types
-      'eslint', 'prettier', // Linting
-      'vitest', 'playwright' // Testing
+      'eslint',
+      'prettier', // Linting
+      'vitest',
+      'playwright', // Testing
     ];
 
     return indirectDeps.some(indirect => dep.includes(indirect));
@@ -239,16 +241,16 @@ class DependencyAuditor {
   getSourceFiles() {
     const files = [];
     const srcPath = path.join(__dirname, '..', 'src');
-    
+
     if (!fs.existsSync(srcPath)) return files;
 
     function collectFiles(dir) {
       const entries = fs.readdirSync(dir);
-      
+
       for (const entry of entries) {
         const fullPath = path.join(dir, entry);
         const stat = fs.statSync(fullPath);
-        
+
         if (stat.isDirectory()) {
           collectFiles(fullPath);
         } else if (/\.(ts|tsx|js|jsx)$/.test(entry)) {
@@ -279,8 +281,8 @@ class DependencyAuditor {
           dependency: dep.name,
           action: dep.recommendation,
           alternatives: dep.alternatives,
-          potentialSaving: dep.size
-        }))
+          potentialSaving: dep.size,
+        })),
       });
     }
 
@@ -293,8 +295,8 @@ class DependencyAuditor {
         actions: this.analysis.codeSplitCandidates.map(dep => ({
           dependency: dep.name,
           action: 'Implement React.lazy() or dynamic import',
-          benefit: 'Reduces initial bundle size'
-        }))
+          benefit: 'Reduces initial bundle size',
+        })),
       });
     }
 
@@ -307,8 +309,8 @@ class DependencyAuditor {
         actions: this.analysis.treeShakeOpportunities.map(dep => ({
           dependency: dep.name,
           action: dep.recommendation,
-          example: this.getTreeShakeExample(dep.name)
-        }))
+          example: this.getTreeShakeExample(dep.name),
+        })),
       });
     }
 
@@ -321,8 +323,8 @@ class DependencyAuditor {
         actions: this.analysis.unused.map(dep => ({
           dependency: dep.name,
           action: 'Verify usage and remove if unused',
-          confidence: dep.confidence
-        }))
+          confidence: dep.confidence,
+        })),
       });
     }
 
@@ -335,9 +337,9 @@ class DependencyAuditor {
    */
   getTreeShakeExample(depName) {
     const examples = {
-      'lodash': 'import debounce from "lodash/debounce" // instead of import _ from "lodash"',
+      lodash: 'import debounce from "lodash/debounce" // instead of import _ from "lodash"',
       'date-fns': 'import { format } from "date-fns" // already tree-shakeable',
-      'lucide-react': 'import { Search, User } from "lucide-react" // already optimized'
+      'lucide-react': 'import { Search, User } from "lucide-react" // already optimized',
     };
 
     return examples[depName] || 'Use named imports where possible';
@@ -377,10 +379,10 @@ class DependencyAuditor {
         codeSplitCandidates: this.analysis.codeSplitCandidates.length,
         treeShakeOpportunities: this.analysis.treeShakeOpportunities.length,
         unusedDependencies: this.analysis.unused.length,
-        estimatedSavingsKB: this.analysis.estimatedSavings
+        estimatedSavingsKB: this.analysis.estimatedSavings,
       },
       analysis: this.analysis,
-      recommendations: this.analysis.recommendations
+      recommendations: this.analysis.recommendations,
     };
 
     const reportPath = path.join(__dirname, '..', 'dependency-audit-report.json');
@@ -395,7 +397,7 @@ class DependencyAuditor {
   printSummary() {
     console.log('📋 Dependency Audit Summary:');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    
+
     console.log(`📦 Total Dependencies: ${this.analysis.totalDependencies}`);
     console.log(`⚠️  Heavy Dependencies: ${this.analysis.heavy.length}`);
     console.log(`📊 Code Split Candidates: ${this.analysis.codeSplitCandidates.length}`);

@@ -49,14 +49,14 @@ prompt separately forbids ("not a second opinion").
 
 ## Counts
 
-| Lifecycle status | Count | Meaning |
-| --- | ---: | --- |
-| New | 0 | The reviewed commit changes no application code |
-| Unchanged | 7 | Carried forward from the Codex run; all already filed |
-| Resolved | 0 | Nothing closed by this run |
-| Duplicate | 0 | No candidate reached filing |
-| Rejected | 0 | No candidate promoted |
-| Blocked | 0 | No check was skipped or contaminated |
+| Lifecycle status | Count | Meaning                                               |
+| ---------------- | ----: | ----------------------------------------------------- |
+| New              |     0 | The reviewed commit changes no application code       |
+| Unchanged        |     7 | Carried forward from the Codex run; all already filed |
+| Resolved         |     0 | Nothing closed by this run                            |
+| Duplicate        |     0 | No candidate reached filing                           |
+| Rejected         |     0 | No candidate promoted                                 |
+| Blocked          |     0 | No check was skipped or contaminated                  |
 
 **Fixes found in subsequent commits:** none applicable — this window has no defect to fix.
 **Linear drafts prepared:** none. **Linear writes attempted:** none; therefore no failed write.
@@ -80,15 +80,15 @@ These are the Codex run's unresolved items. Each was checked against Linear duri
 status column is what Linear holds now, not what the Codex report predicted. None is re-filed and
 none is re-severitized.
 
-| ID | Canonical | Linear status now | Lifecycle | Proof still required |
-| --- | --- | --- | --- | --- |
-| [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) | P1 | In Review | blocked | Sandbox checkout replay on the deployed build reaching "Entry Submitted Successfully!" |
-| [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) | P2 | Todo | unchanged | Mutation-sensitive merge + rendered-hook proof with an existing stored row, plus the named exhibitor browser replay |
-| [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) | P2 | Todo | unchanged | History-aware guard with positive/negative executable proof and a real migration-PR Quality Checks run |
-| [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) | P2 | Todo | blocked | Lifecycle-absent SQL mutation proof against a disposable class, plus applied-definition verification |
-| [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289) | P2 | In Review | blocked | A post-fix Nightly run showing route-level attribution with no cascade |
-| [MYK9-358](https://linear.app/myk9-platform/issue/MYK9-358) | P3 | Todo | unchanged | Accurate no-op re-emit header with the SQL body unchanged |
-| [MYK9-406](https://linear.app/myk9-platform/issue/MYK9-406) | P3 | Todo | unchanged | Plan-metadata checker with red/green missing-marker and missing-index proofs |
+| ID                                                          | Canonical | Linear status now | Lifecycle | Proof still required                                                                                                |
+| ----------------------------------------------------------- | --------- | ----------------- | --------- | ------------------------------------------------------------------------------------------------------------------- |
+| [MYK9-294](https://linear.app/myk9-platform/issue/MYK9-294) | P1        | In Review         | blocked   | Sandbox checkout replay on the deployed build reaching "Entry Submitted Successfully!"                              |
+| [MYK9-381](https://linear.app/myk9-platform/issue/MYK9-381) | P2        | Todo              | unchanged | Mutation-sensitive merge + rendered-hook proof with an existing stored row, plus the named exhibitor browser replay |
+| [MYK9-405](https://linear.app/myk9-platform/issue/MYK9-405) | P2        | Todo              | unchanged | History-aware guard with positive/negative executable proof and a real migration-PR Quality Checks run              |
+| [MYK9-356](https://linear.app/myk9-platform/issue/MYK9-356) | P2        | Todo              | blocked   | Lifecycle-absent SQL mutation proof against a disposable class, plus applied-definition verification                |
+| [MYK9-289](https://linear.app/myk9-platform/issue/MYK9-289) | P2        | In Review         | blocked   | A post-fix Nightly run showing route-level attribution with no cascade                                              |
+| [MYK9-358](https://linear.app/myk9-platform/issue/MYK9-358) | P3        | Todo              | unchanged | Accurate no-op re-emit header with the SQL body unchanged                                                           |
+| [MYK9-406](https://linear.app/myk9-platform/issue/MYK9-406) | P3        | Todo              | unchanged | Plan-metadata checker with red/green missing-marker and missing-index proofs                                        |
 
 MYK9-405 and MYK9-406 were read in full: both exist, were created 2026-09-05 at 10:10Z and 10:11Z,
 carry the complete evidence and acceptance contracts, and are unassigned. The "ownership gap: CI
@@ -121,8 +121,8 @@ carry-forward set that will not fix itself.
 
 ## Commit coverage
 
-| SHA | Subject | Scope |
-| --- | --- | --- |
+| SHA         | Subject                                               | Scope                                             |
+| ----------- | ----------------------------------------------------- | ------------------------------------------------- |
 | `351e0db04` | docs(qa): record Codex daily commit review 2026-09-05 | docs-only; boundary stamp, findings index, report |
 
 ## Ledger

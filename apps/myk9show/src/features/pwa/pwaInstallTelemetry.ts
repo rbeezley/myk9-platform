@@ -117,10 +117,7 @@ export function todayKey(now: Date): string {
  * One state snapshot per account per day: enough to trend the install rate
  * without turning a show weekend into thousands of identical rows.
  */
-export function shouldRecordSnapshot(
-  storage: Pick<Storage, 'getItem'> | null,
-  now: Date
-): boolean {
+export function shouldRecordSnapshot(storage: Pick<Storage, 'getItem'> | null, now: Date): boolean {
   if (!storage) return true;
   try {
     return storage.getItem(SNAPSHOT_KEY) !== todayKey(now);
@@ -129,10 +126,7 @@ export function shouldRecordSnapshot(
   }
 }
 
-export function markSnapshotRecorded(
-  storage: Pick<Storage, 'setItem'> | null,
-  now: Date
-): void {
+export function markSnapshotRecorded(storage: Pick<Storage, 'setItem'> | null, now: Date): void {
   if (!storage) return;
   try {
     storage.setItem(SNAPSHOT_KEY, todayKey(now));

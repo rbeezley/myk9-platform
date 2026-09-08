@@ -46,7 +46,7 @@ export const TrialPipelineCard: React.FC<TrialPipelineCardProps> = ({
             <span
               className={cn(
                 'font-medium',
-                pct === 100 ? 'text-green-600' : 'text-muted-foreground',
+                pct === 100 ? 'text-green-600' : 'text-muted-foreground'
               )}
             >
               {pct}%
@@ -56,7 +56,7 @@ export const TrialPipelineCard: React.FC<TrialPipelineCardProps> = ({
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-300',
-                pct === 100 ? 'bg-green-500' : 'bg-primary',
+                pct === 100 ? 'bg-green-500' : 'bg-primary'
               )}
               style={{ width: `${pct}%` }}
             />

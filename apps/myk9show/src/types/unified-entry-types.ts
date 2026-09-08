@@ -19,13 +19,7 @@ export interface UnifiedEntryData {
 
   // Competition results
   status:
-    | 'Qualified'
-    | 'Not Qualified'
-    | 'Absent'
-    | 'Withdrawn'
-    | 'Excused'
-    | 'Pending'
-    | 'Eliminated';
+    'Qualified' | 'Not Qualified' | 'Absent' | 'Withdrawn' | 'Excused' | 'Pending' | 'Eliminated';
   time?: string | undefined; // Formatted time string (MM:SS.HH or MM:SS)
   score?: string | undefined; // Score as string (could be points, percentage, etc.)
   faults?: number | undefined;

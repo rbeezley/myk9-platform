@@ -14,24 +14,27 @@ interface InfiniteScrollTriggerProps {
 /**
  * Component for infinite scroll trigger with enhanced UI
  */
-export function InfiniteScrollTrigger({ 
-  onLoadMore, 
-  hasMore, 
-  loading, 
+export function InfiniteScrollTrigger({
+  onLoadMore,
+  hasMore,
+  loading,
   error,
   onRetry,
   totalCount,
   loadedCount,
-  className = ''
+  className = '',
 }: InfiniteScrollTriggerProps) {
-  const triggerRef = useIntersectionObserver(() => {
-    if (hasMore && !loading && !error) {
-      onLoadMore();
+  const triggerRef = useIntersectionObserver(
+    () => {
+      if (hasMore && !loading && !error) {
+        onLoadMore();
+      }
+    },
+    {
+      rootMargin: '200px',
+      threshold: 0.1,
     }
-  }, {
-    rootMargin: '200px',
-    threshold: 0.1
-  });
+  );
 
   if (!hasMore && !loading && !error) {
     return (
@@ -71,7 +74,9 @@ export function InfiniteScrollTrigger({
           <span className="text-sm text-muted-foreground">
             Loading more...
             {totalCount && loadedCount && (
-              <span className="ml-1">({loadedCount}/{totalCount})</span>
+              <span className="ml-1">
+                ({loadedCount}/{totalCount})
+              </span>
             )}
           </span>
         </div>
@@ -82,7 +87,9 @@ export function InfiniteScrollTrigger({
         >
           Load More
           {totalCount && loadedCount && (
-            <span className="ml-1">({loadedCount}/{totalCount})</span>
+            <span className="ml-1">
+              ({loadedCount}/{totalCount})
+            </span>
           )}
         </button>
       )}

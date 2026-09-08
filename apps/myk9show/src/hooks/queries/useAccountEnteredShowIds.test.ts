@@ -42,8 +42,7 @@ describe('useAccountEnteredShowIds', () => {
     renderHook(() => useAccountEnteredShowIds('person-1'));
 
     const queryConfig = useQueryMock.mock.calls[0]?.[0] as
-      | { queryFn?: () => Promise<unknown> }
-      | undefined;
+      { queryFn?: () => Promise<unknown> } | undefined;
     await expect(queryConfig?.queryFn?.()).rejects.toBe(readError);
   });
 

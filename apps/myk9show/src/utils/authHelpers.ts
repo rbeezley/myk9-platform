@@ -23,13 +23,11 @@ export function getCurrentUserId(): string {
   try {
     // In a React component context, this would use useContext
     // For store usage, we need a different approach
-    const storedUser = import.meta.env.DEV
-      ? localStorage.getItem('dev-current-mock-user')
-      : null;
+    const storedUser = import.meta.env.DEV ? localStorage.getItem('dev-current-mock-user') : null;
     if (storedUser) {
       return storedUser;
     }
-    
+
     // Fallback to a default system user ID
     return 'system-user';
   } catch (error) {
@@ -44,7 +42,7 @@ export function getCurrentUserId(): string {
 export function getCurrentUserInfo(): { id: string; email: string; name: string } {
   try {
     const userId = getCurrentUserId();
-    
+
     // In a real implementation, this would fetch from auth context
     // For now, provide sensible defaults based on the stored user
     const userMappings: Record<string, { email: string; name: string }> = {
@@ -52,21 +50,21 @@ export function getCurrentUserInfo(): { id: string; email: string; name: string 
       'secretary-user': { email: 'secretary@example.com', name: 'Secretary User' },
       'exhibitor-user': { email: 'exhibitor@example.com', name: 'Exhibitor User' },
       'judge-user': { email: 'judge@example.com', name: 'Judge User' },
-      'system-user': { email: 'system@example.com', name: 'System User' }
+      'system-user': { email: 'system@example.com', name: 'System User' },
     };
-    
+
     const userInfo = userMappings[userId] || userMappings['system-user'];
-    
+
     return {
       id: userId,
-      ...userInfo
+      ...userInfo,
     };
   } catch (error) {
     logger.error('Failed to get current user info', 'authHelpers', { error });
     return {
       id: 'system-user',
       email: 'system@example.com',
-      name: 'System User'
+      name: 'System User',
     };
   }
 }
@@ -76,17 +74,17 @@ export function getCurrentUserInfo(): { id: string; email: string; name: string 
  */
 export function useCurrentUser() {
   const context = useContext(AuthContext);
-  
+
   if (!context) {
     logger.warn('useCurrentUser called outside of AuthContext', 'authHelpers');
     return getCurrentUserInfo();
   }
-  
+
   const user = context.user as UserWithName | null;
   return {
     id: user?.id || getCurrentUserId(),
     email: user?.email || 'unknown@example.com',
-    name: user?.name || 'Unknown User'
+    name: user?.name || 'Unknown User',
   };
 }
 
@@ -106,15 +104,18 @@ export async function getCurrentUserUUID(): Promise<string | null> {
   try {
     // Import supabase client
     const { supabase } = await import('@/lib/supabase');
-    
+
     // Get current user from Supabase auth
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
     if (error) {
       logger.warn('Error getting current user UUID:', 'utils', {}, error as Error);
       return null;
     }
-    
+
     return user?.id || null;
   } catch (error) {
     logger.warn('Failed to get current user UUID:', 'utils', {}, error as Error);
@@ -135,24 +136,24 @@ export interface AuditInfo {
 export function createAuditInfo(): AuditInfo {
   const userInfo = getCurrentUserInfo();
   const timestamp = new Date().toISOString();
-  
+
   return {
     createdBy: userInfo.email,
     createdAt: timestamp,
     lastModifiedBy: userInfo.email,
-    lastModifiedAt: timestamp
+    lastModifiedAt: timestamp,
   };
 }
 
 export function updateAuditInfo(existing: Partial<AuditInfo>): AuditInfo {
   const userInfo = getCurrentUserInfo();
   const timestamp = new Date().toISOString();
-  
+
   return {
     createdBy: existing.createdBy || userInfo.email,
     createdAt: existing.createdAt || timestamp,
     lastModifiedBy: userInfo.email,
-    lastModifiedAt: timestamp
+    lastModifiedAt: timestamp,
   };
 }
 
@@ -162,12 +163,12 @@ export function updateAuditInfo(existing: Partial<AuditInfo>): AuditInfo {
 export function hasPermission(permission: string): boolean {
   try {
     const userInfo = getCurrentUserInfo();
-    
+
     // Basic permission check based on user type
     // This should be replaced with proper RBAC when available
     const adminUsers = ['admin-user', 'system-user'];
     const secretaryUsers = ['secretary-user', 'admin-user', 'system-user'];
-    
+
     switch (permission) {
       case 'admin':
         return adminUsers.includes(userInfo.id);
@@ -189,16 +190,12 @@ export function hasPermission(permission: string): boolean {
  */
 export function migrateAuthPlaceholders() {
   logger.info('Starting auth placeholder migration', 'authHelpers');
-  
+
   // This function can be called during app initialization
   // to update any stored data that uses placeholder auth values
-  
-  const placeholderValues = [
-    'current-user',
-    'admin@example.com',
-    'Current Judge'
-  ];
-  
+
+  const placeholderValues = ['current-user', 'admin@example.com', 'Current Judge'];
+
   placeholderValues.forEach(placeholder => {
     logger.debug('Would migrate placeholder', 'authHelpers', { placeholder });
     // Actual migration logic would go here

@@ -3,7 +3,11 @@
  * Coordinates validation, limit checking, and optimistic entry creation
  */
 
-import { EntryValidator, type EntryValidationContext, type EntryValidationResult } from './EntryValidator';
+import {
+  EntryValidator,
+  type EntryValidationContext,
+  type EntryValidationResult,
+} from './EntryValidator';
 import { EntryLimitChecker, type EntryLimitCheckResult } from './EntryLimitChecker';
 import { useEntryStore, type ShowEntryInput, type SyncableShowEntry } from '@/store/entryStore';
 import type { EntryStatus } from '@/types/entry-lifecycle';
@@ -74,7 +78,7 @@ export class OfflineEntryCreator {
       allowWaitlist = true,
       userId = 'current-user',
       overrideReason,
-      dryRun = false
+      dryRun = false,
     } = options;
 
     try {
@@ -83,12 +87,14 @@ export class OfflineEntryCreator {
       if (!context) {
         return {
           success: false,
-          errors: [{
-            code: 'CONTEXT_MISSING',
-            message: 'Required show, trial, class, or dog data not found',
-            severity: 'error'
-          }],
-          warnings: []
+          errors: [
+            {
+              code: 'CONTEXT_MISSING',
+              message: 'Required show, trial, class, or dog data not found',
+              severity: 'error',
+            },
+          ],
+          warnings: [],
         };
       }
 
@@ -97,13 +103,13 @@ export class OfflineEntryCreator {
       // Validation phase
       if (!skipValidation) {
         validationResult = await EntryValidator.validateEntry(entryData, context);
-        
+
         if (!validationResult.isValid) {
           return {
             success: false,
             errors: validationResult.errors,
             warnings: validationResult.warnings,
-            validationResult
+            validationResult,
           };
         }
 
@@ -113,7 +119,7 @@ export class OfflineEntryCreator {
             success: false,
             errors: [],
             warnings: validationResult.warnings,
-            validationResult
+            validationResult,
           };
         }
       }
@@ -121,7 +127,7 @@ export class OfflineEntryCreator {
       // Limit checking phase
       const limitCheckResult = EntryLimitChecker.checkEntryLimits(entryData, {
         ...context,
-        existingEntries: this.entryStore.entries
+        existingEntries: this.entryStore.entries,
       });
 
       if (!limitCheckResult.isAllowed) {
@@ -129,7 +135,7 @@ export class OfflineEntryCreator {
         if (allowWaitlist && this.canWaitlistEntry(limitCheckResult)) {
           return await this.createWaitlistedEntry(entryData, context, {
             ...options,
-            userId
+            userId,
           });
         }
 
@@ -137,7 +143,7 @@ export class OfflineEntryCreator {
           success: false,
           errors: limitCheckResult.errors,
           warnings: limitCheckResult.warnings,
-          limitCheckResult
+          limitCheckResult,
         };
       }
 
@@ -148,7 +154,7 @@ export class OfflineEntryCreator {
           errors: [],
           warnings: validationResult?.warnings || [],
           validationResult,
-          limitCheckResult
+          limitCheckResult,
         };
       }
 
@@ -157,7 +163,7 @@ export class OfflineEntryCreator {
         ...options,
         userId,
         status: 'submitted' as EntryStatus,
-        ...(overrideReason !== undefined && { overrideReason })
+        ...(overrideReason !== undefined && { overrideReason }),
       });
 
       // Queue payment processing if needed
@@ -170,19 +176,21 @@ export class OfflineEntryCreator {
         warnings: validationResult?.warnings || [],
         validationResult,
         limitCheckResult,
-        paymentStatus
+        paymentStatus,
       };
-
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error during entry creation';
+      const message =
+        error instanceof Error ? error.message : 'Unknown error during entry creation';
       return {
         success: false,
-        errors: [{
-          code: 'CREATION_ERROR',
-          message,
-          severity: 'error'
-        }],
-        warnings: []
+        errors: [
+          {
+            code: 'CREATION_ERROR',
+            message,
+            severity: 'error',
+          },
+        ],
+        warnings: [],
       };
     }
   }
@@ -206,7 +214,7 @@ export class OfflineEntryCreator {
         entriesData.map(entryData => this.preValidateEntry(entryData, entriesData))
       );
 
-      const hasBlockingErrors = preValidationResults.some(result => 
+      const hasBlockingErrors = preValidationResults.some(result =>
         result.errors.some(error => error.severity === 'error')
       );
 
@@ -219,7 +227,7 @@ export class OfflineEntryCreator {
           totalWaitlisted: 0,
           totalFailed: entriesData.length,
           results: preValidationResults,
-          summaryErrors
+          summaryErrors,
         };
       }
 
@@ -227,7 +235,7 @@ export class OfflineEntryCreator {
       for (let i = 0; i < entriesData.length; i++) {
         const entryData = entriesData[i];
         const result = await this.createEntry(entryData, {
-          ...options
+          ...options,
           // Removed pendingEntries as it's not in EntryCreationOptions type
         });
 
@@ -236,7 +244,7 @@ export class OfflineEntryCreator {
         if (result.success) {
           if (result.entry) {
             createdEntryIds.push(result.entry.id);
-            
+
             if (result.isWaitlisted) {
               totalWaitlisted++;
             } else {
@@ -245,12 +253,12 @@ export class OfflineEntryCreator {
           }
         } else {
           totalFailed++;
-          
+
           // If batch creation fails and we want all-or-nothing behavior
           if (options.skipValidation === false) {
             // Rollback previously created entries
             await this.rollbackCreatedEntries(createdEntryIds);
-            
+
             return {
               overallSuccess: false,
               totalRequested: entriesData.length,
@@ -258,7 +266,7 @@ export class OfflineEntryCreator {
               totalWaitlisted: 0,
               totalFailed: entriesData.length,
               results,
-              summaryErrors: this.summarizeErrors(results)
+              summaryErrors: this.summarizeErrors(results),
             };
           }
         }
@@ -273,13 +281,12 @@ export class OfflineEntryCreator {
         totalWaitlisted,
         totalFailed,
         results,
-        summaryErrors: this.summarizeErrors(results)
+        summaryErrors: this.summarizeErrors(results),
       };
-
     } catch (error) {
       // Rollback any created entries on unexpected error
       await this.rollbackCreatedEntries(createdEntryIds);
-      
+
       const message = error instanceof Error ? error.message : 'Batch creation failed';
       return {
         overallSuccess: false,
@@ -288,11 +295,13 @@ export class OfflineEntryCreator {
         totalWaitlisted: 0,
         totalFailed: entriesData.length,
         results: [],
-        summaryErrors: [{
-          code: 'BATCH_CREATION_ERROR',
-          message,
-          count: 1
-        }]
+        summaryErrors: [
+          {
+            code: 'BATCH_CREATION_ERROR',
+            message,
+            count: 1,
+          },
+        ],
       };
     }
   }
@@ -342,7 +351,10 @@ export class OfflineEntryCreator {
         return { success: false, error: 'Entry not found' };
       }
 
-      if ((entry.status as string) !== 'waitlist' && (entry.status as string) !== RegistrationEntryStatus.WAITLIST) {
+      if (
+        (entry.status as string) !== 'waitlist' &&
+        (entry.status as string) !== RegistrationEntryStatus.WAITLIST
+      ) {
         return { success: false, error: 'Entry is not on waitlist' };
       }
 
@@ -374,14 +386,14 @@ export class OfflineEntryCreator {
   /**
    * Private helper methods
    */
-  private static async gatherEntryContext(entryData: ShowEntryInput): Promise<EntryValidationContext | null> {
+  private static async gatherEntryContext(
+    entryData: ShowEntryInput
+  ): Promise<EntryValidationContext | null> {
     const show = this.showStore.shows.find(s => s.id === entryData.showId);
     if (!show) return null;
 
     // Find trial and class (simplified - would need proper trial/class lookup)
-    const trial = show.trials?.find(t => 
-      t.classes?.some(c => c.id === entryData.classId)
-    );
+    const trial = show.trials?.find(t => t.classes?.some(c => c.id === entryData.classId));
     if (!trial) return null;
 
     const classData = trial.classes?.find(c => c.id === entryData.classId);
@@ -390,7 +402,7 @@ export class OfflineEntryCreator {
     const dog = this.dogStore.dogs.find(d => d.id === entryData.dogId);
     if (!dog) return null;
 
-    const handler = entryData.registrationData.handlerId 
+    const handler = entryData.registrationData.handlerId
       ? this.userStore.people.find(p => p.id === entryData.registrationData.handlerId)
       : undefined;
 
@@ -400,7 +412,7 @@ export class OfflineEntryCreator {
       class: classData,
       dog,
       handler,
-      existingEntries: this.entryStore.entries
+      existingEntries: this.entryStore.entries,
     };
   }
 
@@ -412,12 +424,14 @@ export class OfflineEntryCreator {
     if (!context) {
       return {
         success: false,
-        errors: [{
-          code: 'CONTEXT_MISSING',
-          message: 'Required data not found',
-          severity: 'error'
-        }],
-        warnings: []
+        errors: [
+          {
+            code: 'CONTEXT_MISSING',
+            message: 'Required data not found',
+            severity: 'error',
+          },
+        ],
+        warnings: [],
       };
     }
 
@@ -425,7 +439,7 @@ export class OfflineEntryCreator {
     const limitCheckResult = EntryLimitChecker.checkEntryLimits(entryData, {
       ...context,
       existingEntries: this.entryStore.entries,
-      pendingEntries: _allPendingEntries
+      pendingEntries: _allPendingEntries,
     });
 
     return {
@@ -433,13 +447,13 @@ export class OfflineEntryCreator {
       errors: [...validationResult.errors, ...limitCheckResult.errors],
       warnings: [...validationResult.warnings, ...limitCheckResult.warnings],
       validationResult,
-      limitCheckResult
+      limitCheckResult,
     };
   }
 
   private static canWaitlistEntry(limitCheckResult: EntryLimitCheckResult): boolean {
-    return limitCheckResult.errors.some(error => 
-      error.code === 'CLASS_FULL' && limitCheckResult.waitlistPosition !== undefined
+    return limitCheckResult.errors.some(
+      error => error.code === 'CLASS_FULL' && limitCheckResult.waitlistPosition !== undefined
     );
   }
 
@@ -450,26 +464,32 @@ export class OfflineEntryCreator {
   ): Promise<EntryCreationResult> {
     const entry = await this.performEntryCreation(entryData, context, {
       ...options,
-      status: 'waitlist' as EntryStatus
+      status: 'waitlist' as EntryStatus,
     });
 
     return {
       success: true,
       entry,
       errors: [],
-      warnings: [{
-        code: 'ENTRY_WAITLISTED',
-        message: 'Entry has been placed on the waitlist',
-        severity: 'info'
-      }],
-      isWaitlisted: true
+      warnings: [
+        {
+          code: 'ENTRY_WAITLISTED',
+          message: 'Entry has been placed on the waitlist',
+          severity: 'info',
+        },
+      ],
+      isWaitlisted: true,
     };
   }
 
   private static async performEntryCreation(
     entryData: ShowEntryInput,
     _context: EntryValidationContext,
-    options: EntryCreationOptions & { userId: string; status?: EntryStatus | undefined; overrideReason?: string | undefined }
+    options: EntryCreationOptions & {
+      userId: string;
+      status?: EntryStatus | undefined;
+      overrideReason?: string | undefined;
+    }
   ): Promise<SyncableShowEntry> {
     const optimisticId = generateId();
     const now = new Date().toISOString();
@@ -479,21 +499,23 @@ export class OfflineEntryCreator {
       ...entryData,
       id: optimisticId,
       status: status as EntryStatus,
-      statusHistory: [{
-        status: status as EntryStatus,
-        timestamp: now,
-        userId: options.userId,
-        reason: options.overrideReason || 'Entry created'
-      }],
+      statusHistory: [
+        {
+          status: status as EntryStatus,
+          timestamp: now,
+          userId: options.userId,
+          reason: options.overrideReason || 'Entry created',
+        },
+      ],
       createdAt: now,
       updatedAt: now,
-      
+
       // Sync metadata
       _version: 1,
       _lastModified: new Date(),
       _lastModifiedBy: options.userId,
       _syncStatus: 'pending',
-      _localOnly: false
+      _localOnly: false,
     };
 
     // Add to store optimistically
@@ -506,7 +528,7 @@ export class OfflineEntryCreator {
         entityId: optimisticId,
         operation: 'create',
         data: entryData as unknown as Record<string, unknown>,
-        priority: "medium"
+        priority: 'medium',
       });
     } catch (syncError) {
       logger.warn('Failed to queue entry for sync:', 'entries', {}, syncError as Error);
@@ -533,11 +555,11 @@ export class OfflineEntryCreator {
         data: {
           entryId: entry.id,
           amount: entryData.registrationData.entryFee,
-          paymentMethod: 'pending'
+          paymentMethod: 'pending',
         },
-        priority: "medium" // Higher priority for payments
+        priority: 'medium', // Higher priority for payments
       });
-      
+
       return 'queued';
     } catch (error) {
       logger.warn('Failed to queue payment processing:', 'entries', {}, error as Error);
@@ -559,9 +581,9 @@ export class OfflineEntryCreator {
           entryId: entry.id,
           amount: entry.registrationData.entryFee,
           reason,
-          details
+          details,
         },
-        priority: "medium" // High priority for refunds
+        priority: 'medium', // High priority for refunds
       });
     } catch (error) {
       logger.warn('Failed to queue refund processing:', 'entries', {}, error as Error);
@@ -578,7 +600,9 @@ export class OfflineEntryCreator {
     }
   }
 
-  private static summarizeErrors(results: EntryCreationResult[]): Array<{ code: string; message: string; count: number }> {
+  private static summarizeErrors(
+    results: EntryCreationResult[]
+  ): Array<{ code: string; message: string; count: number }> {
     const errorCounts = new Map<string, { message: string; count: number }>();
 
     results.forEach(result => {
@@ -595,7 +619,7 @@ export class OfflineEntryCreator {
     return Array.from(errorCounts.entries()).map(([code, data]) => ({
       code,
       message: data.message,
-      count: data.count
+      count: data.count,
     }));
   }
 }

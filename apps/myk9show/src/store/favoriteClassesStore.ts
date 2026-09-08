@@ -90,7 +90,7 @@ export const useFavoriteClassesStore = create<FavoriteClassesState>()((set, get)
 
     // Clear animation trigger after 400ms
     setTimeout(() => {
-      set((state) => (state.justToggled === classId ? { justToggled: null } : {}));
+      set(state => (state.justToggled === classId ? { justToggled: null } : {}));
     }, 400);
   },
 

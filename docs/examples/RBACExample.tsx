@@ -24,13 +24,13 @@ export function RBACExample() {
     isExhibitor,
     isSecretary,
     isClubAdmin,
-    isSiteAdmin
+    isSiteAdmin,
   } = useRegistrationPermissions();
 
   const {
     workflowConfig,
     canViewAllDogs: contextCanViewAllDogs,
-    setContextForShow
+    setContextForShow,
   } = useRegistrationContext();
 
   if (!user) {
@@ -40,7 +40,7 @@ export function RBACExample() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">RBAC System Examples</h1>
-      
+
       {/* User Info Card */}
       <Card>
         <CardHeader>
@@ -61,10 +61,38 @@ export function RBACExample() {
           <div>
             <strong>Role Flags:</strong>
             <ul className="list-disc list-inside mt-2">
-              <li className="flex items-center gap-1">Exhibitor: {isExhibitor ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
-              <li className="flex items-center gap-1">Secretary: {isSecretary ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
-              <li className="flex items-center gap-1">Club Admin: {isClubAdmin ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
-              <li className="flex items-center gap-1">Site Admin: {isSiteAdmin ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
+              <li className="flex items-center gap-1">
+                Exhibitor:{' '}
+                {isExhibitor ? (
+                  <CheckCircle className="h-4 w-4 text-green-500 inline" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500 inline" />
+                )}
+              </li>
+              <li className="flex items-center gap-1">
+                Secretary:{' '}
+                {isSecretary ? (
+                  <CheckCircle className="h-4 w-4 text-green-500 inline" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500 inline" />
+                )}
+              </li>
+              <li className="flex items-center gap-1">
+                Club Admin:{' '}
+                {isClubAdmin ? (
+                  <CheckCircle className="h-4 w-4 text-green-500 inline" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500 inline" />
+                )}
+              </li>
+              <li className="flex items-center gap-1">
+                Site Admin:{' '}
+                {isSiteAdmin ? (
+                  <CheckCircle className="h-4 w-4 text-green-500 inline" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500 inline" />
+                )}
+              </li>
             </ul>
           </div>
           <div>
@@ -82,7 +110,6 @@ export function RBACExample() {
           <CardTitle>Permission-Based UI Components</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          
           {/* Basic Permission Guard */}
           <div>
             <h3 className="font-semibold mb-2">Basic Permission Guards</h3>
@@ -90,12 +117,12 @@ export function RBACExample() {
               <PermissionGuard permission={PERMISSIONS.DOG_CREATE}>
                 <Button variant="outline">Create Dog (dog:create)</Button>
               </PermissionGuard>
-              
+
               <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS}>
                 <Button variant="outline">View All Dogs (registration:view_all_dogs)</Button>
               </PermissionGuard>
-              
-              <PermissionGuard 
+
+              <PermissionGuard
                 permission={PERMISSIONS.REGISTRATION_CREATE_EXHIBITOR}
                 fallback={<Badge variant="destructive">Cannot Create Exhibitors</Badge>}
               >
@@ -111,22 +138,22 @@ export function RBACExample() {
               <PermissionGuard role={UserRole.EXHIBITOR}>
                 <Badge variant="default">Exhibitor Only Content</Badge>
               </PermissionGuard>
-              
-              <PermissionGuard 
+
+              <PermissionGuard
                 role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
                 fallback={<Badge variant="secondary">Secretary+ Required</Badge>}
               >
                 <Badge variant="default">Secretary or Above Content</Badge>
               </PermissionGuard>
-              
-              <PermissionGuard 
+
+              <PermissionGuard
                 role={[UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN]}
                 fallback={<Badge variant="secondary">Club Admin+ Required</Badge>}
               >
                 <Badge variant="default">Club Admin or Above Content</Badge>
               </PermissionGuard>
-              
-              <PermissionGuard 
+
+              <PermissionGuard
                 role={UserRole.SITE_ADMIN}
                 fallback={<Badge variant="secondary">Site Admin Required</Badge>}
               >
@@ -141,9 +168,9 @@ export function RBACExample() {
             <PermissionGuard role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN]}>
               <Badge variant="default">Secretary OR Club Admin</Badge>
             </PermissionGuard>
-            
-            <PermissionGuard 
-              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN]} 
+
+            <PermissionGuard
+              role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN]}
               requireAll={true}
               fallback={<Badge variant="secondary">Need Secretary AND Club Admin</Badge>}
             >
@@ -154,15 +181,15 @@ export function RBACExample() {
           {/* Scoped Permissions */}
           <div>
             <h3 className="font-semibold mb-2">Scoped Permissions</h3>
-            <PermissionGuard 
+            <PermissionGuard
               permission={PERMISSIONS.CLUB_EDIT_DETAILS}
               scope={{ type: ScopeType.CLUB, id: 'club-1' }}
               fallback={<Badge variant="secondary">No Club-1 Access</Badge>}
             >
               <Badge variant="default">Can Edit Club-1 Details</Badge>
             </PermissionGuard>
-            
-            <PermissionGuard 
+
+            <PermissionGuard
               permission={PERMISSIONS.CLUB_EDIT_DETAILS}
               scope={{ type: ScopeType.CLUB, id: 'club-999' }}
               fallback={<Badge variant="secondary">No Club-999 Access</Badge>}
@@ -177,7 +204,7 @@ export function RBACExample() {
             <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS} not>
               <Badge variant="outline">Cannot View All Dogs (Regular User)</Badge>
             </PermissionGuard>
-            
+
             <PermissionGuard role={UserRole.SITE_ADMIN} not>
               <Badge variant="outline">Not a Site Admin</Badge>
             </PermissionGuard>
@@ -189,7 +216,7 @@ export function RBACExample() {
             <PermissionGuard customCheck={() => roles.length > 1}>
               <Badge variant="default">Has Multiple Roles</Badge>
             </PermissionGuard>
-            
+
             <PermissionGuard customCheck={() => permissions.length > 10}>
               <Badge variant="default">Has Many Permissions (10+)</Badge>
             </PermissionGuard>
@@ -211,7 +238,7 @@ export function RBACExample() {
               ))}
             </ul>
           </div>
-          
+
           <div>
             <strong>Feature Capabilities:</strong>
             <ul className="list-disc list-inside mt-2">
@@ -223,7 +250,7 @@ export function RBACExample() {
               <li>Payment Override: {workflowConfig.features.paymentOverride ? '✅' : '❌'}</li>
             </ul>
           </div>
-          
+
           <div>
             <strong>UI Configuration:</strong>
             <ul className="list-disc list-inside mt-2">
@@ -271,25 +298,21 @@ export function RBACExample() {
           <div>
             <strong>Test Different User Roles:</strong>
             <div className="flex gap-2 mt-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => window.location.reload()}
-              >
+              <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
                 Reload as Current User
               </Button>
             </div>
             <p className="text-sm text-gray-500 mt-2">
-              Change your email to one of: exhibitor@example.com, secretary@example.com, 
+              Change your email to one of: exhibitor@example.com, secretary@example.com,
               clubadmin@example.com, admin@example.com to test different roles.
             </p>
           </div>
-          
+
           <div>
             <strong>Set Registration Context:</strong>
             <div className="flex gap-2 mt-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setContextForShow('show-123', 'club-1')}
               >

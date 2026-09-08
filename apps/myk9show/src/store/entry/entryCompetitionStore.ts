@@ -34,37 +34,39 @@ interface EntryCompetitionStore {
   competitions: EntryCompetition[];
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
-  createCompetition: (data: Omit<EntryCompetition, 'id' | 'createdAt' | 'updatedAt'>) => EntryCompetition;
+  createCompetition: (
+    data: Omit<EntryCompetition, 'id' | 'createdAt' | 'updatedAt'>
+  ) => EntryCompetition;
   updateCompetition: (id: string, updates: Partial<EntryCompetition>) => void;
   deleteCompetition: (id: string) => void;
-  
+
   // Queries
   getCompetition: (id: string) => EntryCompetition | undefined;
   getCompetitionByRegistration: (registrationId: string) => EntryCompetition | undefined;
   getCompetitionsByStatus: (status: EntryCompetition['status']) => EntryCompetition[];
-  
+
   // Competition workflow
   startCompetition: (id: string) => void;
   completeCompetition: (id: string, competitionData: CompetitionData) => void;
   withdrawCompetition: (id: string, reason?: string) => void;
   scratchCompetition: (id: string, reason?: string) => void;
-  
+
   // Scoring operations
   recordScore: (id: string, score: string, time?: string) => void;
   recordFaults: (id: string, faults: number) => void;
   recordQualification: (id: string, qualified: boolean, reason?: string) => void;
   addJudgeNotes: (id: string, notes: string) => void;
-  
+
   // Run order management
   updateRunOrder: (id: string, runOrder: number) => void;
-  reorderCompetitions: (competitions: Array<{id: string; runOrder: number}>) => void;
-  
+  reorderCompetitions: (competitions: Array<{ id: string; runOrder: number }>) => void;
+
   // Bulk operations
   bulkUpdateCompetitions: (ids: string[], updates: Partial<EntryCompetition>) => void;
   bulkDeleteCompetitions: (ids: string[]) => void;
-  
+
   // Utility
   clearError: () => void;
   resetStore: () => void;
@@ -80,51 +82,49 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
   persist(
     (set, get) => ({
       ...initialState,
-      
-      createCompetition: (data) => {
+
+      createCompetition: data => {
         const competition: EntryCompetition = {
           ...data,
           id: generateId(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
-        
+
         set(state => ({
           competitions: [...state.competitions, competition],
         }));
-        
+
         return competition;
       },
-      
+
       updateCompetition: (id, updates) => {
         set(state => ({
           competitions: state.competitions.map(comp =>
-            comp.id === id
-              ? { ...comp, ...updates, updatedAt: new Date().toISOString() }
-              : comp
+            comp.id === id ? { ...comp, ...updates, updatedAt: new Date().toISOString() } : comp
           ),
         }));
       },
-      
-      deleteCompetition: (id) => {
+
+      deleteCompetition: id => {
         set(state => ({
           competitions: state.competitions.filter(comp => comp.id !== id),
         }));
       },
-      
-      getCompetition: (id) => {
+
+      getCompetition: id => {
         return get().competitions.find(comp => comp.id === id);
       },
-      
-      getCompetitionByRegistration: (registrationId) => {
+
+      getCompetitionByRegistration: registrationId => {
         return get().competitions.find(comp => comp.registrationId === registrationId);
       },
-      
-      getCompetitionsByStatus: (status) => {
+
+      getCompetitionsByStatus: status => {
         return get().competitions.filter(comp => comp.status === status);
       },
-      
-      startCompetition: (id) => {
+
+      startCompetition: id => {
         const competition = get().getCompetition(id);
         if (competition && competition.status === 'scheduled') {
           get().updateCompetition(id, {
@@ -136,7 +136,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       completeCompetition: (id, competitionData) => {
         const competition = get().getCompetition(id);
         if (competition && competition.status === 'competing') {
@@ -150,7 +150,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       withdrawCompetition: (id, reason) => {
         const competition = get().getCompetition(id);
         if (competition && ['scheduled', 'competing'].includes(competition.status)) {
@@ -163,7 +163,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       scratchCompetition: (id, reason) => {
         const competition = get().getCompetition(id);
         if (competition && competition.status === 'scheduled') {
@@ -176,7 +176,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       recordScore: (id, score, time) => {
         const competition = get().getCompetition(id);
         if (competition && competition.status === 'competing') {
@@ -189,7 +189,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       recordFaults: (id, faults) => {
         const competition = get().getCompetition(id);
         if (competition && competition.status === 'competing') {
@@ -201,7 +201,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       recordQualification: (id, qualified, reason) => {
         const competition = get().getCompetition(id);
         if (competition && competition.status === 'competing') {
@@ -215,7 +215,7 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       addJudgeNotes: (id, notes) => {
         const competition = get().getCompetition(id);
         if (competition) {
@@ -227,17 +227,17 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           });
         }
       },
-      
+
       updateRunOrder: (id, runOrder) => {
         get().updateCompetition(id, { runOrder });
       },
-      
-      reorderCompetitions: (competitions) => {
+
+      reorderCompetitions: competitions => {
         competitions.forEach(({ id, runOrder }) => {
           get().updateRunOrder(id, runOrder);
         });
       },
-      
+
       bulkUpdateCompetitions: (ids, updates) => {
         set(state => ({
           competitions: state.competitions.map(comp =>
@@ -247,17 +247,17 @@ export const useEntryCompetitionStore = create<EntryCompetitionStore>()(
           ),
         }));
       },
-      
-      bulkDeleteCompetitions: (ids) => {
+
+      bulkDeleteCompetitions: ids => {
         set(state => ({
           competitions: state.competitions.filter(comp => !ids.includes(comp.id)),
         }));
       },
-      
+
       clearError: () => {
         set({ error: null });
       },
-      
+
       resetStore: () => {
         set(initialState);
       },

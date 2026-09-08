@@ -18,7 +18,7 @@ export function usePagination<T>(options: UsePaginationOptions) {
     sortDirection = 'asc',
     filters = {},
     autoRefresh = false,
-    refreshInterval = 30000
+    refreshInterval = 30000,
   } = options;
 
   const [page, setPage] = useState(initialPage);
@@ -29,13 +29,16 @@ export function usePagination<T>(options: UsePaginationOptions) {
   const [result, setResult] = useState<PaginatedResult<T> | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const paginationOptions = useMemo(() => ({
-    page,
-    pageSize,
-    ...(currentSortBy !== undefined && { sortBy: currentSortBy }),
-    sortDirection: currentSortDirection,
-    filters: currentFilters
-  }), [page, pageSize, currentSortBy, currentSortDirection, currentFilters]);
+  const paginationOptions = useMemo(
+    () => ({
+      page,
+      pageSize,
+      ...(currentSortBy !== undefined && { sortBy: currentSortBy }),
+      sortDirection: currentSortDirection,
+      filters: currentFilters,
+    }),
+    [page, pageSize, currentSortBy, currentSortDirection, currentFilters]
+  );
 
   useEffect(() => {
     if (!data.length) {
@@ -82,11 +85,14 @@ export function usePagination<T>(options: UsePaginationOptions) {
     setPage(1);
   }, []);
 
-  const updateSort = useCallback((field: string, direction?: 'asc' | 'desc') => {
-    setCurrentSortBy(field);
-    setCurrentSortDirection(direction || (currentSortDirection === 'asc' ? 'desc' : 'asc'));
-    setPage(1);
-  }, [currentSortDirection]);
+  const updateSort = useCallback(
+    (field: string, direction?: 'asc' | 'desc') => {
+      setCurrentSortBy(field);
+      setCurrentSortDirection(direction || (currentSortDirection === 'asc' ? 'desc' : 'asc'));
+      setPage(1);
+    },
+    [currentSortDirection]
+  );
 
   const updateFilters = useCallback((newFilters: Record<string, unknown>) => {
     setCurrentFilters(newFilters);
@@ -114,6 +120,6 @@ export function usePagination<T>(options: UsePaginationOptions) {
     hasNextPage: result?.pagination.hasNextPage || false,
     hasPreviousPage: result?.pagination.hasPreviousPage || false,
     totalPages: result?.pagination.totalPages || 0,
-    totalItems: result?.pagination.totalItems || 0
+    totalItems: result?.pagination.totalItems || 0,
   };
 }

@@ -1,8 +1,5 @@
 import { MonogramEmboss } from '../../components/MonogramEmboss';
-import {
-  MONOGRAM_BODY_FAMILY,
-  MONOGRAM_DISPLAY_FAMILY,
-} from '../../fonts';
+import { MONOGRAM_BODY_FAMILY, MONOGRAM_DISPLAY_FAMILY } from '../../fonts';
 import { monogramColors, monogramSpacing } from '../../tokens';
 
 interface MonogramFooterProps {

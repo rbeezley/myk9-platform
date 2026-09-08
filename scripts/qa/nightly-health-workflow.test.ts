@@ -92,16 +92,13 @@ describe('nightly health workflow', () => {
     expect(sweeps.sort()).toEqual([...HEALTH_JOBS].sort());
   });
 
-  it.each(HEALTH_JOBS)(
-    'builds shared packages before running route health in %s',
-    jobName => {
-      const job = jobs.get(jobName);
-      expect(job, `job ${jobName} not found`).toBeDefined();
-      expect(job).toContain(BUILD_STEP);
-      expect(job).toContain(HEALTH_STEP);
-      expect(job!.indexOf(BUILD_STEP)).toBeLessThan(job!.indexOf(HEALTH_STEP));
-    }
-  );
+  it.each(HEALTH_JOBS)('builds shared packages before running route health in %s', jobName => {
+    const job = jobs.get(jobName);
+    expect(job, `job ${jobName} not found`).toBeDefined();
+    expect(job).toContain(BUILD_STEP);
+    expect(job).toContain(HEALTH_STEP);
+    expect(job!.indexOf(BUILD_STEP)).toBeLessThan(job!.indexOf(HEALTH_STEP));
+  });
 
   it('keeps the chromium job blocking', () => {
     const job = jobs.get('nightly-health')!;
@@ -120,18 +117,15 @@ describe('nightly health workflow', () => {
     expect(job).toContain('playwright install --with-deps webkit');
   });
 
-  it.each(HEALTH_JOBS)(
-    'runs the credential preflight before route health in %s',
-    jobName => {
-      const job = jobs.get(jobName)!;
-      // Without this, a job whose E2E secrets are missing reports green having
-      // exercised only public routes — the route spec test.skip()s each role
-      // whose credentials are absent. `if: always()` means the cross-browser
-      // job cannot inherit the chromium job's preflight.
-      expect(job).toContain(PREFLIGHT_STEP);
-      expect(job.indexOf(PREFLIGHT_STEP)).toBeLessThan(job.indexOf(HEALTH_STEP));
-    }
-  );
+  it.each(HEALTH_JOBS)('runs the credential preflight before route health in %s', jobName => {
+    const job = jobs.get(jobName)!;
+    // Without this, a job whose E2E secrets are missing reports green having
+    // exercised only public routes — the route spec test.skip()s each role
+    // whose credentials are absent. `if: always()` means the cross-browser
+    // job cannot inherit the chromium job's preflight.
+    expect(job).toContain(PREFLIGHT_STEP);
+    expect(job.indexOf(PREFLIGHT_STEP)).toBeLessThan(job.indexOf(HEALTH_STEP));
+  });
 
   it('skips the browser-independent Vitest block in the cross-browser job only', () => {
     expect(jobs.get('cross-browser-health')!).toContain("MYK9_NIGHTLY_HEALTH_SKIP_VITEST: 'true'");

@@ -44,11 +44,7 @@ function getActionIcon(actionType: string) {
   }
 
   const Icon = family === 'role' ? Shield : Settings;
-  return (
-    <Icon
-      className={`h-4 w-4 ${tone === 'revoke' ? 'text-destructive' : 'text-primary'}`}
-    />
-  );
+  return <Icon className={`h-4 w-4 ${tone === 'revoke' ? 'text-destructive' : 'text-primary'}`} />;
 }
 
 function formatAction(action: string) {
@@ -329,9 +325,7 @@ const PermissionAuditPage: React.FC = () => {
                 <span aria-hidden="true" className="text-border">
                   •
                 </span>
-                <span className="text-muted-foreground">
-                  {auditSummary.otherChanges} other
-                </span>
+                <span className="text-muted-foreground">{auditSummary.otherChanges} other</span>
               </>
             )}
           </div>

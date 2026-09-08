@@ -171,8 +171,7 @@ export function useJudgeAssignedToClass({
     // marked in-ring with a ring_entry_time and no score, and watch the sheet
     // flash and get yanked away. My first pass at this fix missed that window
     // by treating unresolved identity as an offline-only condition.
-    const identityCanStillArrive =
-      typeof navigator === 'undefined' || navigator.onLine !== false;
+    const identityCanStillArrive = typeof navigator === 'undefined' || navigator.onLine !== false;
     return identityCanStillArrive ? { status: 'checking' } : { status: 'not-applicable' };
   }
 

@@ -1,7 +1,7 @@
 # Handoff — Execute the July 2026 security-audit remediation
 
 > **Status:** Active
-> *(Archive alongside this folder's README once all 6 plans are DONE/closed.)*
+> _(Archive alongside this folder's README once all 6 plans are DONE/closed.)_
 
 **Date:** 2026-07-03
 **From:** the `security-audit --full` session (static read-only audit; report +
@@ -16,7 +16,7 @@ strong model on **review** for every RLS/edge-fn PR regardless of who writes it.
 A full static security audit ([`../security-audit-2026-07-03.md`](../security-audit-2026-07-03.md))
 produced this folder: a [README index](README.md) plus **6 executor-ready
 plans** covering **17 findings** (0 CRITICAL, 0 HIGH, 8 MEDIUM, 9 LOW; no P0/P1).
-Nothing is exploitable-now *given RLS holds* — which the audit independently
+Nothing is exploitable-now _given RLS holds_ — which the audit independently
 confirmed for the core surface. So this is **hardening before a first-club
 launch**, not incident response. Fix in the order below; the one finding that
 lets a non-manager tamper with another show's data (SA-001) goes first.
@@ -45,24 +45,24 @@ lets a non-manager tamper with another show's data (SA-001) goes first.
 
 ## Execution order, model tier, deploy action & status
 
-| Plan | Order | Model | Post-merge deploy (confirm first) | Status |
-|------|-------|-------|-----------------------------------|--------|
-| [remediation-mechanical.md](remediation-mechanical.md) → **SA-001** (scoring-fn `REVOKE`) | **DO FIRST** | Sonnet OK; **strong review** | **new migration → `supabase db push`** | TODO |
-| [remediation-mechanical.md](remediation-mechanical.md) → SA-003 (push-trigger secret) | 2 | Sonnet OK | **deploy `push-trigger-scoring` + `push-trigger-class-status`** *and* update the DB triggers to send the secret | TODO |
-| [remediation-mechanical.md](remediation-mechanical.md) → SA-017 (FORCE RLS sweep, ~16 tables) | with SA-001 | Sonnet OK; **strong review** | **new migration → `supabase db push`** | TODO |
-| [remediation-mechanical.md](remediation-mechanical.md) → SA-012 (fail-closed secret) | 2 | Sonnet OK | **deploy `send-confirmation-email`** | TODO |
-| [remediation-mechanical.md](remediation-mechanical.md) → SA-009/010/014/015/016 (client hardening) | anytime | Sonnet OK | client-only (ships via Vercel on merge) | TODO |
-| [plan-scoping-rls.md](plan-scoping-rls.md) — SA-002, SA-007 | 3 | **Strong** + Codex | **new migration → `supabase db push`** | TODO |
-| [plan-email-fn-authz.md](plan-email-fn-authz.md) — SA-004, SA-005, SA-013 | 3 | **Strong** + Codex | **deploy the 3 fns**; SA-005 also needs the auth-hook `whsec_…` secret provisioned in the dashboard | TODO |
-| [plan-role-map-disclosure.md](plan-role-map-disclosure.md) — SA-006 | 4 | **Strong** + Codex | **new migration → `supabase db push`** | TODO |
-| [plan-people-overfetch.md](plan-people-overfetch.md) — SA-008 | 4 | Sonnet OK; strong review | client-only | TODO |
-| [plan-passcode-throttle.md](plan-passcode-throttle.md) — SA-011 | 5 | **Strong** + Codex | **new migration → `supabase db push`** (or route through the rate-limited edge fn) | TODO |
+| Plan                                                                                               | Order        | Model                        | Post-merge deploy (confirm first)                                                                               | Status |
+| -------------------------------------------------------------------------------------------------- | ------------ | ---------------------------- | --------------------------------------------------------------------------------------------------------------- | ------ |
+| [remediation-mechanical.md](remediation-mechanical.md) → **SA-001** (scoring-fn `REVOKE`)          | **DO FIRST** | Sonnet OK; **strong review** | **new migration → `supabase db push`**                                                                          | TODO   |
+| [remediation-mechanical.md](remediation-mechanical.md) → SA-003 (push-trigger secret)              | 2            | Sonnet OK                    | **deploy `push-trigger-scoring` + `push-trigger-class-status`** _and_ update the DB triggers to send the secret | TODO   |
+| [remediation-mechanical.md](remediation-mechanical.md) → SA-017 (FORCE RLS sweep, ~16 tables)      | with SA-001  | Sonnet OK; **strong review** | **new migration → `supabase db push`**                                                                          | TODO   |
+| [remediation-mechanical.md](remediation-mechanical.md) → SA-012 (fail-closed secret)               | 2            | Sonnet OK                    | **deploy `send-confirmation-email`**                                                                            | TODO   |
+| [remediation-mechanical.md](remediation-mechanical.md) → SA-009/010/014/015/016 (client hardening) | anytime      | Sonnet OK                    | client-only (ships via Vercel on merge)                                                                         | TODO   |
+| [plan-scoping-rls.md](plan-scoping-rls.md) — SA-002, SA-007                                        | 3            | **Strong** + Codex           | **new migration → `supabase db push`**                                                                          | TODO   |
+| [plan-email-fn-authz.md](plan-email-fn-authz.md) — SA-004, SA-005, SA-013                          | 3            | **Strong** + Codex           | **deploy the 3 fns**; SA-005 also needs the auth-hook `whsec_…` secret provisioned in the dashboard             | TODO   |
+| [plan-role-map-disclosure.md](plan-role-map-disclosure.md) — SA-006                                | 4            | **Strong** + Codex           | **new migration → `supabase db push`**                                                                          | TODO   |
+| [plan-people-overfetch.md](plan-people-overfetch.md) — SA-008                                      | 4            | Sonnet OK; strong review     | client-only                                                                                                     | TODO   |
+| [plan-passcode-throttle.md](plan-passcode-throttle.md) — SA-011                                    | 5            | **Strong** + Codex           | **new migration → `supabase db push`** (or route through the rate-limited edge fn)                              | TODO   |
 
 **Why the model split:** the mechanical batch is known-pattern work (a `REVOKE`,
 a `FORCE RLS` sweep, an `escapeHtml`, a friendly-error wrapper) — execution-tier
 models run it without loss, but keep a **strong reviewer** on the two migrations
 (a bad `REVOKE`/`FORCE` can break a live path). The design plans require a real
-decision — *which* scope predicate, *who* may send which email, *whether* the
+decision — _which_ scope predicate, _who_ may send which email, _whether_ the
 role-map read is safe to restrict without breaking the RBAC UI — so keep those on
 a strong model **and** run Codex for the independent failure mode.
 
@@ -76,13 +76,13 @@ admin UI.
 
 - **Work in a git worktree, never the primary checkout.** After creating one:
   `bash scripts/bootstrap-worktree.sh` (deps, env, package builds).
-- **One PR per plan** (parallelize by *file set*, not logical feature). The
+- **One PR per plan** (parallelize by _file set_, not logical feature). The
   mechanical batch is the exception: each SA-NNN is its own atomic
   `security: SA-NNN …` commit, groupable into a few PRs by file type
   (migrations vs. edge fns vs. client) so disjoint file sets don't collide.
 - **Assertion-first** (`CLAUDE.md` → Testing): write the failing test that pins
   the wrong behavior, run it **red**, then fix to green. For RLS that means a
-  policy test proving the *unauthorized* caller is denied and the *authorized*
+  policy test proving the _unauthorized_ caller is denied and the _authorized_
   one passes. The red→green transition is the proof — not typecheck, not a read.
 - **RLS fixes → new migration files, never edit an applied one.** Run the
   `migration-auditor` subagent before any push; QUERY the target table/policy's
@@ -104,7 +104,7 @@ admin UI.
   (signatures, server-side pricing, refund caps, portal scoping). Don't reopen it
   without new evidence.
 - The **ringside passcode claim tier** — verified forge-proof; never widens the
-  admin/PII columns. SA-011 is only about the *unthrottled direct RPC*, not the
+  admin/PII columns. SA-011 is only about the _unthrottled direct RPC_, not the
   claim design.
 
 ## Out of scope for this remediation (separate follow-ons)

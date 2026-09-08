@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatDateInTimezone,
-  formatDateRange,
-  padTrialNumber,
-} from '../utils/dateFormat';
+import { formatDateInTimezone, formatDateRange, padTrialNumber } from '../utils/dateFormat';
 
 describe('formatDateInTimezone', () => {
   it('formats short dates with year', () => {

@@ -65,9 +65,9 @@ describe('diagnosePaymentInput', () => {
     expect(diagnosePaymentInput.parse({ entryId: VALID_UUID })).toMatchObject({
       entryId: VALID_UUID,
     });
-    expect(
-      diagnosePaymentInput.parse({ paymentIntentId: 'pi_123' }),
-    ).toMatchObject({ paymentIntentId: 'pi_123' });
+    expect(diagnosePaymentInput.parse({ paymentIntentId: 'pi_123' })).toMatchObject({
+      paymentIntentId: 'pi_123',
+    });
   });
 
   it('rejects when no identifier is provided', () => {
@@ -76,7 +76,7 @@ describe('diagnosePaymentInput', () => {
 
   it('rejects when more than one identifier is provided (fail closed on ambiguity)', () => {
     expect(() =>
-      diagnosePaymentInput.parse({ entryId: VALID_UUID, paymentIntentId: 'pi_123' }),
+      diagnosePaymentInput.parse({ entryId: VALID_UUID, paymentIntentId: 'pi_123' })
     ).toThrow();
   });
 });

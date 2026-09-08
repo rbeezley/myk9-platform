@@ -31,7 +31,10 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { classKeys, useDeleteClassMutation } from '@/hooks/queries/useClassesDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
-import { applyManualClassStatus, type ManualClassStatus } from '@/services/show-day/classStatusMutations';
+import {
+  applyManualClassStatus,
+  type ManualClassStatus,
+} from '@/services/show-day/classStatusMutations';
 import type { ClassActionItem } from './classActions';
 
 export interface UseClassBulkActionsOptions {

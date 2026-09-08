@@ -39,20 +39,20 @@ limitation without claiming a local bundle run occurred.
 All functions were deployed with `--no-verify-jwt --use-api` to project
 `sojmvhhwsjxmfistvzbe`. The previous versions below are the rollback anchors.
 
-| Function | Previous | Deployed | State |
-| --- | ---: | ---: | --- |
-| `send-auth-email` | 46 | 47 | ACTIVE |
-| `send-registration-email` | 43 | 44 | ACTIVE |
-| `send-email` | 63 | 64 | ACTIVE |
-| `send-confirmation-email` | 37 | 38 | ACTIVE |
-| `send-waitlist-invite` | 30 | 31 | ACTIVE |
-| `send-results` | 12 | 13 | ACTIVE |
-| `push-trigger-support-message` | 3 | 4 | ACTIVE |
-| `send-lifecycle-email` | 2 | 3 | ACTIVE |
-| `stripe-webhook` | 77 | 78 | ACTIVE |
-| `stripe-refund-entry` | 25 | 26 | ACTIVE |
-| `stripe-refund-show` | 9 | 10 | ACTIVE |
-| `cron-process-payouts` | 25 | 26 | ACTIVE |
+| Function                       | Previous | Deployed | State  |
+| ------------------------------ | -------: | -------: | ------ |
+| `send-auth-email`              |       46 |       47 | ACTIVE |
+| `send-registration-email`      |       43 |       44 | ACTIVE |
+| `send-email`                   |       63 |       64 | ACTIVE |
+| `send-confirmation-email`      |       37 |       38 | ACTIVE |
+| `send-waitlist-invite`         |       30 |       31 | ACTIVE |
+| `send-results`                 |       12 |       13 | ACTIVE |
+| `push-trigger-support-message` |        3 |        4 | ACTIVE |
+| `send-lifecycle-email`         |        2 |        3 | ACTIVE |
+| `stripe-webhook`               |       77 |       78 | ACTIVE |
+| `stripe-refund-entry`          |       25 |       26 | ACTIVE |
+| `stripe-refund-show`           |        9 |       10 | ACTIVE |
+| `cron-process-payouts`         |       25 |       26 | ACTIVE |
 
 Post-deploy read-back confirmed all 12 functions are ACTIVE with JWT verification disabled, as
 required because the handlers perform their own authentication.

@@ -15,7 +15,7 @@ interface CompetitionTimePickerProps {
 
 /**
  * Competition Time Picker Component
- * 
+ *
  * Three separate inputs for competition time entry: Minutes : Seconds . Hundredths
  * Much more intuitive for non-computer-savvy users
  */
@@ -66,7 +66,7 @@ export const CompetitionTimePicker: React.FC<CompetitionTimePickerProps> = ({
       const mins = newMinutes || '0';
       const secs = (newSeconds || '0').padStart(2, '0');
       const hundr = (newHundredths || '0').padStart(2, '0');
-      
+
       const formattedTime = `${mins}:${secs}.${hundr}`;
       onChange?.(formattedTime);
     } else {
@@ -92,13 +92,16 @@ export const CompetitionTimePicker: React.FC<CompetitionTimePickerProps> = ({
     updateValue(minutes, seconds, val);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, field: 'minutes' | 'seconds' | 'hundredths') => {
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    field: 'minutes' | 'seconds' | 'hundredths'
+  ) => {
     // Call parent onKeyDown for table navigation
     onKeyDown?.(e);
 
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
-      
+
       if (e.shiftKey) {
         // Move backwards
         if (field === 'hundredths') {
@@ -135,45 +138,45 @@ export const CompetitionTimePicker: React.FC<CompetitionTimePickerProps> = ({
           id={id}
           value={minutes}
           onChange={handleMinutesChange}
-          onKeyDown={(e) => handleKeyDown(e, 'minutes')}
+          onKeyDown={e => handleKeyDown(e, 'minutes')}
           placeholder="0"
           className="w-12 text-center font-mono"
           disabled={disabled}
           maxLength={2}
         />
       </div>
-      
+
       <div className="flex flex-col items-center">
         <span className="text-xs opacity-0 mb-1">:</span>
         <span className="text-lg px-1 font-mono">:</span>
       </div>
-      
+
       <div className="flex flex-col items-center">
         <label className="text-xs text-muted-foreground mb-1">Sec</label>
         <Input
           ref={secondsRef}
           value={seconds}
           onChange={handleSecondsChange}
-          onKeyDown={(e) => handleKeyDown(e, 'seconds')}
+          onKeyDown={e => handleKeyDown(e, 'seconds')}
           placeholder="00"
           className="w-12 text-center font-mono"
           disabled={disabled}
           maxLength={2}
         />
       </div>
-      
+
       <div className="flex flex-col items-center">
         <span className="text-xs opacity-0 mb-1">.</span>
         <span className="text-lg px-1 font-mono">.</span>
       </div>
-      
+
       <div className="flex flex-col items-center">
         <label className="text-xs text-muted-foreground mb-1">1/100</label>
         <Input
           ref={hundredthsRef}
           value={hundredths}
           onChange={handleHundredthsChange}
-          onKeyDown={(e) => handleKeyDown(e, 'hundredths')}
+          onKeyDown={e => handleKeyDown(e, 'hundredths')}
           placeholder="00"
           className="w-12 text-center font-mono"
           disabled={disabled}

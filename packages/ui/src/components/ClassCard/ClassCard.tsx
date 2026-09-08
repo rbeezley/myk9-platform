@@ -361,9 +361,7 @@ export const ClassCard = React.forwardRef<HTMLDivElement, ClassCardProps>(
                 ))}
 
                 <span className="ml-auto text-muted-foreground whitespace-nowrap">
-                  {isCompleted
-                    ? 'All complete'
-                    : `${remainingCount} of ${entryCount} remaining`}
+                  {isCompleted ? 'All complete' : `${remainingCount} of ${entryCount} remaining`}
                 </span>
               </div>
             ) : (

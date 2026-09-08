@@ -20,8 +20,9 @@ describe('ClassCard', () => {
     render(<ClassCard {...defaultProps} />);
     expect(screen.getByText('In Progress')).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'In Progress' })).not.toBeInTheDocument();
-    expect(screen.getByText('In Progress').parentElement?.querySelector('[data-family="class"]'))
-      .toHaveAttribute('aria-hidden', 'true');
+    expect(
+      screen.getByText('In Progress').parentElement?.querySelector('[data-family="class"]')
+    ).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('keeps a cancelled class destructive instead of mapping it to neutral', () => {
@@ -84,10 +85,7 @@ describe('ClassCard', () => {
       );
       expect(screen.getByText('#102')).toBeInTheDocument();
       expect(screen.getByText('#105')).toBeInTheDocument();
-      expect(screen.getByRole('img', { name: 'In Ring' })).toHaveAttribute(
-        'data-family',
-        'entry'
-      );
+      expect(screen.getByRole('img', { name: 'In Ring' })).toHaveAttribute('data-family', 'entry');
     });
 
     it('should show up to 3 next entries', () => {
@@ -131,9 +129,7 @@ describe('ClassCard', () => {
     it('should call onCardClick when card is clicked', async () => {
       const user = userEvent.setup();
       const onCardClick = vi.fn();
-      const { container } = render(
-        <ClassCard {...defaultProps} onCardClick={onCardClick} />
-      );
+      const { container } = render(<ClassCard {...defaultProps} onCardClick={onCardClick} />);
       // Click on the card div, not a button
       const card = container.firstElementChild!;
       await user.click(card);
@@ -145,11 +141,7 @@ describe('ClassCard', () => {
       const onCardClick = vi.fn();
       const onFavoriteClick = vi.fn();
       render(
-        <ClassCard
-          {...defaultProps}
-          onCardClick={onCardClick}
-          onFavoriteClick={onFavoriteClick}
-        />
+        <ClassCard {...defaultProps} onCardClick={onCardClick} onFavoriteClick={onFavoriteClick} />
       );
       // Click the favorite button
       const buttons = screen.getAllByRole('button');
@@ -161,13 +153,7 @@ describe('ClassCard', () => {
     it('should call onStatusClick when status badge is clickable', async () => {
       const user = userEvent.setup();
       const onStatusClick = vi.fn();
-      render(
-        <ClassCard
-          {...defaultProps}
-          statusClickable
-          onStatusClick={onStatusClick}
-        />
-      );
+      render(<ClassCard {...defaultProps} statusClickable onStatusClick={onStatusClick} />);
       // Find the status button
       const statusBtn = screen.getByRole('button', { name: /In Progress/ });
       await user.click(statusBtn);
@@ -187,13 +173,7 @@ describe('ClassCard', () => {
     });
 
     it('keeps favorite and menu icon buttons at the 44px touch floor', () => {
-      render(
-        <ClassCard
-          {...defaultProps}
-          onFavoriteClick={() => {}}
-          onMenuClick={() => {}}
-        />
-      );
+      render(<ClassCard {...defaultProps} onFavoriteClick={() => {}} onMenuClick={() => {}} />);
 
       const favoriteButton = screen.getByRole('button', { name: 'Add favorite' });
       const menuButton = screen.getByRole('button', { name: 'More class actions' });
@@ -222,22 +202,12 @@ describe('ClassCard', () => {
   });
 
   it('should render warnings when provided', () => {
-    render(
-      <ClassCard
-        {...defaultProps}
-        warnings={<div data-testid="warning">Offline</div>}
-      />
-    );
+    render(<ClassCard {...defaultProps} warnings={<div data-testid="warning">Offline</div>} />);
     expect(screen.getByTestId('warning')).toBeInTheDocument();
   });
 
   it('should render custom actions', () => {
-    render(
-      <ClassCard
-        {...defaultProps}
-        actions={<button>Extra Action</button>}
-      />
-    );
+    render(<ClassCard {...defaultProps} actions={<button>Extra Action</button>} />);
     expect(screen.getByRole('button', { name: 'Extra Action' })).toBeInTheDocument();
   });
 

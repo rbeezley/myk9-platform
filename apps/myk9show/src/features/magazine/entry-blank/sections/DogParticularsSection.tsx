@@ -26,7 +26,12 @@ export function DogParticularsSection({ dog }: { dog: Dog }) {
 
       <View style={{ flexDirection: 'row' }}>
         <Field label="Date of birth" value={dog.dateOfBirth} width="33%" />
-        <Field label="Place of birth" value={dog.placeOfBirth} hint="U.S.A. · Foreign" width="33%" />
+        <Field
+          label="Place of birth"
+          value={dog.placeOfBirth}
+          hint="U.S.A. · Foreign"
+          width="33%"
+        />
         <Field label="A.K.C. registration №" value={dog.registrationNumber} width="34%" />
       </View>
 

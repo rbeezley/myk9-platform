@@ -23,7 +23,4 @@
  * contract without any wrapper.
  */
 export type EntryListPermission =
-  | 'canScore'
-  | 'canCheckInDogs'
-  | 'canChangeRunOrder'
-  | 'canManageClasses';
+  'canScore' | 'canCheckInDogs' | 'canChangeRunOrder' | 'canManageClasses';

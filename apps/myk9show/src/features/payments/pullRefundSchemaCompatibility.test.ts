@@ -22,7 +22,10 @@ describe('isPullRefundSchemaUnavailable', () => {
 
   it('does not hide unrelated database failures', () => {
     expect(
-      isPullRefundSchemaUnavailable({ code: '42501', message: 'permission denied for table entries' })
+      isPullRefundSchemaUnavailable({
+        code: '42501',
+        message: 'permission denied for table entries',
+      })
     ).toBe(false);
   });
 });

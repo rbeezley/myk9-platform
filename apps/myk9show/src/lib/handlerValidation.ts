@@ -48,10 +48,7 @@ export interface HandlerAvailability {
 /**
  * Validate if a person can handle dogs at a specific show
  */
-export function validateHandlerEligibility(
-  handler: User,
-  show: Show
-): HandlerValidationResult {
+export function validateHandlerEligibility(handler: User, show: Show): HandlerValidationResult {
   const result: HandlerValidationResult = {
     isValid: true,
     errors: [],
@@ -60,8 +57,8 @@ export function validateHandlerEligibility(
       canHandleAtShow: true,
       hasRequiredPermissions: true,
       hasConflicts: false,
-      isRegistered: true
-    }
+      isRegistered: true,
+    },
   };
 
   // Check if handler is registered in the system
@@ -72,16 +69,17 @@ export function validateHandlerEligibility(
   }
 
   // Check show-specific eligibility rules
-  const handlerRestrictions = (show as unknown as Record<string, unknown>).handlerRestrictions as Record<string, unknown> | undefined;
+  const handlerRestrictions = (show as unknown as Record<string, unknown>).handlerRestrictions as
+    Record<string, unknown> | undefined;
   if (handlerRestrictions) {
     // Check age requirements
     if (handlerRestrictions.minimumAge && typeof handlerRestrictions.minimumAge === 'number') {
-      const handlerAge = calculateAge((handler as unknown as Record<string, unknown>).dateOfBirth as string | undefined);
+      const handlerAge = calculateAge(
+        (handler as unknown as Record<string, unknown>).dateOfBirth as string | undefined
+      );
       if (handlerAge < handlerRestrictions.minimumAge) {
         result.isValid = false;
-        result.errors.push(
-          `Handler must be at least ${handlerRestrictions.minimumAge} years old`
-        );
+        result.errors.push(`Handler must be at least ${handlerRestrictions.minimumAge} years old`);
         result.eligibility.canHandleAtShow = false;
       }
     }
@@ -91,33 +89,25 @@ export function validateHandlerEligibility(
       // This would check against a professional handler registry
       // For now, we'll assume this is stored in user profile
       if (!(handler as unknown as Record<string, unknown>).isProfessionalHandler) {
-        result.warnings.push(
-          'This show may require a professional handler license'
-        );
+        result.warnings.push('This show may require a professional handler license');
       }
     }
 
     // Check insurance requirements
     if (handlerRestrictions.requiresInsurance) {
       // Check if handler has valid insurance
-      result.warnings.push(
-        'Please ensure handler has valid liability insurance'
-      );
+      result.warnings.push('Please ensure handler has valid liability insurance');
     }
 
     // Check club membership requirements
     if (handlerRestrictions.requiresClubMembership) {
-      result.warnings.push(
-        'Handler may need to be a member of the hosting club'
-      );
+      result.warnings.push('Handler may need to be a member of the hosting club');
     }
   }
 
   // Check handler permissions
   if (!checkHandlerPermissions(handler)) {
-    result.warnings.push(
-      'Handler may not have required permissions for this show type'
-    );
+    result.warnings.push('Handler may not have required permissions for this show type');
     result.eligibility.hasRequiredPermissions = false;
   }
 
@@ -143,13 +133,14 @@ export function checkHandlerConflicts(
     .map(([dogId, assignment]) => ({ dogId, assignment }));
 
   // Check for excessive number of dogs
-  if (handlerDogs.length >= 5) { // Configurable limit
+  if (handlerDogs.length >= 5) {
+    // Configurable limit
     conflicts.push({
       type: 'multiple_dogs',
       severity: 'warning',
       description: `Handler is already assigned to ${handlerDogs.length} dogs. Consider limiting assignments to ensure quality handling.`,
       affectedDogIds: handlerDogs.map(h => h.dogId),
-      suggestedResolution: 'Consider assigning additional handlers or reducing class entries.'
+      suggestedResolution: 'Consider assigning additional handlers or reducing class entries.',
     });
   }
 
@@ -189,7 +180,7 @@ export function getHandlerAvailability(
         dogId,
         dogName: assignment.handlerName, // This should be dog name, not handler name
         classCount: dogClasses.reduce((sum, c) => sum + c.selectedClasses.length, 0),
-        estimatedTime: calculateEstimatedHandlingTime(dogClasses)
+        estimatedTime: calculateEstimatedHandlingTime(dogClasses),
       };
     });
 
@@ -213,7 +204,7 @@ export function getHandlerAvailability(
     showId,
     isAvailable: allConflicts.filter(c => c.severity === 'error').length === 0,
     conflicts: allConflicts,
-    currentAssignments
+    currentAssignments,
   };
 }
 
@@ -239,7 +230,7 @@ export function suggestHandlerAssignments(
       suggestions[dogId] = {
         handlerId: owner.id,
         handlerName: `${owner.firstName} ${owner.lastName}`,
-        isOwner: true
+        isOwner: true,
       };
     } else {
       // Find best alternative handler
@@ -250,12 +241,12 @@ export function suggestHandlerAssignments(
         suggestions,
         trials
       );
-      
+
       if (bestHandler) {
         suggestions[dogId] = {
           handlerId: bestHandler.id,
           handlerName: `${bestHandler.firstName} ${bestHandler.lastName}`,
-          isOwner: false
+          isOwner: false,
         };
       }
     }
@@ -274,11 +265,11 @@ function calculateAge(dateOfBirth?: string): number {
   const birthDate = new Date(dateOfBirth);
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
-  
+
   return age;
 }
 
@@ -293,25 +284,29 @@ function checkTimeConflicts(
   classSelections: ClassSelectionData[]
 ): HandlerConflict[] {
   const conflicts: HandlerConflict[] = [];
-  
+
   // Group classes by trial and check for overlaps
-  const classesByTrial = classSelections.reduce((acc, selection) => {
-    if (!acc[selection.trialId]) {
-      acc[selection.trialId] = [];
-    }
-    acc[selection.trialId].push(...selection.selectedClasses);
-    return acc;
-  }, {} as Record<string, Array<Record<string, unknown>>>);
+  const classesByTrial = classSelections.reduce(
+    (acc, selection) => {
+      if (!acc[selection.trialId]) {
+        acc[selection.trialId] = [];
+      }
+      acc[selection.trialId].push(...selection.selectedClasses);
+      return acc;
+    },
+    {} as Record<string, Array<Record<string, unknown>>>
+  );
 
   // This is simplified - in reality you'd check actual class schedules
   Object.entries(classesByTrial).forEach(([trialId, classesInTrial]) => {
-    if (Array.isArray(classesInTrial) && classesInTrial.length > 3) { // Arbitrary limit for demo
+    if (Array.isArray(classesInTrial) && classesInTrial.length > 3) {
+      // Arbitrary limit for demo
       conflicts.push({
         type: 'time_overlap',
         severity: 'warning',
         description: `Handler may be handling too many classes in trial ${trialId}`,
         affectedClassIds: classesInTrial.map((c: Record<string, unknown>) => c.classId as string),
-        suggestedResolution: 'Consider spacing out class entries or using multiple handlers'
+        suggestedResolution: 'Consider spacing out class entries or using multiple handlers',
       });
     }
   });
@@ -335,10 +330,10 @@ function calculateEstimatedHandlingTime(classSelections: ClassSelectionData[]): 
   // Simple estimation - in reality this would be based on actual class schedules
   const totalClasses = classSelections.reduce((sum, c) => sum + c.selectedClasses.length, 0);
   const estimatedMinutes = totalClasses * 10; // 10 minutes per class average
-  
+
   const hours = Math.floor(estimatedMinutes / 60);
   const minutes = estimatedMinutes % 60;
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   }
@@ -362,26 +357,27 @@ function findBestHandlerForDog(
       existingAssignments,
       trials
     );
-    
+
     const errorCount = conflicts.filter(c => c.severity === 'error').length;
     const warningCount = conflicts.filter(c => c.severity === 'warning').length;
-    const currentAssignments = Object.values(existingAssignments)
-      .filter(a => a.handlerId === handler.id).length;
+    const currentAssignments = Object.values(existingAssignments).filter(
+      a => a.handlerId === handler.id
+    ).length;
 
     // Lower score is better
     const score = errorCount * 100 + warningCount * 10 + currentAssignments;
-    
+
     return { handler, score, conflicts };
   });
 
   // Sort by score and return the best option
   scoredHandlers.sort((a, b) => a.score - b.score);
-  
+
   // Don't suggest handlers with errors
-  const bestOption = scoredHandlers.find(s => 
-    s.conflicts.filter(c => c.severity === 'error').length === 0
+  const bestOption = scoredHandlers.find(
+    s => s.conflicts.filter(c => c.severity === 'error').length === 0
   );
-  
+
   return bestOption?.handler || null;
 }
 
@@ -404,7 +400,7 @@ export function validateAllHandlerAssignments(
     isValid: true,
     errors: [] as string[],
     warnings: [] as string[],
-    handlerDetails: {} as Record<string, HandlerAvailability>
+    handlerDetails: {} as Record<string, HandlerAvailability>,
   };
 
   // Get unique handler IDs
@@ -435,9 +431,9 @@ export function validateAllHandlerAssignments(
       allClassSelections,
       trials
     );
-    
+
     result.handlerDetails[handlerId] = availability;
-    
+
     // Add conflicts to warnings/errors
     availability.conflicts.forEach(conflict => {
       if (conflict.severity === 'error') {

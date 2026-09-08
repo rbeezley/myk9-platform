@@ -26,7 +26,7 @@ describe('useLongPress', () => {
     const { result } = renderHook(() => useLongPress(onLongPress));
 
     act(() => {
-      result.current.onTouchStart({ } as React.TouchEvent);
+      result.current.onTouchStart({} as React.TouchEvent);
     });
 
     act(() => {
@@ -38,12 +38,10 @@ describe('useLongPress', () => {
 
   it('should trigger callback after custom delay', () => {
     const onLongPress = vi.fn();
-    const { result } = renderHook(() =>
-      useLongPress(onLongPress, { delay: 500 })
-    );
+    const { result } = renderHook(() => useLongPress(onLongPress, { delay: 500 }));
 
     act(() => {
-      result.current.onTouchStart({ } as React.TouchEvent);
+      result.current.onTouchStart({} as React.TouchEvent);
     });
 
     act(() => {
@@ -64,7 +62,7 @@ describe('useLongPress', () => {
     const { result } = renderHook(() => useLongPress(onLongPress));
 
     act(() => {
-      result.current.onTouchStart({ } as React.TouchEvent);
+      result.current.onTouchStart({} as React.TouchEvent);
     });
 
     act(() => {
@@ -72,7 +70,7 @@ describe('useLongPress', () => {
     });
 
     act(() => {
-      result.current.onTouchEnd({ } as React.TouchEvent);
+      result.current.onTouchEnd({} as React.TouchEvent);
     });
 
     act(() => {
@@ -95,7 +93,7 @@ describe('useLongPress', () => {
     });
 
     act(() => {
-      result.current.onMouseLeave({ } as React.MouseEvent);
+      result.current.onMouseLeave({} as React.MouseEvent);
     });
 
     act(() => {
@@ -123,12 +121,10 @@ describe('useLongPress', () => {
 
   it('should not trigger when disabled', () => {
     const onLongPress = vi.fn();
-    const { result } = renderHook(() =>
-      useLongPress(onLongPress, { enabled: false })
-    );
+    const { result } = renderHook(() => useLongPress(onLongPress, { enabled: false }));
 
     act(() => {
-      result.current.onTouchStart({ } as React.TouchEvent);
+      result.current.onTouchStart({} as React.TouchEvent);
     });
 
     act(() => {
@@ -141,12 +137,10 @@ describe('useLongPress', () => {
   it('should call onHaptic when long press triggers', () => {
     const onLongPress = vi.fn();
     const onHaptic = vi.fn();
-    const { result } = renderHook(() =>
-      useLongPress(onLongPress, { onHaptic })
-    );
+    const { result } = renderHook(() => useLongPress(onLongPress, { onHaptic }));
 
     act(() => {
-      result.current.onTouchStart({ } as React.TouchEvent);
+      result.current.onTouchStart({} as React.TouchEvent);
     });
 
     act(() => {
@@ -159,12 +153,10 @@ describe('useLongPress', () => {
   it('should call onLongPressStart when long press triggers', () => {
     const onLongPress = vi.fn();
     const onLongPressStart = vi.fn();
-    const { result } = renderHook(() =>
-      useLongPress(onLongPress, { onLongPressStart })
-    );
+    const { result } = renderHook(() => useLongPress(onLongPress, { onLongPressStart }));
 
     act(() => {
-      result.current.onTouchStart({ } as React.TouchEvent);
+      result.current.onTouchStart({} as React.TouchEvent);
     });
 
     act(() => {
@@ -202,7 +194,7 @@ describe('useLongPress', () => {
     });
 
     act(() => {
-      result.current.onMouseUp({ } as React.MouseEvent);
+      result.current.onMouseUp({} as React.MouseEvent);
     });
 
     act(() => {

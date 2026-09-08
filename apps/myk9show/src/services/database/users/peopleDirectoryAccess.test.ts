@@ -57,9 +57,7 @@ describe('shouldLoadPeopleDirectory (SA-008 fetch gate)', () => {
   });
 
   it('returns true for a mixed exhibitor+secretary session (management role wins)', () => {
-    expect(
-      shouldLoadPeopleDirectory([UserRole.EXHIBITOR, UserRole.SECRETARY])
-    ).toBe(true);
+    expect(shouldLoadPeopleDirectory([UserRole.EXHIBITOR, UserRole.SECRETARY])).toBe(true);
   });
 
   it('accepts raw role strings (roles arrive as string enum values)', () => {

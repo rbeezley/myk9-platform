@@ -41,15 +41,15 @@ It loads show-wide entry rows, filters them by status/payment/trial/class/search
 
 **Misalignment gaps:**
 
-| UI Element | User Expects | Actually Does | Severity |
-| --- | --- | --- | --- |
-| `Review` quick view | A focused list of entries needing a secretary decision | Sets `attention=pending`, table view, and review-mode row actions | High |
-| `Day-of` quick view | A show-day operations view | Sets `attention=accepted`, table view, but still includes registration/payment concepts | High |
-| `Payment due` preset | A payment work queue | Changes payment filter and other view state, while payment actions remain mixed into row menus | Medium |
-| `Attention` filter | A short list of urgent categories | Includes ordinary lifecycle states (`Accepted`, `Waitlist`) alongside “Issues” and missing information | Medium |
-| `Entries / Move-ups / Pulls / Waitlist` tabs | Four equivalent views of entries | Three tabs replace the entire content app with different operational concerns | High |
-| `Roster` toggle | A different representation of the current entry set | Fetches a class-grouped roster with a second table and different columns/actions | High |
-| Status/payment/email badges in one cell | A concise entry state | Several independent workflows compressed into one visual cluster | High |
+| UI Element                                   | User Expects                                           | Actually Does                                                                                          | Severity |
+| -------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | -------- |
+| `Review` quick view                          | A focused list of entries needing a secretary decision | Sets `attention=pending`, table view, and review-mode row actions                                      | High     |
+| `Day-of` quick view                          | A show-day operations view                             | Sets `attention=accepted`, table view, but still includes registration/payment concepts                | High     |
+| `Payment due` preset                         | A payment work queue                                   | Changes payment filter and other view state, while payment actions remain mixed into row menus         | Medium   |
+| `Attention` filter                           | A short list of urgent categories                      | Includes ordinary lifecycle states (`Accepted`, `Waitlist`) alongside “Issues” and missing information | Medium   |
+| `Entries / Move-ups / Pulls / Waitlist` tabs | Four equivalent views of entries                       | Three tabs replace the entire content app with different operational concerns                          | High     |
+| `Roster` toggle                              | A different representation of the current entry set    | Fetches a class-grouped roster with a second table and different columns/actions                       | High     |
+| Status/payment/email badges in one cell      | A concise entry state                                  | Several independent workflows compressed into one visual cluster                                       | High     |
 
 **Jargon found:**
 
@@ -79,14 +79,14 @@ The primary work controls are below context, tabs, scope, breadcrumbs, and six c
 
 **IA issues:**
 
-| Issue | Location | Problem | Recommendation |
-| --- | --- | --- | --- |
-| Too many peer destinations | Page tabs | Exceptions look equal to the main entry queue even though they have different jobs and different data models | Make `Entries` the primary queue and group Move-ups, Pulls, and Waitlist under a clearly labeled `Exceptions` destination or drawer |
-| Multiple control axes | Quick views + filters + view options | A secretary must know which control owns status, payment, mode, layout, and scope | Use one primary work-mode control; move secondary filters under `More filters` and keep display settings separate |
-| Scope appears before purpose | Trial/Class filters above stats and queue | The secretary chooses a scope before seeing what needs attention in it | Put queue purpose first, then allow scope to narrow it; retain URL deep links |
-| Summary competes with work | Six stat cards | Revenue and outstanding balance receive the same visual weight as pending decisions | Replace with a compact queue summary strip; move financial totals into a secondary summary or payment view |
-| Duplicate representations | Table, cards, enrollment cards, roster table | The same people/entries can appear in several shapes with different actions and status treatments | Use one canonical entry list; make responsive layout a rendering detail, not a separate conceptual mode |
-| Context links are additive | RelatedContextLinks plus TrialScopeBar | Navigation to related pages is mixed into the filter/work area | Keep deep links, but place them in a compact “Related” menu or scope header |
+| Issue                        | Location                                     | Problem                                                                                                      | Recommendation                                                                                                                      |
+| ---------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Too many peer destinations   | Page tabs                                    | Exceptions look equal to the main entry queue even though they have different jobs and different data models | Make `Entries` the primary queue and group Move-ups, Pulls, and Waitlist under a clearly labeled `Exceptions` destination or drawer |
+| Multiple control axes        | Quick views + filters + view options         | A secretary must know which control owns status, payment, mode, layout, and scope                            | Use one primary work-mode control; move secondary filters under `More filters` and keep display settings separate                   |
+| Scope appears before purpose | Trial/Class filters above stats and queue    | The secretary chooses a scope before seeing what needs attention in it                                       | Put queue purpose first, then allow scope to narrow it; retain URL deep links                                                       |
+| Summary competes with work   | Six stat cards                               | Revenue and outstanding balance receive the same visual weight as pending decisions                          | Replace with a compact queue summary strip; move financial totals into a secondary summary or payment view                          |
+| Duplicate representations    | Table, cards, enrollment cards, roster table | The same people/entries can appear in several shapes with different actions and status treatments            | Use one canonical entry list; make responsive layout a rendering detail, not a separate conceptual mode                             |
+| Context links are additive   | RelatedContextLinks plus TrialScopeBar       | Navigation to related pages is mixed into the filter/work area                                               | Keep deep links, but place them in a compact “Related” menu or scope header                                                         |
 
 **Visibility problems:**
 
@@ -107,17 +107,17 @@ Prominent but should be secondary:
 
 **Affordance audit:**
 
-| Element | Looks Like | Actually Is | Clear? |
-| --- | --- | --- | --- |
-| Quick view buttons | Primary navigation | URL-writing compound presets | Partly |
-| Attention filter | Status tab | A mixed status/issue filter | Partly |
-| Payment badge on enrollment card | Read-only status | Dropdown trigger for payment mutations | No |
-| Entry status badge in list card | Status label | Dropdown trigger for lifecycle changes | Partly |
-| Row action menu | Overflow actions | Contains core status, payment, email, refund, armband, and destructive operations | No |
-| Class badges | Class identity | Mostly static labels, but visually compete with state badges | Yes, but too loud |
-| Email status icon/badge | Communication state | May open resend or lifecycle-email review actions | No |
-| Roster/List buttons | Alternate display | Roster changes data source/shape and adds class grouping | Partly |
-| `Score this class` | Related navigation | Deep link to a separate scoring surface | Yes |
+| Element                          | Looks Like          | Actually Is                                                                       | Clear?            |
+| -------------------------------- | ------------------- | --------------------------------------------------------------------------------- | ----------------- |
+| Quick view buttons               | Primary navigation  | URL-writing compound presets                                                      | Partly            |
+| Attention filter                 | Status tab          | A mixed status/issue filter                                                       | Partly            |
+| Payment badge on enrollment card | Read-only status    | Dropdown trigger for payment mutations                                            | No                |
+| Entry status badge in list card  | Status label        | Dropdown trigger for lifecycle changes                                            | Partly            |
+| Row action menu                  | Overflow actions    | Contains core status, payment, email, refund, armband, and destructive operations | No                |
+| Class badges                     | Class identity      | Mostly static labels, but visually compete with state badges                      | Yes, but too loud |
+| Email status icon/badge          | Communication state | May open resend or lifecycle-email review actions                                 | No                |
+| Roster/List buttons              | Alternate display   | Roster changes data source/shape and adds class grouping                          | Partly            |
+| `Score this class`               | Related navigation  | Deep link to a separate scoring surface                                           | Yes               |
 
 **False affordances:**
 
@@ -142,13 +142,13 @@ Prominent but should be secondary:
 
 **Decision points:**
 
-| Screen/Step | Decisions Required | Can Be Reduced? |
-| --- | --- | --- |
-| Opening the page | Which tab, which quick view, which trial/class, which filters, which display preset | Yes: land in one queue with a recommended work mode and optional scope |
-| Reviewing an entry | Interpret status, payment, email, lifecycle email, classes, and notes before choosing an action | Yes: promote the next decision and collapse secondary signals |
-| Managing payment | Identify enrollment vs entry ownership, then find a badge/menu | Yes: make payment a distinct action area or payment queue |
-| Show-day preparation | Decide between Day-of, accepted attention, show-day display, roster, and class scope | Yes: use one Show day queue and a direct class roster deep link |
-| Bulk actions | Select rows, understand which hidden filters apply, choose status/check-in action | Partly: show the active queue and selection scope beside the bulk bar |
+| Screen/Step          | Decisions Required                                                                              | Can Be Reduced?                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Opening the page     | Which tab, which quick view, which trial/class, which filters, which display preset             | Yes: land in one queue with a recommended work mode and optional scope |
+| Reviewing an entry   | Interpret status, payment, email, lifecycle email, classes, and notes before choosing an action | Yes: promote the next decision and collapse secondary signals          |
+| Managing payment     | Identify enrollment vs entry ownership, then find a badge/menu                                  | Yes: make payment a distinct action area or payment queue              |
+| Show-day preparation | Decide between Day-of, accepted attention, show-day display, roster, and class scope            | Yes: use one Show day queue and a direct class roster deep link        |
+| Bulk actions         | Select rows, understand which hidden filters apply, choose status/check-in action               | Partly: show the active queue and selection scope beside the bulk bar  |
 
 **Missing defaults:**
 
@@ -158,13 +158,13 @@ Prominent but should be secondary:
 
 **Unnecessary complexity:**
 
-| Complexity | Who Needs It | Recommendation |
-| --- | --- | --- |
-| Saved views | Repeat/power users | Keep behind View options; do not let it shape the primary layout |
-| Density and display preset | Users with specific screen/workflow preferences | Keep behind View options and remember preferences |
-| Enrollment cards plus entry cards | Payment/enrollment workflows | Use a secondary enrollment detail drawer or dedicated payment queue; do not duplicate the default list |
-| Lifecycle email state in every row | Secretaries actively sending decisions | Show only when relevant to the current queue; keep full history in the entry detail/action surface |
-| Six top-level statistics | Oversight/reporting | Reduce to queue counts and move financial summary into a separate compact section |
+| Complexity                         | Who Needs It                                    | Recommendation                                                                                         |
+| ---------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Saved views                        | Repeat/power users                              | Keep behind View options; do not let it shape the primary layout                                       |
+| Density and display preset         | Users with specific screen/workflow preferences | Keep behind View options and remember preferences                                                      |
+| Enrollment cards plus entry cards  | Payment/enrollment workflows                    | Use a secondary enrollment detail drawer or dedicated payment queue; do not duplicate the default list |
+| Lifecycle email state in every row | Secretaries actively sending decisions          | Show only when relevant to the current queue; keep full history in the entry detail/action surface     |
+| Six top-level statistics           | Oversight/reporting                             | Reduce to queue counts and move financial summary into a separate compact section                      |
 
 **Cognitive load score:** **High.** The page asks the secretary to choose a representation before choosing a task, then presents multiple independent statuses in each row. It is capable but not calm.
 
@@ -172,25 +172,25 @@ Prominent but should be secondary:
 
 ### Main Entry Queue
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty show | Yes | Good | Add-entry CTA exists; page still carries substantial controls around an empty result |
-| Empty filtered result | Yes | Good | Clear filters exists; the reason for zero results should name the active queue/scope |
-| Loading | Yes | Good | Table-shaped skeleton is appropriate |
-| Success | Yes | Mixed | The successful state exposes too many simultaneous controls |
-| Partial | Yes | Mixed | Payment, email, and missing-info states are represented, but not hierarchically |
-| Error loading | Yes | Good | Retry path is explicit |
-| Action error | Yes | Mixed | Global alert can compete with the row that needs recovery |
-| Offline/sync pending | Indirect | Mixed | Underlying offline behavior exists, but entry actions do not make save/sync state locally obvious |
+| State                 | Implemented? | Quality | Issue                                                                                             |
+| --------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------- |
+| Empty show            | Yes          | Good    | Add-entry CTA exists; page still carries substantial controls around an empty result              |
+| Empty filtered result | Yes          | Good    | Clear filters exists; the reason for zero results should name the active queue/scope              |
+| Loading               | Yes          | Good    | Table-shaped skeleton is appropriate                                                              |
+| Success               | Yes          | Mixed   | The successful state exposes too many simultaneous controls                                       |
+| Partial               | Yes          | Mixed   | Payment, email, and missing-info states are represented, but not hierarchically                   |
+| Error loading         | Yes          | Good    | Retry path is explicit                                                                            |
+| Action error          | Yes          | Mixed   | Global alert can compete with the row that needs recovery                                         |
+| Offline/sync pending  | Indirect     | Mixed   | Underlying offline behavior exists, but entry actions do not make save/sync state locally obvious |
 
 ### Exception Queues
 
-| State | Implemented? | Quality | Issue |
-| --- | --- | --- | --- |
-| Empty move-ups/pulls/waitlist | Yes | Unknown without visual walk | Each surface should have a task-specific explanation and next step |
-| Loading | Yes/varies | Mixed | Separate sub-surfaces create inconsistent loading and empty language |
-| Error | Yes/varies | Mixed | Error recovery is not unified across the four page tabs |
-| Return to main queue | Yes via tabs | Weak | The current peer-tab model does not communicate that these are exceptions to the main workflow |
+| State                         | Implemented? | Quality                     | Issue                                                                                          |
+| ----------------------------- | ------------ | --------------------------- | ---------------------------------------------------------------------------------------------- |
+| Empty move-ups/pulls/waitlist | Yes          | Unknown without visual walk | Each surface should have a task-specific explanation and next step                             |
+| Loading                       | Yes/varies   | Mixed                       | Separate sub-surfaces create inconsistent loading and empty language                           |
+| Error                         | Yes/varies   | Mixed                       | Error recovery is not unified across the four page tabs                                        |
+| Return to main queue          | Yes via tabs | Weak                        | The current peer-tab model does not communicate that these are exceptions to the main workflow |
 
 **Dead ends found:**
 
@@ -281,15 +281,15 @@ Keep responsive cards as a rendering adaptation if necessary, but remove the con
 
 Suggested default columns:
 
-| Column | Content |
-| --- | --- |
-| Select | Bulk selection |
+| Column        | Content                                                       |
+| ------------- | ------------------------------------------------------------- |
+| Select        | Bulk selection                                                |
 | Dog / handler | Dog name, handler, entry number/armband in one identity block |
-| Classes | Plain text class names or “N classes,” not a badge wall |
-| Entry status | One clickable primary status |
-| Payment | Quiet status + amount due when relevant |
-| Next action | One prominent action when the row needs work |
-| More | Secondary actions |
+| Classes       | Plain text class names or “N classes,” not a badge wall       |
+| Entry status  | One clickable primary status                                  |
+| Payment       | Quiet status + amount due when relevant                       |
+| Next action   | One prominent action when the row needs work                  |
+| More          | Secondary actions                                             |
 
 Show-day mode may reorder or add check-in, but should remain the same row model.
 

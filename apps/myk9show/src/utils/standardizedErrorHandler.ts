@@ -45,14 +45,14 @@ export class StandardErrorHandler {
     metadata?: Record<string, unknown>
   ): void {
     const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
-    
+
     logger.warn('Sync operation failed', 'store', {
       operation,
       entityType,
       entityId,
       error: errorMessage,
       metadata,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // For critical sync failures, also report to monitoring
@@ -62,7 +62,7 @@ export class StandardErrorHandler {
         entityType,
         entityId,
         error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
     }
   }
@@ -77,14 +77,14 @@ export class StandardErrorHandler {
     context?: Record<string, unknown>
   ): void {
     const errorMessage = error instanceof Error ? error.message : String(error || 'Unknown error');
-    
+
     logger.error('Store operation failed', 'store', {
       operation,
       storeName,
       error: errorMessage,
       context,
       stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -104,7 +104,7 @@ export class StandardErrorHandler {
       rule,
       error,
       context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -119,7 +119,7 @@ export class StandardErrorHandler {
     context?: Record<string, unknown>
   ): void {
     const errorMessage = error instanceof Error ? error.message : error;
-    
+
     logger.error('Network request failed', 'network', {
       endpoint,
       method,
@@ -127,7 +127,7 @@ export class StandardErrorHandler {
       error: errorMessage,
       context,
       stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -141,14 +141,14 @@ export class StandardErrorHandler {
     props?: Record<string, unknown>
   ): void {
     const errorMessage = error instanceof Error ? error.message : error;
-    
+
     logger.error('Component error', 'component', {
       componentName,
       lifecycle,
       error: errorMessage,
       props,
       stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -163,7 +163,7 @@ export class StandardErrorHandler {
     data?: unknown
   ): void {
     const errorMessage = error instanceof Error ? error.message : error;
-    
+
     logger.error('Data migration failed', 'migration', {
       migrationType,
       fromVersion,
@@ -171,50 +171,38 @@ export class StandardErrorHandler {
       error: errorMessage,
       dataType: typeof data,
       stack: error instanceof Error ? error.stack : undefined,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
   /**
    * Report business logic warnings (non-critical issues)
    */
-  static reportWarning(
-    category: string,
-    message: string,
-    context?: Record<string, unknown>
-  ): void {
+  static reportWarning(category: string, message: string, context?: Record<string, unknown>): void {
     logger.warn(message, category, {
       ...context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
   /**
    * Report informational events (for debugging/auditing)
    */
-  static reportInfo(
-    category: string,
-    message: string,
-    context?: Record<string, unknown>
-  ): void {
+  static reportInfo(category: string, message: string, context?: Record<string, unknown>): void {
     logger.info(message, category, {
       ...context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
   /**
    * Report debugging information (development only)
    */
-  static reportDebug(
-    category: string,
-    message: string,
-    context?: Record<string, unknown>
-  ): void {
+  static reportDebug(category: string, message: string, context?: Record<string, unknown>): void {
     if (process.env.NODE_ENV === 'development') {
       logger.debug(message, category, {
         ...context,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -232,7 +220,7 @@ export class StandardErrorHandler {
     }${context.entityId ? `:${context.entityId}` : ''})`;
 
     const error = new Error(contextualMessage);
-    
+
     if (originalError) {
       if (originalError.stack !== undefined) {
         error.stack = originalError.stack;
@@ -245,7 +233,7 @@ export class StandardErrorHandler {
     Object.defineProperty(error, 'context', {
       value: context,
       writable: false,
-      enumerable: false
+      enumerable: false,
     });
 
     return error;
@@ -286,7 +274,7 @@ export class StandardErrorHandler {
 
 export const reportSyncError = StandardErrorHandler.reportSyncError;
 export const reportStoreError = StandardErrorHandler.reportStoreError;
-export const reportValidationError = StandardErrorHandler.reportValidationError;  
+export const reportValidationError = StandardErrorHandler.reportValidationError;
 export const reportNetworkError = StandardErrorHandler.reportNetworkError;
 export const reportComponentError = StandardErrorHandler.reportComponentError;
 export const reportMigrationError = StandardErrorHandler.reportMigrationError;
@@ -302,29 +290,29 @@ export const ERROR_MIGRATION_PATTERNS = {
   // Replace console.warn patterns
   SYNC_WARNING: {
     pattern: /console\.warn\(['"`]Failed to queue (.+) for sync:['"`], syncError\)/g,
-    replacement: `reportSyncError('queue', '$1', entityId, syncError)`
+    replacement: `reportSyncError('queue', '$1', entityId, syncError)`,
   },
-  
+
   GENERIC_WARNING: {
     pattern: /console\.warn\((.+)\)/g,
-    replacement: `reportWarning('general', $1)`
+    replacement: `reportWarning('general', $1)`,
   },
-  
-  // Replace console.error patterns  
+
+  // Replace console.error patterns
   STORE_ERROR: {
     pattern: /console\.error\(['"`](.+):['"`], error\)/g,
-    replacement: `reportStoreError('$1', storeName, error)`
+    replacement: `reportStoreError('$1', storeName, error)`,
   },
-  
+
   MIGRATION_ERROR: {
     pattern: /console\.error\(['"`]Migration error: (.+)['"`]\)/g,
-    replacement: `reportMigrationError('data', 'unknown', 'unknown', '$1')`
+    replacement: `reportMigrationError('data', 'unknown', 'unknown', '$1')`,
   },
-  
+
   GENERIC_ERROR: {
     pattern: /console\.error\((.+)\)/g,
-    replacement: `reportStoreError('operation', 'unknown', $1)`
-  }
+    replacement: `reportStoreError('operation', 'unknown', $1)`,
+  },
 };
 
 /**

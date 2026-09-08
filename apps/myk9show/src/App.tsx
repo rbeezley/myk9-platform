@@ -215,27 +215,27 @@ function App() {
             <NotificationMonitorInitializer />
             <AudioSettingsProvider>
               <UnsavedChangesRouteGuardProvider>
-                  <ExhibitorOnboardingChecker>
-                    <ErrorBoundary
-                      level="page"
-                      context="Application"
-                      fallback={({ error, resetErrorBoundary }) => (
-                        <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
-                      )}
-                    >
-                      <AppShellMobileNavProvider>
-                        <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                          <PWAInstallBanner />
-                          <RbacOfflineNotice />
-                          <AppHeader />
-                          <NotificationCenter />
-                          <AppToaster />
-                          <ToastContainer />
-                          <Outlet />
-                        </div>
-                      </AppShellMobileNavProvider>
-                    </ErrorBoundary>
-                  </ExhibitorOnboardingChecker>
+                <ExhibitorOnboardingChecker>
+                  <ErrorBoundary
+                    level="page"
+                    context="Application"
+                    fallback={({ error, resetErrorBoundary }) => (
+                      <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
+                    )}
+                  >
+                    <AppShellMobileNavProvider>
+                      <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                        <PWAInstallBanner />
+                        <RbacOfflineNotice />
+                        <AppHeader />
+                        <NotificationCenter />
+                        <AppToaster />
+                        <ToastContainer />
+                        <Outlet />
+                      </div>
+                    </AppShellMobileNavProvider>
+                  </ErrorBoundary>
+                </ExhibitorOnboardingChecker>
               </UnsavedChangesRouteGuardProvider>
             </AudioSettingsProvider>
           </AuthProvider>

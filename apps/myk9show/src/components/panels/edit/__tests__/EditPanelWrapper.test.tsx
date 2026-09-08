@@ -127,36 +127,36 @@ describe('EditPanelWrapper with schema', () => {
   });
 
   it('keeps the complete action group prioritized by its responsive class contract', async () => {
-      render(
-        <EditPanelWrapper
-          open
-          onClose={vi.fn()}
-          title="Test"
-          initialData={{ name: 'Original' }}
-          schema={testSchema}
-          onSave={vi.fn()}
-          variant="dialog"
-        >
-          <TestFormFields />
-        </EditPanelWrapper>
-      );
+    render(
+      <EditPanelWrapper
+        open
+        onClose={vi.fn()}
+        title="Test"
+        initialData={{ name: 'Original' }}
+        schema={testSchema}
+        onSave={vi.fn()}
+        variant="dialog"
+      >
+        <TestFormFields />
+      </EditPanelWrapper>
+    );
 
-      const user = userEvent.setup();
-      await user.clear(screen.getByRole('textbox', { name: /name/i }));
-      await user.type(screen.getByRole('textbox', { name: /name/i }), 'Updated');
+    const user = userEvent.setup();
+    await user.clear(screen.getByRole('textbox', { name: /name/i }));
+    await user.type(screen.getByRole('textbox', { name: /name/i }), 'Updated');
 
-      expect(screen.getByTestId('edit-panel-action-row')).toHaveClass('flex-wrap', 'gap-y-2');
-      expect(screen.getByTestId('edit-panel-status-group')).toHaveClass('min-w-0');
-      expect(screen.getByTestId('edit-panel-action-group')).toHaveClass(
-        'w-full',
-        'shrink-0',
-        'flex-wrap',
-        'sm:w-auto'
-      );
-      expect(screen.getByText('Unsaved changes')).toHaveClass('hidden', 'sm:inline');
-      const saveButton = screen.getByRole('button', { name: 'Save Changes' });
-      expect(saveButton).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
-      expect(saveButton).toHaveTextContent('Save Changes');
+    expect(screen.getByTestId('edit-panel-action-row')).toHaveClass('flex-wrap', 'gap-y-2');
+    expect(screen.getByTestId('edit-panel-status-group')).toHaveClass('min-w-0');
+    expect(screen.getByTestId('edit-panel-action-group')).toHaveClass(
+      'w-full',
+      'shrink-0',
+      'flex-wrap',
+      'sm:w-auto'
+    );
+    expect(screen.getByText('Unsaved changes')).toHaveClass('hidden', 'sm:inline');
+    const saveButton = screen.getByRole('button', { name: 'Save Changes' });
+    expect(saveButton).toHaveClass('min-w-0', 'flex-1', 'sm:flex-none');
+    expect(saveButton).toHaveTextContent('Save Changes');
   });
 
   it('renders a complete, expandable validation summary above the action row', async () => {

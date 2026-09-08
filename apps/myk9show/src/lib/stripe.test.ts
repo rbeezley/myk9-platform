@@ -23,7 +23,10 @@ import { createEntryCheckoutSession, STRIPE_CHECKOUT_SESSION_ID_TOKEN } from './
 
 /** The success_url the client asked the edge function to hand Stripe. */
 async function successUrlFor(options?: { splitCheckoutId?: string }): Promise<string> {
-  invoke.mockResolvedValue({ data: { url: 'https://checkout.stripe.com/c/pay/cs_test_x' }, error: null });
+  invoke.mockResolvedValue({
+    data: { url: 'https://checkout.stripe.com/c/pay/cs_test_x' },
+    error: null,
+  });
   await createEntryCheckoutSession('cart-1', options);
   expect(invoke).toHaveBeenCalledTimes(1);
   const body = (invoke.mock.calls[0][1] as { body: { success_url: string } }).body;

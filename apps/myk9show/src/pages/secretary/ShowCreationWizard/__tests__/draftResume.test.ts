@@ -40,7 +40,9 @@ describe('shouldOfferDraftResume', () => {
   it('stays silent while the secretary is actively typing a new show', () => {
     // Without this, the banner would appear on the first keystroke and offer to
     // "resume" the show being created right now.
-    expect(shouldOfferDraftResume({ ...base, showName: 'Spring Classic', isDirty: true })).toBe(false);
+    expect(shouldOfferDraftResume({ ...base, showName: 'Spring Classic', isDirty: true })).toBe(
+      false
+    );
   });
 
   it('stays silent once she has chosen to start fresh', () => {

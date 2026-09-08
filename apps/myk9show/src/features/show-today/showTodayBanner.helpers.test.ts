@@ -59,9 +59,7 @@ describe('formatClassTime', () => {
   });
 });
 
-const entry = (
-  overrides: Partial<HydratedAccountTodayEntry>
-): HydratedAccountTodayEntry => ({
+const entry = (overrides: Partial<HydratedAccountTodayEntry>): HydratedAccountTodayEntry => ({
   entryId: 'entry-1',
   showId: 'show-1',
   showName: 'Spring Trial',

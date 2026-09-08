@@ -79,7 +79,9 @@ const statusActions: Array<EntityAction<ClassActionItem, ClassActionHandlers>> =
       applicableWhen: (item, handlers) =>
         Boolean(handlers.onBulkStatusChange) && item.status !== status,
       label: (eligibleCount, selectedCount) =>
-        eligibleCount > 0 ? `Mark ${eligibleCount} of ${selectedCount} ${status}` : `Mark ${status}`,
+        eligibleCount > 0
+          ? `Mark ${eligibleCount} of ${selectedCount} ${status}`
+          : `Mark ${status}`,
       unavailableReason: `No selected classes can be marked ${status}`,
       run: (eligible, handlers) =>
         runBulkAndClear(handlers, onFullSuccess =>

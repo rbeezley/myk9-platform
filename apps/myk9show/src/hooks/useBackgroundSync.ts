@@ -17,11 +17,13 @@ export interface BackgroundSyncState {
   isSyncing: boolean;
   queueSize: number;
   lastSyncAt?: Date | undefined;
-  syncProgress?: {
-    completed: number;
-    total: number;
-    currentEntity?: string | undefined;
-  } | undefined;
+  syncProgress?:
+    | {
+        completed: number;
+        total: number;
+        currentEntity?: string | undefined;
+      }
+    | undefined;
   error?: string | undefined;
   metrics: SyncMetrics;
   networkState: NetworkState;
@@ -37,13 +39,13 @@ export function useBackgroundSync() {
       averageSyncTime: 0,
       conflictRate: 0,
       offlineUsageTime: 0,
-      queueSize: 0
+      queueSize: 0,
     },
     networkState: {
       isOnline: navigator.onLine,
       quality: 'good',
-      lastChecked: new Date()
-    }
+      lastChecked: new Date(),
+    },
   });
 
   // Update sync state from service
@@ -51,7 +53,11 @@ export function useBackgroundSync() {
     try {
       const stats = backgroundSyncService.getSyncStatistics();
       const networkStatus = backgroundSyncService.getNetworkStatus();
-      const networkState = buildNetworkState(networkStatus.online, networkStatus.quality, networkStatus.downlink);
+      const networkState = buildNetworkState(
+        networkStatus.online,
+        networkStatus.quality,
+        networkStatus.downlink
+      );
       const metricsWithDate = calculateSyncMetrics(stats);
 
       setSyncState(prev => ({
@@ -60,7 +66,7 @@ export function useBackgroundSync() {
         metrics: metricsWithDate,
         lastSyncAt: metricsWithDate.lastSyncAt,
         networkState,
-        isOnline: networkState.isOnline
+        isOnline: networkState.isOnline,
       }));
     } catch (error) {
       logger.error('Failed to update sync state:', 'hooks', {}, ensureError(error));
@@ -68,32 +74,40 @@ export function useBackgroundSync() {
   }, []);
 
   // Handle sync events
-  const handleSyncEvent = useCallback((event: SyncEvent) => {
-    switch (event.type) {
-      case 'sync-started':
-        setSyncState(prev => ({ ...prev, isSyncing: true, error: undefined }));
-        break;
+  const handleSyncEvent = useCallback(
+    (event: SyncEvent) => {
+      switch (event.type) {
+        case 'sync-started':
+          setSyncState(prev => ({ ...prev, isSyncing: true, error: undefined }));
+          break;
 
-      case 'sync-completed':
-        setSyncState(prev => ({ ...prev, isSyncing: false, lastSyncAt: new Date(), error: undefined }));
-        updateSyncState();
-        break;
+        case 'sync-completed':
+          setSyncState(prev => ({
+            ...prev,
+            isSyncing: false,
+            lastSyncAt: new Date(),
+            error: undefined,
+          }));
+          updateSyncState();
+          break;
 
-      case 'sync-failed':
-        setSyncState(prev => ({
-          ...prev,
-          isSyncing: false,
-          error: (event.details?.error as string) || 'Sync failed'
-        }));
-        updateSyncState();
-        break;
+        case 'sync-failed':
+          setSyncState(prev => ({
+            ...prev,
+            isSyncing: false,
+            error: (event.details?.error as string) || 'Sync failed',
+          }));
+          updateSyncState();
+          break;
 
-      case 'conflict-detected':
-      case 'conflict-resolved':
-        updateSyncState();
-        break;
-    }
-  }, [updateSyncState]);
+        case 'conflict-detected':
+        case 'conflict-resolved':
+          updateSyncState();
+          break;
+      }
+    },
+    [updateSyncState]
+  );
 
   // Force sync now
   const forceSyncNow = useCallback(async () => {
@@ -106,7 +120,7 @@ export function useBackgroundSync() {
       setSyncState(prev => ({
         ...prev,
         isSyncing: false,
-        error: error instanceof Error ? error.message : 'Manual sync failed'
+        error: error instanceof Error ? error.message : 'Manual sync failed',
       }));
     }
   }, [updateSyncState]);
@@ -116,36 +130,37 @@ export function useBackgroundSync() {
     setSyncState(prev => ({ ...prev, error: undefined }));
   }, []);
 
-  const getEntitySyncStatus = useCallback((entityType: string, entityId: string): 'synced' | 'pending' | 'error' | 'conflict' => {
-    const pendingTasks = backgroundSyncService.getPendingSyncTasks();
-    const entityTasks = pendingTasks.filter(
-      task => task.entity === entityType && task.entityId === entityId
-    );
+  const getEntitySyncStatus = useCallback(
+    (entityType: string, entityId: string): 'synced' | 'pending' | 'error' | 'conflict' => {
+      const pendingTasks = backgroundSyncService.getPendingSyncTasks();
+      const entityTasks = pendingTasks.filter(
+        task => task.entity === entityType && task.entityId === entityId
+      );
 
-    if (entityTasks.length === 0) {
-      return 'synced';
-    }
+      if (entityTasks.length === 0) {
+        return 'synced';
+      }
 
-    const results = backgroundSyncService.getSyncResults();
-    const entityResults = results.filter(r => {
-      const matchingTask = entityTasks.find(t => t.id === r.taskId);
-      return !!matchingTask;
-    });
+      const results = backgroundSyncService.getSyncResults();
+      const entityResults = results.filter(r => {
+        const matchingTask = entityTasks.find(t => t.id === r.taskId);
+        return !!matchingTask;
+      });
 
-    const hasConflict = entityResults.some(
-      r => !r.success && r.error?.startsWith('CONFLICT:')
-    );
-    if (hasConflict) {
-      return 'conflict';
-    }
+      const hasConflict = entityResults.some(r => !r.success && r.error?.startsWith('CONFLICT:'));
+      if (hasConflict) {
+        return 'conflict';
+      }
 
-    const hasError = entityResults.some(r => !r.success);
-    if (hasError) {
-      return 'error';
-    }
+      const hasError = entityResults.some(r => !r.success);
+      if (hasError) {
+        return 'error';
+      }
 
-    return 'pending';
-  }, []);
+      return 'pending';
+    },
+    []
+  );
 
   // Check if there are pending changes
   const hasPendingChanges = useCallback((): boolean => {
@@ -170,7 +185,7 @@ export function useBackgroundSync() {
     initializeSync();
 
     // Sync event listeners
-    backgroundSyncService.onSyncComplete((result) => {
+    backgroundSyncService.onSyncComplete(result => {
       if (mounted) handleSyncEvent(createSyncCompletionEvent(result));
     });
 
@@ -178,7 +193,7 @@ export function useBackgroundSync() {
       if (mounted) handleSyncEvent(createSyncErrorEvent(error, task));
     });
 
-    backgroundSyncService.onNetworkChange((networkStatus) => {
+    backgroundSyncService.onNetworkChange(networkStatus => {
       if (mounted) {
         setSyncState(prev => ({
           ...prev,
@@ -187,7 +202,7 @@ export function useBackgroundSync() {
             ...prev.networkState,
             isOnline: networkStatus.online,
             quality: mapNetworkQuality(networkStatus.quality),
-          }
+          },
         }));
       }
     });
@@ -233,7 +248,9 @@ export function useBackgroundSync() {
     // Computed values
     syncHealthStatus: calculateSyncHealthStatus(syncState.metrics.syncSuccessRate),
     isInitializing: !syncState.lastSyncAt && !syncState.error,
-    estimatedSyncTime: syncState.queueSize > 0 ?
-                       Math.ceil(syncState.queueSize * (syncState.metrics.averageSyncTime / 1000)) : 0
+    estimatedSyncTime:
+      syncState.queueSize > 0
+        ? Math.ceil(syncState.queueSize * (syncState.metrics.averageSyncTime / 1000))
+        : 0,
   };
 }

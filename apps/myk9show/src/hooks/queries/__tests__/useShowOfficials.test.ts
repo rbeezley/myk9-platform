@@ -65,8 +65,20 @@ describe('useShowOfficials', () => {
 
   it('groups officials by role', async () => {
     const mockData = [
-      { user_id: 'p1', first_name: 'Jane', last_name: 'Doe', email: 'jane@test.com', role: 'secretary' },
-      { user_id: 'p2', first_name: 'John', last_name: 'Smith', email: 'john@test.com', role: 'chairman' },
+      {
+        user_id: 'p1',
+        first_name: 'Jane',
+        last_name: 'Doe',
+        email: 'jane@test.com',
+        role: 'secretary',
+      },
+      {
+        user_id: 'p2',
+        first_name: 'John',
+        last_name: 'Smith',
+        email: 'john@test.com',
+        role: 'chairman',
+      },
       { user_id: 'p3', first_name: 'Bob', last_name: 'Lee', email: null, role: 'steward' },
     ];
 

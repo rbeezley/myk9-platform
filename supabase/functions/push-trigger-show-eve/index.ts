@@ -348,7 +348,11 @@ handle({ auth: 'none', beforeBody: requirePushWebhookSecret }, async ({ supabase
       showStartDate: startDateByShow.get(group.showId) ?? null,
     });
 
-    const recipients = await loadRecipients(supabase, group, clubIdByShow.get(group.showId) ?? null);
+    const recipients = await loadRecipients(
+      supabase,
+      group,
+      clubIdByShow.get(group.showId) ?? null
+    );
 
     for (const authUserId of recipients) {
       if (Date.now() > runDeadline) {

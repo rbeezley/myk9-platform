@@ -14,7 +14,7 @@ export enum AuditAction {
   IMPERSONATE_END = 'impersonate_end',
   EXPORT = 'export',
   IMPORT = 'import',
-  SYSTEM_ACTION = 'system_action'
+  SYSTEM_ACTION = 'system_action',
 }
 
 export interface AuditEntry {
@@ -33,10 +33,15 @@ export interface AuditEntry {
   entityId: string;
 
   // Change tracking
-  changes?: Record<string, {
-    from: unknown;
-    to: unknown;
-  }> | undefined;
+  changes?:
+    | Record<
+        string,
+        {
+          from: unknown;
+          to: unknown;
+        }
+      >
+    | undefined;
 
   // Context information
   ipAddress?: string | undefined;
@@ -145,7 +150,7 @@ export enum NotificationType {
   SYSTEM_ALERT = 'system_alert',
   USER_ACTION = 'user_action',
   NOTIFICATION = 'notification',
-  INFO = 'info'
+  INFO = 'info',
 }
 
 export interface NotificationMessage {

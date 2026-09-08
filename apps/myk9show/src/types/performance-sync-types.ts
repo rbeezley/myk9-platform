@@ -141,7 +141,7 @@ export enum SyncPriority {
   LOW = 'low',
 
   /** Background sync only when on WiFi */
-  BACKGROUND = 'background'
+  BACKGROUND = 'background',
 }
 
 /**

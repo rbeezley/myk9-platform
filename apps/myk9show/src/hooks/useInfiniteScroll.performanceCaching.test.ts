@@ -55,9 +55,7 @@ describe('useInfiniteScroll performance and caching', () => {
   });
 
   it('reuses cached pages without calling the loader again', async () => {
-    const loadPage = vi.fn(async (page: number, pageSize: number) =>
-      makeDogPage(page, pageSize)
-    );
+    const loadPage = vi.fn(async (page: number, pageSize: number) => makeDogPage(page, pageSize));
 
     const { result } = renderHook(() =>
       useInfiniteScroll(loadPage, {
@@ -82,9 +80,7 @@ describe('useInfiniteScroll performance and caching', () => {
   });
 
   it('prefetches the next page into cache without leaving visible loading stuck', async () => {
-    const loadPage = vi.fn(async (page: number, pageSize: number) =>
-      makeDogPage(page, pageSize)
-    );
+    const loadPage = vi.fn(async (page: number, pageSize: number) => makeDogPage(page, pageSize));
 
     const { result } = renderHook(() =>
       useInfiniteScroll(loadPage, {
@@ -148,9 +144,7 @@ describe('useInfiniteScroll performance and caching', () => {
   });
 
   it('bounds cached registration pages by evicting the oldest page first', async () => {
-    const loadPage = vi.fn(async (page: number, pageSize: number) =>
-      makeDogPage(page, pageSize)
-    );
+    const loadPage = vi.fn(async (page: number, pageSize: number) => makeDogPage(page, pageSize));
 
     const { result } = renderHook(() =>
       useInfiniteScroll(loadPage, {
@@ -184,9 +178,7 @@ describe('useInfiniteScroll performance and caching', () => {
   });
 
   it('resets cached pages and recovers on the next deterministic load', async () => {
-    const loadPage = vi.fn(async (page: number, pageSize: number) =>
-      makeDogPage(page, pageSize)
-    );
+    const loadPage = vi.fn(async (page: number, pageSize: number) => makeDogPage(page, pageSize));
 
     const { result } = renderHook(() =>
       useInfiniteScroll(loadPage, {

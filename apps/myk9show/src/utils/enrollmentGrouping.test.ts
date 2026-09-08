@@ -260,9 +260,7 @@ describe('groupKey', () => {
     expect(groups).toHaveLength(4);
     const keys = groups.map(g => g.groupKey);
     expect(new Set(keys).size).toBe(4);
-    expect(keys).toEqual(
-      expect.arrayContaining(['reg-1', 'pi:pi_A', 'pi:pi_B', 'entry:e4'])
-    );
+    expect(keys).toEqual(expect.arrayContaining(['reg-1', 'pi:pi_A', 'pi:pi_B', 'entry:e4']));
   });
 });
 

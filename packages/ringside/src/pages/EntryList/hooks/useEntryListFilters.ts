@@ -19,14 +19,7 @@ export type TabType = 'pending' | 'completed';
  * degrades to plain armband order when no entry carries a section.
  */
 export type SortType =
-  | 'armband'
-  | 'name'
-  | 'handler'
-  | 'breed'
-  | 'manual'
-  | 'run'
-  | 'placement'
-  | 'section-armband';
+  'armband' | 'name' | 'handler' | 'breed' | 'manual' | 'run' | 'placement' | 'section-armband';
 export type SectionFilter = 'all' | 'A' | 'B';
 
 // =============================================================================

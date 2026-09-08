@@ -328,7 +328,9 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
   // explicit test rather than by loosening the unreadable check below, which
   // has to stay strict: that check is what surfaces a real read failure instead
   // of counting it as clean.
-  const files = resolveFilesToScan(repoRoot, scanAll).filter(file => !isDirectoryEntry(repoRoot, file));
+  const files = resolveFilesToScan(repoRoot, scanAll).filter(
+    file => !isDirectoryEntry(repoRoot, file)
+  );
   const { findings, unreadable } = scanForBulkPii(files, file =>
     readFileSync(join(repoRoot, file), 'utf8')
   );

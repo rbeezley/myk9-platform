@@ -20,7 +20,9 @@ describe('block-person-delete-with-dogs migration', () => {
   });
 
   it('wires the guard to BOTH delete paths on people', () => {
-    expect(migration).toMatch(/CREATE TRIGGER prevent_person_delete_with_dogs\s+BEFORE DELETE ON public\.people/);
+    expect(migration).toMatch(
+      /CREATE TRIGGER prevent_person_delete_with_dogs\s+BEFORE DELETE ON public\.people/
+    );
     expect(migration).toMatch(
       /CREATE TRIGGER prevent_person_soft_delete_with_dogs\s+BEFORE UPDATE OF deleted_at ON public\.people/
     );

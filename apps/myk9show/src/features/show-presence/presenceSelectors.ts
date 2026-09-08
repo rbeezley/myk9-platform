@@ -6,10 +6,7 @@ import type { ShowPresence } from './types';
 /** Judges currently present on a specific class (ring). */
 export function judgesOnClass(present: ShowPresence[], classId: string): ShowPresence[] {
   return present.filter(
-    p =>
-      p.role === 'judge' &&
-      p.location.entityType === 'class' &&
-      p.location.entityId === classId
+    p => p.role === 'judge' && p.location.entityType === 'class' && p.location.entityId === classId
   );
 }
 

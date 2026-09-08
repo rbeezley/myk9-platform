@@ -22,7 +22,7 @@ description: List open Linear issues (MyK9-platform) and pick one to work on
    - **If OpenSpec-backed**: "This is an OpenSpec change (`<id>`). Would you like to:\n\n1. Ship it end-to-end (`/opsx:ship <id>`)\n2. Implement only (`/opsx:apply <id>`)\n3. Work on it directly\n4. Put it back and browse other todos"
    - **Else if a skill matches**: "This looks like [domain] work. Would you like to:\n\n1. Invoke [skill-name] and start\n2. Work on it directly\n3. Brainstorm approach first\n4. Put it back and browse other todos"
    - **If no match**: "Would you like to:\n\n1. Start working on it\n2. Brainstorm approach first\n3. Put it back and browse other todos"
-   Wait for the response.
+     Wait for the response.
 
 6. **Handle the choice:**
    - **Ship / Implement**: invoke the opsx command. Completion is owned by the pipeline (its archive step moves the issue to Done); do not change the issue state manually here.

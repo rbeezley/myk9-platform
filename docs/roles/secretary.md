@@ -1,9 +1,11 @@
 # Role: Secretary
 
 ## Who they are
+
 The person who runs a dog show on behalf of a club. Often a retired volunteer who has done this for years on paper or in the mySWT Access app. Computer-savviness is low to moderate. They are the single point of accountability for everything that happens at their show.
 
 ## Emotional intent
+
 > "In control of this show."
 
 The secretary should feel that the platform is a tool they command, not a puzzle they solve. Nothing mid-show should surprise them.
@@ -26,6 +28,7 @@ The secretary should feel that the platform is a tool they command, not a puzzle
 14. **Close out the show** — submit results to AKC via the XML export, finalize financial reconciliation, archive the show.
 
 ## Should never have to think about
+
 - Which "add dog" button to click — every path leads to the same dog-creation flow.
 - Whether a change syncs to myK9Q — replicated data is the default.
 - Remembering to pay for entries they already paid for — online and mail-in paid entries look identical downstream.
@@ -33,9 +36,11 @@ The secretary should feel that the platform is a tool they command, not a puzzle
 - Fighting navigation — their home screen shows their whole job in one place.
 
 ## Primary app
+
 **myK9Show.** Day-of check-in desk explicitly lives here so the secretary never has to switch apps during the show. Scoring happens in myK9Q when the club uses it.
 
 ## Deferred to post-fall
+
 - Self-service club onboarding (site admin creates clubs for fall).
 - Full exhibitor self-service (withdraws, move-ups, pay-later for mail-ins).
 - Volunteer day-of attendance tracking and real-time reassignment.

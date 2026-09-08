@@ -73,7 +73,10 @@ describe('carveOutFor', () => {
   it('carves out on the ticket subject even when the body looks harmless', () => {
     expect(
       carveOutFor(
-        thread([message({ body: 'Please help.' })], ticket({ subject: 'Card declined at checkout' }))
+        thread(
+          [message({ body: 'Please help.' })],
+          ticket({ subject: 'Card declined at checkout' })
+        )
       )
     ).toBe('payment_or_refund');
   });

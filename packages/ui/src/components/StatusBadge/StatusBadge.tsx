@@ -2,9 +2,7 @@ import * as React from 'react';
 import { cn } from '../../utils/cn';
 import { statusBadgeVariants, type StatusBadgeVariants } from './statusBadgeVariants';
 
-export interface StatusBadgeProps
-  extends React.HTMLAttributes<HTMLElement>,
-    StatusBadgeVariants {
+export interface StatusBadgeProps extends React.HTMLAttributes<HTMLElement>, StatusBadgeVariants {
   /** The display label for the status */
   label: string;
   /** Optional time to display (e.g., "2:30 PM") */
@@ -47,18 +45,7 @@ export interface StatusBadgeProps
  */
 export const StatusBadge = React.forwardRef<HTMLElement, StatusBadgeProps>(
   (
-    {
-      label,
-      time,
-      icon,
-      variant,
-      size,
-      clickable,
-      asButton = false,
-      className,
-      onClick,
-      ...props
-    },
+    { label, time, icon, variant, size, clickable, asButton = false, className, onClick, ...props },
     ref
   ) => {
     const classes = cn(statusBadgeVariants({ variant, size, clickable }), className);
@@ -67,9 +54,7 @@ export const StatusBadge = React.forwardRef<HTMLElement, StatusBadgeProps>(
       <>
         {icon && <span className="flex-shrink-0">{icon}</span>}
         <span>{label}</span>
-        {time && (
-          <span className="opacity-75 text-[0.85em] ml-1">{time}</span>
-        )}
+        {time && <span className="opacity-75 text-[0.85em] ml-1">{time}</span>}
       </>
     );
 

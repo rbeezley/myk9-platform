@@ -148,9 +148,7 @@ export function useOfflineReadiness(showId: string | undefined) {
   const judgeAssignmentsRequired = Boolean(
     user && isJudgeOnlyAtShow({ isAnonymous: Boolean(user.is_anonymous), hasRole })
   );
-  const judgePersonId = judgeAssignmentsRequired
-    ? (userWithRoles?.databaseUserId ?? null)
-    : null;
+  const judgePersonId = judgeAssignmentsRequired ? (userWithRoles?.databaseUserId ?? null) : null;
   const isAnonymous = user?.is_anonymous === true;
   const [readiness, setReadiness] = useState<OfflineReadiness | null>(null);
   const [checking, setChecking] = useState(false);
@@ -240,9 +238,7 @@ export function useOfflineReadiness(showId: string | undefined) {
         // background provider runs and it carries the show row.
         replicatedShowsTable.sync(''),
         // Judges' at-show view is empty without their assignments cached.
-        judgeAssignmentsRequired
-          ? replicatedJudgeAssignmentsTable.sync(showId)
-          : Promise.resolve(),
+        judgeAssignmentsRequired ? replicatedJudgeAssignmentsTable.sync(showId) : Promise.resolve(),
         refreshPermissions?.(),
       ]);
     } catch {

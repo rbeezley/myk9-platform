@@ -130,10 +130,7 @@ describe('buildAKCScentWorkEntryFormValues', () => {
 
   it('fills the real AKC Entry Form PDF fields', async () => {
     const bytes = new Uint8Array(await readFile(templatePath));
-    const filledBytes = await fillPdfForm(
-      bytes,
-      buildAKCScentWorkEntryFormValues({ dog, trials })
-    );
+    const filledBytes = await fillPdfForm(bytes, buildAKCScentWorkEntryFormValues({ dog, trials }));
     const pdf = await PDFDocument.load(filledBytes);
     const form = pdf.getForm();
 
@@ -152,10 +149,7 @@ describe('buildAKCScentWorkEntryFormValues', () => {
 
   it('builds a flattened multi-dog packet from the real AKC Entry Form PDF', async () => {
     const bytes = await buildAKCScentWorkEntryFormPacketPdfBytes({
-      dogs: [
-        { ...dog, dogId: 'dog-2', callName: 'Rocket', armband: 88 },
-        dog,
-      ],
+      dogs: [{ ...dog, dogId: 'dog-2', callName: 'Rocket', armband: 88 }, dog],
       trials,
       templateBytes: new Uint8Array(await readFile(templatePath)),
     });

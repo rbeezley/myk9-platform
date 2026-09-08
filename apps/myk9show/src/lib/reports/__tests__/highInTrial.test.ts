@@ -249,7 +249,11 @@ describe('§8 — Handler Discrimination and non-Odor-Search classes are exclude
     // `public.classes` really does hold "Vehicle" (a UKC/NACSW element). An
     // exclude-only-HD denylist would fold it into an AKC HIT.
     const model = buildHighInTrial({
-      classes: [cls('Container', 'Advanced'), cls('Interior', 'Advanced'), cls('Vehicle', 'Advanced')],
+      classes: [
+        cls('Container', 'Advanced'),
+        cls('Interior', 'Advanced'),
+        cls('Vehicle', 'Advanced'),
+      ],
       entries: qualifyingTeam({
         dogId: 'dog-1',
         armband: '101',
@@ -303,7 +307,10 @@ describe('Chapter 2 §11 — Novice A and B are one difficulty level', () => {
 describe('§8 — ranking and ties', () => {
   const CLASSES = [cls('Container', 'Novice'), cls('Interior', 'Novice')];
 
-  function twoTeams(a: { faults: number[]; times: (number | null)[] }, b: { faults: number[]; times: (number | null)[] }) {
+  function twoTeams(
+    a: { faults: number[]; times: (number | null)[] },
+    b: { faults: number[]; times: (number | null)[] }
+  ) {
     return [
       ...qualifyingTeam({
         dogId: 'dog-a',
@@ -444,7 +451,13 @@ describe('provisional results', () => {
           faults: [0, 0],
           times: [30, 30],
         }),
-        entry({ dogId: 'dog-b', armband: '102', classElement: 'Interior', classLevel: 'Novice', resultText: 'nq' }),
+        entry({
+          dogId: 'dog-b',
+          armband: '102',
+          classElement: 'Interior',
+          classLevel: 'Novice',
+          resultText: 'nq',
+        }),
       ],
     });
 
@@ -577,10 +590,34 @@ describe('incomplete scores are never converted into a clean result', () => {
     const model = buildHighInTrial({
       classes: CLASSES,
       entries: [
-        entry({ dogId: 'dog-a', armband: '101', classElement: 'Container', classLevel: 'Novice', totalFaults: null }),
-        entry({ dogId: 'dog-a', armband: '101', classElement: 'Interior', classLevel: 'Novice', totalFaults: null }),
-        entry({ dogId: 'dog-b', armband: '102', classElement: 'Container', classLevel: 'Novice', totalFaults: null }),
-        entry({ dogId: 'dog-b', armband: '102', classElement: 'Interior', classLevel: 'Novice', totalFaults: null }),
+        entry({
+          dogId: 'dog-a',
+          armband: '101',
+          classElement: 'Container',
+          classLevel: 'Novice',
+          totalFaults: null,
+        }),
+        entry({
+          dogId: 'dog-a',
+          armband: '101',
+          classElement: 'Interior',
+          classLevel: 'Novice',
+          totalFaults: null,
+        }),
+        entry({
+          dogId: 'dog-b',
+          armband: '102',
+          classElement: 'Container',
+          classLevel: 'Novice',
+          totalFaults: null,
+        }),
+        entry({
+          dogId: 'dog-b',
+          armband: '102',
+          classElement: 'Interior',
+          classLevel: 'Novice',
+          totalFaults: null,
+        }),
       ],
     });
 
@@ -712,9 +749,24 @@ describe('choosing between duplicate qualifying runs', () => {
     const model = buildHighInTrial({
       classes: CLASSES,
       entries: [
-        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: 1, searchTimeSeconds: 30 }),
-        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: null, searchTimeSeconds: 30 }),
-        entry({ classElement: 'Interior', classLevel: 'Novice', totalFaults: 0, searchTimeSeconds: 30 }),
+        entry({
+          classElement: 'Container',
+          classLevel: 'Novice',
+          totalFaults: 1,
+          searchTimeSeconds: 30,
+        }),
+        entry({
+          classElement: 'Container',
+          classLevel: 'Novice',
+          totalFaults: null,
+          searchTimeSeconds: 30,
+        }),
+        entry({
+          classElement: 'Interior',
+          classLevel: 'Novice',
+          totalFaults: 0,
+          searchTimeSeconds: 30,
+        }),
       ],
     });
 
@@ -727,9 +779,24 @@ describe('choosing between duplicate qualifying runs', () => {
     const model = buildHighInTrial({
       classes: CLASSES,
       entries: [
-        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: 4, searchTimeSeconds: 30 }),
-        entry({ classElement: 'Container', classLevel: 'Novice', totalFaults: 1, searchTimeSeconds: 30 }),
-        entry({ classElement: 'Interior', classLevel: 'Novice', totalFaults: 0, searchTimeSeconds: 30 }),
+        entry({
+          classElement: 'Container',
+          classLevel: 'Novice',
+          totalFaults: 4,
+          searchTimeSeconds: 30,
+        }),
+        entry({
+          classElement: 'Container',
+          classLevel: 'Novice',
+          totalFaults: 1,
+          searchTimeSeconds: 30,
+        }),
+        entry({
+          classElement: 'Interior',
+          classLevel: 'Novice',
+          totalFaults: 0,
+          searchTimeSeconds: 30,
+        }),
       ],
     });
 

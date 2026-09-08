@@ -118,7 +118,11 @@ describe('buildShowMapTree', () => {
       show,
       trials: [trial],
       classes,
-      entries: [dogEntry('entry-10', 'dog-10', '10'), dogEntry('entry-9', 'dog-9', '9'), dogEntry('entry-1', 'dog-1', '1')],
+      entries: [
+        dogEntry('entry-10', 'dog-10', '10'),
+        dogEntry('entry-9', 'dog-9', '9'),
+        dogEntry('entry-1', 'dog-1', '1'),
+      ],
     });
 
     expect(tree.childIdsByParentId['class:class-1']).toEqual([
@@ -141,7 +145,11 @@ describe('buildShowMapTree', () => {
           handler_id: 'person-1',
           armband: '12',
           handler: 'Jane Handler',
-          dog: { id: 'dog-1', call_name: 'Bella', registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }] },
+          dog: {
+            id: 'dog-1',
+            call_name: 'Bella',
+            registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }],
+          },
         },
       ],
     });
@@ -215,7 +223,11 @@ describe('buildShowMapTree', () => {
           dog_id: 'dog-1',
           armband: '12',
           handler: 'Jane Handler',
-          dog: { id: 'dog-1', call_name: 'Bella', registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }] },
+          dog: {
+            id: 'dog-1',
+            call_name: 'Bella',
+            registrations: [{ organization: 'AKC', breed: 'Labrador Retriever' }],
+          },
         },
       ],
     });

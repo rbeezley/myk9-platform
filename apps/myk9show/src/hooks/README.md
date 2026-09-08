@@ -20,15 +20,15 @@ A comprehensive authentication hook that provides user authentication state and 
 import { useAuth } from '@/hooks/useAuth';
 
 function MyComponent() {
-  const { 
-    user,          // Current user object or null
-    loading,       // Boolean indicating if auth state is being checked
-    signIn,        // (email: string, password: string) => Promise<void>
-    signUp,        // (email: string, password: string) => Promise<void>
-    signOut,       // () => Promise<void>
+  const {
+    user, // Current user object or null
+    loading, // Boolean indicating if auth state is being checked
+    signIn, // (email: string, password: string) => Promise<void>
+    signUp, // (email: string, password: string) => Promise<void>
+    signOut, // () => Promise<void>
     resetPassword, // (email: string) => Promise<void>
     updatePassword, // (newPassword: string) => Promise<void>
-    updateProfile  // (updates: { email?: string, password?: string, data?: any }) => Promise<void>
+    updateProfile, // (updates: { email?: string, password?: string, data?: any }) => Promise<void>
   } = useAuth();
 
   // Use the auth methods and state
@@ -59,11 +59,9 @@ import ErrorBoundary from '@/components/common/ErrorBoundary';
 
 function App() {
   return (
-    <ErrorBoundary 
+    <ErrorBoundary
       fallback={
-        <div className="p-4 text-red-600">
-          Something went wrong. Please try again later.
-        </div>
+        <div className="p-4 text-red-600">Something went wrong. Please try again later.</div>
       }
     >
       <MyComponent />

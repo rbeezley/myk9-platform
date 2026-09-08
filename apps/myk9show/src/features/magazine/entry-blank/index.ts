@@ -22,8 +22,5 @@
 
 export { MagazineEntryBlankDocument } from './MagazineEntryBlankDocument';
 export { MagazineEntryBlankButton } from './MagazineEntryBlankButton';
-export {
-  buildEntryBlankProps,
-  type BuildEntryBlankOptions,
-} from '@/features/heritage/entry-blank';
+export { buildEntryBlankProps, type BuildEntryBlankOptions } from '@/features/heritage/entry-blank';
 export type { EntryBlankProps } from '@/features/heritage/entry-blank';

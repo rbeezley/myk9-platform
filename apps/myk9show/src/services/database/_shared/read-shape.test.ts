@@ -255,7 +255,10 @@ describe('read-shape helpers', () => {
       { id: 'missing' },
     ];
 
-    const sorted = sortedCopy(rows, compareNumberAscNullsLast(row => row.runOrder));
+    const sorted = sortedCopy(
+      rows,
+      compareNumberAscNullsLast(row => row.runOrder)
+    );
 
     expect(sorted.map(row => row.id)).toEqual(['first', 'third', 'nullish', 'missing']);
     expect(rows.map(row => row.id)).toEqual(['nullish', 'third', 'first', 'missing']);
@@ -269,7 +272,10 @@ describe('read-shape helpers', () => {
       { id: 'missing' },
     ];
 
-    const sorted = sortedCopy(rows, compareStringAscNullsLast(row => row.startTime));
+    const sorted = sortedCopy(
+      rows,
+      compareStringAscNullsLast(row => row.startTime)
+    );
 
     expect(sorted.map(row => row.id)).toEqual(['early', 'late', 'unscheduled', 'missing']);
     expect(rows.map(row => row.id)).toEqual(['unscheduled', 'late', 'early', 'missing']);

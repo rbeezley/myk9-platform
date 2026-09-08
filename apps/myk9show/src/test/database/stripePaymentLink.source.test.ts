@@ -62,7 +62,9 @@ describe('stripe-payment-link internal waitlist path', () => {
   it('fails closed instead of creating a second session when a prior session cannot be safely replaced', () => {
     expect(source).toContain('error: priorLinksError');
     expect(source).toContain('Could not check an existing payment link. Please try again.');
-    expect(source).toContain('Could not safely replace an existing payment link. Please try again.');
+    expect(source).toContain(
+      'Could not safely replace an existing payment link. Please try again.'
+    );
     expect(source).toContain('Could not verify an existing payment link. Please try again.');
     expect(source).not.toContain('leaving link open:');
   });

@@ -1,8 +1,11 @@
 # cockpit-narrow-layout Specification
 
 ## Purpose
+
 Keep the secretary entry-management cockpit usable at phone and narrow-tablet widths: queue chips always reachable, registration rows legible via a single responsive layout, and the manager show-details Entries tab acting as a summary + link into the cockpit rather than a duplicate table.
+
 ## Requirements
+
 ### Requirement: Queue chips remain fully reachable at narrow widths
 
 At the cockpit's compact breakpoint, every queue chip (Needs review, Missing information, Payment due, All registrations) SHALL remain visible and activatable, and no control SHALL overlap or clip another.
@@ -51,4 +54,3 @@ For show managers, the show-details "Entries" tab SHALL present a brief entry su
 
 - **WHEN** an anonymous visitor views public entries for a show
 - **THEN** the existing public entries rendering is unchanged
-

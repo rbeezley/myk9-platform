@@ -32,9 +32,7 @@ export function JudgeSuppliesSection({ trialId }: JudgeSuppliesSectionProps) {
         </div>
       </div>
 
-      {isLoading && (
-        <p className="text-sm text-muted-foreground p-4">Loading judges…</p>
-      )}
+      {isLoading && <p className="text-sm text-muted-foreground p-4">Loading judges…</p>}
 
       {!isLoading && judges.length === 0 && (
         <p className="text-sm text-muted-foreground p-4" data-testid="judge-supplies-empty">

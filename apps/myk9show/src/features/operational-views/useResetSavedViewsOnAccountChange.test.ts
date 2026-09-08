@@ -25,7 +25,7 @@ const view = ENTRY_MANAGEMENT_PRESETS['needs-review'].build() as EntryManagement
 const showScope = { showId: 'show-1' };
 
 describe('useResetSavedViewsOnAccountChange', () => {
-  it('clears the PRIOR user\'s saved views when the authenticated user id changes', () => {
+  it("clears the PRIOR user's saved views when the authenticated user id changes", () => {
     const storage = createMemoryStorage();
     Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
 

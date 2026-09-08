@@ -63,7 +63,9 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   const sexBadge = getDogSexBadge(dog.sex);
   const statusBadge = DOG_STATUS_BADGES[dog.status || 'active'];
   const deceasedSuffix =
-    dog.status === 'deceased' && dog.deceasedDate ? ` — ${formatDisplayDate(dog.deceasedDate)}` : '';
+    dog.status === 'deceased' && dog.deceasedDate
+      ? ` — ${formatDisplayDate(dog.deceasedDate)}`
+      : '';
 
   const registry = useMemo(
     () => buildDogCardRegistryModel(registrations ?? dog.registrations),
@@ -118,7 +120,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
       <div className="relative h-56 lg:h-80 bg-card-secondary flex items-center justify-center">
         <Avatar className="h-28 w-28 lg:h-36 lg:w-36">
           {dog.imageUrl ? (
-            <AvatarImage src={dog.imageUrl} alt={`${dog.callName}'s photo`} className="object-cover" />
+            <AvatarImage
+              src={dog.imageUrl}
+              alt={`${dog.callName}'s photo`}
+              className="object-cover"
+            />
           ) : (
             <AvatarFallback className="bg-primary/10 text-4xl font-semibold text-primary">
               {getInitials(dog.callName)}

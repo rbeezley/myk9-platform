@@ -15,7 +15,7 @@ import type {
   DeploymentEvent,
   HealthCheckConfig,
   HealthCheckResult,
-  RollbackStep
+  RollbackStep,
 } from '../../types/deployment-types';
 import type { FeatureFlagEvalContext } from './deployment-manager-types';
 import {
@@ -30,7 +30,7 @@ import {
   generateRollbackPlan,
   getDefaultMigrations,
   getDefaultFeatureFlags,
-  getDefaultHealthChecks
+  getDefaultHealthChecks,
 } from './deployment-manager-helpers';
 
 // Re-export types for backward compatibility
@@ -66,12 +66,14 @@ export class DeploymentManager {
   /**
    * Create a new deployment configuration
    */
-  public async createDeployment(config: Omit<DeploymentConfig, 'deploymentId' | 'timestamp'>): Promise<string> {
+  public async createDeployment(
+    config: Omit<DeploymentConfig, 'deploymentId' | 'timestamp'>
+  ): Promise<string> {
     const deploymentId = generateId('deploy');
     const deployment: DeploymentConfig = {
       ...config,
       deploymentId,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     this.deployments.set(deploymentId, deployment);
@@ -88,7 +90,7 @@ export class DeploymentManager {
       message: `Deployment ${config.version} created for ${config.environment}`,
       metadata: { version: config.version, environment: config.environment },
       severity: 'info',
-      source: 'DeploymentManager'
+      source: 'DeploymentManager',
     });
 
     return deploymentId;
@@ -133,7 +135,7 @@ export class DeploymentManager {
         message: `Deployment ${deployment.version} completed successfully`,
         metadata: { version: deployment.version },
         severity: 'info',
-        source: 'DeploymentManager'
+        source: 'DeploymentManager',
       });
 
       return true;
@@ -148,7 +150,7 @@ export class DeploymentManager {
         message: `Deployment ${deployment.version} failed: ${error}`,
         metadata: { version: deployment.version, error: String(error) },
         severity: 'error',
-        source: 'DeploymentManager'
+        source: 'DeploymentManager',
       });
 
       throw error;
@@ -160,7 +162,10 @@ export class DeploymentManager {
   /**
    * Execute database migrations with proper ordering and validation
    */
-  private async executeMigrations(migrations: MigrationTask[], deploymentId: string): Promise<void> {
+  private async executeMigrations(
+    migrations: MigrationTask[],
+    deploymentId: string
+  ): Promise<void> {
     const sortedMigrations = sortMigrationsByDependencies(migrations);
 
     for (const migration of sortedMigrations) {
@@ -171,7 +176,10 @@ export class DeploymentManager {
   /**
    * Execute a single migration with full error handling
    */
-  private async executeSingleMigration(migration: MigrationTask, deploymentId: string): Promise<void> {
+  private async executeSingleMigration(
+    migration: MigrationTask,
+    deploymentId: string
+  ): Promise<void> {
     try {
       migration.status = 'running';
       migration.executedAt = new Date();
@@ -184,7 +192,7 @@ export class DeploymentManager {
         message: `Migration ${migration.name} started`,
         metadata: { migrationId: migration.id, type: migration.type },
         severity: 'info',
-        source: 'MigrationExecutor'
+        source: 'MigrationExecutor',
       });
 
       // Simulate migration execution (in real implementation, this would execute SQL)
@@ -200,9 +208,8 @@ export class DeploymentManager {
         message: `Migration ${migration.name} completed successfully`,
         metadata: { migrationId: migration.id, duration: migration.estimatedDuration },
         severity: 'info',
-        source: 'MigrationExecutor'
+        source: 'MigrationExecutor',
       });
-
     } catch (error) {
       migration.status = 'failed';
       migration.errorMessage = String(error);
@@ -215,7 +222,7 @@ export class DeploymentManager {
         message: `Migration ${migration.name} failed: ${error}`,
         metadata: { migrationId: migration.id, error: String(error) },
         severity: 'error',
-        source: 'MigrationExecutor'
+        source: 'MigrationExecutor',
       });
 
       throw error;
@@ -227,7 +234,10 @@ export class DeploymentManager {
   /**
    * Update feature flag configuration
    */
-  public async updateFeatureFlag(flagId: string, updates: Partial<FeatureFlagConfig>): Promise<void> {
+  public async updateFeatureFlag(
+    flagId: string,
+    updates: Partial<FeatureFlagConfig>
+  ): Promise<void> {
     const flag = this.featureFlags.get(flagId);
     if (!flag) {
       throw new Error(`Feature flag ${flagId} not found`);
@@ -236,7 +246,7 @@ export class DeploymentManager {
     const updatedFlag: FeatureFlagConfig = {
       ...flag,
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.featureFlags.set(flagId, updatedFlag);
@@ -249,7 +259,7 @@ export class DeploymentManager {
       message: `Feature flag ${flag.name} updated`,
       metadata: { flagId, updates },
       severity: 'info',
-      source: 'FeatureFlagManager'
+      source: 'FeatureFlagManager',
     });
   }
 
@@ -272,7 +282,11 @@ export class DeploymentManager {
 
     // Check target audience
     if (context.userType && flag.targetAudience.userTypes.length > 0) {
-      if (!flag.targetAudience.userTypes.includes(context.userType as 'admin' | 'secretary' | 'judge' | 'exhibitor')) {
+      if (
+        !flag.targetAudience.userTypes.includes(
+          context.userType as 'admin' | 'secretary' | 'judge' | 'exhibitor'
+        )
+      ) {
         return false;
       }
     }
@@ -286,7 +300,12 @@ export class DeploymentManager {
 
     // Check feature conditions
     for (const condition of flag.conditions) {
-      if (!evaluateCondition(condition as unknown as Record<string, unknown>, context as unknown as Record<string, unknown>)) {
+      if (
+        !evaluateCondition(
+          condition as unknown as Record<string, unknown>,
+          context as unknown as Record<string, unknown>
+        )
+      ) {
         return false;
       }
     }
@@ -318,7 +337,7 @@ export class DeploymentManager {
             message: `Health check ${config.name} failed: ${result.errorMessage}`,
             metadata: { checkId, status: result.status },
             severity: config.severity,
-            source: 'HealthChecker'
+            source: 'HealthChecker',
           });
         }
       } catch (error) {
@@ -328,7 +347,7 @@ export class DeploymentManager {
           responseTime: 0,
           timestamp: new Date(),
           errorMessage: String(error),
-          metadata: {}
+          metadata: {},
         });
       }
     }
@@ -358,7 +377,7 @@ export class DeploymentManager {
         message: `Rollback initiated for deployment ${deployment.version}`,
         metadata: { version: deployment.version, strategy: checklist.rollbackPlan.strategy },
         severity: 'warning',
-        source: 'RollbackManager'
+        source: 'RollbackManager',
       });
 
       // Execute rollback steps in order
@@ -376,7 +395,7 @@ export class DeploymentManager {
         message: `Rollback completed for deployment ${deployment.version}`,
         metadata: { version: deployment.version },
         severity: 'info',
-        source: 'RollbackManager'
+        source: 'RollbackManager',
       });
 
       return true;
@@ -389,7 +408,7 @@ export class DeploymentManager {
         message: `Rollback failed for deployment ${deployment.version}: ${error}`,
         metadata: { version: deployment.version, error: String(error) },
         severity: 'error',
-        source: 'RollbackManager'
+        source: 'RollbackManager',
       });
 
       throw error;
@@ -429,7 +448,9 @@ export class DeploymentManager {
 
   private recordEvent(event: DeploymentEvent): void {
     this.events.push(event);
-    logger.debug(`[${event.severity.toUpperCase()}] ${event.message}`, 'deployment', { data: event.metadata });
+    logger.debug(`[${event.severity.toUpperCase()}] ${event.message}`, 'deployment', {
+      data: event.metadata,
+    });
   }
 
   /**
@@ -450,7 +471,7 @@ export class DeploymentManager {
       migrationTasks: generateMigrationTasks(deployment.migrations),
       deploymentTasks: generateDeploymentTasks(),
       postDeploymentTasks: generatePostDeploymentTasks(),
-      rollbackPlan: generateRollbackPlan(deployment)
+      rollbackPlan: generateRollbackPlan(deployment),
     };
   }
 
@@ -497,8 +518,8 @@ export class DeploymentManager {
       ...(isHealthy ? {} : { errorMessage: 'Simulated health check failure' }),
       metadata: {
         type: config.type,
-        ...(config.endpoint !== undefined && { endpoint: config.endpoint })
-      }
+        ...(config.endpoint !== undefined && { endpoint: config.endpoint }),
+      },
     };
   }
 

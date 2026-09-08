@@ -80,11 +80,7 @@ describe('buildClassInfo — timeLimit hygiene', () => {
   });
 
   it('never emits a non-numeric timeLimit across the snake_case source too', () => {
-    const info = buildClassInfo(
-      makeClass({ time_limit_seconds: 'TBD' as never }),
-      null,
-      []
-    );
+    const info = buildClassInfo(makeClass({ time_limit_seconds: 'TBD' as never }), null, []);
     expectNumericOrUndefined(info.timeLimit);
     expect(info.timeLimit).toBeUndefined();
   });
@@ -97,10 +93,7 @@ describe('transformEntry — timeLimit hygiene', () => {
   });
 
   it('drops a non-numeric placeholder rather than emit "TBDs"', () => {
-    const entry = transformEntry(
-      makeEntry(),
-      makeClass({ timeLimitSeconds: 'TBD' as never })
-    );
+    const entry = transformEntry(makeEntry(), makeClass({ timeLimitSeconds: 'TBD' as never }));
     expectNumericOrUndefined(entry.timeLimit);
     expect(entry.timeLimit).toBeUndefined();
   });

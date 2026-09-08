@@ -4,9 +4,7 @@
  * Aggregates errors from multiple React Query queries/mutations,
  * returning the first error message or null if none.
  */
-export function aggregateQueryErrors(
-  ...errors: (Error | null | undefined)[]
-): string | null {
+export function aggregateQueryErrors(...errors: (Error | null | undefined)[]): string | null {
   const firstError = errors.find(Boolean);
   if (!firstError) return null;
   return firstError.message || 'An error occurred';

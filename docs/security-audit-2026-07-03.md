@@ -7,12 +7,12 @@
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| CRITICAL | 0 |
-| HIGH | 0 |
-| MEDIUM | 8 |
-| LOW | 9 |
+| Severity  | Count  |
+| --------- | ------ |
+| CRITICAL  | 0      |
+| HIGH      | 0      |
+| MEDIUM    | 8      |
+| LOW       | 9      |
 | **Total** | **17** |
 
 Auto-fixable: 9 of 17 findings.
@@ -39,12 +39,13 @@ Auto-fixable: 9 of 17 findings.
 **Category:** RLS Policy Integrity (financial table mutation not role-restricted)
 **Location:** `supabase/migrations/045_promo_codes_financial.sql:62` (INSERT), `:58` (SELECT)
 **Evidence:**
+
 - `CREATE POLICY "promo_codes_insert_policy" ON promo_codes FOR INSERT WITH CHECK (created_by = auth.uid());` — only checks you stamp yourself as creator; no check that you manage the referenced `trial_id`/`show_id`.
 - `CREATE POLICY "promo_codes_select_policy" ON promo_codes FOR SELECT USING (auth.uid() IS NOT NULL);` — every logged-in user reads every code for every show.
 - UPDATE was tightened later (`085_*`) to creator/secretary/admin; INSERT and SELECT were not.
-**Risk:** Any exhibitor can enumerate all discount codes platform-wide and insert arbitrary codes (incl. 100%-off) on shows they have no role on. Direct financial exploit is currently blunted — `submit_show_entries` (mig `151`) computes fees server-side and ignores client promo codes — but this is a genuine cross-tenant RBAC gap on a financial config table plus a financial-data disclosure.
-**Fix:** Scope INSERT with `is_trial_secretary()`/`is_club_admin()`/`can_manage_show()` on the row's trial/show; scope SELECT to show officials; validate a specific typed code via a SECURITY DEFINER RPC, not a blanket table read.
-**Auto-fixable:** No (needs correct scoping predicate — design decision).
+  **Risk:** Any exhibitor can enumerate all discount codes platform-wide and insert arbitrary codes (incl. 100%-off) on shows they have no role on. Direct financial exploit is currently blunted — `submit_show_entries` (mig `151`) computes fees server-side and ignores client promo codes — but this is a genuine cross-tenant RBAC gap on a financial config table plus a financial-data disclosure.
+  **Fix:** Scope INSERT with `is_trial_secretary()`/`is_club_admin()`/`can_manage_show()` on the row's trial/show; scope SELECT to show officials; validate a specific typed code via a SECURITY DEFINER RPC, not a blanket table read.
+  **Auto-fixable:** No (needs correct scoping predicate — design decision).
 
 ---
 
@@ -140,7 +141,7 @@ Auto-fixable: 9 of 17 findings.
 
 **Category:** Edge Function Auth / RBAC (passcode validation)
 **Location:** `supabase/migrations/20260531175637_fix_ringside_session_upsert_conflict.sql:40-64,117-118` (final state); originally `20260530210555_phase_3_ringside_sessions.sql`
-**Evidence:** `grant execute on function public.upsert_ringside_session(text, text, text[], text) to anon, authenticated;` — the function calls `validate_passcode(p_passcode_or_null)` inline with no attempt throttle. The `validate-passcode` **edge function** *does* IP-rate-limit; this direct RPC path does not. (Confirmed live at `28a72d23f`; matches the July bug-audit's documented MED item.)
+**Evidence:** `grant execute on function public.upsert_ringside_session(text, text, text[], text) to anon, authenticated;` — the function calls `validate_passcode(p_passcode_or_null)` inline with no attempt throttle. The `validate-passcode` **edge function** _does_ IP-rate-limit; this direct RPC path does not. (Confirmed live at `28a72d23f`; matches the July bug-audit's documented MED item.)
 **Risk:** Passcode brute-force via the direct RPC, bypassing the edge function's limiter. Viability depends on passcode entropy. A cracked passcode grants one show's ringside read/score, never financial/PII.
 **Fix:** Add attempt throttling inside the RPC, or route passcode entry exclusively through the rate-limited edge function and revoke direct anon EXECUTE.
 **Auto-fixable:** No (design decision — throttle strategy vs. RPC removal).
@@ -215,22 +216,22 @@ Auto-fixable: 9 of 17 findings.
 
 ## Categories Checked
 
-| Category | Files Examined | Findings | Notes |
-|----------|---------------|----------|-------|
-| RLS Policy Integrity | 324 migrations (full timeline) | SA-002, SA-006, SA-007, SA-017 | Core RLS strong; gaps in financial config + defense-in-depth |
-| Edge Function Auth | ~19 + shared | SA-003, SA-005, SA-011, SA-012, SA-013 | Notification/email origination cluster |
-| RBAC & Privilege Escalation | migrations + rbac services | SA-001, SA-006 | Role-table mutations correctly locked; scoring RPCs unguarded |
-| Client Auth Patterns | ~18 (routes, AuthContext, RBAC) | SA-009 | Route gating complete; staleness gap only |
-| Data Exposure | ~14 | SA-008, SA-010, SA-014 | select('*'), raw errors, URL-in-logs |
-| Payment Security (Stripe) | ~11 Stripe fns + shared | **0** | Clean — signatures, server-side pricing, refund caps, portal scoping all verified |
-| Input Validation | ~10 | SA-015, SA-016 | Parameterized queries; two same-origin HTML sinks |
+| Category                    | Files Examined                  | Findings                               | Notes                                                                             |
+| --------------------------- | ------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------- |
+| RLS Policy Integrity        | 324 migrations (full timeline)  | SA-002, SA-006, SA-007, SA-017         | Core RLS strong; gaps in financial config + defense-in-depth                      |
+| Edge Function Auth          | ~19 + shared                    | SA-003, SA-005, SA-011, SA-012, SA-013 | Notification/email origination cluster                                            |
+| RBAC & Privilege Escalation | migrations + rbac services      | SA-001, SA-006                         | Role-table mutations correctly locked; scoring RPCs unguarded                     |
+| Client Auth Patterns        | ~18 (routes, AuthContext, RBAC) | SA-009                                 | Route gating complete; staleness gap only                                         |
+| Data Exposure               | ~14                             | SA-008, SA-010, SA-014                 | select('*'), raw errors, URL-in-logs                                              |
+| Payment Security (Stripe)   | ~11 Stripe fns + shared         | **0**                                  | Clean — signatures, server-side pricing, refund caps, portal scoping all verified |
+| Input Validation            | ~10                             | SA-015, SA-016                         | Parameterized queries; two same-origin HTML sinks                                 |
 
 ## Previous Audit Comparison
 
 Prior reports were **diff reviews**, not full audits — this is the **first full audit**, so most findings are new-to-record rather than regressions.
 
 - **`security-review-2026-06-24-ringside-passcode-phase-c.md`** — its 2 LOWs (anon-user/claim persistence, no server-side claim TTL) are Phase-E deferred ops items, not re-surfaced here. This audit independently **re-confirms** the ringside claim tier is forge-proof and never widens `can_view_admin` (payment/PII) columns.
-- **`docs/archive/security-review-2026-06-11-*.md`** — verified the tightened `dogs`/`people` RLS closed cross-tenant reads; still holds. SA-008 is the *client* over-fetch that leans on that same policy — complementary, not contradictory.
+- **`docs/archive/security-review-2026-06-11-*.md`** — verified the tightened `dogs`/`people` RLS closed cross-tenant reads; still holds. SA-008 is the _client_ over-fetch that leans on that same policy — complementary, not contradictory.
 - **`docs/improve-audit-2026-07/` (bug audit)** — SA-011 (`upsert_ringside_session` no throttle) and SA-016 (LegalPage markdown) match its documented "direction" items; re-confirmed live at `28a72d23f`. This audit does **not** re-litigate its REJECTED ledger (webhook `.every()`, cart-overflow refund, idempotency keys, `ringside_update_entry` empty-payload OCC, quota eviction, INSERT 23505) — all previously vetted as non-issues.
 
 ## Scope honesty (what this audit did NOT do)

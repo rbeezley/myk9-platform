@@ -111,45 +111,58 @@ After fixes, invoke `/commit` to push.
 The gate is a review by the **other** harness. A subagent of your own harness is never a substitute (see `docs/PLAYBOOK.md` § 4 — that substitution is a recorded lapse). The review must finish, and its findings must be acted on, before Step 5. A review that finishes after the merge is an audit, not a gate: on 2026-09-05 PR #2040 merged while its review was still running and both findings shipped to `main`.
 
 ```bash
-BASE_SHA=$(git rev-parse origin/main)
-HEAD_SHA=$(git rev-parse HEAD)
 PR_NUMBER=$(gh pr view --json number -q '.number')
-LOG=/tmp/review-gate-$PR_NUMBER-$HEAD_SHA.log
 ```
+
+**Never type an evidence comment by hand.** `scripts/qa/post-review-gate.sh` is the only writer of `Review gate:` comments; both wrappers call it for you. A hand-typed line attests to a review nobody can check — the poster hashes the log it posts and refuses a log that does not carry the reviewer's clean contract sentence.
 
 **Author is Claude Code → Codex reviews.** Run the wrapper from the worktree, foreground:
 
 ```bash
-pnpm qa:codex-review            # scripts/qa/codex-review.sh, always --base origin/main
+pnpm qa:codex-review --post     # scripts/qa/codex-review.sh, always --base origin/main
 ```
 
-Exit 0 = clean (it prints the exact evidence line to post), 1 = findings printed (fix, commit, re-run for the NEW head), 2 = the review did NOT run (usage limit / interrupted) — not a verdict, never post evidence. The wrapper closes stdin, logs to `/tmp/codex-review-<head>.log`, and detects an abort with a line-anchored grep because the log echoes the diff. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
+Use `--post` with no `--` before it: pnpm forwards a bare `--` to the script.
 
-**Author is Codex → Claude Code reviews:**
+**Author is Codex → Claude Code reviews.** A real review takes 5-20 minutes and `claude -p` prints nothing until it finishes, so a shell tool with a per-command timeout sees an empty log and kills it (Codex did exactly this on #2124 with `timeout 180 claude -p …`, twice). Never wrap the wrapper in `timeout`. Start it detached, then poll in short calls:
 
 ```bash
-claude -p "/code-review $PR_NUMBER" > "$LOG" 2>&1; echo "EXIT=$?"
+bash scripts/qa/claude-review.sh --detach --post $PR_NUMBER      # returns at once
+bash scripts/qa/claude-review.sh --wait 240 $PR_NUMBER           # repeat until it is not 3
+#   0 clean and evidence posted · 1 findings posted · 2 did not run (not a verdict) · 3 still running, call again
 ```
 
-**The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings. Read the log: it must contain either findings or an explicit no-findings statement for THIS head SHA. Then record the gate on the PR as a comment whose FIRST line has exactly this shape — `.github/workflows/review-gate.yml` parses it into the `Review gate` commit status on the head:
+**Codex: this cannot run inside your sandbox.** The review needs the macOS Keychain (Claude's credentials) and the network; `workspace-write` denies both, which reads as `Not logged in · Please run /login` (Keychain) or a three-minute hang ending in `Can't reach the API server` (network). The wrapper now detects both in seconds and exits 2 with the remedy: re-run it with escalated permissions, and if your approval policy forbids escalation, stop and report exactly: "Richard, run `bash scripts/qa/claude-review.sh --detach --post <pr>` from a terminal." Do not substitute a same-harness subagent review; that is not the gate.
 
-```bash
-gh pr comment $PR_NUMBER --body "Review gate: codex reviewed $BASE_SHA..$HEAD_SHA — no findings"
-# or, after fixing what it found and re-running:
-gh pr comment $PR_NUMBER --body "Review gate: codex reviewed $BASE_SHA..$HEAD_SHA — 2 findings, all addressed"
-```
+Two preconditions. Push first: `/code-review` reads the **remote** PR head while the evidence names your local HEAD, so the wrapper refuses (exit 2) when the two differ rather than attesting to a commit the reviewer never saw. And the wrapper lives in the tree: if `scripts/qa/claude-review.sh` is missing on your branch, your base predates it — `git merge origin/main` (that is a new head; push, then gate the new head).
 
-Concrete example — this exact line is what the checker's contract test parses, so keep one here:
+Both wrappers behave identically. Exit 0 = clean and the evidence comment has been posted for THIS head; 1 = findings, which the wrapper posts as a `Codex/Claude findings for <head>` comment (not evidence — it does not begin `Review gate:`), so fix them, commit, and re-run for the NEW head; 2 = the review did NOT complete (usage limit, interrupt, unrecognized output) **or the evidence was not posted** — not a verdict, and nothing was recorded. Drop `--post` to rehearse without writing to the PR. Never call `codex review --commit`: it reviews one commit and can vacuously pass on a docs-only tip.
+
+A re-review that finds defects on a head that already carries clean evidence also **withdraws** it — the wrapper posts a `<N> findings, not addressed` evidence line, which the checker rejects — so the gate goes red instead of staying green on the older attestation.
+
+**The exit code is not the verdict.** Both reviewers exit 0 when they were interrupted, hit a usage limit, or returned findings; that is why the wrappers read the log and why only the poster writes evidence. On a clean re-run after findings, the wrapper counts the `[P*]` bullets in its own earlier findings comments and posts `<N> findings, all addressed` — you do not supply N.
+
+`.github/workflows/review-gate.yml` parses the comment's FIRST line into the `Review gate` commit status on the head. Concrete example — this exact line is what the checker's contract test parses, so keep one here:
 
 ```text
 Review gate: codex reviewed 0a2020c7a..5af9af158 — no findings
 ```
 
-Write `claude` as the reviewer when Codex authored. The verdict is the whole remainder of the line and must be exactly `no findings` or `<N> finding(s), all addressed|fixed` — anything else (a parenthetical, "not all addressed", "no findings yet") is red by design; put detail on the comment's later lines. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point. Editing or deleting the evidence comment re-evaluates it too.
+The reviewer is `codex` or `claude` (whichever ran, i.e. the OTHER harness). The verdict is the whole remainder of the line and must be exactly `no findings` or `<N> findings, all addressed` / `<N> findings, all fixed` — `finding(s)` is **not** accepted, and neither is a parenthetical, "not all addressed", or "no findings yet"; `1 findings, all addressed` is the singular, ugly but green. `scripts/qa/review-gate.ts --verdict "<text>"` answers 0/2 for any candidate, and the poster asks it rather than carrying its own copy of the grammar. Put detail on the comment's later lines. The status is pinned to the SHA: any later push turns it red until a new line is recorded for the new head, which is the whole point. Editing or deleting the evidence comment re-evaluates it too.
 
-**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow): use the § 4 fallback — adversarial subagents, plural, prompted to find bugs rather than approve — label the PR body with what ran instead, keep the PR a draft when nothing is time-pressured, and re-run the real gate once it is available.
+**If the reviewer is genuinely unavailable** (usage limit, outage, auth failure — not merely slow), use the documented `human-fallback` path: run two adversarial subagent reviews in parallel, fix every finding, wait for required checks to pass, and have a repository OWNER or MEMBER post this exact first line against the current head, followed by the detail lines shown in `docs/PLAYBOOK.md`:
 
-**Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward. Invoke `/commit`, then re-run the gate against the new `HEAD_SHA`. **Max 5 review rounds** — escalate to the user if not clean after 5.
+```text
+Review gate: human-fallback reviewed 0a2020c7a..5af9af158 — 2 adversarial subagent reviews, all findings addressed
+Fallback reason: Claude unavailable — authentication failure
+Adversarial subagent review: correctness
+Adversarial subagent review: security
+Required checks: passing
+```
+
+The fallback is explicitly labelled and second-best. Keep the PR a draft when nothing is time-pressured; when a maintainer authorizes it, mark the PR ready so the status can be evaluated, and re-run the real gate once the reviewer is available.
+
+**Findings:** fix every critical/high (P1/P2) finding and any medium (P3) that is straightforward. Invoke `/commit`, then re-run the wrapper against the new head. **Max 5 review rounds** — escalate to the user if not clean after 5.
 
 Never report the PR as ready, arm auto-merge, or merge while a review is running.
 

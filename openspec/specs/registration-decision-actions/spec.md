@@ -1,8 +1,11 @@
 # registration-decision-actions Specification
 
 ## Purpose
+
 Make Accept/Reject first-class, discoverable actions in the focused registration primary-work panel, sharing the same handlers as the overflow menu, with honest no-action copy when nothing needs doing.
+
 ## Requirements
+
 ### Requirement: Decision actions are visible in the primary-work panel
 
 The focused registration's primary-work panel SHALL render explicit Accept and Reject actions whenever the registration's recommended action is a review decision, acting on the same affected entry set and handlers as the existing overflow-menu verbs.
@@ -38,4 +41,3 @@ The primary-work panel SHALL NOT claim entries need an action when none do.
 
 - **WHEN** exactly one entry needs the recommended action
 - **THEN** the panel copy reads "1 of N Entry … needs this action" with subject–verb agreement
-

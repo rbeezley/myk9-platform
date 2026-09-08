@@ -2,7 +2,7 @@
 
 Chases the one step automation cannot do: putting paper in the trial box. MYK9-228 phase 5.
 
-The reminder is deliberately **not** "please generate a packet" — a chore about our plumbing, easy to ignore because it reads as our problem. It is *"Saturday's packet is ready; print it and put it in the trial box,"* and it has a checkable exit condition.
+The reminder is deliberately **not** "please generate a packet" — a chore about our plumbing, easy to ignore because it reads as our problem. It is _"Saturday's packet is ready; print it and put it in the trial box,"_ and it has a checkable exit condition.
 
 ## The exit condition is `paperwork_prints`, never the snapshot row
 
@@ -22,13 +22,13 @@ Authorization: Bearer $PACKET_CRON_SECRET
 
 Outcomes:
 
-| | |
-| --- | --- |
-| `sent` | Emailed the show officials, with a count |
-| `no-packet` | Nothing to print. A reminder to print something that does not exist is noise, and noise is how a channel stops being read |
-| `already-printed` | A non-voided confirmation covers the day — the exit condition |
-| `already-reminded` | This slot already went out |
-| `no-recipients` | No current official has an email address |
+|                    |                                                                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `sent`             | Emailed the show officials, with a count                                                                                  |
+| `no-packet`        | Nothing to print. A reminder to print something that does not exist is noise, and noise is how a channel stops being read |
+| `already-printed`  | A non-voided confirmation covers the day — the exit condition                                                             |
+| `already-reminded` | This slot already went out                                                                                                |
+| `no-recipients`    | No current official has an email address                                                                                  |
 
 ## Two slots, deliberately independent
 

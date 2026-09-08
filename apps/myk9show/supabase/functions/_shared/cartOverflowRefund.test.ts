@@ -5,7 +5,6 @@ import { calculatePlatformFeeCents, type PlatformFeeRates } from './platformFee'
 /** The 7/0/0 rates every legacy fixture in this file was priced with. */
 const RATES_7: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
 
-
 const base = {
   paymentIntentId: 'pi_cart_123',
   sessionAmountTotalCents: 11_770,

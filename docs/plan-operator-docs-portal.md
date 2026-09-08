@@ -3,13 +3,12 @@
 > **Status:** Active — metadata reconciled 2026-09-05.
 > Richard owns reconciliation: existing historical implementation/status is preserved below; closure evidence is not independently established in this pass. Keep active pending that evidence.
 
-
 > **Status:** Deferred (2026-06-27)
 >
 > **Interim decision:** the operator runbooks stay in the repo under `docs/operations/`,
 > searchable via the editor/`grep` + the new [`operations/README.md`](operations/README.md)
 > index. The gated portal is **not** being built now — it's the most work, and the sensitive
-> runbook content (privileged-operations SQL + infra map, not secret *values*) is exactly what
+> runbook content (privileged-operations SQL + infra map, not secret _values_) is exactly what
 > can't go on the public help site, so a public guide doesn't substitute for it. **Revive this
 > plan if** searching the runbooks in the repo proves insufficient and a browser search UI is
 > worth a separate password-gated Vercel deployment. The decided architecture below
@@ -49,14 +48,14 @@ Mirror the proven `apps/docs` machinery, pointed at a different source and gated
 - **Search:** SSR rules out **Pagefind** (it indexes static HTML at build time, which SSR
   doesn't emit). Instead, `prepare-content.mjs` emits a small `search-index.json` (title +
   headings + body text per runbook), and a client-side fuzzy filter renders results. Fine for
-  ~7 small docs; no infra. (Pagefind on the *public* `apps/docs` is a separate fast-follow.)
+  ~7 small docs; no infra. (Pagefind on the _public_ `apps/docs` is a separate fast-follow.)
 
 ## The one decision: how to gate it
 
-| Option | How | Requires | Architecture impact |
-| --- | --- | --- | --- |
-| **A. Vercel Deployment Protection** | Toggle Password Protection (or Vercel Authentication) on the new Vercel project in the dashboard | Vercel **Pro** (password) or team SSO (Vercel Authentication) | None — site stays `output: static`, **zero auth code**. Simplest. |
-| **B. Astro middleware Basic Auth** | `src/middleware.ts` checks an `OPERATOR_DOCS_PASSWORD` env var via HTTP Basic Auth | Any Vercel plan; needs `@astrojs/vercel` adapter + `output: server` | Site becomes SSR; a little auth code; works without Pro. |
+| Option                              | How                                                                                              | Requires                                                            | Architecture impact                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **A. Vercel Deployment Protection** | Toggle Password Protection (or Vercel Authentication) on the new Vercel project in the dashboard | Vercel **Pro** (password) or team SSO (Vercel Authentication)       | None — site stays `output: static`, **zero auth code**. Simplest. |
+| **B. Astro middleware Basic Auth**  | `src/middleware.ts` checks an `OPERATOR_DOCS_PASSWORD` env var via HTTP Basic Auth               | Any Vercel plan; needs `@astrojs/vercel` adapter + `output: server` | Site becomes SSR; a little auth code; works without Pro.          |
 
 **Recommendation: A if you have Vercel Pro** (cleanest, no code, just a dashboard toggle).
 **B as the fallback** if you don't — it's in-repo and plan-agnostic. Everything else in this
@@ -65,6 +64,7 @@ plan is identical either way; only the final gating wiring differs.
 ## Phases
 
 ### Phase 1 — Scaffold (static, ungated)
+
 1. `apps/operator-docs` Astro app mirroring `apps/docs` (config, `BaseLayout`, `[...slug].astro`,
    `index.astro` from `operations/README.md`, styles reused/imported).
 2. `prepare-content.mjs` sources `docs/operations/*.md`; strip any internal-only markers; build
@@ -72,21 +72,25 @@ plan is identical either way; only the final gating wiring differs.
 3. `pnpm --filter @myk9/operator-docs build` succeeds locally; every runbook renders.
 
 ### Phase 2 — Search
+
 4. Add Pagefind post-build + a search input in `BaseLayout`. Verify a query (e.g. "vault
    secret") returns the payout-cron section.
 
 ### Phase 3 — Gate (the security-critical phase)
+
 5. Implement the chosen option (A: dashboard toggle + a note in the runbook; B: middleware +
    env var).
 6. **Gate test:** an unauthenticated request to a deployed runbook URL is refused (401/redirect).
    This is the exit criterion — do not consider the portal done until this passes.
 
 ### Phase 4 — Vercel project + docs (operator steps)
+
 7. Create the Vercel project (Root = `apps/operator-docs`, Build Command `pnpm build`), enable
    protection (Option A) or set `OPERATOR_DOCS_PASSWORD` (Option B). **Operator action.**
 8. Document the portal + its URL + how to add a runbook in `docs/operations/README.md`.
 
 ### Phase 5 — Testing (required)
+
 - Build is green in CI (add the app to the workspace build).
 - A source-text test or build assertion that every file in `docs/operations/*.md` (except any
   explicitly excluded) is present in the generated portal content — so a new runbook can't be
@@ -94,5 +98,6 @@ plan is identical either way; only the final gating wiring differs.
 - Manual gate verification recorded (the Phase 3 exit criterion).
 
 ## Out of scope
+
 - Pulling the public help site's guides into this portal (different audience; stays separate).
 - SSO/per-user accounts — a single shared gate is sufficient for a solo/small operator team.

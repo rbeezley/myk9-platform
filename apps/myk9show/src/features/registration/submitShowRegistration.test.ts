@@ -323,7 +323,9 @@ describe('submitShowRegistration', () => {
       fromAny({ data: null, error: null })
     );
 
-    await expect(submitShowRegistration(params)).rejects.toThrow(/enrollment could not be created/i);
+    await expect(submitShowRegistration(params)).rejects.toThrow(
+      /enrollment could not be created/i
+    );
 
     expect(params.deps.submitShowEntries).not.toHaveBeenCalled();
     expect(params.deps.claimNextArmband).not.toHaveBeenCalled();

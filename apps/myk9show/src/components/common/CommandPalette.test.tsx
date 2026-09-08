@@ -26,8 +26,7 @@ type MockDog = { id: string; name: string; callName?: string; registrations?: un
 let mockDogs: MockDog[] = [];
 
 vi.mock('@/store/dogStore', () => ({
-  useDogStore: (selector: (state: { dogs: MockDog[] }) => unknown) =>
-    selector({ dogs: mockDogs }),
+  useDogStore: (selector: (state: { dogs: MockDog[] }) => unknown) => selector({ dogs: mockDogs }),
 }));
 
 vi.mock('@/store/userStore', () => ({
@@ -63,9 +62,7 @@ function mockAuth(roles: UserRole[], permissions: string[] = []) {
   } as ReturnType<typeof useAuthContext>);
 }
 
-function registerEntryManagementContext(
-  overrides: Partial<CommandMenuContext> = {}
-): () => void {
+function registerEntryManagementContext(overrides: Partial<CommandMenuContext> = {}): () => void {
   return registerCommandMenuContext({
     surface: 'entry-management',
     showId: 'show-1',
@@ -272,9 +269,7 @@ describe('CommandPalette shortcuts-help footer (task 3.1/3.2)', () => {
     const onOpenChange = vi.fn();
     const onShowShortcuts = vi.fn();
 
-    render(
-      <CommandPalette open onOpenChange={onOpenChange} onShowShortcuts={onShowShortcuts} />
-    );
+    render(<CommandPalette open onOpenChange={onOpenChange} onShowShortcuts={onShowShortcuts} />);
 
     fireEvent.click(screen.getByRole('button', { name: /all shortcuts/i }));
 

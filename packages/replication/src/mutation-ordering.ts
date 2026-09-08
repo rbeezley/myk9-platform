@@ -37,9 +37,7 @@ export function compareMutationOrder(a: PendingMutation, b: PendingMutation): nu
  * remaining mutations are appended in stable sequence/timestamp order to match
  * the legacy MutationManager behavior.
  */
-export function sortMutationsByDependencies(
-  mutations: PendingMutation[]
-): MutationOrderingResult {
+export function sortMutationsByDependencies(mutations: PendingMutation[]): MutationOrderingResult {
   const graph = new Map<string, string[]>();
   const inDegree = new Map<string, number>();
   const mutationMap = new Map<string, PendingMutation>();

@@ -36,7 +36,9 @@ describe('MessageShowComposer', () => {
   it('describes everyone-in-show as a show message, not an announcement choice', async () => {
     const { user } = render(<MessageShowComposer showId="show-1" classes={classes} />);
 
-    expect(screen.getByText('Send a show message to everyone or a targeted group.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Send a show message to everyone or a targeted group.')
+    ).toBeInTheDocument();
     expect(screen.queryByText(/announcement/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Title')).toHaveValue('Lunch is ready');
 
@@ -82,11 +84,7 @@ describe('MessageShowComposer', () => {
 
   it('can send everyone-in-show through targeted messaging when the caller cannot post show-wide posts', async () => {
     const { user } = render(
-      <MessageShowComposer
-        showId="show-1"
-        classes={classes}
-        showWideDeliveryLane="targeted"
-      />
+      <MessageShowComposer showId="show-1" classes={classes} showWideDeliveryLane="targeted" />
     );
 
     await user.click(screen.getByRole('button', { name: 'Send message' }));

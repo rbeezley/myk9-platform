@@ -185,11 +185,7 @@ export const ANON_COLUMN_ALLOWLIST: Readonly<Record<string, readonly string[]>> 
   // table-level grant appearing on platform_settings is a failure, not an
   // upgrade — which is why the table is deliberately NOT in
   // ANON_TABLE_ALLOWLIST above.
-  platform_settings: [
-    'platform_fee_percent',
-    'platform_fee_flat_cents',
-    'platform_fee_min_cents',
-  ],
+  platform_settings: ['platform_fee_percent', 'platform_fee_flat_cents', 'platform_fee_min_cents'],
 };
 
 /** Tables where anon legitimately holds COLUMN-level (never table-level) grants. */

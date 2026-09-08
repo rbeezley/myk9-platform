@@ -44,7 +44,7 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
     : BASE_CHECK_IN_STATUSES;
 
   return (
-    <Dialog open onOpenChange={(open) => handleOpenChange(open, onClose)}>
+    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Change Status</DialogTitle>

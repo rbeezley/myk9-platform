@@ -3,18 +3,18 @@ import { useIntersectionObserver } from '../../hooks/useIntersectionObserver';
 /**
  * Component for triggering lazy loading when it comes into view
  */
-export function LazyLoadTrigger({ 
-  onLoadMore, 
-  hasMore, 
-  loading 
-}: { 
+export function LazyLoadTrigger({
+  onLoadMore,
+  hasMore,
+  loading,
+}: {
   onLoadMore: () => void;
   hasMore: boolean;
   loading: boolean;
 }) {
   const triggerRef = useIntersectionObserver(onLoadMore, {
     rootMargin: '100px',
-    threshold: 0.1
+    threshold: 0.1,
   });
 
   if (!hasMore) return null;

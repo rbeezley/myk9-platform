@@ -76,12 +76,8 @@ describe('shouldDeliverWaitlistEvent', () => {
 
   it('delivers only the current active unpaid offer cycle', () => {
     expect(shouldDeliverWaitlistEvent(activeOffer)).toBe(true);
-    expect(
-      shouldDeliverWaitlistEvent({ ...activeOffer, paymentStatus: 'paid' })
-    ).toBe(false);
-    expect(
-      shouldDeliverWaitlistEvent({ ...activeOffer, waitlistStatus: 'expired' })
-    ).toBe(false);
+    expect(shouldDeliverWaitlistEvent({ ...activeOffer, paymentStatus: 'paid' })).toBe(false);
+    expect(shouldDeliverWaitlistEvent({ ...activeOffer, waitlistStatus: 'expired' })).toBe(false);
     expect(
       shouldDeliverWaitlistEvent({
         ...activeOffer,

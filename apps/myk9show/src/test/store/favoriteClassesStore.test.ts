@@ -107,9 +107,7 @@ describe('favoriteClassesStore', () => {
         expect.any(String)
       );
 
-      const savedData = JSON.parse(
-        localStorageMock.setItem.mock.calls[0][1]
-      );
+      const savedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1]);
       expect(savedData).toContain('class-1');
     });
 

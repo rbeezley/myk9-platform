@@ -39,7 +39,8 @@ const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Dates</div>
           <div className="font-medium">
-            {formatShortCalendarDate(showData.startDate)} – {formatShortCalendarDate(showData.endDate)}
+            {formatShortCalendarDate(showData.startDate)} –{' '}
+            {formatShortCalendarDate(showData.endDate)}
           </div>
         </div>
         <div>

@@ -11,13 +11,13 @@ import type {
   AgilityScore,
   ObedienceScore,
   RallyScore,
-  ConformationScore
+  ConformationScore,
 } from '@/types/scoring-types';
 import {
   isAgilityScore,
   isObedienceScore,
   isRallyScore,
-  isConformationScore
+  isConformationScore,
 } from '@/types/scoring-types';
 import type { ScentWorkResult, MultiAreaScentWorkResult } from '@/types/scent-work-types';
 
@@ -34,7 +34,7 @@ export async function validateScentWorkScore(
     result.errors.push({
       field: 'searchTime',
       message: 'Search time cannot be negative',
-      code: 'INVALID_TIME'
+      code: 'INVALID_TIME',
     });
   }
 
@@ -43,7 +43,7 @@ export async function validateScentWorkScore(
     result.errors.push({
       field: 'faults',
       message: 'Faults cannot be negative',
-      code: 'INVALID_FAULTS'
+      code: 'INVALID_FAULTS',
     });
   }
 
@@ -53,7 +53,7 @@ export async function validateScentWorkScore(
     result.warnings.push({
       field: 'qualification',
       message: 'Dog qualified but exceeded time limit',
-      suggestion: 'Verify qualification status'
+      suggestion: 'Verify qualification status',
     });
   }
 
@@ -67,7 +67,7 @@ function validateMultiAreaScore(score: MultiAreaScentWorkResult, result: Validat
     result.errors.push({
       field: 'areaResults',
       message: 'Multi-area score must have area results',
-      code: 'MISSING_AREA_RESULTS'
+      code: 'MISSING_AREA_RESULTS',
     });
     return;
   }
@@ -77,7 +77,7 @@ function validateMultiAreaScore(score: MultiAreaScentWorkResult, result: Validat
     result.errors.push({
       field: 'totalSearchTime',
       message: 'Total search time does not match sum of area times',
-      code: 'TIME_CALCULATION_ERROR'
+      code: 'TIME_CALCULATION_ERROR',
     });
   }
 
@@ -86,7 +86,7 @@ function validateMultiAreaScore(score: MultiAreaScentWorkResult, result: Validat
     result.errors.push({
       field: 'totalFaults',
       message: 'Total faults do not match sum of area faults',
-      code: 'FAULT_CALCULATION_ERROR'
+      code: 'FAULT_CALCULATION_ERROR',
     });
   }
 }
@@ -103,7 +103,7 @@ export async function validateAgilityScore(
     result.errors.push({
       field: 'courseTime',
       message: 'Course time cannot be negative',
-      code: 'INVALID_TIME'
+      code: 'INVALID_TIME',
     });
   }
 
@@ -112,7 +112,7 @@ export async function validateAgilityScore(
     result.errors.push({
       field: 'totalFaults',
       message: 'Total faults calculation is incorrect',
-      code: 'FAULT_CALCULATION_ERROR'
+      code: 'FAULT_CALCULATION_ERROR',
     });
   }
 
@@ -120,7 +120,7 @@ export async function validateAgilityScore(
     result.errors.push({
       field: 'qualification',
       message: 'Dog cannot be qualified if excused/eliminated',
-      code: 'QUALIFICATION_CONFLICT'
+      code: 'QUALIFICATION_CONFLICT',
     });
   }
 
@@ -128,7 +128,7 @@ export async function validateAgilityScore(
     result.warnings.push({
       field: 'refusals',
       message: 'Dog has 3+ refusals but is marked as qualified',
-      suggestion: 'Verify qualification status'
+      suggestion: 'Verify qualification status',
     });
   }
 }
@@ -150,7 +150,7 @@ export async function validateObedienceScore(
       result.errors.push({
         field: 'totalScore',
         message: 'Total score does not match sum of exercise scores',
-        code: 'SCORE_CALCULATION_ERROR'
+        code: 'SCORE_CALCULATION_ERROR',
       });
     }
 
@@ -159,7 +159,7 @@ export async function validateObedienceScore(
         result.errors.push({
           field: `exercises[${index}].pointsAwarded`,
           message: `Exercise "${exercise.name}" points exceed maximum`,
-          code: 'POINTS_EXCEED_MAXIMUM'
+          code: 'POINTS_EXCEED_MAXIMUM',
         });
       }
 
@@ -167,7 +167,7 @@ export async function validateObedienceScore(
         result.errors.push({
           field: `exercises[${index}].pointsAwarded`,
           message: `Exercise "${exercise.name}" points cannot be negative`,
-          code: 'NEGATIVE_POINTS'
+          code: 'NEGATIVE_POINTS',
         });
       }
     });
@@ -177,7 +177,7 @@ export async function validateObedienceScore(
     result.errors.push({
       field: 'isQualifying',
       message: 'Score is below qualifying threshold but marked as qualifying',
-      code: 'QUALIFICATION_THRESHOLD_ERROR'
+      code: 'QUALIFICATION_THRESHOLD_ERROR',
     });
   }
 }
@@ -190,13 +190,12 @@ export async function validateRallyScore(
   score: RallyScore,
   result: ValidationResult
 ): Promise<void> {
-  const calculatedDeductions =
-    score.stationDeductions + score.lackOfControl + score.repeatStation;
+  const calculatedDeductions = score.stationDeductions + score.lackOfControl + score.repeatStation;
   if (calculatedDeductions !== score.totalDeductions) {
     result.errors.push({
       field: 'totalDeductions',
       message: 'Total deductions calculation is incorrect',
-      code: 'DEDUCTION_CALCULATION_ERROR'
+      code: 'DEDUCTION_CALCULATION_ERROR',
     });
   }
 
@@ -205,7 +204,7 @@ export async function validateRallyScore(
     result.errors.push({
       field: 'finalScore',
       message: 'Final score calculation is incorrect',
-      code: 'FINAL_SCORE_ERROR'
+      code: 'FINAL_SCORE_ERROR',
     });
   }
 
@@ -213,7 +212,7 @@ export async function validateRallyScore(
     result.errors.push({
       field: 'isQualifying',
       message: 'Final score is below qualifying threshold',
-      code: 'QUALIFICATION_THRESHOLD_ERROR'
+      code: 'QUALIFICATION_THRESHOLD_ERROR',
     });
   }
 
@@ -222,7 +221,7 @@ export async function validateRallyScore(
       result.warnings.push({
         field: 'timeFault',
         message: 'Course time exceeded but time fault not marked',
-        suggestion: 'Check if time fault should be applied'
+        suggestion: 'Check if time fault should be applied',
       });
     }
   }
@@ -240,7 +239,7 @@ export async function validateConformationScore(
     result.errors.push({
       field: 'placement',
       message: 'Placement cannot be less than 1',
-      code: 'INVALID_PLACEMENT'
+      code: 'INVALID_PLACEMENT',
     });
   }
 
@@ -248,7 +247,7 @@ export async function validateConformationScore(
     result.errors.push({
       field: 'pointsAwarded',
       message: 'Points awarded cannot be negative',
-      code: 'NEGATIVE_POINTS'
+      code: 'NEGATIVE_POINTS',
     });
   }
 
@@ -256,7 +255,7 @@ export async function validateConformationScore(
     result.errors.push({
       field: 'majorWin',
       message: 'Major win requires 3+ points',
-      code: 'MAJOR_WIN_ERROR'
+      code: 'MAJOR_WIN_ERROR',
     });
   }
 
@@ -267,7 +266,7 @@ export async function validateConformationScore(
       result.errors.push({
         field,
         message: `${field} must be between 1 and 10`,
-        code: 'ASSESSMENT_RANGE_ERROR'
+        code: 'ASSESSMENT_RANGE_ERROR',
       });
     }
   });

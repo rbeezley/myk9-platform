@@ -246,9 +246,7 @@ export function resolveAcceptedEntrySnapshot(
   // do not book a partial fee here, without breaking the other. The tie-out
   // cases in orderSnapshot.test.ts run at non-zero flat AND non-zero floor
   // precisely so the pair cannot drift apart again.
-  const rates = normalizePlatformFeeRates(
-    feeRates ?? { percent: 0, flatCents: 0, minCents: 0 }
-  );
+  const rates = normalizePlatformFeeRates(feeRates ?? { percent: 0, flatCents: 0, minCents: 0 });
   return {
     status: 'derived',
     entrySubtotalCents,

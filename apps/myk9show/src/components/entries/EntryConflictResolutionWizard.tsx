@@ -1,16 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 // import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // import { Separator } from '@/components/ui/separator';
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  // Clock, 
-  // User, 
+import {
+  AlertTriangle,
+  CheckCircle,
+  // Clock,
+  // User,
   // Calendar,
   ArrowLeft,
   ArrowRight,
@@ -18,7 +24,7 @@ import {
   // RotateCcw,
   Download,
   Upload,
-  FileText
+  FileText,
   // DollarSign
 } from 'lucide-react';
 import { SyncableShowEntry } from '@/store/entryStore';
@@ -51,14 +57,17 @@ interface EntryConflictResolutionWizardProps {
   /** Conflict metadata */
   conflictInfo: SyncConflict;
   /** Callback when resolution is completed */
-  onResolve: (resolution: ResolutionChoice[], strategy: 'local' | 'remote' | 'merge' | 'manual') => void;
+  onResolve: (
+    resolution: ResolutionChoice[],
+    strategy: 'local' | 'remote' | 'merge' | 'manual'
+  ) => void;
   /** Loading state */
   isResolving?: boolean;
 }
 
 /**
  * EntryConflictResolutionWizard - Step-by-step conflict resolution with Premium design
- * 
+ *
  * Provides a guided workflow for resolving sync conflicts between local and remote entry versions.
  * Supports field-by-field comparison, automatic resolution suggestions, and manual resolution.
  */
@@ -69,7 +78,7 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
   remoteEntry,
   conflictInfo,
   onResolve,
-  isResolving = false
+  isResolving = false,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [resolutionChoices, setResolutionChoices] = useState<ResolutionChoice[]>([]);
@@ -80,10 +89,16 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
     const details: ConflictDetails[] = [];
 
     // Helper to compare values and determine importance
-    const compareField = (field: string, local: unknown, remote: unknown, importance: ConflictDetails['importance'], description: string) => {
+    const compareField = (
+      field: string,
+      local: unknown,
+      remote: unknown,
+      importance: ConflictDetails['importance'],
+      description: string
+    ) => {
       if (JSON.stringify(local) !== JSON.stringify(remote)) {
         let fieldType: ConflictDetails['fieldType'] = 'text';
-        
+
         if (typeof local === 'number' || typeof remote === 'number') fieldType = 'number';
         else if (local instanceof Date || remote instanceof Date) fieldType = 'date';
         else if (Array.isArray(local) || Array.isArray(remote)) fieldType = 'array';
@@ -95,35 +110,113 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
           remoteValue: remote,
           fieldType,
           importance,
-          description
+          description,
         });
       }
     };
 
     // Compare entry fields by importance
-    compareField('status', localEntry.status, remoteEntry.status, 'critical', 'Entry status affects competition eligibility');
-    
+    compareField(
+      'status',
+      localEntry.status,
+      remoteEntry.status,
+      'critical',
+      'Entry status affects competition eligibility'
+    );
+
     // Registration data comparisons
     if (localEntry.registrationData && remoteEntry.registrationData) {
-      compareField('registrationData.handler', localEntry.registrationData.handler, remoteEntry.registrationData.handler, 'high', 'Handler information for competition');
-      compareField('registrationData.entryFee', localEntry.registrationData.entryFee, remoteEntry.registrationData.entryFee, 'high', 'Entry fee affects payment processing');
-      compareField('registrationData.paymentStatus', localEntry.registrationData.paymentStatus, remoteEntry.registrationData.paymentStatus, 'critical', 'Payment status affects entry validity');
-      compareField('registrationData.armband', localEntry.registrationData.armband, remoteEntry.registrationData.armband, 'medium', 'Armband number for competition');
-      compareField('registrationData.runOrder', localEntry.registrationData.runOrder, remoteEntry.registrationData.runOrder, 'medium', 'Running order position');
-      compareField('registrationData.specialRequests', localEntry.registrationData.specialRequests, remoteEntry.registrationData.specialRequests, 'low', 'Special handling requests');
+      compareField(
+        'registrationData.handler',
+        localEntry.registrationData.handler,
+        remoteEntry.registrationData.handler,
+        'high',
+        'Handler information for competition'
+      );
+      compareField(
+        'registrationData.entryFee',
+        localEntry.registrationData.entryFee,
+        remoteEntry.registrationData.entryFee,
+        'high',
+        'Entry fee affects payment processing'
+      );
+      compareField(
+        'registrationData.paymentStatus',
+        localEntry.registrationData.paymentStatus,
+        remoteEntry.registrationData.paymentStatus,
+        'critical',
+        'Payment status affects entry validity'
+      );
+      compareField(
+        'registrationData.armband',
+        localEntry.registrationData.armband,
+        remoteEntry.registrationData.armband,
+        'medium',
+        'Armband number for competition'
+      );
+      compareField(
+        'registrationData.runOrder',
+        localEntry.registrationData.runOrder,
+        remoteEntry.registrationData.runOrder,
+        'medium',
+        'Running order position'
+      );
+      compareField(
+        'registrationData.specialRequests',
+        localEntry.registrationData.specialRequests,
+        remoteEntry.registrationData.specialRequests,
+        'low',
+        'Special handling requests'
+      );
     }
 
     // Competition data comparisons
     if (localEntry.competitionData && remoteEntry.competitionData) {
-      compareField('competitionData.score', localEntry.competitionData.score, remoteEntry.competitionData.score, 'critical', 'Competition score determines placement');
-      compareField('competitionData.time', localEntry.competitionData.time, remoteEntry.competitionData.time, 'critical', 'Competition time affects qualification');
-      compareField('competitionData.placement', localEntry.competitionData.placement, remoteEntry.competitionData.placement, 'critical', 'Final placement in class');
-      compareField('competitionData.qualified', localEntry.competitionData.qualified, remoteEntry.competitionData.qualified, 'critical', 'Qualification status');
-      compareField('competitionData.judgeNotes', localEntry.competitionData.judgeNotes, remoteEntry.competitionData.judgeNotes, 'medium', 'Judge feedback and notes');
+      compareField(
+        'competitionData.score',
+        localEntry.competitionData.score,
+        remoteEntry.competitionData.score,
+        'critical',
+        'Competition score determines placement'
+      );
+      compareField(
+        'competitionData.time',
+        localEntry.competitionData.time,
+        remoteEntry.competitionData.time,
+        'critical',
+        'Competition time affects qualification'
+      );
+      compareField(
+        'competitionData.placement',
+        localEntry.competitionData.placement,
+        remoteEntry.competitionData.placement,
+        'critical',
+        'Final placement in class'
+      );
+      compareField(
+        'competitionData.qualified',
+        localEntry.competitionData.qualified,
+        remoteEntry.competitionData.qualified,
+        'critical',
+        'Qualification status'
+      );
+      compareField(
+        'competitionData.judgeNotes',
+        localEntry.competitionData.judgeNotes,
+        remoteEntry.competitionData.judgeNotes,
+        'medium',
+        'Judge feedback and notes'
+      );
     }
 
     // Status history comparison
-    compareField('statusHistory', localEntry.statusHistory, remoteEntry.statusHistory, 'high', 'Entry status change history');
+    compareField(
+      'statusHistory',
+      localEntry.statusHistory,
+      remoteEntry.statusHistory,
+      'high',
+      'Entry status change history'
+    );
 
     return details.sort((a, b) => {
       const importanceOrder = { critical: 4, high: 3, medium: 2, low: 1 };
@@ -145,7 +238,11 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
       } else if (detail.field.includes('payment')) {
         // For payment fields, prefer remote (server) version
         choice = 'remote';
-      } else if (detail.field.includes('score') || detail.field.includes('time') || detail.field.includes('placement')) {
+      } else if (
+        detail.field.includes('score') ||
+        detail.field.includes('time') ||
+        detail.field.includes('placement')
+      ) {
         // For competition results, prefer remote (official) version
         choice = 'remote';
       } else {
@@ -155,7 +252,7 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
 
       suggestions.push({
         field: detail.field,
-        choice
+        choice,
       });
     });
 
@@ -172,7 +269,7 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
   // Format value for display
   const formatValue = (value: unknown, fieldType: ConflictDetails['fieldType']): string => {
     if (value === null || value === undefined) return 'Not set';
-    
+
     switch (fieldType) {
       case 'date':
         return value instanceof Date ? value.toLocaleString() : String(value);
@@ -193,11 +290,15 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
   };
 
   // Update choice for a field
-  const updateChoice = (field: string, choice: ResolutionChoice['choice'], customValue?: unknown) => {
+  const updateChoice = (
+    field: string,
+    choice: ResolutionChoice['choice'],
+    customValue?: unknown
+  ) => {
     setResolutionChoices(prev => {
       const existing = prev.findIndex(c => c.field === field);
       const newChoice: ResolutionChoice = { field, choice, customValue };
-      
+
       if (existing >= 0) {
         const updated = [...prev];
         updated[existing] = newChoice;
@@ -223,7 +324,7 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
   const steps = [
     { id: 'overview', label: 'Conflict Overview', icon: AlertTriangle },
     { id: 'comparison', label: 'Field Comparison', icon: FileText },
-    { id: 'resolution', label: 'Resolution', icon: CheckCircle }
+    { id: 'resolution', label: 'Resolution', icon: CheckCircle },
   ];
 
   const currentStepConfig = steps[currentStep];
@@ -231,8 +332,10 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] bg-card/95 backdrop-blur-xl border-0 
-                                shadow-2xl rounded-2xl p-0 overflow-hidden">
+      <DialogContent
+        className="max-w-4xl w-[95vw] h-[90vh] bg-card/95 backdrop-blur-xl border-0 
+                                shadow-2xl rounded-2xl p-0 overflow-hidden"
+      >
         {/* Header */}
         <DialogHeader className="p-6 pb-4 border-b border-border/50">
           <div className="flex items-center justify-between">
@@ -241,19 +344,19 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
                 <AlertTriangle className="h-5 w-5 text-orange-600" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-semibold">
-                  Resolve Entry Conflict
-                </DialogTitle>
+                <DialogTitle className="text-xl font-semibold">Resolve Entry Conflict</DialogTitle>
                 <p className="text-sm text-muted-foreground">
                   Entry {localEntry.id} has conflicting versions
                 </p>
               </div>
             </div>
-            
+
             {/* Progress */}
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-sm font-medium">Step {currentStep + 1} of {steps.length}</p>
+                <p className="text-sm font-medium">
+                  Step {currentStep + 1} of {steps.length}
+                </p>
                 <p className="text-xs text-muted-foreground">{currentStepConfig.label}</p>
               </div>
               <div className="w-32">
@@ -281,8 +384,10 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
                   </div>
                 </div>
                 <p className="text-muted-foreground max-w-2xl">
-                  This entry has been modified both locally and remotely. We found {conflictDetails.length} 
-                  conflicting {conflictDetails.length === 1 ? 'field' : 'fields'} that need your attention.
+                  This entry has been modified both locally and remotely. We found{' '}
+                  {conflictDetails.length}
+                  conflicting {conflictDetails.length === 1 ? 'field' : 'fields'} that need your
+                  attention.
                 </p>
               </div>
 
@@ -293,7 +398,10 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
                     <CardTitle className="text-sm text-center">Conflict Type</CardTitle>
                   </CardHeader>
                   <CardContent className="text-center">
-                    <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200">
+                    <Badge
+                      variant="secondary"
+                      className="bg-orange-50 text-orange-700 border-orange-200"
+                    >
                       {conflictInfo.conflictType.replace('_', ' ').toUpperCase()}
                     </Badge>
                   </CardContent>
@@ -366,20 +474,24 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
               </div>
 
               <div className="space-y-4">
-                {conflictDetails.map((detail) => {
+                {conflictDetails.map(detail => {
                   const choice = getChoice(detail.field);
-                  
+
                   return (
                     <Card key={detail.field} className="overflow-hidden">
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Badge 
-                              variant={detail.importance === 'critical' ? 'destructive' : 'secondary'}
+                            <Badge
+                              variant={
+                                detail.importance === 'critical' ? 'destructive' : 'secondary'
+                              }
                               className={
-                                detail.importance === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
-                                detail.importance === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                                'bg-blue-50 text-blue-700 border-blue-200'
+                                detail.importance === 'critical'
+                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                  : detail.importance === 'high'
+                                    ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200'
                               }
                             >
                               {detail.importance}
@@ -389,37 +501,47 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
                               <p className="text-xs text-muted-foreground">{detail.description}</p>
                             </div>
                           </div>
-                          
+
                           {/* Resolution indicator */}
                           <div className="flex items-center gap-2">
                             {choice.choice === 'local' && (
-                              <Badge className="bg-blue-50 text-blue-700 border-blue-200">Local</Badge>
+                              <Badge className="bg-blue-50 text-blue-700 border-blue-200">
+                                Local
+                              </Badge>
                             )}
                             {choice.choice === 'remote' && (
-                              <Badge className="bg-green-50 text-green-700 border-green-200">Remote</Badge>
+                              <Badge className="bg-green-50 text-green-700 border-green-200">
+                                Remote
+                              </Badge>
                             )}
                             {choice.choice === 'merge' && (
-                              <Badge className="bg-purple-50 text-purple-700 border-purple-200">Merge</Badge>
+                              <Badge className="bg-purple-50 text-purple-700 border-purple-200">
+                                Merge
+                              </Badge>
                             )}
                           </div>
                         </div>
                       </CardHeader>
-                      
+
                       <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Local version */}
-                          <div 
+                          <div
                             className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                              choice.choice === 'local' 
-                                ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200' 
+                              choice.choice === 'local'
+                                ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
                                 : 'bg-muted/50 border-border hover:border-blue-200'
                             }`}
                             onClick={() => updateChoice(detail.field, 'local')}
                           >
                             <div className="flex items-center gap-2 mb-2">
                               <Download className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-800">Local Version</span>
-                              {choice.choice === 'local' && <CheckCircle className="h-4 w-4 text-blue-600" />}
+                              <span className="text-sm font-medium text-blue-800">
+                                Local Version
+                              </span>
+                              {choice.choice === 'local' && (
+                                <CheckCircle className="h-4 w-4 text-blue-600" />
+                              )}
                             </div>
                             <pre className="text-xs text-foreground whitespace-pre-wrap">
                               {formatValue(detail.localValue, detail.fieldType)}
@@ -427,18 +549,22 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
                           </div>
 
                           {/* Remote version */}
-                          <div 
+                          <div
                             className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                              choice.choice === 'remote' 
-                                ? 'bg-green-50 border-green-300 ring-2 ring-green-200' 
+                              choice.choice === 'remote'
+                                ? 'bg-green-50 border-green-300 ring-2 ring-green-200'
                                 : 'bg-muted/50 border-border hover:border-green-200'
                             }`}
                             onClick={() => updateChoice(detail.field, 'remote')}
                           >
                             <div className="flex items-center gap-2 mb-2">
                               <Upload className="h-4 w-4 text-green-600" />
-                              <span className="text-sm font-medium text-green-800">Remote Version</span>
-                              {choice.choice === 'remote' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                              <span className="text-sm font-medium text-green-800">
+                                Remote Version
+                              </span>
+                              {choice.choice === 'remote' && (
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                              )}
                             </div>
                             <pre className="text-xs text-foreground whitespace-pre-wrap">
                               {formatValue(detail.remoteValue, detail.fieldType)}
@@ -493,7 +619,10 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
                   </CardHeader>
                   <CardContent className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
-                      {resolutionChoices.filter(c => c.choice === 'merge' || c.choice === 'custom').length}
+                      {
+                        resolutionChoices.filter(c => c.choice === 'merge' || c.choice === 'custom')
+                          .length
+                      }
                     </div>
                   </CardContent>
                 </Card>
@@ -554,11 +683,7 @@ export const EntryConflictResolutionWizard: React.FC<EntryConflictResolutionWiza
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               ) : (
-                <Button
-                  variant="outline"
-                  onClick={onClose}
-                  disabled={isResolving}
-                >
+                <Button variant="outline" onClick={onClose} disabled={isResolving}>
                   Cancel
                 </Button>
               )}

@@ -19,11 +19,11 @@ Read-only download of `cron-health-check` from `sojmvhhwsjxmfistvzbe` on Septemb
 
 Read-only PostgREST query of `system_health_snapshots` selected the latest full run, its first subsequent continuous run, and the latest available run.
 
-| Mode | Snapshot ID | Created at (UTC) |
-| --- | --- | --- |
-| Full | `beb7ad98-2af3-4e22-baca-c63d356ca849` | 2026-09-06 07:00:06.156432 |
+| Mode                        | Snapshot ID                            | Created at (UTC)           |
+| --------------------------- | -------------------------------------- | -------------------------- |
+| Full                        | `beb7ad98-2af3-4e22-baca-c63d356ca849` | 2026-09-06 07:00:06.156432 |
 | First continuous after full | `051deaa2-a07c-474a-8809-323ef345145a` | 2026-09-06 07:05:04.854685 |
-| Latest sampled continuous | `38acf263-d6b1-4170-960b-f325ed128237` | 2026-09-06 12:40:02.695578 |
+| Latest sampled continuous   | `38acf263-d6b1-4170-960b-f325ed128237` | 2026-09-06 12:40:02.695578 |
 
 In all three snapshots, `anon_grants`, `applied_acl_grants`, and `public_schema_create_acl` have `stale_after_ms = 172800000`, status `ok`, and `checked_at = 2026-09-06T07:00:05.644523+00:00`. Both continuous runs preserve the daily timestamp and verdict.
 

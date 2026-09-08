@@ -21,9 +21,7 @@ describe('app permission vocabulary', () => {
     const seeded = seededPermissionCodes();
     const missing = Object.values(PERMISSIONS).filter(code => !seeded.has(code));
 
-    expect(missing, 'every PERMISSIONS value must be inserted into public.permissions').toEqual(
-      []
-    );
+    expect(missing, 'every PERMISSIONS value must be inserted into public.permissions').toEqual([]);
   });
 
   it('keeps the reconciliation migration explicit for the formerly phantom codes', () => {

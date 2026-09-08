@@ -1,8 +1,11 @@
 # exhibitor-my-shows-legibility Specification
 
 ## Purpose
+
 The exhibitor My Shows page stays legible and operable for elderly, low-tech, touch-first users: visible orientation, one clear next action per entry card, readable text and filters, adequate touch targets, and reassuring copy — so the page answers "what show is next, what is my status, what do I do" without interpretation.
+
 ## Requirements
+
 ### Requirement: Visible page title on all viewports
 
 The My Shows page SHALL render a visible "My Shows" heading (not screen-reader-only) on phone, tablet, and desktop viewports, preserving correct heading order.
@@ -126,4 +129,3 @@ Within an order card, dog items SHALL lay out in a wrapping grid with at most fi
 
 - **WHEN** an order card contains six dogs at a desktop viewport
 - **THEN** dogs render five in the first row and one in the second, with no horizontal scrollbar on the card
-

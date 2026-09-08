@@ -13,7 +13,7 @@ export enum ErrorSeverity {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
-  CRITICAL = 'critical'
+  CRITICAL = 'critical',
 }
 
 /**
@@ -33,7 +33,7 @@ export enum ErrorCategory {
   SECURITY = 'security',
   UI_RENDER = 'ui_render',
   DATA_INTEGRITY = 'data_integrity',
-  CONFIGURATION = 'configuration'
+  CONFIGURATION = 'configuration',
 }
 
 /**
@@ -124,7 +124,7 @@ export class ErrorAnalyticsService {
    */
   private setupGlobalErrorHandlers(): void {
     // JavaScript errors
-    window.addEventListener('error', (event) => {
+    window.addEventListener('error', event => {
       this.captureError({
         message: event.message,
         category: ErrorCategory.SYSTEM,
@@ -137,14 +137,14 @@ export class ErrorAnalyticsService {
             filename: event.filename,
             lineno: event.lineno,
             colno: event.colno,
-            type: 'javascript_error'
-          }
-        }
+            type: 'javascript_error',
+          },
+        },
       });
     });
 
     // Unhandled promise rejections
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener('unhandledrejection', event => {
       this.captureError({
         message: `Unhandled Promise Rejection: ${event.reason}`,
         category: ErrorCategory.SYSTEM,
@@ -155,32 +155,37 @@ export class ErrorAnalyticsService {
           stackTrace: event.reason?.stack,
           metadata: {
             reason: event.reason,
-            type: 'unhandled_promise'
-          }
-        }
+            type: 'unhandled_promise',
+          },
+        },
       });
     });
 
     // Resource loading errors
-    window.addEventListener('error', (event) => {
-      const target = event.target as HTMLElement;
-      if (target && target !== (window as unknown as HTMLElement)) {
-        this.captureError({
-          message: `Resource loading failed: ${target.tagName}`,
-          category: ErrorCategory.NETWORK,
-          severity: ErrorSeverity.MEDIUM,
-          context: {
-            timestamp: Date.now(),
-            url: window.location.href,
-            metadata: {
-              resourceType: target.tagName,
-              resourceSrc: 'src' in target ? target.src : 'href' in target ? target.href : undefined,
-              type: 'resource_error'
-            }
-          }
-        });
-      }
-    }, true);
+    window.addEventListener(
+      'error',
+      event => {
+        const target = event.target as HTMLElement;
+        if (target && target !== (window as unknown as HTMLElement)) {
+          this.captureError({
+            message: `Resource loading failed: ${target.tagName}`,
+            category: ErrorCategory.NETWORK,
+            severity: ErrorSeverity.MEDIUM,
+            context: {
+              timestamp: Date.now(),
+              url: window.location.href,
+              metadata: {
+                resourceType: target.tagName,
+                resourceSrc:
+                  'src' in target ? target.src : 'href' in target ? target.href : undefined,
+                type: 'resource_error',
+              },
+            },
+          });
+        }
+      },
+      true
+    );
   }
 
   /**
@@ -189,9 +194,12 @@ export class ErrorAnalyticsService {
    */
   private startPeriodicReporting(): void {
     // Report error statistics every 5 minutes
-    setInterval(() => {
-      this.reportErrorStatistics();
-    }, 5 * 60 * 1000);
+    setInterval(
+      () => {
+        this.reportErrorStatistics();
+      },
+      5 * 60 * 1000
+    );
 
     // Clean up old breadcrumbs every minute
     setInterval(() => {
@@ -236,14 +244,14 @@ export class ErrorAnalyticsService {
         severity,
         context: {
           ...context,
-          breadcrumbs: [...this.breadcrumbs]
+          breadcrumbs: [...this.breadcrumbs],
         },
         fingerprint,
         count: 1,
         firstSeen: now,
         lastSeen: now,
         resolved: false,
-        tags
+        tags,
       };
 
       this.errors.set(fingerprint, errorReport);
@@ -257,7 +265,7 @@ export class ErrorAnalyticsService {
       count: errorReport.count,
       component: context.component,
       action: context.action,
-      ...context.metadata
+      ...context.metadata,
     });
 
     // Track performance impact if this is a performance-related error
@@ -265,7 +273,7 @@ export class ErrorAnalyticsService {
       performanceMetrics.recordMetric('error_impact', 1, 'error', {
         category,
         severity,
-        component: context.component
+        component: context.component,
       });
     }
 
@@ -292,7 +300,11 @@ export class ErrorAnalyticsService {
     }
 
     // Log breadcrumb for debugging
-    logger.debug('Breadcrumb added', 'breadcrumb', breadcrumb as unknown as Record<string, unknown>);
+    logger.debug(
+      'Breadcrumb added',
+      'breadcrumb',
+      breadcrumb as unknown as Record<string, unknown>
+    );
   }
 
   /**
@@ -306,7 +318,7 @@ export class ErrorAnalyticsService {
       category: 'navigation',
       message: `Navigated from ${from} to ${to}`,
       level: 'info',
-      data: { from, to }
+      data: { from, to },
     });
   }
 
@@ -316,13 +328,17 @@ export class ErrorAnalyticsService {
    * @param target - Target of the action
    * @param metadata - Additional context
    */
-  addUserActionBreadcrumb(action: string, target: string, metadata?: Record<string, unknown>): void {
+  addUserActionBreadcrumb(
+    action: string,
+    target: string,
+    metadata?: Record<string, unknown>
+  ): void {
     this.addBreadcrumb({
       timestamp: Date.now(),
       category: 'user_action',
       message: `User ${action} on ${target}`,
       level: 'info',
-      data: { action, target, ...metadata }
+      data: { action, target, ...metadata },
     });
   }
 
@@ -339,7 +355,7 @@ export class ErrorAnalyticsService {
       category: 'api_call',
       message: `${method} ${url} - ${status} (${duration}ms)`,
       level: status >= 400 ? 'error' : 'info',
-      data: { method, url, status, duration }
+      data: { method, url, status, duration },
     });
   }
 
@@ -355,7 +371,7 @@ export class ErrorAnalyticsService {
       category: 'state_change',
       message: `State change in ${store}: ${action} (${changes} changes)`,
       level: 'info',
-      data: { store, action, changes }
+      data: { store, action, changes },
     });
   }
 
@@ -363,7 +379,11 @@ export class ErrorAnalyticsService {
    * Generate error fingerprint for deduplication
    * @private
    */
-  private generateErrorFingerprint(message: string, category: ErrorCategory, context: ErrorContext): string {
+  private generateErrorFingerprint(
+    message: string,
+    category: ErrorCategory,
+    context: ErrorContext
+  ): string {
     const normalizedMessage = message
       .replace(/\d+/g, 'N') // Replace numbers with N
       .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID') // Replace UUIDs
@@ -389,16 +409,12 @@ export class ErrorAnalyticsService {
    * @private
    */
   private escalateCriticalError(errorReport: ErrorReport): void {
-    logger.fatal(
-      `CRITICAL ERROR: ${errorReport.message}`,
-      'critical-error',
-      {
-        errorId: errorReport.id,
-        category: errorReport.category,
-        context: errorReport.context,
-        count: errorReport.count
-      }
-    );
+    logger.fatal(`CRITICAL ERROR: ${errorReport.message}`, 'critical-error', {
+      errorId: errorReport.id,
+      category: errorReport.category,
+      context: errorReport.context,
+      count: errorReport.count,
+    });
 
     // In a real application, this would send alerts to monitoring systems
     logger.error('🚨 CRITICAL ERROR DETECTED:', 'analytics', {
@@ -414,7 +430,7 @@ export class ErrorAnalyticsService {
    * @private
    */
   private cleanupBreadcrumbs(): void {
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
     this.breadcrumbs = this.breadcrumbs.filter(b => b.timestamp > oneHourAgo);
   }
 
@@ -424,13 +440,13 @@ export class ErrorAnalyticsService {
    */
   private reportErrorStatistics(): void {
     const stats = this.getErrorStatistics();
-    
+
     logger.info('Error Statistics Report', 'error-statistics', {
       totalErrors: stats.totalErrors,
       uniqueErrors: stats.uniqueErrors,
       criticalErrors: stats.criticalErrors,
       topCategories: stats.topCategories.slice(0, 5),
-      errorRate: stats.errorRate
+      errorRate: stats.errorRate,
     });
   }
 
@@ -477,9 +493,11 @@ export class ErrorAnalyticsService {
 
     // Calculate average resolution time (for resolved errors)
     const resolvedErrorsWithTime = errors.filter(e => e.resolved && e.lastSeen > e.firstSeen);
-    const averageResolutionTime = resolvedErrorsWithTime.length > 0
-      ? resolvedErrorsWithTime.reduce((sum, e) => sum + (e.lastSeen - e.firstSeen), 0) / resolvedErrorsWithTime.length
-      : 0;
+    const averageResolutionTime =
+      resolvedErrorsWithTime.length > 0
+        ? resolvedErrorsWithTime.reduce((sum, e) => sum + (e.lastSeen - e.firstSeen), 0) /
+          resolvedErrorsWithTime.length
+        : 0;
 
     return {
       totalErrors,
@@ -489,7 +507,7 @@ export class ErrorAnalyticsService {
       topCategories,
       topComponents,
       errorRate,
-      averageResolutionTime
+      averageResolutionTime,
     };
   }
 
@@ -498,7 +516,7 @@ export class ErrorAnalyticsService {
    * @param periodHours - Period in hours to analyze
    */
   getErrorTrend(periodHours = 24): ErrorTrend {
-    const cutoffTime = Date.now() - (periodHours * 60 * 60 * 1000);
+    const cutoffTime = Date.now() - periodHours * 60 * 60 * 1000;
     const recentErrors = Array.from(this.errors.values()).filter(e => e.lastSeen > cutoffTime);
 
     const errorCount = recentErrors.reduce((sum, error) => sum + error.count, 0);
@@ -531,7 +549,7 @@ export class ErrorAnalyticsService {
       uniqueErrors: recentErrors.length,
       criticalErrors,
       topCategories,
-      topComponents
+      topComponents,
     };
   }
 
@@ -559,7 +577,7 @@ export class ErrorAnalyticsService {
       logger.info(`Error marked as resolved: ${error.message}`, 'error-resolution', {
         fingerprint,
         errorId: error.id,
-        category: error.category
+        category: error.category,
       });
       return true;
     }
@@ -614,7 +632,9 @@ export class ErrorAnalyticsService {
     }
 
     if (summary.averageResolutionTime > 24 * 60 * 60 * 1000) {
-      recommendations.push('Improve error resolution process - average resolution time is too high');
+      recommendations.push(
+        'Improve error resolution process - average resolution time is too high'
+      );
     }
 
     return {
@@ -622,7 +642,7 @@ export class ErrorAnalyticsService {
       summary,
       trend,
       topErrors,
-      recommendations
+      recommendations,
     };
   }
 }

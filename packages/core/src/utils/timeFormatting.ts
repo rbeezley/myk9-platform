@@ -240,7 +240,7 @@ export function formatTimeInputToMMSS(value: string, maxMinutes?: number): strin
     const effectiveMax = maxMinutes !== undefined ? maxMinutes : defaultMax;
     const cappedMinutes = Math.min(minutes, effectiveMax);
     // If we're capping minutes, zero out seconds; otherwise keep valid seconds
-    const finalSeconds = minutes > effectiveMax ? 0 : (seconds < 60 ? seconds : 0);
+    const finalSeconds = minutes > effectiveMax ? 0 : seconds < 60 ? seconds : 0;
     return `${cappedMinutes.toString().padStart(2, '0')}:${finalSeconds.toString().padStart(2, '0')}`;
   }
 }

@@ -363,12 +363,7 @@ export class RoleManager {
         await this.auditLogger.logAuditEvent(ActionType.ROLE_ASSIGNED, {
           targetId: userId,
           targetType: 'user',
-          newValue: buildRoleAuditValue(
-            role.id,
-            roleName,
-            clubId ?? null,
-            showId ?? null
-          ),
+          newValue: buildRoleAuditValue(role.id, roleName, clubId ?? null, showId ?? null),
         });
 
         this.clearUserCache(userId);

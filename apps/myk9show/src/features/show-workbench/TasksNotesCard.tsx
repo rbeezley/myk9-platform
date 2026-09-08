@@ -42,9 +42,7 @@ export function TasksNotesCard({ showId, clubId }: TasksNotesCardProps) {
     const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
     return ad - bd;
   });
-  const visible = showCompleted
-    ? sorted
-    : sorted.filter((t: SecretaryTask) => t.status !== 'done');
+  const visible = showCompleted ? sorted : sorted.filter((t: SecretaryTask) => t.status !== 'done');
   const openCount = tasks.filter((t: SecretaryTask) => t.status === 'todo').length;
   const hasCompleted = sorted.some((t: SecretaryTask) => t.status === 'done');
 

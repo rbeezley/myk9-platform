@@ -70,8 +70,7 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
   // An expired link only needs explaining while the setup is genuinely
   // unfinished. Gating this on `notConnected` would have hidden it always, for
   // the same reason the poll used to exit early: the row is never missing.
-  const showLinkExpired =
-    connectReturnStatus === 'link-expired' && !account?.onboarding_complete;
+  const showLinkExpired = connectReturnStatus === 'link-expired' && !account?.onboarding_complete;
 
   const handleContinueToStripe = async () => {
     if (inFlightRef.current) return;
@@ -231,15 +230,18 @@ export function ClubPaymentsCard({ clubId }: ClubPaymentsCardProps) {
                 </div>
               )}
 
-              {notConnected && !awaitingStripeConfirmation && !showLinkExpired && !showChecklist && (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    No bank account is connected yet, so your club can&apos;t receive entry fees.
-                    Connecting takes about 10 minutes.
-                  </p>
-                  <Button onClick={() => setShowChecklist(true)}>Connect payment account</Button>
-                </div>
-              )}
+              {notConnected &&
+                !awaitingStripeConfirmation &&
+                !showLinkExpired &&
+                !showChecklist && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      No bank account is connected yet, so your club can&apos;t receive entry fees.
+                      Connecting takes about 10 minutes.
+                    </p>
+                    <Button onClick={() => setShowChecklist(true)}>Connect payment account</Button>
+                  </div>
+                )}
 
               {notConnected && !awaitingStripeConfirmation && !showLinkExpired && showChecklist && (
                 <div className="space-y-4 rounded-lg border p-4">

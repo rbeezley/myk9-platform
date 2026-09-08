@@ -161,7 +161,7 @@ finding was load-bearing enough that it would have made the deploy pointless.
   is exactly the one that failed. Up to six identical emails a night,
   deterministic for any packet over the 20MiB `byte_size` CHECK. Delivery no
   longer throws post-send; it reports `recorded: false`, and oversized packets
-  are refused *before* sending.
+  are refused _before_ sending.
 - **The earliest run always won**, so with a fixed 21:00–23:59 UTC window the
   packet was cut at 16:00 CDT — the afternoon before, missing the late
   scratches the evening trigger exists to capture. That is the same objection
@@ -171,7 +171,7 @@ finding was load-bearing enough that it would have made the deploy pointless.
 - **Scheduling before the secret exists breaks a green contract test.**
   `list_cron_vault_secret_refs()` greps `cron.job.command` for
   `vault.decrypted_secrets where name = '...'`, and an integration test asserts
-  nothing references a missing one. Worth recording *why* the two migrations
+  nothing references a missing one. Worth recording _why_ the two migrations
   disagreed: phase 4 read Vault inline and was correctly caught, while phase 5
   read it inside a function body and was **invisible to the guard**. The tidier
   shape was the one evading the safety net. Both now pass credentials as

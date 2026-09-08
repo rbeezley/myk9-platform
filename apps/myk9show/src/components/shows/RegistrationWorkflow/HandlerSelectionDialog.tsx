@@ -258,11 +258,7 @@ const HandlerDogCard: React.FC<HandlerDogCardProps> = ({
           fieldId={`handler-${dogId}`}
           error={hasError && isEmpty ? 'Please enter a handler name' : undefined}
         >
-          <Popover
-            modal={false}
-            open={isOpen}
-            onOpenChange={open => onOpenChange(dogId, open)}
-          >
+          <Popover modal={false} open={isOpen} onOpenChange={open => onOpenChange(dogId, open)}>
             <div className="flex gap-2">
               <PopoverTrigger asChild>
                 <Input

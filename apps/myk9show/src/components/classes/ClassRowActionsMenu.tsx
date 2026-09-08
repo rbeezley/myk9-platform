@@ -12,7 +12,13 @@ const ClassRowActionsMenu: React.FC<ClassRowActionsMenuProps> = ({ onView, onEdi
   const actions: RowAction[] = [
     { id: 'view', label: 'View Details', icon: <Eye />, onSelect: onView },
     { id: 'edit', label: 'Edit Class', icon: <Pencil />, onSelect: onEdit },
-    { id: 'delete', label: 'Delete Class', icon: <Trash2 />, onSelect: onDelete, variant: 'destructive' },
+    {
+      id: 'delete',
+      label: 'Delete Class',
+      icon: <Trash2 />,
+      onSelect: onDelete,
+      variant: 'destructive',
+    },
   ];
 
   return <RowActionMenu actions={actions} size="sm" label="Class actions" />;

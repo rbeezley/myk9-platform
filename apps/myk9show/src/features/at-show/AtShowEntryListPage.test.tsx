@@ -241,9 +241,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   it('falls back to complete show sync when a signaled class is not local yet', async () => {
     vi.mocked(replicatedClassesTable.getClassById).mockResolvedValueOnce(null);
 
-    await syncAtShowChangeSignals('show-1', [
-      { table: 'classes', classIds: ['new-class'] },
-    ]);
+    await syncAtShowChangeSignals('show-1', [{ table: 'classes', classIds: ['new-class'] }]);
 
     expect(replicatedTrialsTable.sync).toHaveBeenCalledWith('show-1');
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');

@@ -2,8 +2,4 @@
 // All callers import from here — never from supabaseClient directly.
 
 export type { UserMilestone } from './reads';
-export {
-  getUserMilestones,
-  achieveMilestone,
-  dismissMilestoneTip,
-} from './reads';
+export { getUserMilestones, achieveMilestone, dismissMilestoneTip } from './reads';

@@ -118,21 +118,18 @@ export function createToolDispatcher(deps: AdminMcpServerDeps): ToolDispatcher {
     ((entry: ToolCallLog) =>
       void process.stderr.write(
         `[myk9-admin-mcp] tool=${entry.tool} env=${entry.env} ` +
-          `state=${entry.state} ms=${entry.ms}\n`,
+          `state=${entry.state} ms=${entry.ms}\n`
       ));
 
   function listTools() {
-    return [...registry.values()].map((tool) => ({
+    return [...registry.values()].map(tool => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
     }));
   }
 
-  async function callTool(
-    name: string,
-    rawArgs: unknown,
-  ): Promise<McpToolResult> {
+  async function callTool(name: string, rawArgs: unknown): Promise<McpToolResult> {
     const startedAt = now();
     const tool = registry.get(name);
     let result: DiagnosticResult;
@@ -173,32 +170,24 @@ export function createAdminMcpServer(deps: AdminMcpServerDeps): Server {
   const dispatcher = createToolDispatcher(deps);
   const server = new Server(
     { name: 'myk9-admin-mcp', version: '0.0.1' },
-    { capabilities: { tools: {} } },
+    { capabilities: { tools: {} } }
   );
 
   server.setRequestHandler(ListToolsRequestSchema, () => ({
     tools: dispatcher.listTools(),
   }));
 
-  server.setRequestHandler(
-    CallToolRequestSchema,
-    async (request): Promise<CallToolResult> => {
-      const result = await dispatcher.callTool(
-        request.params.name,
-        request.params.arguments ?? {},
-      );
-      // McpToolResult is structurally a CallToolResult (content + isError);
-      // the SDK's result union also includes a task variant TS can't narrow to.
-      return result as CallToolResult;
-    },
-  );
+  server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
+    const result = await dispatcher.callTool(request.params.name, request.params.arguments ?? {});
+    // McpToolResult is structurally a CallToolResult (content + isError);
+    // the SDK's result union also includes a task variant TS can't narrow to.
+    return result as CallToolResult;
+  });
 
   return server;
 }
 
-export async function startAdminMcpServer(
-  deps: AdminMcpServerDeps,
-): Promise<void> {
+export async function startAdminMcpServer(deps: AdminMcpServerDeps): Promise<void> {
   const server = createAdminMcpServer(deps);
   const transport = new StdioServerTransport();
   await server.connect(transport);

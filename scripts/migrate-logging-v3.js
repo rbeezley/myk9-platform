@@ -80,7 +80,11 @@ function processFile(filePath) {
   const originalContent = content;
 
   // Skip if no console statements
-  if (!content.includes('console.log') && !content.includes('console.warn') && !content.includes('console.error')) {
+  if (
+    !content.includes('console.log') &&
+    !content.includes('console.warn') &&
+    !content.includes('console.error')
+  ) {
     return { status: 'skipped' };
   }
 
@@ -95,8 +99,17 @@ function processFile(filePath) {
       const line = lines[i].trim();
       if (line.startsWith('import ') || line.match(/^import\s*\{/) || line.match(/^import\s*\*/)) {
         lastImportIndex = i;
-      } else if (lastImportIndex >= 0 && line !== '' && !line.startsWith('//') && !line.startsWith('*') && !line.startsWith('}')) {
-        if (!lines[lastImportIndex].includes(';') && (line.includes('from ') || line.includes('}') || line.startsWith(','))) {
+      } else if (
+        lastImportIndex >= 0 &&
+        line !== '' &&
+        !line.startsWith('//') &&
+        !line.startsWith('*') &&
+        !line.startsWith('}')
+      ) {
+        if (
+          !lines[lastImportIndex].includes(';') &&
+          (line.includes('from ') || line.includes('}') || line.startsWith(','))
+        ) {
           lastImportIndex = i;
           continue;
         }
@@ -145,7 +158,7 @@ function processFile(filePath) {
       end: endIndex,
       type: methodType,
       args: args,
-      full: str.slice(methodStart, endIndex)
+      full: str.slice(methodStart, endIndex),
     };
   }
 
@@ -301,7 +314,7 @@ const files = [
   'apps/myk9show/src/test/performance/measure-loading-performance.ts',
   'apps/myk9show/src/test/setup/global-setup.ts',
   'apps/myk9show/src/utils/logger.ts',
-  'apps/myk9show/src/utils/standardizedErrorHandler.ts'
+  'apps/myk9show/src/utils/standardizedErrorHandler.ts',
 ];
 
 let processed = 0;

@@ -30,12 +30,14 @@
 The vocabulary the sheet prints — org title, reason lists, fault counters — varies by registry. It lives in the renderer because both runtimes import from there, and because it has no prior home in the app.
 
 **Files:**
+
 - Create: `supabase/functions/_shared/trialPacket/renderer/scoresheetConfig.ts`
 - Create: `apps/myk9show/src/features/emergency-trial-packet/scoresheetConfig.ts` (re-export shim)
 - Create: `apps/myk9show/src/features/emergency-trial-packet/scoresheetConfig.test.ts`
 - Modify: `apps/myk9show/vitest.config.ts`, `apps/myk9show/tsconfig.edge-tests.json`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `ScoresheetRegistryConfig`, `resolveScoresheetConfig(registryId: string | null | undefined): ScoresheetRegistryConfig`, `SCORESHEET_CONFIGS: Record<string, ScoresheetRegistryConfig>`, `GENERIC_SCORESHEET_CONFIG: ScoresheetRegistryConfig`.
 
@@ -214,11 +216,13 @@ git commit -m "feat(scoresheet): registry-varied vocabulary in the shared render
 The Reports class header prints hides and distractions; `EmergencyPacketClass` has no such fields, so the packet cannot render them today. The packet's input comes from the `emergency_packet_input` SECURITY DEFINER RPC, so this needs a migration as well as a type change.
 
 **Files:**
+
 - Modify: `supabase/functions/_shared/trialPacket/renderer/types.ts`
 - Create: `supabase/migrations/<timestamp>_emergency_packet_input_hides.sql`
 - Modify: `apps/myk9show/src/test/database/emergencyPacketInputRpcContract.test.ts`
 
 **Interfaces:**
+
 - Consumes: nothing.
 - Produces: `EmergencyPacketClass.numHides: number | null` and `EmergencyPacketClass.distractionCount: number | null`, consumed by Task 4.
 
@@ -227,23 +231,23 @@ The Reports class header prints hides and distractions; `EmergencyPacketClass` h
 Add to `apps/myk9show/src/test/database/emergencyPacketInputRpcContract.test.ts`, inside the existing `describe('emergency_packet_input contract')`. Read the file first — it reads the migration SQL into a `sql` const; this test must read the NEW migration, so add a second `readFileSync` beside the existing one and name it `hidesSql`:
 
 ```ts
-  it('exposes hides and distraction counts on each class', () => {
-    // The scoresheet header prints both. Without them the packet's header is
-    // thinner than the Reports one and the two documents are not the same sheet.
-    expect(hidesSql).toMatch(/'numHides',\s*cl\.num_hides/);
-    expect(hidesSql).toMatch(/'distractionCount',\s*cl\.distraction_count/);
-  });
+it('exposes hides and distraction counts on each class', () => {
+  // The scoresheet header prints both. Without them the packet's header is
+  // thinner than the Reports one and the two documents are not the same sheet.
+  expect(hidesSql).toMatch(/'numHides',\s*cl\.num_hides/);
+  expect(hidesSql).toMatch(/'distractionCount',\s*cl\.distraction_count/);
+});
 
-  it('keeps the definer function locked down after the rebuild', () => {
-    // CREATE OR REPLACE preserves the ACL, but this migration re-declares the
-    // function, so the grants are restated and must still be restated correctly.
-    expect(hidesSql).toMatch(
-      /REVOKE ALL ON FUNCTION public\.emergency_packet_input\(uuid, date\) FROM PUBLIC, anon, authenticated;/
-    );
-    expect(hidesSql).toMatch(
-      /GRANT EXECUTE ON FUNCTION public\.emergency_packet_input\(uuid, date\) TO service_role;/
-    );
-  });
+it('keeps the definer function locked down after the rebuild', () => {
+  // CREATE OR REPLACE preserves the ACL, but this migration re-declares the
+  // function, so the grants are restated and must still be restated correctly.
+  expect(hidesSql).toMatch(
+    /REVOKE ALL ON FUNCTION public\.emergency_packet_input\(uuid, date\) FROM PUBLIC, anon, authenticated;/
+  );
+  expect(hidesSql).toMatch(
+    /GRANT EXECUTE ON FUNCTION public\.emergency_packet_input\(uuid, date\) TO service_role;/
+  );
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -273,10 +277,10 @@ GRANT EXECUTE ON FUNCTION public.emergency_packet_input(uuid, date) TO service_r
 In `supabase/functions/_shared/trialPacket/renderer/types.ts`, add to `EmergencyPacketClass` after `numAreas`:
 
 ```ts
-  /** Hide count for the class header. Null means "not configured", not zero. */
-  numHides: number | null;
-  /** Distraction count for the class header. Null means "not configured". */
-  distractionCount: number | null;
+/** Hide count for the class header. Null means "not configured", not zero. */
+numHides: number | null;
+/** Distraction count for the class header. Null means "not configured". */
+distractionCount: number | null;
 ```
 
 - [ ] **Step 5: Run the tests**
@@ -313,10 +317,12 @@ git commit -m "feat(packet): carry hides and distraction counts into the packet 
 Eight columns: the union of both current versions. Replaces `renderCheckIn` in the shared renderer.
 
 **Files:**
+
 - Modify: `supabase/functions/_shared/trialPacket/renderer/buildEmergencyTrialPacketPdf.ts:332` (`renderCheckIn`)
 - Modify: `apps/myk9show/src/features/emergency-trial-packet/buildEmergencyTrialPacketPdf.test.ts`
 
 **Interfaces:**
+
 - Consumes: `EmergencyPacketPage` from Task 2's updated types.
 - Produces: no new exports; `renderCheckIn` stays private to the module.
 
@@ -325,38 +331,45 @@ Eight columns: the union of both current versions. Replaces `renderCheckIn` in t
 The existing test file already builds a jsPDF document and inspects it. Follow its established pattern for constructing a page, then add:
 
 ```ts
-  it('prints all eight check-in columns', () => {
-    const { doc, texts } = renderPageOfKind('check-in');
-    for (const header of [
-      'Gate', 'Order', 'Armband', 'Call Name', 'Breed', 'Reg #', 'Handler', 'Pull / Move / Note',
-    ]) {
-      expect(texts, header).toContain(header);
-    }
-    expect(doc).toBeDefined();
-  });
+it('prints all eight check-in columns', () => {
+  const { doc, texts } = renderPageOfKind('check-in');
+  for (const header of [
+    'Gate',
+    'Order',
+    'Armband',
+    'Call Name',
+    'Breed',
+    'Reg #',
+    'Handler',
+    'Pull / Move / Note',
+  ]) {
+    expect(texts, header).toContain(header);
+  }
+  expect(doc).toBeDefined();
+});
 
-  it('keeps every check-in column inside the printable width', () => {
-    // jsPDF does not reflow. A column that starts past RIGHT is drawn off-page
-    // and simply never appears on paper.
-    const { columnStarts, columnWidths } = checkInColumnGeometry();
-    const last = columnStarts.length - 1;
-    expect(columnStarts[0]).toBeGreaterThanOrEqual(14);
-    expect(columnStarts[last] + columnWidths[last]).toBeLessThanOrEqual(215.9 - 14);
-  });
+it('keeps every check-in column inside the printable width', () => {
+  // jsPDF does not reflow. A column that starts past RIGHT is drawn off-page
+  // and simply never appears on paper.
+  const { columnStarts, columnWidths } = checkInColumnGeometry();
+  const last = columnStarts.length - 1;
+  expect(columnStarts[0]).toBeGreaterThanOrEqual(14);
+  expect(columnStarts[last] + columnWidths[last]).toBeLessThanOrEqual(215.9 - 14);
+});
 
-  // [EXPANDED] Every text column, not just breed. Guarding one field and
-  // leaving the other six is the same bug with better odds.
-  it.each([
-    ['breed', 'Nederlandse Kooikerhondje Extremely Long Registered Breed Name'],
-    ['callName', 'Bartholomew Fitzgerald Wellington The Third Of Somewhere'],
-    ['handler', 'Anastasia Konstantinopoulos-Wetherbottom'],
-    ['registrationNumber', 'SR-99999999-XX-ALTERNATE-REGISTRY-LONGFORM'],
-  ])('truncates an overlong %s rather than overprinting the next column', (field, value) => {
-    const { texts } = renderPageOfKind('check-in', { [field]: value });
-    const printed = texts.find(text => value.startsWith(text.slice(0, 8)));
-    expect(printed, `${field} was not printed at all`).toBeDefined();
-    expect(printed!.length).toBeLessThan(value.length);
-  });
+// [EXPANDED] Every text column, not just breed. Guarding one field and
+// leaving the other six is the same bug with better odds.
+it.each([
+  ['breed', 'Nederlandse Kooikerhondje Extremely Long Registered Breed Name'],
+  ['callName', 'Bartholomew Fitzgerald Wellington The Third Of Somewhere'],
+  ['handler', 'Anastasia Konstantinopoulos-Wetherbottom'],
+  ['registrationNumber', 'SR-99999999-XX-ALTERNATE-REGISTRY-LONGFORM'],
+])('truncates an overlong %s rather than overprinting the next column', (field, value) => {
+  const { texts } = renderPageOfKind('check-in', { [field]: value });
+  const printed = texts.find(text => value.startsWith(text.slice(0, 8)));
+  expect(printed, `${field} was not printed at all`).toBeDefined();
+  expect(printed!.length).toBeLessThan(value.length);
+});
 ```
 
 Write the `renderPageOfKind` and `checkInColumnGeometry` helpers at the top of the describe block, exporting the column table from the renderer so geometry is assertable rather than inferred:
@@ -426,10 +439,12 @@ git commit -m "feat(check-in): merge the packet and Reports check-in sheets into
 Replaces `renderScoreRecording`. This is the task the whole design exists for.
 
 **Files:**
+
 - Modify: `supabase/functions/_shared/trialPacket/renderer/buildEmergencyTrialPacketPdf.ts:352` (`renderScoreRecording`)
 - Modify: `apps/myk9show/src/features/emergency-trial-packet/buildEmergencyTrialPacketPdf.test.ts`
 
 **Interfaces:**
+
 - Consumes: `resolveScoresheetConfig` (Task 1); `numHides`/`distractionCount` (Task 2).
 - Produces: `SCORE_BLOCK_HEIGHT_MM: number`, exported so Task 5's pagination and its tests share one number rather than two that can drift.
 
@@ -550,46 +565,48 @@ git commit -m "feat(scoresheet): full per-dog block with registry reason lists"
 ### Task 5: Pagination — 5 first page, 6 continuation, never split
 
 **Files:**
+
 - Modify: `supabase/functions/_shared/trialPacket/renderer/emergencyTrialPacket.ts:30,288`
 - Modify: `apps/myk9show/src/features/emergency-trial-packet/emergencyTrialPacket.test.ts`
 
 **Interfaces:**
+
 - Consumes: `SCORE_BLOCK_HEIGHT_MM` (Task 4).
 - Produces: `SCORE_ROWS_FIRST_PAGE = 5`, `SCORE_ROWS_CONTINUATION = 6`, replacing `SCORE_ROWS_PER_PAGE`.
 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
-  it('fits 5 dogs on a class first page and 6 on continuations', () => {
-    const model = buildModelWithEntries(12);
-    const scorePages = model.pages.filter(page => page.kind === 'score-recording');
-    expect(scorePages.map(page => page.entries.length)).toEqual([5, 6, 1]);
-  });
+it('fits 5 dogs on a class first page and 6 on continuations', () => {
+  const model = buildModelWithEntries(12);
+  const scorePages = model.pages.filter(page => page.kind === 'score-recording');
+  expect(scorePages.map(page => page.entries.length)).toEqual([5, 6, 1]);
+});
 
-  it('never splits a dog across two pages', () => {
-    const model = buildModelWithEntries(12);
-    const scored = model.pages
-      .filter(page => page.kind === 'score-recording')
-      .flatMap(page => page.entries.map(entry => entry.id));
-    expect(new Set(scored).size).toBe(scored.length);
-    expect(scored).toHaveLength(12);
-  });
+it('never splits a dog across two pages', () => {
+  const model = buildModelWithEntries(12);
+  const scored = model.pages
+    .filter(page => page.kind === 'score-recording')
+    .flatMap(page => page.entries.map(entry => entry.id));
+  expect(new Set(scored).size).toBe(scored.length);
+  expect(scored).toHaveLength(12);
+});
 
-  it('emits no score pages for a class with no entries [ADDED]', () => {
-    // chunksWithFirst returns [] for an empty list. A cancelled class that still
-    // has a row must not produce a blank sheet in the middle of the packet.
-    const model = buildModelWithEntries(0);
-    expect(model.pages.filter(page => page.kind === 'score-recording')).toHaveLength(0);
-  });
+it('emits no score pages for a class with no entries [ADDED]', () => {
+  // chunksWithFirst returns [] for an empty list. A cancelled class that still
+  // has a row must not produce a blank sheet in the middle of the packet.
+  const model = buildModelWithEntries(0);
+  expect(model.pages.filter(page => page.kind === 'score-recording')).toHaveLength(0);
+});
 
-  it('identifies a continuation page by armband range and class', () => {
-    // A page separated from its stack must still be identifiable — this
-    // document is retained for a year.
-    const model = buildModelWithEntries(12);
-    const [, continuation] = model.pages.filter(page => page.kind === 'score-recording');
-    expect(continuation.title).toMatch(/\(2\/3\)/);
-    expect(continuation.context.classLabel).toBeTruthy();
-  });
+it('identifies a continuation page by armband range and class', () => {
+  // A page separated from its stack must still be identifiable — this
+  // document is retained for a year.
+  const model = buildModelWithEntries(12);
+  const [, continuation] = model.pages.filter(page => page.kind === 'score-recording');
+  expect(continuation.title).toMatch(/\(2\/3\)/);
+  expect(continuation.context.classLabel).toBeTruthy();
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -651,6 +668,7 @@ git commit -m "feat(scoresheet): paginate whole blocks, 5 first page and 6 after
 ### Task 6: Reports page renders the shared PDF
 
 **Files:**
+
 - Create: `apps/myk9show/src/lib/reports/toScoresheetModel.ts`
 - Create: `apps/myk9show/src/lib/reports/toScoresheetModel.test.ts`
 - Modify: `apps/myk9show/src/lib/reports/types.ts:113-123` (`ReportDefinition`)
@@ -660,6 +678,7 @@ git commit -m "feat(scoresheet): paginate whole blocks, 5 first page and 6 after
 - Modify: `apps/myk9show/src/lib/reports/__tests__/reportRegistry.test.ts` **[ADDED]**
 
 **Interfaces:**
+
 - Consumes: `renderEmergencyTrialPacketPdf` from `@/features/emergency-trial-packet/renderPacketPdf`.
 - Produces: `toScoresheetModel(dataset: ReportDataSet, sortOrder: string): EmergencyPacketModel`; `ReportDefinition.buildPdf?`.
 
@@ -697,7 +716,7 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write the adapter and wire the registry**
 
-`toScoresheetModel` maps `ReportDataSet.pages` (`{ trial, classData, entries }`) onto `EmergencyPacketInput`, then calls the existing model builder. The edge function keeps its own mapper — these stay separate because the *sources* differ.
+`toScoresheetModel` maps `ReportDataSet.pages` (`{ trial, classData, entries }`) onto `EmergencyPacketInput`, then calls the existing model builder. The edge function keeps its own mapper — these stay separate because the _sources_ differ.
 
 Add to `ReportDefinition` in `types.ts`:
 
@@ -760,11 +779,11 @@ printing at 6am needs to know the report failed, not see an empty pane.
 `reportRegistry.test.ts:14` renders **every** entry's component through
 `renderToStaticMarkup`, and line 115 asserts phase-2 entries render non-empty. There is
 already a precedent for reports that bypass the component path — the
-`placeholderReportIds` list under *"official-PDF-only reports are enabled but render
-directly from ReportsPage"*, which holds `armband-labels` and `result-labels`.
+`placeholderReportIds` list under _"official-PDF-only reports are enabled but render
+directly from ReportsPage"_, which holds `armband-labels` and `result-labels`.
 
 Add `'check-in-sheet'` and `'scoresheet'` to that list, and rename the test to say
-*"render directly from ReportsPage"* covers PDF-backed reports too. Neither id is in
+_"render directly from ReportsPage"_ covers PDF-backed reports too. Neither id is in
 `PHASE_2_EXTENDED_IDS`, so line 115 is unaffected — verified, not assumed.
 
 - [ ] **Step 5: Run the tests**
@@ -791,12 +810,14 @@ git commit -m "feat(reports): render the check-in sheet and scoresheet from the 
 ### Task 7: Delete the superseded React components
 
 **Files:**
+
 - Delete: `apps/myk9show/src/components/reports/CheckInSheet.tsx`
 - Delete: `apps/myk9show/src/components/reports/ScoresheetReport.tsx`
 - Delete: `apps/myk9show/src/components/reports/__tests__/CheckInSheet.test.tsx`
 - Modify: `apps/myk9show/src/lib/reports/reportRegistry.ts` (drop the two imports)
 
 **Interfaces:**
+
 - Consumes: Task 6's `buildPdf` wiring.
 - Produces: nothing.
 
@@ -857,6 +878,7 @@ write** — these are not covered by approval of the code change.
 **Files:** none.
 
 **Interfaces:**
+
 - Consumes: everything above, merged to `main`.
 - Produces: a deployed system whose behaviour matches the repo.
 

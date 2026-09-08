@@ -16,22 +16,22 @@ export interface ShowScopeOptions {
    * Explicit show ID to scope to (overrides URL and global selection)
    */
   showId?: string;
-  
+
   /**
    * Whether to include entry data for this show
    */
   includeEntries?: boolean;
-  
+
   /**
    * Whether to include class data for this show's trials
    */
   includeClasses?: boolean;
-  
+
   /**
    * Whether to auto-load required stores if not already loaded
    */
   autoLoadStores?: boolean;
-  
+
   /**
    * Fallback to global selection if no explicit showId provided
    */
@@ -45,25 +45,25 @@ export interface ShowScopedData {
   // Core show data
   showId: string | null;
   show: Show | null;
-  
+
   // Related data (only loaded if requested)
   entries: SyncableShowEntry[];
   classes: CreatedClass[];
   trials: ShowTrial[];
-  
+
   // Loading states
   isLoading: boolean;
   isShowLoading: boolean;
   isEntriesLoading: boolean;
   isClassesLoading: boolean;
-  
+
   // Error states
   error: string | null;
-  
+
   // Utility functions
   hasData: boolean;
   isEmpty: boolean;
-  
+
   // Actions
   selectShow: (id: string) => void;
   refreshData: () => void;
@@ -71,13 +71,13 @@ export interface ShowScopedData {
 
 /**
  * Hook for loading and managing show-scoped data efficiently
- * 
+ *
  * This hook consolidates show data loading patterns and provides:
  * - Smart show selection (explicit > URL > global)
  * - Lazy loading of related stores
  * - Efficient filtering of related data
  * - Consistent loading states across components
- * 
+ *
  * @param options - Configuration for data scoping and loading
  */
 export function useShowScopedData(options: ShowScopeOptions = {}): ShowScopedData {
@@ -92,15 +92,19 @@ export function useShowScopedData(options: ShowScopeOptions = {}): ShowScopedDat
   // Get show ID from multiple sources (priority: explicit > URL > global)
   const params = useParams<{ id?: string; showId?: string }>();
   const urlShowId = params.id || params.showId;
-  
+
   const { selectedShowId, selectShow } = useShowStore();
-  
+
   const showId = explicitShowId || urlShowId || (useGlobalSelection ? selectedShowId : null);
 
   // Lazy load required stores only if auto-loading is enabled
   const showStoreState = useLazyStore(autoLoadStores ? 'showStore' : 'showStore');
-  const entryStoreState = useLazyStore(autoLoadStores && includeEntries ? 'entryStore' : 'entryStore');
-  const classStoreState = useLazyStore(autoLoadStores && includeClasses ? 'classCreationStore' : 'classCreationStore');
+  const entryStoreState = useLazyStore(
+    autoLoadStores && includeEntries ? 'entryStore' : 'entryStore'
+  );
+  const classStoreState = useLazyStore(
+    autoLoadStores && includeClasses ? 'classCreationStore' : 'classCreationStore'
+  );
 
   // Get store methods and data
   const { getShowById, error: showError } = useShowStore();
@@ -160,25 +164,25 @@ export function useShowScopedData(options: ShowScopeOptions = {}): ShowScopedDat
     // Core data
     showId,
     show,
-    
+
     // Related data
     entries: scopedEntries,
     classes: scopedClasses,
     trials,
-    
+
     // Loading states
     isLoading,
     isShowLoading,
     isEntriesLoading,
     isClassesLoading,
-    
+
     // Error state
     error,
-    
+
     // Utility flags
     hasData,
     isEmpty,
-    
+
     // Actions
     selectShow,
     refreshData,
@@ -189,10 +193,13 @@ export function useShowScopedData(options: ShowScopeOptions = {}): ShowScopedDat
  * Optimized hook for components that need complete show data
  * Only loads entries and classes when they're actually needed
  */
-export function useCompleteShowData(showId?: string, requirements?: {
-  needsEntries?: boolean;
-  needsClasses?: boolean;
-}) {
+export function useCompleteShowData(
+  showId?: string,
+  requirements?: {
+    needsEntries?: boolean;
+    needsClasses?: boolean;
+  }
+) {
   return useShowScopedData({
     ...(showId !== undefined && { showId }),
     includeEntries: requirements?.needsEntries ?? false, // Default to false for performance

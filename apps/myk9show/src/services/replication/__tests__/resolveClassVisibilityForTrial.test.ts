@@ -11,9 +11,7 @@ vi.mock('@/services/database/supabaseClient', () => ({
   supabase: { from: vi.fn() },
 }));
 
-import {
-  resolveVisibilityForClassRows,
-} from '../resolveClassVisibility';
+import { resolveVisibilityForClassRows } from '../resolveClassVisibility';
 import { supabase } from '@/services/database/supabaseClient';
 
 /** A chainable query stub: terminal via `.maybeSingle()` or a direct await. */

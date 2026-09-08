@@ -7,8 +7,26 @@ import { render } from '@/test/utils/testUtils';
 import { ClassManagementPage } from '../ClassManagementPage';
 
 const classes = [
-  { id: 'c1', name: 'Novice A', element: 'Container', level: 'Novice', status: 'scheduled', class_order: 1, max_entries: null, entries: [] },
-  { id: 'c2', name: 'Novice B', element: 'Interior', level: 'Novice', status: 'in_progress', class_order: 2, max_entries: null, entries: [] },
+  {
+    id: 'c1',
+    name: 'Novice A',
+    element: 'Container',
+    level: 'Novice',
+    status: 'scheduled',
+    class_order: 1,
+    max_entries: null,
+    entries: [],
+  },
+  {
+    id: 'c2',
+    name: 'Novice B',
+    element: 'Interior',
+    level: 'Novice',
+    status: 'in_progress',
+    class_order: 2,
+    max_entries: null,
+    entries: [],
+  },
 ];
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({

@@ -23,9 +23,7 @@ export function LegacySecretaryShowRedirect({ subPath }: LegacySecretaryShowRedi
     searchParams.delete('phase');
   }
   const nextSearch = searchParams.toString();
-  const normalizedSubPath = redirectSubPath
-    ? `/${redirectSubPath.replace(/^\/+/, '')}`
-    : '/setup';
+  const normalizedSubPath = redirectSubPath ? `/${redirectSubPath.replace(/^\/+/, '')}` : '/setup';
   const normalizedSearch = nextSearch ? `?${nextSearch}` : '';
   return <Navigate to={`/shows/${showId}${normalizedSubPath}${normalizedSearch}`} replace />;
 }

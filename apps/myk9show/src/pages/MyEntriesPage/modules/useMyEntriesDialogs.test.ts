@@ -172,9 +172,7 @@ describe('useMyEntriesDialogs', () => {
     const { result } = setup({ updateEntryCheckIn });
 
     act(() => result.current.openCheckIn(ENTRY, CLASS_ROW));
-    await expect(result.current.submitCheckInStatus(CHECKED_IN)).rejects.toThrow(
-      'offline'
-    );
+    await expect(result.current.submitCheckInStatus(CHECKED_IN)).rejects.toThrow('offline');
     expect(result.current.checkInDialog.open).toBe(true);
   });
 

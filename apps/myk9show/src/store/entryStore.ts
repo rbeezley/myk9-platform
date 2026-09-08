@@ -37,535 +37,528 @@ export {
   entryToReplicated,
 } from './entry-store-helpers';
 
-export const useEntryStore = create<EntryStoreState>()(
-  (set, get): EntryStoreState => ({
-    // Subscription management
-    _unsubscribe: null as (() => void) | null,
-    entries: [],
-    isLoading: false,
-    error: null,
+export const useEntryStore = create<EntryStoreState>()((set, get): EntryStoreState => ({
+  // Subscription management
+  _unsubscribe: null as (() => void) | null,
+  entries: [],
+  isLoading: false,
+  error: null,
 
-    // Subscription management methods
-    initializeSubscription: () => {
-      const unsubscribe = replicatedEntriesTable.subscribe(entries => {
-        const currentEntries = get().entries;
-        const entriesMap = new Map(currentEntries.map(e => [e.id, e]));
+  // Subscription management methods
+  initializeSubscription: () => {
+    const unsubscribe = replicatedEntriesTable.subscribe(entries => {
+      const currentEntries = get().entries;
+      const entriesMap = new Map(currentEntries.map(e => [e.id, e]));
 
-        const mergedEntries = entries.map(replicated =>
-          mergeEntryData(replicated, entriesMap.get(replicated.id))
-        );
+      const mergedEntries = entries.map(replicated =>
+        mergeEntryData(replicated, entriesMap.get(replicated.id))
+      );
 
-        set({ entries: mergedEntries });
+      set({ entries: mergedEntries });
+    });
+
+    set({ _unsubscribe: unsubscribe });
+    get().loadEntries();
+  },
+
+  cleanup: () => {
+    const unsubscribe = get()._unsubscribe;
+    if (unsubscribe) {
+      unsubscribe();
+      set({ _unsubscribe: null });
+    }
+  },
+
+  // Local-First Entry Implementation
+  createEntry: async (entryData: ShowEntryInput, userId: string): Promise<SyncableShowEntry> => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const newEntry = buildNewSyncableEntry(entryData, userId);
+
+      // Save to replicated table and queue INSERT mutation for Supabase sync
+      const replicatedEntry = entryToReplicated(newEntry);
+      await replicatedEntriesTable.createEntry(replicatedEntry);
+
+      // Update local state
+      set(state => ({
+        entries: [...state.entries, newEntry],
+        isLoading: false,
+      }));
+
+      return newEntry;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create entry';
+      set({ error: errorMessage, isLoading: false });
+      throw error;
+    }
+  },
+
+  updateEntry: async (
+    entryId: string,
+    updates: Partial<ShowEntryInput>,
+    userId: string
+  ): Promise<SyncableShowEntry | null> => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const currentEntry = get().entries.find(e => e.id === entryId);
+      if (!currentEntry) {
+        const error = `Entry with id ${entryId} not found`;
+        set({ error, isLoading: false });
+        return null;
+      }
+
+      const updatedEntry: SyncableShowEntry = {
+        ...currentEntry,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+        _version: (currentEntry._version || 0) + 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: userId,
+        _syncStatus: 'pending',
+      };
+
+      // Save to replicated table and queue UPDATE mutation for Supabase sync
+      const replicatedEntry = entryToReplicated(updatedEntry);
+      await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
+
+      // Update local state
+      set(state => ({
+        entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
+        isLoading: false,
+      }));
+
+      return updatedEntry;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update entry';
+      set({ error: errorMessage, isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteEntry: async (entryId: string): Promise<void> => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const entryExists = get().entries.some(e => e.id === entryId);
+      if (!entryExists) {
+        const error = `Entry with id ${entryId} not found`;
+        set({ error, isLoading: false });
+        return;
+      }
+
+      // Delete from replicated table and queue DELETE mutation for Supabase
+      await replicatedEntriesTable.deleteEntry(entryId);
+
+      // Update local state
+      set(state => ({
+        entries: state.entries.filter(e => e.id !== entryId),
+        isLoading: false,
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete entry';
+      set({ error: errorMessage, isLoading: false });
+      throw error;
+    }
+  },
+
+  updateRegistration: async (
+    entryId: string,
+    updates: Partial<RegistrationData>,
+    userId: string
+  ): Promise<SyncableShowEntry | null> => {
+    try {
+      const currentEntry = get().entries.find(e => e.id === entryId);
+      if (!currentEntry) {
+        set({ error: `Entry with id ${entryId} not found` });
+        return null;
+      }
+
+      const now = new Date().toISOString();
+      const updatedEntry: SyncableShowEntry = {
+        ...currentEntry,
+        registrationData: { ...currentEntry.registrationData, ...updates },
+        updatedAt: now,
+        _version: (currentEntry._version || 0) + 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: userId,
+        _syncStatus: 'pending',
+      };
+
+      // Save to replicated table and queue UPDATE mutation for Supabase sync
+      const replicatedEntry = entryToReplicated(updatedEntry);
+      await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
+
+      // Update local state
+      set(state => ({
+        entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
+      }));
+
+      return updatedEntry;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update registration';
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
+  updateStatus: async (
+    entryId: string,
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ): Promise<SyncableShowEntry | null> => {
+    try {
+      const currentEntry = get().entries.find(e => e.id === entryId);
+      if (!currentEntry) {
+        set({ error: `Entry with id ${entryId} not found` });
+        return null;
+      }
+
+      const now = new Date().toISOString();
+      const updatedEntry: SyncableShowEntry = {
+        ...currentEntry,
+        status,
+        statusHistory: [...currentEntry.statusHistory, { status, timestamp: now, userId, reason }],
+        updatedAt: now,
+        _version: (currentEntry._version || 0) + 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: userId,
+        _syncStatus: 'pending',
+      };
+
+      // Save to replicated table and queue UPDATE mutation for Supabase sync
+      const replicatedEntry = entryToReplicated(updatedEntry);
+      await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
+
+      // Update local state
+      set(state => ({
+        entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
+      }));
+
+      return updatedEntry;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update status';
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
+  updateCheckInStatus: async (
+    entryId: string,
+    checkInStatus: CheckInStatus,
+    userId: string
+  ): Promise<SyncableShowEntry | null> => {
+    try {
+      const entry = get().entries.find(e => e.id === entryId);
+      if (!entry) {
+        set({ error: `Entry with id ${entryId} not found` });
+        return null;
+      }
+
+      const updated: SyncableShowEntry = {
+        ...entry,
+        checkInStatus,
+        updatedAt: new Date().toISOString(),
+        _version: (entry._version || 0) + 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: userId,
+        _syncStatus: 'pending',
+      };
+
+      await replicatedEntriesTable.updateCheckInStatus(entryId, checkInStatus);
+
+      // Update local state
+      set(state => ({
+        entries: state.entries.map(e => (e.id === entryId ? updated : e)),
+      }));
+
+      return updated;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update check-in status';
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
+  // Competition phase methods
+  recordResult: async (
+    entryId: string,
+    result: CompetitionData
+  ): Promise<SyncableShowEntry | null> => {
+    try {
+      const currentEntry = get().entries.find(e => e.id === entryId);
+      if (!currentEntry) {
+        set({ error: `Entry with id ${entryId} not found` });
+        return null;
+      }
+
+      const now = new Date().toISOString();
+      const updatedEntry: SyncableShowEntry = {
+        ...currentEntry,
+        status: 'completed',
+        competitionData: { ...result, recordedAt: now },
+        statusHistory: [
+          ...currentEntry.statusHistory,
+          {
+            status: 'completed',
+            timestamp: now,
+            userId: result.recordedBy,
+            reason: 'Results recorded',
+          },
+        ],
+        updatedAt: now,
+        _version: (currentEntry._version || 0) + 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: result.recordedBy,
+        _syncStatus: 'pending',
+      };
+
+      // Save to replicated table and queue UPDATE mutation for Supabase sync
+      const replicatedEntry = entryToReplicated(updatedEntry);
+      await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
+
+      // Update local state
+      set(state => ({
+        entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
+      }));
+
+      return updatedEntry;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to record result';
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
+  updateResult: async (
+    entryId: string,
+    updates: Partial<CompetitionData>,
+    userId: string
+  ): Promise<SyncableShowEntry | null> => {
+    try {
+      const currentEntry = get().entries.find(e => e.id === entryId);
+      if (!currentEntry) {
+        set({ error: `Entry with id ${entryId} not found` });
+        return null;
+      }
+
+      const now = new Date().toISOString();
+      const updatedEntry: SyncableShowEntry = {
+        ...currentEntry,
+        competitionData: currentEntry.competitionData
+          ? { ...currentEntry.competitionData, ...updates }
+          : { ...updates, recordedAt: now, recordedBy: updates.recordedBy || 'Secretary' },
+        updatedAt: now,
+        _version: (currentEntry._version || 0) + 1,
+        _lastModified: new Date(),
+        _lastModifiedBy: userId,
+        _syncStatus: 'pending',
+      };
+
+      // Save to replicated table and queue UPDATE mutation for Supabase sync
+      const replicatedEntry = entryToReplicated(updatedEntry);
+      await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
+
+      // Update local state
+      set(state => ({
+        entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
+      }));
+
+      return updatedEntry;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update result';
+      set({ error: errorMessage });
+      throw error;
+    }
+  },
+
+  // Bulk operations
+  createMultipleEntries: async (
+    entriesData: ShowEntryInput[],
+    userId: string,
+    initialStatus?: EntryStatus,
+    registrationId?: string
+  ): Promise<SyncableShowEntry[]> => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const newEntries = buildBatchEntries(entriesData, userId, initialStatus, registrationId);
+
+      // Save all to replicated table and queue INSERT mutations for Supabase sync
+      for (const entry of newEntries) {
+        const replicatedEntry = entryToReplicated(entry);
+        await replicatedEntriesTable.createEntry(replicatedEntry);
+      }
+
+      // Update local state
+      set(state => ({
+        entries: [...state.entries, ...newEntries],
+        isLoading: false,
+      }));
+
+      return newEntries;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to create multiple entries';
+      set({ error: errorMessage, isLoading: false });
+      throw error;
+    }
+  },
+
+  updateEntriesStatus: async (
+    entryIds: string[],
+    status: EntryStatus,
+    userId: string,
+    reason?: string
+  ): Promise<void> => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const now = new Date().toISOString();
+      const statusUpdate = { status, timestamp: now, userId, reason };
+      const currentEntries = get().entries;
+
+      // Build updated entries
+      const updatedEntries = currentEntries.map(entry => {
+        if (entryIds.includes(entry.id)) {
+          return {
+            ...entry,
+            status,
+            statusHistory: [...entry.statusHistory, statusUpdate],
+            updatedAt: now,
+            _version: (entry._version || 0) + 1,
+            _lastModified: new Date(),
+            _lastModifiedBy: userId,
+            _syncStatus: 'pending' as const,
+          };
+        }
+        return entry;
       });
 
-      set({ _unsubscribe: unsubscribe });
-      get().loadEntries();
-    },
-
-    cleanup: () => {
-      const unsubscribe = get()._unsubscribe;
-      if (unsubscribe) {
-        unsubscribe();
-        set({ _unsubscribe: null });
-      }
-    },
-
-    // Local-First Entry Implementation
-    createEntry: async (entryData: ShowEntryInput, userId: string): Promise<SyncableShowEntry> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const newEntry = buildNewSyncableEntry(entryData, userId);
-
-        // Save to replicated table and queue INSERT mutation for Supabase sync
-        const replicatedEntry = entryToReplicated(newEntry);
-        await replicatedEntriesTable.createEntry(replicatedEntry);
-
-        // Update local state
-        set(state => ({
-          entries: [...state.entries, newEntry],
-          isLoading: false,
-        }));
-
-        return newEntry;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to create entry';
-        set({ error: errorMessage, isLoading: false });
-        throw error;
-      }
-    },
-
-    updateEntry: async (
-      entryId: string,
-      updates: Partial<ShowEntryInput>,
-      userId: string
-    ): Promise<SyncableShowEntry | null> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const currentEntry = get().entries.find(e => e.id === entryId);
-        if (!currentEntry) {
-          const error = `Entry with id ${entryId} not found`;
-          set({ error, isLoading: false });
-          return null;
-        }
-
-        const updatedEntry: SyncableShowEntry = {
-          ...currentEntry,
-          ...updates,
-          updatedAt: new Date().toISOString(),
-          _version: (currentEntry._version || 0) + 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: userId,
-          _syncStatus: 'pending',
-        };
-
-        // Save to replicated table and queue UPDATE mutation for Supabase sync
-        const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
-
-        // Update local state
-        set(state => ({
-          entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
-          isLoading: false,
-        }));
-
-        return updatedEntry;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to update entry';
-        set({ error: errorMessage, isLoading: false });
-        throw error;
-      }
-    },
-
-    deleteEntry: async (entryId: string): Promise<void> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const entryExists = get().entries.some(e => e.id === entryId);
-        if (!entryExists) {
-          const error = `Entry with id ${entryId} not found`;
-          set({ error, isLoading: false });
-          return;
-        }
-
-        // Delete from replicated table and queue DELETE mutation for Supabase
-        await replicatedEntriesTable.deleteEntry(entryId);
-
-        // Update local state
-        set(state => ({
-          entries: state.entries.filter(e => e.id !== entryId),
-          isLoading: false,
-        }));
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to delete entry';
-        set({ error: errorMessage, isLoading: false });
-        throw error;
-      }
-    },
-
-    updateRegistration: async (
-      entryId: string,
-      updates: Partial<RegistrationData>,
-      userId: string
-    ): Promise<SyncableShowEntry | null> => {
-      try {
-        const currentEntry = get().entries.find(e => e.id === entryId);
-        if (!currentEntry) {
-          set({ error: `Entry with id ${entryId} not found` });
-          return null;
-        }
-
-        const now = new Date().toISOString();
-        const updatedEntry: SyncableShowEntry = {
-          ...currentEntry,
-          registrationData: { ...currentEntry.registrationData, ...updates },
-          updatedAt: now,
-          _version: (currentEntry._version || 0) + 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: userId,
-          _syncStatus: 'pending',
-        };
-
-        // Save to replicated table and queue UPDATE mutation for Supabase sync
-        const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
-
-        // Update local state
-        set(state => ({
-          entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
-        }));
-
-        return updatedEntry;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to update registration';
-        set({ error: errorMessage });
-        throw error;
-      }
-    },
-
-    updateStatus: async (
-      entryId: string,
-      status: EntryStatus,
-      userId: string,
-      reason?: string
-    ): Promise<SyncableShowEntry | null> => {
-      try {
-        const currentEntry = get().entries.find(e => e.id === entryId);
-        if (!currentEntry) {
-          set({ error: `Entry with id ${entryId} not found` });
-          return null;
-        }
-
-        const now = new Date().toISOString();
-        const updatedEntry: SyncableShowEntry = {
-          ...currentEntry,
-          status,
-          statusHistory: [
-            ...currentEntry.statusHistory,
-            { status, timestamp: now, userId, reason },
-          ],
-          updatedAt: now,
-          _version: (currentEntry._version || 0) + 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: userId,
-          _syncStatus: 'pending',
-        };
-
-        // Save to replicated table and queue UPDATE mutation for Supabase sync
-        const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
-
-        // Update local state
-        set(state => ({
-          entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
-        }));
-
-        return updatedEntry;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to update status';
-        set({ error: errorMessage });
-        throw error;
-      }
-    },
-
-    updateCheckInStatus: async (
-      entryId: string,
-      checkInStatus: CheckInStatus,
-      userId: string
-    ): Promise<SyncableShowEntry | null> => {
-      try {
-        const entry = get().entries.find(e => e.id === entryId);
-        if (!entry) {
-          set({ error: `Entry with id ${entryId} not found` });
-          return null;
-        }
-
-        const updated: SyncableShowEntry = {
-          ...entry,
-          checkInStatus,
-          updatedAt: new Date().toISOString(),
-          _version: (entry._version || 0) + 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: userId,
-          _syncStatus: 'pending',
-        };
-
-        await replicatedEntriesTable.updateCheckInStatus(entryId, checkInStatus);
-
-        // Update local state
-        set(state => ({
-          entries: state.entries.map(e => (e.id === entryId ? updated : e)),
-        }));
-
-        return updated;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to update check-in status';
-        set({ error: errorMessage });
-        throw error;
-      }
-    },
-
-    // Competition phase methods
-    recordResult: async (
-      entryId: string,
-      result: CompetitionData
-    ): Promise<SyncableShowEntry | null> => {
-      try {
-        const currentEntry = get().entries.find(e => e.id === entryId);
-        if (!currentEntry) {
-          set({ error: `Entry with id ${entryId} not found` });
-          return null;
-        }
-
-        const now = new Date().toISOString();
-        const updatedEntry: SyncableShowEntry = {
-          ...currentEntry,
-          status: 'completed',
-          competitionData: { ...result, recordedAt: now },
-          statusHistory: [
-            ...currentEntry.statusHistory,
-            {
-              status: 'completed',
-              timestamp: now,
-              userId: result.recordedBy,
-              reason: 'Results recorded',
-            },
-          ],
-          updatedAt: now,
-          _version: (currentEntry._version || 0) + 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: result.recordedBy,
-          _syncStatus: 'pending',
-        };
-
-        // Save to replicated table and queue UPDATE mutation for Supabase sync
-        const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
-
-        // Update local state
-        set(state => ({
-          entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
-        }));
-
-        return updatedEntry;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to record result';
-        set({ error: errorMessage });
-        throw error;
-      }
-    },
-
-    updateResult: async (
-      entryId: string,
-      updates: Partial<CompetitionData>,
-      userId: string
-    ): Promise<SyncableShowEntry | null> => {
-      try {
-        const currentEntry = get().entries.find(e => e.id === entryId);
-        if (!currentEntry) {
-          set({ error: `Entry with id ${entryId} not found` });
-          return null;
-        }
-
-        const now = new Date().toISOString();
-        const updatedEntry: SyncableShowEntry = {
-          ...currentEntry,
-          competitionData: currentEntry.competitionData
-            ? { ...currentEntry.competitionData, ...updates }
-            : { ...updates, recordedAt: now, recordedBy: updates.recordedBy || 'Secretary' },
-          updatedAt: now,
-          _version: (currentEntry._version || 0) + 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: userId,
-          _syncStatus: 'pending',
-        };
-
-        // Save to replicated table and queue UPDATE mutation for Supabase sync
-        const replicatedEntry = entryToReplicated(updatedEntry);
-        await replicatedEntriesTable.updateEntry(entryId, replicatedEntry);
-
-        // Update local state
-        set(state => ({
-          entries: state.entries.map(e => (e.id === entryId ? updatedEntry : e)),
-        }));
-
-        return updatedEntry;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to update result';
-        set({ error: errorMessage });
-        throw error;
-      }
-    },
-
-    // Bulk operations
-    createMultipleEntries: async (
-      entriesData: ShowEntryInput[],
-      userId: string,
-      initialStatus?: EntryStatus,
-      registrationId?: string
-    ): Promise<SyncableShowEntry[]> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const newEntries = buildBatchEntries(entriesData, userId, initialStatus, registrationId);
-
-        // Save all to replicated table and queue INSERT mutations for Supabase sync
-        for (const entry of newEntries) {
+      // Save to replicated table and queue UPDATE mutations for Supabase sync
+      for (const entry of updatedEntries) {
+        if (entryIds.includes(entry.id)) {
           const replicatedEntry = entryToReplicated(entry);
-          await replicatedEntriesTable.createEntry(replicatedEntry);
+          await replicatedEntriesTable.updateEntry(entry.id, replicatedEntry);
         }
-
-        // Update local state
-        set(state => ({
-          entries: [...state.entries, ...newEntries],
-          isLoading: false,
-        }));
-
-        return newEntries;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to create multiple entries';
-        set({ error: errorMessage, isLoading: false });
-        throw error;
       }
-    },
 
-    updateEntriesStatus: async (
-      entryIds: string[],
-      status: EntryStatus,
-      userId: string,
-      reason?: string
-    ): Promise<void> => {
-      try {
-        set({ isLoading: true, error: null });
+      // Update local state
+      set({ entries: updatedEntries, isLoading: false });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update entries status';
+      set({ error: errorMessage, isLoading: false });
+      throw error;
+    }
+  },
 
-        const now = new Date().toISOString();
-        const statusUpdate = { status, timestamp: now, userId, reason };
-        const currentEntries = get().entries;
+  // Query methods
+  getEntry: entryId => {
+    return get().entries.find(entry => entry.id === entryId);
+  },
 
-        // Build updated entries
-        const updatedEntries = currentEntries.map(entry => {
-          if (entryIds.includes(entry.id)) {
-            return {
-              ...entry,
-              status,
-              statusHistory: [...entry.statusHistory, statusUpdate],
-              updatedAt: now,
-              _version: (entry._version || 0) + 1,
-              _lastModified: new Date(),
-              _lastModifiedBy: userId,
-              _syncStatus: 'pending' as const,
-            };
-          }
-          return entry;
-        });
+  getEntriesByClass: classId => {
+    return get().entries.filter(entry => entry.classId === classId);
+  },
 
-        // Save to replicated table and queue UPDATE mutations for Supabase sync
-        for (const entry of updatedEntries) {
-          if (entryIds.includes(entry.id)) {
-            const replicatedEntry = entryToReplicated(entry);
-            await replicatedEntriesTable.updateEntry(entry.id, replicatedEntry);
-          }
-        }
+  getEntriesByShow: showId => {
+    return get().entries.filter(entry => entry.showId === showId);
+  },
 
-        // Update local state
-        set({ entries: updatedEntries, isLoading: false });
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to update entries status';
-        set({ error: errorMessage, isLoading: false });
-        throw error;
-      }
-    },
+  getEntriesByStatus: status => {
+    return get().entries.filter(entry => entry.status === status);
+  },
 
-    // Query methods
-    getEntry: entryId => {
-      return get().entries.find(entry => entry.id === entryId);
-    },
+  getEntriesByDog: dogId => {
+    return get().entries.filter(entry => entry.dogId === dogId);
+  },
 
-    getEntriesByClass: classId => {
-      return get().entries.filter(entry => entry.classId === classId);
-    },
+  getCompetitionResults: classId => {
+    return get().entries.filter(entry => entry.classId === classId && entry.competitionData);
+  },
 
-    getEntriesByShow: showId => {
-      return get().entries.filter(entry => entry.showId === showId);
-    },
+  getRegistrations: showId => {
+    return get().entries.filter(
+      entry => entry.showId === showId && ['submitted', 'paid', 'confirmed'].includes(entry.status)
+    );
+  },
 
-    getEntriesByStatus: status => {
-      return get().entries.filter(entry => entry.status === status);
-    },
+  // Data Management
+  setEntries: entries => set({ entries }),
 
-    getEntriesByDog: dogId => {
-      return get().entries.filter(entry => entry.dogId === dogId);
-    },
+  loadEntries: async (): Promise<void> => {
+    try {
+      set({ isLoading: true, error: null });
 
-    getCompetitionResults: classId => {
-      return get().entries.filter(entry => entry.classId === classId && entry.competitionData);
-    },
+      // Load from replicated table
+      const replicatedEntries = await replicatedEntriesTable.getAll();
+      const currentEntries = get().entries;
+      const entriesMap = new Map(currentEntries.map(e => [e.id, e]));
 
-    getRegistrations: showId => {
-      return get().entries.filter(
-        entry =>
-          entry.showId === showId && ['submitted', 'paid', 'confirmed'].includes(entry.status)
-      );
-    },
-
-    // Data Management
-    setEntries: entries => set({ entries }),
-
-    loadEntries: async (): Promise<void> => {
-      try {
-        set({ isLoading: true, error: null });
-
-        // Load from replicated table
-        const replicatedEntries = await replicatedEntriesTable.getAll();
-        const currentEntries = get().entries;
-        const entriesMap = new Map(currentEntries.map(e => [e.id, e]));
-
-        // Merge replicated data with existing local-only fields
-        const mergedEntries = replicatedEntries.map(replicated =>
-          mergeEntryData(replicated, entriesMap.get(replicated.id))
-        );
-
-        set({ entries: mergedEntries, isLoading: false });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to load entries';
-        set({ error: errorMessage, isLoading: false });
-      }
-    },
-
-    // Sync Status
-    getSyncStatus: (id: string): 'synced' | 'pending' | 'error' | 'conflict' => {
-      const entry = get().entries.find(e => e.id === id);
-      return entry?._syncStatus || 'synced';
-    },
-
-    // Statistics
-    getStatsForShow: showId => {
-      const showEntries = get().entries.filter(entry => entry.showId === showId);
-
-      const byStatus = showEntries.reduce(
-        (acc, entry) => {
-          acc[entry.status] = (acc[entry.status] || 0) + 1;
-          return acc;
-        },
-        {} as Record<EntryStatus, number>
+      // Merge replicated data with existing local-only fields
+      const mergedEntries = replicatedEntries.map(replicated =>
+        mergeEntryData(replicated, entriesMap.get(replicated.id))
       );
 
-      const totalRevenue = showEntries
-        .filter(entry => entry.registrationData.paymentStatus === 'paid')
-        .reduce((sum, entry) => sum + entry.registrationData.entryFee, 0);
+      set({ entries: mergedEntries, isLoading: false });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load entries';
+      set({ error: errorMessage, isLoading: false });
+    }
+  },
 
-      const completedEntries = showEntries.filter(entry => entry.status === 'completed').length;
-      const totalPaidEntries = showEntries.filter(
-        entry => entry.registrationData.paymentStatus === 'paid'
-      ).length;
-      const completionRate = totalPaidEntries > 0 ? (completedEntries / totalPaidEntries) * 100 : 0;
+  // Sync Status
+  getSyncStatus: (id: string): 'synced' | 'pending' | 'error' | 'conflict' => {
+    const entry = get().entries.find(e => e.id === id);
+    return entry?._syncStatus || 'synced';
+  },
 
-      return {
-        totalEntries: showEntries.length,
-        byStatus,
-        totalRevenue,
-        completionRate,
-      };
-    },
+  // Statistics
+  getStatsForShow: showId => {
+    const showEntries = get().entries.filter(entry => entry.showId === showId);
 
-    // Legacy methods (extracted to entry-store-legacy.ts)
-    ...createLegacyActions(set, get),
+    const byStatus = showEntries.reduce(
+      (acc, entry) => {
+        acc[entry.status] = (acc[entry.status] || 0) + 1;
+        return acc;
+      },
+      {} as Record<EntryStatus, number>
+    );
 
-    // Data management
-    clearAllEntries: () => {
-      set({ entries: [] });
-    },
+    const totalRevenue = showEntries
+      .filter(entry => entry.registrationData.paymentStatus === 'paid')
+      .reduce((sum, entry) => sum + entry.registrationData.entryFee, 0);
 
-    importEntries: entries => {
-      set({ entries });
-    },
-  })
-);
+    const completedEntries = showEntries.filter(entry => entry.status === 'completed').length;
+    const totalPaidEntries = showEntries.filter(
+      entry => entry.registrationData.paymentStatus === 'paid'
+    ).length;
+    const completionRate = totalPaidEntries > 0 ? (completedEntries / totalPaidEntries) * 100 : 0;
+
+    return {
+      totalEntries: showEntries.length,
+      byStatus,
+      totalRevenue,
+      completionRate,
+    };
+  },
+
+  // Legacy methods (extracted to entry-store-legacy.ts)
+  ...createLegacyActions(set, get),
+
+  // Data management
+  clearAllEntries: () => {
+    set({ entries: [] });
+  },
+
+  importEntries: entries => {
+    set({ entries });
+  },
+}));
 
 // NOTE: Convenience selector hooks have been removed due to infinite re-render issues
 // Use the custom hooks from /src/hooks/useFilteredEntries.ts instead for safe filtering

@@ -13,8 +13,7 @@ export function useTrialJudgeSupplies(trialId: string | null | undefined) {
     queryFn: () => trialJudgeSuppliesService.listForTrial(trialId!),
   });
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: queryKey(trialId ?? '') });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: queryKey(trialId ?? '') });
 
   const ensureSeeded = useMutation({
     mutationFn: async (args: {

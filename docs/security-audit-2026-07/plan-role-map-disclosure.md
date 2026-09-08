@@ -21,11 +21,12 @@ policy fix, actually a data-path change" — **map the readers first.**
 ## Step 1 — Map the read paths (required before any SQL)
 
 Grep the client and RPCs for every read of these tables:
+
 - `apps/myk9show/src/services/rbac/**`, `apps/myk9show/src/context/AuthContext.tsx`
-  — how does it resolve *the current user's* roles? Direct `from('user_roles')` or a
+  — how does it resolve _the current user's_ roles? Direct `from('user_roles')` or a
   `SECURITY DEFINER` RPC (`getUserPermissions`, `get_user_roles`, etc.)?
 - Does any admin surface (`/admin/permissions/*`, `/admin/users`, role-request
-  screens) list *other users'* roles? Those legitimately need a broad read — but it
+  screens) list _other users'_ roles? Those legitimately need a broad read — but it
   should be `is_site_admin()`-gated, not open to all.
 - Does the frontend need the `roles`/`permissions` **catalog** (reference lists for
   admin dropdowns)? That's lower-sensitivity than `user_roles`.
@@ -35,6 +36,7 @@ Record the map in the PR description — it's the justification for the chosen s
 ## Step 2 — Choose the scoped policies
 
 Based on the map, likely target state:
+
 - **`user_roles`** — `SELECT USING (auth_user_id = (SELECT auth.uid()) OR is_site_admin())`.
   Own rows for self-resolution; full read for admins. If self-resolution actually
   goes through a `SECURITY DEFINER` helper (which bypasses RLS), the own-row clause

@@ -57,62 +57,55 @@ class WorkerSearchIndex {
       return [];
     }
 
-    const {
-      maxResults = 50,
-      fuzzyThreshold = 0.6,
-      categories = [],
-      minScore = 0.1
-    } = options;
+    const { maxResults = 50, fuzzyThreshold = 0.6, categories = [], minScore = 0.1 } = options;
 
     const normalizedQuery = this.normalizeText(query);
     const queryTerms = this.tokenize(normalizedQuery);
-    
+
     const candidates = this.findCandidates(queryTerms);
     const scoredResults: SearchResult[] = [];
-    
+
     for (const itemId of candidates) {
       const item = this.items.get(itemId);
       if (!item) continue;
-      
+
       if (categories.length > 0 && !categories.includes(item.type)) {
         continue;
       }
-      
+
       const result = this.scoreItem(item, queryTerms, fuzzyThreshold);
       if (result.score >= minScore) {
         scoredResults.push(result);
       }
     }
-    
-    return scoredResults
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxResults);
+
+    return scoredResults.sort((a, b) => b.score - a.score).slice(0, maxResults);
   }
 
   getSuggestions(partialQuery: string, limit = 5): string[] {
     const normalized = this.normalizeText(partialQuery);
     const suggestions = new Set<string>();
-    
+
     for (const [term] of this.invertedIndex) {
       if (term.startsWith(normalized) && term !== normalized) {
         suggestions.add(term);
         if (suggestions.size >= limit) break;
       }
     }
-    
+
     return Array.from(suggestions);
   }
 
   private indexItem(item: SearchableItem): void {
     const tokens = this.tokenize(item.searchText);
-    
+
     tokens.forEach(token => {
       if (!this.invertedIndex.has(token)) {
         this.invertedIndex.set(token, new Set());
       }
       this.invertedIndex.get(token)!.add(item.id);
     });
-    
+
     const ngrams = this.generateNgrams(item.searchText, 2);
     ngrams.forEach(ngram => {
       if (!this.ngramIndex.has(ngram)) {
@@ -124,14 +117,14 @@ class WorkerSearchIndex {
 
   private findCandidates(queryTerms: string[]): Set<string> {
     const candidates = new Set<string>();
-    
+
     queryTerms.forEach(term => {
       const exactMatches = this.invertedIndex.get(term);
       if (exactMatches) {
         exactMatches.forEach(id => candidates.add(id));
       }
     });
-    
+
     queryTerms.forEach(term => {
       const ngrams = this.generateNgrams(term, 2);
       ngrams.forEach(ngram => {
@@ -141,29 +134,31 @@ class WorkerSearchIndex {
         }
       });
     });
-    
+
     return candidates;
   }
 
-  private scoreItem(item: SearchableItem, queryTerms: string[], fuzzyThreshold: number): SearchResult {
+  private scoreItem(
+    item: SearchableItem,
+    queryTerms: string[],
+    fuzzyThreshold: number
+  ): SearchResult {
     const itemTokens = this.tokenize(item.searchText);
     const matchedTerms: string[] = [];
     let totalScore = 0;
-    
+
     queryTerms.forEach(queryTerm => {
       let bestMatch = 0;
       let bestMatchTerm = '';
-      
+
       itemTokens.forEach(itemToken => {
         if (itemToken === queryTerm) {
           bestMatch = Math.max(bestMatch, 1.0);
           bestMatchTerm = itemToken;
-        }
-        else if (itemToken.startsWith(queryTerm) || queryTerm.startsWith(itemToken)) {
+        } else if (itemToken.startsWith(queryTerm) || queryTerm.startsWith(itemToken)) {
           bestMatch = Math.max(bestMatch, 0.8);
           bestMatchTerm = itemToken;
-        }
-        else {
+        } else {
           const similarity = this.calculateSimilarity(queryTerm, itemToken);
           if (similarity >= fuzzyThreshold) {
             bestMatch = Math.max(bestMatch, similarity * 0.6);
@@ -171,23 +166,21 @@ class WorkerSearchIndex {
           }
         }
       });
-      
+
       if (bestMatch > 0) {
         totalScore += bestMatch;
         matchedTerms.push(bestMatchTerm);
       }
     });
-    
+
     const normalizedScore = totalScore / queryTerms.length;
-    const titleMatch = queryTerms.some(term => 
-      item.title.toLowerCase().includes(term)
-    );
+    const titleMatch = queryTerms.some(term => item.title.toLowerCase().includes(term));
     const finalScore = titleMatch ? normalizedScore * 1.2 : normalizedScore;
-    
+
     return {
       ...item,
       score: Math.min(finalScore, 1.0),
-      matchedTerms
+      matchedTerms,
     };
   }
 
@@ -204,28 +197,28 @@ class WorkerSearchIndex {
   private generateNgrams(text: string, n: number): string[] {
     const normalized = this.normalizeText(text);
     const ngrams: string[] = [];
-    
+
     for (let i = 0; i <= normalized.length - n; i++) {
       ngrams.push(normalized.slice(i, i + n));
     }
-    
+
     return ngrams;
   }
 
   private calculateSimilarity(str1: string, str2: string): number {
     if (str1 === str2) return 1.0;
     if (str1.length === 0 || str2.length === 0) return 0.0;
-    
+
     const matrix: number[][] = [];
-    
+
     for (let i = 0; i <= str2.length; i++) {
       matrix[i] = [i];
     }
-    
+
     for (let j = 0; j <= str1.length; j++) {
       matrix[0][j] = j;
     }
-    
+
     for (let i = 1; i <= str2.length; i++) {
       for (let j = 1; j <= str1.length; j++) {
         if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -239,9 +232,9 @@ class WorkerSearchIndex {
         }
       }
     }
-    
+
     const maxLength = Math.max(str1.length, str2.length);
-    return 1 - (matrix[str2.length][str1.length] / maxLength);
+    return 1 - matrix[str2.length][str1.length] / maxLength;
   }
 }
 
@@ -260,11 +253,11 @@ self.onmessage = (event: MessageEvent<SearchWorkerMessage>) => {
         if (items) {
           workerIndex.addItems(items);
         }
-        
+
         const response: SearchWorkerResponse = {
           type: 'INDEX_BUILT',
           payload: { success: true },
-          id
+          id,
         };
         self.postMessage(response);
         break;
@@ -273,11 +266,11 @@ self.onmessage = (event: MessageEvent<SearchWorkerMessage>) => {
       case 'SEARCH': {
         const { query, options } = payload;
         const results = workerIndex.search(query || '', options);
-        
+
         const response: SearchWorkerResponse = {
           type: 'SEARCH_RESULT',
           payload: { results },
-          id
+          id,
         };
         self.postMessage(response);
         break;
@@ -286,11 +279,11 @@ self.onmessage = (event: MessageEvent<SearchWorkerMessage>) => {
       case 'GET_SUGGESTIONS': {
         const { query, limit } = payload;
         const suggestions = workerIndex.getSuggestions(query || '', limit);
-        
+
         const response: SearchWorkerResponse = {
           type: 'SUGGESTIONS',
           payload: { suggestions },
-          id
+          id,
         };
         self.postMessage(response);
         break;
@@ -298,11 +291,11 @@ self.onmessage = (event: MessageEvent<SearchWorkerMessage>) => {
 
       case 'CLEAR_INDEX': {
         workerIndex.clear();
-        
+
         const response: SearchWorkerResponse = {
           type: 'INDEX_CLEARED',
           payload: { success: true },
-          id
+          id,
         };
         self.postMessage(response);
         break;
@@ -314,11 +307,11 @@ self.onmessage = (event: MessageEvent<SearchWorkerMessage>) => {
   } catch (error) {
     const response: SearchWorkerResponse = {
       type: 'ERROR',
-      payload: { 
+      payload: {
         error: error instanceof Error ? error.message : 'Unknown error',
-        originalType: type
+        originalType: type,
       },
-      id
+      id,
     };
     self.postMessage(response);
   }

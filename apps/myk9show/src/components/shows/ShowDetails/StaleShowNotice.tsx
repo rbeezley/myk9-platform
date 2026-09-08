@@ -33,8 +33,8 @@ export const StaleShowNotice: React.FC<StaleShowNoticeProps> = ({ onRetry }) => 
     aria-live="polite"
   >
     <span className="text-foreground">
-      Showing saved details — we haven&rsquo;t been able to refresh them, so dates and fees may
-      be out of date.
+      Showing saved details — we haven&rsquo;t been able to refresh them, so dates and fees may be
+      out of date.
     </span>
     <Button variant="outline" size="sm" onClick={onRetry}>
       <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />

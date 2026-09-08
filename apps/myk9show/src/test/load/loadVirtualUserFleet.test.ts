@@ -462,8 +462,7 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
   it('marks a reader failed when its requests fail', async () => {
     const assignments = buildSessionAssignments(G9_NORMAL_SCENARIO);
     const plan = planGeneration(assignments, { browserReaderSample: DISTRIBUTED_G9_SHARD_COUNT });
-    const failing = (async () =>
-      new Response('{}', { status: 500 })) as unknown as typeof fetch;
+    const failing = (async () => new Response('{}', { status: 500 })) as unknown as typeof fetch;
     const fleet = new VirtualUserFleet(plan.virtualUser.slice(0, 3), {
       supabaseUrl: 'https://fixture.supabase.co',
       anonKey: 'anon',

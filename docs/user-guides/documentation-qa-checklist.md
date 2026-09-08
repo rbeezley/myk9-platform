@@ -13,6 +13,7 @@ The checklist is structured in phases. Every phase must pass before signing off.
 ### Recruit the Non-Author Reviewer
 
 This is the one task a one-person team cannot do alone. The non-author reviewer must:
+
 - Be unfamiliar with the internal codebase (a friendly trial secretary, a club member, or a dog-sport exhibitor is ideal)
 - Perform the walkthrough using only the written guide — no hints, no shortcuts
 - Be available before the guide reaches `draft-ready` status so they can be named below
@@ -114,11 +115,13 @@ grep -n "<string>" docs/support/error-message-inventory.md
 This phase is required for the secretary guide and exhibitor guide. Strongly recommended for all others.
 
 Give the reviewer:
+
 - A link to the staging URL
 - The seeded account credentials
 - The guide only — no additional context or hints
 
 Ask them to:
+
 1. Complete every numbered task in the guide from start to finish
 2. Mark any step they could not complete, any label they could not find, and any result that didn't match
 3. Note any step that required re-reading more than once to understand
@@ -150,11 +153,11 @@ _Skip this section for role guides. Run it for `show-day-triage.md` and `common-
 
 For each defined severity level in the runbook, simulate at least one issue:
 
-| Severity | Scenario tested | Outcome matched runbook | Date |
-|---|---|---|---|
-| P0 — Show-day blocking | | | |
-| P1 — Show-day degraded | | | |
-| P2 — Non-urgent | | | |
+| Severity               | Scenario tested | Outcome matched runbook | Date |
+| ---------------------- | --------------- | ----------------------- | ---- |
+| P0 — Show-day blocking |                 |                         |      |
+| P1 — Show-day degraded |                 |                         |      |
+| P2 — Non-urgent        |                 |                         |      |
 
 - [ ] The "first five minutes" checklist steps are all actionable without admin DB access
 - [ ] Every Supabase query in the investigation cookbook was run and returned interpretable results (not SQL errors)
@@ -177,6 +180,7 @@ Complete this block when all phases pass.
 **Status promoted to `verified`:** [ ] Yes
 
 After sign-off:
+
 1. Update the guide's frontmatter `status: verified` and `last_verified: YYYY-MM-DD`.
 2. Update the guide's row in `docs/user-guides/README.md`.
 3. Update the shot list (`docs/training/screenshot-shot-list.md`) with the capture date for each screenshot used.
@@ -188,14 +192,14 @@ After sign-off:
 
 A `verified` guide must be re-verified (at minimum the author walkthrough) when any of the following change:
 
-| Trigger | Scope to re-verify |
-|---|---|
-| A route in the guide's source map is renamed or removed | All steps referencing that route |
-| A button, tab, or menu label changes | Every mention in the guide |
-| A workflow is consolidated (one surface → another) | The entire section covering that workflow |
-| A screenshot in the guide becomes stale (> 30 days old) | Replace screenshot + re-verify the described state |
-| The error-message inventory shows a string mismatch | All steps and sidebars referencing that string |
-| A migration changes the visible state for the guide's role | Any section dependent on that data |
+| Trigger                                                    | Scope to re-verify                                 |
+| ---------------------------------------------------------- | -------------------------------------------------- |
+| A route in the guide's source map is renamed or removed    | All steps referencing that route                   |
+| A button, tab, or menu label changes                       | Every mention in the guide                         |
+| A workflow is consolidated (one surface → another)         | The entire section covering that workflow          |
+| A screenshot in the guide becomes stale (> 30 days old)    | Replace screenshot + re-verify the described state |
+| The error-message inventory shows a string mismatch        | All steps and sidebars referencing that string     |
+| A migration changes the visible state for the guide's role | Any section dependent on that data                 |
 
 Set a calendar reminder to re-verify all `verified` guides 30 days before any planned launch milestone.
 
@@ -208,4 +212,4 @@ pnpm qa:doc-staleness          # advisory: diffs route sources vs origin/main, l
 pnpm qa:doc-staleness --strict # exit 1 if a documented route changed (CI gate)
 ```
 
-It reads [`workflow-source-map.md`](./workflow-source-map.md), matches changed routes param-name-insensitively (`/shows/:id` ≡ `/shows/:showId`), and prints each affected guide section + docs target. It also flags when a label-bearing file (`unifiedSidebarConfig.ts`, `pageDirectory.ts`) changed, but does **not** diff label *text* — confirm label-change triggers manually. Source: [`scripts/check-doc-staleness.js`](../../scripts/check-doc-staleness.js).
+It reads [`workflow-source-map.md`](./workflow-source-map.md), matches changed routes param-name-insensitively (`/shows/:id` ≡ `/shows/:showId`), and prints each affected guide section + docs target. It also flags when a label-bearing file (`unifiedSidebarConfig.ts`, `pageDirectory.ts`) changed, but does **not** diff label _text_ — confirm label-change triggers manually. Source: [`scripts/check-doc-staleness.js`](../../scripts/check-doc-staleness.js).

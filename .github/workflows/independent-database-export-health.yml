@@ -26,8 +26,8 @@ jobs:
           node-version: '22.12.0'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install AWS client
-        run: sudo apt-get update && sudo apt-get install --yes awscli
+      - name: Verify hosted AWS client
+        run: aws --version
       - name: Verify latest payloads and freshness
         run: pnpm exec tsx scripts/backup/verify.ts
         env:

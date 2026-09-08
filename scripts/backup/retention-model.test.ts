@@ -8,6 +8,13 @@ const group = (name: string, date: string) =>
   }));
 
 describe('retention safety', () => {
+  it('removes the success marker before payloads regardless of listing order', () => {
+    const old = group('old', '2026-01-01T00:00:00Z').sort((a, b) => a.Key.localeCompare(b.Key));
+    const newest = group('newest', '2026-09-01T00:00:00Z');
+    expect(retentionCandidates([...old, ...newest], Date.parse('2026-08-01T00:00:00Z'))[0]).toBe(
+      'old/manifest.json'
+    );
+  });
   it('preserves the newest incomplete set when no complete backup exists', () => {
     const old = group('old', '2026-01-01T00:00:00Z').slice(1);
     const newest = group('newest', '2026-01-02T00:00:00Z').slice(1);

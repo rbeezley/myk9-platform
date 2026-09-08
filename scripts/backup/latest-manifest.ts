@@ -2,6 +2,7 @@ import { parseObjectList } from './object-list';
 import { assertManifest, type ExportManifest } from './export-model';
 
 export class InvalidManifestError extends Error {}
+export class ProjectMismatchError extends Error {}
 
 /** Each export prefix belongs to one project. Read only its newest success marker. */
 export function latestManifest(
@@ -48,7 +49,7 @@ export function latestManifest(
     const manifest: unknown = JSON.parse(raw);
     assertManifest(manifest);
     if (manifest.projectRef !== projectRef)
-      throw new Error('latest manifest belongs to another project');
+      throw new ProjectMismatchError('latest manifest belongs to another project');
     if (`${prefix}/${manifest.createdAt.replace(/[:.]/g, '-')}/manifest.json` !== latestKey)
       throw new Error('latest manifest timestamp does not match its object key');
     const stem = latestKey.slice(0, -'manifest.json'.length);
@@ -59,6 +60,7 @@ export function latestManifest(
       throw new Error('latest manifest payload keys do not match its export directory');
     return manifest;
   } catch (error) {
+    if (error instanceof ProjectMismatchError) throw error;
     throw new InvalidManifestError(error instanceof Error ? error.message : 'invalid manifest');
   }
 }

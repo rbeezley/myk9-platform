@@ -71,6 +71,16 @@ afterEach(() => {
 });
 
 describe('export success publication', () => {
+  it('rejects a project mismatch without exporting into another project prefix', () => {
+    const { objects, events } = fixture();
+    exportDatabase();
+    vi.stubEnv('BACKUP_FORCE_RUN', 'false');
+    vi.stubEnv('BACKUP_PROJECT_REF', 'other-project');
+    const before = events.length;
+    expect(() => exportDatabase()).toThrow('another project');
+    expect(events.slice(before).filter(event => event.startsWith('upload:'))).toEqual([]);
+    expect(objects.size).toBe(3);
+  });
   it('bootstraps a scheduled export after an empty successful listing', () => {
     const { objects } = fixture();
     vi.stubEnv('BACKUP_FORCE_RUN', 'false');

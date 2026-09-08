@@ -39,7 +39,12 @@ export function retentionCandidates(objects: StoredObject[], cutoff: number): st
       // for operator inspection rather than deleting data we cannot identify.
       .filter(group => group.every(item => KNOWN_ARTIFACTS.has(basename(item.key))))
       .filter(group => group.every(item => item.modified < cutoff))
-      .flatMap(group => group.map(item => item.key))
+      .flatMap(group =>
+        [
+          ...group.filter(item => basename(item.key) === 'manifest.json'),
+          ...group.filter(item => basename(item.key) !== 'manifest.json'),
+        ].map(item => item.key)
+      )
   );
 }
 

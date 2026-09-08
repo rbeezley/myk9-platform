@@ -144,6 +144,10 @@ if [ -n "$WAIT" ]; then
         # runs; without this check --wait returned 3 for 43 minutes.
         pid="$(cat "$PID_FILE" 2>/dev/null)"
         if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+          # Re-read: the child may have written its exit code between our read
+          # and the liveness probe (Codex review of #2132, round 2).
+          st2="$(cat "$STATUS_FILE" 2>/dev/null)"
+          case "$st2" in ''|*[!0-9]*) ;; *) continue ;; esac
           echo "2" > "$STATUS_FILE"
           [ -f "$OUT_FILE" ] && cat "$OUT_FILE"
           echo "claude-review: the detached review for PR #${PR} (pid ${pid}) is gone without recording a verdict. A sandbox that kills background processes when the shell call returns does this. Re-run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
@@ -195,7 +199,9 @@ if [ "$DETACH" = 1 ]; then
   st="$(cat "$STATUS_FILE" 2>/dev/null)"
   case "$st" in
     ''|*[!0-9]*)
-      if ! kill -0 "$CHILD_PID" 2>/dev/null; then
+      # Re-read after the liveness probe: the child may have written its exit
+      # code in between (Codex review of #2132, round 2).
+      if ! kill -0 "$CHILD_PID" 2>/dev/null && ! [ "$(cat "$STATUS_FILE" 2>/dev/null)" -eq "$(cat "$STATUS_FILE" 2>/dev/null)" ] 2>/dev/null; then
         echo "2" > "$STATUS_FILE"
         echo "claude-review: the detached review (pid ${CHILD_PID}) died immediately without a verdict. This environment kills background processes; run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
         exit 2

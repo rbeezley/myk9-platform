@@ -1,4 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
+import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 import type { ReportEntry, ReportProps } from '@/lib/reports/types';
 import { countQualified, formatReportDate, isQualified } from '@/lib/reports/reportUtils';
 import { fillPdfForm, type PdfFormFillValues } from './pdfForm';
@@ -129,14 +130,23 @@ function qualifyingEntriesForJudgeAndElement(
 }
 
 function totalRuns(entries: ReportEntry[]): number {
-  return entries.filter(entry => entry.checkInStatus === 'present').length;
+  return entries.filter(entry => !isWithdrawn(entry)).length;
 }
 
 function totalWithdrawn(entries: ReportEntry[]): number {
-  return entries.filter(
-    entry =>
-      entry.checkInStatus === 'withdrawn' || entry.resultText?.trim().toLowerCase() === 'withdrawn'
-  ).length;
+  return entries.filter(isWithdrawn).length;
+}
+
+function isWithdrawn(entry: ReportEntry): boolean {
+  if (isNonRunningEntry({ entryStatus: entry.entryStatus })) return true;
+
+  const checkInStatus = normalize(entry.checkInStatus);
+  const resultStatus = normalize(entry.resultText);
+  return checkInStatus === 'pulled' || resultStatus === 'absent' || resultStatus === 'withdrawn';
+}
+
+function normalize(value: string | null | undefined): string {
+  return value?.trim().toLowerCase() ?? '';
 }
 
 function cleanJudgeName(value: string | null | undefined): string | null {

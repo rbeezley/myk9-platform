@@ -24,6 +24,7 @@ type ReportIdWithOfficialPdf =
   | 'asca-scent-detection-post-event-evaluation'
   | 'ukc-nosework-judges-book-element'
   | 'ukc-nosework-judges-book-handler-discrimination'
+  | 'ukc-nosework-trial-report'
   | 'ukc-nosework-trial-score-sheet';
 
 export interface OfficialPdfReportConfig {
@@ -141,6 +142,8 @@ export function getOfficialPdfReportConfig(
   switch (reportId) {
     case 'trial-secretary-report':
       return isUKCTrial(props) ? UKC_TRIAL_REPORT_CONFIG : AKC_TRIAL_SECRETARY_CONFIG;
+    case 'ukc-nosework-trial-report':
+      return isUKCTrial(props) ? UKC_TRIAL_REPORT_CONFIG : null;
     case 'asca-scent-detection-entry-form':
       return ASCA_ENTRY_FORM_CONFIG;
     case 'asca-scent-detection-trial-report':
@@ -197,6 +200,7 @@ function isReportIdWithOfficialPdf(reportId: string): reportId is ReportIdWithOf
     reportId === 'asca-scent-detection-post-event-evaluation' ||
     reportId === 'ukc-nosework-judges-book-element' ||
     reportId === 'ukc-nosework-judges-book-handler-discrimination' ||
+    reportId === 'ukc-nosework-trial-report' ||
     reportId === 'ukc-nosework-trial-score-sheet'
   );
 }

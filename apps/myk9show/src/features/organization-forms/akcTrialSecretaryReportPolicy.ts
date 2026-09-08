@@ -1,4 +1,3 @@
-import { isNonRunningEntry } from '@/features/_shared/entryAccounting';
 import type { ReportEntry } from '@/lib/reports/types';
 
 const FEE_RATE_BY_YEAR = {
@@ -17,17 +16,7 @@ export const AKC_TRIAL_SECRETARY_CANONICAL_FORM = {
     'The American Kennel Club, Event Operations - Scent Work, PO Box 900051, Raleigh, NC 27675-9051',
 } as const;
 
-const EXCLUDED_RUN_STATUS_CODES = new Set([
-  'abs',
-  'cancelled',
-  'no show',
-  'no-show',
-  'pulled',
-  'scratch',
-  'scratched',
-  'wd',
-  'withdrawn',
-]);
+const AKC_POST_CLOSING_WITHDRAWAL_CODES = new Set(['ais', 'ajc']);
 
 export type AKCTrialSecretaryReportPolicy =
   | {
@@ -48,14 +37,19 @@ export type AKCTrialSecretaryReportPolicy =
     };
 
 function isExcludedRun(entry: ReportEntry): boolean {
-  if (isNonRunningEntry({ entryStatus: entry.entryStatus })) return true;
+  const resultCode = normalize(entry.resultText);
+  if (AKC_POST_CLOSING_WITHDRAWAL_CODES.has(resultCode)) return true;
 
-  return [entry.entryStatus, entry.checkInStatus, entry.resultText]
-    .map(status => status?.trim().toLowerCase())
-    .filter((status): status is string => Boolean(status))
-    .some(
-      status => EXCLUDED_RUN_STATUS_CODES.has(status) || isNonRunningEntry({ entryStatus: status })
-    );
+  const reason = normalize(entry.withdrawalReason);
+  return (
+    AKC_POST_CLOSING_WITHDRAWAL_CODES.has(reason) ||
+    /\bjudge\s+(?:changes?|changed)\b/.test(reason) ||
+    /\b(?:bitch|female)\b.*\bin\s+season\b/.test(reason)
+  );
+}
+
+function normalize(value: string | null | undefined): string {
+  return value?.trim().toLowerCase() ?? '';
 }
 
 function readTrialYear(trialDate: string | null | undefined): SupportedFeeYear | DateFailureReason {

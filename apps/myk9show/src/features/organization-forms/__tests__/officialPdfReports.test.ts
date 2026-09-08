@@ -48,6 +48,20 @@ describe('getOfficialPdfReportConfig', () => {
     expect(config?.actionLabel).toBe('Download UKC Trial Report PDF');
   });
 
+  it('maps the catalog UKC report id to the UKC Nosework PDF', () => {
+    const config = getOfficialPdfReportConfig('ukc-nosework-trial-report', {
+      ...reportProps,
+      trial: { ...reportProps.trial, registryId: 'UKC' },
+    });
+
+    expect(config?.templateId).toBe('ukc-nosework-trial-report');
+    expect(config?.actionLabel).toBe('Download UKC Trial Report PDF');
+  });
+
+  it('does not dispatch the dedicated UKC report for a non-UKC trial', () => {
+    expect(getOfficialPdfReportConfig('ukc-nosework-trial-report', reportProps)).toBeNull();
+  });
+
   it('uses the trial registry instead of the show organization label', () => {
     const config = getOfficialPdfReportConfig('trial-secretary-report', {
       ...reportProps,

@@ -80,6 +80,15 @@ describe('MonthScrubber', () => {
     });
   });
 
+  it('does not scroll when show data changes without changing the selection', () => {
+    const { rerender } = render(<MonthScrubber shows={[]} value="2026-09" onChange={vi.fn()} />);
+    scrollIntoViewMock.mockClear();
+
+    rerender(<MonthScrubber shows={[]} value="2026-09" onChange={vi.fn()} />);
+
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
   it('keeps ordinary month selection and labels at the project text token floor', () => {
     render(<MonthScrubber shows={[]} value="2026-09" onChange={vi.fn()} />);
 

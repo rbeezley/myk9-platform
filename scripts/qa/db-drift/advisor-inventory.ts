@@ -83,7 +83,7 @@ export function normalizeAdvisorLints(raw: RawAdvisorPayload): AdvisorEntry[] {
   const lints = extractAdvisorLints(raw);
 
   return lints
-    .map(normalizeLint)
+    .map((lint, index) => normalizeLint(lint, index))
     .sort((a, b) => a.identity.localeCompare(b.identity) || a.code.localeCompare(b.code));
 }
 
@@ -103,8 +103,23 @@ function extractAdvisorLints(raw: RawAdvisorPayload): RawAdvisorLint[] {
   throw new AdvisorPayloadError('Advisor payload is missing a `lints` array');
 }
 
-function normalizeLint(lint: RawAdvisorLint): AdvisorEntry {
+function normalizeLint(lint: RawAdvisorLint, index: number): AdvisorEntry {
+  if (
+    !lint ||
+    typeof lint !== 'object' ||
+    typeof lint.name !== 'string' ||
+    lint.name.trim() === '' ||
+    typeof lint.level !== 'string' ||
+    lint.level.trim() === ''
+  ) {
+    throw new AdvisorPayloadError(`Advisor payload lint at index ${index} is malformed`);
+  }
+
   const metadata = lint.metadata ?? {};
+  if (typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new AdvisorPayloadError(`Advisor payload lint at index ${index} has invalid metadata`);
+  }
+
   const schema = typeof metadata.schema === 'string' ? metadata.schema : null;
   const objectName = typeof metadata.name === 'string' ? metadata.name : null;
   const identity = buildIdentity({ schema, objectName, metadata });
@@ -115,7 +130,7 @@ function normalizeLint(lint: RawAdvisorLint): AdvisorEntry {
     schema,
     objectName,
     identity,
-    detail: lint.detail ?? '',
+    detail: typeof lint.detail === 'string' ? lint.detail : '',
   };
 }
 

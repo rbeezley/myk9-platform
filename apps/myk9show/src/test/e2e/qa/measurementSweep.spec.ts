@@ -103,6 +103,10 @@ async function applyTheme(page: Page, theme: 'light' | 'dark') {
  * should still be measured and flagged, not hang the sweep.
  */
 async function visit(page: Page, path: string, tracker: AppApiRequestTracker) {
+  // A navigation can strand requests from the previous route without emitting
+  // requestfinished/requestfailed. Start each measurement with a fresh route
+  // boundary so stale requests cannot poison this route's readiness result.
+  tracker.reset();
   await page.goto(path, { waitUntil: 'commit', timeout: GOTO_TIMEOUT_MS });
   await page.waitForLoadState('domcontentloaded', { timeout: GOTO_TIMEOUT_MS }).catch(() => {});
   await page

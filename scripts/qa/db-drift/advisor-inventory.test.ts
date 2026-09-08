@@ -130,6 +130,18 @@ describe('normalizeAdvisorLints', () => {
       'Advisor payload `result.lints` must be an array'
     );
   });
+
+  it('fails visibly when a lint record is missing its name', () => {
+    expect(() => normalizeAdvisorLints({ lints: [{ level: 'INFO' }] } as RawAdvisorResult)).toThrow(
+      'Advisor payload lint at index 0 is malformed'
+    );
+  });
+
+  it('fails visibly when a lint record is missing its level', () => {
+    expect(() =>
+      normalizeAdvisorLints({ lints: [{ name: 'some_code' }] } as RawAdvisorResult)
+    ).toThrow('Advisor payload lint at index 0 is malformed');
+  });
 });
 
 describe('classifyAdvisorEntries', () => {

@@ -9,7 +9,13 @@ const migration = readFileSync(
   ),
   'utf8'
 );
-
+const nullStatusMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260908134900_reject_null_self_checkin_status.sql'
+  ),
+  'utf8'
+);
 function sliceBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
   expect(startIndex).toBeGreaterThanOrEqual(0);
@@ -47,5 +53,14 @@ describe('self check-in RLS contract', () => {
     expect(migration).not.toContain('is_in_ring');
     expect(migration).not.toContain('ring_entry_time');
     expect(migration).not.toContain('judge_notes');
+  });
+
+  it('rejects NULL self-check-in statuses before the whitelist comparison', () => {
+    expect(nullStatusMigration).toContain(
+      'if p_new_status is null or not p_new_status = any(v_allowed_statuses)'
+    );
+    expect(nullStatusMigration).toContain('class_vis.self_checkin_enabled');
+    expect(nullStatusMigration).toContain('trial_vis.self_checkin_enabled');
+    expect(nullStatusMigration).toContain('show_vis.self_checkin_enabled');
   });
 });

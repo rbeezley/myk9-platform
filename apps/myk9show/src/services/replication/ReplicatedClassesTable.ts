@@ -78,7 +78,7 @@ export interface ReplicatedClass {
    * consistent: refreshed whenever the class row syncs, but a settings-only edit
    * (no class-row change) won't reflect until the next full sync. Acceptable
    * because /at-show is staff-only (STAFF_ROLES), and staff bypass the
-   * self-check-in gate via `canCheckInDogs`; the exhibitor-facing self-check-in
+   * self-check-in gate via `canCheckInDogs`; exhibitor-facing self-check-in
    * enforcement stays on the live online hook. Replicating the raw cascade
    * tables (real-time offline) is the deferred alternative.
    */

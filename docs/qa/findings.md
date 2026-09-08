@@ -361,7 +361,49 @@ Copy this block for each new finding.
 - **Proof required:** Satisfied by PR #1856 focused tests/typechecks and the 2026-08-30 secretary browser replay at 1280x720 and 390x844, including save persistence after navigation/reload and restoration of the seeded fixture.
 - **Notes:** Introduced by PR #1845 / commit `8b8868f338a22d75c474d0c9e3fe1935ad6e45c2`; source correction merged in PR #1856. Browser console retained existing local-dev errors/warnings, but no product failure blocked the replay. No application code was modified.
 
+### NCR-2026-09-06-02
+
+- **Status:** fixed (2026-09-08)
+- **Lifecycle status:** resolved; source: codex verification, original source: claude
+- **Classification:** Confirmed HARNESS defect — not a product bug
+- **Severity:** low
+- **Canonical priority:** P3
+- **Source label:** Low
+- **Source:** claude
+- **Role/workflow:** all — unit suite, no role surface involved
+- **Surface:** `apps/myk9show/src/test/harness/appApiRequestTracker.test.ts:160-190` ("a stranded request fails the NEXT route until the tracker is reset")
+- **Suite category:** none (app unit suite)
+- **Pattern:** timing-flake
+- **Detected by:** claude — MYK9-420 pre-merge verification
+- **First seen:** 2026-09-06
+- **Last seen:** 2026-09-08
+- **Consecutive-run count:** 3 dated observations (September 6 natural failure; September 7 mechanism replay; September 8 closure proof)
+- **Baseline SHA:** `1145aebac77d47c60abd0c45dbe35b07e6c4bca7`
+- **Linear issue:** [MYK9-437](https://linear.app/myk9-platform/issue/MYK9-437), created September 7. The user’s automatic all-severity first-occurrence filing policy supersedes the earlier recurrence-based decision to leave this unfiled. Current proof and closure contract are in Linear and the September 7 report.
+- **Evidence:** Failed once under `pnpm vitest run --sequence.shuffle` (seed `1788723296711`) with `expected { settled: false, pendingUrls: [] } to deeply equal { settled: true, pendingUrls: [] }` at `:190`. A `pnpm qa:codex-review` was running concurrently on the same machine. The assertion calls `waitForAppApiRequestsToSettle` with `idleMs: 5, timeoutMs: 20` on REAL timers, so it needs the event loop to observe 5ms of quiet inside a 20ms budget; under CPU contention it cannot, and the tracker reports `settled: false` with nothing pending — the shape of a starved timer, not of a stranded request.
+- **Expected behavior:** The test asserts a property of `tracker.reset()`, which is independent of wall-clock speed, and should pass on a loaded runner.
+- **Observed behavior:** Passes 5/5 in isolation and in 6 of 7 full shuffled runs; fails when the host is saturated.
+- **User impact:** None — no product code involved. The cost is a false red on a green branch, and the standing risk that a real regression in the reset logic gets waved through as "that flake again".
+- **Intent check:** n/a — test harness.
+- **Confidence:** high on the mechanism (5/5 clean in isolation, diff touches nothing in this path, 5 prior full runs green); not reproduced deliberately under load.
+- **Fix owner:** `apps/myk9show/src/test/harness/appApiRequestTracker.test.ts`
+- **Proof required:** Satisfied September 8 by 10/10 current harness tests twice (including shuffled historical seed), negative controls removing pending-clear and activity-reset each failing exactly their intended assertion, and passing main CI. No load generation needed under the current canonical Linear closure contract. [Full proof](codex-daily-commit-review-2026-09-08.md). Historical pre-fix observations below are retained as evidence, not current state.
+- **Notes:** This test is the regression guard for **NCR-2026-09-04-04** (the tracker `pending`-set leak, fixed 2026-09-05). The product fix is sound; it is the guard that is timing-fragile. Distinct finding, not a recurrence — that one was a stale-state leak in the E2E sweep, this is a real-timer budget in the unit test that pins its fix. A flaky guard on a defect that already recurred once is worth more than its severity suggests.
+
 ## Open Findings
+
+### Codex commit-review reconciliation — 2026-09-08
+
+`source: codex`; baseline `44857161a1a573e411ef13d86e31a7e04545e93e`.
+[Full report, focused checks and closure evidence](codex-daily-commit-review-2026-09-08.md).
+This dated reconciliation supersedes older lifecycle claims below; Linear remains the work queue.
+
+- P2 blocked verification: [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423) existing-entry payment completion; [MYK9-435](https://linear.app/myk9-platform/issue/MYK9-435) repaired month keyboard path awaiting browser proof; [MYK9-438](https://linear.app/myk9-platform/issue/MYK9-438) repaired parser awaiting current export/count proof.
+- P3 unchanged defect: [MYK9-427](https://linear.app/myk9-platform/issue/MYK9-427) signed-in empty-profile IP fallback.
+- P3 blocked verification: [MYK9-436](https://linear.app/myk9-platform/issue/MYK9-436) repaired sizing awaiting actual browser measurements; [MYK9-439](https://linear.app/myk9-platform/issue/MYK9-439) five FK indexes awaiting application/catalog proof.
+- Newly resolved P3: [MYK9-437](https://linear.app/myk9-platform/issue/MYK9-437) / NCR-2026-09-06-02, controlled timer suite and both negative mutations pass the closure contract. Linear workflow status unchanged; no issue closed by this audit.
+
+Counts: new 0, unchanged 1, resolved 1, blocked 5, duplicate 0, rejected 0. Seven canonical Linear descriptions updated; no issue created. Full 26-commit range reviewed; 257 distinct focused tests passed. No application code changed.
 
 ### Codex commit-review reconciliation — 2026-09-07
 
@@ -402,35 +444,6 @@ MYK9-289, MYK9-356, MYK9-405 (P2), MYK9-358 and MYK9-406 (P3).
 Exact closure evidence is in the report; new SQL/migration CI evidence was also appended
 to MYK9-356 and MYK9-405. No issue closed by this audit. Counts: new 1, unchanged 1,
 resolved 7, duplicate 0, rejected 0, blocked 1. No application code changed.
-
-### NCR-2026-09-06-02
-
-- **Status:** open
-- **Lifecycle status:** unchanged (newly filed September 7)
-- **Classification:** Confirmed HARNESS defect — not a product bug
-- **Severity:** low
-- **Canonical priority:** P3
-- **Source label:** Low
-- **Source:** claude
-- **Role/workflow:** all — unit suite, no role surface involved
-- **Surface:** `apps/myk9show/src/test/harness/appApiRequestTracker.test.ts:160-190` ("a stranded request fails the NEXT route until the tracker is reset")
-- **Suite category:** none (app unit suite)
-- **Pattern:** timing-flake
-- **Detected by:** claude — MYK9-420 pre-merge verification
-- **First seen:** 2026-09-06
-- **Last seen:** 2026-09-07
-- **Consecutive-run count:** 2 dated observations (September 6 natural failure; September 7 deterministic mechanism replay, not a second natural load failure)
-- **Baseline SHA:** `1145aebac77d47c60abd0c45dbe35b07e6c4bca7`
-- **Linear issue:** [MYK9-437](https://linear.app/myk9-platform/issue/MYK9-437), created September 7. The user’s automatic all-severity first-occurrence filing policy supersedes the earlier recurrence-based decision to leave this unfiled. Current proof and closure contract are in Linear and the September 7 report.
-- **Evidence:** Failed once under `pnpm vitest run --sequence.shuffle` (seed `1788723296711`) with `expected { settled: false, pendingUrls: [] } to deeply equal { settled: true, pendingUrls: [] }` at `:190`. A `pnpm qa:codex-review` was running concurrently on the same machine. The assertion calls `waitForAppApiRequestsToSettle` with `idleMs: 5, timeoutMs: 20` on REAL timers, so it needs the event loop to observe 5ms of quiet inside a 20ms budget; under CPU contention it cannot, and the tracker reports `settled: false` with nothing pending — the shape of a starved timer, not of a stranded request.
-- **Expected behavior:** The test asserts a property of `tracker.reset()`, which is independent of wall-clock speed, and should pass on a loaded runner.
-- **Observed behavior:** Passes 5/5 in isolation and in 6 of 7 full shuffled runs; fails when the host is saturated.
-- **User impact:** None — no product code involved. The cost is a false red on a green branch, and the standing risk that a real regression in the reset logic gets waved through as "that flake again".
-- **Intent check:** n/a — test harness.
-- **Confidence:** high on the mechanism (5/5 clean in isolation, diff touches nothing in this path, 5 prior full runs green); not reproduced deliberately under load.
-- **Fix owner:** `apps/myk9show/src/test/harness/appApiRequestTracker.test.ts`
-- **Proof required:** Reproduce under load with `taskpolicy -b pnpm vitest run src/test/harness/appApiRequestTracker.test.ts --coverage --sequence.shuffle` (the documented recipe for timeout-class flakes), then make the assertion independent of wall-clock speed — fake timers, or a budget that is not 20ms — and show the same command passing 8/8.
-- **Notes:** This test is the regression guard for **NCR-2026-09-04-04** (the tracker `pending`-set leak, fixed 2026-09-05). The product fix is sound; it is the guard that is timing-fragile. Distinct finding, not a recurrence — that one was a stale-state leak in the E2E sweep, this is a real-timer budget in the unit test that pins its fix. A flaky guard on a defect that already recurred once is worth more than its severity suggests.
 
 ### Codex commit-review reconciliation — 2026-09-05
 

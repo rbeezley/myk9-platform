@@ -39,6 +39,8 @@ export function useViewerLocation(databaseUserId: string | undefined): UseViewer
 
   const profileQuery = useQuery({
     queryKey: ['viewerLocation', 'profile', databaseUserId],
+    // Never carry another account's profile across the app's keep-previous-data default.
+    placeholderData: () => undefined,
     queryFn: async (): Promise<ViewerLocation | null> => {
       if (!databaseUserId) return null;
       const { data, error } = await supabase
@@ -57,8 +59,9 @@ export function useViewerLocation(databaseUserId: string | undefined): UseViewer
     staleTime: 24 * 60 * 60 * 1000,
   });
 
-  // The connection guess is only worth asking for when nothing better exists.
-  const needsIp = !databaseUserId && remembered === null;
+  // Wait for a signed-in profile before falling back to the connection guess.
+  const needsIp =
+    remembered === null && (!databaseUserId || (!profileQuery.isPending && !profileQuery.data));
   const ipQuery = useQuery({
     queryKey: ['viewerLocation', 'ip'],
     queryFn: () => fetchApproximateLocation(),

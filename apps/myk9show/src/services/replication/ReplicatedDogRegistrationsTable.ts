@@ -16,8 +16,8 @@ export interface ReplicatedDogRegistration {
    * registration (MYK9-90 review round 2).
    *
    * `createdAt` is REQUIRED (#1480) because both creation paths now always stamp
-   * it. `isPrimary` stays optional and read-only here until its migration is
-   * pushed — see `toSupabaseRow`.
+   * it. `isPrimary` stays optional because local creation does not currently
+   * assign the owner's primary-registration choice.
    */
   createdAt: string;
   isPrimary?: boolean | null;
@@ -183,8 +183,8 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       organization: registration.organization,
       registration_number: registration.registrationNumber,
       // Carried so the merged local+server list keeps the resolver's ordering.
-      // `is_primary` is deliberately NOT written: its migration is unpushed, so
-      // emitting it would fail against the live schema.
+      // Local creation does not currently assign `isPrimary`, so it is omitted
+      // from the mutation payload and the server default remains authoritative.
       created_at: registration.createdAt,
       registered_name: registration.registeredName ?? null,
       breed: registration.breed ?? null,

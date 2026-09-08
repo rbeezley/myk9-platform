@@ -52,7 +52,10 @@ For every file that was modified (not deleted), read the **entire file** — not
 Read these files and check changes against them:
 
 - `CLAUDE.md` (project conventions and anti-patterns)
-- `REVIEW.md` (review-specific rules, if it exists)
+- **`docs/audits/REVIEW.md`** — the review-specific rules written for this skill
+  ("Rules for `/phase-review`"). Not optional and not at the repo root: this
+  skill said `REVIEW.md` until 2026-09-08, which resolves to nothing, so the
+  rules file was silently never loaded. Read it every run.
 - `docs/INTENT.md` (emotional design intent — if UX-facing code changed)
 - Any `CLAUDE.md` files in subdirectories of changed files
 
@@ -94,7 +97,9 @@ Check each changed file for the following categories:
 
 **Rule violations**
 
-- Anti-patterns listed in CLAUDE.md (direct Supabase calls in myK9Q, useState for server data, etc.)
+- Anti-patterns listed in CLAUDE.md — a core read/write path bypassing
+  `@myk9/replication` for direct PostgREST (`apps/myk9q` was deleted; the rule is
+  about offline-first coverage, not that app), `useState` for server data, etc.
 - Missing intent preservation (see INTENT.md)
 - Files over 500 lines after changes
 - `any` types introduced
@@ -151,6 +156,18 @@ For each finding:
 | Pre-existing | <n>   |
 
 **Verdict:** <PASS / PASS WITH NITS / NEEDS FIXES>
+
+### Step 7: Re-verify after fixes
+
+A verdict is only true of the code it was computed on. If any finding gets
+fixed in this session, re-run Steps 2 and 5 **over the fixed lines** and restate
+the table and verdict, so the run ends with a before and after rather than a
+stale red:
+
+> **Verdict:** NEEDS FIXES (3 Normal) → **PASS** (0 Normal, 1 Nit deferred)
+
+Name any finding you did not fix and why. A finding silently dropped between the
+two tables is the failure mode this step exists to prevent.
 
 If no issues found, say so clearly:
 

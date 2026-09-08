@@ -11,10 +11,10 @@ describe('scheduled export workflow contract', () => {
     expect(exportWorkflow).not.toContain('scripts/backup/retention.ts');
     expect(workflow).toContain('group: independent-database-retention');
     expect(exportWorkflow).toContain('group: independent-database-export');
-    expect(workflow).toContain("cron: '37 10 * * *'");
+    expect(workflow).toContain("cron: '22 10 * * *'");
     expect(workflow).toContain('workflow_dispatch: {}');
     expect(workflow.match(/^\s+if:.*$/gm)?.map(line => line.trim())).toEqual([
-      "if: vars.MYK9_RETENTION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'",
+      "if: (vars.MYK9_RETENTION_ENABLED == 'true' && vars.MYK9_EXPORTS_ENABLED == 'true') || github.event_name == 'workflow_dispatch'",
       'if: always()',
     ]);
     const verify = workflow.indexOf('run: pnpm exec tsx scripts/backup/verify.ts');
@@ -32,6 +32,10 @@ describe('scheduled export workflow contract', () => {
     expect(workflow.match(/BACKUP_PREFIX: \$\{\{ vars.MYK9_EXPORT_PREFIX \}\}/g)).toHaveLength(3);
     expect(workflow).toContain('[ "$BACKUP_BUCKET" != \'myk9-database-backups\' ]');
     expect(workflow).toContain('[ "$BACKUP_PREFIX" != \'myk9-platform\' ]');
+    expect(workflow).toContain(
+      '[ "$BACKUP_S3_ENDPOINT" != \'https://7eab7ddc81b7019884c3b2f4037182be.r2.cloudflarestorage.com\' ]'
+    );
+    expect(workflow).toContain('[ "$AWS_DEFAULT_REGION" != \'auto\' ]');
     expect(workflow.indexOf('Validate approved retention destination')).toBeLessThan(verify);
     expect(workflow).toContain(
       'BACKUP_RETENTION_CONFIRM: DELETE myk9-database-backups/myk9-platform'

@@ -125,15 +125,15 @@ preserved for recovery investigation. Incomplete sets containing only recognized
 are eligible once all their objects exceed retention; fresh sets and sets containing unknown
 objects remain protected. Dry-run is the
 default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix
-confirmation. The workflow follow-up runs this policy in a separate daily workflow at 10:37 UTC,
+confirmation. The workflow follow-up runs this policy in a separate daily workflow at 10:22 UTC,
 after its own successful freshness verification, using
 a reviewed 30-day window fixed in the workflow. Verification and cleanup use the same bucket/prefix
 variables as exports. An explicit preflight compares that configuration to the approved
-`myk9-database-backups/myk9-platform` destination before either step. Destination drift deliberately
+`myk9-database-backups/myk9-platform` destination, account endpoint, and region before either step. Destination drift deliberately
 requires renewed review rather than silently authorizing deletion in a new bucket: pause
 `MYK9_RETENTION_ENABLED`, review the new target, update both the guard and deletion confirmation,
 and dispatch a dry-run before re-enabling cleanup. The diagnostic identifies this approval mismatch.
-Scheduled cleanup requires its own `MYK9_RETENTION_ENABLED=true`; disabling it leaves backups enabled.
+Scheduled cleanup requires both `MYK9_RETENTION_ENABLED=true` and `MYK9_EXPORTS_ENABLED=true`; disabling cleanup alone leaves backups enabled. The :22 schedule uses the same 30-minute freshness grace as the independent health job.
 Manual dispatch runs verification and a retention dry-run only, even when cleanup is enabled. Cleanup failures
 open a separate **Independent Database Retention** issue and do not change the independent export result.
 An invalid or foreign manifest stops cleanup safely and requires inspection; it does not stop

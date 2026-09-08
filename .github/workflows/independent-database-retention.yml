@@ -3,7 +3,7 @@ name: Independent Database Retention
 
 on:
   schedule:
-    - cron: '37 10 * * *'
+    - cron: '22 10 * * *'
   workflow_dispatch: {}
 
 concurrency:
@@ -13,7 +13,7 @@ concurrency:
 jobs:
   retention:
     name: Apply daily backup retention
-    if: vars.MYK9_RETENTION_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    if: (vars.MYK9_RETENTION_ENABLED == 'true' && vars.MYK9_EXPORTS_ENABLED == 'true') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -35,9 +35,15 @@ jobs:
             echo 'Retention approval no longer matches export configuration. Pause MYK9_RETENTION_ENABLED and review the new destination before changing this guard and its deletion confirmation.' >&2
             exit 1
           fi
+          if [ "$BACKUP_S3_ENDPOINT" != 'https://7eab7ddc81b7019884c3b2f4037182be.r2.cloudflarestorage.com' ] || [ "$AWS_DEFAULT_REGION" != 'auto' ]; then
+            echo 'Retention approval no longer matches the R2 account endpoint or region. Pause MYK9_RETENTION_ENABLED and review the new destination before changing this guard.' >&2
+            exit 1
+          fi
         env:
           BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
           BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
       - name: Verify latest export freshness
         run: pnpm exec tsx scripts/backup/verify.ts
         env:

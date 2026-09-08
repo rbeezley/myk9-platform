@@ -94,11 +94,27 @@ Run `git diff --name-only main...HEAD` (auto-detect) or `git diff --name-only ma
 
 Only run categories whose file patterns appear in the changed files:
 
+Match these against the **full repo-relative paths** `git diff` prints. There is
+no top-level `src/` in this monorepo — every application path begins
+`apps/myk9show/`, so a pattern written as `src/...` matches nothing and silently
+drops its category.
+
 - `supabase/migrations/` changed → categories 1, 3
-- `supabase/functions/` changed → category 2
-- `src/context/Auth*`, `src/routes/`, `src/components/common/Protected*` changed → category 4
-- `src/services/stripe*`, Stripe edge functions changed → category 6
+- `supabase/functions/` **or** `apps/myk9show/supabase/functions/` changed →
+  category 2 (Stripe functions live under the app; root functions at the top)
+- `apps/myk9show/src/context/Auth*`, `apps/myk9show/src/routes/`,
+  `apps/myk9show/src/components/admin/permissions/`, or any file matching
+  `*[Pp]ermission*` / `*[Rr]bac*` / `*ProtectedRoute*` changed → category 4.
+  The route guard is defined in `apps/myk9show/src/context/AuthContext.tsx`,
+  not in a `Protected*` component file.
+- Anything matching `*[Ss]tripe*` changed → category 6. Client-side Stripe code
+  is spread across `apps/myk9show/src/lib/stripe.ts`,
+  `apps/myk9show/src/stripe-config.ts`, `src/features/payments/`, and
+  `src/features/financial/` — there is no `src/services/stripe*`.
 - Any `.ts`/`.tsx` changed → categories 5, 7
+
+When in doubt, run the category. A skipped category is a silent miss; a
+redundant one costs only time.
 
 If no security-relevant files changed, report "No security-relevant changes detected" and exit.
 

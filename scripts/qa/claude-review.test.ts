@@ -421,6 +421,96 @@ describe('claude-review.sh', () => {
     expect(run(stub, gh, ['7']).code).toBe(0);
   });
 
+  describe('a detached child that dies is reported, not waited on forever', () => {
+    it('--wait exits 2 when the recorded pid no longer exists and no exit code was written', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      // A pid that cannot exist on any host: PID_MAX on macOS is 99998, Linux defaults to 4194304.
+      writeFileSync(
+        join(stateDir, 'claude-review-7.status'),
+        'running since=2026-09-08T13:22:36Z\n'
+      );
+      writeFileSync(join(stateDir, 'claude-review-7.pid'), '4194305 claude-review-run-x\n');
+      writeFileSync(join(stateDir, 'claude-review-7.out'), '');
+      const r = run({ ...stub, stateDir }, gh, ['--wait', '1', '7']);
+      expect(r.code).toBe(2);
+      expect(r.out).toContain('gone without recording a verdict');
+      expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('2');
+    });
+
+    it('a running marker with no .pid file is a dead spawn, not a review to wait for', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      writeFileSync(
+        join(stateDir, 'claude-review-7.status'),
+        'running since=2026-09-08T13:22:36Z\n'
+      );
+      expect(run({ ...stub, stateDir }, gh, ['--wait', '1', '7']).code).toBe(2);
+    });
+
+    it('a reused pid that belongs to an unrelated process counts as dead', () => {
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      writeFileSync(
+        join(stateDir, 'claude-review-7.status'),
+        'running since=2026-09-08T13:22:36Z\n'
+      );
+      writeFileSync(
+        join(stateDir, 'claude-review-7.pid'),
+        `${process.pid} claude-review-run-not-this-one\n`
+      ); // alive, but it is vitest, not this run
+      // Deterministic process inspection: a stub ps reports a command line carrying a
+      // DIFFERENT run token, so the verdict never depends on the host having ps.
+      const psDir = mkdtempSync(join(tmpdir(), 'ps-stub-'));
+      dirs.push(psDir);
+      writeFileSync(
+        join(psDir, 'ps'),
+        '#!/usr/bin/env bash\necho "bash -c ... _ claude-review-run-someone-else /x/claude-review.sh 9"\n'
+      );
+      chmodSync(join(psDir, 'ps'), 0o755);
+      const prevPs = process.env.CLAUDE_REVIEW_PS;
+      process.env.CLAUDE_REVIEW_PS = join(psDir, 'ps');
+      try {
+        expect(run({ ...stub, stateDir }, gh, ['--wait', '1', '7']).code).toBe(2);
+      } finally {
+        if (prevPs === undefined) delete process.env.CLAUDE_REVIEW_PS;
+        else process.env.CLAUDE_REVIEW_PS = prevPs;
+      }
+    });
+
+    it('a child that finishes before the parent looks keeps its exit code (no overwrite race)', () => {
+      // Instant stub: the child writes its exit code before the grace period ends;
+      // the running marker was written before the spawn, so nothing clobbers it.
+      const stub = stubClaude('No actionable defects found.');
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      expect(run({ ...stub, stateDir }, gh, ['--detach', '7']).code).toBe(0);
+      expect(run({ ...stub, stateDir }, gh, ['--wait', '5', '7']).code).toBe(0);
+      expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8').trim()).toBe('0');
+    });
+
+    it('--detach records the running marker and the child pid in its own file', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 4);
+      const gh = stubGh();
+      const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+      dirs.push(stateDir);
+      expect(run({ ...stub, stateDir }, gh, ['--detach', '7']).code).toBe(0);
+      expect(readFileSync(join(stateDir, 'claude-review-7.status'), 'utf8')).toMatch(
+        /^running since=/
+      );
+      expect(readFileSync(join(stateDir, 'claude-review-7.pid'), 'utf8').trim()).toMatch(
+        /^\d+ claude-review-run-/
+      );
+    });
+  });
+
   describe('sandbox preflight (Codex denies the Keychain and the network)', () => {
     it('exits 2 in seconds with the escalation hint when claude reports not logged in', () => {
       const stub = stubClaude('No actionable defects found.', 0, 0, 1);
@@ -546,7 +636,7 @@ describe('claude-review.sh', () => {
       expect(Date.now() - started).toBeLessThan(3000); // did not wait for the 4s stub
       expect(detached.out).toContain('detached PR #7 review');
       expect(readFileSync(join(stub.stateDir, 'claude-review-7.status'), 'utf8')).toMatch(
-        /^running since/
+        /^running since=/
       );
 
       const early = run(stub, gh, ['--wait', '1', '7']);

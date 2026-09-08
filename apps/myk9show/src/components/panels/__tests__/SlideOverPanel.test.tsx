@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { SlideOverPanel } from '../SlideOverPanel';
 import { selectReservedBottom, useActionBarStore } from '@/store/actionBarStore';
@@ -180,6 +180,96 @@ describe('SlideOverPanel stacked Escape handling', () => {
 });
 
 describe('SlideOverPanel focus return', () => {
+  it('does not steal focus from a control focused during the opening animation', () => {
+    vi.useFakeTimers();
+
+    try {
+      render(
+        <SlideOverPanel open onClose={vi.fn()} title="Add dog">
+          <label>
+            Sex
+            <input aria-label="Sex" />
+          </label>
+        </SlideOverPanel>
+      );
+
+      const sexInput = screen.getByRole('textbox', { name: 'Sex' });
+      sexInput.focus();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(document.activeElement).toBe(sexInput);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not steal focus from a portaled control focused during the opening animation', () => {
+    vi.useFakeTimers();
+
+    const portaledControl = document.createElement('button');
+    portaledControl.textContent = 'Open option';
+    document.body.append(portaledControl);
+
+    try {
+      render(
+        <SlideOverPanel open onClose={vi.fn()} title="Add dog">
+          <input aria-label="Sex" />
+        </SlideOverPanel>
+      );
+
+      portaledControl.focus();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(document.activeElement).toBe(portaledControl);
+    } finally {
+      portaledControl.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not steal focus from a portaled control that auto-focuses during mount', () => {
+    vi.useFakeTimers();
+
+    function AutoFocusPortaledControl() {
+      React.useLayoutEffect(() => {
+        const control = document.createElement('button');
+        control.textContent = 'Open option';
+        document.body.append(control);
+        control.focus();
+        return () => control.remove();
+      }, []);
+      return null;
+    }
+
+    try {
+      render(
+        <SlideOverPanel open onClose={vi.fn()} title="Add dog">
+          <AutoFocusPortaledControl />
+          <input aria-label="Sex" />
+        </SlideOverPanel>
+      );
+
+      const portaledControl = [...document.body.querySelectorAll('button')].find(
+        button => button.textContent === 'Open option'
+      );
+      expect(portaledControl).toBeDefined();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(document.activeElement).toBe(portaledControl);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   function TriggerAndPanel({ remountOnToggle = false }: { remountOnToggle?: boolean }) {
     const [open, setOpen] = useState(false);
     const panel = (

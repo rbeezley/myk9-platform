@@ -4,9 +4,9 @@ Rules for `/phase-review`. These supplement CLAUDE.md with review-specific check
 
 ## Always check
 
-- New React Query hooks use query key factories from `src/lib/queryClient.ts`
+- New React Query hooks use query key factories from `apps/myk9show/src/lib/queryClient.ts`
 - New Zustand store actions that touch the database return `Promise` and handle errors
-- Offline-critical code in myK9Q uses `@myk9/replication`, never direct Supabase calls
+- Offline-critical code uses `@myk9/replication`, never direct Supabase calls. The rule is about show-day paths that must work offline, not about a particular app — `apps/myk9q` was deleted after being absorbed into myK9Show `/at-show`. Direct PostgREST remains fine on the documented online-only paths (auth/user queries, RPCs, checkout/promo).
 - New components handle loading, error, and empty states
 - Async operations in useEffect have cleanup / abort handling
 - New routes are protected by appropriate auth checks
@@ -24,6 +24,6 @@ Rules for `/phase-review`. These supplement CLAUDE.md with review-specific check
 
 - Generated files (`*.gen.ts`, `*.gen.tsx`)
 - Lock files (`pnpm-lock.yaml`)
-- Migration files (`supabase/migrations/`) — reviewed separately
+- Migration files (`supabase/migrations/`) — reviewed separately by the `migration-auditor` agent and the `db-push` skill
 - Test fixtures and mock data
 - Changes that are only whitespace or formatting (Prettier handles this)

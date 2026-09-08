@@ -75,4 +75,32 @@ describe('splitCartItemsByJudgeDayCapacity', () => {
     expect(result.waitlistItemIds).toEqual(new Set());
     expect(result.blockedItems).toEqual([item('limited', 'class-limited', false)]);
   });
+
+  it('keeps a recovered unpaid entry payable after its class fills', () => {
+    const recovered = { ...item('recovered', 'class-limited', false), entry_id: 'entry-1' };
+
+    const result = splitCartItemsByJudgeDayCapacity(
+      [recovered],
+      [judgeDay(0, ['class-limited'])],
+      ['class-limited']
+    );
+
+    expect(result.confirmedItemIds).toEqual(new Set(['recovered']));
+    expect(result.waitlistItemIds).toEqual(new Set());
+    expect(result.blockedItems).toEqual([]);
+  });
+
+  it('does not let a recovered entry consume an available spot from a judge day', () => {
+    const recovered = { ...item('recovered', 'class-open', false), entry_id: 'entry-1' };
+    const newItem = item('new', 'class-open', true);
+
+    const result = splitCartItemsByJudgeDayCapacity(
+      [recovered, newItem],
+      [judgeDay(1, ['class-open'])]
+    );
+
+    expect(result.confirmedItemIds).toEqual(new Set(['recovered', 'new']));
+    expect(result.waitlistItemIds).toEqual(new Set());
+    expect(result.blockedItems).toEqual([]);
+  });
 });

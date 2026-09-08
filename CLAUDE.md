@@ -72,7 +72,7 @@ Redirect check output to a file and echo the real exit status — a pipe through
 
 - **Project ref:** `sojmvhhwsjxmfistvzbe`
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
-- **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
+- **Migrations:** `supabase/migrations/` — versioned `YYYYMMDDHHMMSS_description.sql` (14-digit UTC timestamp). The `NNN_` files are the pre-2026 convention; read them, never extend them. Picking a version: see § Database Migrations below.
 - **Heritage / registry columns** (migrations 192–195): schema notes in [`docs/reference/heritage-registry-columns.md`](docs/reference/heritage-registry-columns.md) — always read via the `@/features/registries` helpers (`getShowStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
 
 ## Deployment
@@ -305,7 +305,7 @@ One to three lines per lesson: the rule, the mechanism, and a pointer to the inc
 - **Keep scratch `.sql` out of `supabase/migrations/`** — migration-parsing tests read the whole directory and fail an untracked file with a confusing ACL error. (docs/lessons/README.md#untracked-migration-sql)
 - **`SlideOverPanel`'s `size` prop is inert** (a fixed breakpoint chain overrides it); override via `className` for one panel and see MYK9-99 before fixing it globally. (docs/lessons/README.md#slideover-size-inert)
 - **Pick a migration timestamp against `origin/main` and the linked database, not your branch**; `pnpm qa:migrations:guard` runs in CI. Use a specific odd time such as `174500`, never `120000`, re-check after a long-running branch, and never `supabase db push` from an unmerged branch. (docs/lessons/README.md#migration-timestamp)
-- **An ACL audit must cover sequences (`relkind='S'`), not just tables and columns**: no migration has ever GRANTed a sequence, and a BEFORE INSERT trigger's `nextval()` fires before RLS `WITH CHECK`, so a table INSERT grant dies 42501 on the sequence. (docs/lessons/README.md#sequence-privileges)
+- **An ACL audit must cover sequences (`relkind='S'`), not just tables and columns**: a BEFORE INSERT trigger's `nextval()` fires before RLS `WITH CHECK`, so a table INSERT grant dies 42501 on the sequence. Do not resolve reachability — a trigger's standalone sequence is tied to its table by neither dependency nor name (`enrollments` → `registration_confirmation_seq`). List every `relkind='S'` in `public`; there are only four. Query in the `db-push` skill. (docs/lessons/README.md#sequence-privileges)
 - **`anonEntriesGrantContract` hoists `EXECUTE '…'` payloads out of `DO $$` blocks to the end of the file**, so a version-guarded blanket `REVOKE` inside a `DO` reads as running last. Keep blanket revokes as plain statements ordered before the grants. (docs/lessons/README.md#grant-contract-splitter)
 - **A `GRANT` can never narrow an earlier broader `GRANT`** — codifying a tighter ACL needs its own explicit `REVOKE`, and only a rebuild-from-migrations diff catches the gap; the text reads correct either way. (docs/lessons/README.md#grant-never-narrows)
 - **A branch matching a merged PR's `headRefName` is not proof it merged** — commits pushed after the merge or a re-created template-named branch leave the tip ahead of what landed. Compare the tip SHA against the PR's `headRefOid`; `scripts/reap-merged-branches.sh` does. (docs/lessons/README.md#headrefname-not-merged)

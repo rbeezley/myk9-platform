@@ -11,7 +11,6 @@ vi.mock('@/services/database/supabaseClient', () => ({
     }),
   },
 }));
-
 beforeEach(() => {
   read.mockReset();
   read.mockImplementation((table: string, _key: string, ids: string[]) => ({

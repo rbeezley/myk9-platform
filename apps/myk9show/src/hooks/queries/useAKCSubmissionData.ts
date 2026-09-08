@@ -154,13 +154,11 @@ export function useAKCSubmissionData(showId: string) {
           // comparator ties and falls back to unspecified PostgREST row order,
           // and the submitted registration number could vary between runs.
           //
-          // `is_primary` is deliberately NOT selected: its migration is written
-          // but unpushed, and selecting a nonexistent column would fail every
-          // submission. `created_at` then `id` is fully deterministic on its
-          // own, and the backfill marks the earliest row primary anyway, so the
-          // two orderings agree. Add `is_primary` here when the migration lands.
+          // `is_primary` is live and must survive this organization-scoped read
+          // so duplicate normalized organization rows use the same ordering as
+          // every other registration surface.
           .select(
-            'dog_id, id, created_at, organization, registration_number, registered_name, breed, variety'
+            'dog_id, id, created_at, is_primary, organization, registration_number, registered_name, breed, variety'
           )
           .in('dog_id', dogIds),
       ]);

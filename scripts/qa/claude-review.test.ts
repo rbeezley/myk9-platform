@@ -465,7 +465,23 @@ describe('claude-review.sh', () => {
         join(stateDir, 'claude-review-7.pid'),
         `${process.pid} claude-review-run-not-this-one\n`
       ); // alive, but it is vitest, not this run
-      expect(run({ ...stub, stateDir }, gh, ['--wait', '1', '7']).code).toBe(2);
+      // Deterministic process inspection: a stub ps reports a command line carrying a
+      // DIFFERENT run token, so the verdict never depends on the host having ps.
+      const psDir = mkdtempSync(join(tmpdir(), 'ps-stub-'));
+      dirs.push(psDir);
+      writeFileSync(
+        join(psDir, 'ps'),
+        '#!/usr/bin/env bash\necho "bash -c ... _ claude-review-run-someone-else /x/claude-review.sh 9"\n'
+      );
+      chmodSync(join(psDir, 'ps'), 0o755);
+      const prevPs = process.env.CLAUDE_REVIEW_PS;
+      process.env.CLAUDE_REVIEW_PS = join(psDir, 'ps');
+      try {
+        expect(run({ ...stub, stateDir }, gh, ['--wait', '1', '7']).code).toBe(2);
+      } finally {
+        if (prevPs === undefined) delete process.env.CLAUDE_REVIEW_PS;
+        else process.env.CLAUDE_REVIEW_PS = prevPs;
+      }
     });
 
     it('a child that finishes before the parent looks keeps its exit code (no overwrite race)', () => {

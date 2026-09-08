@@ -150,7 +150,7 @@ if [ -n "$WAIT" ]; then
         pid="${pid_line%% *}"; token="${pid_line#* }"
         alive=0
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-          cmd="$(ps -o command= -p "$pid" 2>/dev/null)"
+          cmd="$(${CLAUDE_REVIEW_PS:-ps} -o command= -p "$pid" 2>/dev/null)"  # CLAUDE_REVIEW_PS: tests inject a deterministic ps
           # An empty ps result means ps itself is unavailable or denied, not a
           # dead process: kill -0 already said it exists, so trust that.
           # Otherwise the command line must carry THIS run's token — a reused

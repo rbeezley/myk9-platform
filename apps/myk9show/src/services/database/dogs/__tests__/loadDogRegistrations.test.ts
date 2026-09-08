@@ -42,6 +42,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
 
 import { getAllDogs, loadDogRegistrations } from '../reads';
 import { resolveDogIdentity } from '@/features/dogs/identity';
+import { mapDatabaseToDog } from '@/services/mappers/dogMappers';
 
 /**
  * MYK9-90 review round 4, finding 2.
@@ -110,10 +111,56 @@ describe('loadDogRegistrations', () => {
 
     const { byDog, registrationsReadComplete } = await loadDogRegistrations(['dog-1']);
     expect(mockServerSelect).toHaveBeenCalledWith(
-      'dog_id, id, created_at, registered_name, registration_number, organization, variety, breed, status'
+      'dog_id, id, created_at, is_primary, registered_name, registration_number, organization, variety, breed, status'
     );
     expect(resolveDogIdentity(byDog.get('dog-1')!).breed).toBe('Belgian Malinois');
     expect(registrationsReadComplete).toBe(true);
+  });
+
+  it('preserves is_primary from the real select shape through dog mapping', async () => {
+    mockServerIn.mockResolvedValue({
+      data: [
+        {
+          id: 'reg-asca',
+          dog_id: 'dog-1',
+          created_at: '2025-06-01T11:59:58.000Z',
+          is_primary: false,
+          organization: 'ASCA',
+          registration_number: 'A-100',
+          breed: 'Australian Shepherd',
+        },
+        {
+          id: 'reg-akc',
+          dog_id: 'dog-1',
+          created_at: '2025-06-01T12:00:00.000Z',
+          is_primary: true,
+          organization: 'AKC',
+          registration_number: 'A-200',
+          breed: 'Belgian Malinois',
+        },
+      ],
+      error: null,
+    });
+    mockLocalGet.mockResolvedValue([]);
+
+    const result = await loadDogRegistrations(['dog-1']);
+    const mappedDog = mapDatabaseToDog({
+      id: 'dog-1',
+      name: 'Ziva',
+      call_name: 'Ziva',
+      registrations: result.byDog.get('dog-1'),
+    });
+
+    expect(mappedDog.breed).toBe('Belgian Malinois');
+    expect(mappedDog.registrations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          organization: 'AKC',
+          breed: 'Belgian Malinois',
+          isPrimary: true,
+        }),
+      ])
+    );
   });
 
   it('without a local mirror preserves the server creation order', async () => {

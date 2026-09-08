@@ -206,6 +206,33 @@ describe('SlideOverPanel focus return', () => {
     }
   });
 
+  it('does not steal focus from a portaled control focused during the opening animation', () => {
+    vi.useFakeTimers();
+
+    const portaledControl = document.createElement('button');
+    portaledControl.textContent = 'Open option';
+    document.body.append(portaledControl);
+
+    try {
+      render(
+        <SlideOverPanel open onClose={vi.fn()} title="Add dog">
+          <input aria-label="Sex" />
+        </SlideOverPanel>
+      );
+
+      portaledControl.focus();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(document.activeElement).toBe(portaledControl);
+    } finally {
+      portaledControl.remove();
+      vi.useRealTimers();
+    }
+  });
+
   function TriggerAndPanel({ remountOnToggle = false }: { remountOnToggle?: boolean }) {
     const [open, setOpen] = useState(false);
     const panel = (

@@ -1,5 +1,16 @@
 import type { ViewerLocation } from './viewerLocation';
-import { shouldMountVercelAnalytics } from '@/services/observability/vercelAnalytics';
+
+const GEO_ENABLED_HOSTNAMES = new Set([
+  'myk9show.com',
+  'www.myk9show.com',
+  'app.myk9show.com',
+  'staging.myk9show.com',
+  'myk9-platform-myk9show.vercel.app',
+]);
+
+function isVercelPreviewHostname(hostname: string): boolean {
+  return hostname.startsWith('myk9-platform-myk9show-') && hostname.endsWith('.vercel.app');
+}
 
 interface GeoPayload {
   label?: unknown;
@@ -16,8 +27,27 @@ function parse(payload: unknown, source: ViewerLocation['source']): ViewerLocati
   return { label, lat, lng, source };
 }
 
+export function shouldUseGeoApi(
+  hostname: string,
+  apiUrl: string | undefined,
+  enabled: string | undefined
+): boolean {
+  if (enabled === 'false') return false;
+  if (enabled === 'true' || apiUrl?.trim()) return true;
+
+  const host = hostname.toLowerCase();
+  return GEO_ENABLED_HOSTNAMES.has(host) || isVercelPreviewHostname(host);
+}
+
 function canUseHostedGeoApi(): boolean {
-  return typeof window === 'undefined' || shouldMountVercelAnalytics(window.location.hostname);
+  return (
+    typeof window === 'undefined' ||
+    shouldUseGeoApi(
+      window.location.hostname,
+      import.meta.env.VITE_API_URL,
+      import.meta.env.VITE_GEO_API_ENABLED
+    )
+  );
 }
 
 /**

@@ -190,7 +190,7 @@ export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistr
             // Keep this list narrow: this read hydrates the dog roster and only
             // needs identity/order fields plus the display metadata.
             .select(
-              'dog_id, id, created_at, registered_name, registration_number, organization, variety, breed, status'
+              'dog_id, id, created_at, is_primary, registered_name, registration_number, organization, variety, breed, status'
             )
             .in('dog_id', batch);
           // Keep going after a failed batch, and return the rows that did
@@ -325,11 +325,10 @@ async function postgrestGetDogsByOwner(ownerId: string) {
     // registration. That needs the resolver's ordering/tiebreak fields
     // (`created_at`, `id`) and the identity fields themselves — the old embed
     // picked whichever registration PostgREST happened to return first, with no
-    // organization scoping at all. `is_primary` is deliberately not selected
-    // while its migration is unpushed; `created_at` then `id` is deterministic
-    // on its own and agrees with what the backfill will mark.
+    // organization scoping at all. `is_primary` is live and selected so the
+    // generic resolver can honor the owner's primary registration.
     .select(
-      '*, registrations:dog_registrations(id,created_at,breed,variety,registered_name,registration_number,organization,status)'
+      '*, registrations:dog_registrations(id,created_at,is_primary,breed,variety,registered_name,registration_number,organization,status)'
     )
     .eq('owner_id', ownerId)
     .is('deleted_at', null)

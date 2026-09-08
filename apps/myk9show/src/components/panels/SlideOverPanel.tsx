@@ -142,11 +142,13 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   useEffect(() => {
     if (open) {
       // Focus management - focus the panel container first, then first input
+      const activeElementAtOpen = document.activeElement;
       const timer = setTimeout(() => {
+        // Respect focus changes made anywhere in the document, including
+        // controls rendered in a portal outside the panel subtree.
+        if (document.activeElement !== activeElementAtOpen) return;
+
         if (panelRef.current) {
-          // Respect keyboard users and controls that focus themselves while the
-          // opening animation is still running.
-          if (panelRef.current.contains(document.activeElement)) return;
 
           // Focus the first focusable element in the panel
           const firstFocusable = panelRef.current.querySelector(

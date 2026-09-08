@@ -1,5 +1,28 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fetchApproximateLocation, geocodePlaceQuery } from './geoClient';
+import { fetchApproximateLocation, geocodePlaceQuery, shouldUseGeoApi } from './geoClient';
+
+describe('shouldUseGeoApi', () => {
+  it.each(['localhost', '127.0.0.1', 'myk9show.test', 'host.docker.internal'])('does not enable hosted geo by hostname alone for %s', hostname => {
+      expect(shouldUseGeoApi(hostname, undefined, undefined)).toBe(false);
+    });
+
+  it('enables local geo when the Vite API proxy is configured', () => {
+    expect(shouldUseGeoApi('localhost', 'http://localhost:3000', undefined)).toBe(true);
+  });
+
+  it('allows an explicit geo opt-in and opt-out', () => {
+    expect(shouldUseGeoApi('localhost', undefined, 'true')).toBe(true);
+    expect(shouldUseGeoApi('myk9show.com', undefined, 'false')).toBe(false);
+  });
+
+  it.each([
+    'myk9show.com',
+    'staging.myk9show.com',
+    'myk9-platform-myk9show-abc123-richard.vercel.app',
+  ])('enables geo on supported hosted origin %s', hostname => {
+    expect(shouldUseGeoApi(hostname, undefined, undefined)).toBe(true);
+  });
+});
 
 describe('fetchApproximateLocation', () => {
   it('does not call the hosted endpoint from a local browser origin', async () => {

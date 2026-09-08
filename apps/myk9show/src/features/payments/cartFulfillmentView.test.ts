@@ -83,6 +83,30 @@ describe('buildCartFulfillmentView', () => {
     expect(view.waitlistSubtotalCents).toBe(0);
   });
 
+  it('keeps a recovered unpaid entry payable after its class fills', () => {
+    const recovered = { ...item('item-recovered', 'class-full', false), entry_id: 'entry-1' };
+
+    const view = buildCartFulfillmentView(
+      [recovered],
+      [judgeDay(0, ['class-full'])],
+      ['class-full']
+    );
+
+    expect(view.fulfillmentByItemId['item-recovered']).toBe('payable');
+    expect(view.payableItems).toEqual([recovered]);
+    expect(view.blockedItems).toEqual([]);
+    expect(view.payableSubtotalCents).toBe(2500);
+  });
+
+  it('keeps recovered entries payable when capacity cannot be loaded', () => {
+    const recovered = { ...item('item-recovered', 'class-full', false), entry_id: 'entry-1' };
+
+    const view = buildCartFulfillmentView([recovered], null);
+
+    expect(view.capacityKnown).toBe(true);
+    expect(view.fulfillmentByItemId['item-recovered']).toBe('payable');
+  });
+
   it('keeps the payable subtotal to open classes when a cart mixes open and full', () => {
     const open = item('item-open', 'class-open');
     const full = item('item-full', 'class-full');

@@ -201,7 +201,13 @@ if [ "$DETACH" = 1 ]; then
     ''|*[!0-9]*)
       # Re-read after the liveness probe: the child may have written its exit
       # code in between (Codex review of #2132, round 2).
-      if ! kill -0 "$CHILD_PID" 2>/dev/null && ! [ "$(cat "$STATUS_FILE" 2>/dev/null)" -eq "$(cat "$STATUS_FILE" 2>/dev/null)" ] 2>/dev/null; then
+      if ! kill -0 "$CHILD_PID" 2>/dev/null; then
+        st2="$(cat "$STATUS_FILE" 2>/dev/null)"   # one snapshot, tested once
+        case "$st2" in ''|*[!0-9]*) DEAD=1 ;; *) DEAD=0 ;; esac
+      else
+        DEAD=0
+      fi
+      if [ "$DEAD" = 1 ]; then
         echo "2" > "$STATUS_FILE"
         echo "claude-review: the detached review (pid ${CHILD_PID}) died immediately without a verdict. This environment kills background processes; run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
         exit 2

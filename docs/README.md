@@ -66,6 +66,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-exhibitor-onboarding-remediation.md](plan-exhibitor-onboarding-remediation.md)                             | Active    | Exhibitor Onboarding Remediation Plan                                              |
 | [plan-fix-nightly-review-2026-07-20.md](plan-fix-nightly-review-2026-07-20.md)                                   | Active    | Plan: Fix nightly review findings                                                  |
 | [plan-linear-todo-2026-09-05.md](plan-linear-todo-2026-09-05.md)                                                 | Active    | Current Linear Todo implementation plan — 2026-09-05                               |
+| [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Complete  | MYK9-110 — cross-project recovery rehearsal                                        |
 | [plan-myk9-17-role-journey-visual-qa.md](plan-myk9-17-role-journey-visual-qa.md)                                 | Active    | Plan: MYK9-17 Role-Journey Visual QA Matrix                                        |
 | [plan-myk9-366.md](plan-myk9-366.md)                                                                             | Active    | MYK9-366 — Career show calendar dates                                              |
 | [plan-myk9-369.md](plan-myk9-369.md)                                                                             | Active    | MYK9-369 — registration dog picker search                                          |

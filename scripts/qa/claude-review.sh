@@ -124,6 +124,7 @@ fi
 STATE_DIR="${CLAUDE_REVIEW_STATE_DIR:-$ROOT/.logs}"
 STATUS_FILE="$STATE_DIR/claude-review-${PR}.status"
 OUT_FILE="$STATE_DIR/claude-review-${PR}.out"
+PID_FILE="$STATE_DIR/claude-review-${PR}.pid"
 
 # --wait: poll the detached run. Exit codes are the child's; 3 = still running.
 if [ -n "$WAIT" ]; then
@@ -136,7 +137,38 @@ if [ -n "$WAIT" ]; then
   while :; do
     st="$(cat "$STATUS_FILE" 2>/dev/null)"
     case "$st" in
-      ''|*[!0-9]*) ;;  # "running ..." or not yet written
+      ''|*[!0-9]*)
+        # "running pid=N since=T": is N still alive? A sandbox that reaps
+        # background processes when the shell call ends (Codex, #2131 on
+        # 2026-09-08) leaves this file saying "running" forever while nothing
+        # runs; without this check --wait returned 3 for 43 minutes.
+        # Dead when: no .pid file beside a running marker (it is written at
+        # spawn, so its absence means the spawn never completed), the pid is
+        # gone, or the pid now belongs to an unrelated process (pid reuse) —
+        # the child's command line names this script (Codex review of #2132).
+        pid_line="$(cat "$PID_FILE" 2>/dev/null)"
+        pid="${pid_line%% *}"; token="${pid_line#* }"
+        alive=0
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+          cmd="$(${CLAUDE_REVIEW_PS:-ps} -o command= -p "$pid" 2>/dev/null)"  # CLAUDE_REVIEW_PS: tests inject a deterministic ps
+          # An empty ps result means ps itself is unavailable or denied, not a
+          # dead process: kill -0 already said it exists, so trust that.
+          # Otherwise the command line must carry THIS run's token — a reused
+          # pid, even another invocation of this script, cannot match it
+          # (Codex review of #2132).
+          case " $cmd " in '  ') alive=1 ;; *" $token "*) [ "$token" != "$pid_line" ] && alive=1 ;; esac
+        fi
+        if [ "$alive" = 0 ]; then
+          # Re-read: the child may have written its exit code between our read
+          # and the liveness probe (Codex review of #2132, round 2).
+          st2="$(cat "$STATUS_FILE" 2>/dev/null)"
+          case "$st2" in ''|*[!0-9]*) ;; *) continue ;; esac
+          echo "2" > "$STATUS_FILE"
+          [ -f "$OUT_FILE" ] && cat "$OUT_FILE"
+          echo "claude-review: the detached review for PR #${PR} (pid ${pid}) is gone without recording a verdict. A sandbox that kills background processes when the shell call returns does this. Re-run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
+          exit 2
+        fi
+        ;;
       *) [ -f "$OUT_FILE" ] && cat "$OUT_FILE"; echo "claude-review: detached review for PR #${PR} finished with exit ${st}"; exit "$st" ;;
     esac
     if [ "$waited" -ge "$WAIT" ]; then
@@ -166,10 +198,41 @@ fi
 # --detach: run this same review in the background and return at once.
 if [ "$DETACH" = 1 ]; then
   mkdir -p "$STATE_DIR"
-  printf 'running since %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
+  # The running marker is written BEFORE the spawn and the pid to its own file
+  # AFTER it, so a child that finishes fast can never have its exit code
+  # overwritten by the marker (Codex review of #2132).
   : > "$OUT_FILE"
-  STATUS_FILE="$STATUS_FILE" nohup bash -c 'bash "$1" "${@:2}"; echo "$?" > "$STATUS_FILE"' _ "$0" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"} >> "$OUT_FILE" 2>&1 &
-  echo "claude-review: detached PR #${PR} review (pid $!). Output: ${OUT_FILE}. Poll with:"
+  : > "$PID_FILE"
+  printf 'running since=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
+  # A per-run token rides in the child's argv (ignored by the child, visible
+  # to ps), so liveness is bound to THIS run: a reused pid, even one held by
+  # another invocation of this same script, cannot impersonate it.
+  RUN_TOKEN="claude-review-run-$$-$(date +%s)-$RANDOM"
+  STATUS_FILE="$STATUS_FILE" nohup bash -c 'bash "$2" "${@:3}"; echo "$?" > "$STATUS_FILE"' _ "$RUN_TOKEN" "$0" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"} >> "$OUT_FILE" 2>&1 &
+  CHILD_PID=$!
+  echo "$CHILD_PID $RUN_TOKEN" > "$PID_FILE"
+  # Give the child a moment, then confirm it is alive (or already finished with
+  # a recorded exit). A child that is gone with no exit code was killed by the
+  # environment — report that now rather than from a later --wait.
+  sleep "${CLAUDE_REVIEW_DETACH_GRACE:-2}"
+  st="$(cat "$STATUS_FILE" 2>/dev/null)"
+  case "$st" in
+    ''|*[!0-9]*)
+      # Re-read after the liveness probe: the child may have written its exit
+      # code in between (Codex review of #2132, round 2).
+      if ! kill -0 "$CHILD_PID" 2>/dev/null; then
+        st2="$(cat "$STATUS_FILE" 2>/dev/null)"   # one snapshot, tested once
+        case "$st2" in ''|*[!0-9]*) DEAD=1 ;; *) DEAD=0 ;; esac
+      else
+        DEAD=0
+      fi
+      if [ "$DEAD" = 1 ]; then
+        echo "2" > "$STATUS_FILE"
+        echo "claude-review: the detached review (pid ${CHILD_PID}) died immediately without a verdict. This environment kills background processes; run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
+        exit 2
+      fi ;;
+  esac
+  echo "claude-review: detached PR #${PR} review (pid ${CHILD_PID}). Output: ${OUT_FILE}. Poll with:"
   echo "  bash scripts/qa/claude-review.sh --wait 240 ${PR}    # 0 clean · 1 findings · 2 did not run · 3 still running"
   exit 0
 fi

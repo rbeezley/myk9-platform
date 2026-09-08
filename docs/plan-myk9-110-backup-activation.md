@@ -1,0 +1,38 @@
+# MYK9-110 backup activation
+
+Owner request: “proceed... use **your suggestions**” (2026-09-08).
+
+Continue the existing independent-export implementation and restore evidence. This is a
+narrow operational follow-up, so use the lightweight PR workflow rather than introducing
+a second OpenSpec change. No app surface, migration, or source database write is needed.
+
+## Approved direction
+
+- America/Chicago; hourly Friday–Sunday, nightly Monday–Thursday.
+- Thirty-day retention, preserving the newest complete export even during a prolonged outage.
+- Keep daily Supabase physical backups and defer paid PITR.
+- Finish the documented restore procedure and verify alerting before activation.
+- The proposed nightly hour is 03:00. Automatic approval review requires explicit
+  confirmation of the GitHub variable changes, including that hour; they remain unchanged.
+
+## Implementation and testing
+
+- [x] Verify public repository and standard hosted runners: no Actions runner charge.
+- [x] Verify R2 pricing and estimate roughly 2.2 GB for 30 days at the measured export size.
+- [x] Dry-run 30-day retention against R2: no objects selected.
+- [x] Add the existing retention CLI after successful export/freshness verification.
+- [x] Record the tested restore steps, exclusions, and elapsed time in the runbook.
+- [x] Run backup typecheck/tests (63/63), workflow ordering/target validation, formatting, and code-quality ratchet.
+- [ ] Rehearse failure/recovery issue notification with a clearly labeled test issue. Automatic
+      approval review also requires explicit confirmation to create and close that test issue;
+      the attempted command was rejected before execution.
+- [ ] Obtain independent review and required CI before merging the workflow change.
+- [ ] Confirm and apply GitHub settings; dispatch export and independent health verification.
+- [ ] Enable the recurring jobs and record the first scheduled result before claiming it ran.
+
+## Limits
+
+Do not close MYK9-110. A fresh-project rebuild, uploaded file protection, live application
+failover, formal RPO/RTO, and other item-1 evidence remain open. Retention is not an absolute
+storage cap; growth, unrelated account usage, provider source egress, and extra manual exports
+can affect costs. Do not set a provider spending limit or buy capacity without approval.

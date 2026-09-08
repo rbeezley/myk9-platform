@@ -62,6 +62,19 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Apply approved retention after verification
+        run: pnpm exec tsx scripts/backup/retention.ts
+        env:
+          BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          BACKUP_RETENTION_DAYS: ${{ vars.MYK9_EXPORT_RETENTION_DAYS || '30' }}
+          BACKUP_RETENTION_APPLY: 'true'
+          BACKUP_RETENTION_CONFIRM: DELETE myk9-database-backups/myk9-platform
+          AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
       - name: Report scheduled failure
         if: always()
         uses: ./.github/actions/report-scheduled-failure
@@ -69,4 +82,4 @@ jobs:
           workflow-name: Independent Database Export
           outcome: ${{ job.status }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          extra: 'Independent database export failed or was not verified; check the last successful manifest before show-day recovery decisions.'
+          extra: 'Independent database export, verification, or retention failed; check the last successful manifest before show-day recovery decisions.'

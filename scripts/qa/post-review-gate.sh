@@ -51,7 +51,7 @@ HASH="$(shasum -a 256 "$LOG" | cut -d' ' -f1)"
 # has no marker, so the whole log is the verdict. Never a `tail`: a long clean
 # Claude review would lose its opening contract sentence and be refused
 # (Codex review of #2110, round 9).
-VERDICT_BLOCK="$(awk '/^codex$/{f=1; next} f' "$LOG")"
+VERDICT_BLOCK="$(review_last_block "$LOG")"
 [ -n "$VERDICT_BLOCK" ] || VERDICT_BLOCK="$(cat "$LOG")"
 
 # The log must SUPPORT the verdict. The poster is reachable without the Codex
@@ -67,7 +67,7 @@ VERDICT_BLOCK="$(awk '/^codex$/{f=1; next} f' "$LOG")"
 # [P*] bullets, which is checked below.
 if [ "$WITHDRAW" != 1 ] &&
   { grep -Eq "^(ERROR: You've hit your usage limit|Review was interrupted)" "$LOG" ||
-    printf '%s' "$VERDICT_BLOCK" | grep -Eiq '\bunable to complete the review\b|\breview (did not run|was interrupted)\b'; }; then
+    review_text_imatches '\bunable to complete the review\b|\breview (did not run|was interrupted)\b' "$VERDICT_BLOCK"; }; then
   echo "post-review-gate: log does not support any verdict (review did not complete); nothing posted" >&2
   exit 2
 fi
@@ -75,7 +75,7 @@ if [ "$WITHDRAW" = 1 ]; then
   # A withdrawal is the mirror image: it must be backed by a log that really
   # does carry findings, so "withdraw" cannot be used to red-flag a head
   # nothing objected to.
-  if ! printf '%s' "$VERDICT_BLOCK" | grep -Eq "$REVIEW_FINDING_BULLET"; then
+  if ! review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support withdrawing '$VERDICT' (it carries no [P*] bullets); nothing posted" >&2
     exit 2
   fi
@@ -85,7 +85,7 @@ fi
 # came back clean, so the log it is posted with must pass the same checks
 # (Codex review of #2110, round 8). No verdict form skips them.
 if [ "$WITHDRAW" != 1 ]; then
-  if printf '%s' "$VERDICT_BLOCK" | grep -Eq "$REVIEW_FINDING_BULLET"; then
+  if review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT_BLOCK"; then
     echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
     exit 2
   fi

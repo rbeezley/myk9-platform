@@ -70,11 +70,14 @@ fi
 # neither uses the Keychain nor calls a host the wrapper can name, so both
 # probes are skipped and the review itself is the check (Codex review of
 # #2127, rounds 5-7).
+# Credentials count when non-empty; provider flags only when set to exactly 1,
+# since an explicit CLAUDE_CODE_USE_BEDROCK=0 means "not Bedrock" (Codex review
+# of #2127, round 8).
 ENV_AUTH=0
-for v in ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX; do
-  eval "val=\${$v:-}"
-  [ -n "$val" ] && ENV_AUTH=1
-done
+[ -n "${ANTHROPIC_API_KEY:-}" ] && ENV_AUTH=1
+[ -n "${ANTHROPIC_AUTH_TOKEN:-}" ] && ENV_AUTH=1
+[ "${CLAUDE_CODE_USE_BEDROCK:-}" = "1" ] && ENV_AUTH=1
+[ "${CLAUDE_CODE_USE_VERTEX:-}" = "1" ] && ENV_AUTH=1
 if [ -z "$WAIT" ] && [ "$ENV_AUTH" = 0 ]; then
   # Preflight (before ANY gh/network call, which would hang the same way — Codex
   # review of #2127): the review needs the macOS Keychain (Claude's credentials) and the
@@ -202,7 +205,7 @@ echo "$VERDICT"
 # reported a defect and then hit a blocker has still reported a defect, and
 # exiting 2 here would leave an already-green gate green over it (Codex review
 # of #2115, round 5).
-if echo "$VERDICT" | grep -Eq "$REVIEW_FINDING_BULLET"; then
+if review_text_matches "$REVIEW_FINDING_BULLET" "$VERDICT"; then
   echo
   echo "claude-review: findings above. Fix them, commit, and re-run — the evidence is for the NEW head."
   if [ "$POST" = 1 ]; then
@@ -236,7 +239,7 @@ if [ "$CLI_EXIT" -ne 0 ]; then
   echo "claude-review: cli exited ${CLI_EXIT}; treating the run as NOT completed (exit 2). No evidence emitted."
   exit 2
 fi
-if echo "$VERDICT" | grep -Eiq '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b'; then
+if review_text_imatches '\breview[[:space:]]+(did not run|was interrupted|interrupted)\b' "$VERDICT"; then
   echo
   echo "claude-review: GATE DID NOT RUN (verdict reports an incomplete review). No evidence emitted."
   exit 2

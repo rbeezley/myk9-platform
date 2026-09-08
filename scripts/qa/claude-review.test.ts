@@ -123,6 +123,13 @@ function run(
         CLAUDE_REVIEW_LOG: stub.log,
         GH_BIN: gh.bin,
         CLAUDE_REVIEW_NET_PROBE: process.env.CLAUDE_REVIEW_NET_PROBE_TEST ?? 'echo 200',
+        // Never inherit the runner's own credentials or provider flags: they would
+        // make the preflight tests skip their stubbed failure paths (Codex review of #2127).
+        ANTHROPIC_API_KEY: '',
+        ANTHROPIC_AUTH_TOKEN: process.env.AUTH_TOKEN_TEST ?? '',
+        CLAUDE_CODE_USE_BEDROCK: process.env.BEDROCK_TEST ?? '',
+        CLAUDE_CODE_USE_VERTEX: '',
+        ANTHROPIC_BASE_URL: '',
         // Inside Codex this marker is set; the stub environment must not inherit it or
         // the sandbox guard fires before the probe override runs (Codex review of #2127).
         CODEX_SANDBOX_NETWORK_DISABLED: process.env.CODEX_SANDBOX_MARKER_TEST ?? '',
@@ -319,6 +326,13 @@ describe('claude-review.sh', () => {
           CLAUDE_REVIEW_LOG: stub.log,
           GH_BIN: gh.bin,
           CLAUDE_REVIEW_NET_PROBE: process.env.CLAUDE_REVIEW_NET_PROBE_TEST ?? 'echo 200',
+          // Never inherit the runner's own credentials or provider flags: they would
+          // make the preflight tests skip their stubbed failure paths (Codex review of #2127).
+          ANTHROPIC_API_KEY: '',
+          ANTHROPIC_AUTH_TOKEN: process.env.AUTH_TOKEN_TEST ?? '',
+          CLAUDE_CODE_USE_BEDROCK: process.env.BEDROCK_TEST ?? '',
+          CLAUDE_CODE_USE_VERTEX: '',
+          ANTHROPIC_BASE_URL: '',
           // Inside Codex this marker is set; the stub environment must not inherit it or
           // the sandbox guard fires before the probe override runs (Codex review of #2127).
           CODEX_SANDBOX_NETWORK_DISABLED: process.env.CODEX_SANDBOX_MARKER_TEST ?? '',
@@ -408,30 +422,53 @@ describe('claude-review.sh', () => {
       const stub = stubClaude('No actionable defects found.');
       const gh = stubGh();
       const prevProbe = process.env.CLAUDE_REVIEW_NET_PROBE_TEST;
-      const prevBedrock = process.env.CLAUDE_CODE_USE_BEDROCK;
+      const prevBedrock = process.env.BEDROCK_TEST;
       process.env.CLAUDE_REVIEW_NET_PROBE_TEST = 'echo 000'; // would refuse if consulted
-      process.env.CLAUDE_CODE_USE_BEDROCK = '1';
+      process.env.BEDROCK_TEST = '1';
       try {
         expect(run(stub, gh, ['7']).code).toBe(0);
       } finally {
         if (prevProbe === undefined) delete process.env.CLAUDE_REVIEW_NET_PROBE_TEST;
         else process.env.CLAUDE_REVIEW_NET_PROBE_TEST = prevProbe;
-        if (prevBedrock === undefined) delete process.env.CLAUDE_CODE_USE_BEDROCK;
-        else process.env.CLAUDE_CODE_USE_BEDROCK = prevBedrock;
+        if (prevBedrock === undefined) delete process.env.BEDROCK_TEST;
+        else process.env.BEDROCK_TEST = prevBedrock;
       }
     });
 
     it('a bearer token (ANTHROPIC_AUTH_TOKEN) skips the Keychain check that would otherwise refuse', () => {
       const stub = stubClaude('No actionable defects found.', 0, 0, 1); // auth status says logged out
       const gh = stubGh();
-      const prev = process.env.ANTHROPIC_AUTH_TOKEN;
-      process.env.ANTHROPIC_AUTH_TOKEN = 'test-token';
+      const prev = process.env.AUTH_TOKEN_TEST;
+      process.env.AUTH_TOKEN_TEST = 'test-token';
       try {
         expect(run(stub, gh, ['7']).code).toBe(0);
       } finally {
-        if (prev === undefined) delete process.env.ANTHROPIC_AUTH_TOKEN;
-        else process.env.ANTHROPIC_AUTH_TOKEN = prev;
+        if (prev === undefined) delete process.env.AUTH_TOKEN_TEST;
+        else process.env.AUTH_TOKEN_TEST = prev;
       }
+    });
+
+    it('CLAUDE_CODE_USE_BEDROCK=0 does NOT count as environment auth: the Keychain check still refuses', () => {
+      const stub = stubClaude('No actionable defects found.', 0, 0, 1);
+      const gh = stubGh();
+      const prev = process.env.BEDROCK_TEST;
+      process.env.BEDROCK_TEST = '0';
+      try {
+        expect(run(stub, gh, ['7']).code).toBe(2);
+      } finally {
+        if (prev === undefined) delete process.env.BEDROCK_TEST;
+        else process.env.BEDROCK_TEST = prev;
+      }
+    });
+
+    it('a 300 KB verdict with findings is still findings (pipefail + grep -q SIGPIPE regression)', () => {
+      const filler = Array.from(
+        { length: 6000 },
+        (_, i) => `- checked file ${i}: ${'x'.repeat(40)}`
+      ).join('\n');
+      const stub = stubClaude(`- **[P2]** a real finding\n\n${filler}\n`);
+      const gh = stubGh();
+      expect(run(stub, gh, ['7']).code).toBe(1);
     });
 
     it('exits 2 with the escalation hint when the network probe reports 000', () => {

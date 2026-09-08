@@ -41,6 +41,19 @@ function keyFor(year: number, monthIndex: number): string {
   return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
 }
 
+function monthTile(key: string, bucket: Show[], isPast: boolean, year: number | null): MonthTile {
+  const [tileYear, tileMonth] = key.split('-').map(Number);
+  const date = new Date(tileYear, tileMonth - 1, 1);
+  return {
+    key,
+    label: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+    year,
+    count: bucket.length,
+    dots: bucket.slice(0, MAX_DOTS).map(dotFor),
+    isPast,
+  };
+}
+
 function dotFor(show: Show): MonthDot {
   const status = getEntryStatus(show).status;
   if (status === 'closing_soon') return 'closing';
@@ -58,10 +71,15 @@ function isUpcoming(show: Show, startOfToday: Date): boolean {
 /**
  * Build the scrubber tiles: an All-upcoming tile followed by one tile per month
  * from `MONTHS_BACK` months before `now` through `MONTHS_AHEAD` months after.
- * Shows outside that window are counted on no tile (the All tile still counts
- * upcoming ones); a show with no parseable start date is skipped.
+ * Shows outside that window are counted on no tile unless that month is the
+ * selected URL value (the All tile still counts upcoming ones); a show with no
+ * parseable start date is skipped.
  */
-export function buildMonthTiles(shows: Show[], now: Date = new Date()): MonthTile[] {
+export function buildMonthTiles(
+  shows: Show[],
+  now: Date = new Date(),
+  selectedKey?: string
+): MonthTile[] {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentKey = keyFor(now.getFullYear(), now.getMonth());
   const sorted = [...shows].sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -93,15 +111,31 @@ export function buildMonthTiles(shows: Show[], now: Date = new Date()): MonthTil
     const key = keyFor(date.getFullYear(), date.getMonth());
     const bucket = byMonth.get(key) ?? [];
     const year = date.getFullYear();
-    tiles.push({
-      key,
-      label: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
-      year: year !== previousYear ? year : null,
-      count: bucket.length,
-      dots: bucket.slice(0, MAX_DOTS).map(dotFor),
-      isPast: key < currentKey,
-    });
+    tiles.push(monthTile(key, bucket, key < currentKey, year !== previousYear ? year : null));
     previousYear = year;
   }
+
+  // A bookmarked month can outlive the rolling strip. Keep that valid URL
+  // honest by rendering its selected tile at the nearest edge, so the user
+  // still has a visible selection and a keyboard entry point to recover from.
+  if (isMonthKey(selectedKey) && !tiles.some(tile => tile.key === selectedKey)) {
+    const selectedYear = Number(selectedKey.slice(0, 4));
+    const selectedBeforeWindow = selectedKey < tiles[1].key;
+    const adjacentTile = selectedBeforeWindow ? tiles[1] : tiles[tiles.length - 1];
+    const displayYear =
+      adjacentTile && Number(adjacentTile.key.slice(0, 4)) === selectedYear ? null : selectedYear;
+    const selectedTile = monthTile(
+      selectedKey,
+      byMonth.get(selectedKey) ?? [],
+      selectedKey < currentKey,
+      displayYear
+    );
+    if (selectedBeforeWindow) {
+      tiles.splice(1, 0, selectedTile);
+    } else {
+      tiles.push(selectedTile);
+    }
+  }
+
   return tiles;
 }

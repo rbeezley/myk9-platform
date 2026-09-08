@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { fileURLToPath } from 'node:url';
 
 import {
   buildAdvisorSnapshot,
   classifyAdvisorEntries,
   findUnclassifiedRepositoryOwned,
+  loadRawAdvisorFile,
   normalizeAdvisorLints,
   summarizeAdvisorEntries,
   type AdvisorInventoryConfig,
@@ -11,6 +13,24 @@ import {
 } from './advisor-inventory';
 
 describe('normalizeAdvisorLints', () => {
+  it('normalizes a top-level lint array payload from the advisor export fixture', () => {
+    const fixturePath = fileURLToPath(
+      new URL('./fixtures/advisor/top-level-lints.json', import.meta.url)
+    );
+
+    expect(normalizeAdvisorLints(loadRawAdvisorFile(fixturePath))).toEqual([
+      {
+        code: 'unindexed_foreign_keys',
+        level: 'INFO',
+        schema: 'public',
+        objectName: 'analytics_events',
+        identity: 'public.analytics_events#analytics_events_user_id_fkey',
+        detail:
+          'Table `public.analytics_events` has a foreign key `analytics_events_user_id_fkey` without a covering index.',
+      },
+    ]);
+  });
+
   it('normalizes a table-object lint into a schema.name identity', () => {
     const raw: RawAdvisorResult = {
       result: {
@@ -95,8 +115,41 @@ describe('normalizeAdvisorLints', () => {
     expect(normalizeAdvisorLints(raw)[0]?.level).toBe('INFO');
   });
 
-  it('returns an empty array when the raw payload has no lints', () => {
-    expect(normalizeAdvisorLints({})).toEqual([]);
+  it('fails visibly when the raw payload has no lints array', () => {
+    expect(() => normalizeAdvisorLints({})).toThrow('Advisor payload is missing a `lints` array');
+  });
+
+  it('fails visibly when the raw lints field is malformed', () => {
+    expect(() => normalizeAdvisorLints({ lints: {} } as RawAdvisorResult)).toThrow(
+      'Advisor payload `lints` must be an array'
+    );
+  });
+
+  it('fails visibly when the nested result has no lints array', () => {
+    expect(() => normalizeAdvisorLints({ result: {} })).toThrow(
+      'Advisor payload `result.lints` must be an array'
+    );
+  });
+
+  it('fails visibly when a lint record is missing its name', () => {
+    expect(() => normalizeAdvisorLints({ lints: [{ level: 'INFO' }] } as RawAdvisorResult)).toThrow(
+      'Advisor payload lint at index 0 is malformed'
+    );
+  });
+
+  it('fails visibly when a lint record is missing its level', () => {
+    expect(() =>
+      normalizeAdvisorLints({ lints: [{ name: 'some_code' }] } as RawAdvisorResult)
+    ).toThrow('Advisor payload lint at index 0 is malformed');
+  });
+
+  it('fails visibly when top-level and nested lint envelopes are mixed', () => {
+    expect(() =>
+      normalizeAdvisorLints({
+        lints: [],
+        result: { lints: [{ name: 'hidden_finding', level: 'WARN' }] },
+      })
+    ).toThrow('Advisor payload must use either `lints` or `result.lints`, not both');
   });
 });
 

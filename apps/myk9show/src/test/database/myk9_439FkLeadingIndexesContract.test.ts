@@ -1,0 +1,130 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const migrationPath = resolve(
+  __dirname,
+  '../../../../../supabase/migrations/20260907150000_add_missing_fk_leading_indexes.sql'
+);
+
+const expectedIndexes = [
+  {
+    name: 'calendar_feed_tokens_show_id_fk_idx',
+    table: 'public.calendar_feed_tokens',
+    columns: 'show_id',
+  },
+  {
+    name: 'email_log_show_id_fk_idx',
+    table: 'public.email_log',
+    columns: 'show_id',
+  },
+  {
+    name: 'entry_cart_items_entry_id_fk_idx',
+    table: 'public.entry_cart_items',
+    columns: 'entry_id',
+  },
+  {
+    name: 'show_officials_person_id_fk_idx',
+    table: 'public.show_officials',
+    columns: 'person_id',
+  },
+  {
+    name: 'show_officials_created_by_fk_idx',
+    table: 'public.show_officials',
+    columns: 'created_by',
+  },
+];
+
+function readMigration(): string {
+  expect(existsSync(migrationPath), 'The additive FK-index migration must exist').toBe(true);
+  return readFileSync(migrationPath, 'utf8');
+}
+
+function parseCreateIndexes(sql: string) {
+  const sqlWithoutComments = sql
+    .replace(/--[^\n]*(?:\n|$)/g, '\n')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ');
+
+  return [
+    ...sqlWithoutComments.matchAll(
+      /create\s+(?<unique>unique\s+)?index\s+(?:(?<concurrent>concurrently)\s+)?(?:(?<ifNotExists>if\s+not\s+exists)\s+)?(?<name>[a-z_][a-z0-9_$]*)\s+on\s+(?<table>(?:[a-z_][a-z0-9_$]*\.)?[a-z_][a-z0-9_$]*)(?:\s+using\s+(?<method>[a-z_][a-z0-9_$]*))?\s*\((?<columns>[^)]*)\)\s*;/gi
+    ),
+  ].map(({ groups }) => ({
+    name: groups!.name.toLowerCase(),
+    table: groups!.table.toLowerCase(),
+    columns: groups!.columns.replace(/\s+/g, ' ').trim().toLowerCase(),
+    isUnique: Boolean(groups!.unique),
+    isConcurrent: Boolean(groups!.concurrent),
+    usesIfNotExists: Boolean(groups!.ifNotExists),
+    method: groups!.method?.toLowerCase() ?? null,
+  }));
+}
+
+describe('MYK9-439 missing FK-leading indexes', () => {
+  it('adds every requested leading-column index', () => {
+    const sql = readMigration();
+    const createdIndexes = parseCreateIndexes(sql);
+    const createIndexStatements = [
+      ...sql
+        .replace(/--[^\n]*(?:\n|$)/g, '\n')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .matchAll(/\bcreate\s+(?:unique\s+)?index\b/gi),
+    ];
+
+    expect(createdIndexes).toHaveLength(createIndexStatements.length);
+    expect(createdIndexes.map(({ name, table, columns }) => ({ name, table, columns }))).toEqual(
+      expectedIndexes
+    );
+    expect(
+      createdIndexes.every(
+        index =>
+          !index.isUnique && !index.isConcurrent && index.usesIfNotExists && index.method === null
+      )
+    ).toBe(true);
+  });
+
+  it('is additive and proves strict catalog coverage for each target FK', () => {
+    const sql = readMigration();
+    const catalogSql = sql.toLowerCase();
+    const normalizedCatalogSql = catalogSql.replace(/\s+/g, ' ');
+
+    expect(catalogSql).not.toMatch(/\bbegin\s*;/i);
+    expect(catalogSql).not.toMatch(/\bcommit\s*;/i);
+    expect(sql).not.toMatch(/drop\s+(?:constraint|index)/i);
+    expect(sql).not.toMatch(/alter\s+table[^;]*primary\s+key/i);
+    expect(catalogSql).toContain('pg_constraint');
+    expect(catalogSql).toContain('pg_index');
+    expect(catalogSql).toContain('i.indisvalid');
+    expect(catalogSql).toContain('i.indisready');
+    expect(catalogSql).toContain('i.indpred is null');
+    expect(normalizedCatalogSql).toContain('i.indrelid = c.conrelid');
+    expect(normalizedCatalogSql).toContain(
+      '(i.indkey::smallint[])[0:cardinality(c.conkey) - 1] @> c.conkey'
+    );
+    expect(catalogSql).toContain('raise exception');
+    expect(normalizedCatalogSql).toContain("set local lock_timeout = '5s';");
+    expect(normalizedCatalogSql).toContain("set local statement_timeout = '10min';");
+    expect(normalizedCatalogSql).toContain('pg_relation_size(c.oid) >= 100 * 1024 * 1024');
+    expect(normalizedCatalogSql).toContain(
+      "c.relname in ('calendar_feed_tokens', 'email_log', 'entry_cart_items', 'show_officials')"
+    );
+
+    const fkGuard = 'if target_fk_count <> 5 or target_fk_pair_count <> 5 then';
+    const indexCheck = 'and not exists ( select 1 from pg_index';
+    expect(normalizedCatalogSql).toContain(fkGuard);
+    expect(normalizedCatalogSql.indexOf(fkGuard)).toBeLessThan(
+      normalizedCatalogSql.indexOf(indexCheck)
+    );
+    expect(normalizedCatalogSql).toContain("count(distinct format('%i.%i', t.relname, a.attname))");
+    expect(normalizedCatalogSql).toContain('cardinality(c.conkey) = 1');
+    expect(normalizedCatalogSql).toContain("n.nspname = 'public'");
+    expect(normalizedCatalogSql).toContain("t.relname = 'calendar_feed_tokens'");
+    expect(normalizedCatalogSql).toContain("a.attname = 'show_id'");
+    expect(normalizedCatalogSql).toContain("t.relname = 'email_log'");
+    expect(normalizedCatalogSql).toContain("t.relname = 'entry_cart_items'");
+    expect(normalizedCatalogSql).toContain("a.attname = 'entry_id'");
+    expect(normalizedCatalogSql).toContain("t.relname = 'show_officials'");
+    expect(normalizedCatalogSql).toContain("a.attname = 'person_id'");
+    expect(normalizedCatalogSql).toContain("a.attname = 'created_by'");
+  });
+});

@@ -20,6 +20,15 @@ export type RawAdvisorResult = {
   lints?: RawAdvisorLint[];
 };
 
+export type RawAdvisorPayload = RawAdvisorResult | RawAdvisorLint[];
+
+export class AdvisorPayloadError extends Error {
+  constructor(message = 'Advisor payload is malformed; refusing to treat it as clean') {
+    super(message);
+    this.name = 'AdvisorPayloadError';
+  }
+}
+
 export type AdvisorEntry = {
   code: string;
   level: AdvisorLevel;
@@ -67,19 +76,58 @@ export const DEFAULT_CONFIG: AdvisorInventoryConfig = {
 };
 
 /**
- * Normalizes raw advisor CLI/MCP output (either `{ lints: [...] }` or
- * `{ result: { lints: [...] } }`) into a flat, stably-sortable entry list.
+ * Normalizes raw advisor CLI/MCP output (a top-level lint array, `{ lints: [...] }`,
+ * or `{ result: { lints: [...] } }`) into a flat, stably-sortable entry list.
  */
-export function normalizeAdvisorLints(raw: RawAdvisorResult): AdvisorEntry[] {
-  const lints = raw.result?.lints ?? raw.lints ?? [];
+export function normalizeAdvisorLints(raw: RawAdvisorPayload): AdvisorEntry[] {
+  const lints = extractAdvisorLints(raw);
 
   return lints
-    .map(normalizeLint)
+    .map((lint, index) => normalizeLint(lint, index))
     .sort((a, b) => a.identity.localeCompare(b.identity) || a.code.localeCompare(b.code));
 }
 
-function normalizeLint(lint: RawAdvisorLint): AdvisorEntry {
+function extractAdvisorLints(raw: RawAdvisorPayload): RawAdvisorLint[] {
+  if (Array.isArray(raw)) return raw;
+
+  const hasTopLevelLints = Object.prototype.hasOwnProperty.call(raw, 'lints');
+  const hasNestedResult = Object.prototype.hasOwnProperty.call(raw, 'result');
+  if (hasTopLevelLints && hasNestedResult) {
+    throw new AdvisorPayloadError(
+      'Advisor payload must use either `lints` or `result.lints`, not both'
+    );
+  }
+
+  if (Array.isArray(raw.lints)) return raw.lints;
+  if (hasTopLevelLints) {
+    throw new AdvisorPayloadError('Advisor payload `lints` must be an array');
+  }
+
+  if (raw.result && Array.isArray(raw.result.lints)) return raw.result.lints;
+  if (hasNestedResult) {
+    throw new AdvisorPayloadError('Advisor payload `result.lints` must be an array');
+  }
+
+  throw new AdvisorPayloadError('Advisor payload is missing a `lints` array');
+}
+
+function normalizeLint(lint: RawAdvisorLint, index: number): AdvisorEntry {
+  if (
+    !lint ||
+    typeof lint !== 'object' ||
+    typeof lint.name !== 'string' ||
+    lint.name.trim() === '' ||
+    typeof lint.level !== 'string' ||
+    lint.level.trim() === ''
+  ) {
+    throw new AdvisorPayloadError(`Advisor payload lint at index ${index} is malformed`);
+  }
+
   const metadata = lint.metadata ?? {};
+  if (typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new AdvisorPayloadError(`Advisor payload lint at index ${index} has invalid metadata`);
+  }
+
   const schema = typeof metadata.schema === 'string' ? metadata.schema : null;
   const objectName = typeof metadata.name === 'string' ? metadata.name : null;
   const identity = buildIdentity({ schema, objectName, metadata });
@@ -90,7 +138,7 @@ function normalizeLint(lint: RawAdvisorLint): AdvisorEntry {
     schema,
     objectName,
     identity,
-    detail: lint.detail ?? '',
+    detail: typeof lint.detail === 'string' ? lint.detail : '',
   };
 }
 
@@ -250,8 +298,8 @@ export function readAdvisorSnapshot(path: string): AdvisorSnapshot {
   return JSON.parse(readFileSync(path, 'utf8')) as AdvisorSnapshot;
 }
 
-export function loadRawAdvisorFile(path: string): RawAdvisorResult {
-  return JSON.parse(readFileSync(path, 'utf8')) as RawAdvisorResult;
+export function loadRawAdvisorFile(path: string): RawAdvisorPayload {
+  return JSON.parse(readFileSync(path, 'utf8')) as RawAdvisorPayload;
 }
 
 /**

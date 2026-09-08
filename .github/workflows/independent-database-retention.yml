@@ -35,7 +35,8 @@ jobs:
             echo 'Retention approval no longer matches export configuration. Pause MYK9_RETENTION_ENABLED and review the new destination before changing this guard and its deletion confirmation.' >&2
             exit 1
           fi
-          if [ "$BACKUP_S3_ENDPOINT" != 'https://7eab7ddc81b7019884c3b2f4037182be.r2.cloudflarestorage.com' ] || [ "$AWS_DEFAULT_REGION" != 'auto' ]; then
+          endpoint_sha256="$(printf '%s' "$BACKUP_S3_ENDPOINT" | sha256sum | cut -d ' ' -f 1)"
+          if [ "$endpoint_sha256" != 'c18cbae5703da40e3a2efa1b76b6eeb881fae17bed4e0901dba32c904fba814f' ] || [ "$AWS_DEFAULT_REGION" != 'auto' ]; then
             echo 'Retention approval no longer matches the R2 account endpoint or region. Pause MYK9_RETENTION_ENABLED and review the new destination before changing this guard.' >&2
             exit 1
           fi
@@ -79,3 +80,23 @@ jobs:
           outcome: ${{ job.status }}
           token: ${{ secrets.GITHUB_TOKEN }}
           extra: 'Backup cleanup failed. Inspect the freshness or retention failure before retrying cleanup; hourly exports run independently.'
+
+  paused:
+    name: Close stale cleanup alert while paused
+    if: github.event_name == 'schedule' && (vars.MYK9_RETENTION_ENABLED != 'true' || vars.MYK9_EXPORTS_ENABLED != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Explain intentional pause and close cleanup alerts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          matches="$(gh issue list --state open --label ci-failure --limit 100 --json number,title --jq '.[] | select(.title == "CI: Independent Database Retention is failing") | .number')"
+          while IFS= read -r issue_number; do
+            [ -n "$issue_number" ] || continue
+            gh issue close "$issue_number" --comment 'Scheduled cleanup is intentionally paused because retention or exports are disabled. This closes the active cleanup alert; it does not establish recovery. Re-enable only after checking the last failure and running a retention dry-run.'
+          done <<< "$matches"

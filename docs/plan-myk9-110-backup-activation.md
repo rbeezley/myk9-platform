@@ -14,8 +14,8 @@ a second OpenSpec change. No app surface, migration, or source database write is
 - Thirty-day retention, preserving the newest complete export even during a prolonged outage.
 - Keep daily Supabase physical backups and defer paid PITR.
 - Finish the documented restore procedure and verify alerting before activation.
-- The proposed nightly hour is 03:00. Automatic approval review requires explicit
-  confirmation of the GitHub variable changes, including that hour; they remain unchanged.
+- The selected nightly hour is 03:00. The owner approved proceeding with this schedule and
+  the notification rehearsal on 2026-09-08; settings remain unchanged until validation and merge.
 
 ## Implementation and testing
 
@@ -24,10 +24,9 @@ a second OpenSpec change. No app surface, migration, or source database write is
 - [x] Dry-run 30-day retention against R2: no objects selected.
 - [x] Add the existing retention CLI in an independent daily workflow after its own successful freshness verification. Require the separate MYK9_RETENTION_ENABLED switch and a fixed 30-day window; manual retention dispatch only dry-runs and manual exports never delete backups. Report cleanup failures separately.
 - [x] Record the tested restore steps, exclusions, and elapsed time in the runbook.
-- [x] Run backup typecheck/tests (65/65), red-to-green workflow contract coverage, plan metadata checks, formatting, and code-quality ratchet.
-- [ ] Rehearse failure/recovery issue notification with a clearly labeled test issue. Automatic
-      approval review also requires explicit confirmation to create and close that test issue;
-      the attempted command was rejected before execution.
+- [x] Run backup typecheck/tests (66/66), red-to-green workflow contract coverage, plan metadata checks, formatting, and code-quality ratchet.
+- [ ] Rehearse failure/recovery issue notification with a clearly labeled test issue. Earlier
+      approval-review rejections preceded the owner's renewed instruction to proceed.
 - [ ] Obtain independent review and required CI before merging the workflow change.
 - [ ] Confirm and apply GitHub settings (including separate retention activation); dispatch export and independent health verification.
 - [ ] Enable the recurring jobs and record the first scheduled result before claiming it ran.

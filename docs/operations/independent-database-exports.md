@@ -139,7 +139,9 @@ open a separate **Independent Database Retention** issue and do not change the i
 An invalid or foreign manifest stops cleanup safely and requires inspection; it does not stop
 future exports. The daily scan has its own 60-minute timeout, avoiding an hourly scan of every
 retained manifest on the export job's time budget. Its separate concurrency group cannot evict queued exports.
-Each successful deletion is logged immediately, so a later failure preserves the partial audit trail. No provider lifecycle rule is installed.
+The approved endpoint is compared by SHA-256 in the workflow. When scheduled cleanup is disabled,
+a separate job closes only its existing cleanup alerts with an explicit pause explanation; this
+does not claim recovery. Each successful deletion is logged immediately, so a later failure preserves the partial audit trail. No provider lifecycle rule is installed.
 
 ## Rollback and recovery
 

@@ -2,6 +2,18 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('scheduled export workflow contract', () => {
+  it('closes only the retention alert with an explicit pause explanation', () => {
+    const workflow = readFileSync('.github/workflows/independent-database-retention.yml', 'utf8');
+    const paused = workflow.split('\n  paused:\n')[1];
+    expect(paused).toBeDefined();
+    expect(paused).toContain('select(.title == "CI: Independent Database Retention is failing")');
+    expect(paused).toContain('gh issue close "$issue_number" --comment');
+    expect(paused).toContain('it does not establish recovery');
+    expect(paused).toContain('set -euo pipefail');
+    expect(paused).not.toContain('report-scheduled-failure');
+    expect(paused).not.toContain('scripts/backup/retention.ts');
+  });
+
   it('isolates daily retention behind successful verification and explicit activation', () => {
     const workflow = readFileSync('.github/workflows/independent-database-retention.yml', 'utf8');
     const exportWorkflow = readFileSync(
@@ -16,6 +28,7 @@ describe('scheduled export workflow contract', () => {
     expect(workflow.match(/^\s+if:.*$/gm)?.map(line => line.trim())).toEqual([
       "if: (vars.MYK9_RETENTION_ENABLED == 'true' && vars.MYK9_EXPORTS_ENABLED == 'true') || github.event_name == 'workflow_dispatch'",
       'if: always()',
+      "if: github.event_name == 'schedule' && (vars.MYK9_RETENTION_ENABLED != 'true' || vars.MYK9_EXPORTS_ENABLED != 'true')",
     ]);
     const verify = workflow.indexOf('run: pnpm exec tsx scripts/backup/verify.ts');
     const retention = workflow.indexOf('run: pnpm exec tsx scripts/backup/retention.ts');
@@ -33,7 +46,7 @@ describe('scheduled export workflow contract', () => {
     expect(workflow).toContain('[ "$BACKUP_BUCKET" != \'myk9-database-backups\' ]');
     expect(workflow).toContain('[ "$BACKUP_PREFIX" != \'myk9-platform\' ]');
     expect(workflow).toContain(
-      '[ "$BACKUP_S3_ENDPOINT" != \'https://7eab7ddc81b7019884c3b2f4037182be.r2.cloudflarestorage.com\' ]'
+      '[ "$endpoint_sha256" != \'c18cbae5703da40e3a2efa1b76b6eeb881fae17bed4e0901dba32c904fba814f\' ]'
     );
     expect(workflow).toContain('[ "$AWS_DEFAULT_REGION" != \'auto\' ]');
     expect(workflow.indexOf('Validate approved retention destination')).toBeLessThan(verify);

@@ -30,10 +30,11 @@ function parse(payload: unknown, source: ViewerLocation['source']): ViewerLocati
 export function shouldUseGeoApi(
   hostname: string,
   apiUrl: string | undefined,
-  enabled: string | undefined
+  enabled: string | undefined,
+  isDev: boolean
 ): boolean {
   if (enabled === 'false') return false;
-  if (enabled === 'true' || apiUrl?.trim()) return true;
+  if (enabled === 'true' || (isDev && apiUrl?.trim())) return true;
 
   const host = hostname.toLowerCase();
   return GEO_ENABLED_HOSTNAMES.has(host) || isVercelPreviewHostname(host);
@@ -45,7 +46,8 @@ function canUseHostedGeoApi(): boolean {
     shouldUseGeoApi(
       window.location.hostname,
       import.meta.env.VITE_API_URL,
-      import.meta.env.VITE_GEO_API_ENABLED
+      import.meta.env.VITE_GEO_API_ENABLED,
+      import.meta.env.DEV
     )
   );
 }

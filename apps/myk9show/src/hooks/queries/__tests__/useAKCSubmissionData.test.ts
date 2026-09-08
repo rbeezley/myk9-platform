@@ -290,6 +290,8 @@ describe('useAKCSubmissionData', () => {
   });
 
   it('uses dog_registrations.registered_name for dogRegisteredName', async () => {
+    const registrationSelect = vi.fn().mockReturnThis();
+
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'shows')
         return {
@@ -371,21 +373,38 @@ describe('useAKCSubmissionData', () => {
         };
       if (table === 'dog_registrations')
         return {
-          select: vi.fn().mockReturnThis(),
+          select: registrationSelect,
           in: vi.fn().mockResolvedValue({
             data: [
               {
+                id: 'reg-long',
                 dog_id: 'd1',
+                created_at: '2025-06-01T11:59:58.000Z',
                 // Long-form spelling — the drift that the old
                 // `.eq('organization', 'AKC')` filter silently missed.
                 organization: 'AKC (American Kennel Club)',
+                is_primary: false,
                 registration_number: 'HP12345601',
                 registered_name: 'Registered Name Here',
                 breed: 'Labrador Retriever',
                 variety: null,
               },
               {
+                id: 'reg-primary',
                 dog_id: 'd1',
+                created_at: '2025-06-01T12:00:00.000Z',
+                is_primary: true,
+                organization: 'AKC',
+                registration_number: 'HP12345602',
+                registered_name: 'Primary Registered Name',
+                breed: 'Labrador Retriever',
+                variety: null,
+              },
+              {
+                id: 'reg-ukc',
+                dog_id: 'd1',
+                created_at: '2025-06-01T12:00:01.000Z',
+                is_primary: false,
                 organization: 'UKC (United Kennel Club)',
                 registration_number: 'P-999',
                 registered_name: 'Some Other Name',
@@ -406,15 +425,18 @@ describe('useAKCSubmissionData', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     const entry = result.current.data?.entries[0];
-    expect(entry?.dogRegisteredName).toBe('Registered Name Here');
+    expect(entry?.dogRegisteredName).toBe('Primary Registered Name');
     // MYK9-90 regression (tasks 3.1 / 8.3.1). Before this change the hook read
     // `dogs.akc_number` — a column nothing writes and that is NULL for every
     // row — so every AKC submission carried a blank registration number.
-    expect(entry?.registrationNumber).toBe('HP12345601');
+    expect(entry?.registrationNumber).toBe('HP12345602');
     // Breed comes from the AKC registration, not the hardcoded 'Unknown'
     // placeholder, and NOT from the dog's UKC registration.
     expect(entry?.breed).toBe('Labrador Retriever');
     expect(entry?.registrationNumber).not.toBe('P-999');
+    expect(registrationSelect).toHaveBeenCalledWith(
+      'dog_id, id, created_at, is_primary, organization, registration_number, registered_name, breed, variety'
+    );
   });
 
   it('emits no registration number or breed for a dog with no AKC registration', async () => {

@@ -82,6 +82,8 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
   // Stable per-instance id for the open-panel stack (topmost-only Escape).
   const panelIdRef = useRef<symbol>(Symbol('slide-over-panel'));
+  const openFocusBaselineRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
   // Initialize mounted to true - portal is always ready in modern React
   const [mounted] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -94,6 +96,17 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       setIsAnimating(true);
     }
   }
+
+  // Capture the element that had focus before the opening subtree's effects
+  // run. A child may autofocus a control rendered in a portal during mount;
+  // capturing from the opening render lets the delayed fallback respect that
+  // focus just as it respects a later user-driven focus change.
+  if (open && !wasOpenRef.current) {
+    openFocusBaselineRef.current = document.activeElement as HTMLElement | null;
+  } else if (!open) {
+    openFocusBaselineRef.current = null;
+  }
+  wasOpenRef.current = open;
 
   // Return focus to whatever opened this panel once it closes, instead of
   // dropping the user on <body> at the top of the page (WCAG 2.4.3): the panel
@@ -142,14 +155,13 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   useEffect(() => {
     if (open) {
       // Focus management - focus the panel container first, then first input
-      const activeElementAtOpen = document.activeElement;
+      const activeElementAtOpen = openFocusBaselineRef.current;
       const timer = setTimeout(() => {
         // Respect focus changes made anywhere in the document, including
         // controls rendered in a portal outside the panel subtree.
         if (document.activeElement !== activeElementAtOpen) return;
 
         if (panelRef.current) {
-
           // Focus the first focusable element in the panel
           const firstFocusable = panelRef.current.querySelector(
             'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'

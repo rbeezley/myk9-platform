@@ -233,6 +233,43 @@ describe('SlideOverPanel focus return', () => {
     }
   });
 
+  it('does not steal focus from a portaled control that auto-focuses during mount', () => {
+    vi.useFakeTimers();
+
+    function AutoFocusPortaledControl() {
+      React.useLayoutEffect(() => {
+        const control = document.createElement('button');
+        control.textContent = 'Open option';
+        document.body.append(control);
+        control.focus();
+        return () => control.remove();
+      }, []);
+      return null;
+    }
+
+    try {
+      render(
+        <SlideOverPanel open onClose={vi.fn()} title="Add dog">
+          <AutoFocusPortaledControl />
+          <input aria-label="Sex" />
+        </SlideOverPanel>
+      );
+
+      const portaledControl = [...document.body.querySelectorAll('button')].find(
+        button => button.textContent === 'Open option'
+      );
+      expect(portaledControl).toBeDefined();
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(document.activeElement).toBe(portaledControl);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   function TriggerAndPanel({ remountOnToggle = false }: { remountOnToggle?: boolean }) {
     const [open, setOpen] = useState(false);
     const panel = (

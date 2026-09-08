@@ -61,12 +61,23 @@ agents can pick the same version the same afternoon, and the guard is what
 catches it. Pass the base explicitly:
 
 ```bash
-GITHUB_BASE_REF=main pnpm qa:migrations:guard
+source supabase/.env
+GITHUB_BASE_REF=main \
+MYK9_MIGRATION_DATABASE_URL=postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres \
+PGPASSWORD="$SUPABASE_DB_PASSWORD" \
+  pnpm qa:migrations:guard
 ```
 
-A bare `pnpm qa:migrations:guard` diffs only `HEAD^..HEAD`, so one more commit
-after the migration — even a docs commit — and it reports success without ever
-looking at the migration.
+Both variables are load-bearing, and neither failure is loud:
+
+- Without `GITHUB_BASE_REF` the guard diffs only `HEAD^..HEAD`, so one more
+  commit after the migration — a docs commit is enough — and it passes
+  **without ever looking at the migration**.
+- Without `MYK9_MIGRATION_DATABASE_URL` it throws as soon as a migration is in
+  range: the deployed-version check shells out to `psql` to count
+  `supabase_migrations.schema_migrations`. Requires `psql` on PATH. These are
+  the same values CI passes (`.github/workflows/ci.yml`, "Migration version
+  guard").
 
 ### Step 2: Grants are not optional
 

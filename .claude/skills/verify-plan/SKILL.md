@@ -77,7 +77,7 @@ For each requirement (explicit + those surfaced in Step 2), mark status and cite
 2. High-impact features
 3. Edge cases and error handling
 
-### Step 5: Auto-Patch
+### Step 5: Auto-Patch, then re-score
 
 If coverage < 100%, produce patched plan immediately:
 
@@ -88,6 +88,19 @@ If coverage < 100%, produce patched plan immediately:
 
 Do not ask permission to patch. Do not rewrite from scratch.
 
+**Then re-run Step 3's audit against the patched plan and report both scores:**
+
+> **Coverage: 62/100 → 94/100**
+
+The pair is the point. A lone before-score reads as criticism with no resolution;
+a lone after-score hides how much was missing and reads as a plan that was fine
+all along. Show the movement, and name anything still Partial or Missing after
+the patch with the reason it was left — a requirement that quietly turns
+"Covered" between the two tables is the failure mode this step exists to catch.
+
+If the after-score is 100/100, re-read the calibration check in Step 3 before
+believing it.
+
 ### Step 6: Plan Hygiene (myK9 convention)
 
 Before the plan is considered verified, confirm it is **born tagged** per CLAUDE.md's Planning rule. These are cheap, mechanical checks — auto-patch any that fail:
@@ -97,7 +110,9 @@ Before the plan is considered verified, confirm it is **born tagged** per CLAUDE
 - **Indexed.** There is a row for this plan in [`docs/README.md`](docs/README.md). If absent, add one (tagged 🟡 Active) so the plan is discoverable and won't rot into the unlabeled pile.
 - **Testing phase present.** (Already required by CLAUDE.md — re-confirm here.)
 
-A plan that fails any of these is not verified until patched.
+A plan that fails any of these is not verified until patched. `pnpm qa:plans`
+runs in CI and fails on a missing status line or index row, so this step is
+catching a red build early, not enforcing taste — run it to confirm the patch.
 
 ### Step 7: Add Risk Tags
 
@@ -112,15 +127,23 @@ block. Add it if missing:
 - Rationale: <one sentence explaining why this level is enough>
 ```
 
-Use:
+The three tiers are **the same three the `commit` skill classifies against at
+its Step 1** — this tag is how the plan pre-answers that question, so the words
+must match or the handoff is lost:
 
-- **Risk low / Validation focused** for isolated helpers, docs, tests, copy, or one-module UI/state changes with focused unit coverage.
-- **Risk medium / Validation app** for small production TypeScript changes in one app that affect user flow but not shared systems.
-- **Risk high / Validation full** for auth/RLS, DB migrations, payment, entry submission, offline/replication, cross-app changes, or shared utilities with broad call sites.
+| Tag                    | `commit` Step 1 level   | Applies to                                                                                                                                             |
+| ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Risk low / focused** | Micro review follow-up  | Docs, tests, copy, comments — nothing that alters production behavior.                                                                                 |
+| **Risk medium / app**  | Low-risk focused change | ≤3 production source files in one app/module; no DB/auth/payment/offline/cross-app behavior.                                                           |
+| **Risk high / full**   | High-risk change        | Auth/RLS, migrations, payment, entry submission, offline/replication, cross-app changes, shared helpers with broad call sites, or >3 production files. |
+
+Tag the plan for the riskiest step it contains, not the average — a plan whose
+one migration sits among nine doc edits is `high`.
 
 This profile governs how much LOCAL testing is expected before the PR. CI still
 provides broad verification after push, so the tag is a floor on effort, not a
-substitute for it.
+substitute for it — and `commit` re-classifies from the actual diff, so a tag
+that undersells the change does not lower the gate.
 
 ## Output Format
 
@@ -133,9 +156,9 @@ substitute for it.
 | ----------- | ------ | -------- |
 | ...         | ...    | ...      |
 
-### Coverage: X/100
+### Coverage: X/100 → Y/100
 
-[1-2 sentence rationale]
+[1-2 sentence rationale for the before-score, and what the patch closed]
 
 ### Top Gaps
 
@@ -149,14 +172,15 @@ substitute for it.
 
 ## Quick Reference
 
-| Step        | Action                                      | Output                 |
-| ----------- | ------------------------------------------- | ---------------------- |
-| Extract     | List requirements from original request     | Bullet list            |
-| Stress-test | Challenge plan against gap categories       | New requirements found |
-| Audit       | Mark Covered/Partial/Missing with citations | Table                  |
-| Score       | Weight by impact, calculate coverage        | 0-100 + rationale      |
-| Patch       | Add/expand sections, preserve structure     | Updated plan           |
-| Tag         | Add risk/validation profile                 | Validation metadata    |
+| Step        | Action                                      | Output                   |
+| ----------- | ------------------------------------------- | ------------------------ |
+| Extract     | List requirements from original request     | Bullet list              |
+| Stress-test | Challenge plan against gap categories       | New requirements found   |
+| Audit       | Mark Covered/Partial/Missing with citations | Table                    |
+| Score       | Weight by impact, calculate coverage        | Before-score + rationale |
+| Patch       | Add/expand sections, preserve structure     | Updated plan             |
+| Re-score    | Re-audit the patched plan                   | `before → after`         |
+| Tag         | Add risk/validation profile                 | Validation metadata      |
 
 ## Common Mistakes
 

@@ -124,6 +124,7 @@ fi
 STATE_DIR="${CLAUDE_REVIEW_STATE_DIR:-$ROOT/.logs}"
 STATUS_FILE="$STATE_DIR/claude-review-${PR}.status"
 OUT_FILE="$STATE_DIR/claude-review-${PR}.out"
+PID_FILE="$STATE_DIR/claude-review-${PR}.pid"
 
 # --wait: poll the detached run. Exit codes are the child's; 3 = still running.
 if [ -n "$WAIT" ]; then
@@ -141,8 +142,8 @@ if [ -n "$WAIT" ]; then
         # background processes when the shell call ends (Codex, #2131 on
         # 2026-09-08) leaves this file saying "running" forever while nothing
         # runs; without this check --wait returned 3 for 43 minutes.
-        pid="${st#*pid=}"; pid="${pid%% *}"
-        if [ -n "$pid" ] && [ "$pid" != "$st" ] && ! kill -0 "$pid" 2>/dev/null; then
+        pid="$(cat "$PID_FILE" 2>/dev/null)"
+        if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
           echo "2" > "$STATUS_FILE"
           [ -f "$OUT_FILE" ] && cat "$OUT_FILE"
           echo "claude-review: the detached review for PR #${PR} (pid ${pid}) is gone without recording a verdict. A sandbox that kills background processes when the shell call returns does this. Re-run --detach with escalated permissions, or ask Richard to run it from a terminal. Exit 2; nothing recorded." >&2
@@ -178,10 +179,15 @@ fi
 # --detach: run this same review in the background and return at once.
 if [ "$DETACH" = 1 ]; then
   mkdir -p "$STATE_DIR"
+  # The running marker is written BEFORE the spawn and the pid to its own file
+  # AFTER it, so a child that finishes fast can never have its exit code
+  # overwritten by the marker (Codex review of #2132).
   : > "$OUT_FILE"
+  : > "$PID_FILE"
+  printf 'running since=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
   STATUS_FILE="$STATUS_FILE" nohup bash -c 'bash "$1" "${@:2}"; echo "$?" > "$STATUS_FILE"' _ "$0" ${CHILD_ARGS[@]+"${CHILD_ARGS[@]}"} >> "$OUT_FILE" 2>&1 &
   CHILD_PID=$!
-  printf 'running pid=%s since=%s\n' "$CHILD_PID" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS_FILE"
+  echo "$CHILD_PID" > "$PID_FILE"
   # Give the child a moment, then confirm it is alive (or already finished with
   # a recorded exit). A child that is gone with no exit code was killed by the
   # environment — report that now rather than from a later --wait.

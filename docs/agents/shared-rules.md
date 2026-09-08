@@ -64,7 +64,7 @@ Redirect check output to a file and echo the real exit status — a pipe through
 
 - **Project ref:** `sojmvhhwsjxmfistvzbe`
 - **Edge Functions:** Deploy with `--no-verify-jwt` (functions handle auth internally)
-- **Migrations:** `supabase/migrations/` — numbered `NNN_description.sql`
+- **Migrations:** `supabase/migrations/` — versioned `YYYYMMDDHHMMSS_description.sql` (14-digit UTC timestamp). The `NNN_` files are the pre-2026 convention; read them, never extend them. Picking a version: see § Database Migrations below.
 - **Heritage / registry columns** (migrations 192–195): schema notes in [`docs/reference/heritage-registry-columns.md`](docs/reference/heritage-registry-columns.md) — always read via the `@/features/registries` helpers (`getShowStyle`, `getTrialRegistry`, `getTrialTimezone`), never raw column access.
 
 ## Deployment

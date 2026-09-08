@@ -5,38 +5,55 @@ description: Use when creating or pushing Supabase database migrations, running 
 
 # Database Migrations
 
-Create and push local migrations to the hosted Supabase database. Handles numbering collisions, password issues, and linking errors.
+Create and push local migrations to the hosted Supabase database. Handles version
+selection, password issues, and linking errors.
+
+`deploy` delegates here for the push procedure; this skill owns migration
+authoring and the password/linking mechanics.
 
 ## Creating a New Migration
 
-### Step 1: Determine Next Number
+### Step 1: Pick the version
 
-**ALWAYS check the filesystem for the current highest number.** Never assume or cache the number — another agent or session may have created one since you last checked.
+Migrations are named `<version>_<description>.sql`, where the version is a
+**14-digit UTC timestamp**: `YYYYMMDDHHMMSS`. (Files numbered `NNN_` are the
+pre-2026 convention — read them, never extend them.)
 
-```bash
-ls supabase/migrations/ | tail -1
-```
-
-The next migration number is `highest + 1`, zero-padded to 3 digits.
-
-**Example:** If the last file is `104_announcement_push_webhook.sql`, the next is `105_your_description.sql`.
-
-### Step 2: Create the File
+Pick the version against **`origin/main` AND the linked database**, never against
+your own branch. A version another PR merges first dies at
+`INSERT INTO supabase_migrations.schema_migrations`, and a branch that has been
+open a while will have gone stale — re-check before pushing.
 
 ```bash
-# Use the number you just determined
-touch "supabase/migrations/105_description_here.sql"
+git fetch origin main
+git ls-tree --name-only origin/main -- supabase/migrations | tail -5
+supabase migration list   # what the linked DB has actually applied
 ```
 
-Then write the SQL content using the Write tool.
+Then choose today's date with a **specific odd time** — `174500`, `142300`,
+`151500`. Never a shared default like `120000`: two agents both reaching for the
+round number is exactly how versions collide.
 
-### Collision Prevention
+```bash
+touch supabase/migrations/20260908174500_description_here.sql
+```
 
-If working in a worktree or parallel session:
+Write the SQL with the Write tool. `pnpm qa:migrations:guard` enforces this in
+CI — run it locally before pushing if the branch has been open more than a day.
 
-1. **Before writing:** `git fetch origin main && git log origin/main -- supabase/migrations/ | head -5` to check for new migrations on remote
-2. **Before committing:** Re-check `ls supabase/migrations/ | tail -1` — if someone else took your number, renumber yours
-3. **If collision detected after commit:** Rename with the next available number and amend or create a fixup commit
+### Step 2: Grants are not optional
+
+Every `CREATE TABLE public.<name>` needs explicit `GRANT`s, and a table that
+should exclude `anon` needs an explicit `REVOKE` — this project carries
+`ALTER DEFAULT PRIVILEGES` granting `anon` full CRUD on every newly created
+table, so omitting a grant does **not** keep `anon` out. See CLAUDE.md
+§ Database Migrations for the template and the post-push verification queries
+(`pg_class.relacl` **and** `pg_attribute.attacl`; sequences too).
+
+Before writing a migration that references existing rows (permissions, roles,
+enum values), query the target table first to confirm those values exist.
+
+Consider dispatching the `migration-auditor` agent on the finished file.
 
 ---
 
@@ -60,8 +77,10 @@ This will prompt for the database password. The password is in `supabase/.env` a
 
 ### Step 2: Push Migrations
 
+Run this from the worktree linked to Supabase — **not** the main repo, and
+never from an unmerged branch.
+
 ```bash
-cd "/Users/richardbeezley/AI Projects/myk9-platform"
 source supabase/.env && supabase db push --password "$SUPABASE_DB_PASSWORD"
 ```
 
@@ -71,9 +90,21 @@ If you get "out of order" errors, add `--include-all`:
 source supabase/.env && supabase db push --password "$SUPABASE_DB_PASSWORD" --include-all
 ```
 
-### Step 3: Verify
+### Step 3: Verify against the applied database
 
-After a successful push, confirm by checking the migration was applied. The CLI will list which migrations were applied.
+The CLI lists what it applied. That is not proof the migration did what it meant
+to — verify grants against the **database**, never against the migration text.
+
+```bash
+supabase migration list   # remote now matches supabase/migrations/
+```
+
+For a migration that created a table or changed access, run the `relacl` /
+`attacl` / sequence queries from CLAUDE.md § Database Migrations against the live
+DB. Do not use `information_schema.role_table_grants` — it only shows grants
+visible to the querying role and returns empty over the MCP connection, so it
+cannot prove absence. Then run `get_advisors` (Supabase MCP) to catch new
+RLS/security warnings.
 
 ## Common Errors
 

@@ -29,7 +29,7 @@ Fail-closed secret couplings: several functions require Vault/edge secrets to ma
 
 ## Pushing migrations
 
-Invoke the `db-push` skill — it owns the password/linking procedure (password in `supabase/.env`). Before writing a new migration, run `supabase migration list` to see remote state; run push from the worktree linked to Supabase, not the main repo. Every new `public` table needs explicit `GRANT`s (see CLAUDE.md template) — grants are orthogonal to RLS and both are required.
+Invoke the `db-push` skill — it owns migration authoring (14-digit timestamp versions picked against `origin/main` AND the linked DB), the password/linking procedure (password in `supabase/.env`), and the post-push ACL verification. Run push from the worktree linked to Supabase, not the main repo, and never from an unmerged branch.
 
 Consider dispatching the `migration-auditor` agent on any new migration file before pushing.
 

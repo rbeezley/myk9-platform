@@ -63,21 +63,27 @@ catches it. Pass the base explicitly:
 ```bash
 source supabase/.env
 GITHUB_BASE_REF=main \
+GITHUB_HEAD_REF="$(git branch --show-current)" \
 MYK9_MIGRATION_DATABASE_URL=postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres \
 PGPASSWORD="$SUPABASE_DB_PASSWORD" \
   pnpm qa:migrations:guard
 ```
 
-Both variables are load-bearing, and neither failure is loud:
+All three variables are load-bearing, and no failure is loud:
 
 - Without `GITHUB_BASE_REF` the guard diffs only `HEAD^..HEAD`, so one more
   commit after the migration — a docs commit is enough — and it passes
   **without ever looking at the migration**.
+- Without `GITHUB_HEAD_REF` the guard cannot tell which branch is yours —
+  `currentBranchName()` reads only that and `GITHUB_REF_NAME`. Re-run it after
+  pushing and your own stale `origin/<branch>` ref reads as a competing claim,
+  so the guard reports a conflict with itself.
 - Without `MYK9_MIGRATION_DATABASE_URL` it throws as soon as a migration is in
   range: the deployed-version check shells out to `psql` to count
-  `supabase_migrations.schema_migrations`. Requires `psql` on PATH. These are
-  the same values CI passes (`.github/workflows/ci.yml`, "Migration version
-  guard").
+  `supabase_migrations.schema_migrations`. Requires `psql` on PATH.
+
+These are the values CI passes (`.github/workflows/ci.yml`, "Migration version
+guard").
 
 ### Step 2: Grants are not optional
 

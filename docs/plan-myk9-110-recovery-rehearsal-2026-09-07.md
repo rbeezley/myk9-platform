@@ -1,6 +1,6 @@
 # MYK9-110 cross-project recovery rehearsal — execution plan
 
-> **Status:** Active
+> **Status:** Complete
 
 Date: 2026-09-07
 

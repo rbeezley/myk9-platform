@@ -147,6 +147,22 @@ if [ -n "$WAIT" ]; then
   done
 fi
 
+BASE_SHA="$(git rev-parse origin/main)"
+HEAD_SHA="$(git rev-parse HEAD)"
+
+# Before detaching (a refusal must be visible now, not in a status file — the
+# 2026-09-08 run from a `main` checkout detached and then failed silently):
+# `/code-review <pr>` reviews the REMOTE PR head; the evidence names local HEAD.
+# With an unpushed commit those are different commits, so a clean review of the
+# pushed head would attest to code nobody reviewed (Codex review of #2115, P1).
+# Refuse rather than guess which SHA the verdict belongs to.
+PR_HEAD="$("$GH" pr view "$PR" --json headRefOid -q .headRefOid)"
+if [ "$PR_HEAD" != "$HEAD_SHA" ]; then
+  echo "claude-review: PR #${PR} head is ${PR_HEAD:0:9} but local HEAD is ${HEAD_SHA:0:9}." >&2
+  echo "claude-review: the reviewer reads the PR, so the evidence would name a commit it never saw. Push (or check out the PR head) and re-run. Exit 2; nothing recorded." >&2
+  exit 2
+fi
+
 # --detach: run this same review in the background and return at once.
 if [ "$DETACH" = 1 ]; then
   mkdir -p "$STATE_DIR"
@@ -158,19 +174,6 @@ if [ "$DETACH" = 1 ]; then
   exit 0
 fi
 
-BASE_SHA="$(git rev-parse origin/main)"
-HEAD_SHA="$(git rev-parse HEAD)"
-
-# `/code-review <pr>` reviews the REMOTE PR head; the evidence names local HEAD.
-# With an unpushed commit those are different commits, so a clean review of the
-# pushed head would attest to code nobody reviewed (Codex review of #2115, P1).
-# Refuse rather than guess which SHA the verdict belongs to.
-PR_HEAD="$("$GH" pr view "$PR" --json headRefOid -q .headRefOid)"
-if [ "$PR_HEAD" != "$HEAD_SHA" ]; then
-  echo "claude-review: PR #${PR} head is ${PR_HEAD:0:9} but local HEAD is ${HEAD_SHA:0:9}." >&2
-  echo "claude-review: the reviewer reads the PR, so the evidence would name a commit it never saw. Push (or check out the PR head) and re-run. Exit 2; nothing recorded." >&2
-  exit 2
-fi
 
 mkdir -p "$ROOT/.logs"
 LOG="${CLAUDE_REVIEW_LOG:-$ROOT/.logs/claude-review-${HEAD_SHA}.log}"

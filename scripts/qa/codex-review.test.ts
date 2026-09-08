@@ -130,6 +130,15 @@ function bodies(callsPath: string): string[] {
 }
 
 describe('codex-review.sh', () => {
+  it('counts a bullet whose [P2] tag follows the file path as a finding', () => {
+    const stub = stubCodex(
+      'codex\n' +
+        '- `supabase/migrations/20260907150000_add_missing_fk_leading_indexes.sql:10` — [P2] `set lock_timeout` is session-scoped, not `set local`.' +
+        '\n'
+    );
+    expect(run(stub).code).toBe(1);
+  });
+
   it('reads the verdict after the LAST codex marker, not the first', () => {
     // A log can carry several assistant messages; an early one quoting an old
     // finding must not turn a clean final verdict into findings.

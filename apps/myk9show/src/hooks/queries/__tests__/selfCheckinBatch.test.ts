@@ -46,6 +46,7 @@ describe('check-in batch loading', () => {
     const load = createSelfCheckinBatchLoader();
     const ids = Array.from({ length: 205 }, (_, i) => `class-${i}`);
     expect(await Promise.all(ids.map(load))).toEqual(ids.map(() => true));
+    expect(getAll).toHaveBeenCalledTimes(1);
     expect(read).toHaveBeenCalledTimes(12);
     expect(read).toHaveBeenCalledWith('show_visibility_settings', 'show_id', ['show-1']);
     expect(read).toHaveBeenCalledWith('trial_visibility_overrides', 'trial_id', ['trial-1']);

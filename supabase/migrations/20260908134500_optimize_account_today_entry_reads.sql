@@ -5,6 +5,37 @@
 
 begin;
 
+-- These are ordinary indexes because Supabase runs migrations in a transaction.
+-- Refuse to wait behind show-day writes, and require a separately coordinated
+-- concurrent-index rollout once either source table reaches 100 MB.
+set local lock_timeout = '5s';
+set local statement_timeout = '10min';
+
+do $$
+declare
+  oversized text;
+begin
+  select string_agg(
+    format('%I.%I (%s)', n.nspname, c.relname, pg_size_pretty(pg_relation_size(c.oid))),
+    ', '
+    order by c.relname
+  )
+  into oversized
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where c.relkind in ('r', 'p')
+    and n.nspname = 'public'
+    and c.relname in ('entries', 'dogs')
+    and pg_relation_size(c.oid) >= 100 * 1024 * 1024;
+
+  if oversized is not null then
+    raise exception
+      'MYK9-441 requires a concurrent-index plan before indexing relations at or above 100 MB: %',
+      oversized;
+  end if;
+end
+$$;
+
 create index if not exists entries_active_handler_id_idx
   on public.entries (handler_id)
   where deleted_at is null
@@ -51,6 +82,8 @@ as $func$
     select e.id
     from public.entries e
     join me on me.person_id = e.handler_id
+    where e.deleted_at is null
+      and e.entry_status not in ('withdrawn', 'scratched')
 
     union
 
@@ -58,6 +91,9 @@ as $func$
     from public.entries e
     join public.dogs d on d.id = e.dog_id
     join me on me.person_id = d.owner_id
+    where e.deleted_at is null
+      and e.entry_status not in ('withdrawn', 'scratched')
+      and d.deleted_at is null
 
     union
 
@@ -65,6 +101,9 @@ as $func$
     from public.entries e
     join public.dogs d on d.id = e.dog_id
     join me on me.person_id = d.co_owner_id
+    where e.deleted_at is null
+      and e.entry_status not in ('withdrawn', 'scratched')
+      and d.deleted_at is null
   )
   select
     e.id as entry_id,
@@ -97,5 +136,74 @@ comment on function public.get_account_today_entries() is
 -- migration grant contract as well as the database ACL.
 revoke execute on function public.get_account_today_entries() from public, anon;
 grant execute on function public.get_account_today_entries() to authenticated;
+
+-- Replicated class visibility is intentionally used to keep the exhibitor
+-- route within its request budget. The replica is eventually consistent, so
+-- enforce the same cascade at the write boundary: a stale local `true` can
+-- never let an exhibitor check in after staff disabled the class, trial, or
+-- show.
+create or replace function public.self_checkin_entry(
+  p_entry_id uuid,
+  p_new_status text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $func$
+declare
+  v_person_id uuid;
+  v_allowed_statuses text[] := array[
+    'checked-in', 'conflict', 'pulled', 'at-gate', 'no-status'
+  ];
+begin
+  if not p_new_status = any(v_allowed_statuses) then
+    raise exception 'Status % is not allowed for self-check-in', p_new_status;
+  end if;
+
+  select p.id
+    into v_person_id
+    from public.people p
+   where p.auth_user_id = (select auth.uid())
+   limit 1;
+
+  if v_person_id is null then
+    raise exception 'Not authorized: caller is not linked to a person record';
+  end if;
+
+  update public.entries e
+     set check_in_status = p_new_status,
+         updated_at = now()
+    from public.dogs d
+    left join public.classes c on c.id = e.class_id
+    left join public.trials t on t.id = coalesce(c.trial_id, e.trial_id)
+    left join public.show_visibility_settings show_vis
+      on show_vis.show_id = coalesce(e.show_id, t.show_id)
+    left join public.trial_visibility_overrides trial_vis
+      on trial_vis.trial_id = coalesce(c.trial_id, e.trial_id)
+    left join public.class_visibility_overrides class_vis
+      on class_vis.class_id = e.class_id
+   where e.id = p_entry_id
+     and d.id = e.dog_id
+     and (
+       e.handler_id = v_person_id
+       or d.owner_id = v_person_id
+       or d.co_owner_id = v_person_id
+     )
+     and coalesce(
+       class_vis.self_checkin_enabled,
+       trial_vis.self_checkin_enabled,
+       show_vis.self_checkin_enabled,
+       true
+     );
+
+  if not found then
+    raise exception 'Not authorized: caller does not own entry % or self check-in is disabled', p_entry_id;
+  end if;
+end;
+$func$;
+
+revoke all on function public.self_checkin_entry(uuid, text) from public, anon;
+grant execute on function public.self_checkin_entry(uuid, text) to authenticated;
 
 commit;

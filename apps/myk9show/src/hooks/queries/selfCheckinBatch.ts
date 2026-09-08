@@ -19,16 +19,20 @@ export function createSelfCheckinBatchLoader() {
       queueMicrotask(() => {
         const batch = pending;
         pending = [];
+        const localValues = readLocalSelfCheckinValues(batch.map(item => item.id));
         for (const group of chunk(batch, ID_CHUNK_SIZE)) {
-          void resolveBatch(group);
+          void resolveBatch(group, localValues);
         }
       });
     });
 }
 
-async function resolveBatch(pending: Pending[]): Promise<void> {
+async function resolveBatch(
+  pending: Pending[],
+  localValuesPromise: Promise<Map<string, boolean>>
+): Promise<void> {
   try {
-    const localValues = await readLocalSelfCheckinValues(pending.map(item => item.id));
+    const localValues = await localValuesPromise;
     const unresolved = pending.filter(item => !localValues.has(item.id));
 
     for (const item of pending) {

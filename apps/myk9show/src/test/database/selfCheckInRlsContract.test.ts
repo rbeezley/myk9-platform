@@ -9,6 +9,13 @@ const migration = readFileSync(
   ),
   'utf8'
 );
+const accountReadMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20260908134500_optimize_account_today_entry_reads.sql'
+  ),
+  'utf8'
+);
 
 function sliceBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -47,5 +54,15 @@ describe('self check-in RLS contract', () => {
     expect(migration).not.toContain('is_in_ring');
     expect(migration).not.toContain('ring_entry_time');
     expect(migration).not.toContain('judge_notes');
+  });
+
+  it('keeps the replicated self-check-in fast path server-authorized', () => {
+    expect(accountReadMigration).toContain('create or replace function public.self_checkin_entry');
+    expect(accountReadMigration).toContain('class_vis.self_checkin_enabled');
+    expect(accountReadMigration).toContain('trial_vis.self_checkin_enabled');
+    expect(accountReadMigration).toContain('show_vis.self_checkin_enabled');
+    expect(accountReadMigration).toContain(
+      'revoke all on function public.self_checkin_entry(uuid, text) from public, anon'
+    );
   });
 });

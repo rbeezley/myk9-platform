@@ -414,6 +414,7 @@ describe('claude-review.sh', () => {
         '',
         '- checked that no [P1] regression remains in the tracker',
         '- confirmed the [P2] from last round is fixed',
+        '- `example.ts` is [P1]-adjacent prose, not a finding',
       ].join('\n')
     );
     const gh = stubGh();

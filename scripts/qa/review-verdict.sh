@@ -25,9 +25,9 @@
 # tag AFTER the location (a ten-minute review of #2124 on 2026-09-07 was
 # discarded as "unrecognized output" for this). Exactly those shapes and no
 # more: a prose bullet that merely mentions "[P1]" is not a finding (Codex
-# review of #2130). Shape 3 = a backticked location, a dash of any kind
-# (1-3 bytes covers -, – and —), then the tag.
-REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[P[0-9]\]|`[^`]+`[[:space:]]*.{1,3}[[:space:]]*(\*\*)?\[P[0-9]\])'
+# review of #2130). Shape 3 = a backticked location, then a hyphen, en dash
+# or em dash (spelled out; a wildcard here matched the word "is"), then the tag.
+REVIEW_FINDING_BULLET='^[[:space:]]*- ((\*\*)?\[P[0-9]\]|`[^`]+`[[:space:]]*(-|–|—)[[:space:]]*(\*\*)?\[P[0-9]\])'
 
 # SIGPIPE-safe matching. Every wrapper runs under `pipefail`, and
 # `echo "$VERDICT" | grep -q` fails on a large verdict: grep exits at the

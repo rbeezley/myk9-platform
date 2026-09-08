@@ -21,7 +21,11 @@
 # review of #2124 that reported two real findings was discarded as
 # "unrecognized output" because only the plain form was matched. Bold is
 # optional on both sides of the bracket; the priority digit is what counts.
-REVIEW_FINDING_BULLET='^[[:space:]]*- (\*\*)?\[P[0-9]\](\*\*)?'
+# ...and Claude's /code-review also writes `- \`path:line\` — [P2] ...` with the
+# tag AFTER the location (a ten-minute review of #2124 on 2026-09-07 was
+# discarded as "unrecognized output" for this). A finding is therefore any
+# bullet that carries a [P0-9] tag anywhere on its first line.
+REVIEW_FINDING_BULLET='^[[:space:]]*- .*\[P[0-9]\]'
 
 # SIGPIPE-safe matching. Every wrapper runs under `pipefail`, and
 # `echo "$VERDICT" | grep -q` fails on a large verdict: grep exits at the

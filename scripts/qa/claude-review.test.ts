@@ -381,6 +381,32 @@ describe('claude-review.sh', () => {
     expect(existsSync(stub.args)).toBe(false); // claude was never invoked
   });
 
+  it('recognizes a finding whose [P2] tag follows the file path (third real shape, #2124 on 2026-09-08)', () => {
+    const stub = stubClaude(
+      [
+        'Findings (4). Validation run alongside the read: all touched suites pass.',
+        '',
+        '- `supabase/migrations/20260907150000_add_missing_fk_leading_indexes.sql:10` — [P2] `set lock_timeout` is session-scoped, not `set local`.',
+        '',
+      ].join('\n')
+    );
+    const gh = stubGh();
+    const r = run(stub, gh, ['--post', '7']);
+    expect(r.code).toBe(1);
+    expect(bodies(gh.calls).some(b => b.startsWith('Claude findings for'))).toBe(true);
+  });
+
+  it('--detach refuses immediately when local HEAD is not the PR head, and writes no status file', () => {
+    const stub = stubClaude('No actionable defects found.', 0, 3);
+    const gh = stubGh({ prHead: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef' });
+    const stateDir = mkdtempSync(join(tmpdir(), 'claude-state-'));
+    dirs.push(stateDir);
+    const r = run({ ...stub, stateDir }, gh, ['--detach', '7']);
+    expect(r.code).toBe(2);
+    expect(r.out).toContain('local HEAD');
+    expect(existsSync(join(stateDir, 'claude-review-7.status'))).toBe(false);
+  });
+
   describe('sandbox preflight (Codex denies the Keychain and the network)', () => {
     it('exits 2 in seconds with the escalation hint when claude reports not logged in', () => {
       const stub = stubClaude('No actionable defects found.', 0, 0, 1);

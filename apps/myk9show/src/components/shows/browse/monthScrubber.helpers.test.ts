@@ -105,6 +105,16 @@ describe('buildMonthTiles', () => {
     expect(byKey['2027-02'].year).toBeNull();
   });
 
+  it.each([
+    ['2026-01', null],
+    ['2025-12', 2025],
+    ['2027-12', null],
+    ['2028-01', 2028],
+  ] as const)('does not repeat the adjacent year on a recovered tile (%s)', (selectedKey, year) => {
+    const recovered = buildMonthTiles([], NOW, selectedKey).find(tile => tile.key === selectedKey);
+    expect(recovered?.year).toBe(year);
+  });
+
   it('counts shows by start month, including the 1st and the 31st', () => {
     const shows = [
       makeShow({ id: 'a', startDate: '2026-10-01', endDate: '2026-10-01' }),

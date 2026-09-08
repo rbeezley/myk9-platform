@@ -122,16 +122,19 @@ describe('app API request tracker', () => {
   });
 
   it('ignores assets and document requests', async () => {
+    vi.useFakeTimers();
     const harness = createPageHarness();
     const tracker = watchAppApiRequests(harness.page);
 
     harness.emit('request', createRequest('http://127.0.0.1:5173/admin/dashboard'));
     harness.emit('request', createRequest('http://127.0.0.1:5173/assets/app.js'));
 
-    const settlement = await waitForAppApiRequestsToSettle(harness.page, tracker, {
+    const settlementPromise = waitForAppApiRequestsToSettle(harness.page, tracker, {
       idleMs: 5,
       timeoutMs: 20,
     });
+    await vi.advanceTimersByTimeAsync(5);
+    const settlement = await settlementPromise;
 
     expect(settlement).toEqual({ settled: true, pendingUrls: [] });
     expect(tracker.pending.size).toBe(0);

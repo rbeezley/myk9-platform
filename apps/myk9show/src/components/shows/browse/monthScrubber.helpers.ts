@@ -119,13 +119,18 @@ export function buildMonthTiles(
   // honest by rendering its selected tile at the nearest edge, so the user
   // still has a visible selection and a keyboard entry point to recover from.
   if (isMonthKey(selectedKey) && !tiles.some(tile => tile.key === selectedKey)) {
+    const selectedYear = Number(selectedKey.slice(0, 4));
+    const selectedBeforeWindow = selectedKey < tiles[1].key;
+    const adjacentTile = selectedBeforeWindow ? tiles[1] : tiles[tiles.length - 1];
+    const displayYear =
+      adjacentTile && Number(adjacentTile.key.slice(0, 4)) === selectedYear ? null : selectedYear;
     const selectedTile = monthTile(
       selectedKey,
       byMonth.get(selectedKey) ?? [],
       selectedKey < currentKey,
-      Number(selectedKey.slice(0, 4))
+      displayYear
     );
-    if (selectedKey < tiles[1].key) {
+    if (selectedBeforeWindow) {
       tiles.splice(1, 0, selectedTile);
     } else {
       tiles.push(selectedTile);

@@ -30,10 +30,13 @@ git ls-tree -r --name-only origin/main -- supabase/migrations | tail -5
 supabase migration list   # what the linked DB has actually applied
 
 # Neither of the above sees an unmerged branch that already took your version.
+# Ask GitHub for the files, not git: a PR head may not be fetched locally, and a
+# fork PR has no origin/<branch> ref at all — `git ls-tree origin/<head>` would
+# fail silently and the sweep would report a clean miss.
 pnpm qa:inflight supabase/migrations
-gh pr list --state open --json headRefName --jq '.[].headRefName' \
-  | xargs -I{} git ls-tree -r --name-only origin/{} -- supabase/migrations \
-  | sort -u | tail -10
+gh pr list --state open --limit 200 --json number --jq '.[].number' \
+  | xargs -I{} gh pr view {} --json files --jq '.files[].path' \
+  | grep '^supabase/migrations/' | sort -u
 ```
 
 Then choose today's date with a **specific odd time** — `174500`, `142300`,

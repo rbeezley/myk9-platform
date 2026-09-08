@@ -24,7 +24,7 @@ const { cartState, profileState } = vi.hoisted(() => ({
     removeItem: () => {},
     clearCart: () => {},
     setError: () => {},
-    loadActiveCart: () => {},
+    loadActiveCart: vi.fn(),
   },
   profileState: { profile: null as unknown, isLoading: false },
 }));
@@ -47,6 +47,7 @@ describe('CartPage hydration gate', () => {
     cartState.loadInitiated = false;
     cartState.error = null;
     cartState.items = [];
+    vi.mocked(cartState.loadActiveCart).mockClear();
     profileState.profile = null;
     profileState.isLoading = false;
   });
@@ -103,5 +104,19 @@ describe('CartPage hydration gate', () => {
     render(<CartPage />);
     expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading cart' })).not.toBeInTheDocument();
+  });
+
+  it('passes the fee-card recovery scope into cart hydration on a direct visit', () => {
+    profileState.profile = { id: 'p1' };
+
+    render(<CartPage />, {
+      initialRoute: '/cart?showId=open-show&entryIds=entry-3,entry-1,entry-3',
+    });
+
+    expect(cartState.loadActiveCart).toHaveBeenCalledWith('p1', {
+      showId: 'open-show',
+      recoveryEntryIds: ['entry-3', 'entry-1', 'entry-3'],
+    });
+    expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
   });
 });

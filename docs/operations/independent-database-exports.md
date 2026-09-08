@@ -32,6 +32,30 @@ operator checks remain necessary. Both scheduled jobs stay disabled until
 
 ## Activation checklist
 
+Selected provider (owner approved 2026-09-07): **Cloudflare R2 Standard**, private bucket.
+Thirty-day retention remains proposed pending activation review.
+At the measured size, 1.9–2.2 GB fits within its 10 GB-month free allowance if that allowance
+is available on the account. Estimated request counts also fit the published free allowances;
+existing account usage and future growth must be checked. Standard (not Infrequent Access) is
+required for those free allowances. The owner created `myk9-database-backups` with Standard
+storage and public access disabled, and saved its bucket-scoped Object Read & Write S3
+credential and a separately generated encryption key in GitHub Actions secrets. The owner
+reports a local recovery copy of the key. GitHub secret names and the exact bucket, prefix,
+endpoint and `auto` region variables were verified; secret values have not yet been exercised.
+`MYK9_EXPORTS_ENABLED=false` remains verified. Scheduled activation is pending.
+
+Storage is only part of the operating cost. The current two hourly workflows create roughly
+1,440 jobs per 30 days even when a weekday export is skipped. At an illustrative average of
+1–3 billed minutes per job, that is 1,440–4,320 minutes before retries and other repository CI.
+Measure actual GitHub runtime and remaining account allowance before enabling schedules.
+See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+On 2026-09-07, read-only CLI inventory confirmed both item-1 recovery projects still exist:
+`yltegnpcnqrtjurxdmon` and `nzihqlfcqntxjvhdttzf`. Repurposing the former for this rehearsal
+was explicitly authorized by the owner, including replacement of its test data; the latter
+and the source must remain untouched.
+Browser control remains unavailable; the owner performed Cloudflare setup through the UI.
+
 1. Run a manual `pg_dump` against the source using a disposable local destination and record
    compressed/encrypted size, dump duration, and restore duration. Confirm the required `auth`,
    `storage`, public application schemas, policies/RLS, grants, and globals are present.

@@ -19,6 +19,7 @@ describe('scheduled export workflow contract', () => {
     expect(healthWorkflow).toContain("cron: '15 * * * *'");
     expect(healthWorkflow).toContain('issues: write');
     expect(healthWorkflow).toContain('BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}');
+    expect(healthWorkflow.match(/BACKUP_NIGHTLY_HOUR:/g)).toHaveLength(1);
     expect(healthWorkflow).not.toContain('needs:');
   });
 });

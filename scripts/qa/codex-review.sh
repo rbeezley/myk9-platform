@@ -88,7 +88,7 @@ fi
 # the anchored grep read as a real abort and threw away a completed review.
 
 echo "$VERDICT"
-if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
+if echo "$VERDICT" | grep -Eq "$REVIEW_FINDING_BULLET"; then
   echo
   echo "codex-review: findings above. Fix them, commit, and re-run — the evidence line is for the NEW head."
   # Findings belong ON the PR: without this they existed only in a local log,
@@ -108,7 +108,7 @@ if echo "$VERDICT" | grep -Eq '^\s*- \[P[0-9]\]'; then
     # leaves the gate GREEN — review-gate.ts only reads `Review gate:` lines,
     # and the old clean one is still the latest (Codex review of #2115, round
     # 3). Withdraw it with an evidence line the checker rejects.
-    FOUND="$(echo "$VERDICT" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+    FOUND="$(echo "$VERDICT" | grep -cE "$REVIEW_FINDING_BULLET" || true)"
     if ! bash "$POSTER" --withdraw "$PR" codex "$BASE_SHA" "$HEAD_SHA" "${FOUND} findings, not addressed" "$LOG"; then
       echo "codex-review: findings posted, but the earlier clean evidence for this head could NOT be withdrawn. Exit 2 — check the gate status by hand." >&2
       exit 2
@@ -167,7 +167,7 @@ if [ "$POST" = 1 ]; then
     echo "codex-review: could not read this PR's earlier findings comments (gh failed), so N cannot be trusted. Exit 2; no evidence posted." >&2
     exit 2
   fi
-  N="$(printf '%s' "$PRIOR" | grep -cE '^\s*- \[P[0-9]\]' || true)"
+  N="$(printf '%s' "$PRIOR" | grep -cE "$REVIEW_FINDING_BULLET" || true)"
   [ "${N:-0}" -gt 0 ] && VERDICT_LINE="$N findings, all addressed"
   # The wrapper runs without errexit; a poster failure (grammar refusal, gh
   # error) must not fall through to exit 0 as if evidence had been posted.

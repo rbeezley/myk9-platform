@@ -75,7 +75,7 @@ if [ "$WITHDRAW" = 1 ]; then
   # A withdrawal is the mirror image: it must be backed by a log that really
   # does carry findings, so "withdraw" cannot be used to red-flag a head
   # nothing objected to.
-  if ! printf '%s' "$VERDICT_BLOCK" | grep -Eq '^\s*- \[P[0-9]\]'; then
+  if ! printf '%s' "$VERDICT_BLOCK" | grep -Eq "$REVIEW_FINDING_BULLET"; then
     echo "post-review-gate: log does not support withdrawing '$VERDICT' (it carries no [P*] bullets); nothing posted" >&2
     exit 2
   fi
@@ -85,7 +85,7 @@ fi
 # came back clean, so the log it is posted with must pass the same checks
 # (Codex review of #2110, round 8). No verdict form skips them.
 if [ "$WITHDRAW" != 1 ]; then
-  if printf '%s' "$VERDICT_BLOCK" | grep -Eq '^\s*- \[P[0-9]\]'; then
+  if printf '%s' "$VERDICT_BLOCK" | grep -Eq "$REVIEW_FINDING_BULLET"; then
     echo "post-review-gate: log does not support '$VERDICT' (it still carries [P*] bullets); nothing posted" >&2
     exit 2
   fi

@@ -30,10 +30,13 @@ a second OpenSpec change. No app surface, migration, or source database write is
 - [ ] Obtain independent review and required CI before merging the workflow change.
 - [ ] Confirm and apply GitHub settings (including separate retention activation); dispatch export and independent health verification.
 - [ ] Enable the recurring jobs and record the first scheduled result before claiming it ran.
+- [x] Record accepted recovery targets: RPO 60 minutes during the hourly weekend window
+      (weekday exposure can reach the overnight interval) and RTO 60 minutes for database
+      recovery; unsynced tablet changes are outside the RPO.
 
 ## Limits
 
 Do not close MYK9-110. A fresh-project rebuild, uploaded file protection, live application
-failover, formal RPO/RTO, and other item-1 evidence remain open. Retention is not an absolute
+failover, and other item-1 evidence remain open. Retention is not an absolute
 storage cap; growth, unrelated account usage, provider source egress, and extra manual exports
 can affect costs. Do not set a provider spending limit or buy capacity without approval.

@@ -14,7 +14,13 @@ separately saved key, and restored into the existing disposable physical clone
 The successful atomic restore took **1,512.54 seconds (25m12.54s)** over the Mac connection.
 An earlier full attempt took 879.26 seconds and rolled back on a reserved-role default grant;
 an initial schema-setup attempt also rolled back. Preparation, failed attempts, provisioning,
-and verification are outside the successful-attempt time. This is not an accepted RTO.
+and verification are outside the successful-attempt time.
+
+The accepted recovery targets are **RPO 60 minutes** for the hourly Friday–Sunday export
+window, with weekday exposure up to the overnight export interval, and **RTO 60 minutes**
+for database recovery. The RPO also excludes tablet changes that have not synced to Supabase.
+The measured 25m12.54s restore leaves time within the RTO for destination preparation and
+validation; a full application failover has not been timed.
 
 All **160 imported tables** matched archive counts and exported-column row fingerprints:
 131 public tables, 22 Auth tables, 5 Storage metadata tables, and 2 migration-history tables.

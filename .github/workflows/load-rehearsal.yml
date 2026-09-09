@@ -211,6 +211,18 @@ jobs:
             exit 1
           }
 
+      # Check the grants the reseed just established before allocating 16 shards.
+      # A failure here still restores the seed via the marker set above.
+      - name: Verify staff scope after reseed
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SECRETARY_PASSWORD: ${{ secrets.E2E_SECRETARY_PASSWORD }}
+          E2E_LOAD_SECRETARY_1_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_1_PASSWORD }}
+          E2E_LOAD_SECRETARY_2_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_2_PASSWORD }}
+          E2E_LOAD_SECRETARY_3_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_3_PASSWORD }}
+        run: pnpm --filter @myk9/show exec tsx scripts/load-staff-preflight.ts --verify-scope
+
       - name: Set synchronized load window
         id: window
         env:

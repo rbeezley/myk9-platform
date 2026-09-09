@@ -81,14 +81,75 @@ test.describe('header wordmark fits', () => {
     }
   });
 
-  test('signed in — the crowded case', async ({ page }) => {
-    await signInAsExhibitor(page, '/exhibitor/entries');
-    for (const width of PHONE_WIDTHS) {
-      await page.setViewportSize({ width, height: 812 });
-      await page.waitForTimeout(300);
-      assertWordmarkFits(await measureWordmark(page), `signed in @ ${width}`);
-    }
-  });
+  for (const cartCount of [0, 3]) {
+    test(`signed in — ${cartCount} cart items`, async ({ page }) => {
+      // Fix the read-only badge response, not the shared account's real cart.
+      // Its changing cart state used to decide whether CI exercised four controls.
+      const isCartCount = (url: string) => {
+        const request = new URL(url);
+        return (
+          request.pathname === '/rest/v1/entry_carts' &&
+          request.searchParams.get('select') === 'id,entry_cart_items(count)'
+        );
+      };
+      await page.route('**/rest/v1/entry_carts?*', async route => {
+        if (!isCartCount(route.request().url())) return route.continue();
+        await route.fulfill({
+          json: [{ id: 'header-cart-fixture', entry_cart_items: [{ count: cartCount }] }],
+        });
+      });
+      const countRead = page.waitForResponse(response => isCartCount(response.url()));
+      await signInAsExhibitor(page, '/exhibitor/entries');
+      await countRead;
+      const header = page.locator('nav').filter({
+        has: page.getByRole('link', { name: 'myK9Show home', exact: true }),
+      });
+      const cart = page.getByRole('button', { name: 'Shopping cart', exact: true });
+      if (cartCount > 0) await expect(cart).toBeVisible();
+      else await expect(cart).toBeHidden();
+
+      for (const width of PHONE_WIDTHS) {
+        await page.setViewportSize({ width, height: 812 });
+        await expect(
+          page.getByRole('button', { name: 'Open navigation', exact: true })
+        ).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        await expect
+          .poll(
+            async () => {
+              const m = await measureWordmark(page);
+              return m.has - m.needs;
+            },
+            { message: `signed in @ ${width}, cart ${cartCount}: wordmark must fit` }
+          )
+          .toBeGreaterThanOrEqual(0);
+        assertWordmarkFits(await measureWordmark(page), `signed in @ ${width}, cart ${cartCount}`);
+        for (const name of [
+          'Open navigation',
+          'Search',
+          'Message Center',
+          'Account menu',
+          ...(cartCount > 0 ? ['Shopping cart'] : []),
+        ]) {
+          const bounds = await page
+            .locator('nav')
+            .getByRole('button', { name, exact: true })
+            .boundingBox();
+          expect(bounds, `${name} must be visible`).not.toBeNull();
+          expect(bounds!.width, `${name} touch width`).toBeGreaterThanOrEqual(44);
+          expect(bounds!.height, `${name} touch height`).toBeGreaterThanOrEqual(44);
+          expect(bounds!.x, `${name} left edge`).toBeGreaterThanOrEqual(0);
+          expect(bounds!.x + bounds!.width, `${name} right edge`).toBeLessThanOrEqual(width);
+        }
+        if (width === 360 && cartCount > 0) {
+          await test.info().attach('header-360-with-cart', {
+            body: await header.screenshot(),
+            contentType: 'image/png',
+          });
+        }
+      }
+    });
+  }
 
   test(`below ${NARROW_WIDTH + 40}px the mark carries the brand instead`, async ({ page }) => {
     await page.setViewportSize({ width: NARROW_WIDTH, height: 812 });

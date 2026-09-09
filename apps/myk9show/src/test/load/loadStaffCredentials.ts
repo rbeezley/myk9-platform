@@ -11,8 +11,8 @@ import { LOAD_SHOWS } from './loadFixture';
  * collapsing the own-show versus cross-show comparison the multi-show fixture
  * exists to make.
  *
- * `manageable_show_ids()` resolves through four arms, and one of them
- * (`is_trial_secretary(s.club_id)`) is CLUB-scoped. Shows sharing a club are
+ * `manageable_show_ids()` includes a club-level secretary check
+ * (`is_trial_secretary(s.club_id)`). Shows sharing a club are
  * therefore all manageable by that club's secretary no matter what show-scoped
  * grants exist, which is why each load show owns its own club.
  */
@@ -88,19 +88,21 @@ export interface ManageableShowScope {
 }
 
 /**
- * Each staff credential must resolve to EXACTLY its own show. Verified against the
- * database before load, not inferred from the fixture: a club-level grant, a
- * site-admin role, or a stale `user_roles` row would each widen the scope
- * invisibly.
+ * Within LOAD_SHOWS, each credential must manage exactly its assigned show.
+ * Club-level staff may legitimately manage unrelated audit/E2E shows too. Keep
+ * those in diagnostics, but do not confuse them with cross-load-show access.
+ * A site-admin role or a grant on another load club must still fail closed.
  */
 export function assertScopedToOwnShow(scopes: readonly ManageableShowScope[]): void {
   const problems: string[] = [];
+  const fixtureShowIds = new Set(LOAD_SHOWS.map(show => show.showId));
   for (const scope of scopes) {
     const expected = LOAD_SHOWS[scope.showIndex]?.showId;
     const actual = [...scope.manageableShowIds].sort();
-    if (actual.length !== 1 || actual[0] !== expected) {
+    const fixtureScope = actual.filter(id => fixtureShowIds.has(id));
+    if (fixtureScope.length !== 1 || fixtureScope[0] !== expected) {
       problems.push(
-        `${scope.email} manages [${actual.join(', ')}] but must manage exactly ${expected}`
+        `${scope.email} manages [${actual.join(', ')}] but must manage exactly ${expected} within the load fixture`
       );
     }
   }
@@ -115,8 +117,7 @@ export function assertScopedToOwnShow(scopes: readonly ManageableShowScope[]): v
  *
  * The scope comes from the database rather than the fixture: a club-level grant,
  * a site-admin role or a stale `user_roles` row would each widen it invisibly,
- * and `manageable_show_ids()` resolves through four arms — one of them
- * club-scoped — so no amount of reading the seed proves what a credential sees.
+ * so the seed alone cannot prove what a credential sees.
  */
 export async function authenticateAndResolveScope(
   supabaseUrl: string,

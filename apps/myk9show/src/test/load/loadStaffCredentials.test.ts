@@ -75,6 +75,37 @@ describe('scope verification against the database', () => {
     expect(() => assertScopedToOwnShow(scopes())).not.toThrow();
   });
 
+  it('accepts the canonical secretary with unrelated shows from the same club', () => {
+    expect(() =>
+      assertScopedToOwnShow(
+        scopes({
+          0: [
+            '75e078e9-81c3-46f0-aedd-94acfe15d353',
+            'bcf76812-8b70-4412-bc2b-a8f1407a18e6',
+            LOAD_SHOWS[0].showId,
+            'f3360000-0000-0000-0000-000000000001',
+          ],
+        })
+      )
+    ).not.toThrow();
+  });
+
+  it('still rejects another load show when unrelated shows are also present', () => {
+    expect(() =>
+      assertScopedToOwnShow(
+        scopes({
+          0: [LOAD_SHOWS[0].showId, 'unrelated-show', LOAD_SHOWS[1].showId],
+        })
+      )
+    ).toThrow(/must manage exactly/);
+  });
+
+  it('rejects unrelated shows without the assigned load show', () => {
+    expect(() => assertScopedToOwnShow(scopes({ 0: ['unrelated-show'] }))).toThrow(
+      /must manage exactly/
+    );
+  });
+
   it('rejects a credential that manages every fixture show', () => {
     // The failure mode this exists to catch: one club-level secretary across all
     // four shows, which is what the runner did before per-show credentials and

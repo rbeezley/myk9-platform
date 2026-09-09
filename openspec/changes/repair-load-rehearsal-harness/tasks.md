@@ -136,3 +136,55 @@
   and may create material load on a Supabase project. It requires assertion-first contracts,
   isolated lifecycle execution, explicit target/load approval, cloud/database/client evidence,
   independent review, CI, and a passing rehearsal before G9 or MYK9-109 can close.
+
+## 10. Staff scope repair — MYK9-126 (2026-09-09)
+
+Run 34299282655 stopped all shards before load because the canonical secretary
+manages three additional non-load shows. Read-only database inspection confirmed
+that all three share its club; each other load secretary has its own club and
+membership. The deployed manageable_show_ids function grants access by club.
+
+- [x] 10.1 Survey deployed function, staff roles, club memberships, and shows together.
+- [x] 10.2 Reproduce the reported scope failure in a unit test; restrict the scope
+      comparison to LOAD_SHOWS while still requiring the assigned show and rejecting
+      every other load show. Preserve the full returned scope in failure diagnostics.
+- [x] 10.3 Authenticate and verify scope after reseeding, before setting the synchronized
+      window and launching shards. Retain the pre-reseed secret-presence check and
+      the shard's scope check. Keep restoration required on post-reseed failure.
+- [x] 10.4 Testing: prove red-to-green scope coverage, exercise preflight authentication
+      success/failure locally, run the load unit suite, typecheck, formatting and
+      code-quality ratchet. Review the final diff. Do not claim a passing G9 from unit tests.
+
+This narrow repair uses the existing change rather than a new OPSX proposal. No
+roles, seed rows, workload, thresholds, or application authorization are changed.
+Shipping and a new remote rehearsal remain separate from local repair verification.
+
+Validation evidence: 33 load unit files / 361 tests passed; scope and preflight
+regressions were observed failing before implementation. Targeted ESLint,
+Prettier, code-quality ratchet, the app typecheck command (including its existing
+E2E diagnostic baseline), and a separate preflight-script typecheck passed.
+A local-only HTTP test initially stalled under sandbox restrictions; it was
+stopped, the listener error path was made explicit, and the tests passed with
+local socket access. Authenticated preflight against the approved project then
+reported `Staff scope verified across 4 load shows.` No reseed or load was run.
+Implementation is local on `codex/myk9-126-staff-scope`; review/merge and a new
+approved full rehearsal are still required before closing MYK9-126 or MYK9-109.
+
+Shipping validation: the full shuffled app suite passed (2,032 files / 19,468 tests;
+1 file / 9 tests skipped). Full app lint passed with 20 existing warnings.
+
+## 11. Approved header blocker repair — PR #2146
+
+The user authorized including the unrelated E2E failure that blocked merge.
+The populated cart adds a fourth utility control, clipping the wordmark at 360px.
+Keep the existing header and controls, their 44px touch targets, and the narrow
+brand-mark behavior. This does not add or duplicate any UI surface.
+
+- [x] Reproduce with deterministic empty/populated cart badge responses in the existing E2E test.
+- [x] Adjust only small-phone spacing; verify rendered wordmark and control bounds at phone widths.
+- [x] Run focused browser tests, app typecheck/lint, ratchet, and shuffled suite; capture header evidence.
+- [ ] Re-review the updated PR, pass CI and approved fallback gate, then squash-merge.
+
+Header validation: all five production-build browser cases passed; the populated-cart
+case failed before the spacing change. Full shuffled suite: 19,468 passed, 9 skipped;
+app typecheck, lint, build, formatting and ratchet passed.

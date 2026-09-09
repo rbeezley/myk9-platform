@@ -1,35 +1,41 @@
 #!/usr/bin/env tsx
 /**
- * Preflight: refuse the rehearsal when a per-show staff credential is missing.
- *
- * `assertStaffCredentialsComplete` already fails closed, but it runs inside
- * loadBrowserRunner — that is, in the SHARD job, after prepare has already
- * reseeded the shared target. A missing secret there costs the whole
- * operator-approved window: sixteen shards start, every one throws, and the
- * reseed has to be restored for nothing.
- *
- * Running the same check here, before the reseed, makes the module's promise
- * true: a missing credential costs a refused dispatch.
- *
- * Presence only. Scope is verified later, in the runner, because
- * `manageable_show_ids()` cannot be right until the reseed has granted each
- * account its club-level secretary role on its own load club — so the scope
- * assertion has nothing to read at this point in the job.
+ * Before reseed, check secret presence without authentication. After reseed,
+ * --verify-scope authenticates every secretary and checks isolation between the
+ * load shows before allocating shards. The runner repeats the scope check to
+ * catch changes between preparation and load. A post-reseed failure still runs
+ * the workflow's mandatory restoration because its ownership marker is set.
  */
-
 import {
+  assertScopedToOwnShow,
   assertStaffCredentialsComplete,
+  authenticateAndResolveScope,
   resolveStaffCredentials,
 } from '../src/test/load/loadStaffCredentials';
 
-try {
+async function main(): Promise<void> {
   const resolved = resolveStaffCredentials(process.env);
   assertStaffCredentialsComplete(resolved);
+  if (process.argv.includes('--verify-scope')) {
+    const url = process.env.VITE_SUPABASE_URL;
+    const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    if (!url || !anonKey) {
+      throw new Error('Scope verification requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+    }
+    const authenticated = await Promise.all(
+      resolved.credentials.map(credential => authenticateAndResolveScope(url, anonKey, credential))
+    );
+    assertScopedToOwnShow(authenticated.map(entry => entry.scope));
+    console.log(`Staff scope verified across ${resolved.credentials.length} load shows.`);
+    return;
+  }
   console.log(
     `Per-show staff credentials present for ${resolved.credentials.length} load show(s): ` +
       resolved.credentials.map(credential => credential.email).join(', ')
   );
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
 }
+
+main().catch(error => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+});

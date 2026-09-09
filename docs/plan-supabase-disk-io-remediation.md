@@ -15,6 +15,13 @@ Identify and reduce the write amplification observed during the last load rehear
 - Supabase logs show repeated `40001 Version conflict ... (expected 1)` errors for generated `entries` IDs, indicating concurrent writers are contending on the same rows with stale optimistic-concurrency tokens.
 - The load model intentionally includes a `scoring-correction` workload that targets the same first entry as ringside scoring; a small number of conflicts is therefore expected test coverage, while repeated conflicts on the same rows indicate retry amplification or a conflict storm.
 
+## [ADDED] Initial live baseline (2026-09-09)
+
+- Two read-only snapshots about one minute apart showed no new executions of the leading Realtime publication statement and no new health-snapshot rows during the interval.
+- `cron.job_run_details` continued to record the expected scheduled activity: 60 `ringside-containment-sampler` runs and 12 `continuous-health-check` runs in the preceding hour.
+- The database currently has 16 active cron jobs. These background writers must be included in the rehearsal-time delta rather than treated as load-generated traffic.
+- The baseline is a quiet control window, not evidence that Realtime or health snapshots are harmless during load; the next measurement must bracket the rehearsal or an equivalent synthetic workload.
+
 ## Work phases
 
 1. **Baseline and attribution**

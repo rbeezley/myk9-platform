@@ -144,6 +144,28 @@ describe('WithdrawalPolicyCard', () => {
     expect(Object.keys(payload).some(k => k.includes('cutoff'))).toBe(false);
   });
 
+  // MYK9-454 / Codex review of #2156. Once the levels compose per field, BLANK
+  // means "inherit the club fee" and only an explicit 0 means "refund in full".
+  // The helper text says exactly that, so pin the behaviour it promises: a typed
+  // 0 must reach the row as a declared retention, not as null (which would read
+  // as undeclared and inherit).
+  it('MONEY: an explicit 0 is saved as a declared retention, not as blank', async () => {
+    render(<WithdrawalPolicyCard scope="show" entityId="show-1" />);
+    await waitFor(() => screen.getByLabelText('Amount kept (USD)'));
+
+    fireEvent.change(screen.getByLabelText('Amount kept (USD)'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
+
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          withdrawal_retention_type: 'flat',
+          withdrawal_retention_value: 0,
+        })
+      );
+    });
+  });
+
   it('saves a percentage as a raw whole number', async () => {
     mockSingle.mockResolvedValue({
       data: showRow({ withdrawal_retention_type: 'percent', withdrawal_retention_value: 25 }),

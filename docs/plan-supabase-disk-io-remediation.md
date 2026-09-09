@@ -1,5 +1,7 @@
 # Supabase Disk IO remediation plan
 
+> **Status:** Active
+
 ## Objective
 
 Identify and reduce the write amplification observed during the last load rehearsal before running another rehearsal. Keep the rehearsal correctness work in MYK9-109 and MYK9-126; track database workload remediation separately.
@@ -45,6 +47,20 @@ Identify and reduce the write amplification observed during the last load rehear
    - Run the rehearsal only after the remediation is reviewed and the preflight is green.
    - Record the result on MYK9-109, MYK9-126, and this issue.
 
+## [ADDED] Failure handling and recovery
+
+- If telemetry is unavailable, stale, or incomplete, fail the preflight closed and do not start load.
+- If a partial seed, cleanup, or rehearsal leaves shared data uncertain, run the existing canonical-restoration path and verify its postcondition before retrying.
+- Keep remediation changes independently reversible; do not combine retention deletion, index changes, and application changes in one rollout.
+- Record failed measurements, alerts, and rollback actions with the bounded evidence window.
+
+## [ADDED] Operational rollout
+
+- Define the owner for each change to Realtime lifecycle, scheduled jobs, health snapshots, and fixture cleanup.
+- Add alerting thresholds for conflict rate, Realtime write rate, and Disk IO budget consumption during the rehearsal window.
+- Validate environment-specific configuration and secrets without logging credentials or raw connection strings.
+- Roll out one remediation at a time, compare against the control window, and stop if Disk IO or conflict rates regress.
+
 ## Testing and acceptance
 
 - Unit tests cover any Realtime lifecycle changes.
@@ -57,3 +73,9 @@ Identify and reduce the write amplification observed during the last load rehear
 - No blind index changes.
 - No destructive retention or historical-data deletion.
 - No rehearsal dispatch until the user approves the reviewed remediation and preflight.
+
+## Validation Profile
+
+- Risk: high
+- Validation: full
+- Rationale: The plan can change replication behavior, scheduled writes, fixture cleanup, and rehearsal gating across shared production infrastructure.

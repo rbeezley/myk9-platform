@@ -45,7 +45,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
       - name: Catch up missed export slot
-        if: steps.freshness.outcome == 'failure' && github.event_name == 'schedule'
+        if: failure() && steps.freshness.outcome == 'failure' && github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

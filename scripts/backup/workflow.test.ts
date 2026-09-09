@@ -80,7 +80,7 @@ describe('scheduled export workflow contract', () => {
     expect(healthWorkflow).toContain('BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}');
     expect(healthWorkflow.match(/BACKUP_NIGHTLY_HOUR:/g)).toHaveLength(1);
     expect(healthWorkflow).toContain(
-      "if: steps.freshness.outcome == 'failure' && github.event_name == 'schedule'"
+      "if: failure() && steps.freshness.outcome == 'failure' && github.event_name == 'schedule'"
     );
     expect(healthWorkflow).toContain('gh workflow run independent-database-exports.yml');
     expect(healthWorkflow.indexOf('Catch up missed export slot')).toBeGreaterThan(

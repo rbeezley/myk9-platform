@@ -21,6 +21,7 @@ Identify and reduce the write amplification observed during the last load rehear
 - `cron.job_run_details` continued to record the expected scheduled activity: 60 `ringside-containment-sampler` runs and 12 `continuous-health-check` runs in the preceding hour.
 - The database currently has 16 active cron jobs. These background writers must be included in the rehearsal-time delta rather than treated as load-generated traffic.
 - The baseline is a quiet control window, not evidence that Realtime or health snapshots are harmless during load; the next measurement must bracket the rehearsal or an equivalent synthetic workload.
+- The current harness already emits SQLSTATE 40001 counts, retry outcomes, `pg_stat_statements` deltas, and CPU/IO peaks. The remaining evidence gap is correlating those values with cron and health-snapshot deltas in the same bounded window.
 
 ## Work phases
 

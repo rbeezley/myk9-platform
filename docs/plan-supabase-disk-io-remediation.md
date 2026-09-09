@@ -13,6 +13,7 @@ Identify and reduce the write amplification observed during the last load rehear
 - `cron.job_run_details` and health snapshots may be writing at a higher cadence than needed.
 - Range deletes on `entries` touch many indexes, so fixture cleanup may create short-lived write spikes.
 - Supabase logs show repeated `40001 Version conflict ... (expected 1)` errors for generated `entries` IDs, indicating concurrent writers are contending on the same rows with stale optimistic-concurrency tokens.
+- The load model intentionally includes a `scoring-correction` workload that targets the same first entry as ringside scoring; a small number of conflicts is therefore expected test coverage, while repeated conflicts on the same rows indicate retry amplification or a conflict storm.
 
 ## Work phases
 
@@ -28,7 +29,8 @@ Identify and reduce the write amplification observed during the last load rehear
 
 3. **Load-write contention audit**
    - Map each generated entry ID to the load shard or client that writes it.
-   - Verify shards partition entry ownership and do not issue overlapping updates.
+   - Distinguish the deliberate scoring-correction overlap from accidental overlap between shards or unrelated workloads.
+   - Verify shards partition entry ownership for non-deliberate workloads and do not issue unexpected overlapping updates.
    - Confirm optimistic-concurrency retries are bounded, back off, and do not recreate a conflict storm.
    - Measure conflict rate beside Disk IO and Realtime write volume; treat conflicts as a possible amplifier, not proof that Disk IO caused them.
 

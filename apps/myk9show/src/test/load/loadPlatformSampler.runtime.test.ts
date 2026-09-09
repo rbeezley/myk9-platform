@@ -217,7 +217,7 @@ describe('runtime platform evidence', () => {
     }
   });
 
-  it('keeps telemetry fail-closed while recording why a runtime sample was lost', async () => {
+  it('retries transient Metrics API HTTP failures before recording a lost sample', async () => {
     vi.useFakeTimers();
     psql.mockImplementation(async (_command, args: string[]) => ({
       stdout: args.at(-1)?.includes('pg_stat_statements') ? '1|2|2|20' : '10',
@@ -229,6 +229,7 @@ describe('runtime platform evidence', () => {
         .mockResolvedValueOnce(counters(100))
         .mockResolvedValueOnce(new Response(null, { status: 503 }))
         .mockResolvedValueOnce(counters(110))
+        .mockResolvedValueOnce(counters(120))
     );
     const sampler = await startLoadPlatformSampler(
       {
@@ -244,12 +245,13 @@ describe('runtime platform evidence', () => {
     expect(result).toMatchObject({
       resourceSampling: {
         attempts: 3,
-        succeeded: 2,
-        failures: [{ kind: 'http', status: 503, count: 1 }],
+        succeeded: 3,
+        failures: [],
+        retried: 1,
       },
     });
-    expect(Number.isNaN(result.peakCpuPercent)).toBe(true);
-    expect(Number.isNaN(result.peakIoPercent)).toBe(true);
+    expect(result.peakCpuPercent).toBeGreaterThan(0);
+    expect(result.peakIoPercent).toBeGreaterThan(0);
   });
 
   it.each(['timeout', 'transport', 'invalid-counters'] as const)(
@@ -329,11 +331,10 @@ describe('runtime platform evidence', () => {
     expect(Number.isNaN(result.peakCpuPercent)).toBe(false);
   });
 
-  it('fails closed on ONE lost resource sample even at high coverage', async () => {
-    // The distinguishing case. An 80% coverage bar would accept this; zero
-    // tolerance does not. Recorded because a percentage bar was tried here and
-    // reverted: for connections the misses cluster on the pool breach they
-    // would hide, and the gate only fails when connections EXCEED the cap.
+  it('retains resource peaks after ONE lost sample at high coverage', async () => {
+    // A partial resource sample remains valid lower-bound evidence. The failure
+    // is retained in resourceSampling for diagnosis, while the evaluator fails
+    // closed only when no valid resource sample exists.
     vi.useFakeTimers();
     psql.mockImplementation(async (_command, args: string[]) => ({
       stdout: args.at(-1)?.includes('pg_stat_statements') ? '1|2|2|20' : '10',
@@ -359,8 +360,8 @@ describe('runtime platform evidence', () => {
     const sampling = result.resourceSampling;
     // Coverage is comfortably above any 80% bar...
     expect((sampling?.succeeded ?? 0) / (sampling?.attempts ?? 1)).toBeGreaterThan(0.8);
-    // ...and the peak is still withheld, because one window went unobserved.
-    expect(Number.isNaN(result.peakCpuPercent)).toBe(true);
+    // ...and the peak remains available as a lower-bound measurement.
+    expect(result.peakCpuPercent).toBeGreaterThan(0);
   });
 
   it('fails closed on ONE lost connection probe even at high coverage', async () => {

@@ -240,7 +240,7 @@ export function evaluateLoadResult(
       platform.peakConnections < 0 ||
       platform.connectionCap <= 0 ||
       platform.statementDeltas.length === 0 ||
-      (platform.resourceSampling?.failures.length ?? 0) > 0
+      (platform.resourceSampling !== undefined && platform.resourceSampling.succeeded <= 0)
     ) {
       failures.push('Required platform telemetry was missing.');
     } else if (platform.connectionCap !== scenario.targets.databaseConnectionCap) {

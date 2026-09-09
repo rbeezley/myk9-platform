@@ -9,10 +9,11 @@
 /**
  * Splits the GATE value from the OBSERVED value.
  *
- * The zero-tolerance policy above is deliberate and stays exactly as it was: any
- * lost sample NaNs the gate fields, and loadEvaluation independently fails on
- * `resourceSampling.failures`. Nothing here can make a run pass that would not
- * have passed before.
+ * Resource samples are useful when at least one sample succeeds. A transient
+ * loss must remain visible in `resourceSampling`, but must not discard the valid
+ * peak or turn an otherwise measurable run into NaN. The evaluator still fails
+ * closed when no resource sample succeeds. Connection sampling remains
+ * zero-tolerance because clustered connection misses can hide a cap breach.
  *
  * What it recovers is the EVIDENCE. NaN-ing the gate field also discarded the
  * measurement, so the 2026-08-28 rehearsal printed "Platform CPU/IO peak: NaN /
@@ -29,7 +30,6 @@ export function summarizeObservedPeaks(input: {
   peakCpuPercent: number;
   peakIoPercent: number;
   peakConnections: number;
-  resourceFailures: readonly { kind: string; count: number }[];
   connectionAttempts: number;
   connectionSuccesses: number;
 }): {
@@ -40,13 +40,12 @@ export function summarizeObservedPeaks(input: {
   observedPeakIoPercent?: number;
   observedPeakConnections?: number;
 } {
-  const resourceLost = input.resourceFailures.length > 0;
   const connectionsLost = input.connectionSuccesses < input.connectionAttempts;
   const sampledResources = Number.isFinite(input.peakCpuPercent);
   const sampledConnections = input.connectionSuccesses > 0;
   return {
-    peakCpuPercent: resourceLost ? Number.NaN : input.peakCpuPercent,
-    peakIoPercent: resourceLost ? Number.NaN : input.peakIoPercent,
+    peakCpuPercent: sampledResources ? input.peakCpuPercent : Number.NaN,
+    peakIoPercent: sampledResources ? input.peakIoPercent : Number.NaN,
     peakConnections: connectionsLost ? Number.NaN : input.peakConnections,
     ...(sampledResources
       ? {

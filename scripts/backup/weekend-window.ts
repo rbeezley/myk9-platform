@@ -25,6 +25,10 @@ if (!weekendDays.includes(day) && local.hour < nightlyHour) {
   console.log('skip:before-weekday-nightly');
   process.exit(0);
 }
+if (!weekendDays.includes(day)) {
+  console.log('run');
+  process.exit(0);
+}
 const window = weekendShowWindow(now, timeZone, weekendDays, 6, 22);
 if (!window.shouldCheckShow) {
   console.log(`skip:${window.reason}`);

@@ -37,7 +37,6 @@ function showRow(overrides: Record<string, unknown> = {}) {
 
 function clubRow(overrides: Record<string, unknown> = {}) {
   return {
-    default_withdrawal_cutoff_date: null,
     default_withdrawal_retention_type: null,
     default_withdrawal_retention_value: null,
     default_withdrawal_policy_notes: null,
@@ -110,6 +109,39 @@ describe('WithdrawalPolicyCard', () => {
     });
     expect(mockFrom).toHaveBeenCalledWith('clubs');
     expect(mockUpdateEq).toHaveBeenCalledWith('id', 'club-9');
+  });
+
+  // MYK9-454. The cutoff is an absolute calendar date, so it is meaningful only
+  // against ONE show's entry-close date. Offered as a club-wide default it
+  // governed every future show and, once past, silently kept the office fee on
+  // all of them. Club scope must neither ask for it nor write it.
+  it('club scope has no cutoff date field, while show scope keeps one', async () => {
+    mockSingle.mockResolvedValue({ data: clubRow(), error: null });
+    const { unmount } = render(<WithdrawalPolicyCard scope="club" entityId="club-9" />);
+    await waitFor(() => screen.getByLabelText('Amount kept (USD)'));
+    expect(screen.queryByLabelText('Full-refund cutoff date')).not.toBeInTheDocument();
+    unmount();
+
+    // Positive control: the same assertion on the scope that must still have it.
+    mockSingle.mockResolvedValue({ data: showRow(), error: null });
+    render(<WithdrawalPolicyCard scope="show" entityId="show-1" />);
+    await waitFor(() => screen.getByLabelText('Full-refund cutoff date'));
+  });
+
+  it('MONEY: a club save never writes a cutoff column', async () => {
+    mockSingle.mockResolvedValue({ data: clubRow(), error: null });
+    render(<WithdrawalPolicyCard scope="club" entityId="club-9" />);
+    await waitFor(() => screen.getByLabelText('Amount kept (USD)'));
+
+    fireEvent.change(screen.getByLabelText('Amount kept (USD)'), { target: { value: '7.50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
+
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    // The mock is declared with no parameters, so its recorded args type is [].
+    const calls = mockUpdate.mock.calls as unknown as Array<[Record<string, unknown>]>;
+    const payload = calls[0]![0];
+    expect(Object.keys(payload)).not.toContain('default_withdrawal_cutoff_date');
+    expect(Object.keys(payload).some(k => k.includes('cutoff'))).toBe(false);
   });
 
   it('saves a percentage as a raw whole number', async () => {

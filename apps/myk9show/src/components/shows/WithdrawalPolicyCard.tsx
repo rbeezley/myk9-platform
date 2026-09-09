@@ -8,6 +8,12 @@
  * Lightly structured (cutoff + retention + prose escape hatch) — the system
  * INFORMS, it does not compute a refund. See docs/plan-refund-policy-withdrawal.md.
  *
+ * The cutoff date is SHOW-ONLY (MYK9-454). It is an absolute calendar date,
+ * meaningful only against one show's entry-close date; as a club-wide default it
+ * governed every future show, and the day after it passed every inheriting show
+ * resolved `after_cutoff` and kept the office fee with `requiresManual: false`.
+ * Clubs declare retention + prose; each show declares its own date.
+ *
  * Flat retention is entered in DOLLARS but stored in CENTS (the unit the refund
  * helper subtracts from entryFeeCents). Percent is a whole number 0–100.
  */
@@ -33,7 +39,8 @@ type Scope = 'club' | 'show';
 
 interface ColumnSet {
   table: 'clubs' | 'shows';
-  cutoff: string;
+  /** Absent at club scope — see MYK9-454 in the header comment. */
+  cutoff?: string;
   type: string;
   value: string;
   notes: string;
@@ -42,7 +49,6 @@ interface ColumnSet {
 const COLUMNS: Record<Scope, ColumnSet> = {
   club: {
     table: 'clubs',
-    cutoff: 'default_withdrawal_cutoff_date',
     type: 'default_withdrawal_retention_type',
     value: 'default_withdrawal_retention_value',
     notes: 'default_withdrawal_policy_notes',
@@ -115,7 +121,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
     queryFn: async () => {
       const { data: row, error } = await supabase
         .from(cols.table)
-        .select(`${cols.cutoff}, ${cols.type}, ${cols.value}, ${cols.notes}`)
+        .select([cols.cutoff, cols.type, cols.value, cols.notes].filter(Boolean).join(', '))
         .eq('id', entityId)
         .single();
       if (error) throw error;
@@ -123,7 +129,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
       // inference, so route the cast through unknown.
       const r = row as unknown as Record<string, unknown>;
       return rowToForm({
-        cutoff: (r[cols.cutoff] as string | null) ?? null,
+        cutoff: cols.cutoff ? ((r[cols.cutoff] as string | null) ?? null) : null,
         type: (r[cols.type] as string | null) ?? null,
         value: (r[cols.value] as number | null) ?? null,
         notes: (r[cols.notes] as string | null) ?? null,
@@ -146,7 +152,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
     mutationFn: async (next: FormState) => {
       const storedValue = inputToStored(next.retentionType, next.retentionInput);
       const payload: Record<string, unknown> = {
-        [cols.cutoff]: next.cutoffDate || null,
+        ...(cols.cutoff ? { [cols.cutoff]: next.cutoffDate || null } : {}),
         // Retention type/value only mean something together; null them as a pair.
         [cols.type]: storedValue === null ? null : next.retentionType,
         [cols.value]: storedValue,
@@ -185,24 +191,28 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Refund cutoff */}
-        <div className="space-y-1">
-          <Label htmlFor="withdrawal-cutoff">Full-refund cutoff date</Label>
-          <Input
-            id="withdrawal-cutoff"
-            type="date"
-            value={isLoading ? '' : form.cutoffDate}
-            onChange={e => updateForm({ cutoffDate: e.target.value })}
-          />
-          <p className="text-xs text-muted-foreground">
-            Full refund on or before this date (show’s timezone). After it, the retention below
-            applies. Leave blank to use the policy notes only.
-          </p>
-        </div>
+        {/* Refund cutoff — show scope only (MYK9-454) */}
+        {isShow && (
+          <div className="space-y-1">
+            <Label htmlFor="withdrawal-cutoff">Full-refund cutoff date</Label>
+            <Input
+              id="withdrawal-cutoff"
+              type="date"
+              value={isLoading ? '' : form.cutoffDate}
+              onChange={e => updateForm({ cutoffDate: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Full refund on or before this date (show’s timezone). After it, the retention below
+              applies. Leave blank to use the policy notes only.
+            </p>
+          </div>
+        )}
 
         {/* Retention type */}
         <div className="space-y-1">
-          <Label htmlFor="withdrawal-retention-type">After the cutoff, keep</Label>
+          <Label htmlFor="withdrawal-retention-type">
+            {isShow ? 'After the cutoff, keep' : 'After a show’s cutoff, keep'}
+          </Label>
           <Select
             value={form.retentionType}
             onValueChange={value => updateForm({ retentionType: value as RetentionType })}
@@ -231,7 +241,9 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
             onChange={e => updateForm({ retentionInput: e.target.value })}
           />
           <p className="text-xs text-muted-foreground">
-            Leave blank for a full refund even after the cutoff.
+            {isShow
+              ? 'Leave blank for a full refund even after the cutoff.'
+              : 'Applies once a show sets its own full-refund cutoff date. Leave blank for a full refund.'}
           </p>
         </div>
 

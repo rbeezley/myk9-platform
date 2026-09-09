@@ -125,10 +125,16 @@ describe('resolveWithdrawalRefundCents', () => {
 
 describe('getEffectiveWithdrawalPolicy', () => {
   const club = {
-    default_withdrawal_cutoff_date: '2026-05-01',
     default_withdrawal_retention_type: 'flat',
     default_withdrawal_retention_value: 500,
     default_withdrawal_policy_notes: null,
+  };
+
+  const noShowOverride = {
+    withdrawal_cutoff_date: null,
+    withdrawal_retention_type: null,
+    withdrawal_retention_value: null,
+    withdrawal_policy_notes: null,
   };
 
   it('uses the show override when any override field is set', () => {
@@ -148,21 +154,35 @@ describe('getEffectiveWithdrawalPolicy', () => {
   });
 
   it('falls back to the club default when the show has no override', () => {
-    const p = getEffectiveWithdrawalPolicy(
-      {
-        withdrawal_cutoff_date: null,
-        withdrawal_retention_type: null,
-        withdrawal_retention_value: null,
-        withdrawal_policy_notes: null,
-      },
-      club
-    );
+    const p = getEffectiveWithdrawalPolicy(noShowOverride, club);
     expect(p).toEqual({
-      cutoffDate: '2026-05-01',
+      cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
       notes: null,
     });
+  });
+
+  // MYK9-454. A club default is retention + prose ONLY. An absolute calendar
+  // date cannot be a club-wide default: entered once, it governs every future
+  // show, and the day after it passes every inheriting show resolves
+  // `after_cutoff` and keeps the office fee — with requiresManual false, so the
+  // refund dialog pre-fills a confidently wrong number.
+  it('never sources a cutoff date from the club row, even if the column holds one', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    expect(getEffectiveWithdrawalPolicy(noShowOverride, legacyClub)?.cutoffDate).toBeNull();
+  });
+
+  it('leaves a club-only refund manual instead of retaining on a stale club cutoff', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    const policy = getEffectiveWithdrawalPolicy(noShowOverride, legacyClub);
+
+    const r = resolveWithdrawalRefundCents(policy, 3000, new Date('2026-08-01T12:00:00Z'), NY);
+
+    expect(r.reason).toBe('no_cutoff');
+    expect(r.refundCents).toBe(3000);
+    expect(r.retainedCents).toBe(0);
+    expect(r.requiresManual).toBe(true);
   });
 
   it('returns null when neither show nor club declares a policy', () => {

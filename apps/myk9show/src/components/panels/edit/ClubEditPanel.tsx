@@ -89,7 +89,11 @@ const formDataToClub = (formData: ClubEditFormData): Partial<Club> => ({
 });
 
 // Form content component
-const ClubEditForm: React.FC<{ clubId: string; onClose?: () => void }> = ({ clubId, onClose }) => {
+const ClubEditForm: React.FC<{ clubId: string; mode: 'create' | 'edit'; onClose?: () => void }> = ({
+  clubId,
+  mode,
+  onClose,
+}) => {
   const { data, form } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
@@ -331,8 +335,14 @@ const ClubEditForm: React.FC<{ clubId: string; onClose?: () => void }> = ({ club
             </CardContent>
           </Card>
 
-          {/* Club-wide default withdrawal refund policy (shows can override) */}
-          <WithdrawalPolicyCard scope="club" entityId={clubId} />
+          {/*
+            Club-wide default withdrawal refund policy (shows can override).
+            Edit only: the card reads and writes the club row directly, and a
+            refund policy is not something to answer while creating a club —
+            least of all mid-wizard, where the club exists only to hang a show
+            on (MYK9-454).
+          */}
+          {mode === 'edit' && <WithdrawalPolicyCard scope="club" entityId={clubId} />}
         </TabsContent>
 
         {/* Contact Information Tab */}
@@ -564,7 +574,7 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
       saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"
     >
-      <ClubEditForm clubId={clubId} onClose={onClose} />
+      <ClubEditForm clubId={clubId} mode={mode} onClose={onClose} />
     </EditPanelWrapper>
   );
 };

@@ -26,9 +26,17 @@ export interface WithdrawalPolicy {
   notes: string | null;
 }
 
-/** Subset of the `clubs` row carrying the default withdrawal policy. */
+/**
+ * Subset of the `clubs` row carrying the default withdrawal policy.
+ *
+ * MYK9-454: there is deliberately NO cutoff date here. A cutoff is an absolute
+ * calendar date, which is only meaningful anchored to one show's entry-close
+ * date. As a club-wide default it governs every future show, and the day after
+ * it passes every inheriting show resolves `after_cutoff` and keeps the office
+ * fee with `requiresManual: false` — a confidently wrong refund. Clubs declare
+ * retention + prose; the date is per show.
+ */
 export interface ClubWithdrawalFields {
-  default_withdrawal_cutoff_date?: string | null;
   default_withdrawal_retention_type?: string | null;
   default_withdrawal_retention_value?: number | null;
   default_withdrawal_policy_notes?: string | null;
@@ -107,14 +115,13 @@ export function getEffectiveWithdrawalPolicy(
   if (
     club &&
     hasAnyField(
-      club.default_withdrawal_cutoff_date,
       club.default_withdrawal_retention_type,
       club.default_withdrawal_retention_value,
       club.default_withdrawal_policy_notes
     )
   ) {
     return buildPolicy(
-      club.default_withdrawal_cutoff_date,
+      null, // MYK9-454: club scope declares no cutoff date.
       club.default_withdrawal_retention_type,
       club.default_withdrawal_retention_value,
       club.default_withdrawal_policy_notes

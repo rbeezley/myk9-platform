@@ -6,10 +6,16 @@ import {
 } from './withdrawalPolicy.ts';
 
 const club = {
-  default_withdrawal_cutoff_date: '2026-05-01',
   default_withdrawal_retention_type: 'flat',
   default_withdrawal_retention_value: 500,
   default_withdrawal_policy_notes: null,
+};
+
+const noShowOverride = {
+  withdrawal_cutoff_date: null,
+  withdrawal_retention_type: null,
+  withdrawal_retention_value: null,
+  withdrawal_policy_notes: null,
 };
 
 describe('resolveWithdrawalPolicy', () => {
@@ -32,21 +38,37 @@ describe('resolveWithdrawalPolicy', () => {
   });
 
   it('falls back to the club default when the show declares nothing', () => {
-    const policy = resolveWithdrawalPolicy(
-      {
-        withdrawal_cutoff_date: null,
-        withdrawal_retention_type: null,
-        withdrawal_retention_value: null,
-        withdrawal_policy_notes: null,
-      },
-      club
-    );
+    const policy = resolveWithdrawalPolicy(noShowOverride, club);
     expect(policy).toEqual({
-      cutoffDate: '2026-05-01',
+      cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
       notes: null,
     });
+  });
+
+  // MYK9-454. This resolver runs on the MONEY path: stripe-webhook and
+  // stripe-payment-link snapshot the policy at payment time, so a club cutoff
+  // leaking in here is what a later refund is computed against.
+  it('never sources a cutoff date from the club row, even if the column holds one', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    expect(resolveWithdrawalPolicy(noShowOverride, legacyClub)?.cutoffDate).toBeNull();
+  });
+
+  it('leaves a club-only refund manual instead of retaining on a stale club cutoff', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    const policy = resolveWithdrawalPolicy(noShowOverride, legacyClub);
+
+    const r = resolveWithdrawalRefundCents(
+      policy,
+      3000,
+      new Date('2026-08-01T12:00:00Z'),
+      'America/New_York'
+    );
+
+    expect(r.reason).toBe('no_cutoff');
+    expect(r.refundCents).toBe(3000);
+    expect(r.retainedCents).toBe(0);
   });
 
   it('returns null when neither show nor club declares a policy', () => {

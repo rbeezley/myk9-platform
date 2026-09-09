@@ -385,7 +385,6 @@ ON CONFLICT (id) DO UPDATE
       license_key                        = DEFAULT,
       cover_image_url                    = DEFAULT,
       accent_color                       = DEFAULT,
-      default_withdrawal_cutoff_date     = DEFAULT,
       default_withdrawal_retention_type  = DEFAULT,
       default_withdrawal_retention_value = DEFAULT,
       default_withdrawal_policy_notes    = DEFAULT;

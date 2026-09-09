@@ -33,7 +33,6 @@ describe('Club Queries', () => {
       updated_at: null,
       deleted_at: null,
       deleted_by: null,
-      default_withdrawal_cutoff_date: null,
       default_withdrawal_policy_notes: null,
       default_withdrawal_retention_type: null,
       default_withdrawal_retention_value: null,

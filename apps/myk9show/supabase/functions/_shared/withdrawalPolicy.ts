@@ -30,8 +30,13 @@ export interface ShowWithdrawalColumns {
   withdrawal_policy_notes?: string | null;
 }
 
+/**
+ * MYK9-454: no cutoff date at club scope. This resolver feeds the snapshot taken
+ * at PAYMENT time, so a club-wide absolute date leaking in here is what a later
+ * refund gets computed against. Clubs declare retention + prose; shows declare
+ * the date. Mirrors src/features/payments/withdrawalPolicy.ts.
+ */
 export interface ClubWithdrawalColumns {
-  default_withdrawal_cutoff_date?: string | null;
   default_withdrawal_retention_type?: string | null;
   default_withdrawal_retention_value?: number | null;
   default_withdrawal_policy_notes?: string | null;
@@ -96,14 +101,13 @@ export function resolveWithdrawalPolicy(
   if (
     club &&
     hasAny(
-      club.default_withdrawal_cutoff_date,
       club.default_withdrawal_retention_type,
       club.default_withdrawal_retention_value,
       club.default_withdrawal_policy_notes
     )
   ) {
     return build(
-      club.default_withdrawal_cutoff_date,
+      null, // MYK9-454: club scope declares no cutoff date.
       club.default_withdrawal_retention_type,
       club.default_withdrawal_retention_value,
       club.default_withdrawal_policy_notes

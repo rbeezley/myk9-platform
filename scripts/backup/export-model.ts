@@ -111,7 +111,7 @@ export function weekdayInTimeZone(date: Date, timeZone: string): number {
   return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekday);
 }
 
-function timeZoneParts(
+export function timeZoneParts(
   date: Date,
   timeZone: string
 ): { year: number; month: number; day: number; hour: number } {
@@ -125,6 +125,35 @@ function timeZoneParts(
   }).formatToParts(date);
   const value = (type: string) => Number(parts.find(part => part.type === type)?.value);
   return { year: value('year'), month: value('month'), day: value('day'), hour: value('hour') };
+}
+
+export type WeekendShowWindow =
+  | { shouldCheckShow: false; reason: 'weekday' | 'outside-daytime-window' }
+  | { shouldCheckShow: true; startDate: string; endDate: string };
+
+function dateKey(year: number, month: number, day: number): string {
+  const value = new Date(Date.UTC(year, month - 1, day));
+  return value.toISOString().slice(0, 10);
+}
+
+export function weekendShowWindow(
+  now: Date,
+  timeZone = 'UTC',
+  weekendDays = [0, 5, 6],
+  dayStartHour = 6,
+  dayEndHour = 22
+): WeekendShowWindow {
+  const local = timeZoneParts(now, timeZone);
+  const day = weekdayInTimeZone(now, timeZone);
+  if (!weekendDays.includes(day)) return { shouldCheckShow: false, reason: 'weekday' };
+  if (local.hour < dayStartHour || local.hour >= dayEndHour)
+    return { shouldCheckShow: false, reason: 'outside-daytime-window' };
+  const daysSinceFriday = day === 5 ? 0 : day === 6 ? 1 : 2;
+  return {
+    shouldCheckShow: true,
+    startDate: dateKey(local.year, local.month, local.day - daysSinceFriday),
+    endDate: dateKey(local.year, local.month, local.day - daysSinceFriday + 2),
+  };
 }
 
 export function latestDueSlot(

@@ -20,14 +20,14 @@ for those cases; do not claim zero score loss.
 The export workflow wakes hourly at minute 7 in UTC, avoiding the congested top of the hour.
 The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
 (default UTC), `MYK9_EXPORT_WEEKEND_DAYS` (default `0,5,6`), and `MYK9_EXPORT_NIGHTLY_HOUR`
-(default `3`) to export hourly on selected show days and once overnight otherwise. Manual
-dispatch forces an export regardless of the time. America/Chicago and 30-day R2 retention
-were selected by the owner on 2026-09-08. The proposed nightly slot is 03:00 local time.
-GitHub variable changes and scheduled activation still await the explicit confirmation required
-by automatic approval review; the existing effective defaults remain UTC/03:00 until changed. Extra show days require changing the reviewed
-day policy or manual dispatch; no show calendar is automatically consulted. Each scheduled
-wake-up compares the latest successful manifest against the latest due slot and catches up
-if that slot was missed, even when GitHub starts the job after its nominal hour. Invalid
+(default `3`) to export hourly during the daytime on selected show weekends and once
+overnight otherwise. Weekend daytime is **06:00–22:00 America/Chicago**, and the preflight
+checks `public.shows` for a show overlapping that Friday–Sunday window. Overnight weekend
+runs and weekends with no show are clean skips. Manual dispatch forces an export regardless
+of the time or show calendar. America/Chicago and 30-day R2 retention were selected by the
+owner on 2026-09-08. The nightly slot is 03:00 local time. Each scheduled wake-up compares
+the latest successful manifest against the latest due slot and catches up if that slot was
+missed, even when GitHub starts the job after its nominal hour. Invalid
 timezone/day/hour settings fail explicitly in both the exporter and health check.
 If daylight-saving time skips the configured nightly hour, the first available hour after
 the gap is due. An unreadable or invalid marker cannot suppress a fresh export; the exporter

@@ -75,9 +75,20 @@ describe('scheduled export workflow contract', () => {
       "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}"
     );
     expect(healthWorkflow).toContain("cron: '22 * * * *'");
+    expect(healthWorkflow).toContain('actions: write');
     expect(healthWorkflow).toContain('issues: write');
     expect(healthWorkflow).toContain('BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}');
     expect(healthWorkflow.match(/BACKUP_NIGHTLY_HOUR:/g)).toHaveLength(1);
+    expect(healthWorkflow).toContain(
+      "if: steps.freshness.outcome == 'failure' && github.event_name == 'schedule'"
+    );
+    expect(healthWorkflow).toContain('gh workflow run independent-database-exports.yml');
+    expect(healthWorkflow.indexOf('Catch up missed export slot')).toBeGreaterThan(
+      healthWorkflow.indexOf('id: freshness')
+    );
+    expect(healthWorkflow.indexOf('Catch up missed export slot')).toBeLessThan(
+      healthWorkflow.indexOf('Report scheduled failure')
+    );
     expect(healthWorkflow).not.toContain('needs:');
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('pnpm qa:backups:test');
     expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('pnpm qa:backups:typecheck');

@@ -392,6 +392,19 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### Codex commit-review reconciliation — 2026-09-09
+
+`source: codex`; baseline `488e6c3d60d7c88c477b8bfc2aa675b331afff6e`.
+[Full report and focused proof](codex-daily-commit-review-2026-09-09.md).
+This dated reconciliation supersedes older lifecycle claims below; Linear remains the work queue.
+
+- P1 new/open: [MYK9-452](https://linear.app/myk9-platform/issue/MYK9-452) / NCR-2026-09-09-01, new self-check-in SQL join references its UPDATE target illegally. Actual PostgreSQL owned-entry before/after replay succeeds before #2141 and errors afterwards without saving status. Requires forward migration, behavioral SQL and applied exhibitor proof.
+- P2 new operational observation: [MYK9-110](https://linear.app/myk9-platform/issue/MYK9-110) / NCR-2026-09-09-02, first configured overnight export slot missed; health run 34336905277 and automatic alert #2147 report it. No exporter code defect or data loss asserted. Existing parent owns scheduled catch-up/cadence proof and stale activation-doc reconciliation.
+- P2 blocked verification: [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423) reopened In Review; original paid-same-entries/both-balances-clear and real CTA-to-hydrated-cart proof still incomplete after #2140/#2142.
+- Newly resolved with recorded browser/catalog/export proof and current focused checks: P2 MYK9-435/438; P3 MYK9-427/436/439. No Linear issues closed by this audit.
+
+Counts: new 2, unchanged 0, resolved 5, blocked 1, duplicate 0, rejected 0. Unresolved P0 0 / P1 1 / P2 2 / P3 0. One Linear issue created, seven existing records updated. All 15 commits reviewed; 397 tests/48 files pass; app and backup TypeScript pass. No application code changed.
+
 ### Codex commit-review reconciliation — 2026-09-08
 
 `source: codex`; baseline `44857161a1a573e411ef13d86e31a7e04545e93e`.

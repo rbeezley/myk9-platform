@@ -69,4 +69,4 @@ jobs:
           workflow-name: Independent Database Export
           outcome: ${{ job.status }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          extra: 'Independent database export failed or was not verified; check the last successful manifest before show-day recovery decisions.'
+          extra: 'Independent database export or verification failed; check the last successful manifest before show-day recovery decisions.'

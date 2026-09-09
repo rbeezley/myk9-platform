@@ -1,0 +1,102 @@
+# Daily cleanup is independent of the hourly export concurrency group.
+name: Independent Database Retention
+
+on:
+  schedule:
+    - cron: '22 10 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: independent-database-retention
+  cancel-in-progress: false
+
+jobs:
+  retention:
+    name: Apply daily backup retention
+    if: (vars.MYK9_RETENTION_ENABLED == 'true' && vars.MYK9_EXPORTS_ENABLED == 'true') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify AWS client
+        run: aws --version
+      - name: Validate approved retention destination
+        run: |
+          if [ "$BACKUP_BUCKET" != 'myk9-database-backups' ] || [ "$BACKUP_PREFIX" != 'myk9-platform' ]; then
+            echo 'Retention approval no longer matches export configuration. Pause MYK9_RETENTION_ENABLED and review the new destination before changing this guard and its deletion confirmation.' >&2
+            exit 1
+          fi
+          endpoint_sha256="$(printf '%s' "$BACKUP_S3_ENDPOINT" | sha256sum | cut -d ' ' -f 1)"
+          if [ "$endpoint_sha256" != 'c18cbae5703da40e3a2efa1b76b6eeb881fae17bed4e0901dba32c904fba814f' ] || [ "$AWS_DEFAULT_REGION" != 'auto' ]; then
+            echo 'Retention approval no longer matches the R2 account endpoint or region. Pause MYK9_RETENTION_ENABLED and review the new destination before changing this guard.' >&2
+            exit 1
+          fi
+        env:
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Verify latest export freshness
+        run: pnpm exec tsx scripts/backup/verify.ts
+        env:
+          BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          BACKUP_GRACE_MINUTES: '30'
+          BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
+          BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
+          BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Apply approved retention after verification
+        run: pnpm exec tsx scripts/backup/retention.ts
+        env:
+          BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
+          BACKUP_BUCKET: ${{ vars.MYK9_EXPORT_BUCKET }}
+          BACKUP_PREFIX: ${{ vars.MYK9_EXPORT_PREFIX }}
+          BACKUP_S3_ENDPOINT: ${{ vars.MYK9_EXPORT_S3_ENDPOINT }}
+          BACKUP_RETENTION_DAYS: '30'
+          BACKUP_RETENTION_APPLY: ${{ github.event_name == 'schedule' && vars.MYK9_RETENTION_ENABLED == 'true' }}
+          BACKUP_RETENTION_CONFIRM: DELETE myk9-database-backups/myk9-platform
+          AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Report scheduled failure
+        if: always() && github.event_name == 'schedule'
+        uses: ./.github/actions/report-scheduled-failure
+        with:
+          workflow-name: Independent Database Retention
+          outcome: ${{ job.status }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          extra: 'Backup cleanup failed. Inspect the freshness or retention failure before retrying cleanup; hourly exports run independently.'
+
+  paused:
+    name: Close stale cleanup alert while paused
+    if: github.event_name == 'schedule' && (vars.MYK9_RETENTION_ENABLED != 'true' || vars.MYK9_EXPORTS_ENABLED != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Explain intentional pause and close cleanup alerts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          matches="$(gh issue list --state open --label ci-failure --limit 100 --json number,title --jq '.[] | select(.title == "CI: Independent Database Retention is failing") | .number')"
+          while IFS= read -r issue_number; do
+            [ -n "$issue_number" ] || continue
+            gh issue close "$issue_number" --comment 'Scheduled cleanup is intentionally paused because retention or exports are disabled. This closes the active cleanup alert; it does not establish recovery. Re-enable only after checking the last failure and running a retention dry-run.'
+          done <<< "$matches"

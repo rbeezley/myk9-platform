@@ -22,7 +22,9 @@ The TypeScript selector uses `MYK9_EXPORT_TIME_ZONE`
 (default UTC), `MYK9_EXPORT_WEEKEND_DAYS` (default `0,5,6`), and `MYK9_EXPORT_NIGHTLY_HOUR`
 (default `3`) to export hourly on selected show days and once overnight otherwise. Manual
 dispatch forces an export regardless of the time. America/Chicago and 30-day R2 retention
-are proposed options, not approved settings. Extra show days require changing the reviewed
+were selected by the owner on 2026-09-08. The proposed nightly slot is 03:00 local time.
+GitHub variable changes and scheduled activation still await the explicit confirmation required
+by automatic approval review; the existing effective defaults remain UTC/03:00 until changed. Extra show days require changing the reviewed
 day policy or manual dispatch; no show calendar is automatically consulted. Each scheduled
 wake-up compares the latest successful manifest against the latest due slot and catches up
 if that slot was missed, even when GitHub starts the job after its nominal hour. Invalid
@@ -46,7 +48,8 @@ runs `pnpm qa:backups:test`, including a locale-independent native-client argume
 ## Activation checklist
 
 Selected provider (owner approved 2026-09-07): **Cloudflare R2 Standard**, private bucket.
-Thirty-day retention remains proposed pending activation review.
+Thirty-day retention was selected on 2026-09-08; the workflow follow-up applies it only after
+a successful freshness verification in an independent daily workflow, preserving the newest complete set.
 At the measured size, 1.9–2.2 GB fits within its 10 GB-month free allowance if that allowance
 is available on the account. Estimated request counts also fit the published free allowances;
 existing account usage and future growth must be checked. Standard (not Infrequent Access) is
@@ -54,20 +57,30 @@ required for those free allowances. The owner created `myk9-database-backups` wi
 storage and public access disabled, and saved its bucket-scoped Object Read & Write S3
 credential and a separately generated encryption key in GitHub Actions secrets. The owner
 reports a local recovery copy of the key. GitHub secret names and the exact bucket, prefix,
-endpoint and `auto` region variables were verified; secret values have not yet been exercised.
+endpoint and `auto` region variables were verified; download, authenticated decryption, and the scoped restore have since passed. See the
+[tested recovery procedure and exclusions](independent-database-restore.md).
 `MYK9_EXPORTS_ENABLED=false` remains verified. Scheduled activation is pending.
 
-Storage is only part of the operating cost. The current two hourly workflows create roughly
-1,440 jobs per 30 days even when a weekday export is skipped. At an illustrative average of
-1–3 billed minutes per job, that is 1,440–4,320 minutes before retries and other repository CI.
-Measure actual GitHub runtime and remaining account allowance before enabling schedules.
-See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+The repository was verified **public** on 2026-09-08. Both workflows use standard
+`ubuntu-latest` runners, which are [free for public repositories](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+The billing API could not be read with the existing token; no additional token scopes were
+requested. The earlier private-repository minute-budget concern therefore does not apply to
+these standard public-repository jobs. Reassess if repository visibility or runner class changes.
+
+The first R2 set contains 6,444,539 encrypted dump bytes, 6,031 encrypted globals bytes, and
+694 manifest bytes. At roughly 306–352 exports per 30 days this is approximately 2.0–2.3 GB,
+within R2 Standard's 10 GB-month allowance if available on the account. Scheduled object
+operations should also fit its free operation allowances. This is an estimate, not a billing cap:
+check other account usage, database growth, manual exports, source-provider egress, and the
+separately billed disposable Supabase projects. The newest complete backup is retained even
+past 30 days, so outages do not delete the only usable set. No paid PITR or plan upgrade is enabled.
 
 On 2026-09-07, read-only CLI inventory confirmed both item-1 recovery projects still exist:
 `yltegnpcnqrtjurxdmon` and `nzihqlfcqntxjvhdttzf`. Repurposing the former for this rehearsal
 was explicitly authorized by the owner, including replacement of its test data; the latter
 and the source must remain untouched.
-Browser control remains unavailable; the owner performed Cloudflare setup through the UI.
+The owner performed Cloudflare setup through the UI; subsequent R2 downloads and verification
+used the scoped S3 credentials.
 
 1. Run a manual `pg_dump` against the source using a disposable local destination and record
    compressed/encrypted size, dump duration, and restore duration. Confirm the required `auth`,
@@ -102,9 +115,8 @@ Browser control remains unavailable; the owner performed Cloudflare setup throug
 ## Failure and retention operation
 
 An export job failure is actionable even if an older object exists. Preserve the last known good
-manifest, rerun a manual export after fixing the cause, and record the gap. A retention deletion
-must be dry-run reviewed against the documented policy and must never delete Supabase source
-data. Rotate CI credentials and the encryption key through an owner-reviewed procedure; old
+manifest, rerun a manual export after fixing the cause, and record the gap. The retention policy must be dry-run reviewed before activation or a policy change;
+approved daily runs then apply it unattended. Retention must never delete Supabase source data. Rotate CI credentials and the encryption key through an owner-reviewed procedure; old
 exports remain undecryptable after key loss, so retain the recovery key with the incident plan.
 
 `scripts/backup/retention.ts` requires `BACKUP_PROJECT_REF` and validates every manifest in the prefix before selecting any deletions. A foreign-project or invalid manifest aborts both dry-run and apply. It inventories whole three-object sets and preserves the newest complete
@@ -113,7 +125,25 @@ preserved for recovery investigation. Incomplete sets containing only recognized
 are eligible once all their objects exceed retention; fresh sets and sets containing unknown
 objects remain protected. Dry-run is the
 default; deletion requires both `BACKUP_RETENTION_APPLY=true` and the exact bucket/prefix
-confirmation. No automatic deletion schedule or provider lifecycle rule is activated by this branch.
+confirmation. The workflow follow-up runs this policy in a separate daily workflow at 10:22 UTC,
+after its own successful freshness verification, using
+a reviewed 30-day window fixed in the workflow. Verification and cleanup use the same bucket/prefix
+variables as exports. An explicit preflight compares that configuration to the approved
+`myk9-database-backups/myk9-platform` destination, account endpoint, and region before either step. Destination drift deliberately
+requires renewed review rather than silently authorizing deletion in a new bucket: pause
+`MYK9_RETENTION_ENABLED`, review the new target, update both the guard and deletion confirmation,
+and dispatch a dry-run before re-enabling cleanup. The diagnostic identifies this approval mismatch.
+Scheduled cleanup requires both `MYK9_RETENTION_ENABLED=true` and `MYK9_EXPORTS_ENABLED=true`; disabling cleanup alone leaves backups enabled. The :22 schedule uses the same 30-minute freshness grace as the independent health job.
+Manual dispatch runs verification and a retention dry-run only, even when cleanup is enabled.
+Manual runs do not reconcile scheduled cleanup alerts, since a successful dry-run cannot prove
+that object deletion has recovered. Cleanup failures
+open a separate **Independent Database Retention** issue and do not change the independent export result.
+An invalid or foreign manifest stops cleanup safely and requires inspection; it does not stop
+future exports. The daily scan has its own 60-minute timeout, avoiding an hourly scan of every
+retained manifest on the export job's time budget. Its separate concurrency group cannot evict queued exports.
+The approved endpoint is compared by SHA-256 in the workflow. When scheduled cleanup is disabled,
+a separate job closes only its existing cleanup alerts with an explicit pause explanation; this
+does not claim recovery. Each successful deletion is logged immediately, so a later failure preserves the partial audit trail. No provider lifecycle rule is installed.
 
 ## Rollback and recovery
 
@@ -122,10 +152,12 @@ Keep existing private objects until the owner approves deletion. Recovery uses a
 database and the selected export's manifest/checksum; source writes remain stopped until the
 operator has compared newer data and reconciled offline tablet queues.
 
-The source export was measured successfully on 2026-09-07 (below). There are no live provider
-credentials or successful provider/Supabase restore from that export yet.
-A [synthetic two-cluster local restore passed](independent-database-exports-local-test.md).
-The real Supabase/provider rehearsal remains an activation gate.
+The source export was measured successfully on 2026-09-07 (below). The first live R2
+export and a scoped restore into the existing disposable Supabase clone passed on 2026-09-08:
+160 imported tables matched the downloaded archive. See the [actual restore procedure](independent-database-restore.md)
+for timing and material provider-managed exclusions. A fresh-project rebuild remains untested.
+The earlier [synthetic two-cluster local restore](independent-database-exports-local-test.md)
+is supporting evidence, not a substitute for those limitations.
 
 ## Measured source export — 2026-09-07
 

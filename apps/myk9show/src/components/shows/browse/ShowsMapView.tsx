@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+// Must follow leaflet.css: contains Leaflet's z-indexes so app overlays win.
+import '@/features/maps/leaflet-stacking.css';
 import { MapPinOff, ArrowRight } from 'lucide-react';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';

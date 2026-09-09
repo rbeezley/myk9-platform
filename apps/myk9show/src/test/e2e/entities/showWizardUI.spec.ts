@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
 
 /**
@@ -107,5 +107,118 @@ test.describe('Show Wizard UI — Add Trials mode (secretary)', () => {
     await expect(page.getByText('Step 2 of 4', { exact: true })).toBeVisible();
     // The "Add Trial" button is the affordance to start a new trial entry.
     await expect(page.getByRole('button', { name: /^Add Trial$/ }).first()).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Overlay stacking — the Show Dates modal vs. the venue map
+// ---------------------------------------------------------------------------
+
+type Clip = { x: number; y: number; width: number; height: number };
+
+/**
+ * Fraction of pixels in `clip` that differ between the two captures.
+ *
+ * Painting order is the thing under test, and hit-testing cannot see it:
+ * Leaflet's panes are `pointer-events: none`, so `elementFromPoint` happily
+ * reports the modal on top while the map is what the secretary actually sees.
+ * Comparing rendered pixels is the only instrument that fails on the bug.
+ */
+async function changedFraction(page: Page, clip: Clip, before: Buffer): Promise<number> {
+  const after = await page.screenshot({ clip });
+  return page.evaluate(
+    async ([a, b]: [string, string]) => {
+      const load = async (data: string) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${data}`;
+        await img.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d')!.drawImage(img, 0, 0);
+        return canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+      };
+      const [pa, pb] = [await load(a), await load(b)];
+      if (pa.length !== pb.length) return 1;
+      let changed = 0;
+      for (let i = 0; i < pa.length; i += 4) {
+        if (
+          Math.abs(pa[i]! - pb[i]!) > 8 ||
+          Math.abs(pa[i + 1]! - pb[i + 1]!) > 8 ||
+          Math.abs(pa[i + 2]! - pb[i + 2]!) > 8
+        ) {
+          changed += 1;
+        }
+      }
+      return changed / (pa.length / 4);
+    },
+    [before.toString('base64'), after.toString('base64')] as [string, string]
+  );
+}
+
+test.describe('Show Wizard UI — overlay stacking (secretary)', () => {
+  test.beforeEach(async ({ page }) => {
+    await signInAsSecretary(page);
+  });
+
+  /**
+   * leaflet.css stacks its panes at z-index 200–700 and its controls at
+   * 800/1000. `.leaflet-container` is not a stacking context on its own, so
+   * those used to land in the page root and outrank the Show Dates modal
+   * (`z-50`): backdrop and calendar alike painted UNDER the venue map, leaving
+   * a rectangle of map through the middle of the calendar. The guard is
+   * `isolation: isolate` in features/maps/leaflet-stacking.css.
+   */
+  test('the Show Dates modal paints above the venue map', async ({ page }) => {
+    await page.goto('/secretary/create-show/wizard');
+
+    const map = page.locator('.leaflet-container');
+    await expect(map).toBeVisible();
+    await expect(page.locator('.leaflet-tile-loaded').first()).toBeVisible();
+
+    // Settle the scroll BEFORE the baseline capture: clicking the trigger would
+    // otherwise scroll it into view and move the map under the clip rect.
+    const trigger = page.getByRole('button', { name: 'Show Dates *' });
+    await trigger.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1000); // tile fade-in
+
+    const box = (await map.boundingBox())!;
+    const visibleTop = Math.max(box.y, 0);
+    const visibleHeight = Math.min(box.y + box.height, page.viewportSize()!.height) - visibleTop;
+    // Positive control on the fixture itself: with no map on screen the
+    // comparison below would be vacuous.
+    expect(
+      visibleHeight,
+      'the venue map must be on screen for this to mean anything'
+    ).toBeGreaterThan(60);
+
+    const mapClip = { x: box.x, y: visibleTop, width: box.width, height: visibleHeight };
+    // A strip the modal backdrop covers no matter how the map stacks — the
+    // known-answer check that this instrument detects an overlay at all.
+    const controlClip = { x: 4, y: visibleTop, width: 80, height: visibleHeight };
+
+    const mapBefore = await page.screenshot({ clip: mapClip });
+    const controlBefore = await page.screenshot({ clip: controlClip });
+
+    await trigger.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.waitForTimeout(400);
+
+    const boxAfter = (await map.boundingBox())!;
+    expect(
+      Math.abs(boxAfter.y - box.y),
+      'the page scrolled; the clips no longer line up'
+    ).toBeLessThan(2);
+
+    const controlChanged = await changedFraction(page, controlClip, controlBefore);
+    expect(
+      controlChanged,
+      'known-answer check: the backdrop must register as a change'
+    ).toBeGreaterThan(0.5);
+
+    const mapChanged = await changedFraction(page, mapClip, mapBefore);
+    expect(mapChanged, 'the venue map is painting over the open Show Dates modal').toBeGreaterThan(
+      0.5
+    );
   });
 });

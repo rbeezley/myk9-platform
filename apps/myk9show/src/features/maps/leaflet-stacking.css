@@ -1,0 +1,24 @@
+/*
+ * Keep Leaflet's z-indexes inside the map.
+ *
+ * leaflet.css stacks its own layers with page-scale z-indexes — panes run 200
+ * (tiles) to 700 (popups) and the zoom/attribution controls sit at 800/1000.
+ * `.leaflet-container` is `position: relative` with `z-index: auto`, so it is
+ * NOT a stacking context: those numbers land in the page root and outrank every
+ * overlay this app draws — dialogs at `z-50`, popovers at `z-[100]`. The Show
+ * Dates modal in the create-show wizard was the visible symptom: backdrop and
+ * calendar alike painted UNDER the venue map, so the middle of the calendar was
+ * a rectangle of map (MYK9 show-dates-dialog-positioning).
+ *
+ * Hit-testing cannot see this: Leaflet's panes are `pointer-events: none`, so
+ * `elementFromPoint` reports the modal on top while the pixels say otherwise.
+ * The guard is a pixel measurement — see the "overlay stacking" test in
+ * src/test/e2e/entities/showWizardUI.spec.ts.
+ *
+ * `isolation: isolate` makes the container its own stacking context, which caps
+ * all of that inside the map's own box. Ordering between the map and the rest of
+ * the page then follows the normal rules, where a fixed `z-50` overlay wins.
+ */
+.leaflet-container {
+  isolation: isolate;
+}

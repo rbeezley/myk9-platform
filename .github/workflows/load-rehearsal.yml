@@ -30,6 +30,9 @@ concurrency:
 env:
   LOAD_TEST_PROJECT_REF: sojmvhhwsjxmfistvzbe
   LOAD_TEST_DB_HOST: aws-1-us-east-2.pooler.supabase.com
+  # Administrative sampler/cleanup queries use transaction mode so they can
+  # obtain a connection while the load occupies session-mode slots on 5432.
+  LOAD_TEST_ADMIN_DB_PORT: '6543'
   # Keep aligned with DISTRIBUTED_G9_SHARD_COUNT; the contract test pins both.
   LOAD_TEST_SHARD_COUNT: '16'
   # GitHub Free: 20 concurrent jobs, ACCOUNT-WIDE across every repo.
@@ -272,7 +275,7 @@ jobs:
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_DB_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+          SUPABASE_DB_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres
 
       - name: Upload platform observation
         if: always()
@@ -455,7 +458,7 @@ jobs:
 
       - name: Abort and drain in-flight scoring work
         env:
-          SUPABASE_DB_URL: postgresql://postgres.${{ env.LOAD_TEST_PROJECT_REF }}@${{ env.LOAD_TEST_DB_HOST }}:5432/postgres
+          SUPABASE_DB_URL: postgresql://postgres.${{ env.LOAD_TEST_PROJECT_REF }}@${{ env.LOAD_TEST_DB_HOST }}:${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           LOAD_TEST_OWNED_SINCE_US: ${{ needs.prepare.outputs.owned-since-us }}

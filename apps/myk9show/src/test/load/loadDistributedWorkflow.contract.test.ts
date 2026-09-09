@@ -61,6 +61,8 @@ describe('manual distributed load workflow', () => {
     expect(platformJob).toContain('run-load-platform.ts');
     expect(platformJob).not.toContain('playwright');
     expect(platformJob).not.toContain('LOAD_TEST_START_APP');
+    expect(platformJob).toContain('LOAD_TEST_ADMIN_DB_PORT');
+    expect(platformJob).toContain(':${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres');
   });
 
   it('fails closed on target confirmation and always restores the canonical seed', () => {
@@ -81,6 +83,9 @@ describe('manual distributed load workflow', () => {
     );
     expect(workflow).toContain('Abort and drain in-flight scoring work');
     expect(workflow).toContain('scripts/load-cleanup.ts');
+    expect(workflow).toContain("LOAD_TEST_ADMIN_DB_PORT: '6543'");
+    const cleanup = workflow.slice(workflow.indexOf('Abort and drain in-flight scoring work'));
+    expect(cleanup).toContain(':${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres');
     expect(workflow.match(/scripts\/load-packet-cleanup\.ts/g)).toHaveLength(2);
     expect(workflow.match(/Clear canonical trial packet snapshots/g)).toHaveLength(2);
     expect(workflow).toContain('Verify Supabase CPU/IO telemetry source');

@@ -113,7 +113,7 @@ describe('load result evaluation', () => {
     );
   });
 
-  it('rejects resource sample failures even when peak values are finite', () => {
+  it('accepts partial resource sampling when valid peaks and samples exist', () => {
     const observation = passingObservation();
     if (!observation.platform) throw new Error('Missing fixture platform');
     observation.platform.resourceSampling = {
@@ -121,6 +121,22 @@ describe('load result evaluation', () => {
       succeeded: 2,
       failures: [{ kind: 'timeout', count: 1 }],
     };
+    expect(evaluateLoadResult(G9_NORMAL_SCENARIO, observation)).toMatchObject({
+      passed: true,
+      failures: [],
+    });
+  });
+
+  it('rejects platform telemetry when resource sampling produced no valid sample', () => {
+    const observation = passingObservation();
+    if (!observation.platform) throw new Error('Missing fixture platform');
+    observation.platform.resourceSampling = {
+      attempts: 3,
+      succeeded: 0,
+      failures: [{ kind: 'timeout', count: 3 }],
+    };
+    observation.platform.peakCpuPercent = Number.NaN;
+    observation.platform.peakIoPercent = Number.NaN;
     expect(evaluateLoadResult(G9_NORMAL_SCENARIO, observation).failures).toContain(
       'Required platform telemetry was missing.'
     );

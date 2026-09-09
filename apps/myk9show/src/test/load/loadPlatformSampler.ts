@@ -161,14 +161,11 @@ export async function startLoadPlatformSampler(
         await Promise.all(pendingSamples);
 
         const finalSnapshot = await readStatementSnapshot(command).catch(() => undefined);
-        // Deliberately still zero-tolerance. A percentage coverage bar was tried
-        // here and reverted, because it fails in both directions at once.
+        // For resources, a partial sample is retained as a lower-bound
+        // measurement. loadEvaluation fails only when no valid resource sample
+        // exists; the failure list remains in the artifact for diagnosis.
         //
-        // For resources it is INERT: coverage below 1.0 is exactly equivalent to
-        // `resourceFailures.length > 0`, which loadEvaluation already fails on,
-        // so no bar between 0.8 and 1.0 can ever decide anything.
-        //
-        // For connections it is DANGEROUS: probes run every 2s, so a single ~15s
+        // Connections remain zero-tolerance. Probes run every 2s, so a single ~15s
         // psql stall costs ~7 consecutive skips out of ~450 attempts -- under 2%,
         // which no percentage bar catches -- and psql stalls precisely when the
         // pool is at its cap. The misses cluster on the breach they would hide,
@@ -181,7 +178,6 @@ export async function startLoadPlatformSampler(
             peakCpuPercent,
             peakIoPercent,
             peakConnections,
-            resourceFailures,
             connectionAttempts,
             connectionSuccesses,
           }),

@@ -136,20 +136,31 @@ describe('manual distributed load workflow', () => {
     // resolve to undefined, assertStaffCredentialsComplete throws inside the
     // shard job, and because that is after the reseed it burns the approved
     // window rather than refusing the dispatch.
-    // Each name must appear TWICE — once in the shard job that uses it, once in
-    // the pre-reseed preflight that refuses without it. A bare toContain here is
+    // Each name must appear in the shard, presence check, and scope check. A bare toContain here is
     // vacuous: drop the shard's line and the preflight's copy still satisfies it,
     // which is exactly how the original wiring gap would have slipped back in.
     for (const index of [1, 2, 3]) {
       const name = `E2E_LOAD_SECRETARY_${index}_PASSWORD`;
       expect(workflow).toContain(`${name}: \${{ secrets.${name} }}`);
-      expect(workflow.match(new RegExp(`${name}: `, 'g'))).toHaveLength(2);
+      expect(workflow.match(new RegExp(`${name}: `, 'g'))).toHaveLength(3);
     }
 
     const preflight = workflow.indexOf('Verify per-show staff credentials are provisioned');
     expect(preflight).toBeGreaterThan(-1);
     expect(preflight).toBeLessThan(workflow.indexOf('Canonical reseed'));
     expect(workflow).toContain('scripts/load-staff-preflight.ts');
+  });
+
+  it('checks authenticated scope after reseed and before the synchronized window', () => {
+    const check = workflow.indexOf('- name: Verify staff scope after reseed');
+    expect(check).toBeGreaterThan(workflow.indexOf('- name: Canonical reseed'));
+    expect(check).toBeGreaterThan(workflow.indexOf('- name: Mark canonical restoration required'));
+    expect(check).toBeLessThan(workflow.indexOf('- name: Set synchronized load window'));
+    const step = workflow.slice(check, workflow.indexOf('- name: Set synchronized load window'));
+    expect(step).toContain('scripts/load-staff-preflight.ts --verify-scope');
+    for (const name of ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'E2E_SECRETARY_PASSWORD']) {
+      expect(step).toContain(`${name}: \${{ secrets.${name} }}`);
+    }
   });
 
   it('runs the load anti-rot check by directory, not by an enumerated file list', () => {

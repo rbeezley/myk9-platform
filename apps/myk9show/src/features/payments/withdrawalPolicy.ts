@@ -87,48 +87,57 @@ function hasAnyField(...values: Array<string | number | null | undefined>): bool
 }
 
 /**
- * Resolve the effective policy: a show override (if any field is set) wins over
- * the club default; if neither declares anything, returns null (unset → the
- * caller shows the neutral default message and flags the refund fully-manual).
+ * Resolve the effective policy by composing the two levels PER FIELD: each show
+ * field wins where the show declares one, and falls back to the club default
+ * where it does not. If neither level declares anything, returns null (unset →
+ * the caller shows the neutral default message and flags the refund manual).
+ *
+ * Per-field, not all-or-nothing (Codex review of #2156). Once the cutoff became
+ * show-only, an all-or-nothing choice made club retention unreachable: a show
+ * declaring only its cutoff dropped the club's office fee along with it and
+ * refunded in full at `requiresManual: false`. Composing also makes true what
+ * the editor has always promised — "leave blank to inherit the club default".
  */
 export function getEffectiveWithdrawalPolicy(
   show: ShowWithdrawalFields | null | undefined,
   club: ClubWithdrawalFields | null | undefined
 ): WithdrawalPolicy | null {
-  if (
-    show &&
+  const showDeclares =
+    !!show &&
     hasAnyField(
       show.withdrawal_cutoff_date,
       show.withdrawal_retention_type,
       show.withdrawal_retention_value,
       show.withdrawal_policy_notes
-    )
-  ) {
-    return buildPolicy(
-      show.withdrawal_cutoff_date,
-      show.withdrawal_retention_type,
-      show.withdrawal_retention_value,
-      show.withdrawal_policy_notes
     );
-  }
-
-  if (
-    club &&
+  const clubDeclares =
+    !!club &&
     hasAnyField(
       club.default_withdrawal_retention_type,
       club.default_withdrawal_retention_value,
       club.default_withdrawal_policy_notes
-    )
-  ) {
-    return buildPolicy(
-      null, // MYK9-454: club scope declares no cutoff date.
-      club.default_withdrawal_retention_type,
-      club.default_withdrawal_retention_value,
-      club.default_withdrawal_policy_notes
     );
-  }
 
-  return null;
+  if (!showDeclares && !clubDeclares) return null;
+
+  // Retention is a PAIR — the editor nulls type and value together — so the
+  // show overrides the club's fee only when it declares one of its own.
+  const showDeclaresRetention = hasAnyField(
+    show?.withdrawal_retention_type,
+    show?.withdrawal_retention_value
+  );
+
+  return buildPolicy(
+    // The cutoff is show-only (MYK9-454): clubs no longer carry one.
+    show?.withdrawal_cutoff_date ?? null,
+    showDeclaresRetention
+      ? show?.withdrawal_retention_type
+      : club?.default_withdrawal_retention_type,
+    showDeclaresRetention
+      ? show?.withdrawal_retention_value
+      : club?.default_withdrawal_retention_value,
+    show?.withdrawal_policy_notes ?? club?.default_withdrawal_policy_notes ?? null
+  );
 }
 
 /**

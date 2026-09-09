@@ -185,6 +185,54 @@ describe('getEffectiveWithdrawalPolicy', () => {
     expect(r.requiresManual).toBe(true);
   });
 
+  // MYK9-454 follow-up (Codex review of #2156). Dropping the club cutoff made
+  // club retention UNREACHABLE: the show/club choice was all-or-nothing, so the
+  // moment a show declared its cutoff the club's office fee was dropped with it
+  // and a post-cutoff withdrawal refunded in full at `requiresManual: false`.
+  // Resolution composes per field instead — which is what the card has always
+  // promised ("Leave blank to inherit the club default").
+  it('MONEY: a show cutoff inherits the club retention instead of zeroing it', () => {
+    const p = getEffectiveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, club);
+
+    expect(p).toEqual({
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat',
+      retentionValue: 500,
+      notes: null,
+    });
+
+    const r = resolveWithdrawalRefundCents(p, 3000, new Date('2026-08-01T12:00:00Z'), NY);
+    expect(r.retainedCents).toBe(500);
+    expect(r.refundCents).toBe(2500);
+    expect(r.reason).toBe('after_cutoff');
+  });
+
+  it('a show that declares its own retention still overrides the club', () => {
+    const p = getEffectiveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: 'percent',
+        withdrawal_retention_value: 20,
+      },
+      club
+    );
+    expect(p?.retentionType).toBe('percent');
+    expect(p?.retentionValue).toBe(20);
+  });
+
+  it('a show clearing its retention to nothing falls back to the club fee', () => {
+    // The card nulls type+value as a PAIR, so "cleared" is both being null.
+    const p = getEffectiveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: null,
+        withdrawal_retention_value: null,
+      },
+      club
+    );
+    expect(p?.retentionValue).toBe(500);
+  });
+
   it('returns null when neither show nor club declares a policy', () => {
     expect(getEffectiveWithdrawalPolicy(null, null)).toBeNull();
     expect(getEffectiveWithdrawalPolicy({}, {})).toBeNull();

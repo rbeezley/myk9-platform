@@ -74,47 +74,56 @@ function build(
 
 /**
  * Resolve the effective policy from a show row (override) + its club row
- * (default): a show override (any field set) wins over the club default;
- * neither declared → null.
+ * (default), composing PER FIELD: each show field wins where the show declares
+ * one, falling back to the club default where it does not; neither declared →
+ * null. Mirrors src/features/payments/withdrawalPolicy.ts.
+ *
+ * Per-field, not all-or-nothing (Codex review of #2156): with the cutoff now
+ * show-only, an all-or-nothing choice made club retention unreachable — a show
+ * declaring only its cutoff dropped the club's office fee with it and refunded
+ * in full. This resolver feeds the snapshot taken at PAYMENT time, so that
+ * mistake would have been frozen into the refund basis.
  */
 export function resolveWithdrawalPolicy(
   show: ShowWithdrawalColumns | null | undefined,
   club: ClubWithdrawalColumns | null | undefined
 ): WithdrawalPolicy | null {
-  if (
-    show &&
+  const showDeclares =
+    !!show &&
     hasAny(
       show.withdrawal_cutoff_date,
       show.withdrawal_retention_type,
       show.withdrawal_retention_value,
       show.withdrawal_policy_notes
-    )
-  ) {
-    return build(
-      show.withdrawal_cutoff_date,
-      show.withdrawal_retention_type,
-      show.withdrawal_retention_value,
-      show.withdrawal_policy_notes
     );
-  }
-
-  if (
-    club &&
+  const clubDeclares =
+    !!club &&
     hasAny(
       club.default_withdrawal_retention_type,
       club.default_withdrawal_retention_value,
       club.default_withdrawal_policy_notes
-    )
-  ) {
-    return build(
-      null, // MYK9-454: club scope declares no cutoff date.
-      club.default_withdrawal_retention_type,
-      club.default_withdrawal_retention_value,
-      club.default_withdrawal_policy_notes
     );
-  }
 
-  return null;
+  if (!showDeclares && !clubDeclares) return null;
+
+  // Retention is a PAIR — the editor nulls type and value together — so the
+  // show overrides the club's fee only when it declares one of its own.
+  const showDeclaresRetention = hasAny(
+    show?.withdrawal_retention_type,
+    show?.withdrawal_retention_value
+  );
+
+  return build(
+    // The cutoff is show-only (MYK9-454): clubs no longer carry one.
+    show?.withdrawal_cutoff_date ?? null,
+    showDeclaresRetention
+      ? show?.withdrawal_retention_type
+      : club?.default_withdrawal_retention_type,
+    showDeclaresRetention
+      ? show?.withdrawal_retention_value
+      : club?.default_withdrawal_retention_value,
+    show?.withdrawal_policy_notes ?? club?.default_withdrawal_policy_notes ?? null
+  );
 }
 
 function formatCutoff(date: string): string {

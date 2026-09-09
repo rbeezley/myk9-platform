@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { exportSchedule, secureDatabaseUrl } from './export-config';
-import { weekendShowWindow } from './export-model';
+import { timeZoneParts, weekdayInTimeZone, weekendShowWindow } from './export-model';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -8,14 +8,24 @@ function required(name: string): string {
   return value;
 }
 
-const { timeZone, weekendDays } = exportSchedule();
+const { timeZone, weekendDays, nightlyHour } = exportSchedule();
 const force = process.env.BACKUP_FORCE_RUN === 'true';
-const window = weekendShowWindow(new Date(), timeZone, weekendDays, 6, 22);
+const now = new Date();
+const local = timeZoneParts(now, timeZone);
+const day = weekdayInTimeZone(now, timeZone);
 
 if (force) {
   console.log('run');
   process.exit(0);
 }
+// Do not carry an overdue weekend slot into the overnight period before the
+// next weekday nightly slot. The next scheduled run is the weekday nightly
+// export, so an early-Monday invocation must remain a no-op.
+if (!weekendDays.includes(day) && local.hour < nightlyHour) {
+  console.log('skip:before-weekday-nightly');
+  process.exit(0);
+}
+const window = weekendShowWindow(now, timeZone, weekendDays, 6, 22);
 if (!window.shouldCheckShow) {
   console.log(`skip:${window.reason}`);
   process.exit(0);

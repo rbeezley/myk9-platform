@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: write
       contents: read
       issues: write
     steps:
@@ -29,6 +30,7 @@ jobs:
       - name: Verify hosted AWS client
         run: aws --version
       - name: Verify latest payloads and freshness
+        id: freshness
         run: pnpm exec tsx scripts/backup/verify.ts
         env:
           BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
@@ -42,6 +44,16 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.MYK9_EXPORT_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
+      - name: Catch up missed export slot
+        if: failure() && steps.freshness.outcome == 'failure' && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run independent-database-exports.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
+          echo 'Dispatched a forced export to recover the missed or invalid backup slot.'
       - name: Report scheduled failure
         if: always()
         uses: ./.github/actions/report-scheduled-failure

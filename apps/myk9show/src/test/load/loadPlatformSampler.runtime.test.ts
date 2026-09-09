@@ -217,7 +217,7 @@ describe('runtime platform evidence', () => {
     }
   });
 
-  it('keeps valid telemetry while recording why a runtime sample was lost', async () => {
+  it('retries transient Metrics API HTTP failures before recording a lost sample', async () => {
     vi.useFakeTimers();
     psql.mockImplementation(async (_command, args: string[]) => ({
       stdout: args.at(-1)?.includes('pg_stat_statements') ? '1|2|2|20' : '10',
@@ -229,6 +229,7 @@ describe('runtime platform evidence', () => {
         .mockResolvedValueOnce(counters(100))
         .mockResolvedValueOnce(new Response(null, { status: 503 }))
         .mockResolvedValueOnce(counters(110))
+        .mockResolvedValueOnce(counters(120))
     );
     const sampler = await startLoadPlatformSampler(
       {
@@ -244,8 +245,9 @@ describe('runtime platform evidence', () => {
     expect(result).toMatchObject({
       resourceSampling: {
         attempts: 3,
-        succeeded: 2,
-        failures: [{ kind: 'http', status: 503, count: 1 }],
+        succeeded: 3,
+        failures: [],
+        retried: 1,
       },
     });
     expect(result.peakCpuPercent).toBeGreaterThan(0);

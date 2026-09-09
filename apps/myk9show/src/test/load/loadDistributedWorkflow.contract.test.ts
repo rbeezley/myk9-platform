@@ -94,6 +94,10 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('LOAD_TEST_OWNED_SINCE_US');
     expect(workflow).toContain('${{ env.LOAD_TEST_PROJECT_REF }}');
     expect(workflow).toContain('${{ env.LOAD_TEST_DB_HOST }}');
+    expect(workflow).toContain('${LOAD_TEST_ADMIN_DB_PORT}');
+    expect(workflow).not.toMatch(
+      /postgresql:\/\/postgres\.\$\{LOAD_TEST_PROJECT_REF\}@\$\{LOAD_TEST_DB_HOST\}:5432\/postgres/
+    );
     expect(workflow.indexOf('Abort and drain in-flight scoring work')).toBeLessThan(
       workflow.indexOf('Restore canonical seed')
     );

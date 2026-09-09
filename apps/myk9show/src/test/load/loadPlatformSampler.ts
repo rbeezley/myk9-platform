@@ -301,10 +301,20 @@ async function readResourceCountersWithRetry(
     // before the fetch, and defaulting those to 'transport' would double the
     // cost of every sample on a misconfigured run for no possible benefit.
     if (!(error instanceof ResourceSampleError)) throw error;
-    if (error.kind !== 'timeout' && error.kind !== 'transport') throw error;
+    if (
+      error.kind !== 'timeout' &&
+      error.kind !== 'transport' &&
+      !(error.kind === 'http' && isRetryableHttpStatus(error.status))
+    ) {
+      throw error;
+    }
     onRetry();
     return await readResourceCounters(env);
   }
+}
+
+function isRetryableHttpStatus(status: number | undefined): boolean {
+  return status === 408 || status === 429 || (status !== undefined && status >= 500);
 }
 
 async function readResourceCounters(env: NodeJS.ProcessEnv): Promise<ResourceCounters> {

@@ -112,7 +112,7 @@ const AppHeader: React.FC = () => {
 
   return (
     <nav className="fixed top-[var(--pwa-banner-height,0px)] left-0 right-0 z-50 border-b bg-background text-foreground border-border h-[var(--app-header-height,3rem)] shadow-[var(--shadow-header)]">
-      <div className="px-4 sm:px-6 h-full">
+      <div className="px-2 min-[400px]:px-4 sm:px-6 h-full">
         <div className="flex items-center justify-between h-full">
           {/* Left: Mobile navigation + logo */}
           <div className="flex min-w-0 items-center gap-2">
@@ -170,8 +170,9 @@ const AppHeader: React.FC = () => {
             </div>
           )}
 
-          {/* Right: Utility Controls */}
-          <div className="flex items-center gap-1">
+          {/* Tighten gaps on small phones so a populated cart still leaves room
+              for the wordmark without shrinking the 44px controls. */}
+          <div className="flex items-center gap-0 min-[400px]:gap-1">
             {user ? (
               <>
                 {/* Mobile Search */}

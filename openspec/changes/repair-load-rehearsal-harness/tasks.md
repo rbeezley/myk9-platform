@@ -172,3 +172,19 @@ approved full rehearsal are still required before closing MYK9-126 or MYK9-109.
 
 Shipping validation: the full shuffled app suite passed (2,032 files / 19,468 tests;
 1 file / 9 tests skipped). Full app lint passed with 20 existing warnings.
+
+## 11. Approved header blocker repair — PR #2146
+
+The user authorized including the unrelated E2E failure that blocked merge.
+The populated cart adds a fourth utility control, clipping the wordmark at 360px.
+Keep the existing header and controls, their 44px touch targets, and the narrow
+brand-mark behavior. This does not add or duplicate any UI surface.
+
+- [x] Reproduce with deterministic empty/populated cart badge responses in the existing E2E test.
+- [x] Adjust only small-phone spacing; verify rendered wordmark and control bounds at phone widths.
+- [x] Run focused browser tests, app typecheck/lint, ratchet, and shuffled suite; capture header evidence.
+- [ ] Re-review the updated PR, pass CI and approved fallback gate, then squash-merge.
+
+Header validation: all five production-build browser cases passed; the populated-cart
+case failed before the spacing change. Full shuffled suite: 19,468 passed, 9 skipped;
+app typecheck, lint, build, formatting and ratchet passed.

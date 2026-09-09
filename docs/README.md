@@ -120,6 +120,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-replication-insert-idempotency.md](plan-replication-insert-idempotency.md)                                 | Active    | Replication INSERT retry idempotency — investigation verdict (B)                   |
 | [plan-restore-ui-remediation.md](plan-restore-ui-remediation.md)                                                 | Active    | Plan: Fix the Deleted Entities (restore) UI                                        |
 | [plan-result-reveal-share-card.md](plan-result-reveal-share-card.md)                                             | Active    | Plan: Result Reveal + Share Card                                                   |
+| [plan-supabase-disk-io-remediation.md](plan-supabase-disk-io-remediation.md)                                     | Active    | Supabase Disk IO write amplification remediation plan                              |
 | [plan-site-admin-mcp-v1.md](plan-site-admin-mcp-v1.md)                                                           | Active    | Site Admin MCP V1 Implementation Plan                                              |
 | [plan-soft-delete-person-rpc.md](plan-soft-delete-person-rpc.md)                                                 | Active    | Plan: Fix person soft-delete (RLS WITH-CHECK block)                                |
 | [plan-template-authoring-removal.md](plan-template-authoring-removal.md)                                         | Active    | Template Authoring Removal — keep the data model, delete the editor                |

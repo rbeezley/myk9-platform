@@ -90,8 +90,20 @@ jobs:
 
       - name: Install PostgreSQL client
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sudo apt-get update -o Acquire::Retries=3 && \
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-client; then
+              break
+            fi
+            if [[ "$attempt" == 3 ]]; then
+              echo "PostgreSQL client installation failed after ${attempt} attempts." >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          command -v psql
+          psql --version
 
       - name: Verify ringside scoring is enabled
         env:
@@ -263,8 +275,20 @@ jobs:
 
       - name: Install PostgreSQL client
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sudo apt-get update -o Acquire::Retries=3 && \
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-client; then
+              break
+            fi
+            if [[ "$attempt" == 3 ]]; then
+              echo "PostgreSQL client installation failed after ${attempt} attempts." >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          command -v psql
+          psql --version
 
       - name: Sample Supabase CPU, IO, connections, and statements
         working-directory: apps/myk9show
@@ -321,8 +345,20 @@ jobs:
 
       - name: Install PostgreSQL client
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sudo apt-get update -o Acquire::Retries=3 && \
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-client; then
+              break
+            fi
+            if [[ "$attempt" == 3 ]]; then
+              echo "PostgreSQL client installation failed after ${attempt} attempts." >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          command -v psql
+          psql --version
 
       - name: Install Playwright Chromium
         run: pnpm --filter @myk9/show exec playwright install --with-deps chromium
@@ -453,8 +489,20 @@ jobs:
 
       - name: Install PostgreSQL client
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if sudo apt-get update -o Acquire::Retries=3 && \
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends postgresql-client; then
+              break
+            fi
+            if [[ "$attempt" == 3 ]]; then
+              echo "PostgreSQL client installation failed after ${attempt} attempts." >&2
+              exit 1
+            fi
+            sleep 5
+          done
+          command -v psql
+          psql --version
 
       - name: Abort and drain in-flight scoring work
         env:

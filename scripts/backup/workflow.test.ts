@@ -74,13 +74,25 @@ describe('scheduled export workflow contract', () => {
     expect(exportWorkflow).toContain(
       "BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}"
     );
+    expect(exportWorkflow).toContain('Select weekend daytime show window');
+    expect(exportWorkflow).toContain(
+      'BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}'
+    );
+    expect(exportWorkflow).toContain("if: steps.window.outputs.should_run == 'true'");
+    expect(exportWorkflow).toContain(
+      "if: always() && (steps.window.outcome == 'failure' || steps.window.outputs.should_run == 'true')"
+    );
     expect(healthWorkflow).toContain("cron: '22 * * * *'");
     expect(healthWorkflow).toContain('actions: write');
     expect(healthWorkflow).toContain('issues: write');
     expect(healthWorkflow).toContain('BACKUP_NIGHTLY_HOUR: ${{ vars.MYK9_EXPORT_NIGHTLY_HOUR }}');
     expect(healthWorkflow.match(/BACKUP_NIGHTLY_HOUR:/g)).toHaveLength(1);
     expect(healthWorkflow).toContain(
-      "if: failure() && steps.freshness.outcome == 'failure' && github.event_name == 'schedule'"
+      "if: failure() && steps.freshness.outcome == 'failure' && steps.window.outputs.should_run == 'true' && github.event_name == 'schedule'"
+    );
+    expect(healthWorkflow).toContain('Select weekend daytime show window');
+    expect(healthWorkflow).toContain(
+      'BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}'
     );
     expect(healthWorkflow).toContain('gh workflow run independent-database-exports.yml');
     expect(healthWorkflow.indexOf('Catch up missed export slot')).toBeGreaterThan(

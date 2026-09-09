@@ -27,10 +27,28 @@ jobs:
           node-version: '22.12.0'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Verify hosted AWS client
-        run: aws --version
+      - name: Install PostgreSQL and AWS clients
+        uses: ./.github/actions/setup-backup-clients
+      - name: Select weekend daytime show window
+        id: window
+        run: |
+          set -euo pipefail
+          decision="$(pnpm exec tsx scripts/backup/weekend-window.ts)"
+          echo "$decision"
+          case "$decision" in
+            run) echo 'should_run=true' >> "$GITHUB_OUTPUT" ;;
+            skip:*) echo 'should_run=false' >> "$GITHUB_OUTPUT" ;;
+            *) echo "invalid weekend-window decision: $decision" >&2; exit 1 ;;
+          esac
+        env:
+          BACKUP_DATABASE_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+          BACKUP_DATABASE_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          BACKUP_TIME_ZONE: ${{ vars.MYK9_EXPORT_TIME_ZONE }}
+          BACKUP_WEEKEND_DAYS: ${{ vars.MYK9_EXPORT_WEEKEND_DAYS }}
+          BACKUP_FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' }}
       - name: Verify latest payloads and freshness
         id: freshness
+        if: steps.window.outputs.should_run == 'true'
         run: pnpm exec tsx scripts/backup/verify.ts
         env:
           BACKUP_PROJECT_REF: sojmvhhwsjxmfistvzbe
@@ -45,7 +63,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.MYK9_EXPORT_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ vars.MYK9_EXPORT_REGION }}
       - name: Catch up missed export slot
-        if: failure() && steps.freshness.outcome == 'failure' && github.event_name == 'schedule'
+        if: failure() && steps.freshness.outcome == 'failure' && steps.window.outputs.should_run == 'true' && github.event_name == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -55,7 +73,7 @@ jobs:
             --ref main
           echo 'Dispatched a forced export to recover the missed or invalid backup slot.'
       - name: Report scheduled failure
-        if: always()
+        if: always() && (steps.window.outcome == 'failure' || steps.window.outputs.should_run == 'true')
         uses: ./.github/actions/report-scheduled-failure
         with:
           workflow-name: Independent Database Export Health

@@ -9,6 +9,7 @@ import {
   parseEncryptionKey,
   redactError,
   sha256,
+  weekendShowWindow,
 } from './export-model';
 
 describe('scheduled export model', () => {
@@ -34,6 +35,22 @@ describe('scheduled export model', () => {
   it('uses configured weekend cadence', () => {
     expect(cadenceForDay(5)).toBe('hourly');
     expect(cadenceForDay(1)).toBe('nightly');
+  });
+
+  it('limits weekend exports to the daytime show window', () => {
+    expect(weekendShowWindow(new Date('2026-09-11T11:00:00Z'), 'America/Chicago')).toEqual({
+      shouldCheckShow: true,
+      startDate: '2026-09-11',
+      endDate: '2026-09-13',
+    });
+    expect(weekendShowWindow(new Date('2026-09-12T03:00:00Z'), 'America/Chicago')).toEqual({
+      shouldCheckShow: false,
+      reason: 'outside-daytime-window',
+    });
+    expect(weekendShowWindow(new Date('2026-09-10T15:00:00Z'), 'America/Chicago')).toEqual({
+      shouldCheckShow: false,
+      reason: 'weekday',
+    });
   });
 
   it('computes local due slots across weekday transitions and DST', () => {

@@ -10,7 +10,8 @@ a second OpenSpec change. No app surface, migration, or source database write is
 
 ## Approved direction
 
-- America/Chicago; hourly Friday–Sunday, nightly Monday–Thursday.
+- America/Chicago; hourly Friday–Sunday from 06:00–22:00 only when a show overlaps that
+  weekend, nightly Monday–Thursday.
 - Thirty-day retention, preserving the newest complete export even during a prolonged outage.
 - Keep daily Supabase physical backups and defer paid PITR.
 - Finish the documented restore procedure and verify alerting before activation.

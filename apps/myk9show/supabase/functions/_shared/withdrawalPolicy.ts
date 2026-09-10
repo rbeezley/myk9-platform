@@ -235,10 +235,7 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
-  if (
-    !policy.cutoffDate ||
-    notesDescribeRefundTerms(policy.notes?.trim() ?? null)
-  ) {
+  if (!policy.cutoffDate || notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,
@@ -254,18 +251,6 @@ export function resolveWithdrawalRefundCents(
       retainedCents: 0,
       requiresManual: false,
       reason: 'before_cutoff',
-    };
-  }
-
-  if (
-    policy.retentionValue == null ||
-    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
-  ) {
-    return {
-      refundCents: entryFeeCents,
-      retainedCents: 0,
-      requiresManual: true,
-      reason: 'manual_review',
     };
   }
 

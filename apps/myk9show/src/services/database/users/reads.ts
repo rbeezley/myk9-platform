@@ -27,8 +27,12 @@ const PEOPLE_DIRECTORY_COLUMNS =
   'zip_code, country, profile_image, auth_user_id, status, ' +
   'created_at, updated_at, deleted_at, deleted_by';
 
+interface GetAllUsersOptions {
+  includeRoleLabels?: boolean;
+}
+
 // Get all users (excluding soft-deleted)
-export const getAllUsers = async () => {
+export const getAllUsers = async ({ includeRoleLabels = true }: GetAllUsersOptions = {}) => {
   const startTime = Date.now();
 
   try {
@@ -59,7 +63,13 @@ export const getAllUsers = async () => {
       throw createDatabaseError(error, 'user', 'select_all');
     }
 
-    return { data: await hydrateVisibleRoles(data || []), error: null };
+    const people = data || [];
+    return {
+      data: includeRoleLabels
+        ? await hydrateVisibleRoles(people)
+        : people.map(person => ({ ...person, roles: [] })),
+      error: null,
+    };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_all');

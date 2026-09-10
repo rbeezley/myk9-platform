@@ -91,6 +91,16 @@ describe('User Queries', () => {
       ]);
     });
 
+    it('can preload the people directory without calling migration-backed role RPCs', async () => {
+      const mockData = [{ id: 'person-1', first_name: 'Ada', last_name: 'Judge' }];
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+
+      const result = await getAllUsers({ includeRoleLabels: false });
+
+      expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null });
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    });
+
     it('keeps people readable when role-label hydration is temporarily unavailable', async () => {
       const mockData = [{ id: 'person-1', first_name: 'Ada', last_name: 'Judge' }];
       const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);

@@ -31,6 +31,10 @@
 import { expect, type Page } from '@playwright/test';
 import { resolveFixtureEmail } from '../../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../../fixtures/retiredFixtureDomain';
+import {
+  describeSignInFailure,
+  SUPABASE_AUTH_TOKEN_KEY_PATTERN,
+} from '../../e2e-helpers/signInDiagnostics';
 
 export interface TestUser {
   email: string;
@@ -148,6 +152,32 @@ export const TEST_USERS: Record<string, TestUser> = {
   },
 };
 
+/** The E2E suite's own post-submit budget. Unchanged since before MYK9-463. */
+export const DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS = 15000;
+
+export interface SignInOptions {
+  /**
+   * How long to wait for the password step and then for navigation off
+   * `/sign-in`. Callers that authenticate many sessions at once (the G9 load
+   * harness) pass their own budget; specs leave it alone.
+   */
+  navigationTimeoutMs?: number;
+}
+
+/**
+ * Whether supabase-js has written a session token for this origin. The key
+ * pattern is passed in from `signInDiagnostics` rather than retyped, so the
+ * in-page test and `isSupabaseAuthTokenKey` cannot drift apart.
+ */
+async function hasSupabaseSession(page: Page): Promise<boolean> {
+  return page
+    .evaluate(
+      pattern => Object.keys(localStorage).some(key => new RegExp(pattern).test(key)),
+      SUPABASE_AUTH_TOKEN_KEY_PATTERN
+    )
+    .catch(() => false);
+}
+
 /**
  * Navigate to `/sign-in` and wait for the credential field to render, retrying
  * once if the SPA shell is still booting (the dev server's first paint can lag
@@ -193,13 +223,20 @@ export async function signIn(
   page: Page,
   email: string,
   password: string,
-  returnTo = '/'
+  returnTo = '/',
+  options: SignInOptions = {}
 ): Promise<void> {
   if (!email || !password) {
     throw new Error(`Missing E2E credentials for ${email || 'unknown test user'}`);
   }
 
   assertAddressIsLive(email);
+
+  // Default unchanged for the E2E suite; the load harness passes its own budget
+  // because 16 shards authenticate at once and this literal was the only 15s
+  // cliff in a preparation phase whose neighbours already allow 30-90s
+  // (MYK9-463).
+  const navigationTimeoutMs = options.navigationTimeoutMs ?? DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS;
 
   const params = new URLSearchParams({ returnTo });
   await gotoSignIn(page, `/sign-in?${params.toString()}`);
@@ -209,18 +246,34 @@ export async function signIn(
 
   // The email branch reveals the password sub-form ("we'll ask for your
   // password next"); wait for it before filling.
-  await expect(page.getByTestId('password-input')).toBeVisible({ timeout: 15000 });
+  const passwordStepStartedAt = Date.now();
+  try {
+    await expect(page.getByTestId('password-input')).toBeVisible({ timeout: navigationTimeoutMs });
+  } catch (error) {
+    throw new Error(
+      describeSignInFailure({
+        email,
+        budgetMs: navigationTimeoutMs,
+        elapsedMs: Date.now() - passwordStepStartedAt,
+        finalUrl: page.url(),
+        passwordStepReached: false,
+        authTokenPresent: await hasSupabaseSession(page),
+      }),
+      { cause: error }
+    );
+  }
   await page.getByTestId('password-input').fill(password);
 
+  const submittedAt = Date.now();
   await page.getByTestId('sign-in-button').click();
   const authErrorBanner = page.getByText(/invalid login credentials|user is banned/i).first();
   const signInResult = await Promise.race([
     page
-      .waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: 15000 })
+      .waitForURL(url => !url.pathname.includes('/sign-in'), { timeout: navigationTimeoutMs })
       .then(() => 'signed-in' as const)
       .catch((error: unknown) => ({ error })),
     authErrorBanner
-      .waitFor({ state: 'visible', timeout: 15000 })
+      .waitFor({ state: 'visible', timeout: navigationTimeoutMs })
       .then(async () => ({
         authError: (await authErrorBanner.textContent())?.trim() ?? 'auth rejected',
       }))
@@ -231,8 +284,27 @@ export async function signIn(
     throw new Error(`E2E sign-in rejected ${email}: ${signInResult.authError}`);
   }
 
+  // A bare `TimeoutError: page.waitForURL` cannot say whether authentication
+  // never returned or returned and left the app slow — opposite fixes. Ask the
+  // page which it was before giving up.
   if (typeof signInResult === 'object' && 'error' in signInResult) {
-    throw signInResult.error;
+    throw new Error(
+      describeSignInFailure({
+        email,
+        budgetMs: navigationTimeoutMs,
+        elapsedMs: Date.now() - submittedAt,
+        finalUrl: page.url(),
+        passwordStepReached: true,
+        authTokenPresent: await hasSupabaseSession(page),
+        // Bounded: this runs only after the budget already expired, and
+        // `textContent` on an absent banner would otherwise burn its own 30s
+        // default before the failure is reported.
+        authErrorText:
+          (await authErrorBanner.textContent({ timeout: 1000 }).catch(() => null))?.trim() ||
+          undefined,
+      }),
+      { cause: signInResult.error }
+    );
   }
 
   await page.waitForLoadState('domcontentloaded');
@@ -261,18 +333,24 @@ export async function signInAsTestUser(page: Page, userType: keyof typeof TEST_U
  * before it reaches Supabase, because the error Supabase returns for a dead
  * address is indistinguishable from a wrong password.
  */
-export const signInAsSecretary = (page: Page, returnTo = '/') =>
-  signIn(page, TEST_USERS.SECRETARY.email, TEST_USERS.SECRETARY.password, returnTo);
+export const signInAsSecretary = (page: Page, returnTo = '/', options?: SignInOptions) =>
+  signIn(page, TEST_USERS.SECRETARY.email, TEST_USERS.SECRETARY.password, returnTo, options);
 
-export const signInAsAdmin = (page: Page, returnTo = '/') =>
-  signIn(page, TEST_USERS.SITE_ADMIN.email, TEST_USERS.SITE_ADMIN.password, returnTo);
+export const signInAsAdmin = (page: Page, returnTo = '/', options?: SignInOptions) =>
+  signIn(page, TEST_USERS.SITE_ADMIN.email, TEST_USERS.SITE_ADMIN.password, returnTo, options);
 
-export const signInAsJudge = (page: Page, returnTo = '/') =>
-  signIn(page, TEST_USERS.JUDGE.email, TEST_USERS.JUDGE.password, returnTo);
+export const signInAsJudge = (page: Page, returnTo = '/', options?: SignInOptions) =>
+  signIn(page, TEST_USERS.JUDGE.email, TEST_USERS.JUDGE.password, returnTo, options);
 
 /** Exhibitor wrapper uses the protected demo account with seeded dogs. */
-export const signInAsExhibitor = (page: Page, returnTo = '/') =>
-  signIn(page, TEST_USERS.DEMO_EXHIBITOR.email, TEST_USERS.DEMO_EXHIBITOR.password, returnTo);
+export const signInAsExhibitor = (page: Page, returnTo = '/', options?: SignInOptions) =>
+  signIn(
+    page,
+    TEST_USERS.DEMO_EXHIBITOR.email,
+    TEST_USERS.DEMO_EXHIBITOR.password,
+    returnTo,
+    options
+  );
 
 function credentialInput(page: Page) {
   return page

@@ -5,10 +5,12 @@ import type { LoadSessionAssignment } from './loadAssignments';
 import { LOAD_SHOWS } from './loadFixture';
 import {
   assertAllSessionsOpenAtStart,
+  AUTH_STATE_SIGN_IN_TIMEOUT_MS,
   closeBrowserContexts,
   connectedSessionHoldMs,
   mapWithConcurrency,
 } from './loadBrowserRunner';
+import { DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS } from '../e2e/helpers/testUsers';
 
 describe('connectedSessionHoldMs', () => {
   it('keeps a completed non-scoring device mounted until the scenario deadline', () => {
@@ -110,5 +112,20 @@ describe('mapWithConcurrency', () => {
     await expect(mapWithConcurrency([1], 0, async value => value)).rejects.toThrow(
       'Concurrency must be a positive integer'
     );
+  });
+});
+
+describe('AUTH_STATE_SIGN_IN_TIMEOUT_MS', () => {
+  it('gives the per-shard UI sign-in more room than a single-spec sign-in gets', () => {
+    // MYK9-463: 16 shards each sign in twice at job start with no stagger. The
+    // spec default is chosen for one browser signing in alone; inheriting it
+    // here cost two whole shards of run 34394781017 before load even began.
+    expect(AUTH_STATE_SIGN_IN_TIMEOUT_MS).toBeGreaterThan(DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS);
+  });
+
+  it('matches the navigation budget the load config already declares', () => {
+    // Not a looser threshold invented for this fix — the same 45s the load
+    // config sets for navigation and that createAuthState's own page.goto uses.
+    expect(AUTH_STATE_SIGN_IN_TIMEOUT_MS).toBe(45_000);
   });
 });

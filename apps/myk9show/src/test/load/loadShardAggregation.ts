@@ -84,13 +84,22 @@ export function writeLoadShardArtifact(
 export function assertShardArtifactCount(
   artifacts: readonly Pick<LoadShardArtifact, 'shard'>[]
 ): void {
-  if (artifacts.length === DISTRIBUTED_G9_SHARD_COUNT) return;
   const present = new Set(
     artifacts.flatMap(artifact => {
       const index = artifact?.shard?.index;
       return Number.isInteger(index) ? [index] : [];
     })
   );
+  const invalid = [...present].filter(index => index < 0 || index >= DISTRIBUTED_G9_SHARD_COUNT);
+  if (invalid.length > 0) {
+    throw new Error(`Invalid load shard index(es): ${invalid.join(', ')}.`);
+  }
+  if (
+    artifacts.length === DISTRIBUTED_G9_SHARD_COUNT &&
+    present.size === DISTRIBUTED_G9_SHARD_COUNT
+  ) {
+    return;
+  }
   const missing = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => index).filter(
     index => !present.has(index)
   );

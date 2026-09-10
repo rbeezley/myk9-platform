@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { collectShardDiagnostics } from './loadShardDiagnostics';
-import { failureArtifactMetadata } from './loadShardFailure';
+import { failureArtifactMetadata, sanitizeFailureMessage } from './loadShardFailure';
+import { assertShardArtifactCount } from './loadShardAggregation';
 
 describe('collectShardDiagnostics', () => {
   it('sorts numeric shards before unknown and preserves unreadable files', () => {
@@ -30,5 +31,23 @@ describe('collectShardDiagnostics', () => {
         LOAD_TEST_SHARD_FAILURE_FILE: 'shard-3-failure.json',
       })
     ).toEqual({ shard: { count: 16, index: 3 }, fileName: 'shard-3-failure.json' });
+  });
+
+  it('redacts credentials and query values from exported messages', () => {
+    expect(
+      sanitizeFailureMessage(
+        'GET https://example.test/?token=secret&show=7 Authorization: Bearer abc123'
+      )
+    ).toBe(
+      'GET https://example.test/?token=[REDACTED]&show=[REDACTED] Authorization: Bearer [REDACTED]'
+    );
+  });
+
+  it('rejects a full artifact set with an out-of-range shard index', () => {
+    const artifacts = Array.from({ length: 15 }, (_, index) => ({ shard: { index } }));
+    artifacts.push({ shard: { index: 16 } });
+    expect(() => assertShardArtifactCount(artifacts as never)).toThrow(
+      'Invalid load shard index(es): 16.'
+    );
   });
 });

@@ -9,6 +9,17 @@ function parseNonnegativeInteger(value: string | undefined): number | undefined 
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
+export function sanitizeFailureMessage(message: string): string {
+  return message
+    .replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]')
+    .replace(
+      /\b(?:authorization|cookie|password|secret|token|api[_-]?key)\b\s*[:=]\s*[^\s&]+/gi,
+      match => `${match.slice(0, match.search(/[:=]/))}[REDACTED]`
+    )
+    .replace(/([?&][^=\s&]+)=([^&\s]*)/g, '$1=[REDACTED]')
+    .slice(0, 2000);
+}
+
 export function failureArtifactMetadata(env: NodeJS.ProcessEnv): {
   shard: { count: number; index: number };
   fileName: string;
@@ -47,8 +58,9 @@ export async function writeFailureArtifactFromTestInfo(
     scenarioId: G9_NORMAL_SCENARIO.id,
     error: {
       name: 'PlaywrightTestError',
-      message: failure?.message ?? `Load test ended with status ${testInfo.status}.`,
-      ...(failure?.stack ? { stack: failure.stack } : {}),
+      message: sanitizeFailureMessage(
+        failure?.message ?? `Load test ended with status ${testInfo.status}.`
+      ),
     },
   };
   try {

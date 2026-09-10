@@ -9,7 +9,11 @@ import {
   writeLoadShardArtifact,
   writeLoadShardFailureArtifact,
 } from './loadShardAggregation';
-import { failureArtifactMetadata, writeFailureArtifactFromTestInfo } from './loadShardFailure';
+import {
+  failureArtifactMetadata,
+  sanitizeFailureMessage,
+  writeFailureArtifactFromTestInfo,
+} from './loadShardFailure';
 import { loadTargetFromEnv } from './loadTarget';
 
 // Playwright requires an object pattern here; keeping it empty avoids resolving
@@ -40,8 +44,7 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
       scenarioId: G9_NORMAL_SCENARIO.id,
       error: {
         name: failure.name,
-        message: failure.message,
-        ...(failure.stack ? { stack: failure.stack } : {}),
+        message: sanitizeFailureMessage(failure.message),
       },
     };
     try {

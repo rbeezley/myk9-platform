@@ -10,7 +10,6 @@ import {
   shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
-import { DISTRIBUTED_G9_SHARD_COUNT } from '../src/test/load/loadShard';
 
 function shardNumber(fileName: string): number {
   return Number(fileName.replace(/\D/g, ''));

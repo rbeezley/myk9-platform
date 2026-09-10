@@ -17,7 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { notifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
-import { friendlyDbError } from '@/utils/friendlyDbError';
+import { friendlyDbError, isPermissionDbError } from '@/utils/friendlyDbError';
 import { printShowAccessSlip } from './printShowAccessSlip';
 
 interface ShowAccessCodesCardProps {
@@ -141,6 +141,9 @@ function ShowAccessCodesCardForShow({
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [regenerationState, setRegenerationState] = useState<RegenerationState>('idle');
   const [regenerationError, setRegenerationError] = useState<string | null>(initialError);
+  // Could pressing the button again plausibly work? A show-creation failure
+  // (initialError) is transient and keeps the retry advice; a refusal is not.
+  const [regenerationErrorRetryable, setRegenerationErrorRetryable] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const qrContainerRef = useRef<HTMLDivElement>(null);
 
@@ -199,6 +202,7 @@ function ShowAccessCodesCardForShow({
 
     setRegenerationState('generating');
     setRegenerationError(null);
+    setRegenerationErrorRetryable(true);
     try {
       const { data, error } = await (
         supabase.rpc as unknown as (
@@ -209,6 +213,7 @@ function ShowAccessCodesCardForShow({
 
       if (error || !data || data.length === 0) {
         const message = friendlyDbError(error, 'Could not generate new codes. Please try again.');
+        setRegenerationErrorRetryable(!isPermissionDbError(error));
         setRegenerationError(message);
         notifications.error(message);
         return;
@@ -225,6 +230,7 @@ function ShowAccessCodesCardForShow({
       notifications.success('New codes generated and saved.');
     } catch (error) {
       const message = friendlyDbError(error, 'Could not generate new codes. Please try again.');
+      setRegenerationErrorRetryable(!isPermissionDbError(error));
       setRegenerationError(message);
       notifications.error(message);
     } finally {
@@ -262,11 +268,23 @@ function ShowAccessCodesCardForShow({
     </AlertDialog>
   ) : null;
 
+  // "Try again" is only honest when it could work. On a refusal the same press
+  // fails identically, and retry advice reads as "you mis-clicked" rather than
+  // "this show is not yours to change".
   const regenerationErrorAlert = regenerationError ? (
     <Alert variant="destructive">
       <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Access codes were not generated</AlertTitle>
-      <AlertDescription>{regenerationError} Use the button below to try again.</AlertDescription>
+      <AlertTitle>
+        {regenerationErrorRetryable
+          ? 'Access codes were not generated'
+          : 'Access codes were not changed'}
+      </AlertTitle>
+      <AlertDescription>
+        {regenerationError}
+        {regenerationErrorRetryable
+          ? ' Use the button below to try again.'
+          : ' Ask this show’s secretary or a club admin to generate them.'}
+      </AlertDescription>
     </Alert>
   ) : null;
 

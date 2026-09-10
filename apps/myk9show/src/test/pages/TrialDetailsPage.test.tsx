@@ -39,7 +39,20 @@ vi.mock('@/store/trialStore', () => ({
 // Auth context
 const mockAuthContext = {
   user: null as Record<string, unknown> | null,
-  userWithRoles: null as Record<string, unknown> | null,
+  // A secretary's grant is club-scoped — canManageShowSurface narrows on the
+  // parent show's own club, matching is_trial_secretary(club) on the server.
+  // A fixture with isSecretary and no scope is a user who cannot exist.
+  userWithRoles: {
+    scopes: [
+      {
+        userId: 'user-1',
+        roleId: 'secretary',
+        scopeType: 'club',
+        scopeId: 'club-1',
+        createdAt: new Date(),
+      },
+    ],
+  } as Record<string, unknown> | null,
   isSecretary: false,
   isAdmin: false,
   hasRole: vi.fn(() => false),
@@ -204,7 +217,17 @@ describe('TrialDetailsPage', () => {
     trialQueryCalls.length = 0;
     showQueryCalls.length = 0;
     mockAuthContext.user = null;
-    mockAuthContext.userWithRoles = null;
+    mockAuthContext.userWithRoles = {
+      scopes: [
+        {
+          userId: 'user-1',
+          roleId: 'secretary',
+          scopeType: 'club',
+          scopeId: 'club-1',
+          createdAt: new Date(),
+        },
+      ],
+    };
     mockAuthContext.isSecretary = false;
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);
@@ -227,7 +250,12 @@ describe('TrialDetailsPage', () => {
     mockTrials = [];
     mockSelectedTrialId = null;
     mockFallbackTrial = makeFallbackTrial();
-    mockFallbackShow = { id: 'show-1', name: 'Heartland Scent Work Classic', organization: 'AKC' };
+    mockFallbackShow = {
+      id: 'show-1',
+      name: 'Heartland Scent Work Classic',
+      organization: 'AKC',
+      clubId: 'club-1',
+    };
 
     renderPage();
 
@@ -282,7 +310,9 @@ describe('TrialDetailsPage', () => {
       },
     ];
     mockSelectedTrialId = 'trial-1';
-    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', organization: 'AKC' }];
+    mockShows = [
+      { id: 'show-1', name: 'Heartland Scent Work Classic', organization: 'AKC', clubId: 'club-1' },
+    ];
 
     renderPage();
 
@@ -297,7 +327,7 @@ describe('TrialDetailsPage', () => {
     mockAuthContext.isSecretary = true;
     mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
     mockSelectedTrialId = 'trial-1';
-    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic' }];
+    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
 
     renderPage();
 
@@ -310,7 +340,7 @@ describe('TrialDetailsPage', () => {
     mockAuthContext.isSecretary = true;
     mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
     mockSelectedTrialId = 'trial-1';
-    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic' }];
+    mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
 
     renderPage('/trials/trial-1?tab=promo-codes');
 

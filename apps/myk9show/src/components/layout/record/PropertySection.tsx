@@ -71,11 +71,22 @@ export function PropertySection({ section, storagePrefix }: PropertySectionProps
       {isExpanded && (
         <div className="divide-y divide-border/30">
           {section.fields.map(field => (
-            <div key={field.label} className="flex items-center justify-between py-2.5 px-3">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider w-2/5">
-                {field.label}
-              </span>
-              <div className="text-sm font-medium text-foreground text-right w-3/5">
+            /*
+             * Label ABOVE value, both left-aligned — the Apple Contacts /
+             * Telegram / Beside pattern.
+             *
+             * This was a two-column row: an uppercase, letter-spaced label in a
+             * fixed 2/5 and the value right-aligned in the remaining 3/5. Two
+             * things went wrong. The label shouted louder than the value the
+             * reader actually came for, and any value longer than 3/5 of a
+             * 280px sidebar — every real email address — was clipped.
+             *
+             * Stacking gives the value the full width and lets it wrap, so the
+             * column width stops being a content limit.
+             */
+            <div key={field.label} className="px-3 py-2.5">
+              <div className="text-xs font-normal text-muted-foreground">{field.label}</div>
+              <div className="mt-0.5 min-w-0 text-sm font-medium text-foreground break-words">
                 {field.render ??
                   (field.onSave ? (
                     <InlineEditableField

@@ -31,6 +31,41 @@ function toError(error: unknown, message: string): Error {
   return error instanceof Error ? error : new Error(message);
 }
 
+function normalizedErrorText(err: ErrorLike, error: unknown): string {
+  const message =
+    stringValue(err.message) ?? (typeof error === 'string' ? error : 'Unknown database error');
+  const code = stringValue(err.code);
+  const details = stringValue(err.details);
+  const hint = stringValue(err.hint);
+  return `${code ?? ''} ${message} ${details ?? ''} ${hint ?? ''}`.toLowerCase();
+}
+
+/**
+ * Is this an authorization refusal rather than a transient failure?
+ *
+ * Callers use it to decide whether "try again" is honest advice. Offering a
+ * retry for a permission denial is worse than saying nothing: the control that
+ * failed will keep failing, and the user is left believing they mis-clicked.
+ *
+ * Shares its condition with {@link friendlyDbError} so the message and the
+ * advice can never disagree about what kind of error occurred.
+ */
+export function isPermissionDbError(error: unknown): boolean {
+  const err = asErrorLike(error);
+  const code = stringValue(err.code);
+  const status = statusValue(err.status) ?? statusValue(err.statusCode);
+  const normalized = normalizedErrorText(err, error);
+  return (
+    code === '42501' ||
+    status === 401 ||
+    status === 403 ||
+    normalized.includes('row-level security') ||
+    normalized.includes('permission denied') ||
+    normalized.includes('unauthorized') ||
+    normalized.includes('not authorized')
+  );
+}
+
 export function friendlyDbError(error: unknown, fallbackMessage = DEFAULT_DB_ERROR): string {
   const err = asErrorLike(error);
   const message =
@@ -39,7 +74,7 @@ export function friendlyDbError(error: unknown, fallbackMessage = DEFAULT_DB_ERR
   const details = stringValue(err.details);
   const hint = stringValue(err.hint);
   const status = statusValue(err.status) ?? statusValue(err.statusCode);
-  const normalized = `${code ?? ''} ${message} ${details ?? ''} ${hint ?? ''}`.toLowerCase();
+  const normalized = normalizedErrorText(err, error);
 
   logger.error(
     'Database operation failed',
@@ -48,15 +83,7 @@ export function friendlyDbError(error: unknown, fallbackMessage = DEFAULT_DB_ERR
     toError(error, message)
   );
 
-  if (
-    code === '42501' ||
-    status === 401 ||
-    status === 403 ||
-    normalized.includes('row-level security') ||
-    normalized.includes('permission denied') ||
-    normalized.includes('unauthorized') ||
-    normalized.includes('not authorized')
-  ) {
+  if (isPermissionDbError(error)) {
     return "You don't have permission to make that change.";
   }
 

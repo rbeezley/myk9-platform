@@ -337,8 +337,33 @@ describe('ShowAccessCodesCard', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       "You don't have permission to make that change."
     );
-    // The management card remains visible and offers retry.
+    // An authorization refusal must NOT advise a retry — the same press fails
+    // identically, and "try again" reads as "you mis-clicked".
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Use the button below to try again');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Ask this show’s secretary or a club admin to generate them.'
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Access codes were not changed');
+    // The management card itself stays visible for a manager.
     expect(screen.getByRole('button', { name: /generate new codes/i })).toBeInTheDocument();
+  });
+
+  it('does advise a retry when regeneration failed for a transient reason', async () => {
+    mockRegenerateRpc({
+      data: null,
+      error: { message: 'network timeout' },
+    });
+
+    const { user } = renderWithProviders(
+      <ShowAccessCodesCard showId={TEST_SHOW_ID} canRegenerate />
+    );
+
+    await user.click(screen.getByRole('button', { name: /generate new codes/i }));
+    await user.click(await screen.findByRole('button', { name: /^generate$/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Access codes were not generated');
+    expect(alert).toHaveTextContent('Use the button below to try again');
   });
 
   it('reloads all four manager codes after the card remounts', async () => {

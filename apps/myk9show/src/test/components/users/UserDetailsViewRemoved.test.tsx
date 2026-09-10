@@ -100,21 +100,38 @@ describe('UserDetailsView — removed people', () => {
     await waitFor(() => expect(restoreUser).toHaveBeenCalledWith('p1'));
   });
 
-  it('offers no edit affordances on a removed record', () => {
+  it('offers no edit affordances on a removed record', async () => {
     // The banner says the record cannot be edited. Leaving Edit and the photo
     // button live would make it a liar.
+    //
+    // Asserted INSIDE the opened menu: Edit moved out of a standalone button
+    // and into the actions menu, so querying for a bare Edit *button* now
+    // passes whether or not the affordance is offered.
+    const user = userEvent.setup();
     renderView(person({ deletedAt: '2026-07-30T00:00:00Z' } as Partial<User>));
 
-    expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /more actions/i }));
+
+    // Positive control: prove the menu actually OPENED before reading absence
+    // from it. Delete is the one action a removed record keeps (it means
+    // permanent deletion). Without this, a menu that failed to open would make
+    // every assertion below pass for the wrong reason.
+    expect(await screen.findByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
+
+    expect(screen.queryByRole('menuitem', { name: /edit person/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /change photo/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /invitation|sign-in link/i })
     ).not.toBeInTheDocument();
   });
 
-  it('keeps edit affordances on a live record', () => {
+  it('keeps edit affordances on a live record', async () => {
+    const user = userEvent.setup();
     renderView(person());
 
-    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /more actions/i }));
+
+    expect(await screen.findByRole('menuitem', { name: /edit person/i })).toBeInTheDocument();
   });
 
   it('explains the removal without offering Restore to a viewer who cannot', () => {

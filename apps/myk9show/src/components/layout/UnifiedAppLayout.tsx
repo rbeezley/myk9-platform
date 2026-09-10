@@ -21,9 +21,10 @@ import { buildUnifiedSidebarConfig } from './sidebar/unifiedSidebarConfig';
 import type { ClubContext, NextShowContext } from './sidebar/unifiedSidebarConfig';
 import { useMyShows } from '@/hooks/useMyShows';
 import { useCurrentValidatedClubContext } from '@/hooks/useValidatedClubContext';
+import { filterManagedShows, managedClubIds } from '@/utils/roleScopes';
 
 export const UnifiedAppLayout: React.FC = () => {
-  const { user, getUserRoles, firstName } = useAuthContext();
+  const { user, getUserRoles, firstName, isAdmin, userWithRoles } = useAuthContext();
   const roles = getUserRoles();
   const ensureClubsReady = useClubStore(s => s.ensureClubsReady);
   const shows = useShowStore(s => s.shows);
@@ -40,7 +41,19 @@ export const UnifiedAppLayout: React.FC = () => {
       clubName: validatedClubContext.clubName,
     };
   }, [validatedClubContext]);
-  const { today, upcoming, draft } = useMyShows(shows);
+  // The sidebar's Manage section names the secretary's NEXT SHOW, so it must
+  // be drawn from the shows this user actually manages. The store holds every
+  // show the viewer can browse, so bucketing it unfiltered put another club's
+  // show under "Manage" — with Setup and Show Desk links the server refuses.
+  const managedClubs = useMemo(
+    () => managedClubIds({ isAdmin, userWithRoles }),
+    [isAdmin, userWithRoles]
+  );
+  const managedShows = useMemo(
+    () => filterManagedShows(shows, managedClubs),
+    [shows, managedClubs]
+  );
+  const { today, upcoming, draft } = useMyShows(managedShows);
 
   const nextShow = useMemo((): NextShowContext | undefined => {
     const todayShow = today[0];

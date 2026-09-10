@@ -66,6 +66,57 @@ describe('PropertySection', () => {
       expect(screen.getByText('65')).toBeInTheDocument();
     });
 
+    // The row used to be label-left / value-right in a fixed 2/5 + 3/5 split,
+    // which clipped any value wider than 3/5 of a 280px sidebar — i.e. every
+    // real email address. These pin the stacked shape that replaced it.
+    it('gives the value its own full-width block rather than a fixed column', () => {
+      render(
+        <PropertySection
+          section={createSection({
+            fields: [{ label: 'Email', value: 'richardbeezley1@gmail.com' }],
+          })}
+        />
+      );
+
+      const label = screen.getByText('Email');
+      const value = screen.getByText('richardbeezley1@gmail.com');
+      // Siblings in a block row, not two cells of a flex row.
+      expect(value.parentElement).toBe(label.parentElement);
+      expect(label.parentElement?.className).not.toMatch(/\bflex\b/);
+      // No fractional width caps on either half.
+      expect(label.className).not.toMatch(/w-2\/5/);
+      expect(value.className).not.toMatch(/w-3\/5/);
+    });
+
+    it('never clips a long value', () => {
+      const longEmail = 'a-very-long-address-that-would-not-fit@some-long-domain.example.com';
+      render(
+        <PropertySection
+          section={createSection({ fields: [{ label: 'Email', value: longEmail }] })}
+        />
+      );
+
+      const value = screen.getByText(longEmail);
+      expect(value.textContent).toBe(longEmail);
+      expect(value.className).not.toMatch(/truncate/);
+      expect(value.className).toMatch(/break-words/);
+    });
+
+    it('keeps the label quieter than the value it describes', () => {
+      // The label was uppercase + tracking-wider + medium, so it shouted over
+      // the value the reader actually came for.
+      render(
+        <PropertySection
+          section={createSection({ fields: [{ label: 'Email', value: 'a@b.co' }] })}
+        />
+      );
+
+      const label = screen.getByText('Email');
+      expect(label.className).not.toMatch(/uppercase/);
+      expect(label.className).not.toMatch(/tracking-wider/);
+      expect(label.className).toMatch(/text-muted-foreground/);
+    });
+
     it('renders icon when provided', () => {
       const section = createSection({ icon: StubIcon });
       render(<PropertySection section={section} />);

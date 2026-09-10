@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Mail, Pencil } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import {
@@ -9,8 +9,15 @@ import {
   getSignInReturnTo,
   persistSignInRedirect,
 } from './SignInPage.helpers';
-import { classifyCredential, normalizeCredential } from './SmartSignInPage.helpers';
+import {
+  classifyCredential,
+  normalizeCredential,
+  resolveLiveHint,
+  resolveSignInHeading,
+} from './SmartSignInPage.helpers';
 import { PasswordSubForm } from './PasswordSubForm';
+import { PasscodeDetailsForm } from './PasscodeDetailsForm';
+import { LockedCredentialChip } from './LockedCredentialChip';
 import { SocialSignInButtons } from './SocialSignInButtons';
 import { JoinShowConfirmation } from './JoinShowConfirmation';
 import { validatePasscode } from './validatePasscode';
@@ -58,7 +65,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const [searchParams] = useSearchParams();
   const [credential, setCredential] = useState(() => searchParams.get('code') ?? '');
   const [displayName, setDisplayName] = useState('');
-  const [step, setStep] = useState<'input' | 'password'>('input');
+  const [step, setStep] = useState<'input' | 'password' | 'passcode'>('input');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -93,7 +100,9 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   const validCredential = passcodeOnly
     ? kind === 'passcode'
     : kind === 'email' || kind === 'passcode';
-  const canContinue = validCredential && (!anonymousPasscodeNeedsCaptcha || !!captchaToken);
+  // The first step commits a branch; it never carries that branch's own
+  // requirements. The account-less passcode CAPTCHA gates the passcode step.
+  const canContinue = validCredential;
   const signInReturnTo = useMemo(() => getSignInReturnTo(searchParams), [searchParams]);
   const signUpPath = useMemo(
     () =>
@@ -104,31 +113,18 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   );
   const entryShowId = useMemo(() => getShowEntryRedirectShowId(signInReturnTo), [signInReturnTo]);
   const { data: entryShow } = useShowQuery(entryShowId ?? '');
-  const heading =
-    entryShowId && entryShow?.name
-      ? `Sign in to enter ${entryShow.name}`
-      : passcodeOnly
-        ? 'Enter a show passcode'
-        : step === 'password'
-          ? // Account language on the password step is Phase 5 of
-            // docs/plan-exhibitor-onboarding-remediation.md (Active), pinned by
-            // SmartSignInPage.test.tsx — do not collapse into the step-1 heading.
-            'Sign in to your account'
-          : 'Sign in';
+  const heading = resolveSignInHeading({
+    step,
+    passcodeOnly,
+    ...(entryShowId && entryShow?.name ? { entryShowName: entryShow.name } : {}),
+  });
 
   // Programmatic focus to the password field when the email branch reveals it.
   useEffect(() => {
     if (step === 'password') document.getElementById('password')?.focus();
   }, [step]);
 
-  const liveHint =
-    kind === 'email'
-      ? passcodeOnly
-        ? ''
-        : "Looks like an email — we'll ask for your password next"
-      : kind === 'passcode'
-        ? "Looks like a show passcode — you'll be signed in"
-        : '';
+  const liveHint = resolveLiveHint(kind, passcodeOnly);
   const describedBy = ['credential-hint', 'credential-help', error ? 'credential-error' : null]
     .filter(Boolean)
     .join(' ');
@@ -178,56 +174,79 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
       return;
     }
 
+    // Account-less passcode: commit to the branch, then collect the optional
+    // name and the security check on the step that owns them. Neither may sit
+    // beside the smart input, where five typed characters are still ambiguous
+    // between a passcode and the start of an email — see PasscodeDetailsForm.
+    if (!user || user.is_anonymous === true) {
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
+      setStep('passcode');
+      return;
+    }
+
+    setLoading(true);
+    submissionPendingRef.current = true;
+    try {
+      // Signed-in account: validate only (no anon session — Locked Decision #8
+      // keeps the account session untouched), then confirm before expanding
+      // role (Phase 1c §2.2). DB access stays auth.uid()-based.
+      const normalizedCredential = normalizeCredential(credential);
+      const result = await validatePasscode(normalizedCredential);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setPending({
+        showId: result.showId,
+        showName: result.showName,
+        role: result.role,
+        passcode: normalizedCredential,
+      });
+    } finally {
+      submissionPendingRef.current = false;
+      setLoading(false);
+    }
+  };
+
+  const handlePasscodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading || submissionPendingRef.current) return;
+    if (anonymousPasscodeNeedsCaptcha && !captchaToken) return;
+    setError('');
     setLoading(true);
     submissionPendingRef.current = true;
     try {
       const normalizedCredential = normalizeCredential(credential);
-      if (user && user.is_anonymous !== true) {
-        // Signed-in account: validate only (no anon session — Locked Decision #8
-        // keeps the account session untouched), then confirm before expanding
-        // role (Phase 1c §2.2). DB access stays auth.uid()-based.
-        const result = await validatePasscode(normalizedCredential);
-        if (!result.ok) {
-          setError(result.message);
-          return;
-        }
-        setPending({
-          showId: result.showId,
-          showName: result.showName,
-          role: result.role,
-          passcode: normalizedCredential,
-        });
-      } else {
-        // Account-less: mint an anonymous session stamped with the ringside
-        // claim (Phase C/D) so the DB admits this device's offline reads/writes,
-        // then keep the UI role + presence identity in the client grant.
-        let result;
-        try {
-          result =
-            captchaRequired && !user
-              ? await startAnonymousRingsideSession(normalizedCredential, {
-                  ...(captchaToken ? { captchaToken } : {}),
-                  requireCaptcha: true,
-                })
-              : await startAnonymousRingsideSession(normalizedCredential);
-        } finally {
-          if (captchaRequired) turnstileRef.current?.reset();
-        }
-        if (!result.ok) {
-          setError(result.message);
-          return;
-        }
-        const typedName = displayName.trim();
-        setGrant({
-          showId: result.showId,
-          role: result.role,
-          passcode: normalizedCredential,
-          ...(typedName ? { name: typedName } : {}),
-          sessionId: crypto.randomUUID(),
-          source: 'passcode',
-        });
-        navigate(`/at-show/${result.showId}`);
+      // Account-less: mint an anonymous session stamped with the ringside
+      // claim (Phase C/D) so the DB admits this device's offline reads/writes,
+      // then keep the UI role + presence identity in the client grant.
+      let result;
+      try {
+        result =
+          captchaRequired && !user
+            ? await startAnonymousRingsideSession(normalizedCredential, {
+                ...(captchaToken ? { captchaToken } : {}),
+                requireCaptcha: true,
+              })
+            : await startAnonymousRingsideSession(normalizedCredential);
+      } finally {
+        if (captchaRequired) turnstileRef.current?.reset();
       }
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      const typedName = displayName.trim();
+      setGrant({
+        showId: result.showId,
+        role: result.role,
+        passcode: normalizedCredential,
+        ...(typedName ? { name: typedName } : {}),
+        sessionId: crypto.randomUUID(),
+        source: 'passcode',
+      });
+      navigate(`/at-show/${result.showId}`);
     } finally {
       submissionPendingRef.current = false;
       setLoading(false);
@@ -319,7 +338,11 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
 
         {/* aria-live region announcing branch + step transitions. */}
         <div className="sr-only" aria-live="polite">
-          {step === 'password' ? 'Enter your password to sign in.' : liveHint}
+          {step === 'password'
+            ? 'Enter your password to sign in.'
+            : step === 'passcode'
+              ? 'Show passcode entered. Add your name if you like, then continue.'
+              : liveHint}
         </div>
 
         {step === 'input' ? (
@@ -377,43 +400,10 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
                 {liveHint}
               </div>
 
-              {/* Optional name — only for the anonymous passcode branch. Never
-                  required, never blocks the ≤2-tap path; powers show presence. */}
-              {kind === 'passcode' && !user && (
-                <div className="mb-3">
-                  <label className="block mb-1 font-medium" htmlFor="display-name">
-                    Your name <span className="font-normal text-muted-foreground">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="display-name"
-                    data-testid="display-name-input"
-                    autoComplete="name"
-                    autoCapitalize="words"
-                    placeholder="e.g. Judge Sarah"
-                    value={displayName}
-                    onChange={e => setDisplayName(e.target.value)}
-                    className="h-11 w-full rounded-md border border-input bg-background p-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Shown to others at the show so they know who&apos;s at each ring.
-                  </p>
-                </div>
-              )}
-
               {error && (
                 <div id="credential-error" className="text-destructive mb-4 text-center">
                   {error}
                 </div>
-              )}
-
-              {anonymousPasscodeNeedsCaptcha && (
-                <TurnstileChallenge
-                  ref={turnstileRef}
-                  siteKey={turnstileSiteKey}
-                  action="ringside_login"
-                  onTokenChange={setCaptchaToken}
-                />
               )}
 
               <button
@@ -445,38 +435,41 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
           </>
         ) : (
           <>
-            {/* Locked credential chip + edit affordance (INTENT: no hunting). */}
-            <div className="flex items-center justify-between mb-4 p-2 pl-3 border border-input rounded-md bg-background">
-              <span className="text-foreground truncate" data-testid="locked-credential">
-                {normalizeCredential(credential)}
-              </span>
-              <button
-                type="button"
-                onClick={editCredential}
-                className="flex min-h-11 items-center gap-1 rounded px-2 text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <Pencil size={14} /> Edit
-              </button>
-            </div>
-            <form onSubmit={handlePasswordSubmit}>
-              {captchaRequired && (
-                <TurnstileChallenge
-                  ref={turnstileRef}
-                  siteKey={turnstileSiteKey}
-                  action="password_login"
-                  onTokenChange={setCaptchaToken}
-                />
-              )}
-              <PasswordSubForm
-                password={password}
-                onPasswordChange={setPassword}
-                showPassword={showPassword}
-                onToggleShowPassword={() => setShowPassword(prev => !prev)}
+            <LockedCredentialChip value={normalizeCredential(credential)} onEdit={editCredential} />
+            {step === 'passcode' ? (
+              <PasscodeDetailsForm
+                displayName={displayName}
+                onDisplayNameChange={setDisplayName}
+                onSubmit={handlePasscodeSubmit}
                 isLoading={isLoading}
                 error={error}
-                submitDisabled={captchaRequired && !captchaToken}
+                needsCaptcha={anonymousPasscodeNeedsCaptcha}
+                turnstileSiteKey={turnstileSiteKey}
+                turnstileRef={turnstileRef}
+                onTokenChange={setCaptchaToken}
+                submitDisabled={anonymousPasscodeNeedsCaptcha && !captchaToken}
               />
-            </form>
+            ) : (
+              <form onSubmit={handlePasswordSubmit}>
+                {captchaRequired && (
+                  <TurnstileChallenge
+                    ref={turnstileRef}
+                    siteKey={turnstileSiteKey}
+                    action="password_login"
+                    onTokenChange={setCaptchaToken}
+                  />
+                )}
+                <PasswordSubForm
+                  password={password}
+                  onPasswordChange={setPassword}
+                  showPassword={showPassword}
+                  onToggleShowPassword={() => setShowPassword(prev => !prev)}
+                  isLoading={isLoading}
+                  error={error}
+                  submitDisabled={captchaRequired && !captchaToken}
+                />
+              </form>
+            )}
           </>
         )}
       </div>

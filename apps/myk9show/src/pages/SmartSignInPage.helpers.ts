@@ -69,3 +69,40 @@ export function classifyCredential(raw: string): CredentialKind {
   if (!PASSCODE_SHAPE.test(normalized)) return 'invalid';
   return parsePasscode(normalized).isValid ? 'passcode' : 'invalid';
 }
+
+export type SignInStep = 'input' | 'password' | 'passcode';
+
+/**
+ * Card heading for a step. The passcode step wins over every other case,
+ * including `passcodeOnly` — once the branch is committed, "Enter a show
+ * passcode" describes the step the user just left.
+ *
+ * Account language on the password step is Phase 5 of
+ * docs/plan-exhibitor-onboarding-remediation.md (Active), pinned by
+ * SmartSignInPage.test.tsx — do not collapse it into the step-1 heading.
+ */
+export function resolveSignInHeading(args: {
+  step: SignInStep;
+  passcodeOnly: boolean;
+  entryShowName?: string | undefined;
+}): string {
+  const { step, passcodeOnly, entryShowName } = args;
+  if (step === 'passcode') return 'Join the show';
+  if (entryShowName) return `Sign in to enter ${entryShowName}`;
+  if (passcodeOnly) return 'Enter a show passcode';
+  return step === 'password' ? 'Sign in to your account' : 'Sign in';
+}
+
+/**
+ * Live disambiguation under the smart input. Empty while the value is invalid
+ * or empty, so the reserved row never announces a guess about a half-typed
+ * value. This is text in an already-reserved box — it is the ONLY thing allowed
+ * to react to a per-keystroke classification, because it shifts no layout.
+ */
+export function resolveLiveHint(kind: CredentialKind, passcodeOnly: boolean): string {
+  if (kind === 'email') {
+    return passcodeOnly ? '' : "Looks like an email — we'll ask for your password next";
+  }
+  if (kind === 'passcode') return "Looks like a show passcode — you'll be signed in";
+  return '';
+}

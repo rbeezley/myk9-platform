@@ -10,6 +10,7 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useShowManageGate } from './ShowDetailsPage.viewer';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -94,7 +95,7 @@ const ShowDetailsPage: React.FC = () => {
   }, [currentShow, id, shows]);
 
   const { data: armbandCount } = useArmbandCount(actualCurrentShow?.id);
-  const canManageShow = isSecretary || isAdmin;
+  const canManageShow = useShowManageGate(actualCurrentShow?.clubId);
   const {
     data: secretaryEntries,
     isSuccess: secretaryEntriesLoaded,

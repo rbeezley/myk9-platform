@@ -136,7 +136,7 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}');
     expect(workflow).not.toMatch(/repos\/\$\{GITHUB_REPOSITORY\}\/actions\/runs/);
     expect(workflow).toMatch(
-      /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
+      /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 75/
     );
   });
 

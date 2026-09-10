@@ -315,8 +315,8 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     # Covers runner setup, the longest 35-minute barrier, the 10-minute load,
-    # and artifact upload.
-    timeout-minutes: 55
+    # the 50-minute Playwright timeout, teardown, and artifact upload.
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       # Every shard must be live at the same barrier, so this cannot be throttled

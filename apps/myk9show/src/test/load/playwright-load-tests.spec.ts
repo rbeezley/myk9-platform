@@ -34,6 +34,8 @@ function failureArtifactMetadata(): {
 
 async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<void> {
   if (testInfo.status === testInfo.expectedStatus) return;
+  if (testInfo.title !== 'G9 Normal show-day load') return;
+  if (testInfo.annotations.some(annotation => annotation.type === 'shard-failure-evidence')) return;
   const metadata = failureArtifactMetadata();
   const target = (() => {
     try {
@@ -43,9 +45,12 @@ async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<voi
     }
   })();
   const failure = testInfo.error;
-  const failureName = failure instanceof Error ? failure.name : 'PlaywrightTestError';
+  const failureName =
+    failure && typeof failure === 'object' && 'name' in failure && typeof failure.name === 'string'
+      ? failure.name
+      : 'PlaywrightTestError';
   const failureMessage = failure?.message ?? `Load test ended with status ${testInfo.status}.`;
-  const failureStack = failure instanceof Error ? failure.stack : failure?.stack;
+  const failureStack = failure?.stack;
   const artifact = {
     schemaVersion: 1 as const,
     runId: process.env.LOAD_TEST_RUN_ID ?? 'unknown',
@@ -66,8 +71,8 @@ async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<voi
   }
 }
 
-test.afterEach(async ({ browser }, testInfo) => {
-  void browser;
+test.afterEach(async (unusedFixtures, testInfo) => {
+  void unusedFixtures;
   await writeFailureArtifactFromTestInfo(testInfo);
 });
 

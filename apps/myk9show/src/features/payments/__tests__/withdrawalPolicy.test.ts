@@ -86,6 +86,16 @@ describe('resolveWithdrawalRefundCents', () => {
     expect(r.refundCents).toBe(3000);
   });
 
+  it('flags refund prose for manual review before the cutoff', () => {
+    const r = resolveWithdrawalRefundCents(
+      { ...flatPolicy, notes: 'No refunds at any time.' },
+      3000,
+      new Date('2026-05-15T12:00:00Z'),
+      NY
+    );
+    expect(r).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
   it('prose-only policy (no cutoff) suggests full and flags manual', () => {
     const prose: WithdrawalPolicy = {
       cutoffDate: null,

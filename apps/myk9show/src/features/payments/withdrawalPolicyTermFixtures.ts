@@ -10,7 +10,6 @@ export const withdrawalPolicyTermFixtures = [
   ['Fifty percent of the fee is kept after the closing date.', true],
   ['10 dollars is kept after the closing date.', true],
   ['Entries withdrawn after closing forfeit all fees.', true],
-  ['Entries withdrawn after closing forfeit all fees.', true],
   ['Withdrawals must be submitted in writing by the closing deadline.', false],
   ['Refunds are processed once the show closes.', false],
   ['We keep exhibitors informed by email.', false],

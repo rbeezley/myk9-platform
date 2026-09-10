@@ -26,6 +26,13 @@ export interface StatementDelta {
   meanExecTimeMs: number;
 }
 
+export interface ScheduledWriteDelta {
+  source: string;
+  before: number;
+  after: number;
+  writes: number;
+}
+
 export interface PlatformObservation {
   peakCpuPercent: number;
   peakIoPercent: number;
@@ -42,6 +49,8 @@ export interface PlatformObservation {
   observedPeakConnections?: number;
   connectionCap: number;
   statementDeltas: readonly StatementDelta[];
+  /** Bounded before/after counts for scheduled and health-snapshot writers. */
+  scheduledWriteDeltas?: readonly ScheduledWriteDelta[];
   resourceSampling?: {
     attempts: number;
     succeeded: number;

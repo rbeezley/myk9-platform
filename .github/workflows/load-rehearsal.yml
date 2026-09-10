@@ -299,6 +299,7 @@ jobs:
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          LOAD_TEST_CAPTURE_WRITE_ACTIVITY: 'true'
           SUPABASE_DB_URL: postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:${{ env.LOAD_TEST_ADMIN_DB_PORT }}/postgres
 
       - name: Upload platform observation

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { summarizeObservedPeaks } from './loadPlatformPeaks';
 import {
   parsePrometheusResourceCounters,
+  parseScheduledWriteSnapshot,
   resourceUtilization,
+  scheduledWriteDeltas,
   statementDeltas,
 } from './loadPlatformSampler';
 
@@ -59,6 +61,24 @@ node_disk_io_time_seconds_total{device="nvme0n1"} 50.5
     expect(() =>
       parsePrometheusResourceCounters('node_cpu_seconds_total{cpu="0",mode="idle"} 100')
     ).toThrow('omitted CPU or disk IO counters');
+  });
+
+  it('parses bounded scheduled-writer counts and reports only new writes', () => {
+    const before = parseScheduledWriteSnapshot(
+      'cron:continuous-health-check|12\nhealth:cron-health-check:continuous|4\n'
+    );
+    const after = parseScheduledWriteSnapshot(
+      'cron:continuous-health-check|24\nhealth:cron-health-check:continuous|5\n'
+    );
+
+    expect(scheduledWriteDeltas(before, after)).toEqual([
+      { source: 'cron:continuous-health-check', before: 12, after: 24, writes: 12 },
+      { source: 'health:cron-health-check:continuous', before: 4, after: 5, writes: 1 },
+    ]);
+  });
+
+  it('rejects malformed scheduled-writer evidence', () => {
+    expect(() => parseScheduledWriteSnapshot('cron:job|not-a-count')).toThrow(/invalid row/);
   });
 });
 

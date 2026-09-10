@@ -54,6 +54,37 @@ describe('runtime platform evidence', () => {
     );
   });
 
+  it('captures bounded scheduled and health-snapshot write deltas when enabled', async () => {
+    const snapshots = [
+      'cron:continuous-health-check|12\nhealth:cron-health-check:continuous|4',
+      'cron:continuous-health-check|24\nhealth:cron-health-check:continuous|5',
+    ];
+    let scheduledSnapshot = 0;
+    psql.mockImplementation(async (_command, args: string[]) => {
+      const sql = args.at(-1) ?? '';
+      if (sql.includes('pg_stat_statements')) return { stdout: '1|2|2|20' };
+      if (sql.includes('cron.job_run_details')) {
+        return { stdout: snapshots[scheduledSnapshot++] };
+      }
+      return { stdout: '10' };
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => counters(100))
+    );
+
+    const sampler = await startLoadPlatformSampler(
+      { ...testEnv, LOAD_TEST_CAPTURE_WRITE_ACTIVITY: 'true' },
+      60
+    );
+    await expect(sampler.stop()).resolves.toMatchObject({
+      scheduledWriteDeltas: [
+        { source: 'cron:continuous-health-check', before: 12, after: 24, writes: 12 },
+        { source: 'health:cron-health-check:continuous', before: 4, after: 5, writes: 1 },
+      ],
+    });
+  });
+
   it('does not accumulate connection probes while an earlier one is pending', async () => {
     vi.useFakeTimers();
     mockImmediateSamples();

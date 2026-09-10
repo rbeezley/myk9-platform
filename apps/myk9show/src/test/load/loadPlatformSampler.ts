@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import type {
   PlatformObservation,
   ResourceSamplingFailure,
+  ScheduledWriteDelta,
   StatementDelta,
 } from './loadEvaluation';
 import { summarizeObservedPeaks } from './loadPlatformPeaks';
@@ -27,12 +28,26 @@ SELECT count(*)
 FROM pg_stat_activity
 WHERE datname = current_database();
 `;
+const SCHEDULED_WRITE_SNAPSHOT_SQL = `
+SELECT 'cron:' || COALESCE(j.jobname, '<unknown>'), count(*)
+FROM cron.job_run_details AS d
+LEFT JOIN cron.job AS j ON j.jobid = d.jobid
+WHERE d.start_time >= clock_timestamp() - interval '2 hours'
+GROUP BY 1
+UNION ALL
+SELECT 'health:' || COALESCE(source, '<unknown>') || ':' || COALESCE(run_mode, '<default>'), count(*)
+FROM public.system_health_snapshots
+WHERE created_at >= clock_timestamp() - interval '2 hours'
+GROUP BY 1;
+`;
 
 interface StatementSnapshot {
   calls: number;
   rows: number;
   totalExecTimeMs: number;
 }
+
+type ScheduledWriteSnapshot = ReadonlyMap<string, number>;
 
 export interface ResourceCounters {
   cpuSecondsByMode: ReadonlyMap<string, number>;
@@ -56,12 +71,14 @@ export async function startLoadPlatformSampler(
   if (!databaseUrl) throw new Error('Missing SUPABASE_DB_URL for platform telemetry.');
 
   const command = databaseCommand(databaseUrl, env);
-  const [baseline, initialResources] = await Promise.all([
+  const captureScheduledWrites = env.LOAD_TEST_CAPTURE_WRITE_ACTIVITY === 'true';
+  const [baseline, initialResources, initialScheduledWrites] = await Promise.all([
     readStatementSnapshot(command),
     // Retried like every other sample. Unprotected, a startup timeout rejects
     // the whole sampler and produces no artifact at all — losing everything in
     // precisely the transient case the retry exists to survive.
     readResourceCountersWithRetry(env),
+    captureScheduledWrites ? readScheduledWriteSnapshot(command) : Promise.resolve(new Map()),
   ]);
   let peakConnections = 0;
   let connectionAttempts = 0;
@@ -160,7 +177,12 @@ export async function startLoadPlatformSampler(
         sampleResources();
         await Promise.all(pendingSamples);
 
-        const finalSnapshot = await readStatementSnapshot(command).catch(() => undefined);
+        const [finalSnapshot, finalScheduledWrites] = await Promise.all([
+          readStatementSnapshot(command).catch(() => undefined),
+          captureScheduledWrites
+            ? readScheduledWriteSnapshot(command).catch(() => undefined)
+            : Promise.resolve(undefined),
+        ]);
         // For resources, a partial sample is retained as a lower-bound
         // measurement. loadEvaluation fails only when no valid resource sample
         // exists; the failure list remains in the artifact for diagnosis.
@@ -183,6 +205,9 @@ export async function startLoadPlatformSampler(
           }),
           connectionCap,
           statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
+          scheduledWriteDeltas: finalScheduledWrites
+            ? scheduledWriteDeltas(initialScheduledWrites, finalScheduledWrites)
+            : [],
           resourceSampling: {
             attempts: resourceAttempts,
             succeeded: resourceSuccesses,
@@ -198,6 +223,46 @@ export async function startLoadPlatformSampler(
       return stopPromise;
     },
   };
+}
+
+export function scheduledWriteDeltas(
+  before: ScheduledWriteSnapshot,
+  after: ScheduledWriteSnapshot
+): ScheduledWriteDelta[] {
+  return Array.from(new Set([...before.keys(), ...after.keys()]))
+    .map(source => {
+      const beforeCount = before.get(source) ?? 0;
+      const afterCount = after.get(source) ?? 0;
+      return {
+        source,
+        before: beforeCount,
+        after: afterCount,
+        writes: Math.max(0, afterCount - beforeCount),
+      };
+    })
+    .filter(delta => delta.writes > 0)
+    .sort((left, right) => right.writes - left.writes);
+}
+
+export function parseScheduledWriteSnapshot(output: string): Map<string, number> {
+  const snapshot = new Map<string, number>();
+  for (const line of output.trim().split(/\r?\n/)) {
+    if (!line) continue;
+    const separator = line.lastIndexOf('|');
+    const source = line.slice(0, separator);
+    const count = Number(line.slice(separator + 1));
+    if (!source || separator < 1 || !Number.isSafeInteger(count) || count < 0) {
+      throw new Error('Platform scheduled-write telemetry returned an invalid row.');
+    }
+    snapshot.set(source, count);
+  }
+  return snapshot;
+}
+
+async function readScheduledWriteSnapshot(
+  command: DatabaseCommand
+): Promise<ScheduledWriteSnapshot> {
+  return parseScheduledWriteSnapshot(await runPsql(command, SCHEDULED_WRITE_SNAPSHOT_SQL));
 }
 
 export function statementDeltas(

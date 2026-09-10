@@ -83,6 +83,24 @@ function assertPlatformPayload(platform: PlatformObservation | undefined): void 
   // reader a PlatformObservation whose declared number is not one.
   if (typeof platform.connectionCap !== 'number') throw incomplete;
   if (!Array.isArray(platform.statementDeltas)) throw incomplete;
+  if (platform.scheduledWriteDeltas !== undefined) {
+    if (
+      !Array.isArray(platform.scheduledWriteDeltas) ||
+      platform.scheduledWriteDeltas.some(
+        delta =>
+          !delta ||
+          typeof delta.source !== 'string' ||
+          !Number.isSafeInteger(delta.before) ||
+          !Number.isSafeInteger(delta.after) ||
+          !Number.isSafeInteger(delta.writes) ||
+          delta.before < 0 ||
+          delta.after < 0 ||
+          delta.writes < 0
+      )
+    ) {
+      throw incomplete;
+    }
+  }
   // Optional for compatibility with artifacts written before it existed, but
   // validated whenever present: a missing `succeeded` renders as `NaN%` coverage
   // in the evidence rather than being caught as an unusable artifact.

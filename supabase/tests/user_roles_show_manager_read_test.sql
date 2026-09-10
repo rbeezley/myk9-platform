@@ -9,19 +9,37 @@
 -- "Member". Asserting a NON-EMPTY read is the point — a policy that returns
 -- zero rows fails silently everywhere else.
 --
+-- Fixture ordering is load-bearing. `on_auth_user_created` -> handle_new_user()
+-- adopts an existing people row whose LOWER(email) matches and whose
+-- auth_user_id IS NULL, and otherwise CREATES one. So people must be inserted
+-- BEFORE auth.users, carrying the address the auth user will have; inserting
+-- them afterwards collides with the trigger's row on people_auth_user_id_key.
+-- The same trigger also grants each new user the global `exhibitor` role, which
+-- is why no exhibitor grant is written by hand below.
+--
 -- All fixtures roll back.
 
 BEGIN;
 
 INSERT INTO public.roles (name, description, is_system)
 VALUES
-  ('secretary', 'MYK9 user_roles read fixture', true),
-  ('judge', 'MYK9 user_roles read fixture', true),
-  ('exhibitor', 'MYK9 user_roles read fixture', true)
+  ('secretary', 'MYK9-456 fixture', true),
+  ('judge', 'MYK9-456 fixture', true),
+  ('exhibitor', 'MYK9-456 fixture', true)
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-000000910001', 'MYK9 user_roles read Club');
+VALUES ('00000000-0000-0000-0000-000000456001', 'MYK9-456 Club');
+
+-- People first, unlinked, with the emails the auth users will carry.
+INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
+VALUES
+  ('00000000-0000-0000-0000-000000456011', 'MYK9-456', 'Secretary',
+   'myk9-456-secretary@example.test', NULL),
+  ('00000000-0000-0000-0000-000000456012', 'MYK9-456', 'Judge',
+   'myk9-456-judge@example.test', NULL),
+  ('00000000-0000-0000-0000-000000456013', 'MYK9-456', 'Exhibitor',
+   'myk9-456-exhibitor@example.test', NULL);
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -29,48 +47,57 @@ INSERT INTO auth.users (
   is_super_admin, is_sso_user, is_anonymous
 )
 SELECT
-  fixture.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-  fixture.email, '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb, false, false, false
+  fixture.auth_id, '00000000-0000-0000-0000-000000000000', 'authenticated',
+  'authenticated', fixture.email, '', now(), now(), now(), '{}', '{}',
+  false, false, false
 FROM (VALUES
-  ('00000000-0000-0000-0000-000000910011'::uuid, 'myk9-910-secretary@example.test'::text),
-  ('00000000-0000-0000-0000-000000910012'::uuid, 'myk9-910-judge@example.test'::text),
-  ('00000000-0000-0000-0000-000000910013'::uuid, 'myk9-910-exhibitor@example.test'::text)
-) AS fixture(id, email);
+  ('00000000-0000-0000-0000-000000456101'::uuid, 'myk9-456-secretary@example.test'::text),
+  ('00000000-0000-0000-0000-000000456102'::uuid, 'myk9-456-judge@example.test'::text),
+  ('00000000-0000-0000-0000-000000456103'::uuid, 'myk9-456-exhibitor@example.test'::text)
+) AS fixture(auth_id, email);
 
-INSERT INTO public.people (id, first_name, last_name, auth_user_id, email)
-VALUES
-  ('00000000-0000-0000-0000-000000910021', 'MYK9-910', 'Secretary',
-   '00000000-0000-0000-0000-000000910011', 'myk9-910-secretary@example.test'),
-  ('00000000-0000-0000-0000-000000910022', 'MYK9-910', 'Judge',
-   '00000000-0000-0000-0000-000000910012', 'myk9-910-judge@example.test'),
-  ('00000000-0000-0000-0000-000000910023', 'MYK9-910', 'Exhibitor',
-   '00000000-0000-0000-0000-000000910013', 'myk9-910-exhibitor@example.test');
+-- Belt and braces: assert the trigger actually adopted our rows rather than
+-- creating its own. If it ever stops matching on email, the roles asserted
+-- below would hang off people nobody in this test references.
+DO $$
+DECLARE linked integer;
+BEGIN
+  SELECT count(*) INTO linked
+  FROM public.people
+  WHERE id IN (
+    '00000000-0000-0000-0000-000000456011',
+    '00000000-0000-0000-0000-000000456012',
+    '00000000-0000-0000-0000-000000456013'
+  ) AND auth_user_id IS NOT NULL;
+  IF linked <> 3 THEN
+    RAISE EXCEPTION 'FAIL fixture: handle_new_user did not adopt all 3 people (linked=%)', linked;
+  END IF;
+END;
+$$;
 
 -- The secretary grant is club-scoped with show_id NULL, which is what
 -- is_trial_secretary() (and therefore is_show_manager()) matches on.
-INSERT INTO public.user_roles (auth_user_id, role_id, club_id, is_active)
-SELECT '00000000-0000-0000-0000-000000910011', r.id,
-       '00000000-0000-0000-0000-000000910001', true
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000456011', r.id,
+       '00000000-0000-0000-0000-000000456001', true,
+       '00000000-0000-0000-0000-000000456101'
 FROM public.roles r WHERE r.name = 'secretary';
 
-INSERT INTO public.user_roles (auth_user_id, role_id, is_active)
-SELECT '00000000-0000-0000-0000-000000910012', r.id, true
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000456012', r.id, true,
+       '00000000-0000-0000-0000-000000456102'
 FROM public.roles r WHERE r.name = 'judge';
-
-INSERT INTO public.user_roles (auth_user_id, role_id, is_active)
-SELECT '00000000-0000-0000-0000-000000910013', r.id, true
-FROM public.roles r WHERE r.name = 'exhibitor';
 
 SET LOCAL ROLE authenticated;
 
 DO $$
 DECLARE
-  secretary_uid uuid := '00000000-0000-0000-0000-000000910011';
-  judge_uid     uuid := '00000000-0000-0000-0000-000000910012';
-  exhibitor_uid uuid := '00000000-0000-0000-0000-000000910013';
+  secretary_uid uuid := '00000000-0000-0000-0000-000000456101';
+  judge_uid     uuid := '00000000-0000-0000-0000-000000456102';
+  exhibitor_uid uuid := '00000000-0000-0000-0000-000000456103';
   visible       integer;
 BEGIN
-  -- A secretary reads the judge's role. This is the regression: it used to be 0.
+  -- A secretary reads the judge's roles. This is the regression: it used to be 0.
   PERFORM set_config('request.jwt.claim.sub', secretary_uid::text, true);
   PERFORM set_config('request.jwt.claims',
     jsonb_build_object('sub', secretary_uid, 'role', 'authenticated')::text, true);
@@ -79,7 +106,7 @@ BEGIN
   FROM public.user_roles ur
   WHERE ur.auth_user_id = judge_uid;
   IF visible = 0 THEN
-    RAISE EXCEPTION 'FAIL secretary cannot read the judge role — the person page would say "Member"';
+    RAISE EXCEPTION 'FAIL secretary cannot read the judge roles — the person page would say "Member"';
   END IF;
 
   -- Positive control on the same collector: the secretary still reads their own.
@@ -100,14 +127,16 @@ BEGIN
   FROM public.user_roles ur
   WHERE ur.auth_user_id = judge_uid;
   IF visible <> 0 THEN
-    RAISE EXCEPTION 'FAIL exhibitor read another person''s roles';
+    RAISE EXCEPTION 'FAIL exhibitor read another person''s roles (visible=%)', visible;
   END IF;
 
+  -- Positive control for the denial: the exhibitor DOES read their own, so the
+  -- zero above is a policy decision and not an empty fixture.
   SELECT count(*) INTO visible
   FROM public.user_roles ur
   WHERE ur.auth_user_id = exhibitor_uid;
   IF visible = 0 THEN
-    RAISE EXCEPTION 'FAIL exhibitor cannot read their own roles';
+    RAISE EXCEPTION 'FAIL exhibitor cannot read their own roles — the denial above proves nothing';
   END IF;
 
   RAISE NOTICE 'PASS user_roles readable by show managers, still self-only for exhibitors';

@@ -26,6 +26,10 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
       count: Number(process.env.LOAD_TEST_SHARD_COUNT ?? 0),
       index: Number(process.env.LOAD_TEST_SHARD_INDEX ?? 0),
     };
+    const fallbackIndex = Number.isInteger(fallbackShard.index) && fallbackShard.index >= 0;
+    const failureFileName =
+      process.env.LOAD_TEST_SHARD_FAILURE_FILE ??
+      (fallbackIndex ? `shard-${fallbackShard.index}-failure.json` : 'shard-unknown-failure.json');
     const failureArtifact = {
       schemaVersion: 1 as const,
       runId: shard?.runId ?? process.env.LOAD_TEST_RUN_ID ?? 'unknown',
@@ -40,10 +44,14 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
       },
     };
     try {
-      const artifactPath = writeLoadShardFailureArtifact(failureArtifact);
+      const artifactPath = writeLoadShardFailureArtifact(
+        failureArtifact,
+        undefined,
+        failureFileName
+      );
       await testInfo.attach('load-shard-failure.json', {
         body: JSON.stringify(failureArtifact, null, 2),
-        contentType: 'application/json',
+        contentType: 'text/plain',
       });
       testInfo.annotations.push({ type: 'shard-failure-evidence', description: artifactPath });
     } catch (diagnosticError) {
@@ -52,6 +60,7 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
         description:
           diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError),
       });
+      console.error('Load shard failure diagnostics could not be written:', diagnosticError);
     }
     throw failure;
   }

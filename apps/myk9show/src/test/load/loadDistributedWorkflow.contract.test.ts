@@ -185,12 +185,17 @@ describe('manual distributed load workflow', () => {
   });
 
   it('uploads JSON shard diagnostics and excludes trace archives for security', () => {
-    expect(workflow).toMatch(
-      /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}-failure\.json/
+    const uploadStart = workflow.indexOf('      - name: Upload shard observation');
+    const uploadEnd = workflow.indexOf('\n      - name:', uploadStart + 1);
+    const upload = workflow.slice(uploadStart, uploadEnd);
+    expect(upload).toMatch(
+      /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}-failure\.json\s+if-no-files-found: warn/
     );
-    expect(workflow).toContain('if-no-files-found: warn');
-    expect(workflow).toContain('JSON-only by design');
-    expect(workflow).not.toContain('test-results/load/**/*.zip');
+    expect(upload).toContain('JSON-only by design');
+    expect(upload).not.toContain('.zip');
+    expect(workflow).toContain(
+      'LOAD_TEST_SHARD_FAILURE_FILE: shard-${{ matrix.shard }}-failure.json'
+    );
   });
 
   it('does not depend on Vercel or paid runner labels', () => {

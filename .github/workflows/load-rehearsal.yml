@@ -386,6 +386,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
           LOAD_TEST_SHARD_COUNT: '16'
           LOAD_TEST_SHARD_INDEX: ${{ matrix.shard }}
+          LOAD_TEST_SHARD_FAILURE_FILE: shard-${{ matrix.shard }}-failure.json
           LOAD_TEST_RUN_ID: ${{ needs.prepare.outputs.run-id }}
           LOAD_TEST_START_AT: ${{ needs.prepare.outputs.start-at-ms }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

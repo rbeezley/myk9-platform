@@ -27,8 +27,14 @@ const artifactPaths = readdirSync(inputDirectory)
 const artifacts = artifactPaths.map(
   artifactPath => JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact
 );
-if (artifacts.length === 0) {
-  throw new Error(`Expected exactly ${DISTRIBUTED_G9_SHARD_COUNT} load shard artifacts.`);
+if (artifacts.length !== DISTRIBUTED_G9_SHARD_COUNT) {
+  const present = new Set(artifacts.map(artifact => artifact.shard.index));
+  const missing = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => index).filter(
+    index => !present.has(index)
+  );
+  throw new Error(
+    `Expected exactly ${DISTRIBUTED_G9_SHARD_COUNT} load shard artifacts; found ${artifacts.length}. Missing shard(s): ${missing.join(', ') || 'none'}.`
+  );
 }
 const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',

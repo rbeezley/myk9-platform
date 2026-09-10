@@ -84,10 +84,11 @@ export function writeLoadShardArtifact(
 export function writeLoadShardFailureArtifact(
   artifact: LoadShardFailureArtifact,
   directory = process.env.LOAD_TEST_SHARD_OUTPUT_DIR ??
-    resolve(process.cwd(), 'test-results/load-shards')
+    resolve(process.cwd(), 'test-results/load-shards'),
+  fileName = `shard-${artifact.shard.index}-failure.json`
 ): string {
   mkdirSync(directory, { recursive: true });
-  const outputPath = resolve(directory, `shard-${artifact.shard.index}-failure.json`);
+  const outputPath = resolve(directory, fileName);
   writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
   return outputPath;
 }

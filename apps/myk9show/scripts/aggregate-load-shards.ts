@@ -46,7 +46,11 @@ const failureDiagnostics = readdirSync(inputDirectory)
         shard?: { index?: number };
         error?: { message?: string };
       };
-      return `shard ${failure.shard?.index ?? fileName}: ${failure.error?.message ?? 'unknown failure'}`;
+      const shardLabel =
+        failure.shard?.index === undefined || failure.shard.index < 0
+          ? fileName
+          : `shard ${failure.shard.index}`;
+      return `${shardLabel}: ${failure.error?.message ?? 'unknown failure'}`;
     } catch {
       return `${fileName}: unreadable failure artifact`;
     }

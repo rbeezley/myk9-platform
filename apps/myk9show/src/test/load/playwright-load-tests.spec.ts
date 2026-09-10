@@ -71,8 +71,10 @@ async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<voi
   }
 }
 
-test.afterEach(async (unusedFixtures, testInfo) => {
-  void unusedFixtures;
+// Playwright requires an object pattern here; keeping it empty avoids resolving
+// browser fixtures during teardown, including when browser startup failed.
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo) => {
   await writeFailureArtifactFromTestInfo(testInfo);
 });
 

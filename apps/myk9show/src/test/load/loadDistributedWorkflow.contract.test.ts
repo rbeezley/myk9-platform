@@ -136,7 +136,7 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}');
     expect(workflow).not.toMatch(/repos\/\$\{GITHUB_REPOSITORY\}\/actions\/runs/);
     expect(workflow).toMatch(
-      /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 75/
+      /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 90/
     );
     expect(workflow).toMatch(
       /name: Run synchronized [\s\S]*?\n {8}timeout-minutes: 58\n {8}run: pnpm test:load:playwright/
@@ -199,6 +199,7 @@ describe('manual distributed load workflow', () => {
     );
     expect(upload).toContain('JSON-only by design');
     expect(upload).not.toContain('.zip');
+    expect(upload).not.toContain('test-results/load/');
     expect(workflow).toContain(
       'LOAD_TEST_SHARD_FAILURE_FILE: shard-${{ matrix.shard }}-failure.json'
     );

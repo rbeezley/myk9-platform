@@ -314,9 +314,9 @@ jobs:
     name: Load shard ${{ matrix.shard }}
     needs: prepare
     runs-on: ubuntu-latest
-    # Covers runner setup, the longest 35-minute barrier, the 10-minute load,
-    # the 50-minute Playwright timeout, teardown, and artifact upload.
-    timeout-minutes: 75
+    # Covers runner setup, the 50-minute Playwright timeout, teardown, and
+    # artifact upload, with headroom for runner and dependency variance.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       # Every shard must be live at the same barrier, so this cannot be throttled

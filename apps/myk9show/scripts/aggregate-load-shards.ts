@@ -10,14 +10,7 @@ import {
   shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
-
-function shardNumber(fileName: string): number {
-  return Number(fileName.replace(/\D/g, ''));
-}
-
-function failureShardNumber(fileName: string): number {
-  return fileName.includes('unknown') ? Number.POSITIVE_INFINITY : shardNumber(fileName);
-}
+import { collectShardDiagnostics } from '../src/test/load/loadShardDiagnostics';
 
 const inputDirectory = resolve(
   process.argv[2] ?? process.env.LOAD_TEST_SHARD_INPUT_DIR ?? 'test-results/load-shards'
@@ -27,7 +20,7 @@ const artifactPaths = inputFiles
   .filter(fileName => /^shard-\d+\.json$/.test(fileName))
   // Numeric, not lexicographic: past nine shards a plain sort orders these
   // 0, 1, 10, 11, ... 2, which reorders the evidence a reader compares by index.
-  .sort((left, right) => shardNumber(left) - shardNumber(right))
+  .sort((left, right) => Number(left.replace(/\D/g, '')) - Number(right.replace(/\D/g, '')))
   .map(fileName => resolve(inputDirectory, fileName));
 const parseDiagnostics: string[] = [];
 const artifacts = artifactPaths.flatMap(artifactPath => {
@@ -38,24 +31,9 @@ const artifacts = artifactPaths.flatMap(artifactPath => {
     return [];
   }
 });
-const failureDiagnostics = inputFiles
-  .filter(fileName => /^shard-(?:\d+|unknown)-failure\.json$/.test(fileName))
-  .sort((left, right) => failureShardNumber(left) - failureShardNumber(right))
-  .map(fileName => {
-    try {
-      const failure = JSON.parse(readFileSync(resolve(inputDirectory, fileName), 'utf8')) as {
-        shard?: { index?: number };
-        error?: { message?: string };
-      };
-      const shardLabel =
-        failure.shard?.index === undefined || failure.shard.index < 0
-          ? fileName
-          : `shard ${failure.shard.index}`;
-      return `${shardLabel}: ${failure.error?.message ?? 'unknown failure'}`;
-    } catch {
-      return `${fileName}: unreadable failure artifact`;
-    }
-  });
+const failureDiagnostics = collectShardDiagnostics(inputFiles, fileName =>
+  JSON.parse(readFileSync(resolve(inputDirectory, fileName), 'utf8'))
+);
 const diagnostics = [...parseDiagnostics, ...failureDiagnostics];
 
 function throwWithDiagnostics(error: unknown): never {
@@ -93,10 +71,12 @@ try {
 } catch (error) {
   throwWithDiagnostics(error);
 }
+const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 if (diagnostics.length > 0) {
   console.warn(`Load shard failure diagnostics: ${diagnostics.join('; ')}`);
+  evaluation.failures.push(...failureDiagnostics);
+  evaluation.passed = false;
 }
-const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 // Aggregating shards that measured different windows produces one percentile
 // over incommensurable samples. Appended rather than folded into
 // evaluateLoadResult because only the aggregate sees the per-shard windows

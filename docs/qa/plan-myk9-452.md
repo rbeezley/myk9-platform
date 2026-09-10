@@ -1,6 +1,6 @@
 # MYK9-452: restore exhibitor self-check-in
 
-> **Status:** Active — implemented locally; shipping and applied replay pending.
+> **Status:** Complete — merged, applied, and verified against the linked project.
 
 Request: “review and implement myk9-452”
 
@@ -66,16 +66,29 @@ Branch: `codex/myk9-452`; base: `679b04e84`. No application source changed.
   `.logs/sql-green-version.log`, `.logs/client-tests.log`,
   `.logs/client-settings-tests.log`, `.logs/sql-runner-tests.log`.
 
-## Remaining shipping evidence
+## Closure evidence
 
-- [ ] Commit/push validation ladder and migration provenance guard against the
-      committed candidate and refreshed main/database. Authorized by `/ship-pr`.
-- [ ] Full migrated Supabase behavioral CI run (the local synthetic replay does
-      not include the complete RLS/trigger stack).
-- [ ] Independent cross-harness pre-merge review and PR/merge.
-- [ ] Separately authorized application from merged code, then owned exhibitor
-      RPC/browser replay and persisted status read-back. Never close based solely
-      on source tests, migration ledger, or merge.
+- [x] Commit/push validation ladder, migration provenance guard, independent
+      review fallback, PR merge, and green production build — recorded on the
+      issue and PR #2151.
+- [x] Full migrated Supabase behavioral SQL run: all 69 assertions passed against
+      the linked project after `20260909174329` was applied.
+- [x] Authorized exhibitor RPC replay from merged code with persisted REST
+      read-back: `exhibitor@myk9t.com`, entry
+      `a1090000-0000-0000-0002-000000000001`, `no-status`/version 1 →
+      `checked-in`/version 2, then restored to `no-status`/version 3.
+
+The replay used the existing seeded entry, refused to proceed if its original
+status was not `no-status`, and restored that status through the same RPC after
+verification. No application source or staff mutation path changed.
+
+## Final verification (2026-09-10)
+
+- Linked `supabase/tests/self_checkin_entry_test.sql`: exit 0; owner, co-owner,
+  handler, outsider, anonymous, missing identity, status whitelist, and all 18
+  visibility combinations passed with persisted snapshots.
+- Authenticated REST replay: both RPC calls returned HTTP 204; read-back proved
+  the expected status and one replication-version increment per call.
 
 ## Shipping validation
 

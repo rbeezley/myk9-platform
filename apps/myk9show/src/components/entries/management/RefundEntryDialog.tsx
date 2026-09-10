@@ -161,6 +161,13 @@ export function RefundEntryDialog({
             // fall through to generic message
           }
         }
+        if (code === 'policy_snapshot_manual_review' && suggestion?.requiresManual) {
+          // The snapshot was used as a safety check, not as the refund amount.
+          // Move the secretary to an explicit amount so even a full refund is
+          // a deliberate manual decision rather than a second blind snapshot call.
+          setMode('partial');
+          setPartialAmount(fee.toFixed(2));
+        }
         setError(ERROR_MESSAGES[code ?? ''] ?? invokeError.message ?? 'Refund failed');
         return;
       }

@@ -19,6 +19,8 @@ export interface WithdrawalPolicy {
   retentionType: 'flat' | 'percent';
   // null = no retention declared; 0 = explicitly full refund after cutoff.
   retentionValue: number | null;
+  // Persisted marker distinguishes a new explicit zero from legacy normalized zero.
+  retentionDeclared?: boolean;
   notes: string | null;
 }
 
@@ -68,6 +70,7 @@ function build(
     cutoffDate: cutoff ?? null,
     retentionType: type === 'percent' ? 'percent' : 'flat',
     retentionValue: value ?? null,
+    retentionDeclared: value !== null && value !== undefined,
     notes: notes ?? null,
   };
 }
@@ -158,7 +161,12 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
   const withNotes = (line: string) =>
     notes ? `${line} Additional withdrawal instructions: ${notes}` : line;
 
-  if (!policy.cutoffDate || policy.retentionValue === null || policy.notes?.trim()) {
+  if (
+    !policy.cutoffDate ||
+    policy.retentionValue === null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
+    policy.notes?.trim()
+  ) {
     return withNotes(SERVICE_FEE_SENTENCE);
   }
 

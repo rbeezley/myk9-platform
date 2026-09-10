@@ -238,7 +238,11 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     });
     mockedInvoke.mockResolvedValue({
       data: null,
-      error: { message: 'manual review required' },
+      error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+        context: new Response(JSON.stringify({ error: 'policy_snapshot_manual_review' }), {
+          status: 422,
+        }),
+      }),
     });
     renderDialog();
     const user = userEvent.setup();
@@ -255,6 +259,9 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
         },
       });
     });
+    expect(screen.getByRole('radio', { name: /partial amount/i })).toBeChecked();
+    expect((screen.getByLabelText(/amount \(max/i) as HTMLInputElement).value).toBe('50.00');
+    expect(await screen.findByText(/needs manual review/i)).toBeInTheDocument();
   });
 
   it('shows no policy message when the entry has no snapshot', () => {

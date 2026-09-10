@@ -33,6 +33,7 @@ describe('resolveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'percent',
       retentionValue: 20,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -43,6 +44,7 @@ describe('resolveWithdrawalPolicy', () => {
       cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -81,6 +83,7 @@ describe('resolveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
 
@@ -121,6 +124,15 @@ describe('resolveWithdrawalPolicy', () => {
   it('preserves an undeclared retention as null', () => {
     const policy = resolveWithdrawalPolicy({ withdrawal_policy_notes: 'See premium.' }, null);
     expect(policy?.retentionValue).toBeNull();
+  });
+
+  it('marks an explicit zero retention so legacy zero snapshots fail closed', () => {
+    expect(
+      resolveWithdrawalPolicy(
+        { withdrawal_cutoff_date: '2026-06-01', withdrawal_retention_value: 0 },
+        null
+      )
+    ).toMatchObject({ retentionValue: 0, retentionDeclared: true });
   });
 
   it('defaults an unknown retention type to flat', () => {

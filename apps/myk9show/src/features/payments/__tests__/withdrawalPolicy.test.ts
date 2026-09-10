@@ -109,12 +109,29 @@ describe('resolveWithdrawalRefundCents', () => {
     expect(undeclared).toMatchObject({ requiresManual: true, reason: 'manual_review' });
 
     const fullRefund = resolveWithdrawalRefundCents(
-      { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: 0, notes: null },
+      {
+        cutoffDate: '2026-06-01',
+        retentionType: 'flat',
+        retentionValue: 0,
+        retentionDeclared: true,
+        notes: null,
+      },
       3000,
       new Date('2026-06-15T12:00:00Z'),
       NY
     );
     expect(fullRefund).toMatchObject({ requiresManual: false, reason: 'after_cutoff' });
+  });
+
+  it('fails closed for a legacy zero-retention snapshot', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: 0, notes: null },
+        3000,
+        new Date('2026-06-15T12:00:00Z'),
+        NY
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
   });
 
   it('flags declared prose for manual review even with structured fields', () => {
@@ -177,6 +194,7 @@ describe('getEffectiveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'percent',
       retentionValue: 20,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -187,6 +205,7 @@ describe('getEffectiveWithdrawalPolicy', () => {
       cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -226,6 +245,7 @@ describe('getEffectiveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
 

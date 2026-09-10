@@ -23,6 +23,8 @@ export interface WithdrawalPolicy {
   /** flat = cents per entry; percent = whole-number percent. */
   /** null = no retention declared; 0 = explicitly full refund after cutoff. */
   retentionValue: number | null;
+  /** Persisted marker distinguishing a new explicit zero from legacy normalized zero. */
+  retentionDeclared?: boolean;
   /** Free-text escape hatch for multi-tier / unusual policies. */
   notes: string | null;
 }
@@ -80,6 +82,7 @@ function buildPolicy(
     cutoffDate: cutoff ?? null,
     retentionType: normalizeRetentionType(type),
     retentionValue: value ?? null,
+    retentionDeclared: value !== null && value !== undefined,
     notes: notes ?? null,
   };
 }
@@ -195,7 +198,12 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
-  if (!policy.cutoffDate || policy.retentionValue === null || policy.notes?.trim()) {
+  if (
+    !policy.cutoffDate ||
+    policy.retentionValue === null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
+    policy.notes?.trim()
+  ) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,

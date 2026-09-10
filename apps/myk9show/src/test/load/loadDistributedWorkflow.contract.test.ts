@@ -185,7 +185,10 @@ describe('manual distributed load workflow', () => {
   });
 
   it('uploads failed-shard diagnostics and Playwright traces for every shard', () => {
-    expect(workflow).toContain('path: apps/myk9show/test-results/');
+    expect(workflow).toMatch(
+      /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}-failure\.json/
+    );
+    expect(workflow).not.toContain('path: apps/myk9show/test-results/');
     expect(workflow).toContain('if-no-files-found: warn');
   });
 

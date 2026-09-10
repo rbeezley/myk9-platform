@@ -13,13 +13,12 @@ import { loadTargetFromEnv } from './loadTarget';
 
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');
-  let target: ReturnType<typeof loadTargetFromEnv> | undefined;
-  let shard: ReturnType<typeof loadShardFromEnv>;
+  let target!: ReturnType<typeof loadTargetFromEnv>;
+  let shard!: ReturnType<typeof loadShardFromEnv>;
   let result: Awaited<ReturnType<typeof runBrowserLoad>>;
   try {
     target = loadTargetFromEnv(process.env);
     shard = loadShardFromEnv(process.env);
-    if (!target) throw new Error('Distributed load target was not resolved.');
     result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
@@ -56,7 +55,6 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
     }
     throw failure;
   }
-  if (!target) throw new Error('Distributed load target was not resolved.');
   if (shard) {
     const artifact = buildLoadShardArtifact({
       shard,

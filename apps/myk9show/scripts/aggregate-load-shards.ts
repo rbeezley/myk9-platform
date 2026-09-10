@@ -93,6 +93,9 @@ try {
 } catch (error) {
   throwWithDiagnostics(error);
 }
+if (diagnostics.length > 0) {
+  console.warn(`Load shard failure diagnostics: ${diagnostics.join('; ')}`);
+}
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 // Aggregating shards that measured different windows produces one percentile
 // over incommensurable samples. Appended rather than folded into

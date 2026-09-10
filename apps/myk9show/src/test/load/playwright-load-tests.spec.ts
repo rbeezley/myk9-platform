@@ -35,7 +35,7 @@ function failureArtifactMetadata(): {
 async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<void> {
   if (testInfo.status === testInfo.expectedStatus) return;
   if (process.env.LOAD_TEST_SHARD_INDEX === undefined) return;
-  if (!testInfo.annotations.some(annotation => annotation.type === 'load-shard-test')) return;
+  if (testInfo.title !== 'G9 Normal show-day load') return;
   if (testInfo.annotations.some(annotation => annotation.type === 'shard-failure-evidence')) return;
   const metadata = failureArtifactMetadata();
   const target = (() => {
@@ -79,7 +79,6 @@ test.afterEach(async ({}, testInfo) => {
 });
 
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
-  testInfo.annotations.push({ type: 'load-shard-test' });
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');
   let target!: ReturnType<typeof loadTargetFromEnv>;
   let shard!: ReturnType<typeof loadShardFromEnv>;

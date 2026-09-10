@@ -372,7 +372,6 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Run synchronized 22/23-session shard with generator telemetry
-        id: load
         working-directory: apps/myk9show
         timeout-minutes: 58
         run: pnpm test:load:playwright
@@ -409,7 +408,7 @@ jobs:
           E2E_LOAD_SECRETARY_3_PASSWORD: ${{ secrets.E2E_LOAD_SECRETARY_3_PASSWORD }}
 
       - name: Upload shard observation
-        if: ${{ always() && steps.load.outcome != 'cancelled' }}
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: load-shard-${{ matrix.shard }}

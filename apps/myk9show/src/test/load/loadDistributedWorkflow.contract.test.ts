@@ -187,6 +187,7 @@ describe('manual distributed load workflow', () => {
   it('uploads JSON shard diagnostics and excludes trace archives for security', () => {
     const uploadStart = workflow.indexOf('      - name: Upload shard observation');
     const uploadEnd = workflow.indexOf('\n  aggregate:', uploadStart);
+    expect(uploadEnd).not.toBe(-1);
     expect(uploadEnd).toBeGreaterThan(uploadStart);
     const upload = workflow.slice(uploadStart, uploadEnd);
     expect(upload).toMatch(

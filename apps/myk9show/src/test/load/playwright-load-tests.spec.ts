@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { TestInfo } from '@playwright/test';
 import { runBrowserLoad } from './loadBrowserRunner';
 import { buildLoadEvidence, renderLoadEvidenceMarkdown, writeLoadEvidence } from './loadEvidence';
 import { evaluateLoadResult } from './loadEvaluation';
@@ -11,6 +12,62 @@ import {
 } from './loadShardAggregation';
 import { loadTargetFromEnv } from './loadTarget';
 
+function parseNonnegativeInteger(value: string | undefined): number | undefined {
+  if (value === undefined || value.trim() === '') return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function failureArtifactMetadata(): {
+  shard: { count: number; index: number };
+  fileName: string;
+} {
+  const index = parseNonnegativeInteger(process.env.LOAD_TEST_SHARD_INDEX);
+  const count = parseNonnegativeInteger(process.env.LOAD_TEST_SHARD_COUNT) ?? 0;
+  return {
+    shard: { count, index: index ?? -1 },
+    fileName:
+      process.env.LOAD_TEST_SHARD_FAILURE_FILE ??
+      (index === undefined ? 'shard-unknown-failure.json' : `shard-${index}-failure.json`),
+  };
+}
+
+async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<void> {
+  if (testInfo.status === testInfo.expectedStatus) return;
+  const metadata = failureArtifactMetadata();
+  const target = (() => {
+    try {
+      return loadTargetFromEnv(process.env);
+    } catch {
+      return undefined;
+    }
+  })();
+  const failure = testInfo.error;
+  const failureName = failure instanceof Error ? failure.name : 'PlaywrightTestError';
+  const failureMessage = failure?.message ?? `Load test ended with status ${testInfo.status}.`;
+  const failureStack = failure instanceof Error ? failure.stack : failure?.stack;
+  const artifact = {
+    schemaVersion: 1 as const,
+    runId: process.env.LOAD_TEST_RUN_ID ?? 'unknown',
+    startAtMs: Number(process.env.LOAD_TEST_START_AT ?? 0),
+    shard: metadata.shard,
+    target,
+    scenarioId: G9_NORMAL_SCENARIO.id,
+    error: {
+      name: failureName,
+      message: failureMessage,
+      ...(failureStack ? { stack: failureStack } : {}),
+    },
+  };
+  try {
+    writeLoadShardFailureArtifact(artifact, undefined, metadata.fileName);
+  } catch (error) {
+    console.error('Load shard timeout diagnostics could not be written:', error);
+  }
+}
+
+test.afterEach(async ({}, testInfo) => writeFailureArtifactFromTestInfo(testInfo));
+
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');
   let target!: ReturnType<typeof loadTargetFromEnv>;
@@ -22,21 +79,12 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
     result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
-    const fallbackShard = {
-      count: Number(process.env.LOAD_TEST_SHARD_COUNT ?? 0),
-      index: Number(process.env.LOAD_TEST_SHARD_INDEX),
-    };
-    const fallbackIndex = Number.isInteger(fallbackShard.index) && fallbackShard.index >= 0;
-    const failureFileName =
-      process.env.LOAD_TEST_SHARD_FAILURE_FILE ??
-      (fallbackIndex ? `shard-${fallbackShard.index}-failure.json` : 'shard-unknown-failure.json');
+    const fallback = failureArtifactMetadata();
     const failureArtifact = {
       schemaVersion: 1 as const,
       runId: shard?.runId ?? process.env.LOAD_TEST_RUN_ID ?? 'unknown',
       startAtMs: shard?.startAtMs ?? Number(process.env.LOAD_TEST_START_AT ?? 0),
-      shard: shard
-        ? { count: shard.count, index: shard.index }
-        : { count: fallbackShard.count, index: fallbackIndex ? fallbackShard.index : -1 },
+      shard: shard ? { count: shard.count, index: shard.index } : fallback.shard,
       target,
       scenarioId: G9_NORMAL_SCENARIO.id,
       error: {
@@ -49,7 +97,7 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
       const artifactPath = writeLoadShardFailureArtifact(
         failureArtifact,
         undefined,
-        failureFileName
+        fallback.fileName
       );
       await testInfo.attach('load-shard-failure.json', {
         body: JSON.stringify(failureArtifact, null, 2),

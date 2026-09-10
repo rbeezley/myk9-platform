@@ -15,6 +15,10 @@ function shardNumber(fileName: string): number {
   return Number(fileName.replace(/\D/g, ''));
 }
 
+function failureShardNumber(fileName: string): number {
+  return fileName.includes('unknown') ? Number.POSITIVE_INFINITY : shardNumber(fileName);
+}
+
 const inputDirectory = resolve(
   process.argv[2] ?? process.env.LOAD_TEST_SHARD_INPUT_DIR ?? 'test-results/load-shards'
 );
@@ -24,11 +28,18 @@ const artifactPaths = readdirSync(inputDirectory)
   // 0, 1, 10, 11, ... 2, which reorders the evidence a reader compares by index.
   .sort((left, right) => shardNumber(left) - shardNumber(right))
   .map(fileName => resolve(inputDirectory, fileName));
-const artifacts = artifactPaths.map(
-  artifactPath => JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact
-);
+const parseDiagnostics: string[] = [];
+const artifacts = artifactPaths.flatMap(artifactPath => {
+  try {
+    return [JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact];
+  } catch {
+    parseDiagnostics.push(`${artifactPath}: unreadable observation artifact`);
+    return [];
+  }
+});
 const failureDiagnostics = readdirSync(inputDirectory)
-  .filter(fileName => /^shard-\d+-failure\.json$/.test(fileName))
+  .filter(fileName => /^shard-(?:\d+|unknown)-failure\.json$/.test(fileName))
+  .sort((left, right) => failureShardNumber(left) - failureShardNumber(right))
   .map(fileName => {
     try {
       const failure = JSON.parse(readFileSync(resolve(inputDirectory, fileName), 'utf8')) as {
@@ -43,8 +54,9 @@ const failureDiagnostics = readdirSync(inputDirectory)
 try {
   assertShardArtifactCount(artifacts);
 } catch (error) {
-  if (failureDiagnostics.length > 0 && error instanceof Error) {
-    error.message += ` Failure diagnostics: ${failureDiagnostics.join('; ')}`;
+  const diagnostics = [...parseDiagnostics, ...failureDiagnostics];
+  if (diagnostics.length > 0 && error instanceof Error) {
+    error.message += ` Failure diagnostics: ${diagnostics.join('; ')}`;
   }
   throw error;
 }

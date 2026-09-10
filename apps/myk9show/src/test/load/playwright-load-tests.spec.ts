@@ -34,7 +34,7 @@ function failureArtifactMetadata(): {
 
 async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<void> {
   if (testInfo.status === testInfo.expectedStatus) return;
-  if (testInfo.title !== 'G9 Normal show-day load') return;
+  if (process.env.LOAD_TEST_SHARD_INDEX === undefined) return;
   if (testInfo.annotations.some(annotation => annotation.type === 'shard-failure-evidence')) return;
   const metadata = failureArtifactMetadata();
   const target = (() => {

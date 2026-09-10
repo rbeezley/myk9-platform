@@ -138,6 +138,9 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toMatch(
       /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 75/
     );
+    expect(workflow).toMatch(
+      /name: Run synchronized [\s\S]*?\n {8}timeout-minutes: 58\n {8}run: pnpm test:load:playwright/
+    );
   });
 
   it('passes every per-show staff credential to the shards and checks them pre-reseed', () => {
@@ -192,7 +195,7 @@ describe('manual distributed load workflow', () => {
     expect(uploadEnd).toBeGreaterThan(uploadStart);
     const upload = workflow.slice(uploadStart, uploadEnd);
     expect(upload).toMatch(
-      /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}-failure\.json\s+if-no-files-found: warn/
+      /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\*-failure\.json\s+if-no-files-found: warn/
     );
     expect(upload).toContain('JSON-only by design');
     expect(upload).not.toContain('.zip');

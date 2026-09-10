@@ -55,14 +55,19 @@ const failureDiagnostics = readdirSync(inputDirectory)
       return `${fileName}: unreadable failure artifact`;
     }
   });
-try {
-  assertShardArtifactCount(artifacts);
-} catch (error) {
-  const diagnostics = [...parseDiagnostics, ...failureDiagnostics];
+const diagnostics = [...parseDiagnostics, ...failureDiagnostics];
+
+function throwWithDiagnostics(error: unknown): never {
   if (diagnostics.length > 0 && error instanceof Error) {
     error.message += ` Failure diagnostics: ${diagnostics.join('; ')}`;
   }
   throw error;
+}
+
+try {
+  assertShardArtifactCount(artifacts);
+} catch (error) {
+  throwWithDiagnostics(error);
 }
 const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',
@@ -81,7 +86,12 @@ const platformArtifact = readUsablePlatformArtifact(
       `Platform telemetry at ${platformPath} is unusable (${reason}); evaluating without it.`
     )
 );
-const aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
+let aggregate: ReturnType<typeof aggregateLoadShardArtifacts>;
+try {
+  aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
+} catch (error) {
+  throwWithDiagnostics(error);
+}
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 // Aggregating shards that measured different windows produces one percentile
 // over incommensurable samples. Appended rather than folded into

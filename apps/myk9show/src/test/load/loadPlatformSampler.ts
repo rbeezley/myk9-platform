@@ -218,7 +218,7 @@ export async function startLoadPlatformSampler(
           connectionCap,
           statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
           scheduledWriteDeltas:
-            initialScheduledWrites && finalScheduledWrites?.succeeded
+            initialScheduledWrites?.succeeded && finalScheduledWrites?.succeeded
               ? scheduledWriteDeltas(initialScheduledWrites.snapshot, finalScheduledWrites.snapshot)
               : undefined,
           scheduledWriteCapture: {

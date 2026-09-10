@@ -83,6 +83,24 @@ function assertPlatformPayload(platform: PlatformObservation | undefined): void 
   // reader a PlatformObservation whose declared number is not one.
   if (typeof platform.connectionCap !== 'number') throw incomplete;
   if (!Array.isArray(platform.statementDeltas)) throw incomplete;
+  const capture = platform.scheduledWriteCapture;
+  if (capture !== undefined) {
+    if (
+      typeof capture !== 'object' ||
+      capture === null ||
+      typeof capture.enabled !== 'boolean' ||
+      typeof capture.baselineSucceeded !== 'boolean' ||
+      typeof capture.finalSucceeded !== 'boolean'
+    ) {
+      throw incomplete;
+    }
+  }
+  if (
+    platform.scheduledWriteDeltas !== undefined &&
+    !Array.isArray(platform.scheduledWriteDeltas)
+  ) {
+    throw incomplete;
+  }
   // Optional for compatibility with artifacts written before it existed, but
   // validated whenever present: a missing `succeeded` renders as `NaN%` coverage
   // in the evidence rather than being caught as an unusable artifact.

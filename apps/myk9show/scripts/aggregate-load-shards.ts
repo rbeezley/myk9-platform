@@ -1,31 +1,53 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildLoadEvidence, writeLoadEvidence } from '../src/test/load/loadEvidence';
 import { readUsablePlatformArtifact } from '../src/test/load/loadPlatformArtifact';
 import { evaluateLoadResult } from '../src/test/load/loadEvaluation';
 import {
   aggregateLoadShardArtifacts,
+  assertShardArtifactCount,
   type LoadShardArtifact,
   shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
-
-function shardNumber(fileName: string): number {
-  return Number(fileName.replace(/\D/g, ''));
-}
+import { collectShardDiagnostics } from '../src/test/load/loadShardDiagnostics';
 
 const inputDirectory = resolve(
   process.argv[2] ?? process.env.LOAD_TEST_SHARD_INPUT_DIR ?? 'test-results/load-shards'
 );
-const artifactPaths = readdirSync(inputDirectory)
+const inputFiles = existsSync(inputDirectory) ? readdirSync(inputDirectory) : [];
+const artifactPaths = inputFiles
   .filter(fileName => /^shard-\d+\.json$/.test(fileName))
   // Numeric, not lexicographic: past nine shards a plain sort orders these
   // 0, 1, 10, 11, ... 2, which reorders the evidence a reader compares by index.
-  .sort((left, right) => shardNumber(left) - shardNumber(right))
+  .sort((left, right) => Number(left.replace(/\D/g, '')) - Number(right.replace(/\D/g, '')))
   .map(fileName => resolve(inputDirectory, fileName));
-const artifacts = artifactPaths.map(
-  artifactPath => JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact
+const parseDiagnostics: string[] = [];
+const artifacts = artifactPaths.flatMap(artifactPath => {
+  try {
+    return [JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact];
+  } catch {
+    parseDiagnostics.push(`${artifactPath}: unreadable observation artifact`);
+    return [];
+  }
+});
+const failureDiagnostics = collectShardDiagnostics(inputFiles, fileName =>
+  JSON.parse(readFileSync(resolve(inputDirectory, fileName), 'utf8'))
 );
+const diagnostics = [...parseDiagnostics, ...failureDiagnostics];
+
+function throwWithDiagnostics(error: unknown): never {
+  if (diagnostics.length > 0 && error instanceof Error) {
+    error.message += ` Failure diagnostics: ${diagnostics.join('; ')}`;
+  }
+  throw error;
+}
+
+try {
+  assertShardArtifactCount(artifacts);
+} catch (error) {
+  throwWithDiagnostics(error);
+}
 const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',
   'platform.json'
@@ -43,8 +65,18 @@ const platformArtifact = readUsablePlatformArtifact(
       `Platform telemetry at ${platformPath} is unusable (${reason}); evaluating without it.`
     )
 );
-const aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
+let aggregate: ReturnType<typeof aggregateLoadShardArtifacts>;
+try {
+  aggregate = aggregateLoadShardArtifacts(artifacts, G9_NORMAL_SCENARIO, platformArtifact);
+} catch (error) {
+  throwWithDiagnostics(error);
+}
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
+if (diagnostics.length > 0) {
+  console.warn(`Load shard failure diagnostics: ${diagnostics.join('; ')}`);
+  evaluation.failures.push(...diagnostics);
+  evaluation.passed = false;
+}
 // Aggregating shards that measured different windows produces one percentile
 // over incommensurable samples. Appended rather than folded into
 // evaluateLoadResult because only the aggregate sees the per-shard windows

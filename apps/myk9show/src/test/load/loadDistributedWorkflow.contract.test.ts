@@ -136,7 +136,10 @@ describe('manual distributed load workflow', () => {
     expect(workflow).toContain('HEADROOM_GITHUB_TOKEN: ${{ secrets.HEADROOM_GITHUB_TOKEN }}');
     expect(workflow).not.toMatch(/repos\/\$\{GITHUB_REPOSITORY\}\/actions\/runs/);
     expect(workflow).toMatch(
-      /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 55/
+      /name: Load shard \$\{\{ matrix\.shard \}\}[\s\S]*?timeout-minutes: 90/
+    );
+    expect(workflow).toMatch(
+      /name: Run synchronized [\s\S]*?\n {8}timeout-minutes: 58\n {8}run: pnpm test:load:playwright/
     );
   });
 
@@ -182,6 +185,24 @@ describe('manual distributed load workflow', () => {
       scripts: Record<string, string>;
     };
     expect(pkg.scripts['test:load:unit']).toBe('vitest run src/test/load');
+  });
+
+  it('uploads JSON shard diagnostics and excludes trace archives for security', () => {
+    const uploadStart = workflow.indexOf('      - name: Upload shard observation');
+    const uploadEnd = workflow.indexOf('\n  aggregate:', uploadStart);
+    expect(uploadStart).not.toBe(-1);
+    expect(uploadEnd).not.toBe(-1);
+    expect(uploadEnd).toBeGreaterThan(uploadStart);
+    const upload = workflow.slice(uploadStart, uploadEnd);
+    expect(upload).toMatch(
+      /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\*-failure\.json\s+if-no-files-found: warn/
+    );
+    expect(upload).toContain('JSON-only by design');
+    expect(upload).not.toContain('.zip');
+    expect(upload).not.toContain('test-results/load/');
+    expect(workflow).toContain(
+      'LOAD_TEST_SHARD_FAILURE_FILE: shard-${{ matrix.shard }}-failure.json'
+    );
   });
 
   it('does not depend on Vercel or paid runner labels', () => {

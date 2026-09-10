@@ -1,9 +1,14 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
 import type { LoadPlatformArtifact } from './loadPlatformArtifact';
 import {
   aggregateLoadShardArtifacts,
+  assertShardArtifactCount,
+  writeLoadShardFailureArtifact,
   type LoadShardArtifact,
   shardWindowDivergence,
 } from './loadShardAggregation';
@@ -215,6 +220,50 @@ function platformArtifact(): LoadPlatformArtifact {
 }
 
 describe('distributed load aggregation', () => {
+  it('reports missing shard indexes before aggregation', () => {
+    expect(() => assertShardArtifactCount([])).toThrow(
+      'Expected exactly 16 load shard artifacts; found 0. Missing shard(s): 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15.'
+    );
+  });
+
+  it('writes a failure artifact without requiring a valid load target', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'myk9-load-shard-'));
+    try {
+      const path = writeLoadShardFailureArtifact(
+        {
+          schemaVersion: 1,
+          runId: 'run-1',
+          startAtMs: 0,
+          shard: { count: DISTRIBUTED_G9_SHARD_COUNT, index: 8 },
+          scenarioId: G9_NORMAL_SCENARIO.id,
+          error: { name: 'Error', message: 'missed synchronized start' },
+        },
+        directory
+      );
+
+      expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({
+        shard: { index: 8 },
+        error: { message: 'missed synchronized start' },
+      });
+      expect(() =>
+        writeLoadShardFailureArtifact(
+          {
+            schemaVersion: 1,
+            runId: 'run-1',
+            startAtMs: 0,
+            shard: { count: DISTRIBUTED_G9_SHARD_COUNT, index: 8 },
+            scenarioId: G9_NORMAL_SCENARIO.id,
+            error: { name: 'Error', message: 'unsafe path' },
+          },
+          directory,
+          '../escape.json'
+        )
+      ).toThrow('Invalid load shard failure artifact filename');
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('retains failed reconciliation evidence through JSON and rejects the complete run', () => {
     const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
       shardArtifact(index)

@@ -91,6 +91,12 @@ function hasAnyField(...values: Array<string | number | null | undefined>): bool
   return values.some(v => v !== null && v !== undefined);
 }
 
+function notesDescribeRefundTerms(notes: string | null): boolean {
+  return /\b(refund|retain|retention|keep|kept|fee|percent|cutoff|deadline|after|before|none|full)\b|[%$]/i.test(
+    notes ?? ''
+  );
+}
+
 /**
  * Resolve the effective policy by composing the two levels PER FIELD: each show
  * field wins where the show declares one, and falls back to the club default
@@ -202,7 +208,7 @@ export function resolveWithdrawalRefundCents(
     !policy.cutoffDate ||
     policy.retentionValue === null ||
     (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
-    policy.notes?.trim()
+    notesDescribeRefundTerms(policy.notes?.trim() ?? null)
   ) {
     return {
       refundCents: entryFeeCents,

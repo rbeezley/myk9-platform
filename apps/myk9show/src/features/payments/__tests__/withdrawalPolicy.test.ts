@@ -144,6 +144,20 @@ describe('resolveWithdrawalRefundCents', () => {
     expect(result).toMatchObject({ requiresManual: true, reason: 'manual_review' });
   });
 
+  it('keeps structured refund guidance for procedural notes', () => {
+    const result = resolveWithdrawalRefundCents(
+      { ...flatPolicy, notes: 'Email the secretary to withdraw.' },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(result).toMatchObject({
+      requiresManual: false,
+      reason: 'after_cutoff',
+      retainedCents: 1000,
+    });
+  });
+
   it('unset policy (null) suggests full and flags manual', () => {
     const r = resolveWithdrawalRefundCents(null, 3000, new Date('2026-06-15T12:00:00Z'), NY);
     expect(r.refundCents).toBe(3000);

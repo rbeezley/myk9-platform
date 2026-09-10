@@ -92,9 +92,7 @@ export function RefundEntryDialog({
       ? 'Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.'
       : suggestion.reason === 'after_cutoff'
         ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
-        : suggestion.reason === 'before_cutoff'
-          ? 'Withdrawal policy: within the full-refund window. Full refund suggested.'
-          : 'Withdrawal policy: the amount needs your judgment. Set it below.';
+        : 'Withdrawal policy: within the full-refund window. Full refund suggested.';
 
   const snapshotSuggestedAmount =
     suggestion?.hasPolicy && !suggestion.requiresManual && suggestion.refundCents < feeCents

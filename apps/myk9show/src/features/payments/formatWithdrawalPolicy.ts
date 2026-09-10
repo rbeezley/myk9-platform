@@ -36,6 +36,12 @@ function formatRetained(policy: WithdrawalPolicy): string | null {
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
 }
 
+function notesDescribeRefundTerms(notes: string | null): boolean {
+  return /\b(refund|retain|retention|keep|kept|fee|percent|cutoff|deadline|after|before|none|full)\b|[%$]/i.test(
+    notes ?? ''
+  );
+}
+
 export function describeWithdrawalPolicy(
   policy: WithdrawalPolicy | null
 ): WithdrawalPolicyDescription {
@@ -51,7 +57,12 @@ export function describeWithdrawalPolicy(
 
   // Missing retention or free-text policy needs human interpretation. Never
   // place a computed refund claim beside prose that may define another schedule.
-  if (!policy.cutoffDate || policy.retentionValue === null || notes) {
+  if (
+    !policy.cutoffDate ||
+    policy.retentionValue === null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
+    notesDescribeRefundTerms(notes)
+  ) {
     return { refundLine: SERVICE_FEE_SENTENCE, notes };
   }
 

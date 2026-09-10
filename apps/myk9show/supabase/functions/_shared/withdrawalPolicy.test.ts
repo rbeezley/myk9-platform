@@ -97,6 +97,17 @@ describe('resolveWithdrawalPolicy', () => {
     expect(r.refundCents).toBe(2500);
   });
 
+  it('fails closed for a legacy zero-retention snapshot', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: 0, notes: null },
+        3000,
+        new Date('2026-08-01T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
   // Mirror of the client guard. This resolver's output becomes Stripe's
   // pre-payment `custom_text` and the entry's frozen snapshot, so a spliced
   // club note is a contradictory disclosure at the moment of payment.
@@ -168,16 +179,33 @@ describe('describeWithdrawalPolicyText', () => {
     expect(text).toContain('25% is kept');
   });
 
-  it('labels prose notes without presenting them as a computed outcome', () => {
+  it('keeps structured outcomes beside procedural notes', () => {
     const text = describeWithdrawalPolicyText({
       cutoffDate: '2026-06-01',
       retentionType: 'flat',
       retentionValue: 1000,
       notes: 'Email the secretary to withdraw.',
     });
-    expect(text).not.toContain('$10.00 is kept');
+    expect(text).toContain('$10.00 is kept');
     expect(text).toContain('Additional withdrawal instructions:');
     expect(text.endsWith('Email the secretary to withdraw.')).toBe(true);
+  });
+
+  it('requires review when notes describe a different refund schedule', () => {
+    const policy = {
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat' as const,
+      retentionValue: 1000,
+      notes: 'Full refund until closing, then 50% until 7 days out, none after.',
+    };
+    expect(
+      resolveWithdrawalRefundCents(
+        policy,
+        3000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
   });
 
   it('prose-only policy renders notes + fee sentence, no deadline', () => {

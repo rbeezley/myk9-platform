@@ -41,8 +41,8 @@ describe('describeWithdrawalPolicy', () => {
     expect(d.refundLine).toContain('January 1, 2026');
   });
 
-  it('omits the deadline when no retention is set (full refund regardless)', () => {
-    const d = describeWithdrawalPolicy({ ...base, retentionValue: 0 });
+  it('omits the deadline when retention is explicitly zero', () => {
+    const d = describeWithdrawalPolicy({ ...base, retentionValue: 0, retentionDeclared: true });
     expect(d.refundLine).toBe('Full refund of the entry fee. Service fees are non-refundable.');
   });
 
@@ -65,7 +65,7 @@ describe('describeWithdrawalPolicy', () => {
 
   it('carries structured notes alongside the cutoff line', () => {
     const d = describeWithdrawalPolicy({ ...base, notes: 'Email the secretary to withdraw.' });
-    expect(d.refundLine).toBe('Service fees are non-refundable.');
+    expect(d.refundLine).toContain('$10.00 is kept');
     expect(d.notes).toBe('Email the secretary to withdraw.');
   });
 

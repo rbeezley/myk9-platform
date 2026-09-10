@@ -60,6 +60,12 @@ function hasAny(...values: Array<string | number | null | undefined>): boolean {
   return values.some(v => v !== null && v !== undefined);
 }
 
+function notesDescribeRefundTerms(notes: string | null): boolean {
+  return /\b(refund|retain|retention|keep|kept|fee|percent|cutoff|deadline|after|before|none|full)\b|[%$]/i.test(
+    notes ?? ''
+  );
+}
+
 function build(
   cutoff: string | null | undefined,
   type: string | null | undefined,
@@ -165,7 +171,7 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
     !policy.cutoffDate ||
     policy.retentionValue === null ||
     (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
-    policy.notes?.trim()
+    notesDescribeRefundTerms(policy.notes?.trim() ?? null)
   ) {
     return withNotes(SERVICE_FEE_SENTENCE);
   }
@@ -215,7 +221,12 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
-  if (!policy.cutoffDate || policy.retentionValue === null || policy.notes?.trim()) {
+  if (
+    !policy.cutoffDate ||
+    policy.retentionValue === null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
+    notesDescribeRefundTerms(policy.notes?.trim() ?? null)
+  ) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,

@@ -410,6 +410,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: load-shard-${{ matrix.shard }}
+          # JSON-only by design: Playwright trace archives can contain auth
+          # tokens and form values, so they must never enter public artifacts.
           path: |
             apps/myk9show/test-results/load-shards/shard-${{ matrix.shard }}.json
             apps/myk9show/test-results/load-shards/shard-${{ matrix.shard }}-failure.json

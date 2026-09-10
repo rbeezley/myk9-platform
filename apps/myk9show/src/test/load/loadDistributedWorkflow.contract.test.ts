@@ -184,11 +184,13 @@ describe('manual distributed load workflow', () => {
     expect(pkg.scripts['test:load:unit']).toBe('vitest run src/test/load');
   });
 
-  it('uploads failed-shard diagnostics and Playwright traces for every shard', () => {
+  it('uploads JSON shard diagnostics and excludes trace archives for security', () => {
     expect(workflow).toMatch(
       /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}-failure\.json/
     );
     expect(workflow).toContain('if-no-files-found: warn');
+    expect(workflow).toContain('JSON-only by design');
+    expect(workflow).not.toContain('test-results/load/**/*.zip');
   });
 
   it('does not depend on Vercel or paid runner labels', () => {

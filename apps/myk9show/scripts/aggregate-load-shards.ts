@@ -9,6 +9,7 @@ import {
   shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
 import { G9_NORMAL_SCENARIO } from '../src/test/load/loadScenario';
+import { DISTRIBUTED_G9_SHARD_COUNT } from '../src/test/load/loadShard';
 
 function shardNumber(fileName: string): number {
   return Number(fileName.replace(/\D/g, ''));
@@ -26,6 +27,9 @@ const artifactPaths = readdirSync(inputDirectory)
 const artifacts = artifactPaths.map(
   artifactPath => JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact
 );
+if (artifacts.length === 0) {
+  throw new Error(`Expected exactly ${DISTRIBUTED_G9_SHARD_COUNT} load shard artifacts.`);
+}
 const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',
   'platform.json'

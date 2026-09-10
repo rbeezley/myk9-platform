@@ -1,8 +1,3 @@
-export interface ShardFailureDiagnostic {
-  fileName: string;
-  message: string;
-}
-
 function shardNumber(fileName: string): number {
   return Number(fileName.replace(/\D/g, ''));
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { collectShardDiagnostics } from './loadShardDiagnostics';
+import { failureArtifactMetadata } from './loadShardFailure';
 
 describe('collectShardDiagnostics', () => {
   it('sorts numeric shards before unknown and preserves unreadable files', () => {
@@ -9,13 +10,25 @@ describe('collectShardDiagnostics', () => {
       ['shard-10-failure.json', { shard: { index: 10 }, error: { message: 'ten' } }],
     ]);
 
-    expect(collectShardDiagnostics(files, file => {
-      if (file === 'shard-unknown-failure.json') throw new Error('unreadable');
-      return values.get(file);
-    })).toEqual([
+    expect(
+      collectShardDiagnostics(files, file => {
+        if (file === 'shard-unknown-failure.json') throw new Error('unreadable');
+        return values.get(file);
+      })
+    ).toEqual([
       'shard 2: two',
       'shard 10: ten',
       'shard-unknown-failure.json: unreadable failure artifact',
     ]);
+  });
+
+  it('uses the configured shard filename and safe fallback metadata', () => {
+    expect(
+      failureArtifactMetadata({
+        LOAD_TEST_SHARD_COUNT: '16',
+        LOAD_TEST_SHARD_INDEX: '3',
+        LOAD_TEST_SHARD_FAILURE_FILE: 'shard-3-failure.json',
+      })
+    ).toEqual({ shard: { count: 16, index: 3 }, fileName: 'shard-3-failure.json' });
   });
 });

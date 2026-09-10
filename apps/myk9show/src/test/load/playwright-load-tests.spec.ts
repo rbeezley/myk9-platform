@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import type { TestInfo } from '@playwright/test';
 import { runBrowserLoad } from './loadBrowserRunner';
 import { buildLoadEvidence, renderLoadEvidenceMarkdown, writeLoadEvidence } from './loadEvidence';
 import { evaluateLoadResult } from './loadEvaluation';
@@ -10,66 +9,8 @@ import {
   writeLoadShardArtifact,
   writeLoadShardFailureArtifact,
 } from './loadShardAggregation';
+import { failureArtifactMetadata, writeFailureArtifactFromTestInfo } from './loadShardFailure';
 import { loadTargetFromEnv } from './loadTarget';
-
-function parseNonnegativeInteger(value: string | undefined): number | undefined {
-  if (value === undefined || value.trim() === '') return undefined;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
-}
-
-function failureArtifactMetadata(): {
-  shard: { count: number; index: number };
-  fileName: string;
-} {
-  const index = parseNonnegativeInteger(process.env.LOAD_TEST_SHARD_INDEX);
-  const count = parseNonnegativeInteger(process.env.LOAD_TEST_SHARD_COUNT) ?? 0;
-  return {
-    shard: { count, index: index ?? -1 },
-    fileName:
-      process.env.LOAD_TEST_SHARD_FAILURE_FILE ??
-      (index === undefined ? 'shard-unknown-failure.json' : `shard-${index}-failure.json`),
-  };
-}
-
-async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<void> {
-  if (testInfo.status === testInfo.expectedStatus) return;
-  if (process.env.LOAD_TEST_SHARD_INDEX === undefined) return;
-  if (testInfo.title !== 'G9 Normal show-day load') return;
-  if (testInfo.annotations.some(annotation => annotation.type === 'shard-failure-evidence')) return;
-  const metadata = failureArtifactMetadata();
-  const target = (() => {
-    try {
-      return loadTargetFromEnv(process.env);
-    } catch {
-      return undefined;
-    }
-  })();
-  const failure = testInfo.error;
-  // Playwright serializes teardown errors without a name; the in-test catch
-  // preserves the native Error name when that path is available.
-  const failureName = 'PlaywrightTestError';
-  const failureMessage = failure?.message ?? `Load test ended with status ${testInfo.status}.`;
-  const failureStack = failure?.stack;
-  const artifact = {
-    schemaVersion: 1 as const,
-    runId: process.env.LOAD_TEST_RUN_ID ?? 'unknown',
-    startAtMs: Number(process.env.LOAD_TEST_START_AT ?? 0),
-    shard: metadata.shard,
-    target,
-    scenarioId: G9_NORMAL_SCENARIO.id,
-    error: {
-      name: failureName,
-      message: failureMessage,
-      ...(failureStack ? { stack: failureStack } : {}),
-    },
-  };
-  try {
-    writeLoadShardFailureArtifact(artifact, undefined, metadata.fileName);
-  } catch (error) {
-    console.error('Load shard timeout diagnostics could not be written:', error);
-  }
-}
 
 // Playwright requires an object pattern here; keeping it empty avoids resolving
 // browser fixtures during teardown, including when browser startup failed.
@@ -89,7 +30,7 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
     result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
-    const fallback = failureArtifactMetadata();
+    const fallback = failureArtifactMetadata(process.env);
     const failureArtifact = {
       schemaVersion: 1 as const,
       runId: shard?.runId ?? process.env.LOAD_TEST_RUN_ID ?? 'unknown',
@@ -104,16 +45,18 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
       },
     };
     try {
-      const artifactPath = writeLoadShardFailureArtifact(
-        failureArtifact,
-        undefined,
-        fallback.fileName
-      );
-      await testInfo.attach('load-shard-failure.json', {
-        body: JSON.stringify(failureArtifact, null, 2),
-        contentType: 'text/plain',
-      });
-      testInfo.annotations.push({ type: 'shard-failure-evidence', description: artifactPath });
+      if (process.env.LOAD_TEST_SHARD_INDEX !== undefined) {
+        const artifactPath = writeLoadShardFailureArtifact(
+          failureArtifact,
+          undefined,
+          fallback.fileName
+        );
+        await testInfo.attach('load-shard-failure.json', {
+          body: JSON.stringify(failureArtifact, null, 2),
+          contentType: 'text/plain',
+        });
+        testInfo.annotations.push({ type: 'shard-failure-evidence', description: artifactPath });
+      }
     } catch (diagnosticError) {
       testInfo.annotations.push({
         type: 'shard-failure-diagnostics-error',

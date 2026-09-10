@@ -74,7 +74,7 @@ try {
 const evaluation = evaluateLoadResult(G9_NORMAL_SCENARIO, aggregate.observation);
 if (diagnostics.length > 0) {
   console.warn(`Load shard failure diagnostics: ${diagnostics.join('; ')}`);
-  evaluation.failures.push(...failureDiagnostics);
+  evaluation.failures.push(...diagnostics);
   evaluation.passed = false;
 }
 // Aggregating shards that measured different windows produces one percentile

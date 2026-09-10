@@ -28,7 +28,8 @@ import { join, relative, resolve } from 'node:path';
  * someone made. Adding a new `isSecretary || isAdmin` anywhere under src/ fails
  * this test until it is either routed through the scoped helper or added here
  * with a reason. Entries marked UNREVIEWED are pre-existing and suspected —
- * they are listed so the debt is visible rather than silently inherited.
+ * they are listed so the debt is visible rather than silently inherited, and tracked in
+ * MYK9-464.
  */
 
 const APP_SRC = resolve(import.meta.dirname, '../..');
@@ -60,7 +61,7 @@ const ALLOWED: Record<string, Allowance> = {
   },
   'pages/ShowDetailsPage.audience.ts': {
     reason:
-      'UNREVIEWED (pre-existing, suspected). Chooses the management vs exhibitor audience for a ' +
+      'UNREVIEWED (pre-existing, suspected — MYK9-464). Chooses the management vs exhibitor audience for a ' +
       'SPECIFIC show, so it should almost certainly scope on that show\u2019s club the way ' +
       'ShowDetailsPage.viewer.ts now does. Left as-is by MYK9-458, which fixed the manage gate ' +
       'but not the audience split.',
@@ -68,14 +69,14 @@ const ALLOWED: Record<string, Allowance> = {
   },
   'pages/ClassDetailsPage/index.tsx': {
     reason:
-      'UNREVIEWED (pre-existing, suspected). This file already imports canManageShowSurface for ' +
+      'UNREVIEWED (pre-existing, suspected — MYK9-464). This file already imports canManageShowSurface for ' +
       'its lifecycle controls, then uses the bare global check for three further affordances on ' +
       'the same club-owned record. The two gates disagreeing on one page is the smell.',
     count: 3,
   },
   'pages/ClassDetailsPage/useClassDetailsData.ts': {
     reason:
-      'UNREVIEWED (pre-existing, suspected). Selects which entry query to run for a club-owned ' +
+      'UNREVIEWED (pre-existing, suspected — MYK9-464). Selects which entry query to run for a club-owned ' +
       'class; a cross-club staff viewer issues a secretary-scoped read the server will refuse.',
     count: 1,
   },

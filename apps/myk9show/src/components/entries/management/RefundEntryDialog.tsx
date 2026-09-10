@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
 import type { WithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
+import { formatCutoff } from '@/features/payments/formatWithdrawalPolicy';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 // Server validation is authoritative; these map its error codes to language a
@@ -47,9 +48,10 @@ function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
 
   const details = [
-    policy.cutoffDate ? `Full refund through ${policy.cutoffDate}.` : null,
-    policy.retentionValue == null
-      ? 'No after-cutoff retention is declared.'
+    policy.cutoffDate ? `Full refund through ${formatCutoff(policy.cutoffDate)}.` : null,
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+      ? 'The after-cutoff retention needs manual review.'
       : `Declared after-cutoff retention: ${
           policy.retentionType === 'percent'
             ? `${policy.retentionValue}%`

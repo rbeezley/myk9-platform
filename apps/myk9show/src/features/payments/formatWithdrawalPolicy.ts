@@ -20,7 +20,7 @@ const SERVICE_FEE_SENTENCE = 'Service fees are non-refundable.';
 
 /** 'YYYY-MM-DD' → 'June 1, 2026'. Formatted in UTC so the displayed day can't
  *  drift by one from a local-timezone parse of the bare date. */
-function formatCutoff(date: string): string {
+export function formatCutoff(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return date;
   return new Intl.DateTimeFormat('en-US', {

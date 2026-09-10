@@ -61,7 +61,7 @@ function hasAny(...values: Array<string | number | null | undefined>): boolean {
 }
 
 function notesDescribeRefundTerms(notes: string | null): boolean {
-  return /\b(?:no|full|partial)\s+refunds?\b|\brefunds?\b.*\b(?:after|before|until|once|none)\b|\b(?:retain(?:s|ed|ing)?|keeps?|kept|non[- ]?refundable|retention|cutoffs?|deadlines?)\b|\d+(?:\.\d+)?\s*%|\$\s*\d/i.test(
+  return /\b(?:no|full|partial)\s+refunds?\b|\brefunds?\b[\s\S]{0,80}\b(?:no|none|full|partial|after|before|until)\b|\bfull\s+until\b|\b(?:retain(?:s|ed|ing)?|keeps?|kept|non[- ]?refundable|retention|cutoffs?)\b|\b(?:refund|retain|retention|keep|kept|non[- ]?refundable)[\s\S]{0,80}(?:\d+(?:\.\d+)?\s*%|\$\s*\d)/is.test(
     notes ?? ''
   );
 }
@@ -164,11 +164,10 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
   }
 
   const notes = policy.notes?.trim() ? policy.notes.trim() : null;
-  const withNotes = (line: string) =>
-    notes ? `${line} Additional withdrawal instructions: ${notes}` : line;
+  const withNotes = (line: string) => (notes ? `${line} Policy notes: ${notes}` : line);
 
   if (!policy.cutoffDate) {
-    return withNotes(SERVICE_FEE_SENTENCE);
+    return notes ? `${notes} ${SERVICE_FEE_SENTENCE}` : SERVICE_FEE_SENTENCE;
   }
 
   if (

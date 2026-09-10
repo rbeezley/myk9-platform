@@ -187,7 +187,7 @@ describe('describeWithdrawalPolicyText', () => {
       notes: 'Email the secretary to withdraw.',
     });
     expect(text).toContain('$10.00 is kept');
-    expect(text).toContain('Additional withdrawal instructions:');
+    expect(text).toContain('Policy notes:');
     expect(text.endsWith('Email the secretary to withdraw.')).toBe(true);
   });
 
@@ -208,6 +208,30 @@ describe('describeWithdrawalPolicyText', () => {
     ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
   });
 
+  it('keeps multiline refund terms fail-closed while ignoring procedural wording', () => {
+    const policy = {
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat' as const,
+      retentionValue: 1000,
+      notes: 'Refunds:\nNone after the closing date.',
+    };
+    expect(describeWithdrawalPolicyText(policy)).not.toContain('$10.00 is kept');
+    expect(
+      resolveWithdrawalRefundCents(
+        policy,
+        3000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+
+    const procedural = {
+      ...policy,
+      notes: 'Withdrawals must be submitted in writing by the closing deadline.',
+    };
+    expect(describeWithdrawalPolicyText(procedural)).toContain('$10.00 is kept');
+  });
+
   it('prose-only policy renders notes + fee sentence, no deadline', () => {
     const text = describeWithdrawalPolicyText({
       cutoffDate: null,
@@ -215,9 +239,7 @@ describe('describeWithdrawalPolicyText', () => {
       retentionValue: 0,
       notes: 'Full until closing, then 50%.',
     });
-    expect(text).toBe(
-      'Service fees are non-refundable. Additional withdrawal instructions: Full until closing, then 50%.'
-    );
+    expect(text).toBe('Full until closing, then 50%. Service fees are non-refundable.');
   });
 
   it('unset policy renders the neutral contact-the-club line', () => {

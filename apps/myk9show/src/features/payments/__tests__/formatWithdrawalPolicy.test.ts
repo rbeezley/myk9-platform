@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { describeWithdrawalPolicy } from '../formatWithdrawalPolicy';
+import { notesDescribeRefundTerms } from '../withdrawalPolicyTerms';
 import type { WithdrawalPolicy } from '../withdrawalPolicy';
 
 const base: WithdrawalPolicy = {
@@ -76,5 +77,12 @@ describe('describeWithdrawalPolicy', () => {
     });
     expect(d.refundLine).not.toContain('$10.00');
     expect(d.notes).toContain('50%');
+  });
+
+  it('detects multiline refund terms without treating procedural notes as terms', () => {
+    expect(notesDescribeRefundTerms('Refunds:\nNone after the closing date.')).toBe(true);
+    expect(notesDescribeRefundTerms('The club retains the office fee.')).toBe(true);
+    expect(notesDescribeRefundTerms('Withdrawals must be submitted in writing by the closing deadline.')).toBe(false);
+    expect(notesDescribeRefundTerms('Refunds are processed once the show closes.')).toBe(false);
   });
 });

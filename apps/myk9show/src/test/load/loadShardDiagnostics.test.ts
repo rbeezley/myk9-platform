@@ -41,6 +41,9 @@ describe('collectShardDiagnostics', () => {
     ).toBe(
       'GET https://example.test/?token=[REDACTED]&show=[REDACTED] Authorization: Bearer [REDACTED]'
     );
+    expect(sanitizeFailureMessage('{"access_token":"secret","password":"hunter2"}')).toBe(
+      '{"access_token":"[REDACTED]","password":"[REDACTED]"}'
+    );
   });
 
   it('rejects a full artifact set with an out-of-range shard index', () => {

@@ -28,18 +28,21 @@ SELECT count(*)
 FROM pg_stat_activity
 WHERE datname = current_database();
 `;
-const SCHEDULED_WRITE_SNAPSHOT_SQL = `
+function scheduledWriteSnapshotSql(windowStart: string): string {
+  const escapedWindowStart = windowStart.replaceAll("'", "''");
+  return `
 SELECT 'cron:' || COALESCE(j.jobname, '<unknown>'), count(*)
 FROM cron.job_run_details AS d
 LEFT JOIN cron.job AS j ON j.jobid = d.jobid
-WHERE d.start_time >= clock_timestamp() - interval '2 hours'
+WHERE d.start_time >= '${escapedWindowStart}'::timestamptz
 GROUP BY 1
 UNION ALL
 SELECT 'health:' || COALESCE(source, '<unknown>') || ':' || COALESCE(run_mode, '<default>'), count(*)
 FROM public.system_health_snapshots
-WHERE created_at >= clock_timestamp() - interval '2 hours'
+WHERE created_at >= '${escapedWindowStart}'::timestamptz
 GROUP BY 1;
 `;
+}
 
 interface StatementSnapshot {
   calls: number;
@@ -72,13 +75,16 @@ export async function startLoadPlatformSampler(
 
   const command = databaseCommand(databaseUrl, env);
   const captureScheduledWrites = env.LOAD_TEST_CAPTURE_WRITE_ACTIVITY === 'true';
+  const scheduledWindowStart = new Date().toISOString();
   const [baseline, initialResources, initialScheduledWrites] = await Promise.all([
     readStatementSnapshot(command),
     // Retried like every other sample. Unprotected, a startup timeout rejects
     // the whole sampler and produces no artifact at all — losing everything in
     // precisely the transient case the retry exists to survive.
     readResourceCountersWithRetry(env),
-    captureScheduledWrites ? readScheduledWriteSnapshot(command) : Promise.resolve(new Map()),
+    captureScheduledWrites
+      ? readScheduledWriteSnapshot(command, scheduledWindowStart).catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
   let peakConnections = 0;
   let connectionAttempts = 0;
@@ -180,7 +186,7 @@ export async function startLoadPlatformSampler(
         const [finalSnapshot, finalScheduledWrites] = await Promise.all([
           readStatementSnapshot(command).catch(() => undefined),
           captureScheduledWrites
-            ? readScheduledWriteSnapshot(command).catch(() => undefined)
+            ? readScheduledWriteSnapshot(command, scheduledWindowStart).catch(() => undefined)
             : Promise.resolve(undefined),
         ]);
         // For resources, a partial sample is retained as a lower-bound
@@ -205,9 +211,10 @@ export async function startLoadPlatformSampler(
           }),
           connectionCap,
           statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
-          scheduledWriteDeltas: finalScheduledWrites
-            ? scheduledWriteDeltas(initialScheduledWrites, finalScheduledWrites)
-            : [],
+          scheduledWriteDeltas:
+            initialScheduledWrites && finalScheduledWrites
+              ? scheduledWriteDeltas(initialScheduledWrites, finalScheduledWrites)
+              : undefined,
           resourceSampling: {
             attempts: resourceAttempts,
             succeeded: resourceSuccesses,
@@ -260,9 +267,12 @@ export function parseScheduledWriteSnapshot(output: string): Map<string, number>
 }
 
 async function readScheduledWriteSnapshot(
-  command: DatabaseCommand
+  command: DatabaseCommand,
+  windowStart: string
 ): Promise<ScheduledWriteSnapshot> {
-  return parseScheduledWriteSnapshot(await runPsql(command, SCHEDULED_WRITE_SNAPSHOT_SQL));
+  return parseScheduledWriteSnapshot(
+    await runPsql(command, scheduledWriteSnapshotSql(windowStart))
+  );
 }
 
 export function statementDeltas(

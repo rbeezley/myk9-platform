@@ -34,8 +34,21 @@ import { join, relative, resolve } from 'node:path';
 
 const APP_SRC = resolve(import.meta.dirname, '../..');
 
-/** Matches the bare global gate in either operand order. */
-const GLOBAL_GATE = /isSecretary\s*\|\|\s*isAdmin|isAdmin\s*\|\|\s*isSecretary/;
+/**
+ * Matches the bare global gate in either operand order.
+ *
+ * `\s` spans newlines and the match runs over whole file contents, NOT
+ * line-by-line: Prettier breaks a long condition after the `||`, so
+ * `isSecretary ||\n  isAdmin` is the shape a real regression is most likely to
+ * arrive in. A per-line scan counted that as zero — the guard would have passed
+ * while the gate it exists to catch was being added.
+ */
+const GLOBAL_GATE = /isSecretary\s*\|\|\s*isAdmin|isAdmin\s*\|\|\s*isSecretary/g;
+
+/** Occurrences of the bare global gate in a source string. */
+export function countGates(source: string): number {
+  return [...source.matchAll(GLOBAL_GATE)].length;
+}
 
 type Allowance = { reason: string; count: number };
 
@@ -101,15 +114,36 @@ function occurrences(): Map<string, number> {
     // Skip the test tree itself: fixtures legitimately spell out both booleans.
     const rel = relative(APP_SRC, file).split('\\').join('/');
     if (rel.startsWith('test/')) continue;
-    const hits = readFileSync(file, 'utf8')
-      .split('\n')
-      .filter(line => GLOBAL_GATE.test(line)).length;
+    const hits = countGates(readFileSync(file, 'utf8'));
     if (hits > 0) found.set(rel, hits);
   }
   return found;
 }
 
 describe('scoped manage gate', () => {
+  // The matcher is the guard. Test it directly, or a formatting change silently
+  // disarms every assertion below.
+  describe('countGates', () => {
+    it('counts the single-line form', () => {
+      expect(countGates('const canManage = isSecretary || isAdmin;')).toBe(1);
+      expect(countGates('const canManage = isAdmin || isSecretary;')).toBe(1);
+    });
+
+    it('counts a gate Prettier wrapped across lines', () => {
+      expect(countGates('const canManage =\n  isSecretary ||\n  isAdmin;')).toBe(1);
+      expect(countGates('const canManage =\n  isAdmin ||\n  isSecretary;')).toBe(1);
+    });
+
+    it('counts every occurrence in a file, not just the first', () => {
+      expect(countGates('a = isSecretary || isAdmin;\nb = isSecretary || isAdmin;')).toBe(2);
+    });
+
+    it('does not match a scoped call or an unrelated pair', () => {
+      expect(countGates('canManageShowSurface({ isSecretary, isAdmin, clubId })')).toBe(0);
+      expect(countGates('const x = isSecretary || isJudge;')).toBe(0);
+    });
+  });
+
   it('routes every club-scoped manage gate through canManageShowSurface', () => {
     const found = occurrences();
     const unlisted = [...found.keys()].filter(file => !(file in ALLOWED));

@@ -6,6 +6,11 @@ import type {
   StatementDelta,
 } from './loadEvaluation';
 import { summarizeObservedPeaks } from './loadPlatformPeaks';
+import {
+  parseScheduledWriteSnapshot,
+  scheduledWriteDeltas,
+  type ScheduledWriteSnapshot,
+} from './loadScheduledWriteEvidence';
 
 class ResourceSampleError extends Error {
   constructor(
@@ -27,6 +32,21 @@ SELECT count(*)
 FROM pg_stat_activity
 WHERE datname = current_database();
 `;
+function scheduledWriteSnapshotSql(windowStart: string): string {
+  const escapedWindowStart = windowStart.replaceAll("'", "''");
+  return `
+SELECT 'cron:' || COALESCE(j.jobname, '<unknown>'), count(*)
+FROM cron.job_run_details AS d
+LEFT JOIN cron.job AS j ON j.jobid = d.jobid
+WHERE d.start_time >= '${escapedWindowStart}'::timestamptz
+GROUP BY 1
+UNION ALL
+SELECT 'health:' || COALESCE(source, '<unknown>') || ':' || COALESCE(run_mode, '<default>'), count(*)
+FROM public.system_health_snapshots
+WHERE created_at >= '${escapedWindowStart}'::timestamptz
+GROUP BY 1;
+`;
+}
 
 interface StatementSnapshot {
   calls: number;
@@ -56,12 +76,19 @@ export async function startLoadPlatformSampler(
   if (!databaseUrl) throw new Error('Missing SUPABASE_DB_URL for platform telemetry.');
 
   const command = databaseCommand(databaseUrl, env);
-  const [baseline, initialResources] = await Promise.all([
+  const captureScheduledWrites = env.LOAD_TEST_CAPTURE_WRITE_ACTIVITY === 'true';
+  const scheduledWindowStart = new Date().toISOString();
+  const [baseline, initialResources, initialScheduledWrites] = await Promise.all([
     readStatementSnapshot(command),
     // Retried like every other sample. Unprotected, a startup timeout rejects
     // the whole sampler and produces no artifact at all — losing everything in
     // precisely the transient case the retry exists to survive.
     readResourceCountersWithRetry(env),
+    captureScheduledWrites
+      ? readScheduledWriteSnapshot(command, scheduledWindowStart)
+          .then(snapshot => ({ snapshot, succeeded: true }))
+          .catch(() => ({ snapshot: new Map(), succeeded: false }))
+      : Promise.resolve(undefined),
   ]);
   let peakConnections = 0;
   let connectionAttempts = 0;
@@ -160,7 +187,14 @@ export async function startLoadPlatformSampler(
         sampleResources();
         await Promise.all(pendingSamples);
 
-        const finalSnapshot = await readStatementSnapshot(command).catch(() => undefined);
+        const [finalSnapshot, finalScheduledWrites] = await Promise.all([
+          readStatementSnapshot(command).catch(() => undefined),
+          captureScheduledWrites
+            ? readScheduledWriteSnapshot(command, scheduledWindowStart)
+                .then(snapshot => ({ snapshot, succeeded: true }))
+                .catch(() => ({ snapshot: new Map(), succeeded: false }))
+            : Promise.resolve(undefined),
+        ]);
         // For resources, a partial sample is retained as a lower-bound
         // measurement. loadEvaluation fails only when no valid resource sample
         // exists; the failure list remains in the artifact for diagnosis.
@@ -183,6 +217,15 @@ export async function startLoadPlatformSampler(
           }),
           connectionCap,
           statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
+          scheduledWriteDeltas:
+            initialScheduledWrites?.succeeded && finalScheduledWrites?.succeeded
+              ? scheduledWriteDeltas(initialScheduledWrites.snapshot, finalScheduledWrites.snapshot)
+              : undefined,
+          scheduledWriteCapture: {
+            enabled: captureScheduledWrites,
+            baselineSucceeded: initialScheduledWrites?.succeeded ?? false,
+            finalSucceeded: finalScheduledWrites?.succeeded ?? false,
+          },
           resourceSampling: {
             attempts: resourceAttempts,
             succeeded: resourceSuccesses,
@@ -198,6 +241,15 @@ export async function startLoadPlatformSampler(
       return stopPromise;
     },
   };
+}
+
+async function readScheduledWriteSnapshot(
+  command: DatabaseCommand,
+  windowStart: string
+): Promise<ScheduledWriteSnapshot> {
+  return parseScheduledWriteSnapshot(
+    await runPsql(command, scheduledWriteSnapshotSql(windowStart))
+  );
 }
 
 export function statementDeltas(

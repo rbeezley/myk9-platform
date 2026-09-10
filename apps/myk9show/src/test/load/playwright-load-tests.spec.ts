@@ -24,7 +24,7 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
     const failure = error instanceof Error ? error : new Error(String(error));
     const fallbackShard = {
       count: Number(process.env.LOAD_TEST_SHARD_COUNT ?? 0),
-      index: Number(process.env.LOAD_TEST_SHARD_INDEX ?? 0),
+      index: Number(process.env.LOAD_TEST_SHARD_INDEX),
     };
     const fallbackIndex = Number.isInteger(fallbackShard.index) && fallbackShard.index >= 0;
     const failureFileName =
@@ -34,7 +34,9 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
       schemaVersion: 1 as const,
       runId: shard?.runId ?? process.env.LOAD_TEST_RUN_ID ?? 'unknown',
       startAtMs: shard?.startAtMs ?? Number(process.env.LOAD_TEST_START_AT ?? 0),
-      shard: shard ? { count: shard.count, index: shard.index } : fallbackShard,
+      shard: shard
+        ? { count: shard.count, index: shard.index }
+        : { count: fallbackShard.count, index: fallbackIndex ? fallbackShard.index : -1 },
       target,
       scenarioId: G9_NORMAL_SCENARIO.id,
       error: {

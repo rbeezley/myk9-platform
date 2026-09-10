@@ -81,12 +81,28 @@ export function writeLoadShardArtifact(
   return outputPath;
 }
 
+export function assertShardArtifactCount(
+  artifacts: readonly Pick<LoadShardArtifact, 'shard'>[]
+): void {
+  if (artifacts.length === DISTRIBUTED_G9_SHARD_COUNT) return;
+  const present = new Set(artifacts.map(artifact => artifact.shard.index));
+  const missing = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => index).filter(
+    index => !present.has(index)
+  );
+  throw new Error(
+    `Expected exactly ${DISTRIBUTED_G9_SHARD_COUNT} load shard artifacts; found ${artifacts.length}. Missing shard(s): ${missing.join(', ') || 'none'}.`
+  );
+}
+
 export function writeLoadShardFailureArtifact(
   artifact: LoadShardFailureArtifact,
   directory = process.env.LOAD_TEST_SHARD_OUTPUT_DIR ??
     resolve(process.cwd(), 'test-results/load-shards'),
   fileName = `shard-${artifact.shard.index}-failure.json`
 ): string {
+  if (!/^[A-Za-z0-9._-]+-failure\.json$/.test(fileName)) {
+    throw new Error(`Invalid load shard failure artifact filename: ${fileName}`);
+  }
   mkdirSync(directory, { recursive: true });
   const outputPath = resolve(directory, fileName);
   writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
@@ -252,9 +268,7 @@ function mergeWorkflowFailureDetails(
 }
 
 function validateArtifacts(artifacts: readonly LoadShardArtifact[], scenario: LoadScenario): void {
-  if (artifacts.length !== DISTRIBUTED_G9_SHARD_COUNT) {
-    throw new Error(`Expected exactly ${DISTRIBUTED_G9_SHARD_COUNT} load shard artifacts.`);
-  }
+  assertShardArtifactCount(artifacts);
   const first = artifacts[0];
   const indexes = new Set<number>();
   const sequences: number[] = [];

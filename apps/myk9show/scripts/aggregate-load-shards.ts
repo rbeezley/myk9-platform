@@ -5,6 +5,7 @@ import { readUsablePlatformArtifact } from '../src/test/load/loadPlatformArtifac
 import { evaluateLoadResult } from '../src/test/load/loadEvaluation';
 import {
   aggregateLoadShardArtifacts,
+  assertShardArtifactCount,
   type LoadShardArtifact,
   shardWindowDivergence,
 } from '../src/test/load/loadShardAggregation';
@@ -27,14 +28,26 @@ const artifactPaths = readdirSync(inputDirectory)
 const artifacts = artifactPaths.map(
   artifactPath => JSON.parse(readFileSync(artifactPath, 'utf8')) as LoadShardArtifact
 );
-if (artifacts.length !== DISTRIBUTED_G9_SHARD_COUNT) {
-  const present = new Set(artifacts.map(artifact => artifact.shard.index));
-  const missing = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) => index).filter(
-    index => !present.has(index)
-  );
-  throw new Error(
-    `Expected exactly ${DISTRIBUTED_G9_SHARD_COUNT} load shard artifacts; found ${artifacts.length}. Missing shard(s): ${missing.join(', ') || 'none'}.`
-  );
+const failureDiagnostics = readdirSync(inputDirectory)
+  .filter(fileName => /^shard-\d+-failure\.json$/.test(fileName))
+  .map(fileName => {
+    try {
+      const failure = JSON.parse(readFileSync(resolve(inputDirectory, fileName), 'utf8')) as {
+        shard?: { index?: number };
+        error?: { message?: string };
+      };
+      return `shard ${failure.shard?.index ?? fileName}: ${failure.error?.message ?? 'unknown failure'}`;
+    } catch {
+      return `${fileName}: unreadable failure artifact`;
+    }
+  });
+try {
+  assertShardArtifactCount(artifacts);
+} catch (error) {
+  if (failureDiagnostics.length > 0 && error instanceof Error) {
+    error.message += ` Failure diagnostics: ${failureDiagnostics.join('; ')}`;
+  }
+  throw error;
 }
 const platformPath = resolve(
   process.env.LOAD_TEST_PLATFORM_INPUT_DIR ?? 'test-results/load-platform',

@@ -186,7 +186,8 @@ describe('manual distributed load workflow', () => {
 
   it('uploads JSON shard diagnostics and excludes trace archives for security', () => {
     const uploadStart = workflow.indexOf('      - name: Upload shard observation');
-    const uploadEnd = workflow.indexOf('\n      - name:', uploadStart + 1);
+    const uploadEnd = workflow.indexOf('\n  aggregate:', uploadStart);
+    expect(uploadEnd).toBeGreaterThan(uploadStart);
     const upload = workflow.slice(uploadStart, uploadEnd);
     expect(upload).toMatch(
       /path: \|\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}\.json\s+apps\/myk9show\/test-results\/load-shards\/shard-\$\{\{ matrix\.shard \}\}-failure\.json\s+if-no-files-found: warn/

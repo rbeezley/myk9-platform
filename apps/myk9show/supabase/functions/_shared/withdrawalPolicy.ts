@@ -61,7 +61,7 @@ function hasAny(...values: Array<string | number | null | undefined>): boolean {
 }
 
 function notesDescribeRefundTerms(notes: string | null): boolean {
-  return /\b(refund|retain(?:ed|ing)?|retention|kept|non-refundable|cutoff|deadline)\b|\d+(?:\.\d+)?\s*%|\$\s*\d|\bfull\s+(?:refund|until)\b|\bnone\s+after\b|\b(?:after|before)\s+(?:the\s+)?(?:cutoff|deadline|\d)/i.test(
+  return /\b(?:no|full|partial)\s+refunds?\b|\brefunds?\b.*\b(?:after|before|until|once|none)\b|\b(?:retain(?:s|ed|ing)?|keeps?|kept|non[- ]?refundable|retention|cutoffs?|deadlines?)\b|\d+(?:\.\d+)?\s*%|\$\s*\d/i.test(
     notes ?? ''
   );
 }
@@ -167,13 +167,27 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
   const withNotes = (line: string) =>
     notes ? `${line} Additional withdrawal instructions: ${notes}` : line;
 
-  if (
-    !policy.cutoffDate ||
-    policy.retentionValue == null ||
-    (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
-    notesDescribeRefundTerms(policy.notes?.trim() ?? null)
-  ) {
+  if (!policy.cutoffDate) {
     return withNotes(SERVICE_FEE_SENTENCE);
+  }
+
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return withNotes(
+      `Withdrawal policy: contact the club for withdrawals after ${formatCutoff(
+        policy.cutoffDate
+      )}. ${SERVICE_FEE_SENTENCE}`
+    );
+  }
+
+  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
+    return withNotes(
+      `Withdrawal policy: the refund terms after ${formatCutoff(
+        policy.cutoffDate
+      )} follow the additional instructions below. ${SERVICE_FEE_SENTENCE}`
+    );
   }
 
   const retained = formatRetained(policy);
@@ -223,8 +237,6 @@ export function resolveWithdrawalRefundCents(
 
   if (
     !policy.cutoffDate ||
-    policy.retentionValue == null ||
-    (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
     notesDescribeRefundTerms(policy.notes?.trim() ?? null)
   ) {
     return {
@@ -242,6 +254,30 @@ export function resolveWithdrawalRefundCents(
       retainedCents: 0,
       requiresManual: false,
       reason: 'before_cutoff',
+    };
+  }
+
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
+    };
+  }
+
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
     };
   }
 

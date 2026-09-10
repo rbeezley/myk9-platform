@@ -225,7 +225,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
   });
 
-  it('sends an explicit full amount for a manual-review snapshot', async () => {
+  it('issues a manual-review full refund without trusting the snapshot amount', async () => {
     suggestionMock.mockReturnValue({
       data: {
         hasPolicy: true,
@@ -246,7 +246,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
       expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
         body: {
           entry_id: 'entry-1',
-          amount_cents: 5000,
+          amount_cents: undefined,
           notes: undefined,
         },
       });

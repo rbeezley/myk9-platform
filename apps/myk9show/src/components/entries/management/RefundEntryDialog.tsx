@@ -15,6 +15,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
+import type { WithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 // Server validation is authoritative; these map its error codes to language a
@@ -41,6 +42,24 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 /** Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry. */
 export type RefundableEntry = Pick<EntryManagementEntry, 'id' | 'totalFee' | 'dogName'>;
+
+function describeManualPolicy(policy: WithdrawalPolicy | null): string {
+  if (!policy) return '';
+
+  const details = [
+    policy.cutoffDate ? `Full refund through ${policy.cutoffDate}.` : null,
+    policy.retentionValue == null
+      ? 'No after-cutoff retention is declared.'
+      : `Declared after-cutoff retention: ${
+          policy.retentionType === 'percent'
+            ? `${policy.retentionValue}%`
+            : `$${(policy.retentionValue / 100).toFixed(2)}`
+        } kept.`,
+    policy.notes?.trim() ? `Policy notes: ${policy.notes.trim()}` : null,
+  ].filter((detail): detail is string => detail !== null);
+
+  return details.join(' ');
+}
 
 interface RefundEntryDialogProps {
   open: boolean;
@@ -89,7 +108,11 @@ export function RefundEntryDialog({
   const policyMessage = !suggestion?.hasPolicy
     ? null
     : suggestion.requiresManual
-      ? 'Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.'
+      ? `Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.${
+          describeManualPolicy(suggestion.policy)
+            ? ` Recorded policy: ${describeManualPolicy(suggestion.policy)}`
+            : ''
+        }`
       : suggestion.reason === 'after_cutoff'
         ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
         : 'Withdrawal policy: within the full-refund window. Full refund suggested.';
@@ -131,11 +154,6 @@ export function RefundEntryDialog({
         }
         amountCents = Math.round(dollars * 100);
       }
-    } else if (suggestion?.hasPolicy && suggestion.requiresManual) {
-      // A manual-review snapshot is advisory only. Sending the full amount
-      // explicitly keeps the server from treating the snapshot as the refund
-      // amount while still allowing the secretary to choose Full refund.
-      amountCents = feeCents;
     }
 
     inFlightRef.current = true;

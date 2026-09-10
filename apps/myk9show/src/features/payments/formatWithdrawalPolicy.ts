@@ -52,13 +52,29 @@ export function describeWithdrawalPolicy(
 
   // Missing retention or free-text policy needs human interpretation. Never
   // place a computed refund claim beside prose that may define another schedule.
-  if (
-    !policy.cutoffDate ||
-    policy.retentionValue == null ||
-    (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
-    notesDescribeRefundTerms(notes)
-  ) {
+  if (!policy.cutoffDate) {
     return { refundLine: SERVICE_FEE_SENTENCE, notes };
+  }
+
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return {
+      refundLine: `Withdrawal policy: contact the club for withdrawals after ${formatCutoff(
+        policy.cutoffDate
+      )}. ${SERVICE_FEE_SENTENCE}`,
+      notes,
+    };
+  }
+
+  if (notesDescribeRefundTerms(notes)) {
+    return {
+      refundLine: `Withdrawal policy: the refund terms after ${formatCutoff(
+        policy.cutoffDate
+      )} follow the additional instructions below. ${SERVICE_FEE_SENTENCE}`,
+      notes,
+    };
   }
 
   const retained = formatRetained(policy);

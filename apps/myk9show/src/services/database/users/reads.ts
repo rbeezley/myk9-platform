@@ -469,20 +469,37 @@ export const getDeletedUserById = async (id: string) => {
       { p_person_id: id }
     );
 
-    // A failed role read must not pass as a complete record with no roles —
-    // that is the same silent lie, arrived at a different way.
-    if (rolesError) {
-      throw createDatabaseError(rolesError, 'user', 'select_deleted_by_id');
+    let roleRows;
+    if (rolesError?.code === 'PGRST202') {
+      // `get_deleted_people` succeeding above proves this is a site-admin-only
+      // read. During code-before-migration deploys, preserve that audit surface
+      // with the pre-existing raw ledger path; its RLS is also self/site-admin.
+      const { data: fallbackRoles, error: fallbackError } = await supabase
+        .from('user_roles')
+        .select(
+          'expires_at, is_active, deactivated_at, role:roles!user_roles_role_id_fkey(name)'
+        )
+        .eq('user_id', id);
+      if (fallbackError) {
+        throw createDatabaseError(fallbackError, 'user', 'select_deleted_by_id');
+      }
+      roleRows = fallbackRoles ?? [];
+    } else {
+      // A failed role read must not pass as a complete record with no roles —
+      // that is the same silent lie, arrived at a different way.
+      if (rolesError) {
+        throw createDatabaseError(rolesError, 'user', 'select_deleted_by_id');
+      }
+      roleRows = (roleHistory ?? []).map(({ role_name, ...row }) => ({
+        ...row,
+        role: { name: role_name },
+      }));
     }
 
     // A grant that expired BEFORE they were removed was demonstrably not held at
     // removal, so drop it. For new removals, an inactive grant must also carry
     // this removal's timestamp. Legacy inactive rows without a stamp are kept
     // because the old schema cannot distinguish their history.
-    const roleRows = (roleHistory ?? []).map(({ role_name, ...row }) => ({
-      ...row,
-      role: { name: role_name },
-    }));
     const removedAt = (person as { deleted_at?: string | null }).deleted_at;
     const heldAtRemoval = (roleRows ?? []).filter(row => {
       const expiresAt = (row as { expires_at?: string | null }).expires_at;

@@ -161,6 +161,32 @@ describe('getDeletedUserById', () => {
     expect(error).toBeTruthy();
   });
 
+  it('falls back to the site-admin raw history read before the history RPC is deployed', async () => {
+    mockDeletedRead([{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }], {
+      error: { code: 'PGRST202', message: 'Function not found' },
+    });
+    const eq = vi.fn().mockResolvedValue({
+      data: [
+        {
+          expires_at: null,
+          is_active: false,
+          deactivated_at: '2026-07-30T00:00:00Z',
+          role: { name: 'judge' },
+        },
+      ],
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ eq });
+    from.mockReturnValue({ select });
+
+    const { data, error } = await getDeletedUserById('gone-1');
+
+    expect(from).toHaveBeenCalledWith('user_roles');
+    expect(eq).toHaveBeenCalledWith('user_id', 'gone-1');
+    expect(data).toMatchObject({ user_roles: [{ role: { name: 'judge' } }] });
+    expect(error).toBeNull();
+  });
+
   it('surfaces an RPC failure instead of reporting "not found"', async () => {
     // A refused or failed read must not look like a person who isn't there —
     // the page renders an error and a retry off the back of this.

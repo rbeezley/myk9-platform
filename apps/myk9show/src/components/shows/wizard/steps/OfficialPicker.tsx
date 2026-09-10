@@ -30,6 +30,8 @@ export interface OfficialPickerProps {
   excludePersonIds?: string[];
   /** True while the people list is still being fetched. */
   loading?: boolean;
+  /** Refresh role-aware people when suggestions become visible. */
+  onOpen?: () => void;
   onSelect: (personId: string) => void;
   onCreatePerson: (data: CreatePersonData) => Promise<string>;
 }
@@ -43,6 +45,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   autoFillBadge,
   excludePersonIds = [],
   loading = false,
+  onOpen,
   onSelect,
   onCreatePerson,
 }) => {
@@ -67,6 +70,11 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   const handleOpenAddNew = () => {
     setOpen(false);
     setShowCreateForm(true);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) onOpen?.();
   };
 
   const handleCancelCreate = () => {
@@ -134,7 +142,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
         <GroupedSearchablePopover<User>
           id={triggerId}
           open={open}
-          onOpenChange={setOpen}
+          onOpenChange={handleOpenChange}
           triggerLabel={selectedName ?? `Select ${label}`}
           searchPlaceholder={`Search ${label.toLowerCase()}…`}
           searchTerm={searchTerm}

@@ -56,11 +56,20 @@ begin
       bad.old_placement, bad.old_qualification, bad.old_time, bad.old_faults;
   end loop;
 
+  -- CI builds this database from migrations alone, so there is nothing here to
+  -- compare and pass 1 is legitimately empty. It still earns its place when the
+  -- file is run against a seeded local or staging database, where it checks real
+  -- data rather than a fixture this test authored.
+  --
+  -- Skipping is only safe because pass 2 below builds its own classes and
+  -- asserts an exact comparison count -- the suite can never be vacuous on the
+  -- strength of this branch alone.
   select count(*) into checked from public.classes;
   if checked = 0 then
-    raise exception 'FAIL no classes present: pass 1 asserted nothing';
+    raise notice 'pass 1 skipped: no pre-existing classes (expected on a migrations-only database)';
+  else
+    raise notice 'pass 1 ok: % existing classes agree', checked;
   end if;
-  raise notice 'pass 1 ok: % existing classes agree', checked;
 end;
 $$;
 
@@ -131,8 +140,10 @@ declare
   preset_name   text;
   presets       text[];
   t             text;
-  bad           record;
-  combos        integer := 0;
+  bad             record;
+  combos          integer := 0;
+  compared        integer := 0;
+  total_compared  integer := 0;
 begin
   -- The presets _result_visibility_preset actually recognizes. Discovered
   -- rather than trusted, and then COUNTED: the function returns NULL for an
@@ -181,6 +192,11 @@ begin
 
       combos := combos + 1;
 
+      select count(*) into compared
+      from public.classes c
+      where c.trial_id = '00000000-0000-0000-0000-000000126203';
+      total_compared := total_compared + compared;
+
       for bad in
         select
           c.id as class_id,
@@ -211,7 +227,14 @@ begin
   if combos <> 18 then
     raise exception 'FAIL pass 2 ran % combinations, expected 18', combos;
   end if;
-  raise notice 'pass 2 ok: % cascade combinations x 6 state classes agree', combos;
+  -- And every combination must actually have compared all six state classes.
+  -- Counting combinations alone would still pass if the fixture vanished.
+  if total_compared <> 108 then
+    raise exception
+      'FAIL pass 2 compared % class rows, expected 108 (18 combinations x 6 classes)',
+      total_compared;
+  end if;
+  raise notice 'pass 2 ok: % combinations, % class comparisons, all agree', combos, total_compared;
 end;
 $$;
 

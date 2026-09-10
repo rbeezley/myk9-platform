@@ -66,7 +66,10 @@ async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<voi
   }
 }
 
-test.afterEach(async ({}, testInfo) => writeFailureArtifactFromTestInfo(testInfo));
+test.afterEach(async ({ browser }, testInfo) => {
+  void browser;
+  await writeFailureArtifactFromTestInfo(testInfo);
+});
 
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');

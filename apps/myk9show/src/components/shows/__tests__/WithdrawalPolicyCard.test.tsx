@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
-import { WithdrawalPolicyCard } from '../WithdrawalPolicyCard';
+import { WithdrawalPolicyCard, inputToStored } from '../WithdrawalPolicyCard';
 
 const { mockFrom, mockSingle, mockUpdate, mockUpdateEq } = vi.hoisted(() => {
   const mockSingle = vi.fn();
@@ -131,7 +131,7 @@ describe('WithdrawalPolicyCard', () => {
   it('MONEY: a club save never writes a cutoff column', async () => {
     mockSingle.mockResolvedValue({ data: clubRow(), error: null });
     render(<WithdrawalPolicyCard scope="club" entityId="club-9" />);
-    await waitFor(() => screen.getByLabelText('Amount kept (USD)'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save policy' })).toBeEnabled());
 
     fireEvent.change(screen.getByLabelText('Amount kept (USD)'), { target: { value: '7.50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
@@ -151,7 +151,7 @@ describe('WithdrawalPolicyCard', () => {
   // as undeclared and inherit).
   it('MONEY: an explicit 0 is saved as a declared retention, not as blank', async () => {
     render(<WithdrawalPolicyCard scope="show" entityId="show-1" />);
-    await waitFor(() => screen.getByLabelText('Amount kept (USD)'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save policy' })).toBeEnabled());
 
     fireEvent.change(screen.getByLabelText('Amount kept (USD)'), { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
@@ -229,5 +229,31 @@ describe('WithdrawalPolicyCard', () => {
         expect.objectContaining({ withdrawal_cutoff_date: '2026-06-01' })
       );
     });
+  });
+});
+
+// Adversarial review of #2156. A non-finite parse reaches the row as
+// {type:'flat', value:null} — JSON.stringify(Infinity) is null — and such a row
+// reads as a DECLARED retention, which suppresses the club fee this branch
+// exists to preserve. jsdom's number input refuses to hold '1e999', so the
+// guard is tested where it lives rather than through the component.
+describe('inputToStored', () => {
+  it('MONEY: treats a non-finite amount as blank, not as a declared value', () => {
+    expect(inputToStored('flat', '1e999')).toBeNull();
+    expect(inputToStored('flat', 'Infinity')).toBeNull();
+    expect(inputToStored('flat', '-Infinity')).toBeNull();
+  });
+
+  it('still parses ordinary amounts, including an explicit zero', () => {
+    expect(inputToStored('flat', '10')).toBe(1000);
+    expect(inputToStored('flat', '7.50')).toBe(750);
+    expect(inputToStored('flat', '0')).toBe(0);
+    expect(inputToStored('percent', '25')).toBe(25);
+  });
+
+  it('treats blank and unparseable text as undeclared', () => {
+    expect(inputToStored('flat', '')).toBeNull();
+    expect(inputToStored('flat', '   ')).toBeNull();
+    expect(inputToStored('flat', 'abc')).toBeNull();
   });
 });

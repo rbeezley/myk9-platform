@@ -122,7 +122,12 @@ export function resolveWithdrawalPolicy(
     showDeclaresRetention
       ? show?.withdrawal_retention_value
       : club?.default_withdrawal_retention_value,
-    show?.withdrawal_policy_notes ?? club?.default_withdrawal_policy_notes ?? null
+    // Prose does NOT compose — see the mirror in
+    // src/features/payments/withdrawalPolicy.ts. A show that declares
+    // anything is authoring its own policy and gets its own prose or none.
+    showDeclares
+      ? (show?.withdrawal_policy_notes ?? null)
+      : (club?.default_withdrawal_policy_notes ?? null)
   );
 }
 

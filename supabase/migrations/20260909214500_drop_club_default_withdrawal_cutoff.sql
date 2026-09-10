@@ -12,6 +12,18 @@
 -- prose notes. Verified before writing this migration: 0 of 5 club rows hold a
 -- non-null value, so nothing is lost.
 --
+-- DEPLOY ORDER — THE EDGE FUNCTIONS MUST GO FIRST.
+-- `stripe-webhook` and `stripe-payment-link` still embed this column in their
+-- `clubs(...)` select until they are redeployed. Push this migration first and
+-- that embed returns PostgREST 42703; stampWithdrawalSnapshot's guard is
+-- `if (error || !show) return;`, so every entry paid in that window is stamped
+-- with NO withdrawal_policy_snapshot, silently and permanently, and a later
+-- refund then has no policy to work from. Correct order:
+--   1. merge (Vercel rebuilds the app bundle)
+--   2. supabase functions deploy stripe-webhook stripe-payment-link \
+--        --workdir apps/myk9show --project-ref sojmvhhwsjxmfistvzbe
+--   3. supabase db push   <- this file, LAST
+--
 -- `create_or_reuse_club` is replaced FIRST (it INSERTs the column), copied from
 -- 20260707130000 -- the latest migration defining it -- minus the two cutoff
 -- lines. CREATE OR REPLACE preserves the function's ACL; the REVOKE/GRANT block

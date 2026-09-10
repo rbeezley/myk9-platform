@@ -233,6 +233,29 @@ describe('getEffectiveWithdrawalPolicy', () => {
     expect(p?.retentionValue).toBe(500);
   });
 
+  // Adversarial review of #2156. Retention is a fee and composes; PROSE is a
+  // description of a whole policy and does not. Inheriting a club's multi-tier
+  // note onto a show that set its own cutoff produced a disclosure that
+  // contradicted itself — "Full refund of the entry fee … No refunds after
+  // August 1" — and that string is what Stripe shows the payer and what gets
+  // frozen into the entry's snapshot. A show that declares anything is
+  // authoring its own policy, so it gets its own prose or none.
+  it('does not inherit club prose onto a show that declares its own policy', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
+
+    const p = getEffectiveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, clubWithProse);
+
+    expect(p?.notes).toBeNull();
+    // The fee still composes — that is the whole point of resolving per field.
+    expect(p?.retentionValue).toBe(500);
+  });
+
+  it('still inherits club prose when the show declares nothing at all', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
+    const p = getEffectiveWithdrawalPolicy(noShowOverride, clubWithProse);
+    expect(p?.notes).toBe('No refunds after Aug 1.');
+  });
+
   it('returns null when neither show nor club declares a policy', () => {
     expect(getEffectiveWithdrawalPolicy(null, null)).toBeNull();
     expect(getEffectiveWithdrawalPolicy({}, {})).toBeNull();

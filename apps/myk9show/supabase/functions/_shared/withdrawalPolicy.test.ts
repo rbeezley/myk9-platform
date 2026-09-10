@@ -94,6 +94,16 @@ describe('resolveWithdrawalPolicy', () => {
     expect(r.refundCents).toBe(2500);
   });
 
+  // Mirror of the client guard. This resolver's output becomes Stripe's
+  // pre-payment `custom_text` and the entry's frozen snapshot, so a spliced
+  // club note is a contradictory disclosure at the moment of payment.
+  it('does not inherit club prose onto a show that declares its own policy', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
+    const policy = resolveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, clubWithProse);
+    expect(policy?.notes).toBeNull();
+    expect(policy?.retentionValue).toBe(500);
+  });
+
   it('returns null when neither show nor club declares a policy', () => {
     expect(resolveWithdrawalPolicy(null, null)).toBeNull();
     expect(resolveWithdrawalPolicy({}, {})).toBeNull();

@@ -98,12 +98,21 @@ function rowToForm(row: PolicyRow): FormState {
   };
 }
 
-/** Display input → stored integer (cents for flat, whole percent for percent). */
-function inputToStored(type: RetentionType, input: string): number | null {
+/**
+ * Display input → stored integer (cents for flat, whole percent for percent).
+ *
+ * Exported for direct testing: `<input type="number">` will not carry a
+ * non-finite literal through jsdom, so the component cannot exercise the
+ * Number.isFinite guard end to end.
+ */
+export function inputToStored(type: RetentionType, input: string): number | null {
   const trimmed = input.trim();
   if (trimmed === '') return null;
   const parsed = Number(trimmed);
-  if (Number.isNaN(parsed)) return null;
+  // NaN AND non-finite: <input type="number"> accepts '1e999', which becomes
+  // Infinity, serializes to JSON null, and lands as {type:'flat', value:null}
+  // — a row that reads as a DECLARED retention and so suppresses the club fee.
+  if (!Number.isFinite(parsed)) return null;
   return type === 'flat' ? Math.round(parsed * 100) : Math.round(parsed);
 }
 
@@ -263,7 +272,13 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
           </p>
         </div>
 
-        <Button onClick={() => mutation.mutate(form)} disabled={mutation.isPending}>
+        {/*
+          Disabled while loading too: the form starts as EMPTY_FORM, so a save
+          before (or after a failed) load writes nulls over an existing declared
+          policy. Pre-existing, but every show under the club now inherits that
+          retention, so a stray wipe rewrites more than one show's refund basis.
+        */}
+        <Button onClick={() => mutation.mutate(form)} disabled={mutation.isPending || isLoading}>
           {mutation.isPending ? 'Saving…' : 'Save policy'}
         </Button>
       </CardContent>

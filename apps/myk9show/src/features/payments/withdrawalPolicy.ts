@@ -136,7 +136,14 @@ export function getEffectiveWithdrawalPolicy(
     showDeclaresRetention
       ? show?.withdrawal_retention_value
       : club?.default_withdrawal_retention_value,
-    show?.withdrawal_policy_notes ?? club?.default_withdrawal_policy_notes ?? null
+    // Prose does NOT compose. Retention is a fee; notes describe a WHOLE
+    // policy, so splicing a club's multi-tier note onto a show's own cutoff
+    // yields a disclosure that contradicts itself — and that string is what
+    // Stripe shows the payer and what the entry's snapshot freezes. A show
+    // that declares anything is authoring its own policy.
+    showDeclares
+      ? (show?.withdrawal_policy_notes ?? null)
+      : (club?.default_withdrawal_policy_notes ?? null)
   );
 }
 

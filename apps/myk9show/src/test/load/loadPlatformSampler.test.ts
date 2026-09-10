@@ -72,8 +72,20 @@ node_disk_io_time_seconds_total{device="nvme0n1"} 50.5
     );
 
     expect(scheduledWriteDeltas(before, after)).toEqual([
-      { source: 'cron:continuous-health-check', before: 12, after: 24, writes: 12 },
-      { source: 'health:cron-health-check:continuous', before: 4, after: 5, writes: 1 },
+      {
+        source: 'cron:continuous-health-check',
+        unit: 'job_runs',
+        before: 12,
+        after: 24,
+        writes: 12,
+      },
+      {
+        source: 'health:cron-health-check:continuous',
+        unit: 'rows',
+        before: 4,
+        after: 5,
+        writes: 1,
+      },
     ]);
   });
 

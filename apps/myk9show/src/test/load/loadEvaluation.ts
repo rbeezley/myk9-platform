@@ -28,6 +28,7 @@ export interface StatementDelta {
 
 export interface ScheduledWriteDelta {
   source: string;
+  unit: 'job_runs' | 'rows';
   before: number;
   after: number;
   writes: number;
@@ -51,6 +52,11 @@ export interface PlatformObservation {
   statementDeltas: readonly StatementDelta[];
   /** Bounded before/after counts for scheduled and health-snapshot writers. */
   scheduledWriteDeltas?: readonly ScheduledWriteDelta[];
+  scheduledWriteCapture?: {
+    enabled: boolean;
+    baselineSucceeded: boolean;
+    finalSucceeded: boolean;
+  };
   resourceSampling?: {
     attempts: number;
     succeeded: number;

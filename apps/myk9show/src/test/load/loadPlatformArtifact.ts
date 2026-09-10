@@ -90,6 +90,7 @@ function assertPlatformPayload(platform: PlatformObservation | undefined): void 
         delta =>
           !delta ||
           typeof delta.source !== 'string' ||
+          !['job_runs', 'rows'].includes(delta.unit) ||
           !Number.isSafeInteger(delta.before) ||
           !Number.isSafeInteger(delta.after) ||
           !Number.isSafeInteger(delta.writes) ||

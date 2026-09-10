@@ -83,7 +83,9 @@ export async function startLoadPlatformSampler(
     // precisely the transient case the retry exists to survive.
     readResourceCountersWithRetry(env),
     captureScheduledWrites
-      ? readScheduledWriteSnapshot(command, scheduledWindowStart).catch(() => undefined)
+      ? readScheduledWriteSnapshot(command, scheduledWindowStart)
+          .then(snapshot => ({ snapshot, succeeded: true }))
+          .catch(() => ({ snapshot: new Map(), succeeded: false }))
       : Promise.resolve(undefined),
   ]);
   let peakConnections = 0;
@@ -186,7 +188,9 @@ export async function startLoadPlatformSampler(
         const [finalSnapshot, finalScheduledWrites] = await Promise.all([
           readStatementSnapshot(command).catch(() => undefined),
           captureScheduledWrites
-            ? readScheduledWriteSnapshot(command, scheduledWindowStart).catch(() => undefined)
+            ? readScheduledWriteSnapshot(command, scheduledWindowStart)
+                .then(snapshot => ({ snapshot, succeeded: true }))
+                .catch(() => ({ snapshot: new Map(), succeeded: false }))
             : Promise.resolve(undefined),
         ]);
         // For resources, a partial sample is retained as a lower-bound
@@ -212,9 +216,14 @@ export async function startLoadPlatformSampler(
           connectionCap,
           statementDeltas: finalSnapshot ? statementDeltas(baseline, finalSnapshot) : [],
           scheduledWriteDeltas:
-            initialScheduledWrites && finalScheduledWrites
-              ? scheduledWriteDeltas(initialScheduledWrites, finalScheduledWrites)
+            initialScheduledWrites && finalScheduledWrites?.succeeded
+              ? scheduledWriteDeltas(initialScheduledWrites.snapshot, finalScheduledWrites.snapshot)
               : undefined,
+          scheduledWriteCapture: {
+            enabled: captureScheduledWrites,
+            baselineSucceeded: initialScheduledWrites?.succeeded ?? false,
+            finalSucceeded: finalScheduledWrites?.succeeded ?? false,
+          },
           resourceSampling: {
             attempts: resourceAttempts,
             succeeded: resourceSuccesses,
@@ -242,6 +251,7 @@ export function scheduledWriteDeltas(
       const afterCount = after.get(source) ?? 0;
       return {
         source,
+        unit: source.startsWith('cron:') ? 'job_runs' : 'rows',
         before: beforeCount,
         after: afterCount,
         writes: Math.max(0, afterCount - beforeCount),

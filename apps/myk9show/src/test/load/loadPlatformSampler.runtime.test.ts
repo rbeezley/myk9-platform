@@ -79,8 +79,20 @@ describe('runtime platform evidence', () => {
     );
     await expect(sampler.stop()).resolves.toMatchObject({
       scheduledWriteDeltas: [
-        { source: 'cron:continuous-health-check', before: 12, after: 24, writes: 12 },
-        { source: 'health:cron-health-check:continuous', before: 4, after: 5, writes: 1 },
+        {
+          source: 'cron:continuous-health-check',
+          unit: 'job_runs',
+          before: 12,
+          after: 24,
+          writes: 12,
+        },
+        {
+          source: 'health:cron-health-check:continuous',
+          unit: 'rows',
+          before: 4,
+          after: 5,
+          writes: 1,
+        },
       ],
     });
   });

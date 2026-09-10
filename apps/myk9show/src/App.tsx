@@ -128,7 +128,11 @@ function UserDataInitializer() {
 
       if (shouldLoad) {
         try {
-          await useUserStore.getState().loadUsers();
+          // This app-wide preload supports names and owner pickers on every
+          // management route. Role labels are loaded by the role-aware surfaces
+          // themselves; skipping them here keeps code-before-migration previews
+          // from requesting an RPC that has not been deployed yet.
+          await useUserStore.getState().loadUsers({ includeRoleLabels: false });
         } catch (error) {
           logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
         }

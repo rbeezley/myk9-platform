@@ -30,7 +30,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } =
     useWizardStore();
   const { clubs, loadClubs, syncClubs } = useClubStore();
-  const { people, loadPeople, isLoading } = useUserStore();
+  const { people, loadPeople, loadUsers, isLoading } = useUserStore();
   const { userWithRoles } = useAuthContext();
 
   // Only surface a "loading" state on the pickers during the initial fetch —
@@ -165,6 +165,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           selectedSecretaryId={selectedSecretaryId}
           secretaryIsSelf={selectedSecretaryId === userWithRoles?.databaseUserId}
           selectedJudges={selectedJudges}
+          onOpenOfficialPicker={() => void loadUsers()}
           onSelectChairman={id =>
             updateShowData({ officials: { ...show.officials, chairman: [id] } })
           }

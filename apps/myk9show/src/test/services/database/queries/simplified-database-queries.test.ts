@@ -141,7 +141,7 @@ describe('Database Queries Integration Tests', () => {
       const result = await getAllUsers();
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(user => ({ ...user, roles: [] })));
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });

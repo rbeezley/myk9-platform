@@ -88,8 +88,12 @@ values (
   current_date
 );
 
--- A class for every (state) x (trial override shape) x (class override shape)
--- combination. class_number keeps the generated rows distinguishable.
+-- One class per class-state the resolver can reach. Statuses are constrained by
+-- classes_status_check to exactly upcoming/setup/in_progress/completed/cancelled,
+-- so the resolver's `lower(status) = 'completed'` guard cannot be reached with a
+-- differently-cased value -- that lower() is defensive against data this schema
+-- will not store. Row 4 is the case that matters most: is_scoring_finalized
+-- promotes a non-completed status to the 'completed' state.
 insert into public.classes (id, trial_id, name, class_number, status, is_scoring_finalized, results_released_at)
 select
   ('00000000-0000-0000-0000-0000001263' || lpad(n::text, 2, '0'))::uuid,
@@ -102,9 +106,9 @@ select
 from generate_series(1, 6) n
 cross join lateral (
   select
-    (array['scheduled', 'in_progress', 'completed', 'COMPLETED', 'scheduled', 'scheduled'])[n] as status,
-    (array[false, false, false, false, true, false])[n]                                        as finalized,
-    (array[null, null, null, null, null, now()])[n]::timestamptz                               as released
+    (array['upcoming', 'in_progress', 'completed', 'setup', 'upcoming', 'cancelled'])[n] as status,
+    (array[false, false, false, true, false, false])[n]                                  as finalized,
+    (array[null, null, null, null, now(), null])[n]::timestamptz                          as released
 ) s;
 
 -- ---------------------------------------------------------------------------
@@ -115,9 +119,15 @@ cross join lateral (
 -- ---------------------------------------------------------------------------
 do $$
 declare
-  -- The vocabulary _result_timing_visible actually branches on, plus one
-  -- unrecognized value to exercise its ELSE-false arm.
-  show_timing   text[] := array['immediate', 'class_complete', 'manual_release', 'never'];
+  -- Every timing value the CHECK constraints actually permit. placement_timing
+  -- is deliberately narrower than the other three: it rejects 'immediate'
+  -- (show_visibility_settings_placement_timing_check and the two override
+  -- equivalents), so a single shared value across all four columns cannot be
+  -- used. _result_timing_visible's ELSE-false arm is unreachable through these
+  -- tables for the same reason -- no unrecognized value can be stored.
+  placement_timings text[] := array['class_complete', 'manual_release'];
+  other_timings     text[] := array['immediate', 'class_complete', 'manual_release'];
+  pt                text;
   preset_name   text;
   presets       text[];
   t             text;
@@ -140,20 +150,21 @@ begin
       coalesce(array_length(presets, 1), 0);
   end if;
 
-  foreach t in array show_timing loop
+  foreach pt in array placement_timings loop
+   foreach t in array other_timings loop
     -- Show base.
     delete from public.show_visibility_settings
       where show_id = '00000000-0000-0000-0000-000000126202';
     insert into public.show_visibility_settings
       (show_id, placement_timing, qualification_timing, time_timing, faults_timing)
-    values ('00000000-0000-0000-0000-000000126202', t, t, t, t);
+    values ('00000000-0000-0000-0000-000000126202', pt, t, t, t);
 
     foreach preset_name in array presets loop
       -- Trial override: preset only, then preset plus a per-field win.
       delete from public.trial_visibility_overrides
         where trial_id = '00000000-0000-0000-0000-000000126203';
       insert into public.trial_visibility_overrides (trial_id, preset, placement_timing)
-      values ('00000000-0000-0000-0000-000000126203', preset_name, t);
+      values ('00000000-0000-0000-0000-000000126203', preset_name, pt);
 
       -- Class override on half the classes, so both the overridden and the
       -- inherited path are exercised in the same comparison.
@@ -187,16 +198,18 @@ begin
             or coalesce(v.faults_visible, false)        is distinct from f.faults_visible)
       loop
         raise exception
-          'FAIL parity: show=% preset=% class=% set-based (%,%,%,%) vs function (%,%,%,%)',
-          t, preset_name, bad.class_id,
+          'FAIL parity: placement=% other=% preset=% class=% set-based (%,%,%,%) vs function (%,%,%,%)',
+          pt, t, preset_name, bad.class_id,
           bad.np, bad.nq, bad.nt, bad.nf,
           bad.op, bad.oq, bad.ot, bad.oflt;
       end loop;
     end loop;
+   end loop;
   end loop;
 
-  if combos < 4 then
-    raise exception 'FAIL pass 2 ran only % combinations', combos;
+  -- 2 placement timings x 3 other timings x 3 presets.
+  if combos <> 18 then
+    raise exception 'FAIL pass 2 ran % combinations, expected 18', combos;
   end if;
   raise notice 'pass 2 ok: % cascade combinations x 6 state classes agree', combos;
 end;

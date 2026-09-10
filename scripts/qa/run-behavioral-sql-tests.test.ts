@@ -50,6 +50,7 @@ const launchCriticalSqlTests = [
   'entry_views_soft_delete_test.sql',
   'image_storage_upsert_rls_test.sql',
   'myk9_114_entry_access_context_test.sql',
+  'myk9_126_class_result_visibility_parity_test.sql',
   'myk9_169_role_boundaries_test.sql',
   'judge_qualification_rpc_authorization_test.sql',
   'notification_preferences_sms_rls_test.sql',

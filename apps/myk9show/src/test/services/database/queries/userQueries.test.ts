@@ -90,6 +90,19 @@ describe('User Queries', () => {
       ]);
     });
 
+    it('keeps people readable when role-label hydration is temporarily unavailable', async () => {
+      const mockData = [{ id: 'person-1', first_name: 'Ada', last_name: 'Judge' }];
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: null,
+        error: { code: 'PGRST202', message: 'Function not found' },
+      });
+
+      const result = await getAllUsers();
+
+      expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null });
+    });
+
     it('should fetch all users successfully', async () => {
       const mockData = [
         {
@@ -692,27 +705,49 @@ describe('User Queries', () => {
 
       const chain = createChainableQuery({ data: mockData, error: null });
       mockSupabase.from.mockReturnValue(chain);
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [{ person_id: '1', role_name: 'judge' }],
-        error: null,
-      });
+      mockSupabase.rpc
+        .mockResolvedValueOnce({ data: [{ person_id: '1' }, { person_id: '2' }], error: null })
+        .mockResolvedValueOnce({
+          data: [
+            { person_id: '1', role_name: 'judge' },
+            { person_id: '2', role_name: 'judge' },
+          ],
+          error: null,
+        });
 
       const result = await getUsersByRole(role);
 
       const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
         .calls[0][0] as string;
       expect(selectArg).not.toContain('user_roles');
-      expect(result.data).toEqual([{ ...mockData[0], roles: ['judge'] }]);
+      expect(chain.in).toHaveBeenCalledWith('id', ['1', '2']);
+      expect(mockSupabase.rpc).toHaveBeenNthCalledWith(1, 'get_visible_person_ids_by_role', {
+        p_role_name: role,
+      });
+      expect(result.data).toEqual(mockData.map(user => ({ ...user, roles: ['judge'] })));
       expect(result.error).toBeNull();
     });
 
     it('should return empty array for non-existent role', async () => {
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: [], error: null }));
+      mockSupabase.rpc.mockResolvedValueOnce({ data: [], error: null });
 
       const result = await getUsersByRole('superuser');
 
       expect(result.data).toEqual([]);
       expect(result.error).toBeNull();
+      expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
+
+    it('fails closed without breaking the screen before the role-id RPC is deployed', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: null,
+        error: { code: 'PGRST202', message: 'Function not found' },
+      });
+
+      const result = await getUsersByRole('judge');
+
+      expect(result).toEqual({ data: [], error: null });
+      expect(mockSupabase.from).not.toHaveBeenCalled();
     });
   });
 

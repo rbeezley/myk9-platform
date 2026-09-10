@@ -13,16 +13,8 @@ DROP POLICY IF EXISTS "user_roles_select" ON public.user_roles;
 CREATE POLICY "user_roles_select" ON public.user_roles
   FOR SELECT TO authenticated
   USING (
-    EXISTS (
-      SELECT 1
-      FROM public.people p
-      WHERE p.id = public.user_roles.user_id
-        AND p.deleted_at IS NULL
-    )
-    AND (
-      (SELECT auth.uid()) = auth_user_id
-      OR (SELECT public.is_site_admin())
-    )
+    (SELECT auth.uid()) = auth_user_id
+    OR (SELECT public.is_site_admin())
   );
 
 CREATE OR REPLACE FUNCTION public.get_deleted_person_role_history(p_person_id uuid)
@@ -87,21 +79,52 @@ AS $$
     AND (
       p.id = c.person_id
       OR c.is_site_admin
-      OR c.is_show_manager
-    )
-    AND (
-      r.name <> 'site_admin'
-      OR c.is_site_admin
-      OR p.id = c.person_id
+      OR (c.is_show_manager AND r.name = 'judge')
     )
   ORDER BY ur.user_id, r.name;
 $$;
 
 COMMENT ON FUNCTION public.get_visible_person_roles(uuid[]) IS
-  'MYK9-457: returns deduplicated current role labels for explicit live people. Plain users are self-only; show managers may read non-site-admin labels; site admins retain full inspection. Never returns grant metadata.';
+  'MYK9-457: returns deduplicated current role labels for explicit live people. Plain users are self-only; show managers may resolve judge labels; site admins retain full inspection. Never returns grant metadata.';
 
 REVOKE ALL ON FUNCTION public.get_visible_person_roles(uuid[]) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_visible_person_roles(uuid[]) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_visible_person_ids_by_role(p_role_name text)
+RETURNS TABLE (person_id uuid)
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = ''
+AS $$
+  WITH caller AS MATERIALIZED (
+    SELECT
+      public.get_my_person_id() AS person_id,
+      public.is_site_admin() AS is_site_admin,
+      public.is_show_manager() AS is_show_manager
+  )
+  SELECT DISTINCT ur.user_id AS person_id
+  FROM public.user_roles ur
+  JOIN public.roles r ON r.id = ur.role_id
+  JOIN public.people p ON p.id = ur.user_id
+  CROSS JOIN caller c
+  WHERE r.name = p_role_name
+    AND p.deleted_at IS NULL
+    AND ur.is_active = true
+    AND (ur.expires_at IS NULL OR ur.expires_at > now())
+    AND (
+      p.id = c.person_id
+      OR c.is_site_admin
+      OR (c.is_show_manager AND r.name = 'judge')
+    )
+  ORDER BY ur.user_id;
+$$;
+
+COMMENT ON FUNCTION public.get_visible_person_ids_by_role(text) IS
+  'MYK9-457: returns current matching person IDs without loading the entire people directory. Show managers may discover judges; site admins retain role-directory access; plain users are self-only.';
+
+REVOKE ALL ON FUNCTION public.get_visible_person_ids_by_role(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_visible_person_ids_by_role(text) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
 

@@ -136,12 +136,14 @@ BEGIN
 
   SELECT count(*) INTO visible
   FROM public.get_visible_person_roles(ARRAY[
+    '00000000-0000-0000-0000-000000457014'::uuid,
     '00000000-0000-0000-0000-000000457016'::uuid,
     '00000000-0000-0000-0000-000000457017'::uuid,
     '00000000-0000-0000-0000-000000457018'::uuid,
     '00000000-0000-0000-0000-000000457019'::uuid
   ])
   WHERE role_name = 'site_admin'
+     OR person_id = '00000000-0000-0000-0000-000000457014'::uuid
      OR (person_id IN (
        '00000000-0000-0000-0000-000000457017'::uuid,
        '00000000-0000-0000-0000-000000457018'::uuid
@@ -166,16 +168,16 @@ BEGIN
     RAISE EXCEPTION 'FAIL club admin cannot read a current judge label';
   END IF;
 
-  -- Even site admins do not receive deleted grants through the general table;
-  -- the removed-person screen uses its dedicated history RPC.
+  -- Site admins retain the complete raw assignment ledger needed by the role
+  -- audit and reactivation workflows. Club show managers do not.
   PERFORM set_config('request.jwt.claim.sub', site_uid::text, true);
   PERFORM set_config('request.jwt.claims', jsonb_build_object(
     'sub', site_uid, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible
   FROM public.user_roles
   WHERE auth_user_id = '00000000-0000-0000-0000-000000457109'::uuid;
-  IF visible <> 0 THEN
-    RAISE EXCEPTION 'FAIL site admin read removed-person grants through user_roles';
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL site admin cannot read removed-person grants for audit/reactivation';
   END IF;
   SELECT count(*) INTO visible
   FROM public.get_deleted_person_role_history(
@@ -184,6 +186,23 @@ BEGIN
   WHERE role_name = 'judge';
   IF visible <> 1 THEN
     RAISE EXCEPTION 'FAIL removed-person history RPC did not return the held judge role';
+  END IF;
+
+  -- Role-filtered lookup returns only current matching IDs and avoids loading
+  -- the entire people directory. Show managers may discover judges, but not
+  -- another club's administrative grants.
+  PERFORM set_config('request.jwt.claim.sub', secretary_uid::text, true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', secretary_uid, 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_ids_by_role('judge');
+  IF visible <> 2 THEN
+    RAISE EXCEPTION 'FAIL secretary did not receive both current judge IDs (visible=%)', visible;
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_ids_by_role('club_admin');
+  IF visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL secretary discovered another club''s admin through role lookup';
   END IF;
 
   -- Plain exhibitors may ask only for their own effective labels.
@@ -216,8 +235,14 @@ BEGIN
   IF has_function_privilege('anon', 'public.get_deleted_person_role_history(uuid)', 'execute') THEN
     RAISE EXCEPTION 'FAIL anon can execute get_deleted_person_role_history';
   END IF;
+  IF has_function_privilege('anon', 'public.get_visible_person_ids_by_role(text)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL anon can execute get_visible_person_ids_by_role';
+  END IF;
   IF NOT has_function_privilege('authenticated', 'public.get_visible_person_roles(uuid[])', 'execute') THEN
     RAISE EXCEPTION 'FAIL authenticated cannot execute get_visible_person_roles';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.get_visible_person_ids_by_role(text)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot execute get_visible_person_ids_by_role';
   END IF;
 END;
 $$;

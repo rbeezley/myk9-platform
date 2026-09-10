@@ -11563,6 +11563,12 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_visible_person_ids_by_role: {
+        Args: { p_role_name: string }
+        Returns: {
+          person_id: string
+        }[]
+      }
       get_visible_person_roles: {
         Args: { p_person_ids: string[] }
         Returns: {

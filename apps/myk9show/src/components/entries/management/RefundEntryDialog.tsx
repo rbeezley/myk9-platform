@@ -52,10 +52,8 @@ function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   const details = [
     notesDescribeRefundTerms(notes) || !policy.cutoffDate
       ? null
-      : policy.cutoffDate
-        ? `Full refund through ${formatCutoff(policy.cutoffDate)}.`
-        : null,
-    notesDescribeRefundTerms(notes)
+      : `Full refund through ${formatCutoff(policy.cutoffDate)}.`,
+    notesDescribeRefundTerms(notes) || !policy.cutoffDate
       ? null
       : policy.retentionValue == null ||
           (policy.retentionValue === 0 && policy.retentionDeclared !== true)
@@ -282,7 +280,10 @@ export function RefundEntryDialog({
           </Button>
           <Button
             onClick={handleRefund}
-            disabled={submitting || (suggestion?.requiresManual === true && !manualAmountValid)}
+            disabled={
+              submitting ||
+              (suggestion?.hasPolicy === true && suggestion.requiresManual && !manualAmountValid)
+            }
           >
             {submitting ? 'Refunding…' : 'Issue refund'}
           </Button>

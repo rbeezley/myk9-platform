@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   resolveWithdrawalPolicy,
   describeWithdrawalPolicyText,
@@ -254,6 +256,19 @@ describe('describeWithdrawalPolicyText', () => {
     }
   });
 
+  it('keeps the app and edge detector implementations byte-identical', () => {
+    const detector = (source: string) => source.match(/return (\/.*?\/is)\.test/)?.[1];
+    const appSource = readFileSync(
+      resolve(process.cwd(), 'src/features/payments/withdrawalPolicyTerms.ts'),
+      'utf8'
+    );
+    const edgeSource = readFileSync(
+      resolve(process.cwd(), 'supabase/functions/_shared/withdrawalPolicy.ts'),
+      'utf8'
+    );
+    expect(detector(edgeSource)).toBe(detector(appSource));
+  });
+
   it('prose-only policy renders notes + fee sentence, no deadline', () => {
     const text = describeWithdrawalPolicyText({
       cutoffDate: null,
@@ -261,7 +276,9 @@ describe('describeWithdrawalPolicyText', () => {
       retentionValue: 0,
       notes: 'Full until closing, then 50%.',
     });
-    expect(text).toBe('Service fees are non-refundable. Full until closing, then 50%.');
+    expect(text).toBe(
+      'Service fees are non-refundable. Policy notes: Full until closing, then 50%.'
+    );
   });
 
   it('unset policy renders the neutral contact-the-club line', () => {

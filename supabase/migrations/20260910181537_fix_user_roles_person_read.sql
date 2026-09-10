@@ -102,8 +102,8 @@ AS $$
       )
     )
   ORDER BY ur.user_id, r.name
-  LIMIT LEAST(GREATEST(p_limit, 1), 500)
-  OFFSET GREATEST(p_offset, 0);
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 500), 1), 500)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
 $$;
 
 COMMENT ON FUNCTION public.get_visible_person_roles(uuid[], integer, integer) IS
@@ -160,8 +160,8 @@ AS $$
       )
     )
   ORDER BY ur.user_id
-  LIMIT LEAST(GREATEST(p_limit, 1), 500)
-  OFFSET GREATEST(p_offset, 0);
+  LIMIT LEAST(GREATEST(COALESCE(p_limit, 500), 1), 500)
+  OFFSET GREATEST(COALESCE(p_offset, 0), 0);
 $$;
 
 COMMENT ON FUNCTION public.get_visible_person_ids_by_role(text, integer, integer) IS

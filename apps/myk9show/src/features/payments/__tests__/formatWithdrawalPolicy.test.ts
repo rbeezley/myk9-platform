@@ -82,7 +82,9 @@ describe('describeWithdrawalPolicy', () => {
   it('detects multiline refund terms without treating procedural notes as terms', () => {
     expect(notesDescribeRefundTerms('Refunds:\nNone after the closing date.')).toBe(true);
     expect(notesDescribeRefundTerms('The club retains the office fee.')).toBe(true);
-    expect(notesDescribeRefundTerms('Withdrawals must be submitted in writing by the closing deadline.')).toBe(false);
+    expect(
+      notesDescribeRefundTerms('Withdrawals must be submitted in writing by the closing deadline.')
+    ).toBe(false);
     expect(notesDescribeRefundTerms('Refunds are processed once the show closes.')).toBe(false);
   });
 });

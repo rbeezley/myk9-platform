@@ -7,6 +7,7 @@
  */
 
 import type { WithdrawalPolicy } from './withdrawalPolicy';
+import { notesDescribeRefundTerms } from './withdrawalPolicyTerms';
 
 export interface WithdrawalPolicyDescription {
   /** The main one-line disclosure sentence. Always present. */
@@ -32,14 +33,8 @@ function formatCutoff(date: string): string {
 
 function formatRetained(policy: WithdrawalPolicy): string | null {
   const v = policy.retentionValue;
-  if (v === null || v <= 0) return null;
+  if (v == null || v <= 0) return null;
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
-}
-
-function notesDescribeRefundTerms(notes: string | null): boolean {
-  return /\b(refund|retain|retention|keep|kept|fee|percent|cutoff|deadline|after|before|none|full)\b|[%$]/i.test(
-    notes ?? ''
-  );
 }
 
 export function describeWithdrawalPolicy(
@@ -59,7 +54,7 @@ export function describeWithdrawalPolicy(
   // place a computed refund claim beside prose that may define another schedule.
   if (
     !policy.cutoffDate ||
-    policy.retentionValue === null ||
+    policy.retentionValue == null ||
     (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
     notesDescribeRefundTerms(notes)
   ) {

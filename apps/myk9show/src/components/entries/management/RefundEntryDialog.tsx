@@ -113,10 +113,9 @@ export function RefundEntryDialog({
     if (!entry || inFlightRef.current) return;
 
     const usePolicySnapshot =
-      (mode === 'partial' &&
-        snapshotSuggestedAmount !== null &&
-        partialAmount === snapshotSuggestedAmount) ||
-      (mode === 'full' && suggestion?.hasPolicy && suggestion.requiresManual);
+      mode === 'partial' &&
+      snapshotSuggestedAmount !== null &&
+      partialAmount === snapshotSuggestedAmount;
 
     let amountCents: number | undefined;
     if (mode === 'partial') {
@@ -132,6 +131,11 @@ export function RefundEntryDialog({
         }
         amountCents = Math.round(dollars * 100);
       }
+    } else if (suggestion?.hasPolicy && suggestion.requiresManual) {
+      // A manual-review snapshot is advisory only. Sending the full amount
+      // explicitly keeps the server from treating the snapshot as the refund
+      // amount while still allowing the secretary to choose Full refund.
+      amountCents = feeCents;
     }
 
     inFlightRef.current = true;
@@ -158,13 +162,6 @@ export function RefundEntryDialog({
           } catch {
             // fall through to generic message
           }
-        }
-        if (code === 'policy_snapshot_manual_review' && suggestion?.requiresManual) {
-          // The snapshot was used as a safety check, not as the refund amount.
-          // Move the secretary to an explicit amount so even a full refund is
-          // a deliberate manual decision rather than a second blind snapshot call.
-          setMode('partial');
-          setPartialAmount(fee.toFixed(2));
         }
         setError(ERROR_MESSAGES[code ?? ''] ?? invokeError.message ?? 'Refund failed');
         return;

@@ -225,7 +225,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
   });
 
-  it('validates a manual-review snapshot before allowing an untouched full refund', async () => {
+  it('sends an explicit full amount for a manual-review snapshot', async () => {
     suggestionMock.mockReturnValue({
       data: {
         hasPolicy: true,
@@ -236,14 +236,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
         policy: null,
       },
     });
-    mockedInvoke.mockResolvedValue({
-      data: null,
-      error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
-        context: new Response(JSON.stringify({ error: 'policy_snapshot_manual_review' }), {
-          status: 422,
-        }),
-      }),
-    });
+    mockedInvoke.mockResolvedValue({ data: { amount_cents: 5000 }, error: null });
     renderDialog();
     const user = userEvent.setup();
 
@@ -253,15 +246,11 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
       expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
         body: {
           entry_id: 'entry-1',
-          amount_cents: undefined,
+          amount_cents: 5000,
           notes: undefined,
-          use_policy_snapshot: true,
         },
       });
     });
-    expect(screen.getByRole('radio', { name: /partial amount/i })).toBeChecked();
-    expect((screen.getByLabelText(/amount \(max/i) as HTMLInputElement).value).toBe('50.00');
-    expect(await screen.findByText(/needs manual review/i)).toBeInTheDocument();
   });
 
   it('shows no policy message when the entry has no snapshot', () => {

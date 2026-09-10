@@ -11,6 +11,8 @@
  * docs/plan-refund-policy-withdrawal.md (D2, D5, D7, D8).
  */
 
+import { notesDescribeRefundTerms } from './withdrawalPolicyTerms';
+
 const DEFAULT_TIMEZONE = 'America/New_York';
 
 export type RetentionType = 'flat' | 'percent';
@@ -89,12 +91,6 @@ function buildPolicy(
 
 function hasAnyField(...values: Array<string | number | null | undefined>): boolean {
   return values.some(v => v !== null && v !== undefined);
-}
-
-function notesDescribeRefundTerms(notes: string | null): boolean {
-  return /\b(refund|retain|retention|keep|kept|fee|percent|cutoff|deadline|after|before|none|full)\b|[%$]/i.test(
-    notes ?? ''
-  );
 }
 
 /**
@@ -206,7 +202,7 @@ export function resolveWithdrawalRefundCents(
 
   if (
     !policy.cutoffDate ||
-    policy.retentionValue === null ||
+    policy.retentionValue == null ||
     (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
     notesDescribeRefundTerms(policy.notes?.trim() ?? null)
   ) {
@@ -230,8 +226,8 @@ export function resolveWithdrawalRefundCents(
 
   const rawRetained =
     policy.retentionType === 'percent'
-      ? Math.round((entryFeeCents * policy.retentionValue) / 100)
-      : policy.retentionValue;
+      ? Math.round((entryFeeCents * (policy.retentionValue ?? 0)) / 100)
+      : (policy.retentionValue ?? 0);
   const retainedCents = Math.min(Math.max(rawRetained, 0), entryFeeCents);
 
   return {

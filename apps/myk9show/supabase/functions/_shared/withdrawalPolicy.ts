@@ -61,7 +61,7 @@ function hasAny(...values: Array<string | number | null | undefined>): boolean {
 }
 
 function notesDescribeRefundTerms(notes: string | null): boolean {
-  return /\b(refund|retain|retention|keep|kept|fee|percent|cutoff|deadline|after|before|none|full)\b|[%$]/i.test(
+  return /\b(refund|retain(?:ed|ing)?|retention|kept|non-refundable|cutoff|deadline)\b|\d+(?:\.\d+)?\s*%|\$\s*\d|\bfull\s+(?:refund|until)\b|\bnone\s+after\b|\b(?:after|before)\s+(?:the\s+)?(?:cutoff|deadline|\d)/i.test(
     notes ?? ''
   );
 }
@@ -169,7 +169,7 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
 
   if (
     !policy.cutoffDate ||
-    policy.retentionValue === null ||
+    policy.retentionValue == null ||
     (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
     notesDescribeRefundTerms(policy.notes?.trim() ?? null)
   ) {
@@ -223,7 +223,7 @@ export function resolveWithdrawalRefundCents(
 
   if (
     !policy.cutoffDate ||
-    policy.retentionValue === null ||
+    policy.retentionValue == null ||
     (policy.retentionValue === 0 && policy.retentionDeclared !== true) ||
     notesDescribeRefundTerms(policy.notes?.trim() ?? null)
   ) {

@@ -240,6 +240,43 @@ describe('describeWithdrawalPolicyText', () => {
 });
 
 describe('resolveWithdrawalRefundCents', () => {
+  it('fails closed for a legacy zero-retention snapshot', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        {
+          cutoffDate: '2026-06-01',
+          retentionType: 'flat',
+          retentionValue: 0,
+          notes: null,
+        },
+        5000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
+  it('keeps structured refund guidance for procedural notes', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        {
+          cutoffDate: '2026-06-01',
+          retentionType: 'flat',
+          retentionValue: 1000,
+          notes: 'Email the secretary to withdraw before closing date.',
+        },
+        5000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({
+      requiresManual: false,
+      reason: 'after_cutoff',
+      retainedCents: 1000,
+      refundCents: 4000,
+    });
+  });
+
   it('refunds the exact snapshot amount after the cutoff', () => {
     expect(
       resolveWithdrawalRefundCents(

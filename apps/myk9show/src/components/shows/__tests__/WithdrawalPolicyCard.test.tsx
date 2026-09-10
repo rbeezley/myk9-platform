@@ -237,6 +237,27 @@ describe('WithdrawalPolicyCard', () => {
 // reads as a DECLARED retention, which suppresses the club fee this branch
 // exists to preserve. jsdom's number input refuses to hold '1e999', so the
 // guard is tested where it lives rather than through the component.
+// Adversarial review round 4. `isLoading` is `isPending && isFetching`, so it
+// is FALSE once a load errors — the earlier guard left a blank, editable form
+// whose Save wrote nulls over the club default every show now inherits.
+describe('WithdrawalPolicyCard — failed load', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdateEq.mockResolvedValue({ data: null, error: null });
+  });
+
+  it('MONEY: cannot save over a policy it failed to load', async () => {
+    mockSingle.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+    render(<WithdrawalPolicyCard scope="club" entityId="club-9" />);
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Save policy' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save policy' }));
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
+
 describe('inputToStored', () => {
   it('MONEY: treats a non-finite amount as blank, not as a declared value', () => {
     expect(inputToStored('flat', '1e999')).toBeNull();

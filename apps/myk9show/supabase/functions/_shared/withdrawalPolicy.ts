@@ -122,12 +122,9 @@ export function resolveWithdrawalPolicy(
     showDeclaresRetention
       ? show?.withdrawal_retention_value
       : club?.default_withdrawal_retention_value,
-    // Prose does NOT compose — see the mirror in
-    // src/features/payments/withdrawalPolicy.ts. A show that declares
-    // anything is authoring its own policy and gets its own prose or none.
-    showDeclares
-      ? (show?.withdrawal_policy_notes ?? null)
-      : (club?.default_withdrawal_policy_notes ?? null)
+    // Prose composes like every other field — see the mirror in
+    // src/features/payments/withdrawalPolicy.ts for why gating it was wrong.
+    show?.withdrawal_policy_notes ?? club?.default_withdrawal_policy_notes ?? null
   );
 }
 
@@ -163,7 +160,12 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
 
   const retained = formatRetained(policy);
   if (!retained) {
-    return withNotes(`Full refund of the entry fee. ${SERVICE_FEE_SENTENCE}`);
+    // Only assert a full refund when no prose can contradict it — see the
+    // mirror in src/features/payments/formatWithdrawalPolicy.ts. This string
+    // is Stripe's pre-payment custom_text and the entry's frozen snapshot.
+    return notes
+      ? withNotes(SERVICE_FEE_SENTENCE)
+      : `Full refund of the entry fee. ${SERVICE_FEE_SENTENCE}`;
   }
 
   return withNotes(
@@ -230,6 +232,19 @@ export function resolveWithdrawalRefundCents(
       ? Math.round((entryFeeCents * policy.retentionValue) / 100)
       : policy.retentionValue;
   const retainedCents = Math.min(Math.max(rawRetained, 0), entryFeeCents);
+
+  // Prose with nothing structured behind it: the notes may impose a tier this
+  // function cannot evaluate, so "keep nothing" is a guess, not an answer.
+  // The system informs — hand it to the secretary rather than pre-filling a
+  // confident full refund the policy text contradicts.
+  if (retainedCents === 0 && policy.notes?.trim()) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'after_cutoff',
+    };
+  }
 
   return {
     refundCents: entryFeeCents - retainedCents,

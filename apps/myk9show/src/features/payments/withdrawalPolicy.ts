@@ -136,14 +136,14 @@ export function getEffectiveWithdrawalPolicy(
     showDeclaresRetention
       ? show?.withdrawal_retention_value
       : club?.default_withdrawal_retention_value,
-    // Prose does NOT compose. Retention is a fee; notes describe a WHOLE
-    // policy, so splicing a club's multi-tier note onto a show's own cutoff
-    // yields a disclosure that contradicts itself — and that string is what
-    // Stripe shows the payer and what the entry's snapshot freezes. A show
-    // that declares anything is authoring its own policy.
-    showDeclares
-      ? (show?.withdrawal_policy_notes ?? null)
-      : (club?.default_withdrawal_policy_notes ?? null)
+    // Prose composes like every other field: the show's own if it wrote one,
+    // else the club's. Gating this on "the show declared anything" also threw
+    // away PROCEDURAL club notes on every show that set a cutoff — and since
+    // the cutoff is show-only and retention needs one to bite, that left a
+    // club's two remaining fields mutually exclusive. The contradiction that
+    // motivated the gate is fixed where it actually lives: the disclosure
+    // sentence (formatWithdrawalPolicy) and requiresManual below.
+    show?.withdrawal_policy_notes ?? club?.default_withdrawal_policy_notes ?? null
   );
 }
 
@@ -217,6 +217,19 @@ export function resolveWithdrawalRefundCents(
       ? Math.round((entryFeeCents * policy.retentionValue) / 100)
       : policy.retentionValue;
   const retainedCents = Math.min(Math.max(rawRetained, 0), entryFeeCents);
+
+  // Prose with nothing structured behind it: the notes may impose a tier this
+  // function cannot evaluate, so "keep nothing" is a guess, not an answer.
+  // The system informs — hand it to the secretary rather than pre-filling a
+  // confident full refund the policy text contradicts.
+  if (retainedCents === 0 && policy.notes?.trim()) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'after_cutoff',
+    };
+  }
 
   return {
     refundCents: entryFeeCents - retainedCents,

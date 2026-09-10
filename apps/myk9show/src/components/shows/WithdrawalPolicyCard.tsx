@@ -125,7 +125,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
   const queryClient = useQueryClient();
   const cols = COLUMNS[scope];
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['withdrawal-policy', scope, entityId],
     queryFn: async () => {
       const { data: row, error } = await supabase
@@ -273,12 +273,26 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
         </div>
 
         {/*
-          Disabled while loading too: the form starts as EMPTY_FORM, so a save
-          before (or after a failed) load writes nulls over an existing declared
-          policy. Pre-existing, but every show under the club now inherits that
-          retention, so a stray wipe rewrites more than one show's refund basis.
+          The form starts as EMPTY_FORM, so saving before the row arrives writes
+          nulls over a declared policy — and every show under the club now
+          inherits that retention, so one stray wipe rewrites several shows'
+          refund basis.
+
+          `isLoading` alone does NOT cover this: react-query derives it as
+          `isPending && isFetching`, which is false once a load ERRORS and false
+          while a fetch is PAUSED offline (the app sets networkMode 'online').
+          Both leave a blank, editable form. `isError` and `!data` close those.
         */}
-        <Button onClick={() => mutation.mutate(form)} disabled={mutation.isPending || isLoading}>
+        {isError && (
+          <p className="text-sm text-destructive" role="alert">
+            Could not load the current policy. Reload before editing — saving now would overwrite
+            it.
+          </p>
+        )}
+        <Button
+          onClick={() => mutation.mutate(form)}
+          disabled={mutation.isPending || isLoading || isError || !data}
+        >
           {mutation.isPending ? 'Saving…' : 'Save policy'}
         </Button>
       </CardContent>

@@ -240,20 +240,68 @@ describe('getEffectiveWithdrawalPolicy', () => {
   // August 1" — and that string is what Stripe shows the payer and what gets
   // frozen into the entry's snapshot. A show that declares anything is
   // authoring its own policy, so it gets its own prose or none.
-  it('does not inherit club prose onto a show that declares its own policy', () => {
-    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
+  // Round 4 reversed the round-3 rule. Suppressing inheritance here also threw
+  // away PROCEDURAL club notes ("withdrawals must be emailed to the secretary")
+  // on every show that set a cutoff — and since the cutoff is show-only and
+  // retention needs one to bite, that made a club's two remaining fields
+  // mutually exclusive. Prose composes; the contradiction is fixed in the
+  // formatter and in requiresManual instead.
+  it('inherits club prose onto a show that declares no prose of its own', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'Email the secretary.' };
 
     const p = getEffectiveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, clubWithProse);
 
-    expect(p?.notes).toBeNull();
-    // The fee still composes — that is the whole point of resolving per field.
+    expect(p?.notes).toBe('Email the secretary.');
     expect(p?.retentionValue).toBe(500);
+  });
+
+  it('lets a show override the club prose with its own', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'Email the secretary.' };
+    const p = getEffectiveWithdrawalPolicy(
+      { withdrawal_cutoff_date: '2026-06-01', withdrawal_policy_notes: 'Call the show chair.' },
+      clubWithProse
+    );
+    expect(p?.notes).toBe('Call the show chair.');
   });
 
   it('still inherits club prose when the show declares nothing at all', () => {
     const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
     const p = getEffectiveWithdrawalPolicy(noShowOverride, clubWithProse);
     expect(p?.notes).toBe('No refunds after Aug 1.');
+  });
+
+  // The system INFORMS; it must not compute a confident number that prose
+  // contradicts. A cutoff with no structured retention says "keep nothing",
+  // while the prose may impose a tier the resolver cannot evaluate.
+  it('MONEY: prose with no structured retention forces a manual decision', () => {
+    const p = getEffectiveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_policy_notes: 'Then 50% until 7 days out, none after.',
+      },
+      null
+    );
+
+    const r = resolveWithdrawalRefundCents(p, 3000, new Date('2026-08-01T12:00:00Z'), NY);
+
+    expect(r.requiresManual).toBe(true);
+    expect(r.refundCents).toBe(3000);
+    expect(r.retainedCents).toBe(0);
+  });
+
+  it('stays confident when a structured retention backs the number', () => {
+    const p = getEffectiveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: 'flat',
+        withdrawal_retention_value: 500,
+        withdrawal_policy_notes: 'Email the secretary.',
+      },
+      null
+    );
+    const r = resolveWithdrawalRefundCents(p, 3000, new Date('2026-08-01T12:00:00Z'), NY);
+    expect(r.requiresManual).toBe(false);
+    expect(r.retainedCents).toBe(500);
   });
 
   it('returns null when neither show nor club declares a policy', () => {

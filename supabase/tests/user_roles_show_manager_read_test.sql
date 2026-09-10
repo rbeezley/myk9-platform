@@ -81,6 +81,7 @@ SELECT fixture.person_id, r.id, fixture.club_id, NULL, fixture.is_active,
 FROM (VALUES
   ('00000000-0000-0000-0000-000000457011'::uuid, 'secretary'::text, '00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457101'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457012'::uuid, 'judge'::text,     NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457102'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457012'::uuid, 'club_admin'::text,'00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457102'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457014'::uuid, 'club_admin'::text,'00000000-0000-0000-0000-000000457002'::uuid, true,  '00000000-0000-0000-0000-000000457104'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457015'::uuid, 'judge'::text,     NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457105'::uuid, NULL::timestamptz),
   ('00000000-0000-0000-0000-000000457016'::uuid, 'site_admin'::text,NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457106'::uuid, NULL::timestamptz),
@@ -133,6 +134,14 @@ BEGIN
   IF visible <> 2 THEN
     RAISE EXCEPTION 'FAIL secretary did not receive both current judge labels (visible=%)', visible;
   END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_roles(ARRAY[
+    '00000000-0000-0000-0000-000000457012'::uuid
+  ])
+  WHERE role_name = 'club_admin';
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary did not receive an administrative role in their club scope';
+  END IF;
 
   SELECT count(*) INTO visible
   FROM public.get_visible_person_roles(ARRAY[
@@ -175,7 +184,8 @@ BEGIN
     'sub', site_uid, 'role', 'authenticated')::text, true);
   SELECT count(*) INTO visible
   FROM public.user_roles
-  WHERE auth_user_id = '00000000-0000-0000-0000-000000457109'::uuid;
+  WHERE auth_user_id = '00000000-0000-0000-0000-000000457109'::uuid
+    AND role_id = (SELECT id FROM public.roles WHERE name = 'judge');
   IF visible <> 1 THEN
     RAISE EXCEPTION 'FAIL site admin cannot read removed-person grants for audit/reactivation';
   END IF;
@@ -200,9 +210,16 @@ BEGIN
     RAISE EXCEPTION 'FAIL secretary did not receive both current judge IDs (visible=%)', visible;
   END IF;
   SELECT count(*) INTO visible
-  FROM public.get_visible_person_ids_by_role('club_admin');
+  FROM public.get_visible_person_ids_by_role('club_admin')
+  WHERE person_id = '00000000-0000-0000-0000-000000457014'::uuid;
   IF visible <> 0 THEN
     RAISE EXCEPTION 'FAIL secretary discovered another club''s admin through role lookup';
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_ids_by_role('club_admin')
+  WHERE person_id = '00000000-0000-0000-0000-000000457012'::uuid;
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary cannot discover an admin in their club scope';
   END IF;
 
   -- Plain exhibitors may ask only for their own effective labels.

@@ -33,6 +33,6 @@ No security findings in the MYK9-457 diff.
 
 ## Previous Audit Comparison
 
-- **Resolved:** The SA-006 regression introduced by `20260910014500` is repaired: raw `user_roles` reads return to self/site-admin scope, club show managers receive only effective judge labels through bounded RPCs, and site-admin audit/reactivation access is preserved.
+- **Resolved:** The SA-006 regression introduced by `20260910014500` is repaired: raw `user_roles` reads return to self/site-admin scope, club show managers receive only effective judge and same-scope official labels through bounded RPCs, and site-admin audit/reactivation access is preserved.
 - **New findings:** None.
 - **Unchanged:** No other findings were in scope for this diff review.

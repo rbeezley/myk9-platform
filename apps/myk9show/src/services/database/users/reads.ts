@@ -546,12 +546,22 @@ export const getUsersByRole = async (role: string) => {
     const personIds = (roleRows ?? []).map(row => row.person_id);
     if (personIds.length === 0) return { data: [], error: null };
 
-    const { data, error } = await supabase
-      .from('people')
-      .select('*')
-      .in('id', personIds)
-      .is('deleted_at', null)
-      .order('last_name', { ascending: true });
+    const pages = await Promise.all(
+      Array.from({ length: Math.ceil(personIds.length / 100) }, (_, page) =>
+        supabase
+          .from('people')
+          .select('*')
+          .in('id', personIds.slice(page * 100, (page + 1) * 100))
+          .is('deleted_at', null)
+      )
+    );
+    const error = pages.find(page => page.error)?.error;
+    const data = pages
+      .flatMap(page => page.data ?? [])
+      .sort((a, b) => {
+        const lastName = (a.last_name ?? '').localeCompare(b.last_name ?? '');
+        return lastName || (a.first_name ?? '').localeCompare(b.first_name ?? '');
+      });
 
     const duration = Date.now() - startTime;
     logQuery('user', 'select_by_role', duration, error?.message);

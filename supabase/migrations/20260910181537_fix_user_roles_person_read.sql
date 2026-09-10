@@ -79,13 +79,29 @@ AS $$
     AND (
       p.id = c.person_id
       OR c.is_site_admin
-      OR (c.is_show_manager AND r.name = 'judge')
+      OR (
+        c.is_show_manager
+        AND (
+          r.name = 'judge'
+          OR (
+            ur.club_id IS NOT NULL
+            AND (
+              public.is_trial_secretary(ur.club_id)
+              OR public.is_club_admin(ur.club_id)
+            )
+          )
+          OR (
+            ur.show_id IS NOT NULL
+            AND public.can_manage_show(ur.show_id)
+          )
+        )
+      )
     )
   ORDER BY ur.user_id, r.name;
 $$;
 
 COMMENT ON FUNCTION public.get_visible_person_roles(uuid[]) IS
-  'MYK9-457: returns deduplicated current role labels for explicit live people. Plain users are self-only; show managers may resolve judge labels; site admins retain full inspection. Never returns grant metadata.';
+  'MYK9-457: returns deduplicated current role labels for explicit live people. Plain users are self-only; show managers may resolve judges plus officials in shows/clubs they manage; site admins retain full inspection. Never returns grant metadata.';
 
 REVOKE ALL ON FUNCTION public.get_visible_person_roles(uuid[]) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_visible_person_roles(uuid[]) TO authenticated;
@@ -115,13 +131,29 @@ AS $$
     AND (
       p.id = c.person_id
       OR c.is_site_admin
-      OR (c.is_show_manager AND r.name = 'judge')
+      OR (
+        c.is_show_manager
+        AND (
+          r.name = 'judge'
+          OR (
+            ur.club_id IS NOT NULL
+            AND (
+              public.is_trial_secretary(ur.club_id)
+              OR public.is_club_admin(ur.club_id)
+            )
+          )
+          OR (
+            ur.show_id IS NOT NULL
+            AND public.can_manage_show(ur.show_id)
+          )
+        )
+      )
     )
   ORDER BY ur.user_id;
 $$;
 
 COMMENT ON FUNCTION public.get_visible_person_ids_by_role(text) IS
-  'MYK9-457: returns current matching person IDs without loading the entire people directory. Show managers may discover judges; site admins retain role-directory access; plain users are self-only.';
+  'MYK9-457: returns current matching person IDs without loading the entire people directory. Show managers may discover judges plus officials in shows/clubs they manage; site admins retain role-directory access; plain users are self-only.';
 
 REVOKE ALL ON FUNCTION public.get_visible_person_ids_by_role(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_visible_person_ids_by_role(text) TO authenticated;

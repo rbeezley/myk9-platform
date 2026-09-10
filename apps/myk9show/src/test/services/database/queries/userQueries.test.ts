@@ -13,6 +13,7 @@ import {
 } from '@/services/database/users';
 import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
 import { mockSupabase, createChainableQuery, resetMockSupabase } from '@/test/mocks/supabase';
+import { logger } from '@/services/LoggingService';
 
 describe('User Queries', () => {
   beforeEach(() => {
@@ -92,6 +93,7 @@ describe('User Queries', () => {
 
     it('keeps people readable when role-label hydration is temporarily unavailable', async () => {
       const mockData = [{ id: 'person-1', first_name: 'Ada', last_name: 'Judge' }];
+      const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
       mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
       mockSupabase.rpc.mockResolvedValueOnce({
         data: null,
@@ -101,6 +103,12 @@ describe('User Queries', () => {
       const result = await getAllUsers();
 
       expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null });
+      expect(warn).toHaveBeenCalledWith(
+        'Role label hydration failed; returning people without role labels',
+        'database',
+        { code: 'PGRST202' },
+        expect.objectContaining({ message: 'Function not found' })
+      );
     });
 
     it('should fetch all users successfully', async () => {
@@ -748,6 +756,30 @@ describe('User Queries', () => {
 
       expect(result).toEqual({ data: [], error: null });
       expect(mockSupabase.from).not.toHaveBeenCalled();
+    });
+
+    it('chunks large role populations so the PostgREST URL stays bounded', async () => {
+      const roleRows = Array.from({ length: 101 }, (_, index) => ({
+        person_id: `person-${index}`,
+      }));
+      const firstPage = roleRows.slice(0, 100).map(({ person_id }) => ({ id: person_id }));
+      const secondPage = [{ id: 'person-100' }];
+      const firstQuery = createChainableQuery({ data: firstPage, error: null });
+      const secondQuery = createChainableQuery({ data: secondPage, error: null });
+
+      mockSupabase.rpc
+        .mockResolvedValueOnce({ data: roleRows, error: null })
+        .mockResolvedValueOnce({ data: [], error: null });
+      mockSupabase.from.mockReturnValueOnce(firstQuery).mockReturnValueOnce(secondQuery);
+
+      const result = await getUsersByRole('exhibitor');
+
+      expect(firstQuery.in).toHaveBeenCalledWith(
+        'id',
+        roleRows.slice(0, 100).map(row => row.person_id)
+      );
+      expect(secondQuery.in).toHaveBeenCalledWith('id', ['person-100']);
+      expect(result.data).toHaveLength(101);
     });
   });
 

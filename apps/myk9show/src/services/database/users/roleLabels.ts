@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 type PersonRoleLabel = { person_id: string; role_name: string };
 
@@ -14,7 +15,15 @@ export const hydrateVisibleRoles = async <T extends { id?: string }>(
   // Role labels decorate an otherwise valid person read. Fail closed without
   // blanking the directory during a transient RPC error or the brief interval
   // between the Vercel deploy and the post-merge migration push.
-  if (error) return rows.map(row => ({ ...row, roles: [] }));
+  if (error) {
+    logger.warn(
+      'Role label hydration failed; returning people without role labels',
+      'database',
+      { code: error.code },
+      new Error(error.message)
+    );
+    return rows.map(row => ({ ...row, roles: [] }));
+  }
 
   const rolesByPerson = new Map<string, Set<string>>();
   for (const { person_id, role_name } of (data ?? []) as PersonRoleLabel[]) {

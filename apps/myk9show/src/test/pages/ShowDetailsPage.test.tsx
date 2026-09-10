@@ -18,7 +18,21 @@ const showEditPanelMock = vi.hoisted<{
 // Mock auth context
 const mockAuthContext = {
   user: { id: 'user-1' } as Record<string, unknown> | null,
-  userWithRoles: { databaseUserId: 'person-1' } as { databaseUserId?: string } | null,
+  // A secretary's grant is club-scoped — canManageShowSurface narrows on the
+  // show's own club, matching is_trial_secretary(club) on the server. A fixture
+  // with isSecretary and no scope is a user who cannot exist.
+  userWithRoles: {
+    databaseUserId: 'person-1',
+    scopes: [
+      {
+        userId: 'user-1',
+        roleId: 'secretary',
+        scopeType: 'club',
+        scopeId: 'club-1',
+        createdAt: new Date(),
+      },
+    ],
+  } as Record<string, unknown> | null,
   isSecretary: false,
   isAdmin: false,
   hasRole: vi.fn(() => false),
@@ -45,6 +59,7 @@ let mockShow: Record<string, unknown> | null = {
   endDate: '2026-03-23',
   location: 'Louisville, KY',
   clubName: 'Bluegrass KC',
+  clubId: 'club-1',
   events: ['Agility'],
   status: 'Upcoming',
 };
@@ -339,6 +354,7 @@ describe('ShowDetailsPage', () => {
       endDate: '2026-03-23',
       location: 'Louisville, KY',
       clubName: 'Bluegrass KC',
+      clubId: 'club-1',
       events: ['Agility'],
       status: 'Upcoming',
       entryOpenDate: '2026-01-01',
@@ -354,7 +370,18 @@ describe('ShowDetailsPage', () => {
     mockTrials = [];
     mockTrialClasses = {};
     mockAuthContext.user = { id: 'user-1' };
-    mockAuthContext.userWithRoles = { databaseUserId: 'person-1' };
+    mockAuthContext.userWithRoles = {
+      databaseUserId: 'person-1',
+      scopes: [
+        {
+          userId: 'user-1',
+          roleId: 'secretary',
+          scopeType: 'club',
+          scopeId: 'club-1',
+          createdAt: new Date(),
+        },
+      ],
+    };
     mockAuthContext.isSecretary = false;
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);

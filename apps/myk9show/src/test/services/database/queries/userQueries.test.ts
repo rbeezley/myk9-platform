@@ -12,9 +12,14 @@ import {
   checkEmailExists,
 } from '@/services/database/users';
 import type { DbUserInsert, DbUserUpdate } from '@/types/database-mappings';
-import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
+import { mockSupabase, createChainableQuery, resetMockSupabase } from '@/test/mocks/supabase';
 
 describe('User Queries', () => {
+  beforeEach(() => {
+    mockSupabase.rpc.mockReset();
+    resetMockSupabase();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -54,9 +59,35 @@ describe('User Queries', () => {
       ]) {
         expect(selectArg).toContain(col);
       }
-      // joins preserved
-      expect(selectArg).toContain('user_roles!user_roles_user_id_fkey');
+      // SA-006 / MYK9-457: the people query must not embed the raw grant map.
+      // Current role names are loaded through get_visible_person_roles instead.
+      expect(selectArg).not.toContain('user_roles');
       expect(selectArg).toContain('judge_qualifications');
+    });
+
+    it('hydrates current role names through the scoped role-label RPC', async () => {
+      const mockData = [
+        { id: 'person-1', first_name: 'Ada', last_name: 'Judge' },
+        { id: 'person-2', first_name: 'Grace', last_name: 'Member' },
+      ];
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [
+          { person_id: 'person-1', role_name: 'judge' },
+          { person_id: 'person-1', role_name: 'judge' },
+        ],
+        error: null,
+      });
+
+      const result = await getAllUsers();
+
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_visible_person_roles', {
+        p_person_ids: ['person-1', 'person-2'],
+      });
+      expect(result.data).toEqual([
+        { ...mockData[0], roles: ['judge'] },
+        { ...mockData[1], roles: [] },
+      ]);
     });
 
     it('should fetch all users successfully', async () => {
@@ -83,7 +114,7 @@ describe('User Queries', () => {
       const result = await getAllUsers();
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(row => ({ ...row, roles: [] })));
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });
@@ -112,7 +143,7 @@ describe('User Queries', () => {
 
       const result = await getAllUsers();
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(row => ({ ...row, roles: [] })));
     });
 
     it('should handle empty user database', async () => {
@@ -126,6 +157,27 @@ describe('User Queries', () => {
   });
 
   describe('getUserById', () => {
+    it('loads role names through the scoped RPC instead of embedding user_roles', async () => {
+      const userId = 'user-123';
+      const mockData = { id: userId, first_name: 'Ada', last_name: 'Judge' };
+      const chain = createChainableQuery({ data: mockData, error: null });
+      mockSupabase.from.mockReturnValue(chain);
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [{ person_id: userId, role_name: 'judge' }],
+        error: null,
+      });
+
+      const result = await getUserById(userId);
+
+      const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
+        .calls[0][0] as string;
+      expect(selectArg).not.toContain('user_roles');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_visible_person_roles', {
+        p_person_ids: [userId],
+      });
+      expect(result.data).toEqual({ ...mockData, roles: ['judge'] });
+    });
+
     it('should fetch user by ID with full details successfully', async () => {
       const userId = 'user-123';
       const mockData = {
@@ -149,7 +201,7 @@ describe('User Queries', () => {
       const result = await getUserById(userId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual({ ...mockData, roles: [] });
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });
@@ -183,7 +235,7 @@ describe('User Queries', () => {
       const result = await getUserById(userId);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual({ ...mockData, roles: [] });
       expect(duration).toBeLessThan(200);
     });
   });
@@ -550,6 +602,23 @@ describe('User Queries', () => {
   });
 
   describe('searchUsers', () => {
+    it('hydrates search results through the scoped role-label RPC', async () => {
+      const mockData = [{ id: 'person-1', first_name: 'Ada', last_name: 'Judge' }];
+      const chain = createChainableQuery({ data: mockData, error: null });
+      mockSupabase.from.mockReturnValue(chain);
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [{ person_id: 'person-1', role_name: 'judge' }],
+        error: null,
+      });
+
+      const result = await searchUsers('Ada');
+
+      const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
+        .calls[0][0] as string;
+      expect(selectArg).not.toContain('user_roles');
+      expect(result.data).toEqual([{ ...mockData[0], roles: ['judge'] }]);
+    });
+
     it('should search users by name and email', async () => {
       const searchTerm = 'john';
       const mockData = [
@@ -575,7 +644,7 @@ describe('User Queries', () => {
       const result = await searchUsers(searchTerm);
       const duration = Date.now() - startTime;
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(row => ({ ...row, roles: [] })));
       expect(result.error).toBeNull();
       expect(duration).toBeLessThan(200);
     });
@@ -604,28 +673,36 @@ describe('User Queries', () => {
 
       const result = await searchUsers(searchTerm);
 
-      expect(result.data).toEqual(mockData);
+      expect(result.data).toEqual(mockData.map(row => ({ ...row, roles: [] })));
       expect(result.data[0]).toHaveProperty('dog', mockData[0].dog);
     });
   });
 
   describe('getUsersByRole', () => {
     it('should fetch users by role successfully', async () => {
-      const role = 'admin';
+      const role = 'judge';
       const mockData = [
         {
           id: '1',
-          first_name: 'Admin',
+          first_name: 'Ada',
           last_name: 'User',
-          roles: ['admin', 'moderator'],
         },
+        { id: '2', first_name: 'Grace', last_name: 'User' },
       ];
 
-      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      const chain = createChainableQuery({ data: mockData, error: null });
+      mockSupabase.from.mockReturnValue(chain);
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [{ person_id: '1', role_name: 'judge' }],
+        error: null,
+      });
 
       const result = await getUsersByRole(role);
 
-      expect(result.data).toEqual(mockData);
+      const selectArg = (chain.select as unknown as { mock: { calls: unknown[][] } }).mock
+        .calls[0][0] as string;
+      expect(selectArg).not.toContain('user_roles');
+      expect(result.data).toEqual([{ ...mockData[0], roles: ['judge'] }]);
       expect(result.error).toBeNull();
     });
 

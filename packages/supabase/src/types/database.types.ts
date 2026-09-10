@@ -11257,6 +11257,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_deleted_person_role_history: {
+        Args: { p_person_id: string }
+        Returns: {
+          deactivated_at: string | null
+          expires_at: string | null
+          is_active: boolean
+          role_name: string
+        }[]
+      }
       get_deleted_people: {
         Args: never
         Returns: {
@@ -11552,6 +11561,13 @@ export type Database = {
           last_name: string
           role: string
           user_id: string
+        }[]
+      }
+      get_visible_person_roles: {
+        Args: { p_person_ids: string[] }
+        Returns: {
+          person_id: string
+          role_name: string
         }[]
       }
       get_user_permissions: {

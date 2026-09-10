@@ -84,11 +84,13 @@ Auto-fixable: 9 of 17 findings.
 
 ### [MEDIUM] SA-006: Full RBAC role map readable by every authenticated user
 
+**Status:** Remediated by `20260703180000`, reopened by `20260910014500`, and repaired by `20260910181537_fix_user_roles_person_read.sql` (MYK9-457).
+
 **Category:** RLS Policy Integrity / RBAC (information disclosure)
 **Location:** `supabase/migrations/006_rls_policies.sql:282` (`user_roles_select`), `:273` (`roles`), `:276` (`permissions`), `:279` (`role_permissions`), `:286` (`permission_audit_log_select`)
 **Evidence:** `CREATE POLICY "user_roles_select" ON user_roles FOR SELECT USING (true);` (no `TO` clause). Post-mig-156, `user_roles` carries `auth_user_id`. `permission_audit_log_select ... USING (true)` likewise.
 **Risk:** Any signed-in user can enumerate every user's role assignments, show/club scoping, and `auth_user_id`, plus the full permission catalog — reveals who the admins/secretaries are and maps `auth.users` ids. Mutations are correctly locked, so this is recon/disclosure, not escalation.
-**Fix:** Restrict `user_roles_select` to own rows OR `is_site_admin()`; `permission_audit_log` SELECT → `is_site_admin()`. Keep `roles`/`permissions` catalog readable if the frontend needs it, but consider `TO authenticated`. Verify frontend RBAC read paths first.
+**Fix:** `user_roles_select` is restricted to live people's own rows OR `is_site_admin()`; deleted grants are excluded for both and available only through the site-admin-gated `get_deleted_person_role_history(uuid)` RPC. Live person screens use `get_visible_person_roles(uuid[])`, which returns only deduplicated, active, unexpired role names for live people, withholds `site_admin` labels from non-site-admin managers, and exposes no grant metadata. `permission_audit_log` SELECT remains site-admin-only.
 **Auto-fixable:** No (behavioral — must confirm frontend read paths).
 
 ---

@@ -8,15 +8,13 @@ import {
   SIGN_IN_EMAIL_LOCKED_CODE,
   SIGN_IN_EMAIL_LOCKED_MESSAGE,
 } from './signInEmailGuard';
+import { hydrateVisibleRoles } from './roleLabels';
 
 // Shared select fragment for judge qualifications join
 const JUDGE_QUALIFICATIONS_SELECT = `judge_qualifications(
   id, organization, qualification_level, disciplines, judge_number,
   date_obtained, expiration_date, is_active
 )`;
-
-// FK hint to disambiguate user_roles → people (two FKs: user_id and granted_by)
-const USER_ROLES_FK = 'user_roles!user_roles_user_id_fkey';
 
 // SA-008: explicit column allowlist for the people-directory fetch — the union
 // of columns the two consumers of getAllUsers read (`mapDatabaseToUser` in
@@ -36,9 +34,7 @@ export const getAllUsers = async () => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(
-        `${PEOPLE_DIRECTORY_COLUMNS}, ${USER_ROLES_FK}(role:roles(name)), ${JUDGE_QUALIFICATIONS_SELECT}`
-      )
+      .select(`${PEOPLE_DIRECTORY_COLUMNS}, ${JUDGE_QUALIFICATIONS_SELECT}`)
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
       .order('first_name', { ascending: true });
@@ -63,7 +59,7 @@ export const getAllUsers = async () => {
       throw createDatabaseError(error, 'user', 'select_all');
     }
 
-    return { data: data || [], error: null };
+    return { data: await hydrateVisibleRoles(data || []), error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_all');
@@ -83,7 +79,6 @@ export const getUserById = async (id: string) => {
       .select(
         `
         *,
-        ${USER_ROLES_FK}(role:roles(name)),
         dogs!dogs_owner_id_fkey(
           id,
           name,
@@ -106,7 +101,8 @@ export const getUserById = async (id: string) => {
       throw createDatabaseError(error, 'user', 'select_by_id');
     }
 
-    return { data, error: null };
+    const [person] = await hydrateVisibleRoles([data]);
+    return { data: person, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_by_id');
@@ -437,10 +433,9 @@ export const getDeletedUserById = async (id: string) => {
     if (!person) return { data: null, error: null };
 
     // The RPC returns SETOF public.people — the row and nothing else — while
-    // `getUserById` embeds user_roles and judge qualifications. Mapping the bare
-    // row yields an EMPTY role list, which reads as "this person had no roles"
-    // rather than "we didn't ask": a removed judge would silently lose their
-    // badge and judge sections. Fetch the roles alongside, in the shape
+    // Live `getUserById` hydrates current role labels through a scoped RPC, but
+    // a removed-person record intentionally needs the historical roles held at
+    // removal. Fetch those grants for this site-admin-only surface in the shape
     // extractRoles expects.
     //
     // NO is_active FILTER, deliberately. soft_delete_person sets is_active =
@@ -459,10 +454,10 @@ export const getDeletedUserById = async (id: string) => {
     // generous, on a record that carries a "this person was removed" banner and
     // no editing affordances, so no reader can mistake a badge for live
     // authority.
-    const { data: roleRows, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('expires_at, is_active, deactivated_at, role:roles!user_roles_role_id_fkey(name)')
-      .eq('user_id', id);
+    const { data: roleHistory, error: rolesError } = await supabase.rpc(
+      'get_deleted_person_role_history',
+      { p_person_id: id }
+    );
 
     // A failed role read must not pass as a complete record with no roles —
     // that is the same silent lie, arrived at a different way.
@@ -474,6 +469,10 @@ export const getDeletedUserById = async (id: string) => {
     // removal, so drop it. For new removals, an inactive grant must also carry
     // this removal's timestamp. Legacy inactive rows without a stamp are kept
     // because the old schema cannot distinguish their history.
+    const roleRows = (roleHistory ?? []).map(({ role_name, ...row }) => ({
+      ...row,
+      role: { name: role_name },
+    }));
     const removedAt = (person as { deleted_at?: string | null }).deleted_at;
     const heldAtRemoval = (roleRows ?? []).filter(row => {
       const expiresAt = (row as { expires_at?: string | null }).expires_at;
@@ -505,7 +504,7 @@ export const searchUsers = async (searchTerm: string) => {
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${USER_ROLES_FK}(role:roles(name))`)
+      .select('*')
       .is('deleted_at', null)
       .or(
         `first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
@@ -520,7 +519,7 @@ export const searchUsers = async (searchTerm: string) => {
       throw createDatabaseError(error, 'user', 'search');
     }
 
-    return { data: data || [], error: null };
+    return { data: await hydrateVisibleRoles(data || []), error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'search');
@@ -529,16 +528,14 @@ export const searchUsers = async (searchTerm: string) => {
   }
 };
 
-// Get users by role via user_roles table (excluding soft-deleted)
+// Get users by effective role label (excluding soft-deleted)
 export const getUsersByRole = async (role: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
       .from('people')
-      .select(`*, ${USER_ROLES_FK}!inner(role:roles!inner(name))`)
-      .eq('user_roles.is_active', true)
-      .eq('user_roles.roles.name', role)
+      .select('*')
       .is('deleted_at', null)
       .order('last_name', { ascending: true });
 
@@ -549,7 +546,8 @@ export const getUsersByRole = async (role: string) => {
       throw createDatabaseError(error, 'user', 'select_by_role');
     }
 
-    return { data: data || [], error: null };
+    const users = await hydrateVisibleRoles(data || []);
+    return { data: users.filter(user => user.roles.includes(role)), error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_by_role');

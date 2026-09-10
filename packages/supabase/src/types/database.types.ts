@@ -1275,7 +1275,6 @@ export type Database = {
           club_number: string | null
           cover_image_url: string | null
           created_at: string | null
-          default_withdrawal_cutoff_date: string | null
           default_withdrawal_policy_notes: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null
@@ -1301,7 +1300,6 @@ export type Database = {
           club_number?: string | null
           cover_image_url?: string | null
           created_at?: string | null
-          default_withdrawal_cutoff_date?: string | null
           default_withdrawal_policy_notes?: string | null
           default_withdrawal_retention_type?: string | null
           default_withdrawal_retention_value?: number | null
@@ -1327,7 +1325,6 @@ export type Database = {
           club_number?: string | null
           cover_image_url?: string | null
           created_at?: string | null
-          default_withdrawal_cutoff_date?: string | null
           default_withdrawal_policy_notes?: string | null
           default_withdrawal_retention_type?: string | null
           default_withdrawal_retention_value?: number | null
@@ -10905,7 +10902,6 @@ export type Database = {
           club_number: string | null
           cover_image_url: string | null
           created_at: string | null
-          default_withdrawal_cutoff_date: string | null
           default_withdrawal_policy_notes: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null
@@ -11089,7 +11085,6 @@ export type Database = {
           club_number: string | null
           cover_image_url: string | null
           created_at: string | null
-          default_withdrawal_cutoff_date: string | null
           default_withdrawal_policy_notes: string | null
           default_withdrawal_retention_type: string | null
           default_withdrawal_retention_value: number | null

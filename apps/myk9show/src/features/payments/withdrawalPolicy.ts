@@ -26,9 +26,17 @@ export interface WithdrawalPolicy {
   notes: string | null;
 }
 
-/** Subset of the `clubs` row carrying the default withdrawal policy. */
+/**
+ * Subset of the `clubs` row carrying the default withdrawal policy.
+ *
+ * MYK9-454: there is deliberately NO cutoff date here. A cutoff is an absolute
+ * calendar date, which is only meaningful anchored to one show's entry-close
+ * date. As a club-wide default it governs every future show, and the day after
+ * it passes every inheriting show resolves `after_cutoff` and keeps the office
+ * fee with `requiresManual: false` — a confidently wrong refund. Clubs declare
+ * retention + prose; the date is per show.
+ */
 export interface ClubWithdrawalFields {
-  default_withdrawal_cutoff_date?: string | null;
   default_withdrawal_retention_type?: string | null;
   default_withdrawal_retention_value?: number | null;
   default_withdrawal_policy_notes?: string | null;
@@ -79,49 +87,64 @@ function hasAnyField(...values: Array<string | number | null | undefined>): bool
 }
 
 /**
- * Resolve the effective policy: a show override (if any field is set) wins over
- * the club default; if neither declares anything, returns null (unset → the
- * caller shows the neutral default message and flags the refund fully-manual).
+ * Resolve the effective policy by composing the two levels PER FIELD: each show
+ * field wins where the show declares one, and falls back to the club default
+ * where it does not. If neither level declares anything, returns null (unset →
+ * the caller shows the neutral default message and flags the refund manual).
+ *
+ * Per-field, not all-or-nothing (Codex review of #2156). Once the cutoff became
+ * show-only, an all-or-nothing choice made club retention unreachable: a show
+ * declaring only its cutoff dropped the club's office fee along with it and
+ * refunded in full at `requiresManual: false`. Composing also makes true what
+ * the editor has always promised — "leave blank to inherit the club default".
  */
 export function getEffectiveWithdrawalPolicy(
   show: ShowWithdrawalFields | null | undefined,
   club: ClubWithdrawalFields | null | undefined
 ): WithdrawalPolicy | null {
-  if (
-    show &&
+  const showDeclares =
+    !!show &&
     hasAnyField(
       show.withdrawal_cutoff_date,
       show.withdrawal_retention_type,
       show.withdrawal_retention_value,
       show.withdrawal_policy_notes
-    )
-  ) {
-    return buildPolicy(
-      show.withdrawal_cutoff_date,
-      show.withdrawal_retention_type,
-      show.withdrawal_retention_value,
-      show.withdrawal_policy_notes
     );
-  }
-
-  if (
-    club &&
+  const clubDeclares =
+    !!club &&
     hasAnyField(
-      club.default_withdrawal_cutoff_date,
-      club.default_withdrawal_retention_type,
-      club.default_withdrawal_retention_value,
-      club.default_withdrawal_policy_notes
-    )
-  ) {
-    return buildPolicy(
-      club.default_withdrawal_cutoff_date,
       club.default_withdrawal_retention_type,
       club.default_withdrawal_retention_value,
       club.default_withdrawal_policy_notes
     );
-  }
 
-  return null;
+  if (!showDeclares && !clubDeclares) return null;
+
+  // Retention is a PAIR — the editor nulls type and value together — so the
+  // show overrides the club's fee only when it declares one of its own.
+  const showDeclaresRetention = hasAnyField(
+    show?.withdrawal_retention_type,
+    show?.withdrawal_retention_value
+  );
+
+  return buildPolicy(
+    // The cutoff is show-only (MYK9-454): clubs no longer carry one.
+    show?.withdrawal_cutoff_date ?? null,
+    showDeclaresRetention
+      ? show?.withdrawal_retention_type
+      : club?.default_withdrawal_retention_type,
+    showDeclaresRetention
+      ? show?.withdrawal_retention_value
+      : club?.default_withdrawal_retention_value,
+    // Prose does NOT compose. Retention is a fee; notes describe a WHOLE
+    // policy, so splicing a club's multi-tier note onto a show's own cutoff
+    // yields a disclosure that contradicts itself — and that string is what
+    // Stripe shows the payer and what the entry's snapshot freezes. A show
+    // that declares anything is authoring its own policy.
+    showDeclares
+      ? (show?.withdrawal_policy_notes ?? null)
+      : (club?.default_withdrawal_policy_notes ?? null)
+  );
 }
 
 /**

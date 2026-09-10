@@ -125,10 +125,16 @@ describe('resolveWithdrawalRefundCents', () => {
 
 describe('getEffectiveWithdrawalPolicy', () => {
   const club = {
-    default_withdrawal_cutoff_date: '2026-05-01',
     default_withdrawal_retention_type: 'flat',
     default_withdrawal_retention_value: 500,
     default_withdrawal_policy_notes: null,
+  };
+
+  const noShowOverride = {
+    withdrawal_cutoff_date: null,
+    withdrawal_retention_type: null,
+    withdrawal_retention_value: null,
+    withdrawal_policy_notes: null,
   };
 
   it('uses the show override when any override field is set', () => {
@@ -148,21 +154,106 @@ describe('getEffectiveWithdrawalPolicy', () => {
   });
 
   it('falls back to the club default when the show has no override', () => {
-    const p = getEffectiveWithdrawalPolicy(
-      {
-        withdrawal_cutoff_date: null,
-        withdrawal_retention_type: null,
-        withdrawal_retention_value: null,
-        withdrawal_policy_notes: null,
-      },
-      club
-    );
+    const p = getEffectiveWithdrawalPolicy(noShowOverride, club);
     expect(p).toEqual({
-      cutoffDate: '2026-05-01',
+      cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
       notes: null,
     });
+  });
+
+  // MYK9-454. A club default is retention + prose ONLY. An absolute calendar
+  // date cannot be a club-wide default: entered once, it governs every future
+  // show, and the day after it passes every inheriting show resolves
+  // `after_cutoff` and keeps the office fee — with requiresManual false, so the
+  // refund dialog pre-fills a confidently wrong number.
+  it('never sources a cutoff date from the club row, even if the column holds one', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    expect(getEffectiveWithdrawalPolicy(noShowOverride, legacyClub)?.cutoffDate).toBeNull();
+  });
+
+  it('leaves a club-only refund manual instead of retaining on a stale club cutoff', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    const policy = getEffectiveWithdrawalPolicy(noShowOverride, legacyClub);
+
+    const r = resolveWithdrawalRefundCents(policy, 3000, new Date('2026-08-01T12:00:00Z'), NY);
+
+    expect(r.reason).toBe('no_cutoff');
+    expect(r.refundCents).toBe(3000);
+    expect(r.retainedCents).toBe(0);
+    expect(r.requiresManual).toBe(true);
+  });
+
+  // MYK9-454 follow-up (Codex review of #2156). Dropping the club cutoff made
+  // club retention UNREACHABLE: the show/club choice was all-or-nothing, so the
+  // moment a show declared its cutoff the club's office fee was dropped with it
+  // and a post-cutoff withdrawal refunded in full at `requiresManual: false`.
+  // Resolution composes per field instead — which is what the card has always
+  // promised ("Leave blank to inherit the club default").
+  it('MONEY: a show cutoff inherits the club retention instead of zeroing it', () => {
+    const p = getEffectiveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, club);
+
+    expect(p).toEqual({
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat',
+      retentionValue: 500,
+      notes: null,
+    });
+
+    const r = resolveWithdrawalRefundCents(p, 3000, new Date('2026-08-01T12:00:00Z'), NY);
+    expect(r.retainedCents).toBe(500);
+    expect(r.refundCents).toBe(2500);
+    expect(r.reason).toBe('after_cutoff');
+  });
+
+  it('a show that declares its own retention still overrides the club', () => {
+    const p = getEffectiveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: 'percent',
+        withdrawal_retention_value: 20,
+      },
+      club
+    );
+    expect(p?.retentionType).toBe('percent');
+    expect(p?.retentionValue).toBe(20);
+  });
+
+  it('a show clearing its retention to nothing falls back to the club fee', () => {
+    // The card nulls type+value as a PAIR, so "cleared" is both being null.
+    const p = getEffectiveWithdrawalPolicy(
+      {
+        withdrawal_cutoff_date: '2026-06-01',
+        withdrawal_retention_type: null,
+        withdrawal_retention_value: null,
+      },
+      club
+    );
+    expect(p?.retentionValue).toBe(500);
+  });
+
+  // Adversarial review of #2156. Retention is a fee and composes; PROSE is a
+  // description of a whole policy and does not. Inheriting a club's multi-tier
+  // note onto a show that set its own cutoff produced a disclosure that
+  // contradicted itself — "Full refund of the entry fee … No refunds after
+  // August 1" — and that string is what Stripe shows the payer and what gets
+  // frozen into the entry's snapshot. A show that declares anything is
+  // authoring its own policy, so it gets its own prose or none.
+  it('does not inherit club prose onto a show that declares its own policy', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
+
+    const p = getEffectiveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, clubWithProse);
+
+    expect(p?.notes).toBeNull();
+    // The fee still composes — that is the whole point of resolving per field.
+    expect(p?.retentionValue).toBe(500);
+  });
+
+  it('still inherits club prose when the show declares nothing at all', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
+    const p = getEffectiveWithdrawalPolicy(noShowOverride, clubWithProse);
+    expect(p?.notes).toBe('No refunds after Aug 1.');
   });
 
   it('returns null when neither show nor club declares a policy', () => {

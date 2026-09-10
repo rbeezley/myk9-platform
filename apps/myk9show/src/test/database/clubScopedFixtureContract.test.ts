@@ -150,7 +150,6 @@ describe('seed-demo club scope fixtures', () => {
       'license_key',
       'cover_image_url',
       'accent_color',
-      'default_withdrawal_cutoff_date',
       'default_withdrawal_retention_type',
       'default_withdrawal_retention_value',
       'default_withdrawal_policy_notes',

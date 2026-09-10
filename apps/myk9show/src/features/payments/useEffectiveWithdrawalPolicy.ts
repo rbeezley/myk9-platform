@@ -22,7 +22,6 @@ const SELECT = `
   withdrawal_retention_value,
   withdrawal_policy_notes,
   clubs (
-    default_withdrawal_cutoff_date,
     default_withdrawal_retention_type,
     default_withdrawal_retention_value,
     default_withdrawal_policy_notes

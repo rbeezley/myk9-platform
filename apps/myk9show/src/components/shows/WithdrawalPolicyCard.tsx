@@ -8,6 +8,12 @@
  * Lightly structured (cutoff + retention + prose escape hatch) — the system
  * INFORMS, it does not compute a refund. See docs/plan-refund-policy-withdrawal.md.
  *
+ * The cutoff date is SHOW-ONLY (MYK9-454). It is an absolute calendar date,
+ * meaningful only against one show's entry-close date; as a club-wide default it
+ * governed every future show, and the day after it passed every inheriting show
+ * resolved `after_cutoff` and kept the office fee with `requiresManual: false`.
+ * Clubs declare retention + prose; each show declares its own date.
+ *
  * Flat retention is entered in DOLLARS but stored in CENTS (the unit the refund
  * helper subtracts from entryFeeCents). Percent is a whole number 0–100.
  */
@@ -33,7 +39,8 @@ type Scope = 'club' | 'show';
 
 interface ColumnSet {
   table: 'clubs' | 'shows';
-  cutoff: string;
+  /** Absent at club scope — see MYK9-454 in the header comment. */
+  cutoff?: string;
   type: string;
   value: string;
   notes: string;
@@ -42,7 +49,6 @@ interface ColumnSet {
 const COLUMNS: Record<Scope, ColumnSet> = {
   club: {
     table: 'clubs',
-    cutoff: 'default_withdrawal_cutoff_date',
     type: 'default_withdrawal_retention_type',
     value: 'default_withdrawal_retention_value',
     notes: 'default_withdrawal_policy_notes',
@@ -92,12 +98,21 @@ function rowToForm(row: PolicyRow): FormState {
   };
 }
 
-/** Display input → stored integer (cents for flat, whole percent for percent). */
-function inputToStored(type: RetentionType, input: string): number | null {
+/**
+ * Display input → stored integer (cents for flat, whole percent for percent).
+ *
+ * Exported for direct testing: `<input type="number">` will not carry a
+ * non-finite literal through jsdom, so the component cannot exercise the
+ * Number.isFinite guard end to end.
+ */
+export function inputToStored(type: RetentionType, input: string): number | null {
   const trimmed = input.trim();
   if (trimmed === '') return null;
   const parsed = Number(trimmed);
-  if (Number.isNaN(parsed)) return null;
+  // NaN AND non-finite: <input type="number"> accepts '1e999', which becomes
+  // Infinity, serializes to JSON null, and lands as {type:'flat', value:null}
+  // — a row that reads as a DECLARED retention and so suppresses the club fee.
+  if (!Number.isFinite(parsed)) return null;
   return type === 'flat' ? Math.round(parsed * 100) : Math.round(parsed);
 }
 
@@ -110,12 +125,12 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
   const queryClient = useQueryClient();
   const cols = COLUMNS[scope];
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['withdrawal-policy', scope, entityId],
     queryFn: async () => {
       const { data: row, error } = await supabase
         .from(cols.table)
-        .select(`${cols.cutoff}, ${cols.type}, ${cols.value}, ${cols.notes}`)
+        .select([cols.cutoff, cols.type, cols.value, cols.notes].filter(Boolean).join(', '))
         .eq('id', entityId)
         .single();
       if (error) throw error;
@@ -123,7 +138,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
       // inference, so route the cast through unknown.
       const r = row as unknown as Record<string, unknown>;
       return rowToForm({
-        cutoff: (r[cols.cutoff] as string | null) ?? null,
+        cutoff: cols.cutoff ? ((r[cols.cutoff] as string | null) ?? null) : null,
         type: (r[cols.type] as string | null) ?? null,
         value: (r[cols.value] as number | null) ?? null,
         notes: (r[cols.notes] as string | null) ?? null,
@@ -146,7 +161,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
     mutationFn: async (next: FormState) => {
       const storedValue = inputToStored(next.retentionType, next.retentionInput);
       const payload: Record<string, unknown> = {
-        [cols.cutoff]: next.cutoffDate || null,
+        ...(cols.cutoff ? { [cols.cutoff]: next.cutoffDate || null } : {}),
         // Retention type/value only mean something together; null them as a pair.
         [cols.type]: storedValue === null ? null : next.retentionType,
         [cols.value]: storedValue,
@@ -185,24 +200,28 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Refund cutoff */}
-        <div className="space-y-1">
-          <Label htmlFor="withdrawal-cutoff">Full-refund cutoff date</Label>
-          <Input
-            id="withdrawal-cutoff"
-            type="date"
-            value={isLoading ? '' : form.cutoffDate}
-            onChange={e => updateForm({ cutoffDate: e.target.value })}
-          />
-          <p className="text-xs text-muted-foreground">
-            Full refund on or before this date (show’s timezone). After it, the retention below
-            applies. Leave blank to use the policy notes only.
-          </p>
-        </div>
+        {/* Refund cutoff — show scope only (MYK9-454) */}
+        {isShow && (
+          <div className="space-y-1">
+            <Label htmlFor="withdrawal-cutoff">Full-refund cutoff date</Label>
+            <Input
+              id="withdrawal-cutoff"
+              type="date"
+              value={isLoading ? '' : form.cutoffDate}
+              onChange={e => updateForm({ cutoffDate: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Full refund on or before this date (show’s timezone). After it, the retention below
+              applies. Leave blank to use the policy notes only.
+            </p>
+          </div>
+        )}
 
         {/* Retention type */}
         <div className="space-y-1">
-          <Label htmlFor="withdrawal-retention-type">After the cutoff, keep</Label>
+          <Label htmlFor="withdrawal-retention-type">
+            {isShow ? 'After the cutoff, keep' : 'After a show’s cutoff, keep'}
+          </Label>
           <Select
             value={form.retentionType}
             onValueChange={value => updateForm({ retentionType: value as RetentionType })}
@@ -231,7 +250,9 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
             onChange={e => updateForm({ retentionInput: e.target.value })}
           />
           <p className="text-xs text-muted-foreground">
-            Leave blank for a full refund even after the cutoff.
+            {isShow
+              ? 'Leave blank to inherit the club default. Enter 0 for a full refund even after the cutoff.'
+              : 'Applies once a show sets its own full-refund cutoff date. Leave blank for a full refund.'}
           </p>
         </div>
 
@@ -248,10 +269,32 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
           <p className="text-xs text-muted-foreground">
             For multi-tier or unusual policies. Service fees are always non-refundable on a
             voluntary withdrawal.
+            {!isShow &&
+              ' Applies to shows that set no policy of their own; a show that sets one states its own notes.'}
           </p>
         </div>
 
-        <Button onClick={() => mutation.mutate(form)} disabled={mutation.isPending}>
+        {/*
+          The form starts as EMPTY_FORM, so saving before the row arrives writes
+          nulls over a declared policy — and every show under the club now
+          inherits that retention, so one stray wipe rewrites several shows'
+          refund basis.
+
+          `isLoading` alone does NOT cover this: react-query derives it as
+          `isPending && isFetching`, which is false once a load ERRORS and false
+          while a fetch is PAUSED offline (the app sets networkMode 'online').
+          Both leave a blank, editable form. `isError` and `!data` close those.
+        */}
+        {isError && (
+          <p className="text-sm text-destructive" role="alert">
+            Could not load the current policy. Reload before editing — saving now would overwrite
+            it.
+          </p>
+        )}
+        <Button
+          onClick={() => mutation.mutate(form)}
+          disabled={mutation.isPending || isLoading || isError || !data}
+        >
           {mutation.isPending ? 'Saving…' : 'Save policy'}
         </Button>
       </CardContent>

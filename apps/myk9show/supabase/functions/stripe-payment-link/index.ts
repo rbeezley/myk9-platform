@@ -471,7 +471,7 @@ Deno.serve(async req => {
       const { data: policyRow } = await supabase
         .from('shows')
         .select(
-          'withdrawal_cutoff_date, withdrawal_retention_type, withdrawal_retention_value, withdrawal_policy_notes, clubs(default_withdrawal_cutoff_date, default_withdrawal_retention_type, default_withdrawal_retention_value, default_withdrawal_policy_notes)'
+          'withdrawal_cutoff_date, withdrawal_retention_type, withdrawal_retention_value, withdrawal_policy_notes, clubs(default_withdrawal_retention_type, default_withdrawal_retention_value, default_withdrawal_policy_notes)'
         )
         .eq('id', show.id)
         .single();

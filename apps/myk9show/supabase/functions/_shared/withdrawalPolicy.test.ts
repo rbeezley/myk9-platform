@@ -6,10 +6,16 @@ import {
 } from './withdrawalPolicy.ts';
 
 const club = {
-  default_withdrawal_cutoff_date: '2026-05-01',
   default_withdrawal_retention_type: 'flat',
   default_withdrawal_retention_value: 500,
   default_withdrawal_policy_notes: null,
+};
+
+const noShowOverride = {
+  withdrawal_cutoff_date: null,
+  withdrawal_retention_type: null,
+  withdrawal_retention_value: null,
+  withdrawal_policy_notes: null,
 };
 
 describe('resolveWithdrawalPolicy', () => {
@@ -32,21 +38,70 @@ describe('resolveWithdrawalPolicy', () => {
   });
 
   it('falls back to the club default when the show declares nothing', () => {
-    const policy = resolveWithdrawalPolicy(
-      {
-        withdrawal_cutoff_date: null,
-        withdrawal_retention_type: null,
-        withdrawal_retention_value: null,
-        withdrawal_policy_notes: null,
-      },
-      club
-    );
+    const policy = resolveWithdrawalPolicy(noShowOverride, club);
     expect(policy).toEqual({
-      cutoffDate: '2026-05-01',
+      cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
       notes: null,
     });
+  });
+
+  // MYK9-454. This resolver runs on the MONEY path: stripe-webhook and
+  // stripe-payment-link snapshot the policy at payment time, so a club cutoff
+  // leaking in here is what a later refund is computed against.
+  it('never sources a cutoff date from the club row, even if the column holds one', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    expect(resolveWithdrawalPolicy(noShowOverride, legacyClub)?.cutoffDate).toBeNull();
+  });
+
+  it('leaves a club-only refund manual instead of retaining on a stale club cutoff', () => {
+    const legacyClub = { ...club, default_withdrawal_cutoff_date: '2026-05-01' };
+    const policy = resolveWithdrawalPolicy(noShowOverride, legacyClub);
+
+    const r = resolveWithdrawalRefundCents(
+      policy,
+      3000,
+      new Date('2026-08-01T12:00:00Z'),
+      'America/New_York'
+    );
+
+    expect(r.reason).toBe('no_cutoff');
+    expect(r.refundCents).toBe(3000);
+    expect(r.retainedCents).toBe(0);
+  });
+
+  // MYK9-454 follow-up (Codex review of #2156). Same defect as the client
+  // resolver, and here it lands in the snapshot taken at PAYMENT time: an
+  // all-or-nothing choice let a show that declared only its cutoff drop the
+  // club's office fee, refunding in full at high confidence.
+  it('MONEY: a show cutoff inherits the club retention instead of zeroing it', () => {
+    const policy = resolveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, club);
+    expect(policy).toEqual({
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat',
+      retentionValue: 500,
+      notes: null,
+    });
+
+    const r = resolveWithdrawalRefundCents(
+      policy,
+      3000,
+      new Date('2026-08-01T12:00:00Z'),
+      'America/New_York'
+    );
+    expect(r.retainedCents).toBe(500);
+    expect(r.refundCents).toBe(2500);
+  });
+
+  // Mirror of the client guard. This resolver's output becomes Stripe's
+  // pre-payment `custom_text` and the entry's frozen snapshot, so a spliced
+  // club note is a contradictory disclosure at the moment of payment.
+  it('does not inherit club prose onto a show that declares its own policy', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
+    const policy = resolveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, clubWithProse);
+    expect(policy?.notes).toBeNull();
+    expect(policy?.retentionValue).toBe(500);
   });
 
   it('returns null when neither show nor club declares a policy', () => {
@@ -54,12 +109,17 @@ describe('resolveWithdrawalPolicy', () => {
     expect(resolveWithdrawalPolicy({}, {})).toBeNull();
   });
 
-  it('treats a show with only prose notes as an override (cutoff null)', () => {
+  it('takes the show prose while still inheriting the club retention', () => {
     const policy = resolveWithdrawalPolicy({ withdrawal_policy_notes: 'See premium.' }, club);
     expect(policy?.notes).toBe('See premium.');
     expect(policy?.cutoffDate).toBeNull();
     expect(policy?.retentionType).toBe('flat');
-    // Normalized like the app contract: an unset retention is 0, never null.
+    // Composed per field, so the club's fee survives a show-level note.
+    expect(policy?.retentionValue).toBe(500);
+  });
+
+  it('normalizes an undeclared retention to 0, never null', () => {
+    const policy = resolveWithdrawalPolicy({ withdrawal_policy_notes: 'See premium.' }, null);
     expect(policy?.retentionValue).toBe(0);
   });
 

@@ -35,6 +35,7 @@ function failureArtifactMetadata(): {
 async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<void> {
   if (testInfo.status === testInfo.expectedStatus) return;
   if (process.env.LOAD_TEST_SHARD_INDEX === undefined) return;
+  if (!testInfo.annotations.some(annotation => annotation.type === 'load-shard-test')) return;
   if (testInfo.annotations.some(annotation => annotation.type === 'shard-failure-evidence')) return;
   const metadata = failureArtifactMetadata();
   const target = (() => {
@@ -45,10 +46,9 @@ async function writeFailureArtifactFromTestInfo(testInfo: TestInfo): Promise<voi
     }
   })();
   const failure = testInfo.error;
-  const failureName =
-    failure && typeof failure === 'object' && 'name' in failure && typeof failure.name === 'string'
-      ? failure.name
-      : 'PlaywrightTestError';
+  // Playwright serializes teardown errors without a name; the in-test catch
+  // preserves the native Error name when that path is available.
+  const failureName = 'PlaywrightTestError';
   const failureMessage = failure?.message ?? `Load test ended with status ${testInfo.status}.`;
   const failureStack = failure?.stack;
   const artifact = {
@@ -79,6 +79,7 @@ test.afterEach(async ({}, testInfo) => {
 });
 
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
+  testInfo.annotations.push({ type: 'load-shard-test' });
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');
   let target!: ReturnType<typeof loadTargetFromEnv>;
   let shard!: ReturnType<typeof loadShardFromEnv>;

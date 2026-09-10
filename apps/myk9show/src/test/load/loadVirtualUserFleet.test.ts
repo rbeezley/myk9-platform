@@ -295,7 +295,7 @@ describe('virtual-user lifecycle accounting (MYK9-126)', () => {
 
   it('aborts in-flight requests at the boundary instead of waiting for them', async () => {
     // Waiting was itself the defect. A Supabase fetch that never settles — the
-    // overload case — made drain() block until the 55-minute shard timeout, so
+    // overload case — made drain() block until the shard step timeout, so
     // the run wrote NO artifact at all. Waiting also let the poll's latency land
     // inside elapsedMs and kept requests reaching shared staging past the
     // approved window. Aborting removes all three.

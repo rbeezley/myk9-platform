@@ -82,7 +82,7 @@ export class LoadVirtualUser {
    * Cancels outstanding requests at the workload boundary.
    *
    * Draining by WAITING was itself a defect: a fetch that never settles blocks
-   * until the 55-minute shard timeout, so the run writes no artifact at all; the
+   * until the shard step timeout, so the run writes no artifact at all; the
    * wait also folds the poll's latency into elapsedMs and lets requests keep
    * reaching shared staging after the approved window closed. Aborting ends all
    * three — the boundary is a boundary, not a request to please finish.

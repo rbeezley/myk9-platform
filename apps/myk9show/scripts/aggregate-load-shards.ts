@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildLoadEvidence, writeLoadEvidence } from '../src/test/load/loadEvidence';
 import { readUsablePlatformArtifact } from '../src/test/load/loadPlatformArtifact';
@@ -22,7 +22,8 @@ function failureShardNumber(fileName: string): number {
 const inputDirectory = resolve(
   process.argv[2] ?? process.env.LOAD_TEST_SHARD_INPUT_DIR ?? 'test-results/load-shards'
 );
-const artifactPaths = readdirSync(inputDirectory)
+const inputFiles = existsSync(inputDirectory) ? readdirSync(inputDirectory) : [];
+const artifactPaths = inputFiles
   .filter(fileName => /^shard-\d+\.json$/.test(fileName))
   // Numeric, not lexicographic: past nine shards a plain sort orders these
   // 0, 1, 10, 11, ... 2, which reorders the evidence a reader compares by index.
@@ -37,7 +38,7 @@ const artifacts = artifactPaths.flatMap(artifactPath => {
     return [];
   }
 });
-const failureDiagnostics = readdirSync(inputDirectory)
+const failureDiagnostics = inputFiles
   .filter(fileName => /^shard-(?:\d+|unknown)-failure\.json$/.test(fileName))
   .sort((left, right) => failureShardNumber(left) - failureShardNumber(right))
   .map(fileName => {

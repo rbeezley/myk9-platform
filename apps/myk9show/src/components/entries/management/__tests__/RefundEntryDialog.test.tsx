@@ -208,7 +208,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
   });
 
-  it('does NOT auto-select for a prose-only/unset policy (requiresManual) but still shows guidance', () => {
+  it('requires an explicit partial amount for a prose-only/unset policy', () => {
     suggestionMock.mockReturnValue({
       data: {
         hasPolicy: true,
@@ -221,11 +221,11 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     });
     renderDialog();
     expect(screen.getByText(/needs your judgment/i)).toBeInTheDocument();
-    // No partial pre-fill — the secretary decides from the default full.
-    expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /partial amount/i })).toBeChecked();
+    expect(screen.getByRole('button', { name: /issue refund/i })).toBeDisabled();
   });
 
-  it('issues a manual-review full refund without trusting the snapshot amount', async () => {
+  it('issues an explicitly entered amount during manual review without trusting the snapshot amount', async () => {
     suggestionMock.mockReturnValue({
       data: {
         hasPolicy: true,
@@ -240,13 +240,14 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     renderDialog();
     const user = userEvent.setup();
 
+    await user.type(screen.getByLabelText(/amount \(max/i), '25.00');
     await user.click(screen.getByRole('button', { name: /issue refund/i }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
         body: {
           entry_id: 'entry-1',
-          amount_cents: undefined,
+          amount_cents: 2500,
           notes: undefined,
         },
       });

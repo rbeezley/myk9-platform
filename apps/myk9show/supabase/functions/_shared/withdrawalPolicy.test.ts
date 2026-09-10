@@ -232,6 +232,32 @@ describe('describeWithdrawalPolicyText', () => {
     expect(describeWithdrawalPolicyText(procedural)).toContain('$10.00 is kept');
   });
 
+  it('keeps app and edge term detection fixtures aligned', () => {
+    const basePolicy = {
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat' as const,
+      retentionValue: 1000,
+      notes: null,
+    };
+    expect(
+      describeWithdrawalPolicyText({ ...basePolicy, notes: '50% after closing.' })
+    ).not.toContain('$10.00 is kept');
+    expect(
+      resolveWithdrawalRefundCents(
+        { ...basePolicy, notes: '$10 office fee applies after closing.' },
+        5000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+    expect(
+      describeWithdrawalPolicyText({
+        ...basePolicy,
+        notes: 'Questions? Email refunds@club.org after the show.',
+      })
+    ).toContain('$10.00 is kept');
+  });
+
   it('prose-only policy renders notes + fee sentence, no deadline', () => {
     const text = describeWithdrawalPolicyText({
       cutoffDate: null,
@@ -239,7 +265,7 @@ describe('describeWithdrawalPolicyText', () => {
       retentionValue: 0,
       notes: 'Full until closing, then 50%.',
     });
-    expect(text).toBe('Full until closing, then 50%. Service fees are non-refundable.');
+    expect(text).toBe('Service fees are non-refundable. Full until closing, then 50%.');
   });
 
   it('unset policy renders the neutral contact-the-club line', () => {

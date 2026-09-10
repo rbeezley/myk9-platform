@@ -86,5 +86,13 @@ describe('describeWithdrawalPolicy', () => {
       notesDescribeRefundTerms('Withdrawals must be submitted in writing by the closing deadline.')
     ).toBe(false);
     expect(notesDescribeRefundTerms('Refunds are processed once the show closes.')).toBe(false);
+    expect(notesDescribeRefundTerms('50% after the closing date.')).toBe(true);
+    expect(notesDescribeRefundTerms('$10 office fee applies after closing.')).toBe(true);
+    expect(notesDescribeRefundTerms('Half the entry fee is returned after closing.')).toBe(true);
+    expect(notesDescribeRefundTerms('We keep exhibitors informed by email.')).toBe(false);
+    expect(notesDescribeRefundTerms('Move-ups must be requested before the cutoff.')).toBe(false);
+    expect(notesDescribeRefundTerms('Questions? Email refunds@club.org after the show.')).toBe(
+      false
+    );
   });
 });

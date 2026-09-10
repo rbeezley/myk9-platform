@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
 import type { WithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
 import { formatCutoff } from '@/features/payments/formatWithdrawalPolicy';
+import { notesDescribeRefundTerms } from '@/features/payments/withdrawalPolicyTerms';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 // Server validation is authoritative; these map its error codes to language a
@@ -47,17 +48,24 @@ export type RefundableEntry = Pick<EntryManagementEntry, 'id' | 'totalFee' | 'do
 function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
 
+  const notes = policy.notes?.trim() ?? '';
   const details = [
-    policy.cutoffDate ? `Full refund through ${formatCutoff(policy.cutoffDate)}.` : null,
-    policy.retentionValue == null ||
-    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
-      ? 'The after-cutoff retention needs manual review.'
-      : `Declared after-cutoff retention: ${
-          policy.retentionType === 'percent'
-            ? `${policy.retentionValue}%`
-            : `$${(policy.retentionValue / 100).toFixed(2)}`
-        } kept.`,
-    policy.notes?.trim() ? `Policy notes: ${policy.notes.trim()}` : null,
+    notesDescribeRefundTerms(notes)
+      ? null
+      : policy.cutoffDate
+        ? `Full refund through ${formatCutoff(policy.cutoffDate)}.`
+        : null,
+    notesDescribeRefundTerms(notes)
+      ? null
+      : policy.retentionValue == null ||
+          (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+        ? 'The after-cutoff retention needs manual review.'
+        : `Declared after-cutoff retention: ${
+            policy.retentionType === 'percent'
+              ? `${policy.retentionValue}%`
+              : `$${(policy.retentionValue / 100).toFixed(2)}`
+          } kept.`,
+    notes ? `Policy notes: ${notes}` : null,
   ].filter((detail): detail is string => detail !== null);
 
   return details.join(' ');
@@ -99,7 +107,11 @@ export function RefundEntryDialog({
       prefilledRef.current = false;
       return;
     }
-    if (prefilledRef.current || !suggestion?.hasPolicy || suggestion.requiresManual) return;
+    if (prefilledRef.current || !suggestion?.hasPolicy) return;
+    if (suggestion.requiresManual) {
+      setMode('partial');
+      return;
+    }
     prefilledRef.current = true;
     if (suggestion.refundCents < feeCents) {
       setMode('partial');
@@ -123,6 +135,11 @@ export function RefundEntryDialog({
     suggestion?.hasPolicy && !suggestion.requiresManual && suggestion.refundCents < feeCents
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
+  const manualAmountValid =
+    mode === 'partial' &&
+    Number.isFinite(Number(partialAmount)) &&
+    Number(partialAmount) > 0 &&
+    Number(partialAmount) <= fee;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -263,7 +280,10 @@ export function RefundEntryDialog({
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleRefund} disabled={submitting}>
+          <Button
+            onClick={handleRefund}
+            disabled={submitting || (suggestion?.requiresManual === true && !manualAmountValid)}
+          >
             {submitting ? 'Refunding…' : 'Issue refund'}
           </Button>
         </DialogFooter>

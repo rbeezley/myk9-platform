@@ -84,6 +84,8 @@ describe('User Queries', () => {
 
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_visible_person_roles', {
         p_person_ids: ['person-1', 'person-2'],
+        p_limit: 500,
+        p_offset: 0,
       });
       expect(result.data).toEqual([
         { ...mockData[0], roles: ['judge'] },
@@ -99,6 +101,30 @@ describe('User Queries', () => {
 
       expect(result).toEqual({ data: [{ ...mockData[0], roles: [] }], error: null });
       expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    });
+
+    it('paginates role labels beyond the PostgREST response cap', async () => {
+      const mockData = Array.from({ length: 501 }, (_, index) => ({ id: `person-${index}` }));
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockData, error: null }));
+      mockSupabase.rpc
+        .mockResolvedValueOnce({
+          data: mockData.slice(0, 500).map(row => ({ person_id: row.id, role_name: 'judge' })),
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: [{ person_id: 'person-500', role_name: 'judge' }],
+          error: null,
+        });
+
+      const result = await getAllUsers();
+
+      expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'get_visible_person_roles', {
+        p_person_ids: mockData.map(row => row.id),
+        p_limit: 500,
+        p_offset: 500,
+      });
+      expect(result.data).toHaveLength(501);
+      expect(result.data.every(person => person.roles?.includes('judge'))).toBe(true);
     });
 
     it('keeps people readable when role-label hydration is temporarily unavailable', async () => {
@@ -205,6 +231,8 @@ describe('User Queries', () => {
       expect(selectArg).not.toContain('user_roles');
       expect(mockSupabase.rpc).toHaveBeenCalledWith('get_visible_person_roles', {
         p_person_ids: [userId],
+        p_limit: 500,
+        p_offset: 0,
       });
       expect(result.data).toEqual({ ...mockData, roles: ['judge'] });
     });
@@ -741,6 +769,8 @@ describe('User Queries', () => {
       expect(chain.in).toHaveBeenCalledWith('id', ['1', '2']);
       expect(mockSupabase.rpc).toHaveBeenNthCalledWith(1, 'get_visible_person_ids_by_role', {
         p_role_name: role,
+        p_limit: 500,
+        p_offset: 0,
       });
       expect(result.data).toEqual(mockData.map(user => ({ ...user, roles: ['judge'] })));
       expect(result.error).toBeNull();
@@ -790,6 +820,34 @@ describe('User Queries', () => {
       );
       expect(secondQuery.in).toHaveBeenCalledWith('id', ['person-100']);
       expect(result.data).toHaveLength(101);
+    });
+
+    it('paginates role-filtered IDs beyond the PostgREST response cap', async () => {
+      const roleRows = Array.from({ length: 501 }, (_, index) => ({
+        person_id: `person-${index}`,
+      }));
+      const peopleQueries = Array.from({ length: 6 }, (_, page) =>
+        createChainableQuery({
+          data: roleRows.slice(page * 100, (page + 1) * 100).map(({ person_id }) => ({
+            id: person_id,
+          })),
+          error: null,
+        })
+      );
+      mockSupabase.rpc
+        .mockResolvedValueOnce({ data: roleRows.slice(0, 500), error: null })
+        .mockResolvedValueOnce({ data: roleRows.slice(500), error: null })
+        .mockResolvedValueOnce({ data: [], error: null });
+      for (const query of peopleQueries) mockSupabase.from.mockReturnValueOnce(query);
+
+      const result = await getUsersByRole('judge');
+
+      expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'get_visible_person_ids_by_role', {
+        p_role_name: 'judge',
+        p_limit: 500,
+        p_offset: 500,
+      });
+      expect(result.data).toHaveLength(501);
     });
   });
 

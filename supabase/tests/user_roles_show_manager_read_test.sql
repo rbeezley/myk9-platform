@@ -246,19 +246,19 @@ RESET ROLE;
 
 DO $$
 BEGIN
-  IF has_function_privilege('anon', 'public.get_visible_person_roles(uuid[])', 'execute') THEN
+  IF has_function_privilege('anon', 'public.get_visible_person_roles(uuid[],integer,integer)', 'execute') THEN
     RAISE EXCEPTION 'FAIL anon can execute get_visible_person_roles';
   END IF;
   IF has_function_privilege('anon', 'public.get_deleted_person_role_history(uuid)', 'execute') THEN
     RAISE EXCEPTION 'FAIL anon can execute get_deleted_person_role_history';
   END IF;
-  IF has_function_privilege('anon', 'public.get_visible_person_ids_by_role(text)', 'execute') THEN
+  IF has_function_privilege('anon', 'public.get_visible_person_ids_by_role(text,integer,integer)', 'execute') THEN
     RAISE EXCEPTION 'FAIL anon can execute get_visible_person_ids_by_role';
   END IF;
-  IF NOT has_function_privilege('authenticated', 'public.get_visible_person_roles(uuid[])', 'execute') THEN
+  IF NOT has_function_privilege('authenticated', 'public.get_visible_person_roles(uuid[],integer,integer)', 'execute') THEN
     RAISE EXCEPTION 'FAIL authenticated cannot execute get_visible_person_roles';
   END IF;
-  IF NOT has_function_privilege('authenticated', 'public.get_visible_person_ids_by_role(text)', 'execute') THEN
+  IF NOT has_function_privilege('authenticated', 'public.get_visible_person_ids_by_role(text,integer,integer)', 'execute') THEN
     RAISE EXCEPTION 'FAIL authenticated cannot execute get_visible_person_ids_by_role';
   END IF;
 END;

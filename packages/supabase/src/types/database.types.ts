@@ -11564,13 +11564,13 @@ export type Database = {
         }[]
       }
       get_visible_person_ids_by_role: {
-        Args: { p_role_name: string }
+        Args: { p_limit?: number; p_offset?: number; p_role_name: string }
         Returns: {
           person_id: string
         }[]
       }
       get_visible_person_roles: {
-        Args: { p_person_ids: string[] }
+        Args: { p_limit?: number; p_offset?: number; p_person_ids: string[] }
         Returns: {
           person_id: string
           role_name: string

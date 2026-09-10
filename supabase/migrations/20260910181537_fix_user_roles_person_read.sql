@@ -51,7 +51,11 @@ COMMENT ON FUNCTION public.get_deleted_person_role_history(uuid) IS
 REVOKE ALL ON FUNCTION public.get_deleted_person_role_history(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_deleted_person_role_history(uuid) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.get_visible_person_roles(p_person_ids uuid[])
+CREATE OR REPLACE FUNCTION public.get_visible_person_roles(
+  p_person_ids uuid[],
+  p_limit integer DEFAULT 500,
+  p_offset integer DEFAULT 0
+)
 RETURNS TABLE (
   person_id uuid,
   role_name text
@@ -97,16 +101,22 @@ AS $$
         )
       )
     )
-  ORDER BY ur.user_id, r.name;
+  ORDER BY ur.user_id, r.name
+  LIMIT LEAST(GREATEST(p_limit, 1), 500)
+  OFFSET GREATEST(p_offset, 0);
 $$;
 
-COMMENT ON FUNCTION public.get_visible_person_roles(uuid[]) IS
+COMMENT ON FUNCTION public.get_visible_person_roles(uuid[], integer, integer) IS
   'MYK9-457: returns deduplicated current role labels for explicit live people. Plain users are self-only; show managers may resolve judges plus officials in shows/clubs they manage; site admins retain full inspection. Never returns grant metadata.';
 
-REVOKE ALL ON FUNCTION public.get_visible_person_roles(uuid[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_visible_person_roles(uuid[]) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_visible_person_roles(uuid[], integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_visible_person_roles(uuid[], integer, integer) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.get_visible_person_ids_by_role(p_role_name text)
+CREATE OR REPLACE FUNCTION public.get_visible_person_ids_by_role(
+  p_role_name text,
+  p_limit integer DEFAULT 500,
+  p_offset integer DEFAULT 0
+)
 RETURNS TABLE (person_id uuid)
 LANGUAGE sql
 SECURITY DEFINER
@@ -149,14 +159,16 @@ AS $$
         )
       )
     )
-  ORDER BY ur.user_id;
+  ORDER BY ur.user_id
+  LIMIT LEAST(GREATEST(p_limit, 1), 500)
+  OFFSET GREATEST(p_offset, 0);
 $$;
 
-COMMENT ON FUNCTION public.get_visible_person_ids_by_role(text) IS
+COMMENT ON FUNCTION public.get_visible_person_ids_by_role(text, integer, integer) IS
   'MYK9-457: returns current matching person IDs without loading the entire people directory. Show managers may discover judges plus officials in shows/clubs they manage; site admins retain role-directory access; plain users are self-only.';
 
-REVOKE ALL ON FUNCTION public.get_visible_person_ids_by_role(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_visible_person_ids_by_role(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_visible_person_ids_by_role(text, integer, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_visible_person_ids_by_role(text, integer, integer) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
 

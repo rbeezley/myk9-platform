@@ -560,17 +560,24 @@ export const getUsersByRole = async (role: string) => {
   const startTime = Date.now();
 
   try {
-    const { data: roleRows, error: roleError } = await supabase.rpc(
-      'get_visible_person_ids_by_role',
-      { p_role_name: role }
-    );
+    const roleRows: { person_id: string }[] = [];
+    const rolePageSize = 500;
+    for (let offset = 0; ; offset += rolePageSize) {
+      const { data, error: roleError } = await supabase.rpc(
+        'get_visible_person_ids_by_role',
+        { p_role_name: role, p_limit: rolePageSize, p_offset: offset }
+      );
 
-    // Fail closed during the short code-before-migration deploy interval. An
-    // empty picker is safer than restoring the old unbounded raw-grant read.
-    if (roleError?.code === 'PGRST202') return { data: [], error: null };
-    if (roleError) throw createDatabaseError(roleError, 'user', 'select_by_role');
+      // Fail closed during the short code-before-migration deploy interval. An
+      // empty picker is safer than restoring the old unbounded raw-grant read.
+      if (roleError?.code === 'PGRST202') return { data: [], error: null };
+      if (roleError) throw createDatabaseError(roleError, 'user', 'select_by_role');
+      const page = data ?? [];
+      roleRows.push(...page);
+      if (page.length < rolePageSize) break;
+    }
 
-    const personIds = (roleRows ?? []).map(row => row.person_id);
+    const personIds = roleRows.map(row => row.person_id);
     if (personIds.length === 0) return { data: [], error: null };
 
     const pages = await Promise.all(

@@ -35,19 +35,48 @@ import { join, relative, resolve } from 'node:path';
 const APP_SRC = resolve(import.meta.dirname, '../..');
 
 /**
+ * One operand of the gate: the identifier, optionally wrapped in parentheses or
+ * a `Boolean(...)` cast. Those wrappers are how the same expression arrives
+ * looking different — `(isSecretary) || isAdmin`, `Boolean(isSecretary) ||
+ * isAdmin` — and an exact-adjacency match misses all of them.
+ */
+const operand = (name: string) => `(?:Boolean\\s*\\(\\s*)?\\(*\\s*${name}\\s*\\)*`;
+
+/**
  * Matches the bare global gate in either operand order.
  *
- * `\s` spans newlines and the match runs over whole file contents, NOT
+ * `\s` spans newlines and the match runs over whole file CONTENTS, not
  * line-by-line: Prettier breaks a long condition after the `||`, so
  * `isSecretary ||\n  isAdmin` is the shape a real regression is most likely to
- * arrive in. A per-line scan counted that as zero — the guard would have passed
- * while the gate it exists to catch was being added.
+ * arrive in, and a per-line scan counted it as zero.
+ *
+ * **What this guard is and is not.** It catches ACCIDENTAL recurrence — someone
+ * writing the natural expression without knowing the server scopes the right.
+ * It is not an adversarial control: a regex over source text can always be
+ * evaded by someone who wants to (assign the operands to intermediate
+ * variables, and nothing here sees it). Making that airtight needs AST
+ * analysis, which is not worth its weight for a two-occurrence class. The
+ * allowlist is the real backstop: every entry has to carry a reason, so a gate
+ * that dodges the matcher still has to survive review of the file it lives in.
  */
-const GLOBAL_GATE = /isSecretary\s*\|\|\s*isAdmin|isAdmin\s*\|\|\s*isSecretary/g;
+const GLOBAL_GATE = new RegExp(
+  `${operand('isSecretary')}\\s*\\|\\|\\s*${operand('isAdmin')}` +
+    `|${operand('isAdmin')}\\s*\\|\\|\\s*${operand('isSecretary')}`,
+  'g'
+);
 
-/** Occurrences of the bare global gate in a source string. */
+/** Line and block comments, so a commented-out gate is not counted as one. */
+const COMMENTS = /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
+
+/**
+ * Occurrences of the bare global gate in a source string.
+ *
+ * Comments are stripped first: a gate inside one is not a gate, and stripping
+ * also removes the inline-comment evasion (`isSecretary /* x *\/ || isAdmin`)
+ * without the matcher having to model comment syntax.
+ */
 export function countGates(source: string): number {
-  return [...source.matchAll(GLOBAL_GATE)].length;
+  return [...source.replace(COMMENTS, ' ').matchAll(GLOBAL_GATE)].length;
 }
 
 type Allowance = { reason: string; count: number };
@@ -141,6 +170,20 @@ describe('scoped manage gate', () => {
     it('does not match a scoped call or an unrelated pair', () => {
       expect(countGates('canManageShowSurface({ isSecretary, isAdmin, clubId })')).toBe(0);
       expect(countGates('const x = isSecretary || isJudge;')).toBe(0);
+    });
+
+    // Same expression, different clothes. Each of these read as zero before.
+    it('sees through parentheses and Boolean() wrappers', () => {
+      expect(countGates('const a = (isSecretary) || isAdmin;')).toBe(1);
+      expect(countGates('const b = Boolean(isSecretary) || isAdmin;')).toBe(1);
+      expect(countGates('const c = Boolean(isAdmin) || Boolean(isSecretary);')).toBe(1);
+      expect(countGates('const d = (isAdmin) || (isSecretary);')).toBe(1);
+    });
+
+    it('ignores a gate that is only a comment, and an inline comment inside one', () => {
+      expect(countGates('// const legacy = isSecretary || isAdmin;')).toBe(0);
+      expect(countGates('/* isSecretary || isAdmin */')).toBe(0);
+      expect(countGates('const e = isSecretary /* staff */ || isAdmin;')).toBe(1);
     });
   });
 

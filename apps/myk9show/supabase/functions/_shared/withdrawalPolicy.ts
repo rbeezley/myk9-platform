@@ -17,9 +17,8 @@
 export interface WithdrawalPolicy {
   cutoffDate: string | null;
   retentionType: 'flat' | 'percent';
-  // Normalized to a required number (0 when unset) so the server policy mirrors
-  // the app policy contract exactly — readers must not special-case null vs 0.
-  retentionValue: number;
+  // null = no retention declared; 0 = explicitly full refund after cutoff.
+  retentionValue: number | null;
   notes: string | null;
 }
 
@@ -45,7 +44,8 @@ export interface ClubWithdrawalColumns {
 const SERVICE_FEE_SENTENCE = 'Service fees are non-refundable.';
 const DEFAULT_TIMEZONE = 'America/New_York';
 
-export type WithdrawalRefundReason = 'before_cutoff' | 'after_cutoff' | 'no_cutoff' | 'no_policy';
+export type WithdrawalRefundReason =
+  'before_cutoff' | 'after_cutoff' | 'no_cutoff' | 'manual_review' | 'no_policy';
 
 export interface WithdrawalRefundSuggestion {
   refundCents: number;
@@ -67,7 +67,7 @@ function build(
   return {
     cutoffDate: cutoff ?? null,
     retentionType: type === 'percent' ? 'percent' : 'flat',
-    retentionValue: value ?? 0,
+    retentionValue: value ?? null,
     notes: notes ?? null,
   };
 }
@@ -144,7 +144,7 @@ function formatCutoff(date: string): string {
 
 function formatRetained(policy: WithdrawalPolicy): string | null {
   const v = policy.retentionValue;
-  if (v === null || v === undefined || v <= 0) return null;
+  if (v === null || v <= 0) return null;
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
 }
 
@@ -155,9 +155,10 @@ export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): s
   }
 
   const notes = policy.notes?.trim() ? policy.notes.trim() : null;
-  const withNotes = (line: string) => (notes ? `${line} ${notes}` : line);
+  const withNotes = (line: string) =>
+    notes ? `${line} Additional withdrawal instructions: ${notes}` : line;
 
-  if (!policy.cutoffDate) {
+  if (!policy.cutoffDate || policy.retentionValue === null || policy.notes?.trim()) {
     return withNotes(SERVICE_FEE_SENTENCE);
   }
 
@@ -206,12 +207,12 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
-  if (!policy.cutoffDate) {
+  if (!policy.cutoffDate || policy.retentionValue === null || policy.notes?.trim()) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,
       requiresManual: true,
-      reason: 'no_cutoff',
+      reason: policy.cutoffDate ? 'manual_review' : 'no_cutoff',
     };
   }
 

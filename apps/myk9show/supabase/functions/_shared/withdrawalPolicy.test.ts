@@ -118,9 +118,9 @@ describe('resolveWithdrawalPolicy', () => {
     expect(policy?.retentionValue).toBe(500);
   });
 
-  it('normalizes an undeclared retention to 0, never null', () => {
+  it('preserves an undeclared retention as null', () => {
     const policy = resolveWithdrawalPolicy({ withdrawal_policy_notes: 'See premium.' }, null);
-    expect(policy?.retentionValue).toBe(0);
+    expect(policy?.retentionValue).toBeNull();
   });
 
   it('defaults an unknown retention type to flat', () => {
@@ -156,14 +156,15 @@ describe('describeWithdrawalPolicyText', () => {
     expect(text).toContain('25% is kept');
   });
 
-  it('appends prose notes inline', () => {
+  it('labels prose notes without presenting them as a computed outcome', () => {
     const text = describeWithdrawalPolicyText({
       cutoffDate: '2026-06-01',
       retentionType: 'flat',
       retentionValue: 1000,
       notes: 'Email the secretary to withdraw.',
     });
-    expect(text).toContain('$10.00 is kept');
+    expect(text).not.toContain('$10.00 is kept');
+    expect(text).toContain('Additional withdrawal instructions:');
     expect(text.endsWith('Email the secretary to withdraw.')).toBe(true);
   });
 
@@ -174,7 +175,9 @@ describe('describeWithdrawalPolicyText', () => {
       retentionValue: 0,
       notes: 'Full until closing, then 50%.',
     });
-    expect(text).toBe('Service fees are non-refundable. Full until closing, then 50%.');
+    expect(text).toBe(
+      'Service fees are non-refundable. Additional withdrawal instructions: Full until closing, then 50%.'
+    );
   });
 
   it('unset policy renders the neutral contact-the-club line', () => {

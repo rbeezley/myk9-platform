@@ -32,7 +32,7 @@ function formatCutoff(date: string): string {
 
 function formatRetained(policy: WithdrawalPolicy): string | null {
   const v = policy.retentionValue;
-  if (v === null || v === undefined || v <= 0) return null;
+  if (v === null || v <= 0) return null;
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
 }
 
@@ -49,15 +49,16 @@ export function describeWithdrawalPolicy(
 
   const notes = policy.notes?.trim() ? policy.notes.trim() : null;
 
-  // Prose-only (no structured cutoff): the notes govern; still disclose fees.
-  if (!policy.cutoffDate) {
+  // Missing retention or free-text policy needs human interpretation. Never
+  // place a computed refund claim beside prose that may define another schedule.
+  if (!policy.cutoffDate || policy.retentionValue === null || notes) {
     return { refundLine: SERVICE_FEE_SENTENCE, notes };
   }
 
   const retained = formatRetained(policy);
 
-  // Cutoff with no retention is effectively a full refund regardless of date —
-  // don't imply a deadline that changes nothing.
+  // An explicitly zero retention is a full refund regardless of date — don't
+  // imply a deadline that changes nothing.
   if (!retained) {
     return { refundLine: `Full refund of the entry fee. ${SERVICE_FEE_SENTENCE}`, notes };
   }

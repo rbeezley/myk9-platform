@@ -65,7 +65,16 @@ describe('describeWithdrawalPolicy', () => {
 
   it('carries structured notes alongside the cutoff line', () => {
     const d = describeWithdrawalPolicy({ ...base, notes: 'Email the secretary to withdraw.' });
-    expect(d.refundLine).toContain('$10.00 is kept');
+    expect(d.refundLine).toBe('Service fees are non-refundable.');
     expect(d.notes).toBe('Email the secretary to withdraw.');
+  });
+
+  it('does not assert a refund figure when prose declares a contradictory schedule', () => {
+    const d = describeWithdrawalPolicy({
+      ...base,
+      notes: 'Full refund until closing, then 50% until 7 days out, none after.',
+    });
+    expect(d.refundLine).not.toContain('$10.00');
+    expect(d.notes).toContain('50%');
   });
 });

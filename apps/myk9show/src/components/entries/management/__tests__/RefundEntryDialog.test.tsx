@@ -225,6 +225,38 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     expect(screen.getByRole('radio', { name: /full refund/i })).toBeChecked();
   });
 
+  it('validates a manual-review snapshot before allowing an untouched full refund', async () => {
+    suggestionMock.mockReturnValue({
+      data: {
+        hasPolicy: true,
+        refundCents: 5000,
+        retainedCents: 0,
+        requiresManual: true,
+        reason: 'manual_review',
+        policy: null,
+      },
+    });
+    mockedInvoke.mockResolvedValue({
+      data: null,
+      error: { message: 'manual review required' },
+    });
+    renderDialog();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
+        body: {
+          entry_id: 'entry-1',
+          amount_cents: undefined,
+          notes: undefined,
+          use_policy_snapshot: true,
+        },
+      });
+    });
+  });
+
   it('shows no policy message when the entry has no snapshot', () => {
     suggestionMock.mockReturnValue({
       data: {

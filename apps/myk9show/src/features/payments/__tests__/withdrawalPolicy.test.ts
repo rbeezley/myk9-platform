@@ -99,6 +99,34 @@ describe('resolveWithdrawalRefundCents', () => {
     expect(r.reason).toBe('no_cutoff');
   });
 
+  it('distinguishes undeclared retention from explicitly zero retention', () => {
+    const undeclared = resolveWithdrawalRefundCents(
+      { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: null, notes: null },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(undeclared).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+
+    const fullRefund = resolveWithdrawalRefundCents(
+      { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: 0, notes: null },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(fullRefund).toMatchObject({ requiresManual: false, reason: 'after_cutoff' });
+  });
+
+  it('flags declared prose for manual review even with structured fields', () => {
+    const result = resolveWithdrawalRefundCents(
+      { ...flatPolicy, notes: 'Full until closing, then 50% until 7 days out.' },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(result).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
   it('unset policy (null) suggests full and flags manual', () => {
     const r = resolveWithdrawalRefundCents(null, 3000, new Date('2026-06-15T12:00:00Z'), NY);
     expect(r.refundCents).toBe(3000);

@@ -21,7 +21,8 @@ export interface WithdrawalPolicy {
   /** What is kept AFTER the cutoff. */
   retentionType: RetentionType;
   /** flat = cents per entry; percent = whole-number percent. */
-  retentionValue: number;
+  /** null = no retention declared; 0 = explicitly full refund after cutoff. */
+  retentionValue: number | null;
   /** Free-text escape hatch for multi-tier / unusual policies. */
   notes: string | null;
 }
@@ -54,6 +55,7 @@ export type WithdrawalRefundReason =
   | 'before_cutoff'
   | 'after_cutoff'
   | 'no_cutoff' // policy exists but is prose-only
+  | 'manual_review' // structured date exists but retention/prose needs judgment
   | 'no_policy'; // nothing declared at either level
 
 export interface WithdrawalRefundSuggestion {
@@ -77,7 +79,7 @@ function buildPolicy(
   return {
     cutoffDate: cutoff ?? null,
     retentionType: normalizeRetentionType(type),
-    retentionValue: value ?? 0,
+    retentionValue: value ?? null,
     notes: notes ?? null,
   };
 }
@@ -193,12 +195,12 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
-  if (!policy.cutoffDate) {
+  if (!policy.cutoffDate || policy.retentionValue === null || policy.notes?.trim()) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,
       requiresManual: true,
-      reason: 'no_cutoff',
+      reason: policy.cutoffDate ? 'manual_review' : 'no_cutoff',
     };
   }
 

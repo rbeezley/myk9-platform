@@ -88,11 +88,13 @@ export function RefundEntryDialog({
 
   const policyMessage = !suggestion?.hasPolicy
     ? null
-    : suggestion.reason === 'after_cutoff'
-      ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
-      : suggestion.reason === 'before_cutoff'
-        ? 'Withdrawal policy: within the full-refund window. Full refund suggested.'
-        : 'A withdrawal policy was recorded at payment, but the amount needs your judgment. Set it below.';
+    : suggestion.requiresManual
+      ? 'Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.'
+      : suggestion.reason === 'after_cutoff'
+        ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
+        : suggestion.reason === 'before_cutoff'
+          ? 'Withdrawal policy: within the full-refund window. Full refund suggested.'
+          : 'Withdrawal policy: the amount needs your judgment. Set it below.';
 
   const snapshotSuggestedAmount =
     suggestion?.hasPolicy && !suggestion.requiresManual && suggestion.refundCents < feeCents
@@ -113,9 +115,10 @@ export function RefundEntryDialog({
     if (!entry || inFlightRef.current) return;
 
     const usePolicySnapshot =
-      mode === 'partial' &&
-      snapshotSuggestedAmount !== null &&
-      partialAmount === snapshotSuggestedAmount;
+      (mode === 'partial' &&
+        snapshotSuggestedAmount !== null &&
+        partialAmount === snapshotSuggestedAmount) ||
+      (mode === 'full' && suggestion?.hasPolicy && suggestion.requiresManual);
 
     let amountCents: number | undefined;
     if (mode === 'partial') {

@@ -8,7 +8,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { classifyCredential, normalizeCredential } from './SmartSignInPage.helpers';
+import {
+  classifyCredential,
+  normalizeCredential,
+  resolveLiveHint,
+  resolveSignInHeading,
+} from './SmartSignInPage.helpers';
 
 const ZWSP = String.fromCharCode(0x200b); // zero-width space (common in pasted text)
 const BOM = String.fromCharCode(0xfeff); // byte-order mark
@@ -66,5 +71,49 @@ describe('classifyCredential', () => {
   it('rejects wrong-length almost-passcodes', () => {
     expect(classifyCredential('aa26')).toBe('invalid'); // 4 chars
     expect(classifyCredential('aa2609')).toBe('invalid'); // 6 chars
+  });
+});
+
+describe('resolveSignInHeading', () => {
+  it('names the committed passcode step even in passcode-only mode', () => {
+    // passcodeOnly's "Enter a show passcode" describes the step just left, so
+    // the committed step has to win over it.
+    expect(resolveSignInHeading({ step: 'passcode', passcodeOnly: true })).toBe('Join the show');
+    expect(resolveSignInHeading({ step: 'passcode', passcodeOnly: false })).toBe('Join the show');
+  });
+
+  it('prefers the show-entry heading over the generic one', () => {
+    expect(
+      resolveSignInHeading({ step: 'input', passcodeOnly: false, entryShowName: 'Cedar Valley' })
+    ).toBe('Sign in to enter Cedar Valley');
+  });
+
+  it('keeps account language on the password step', () => {
+    expect(resolveSignInHeading({ step: 'password', passcodeOnly: false })).toBe(
+      'Sign in to your account'
+    );
+    expect(resolveSignInHeading({ step: 'input', passcodeOnly: false })).toBe('Sign in');
+    expect(resolveSignInHeading({ step: 'input', passcodeOnly: true })).toBe(
+      'Enter a show passcode'
+    );
+  });
+});
+
+describe('resolveLiveHint', () => {
+  it('stays silent for values that classify as neither branch', () => {
+    expect(resolveLiveHint('invalid', false)).toBe('');
+  });
+
+  it('names the branch a complete value would take', () => {
+    expect(resolveLiveHint('email', false)).toBe(
+      "Looks like an email — we'll ask for your password next"
+    );
+    expect(resolveLiveHint('passcode', false)).toBe(
+      "Looks like a show passcode — you'll be signed in"
+    );
+  });
+
+  it('says nothing about email in passcode-only mode', () => {
+    expect(resolveLiveHint('email', true)).toBe('');
   });
 });

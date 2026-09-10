@@ -224,6 +224,7 @@ describe('SmartSignInPage', () => {
 
     await user.type(screen.getByTestId('credential-input'), 'j9f3b');
     await user.click(screen.getByTestId('continue-button'));
+    await user.click(screen.getByTestId('passcode-continue-button'));
 
     await waitFor(() => expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b'));
     // No name typed → grant carries a minted sessionId but no name.
@@ -252,11 +253,18 @@ describe('SmartSignInPage', () => {
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
 
     await user.type(screen.getByTestId('credential-input'), 'j9f3b');
-    expect(screen.getByTestId('continue-button')).toBeDisabled();
-
-    await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+    // The security check belongs to the committed passcode step: the first
+    // Continue only commits the branch, so it must not wait on a token.
     expect(screen.getByTestId('continue-button')).toBeEnabled();
+    expect(
+      screen.queryByRole('button', { name: 'Complete security check' })
+    ).not.toBeInTheDocument();
     await user.click(screen.getByTestId('continue-button'));
+
+    expect(screen.getByTestId('passcode-continue-button')).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Complete security check' }));
+    expect(screen.getByTestId('passcode-continue-button')).toBeEnabled();
+    await user.click(screen.getByTestId('passcode-continue-button'));
 
     await waitFor(() =>
       expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b', {
@@ -279,10 +287,11 @@ describe('SmartSignInPage', () => {
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
 
     await user.type(screen.getByTestId('credential-input'), 'j9f3b');
+    await user.click(screen.getByTestId('continue-button'));
     expect(
       screen.queryByRole('button', { name: 'Complete security check' })
     ).not.toBeInTheDocument();
-    await user.click(screen.getByTestId('continue-button'));
+    await user.click(screen.getByTestId('passcode-continue-button'));
 
     await waitFor(() => expect(startAnonymousRingsideSessionMock).toHaveBeenCalledWith('j9f3b'));
     expect(validatePasscodeMock).not.toHaveBeenCalled();
@@ -298,10 +307,14 @@ describe('SmartSignInPage', () => {
     const user = userEvent.setup();
     render(<SmartSignInPage />, { initialRoute: '/sign-in' });
 
-    // The name field appears only once the input classifies as a passcode.
+    // The name field lives on the committed passcode step, never beside the
+    // smart input where five characters are still ambiguous.
     await user.type(screen.getByTestId('credential-input'), 'j9f3b');
-    await user.type(screen.getByTestId('display-name-input'), 'Judge Sarah');
+    expect(screen.queryByTestId('display-name-input')).not.toBeInTheDocument();
     await user.click(screen.getByTestId('continue-button'));
+
+    await user.type(screen.getByTestId('display-name-input'), 'Judge Sarah');
+    await user.click(screen.getByTestId('passcode-continue-button'));
 
     await waitFor(() =>
       expect(setGrantSpy).toHaveBeenCalledWith(
@@ -314,6 +327,23 @@ describe('SmartSignInPage', () => {
         })
       )
     );
+  });
+
+  it('does not flash the passcode branch while an email is being typed', async () => {
+    // 'secre' is BOTH a valid passcode shape (/^[ajse][a-z0-9]{4}$/) and the
+    // first five characters of secretary@..., so a live classification hands the
+    // passcode branch's UI to someone typing an email — inserting the name field
+    // and mounting a Turnstile iframe, then tearing both down on the 6th key.
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+    const user = userEvent.setup();
+    render(<SmartSignInPage />, { initialRoute: '/sign-in' });
+
+    await user.type(screen.getByTestId('credential-input'), 'secre');
+
+    expect(screen.queryByTestId('display-name-input')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Complete security check' })
+    ).not.toBeInTheDocument();
   });
 
   it('does not show the name field for the email branch', async () => {
@@ -429,8 +459,12 @@ describe('SmartSignInPage', () => {
 
     await user.type(screen.getByTestId('credential-input'), 'a1234');
     await user.click(screen.getByTestId('continue-button'));
+    // The passcode is validated when the committed step submits, so its
+    // rejection lands there — beside the Continue that caused it.
+    await user.click(screen.getByTestId('passcode-continue-button'));
 
     expect(await screen.findByText("That credential wasn't recognized.")).toBeInTheDocument();
     expect(navigateSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('passcode-continue-button')).toBeInTheDocument();
   });
 });

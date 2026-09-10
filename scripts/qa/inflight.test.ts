@@ -17,6 +17,7 @@ import {
   findOverlaps,
   pathsOverlap,
   renderOverlaps,
+  run,
   statusPaths,
   type ChangeSource,
 } from './inflight';
@@ -680,5 +681,32 @@ describe('inflight CLI', () => {
     const r = runCli(main, bin, '--warn');
     expect(r.code).toBe(0);
     expect(r.out).toContain('pr #2062');
+  });
+});
+
+describe('run output ceiling', () => {
+  // `execFileSync` buffers a child's stdout and throws ENOBUFS past `maxBuffer`,
+  // which defaults to 1 MB. On 2026-09-10 that killed every `qa:inflight` run on
+  // the primary checkout: `git log --name-status -z` for `claude/bold-sinoussi-7b5692`
+  // (3598 commits not in origin/main) emits 1.69 MB, so the gate aborted at exit 2
+  // -- "could not decide" -- before it ever compared a path (MYK9-461). Real
+  // branch histories grow; the ceiling has to sit far above them.
+  const wide = (bytes: number) =>
+    ['bash', ['-c', `head -c ${bytes} /dev/zero | tr '\\0' x`]] as const;
+
+  it("returns output far larger than execFileSync's 1 MB default", () => {
+    const [cmd, args] = wide(4_000_000);
+    expect(run(cmd, [...args]).length).toBe(4_000_000);
+  });
+
+  it('names the command and the ceiling when output does overflow', () => {
+    const [cmd, args] = wide(4096);
+    expect(() => run(cmd, [...args], { maxBuffer: 1024 })).toThrow(/produced more than 1024 bytes/);
+    expect(() => run(cmd, [...args], { maxBuffer: 1024 })).toThrow(/bash/);
+  });
+
+  it('still honours allowFail when the output overflows', () => {
+    const [cmd, args] = wide(4096);
+    expect(run(cmd, [...args], { maxBuffer: 1024, allowFail: true })).toBe('');
   });
 });

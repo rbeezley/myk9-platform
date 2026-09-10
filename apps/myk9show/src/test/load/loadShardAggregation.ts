@@ -40,7 +40,7 @@ export interface LoadShardFailureArtifact {
     count: number;
     index: number;
   };
-  target: LoadEvidenceTarget;
+  target?: LoadEvidenceTarget;
   scenarioId: LoadScenario['id'];
   error: {
     name: string;

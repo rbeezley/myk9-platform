@@ -13,18 +13,25 @@ import { loadTargetFromEnv } from './loadTarget';
 
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');
-  const target = loadTargetFromEnv(process.env);
-  const shard = loadShardFromEnv(process.env);
+  let target: ReturnType<typeof loadTargetFromEnv> | undefined;
+  let shard: ReturnType<typeof loadShardFromEnv>;
   let result: Awaited<ReturnType<typeof runBrowserLoad>>;
   try {
+    target = loadTargetFromEnv(process.env);
+    shard = loadShardFromEnv(process.env);
+    if (!target) throw new Error('Distributed load target was not resolved.');
     result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));
+    const fallbackShard = {
+      count: Number(process.env.LOAD_TEST_SHARD_COUNT ?? 0),
+      index: Number(process.env.LOAD_TEST_SHARD_INDEX ?? 0),
+    };
     const failureArtifact = {
       schemaVersion: 1 as const,
       runId: shard?.runId ?? process.env.LOAD_TEST_RUN_ID ?? 'unknown',
       startAtMs: shard?.startAtMs ?? Number(process.env.LOAD_TEST_START_AT ?? 0),
-      shard: { count: shard?.count ?? 0, index: shard?.index ?? 0 },
+      shard: shard ? { count: shard.count, index: shard.index } : fallbackShard,
       target,
       scenarioId: G9_NORMAL_SCENARIO.id,
       error: {
@@ -33,14 +40,23 @@ test('G9 Normal show-day load', async ({ browser }, testInfo) => {
         ...(failure.stack ? { stack: failure.stack } : {}),
       },
     };
-    const artifactPath = writeLoadShardFailureArtifact(failureArtifact);
-    await testInfo.attach('load-shard-failure.json', {
-      body: JSON.stringify(failureArtifact, null, 2),
-      contentType: 'application/json',
-    });
-    testInfo.annotations.push({ type: 'shard-failure-evidence', description: artifactPath });
+    try {
+      const artifactPath = writeLoadShardFailureArtifact(failureArtifact);
+      await testInfo.attach('load-shard-failure.json', {
+        body: JSON.stringify(failureArtifact, null, 2),
+        contentType: 'application/json',
+      });
+      testInfo.annotations.push({ type: 'shard-failure-evidence', description: artifactPath });
+    } catch (diagnosticError) {
+      testInfo.annotations.push({
+        type: 'shard-failure-diagnostics-error',
+        description:
+          diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError),
+      });
+    }
     throw failure;
   }
+  if (!target) throw new Error('Distributed load target was not resolved.');
   if (shard) {
     const artifact = buildLoadShardArtifact({
       shard,

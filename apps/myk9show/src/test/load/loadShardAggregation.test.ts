@@ -1,9 +1,13 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { evaluateLoadResult, type LoadObservation } from './loadEvaluation';
 import type { LoadMetricSamples } from './loadMetrics';
 import type { LoadPlatformArtifact } from './loadPlatformArtifact';
 import {
   aggregateLoadShardArtifacts,
+  writeLoadShardFailureArtifact,
   type LoadShardArtifact,
   shardWindowDivergence,
 } from './loadShardAggregation';
@@ -215,6 +219,30 @@ function platformArtifact(): LoadPlatformArtifact {
 }
 
 describe('distributed load aggregation', () => {
+  it('writes a failure artifact without requiring a valid load target', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'myk9-load-shard-'));
+    try {
+      const path = writeLoadShardFailureArtifact(
+        {
+          schemaVersion: 1,
+          runId: 'run-1',
+          startAtMs: 0,
+          shard: { count: DISTRIBUTED_G9_SHARD_COUNT, index: 8 },
+          scenarioId: G9_NORMAL_SCENARIO.id,
+          error: { name: 'Error', message: 'missed synchronized start' },
+        },
+        directory
+      );
+
+      expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({
+        shard: { index: 8 },
+        error: { message: 'missed synchronized start' },
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('retains failed reconciliation evidence through JSON and rejects the complete run', () => {
     const artifacts = Array.from({ length: DISTRIBUTED_G9_SHARD_COUNT }, (_, index) =>
       shardArtifact(index)

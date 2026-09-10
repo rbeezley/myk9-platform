@@ -184,6 +184,11 @@ describe('manual distributed load workflow', () => {
     expect(pkg.scripts['test:load:unit']).toBe('vitest run src/test/load');
   });
 
+  it('uploads failed-shard diagnostics and Playwright traces for every shard', () => {
+    expect(workflow).toContain('path: apps/myk9show/test-results/');
+    expect(workflow).toContain('if-no-files-found: warn');
+  });
+
   it('does not depend on Vercel or paid runner labels', () => {
     expect(workflow).not.toMatch(/VERCEL|larger-runner|self-hosted/i);
   });

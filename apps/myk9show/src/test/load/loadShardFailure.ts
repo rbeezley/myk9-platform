@@ -13,7 +13,7 @@ export function sanitizeFailureMessage(message: string): string {
   return message
     .replace(/Bearer\s+[^\s]+/gi, 'Bearer [REDACTED]')
     .replace(
-      /(["']?\b(?:authorization|cookie|password|secret|access[_-]?token|refresh[_-]?token|token|api[_-]?key)["']?\s*[:=]\s*["']?)([^"',}\s&]+)(["']?)/gi,
+      /(["']?\b(?:authorization|cookie|password|secret|access[_-]?token|refresh[_-]?token|token|api[_-]?key)["']?\s*[:=]\s*["']?)(?!Bearer\b)([^"',}\s&]+)(["']?)/gi,
       '$1[REDACTED]$3'
     )
     .replace(/([?&][^=\s&]+)=([^&\s]*)/g, '$1=[REDACTED]')

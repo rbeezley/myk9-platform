@@ -4,14 +4,43 @@ import { buildLoadEvidence, renderLoadEvidenceMarkdown, writeLoadEvidence } from
 import { evaluateLoadResult } from './loadEvaluation';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 import { loadShardFromEnv } from './loadShard';
-import { buildLoadShardArtifact, writeLoadShardArtifact } from './loadShardAggregation';
+import {
+  buildLoadShardArtifact,
+  writeLoadShardArtifact,
+  writeLoadShardFailureArtifact,
+} from './loadShardAggregation';
 import { loadTargetFromEnv } from './loadTarget';
 
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');
   const target = loadTargetFromEnv(process.env);
   const shard = loadShardFromEnv(process.env);
-  const result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
+  let result: Awaited<ReturnType<typeof runBrowserLoad>>;
+  try {
+    result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    const failureArtifact = {
+      schemaVersion: 1 as const,
+      runId: shard?.runId ?? process.env.LOAD_TEST_RUN_ID ?? 'unknown',
+      startAtMs: shard?.startAtMs ?? Number(process.env.LOAD_TEST_START_AT ?? 0),
+      shard: { count: shard?.count ?? 0, index: shard?.index ?? 0 },
+      target,
+      scenarioId: G9_NORMAL_SCENARIO.id,
+      error: {
+        name: failure.name,
+        message: failure.message,
+        ...(failure.stack ? { stack: failure.stack } : {}),
+      },
+    };
+    const artifactPath = writeLoadShardFailureArtifact(failureArtifact);
+    await testInfo.attach('load-shard-failure.json', {
+      body: JSON.stringify(failureArtifact, null, 2),
+      contentType: 'application/json',
+    });
+    testInfo.annotations.push({ type: 'shard-failure-evidence', description: artifactPath });
+    throw failure;
+  }
   if (shard) {
     const artifact = buildLoadShardArtifact({
       shard,

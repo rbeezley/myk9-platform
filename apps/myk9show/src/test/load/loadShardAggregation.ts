@@ -32,6 +32,23 @@ export interface LoadShardArtifact {
   samples: LoadMetricSamples;
 }
 
+export interface LoadShardFailureArtifact {
+  schemaVersion: 1;
+  runId: string;
+  startAtMs: number;
+  shard: {
+    count: number;
+    index: number;
+  };
+  target: LoadEvidenceTarget;
+  scenarioId: LoadScenario['id'];
+  error: {
+    name: string;
+    message: string;
+    stack?: string;
+  };
+}
+
 export function buildLoadShardArtifact(input: {
   shard: LoadShard;
   target: LoadEvidenceTarget;
@@ -60,6 +77,17 @@ export function writeLoadShardArtifact(
 ): string {
   mkdirSync(directory, { recursive: true });
   const outputPath = resolve(directory, `shard-${artifact.shard.index}.json`);
+  writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
+  return outputPath;
+}
+
+export function writeLoadShardFailureArtifact(
+  artifact: LoadShardFailureArtifact,
+  directory = process.env.LOAD_TEST_SHARD_OUTPUT_DIR ??
+    resolve(process.cwd(), 'test-results/load-shards')
+): string {
+  mkdirSync(directory, { recursive: true });
+  const outputPath = resolve(directory, `shard-${artifact.shard.index}-failure.json`);
   writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, 'utf8');
   return outputPath;
 }

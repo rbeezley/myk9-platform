@@ -61,8 +61,9 @@ function hasAny(...values: Array<string | number | null | undefined>): boolean {
 }
 
 function notesDescribeRefundTerms(notes: string | null): boolean {
-  return /\b(?:no|full|partial)\s+(?<![@\w])refunds?\b|(?<![@\w])\brefunds?\b(?!@)[\s\S]{0,80}\b(?:no|none|full|partial|after|before|until)\b|\bfull\s+until\b|\b(?:\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)[\s\S]{0,80}\b(?:after|before|until|none|less|refund|entry fee|office fee|fee|forfeit)\b|\b(?:entry fees?|office fees?|fees?|amount|proceeds)\b[\s\S]{0,100}\b(?:after|before|until|none|less|retain(?:s|ed|ing)?|keeps?|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b|\b(?:retain(?:s|ed|ing)?|keeps?|kept|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b[\s\S]{0,80}\b(?<![@\w])(?:refunds?\b(?!@)|entry fees?|office fees?|fees?|amount|\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)\b|\bforfeit(?:s|ed|ing)?\b[\s\S]{0,80}\b(?:fees?|refunds?|amount)\b/is.test(
-    notes ?? ''
+  const policyText = (notes ?? '').replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '');
+  return /\b(?:no|full|partial)\s+refunds?\b|\brefunds?\b[\s\S]{0,80}\b(?:no|none|full|partial|after|before|until)\b|\bfull\s+until\b|\b(?:\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)[\s\S]{0,80}\b(?:after|before|until|none|less|refund|entry fee|office fee|fee|forfeit)\b|\b(?:entry fees?|office fees?|fees?|amount|proceeds)\b[\s\S]{0,100}\b(?:after|before|until|none|less|retain(?:s|ed|ing)?|keeps?|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b|\b(?:retain(?:s|ed|ing)?|keeps?|kept|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b[\s\S]{0,80}\b(?:refunds?|entry fees?|office fees?|fees?|amount|\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)\b|\bforfeit(?:s|ed|ing)?\b[\s\S]{0,80}\b(?:fees?|refunds?|amount)\b/is.test(
+    policyText
   );
 }
 
@@ -153,7 +154,7 @@ function formatCutoff(date: string): string {
 
 function formatRetained(policy: WithdrawalPolicy): string | null {
   const v = policy.retentionValue;
-  if (v === null || v <= 0) return null;
+  if (v == null || v <= 0) return null;
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
 }
 
@@ -243,6 +244,15 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
+  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
+    };
+  }
+
   const today = localCalendarDate(asOf, timeZone);
   if (today <= policy.cutoffDate) {
     return {
@@ -250,15 +260,6 @@ export function resolveWithdrawalRefundCents(
       retainedCents: 0,
       requiresManual: false,
       reason: 'before_cutoff',
-    };
-  }
-
-  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
-    return {
-      refundCents: entryFeeCents,
-      retainedCents: 0,
-      requiresManual: true,
-      reason: 'manual_review',
     };
   }
 

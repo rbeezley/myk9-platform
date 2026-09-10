@@ -209,6 +209,15 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
+  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
+    };
+  }
+
   const today = localCalendarDate(asOf, timeZone);
   if (today <= policy.cutoffDate) {
     return {
@@ -216,15 +225,6 @@ export function resolveWithdrawalRefundCents(
       retainedCents: 0,
       requiresManual: false,
       reason: 'before_cutoff',
-    };
-  }
-
-  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
-    return {
-      refundCents: entryFeeCents,
-      retainedCents: 0,
-      requiresManual: true,
-      reason: 'manual_review',
     };
   }
 

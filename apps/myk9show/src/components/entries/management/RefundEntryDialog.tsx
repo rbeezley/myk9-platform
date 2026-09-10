@@ -49,20 +49,23 @@ function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
 
   const notes = policy.notes?.trim() ?? '';
+  const notesNeedReview = notesDescribeRefundTerms(notes);
   const details = [
-    notesDescribeRefundTerms(notes) || !policy.cutoffDate
-      ? null
-      : `Full refund through ${formatCutoff(policy.cutoffDate)}.`,
-    notesDescribeRefundTerms(notes) || !policy.cutoffDate
-      ? null
+    policy.cutoffDate && !notesNeedReview
+      ? `Full refund through ${formatCutoff(policy.cutoffDate)}.`
+      : null,
+    notesNeedReview
+      ? 'The policy notes include additional refund terms and need manual review.'
       : policy.retentionValue == null ||
           (policy.retentionValue === 0 && policy.retentionDeclared !== true)
         ? 'The after-cutoff retention needs manual review.'
-        : `Declared after-cutoff retention: ${
-            policy.retentionType === 'percent'
-              ? `${policy.retentionValue}%`
-              : `$${(policy.retentionValue / 100).toFixed(2)}`
-          } kept.`,
+        : policy.cutoffDate
+          ? `Declared after-cutoff retention: ${
+              policy.retentionType === 'percent'
+                ? `${policy.retentionValue}%`
+                : `$${(policy.retentionValue / 100).toFixed(2)}`
+            } kept.`
+          : null,
     notes ? `Policy notes: ${notes}` : null,
   ].filter((detail): detail is string => detail !== null);
 
@@ -94,11 +97,11 @@ export function RefundEntryDialog({
   const feeCents = Math.round(fee * 100);
 
   // Suggested refund from the policy snapshotted at payment (Phase 3b) — advisory.
-  const {
-    data: suggestion,
-    isLoading: suggestionLoading,
-    isError: suggestionError,
-  } = useWithdrawalRefundSuggestion(entry?.id, feeCents, open);
+  const { data: suggestion, isLoading: suggestionLoading } = useWithdrawalRefundSuggestion(
+    entry?.id,
+    feeCents,
+    open
+  );
   const prefilledRef = useRef(false);
 
   // Pre-fill the suggested amount once per open. Manual-review policies start
@@ -293,7 +296,6 @@ export function RefundEntryDialog({
             disabled={
               submitting ||
               suggestionLoading ||
-              suggestionError ||
               (suggestion?.hasPolicy === true && suggestion.requiresManual && !manualAmountValid)
             }
           >

@@ -4,6 +4,7 @@ import {
   describeWithdrawalPolicyText,
   resolveWithdrawalRefundCents,
 } from './withdrawalPolicy.ts';
+import { withdrawalPolicyTermFixtures } from '../../../src/features/payments/withdrawalPolicyTermFixtures';
 
 const club = {
   default_withdrawal_retention_type: 'flat',
@@ -239,23 +240,18 @@ describe('describeWithdrawalPolicyText', () => {
       retentionValue: 1000,
       notes: null,
     };
-    expect(
-      describeWithdrawalPolicyText({ ...basePolicy, notes: '50% after closing.' })
-    ).not.toContain('$10.00 is kept');
-    expect(
-      resolveWithdrawalRefundCents(
-        { ...basePolicy, notes: '$10 office fee applies after closing.' },
-        5000,
-        new Date('2026-06-15T12:00:00Z'),
-        'America/New_York'
-      )
-    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
-    expect(
-      describeWithdrawalPolicyText({
-        ...basePolicy,
-        notes: 'Questions? Email refunds@club.org after the show.',
-      })
-    ).toContain('$10.00 is kept');
+    for (const [notes, expected] of withdrawalPolicyTermFixtures) {
+      const text = describeWithdrawalPolicyText({ ...basePolicy, notes });
+      expect(text.includes('$10.00 is kept')).toBe(!expected);
+      expect(
+        resolveWithdrawalRefundCents(
+          { ...basePolicy, notes },
+          5000,
+          new Date('2026-06-15T12:00:00Z'),
+          'America/New_York'
+        ).requiresManual
+      ).toBe(expected);
+    }
   });
 
   it('prose-only policy renders notes + fee sentence, no deadline', () => {

@@ -50,7 +50,7 @@ function describeManualPolicy(policy: WithdrawalPolicy | null): string {
 
   const notes = policy.notes?.trim() ?? '';
   const details = [
-    notesDescribeRefundTerms(notes)
+    notesDescribeRefundTerms(notes) || !policy.cutoffDate
       ? null
       : policy.cutoffDate
         ? `Full refund through ${formatCutoff(policy.cutoffDate)}.`
@@ -99,9 +99,8 @@ export function RefundEntryDialog({
   const { data: suggestion } = useWithdrawalRefundSuggestion(entry?.id, feeCents, open);
   const prefilledRef = useRef(false);
 
-  // Pre-fill the suggested amount once per open. Never clobber in-progress edits,
-  // and never auto-select for a prose-only/unset policy (requiresManual) — there
-  // the secretary makes the call.
+  // Pre-fill the suggested amount once per open. Manual-review policies start
+  // with an empty partial amount so the secretary must make the decision.
   useEffect(() => {
     if (!open) {
       prefilledRef.current = false;
@@ -110,6 +109,7 @@ export function RefundEntryDialog({
     if (prefilledRef.current || !suggestion?.hasPolicy) return;
     if (suggestion.requiresManual) {
       setMode('partial');
+      prefilledRef.current = true;
       return;
     }
     prefilledRef.current = true;
@@ -136,10 +136,10 @@ export function RefundEntryDialog({
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
   const manualAmountValid =
-    mode === 'partial' &&
-    Number.isFinite(Number(partialAmount)) &&
-    Number(partialAmount) > 0 &&
-    Number(partialAmount) <= fee;
+    mode === 'full' ||
+    (Number.isFinite(Number(partialAmount)) &&
+      Number(partialAmount) > 0 &&
+      Number(partialAmount) <= fee);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {

@@ -1,0 +1,17 @@
+export const withdrawalPolicyTermFixtures = [
+  ['Refunds:\nNone after the closing date.', true],
+  ['The club retains the office fee.', true],
+  ['50% after the closing date.', true],
+  ['$10 office fee applies after closing.', true],
+  ['Half the entry fee is returned after closing.', true],
+  ['Entry fees are non-refundable after the closing date.', true],
+  ['Office fees are retained after closing.', true],
+  ['Half of the fee is returned after closing.', true],
+  ['Fifty percent of the fee is kept after the closing date.', true],
+  ['10 dollars is kept after the closing date.', true],
+  ['Withdrawals must be submitted in writing by the closing deadline.', false],
+  ['Refunds are processed once the show closes.', false],
+  ['We keep exhibitors informed by email.', false],
+  ['Move-ups must be requested before the cutoff.', false],
+  ['Questions? Email refunds@club.org after the show.', false],
+] as const;

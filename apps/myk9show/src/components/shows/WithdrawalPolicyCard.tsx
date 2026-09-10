@@ -251,7 +251,7 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
           />
           <p className="text-xs text-muted-foreground">
             {isShow
-              ? 'Leave blank to inherit the club default. Enter 0 for a full refund even after the cutoff.'
+              ? 'Leave blank to inherit the club default; if none is set, withdrawals need manual review. Enter 0 for a full refund even after the cutoff.'
               : 'Applies once a show sets its own full-refund cutoff date. Leave blank for manual review.'}
           </p>
         </div>

@@ -144,19 +144,42 @@ export function renderOverlaps(overlaps: readonly Overlap[]): string {
 
 // ---------------------------------------------------------------- gathering
 
-function run(
+export class InflightQueryError extends Error {}
+
+/**
+ * How much stdout a child may produce. `execFileSync` buffers it and throws
+ * ENOBUFS past this, and its own default is 1 MB -- which a real branch
+ * history outgrows: on 2026-09-10 `git log --name-status -z` for a branch
+ * 3598 commits off `origin/main` emitted 1.69 MB and aborted every run of
+ * this gate at exit 2, "could not decide", before a single path was compared
+ * (MYK9-461). This is a ceiling, not an allocation; sit far above anything a
+ * repository plausibly reaches rather than shaving it.
+ */
+export const MAX_BUFFER_BYTES = 256 * 1024 * 1024;
+
+export function run(
   cmd: string,
   args: string[],
-  opts: { cwd?: string; allowFail?: boolean } = {}
+  opts: { cwd?: string; allowFail?: boolean; maxBuffer?: number } = {}
 ): string {
+  const maxBuffer = opts.maxBuffer ?? MAX_BUFFER_BYTES;
   try {
     return execFileSync(cmd, args, {
       encoding: 'utf8',
       cwd: opts.cwd,
       stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer,
     });
   } catch (error) {
     if (opts.allowFail) return '';
+    // A bare `spawnSync git ENOBUFS` names neither the command nor the limit,
+    // so the one failure mode that says "this gate did not run" is also its
+    // least legible. Say which query overflowed and by what ceiling.
+    if ((error as { code?: string }).code === 'ENOBUFS') {
+      throw new InflightQueryError(
+        `${[cmd, ...args].join(' ')} produced more than ${maxBuffer} bytes of output`
+      );
+    }
     throw error;
   }
 }
@@ -292,11 +315,13 @@ export function pullRequestFiles(slug: string, number: number): string[] {
   );
 }
 
-export class InflightQueryError extends Error {}
-
 function ghJson<T>(args: string[], what: string): T {
   try {
-    const raw = execFileSync('gh', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const raw = execFileSync('gh', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: MAX_BUFFER_BYTES,
+    });
     return JSON.parse(raw) as T;
   } catch (error) {
     const e = error as { stderr?: string; message?: string };

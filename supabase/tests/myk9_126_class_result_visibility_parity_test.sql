@@ -103,12 +103,11 @@ values (
 -- differently-cased value -- that lower() is defensive against data this schema
 -- will not store. Row 4 is the case that matters most: is_scoring_finalized
 -- promotes a non-completed status to the 'completed' state.
-insert into public.classes (id, trial_id, name, class_number, status, is_scoring_finalized, results_released_at)
+insert into public.classes (id, trial_id, name, status, is_scoring_finalized, results_released_at)
 select
   ('00000000-0000-0000-0000-0000001263' || lpad(n::text, 2, '0'))::uuid,
   '00000000-0000-0000-0000-000000126203',
   'MYK9-126 class ' || n,
-  n,
   s.status,
   s.finalized,
   s.released
@@ -184,11 +183,18 @@ begin
           select id from public.classes
           where trial_id = '00000000-0000-0000-0000-000000126203'
         );
+      -- Half the classes, chosen by row position. class_number is not set at all
+      -- (the proven fixtures in placement_soft_delete_ranking_test.sql do not set
+      -- it either), and it is character varying(20) regardless, so a modulo on it
+      -- would not parse.
       insert into public.class_visibility_overrides (class_id, preset, qualification_timing)
       select id, preset_name, t
-      from public.classes
-      where trial_id = '00000000-0000-0000-0000-000000126203'
-        and class_number % 2 = 0;
+      from (
+        select id, row_number() over (order by id) as rn
+        from public.classes
+        where trial_id = '00000000-0000-0000-0000-000000126203'
+      ) ranked
+      where ranked.rn % 2 = 0;
 
       combos := combos + 1;
 

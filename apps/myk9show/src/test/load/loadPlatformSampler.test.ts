@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { summarizeObservedPeaks } from './loadPlatformPeaks';
 import {
   parsePrometheusResourceCounters,
-  parseScheduledWriteSnapshot,
   resourceUtilization,
-  scheduledWriteDeltas,
   statementDeltas,
 } from './loadPlatformSampler';
+import { parseScheduledWriteSnapshot, scheduledWriteDeltas } from './loadScheduledWriteEvidence';
 
 describe('load platform sampler', () => {
   it('computes statement deltas and ranks by rehearsal total time', () => {

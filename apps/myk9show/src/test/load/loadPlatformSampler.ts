@@ -3,10 +3,14 @@ import { promisify } from 'node:util';
 import type {
   PlatformObservation,
   ResourceSamplingFailure,
-  ScheduledWriteDelta,
   StatementDelta,
 } from './loadEvaluation';
 import { summarizeObservedPeaks } from './loadPlatformPeaks';
+import {
+  parseScheduledWriteSnapshot,
+  scheduledWriteDeltas,
+  type ScheduledWriteSnapshot,
+} from './loadScheduledWriteEvidence';
 
 class ResourceSampleError extends Error {
   constructor(
@@ -49,8 +53,6 @@ interface StatementSnapshot {
   rows: number;
   totalExecTimeMs: number;
 }
-
-type ScheduledWriteSnapshot = ReadonlyMap<string, number>;
 
 export interface ResourceCounters {
   cpuSecondsByMode: ReadonlyMap<string, number>;
@@ -239,41 +241,6 @@ export async function startLoadPlatformSampler(
       return stopPromise;
     },
   };
-}
-
-export function scheduledWriteDeltas(
-  before: ScheduledWriteSnapshot,
-  after: ScheduledWriteSnapshot
-): ScheduledWriteDelta[] {
-  return Array.from(new Set([...before.keys(), ...after.keys()]))
-    .map(source => {
-      const beforeCount = before.get(source) ?? 0;
-      const afterCount = after.get(source) ?? 0;
-      return {
-        source,
-        unit: source.startsWith('cron:') ? 'job_runs' : 'rows',
-        before: beforeCount,
-        after: afterCount,
-        writes: Math.max(0, afterCount - beforeCount),
-      };
-    })
-    .filter(delta => delta.writes > 0)
-    .sort((left, right) => right.writes - left.writes);
-}
-
-export function parseScheduledWriteSnapshot(output: string): Map<string, number> {
-  const snapshot = new Map<string, number>();
-  for (const line of output.trim().split(/\r?\n/)) {
-    if (!line) continue;
-    const separator = line.lastIndexOf('|');
-    const source = line.slice(0, separator);
-    const count = Number(line.slice(separator + 1));
-    if (!source || separator < 1 || !Number.isSafeInteger(count) || count < 0) {
-      throw new Error('Platform scheduled-write telemetry returned an invalid row.');
-    }
-    snapshot.set(source, count);
-  }
-  return snapshot;
 }
 
 async function readScheduledWriteSnapshot(

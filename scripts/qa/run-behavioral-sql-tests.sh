@@ -73,6 +73,7 @@ TEST_FILES=(
   "$TEST_DIR/support_ticket_creation_atomicity_test.sql"
   "$TEST_DIR/show_email_delivery_history_test.sql"
   "$TEST_DIR/soft_delete_dog_cascade_test.sql"
+  "$TEST_DIR/user_roles_show_manager_read_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

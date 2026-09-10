@@ -94,7 +94,11 @@ export function RefundEntryDialog({
   const feeCents = Math.round(fee * 100);
 
   // Suggested refund from the policy snapshotted at payment (Phase 3b) — advisory.
-  const { data: suggestion } = useWithdrawalRefundSuggestion(entry?.id, feeCents, open);
+  const {
+    data: suggestion,
+    isLoading: suggestionLoading,
+    isError: suggestionError,
+  } = useWithdrawalRefundSuggestion(entry?.id, feeCents, open);
   const prefilledRef = useRef(false);
 
   // Pre-fill the suggested amount once per open. Manual-review policies start
@@ -134,10 +138,10 @@ export function RefundEntryDialog({
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
   const manualAmountValid =
-    mode === 'partial' &&
-    Number.isFinite(Number(partialAmount)) &&
-    Number(partialAmount) > 0 &&
-    Number(partialAmount) <= fee;
+    mode === 'full' ||
+    (Number.isFinite(Number(partialAmount)) &&
+      Number(partialAmount) > 0 &&
+      Number(partialAmount) <= fee);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -171,6 +175,10 @@ export function RefundEntryDialog({
         }
         amountCents = Math.round(dollars * 100);
       }
+    } else {
+      // Full refund is an explicit secretary choice. Send the amount so the
+      // server cannot substitute a stale policy snapshot.
+      amountCents = feeCents;
     }
 
     inFlightRef.current = true;
@@ -288,6 +296,8 @@ export function RefundEntryDialog({
             onClick={handleRefund}
             disabled={
               submitting ||
+              suggestionLoading ||
+              suggestionError ||
               (suggestion?.hasPolicy === true && suggestion.requiresManual && !manualAmountValid)
             }
           >

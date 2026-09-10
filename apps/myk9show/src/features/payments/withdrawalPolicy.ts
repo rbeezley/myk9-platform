@@ -211,14 +211,6 @@ export function resolveWithdrawalRefundCents(
 
   const today = localCalendarDate(asOf, timeZone);
   if (today <= policy.cutoffDate) {
-    if (/\b(?:no|zero)\s+refunds?\b|\bnon[- ]?refundable\b/i.test(policy.notes ?? '')) {
-      return {
-        refundCents: entryFeeCents,
-        retainedCents: 0,
-        requiresManual: true,
-        reason: 'manual_review',
-      };
-    }
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   resolveWithdrawalPolicy,
   describeWithdrawalPolicyText,
@@ -259,14 +260,21 @@ describe('describeWithdrawalPolicyText', () => {
   it('keeps the app and edge detector implementations byte-identical', () => {
     const detector = (source: string) => source.match(/return (\/.*?\/is)\.test/)?.[1];
     const appSource = readFileSync(
-      resolve(process.cwd(), 'src/features/payments/withdrawalPolicyTerms.ts'),
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../../src/features/payments/withdrawalPolicyTerms.ts'
+      ),
       'utf8'
     );
     const edgeSource = readFileSync(
-      resolve(process.cwd(), 'supabase/functions/_shared/withdrawalPolicy.ts'),
+      resolve(dirname(fileURLToPath(import.meta.url)), 'withdrawalPolicy.ts'),
       'utf8'
     );
-    expect(detector(edgeSource)).toBe(detector(appSource));
+    const appDetector = detector(appSource);
+    const edgeDetector = detector(edgeSource);
+    expect(appDetector).toBeDefined();
+    expect(edgeDetector).toBeDefined();
+    expect(edgeDetector).toBe(appDetector);
   });
 
   it('prose-only policy renders notes + fee sentence, no deadline', () => {

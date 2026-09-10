@@ -6,7 +6,7 @@
 
 - Source: codex; automation `nightly-commit-review`; methodology `quality-finding-lifecycle`.
 - Shared starting SHA (exclusive): `488e6c3d60d7c88c477b8bfc2aa675b331afff6e`. Reviewed all **12 first-parent descendants** through `main`/`origin/main` `550ef046306721363459572086453b4e5817f803`.
-- Continuous commit window: the first descendant landed at `2026-09-09T05:14:26Z`; review completed at `2026-09-10T12:46:13Z`. No SHA cursor gap. The prior boundary was a documentation commit, so that commit was included as the first harmless descendant.
+- Continuous commit window: the first descendant landed at `2026-09-09T10:14:26Z`; review completed at `2026-09-10T12:46:13Z`. No SHA cursor gap. The prior boundary was a documentation commit, so that commit was included as the first harmless descendant.
 - **No new actionable product, security, UX/intent, or test defect confirmed.** No Linear issues were created or modified. Existing `MYK9-452` remains an applied-proof follow-up: the forward migration and behavioral SQL test are now in the reviewed range, but this audit did not execute the function against the linked database or perform an authorized exhibitor replay.
 
 | Lifecycle | Count |

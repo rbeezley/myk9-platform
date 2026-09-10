@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 
 describe('RefundEntryDialog', () => {
-  it('full refund sends the exact fee amount', async () => {
+  it('full refund leaves the exact fee amount server-authoritative', async () => {
     mockedInvoke.mockResolvedValue({
       data: { refund_id: 're_1', amount_cents: 5000 },
       error: null,
@@ -64,7 +64,7 @@ describe('RefundEntryDialog', () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
-        body: { entry_id: 'entry-1', amount_cents: 5000, notes: undefined },
+        body: { entry_id: 'entry-1', amount_cents: undefined, notes: undefined },
       });
     });
     expect(onRefunded).toHaveBeenCalled();

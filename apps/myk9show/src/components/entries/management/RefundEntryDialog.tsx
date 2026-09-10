@@ -175,10 +175,6 @@ export function RefundEntryDialog({
         }
         amountCents = Math.round(dollars * 100);
       }
-    } else {
-      // Full refund is an explicit secretary choice. Send the amount so the
-      // server cannot substitute a stale policy snapshot.
-      amountCents = feeCents;
     }
 
     inFlightRef.current = true;

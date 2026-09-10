@@ -310,9 +310,23 @@ describe('UserDetailsView', () => {
 
       renderWithRouter(<UserDetailsView person={user} />);
 
-      // Contact info section labels and values
-      expect(screen.getByText('First Name')).toBeInTheDocument();
-      expect(screen.getByText('Last Name')).toBeInTheDocument();
+      // Contact Information carries what the hero heading does NOT. The name is
+      // rendered once, as the heading; repeating it here as First Name / Last
+      // Name rows said the same thing twice and pushed Phone toward the fold.
+      // The hero also shows the address (as text) and an Email action button,
+      // so match the ROW's mailto link — the only one of the three that is a
+      // link named after the address itself.
+      expect(screen.getByRole('link', { name: 'john@example.com' })).toHaveAttribute(
+        'href',
+        'mailto:john@example.com'
+      );
+      expect(screen.getByText('Phone')).toBeInTheDocument();
+      expect(screen.getByText('555-1234')).toBeInTheDocument();
+      expect(screen.queryByText('First Name')).not.toBeInTheDocument();
+      expect(screen.queryByText('Last Name')).not.toBeInTheDocument();
+
+      // …and the heading is still the one place the name appears.
+      expect(screen.getByRole('heading', { name: 'John Doe' })).toBeInTheDocument();
 
       // Address section values
       expect(screen.getByText('Springfield')).toBeInTheDocument();

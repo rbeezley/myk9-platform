@@ -8,7 +8,6 @@ import { render, screen } from '@testing-library/react';
 import { RecordPageLayout } from '@/components/layout/record/RecordPageLayout';
 import type {
   PropertySectionConfig,
-  AssociationConfig,
   RecordTab,
 } from '@/components/layout/record/RecordPageLayout.types';
 
@@ -19,12 +18,6 @@ vi.mock('@/components/layout/record/PropertySection', () => ({
   ),
 }));
 
-vi.mock('@/components/layout/record/AssociationCard', () => ({
-  AssociationCard: ({ association }: { association: AssociationConfig }) => (
-    <div data-testid={`association-card-${association.key}`}>{association.title}</div>
-  ),
-}));
-
 // --- Helpers ---
 
 function createProperties(count = 1): PropertySectionConfig[] {
@@ -32,13 +25,6 @@ function createProperties(count = 1): PropertySectionConfig[] {
     key: `section-${i}`,
     title: `Section ${i}`,
     fields: [{ label: `Field ${i}`, value: `Value ${i}` }],
-  }));
-}
-
-function createAssociations(count = 1): AssociationConfig[] {
-  return Array.from({ length: count }, (_, i) => ({
-    key: `assoc-${i}`,
-    title: `Association ${i}`,
   }));
 }
 
@@ -195,69 +181,23 @@ describe('RecordPageLayout', () => {
     });
   });
 
-  describe('associations sidebar (right panel)', () => {
-    it('renders association cards when associations are provided', () => {
-      const associations = createAssociations(2);
-
-      render(<RecordPageLayout associations={associations} />);
-
-      // Each association card appears in both sidebar (lg:block) and mobile fallback (lg:hidden) = 2 instances each
-      expect(screen.getAllByTestId('association-card-assoc-0').length).toBe(2);
-      expect(screen.getAllByTestId('association-card-assoc-1').length).toBe(2);
-    });
-
-    it('renders associationsExtra content', () => {
-      render(<RecordPageLayout associationsExtra={<div data-testid="extra-content">Extra</div>} />);
-
-      // associationsExtra appears in both sidebar and mobile fallback = 2 instances
-      expect(screen.getAllByTestId('extra-content').length).toBe(2);
-    });
-
-    it('does not render right sidebar when associations is empty and no extra', () => {
-      const { container } = render(<RecordPageLayout associations={[]} />);
-
-      // Right sidebar has "lg:block" class; should not be present
-      const rightSidebar = container.querySelector('.lg\\:block');
-      expect(rightSidebar).toBeNull();
-    });
-
-    it('renders right sidebar when only associationsExtra is provided', () => {
-      render(
-        <RecordPageLayout associationsExtra={<div data-testid="extra-only">Extra Only</div>} />
-      );
-
-      // associationsExtra appears in both sidebar (hidden on smaller) and mobile fallback (hidden lg:)
-      const extraElements = screen.getAllByTestId('extra-only');
-      expect(extraElements.length).toBe(2);
-    });
-  });
-
-  describe('three-panel layout', () => {
-    it('renders all three panels when all data is provided', () => {
-      const properties = createProperties(1);
-      const associations = createAssociations(1);
-
+  describe('two-panel layout', () => {
+    it('renders both panels when all data is provided', () => {
       const { container } = render(
         <RecordPageLayout
-          properties={properties}
+          properties={createProperties(1)}
           tabsContent={<div data-testid="center-tabs">Center</div>}
-          associations={associations}
         />
       );
 
-      // Left sidebar (aside)
       expect(screen.getByTestId('property-section-section-0')).toBeInTheDocument();
-      // Center panel (main)
       expect(screen.getByTestId('center-tabs')).toBeInTheDocument();
-      // Right sidebar (aside with lg:block) + mobile fallback (div with lg:hidden) = 2 instances
-      const associationCards = screen.getAllByTestId('association-card-assoc-0');
-      expect(associationCards.length).toBe(2);
 
-      // Verify structural elements (2 asides: left sidebar + right sidebar)
-      const asides = container.querySelectorAll('aside');
-      expect(asides.length).toBe(2);
-      const mainEl = container.querySelector('main');
-      expect(mainEl).toBeInTheDocument();
+      // Exactly one aside: the properties sidebar. The right-hand
+      // "associations" sidebar was removed once its only caller went away, so a
+      // second aside here would mean it had crept back.
+      expect(container.querySelectorAll('aside').length).toBe(1);
+      expect(container.querySelector('main')).toBeInTheDocument();
     });
   });
 
@@ -291,8 +231,6 @@ describe('RecordPageLayout', () => {
           hero={<div data-testid="hero">Hero</div>}
           properties={createProperties(1)}
           tabsContent={<div data-testid="tabs">Tabs</div>}
-          associations={createAssociations(1)}
-          associationsExtra={<div data-testid="extra">Extra</div>}
           storageKey="test:key"
           className="full-test"
         />
@@ -304,9 +242,6 @@ describe('RecordPageLayout', () => {
       expect(screen.getByTestId('hero')).toBeInTheDocument();
       expect(screen.getByTestId('property-section-section-0')).toBeInTheDocument();
       expect(screen.getByTestId('tabs')).toBeInTheDocument();
-      // Each appears in both sidebar and mobile fallback = 2 instances
-      expect(screen.getAllByTestId('association-card-assoc-0').length).toBe(2);
-      expect(screen.getAllByTestId('extra').length).toBe(2);
     });
   });
 });

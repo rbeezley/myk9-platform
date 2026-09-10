@@ -1,14 +1,20 @@
 import { cn } from '@/lib/utils';
 import { PropertySection } from './PropertySection';
-import { AssociationCard } from './AssociationCard';
 import type { RecordPageLayoutProps } from './RecordPageLayout.types';
 
 /**
  * Three-panel layout for record detail pages (CRM-inspired).
  *
- * Desktop (≥1024px): left sidebar (properties) | center (tabs) | right sidebar (associations)
- * Tablet  (768-1023px): properties above tabs, no right sidebar (associations fold into tabs)
- * Mobile  (<768px): single column, properties above tabs
+ * Desktop (≥1280px): left sidebar (properties) | center (tabs)
+ * Below 1280px: single column — properties above tabs.
+ *
+ * The two-panel switch is `xl`, not `lg`, because the properties column is
+ * FIXED at 280px. This layout also carried a 300px right sidebar of
+ * "associations"; at 1024px the two of them plus their gaps left the centre
+ * column ~230px, narrower than the cards inside it, and the Dogs card's header
+ * row overflowed. That sidebar has since been removed outright — its only ever
+ * caller was the person page's Dogs card, whose count now renders beside the
+ * Dogs list it counts.
  */
 export function RecordPageLayout({
   breadcrumb,
@@ -19,14 +25,10 @@ export function RecordPageLayout({
   properties,
   tabs,
   tabsContent,
-  associations,
-  associationsExtra,
-  mobileAssociationsFirst = false,
   storageKey = 'myk9:prop',
   className,
 }: RecordPageLayoutProps) {
   const hasLeftSidebar = properties && properties.length > 0;
-  const hasRightSidebar = (associations && associations.length > 0) || associationsExtra;
 
   return (
     <div className={cn('max-w-[1440px] mx-auto', className)}>
@@ -47,23 +49,14 @@ export function RecordPageLayout({
       {/* Hero section (profile card, etc.) */}
       {hero && <div className="px-6 pb-6">{hero}</div>}
 
-      {/* Three-panel body */}
-      <div className="flex flex-col lg:flex-row gap-6 px-6 pb-8">
+      {/* Two-panel body */}
+      <div className="flex flex-col xl:flex-row gap-6 px-6 pb-8">
         {/* Left sidebar — properties */}
         {hasLeftSidebar && (
-          <aside className="w-full lg:w-[280px] lg:min-w-[280px] lg:flex-shrink-0 space-y-3">
+          <aside className="w-full xl:w-[280px] xl:min-w-[280px] xl:flex-shrink-0 space-y-3">
             {properties.map(section => (
               <PropertySection key={section.key} section={section} storagePrefix={storageKey} />
             ))}
-          </aside>
-        )}
-
-        {hasRightSidebar && mobileAssociationsFirst && (
-          <aside className="order-first w-full space-y-3 lg:hidden" data-mobile-associations>
-            {associations?.map(assoc => (
-              <AssociationCard key={assoc.key} association={assoc} />
-            ))}
-            {associationsExtra}
           </aside>
         )}
 
@@ -78,27 +71,7 @@ export function RecordPageLayout({
             </div>
           )}
         </main>
-
-        {/* Right sidebar — associations (hidden below xl, content moves to tabs) */}
-        {hasRightSidebar && (
-          <aside className="hidden lg:block w-[300px] min-w-[300px] flex-shrink-0 space-y-3">
-            {associations?.map(assoc => (
-              <AssociationCard key={assoc.key} association={assoc} />
-            ))}
-            {associationsExtra}
-          </aside>
-        )}
       </div>
-
-      {/* Mobile/tablet fallback — associations below tabs */}
-      {hasRightSidebar && !mobileAssociationsFirst && (
-        <div className="lg:hidden px-6 pb-8 space-y-3">
-          {associations?.map(assoc => (
-            <AssociationCard key={assoc.key} association={assoc} />
-          ))}
-          {associationsExtra}
-        </div>
-      )}
     </div>
   );
 }

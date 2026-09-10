@@ -1,12 +1,11 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Mail, MapPin, Settings, PawPrint } from 'lucide-react';
+import { Mail, MapPin, Settings } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { getErrorMessage } from '@myk9/core';
 import { useUserStore } from '@/store/userStore';
-import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
 import {
   useUpdateUserMutation,
   useDeleteUserMutation,
@@ -25,7 +24,7 @@ import { User as UserType } from '@/types/user-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { RecordPageLayout } from '@/components/layout/record';
-import type { PropertySectionConfig, AssociationConfig } from '@/components/layout/record';
+import type { PropertySectionConfig } from '@/components/layout/record';
 import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
 import JudgeQualificationsCard from './JudgeQualificationsCard';
@@ -46,15 +45,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const location = useLocation();
   const { user: currentUser, hasPermission } = useAuthContext();
   const { loadUsers } = useUserStore();
-  const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
   const updateUserMutation = useUpdateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { people } = useRoleBasedPeople();
   const queryClient = useQueryClient();
-
-  const dogCount = ownerDogs.length;
 
   // A removed person can be read (MYK9-153) but not edited, and the one action
   // that applies is putting them back. Restore goes through the same service the
@@ -279,16 +275,17 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         icon: Mail,
         iconGradient: 'from-blue-500/10 to-indigo-500/5',
         iconColor: 'text-info ',
+        // No First/Last Name rows: the hero heading above this card IS those
+        // two values joined, so repeating them adds nothing and pushed Phone —
+        // the one fact the hero does not carry — below the fold.
         fields: [
-          { label: 'First Name', value: firstName },
-          { label: 'Last Name', value: lastName },
           {
             label: 'Email',
             value: person.email || null,
             render: person.email ? (
               <a
                 href={`mailto:${person.email}`}
-                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline truncate"
+                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline break-all"
               >
                 {person.email}
               </a>
@@ -348,24 +345,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     ];
 
     return sections;
-  }, [accountStatus, firstName, lastName, person, formData]);
-
-  // Right sidebar: associations
-  const associations: AssociationConfig[] = useMemo(() => {
-    const items: AssociationConfig[] = [];
-
-    if (dogCount > 0) {
-      items.push({
-        key: 'dogs',
-        title: 'Dogs',
-        subtitle: `${dogCount} registered dog${dogCount !== 1 ? 's' : ''}`,
-        icon: PawPrint,
-        badge: String(dogCount),
-      });
-    }
-
-    return items;
-  }, [dogCount]);
+  }, [accountStatus, person, formData]);
 
   // Center content: judge cards + tabs
   const centerContent = (
@@ -387,7 +367,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   return (
     <>
       <RecordPageLayout
-        className="py-20"
         storageKey="myk9:person"
         breadcrumb={<Breadcrumb showHomeIcon items={breadcrumbItems} />}
         banner={
@@ -438,7 +417,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         }
         properties={properties}
         tabsContent={centerContent}
-        associations={associations}
       />
 
       <UserDetailsDialogs

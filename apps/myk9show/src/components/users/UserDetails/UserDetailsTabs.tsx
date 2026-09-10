@@ -70,10 +70,14 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
 
   return (
     <div className="w-full">
+      {/* `relative` is load-bearing: the hover-gradient below is `absolute
+          inset-0`, and Card's own classes carry no positioning. Without it the
+          overlay resolved against an ancestor far up the tree and painted well
+          outside this card. */}
       <Card
-        className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
+        className="group relative bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                        rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
-                       hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
+                       hover:shadow-xl hover:border-primary/20"
       >
         <div
           className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.02] to-transparent
@@ -81,13 +85,29 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         />
 
         <div className="relative space-y-6">
-          <div className="flex items-center gap-3">
+          {/* Wraps rather than overflowing: this header sits in the centre
+              column, which is narrow on a tablet. */}
+          <div className="flex flex-wrap items-center gap-3">
             <div className="p-2.5 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl">
               <PawPrint className="h-5 w-5 text-warning " />
             </div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
               Dogs
             </h3>
+            {/* The count lives beside the heading of the list it counts, and is
+                derived from the SAME array the rows render from. It used to be a
+                sidebar card fed by useOwnerDogsWithQuery while these rows came
+                from the dog store — two sources that could disagree, leaving a
+                badge reading "1" above an empty list.
+                Hidden at zero rather than showing "0": the store is empty while
+                it is still filling, so a zero badge would assert "no dogs" during
+                load. */}
+            {userDogs.length > 0 && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground">
+                {userDogs.length}
+                <span className="sr-only"> {userDogs.length === 1 ? 'dog' : 'dogs'}</span>
+              </span>
+            )}
             <Button
               onClick={handleAddNewDog}
               className="ml-auto"

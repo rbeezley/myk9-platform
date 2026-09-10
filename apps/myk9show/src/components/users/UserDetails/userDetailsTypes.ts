@@ -25,8 +25,11 @@ export function extractPersonName(person: UserType): {
   const personRecord = person as unknown as Record<string, unknown>;
   const firstName = person.firstName || (personRecord.first_name as string) || '';
   const lastName = person.lastName || (personRecord.last_name as string) || '';
+  // Use whatever name parts exist. Requiring BOTH meant a record with a first
+  // name and no surname — an ordinary contact record — displayed its EMAIL as
+  // the person's name in the hero heading, while the real name sat unused.
   const fullName =
-    firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
+    [firstName, lastName].filter(Boolean).join(' ') || person.email || 'Unknown User';
   return { firstName, lastName, fullName };
 }
 

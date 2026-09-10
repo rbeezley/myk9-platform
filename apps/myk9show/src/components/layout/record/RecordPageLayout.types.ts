@@ -27,17 +27,6 @@ export interface PropertyField {
   suffix?: string;
 }
 
-/** A compact card linking to a related record in the right sidebar. */
-export interface AssociationConfig {
-  key: string;
-  title: string;
-  subtitle?: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  href?: string;
-  onClick?: () => void;
-  badge?: string;
-}
-
 /** Tab definition for the center panel. */
 export interface RecordTab {
   key: string;
@@ -68,12 +57,6 @@ export interface RecordPageLayoutProps {
   /** Pre-built tabs content — pass this instead of `tabs` when the page
    *  already has a fully rendered Tabs component. */
   tabsContent?: React.ReactNode;
-  /** Association cards for the right sidebar. */
-  associations?: AssociationConfig[];
-  /** Extra content below associations in the right sidebar. */
-  associationsExtra?: React.ReactNode;
-  /** On narrow layouts, place associations before tabs when they contain core identity. */
-  mobileAssociationsFirst?: boolean;
   /** localStorage key prefix for collapsible section state (defaults to "myk9:prop"). */
   storageKey?: string;
   /** Class name for the outer container. */

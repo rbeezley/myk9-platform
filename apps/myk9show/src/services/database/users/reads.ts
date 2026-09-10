@@ -476,9 +476,7 @@ export const getDeletedUserById = async (id: string) => {
       // with the pre-existing raw ledger path; its RLS is also self/site-admin.
       const { data: fallbackRoles, error: fallbackError } = await supabase
         .from('user_roles')
-        .select(
-          'expires_at, is_active, deactivated_at, role:roles!user_roles_role_id_fkey(name)'
-        )
+        .select('expires_at, is_active, deactivated_at, role:roles!user_roles_role_id_fkey(name)')
         .eq('user_id', id);
       if (fallbackError) {
         throw createDatabaseError(fallbackError, 'user', 'select_deleted_by_id');
@@ -563,10 +561,11 @@ export const getUsersByRole = async (role: string) => {
     const roleRows: { person_id: string }[] = [];
     const rolePageSize = 500;
     for (let offset = 0; ; offset += rolePageSize) {
-      const { data, error: roleError } = await supabase.rpc(
-        'get_visible_person_ids_by_role',
-        { p_role_name: role, p_limit: rolePageSize, p_offset: offset }
-      );
+      const { data, error: roleError } = await supabase.rpc('get_visible_person_ids_by_role', {
+        p_role_name: role,
+        p_limit: rolePageSize,
+        p_offset: offset,
+      });
 
       // Fail closed during the short code-before-migration deploy interval. An
       // empty picker is safer than restoring the old unbounded raw-grant read.

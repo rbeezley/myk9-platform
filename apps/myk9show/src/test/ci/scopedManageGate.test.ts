@@ -84,21 +84,27 @@ type Allowance = { reason: string; count: number };
 const ALLOWED: Record<string, Allowance> = {
   'pages/BrowseShowsPage.tsx': {
     reason:
-      'Genuinely global: a LIST of every show, deciding whether this viewer manages any show at ' +
-      'all and should see management affordances in the listing. There is no single club to ' +
-      'scope to at this level.',
+      'UNREVIEWED (pre-existing, suspected — MYK9-464). Was allowed here as "a list of every ' +
+      'show, no single club to scope to"; Codex review of #2168 showed that reasoning is wrong. ' +
+      'The flag gates row-selection checkboxes on EVERY row and the ShowBulkActionsBar, so a ' +
+      'Club A secretary can select Club B shows and be offered bulk status/delete. Each row ' +
+      'carries its own clubId — the gate belongs per row, not per page.',
     count: 1,
   },
   'components/notifications/MessageCenterPanel.tsx': {
     reason:
-      'Messaging destinations are a global staff capability, not a per-show one — the panel is ' +
-      'not rendered against a single club-owned record.',
+      'Genuinely global, verified: `staffShows` is built from `currentShowIds`, so the compose ' +
+      'destination list is already scoped to shows in context. These booleans decide the ' +
+      'CAPABILITY (may I send show-wide / target classes), not WHICH show — there is no ' +
+      'club-owned record here to scope against.',
     count: 2,
   },
   'components/shows/RegistrationWorkflow/ClassSelectionStep.tsx': {
     reason:
-      'Passed as `isOrganizer` to change copy only (NoTrialsAlert wording), not to gate a ' +
-      'mutation. Wrong wording for a cross-club staff viewer is cosmetic.',
+      'Genuinely global, verified: `isOrganizer` reaches only NoTrialsAlert and NoClassesAlert ' +
+      'in ClassSelectionStep.components.tsx, where it picks between two sentences and gates no ' +
+      'mutation. Worst case a cross-club staff viewer is told where to add trials instead of to ' +
+      'contact the organizer.',
     count: 2,
   },
   'pages/ShowDetailsPage.audience.ts': {

@@ -94,27 +94,14 @@ describe('resolveWithdrawalPolicy', () => {
     expect(r.refundCents).toBe(2500);
   });
 
-  // Prose composes like every other field (round 4 reversed round 3's gate —
-  // it silently dropped procedural club notes on every show with a cutoff).
-  // The contradiction it was chasing is fixed in describeWithdrawalPolicyText
-  // and in requiresManual, not by discarding the club's words.
-  it('inherits club prose onto a show that declares no prose of its own', () => {
-    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'Email the secretary.' };
+  // Mirror of the client guard. This resolver's output becomes Stripe's
+  // pre-payment `custom_text` and the entry's frozen snapshot, so a spliced
+  // club note is a contradictory disclosure at the moment of payment.
+  it('does not inherit club prose onto a show that declares its own policy', () => {
+    const clubWithProse = { ...club, default_withdrawal_policy_notes: 'No refunds after Aug 1.' };
     const policy = resolveWithdrawalPolicy({ withdrawal_cutoff_date: '2026-06-01' }, clubWithProse);
-    expect(policy?.notes).toBe('Email the secretary.');
+    expect(policy?.notes).toBeNull();
     expect(policy?.retentionValue).toBe(500);
-  });
-
-  // The payer-facing string must never assert a refund its own prose denies.
-  it('MONEY: the disclosure does not claim a full refund while prose governs', () => {
-    const text = describeWithdrawalPolicyText({
-      cutoffDate: '2026-06-01',
-      retentionType: 'flat',
-      retentionValue: 0,
-      notes: 'Then 50% until 7 days out, none after.',
-    });
-    expect(text).not.toMatch(/full refund/i);
-    expect(text).toContain('Then 50% until 7 days out, none after.');
   });
 
   it('returns null when neither show nor club declares a policy', () => {

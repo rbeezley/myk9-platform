@@ -269,6 +269,8 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
           <p className="text-xs text-muted-foreground">
             For multi-tier or unusual policies. Service fees are always non-refundable on a
             voluntary withdrawal.
+            {!isShow &&
+              ' Applies to shows that set no policy of their own; a show that sets one states its own notes.'}
           </p>
         </div>
 

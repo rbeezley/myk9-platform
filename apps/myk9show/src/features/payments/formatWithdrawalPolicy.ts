@@ -57,16 +57,9 @@ export function describeWithdrawalPolicy(
   const retained = formatRetained(policy);
 
   // Cutoff with no retention is effectively a full refund regardless of date —
-  // don't imply a deadline that changes nothing. But only SAY "full refund"
-  // when there is no prose to contradict it: a club's multi-tier note appended
-  // to that sentence read "Full refund of the entry fee. … then 50% until 7
-  // days out" in one breath, and that string is the payer's pre-payment
-  // disclosure and the entry's frozen snapshot. With prose present the notes
-  // govern, exactly as in the no-cutoff branch above.
+  // don't imply a deadline that changes nothing.
   if (!retained) {
-    return notes
-      ? { refundLine: SERVICE_FEE_SENTENCE, notes }
-      : { refundLine: `Full refund of the entry fee. ${SERVICE_FEE_SENTENCE}`, notes };
+    return { refundLine: `Full refund of the entry fee. ${SERVICE_FEE_SENTENCE}`, notes };
   }
 
   return {

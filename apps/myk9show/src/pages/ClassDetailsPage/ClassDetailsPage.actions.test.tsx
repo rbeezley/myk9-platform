@@ -122,12 +122,27 @@ function renderClassDetailsPage() {
 
 describe('ClassDetailsPage header actions', () => {
   beforeEach(() => {
+    // A club-scoped secretary grant for THIS show's club (club-1). A secretary
+    // with no scopes cannot exist — every secretary row in user_roles carries a
+    // club_id, and the server's is_trial_secretary(club) matches on it — so the
+    // scope has to be present for this fixture to represent a real user.
     mockUseAuthContext.mockReturnValue({
       user: { id: 'secretary-1' },
       isSecretary: true,
       isAdmin: false,
       hasRole: () => false,
-      userWithRoles: null,
+      userWithRoles: {
+        id: 'secretary-1',
+        scopes: [
+          {
+            userId: 'secretary-1',
+            roleId: 'secretary',
+            scopeType: 'club',
+            scopeId: 'club-1',
+            createdAt: new Date(),
+          },
+        ],
+      },
     });
     mockUseClassDetailsDialogs.mockReturnValue({
       editClassPanelOpen: false,

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { canManageShowSurface, hasScopedClubRole, hasScopedShowRole } from './roleScopes';
+import {
+  canManageShowSurface,
+  filterManagedShows,
+  hasScopedClubRole,
+  hasScopedShowRole,
+  managedClubIds,
+} from './roleScopes';
 import { ScopeType, UserRole, type UserWithRoles, type RoleScope } from '@/types/auth-types';
 
 function buildUser(scopes: RoleScope[]): UserWithRoles {
@@ -108,21 +114,71 @@ describe('hasScopedShowRole', () => {
   });
 });
 
+const secretaryClubScope: RoleScope = {
+  userId: 'user-1',
+  roleId: UserRole.SECRETARY,
+  scopeType: ScopeType.CLUB,
+  scopeId: 'club-1',
+  createdAt: new Date(),
+};
+
 describe('canManageShowSurface', () => {
   const clubAdminUser = buildUser([clubScope]);
+  const secretaryUser = buildUser([secretaryClubScope]);
   const holdsClubAdmin = (role: UserRole) => role === UserRole.CLUB_ADMIN;
   const holdsNothing = () => false;
 
-  it('grants a secretary regardless of club', () => {
+  // The server's manage predicates resolve to is_trial_secretary(club), which
+  // matches on ur.club_id — so a secretary is NOT global. Granting globally
+  // rendered manage controls the database then refused.
+  it('grants a secretary scoped to this show’s club', () => {
+    expect(
+      canManageShowSurface({
+        isSecretary: true,
+        isAdmin: false,
+        hasRole: holdsNothing,
+        userWithRoles: secretaryUser,
+        clubId: 'club-1',
+      })
+    ).toBe(true);
+  });
+
+  it('denies a secretary viewing another club’s show', () => {
+    expect(
+      canManageShowSurface({
+        isSecretary: true,
+        isAdmin: false,
+        hasRole: holdsNothing,
+        userWithRoles: secretaryUser,
+        clubId: 'club-2',
+      })
+    ).toBe(false);
+  });
+
+  it('denies a secretary whose scopes have not loaded', () => {
     expect(
       canManageShowSurface({
         isSecretary: true,
         isAdmin: false,
         hasRole: holdsNothing,
         userWithRoles: null,
-        clubId: undefined,
+        clubId: 'club-1',
       })
-    ).toBe(true);
+    ).toBe(false);
+  });
+
+  // A SHOW-scoped secretary grant does not satisfy is_trial_secretary either:
+  // that predicate requires `ur.show_id IS NULL`.
+  it('denies a show-scoped secretary grant on the club check', () => {
+    expect(
+      canManageShowSurface({
+        isSecretary: true,
+        isAdmin: false,
+        hasRole: holdsNothing,
+        userWithRoles: buildUser([showScope]),
+        clubId: 'club-1',
+      })
+    ).toBe(false);
   });
 
   it('grants a site admin regardless of club', () => {
@@ -198,5 +254,81 @@ describe('canManageShowSurface', () => {
         clubId: 'club-1',
       })
     ).toBe(false);
+  });
+});
+
+describe('managedClubIds', () => {
+  const secretaryOfClub1: RoleScope = {
+    userId: 'user-1',
+    roleId: UserRole.SECRETARY,
+    scopeType: ScopeType.CLUB,
+    scopeId: 'club-1',
+    createdAt: new Date(),
+  };
+  const clubAdminOfClub2: RoleScope = {
+    userId: 'user-1',
+    roleId: UserRole.CLUB_ADMIN,
+    scopeType: ScopeType.CLUB,
+    scopeId: 'club-2',
+    createdAt: new Date(),
+  };
+  const exhibitorOfClub3: RoleScope = {
+    userId: 'user-1',
+    roleId: UserRole.EXHIBITOR,
+    scopeType: ScopeType.CLUB,
+    scopeId: 'club-3',
+    createdAt: new Date(),
+  };
+
+  it('returns null — every club — only for a site admin', () => {
+    expect(managedClubIds({ isAdmin: true, userWithRoles: null })).toBeNull();
+  });
+
+  it('collects the clubs where the viewer holds a staff role', () => {
+    const ids = managedClubIds({
+      isAdmin: false,
+      userWithRoles: buildUser([secretaryOfClub1, clubAdminOfClub2]),
+    });
+    expect(ids).toEqual(new Set(['club-1', 'club-2']));
+  });
+
+  it('ignores non-staff roles and show-typed scopes', () => {
+    const ids = managedClubIds({
+      isAdmin: false,
+      userWithRoles: buildUser([exhibitorOfClub3, showScope]),
+    });
+    expect(ids).toEqual(new Set());
+  });
+
+  it('returns an empty set — not null — when scopes have not loaded', () => {
+    // null would mean "every club". An unresolved viewer must manage none.
+    expect(managedClubIds({ isAdmin: false, userWithRoles: null })).toEqual(new Set());
+  });
+});
+
+describe('filterManagedShows', () => {
+  const shows = [
+    { id: 's1', clubId: 'club-1' },
+    { id: 's2', clubId: 'club-2' },
+    { id: 's3', clubId: undefined },
+  ];
+
+  it('passes every show through for a site admin', () => {
+    expect(filterManagedShows(shows, null).map(s => s.id)).toEqual(['s1', 's2', 's3']);
+  });
+
+  it('keeps only shows owned by a managed club', () => {
+    expect(filterManagedShows(shows, new Set(['club-1'])).map(s => s.id)).toEqual(['s1']);
+  });
+
+  it('drops a show whose club has not loaded rather than assuming ownership', () => {
+    expect(filterManagedShows(shows, new Set(['club-1', 'club-2'])).map(s => s.id)).toEqual([
+      's1',
+      's2',
+    ]);
+  });
+
+  it('returns nothing when the viewer manages no club', () => {
+    expect(filterManagedShows(shows, new Set())).toEqual([]);
   });
 });

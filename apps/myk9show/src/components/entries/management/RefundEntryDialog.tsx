@@ -134,10 +134,10 @@ export function RefundEntryDialog({
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
   const manualAmountValid =
-    mode === 'full' ||
-    (Number.isFinite(Number(partialAmount)) &&
-      Number(partialAmount) > 0 &&
-      Number(partialAmount) <= fee);
+    mode === 'partial' &&
+    Number.isFinite(Number(partialAmount)) &&
+    Number(partialAmount) > 0 &&
+    Number(partialAmount) <= fee;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -233,7 +233,13 @@ export function RefundEntryDialog({
             </p>
           )}
 
-          <RadioGroup value={mode} onValueChange={value => setMode(value as 'full' | 'partial')}>
+          <RadioGroup
+            value={mode}
+            onValueChange={value => {
+              prefilledRef.current = true;
+              setMode(value as 'full' | 'partial');
+            }}
+          >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="full" id="refund-full" />
               <Label htmlFor="refund-full">Full refund: ${fee.toFixed(2)}</Label>

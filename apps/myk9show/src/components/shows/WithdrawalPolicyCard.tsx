@@ -212,7 +212,8 @@ export function WithdrawalPolicyCard({ scope, entityId }: WithdrawalPolicyCardPr
             />
             <p className="text-xs text-muted-foreground">
               Full refund on or before this date (show’s timezone). After it, the retention below
-              applies. Leave blank to use the policy notes only.
+              applies unless the policy notes describe a different refund schedule. Leave blank to
+              use the policy notes only.
             </p>
           </div>
         )}

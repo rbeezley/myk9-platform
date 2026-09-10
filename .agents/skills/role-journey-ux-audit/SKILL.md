@@ -60,6 +60,10 @@ For every major route and requested viewport:
    destructive-action clarity, responsive reflow, and whether the user knows scope and next step.
 6. Search for the existing surface before recommending UI. Prefer consolidation or deep links over
    duplicated workflows.
+7. Walk one record the persona does NOT own — a show or club they hold no grant in, reached by URL
+   from Find Shows or the People directory. Every staff control offered there is a finding: the
+   server's predicates are club-scoped, so it will refuse what the client offered. Steps 1-6 walk
+   the persona's own data and cannot surface this class on their own.
 
 Exercise required CRUD without approval only against an isolated local Supabase fixture or through
 an established non-persisting interception. Every write to hosted/shared Supabase—including seeded

@@ -12,6 +12,7 @@ export const withdrawalPolicyTermFixtures = [
   ['Entries withdrawn after closing forfeit all fees.', true],
   ['No money back after closing.', true],
   ['Payments are final after the deadline.', true],
+  ['Withdrawals are non-refundable.', true],
   ['A 25% administrative charge applies to all withdrawals.', true],
   ['Refunds are not permitted.', true],
   ['Funds are returned before the closing date only.', true],

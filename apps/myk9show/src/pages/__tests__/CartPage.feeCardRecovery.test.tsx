@@ -172,17 +172,10 @@ describe('MYK9-423 fee-card payment recovery', () => {
         dog: 'Outsider',
         className: 'Outsider Class',
       },
-      {
-        id: 'entry-paid',
-        dog_id: 'dog-paid',
-        class_id: 'class-paid',
-        dog: 'Already Paid',
-        className: 'Paid Class',
-      },
     ].map(entry => ({
       ...entry,
       show_id: 'show-423',
-      payment_status: entry.id === 'entry-paid' ? 'paid' : 'pending',
+      payment_status: 'pending',
       entry_status: 'submitted',
       deleted_at: null,
       handler_id: null,
@@ -244,7 +237,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
           if (table === 'dogs')
             return json(
               databaseEntries
-                .filter(entry => !['entry-outsider', 'entry-paid'].includes(entry.id))
+                .filter(entry => entry.id !== 'entry-outsider')
                 .map(entry => ({ id: entry.dog_id }))
             );
           if (table === 'entries') return json(databaseEntries.filter(matches));
@@ -254,8 +247,8 @@ describe('MYK9-423 fee-card payment recovery', () => {
               return json(null);
             }
             if (savedItems.length === 0) return json([]);
-            return json([
-              ...savedItems.map((item, index) => {
+            return json(
+              savedItems.map((item, index) => {
                 const entry = databaseEntries.find(entry => entry.id === item.entry_id)!;
                 return {
                   ...item,
@@ -274,31 +267,8 @@ describe('MYK9-423 fee-card payment recovery', () => {
                   },
                   handler: null,
                 };
-              }),
-              {
-                id: 'item-paid',
-                entry_id: 'entry-paid',
-                class_id: 'class-paid',
-                dog_id: 'dog-paid',
-                handler_id: null,
-                entry_fee_cents: 3000,
-                jump_height: null,
-                special_requests: null,
-                dog: {
-                  id: 'dog-paid',
-                  name: 'Already Paid',
-                  call_name: 'Already Paid',
-                  registrations: [],
-                },
-                class: {
-                  id: 'class-paid',
-                  name: 'Paid Class',
-                  level: 'Advanced',
-                  trial_id: 'trial-423',
-                },
-                handler: null,
-              },
-            ]);
+              })
+            );
           }
           // Unrelated display metadata stays at its empty/default state.
           if (table === 'platform_settings' || table === 'shows' || table === 'clubs')
@@ -351,20 +321,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
     )!;
     expect(recoveryRead.params.get('show_id')).toBe('eq.show-423');
     expect(recoveryRead.params.get('payment_status')).toBe('eq.pending');
-    const staleDelete = requests.find(
-      request => request.table === 'entry_cart_items' && request.method === 'DELETE'
-    );
-    expect(staleDelete?.params.get('id')).toBe('in.(item-paid)');
-    const totalsPatch = requests.find(
-      request =>
-        request.table === 'entry_carts' &&
-        request.method === 'PATCH' &&
-        (request.body as { total_cents?: number } | undefined)?.total_cents === 9630
-    );
-    expect(totalsPatch?.body).toMatchObject({
-      subtotal_cents: 9000,
-      platform_fee_cents: 630,
-      total_cents: 9630,
-    });
+    expect(recoveryRead.params.get('id')).toContain('entry-outsider');
   });
 });

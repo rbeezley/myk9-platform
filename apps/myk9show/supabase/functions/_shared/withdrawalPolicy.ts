@@ -59,13 +59,19 @@ export interface WithdrawalRefundSuggestion {
 function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
   if (!value || typeof value !== 'object') return false;
   const policy = value as Record<string, unknown>;
+  const validCutoff =
+    policy.cutoffDate === null ||
+    (typeof policy.cutoffDate === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate) &&
+      !Number.isNaN(new Date(`${policy.cutoffDate}T00:00:00Z`).getTime()));
   return (
-    (policy.cutoffDate === null || typeof policy.cutoffDate === 'string') &&
+    validCutoff &&
     (policy.retentionType === 'flat' || policy.retentionType === 'percent') &&
     (policy.retentionValue === null ||
       (typeof policy.retentionValue === 'number' &&
         Number.isFinite(policy.retentionValue) &&
-        policy.retentionValue >= 0)) &&
+        policy.retentionValue >= 0 &&
+        (policy.retentionType === 'flat' || policy.retentionValue <= 100))) &&
     (policy.retentionDeclared === undefined || typeof policy.retentionDeclared === 'boolean') &&
     (policy.notes === null || typeof policy.notes === 'string')
   );
@@ -80,6 +86,9 @@ function notesDescribeRefundTerms(notes: string | null): boolean {
   const naturalScheduleTerms =
     /\b(?:payments?|funds?)\b[\s\S]{0,80}\b(?:final|returned)\b[\s\S]{0,40}\b(?:after|before|until|deadline|closing)\b/i;
   if (naturalScheduleTerms.test(policyText)) return true;
+  if (/\brefunds?\b[\s\S]{0,80}\b(?:not allowed|prohibited|forbidden)\b/i.test(policyText)) {
+    return true;
+  }
   return /\b(?:no|full|partial)\s+refunds?\b|\b(?:money|funds?|payments?)\s+(?:back|returned|final)\b|\bpaid\s+back\b|\brefunds?\b[\s\S]{0,80}\b(?:no|none|full|partial|after|before|until)\b|\bfull\s+until\b|\b(?:\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)[\s\S]{0,80}\b(?:after|before|until|none|less|refund|entry fee|office fee|fee|forfeit)\b|\b(?:entry fees?|office fees?|fees?|amount|proceeds)\b[\s\S]{0,100}\b(?:after|before|until|none|less|retain(?:s|ed|ing)?|keeps?|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b|\b(?:retain(?:s|ed|ing)?|keeps?|kept|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b[\s\S]{0,80}\b(?:refunds?|entry fees?|office fees?|fees?|amount|\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)\b|\bforfeit(?:s|ed|ing)?\b[\s\S]{0,80}\b(?:fees?|refunds?|amount)\b/is.test(
     policyText
   );
@@ -244,7 +253,7 @@ export function resolveWithdrawalRefundCents(
   asOf: Date,
   timeZone: string
 ): WithdrawalRefundSuggestion {
-  if (!policy) {
+  if (!isValidWithdrawalPolicy(policy)) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,

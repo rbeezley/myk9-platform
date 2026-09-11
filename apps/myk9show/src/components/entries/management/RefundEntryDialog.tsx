@@ -143,10 +143,10 @@ export function RefundEntryDialog({
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
   const manualAmountValid =
-    mode === 'partial' &&
-    Number.isFinite(Number(partialAmount)) &&
-    Number(partialAmount) > 0 &&
-    Number(partialAmount) <= fee;
+    mode === 'full' ||
+    (Number.isFinite(Number(partialAmount)) &&
+      Number(partialAmount) > 0 &&
+      Number(partialAmount) <= fee);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -163,8 +163,8 @@ export function RefundEntryDialog({
 
     const usePolicySnapshot =
       mode === 'partial' &&
-      snapshotSuggestedAmount !== null &&
-      partialAmount === snapshotSuggestedAmount;
+      ((snapshotSuggestedAmount !== null && partialAmount === snapshotSuggestedAmount) ||
+        (suggestion?.requiresManual === true && suggestion.hasPolicy && partialAmount === ''));
 
     let amountCents: number | undefined;
     if (mode === 'partial') {
@@ -298,8 +298,7 @@ export function RefundEntryDialog({
             disabled={
               submitting ||
               suggestionLoading ||
-              !suggestion ||
-              (suggestion.requiresManual && !manualAmountValid)
+              (suggestion?.requiresManual === true && !manualAmountValid)
             }
           >
             {submitting ? 'Refunding…' : 'Issue refund'}

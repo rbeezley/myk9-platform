@@ -73,13 +73,19 @@ export interface WithdrawalRefundSuggestion {
 function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
   if (!value || typeof value !== 'object') return false;
   const policy = value as Record<string, unknown>;
+  const validCutoff =
+    policy.cutoffDate === null ||
+    (typeof policy.cutoffDate === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate) &&
+      !Number.isNaN(new Date(`${policy.cutoffDate}T00:00:00Z`).getTime()));
   return (
-    (policy.cutoffDate === null || typeof policy.cutoffDate === 'string') &&
+    validCutoff &&
     (policy.retentionType === 'flat' || policy.retentionType === 'percent') &&
     (policy.retentionValue === null ||
       (typeof policy.retentionValue === 'number' &&
         Number.isFinite(policy.retentionValue) &&
-        policy.retentionValue >= 0)) &&
+        policy.retentionValue >= 0 &&
+        (policy.retentionType === 'flat' || policy.retentionValue <= 100))) &&
     (policy.retentionDeclared === undefined || typeof policy.retentionDeclared === 'boolean') &&
     (policy.notes === null || typeof policy.notes === 'string')
   );

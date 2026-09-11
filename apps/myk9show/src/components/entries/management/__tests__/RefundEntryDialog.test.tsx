@@ -47,8 +47,18 @@ function renderDialog(onRefunded = vi.fn()) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: no snapshot policy → dialog behaves exactly as before.
-  suggestionMock.mockReturnValue({ data: undefined });
+  // Default: the policy lookup has completed and the entry is eligible for a
+  // normal full refund. Missing/error states are covered explicitly below.
+  suggestionMock.mockReturnValue({
+    data: {
+      hasPolicy: true,
+      refundCents: 5000,
+      retainedCents: 0,
+      requiresManual: false,
+      reason: 'before_cutoff',
+      policy: null,
+    },
+  });
 });
 
 describe('RefundEntryDialog', () => {
@@ -266,7 +276,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
       },
     });
     renderDialog();
-    expect(screen.queryByText(/withdrawal policy/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/needs your judgment/i)).toBeInTheDocument();
   });
 });
 

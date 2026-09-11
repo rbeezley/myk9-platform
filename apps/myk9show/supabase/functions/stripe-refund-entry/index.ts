@@ -195,7 +195,10 @@ Deno.serve(async req => {
       const rawTrial = entry.trial as
         { timezone?: string | null } | { timezone?: string | null }[] | null;
       const trial = Array.isArray(rawTrial) ? rawTrial[0] : rawTrial;
-      const withdrawnAt = entry.withdrawn_at ? new Date(entry.withdrawn_at as string) : new Date();
+      if (!entry.withdrawn_at) {
+        return corsResponse(corsHeaders, { error: 'policy_snapshot_manual_review' }, 422);
+      }
+      const withdrawnAt = new Date(entry.withdrawn_at as string);
       const suggestion = resolveWithdrawalRefundCents(
         snapshot,
         entryFeeCents,

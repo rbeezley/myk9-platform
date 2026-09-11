@@ -70,6 +70,21 @@ export interface WithdrawalRefundSuggestion {
   reason: WithdrawalRefundReason;
 }
 
+function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
+  if (!value || typeof value !== 'object') return false;
+  const policy = value as Record<string, unknown>;
+  return (
+    (policy.cutoffDate === null || typeof policy.cutoffDate === 'string') &&
+    (policy.retentionType === 'flat' || policy.retentionType === 'percent') &&
+    (policy.retentionValue === null ||
+      (typeof policy.retentionValue === 'number' &&
+        Number.isFinite(policy.retentionValue) &&
+        policy.retentionValue >= 0)) &&
+    (policy.retentionDeclared === undefined || typeof policy.retentionDeclared === 'boolean') &&
+    (policy.notes === null || typeof policy.notes === 'string')
+  );
+}
+
 function normalizeRetentionType(raw: string | null | undefined): RetentionType {
   return raw === 'percent' ? 'percent' : 'flat';
 }
@@ -191,7 +206,7 @@ export function resolveWithdrawalRefundCents(
   asOf: Date,
   timeZone: string
 ): WithdrawalRefundSuggestion {
-  if (!policy) {
+  if (!isValidWithdrawalPolicy(policy)) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,

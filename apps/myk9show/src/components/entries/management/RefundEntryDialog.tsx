@@ -111,7 +111,7 @@ export function RefundEntryDialog({
       prefilledRef.current = false;
       return;
     }
-    if (prefilledRef.current || !suggestion?.hasPolicy) return;
+    if (prefilledRef.current || !suggestion) return;
     if (suggestion.requiresManual) {
       setMode('partial');
       prefilledRef.current = true;
@@ -124,27 +124,29 @@ export function RefundEntryDialog({
     }
   }, [open, suggestion, feeCents]);
 
-  const policyMessage = !suggestion?.hasPolicy
-    ? null
-    : suggestion.requiresManual
-      ? `Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.${
-          describeManualPolicy(suggestion.policy)
-            ? ` Recorded policy: ${describeManualPolicy(suggestion.policy)}`
-            : ''
-        }`
-      : suggestion.reason === 'after_cutoff'
-        ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
-        : 'Withdrawal policy: within the full-refund window. Full refund suggested.';
+  const policyMessage = suggestionLoading
+    ? 'Checking the withdrawal policy…'
+    : !suggestion
+      ? 'Withdrawal policy could not be verified. Enter the refund amount manually.'
+      : suggestion.requiresManual
+        ? `Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.${
+            describeManualPolicy(suggestion.policy)
+              ? ` Recorded policy: ${describeManualPolicy(suggestion.policy)}`
+              : ''
+          }`
+        : suggestion.reason === 'after_cutoff'
+          ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
+          : 'Withdrawal policy: within the full-refund window. Full refund suggested.';
 
   const snapshotSuggestedAmount =
     suggestion?.hasPolicy && !suggestion.requiresManual && suggestion.refundCents < feeCents
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
   const manualAmountValid =
-    mode === 'full' ||
-    (Number.isFinite(Number(partialAmount)) &&
-      Number(partialAmount) > 0 &&
-      Number(partialAmount) <= fee);
+    mode === 'partial' &&
+    Number.isFinite(Number(partialAmount)) &&
+    Number(partialAmount) > 0 &&
+    Number(partialAmount) <= fee;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -296,7 +298,8 @@ export function RefundEntryDialog({
             disabled={
               submitting ||
               suggestionLoading ||
-              (suggestion?.hasPolicy === true && suggestion.requiresManual && !manualAmountValid)
+              !suggestion ||
+              (suggestion.requiresManual && !manualAmountValid)
             }
           >
             {submitting ? 'Refunding…' : 'Issue refund'}

@@ -56,6 +56,21 @@ export interface WithdrawalRefundSuggestion {
   reason: WithdrawalRefundReason;
 }
 
+function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
+  if (!value || typeof value !== 'object') return false;
+  const policy = value as Record<string, unknown>;
+  return (
+    (policy.cutoffDate === null || typeof policy.cutoffDate === 'string') &&
+    (policy.retentionType === 'flat' || policy.retentionType === 'percent') &&
+    (policy.retentionValue === null ||
+      (typeof policy.retentionValue === 'number' &&
+        Number.isFinite(policy.retentionValue) &&
+        policy.retentionValue >= 0)) &&
+    (policy.retentionDeclared === undefined || typeof policy.retentionDeclared === 'boolean') &&
+    (policy.notes === null || typeof policy.notes === 'string')
+  );
+}
+
 function hasAny(...values: Array<string | number | null | undefined>): boolean {
   return values.some(v => v !== null && v !== undefined);
 }
@@ -163,7 +178,7 @@ function formatRetained(policy: WithdrawalPolicy): string | null {
 
 /** A single disclosure string (line + any prose) suitable for Stripe custom_text. */
 export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): string {
-  if (!policy) {
+  if (!isValidWithdrawalPolicy(policy)) {
     return `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`;
   }
 

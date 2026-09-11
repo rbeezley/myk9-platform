@@ -12,20 +12,12 @@ export type {
 } from '@/pages/TVDisplay/types';
 
 export async function getTVDisplayData(showId: string, trialId?: string): Promise<TVDisplayData> {
-  try {
-    return await getPostgrestTVDisplayData(showId, trialId);
-  } catch {
-    return { show: null, classes: [] };
-  }
+  return getPostgrestTVDisplayData(showId, trialId);
 }
 
 export async function getTVDisplayResults(
   showId: string,
   trialId?: string
 ): Promise<TVCompletedClass[]> {
-  try {
-    return await getPostgrestTVDisplayResults(showId, trialId);
-  } catch {
-    return [];
-  }
+  return getPostgrestTVDisplayResults(showId, trialId);
 }

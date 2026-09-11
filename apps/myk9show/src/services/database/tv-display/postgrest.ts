@@ -94,9 +94,10 @@ export async function getPostgrestTVDisplayData(
     .from('shows')
     .select('id, name, start_date, end_date')
     .eq('id', showId)
-    .single();
+    .maybeSingle();
 
-  if (showError || !showData) return { show: null, classes: [] };
+  if (showError) throw new Error(`Unable to load TV show: ${showError.message}`);
+  if (!showData) return { show: null, classes: [] };
 
   let classQuery = supabase
     .from('classes')
@@ -109,7 +110,10 @@ export async function getPostgrestTVDisplayData(
   if (trialId) classQuery = classQuery.eq('trial_id', trialId);
 
   const { data: classData, error: classError } = await classQuery;
-  if (classError || !classData || classData.length === 0) {
+  if (classError) {
+    throw new Error(`Unable to refresh TV classes: ${classError.message}`);
+  }
+  if (!classData || classData.length === 0) {
     return { show: mapShow(showData), classes: [] };
   }
 
@@ -179,7 +183,10 @@ export async function getPostgrestTVDisplayResults(
   if (trialId) classQuery = classQuery.eq('trial_id', trialId);
 
   const { data: classData, error: classError } = await classQuery;
-  if (classError || !classData || classData.length === 0) return [];
+  if (classError) {
+    throw new Error(`Unable to refresh TV results: ${classError.message}`);
+  }
+  if (!classData || classData.length === 0) return [];
 
   const classIds = classData.map(c => c.id);
   const entryCounts = await fetchTVEntryCounts(showId, classIds);

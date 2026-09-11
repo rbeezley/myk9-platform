@@ -203,7 +203,7 @@ Format: `F-nn | role | route | P# | symptom | disposition | proof`
 | F-02 | all    | `/shows?discipline=*`                   | P1  | Every discipline filter returns 0 shows. Mapper reads `trial_type`; replicated trials carry `trialType` | inline                 | Assertion-first unit test on the mapper, then browser replay |
 | F-04 | all    | any anchor link (seen on `/shows/:id`)  | P2  | Anchor scroll lands the target under the 48px fixed header; `scroll-padding-top` is `auto`       | inline                 | Geometry assertion: target top >= header bottom after hash nav |
 | F-05 | public | trials, classes, results, clubs         | P1  | Anonymous visitors read entry lists (handler names, dog names, armbands) and club pages          | linear                 | Product decision + anon replay per route                     |
-| F-09 | public | `/tv/:showId`                           | P2  | Podium rendered, then emptied to "No classes currently in progress" with no navigation           | linear                 | Reproduce the transition; show-day surface                   |
+| F-09 | public | `/tv/:showId`                           | P2  | Podium rendered, then emptied to "No classes currently in progress" with no navigation           | linear MYK9-467        | Reproduce the transition; show-day surface                   |
 | F-10 | public | 404 page                                | P3  | "404" heading clipped 32.5px behind the fixed header; wrapper has `padding-top: 0`               | inline                 | Geometry assertion on the 404 wrapper                        |
 
 Withdrawn: **F-03** — the walk used the literal URL `/shows/:id`. "Show Not Found" is correct for a
@@ -250,5 +250,6 @@ Public — 25 routes walked (signed out)
   Clean: /, /sign-in, /sign-up, /forgot-password, /reset-password, /registration,
          /shows?view=map, /help/credentials, /fees, /pricing-page, /support,
          /terms, /privacy, /sms, /at-show, and all three redirects
-  Fixed inline: F-01, F-02, F-04, F-10   Filed: F-05, F-09
+  Fixed inline: F-01, F-02, F-04, F-10 (commit 5d25a56f3)
+  Filed: F-05 -> MYK9-466, F-09 -> MYK9-467
 ```

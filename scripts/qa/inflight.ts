@@ -18,7 +18,8 @@
  * branch and its own same-repository PR are excluded. With no paths given and
  * no changes on the branch, the check fails closed (exit 2): before work
  * starts, name the paths you intend to touch. Exit 1 on any overlap so a chained
- * `pnpm qa:inflight && …` stops; `--warn` reports without failing. Linear
+ * `pnpm qa:inflight && …` stops; `--warn` reports without failing, and
+ * `--verbose` expands stale local-branch details. Linear
  * "In Progress" issues and other Claude sessions are MCP tools, not shell,
  * and stay as the skill's manual steps.
  */
@@ -455,11 +456,8 @@ export function finishedSinceMerge(ref: string, mergedHead: string, cwd?: string
   return isAncestor(ref, mergedHead, cwd);
 }
 
-export function isStaleLocalBranch(ref: string, cwd?: string, now = Date.now()): boolean {
-  const committedAt = Number(run('git', ['log', '-1', '--format=%ct', ref], { cwd }).trim());
-  if (!Number.isFinite(committedAt) || committedAt <= 0)
-    throw new InflightQueryError(`could not determine the age of local branch ${ref}`);
-  return now / 1000 - committedAt > STALE_BRANCH_SECONDS;
+function isActionableOverlap(overlap: Overlap): boolean {
+  return overlap.source.kind !== 'branch' || !overlap.source.stale;
 }
 
 /** Exclusions for `ref`'s own-commit walk: main, plus the merged head when it is in `ref`'s history. */
@@ -539,9 +537,16 @@ export function unmergedLocalBranches(
 ): ChangeSource[] {
   // No allowFail: an inventory that could not be read is unknown, not empty,
   // and must reach the exit-2 handler (Codex, #2073 round 12).
-  const names = lines(
-    run('git', ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], { cwd })
-  );
+  const refs = lines(
+    run(
+      'git',
+      ['for-each-ref', '--format=%(refname:short)\t%(committerdate:unix)', 'refs/heads'],
+      { cwd }
+    )
+  ).map(line => {
+    const [name, committedAt] = line.split('\t');
+    return { name, committedAt: Number(committedAt) };
+  });
   // Every branch already contained in the base, in ONE call. Asking per branch
   // cost a subprocess apiece — 45 of them made the enumeration test a timeout
   // liability, and a real run pays the same on every local branch (Codex,
@@ -557,7 +562,7 @@ export function unmergedLocalBranches(
   // The base's own branch, not the literal `main`: with a non-main base, local
   // `main` is an ordinary branch whose commits may well be in flight.
   const baseBranch = baseLocalBranch(base);
-  for (const name of names) {
+  for (const { name, committedAt } of refs) {
     if (name === baseBranch || skip.has(name)) continue;
     // Contained in the base means merged (or empty): nothing in flight. Ask this
     // first — it is already answered, and it spares a `gh` round trip for every
@@ -573,7 +578,7 @@ export function unmergedLocalBranches(
         kind: 'branch',
         id: name,
         branch: name,
-        stale: isStaleLocalBranch(name, cwd),
+        stale: Date.now() / 1000 - committedAt > STALE_BRANCH_SECONDS,
         files,
       });
   }
@@ -657,7 +662,7 @@ function runCliInner(argv: string[], cwd: string): number {
     `inflight: checking ${paths.length} path(s) on ${branch} against ${sources.length} in-flight source(s)`
   );
   console.log(renderOverlaps(overlaps, { verbose }));
-  if (overlaps.length === 0) return 0;
+  if (overlaps.length === 0 || !overlaps.some(isActionableOverlap)) return 0;
   console.log(
     'Also check by hand: Linear issues In Progress that name these paths, and other running sessions (list_sessions).'
   );

@@ -466,7 +466,7 @@ describe('inflight CLI', () => {
     git(main, 'checkout', '-q', 'mine');
     stubGh(bin, []);
     const r = runCli(main, bin, 'src/b.ts');
-    expect(r.code).toBe(1);
+    expect(r.code).toBe(0);
     expect(r.out).toContain('1 overlap(s) from 1 stale local branch(es)');
     expect(runCli(main, bin, '--verbose', 'src/b.ts').out).toContain('branch oldest');
   }, 60_000);

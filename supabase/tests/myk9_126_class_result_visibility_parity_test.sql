@@ -144,9 +144,17 @@ declare
   -- settings row, so that arm is reachable in production; only the fixture was
   -- blind to it.
   show_present_opts boolean[] := array[true, false];
-  override_kinds    text[] := array['none', 'preset', 'field', 'preset_field'];
+  -- 'class_only' is its own kind: a class override with NO trial override above
+  -- it, so the class level is seen inheriting straight from the show.
+  override_kinds    text[] := array['none', 'preset', 'field', 'preset_field', 'class_only'];
   show_present      boolean;
   kind              text;
+  -- The class override's preset is deliberately DIFFERENT from the trial's.
+  -- Codex review of MYK9-126, 2026-09-11: with both levels carrying the same
+  -- preset, removing the class level's re-expansion entirely was invisible --
+  -- a mutation that survived the whole 864-comparison matrix. Precedence is
+  -- only observable when the two levels disagree.
+  class_preset_name text;
   pt                text;
   preset_name   text;
   presets       text[];
@@ -190,9 +198,13 @@ begin
 
     foreach kind in array override_kinds loop
      foreach preset_name in array presets loop
+      -- Rotate one position so the class level never repeats the trial's preset.
+      class_preset_name := presets[(array_position(presets, preset_name) % 3) + 1];
+
       -- Trial override: absent, preset only, per-field only, or both. 'field'
       -- alone is its own path -- it takes the CASE's ELSE arm, where a preset
-      -- would have re-expanded the base first.
+      -- would have re-expanded the base first. 'class_only' leaves this level
+      -- empty on purpose.
       delete from public.trial_visibility_overrides
         where trial_id = '00000000-0000-0000-0000-000000126203';
       if kind = 'preset' then
@@ -220,8 +232,8 @@ begin
       if kind <> 'none' then
         insert into public.class_visibility_overrides (class_id, preset, qualification_timing)
         select id,
-               case when kind in ('preset', 'preset_field') then preset_name end,
-               case when kind in ('field', 'preset_field') then t end
+               case when kind in ('preset', 'preset_field', 'class_only') then class_preset_name end,
+               case when kind in ('field', 'preset_field', 'class_only') then t end
         from (
           select id, row_number() over (order by id) as rn
           from public.classes
@@ -232,9 +244,16 @@ begin
 
       combos := combos + 1;
 
+      -- Count rows the comparison ACTUALLY produced, not fixture rows: if the
+      -- join or the resolver ever returned nothing, counting classes would
+      -- still report six (Codex review, 2026-09-11).
       select count(*) into compared
       from public.classes c
-      where c.trial_id = '00000000-0000-0000-0000-000000126203';
+      left join private.class_result_visibility v on v.class_id = c.id
+      cross join lateral public.resolve_class_result_visibility(c.id) as f
+      where c.trial_id = '00000000-0000-0000-0000-000000126203'
+        and v.class_id is not null
+        and f.placement_visible is not null;
       total_compared := total_compared + compared;
 
       for bad in
@@ -265,16 +284,16 @@ begin
    end loop;
   end loop;
 
-  -- 2 show-present x 2 placement timings x 3 other timings x 4 override kinds
+  -- 2 show-present x 2 placement timings x 3 other timings x 5 override kinds
   -- x 3 presets.
-  if combos <> 144 then
-    raise exception 'FAIL pass 2 ran % combinations, expected 144', combos;
+  if combos <> 180 then
+    raise exception 'FAIL pass 2 ran % combinations, expected 180', combos;
   end if;
   -- And every combination must actually have compared all six state classes.
   -- Counting combinations alone would still pass if the fixture vanished.
-  if total_compared <> 864 then
+  if total_compared <> 1080 then
     raise exception
-      'FAIL pass 2 compared % class rows, expected 864 (144 combinations x 6 classes)',
+      'FAIL pass 2 compared % class rows, expected 1080 (180 combinations x 6 classes)',
       total_compared;
   end if;
   -- Half the matrix must have run with NO show settings row. Without this the

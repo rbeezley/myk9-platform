@@ -421,12 +421,12 @@ const BrowseShowsPage: React.FC = () => {
           <ListControls
             search={filters.search}
             onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-            searchPlaceholder="Search shows by name, location, or club..."
+            searchPlaceholder="Search shows or locations"
             searchSlot={
               <ShowSearchBar
                 search={filters.search}
                 onSearchChange={value => setFilters(prev => ({ ...prev, search: value }))}
-                searchPlaceholder="Search shows by name, location, or club..."
+                searchPlaceholder="Search shows or locations"
                 location={viewer.location}
                 isResolvingLocation={viewer.isResolving}
                 onChooseTyped={viewer.chooseTyped}

@@ -7,7 +7,13 @@ export async function postgrestGetPublicShows() {
   const { data, error } = await supabase
     .from('shows')
     // Exclude logo_url / cover_image_url: they can be multi-MB base64 blobs.
-    .select('*, club:clubs(name, address, email)')
+    // The trials embed is load-bearing, not decorative: `mapDatabaseToShow`
+    // derives `show.events` from the trials' `trial_type`, and `show.events` is
+    // the only input to the /shows discipline filter. Without it every show
+    // falls back to `[organization]` and every discipline chip matches nothing.
+    // Nested classes are deliberately NOT embedded — a browse list does not
+    // need them and they dominate the payload.
+    .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type)')
     .in('status', PUBLIC_SHOW_STATUSES)
     .is('deleted_at', null)
     .order('start_date', { ascending: true });

@@ -310,3 +310,64 @@ describe('mapDatabaseToShow — branding fallback', () => {
     ).toBe('Doors open at 7:00 AM.');
   });
 });
+
+/**
+ * `show.events` is the ONLY input to the /shows discipline filter
+ * (`useBrowseShowsFilters` maps a discipline chip to a show type and matches it
+ * against `show.events`). The mapper originally read only `trial_type`, but the
+ * trials it receives come from `replicatedTrialsTable`, whose rows carry
+ * `trialType`. Measured against the live replication store during the
+ * 2026-09-10 page audit: 16 trials, 0 with `trial_type`, 16 with `trialType`.
+ * `events` therefore always fell back to `[organization]` and every discipline
+ * filter returned zero shows for every user. Both spellings must work.
+ */
+describe('mapDatabaseToShow — show.events discipline source', () => {
+  it('reads trialType from replication-shaped trials', () => {
+    const result = mapDatabaseToShow(
+      fromAny<DbShow, unknown>({
+        ...baseDbShow,
+        trials: [{ id: 't1', trialType: 'Scent Work' }],
+      })
+    );
+
+    expect(result.events).toEqual(['Scent Work']);
+  });
+
+  it('still reads trial_type from PostgREST-shaped trials', () => {
+    const result = mapDatabaseToShow(
+      fromAny<DbShow, unknown>({
+        ...baseDbShow,
+        trials: [{ id: 't1', trial_type: 'Agility' }],
+      })
+    );
+
+    expect(result.events).toEqual(['Agility']);
+  });
+
+  it('de-duplicates across both spellings without dropping distinct types', () => {
+    const result = mapDatabaseToShow(
+      fromAny<DbShow, unknown>({
+        ...baseDbShow,
+        trials: [
+          { id: 't1', trialType: 'Scent Work' },
+          { id: 't2', trial_type: 'Scent Work' },
+          { id: 't3', trialType: 'Nosework' },
+        ],
+      })
+    );
+
+    expect(result.events).toEqual(['Scent Work', 'Nosework']);
+  });
+
+  it('falls back to organization only when no trial carries a type', () => {
+    const result = mapDatabaseToShow(
+      fromAny<DbShow, unknown>({
+        ...baseDbShow,
+        organization: 'AKC',
+        trials: [{ id: 't1' }],
+      })
+    );
+
+    expect(result.events).toEqual(['AKC']);
+  });
+});

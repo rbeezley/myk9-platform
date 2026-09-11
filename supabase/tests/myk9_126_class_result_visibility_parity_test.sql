@@ -135,6 +135,18 @@ declare
   -- tables for the same reason -- no unrecognized value can be stored.
   placement_timings text[] := array['class_complete', 'manual_release'];
   other_timings     text[] := array['immediate', 'class_complete', 'manual_release'];
+  -- ABSENCE IS A CASE. Codex review of MYK9-126, 2026-09-11: the first version
+  -- of this matrix always inserted a show_visibility_settings row and always
+  -- inserted a trial override, so the "no row at this level" arms -- the
+  -- hardcoded 'class_complete'/'immediate' defaults, and each level's
+  -- pass-through -- were never executed. A deliberately wrong default changed
+  -- nothing and the test still passed. 11 live classes belong to shows with no
+  -- settings row, so that arm is reachable in production; only the fixture was
+  -- blind to it.
+  show_present_opts boolean[] := array[true, false];
+  override_kinds    text[] := array['none', 'preset', 'field', 'preset_field'];
+  show_present      boolean;
+  kind              text;
   pt                text;
   preset_name   text;
   presets       text[];
@@ -143,6 +155,7 @@ declare
   combos          integer := 0;
   compared        integer := 0;
   total_compared  integer := 0;
+  no_settings_combos integer := 0;
 begin
   -- The presets _result_visibility_preset actually recognizes. Discovered
   -- rather than trusted, and then COUNTED: the function returns NULL for an
@@ -160,24 +173,41 @@ begin
       coalesce(array_length(presets, 1), 0);
   end if;
 
-  foreach pt in array placement_timings loop
-   foreach t in array other_timings loop
-    -- Show base.
+  foreach show_present in array show_present_opts loop
+   foreach pt in array placement_timings loop
+    foreach t in array other_timings loop
+    -- Show base, present or deliberately absent. Absent is the case that makes
+    -- the hardcoded defaults reachable.
     delete from public.show_visibility_settings
       where show_id = '00000000-0000-0000-0000-000000126202';
-    insert into public.show_visibility_settings
-      (show_id, placement_timing, qualification_timing, time_timing, faults_timing)
-    values ('00000000-0000-0000-0000-000000126202', pt, t, t, t);
+    if show_present then
+      insert into public.show_visibility_settings
+        (show_id, placement_timing, qualification_timing, time_timing, faults_timing)
+      values ('00000000-0000-0000-0000-000000126202', pt, t, t, t);
+    else
+      no_settings_combos := no_settings_combos + 1;
+    end if;
 
-    foreach preset_name in array presets loop
-      -- Trial override: preset only, then preset plus a per-field win.
+    foreach kind in array override_kinds loop
+     foreach preset_name in array presets loop
+      -- Trial override: absent, preset only, per-field only, or both. 'field'
+      -- alone is its own path -- it takes the CASE's ELSE arm, where a preset
+      -- would have re-expanded the base first.
       delete from public.trial_visibility_overrides
         where trial_id = '00000000-0000-0000-0000-000000126203';
-      insert into public.trial_visibility_overrides (trial_id, preset, placement_timing)
-      values ('00000000-0000-0000-0000-000000126203', preset_name, pt);
+      if kind = 'preset' then
+        insert into public.trial_visibility_overrides (trial_id, preset)
+        values ('00000000-0000-0000-0000-000000126203', preset_name);
+      elsif kind = 'field' then
+        insert into public.trial_visibility_overrides (trial_id, placement_timing)
+        values ('00000000-0000-0000-0000-000000126203', pt);
+      elsif kind = 'preset_field' then
+        insert into public.trial_visibility_overrides (trial_id, preset, placement_timing)
+        values ('00000000-0000-0000-0000-000000126203', preset_name, pt);
+      end if;
 
-      -- Class override on half the classes, so both the overridden and the
-      -- inherited path are exercised in the same comparison.
+      -- Class override on half the classes, in the same shape, so both the
+      -- overridden and the inherited path are exercised in one comparison.
       delete from public.class_visibility_overrides
         where class_id in (
           select id from public.classes
@@ -187,14 +217,18 @@ begin
       -- (the proven fixtures in placement_soft_delete_ranking_test.sql do not set
       -- it either), and it is character varying(20) regardless, so a modulo on it
       -- would not parse.
-      insert into public.class_visibility_overrides (class_id, preset, qualification_timing)
-      select id, preset_name, t
-      from (
-        select id, row_number() over (order by id) as rn
-        from public.classes
-        where trial_id = '00000000-0000-0000-0000-000000126203'
-      ) ranked
-      where ranked.rn % 2 = 0;
+      if kind <> 'none' then
+        insert into public.class_visibility_overrides (class_id, preset, qualification_timing)
+        select id,
+               case when kind in ('preset', 'preset_field') then preset_name end,
+               case when kind in ('field', 'preset_field') then t end
+        from (
+          select id, row_number() over (order by id) as rn
+          from public.classes
+          where trial_id = '00000000-0000-0000-0000-000000126203'
+        ) ranked
+        where ranked.rn % 2 = 0;
+      end if;
 
       combos := combos + 1;
 
@@ -225,22 +259,32 @@ begin
           bad.np, bad.nq, bad.nt, bad.nf,
           bad.op, bad.oq, bad.ot, bad.oflt;
       end loop;
+     end loop;
+    end loop;
     end loop;
    end loop;
   end loop;
 
-  -- 2 placement timings x 3 other timings x 3 presets.
-  if combos <> 18 then
-    raise exception 'FAIL pass 2 ran % combinations, expected 18', combos;
+  -- 2 show-present x 2 placement timings x 3 other timings x 4 override kinds
+  -- x 3 presets.
+  if combos <> 144 then
+    raise exception 'FAIL pass 2 ran % combinations, expected 144', combos;
   end if;
   -- And every combination must actually have compared all six state classes.
   -- Counting combinations alone would still pass if the fixture vanished.
-  if total_compared <> 108 then
+  if total_compared <> 864 then
     raise exception
-      'FAIL pass 2 compared % class rows, expected 108 (18 combinations x 6 classes)',
+      'FAIL pass 2 compared % class rows, expected 864 (144 combinations x 6 classes)',
       total_compared;
   end if;
-  raise notice 'pass 2 ok: % combinations, % class comparisons, all agree', combos, total_compared;
+  -- Half the matrix must have run with NO show settings row. Without this the
+  -- default arm could silently stop being exercised again.
+  if no_settings_combos <> 6 then
+    raise exception
+      'FAIL pass 2 ran % show-settings-absent iterations, expected 6',
+      no_settings_combos;
+  end if;
+  raise notice 'pass 2 ok: % combinations, % class comparisons, % with no show settings, all agree', combos, total_compared, no_settings_combos;
 end;
 $$;
 
@@ -299,6 +343,72 @@ begin
   end if;
 
   raise notice 'pass 4 ok: view remains owner-run';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Pass 5: the defaults, asserted ABSOLUTELY rather than by comparison.
+--
+-- Passes 1-3 are differential: they prove the set-based view agrees with
+-- resolve_class_result_visibility. That catches a change to either side, but
+-- NOT a change applied to both -- or to a helper they share. Codex review of
+-- MYK9-126 raised exactly that: the suite passed with a deliberately wrong
+-- result-visibility default.
+--
+-- Widening pass 2 to run with no show_visibility_settings row fixes the
+-- "unexercised" half. This fixes the other half by pinning the default VALUES
+-- themselves, so a coordinated edit still fails:
+--
+--   placement    -> 'class_complete' : hidden until the class completes
+--   qualification-> 'immediate'      : visible straight away
+--   time         -> 'immediate'
+--   faults       -> 'immediate'
+--
+-- If these defaults are ever deliberately changed, this is the test that should
+-- fail, and changing it should be a conscious decision rather than a silent one.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  in_progress_class uuid := '00000000-0000-0000-0000-000000126301';
+  completed_class   uuid := '00000000-0000-0000-0000-000000126303';
+  v record;
+begin
+  -- Nothing configured at any level: the defaults are the whole answer.
+  delete from public.show_visibility_settings
+    where show_id = '00000000-0000-0000-0000-000000126202';
+  delete from public.trial_visibility_overrides
+    where trial_id = '00000000-0000-0000-0000-000000126203';
+  delete from public.class_visibility_overrides
+    where class_id in (
+      select id from public.classes
+      where trial_id = '00000000-0000-0000-0000-000000126203'
+    );
+
+  select * into v from private.class_result_visibility where class_id = in_progress_class;
+  if not found then
+    raise exception 'FAIL pass 5 fixture missing: no row for the in-progress class';
+  end if;
+  if v.placement_visible
+     or not v.qualification_visible
+     or not v.time_visible
+     or not v.faults_visible then
+    raise exception
+      'FAIL default for an IN-PROGRESS class is (%,%,%,%), expected (false,true,true,true) '
+      '-- placement defaults to class_complete, the rest to immediate',
+      v.placement_visible, v.qualification_visible, v.time_visible, v.faults_visible;
+  end if;
+
+  select * into v from private.class_result_visibility where class_id = completed_class;
+  if not found then
+    raise exception 'FAIL pass 5 fixture missing: no row for the completed class';
+  end if;
+  if not (v.placement_visible and v.qualification_visible and v.time_visible and v.faults_visible) then
+    raise exception
+      'FAIL default for a COMPLETED class is (%,%,%,%), expected all true',
+      v.placement_visible, v.qualification_visible, v.time_visible, v.faults_visible;
+  end if;
+
+  raise notice 'pass 5 ok: unconfigured defaults pinned absolutely';
 end;
 $$;
 

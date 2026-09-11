@@ -8,6 +8,7 @@ import { TVGrid } from './TVGrid';
 import { TVPodiumOverlay } from './TVPodiumOverlay';
 import { TVMobileList } from './TVMobileList';
 import { TVSoundToggle } from './TVSoundToggle';
+import { TVEmptyState } from './TVEmptyState';
 
 // INTENT: TVDisplay is a fixed-dark venue screen, not an app-themed page. The
 // literal zinc/green/red colors are tuned for projected or wall-mounted displays
@@ -29,8 +30,8 @@ export default function TVDisplay() {
   const [searchParams] = useSearchParams();
   const trialId = searchParams.get('trial') ?? undefined;
 
-  const { show, classes, isLoading } = useTVData(showId ?? '', trialId);
-  const { completedClasses } = useTVResults(showId ?? '', trialId);
+  const { show, classes, isLoading, error: dataError } = useTVData(showId ?? '', trialId);
+  const { completedClasses, error: resultsError } = useTVResults(showId ?? '', trialId);
   const { isConnected } = useTVRealtime(showId ?? '');
 
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -133,7 +134,11 @@ export default function TVDisplay() {
   if (!show) {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-500 text-lg">Show not found</div>
+        {dataError ? (
+          <TVEmptyState showName="this show" showId={showId} error={dataError} />
+        ) : (
+          <div className="text-zinc-500 text-lg">Show not found</div>
+        )}
       </div>
     );
   }
@@ -178,9 +183,21 @@ export default function TVDisplay() {
       </header>
 
       {isDesktop ? (
-        <TVGrid classes={classes} highlightedClassId={highlightedClassId} />
+        <TVGrid
+          classes={classes}
+          highlightedClassId={highlightedClassId}
+          showName={show.name}
+          showId={show.id}
+          error={dataError ?? resultsError}
+        />
       ) : (
-        <TVMobileList classes={classes} completedClasses={completedClasses} />
+        <TVMobileList
+          classes={classes}
+          completedClasses={completedClasses}
+          showName={show.name}
+          showId={show.id}
+          error={dataError ?? resultsError}
+        />
       )}
     </div>
   );

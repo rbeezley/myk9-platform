@@ -218,6 +218,34 @@ describe('tv-display database reads', () => {
     expect(result.classes[0].entries[0].dog?.callName).toBe('Comet');
   });
 
+  it('does not turn an active-class read failure into an empty board', async () => {
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows') return createChainableQuery({ data: showRow, error: null });
+      if (table === 'classes') {
+        return createChainableQuery({
+          data: null,
+          error: { message: 'temporary database outage' },
+        });
+      }
+      return createChainableQuery();
+    });
+
+    await expect(getTVDisplayData('show-1')).rejects.toThrow(
+      'Unable to refresh TV classes: temporary database outage'
+    );
+  });
+
+  it('uses a nullable show lookup so a missing show remains not found', async () => {
+    const showQuery = createChainableQuery({ data: null, error: null });
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows') return showQuery;
+      return createChainableQuery();
+    });
+
+    await expect(getTVDisplayData('missing-show')).resolves.toEqual({ show: null, classes: [] });
+    expect(showQuery.maybeSingle).toHaveBeenCalled();
+  });
+
   it('returns the show with an empty class list when no active classes are online', async () => {
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'shows') return createChainableQuery({ data: showRow, error: null });

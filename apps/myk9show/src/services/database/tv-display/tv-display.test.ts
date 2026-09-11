@@ -235,6 +235,19 @@ describe('tv-display database reads', () => {
     );
   });
 
+  it('uses a nullable show lookup so a missing show remains not found', async () => {
+    const showQuery = createChainableQuery({ data: null, error: null });
+    mockSupabase.from.mockImplementation((table: string) => {
+      if (table === 'shows') return showQuery;
+      return createChainableQuery();
+    });
+
+    await expect(getTVDisplayData('missing-show')).rejects.toThrow(
+      'Unable to load TV show: show was not found'
+    );
+    expect(showQuery.maybeSingle).toHaveBeenCalled();
+  });
+
   it('returns the show with an empty class list when no active classes are online', async () => {
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'shows') return createChainableQuery({ data: showRow, error: null });

@@ -94,7 +94,7 @@ export async function getPostgrestTVDisplayData(
     .from('shows')
     .select('id, name, start_date, end_date')
     .eq('id', showId)
-    .single();
+    .maybeSingle();
 
   if (showError) throw new Error(`Unable to load TV show: ${showError.message}`);
   if (!showData) throw new Error('Unable to load TV show: show was not found');

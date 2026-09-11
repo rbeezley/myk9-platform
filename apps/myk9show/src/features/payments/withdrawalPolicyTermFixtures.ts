@@ -16,6 +16,8 @@ export const withdrawalPolicyTermFixtures = [
   ['After closing, withdrawals are non-refundable.', true],
   ['Non-refundable withdrawals after closing.', true],
   ['Withdrawals after closing are not refundable.', true],
+  ['Withdrawals after closing are not eligible for refunds.', true],
+  ['Withdrawals after closing are final.', true],
   ['A 25% administrative charge applies to all withdrawals.', true],
   ['Refunds are not permitted.', true],
   ['Funds are returned before the closing date only.', true],

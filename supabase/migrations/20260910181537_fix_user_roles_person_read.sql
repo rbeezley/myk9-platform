@@ -86,13 +86,10 @@ AS $$
       OR (
         c.is_show_manager
         AND (
-          r.name = 'judge'
-          OR (
-            ur.club_id IS NOT NULL
-            AND (
-              public.is_trial_secretary(ur.club_id)
-              OR public.is_club_admin(ur.club_id)
-            )
+          ur.club_id IS NOT NULL
+          AND (
+            public.is_trial_secretary(ur.club_id)
+            OR public.is_club_admin(ur.club_id)
           )
           OR (
             ur.show_id IS NOT NULL
@@ -144,13 +141,10 @@ AS $$
       OR (
         c.is_show_manager
         AND (
-          r.name = 'judge'
-          OR (
-            ur.club_id IS NOT NULL
-            AND (
-              public.is_trial_secretary(ur.club_id)
-              OR public.is_club_admin(ur.club_id)
-            )
+          ur.club_id IS NOT NULL
+          AND (
+            public.is_trial_secretary(ur.club_id)
+            OR public.is_club_admin(ur.club_id)
           )
           OR (
             ur.show_id IS NOT NULL

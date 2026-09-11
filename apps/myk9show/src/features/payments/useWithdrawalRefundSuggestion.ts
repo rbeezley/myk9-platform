@@ -66,7 +66,7 @@ export function useWithdrawalRefundSuggestion(
           refundCents: entryFeeCents,
           retainedCents: 0,
           requiresManual: true,
-          reason: 'manual_review',
+          reason: snapshot === null ? 'no_policy' : 'manual_review',
           policy: snapshot,
         };
       }
@@ -77,7 +77,7 @@ export function useWithdrawalRefundSuggestion(
           refundCents: entryFeeCents,
           retainedCents: 0,
           requiresManual: true,
-          reason: 'manual_review',
+          reason: snapshot === null ? 'no_policy' : 'manual_review',
           policy: snapshot,
         };
       }

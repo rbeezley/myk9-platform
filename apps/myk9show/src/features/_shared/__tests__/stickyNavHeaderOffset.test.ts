@@ -27,7 +27,8 @@ const FEATURES = resolve(__dirname, '../..');
 const STYLES = resolve(__dirname, '../../../styles');
 
 /** `position: sticky` paired with a zero top, in CSS or inline-style form. */
-const CSS_STICKY_AT_ZERO = /position:\s*['"]?sticky['"]?[;,]?\s*(?:\/\*[^*]*\*\/\s*)*top:\s*['"]?0(?:px|rem)?['"]?\s*[;,]/;
+const CSS_STICKY_AT_ZERO =
+  /position:\s*['"]?sticky['"]?[;,]?\s*(?:\/\*[^*]*\*\/\s*)*top:\s*['"]?0(?:px|rem)?['"]?\s*[;,]/;
 /** Tailwind's `sticky top-0`, in either order. */
 const TW_STICKY_AT_ZERO = /(?:\bsticky\b[^"'`]*\btop-0\b|\btop-0\b[^"'`]*\bsticky\b)/;
 
@@ -41,9 +42,10 @@ function filesUnder(dir: string, exts: string[]): string[] {
   return out;
 }
 
-const CANDIDATES = [...filesUnder(FEATURES, ['.tsx', '.css']), ...filesUnder(STYLES, ['.css'])].filter(
-  path => /landing|StickyNav|TopStrip|headline\.css|landing\.css/i.test(path)
-);
+const CANDIDATES = [
+  ...filesUnder(FEATURES, ['.tsx', '.css']),
+  ...filesUnder(STYLES, ['.css']),
+].filter(path => /landing|StickyNav|TopStrip|headline\.css|landing\.css/i.test(path));
 
 describe('landing sticky navs clear the fixed app header', () => {
   it('finds landing files to scan (guards against a broken glob)', () => {
@@ -66,7 +68,11 @@ describe('landing sticky navs clear the fixed app header', () => {
     expect(TW_STICKY_AT_ZERO.test('className="sticky top-0 z-50"')).toBe(true);
     expect(TW_STICKY_AT_ZERO.test('className="top-0 sticky"')).toBe(true);
     // And does not fire on the corrected forms.
-    expect(CSS_STICKY_AT_ZERO.test("position: 'sticky',\n        top: 'var(--app-top-inset, 3rem)',")).toBe(false);
-    expect(TW_STICKY_AT_ZERO.test('className="sticky top-[var(--app-top-inset,3rem)]"')).toBe(false);
+    expect(
+      CSS_STICKY_AT_ZERO.test("position: 'sticky',\n        top: 'var(--app-top-inset, 3rem)',")
+    ).toBe(false);
+    expect(TW_STICKY_AT_ZERO.test('className="sticky top-[var(--app-top-inset,3rem)]"')).toBe(
+      false
+    );
   });
 });

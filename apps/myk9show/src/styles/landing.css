@@ -97,7 +97,7 @@
 }
 
 /* ─── Sticky header ───────────────────────────────────────────────── */
-  /* Pinned below the app's fixed header, not at the viewport top. The header is
+/* Pinned below the app's fixed header, not at the viewport top. The header is
      `position: fixed`, so a sticky sub-nav at `top: 0` slides underneath it and
      loses its top 48px — which on this landing clipped the "Enter this show"
      button in half. `--app-top-inset` is the shared banner + header height and

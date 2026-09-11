@@ -1,6 +1,6 @@
 # MYK9-423 verification — 2026-09-11
 
-> **Status:** Active
+> **Status:** Ready for delivery
 
 Baseline: `17b4fb7a33a7650b093b7760cba0a53d6670cf2d`.
 Branch: `codex/myk9-423-payment-proof`.
@@ -8,14 +8,14 @@ Tracking: [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423).
 
 ## Result
 
-The missing fee-card-to-cart regression is implemented and passes. Both money surfaces also pass a real row-mapping/summary/display regression for the same entries changing from pending to paid. The historical payment remains confirmed. Fresh hosted zero-balance proof is pending because an intervening load rehearsal reseeded those exact entries to unpaid.
+The missing fee-card-to-cart regression is implemented and passes. Both money surfaces also pass a real row-mapping/summary/display regression for the same entries changing from pending to paid. Fresh hosted zero-balance proof is complete after one approved Stripe test checkout; the owned browser session was closed.
 
 | Dimension          | Verdict                                                                                                                                   |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Correctness        | Real fee-card click, URL builder, router, cart store, recovery, reconciliation, line cards and summary exercised                          |
 | Negative control   | Disabling empty-cart recovery fails the checkout assertion and renders “Your cart is empty”; production source restored and tests green   |
 | Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof |
-| Hosted proof       | Current entries and payments both show $90; historical Sep 9 $96.30 paid receipt remains present                                          |
+| Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due |
 | Coherence          | Tests/docs only; no production implementation changed                                                                                     |
 | Release            | No commit/PR/merge yet; full shuffled gate did not complete                                                                               |
 
@@ -30,12 +30,14 @@ Negative mutation: in the owned worktree only, replace `items.length === 0` with
 
 ## Hosted readback and reset provenance
 
-At approximately 2026-09-11T12:49–12:51Z, an isolated signed-in exhibitor browser on `https://myk9-platform-myk9show.vercel.app` returned:
+At approximately 2026-09-11T19:14–19:18Z, an isolated signed-in exhibitor browser on `https://myk9-platform-myk9show.vercel.app` returned:
 
-- `/exhibitor/entries`: `Entry fees: $90.00 due of $38,070.00. Finish payment.`
-- `/exhibitor/payments`: Amount due $90.00; Heartland Scent Work Classic; Finish payment carries exactly entry suffixes 057, 054 and 053.
-- The same payments page still lists Sep 9, 2026 / Heartland / $96.30 / Paid. Its receipt link points to order `72629930-3535-4ef3-8e7e-90504d73837b` and exactly the original three entry IDs.
-- No console errors were recorded. No checkout was submitted, no remote fixture changed, and the owned session was closed.
+- `/exhibitor/entries`: the fee card initially quoted `$90.00` due and Finish Payment navigated to the exact three entry IDs.
+- `/cart`: rendered Ranger / Interior Advanced, Juni / Exterior Excellent and Maple / Interior Novice B at `$30.00` each; entry fees `$90.00`, service fee `$6.30`, total `$96.30`.
+- Stripe test checkout succeeded once with confirmation `pi_3UEZx0AIej2Q9UtX1EjZntVz`; the success page showed the same three entries and `$96.30`.
+- `/exhibitor/entries` after settlement: `ENTRY FEES · Paid in full`.
+- `/exhibitor/payments` after settlement: `Amount due · $0.00 · Current entries are paid up`; payment history shows Sep 11, 2026 / Heartland / `$96.30` / Paid.
+- No browser console errors were recorded. The owned session was closed after readback.
 
 The original canonical comment `2c55186e-1e14-4757-9c9b-ae14195d688a`, September 9 at 13:20Z, records the approved test payment `pi_3UDlOQAIej2Q9UtX2d96avum`, correct three lines, $90 + $6.30 = $96.30, success/receipt and $0 payments balance.
 
@@ -53,6 +55,6 @@ Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/act
 
 ## Remaining gates
 
-- **Live proof:** one controlled Stripe test-mode checkout for the same three reset entries, followed immediately by both balance readbacks, is prepared but awaiting user approval. Do not recreate or alter shared rows to manufacture a passing result. Alternatively attach genuine preserved entries-page zero-balance evidence from the original payment if available.
+- **Live proof:** complete. One controlled Stripe test-mode checkout ($96.30) was approved, succeeded, and was followed immediately by both live balance readbacks. No duplicate submission was made.
 - **Before pushing:** complete the required shuffled-suite gate in a suitable environment or record its unrelated blocker in the review.
 - **Before archive/closure:** PR, independent review, required CI and merge evidence. MYK9-423 remains In Progress.

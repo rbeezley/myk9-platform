@@ -5,9 +5,12 @@
  * Creates a comprehensive quality dashboard for MyK9Show
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import ComplexityAnalyzer from './complexity-analysis.js';
 
 class QualityDashboard {
   constructor() {
@@ -85,7 +88,6 @@ class QualityDashboard {
     // Code complexity
     try {
       console.log('  🔄 Analyzing code complexity...');
-      const ComplexityAnalyzer = require('./complexity-analysis.js');
       const analyzer = new ComplexityAnalyzer();
       await analyzer.analyzeProject();
 
@@ -718,9 +720,10 @@ class QualityDashboard {
 }
 
 // Run dashboard generation if called directly
-if (require.main === module) {
+const invokedPath = process.argv[1] ? fs.realpathSync(process.argv[1]) : '';
+if (invokedPath === fileURLToPath(import.meta.url)) {
   const dashboard = new QualityDashboard();
   dashboard.generateDashboard().catch(console.error);
 }
 
-module.exports = QualityDashboard;
+export default QualityDashboard;

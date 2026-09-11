@@ -61,9 +61,14 @@ class QualityDashboard {
     // Test coverage
     try {
       console.log('  📋 Analyzing test coverage...');
-      execSync('npm run test:coverage -- --reporter=json > coverage-report.json', {
-        stdio: 'ignore',
-      });
+      // Vitest 5 writes JSON reports to its internal output directory unless
+      // an explicit output file is configured.
+      execSync(
+        'pnpm exec vitest run --coverage --reporter=json --outputFile=coverage-report.json',
+        {
+          stdio: 'ignore',
+        }
+      );
       const coverageData = JSON.parse(fs.readFileSync('coverage-report.json', 'utf8'));
       this.metrics.quality.coverage = this.parseCoverageData(coverageData);
     } catch (error) {

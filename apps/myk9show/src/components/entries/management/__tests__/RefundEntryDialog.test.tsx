@@ -235,6 +235,26 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     expect(screen.getByRole('button', { name: /issue refund/i })).toBeDisabled();
   });
 
+  it('allows an explicit partial refund when the policy lookup fails closed', async () => {
+    suggestionMock.mockReturnValue({
+      data: undefined,
+      error: new Error('policy lookup failed'),
+    });
+    mockedInvoke.mockResolvedValue({ data: { amount_cents: 2500 }, error: null });
+    renderDialog();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('radio', { name: /partial amount/i }));
+    await user.type(screen.getByLabelText(/amount \(max/i), '25.00');
+    await user.click(screen.getByRole('button', { name: /issue refund/i }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith('stripe-refund-entry', {
+        body: { entry_id: 'entry-1', amount_cents: 2500, notes: undefined },
+      });
+    });
+  });
+
   it('issues an explicitly entered amount during manual review without trusting the snapshot amount', async () => {
     suggestionMock.mockReturnValue({
       data: {

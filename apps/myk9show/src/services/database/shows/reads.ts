@@ -146,6 +146,21 @@ export const getAllShows = async () => {
   }
 };
 
+/**
+ * How many classes a show-row's trials carry between them.
+ *
+ * PostgREST returns the embed under `class` (the alias in the select), and the
+ * replicated mapper writes the same key, so one reader serves both shapes.
+ * Returns 0 for anything that is not a trial array.
+ */
+function countTrialClasses(trials: unknown): number {
+  if (!Array.isArray(trials)) return 0;
+  return trials.reduce<number>((total, trial) => {
+    const classes = (trial as Record<string, unknown> | null)?.class;
+    return total + (Array.isArray(classes) ? classes.length : 0);
+  }, 0);
+}
+
 // Get show by ID with complete details (excluding soft-deleted)
 export const getShowById = async (id: string) => {
   try {
@@ -179,6 +194,24 @@ export const getShowById = async (id: string) => {
           const remote = await postgrestGetShowById(id);
           const remoteJudgeAssignments = getJoinedJudgeAssignments(remote.data);
           data.judge_assignments = remoteJudgeAssignments;
+
+          // Classes replicate scoped BY TRIAL, and only for authenticated
+          // sessions, while shows and trials arrive earlier. So a signed-in
+          // visitor can hold this show and its trials with none of their
+          // classes — and every consumer reading classes off the show then
+          // sees a show that legitimately offers nothing. The premium's
+          // offered-classes section and its "See classes" link both disappear.
+          //
+          // The remote row is already in hand for judge assignments, and it
+          // embeds the classes, so prefer its trials when ours carry none.
+          // Guarded on the remote actually having some: a show that genuinely
+          // has no classes yet must stay empty rather than flip-flop.
+          if (countTrialClasses(data.trials) === 0) {
+            const remoteTrials = (remote.data as Record<string, unknown> | null)?.trials;
+            if (countTrialClasses(remoteTrials) > 0) {
+              data.trials = remoteTrials;
+            }
+          }
         } catch {
           // Offline/failed network: keep the replicated detail row.
         }

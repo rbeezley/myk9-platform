@@ -61,7 +61,17 @@ BEGIN;
 -- The function's `IF NOT FOUND THEN RETURN false,false,false,false` for an
 -- unknown class becomes the absence of a row here, which the consuming view
 -- COALESCEs to false -- see the join site below.
-CREATE OR REPLACE VIEW private.class_result_visibility AS
+-- Plain CREATE VIEW, not CREATE OR REPLACE: this view is new in this migration,
+-- and CREATE VIEW says so -- it fails loudly if the name is ever already taken.
+--
+-- For the record, CREATE OR REPLACE would also have worked. It creates a view
+-- that does not exist and only refuses to REPLACE one whose column list is
+-- incompatible; 20260901120000_myk9_291_deleted_show_replication.sql first
+-- created view_authenticated_entry_results_replication that way, with no plain
+-- CREATE anywhere, and this migration applied cleanly on two freshly built
+-- databases in CI run 34540626755 (once via `supabase start`, once after
+-- `supabase db reset --no-seed`).
+CREATE VIEW private.class_result_visibility AS
 WITH base AS (
   SELECT
     c.id AS class_id,

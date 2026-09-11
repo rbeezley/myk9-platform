@@ -12,13 +12,15 @@
  *   - other git worktrees on this machine: their branch's commits past
  *     origin/main PLUS their uncommitted and untracked files — work that has
  *     no PR yet is exactly the work a PR list cannot show
- *   - unmerged local branches not checked out anywhere
+ *   - recent unmerged local branches not checked out anywhere; branches older
+ *     than STALE_BRANCH_DAYS are retained as inventory only
  *
  * Overlap is exact path or directory prefix in either direction. The current
  * branch and its own same-repository PR are excluded. With no paths given and
  * no changes on the branch, the check fails closed (exit 2): before work
- * starts, name the paths you intend to touch. Exit 1 on any overlap so a chained
- * `pnpm qa:inflight && …` stops; `--warn` reports without failing, and
+ * starts, name the paths you intend to touch. Actionable overlaps make a chained
+ * `pnpm qa:inflight && …` stop; stale-only inventory exits 0. `--warn` reports
+ * actionable overlaps without failing, and
  * `--verbose` expands stale local-branch details. Linear
  * "In Progress" issues and other Claude sessions are MCP tools, not shell,
  * and stay as the skill's manual steps.
@@ -143,9 +145,11 @@ export function renderOverlaps(
   }
   const actionableOverlaps = overlaps.filter(isActionableOverlap);
   const actionable = actionableOverlaps.length > 0;
+  const stale = overlaps.filter(o => !isActionableOverlap(o));
+  const staleNote = stale.length ? ` (${overlaps.length} total including stale inventory)` : '';
   const lines = [
     actionable
-      ? `inflight: ${actionableOverlaps.length} actionable overlap(s) with work already in flight (${overlaps.length} total including stale inventory) — coordinate before continuing:`
+      ? `inflight: ${actionableOverlaps.length} actionable overlap(s) with work already in flight${staleNote} — coordinate before continuing:`
       : `inflight: no actionable overlaps; ${overlaps.length} stale inventory match(es) found, gate can continue:`,
   ];
   const ordered = [...bySource].sort(([, listA], [, listB]) => {
@@ -160,7 +164,7 @@ export function renderOverlaps(
   });
   const isStaleBranch = (list: Overlap[]) =>
     list[0].source.kind === 'branch' && list[0].source.stale;
-  const stale = ordered.filter(([, list]) => isStaleBranch(list));
+  const staleGroups = ordered.filter(([, list]) => isStaleBranch(list));
   // Keep the individual stale groups out of the default report, but retain
   // their exact counts in the summary below. `--verbose` shows the same
   // groups as the original report for branch cleanup work.
@@ -179,10 +183,10 @@ export function renderOverlaps(
     for (const o of list.slice(0, 8)) lines.push(`    ${o.path}  ~  ${o.matched}`);
     if (list.length > 8) lines.push(`    … and ${list.length - 8} more`);
   }
-  if (!opts.verbose && stale.length) {
-    const staleFiles = new Set(stale.flatMap(([, list]) => list.map(o => o.matched)));
+  if (!opts.verbose && staleGroups.length) {
+    const staleFiles = new Set(staleGroups.flatMap(([, list]) => list.map(o => o.matched)));
     lines.push(
-      `  and ${stale.length} stale local branch(es) covering ${staleFiles.size} matched path(s) (older than ${STALE_BRANCH_DAYS} days; run with --verbose)`
+      `  and ${staleGroups.length} stale local branch(es) covering ${staleFiles.size} matched path(s) (older than ${STALE_BRANCH_DAYS} days; run with --verbose)`
     );
   }
   return lines.join('\n');

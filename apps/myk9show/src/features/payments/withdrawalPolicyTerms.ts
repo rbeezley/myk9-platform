@@ -4,6 +4,9 @@ export function notesDescribeRefundTerms(notes: string | null): boolean {
   const naturalScheduleTerms =
     /\b(?:payments?|funds?)\b[\s\S]{0,80}\b(?:final|returned)\b[\s\S]{0,40}\b(?:after|before|until|deadline|closing)\b/i;
   if (naturalScheduleTerms.test(policyText)) return true;
+  if (/withdrawals?[sS]{0,100}(?:non[- ]?refundable|forfeit(?:s|ed|ing)?|nos+refunds?)/i.test(policyText)) {
+    return true;
+  }
   if (
     /\brefunds?\b[\s\S]{0,80}\b(?:not allowed|not permitted|prohibited|forbidden)\b/i.test(
       policyText

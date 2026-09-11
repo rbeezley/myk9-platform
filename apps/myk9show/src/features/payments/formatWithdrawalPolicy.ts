@@ -6,7 +6,8 @@
  * See docs/plan-refund-policy-withdrawal.md (Phase 3, D4, D8).
  */
 
-import type { WithdrawalPolicy } from './withdrawalPolicy';
+import { isValidWithdrawalPolicy, type WithdrawalPolicy } from './withdrawalPolicy';
+import { notesDescribeRefundTerms } from './withdrawalPolicyTerms';
 
 export interface WithdrawalPolicyDescription {
   /** The main one-line disclosure sentence. Always present. */
@@ -19,7 +20,7 @@ const SERVICE_FEE_SENTENCE = 'Service fees are non-refundable.';
 
 /** 'YYYY-MM-DD' → 'June 1, 2026'. Formatted in UTC so the displayed day can't
  *  drift by one from a local-timezone parse of the bare date. */
-function formatCutoff(date: string): string {
+export function formatCutoff(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return date;
   return new Intl.DateTimeFormat('en-US', {
@@ -32,7 +33,7 @@ function formatCutoff(date: string): string {
 
 function formatRetained(policy: WithdrawalPolicy): string | null {
   const v = policy.retentionValue;
-  if (v === null || v === undefined || v <= 0) return null;
+  if (v == null || v <= 0) return null;
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
 }
 
@@ -47,17 +48,46 @@ export function describeWithdrawalPolicy(
     };
   }
 
+  if (!isValidWithdrawalPolicy(policy)) {
+    return {
+      refundLine: `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`,
+      notes: null,
+    };
+  }
+
   const notes = policy.notes?.trim() ? policy.notes.trim() : null;
 
-  // Prose-only (no structured cutoff): the notes govern; still disclose fees.
+  // Missing retention or free-text policy needs human interpretation. Never
+  // place a computed refund claim beside prose that may define another schedule.
   if (!policy.cutoffDate) {
     return { refundLine: SERVICE_FEE_SENTENCE, notes };
   }
 
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return {
+      refundLine: `Withdrawal policy: contact the club for withdrawals after ${formatCutoff(
+        policy.cutoffDate
+      )}. ${SERVICE_FEE_SENTENCE}`,
+      notes,
+    };
+  }
+
+  if (notesDescribeRefundTerms(notes)) {
+    return {
+      refundLine: `Withdrawal policy: the refund terms after ${formatCutoff(
+        policy.cutoffDate
+      )} follow the additional instructions below. ${SERVICE_FEE_SENTENCE}`,
+      notes,
+    };
+  }
+
   const retained = formatRetained(policy);
 
-  // Cutoff with no retention is effectively a full refund regardless of date —
-  // don't imply a deadline that changes nothing.
+  // An explicitly zero retention is a full refund regardless of date — don't
+  // imply a deadline that changes nothing.
   if (!retained) {
     return { refundLine: `Full refund of the entry fee. ${SERVICE_FEE_SENTENCE}`, notes };
   }

@@ -11,6 +11,8 @@
  * docs/plan-refund-policy-withdrawal.md (D2, D5, D7, D8).
  */
 
+import { notesDescribeRefundTerms } from './withdrawalPolicyTerms';
+
 const DEFAULT_TIMEZONE = 'America/New_York';
 
 export type RetentionType = 'flat' | 'percent';
@@ -21,7 +23,10 @@ export interface WithdrawalPolicy {
   /** What is kept AFTER the cutoff. */
   retentionType: RetentionType;
   /** flat = cents per entry; percent = whole-number percent. */
-  retentionValue: number;
+  /** null = no retention declared; 0 = explicitly full refund after cutoff. */
+  retentionValue: number | null;
+  /** Persisted marker distinguishing a new explicit zero from legacy normalized zero. */
+  retentionDeclared?: boolean;
   /** Free-text escape hatch for multi-tier / unusual policies. */
   notes: string | null;
 }
@@ -54,6 +59,7 @@ export type WithdrawalRefundReason =
   | 'before_cutoff'
   | 'after_cutoff'
   | 'no_cutoff' // policy exists but is prose-only
+  | 'manual_review' // structured date exists but retention/prose needs judgment
   | 'no_policy'; // nothing declared at either level
 
 export interface WithdrawalRefundSuggestion {
@@ -62,6 +68,39 @@ export interface WithdrawalRefundSuggestion {
   /** True when the system can't compute a confident amount — secretary decides. */
   requiresManual: boolean;
   reason: WithdrawalRefundReason;
+}
+
+export function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
+  if (!value || typeof value !== 'object') return false;
+  const policy = value as Record<string, unknown>;
+  const validCutoff =
+    policy.cutoffDate === null ||
+    (typeof policy.cutoffDate === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate) &&
+      (() => {
+        const date = new Date(`${policy.cutoffDate}T00:00:00Z`);
+        return (
+          !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === policy.cutoffDate
+        );
+      })());
+  return (
+    validCutoff &&
+    (policy.retentionType === 'flat' || policy.retentionType === 'percent') &&
+    (policy.retentionValue === null ||
+      (typeof policy.retentionValue === 'number' &&
+        Number.isFinite(policy.retentionValue) &&
+        policy.retentionValue >= 0 &&
+        (policy.retentionType === 'flat'
+          ? Number.isInteger(policy.retentionValue)
+          : Number.isInteger(policy.retentionValue) && policy.retentionValue <= 100))) &&
+    (policy.retentionDeclared === undefined || typeof policy.retentionDeclared === 'boolean') &&
+    !(
+      policy.retentionDeclared === false &&
+      policy.retentionValue !== null &&
+      policy.retentionValue !== 0
+    ) &&
+    (policy.notes === null || typeof policy.notes === 'string')
+  );
 }
 
 function normalizeRetentionType(raw: string | null | undefined): RetentionType {
@@ -77,7 +116,8 @@ function buildPolicy(
   return {
     cutoffDate: cutoff ?? null,
     retentionType: normalizeRetentionType(type),
-    retentionValue: value ?? 0,
+    retentionValue: value ?? null,
+    retentionDeclared: value !== null && value !== undefined,
     notes: notes ?? null,
   };
 }
@@ -184,7 +224,7 @@ export function resolveWithdrawalRefundCents(
   asOf: Date,
   timeZone: string
 ): WithdrawalRefundSuggestion {
-  if (!policy) {
+  if (!isValidWithdrawalPolicy(policy)) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,
@@ -202,6 +242,15 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
+  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
+    };
+  }
+
   const today = localCalendarDate(asOf, timeZone);
   if (today <= policy.cutoffDate) {
     return {
@@ -212,16 +261,28 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
+    };
+  }
+
   const rawRetained =
     policy.retentionType === 'percent'
-      ? Math.round((entryFeeCents * policy.retentionValue) / 100)
-      : policy.retentionValue;
+      ? Math.round((entryFeeCents * (policy.retentionValue ?? 0)) / 100)
+      : (policy.retentionValue ?? 0);
   const retainedCents = Math.min(Math.max(rawRetained, 0), entryFeeCents);
 
   return {
     refundCents: entryFeeCents - retainedCents,
     retainedCents,
-    requiresManual: false,
-    reason: 'after_cutoff',
+    requiresManual: entryFeeCents - retainedCents <= 0,
+    reason: entryFeeCents - retainedCents <= 0 ? 'manual_review' : 'after_cutoff',
   };
 }

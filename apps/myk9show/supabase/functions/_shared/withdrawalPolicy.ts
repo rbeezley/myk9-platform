@@ -17,9 +17,10 @@
 export interface WithdrawalPolicy {
   cutoffDate: string | null;
   retentionType: 'flat' | 'percent';
-  // Normalized to a required number (0 when unset) so the server policy mirrors
-  // the app policy contract exactly — readers must not special-case null vs 0.
-  retentionValue: number;
+  // null = no retention declared; 0 = explicitly full refund after cutoff.
+  retentionValue: number | null;
+  // Persisted marker distinguishes a new explicit zero from legacy normalized zero.
+  retentionDeclared?: boolean;
   notes: string | null;
 }
 
@@ -45,7 +46,8 @@ export interface ClubWithdrawalColumns {
 const SERVICE_FEE_SENTENCE = 'Service fees are non-refundable.';
 const DEFAULT_TIMEZONE = 'America/New_York';
 
-export type WithdrawalRefundReason = 'before_cutoff' | 'after_cutoff' | 'no_cutoff' | 'no_policy';
+export type WithdrawalRefundReason =
+  'before_cutoff' | 'after_cutoff' | 'no_cutoff' | 'manual_review' | 'no_policy';
 
 export interface WithdrawalRefundSuggestion {
   refundCents: number;
@@ -54,8 +56,72 @@ export interface WithdrawalRefundSuggestion {
   reason: WithdrawalRefundReason;
 }
 
+function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
+  if (!value || typeof value !== 'object') return false;
+  const policy = value as Record<string, unknown>;
+  const validCutoff =
+    policy.cutoffDate === null ||
+    (typeof policy.cutoffDate === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate) &&
+      (() => {
+        const date = new Date(`${policy.cutoffDate}T00:00:00Z`);
+        return (
+          !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === policy.cutoffDate
+        );
+      })());
+  return (
+    validCutoff &&
+    (policy.retentionType === 'flat' || policy.retentionType === 'percent') &&
+    (policy.retentionValue === null ||
+      (typeof policy.retentionValue === 'number' &&
+        Number.isFinite(policy.retentionValue) &&
+        policy.retentionValue >= 0 &&
+        (policy.retentionType === 'flat'
+          ? Number.isInteger(policy.retentionValue)
+          : Number.isInteger(policy.retentionValue) && policy.retentionValue <= 100))) &&
+    (policy.retentionDeclared === undefined || typeof policy.retentionDeclared === 'boolean') &&
+    !(
+      policy.retentionDeclared === false &&
+      policy.retentionValue !== null &&
+      policy.retentionValue !== 0
+    ) &&
+    (policy.notes === null || typeof policy.notes === 'string')
+  );
+}
+
 function hasAny(...values: Array<string | number | null | undefined>): boolean {
   return values.some(v => v !== null && v !== undefined);
+}
+
+function notesDescribeRefundTerms(notes: string | null): boolean {
+  const policyText = (notes ?? '').replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '');
+  const naturalScheduleTerms =
+    /\b(?:payments?|funds?)\b[\s\S]{0,80}\b(?:final|returned)\b[\s\S]{0,40}\b(?:after|before|until|deadline|closing)\b/i;
+  if (naturalScheduleTerms.test(policyText)) return true;
+  if (
+    /\bwithdrawals?\b[\s\S]{0,100}\b(?:non[- ]?refundable|not\s+refundable|not\s+eligible\s+for\s+refunds?|final|forfeit(?:s|ed|ing)?|no\s+refunds?)\b|\b(?:non[- ]?refundable|not\s+refundable|not\s+eligible\s+for\s+refunds?|final)\b[\s\S]{0,100}\bwithdrawals?\b/i.test(
+      policyText
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\brefunds?\b[\s\S]{0,80}\b(?:not allowed|not permitted|prohibited|forbidden)\b/i.test(
+      policyText
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:charge|fee|assessment)\b[\s\S]{0,100}\b(?:appl(?:y|ies)|charged|deducted|withheld)\b/i.test(
+      policyText
+    )
+  ) {
+    return true;
+  }
+  return /\b(?:no|full|partial)\s+refunds?\b|\b(?:money|funds?|payments?)\s+(?:back|returned|final)\b|\bpaid\s+back\b|\brefunds?\b[\s\S]{0,80}\b(?:no|none|full|partial|after|before|until)\b|\bfull\s+until\b|\b(?:\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)[\s\S]{0,80}\b(?:after|before|until|none|less|refund|entry fee|office fee|fee|forfeit)\b|\b(?:entry fees?|office fees?|fees?|amount|proceeds)\b[\s\S]{0,100}\b(?:after|before|until|none|less|retain(?:s|ed|ing)?|keeps?|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b|\b(?:retain(?:s|ed|ing)?|keeps?|kept|non[- ]?refundable|forfeit(?:s|ed|ing)?)\b[\s\S]{0,80}\b(?:refunds?|entry fees?|office fees?|fees?|amount|\d+(?:\.\d+)?\s*%|\$\s*\d+(?:\.\d{1,2})?|\d+\s+dollars?)\b|\bforfeit(?:s|ed|ing)?\b[\s\S]{0,80}\b(?:fees?|refunds?|amount)\b/is.test(
+    policyText
+  );
 }
 
 function build(
@@ -67,7 +133,8 @@ function build(
   return {
     cutoffDate: cutoff ?? null,
     retentionType: type === 'percent' ? 'percent' : 'flat',
-    retentionValue: value ?? 0,
+    retentionValue: value ?? null,
+    retentionDeclared: value !== null && value !== undefined,
     notes: notes ?? null,
   };
 }
@@ -144,21 +211,40 @@ function formatCutoff(date: string): string {
 
 function formatRetained(policy: WithdrawalPolicy): string | null {
   const v = policy.retentionValue;
-  if (v === null || v === undefined || v <= 0) return null;
+  if (v == null || v <= 0) return null;
   return policy.retentionType === 'percent' ? `${v}%` : `$${(v / 100).toFixed(2)}`;
 }
 
 /** A single disclosure string (line + any prose) suitable for Stripe custom_text. */
 export function describeWithdrawalPolicyText(policy: WithdrawalPolicy | null): string {
-  if (!policy) {
+  if (!isValidWithdrawalPolicy(policy)) {
     return `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`;
   }
 
   const notes = policy.notes?.trim() ? policy.notes.trim() : null;
-  const withNotes = (line: string) => (notes ? `${line} ${notes}` : line);
+  const withNotes = (line: string) => (notes ? `${line} Policy notes: ${notes}` : line);
 
   if (!policy.cutoffDate) {
-    return withNotes(SERVICE_FEE_SENTENCE);
+    return notes ? `${SERVICE_FEE_SENTENCE} Policy notes: ${notes}` : SERVICE_FEE_SENTENCE;
+  }
+
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return withNotes(
+      `Withdrawal policy: contact the club for withdrawals after ${formatCutoff(
+        policy.cutoffDate
+      )}. ${SERVICE_FEE_SENTENCE}`
+    );
+  }
+
+  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
+    return withNotes(
+      `Withdrawal policy: the refund terms after ${formatCutoff(
+        policy.cutoffDate
+      )} follow the additional instructions below. ${SERVICE_FEE_SENTENCE}`
+    );
   }
 
   const retained = formatRetained(policy);
@@ -197,7 +283,7 @@ export function resolveWithdrawalRefundCents(
   asOf: Date,
   timeZone: string
 ): WithdrawalRefundSuggestion {
-  if (!policy) {
+  if (!isValidWithdrawalPolicy(policy)) {
     return {
       refundCents: entryFeeCents,
       retainedCents: 0,
@@ -215,6 +301,15 @@ export function resolveWithdrawalRefundCents(
     };
   }
 
+  if (notesDescribeRefundTerms(policy.notes?.trim() ?? null)) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
+    };
+  }
+
   const today = localCalendarDate(asOf, timeZone);
   if (today <= policy.cutoffDate) {
     return {
@@ -222,6 +317,18 @@ export function resolveWithdrawalRefundCents(
       retainedCents: 0,
       requiresManual: false,
       reason: 'before_cutoff',
+    };
+  }
+
+  if (
+    policy.retentionValue == null ||
+    (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+  ) {
+    return {
+      refundCents: entryFeeCents,
+      retainedCents: 0,
+      requiresManual: true,
+      reason: 'manual_review',
     };
   }
 
@@ -234,7 +341,7 @@ export function resolveWithdrawalRefundCents(
   return {
     refundCents: entryFeeCents - retainedCents,
     retainedCents,
-    requiresManual: false,
-    reason: 'after_cutoff',
+    requiresManual: entryFeeCents - retainedCents <= 0,
+    reason: entryFeeCents - retainedCents <= 0 ? 'manual_review' : 'after_cutoff',
   };
 }

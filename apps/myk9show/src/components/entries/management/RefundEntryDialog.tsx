@@ -15,6 +15,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useWithdrawalRefundSuggestion } from '@/features/payments/useWithdrawalRefundSuggestion';
+import type { WithdrawalPolicy } from '@/features/payments/withdrawalPolicy';
+import { formatCutoff } from '@/features/payments/formatWithdrawalPolicy';
+import { notesDescribeRefundTerms } from '@/features/payments/withdrawalPolicyTerms';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
 // Server validation is authoritative; these map its error codes to language a
@@ -42,6 +45,61 @@ const ERROR_MESSAGES: Record<string, string> = {
 /** Minimal shape required by RefundEntryDialog — a subset of EntryManagementEntry. */
 export type RefundableEntry = Pick<EntryManagementEntry, 'id' | 'totalFee' | 'dogName'>;
 
+function describeManualPolicy(policy: WithdrawalPolicy | null): string {
+  if (!policy) return '';
+  const validCutoff =
+    policy.cutoffDate === null ||
+    (typeof policy.cutoffDate === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate) &&
+      (() => {
+        const date = new Date(`${policy.cutoffDate}T00:00:00Z`);
+        return (
+          !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === policy.cutoffDate
+        );
+      })());
+  if (
+    !validCutoff ||
+    (policy.retentionType !== 'flat' && policy.retentionType !== 'percent') ||
+    (policy.retentionValue !== null &&
+      (typeof policy.retentionValue !== 'number' ||
+        !Number.isFinite(policy.retentionValue) ||
+        policy.retentionValue < 0 ||
+        (policy.retentionType === 'flat'
+          ? !Number.isInteger(policy.retentionValue)
+          : !Number.isInteger(policy.retentionValue) || policy.retentionValue > 100))) ||
+    (policy.retentionDeclared !== undefined && typeof policy.retentionDeclared !== 'boolean') ||
+    (policy.retentionDeclared === false &&
+      policy.retentionValue !== null &&
+      policy.retentionValue !== 0) ||
+    (policy.notes !== null && typeof policy.notes !== 'string')
+  ) {
+    return 'Recorded policy details are malformed; verify the refund manually.';
+  }
+
+  const notes = policy.notes?.trim() ?? '';
+  const notesNeedReview = notesDescribeRefundTerms(notes);
+  const details = [
+    policy.cutoffDate && !notesNeedReview
+      ? `Full refund through ${formatCutoff(policy.cutoffDate)}.`
+      : null,
+    notesNeedReview
+      ? 'The policy notes include additional refund terms and need manual review.'
+      : policy.retentionValue == null ||
+          (policy.retentionValue === 0 && policy.retentionDeclared !== true)
+        ? 'The after-cutoff retention needs manual review.'
+        : policy.cutoffDate
+          ? `Declared after-cutoff retention: ${
+              policy.retentionType === 'percent'
+                ? `${policy.retentionValue}%`
+                : `$${(policy.retentionValue / 100).toFixed(2)}`
+            } kept.`
+          : null,
+    notes ? `Policy notes: ${notes}` : null,
+  ].filter((detail): detail is string => detail !== null);
+
+  return details.join(' ');
+}
+
 interface RefundEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -67,18 +125,26 @@ export function RefundEntryDialog({
   const feeCents = Math.round(fee * 100);
 
   // Suggested refund from the policy snapshotted at payment (Phase 3b) — advisory.
-  const { data: suggestion } = useWithdrawalRefundSuggestion(entry?.id, feeCents, open);
+  const { data: suggestion, isLoading: suggestionLoading } = useWithdrawalRefundSuggestion(
+    entry?.id,
+    feeCents,
+    open
+  );
   const prefilledRef = useRef(false);
 
-  // Pre-fill the suggested amount once per open. Never clobber in-progress edits,
-  // and never auto-select for a prose-only/unset policy (requiresManual) — there
-  // the secretary makes the call.
+  // Pre-fill the suggested amount once per open. Manual-review policies start
+  // with an empty partial amount so the secretary must make the decision.
   useEffect(() => {
     if (!open) {
       prefilledRef.current = false;
       return;
     }
-    if (prefilledRef.current || !suggestion?.hasPolicy || suggestion.requiresManual) return;
+    if (prefilledRef.current || !suggestion) return;
+    if (suggestion.requiresManual) {
+      setMode('partial');
+      prefilledRef.current = true;
+      return;
+    }
     prefilledRef.current = true;
     if (suggestion.refundCents < feeCents) {
       setMode('partial');
@@ -86,18 +152,35 @@ export function RefundEntryDialog({
     }
   }, [open, suggestion, feeCents]);
 
-  const policyMessage = !suggestion?.hasPolicy
-    ? null
-    : suggestion.reason === 'after_cutoff'
-      ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
-      : suggestion.reason === 'before_cutoff'
-        ? 'Withdrawal policy: within the full-refund window. Full refund suggested.'
-        : 'A withdrawal policy was recorded at payment, but the amount needs your judgment. Set it below.';
+  const policyMessage = suggestionLoading
+    ? 'Checking the withdrawal policy…'
+    : !suggestion
+      ? 'Withdrawal policy could not be verified. Enter a partial refund amount manually.'
+      : suggestion.requiresManual
+        ? `Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.${
+            describeManualPolicy(suggestion.policy)
+              ? ` Recorded policy: ${describeManualPolicy(suggestion.policy)}`
+              : ''
+          }`
+        : suggestion.reason === 'after_cutoff'
+          ? `Withdrawal policy: past the refund cutoff. $${(suggestion.retainedCents / 100).toFixed(2)} is retained. Suggested refund $${(suggestion.refundCents / 100).toFixed(2)} (override below if needed).`
+          : 'Withdrawal policy: within the full-refund window. Full refund suggested.';
 
   const snapshotSuggestedAmount =
     suggestion?.hasPolicy && !suggestion.requiresManual && suggestion.refundCents < feeCents
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
+  const requiresManualAmount = !suggestion || suggestion.requiresManual;
+  const manualAmountValid =
+    !requiresManualAmount ||
+    (mode === 'full' &&
+      suggestion?.requiresManual === true &&
+      suggestion.hasPolicy &&
+      suggestion.policy !== null) ||
+    (mode === 'partial' &&
+      Number.isFinite(Number(partialAmount)) &&
+      Number(partialAmount) > 0 &&
+      Number(partialAmount) <= fee);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -118,6 +201,9 @@ export function RefundEntryDialog({
       partialAmount === snapshotSuggestedAmount;
 
     let amountCents: number | undefined;
+    if (mode === 'full' && suggestion?.requiresManual && suggestion.policy !== null) {
+      amountCents = feeCents;
+    }
     if (mode === 'partial') {
       if (!usePolicySnapshot) {
         const dollars = Number(partialAmount);
@@ -193,7 +279,13 @@ export function RefundEntryDialog({
             </p>
           )}
 
-          <RadioGroup value={mode} onValueChange={value => setMode(value as 'full' | 'partial')}>
+          <RadioGroup
+            value={mode}
+            onValueChange={value => {
+              prefilledRef.current = true;
+              setMode(value as 'full' | 'partial');
+            }}
+          >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="full" id="refund-full" />
               <Label htmlFor="refund-full">Full refund: ${fee.toFixed(2)}</Label>
@@ -238,7 +330,10 @@ export function RefundEntryDialog({
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleRefund} disabled={submitting}>
+          <Button
+            onClick={handleRefund}
+            disabled={submitting || suggestionLoading || !manualAmountValid}
+          >
             {submitting ? 'Refunding…' : 'Issue refund'}
           </Button>
         </DialogFooter>

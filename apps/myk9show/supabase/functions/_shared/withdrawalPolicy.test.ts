@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   resolveWithdrawalPolicy,
   describeWithdrawalPolicyText,
   resolveWithdrawalRefundCents,
 } from './withdrawalPolicy.ts';
+import { withdrawalPolicyTermFixtures } from '../../../src/features/payments/withdrawalPolicyTermFixtures';
 
 const club = {
   default_withdrawal_retention_type: 'flat',
@@ -33,6 +37,7 @@ describe('resolveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'percent',
       retentionValue: 20,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -43,6 +48,7 @@ describe('resolveWithdrawalPolicy', () => {
       cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -81,6 +87,7 @@ describe('resolveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
 
@@ -92,6 +99,17 @@ describe('resolveWithdrawalPolicy', () => {
     );
     expect(r.retainedCents).toBe(500);
     expect(r.refundCents).toBe(2500);
+  });
+
+  it('fails closed for a legacy zero-retention snapshot', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: 0, notes: null },
+        3000,
+        new Date('2026-08-01T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
   });
 
   // Mirror of the client guard. This resolver's output becomes Stripe's
@@ -118,9 +136,18 @@ describe('resolveWithdrawalPolicy', () => {
     expect(policy?.retentionValue).toBe(500);
   });
 
-  it('normalizes an undeclared retention to 0, never null', () => {
+  it('preserves an undeclared retention as null', () => {
     const policy = resolveWithdrawalPolicy({ withdrawal_policy_notes: 'See premium.' }, null);
-    expect(policy?.retentionValue).toBe(0);
+    expect(policy?.retentionValue).toBeNull();
+  });
+
+  it('marks an explicit zero retention so legacy zero snapshots fail closed', () => {
+    expect(
+      resolveWithdrawalPolicy(
+        { withdrawal_cutoff_date: '2026-06-01', withdrawal_retention_value: 0 },
+        null
+      )
+    ).toMatchObject({ retentionValue: 0, retentionDeclared: true });
   });
 
   it('defaults an unknown retention type to flat', () => {
@@ -156,7 +183,7 @@ describe('describeWithdrawalPolicyText', () => {
     expect(text).toContain('25% is kept');
   });
 
-  it('appends prose notes inline', () => {
+  it('keeps structured outcomes beside procedural notes', () => {
     const text = describeWithdrawalPolicyText({
       cutoffDate: '2026-06-01',
       retentionType: 'flat',
@@ -164,7 +191,90 @@ describe('describeWithdrawalPolicyText', () => {
       notes: 'Email the secretary to withdraw.',
     });
     expect(text).toContain('$10.00 is kept');
+    expect(text).toContain('Policy notes:');
     expect(text.endsWith('Email the secretary to withdraw.')).toBe(true);
+  });
+
+  it('requires review when notes describe a different refund schedule', () => {
+    const policy = {
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat' as const,
+      retentionValue: 1000,
+      notes: 'Full refund until closing, then 50% until 7 days out, none after.',
+    };
+    expect(
+      resolveWithdrawalRefundCents(
+        policy,
+        3000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
+  it('keeps multiline refund terms fail-closed while ignoring procedural wording', () => {
+    const policy = {
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat' as const,
+      retentionValue: 1000,
+      notes: 'Refunds:\nNone after the closing date.',
+    };
+    expect(describeWithdrawalPolicyText(policy)).not.toContain('$10.00 is kept');
+    expect(
+      resolveWithdrawalRefundCents(
+        policy,
+        3000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+
+    const procedural = {
+      ...policy,
+      notes: 'Withdrawals must be submitted in writing by the closing deadline.',
+    };
+    expect(describeWithdrawalPolicyText(procedural)).toContain('$10.00 is kept');
+  });
+
+  it('keeps app and edge term detection fixtures aligned', () => {
+    const basePolicy = {
+      cutoffDate: '2026-06-01',
+      retentionType: 'flat' as const,
+      retentionValue: 1000,
+      notes: null,
+    };
+    for (const [notes, expected] of withdrawalPolicyTermFixtures) {
+      const text = describeWithdrawalPolicyText({ ...basePolicy, notes });
+      expect(text.includes('$10.00 is kept')).toBe(!expected);
+      expect(
+        resolveWithdrawalRefundCents(
+          { ...basePolicy, notes },
+          5000,
+          new Date('2026-06-15T12:00:00Z'),
+          'America/New_York'
+        ).requiresManual
+      ).toBe(expected);
+    }
+  });
+
+  it('keeps the app and edge detector implementations byte-identical', () => {
+    const detector = (source: string) => source.match(/return (\/.*?\/is)\.test/)?.[1];
+    const appSource = readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '../../../src/features/payments/withdrawalPolicyTerms.ts'
+      ),
+      'utf8'
+    );
+    const edgeSource = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), 'withdrawalPolicy.ts'),
+      'utf8'
+    );
+    const appDetector = detector(appSource);
+    const edgeDetector = detector(edgeSource);
+    expect(appDetector).toBeDefined();
+    expect(edgeDetector).toBeDefined();
+    expect(edgeDetector).toBe(appDetector);
   });
 
   it('prose-only policy renders notes + fee sentence, no deadline', () => {
@@ -174,7 +284,9 @@ describe('describeWithdrawalPolicyText', () => {
       retentionValue: 0,
       notes: 'Full until closing, then 50%.',
     });
-    expect(text).toBe('Service fees are non-refundable. Full until closing, then 50%.');
+    expect(text).toBe(
+      'Service fees are non-refundable. Policy notes: Full until closing, then 50%.'
+    );
   });
 
   it('unset policy renders the neutral contact-the-club line', () => {
@@ -197,6 +309,43 @@ describe('describeWithdrawalPolicyText', () => {
 });
 
 describe('resolveWithdrawalRefundCents', () => {
+  it('fails closed for a legacy zero-retention snapshot', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        {
+          cutoffDate: '2026-06-01',
+          retentionType: 'flat',
+          retentionValue: 0,
+          notes: null,
+        },
+        5000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
+  it('keeps structured refund guidance for procedural notes', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        {
+          cutoffDate: '2026-06-01',
+          retentionType: 'flat',
+          retentionValue: 1000,
+          notes: 'Email the secretary to withdraw before closing date.',
+        },
+        5000,
+        new Date('2026-06-15T12:00:00Z'),
+        'America/New_York'
+      )
+    ).toMatchObject({
+      requiresManual: false,
+      reason: 'after_cutoff',
+      retainedCents: 1000,
+      refundCents: 4000,
+    });
+  });
+
   it('refunds the exact snapshot amount after the cutoff', () => {
     expect(
       resolveWithdrawalRefundCents(

@@ -86,6 +86,16 @@ describe('resolveWithdrawalRefundCents', () => {
     expect(r.refundCents).toBe(3000);
   });
 
+  it('flags refund prose for manual review before the cutoff', () => {
+    const r = resolveWithdrawalRefundCents(
+      { ...flatPolicy, notes: 'No refunds at any time.' },
+      3000,
+      new Date('2026-05-15T12:00:00Z'),
+      NY
+    );
+    expect(r).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
   it('prose-only policy (no cutoff) suggests full and flags manual', () => {
     const prose: WithdrawalPolicy = {
       cutoffDate: null,
@@ -97,6 +107,65 @@ describe('resolveWithdrawalRefundCents', () => {
     expect(r.refundCents).toBe(3000);
     expect(r.requiresManual).toBe(true);
     expect(r.reason).toBe('no_cutoff');
+  });
+
+  it('distinguishes undeclared retention from explicitly zero retention', () => {
+    const undeclared = resolveWithdrawalRefundCents(
+      { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: null, notes: null },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(undeclared).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+
+    const fullRefund = resolveWithdrawalRefundCents(
+      {
+        cutoffDate: '2026-06-01',
+        retentionType: 'flat',
+        retentionValue: 0,
+        retentionDeclared: true,
+        notes: null,
+      },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(fullRefund).toMatchObject({ requiresManual: false, reason: 'after_cutoff' });
+  });
+
+  it('fails closed for a legacy zero-retention snapshot', () => {
+    expect(
+      resolveWithdrawalRefundCents(
+        { cutoffDate: '2026-06-01', retentionType: 'flat', retentionValue: 0, notes: null },
+        3000,
+        new Date('2026-06-15T12:00:00Z'),
+        NY
+      )
+    ).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
+  it('flags declared prose for manual review even with structured fields', () => {
+    const result = resolveWithdrawalRefundCents(
+      { ...flatPolicy, notes: 'Full until closing, then 50% until 7 days out.' },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(result).toMatchObject({ requiresManual: true, reason: 'manual_review' });
+  });
+
+  it('keeps structured refund guidance for procedural notes', () => {
+    const result = resolveWithdrawalRefundCents(
+      { ...flatPolicy, notes: 'Email the secretary to withdraw.' },
+      3000,
+      new Date('2026-06-15T12:00:00Z'),
+      NY
+    );
+    expect(result).toMatchObject({
+      requiresManual: false,
+      reason: 'after_cutoff',
+      retainedCents: 1000,
+    });
   });
 
   it('unset policy (null) suggests full and flags manual', () => {
@@ -149,6 +218,7 @@ describe('getEffectiveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'percent',
       retentionValue: 20,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -159,6 +229,7 @@ describe('getEffectiveWithdrawalPolicy', () => {
       cutoffDate: null,
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
   });
@@ -198,6 +269,7 @@ describe('getEffectiveWithdrawalPolicy', () => {
       cutoffDate: '2026-06-01',
       retentionType: 'flat',
       retentionValue: 500,
+      retentionDeclared: true,
       notes: null,
     });
 

@@ -16,7 +16,7 @@ export function TVEmptyState({ showName = 'this show', showId, error }: TVEmptyS
       </div>
       <p className="max-w-md text-sm">
         {hasError
-          ? `We couldn't refresh ${showName}'s class list. The board will keep trying.`
+          ? `We couldn't refresh ${showName}'s board data. The board will keep trying.`
           : `There are no active classes running for ${showName}.`}
       </p>
       {showId && (

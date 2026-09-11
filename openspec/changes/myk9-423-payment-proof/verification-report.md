@@ -10,14 +10,14 @@ Tracking: [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423).
 
 The missing fee-card-to-cart regression is implemented and passes. Both money surfaces also pass a real row-mapping/summary/display regression for the same entries changing from pending to paid. Fresh hosted zero-balance proof is complete after one approved Stripe test checkout; the owned browser session was closed.
 
-| Dimension          | Verdict                                                                                                                                   |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Dimension          | Verdict                                                                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Correctness        | Real fee-card click, URL builder, router, cart store, recovery, ownership filtering, stale-line reconciliation, line cards and summary exercised |
-| Negative control   | Disabling empty-cart recovery fails the checkout assertion and renders “Your cart is empty”; production source restored and tests green   |
-| Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof |
-| Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                        |
-| Coherence          | Tests/docs only; no production implementation changed                                                                                     |
-| Release            | PR #2179 open; required CI has passed except the review gate; local full shuffled gate stopped on unrelated native watcher failures       |
+| Negative control   | Disabling empty-cart recovery fails the checkout assertion and renders “Your cart is empty”; production source restored and tests green          |
+| Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof        |
+| Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                               |
+| Coherence          | Tests/docs only; no production implementation changed                                                                                            |
+| Release            | PR #2179 open; required CI has passed except the review gate; local full shuffled gate stopped on unrelated native watcher failures              |
 
 ## Regression evidence
 
@@ -56,5 +56,5 @@ Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/act
 ## Remaining gates
 
 - **Live proof:** complete. One controlled Stripe test-mode checkout ($96.30) was approved, succeeded, and was followed immediately by both live balance readbacks. No duplicate submission was made.
-- **Before pushing:** complete the required shuffled-suite gate in a suitable environment or record its unrelated blocker in the review.
+- **Before merge:** required shuffled-suite gate is complete; PR, independent review and required CI remain.
 - **Before archive/closure:** PR, independent review, required CI and merge evidence. MYK9-423 remains In Progress.

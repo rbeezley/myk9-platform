@@ -150,7 +150,12 @@ describe('MYK9-423 fee-card payment recovery', () => {
     // recovery upserts, so an empty-hydration regression cannot get canned lines.
     let cart: Record<string, unknown> | null = null;
     let savedItems: EntryCartItemInsert[] = [];
-    const requests: Array<{ table: string; method: string; params: URLSearchParams }> = [];
+    const requests: Array<{
+      table: string;
+      method: string;
+      params: URLSearchParams;
+      body?: unknown;
+    }> = [];
     const databaseEntries = [
       ...entries,
       {
@@ -196,7 +201,8 @@ describe('MYK9-423 fee-card payment recovery', () => {
           const table = url.pathname.split('/').at(-1)!;
           const method = init?.method ?? 'GET';
           const params = url.searchParams;
-          requests.push({ table, method, params });
+          const requestBody = init?.body ? JSON.parse(String(init.body)) : undefined;
+          requests.push({ table, method, params, body: requestBody });
           const json = (data: unknown) =>
             new Response(JSON.stringify(data), {
               status: 200,
@@ -330,7 +336,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
       const heading = screen.getByRole('heading', { name: entry.dog, level: 3 });
       const card = heading.closest<HTMLElement>('.bg-card');
       expect(card).not.toBeNull();
-      if (!card) return;
+      if (!card) throw new Error(`Missing cart card for ${entry.dog}`);
       expect(within(card).getByText(entry.className)).toBeInTheDocument();
       expect(within(card).getByText('$30.00')).toBeInTheDocument();
     }
@@ -345,5 +351,20 @@ describe('MYK9-423 fee-card payment recovery', () => {
     )!;
     expect(recoveryRead.params.get('show_id')).toBe('eq.show-423');
     expect(recoveryRead.params.get('payment_status')).toBe('eq.pending');
+    const staleDelete = requests.find(
+      request => request.table === 'entry_cart_items' && request.method === 'DELETE'
+    );
+    expect(staleDelete?.params.get('id')).toBe('in.(item-paid)');
+    const totalsPatch = requests.find(
+      request =>
+        request.table === 'entry_carts' &&
+        request.method === 'PATCH' &&
+        (request.body as { total_cents?: number } | undefined)?.total_cents === 9630
+    );
+    expect(totalsPatch?.body).toMatchObject({
+      subtotal_cents: 9000,
+      platform_fee_cents: 630,
+      total_cents: 9630,
+    });
   });
 });

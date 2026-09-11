@@ -68,6 +68,9 @@ function describeManualPolicy(policy: WithdrawalPolicy | null): string {
           ? !Number.isInteger(policy.retentionValue)
           : !Number.isInteger(policy.retentionValue) || policy.retentionValue > 100))) ||
     (policy.retentionDeclared !== undefined && typeof policy.retentionDeclared !== 'boolean') ||
+    (policy.retentionDeclared === false &&
+      policy.retentionValue !== null &&
+      policy.retentionValue !== 0) ||
     (policy.notes !== null && typeof policy.notes !== 'string')
   ) {
     return 'Recorded policy details are malformed; verify the refund manually.';

@@ -1,45 +1,34 @@
--- Behavioral contract for 20260910181537: a show manager can read the roles of
--- people in managed club/show scopes through the visibility RPC, and a plain
--- exhibitor still cannot read anyone else's.
---
--- The bug this guards: `user_roles_select` allowed only your OWN rows plus site
--- admins, so the `people -> user_roles(role:roles(name))` embed came back EMPTY
--- for every other person. An empty array is indistinguishable from "holds no
--- roles", so the person page told a secretary that a judge was an unroled
--- "Member". Asserting a NON-EMPTY read is the point — a policy that returns
--- zero rows fails silently everywhere else.
---
--- Fixture ordering is load-bearing. `on_auth_user_created` -> handle_new_user()
--- adopts an existing people row whose LOWER(email) matches and whose
--- auth_user_id IS NULL, and otherwise CREATES one. So people must be inserted
--- BEFORE auth.users, carrying the address the auth user will have; inserting
--- them afterwards collides with the trigger's row on people_auth_user_id_key.
--- The same trigger also grants each new user the global `exhibitor` role, which
--- is why no exhibitor grant is written by hand below.
---
--- All fixtures roll back.
+-- MYK9-457: raw role grants stay private while live person screens can read
+-- only effective role labels through get_visible_person_roles(uuid[]).
+-- A policy widened to is_show_manager() or USING (true) must fail this test.
 
 BEGIN;
 
 INSERT INTO public.roles (name, description, is_system)
 VALUES
-  ('secretary', 'MYK9-456 fixture', true),
-  ('judge', 'MYK9-456 fixture', true),
-  ('exhibitor', 'MYK9-456 fixture', true)
+  ('secretary', 'MYK9-457 fixture', true),
+  ('judge', 'MYK9-457 fixture', true),
+  ('exhibitor', 'MYK9-457 fixture', true),
+  ('club_admin', 'MYK9-457 fixture', true),
+  ('site_admin', 'MYK9-457 fixture', true)
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-000000456001', 'MYK9-456 Club');
+VALUES
+  ('00000000-0000-0000-0000-000000457001', 'MYK9-457 Club A'),
+  ('00000000-0000-0000-0000-000000457002', 'MYK9-457 Club B');
 
--- People first, unlinked, with the emails the auth users will carry.
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
-  ('00000000-0000-0000-0000-000000456011', 'MYK9-456', 'Secretary',
-   'myk9-456-secretary@example.test', NULL),
-  ('00000000-0000-0000-0000-000000456012', 'MYK9-456', 'Judge',
-   'myk9-456-judge@example.test', NULL),
-  ('00000000-0000-0000-0000-000000456013', 'MYK9-456', 'Exhibitor',
-   'myk9-456-exhibitor@example.test', NULL);
+  ('00000000-0000-0000-0000-000000457011', 'Club A', 'Secretary', 'myk9-457-secretary-a@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457012', 'Club A', 'Judge', 'myk9-457-judge-a@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457013', 'Plain', 'Exhibitor', 'myk9-457-exhibitor@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457014', 'Club B', 'Admin', 'myk9-457-admin-b@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457015', 'Club B', 'Judge', 'myk9-457-judge-b@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457016', 'Site', 'Admin', 'myk9-457-site-admin@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457017', 'Inactive', 'Judge', 'myk9-457-inactive@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457018', 'Expired', 'Judge', 'myk9-457-expired@example.test', NULL),
+  ('00000000-0000-0000-0000-000000457019', 'Removed', 'Judge', 'myk9-457-removed@example.test', NULL);
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -51,101 +40,227 @@ SELECT
   'authenticated', fixture.email, '', now(), now(), now(), '{}', '{}',
   false, false, false
 FROM (VALUES
-  ('00000000-0000-0000-0000-000000456101'::uuid, 'myk9-456-secretary@example.test'::text),
-  ('00000000-0000-0000-0000-000000456102'::uuid, 'myk9-456-judge@example.test'::text),
-  ('00000000-0000-0000-0000-000000456103'::uuid, 'myk9-456-exhibitor@example.test'::text)
+  ('00000000-0000-0000-0000-000000457101'::uuid, 'myk9-457-secretary-a@example.test'::text),
+  ('00000000-0000-0000-0000-000000457102'::uuid, 'myk9-457-judge-a@example.test'::text),
+  ('00000000-0000-0000-0000-000000457103'::uuid, 'myk9-457-exhibitor@example.test'::text),
+  ('00000000-0000-0000-0000-000000457104'::uuid, 'myk9-457-admin-b@example.test'::text),
+  ('00000000-0000-0000-0000-000000457105'::uuid, 'myk9-457-judge-b@example.test'::text),
+  ('00000000-0000-0000-0000-000000457106'::uuid, 'myk9-457-site-admin@example.test'::text),
+  ('00000000-0000-0000-0000-000000457107'::uuid, 'myk9-457-inactive@example.test'::text),
+  ('00000000-0000-0000-0000-000000457108'::uuid, 'myk9-457-expired@example.test'::text),
+  ('00000000-0000-0000-0000-000000457109'::uuid, 'myk9-457-removed@example.test'::text)
 ) AS fixture(auth_id, email);
 
--- Belt and braces: assert the trigger actually adopted our rows rather than
--- creating its own. If it ever stops matching on email, the roles asserted
--- below would hang off people nobody in this test references.
 DO $$
 DECLARE linked integer;
 BEGIN
   SELECT count(*) INTO linked
   FROM public.people
-  WHERE id IN (
-    '00000000-0000-0000-0000-000000456011',
-    '00000000-0000-0000-0000-000000456012',
-    '00000000-0000-0000-0000-000000456013'
-  ) AND auth_user_id IS NOT NULL;
-  IF linked <> 3 THEN
-    RAISE EXCEPTION 'FAIL fixture: handle_new_user did not adopt all 3 people (linked=%)', linked;
+  WHERE id BETWEEN '00000000-0000-0000-0000-000000457011'::uuid
+               AND '00000000-0000-0000-0000-000000457019'::uuid
+    AND auth_user_id IS NOT NULL;
+  IF linked <> 9 THEN
+    RAISE EXCEPTION 'FAIL fixture: handle_new_user adopted % of 9 people', linked;
   END IF;
 END;
 $$;
 
--- The secretary grant is club-scoped with show_id NULL, which is what
--- is_trial_secretary() (and therefore is_show_manager()) matches on.
-INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000456011', r.id,
-       '00000000-0000-0000-0000-000000456001', true,
-       '00000000-0000-0000-0000-000000456101'
-FROM public.roles r WHERE r.name = 'secretary';
+-- Club-scoped secretary access is valid only with active membership.
+INSERT INTO public.club_members (club_id, person_id, membership_status)
+VALUES (
+  '00000000-0000-0000-0000-000000457001',
+  '00000000-0000-0000-0000-000000457011',
+  'active'
+);
 
-INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000456012', r.id,
-       '00000000-0000-0000-0000-000000456001', true,
-       '00000000-0000-0000-0000-000000456102'
-FROM public.roles r WHERE r.name = 'judge';
+INSERT INTO public.user_roles (
+  user_id, role_id, club_id, show_id, is_active, auth_user_id, expires_at
+)
+SELECT fixture.person_id, r.id, fixture.club_id, NULL, fixture.is_active,
+       fixture.auth_id, fixture.expires_at
+FROM (VALUES
+  ('00000000-0000-0000-0000-000000457011'::uuid, 'secretary'::text, '00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457101'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457012'::uuid, 'judge'::text,     '00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457102'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457012'::uuid, 'club_admin'::text,'00000000-0000-0000-0000-000000457001'::uuid, true,  '00000000-0000-0000-0000-000000457102'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457014'::uuid, 'club_admin'::text,'00000000-0000-0000-0000-000000457002'::uuid, true,  '00000000-0000-0000-0000-000000457104'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457015'::uuid, 'judge'::text,     '00000000-0000-0000-0000-000000457002'::uuid, true,  '00000000-0000-0000-0000-000000457105'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457016'::uuid, 'site_admin'::text,NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457106'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457017'::uuid, 'judge'::text,     NULL::uuid,                                   false, '00000000-0000-0000-0000-000000457107'::uuid, NULL::timestamptz),
+  ('00000000-0000-0000-0000-000000457018'::uuid, 'judge'::text,     NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457108'::uuid, now() - interval '1 day'),
+  ('00000000-0000-0000-0000-000000457019'::uuid, 'judge'::text,     NULL::uuid,                                   true,  '00000000-0000-0000-0000-000000457109'::uuid, NULL::timestamptz)
+) AS fixture(person_id, role_name, club_id, is_active, auth_id, expires_at)
+JOIN public.roles r ON r.name = fixture.role_name;
+
+-- Leave an active grant behind a tombstone to prove both the policy and RPC
+-- filter on the person, not only on user_roles.is_active.
+UPDATE public.people
+SET deleted_at = now()
+WHERE id = '00000000-0000-0000-0000-000000457019';
 
 SET LOCAL ROLE authenticated;
 
 DO $$
 DECLARE
-  secretary_uid uuid := '00000000-0000-0000-0000-000000456101';
-  judge_uid     uuid := '00000000-0000-0000-0000-000000456102';
-  exhibitor_uid uuid := '00000000-0000-0000-0000-000000456103';
+  secretary_uid uuid := '00000000-0000-0000-0000-000000457101';
+  judge_a_uid   uuid := '00000000-0000-0000-0000-000000457102';
+  exhibitor_uid uuid := '00000000-0000-0000-0000-000000457103';
+  admin_b_uid   uuid := '00000000-0000-0000-0000-000000457104';
+  site_uid      uuid := '00000000-0000-0000-0000-000000457106';
   visible       integer;
 BEGIN
-  -- A secretary reads the judge's roles. This is the regression: it used to be 0.
   PERFORM set_config('request.jwt.claim.sub', secretary_uid::text, true);
-  PERFORM set_config('request.jwt.claims',
-    jsonb_build_object('sub', secretary_uid, 'role', 'authenticated')::text, true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', secretary_uid, 'role', 'authenticated')::text, true);
 
-  SELECT count(*) INTO visible
-  FROM public.get_visible_person_roles(
-    ARRAY['00000000-0000-0000-0000-000000456012']::uuid[]
-  )
-  WHERE person_id = '00000000-0000-0000-0000-000000456012'
-    AND role_name = 'judge';
+  SELECT count(*) INTO visible FROM public.user_roles WHERE auth_user_id = secretary_uid;
   IF visible = 0 THEN
-    RAISE EXCEPTION 'FAIL secretary cannot read the judge roles — the person page would say "Member"';
+    RAISE EXCEPTION 'FAIL secretary cannot read their own grants';
   END IF;
 
-  -- Positive control on the same collector: the secretary still reads their own.
   SELECT count(*) INTO visible
-  FROM public.user_roles ur
-  WHERE ur.auth_user_id = secretary_uid;
-  IF visible = 0 THEN
-    RAISE EXCEPTION 'FAIL secretary cannot read their own roles';
-  END IF;
-
-  -- An exhibitor reads only themselves. `people_select` already hides other
-  -- people from them; this keeps user_roles from being the looser of the two.
-  PERFORM set_config('request.jwt.claim.sub', exhibitor_uid::text, true);
-  PERFORM set_config('request.jwt.claims',
-    jsonb_build_object('sub', exhibitor_uid, 'role', 'authenticated')::text, true);
-
-  SELECT count(*) INTO visible
-  FROM public.get_visible_person_roles(
-    ARRAY['00000000-0000-0000-0000-000000456012']::uuid[]
-  )
-  WHERE person_id = '00000000-0000-0000-0000-000000456012';
+  FROM public.user_roles
+  WHERE auth_user_id IN (judge_a_uid, admin_b_uid, site_uid,
+    '00000000-0000-0000-0000-000000457109'::uuid);
   IF visible <> 0 THEN
-    RAISE EXCEPTION 'FAIL exhibitor read another person''s roles (visible=%)', visible;
+    RAISE EXCEPTION 'FAIL secretary read another person''s raw grants (visible=%)', visible;
   END IF;
 
-  -- Positive control for the denial: the exhibitor DOES read their own, so the
-  -- zero above is a policy decision and not an empty fixture.
   SELECT count(*) INTO visible
-  FROM public.user_roles ur
-  WHERE ur.auth_user_id = exhibitor_uid;
-  IF visible = 0 THEN
-    RAISE EXCEPTION 'FAIL exhibitor cannot read their own roles — the denial above proves nothing';
+  FROM public.get_visible_person_roles(ARRAY[
+    '00000000-0000-0000-0000-000000457012'::uuid,
+    '00000000-0000-0000-0000-000000457015'::uuid
+  ])
+  WHERE role_name = 'judge';
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary received an out-of-scope judge label (visible=%)', visible;
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_roles(ARRAY[
+    '00000000-0000-0000-0000-000000457012'::uuid
+  ])
+  WHERE role_name = 'club_admin';
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary did not receive an administrative role in their club scope';
   END IF;
 
-  RAISE NOTICE 'PASS user_roles readable by show managers, still self-only for exhibitors';
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_roles(ARRAY[
+    '00000000-0000-0000-0000-000000457014'::uuid,
+    '00000000-0000-0000-0000-000000457016'::uuid,
+    '00000000-0000-0000-0000-000000457017'::uuid,
+    '00000000-0000-0000-0000-000000457018'::uuid,
+    '00000000-0000-0000-0000-000000457019'::uuid
+  ])
+  WHERE role_name = 'site_admin'
+     OR person_id = '00000000-0000-0000-0000-000000457014'::uuid
+     OR (person_id IN (
+       '00000000-0000-0000-0000-000000457017'::uuid,
+       '00000000-0000-0000-0000-000000457018'::uuid
+     ) AND role_name = 'judge')
+     OR person_id = '00000000-0000-0000-0000-000000457019'::uuid;
+  IF visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL RPC exposed site-admin, inactive, expired, or removed role labels (visible=%)', visible;
+  END IF;
+
+  -- A club admin receives safe labels but no raw cross-person rows.
+  PERFORM set_config('request.jwt.claim.sub', admin_b_uid::text, true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', admin_b_uid, 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO visible FROM public.user_roles WHERE auth_user_id = judge_a_uid;
+  IF visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL club admin read another person''s raw grants';
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_roles(ARRAY['00000000-0000-0000-0000-000000457015'::uuid])
+  WHERE role_name = 'judge';
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL club admin cannot read a current judge label';
+  END IF;
+
+  -- Site admins retain the complete raw assignment ledger needed by the role
+  -- audit and reactivation workflows. Club show managers do not.
+  PERFORM set_config('request.jwt.claim.sub', site_uid::text, true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', site_uid, 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO visible
+  FROM public.user_roles
+  WHERE auth_user_id = '00000000-0000-0000-0000-000000457109'::uuid
+    AND role_id = (SELECT id FROM public.roles WHERE name = 'judge');
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL site admin cannot read removed-person grants for audit/reactivation';
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_deleted_person_role_history(
+    '00000000-0000-0000-0000-000000457019'::uuid
+  )
+  WHERE role_name = 'judge';
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL removed-person history RPC did not return the held judge role';
+  END IF;
+
+  -- Role-filtered lookup returns only current matching IDs and avoids loading
+  -- the entire people directory. Show managers may discover judges, but not
+  -- another club's administrative grants.
+  PERFORM set_config('request.jwt.claim.sub', secretary_uid::text, true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', secretary_uid, 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_ids_by_role('judge');
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary received an out-of-scope judge ID (visible=%)', visible;
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_ids_by_role('club_admin')
+  WHERE person_id = '00000000-0000-0000-0000-000000457014'::uuid;
+  IF visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL secretary discovered another club''s admin through role lookup';
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_ids_by_role('club_admin')
+  WHERE person_id = '00000000-0000-0000-0000-000000457012'::uuid;
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL secretary cannot discover an admin in their club scope';
+  END IF;
+
+  -- Plain exhibitors may ask only for their own effective labels.
+  PERFORM set_config('request.jwt.claim.sub', exhibitor_uid::text, true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object(
+    'sub', exhibitor_uid, 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_roles(ARRAY['00000000-0000-0000-0000-000000457012'::uuid]);
+  IF visible <> 0 THEN
+    RAISE EXCEPTION 'FAIL exhibitor read another person''s role labels';
+  END IF;
+  SELECT count(*) INTO visible
+  FROM public.get_visible_person_roles(ARRAY['00000000-0000-0000-0000-000000457013'::uuid])
+  WHERE role_name = 'exhibitor';
+  IF visible <> 1 THEN
+    RAISE EXCEPTION 'FAIL exhibitor cannot read their own current role label';
+  END IF;
+
+  RAISE NOTICE 'PASS MYK9-457 raw grants private; visible role labels current and bounded';
+END;
+$$;
+
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF has_function_privilege('anon', 'public.get_visible_person_roles(uuid[],integer,integer)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL anon can execute get_visible_person_roles';
+  END IF;
+  IF has_function_privilege('anon', 'public.get_deleted_person_role_history(uuid)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL anon can execute get_deleted_person_role_history';
+  END IF;
+  IF has_function_privilege('anon', 'public.get_visible_person_ids_by_role(text,integer,integer)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL anon can execute get_visible_person_ids_by_role';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.get_visible_person_roles(uuid[],integer,integer)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot execute get_visible_person_roles';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.get_visible_person_ids_by_role(text,integer,integer)', 'execute') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot execute get_visible_person_ids_by_role';
+  END IF;
 END;
 $$;
 

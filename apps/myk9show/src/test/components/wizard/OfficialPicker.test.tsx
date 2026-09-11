@@ -113,6 +113,25 @@ describe('OfficialPicker', () => {
     expect(onSelect).toHaveBeenCalledWith('1');
   });
 
+  it('requests role-aware people when the picker opens', () => {
+    const onOpen = vi.fn();
+    renderWithProviders(
+      <OfficialPicker
+        label="Show Chairman"
+        selectedPersonId={undefined}
+        people={[chairman, exhibitor]}
+        suggestedRoles={[UserRole.CHAIRMAN]}
+        onOpen={onOpen}
+        onSelect={vi.fn()}
+        onCreatePerson={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /select show chairman/i }));
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
   it('expands create form when "Add new" is clicked', async () => {
     renderWithProviders(
       <OfficialPicker

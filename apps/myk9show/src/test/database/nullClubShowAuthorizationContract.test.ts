@@ -111,6 +111,11 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   'get_show_officials -> is_club_admin',
   'can_manage_show_lifecycle_email -> is_club_admin',
   'can_manage_show_lifecycle_email -> is_trial_secretary',
+  // Guarded by ur.club_id IS NOT NULL in 20260910181537 (MYK9-457).
+  'get_visible_person_roles -> is_club_admin',
+  'get_visible_person_roles -> is_trial_secretary',
+  'get_visible_person_ids_by_role -> is_club_admin',
+  'get_visible_person_ids_by_role -> is_trial_secretary',
 ];
 
 describe('club-scoped authorization helpers are never handed a bare club_id column', () => {

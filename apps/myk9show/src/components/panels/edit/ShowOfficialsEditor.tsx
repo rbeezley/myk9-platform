@@ -17,7 +17,7 @@ interface ShowOfficialsEditorProps {
 export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
   const queryClient = useQueryClient();
   const { data: officials, isLoading } = useShowOfficials(showId);
-  const { people, loadPeople } = useUserStore();
+  const { people, loadPeople, loadUsers } = useUserStore();
   const [pendingRole, setPendingRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,6 +89,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           selectedPersonId={currentChairman}
           people={people}
           suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
+          onOpen={() => void loadUsers()}
           onSelect={id => handleAssign(UserRole.CHAIRMAN, id)}
           onCreatePerson={handleCreatePerson}
         />
@@ -98,6 +99,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           selectedPersonId={currentSecretary}
           people={people}
           suggestedRoles={[UserRole.SECRETARY]}
+          onOpen={() => void loadUsers()}
           onSelect={id => handleAssign(UserRole.SECRETARY, id)}
           onCreatePerson={handleCreatePerson}
         />
@@ -106,6 +108,7 @@ export function ShowOfficialsEditor({ showId }: ShowOfficialsEditorProps) {
           selectedPersonId={currentSteward}
           people={people}
           suggestedRoles={[UserRole.STEWARD]}
+          onOpen={() => void loadUsers()}
           onSelect={id => handleAssign(UserRole.STEWARD, id)}
           onCreatePerson={handleCreatePerson}
         />

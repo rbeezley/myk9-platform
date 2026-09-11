@@ -223,7 +223,24 @@ Execute IN ORDER. Each pass produces findings before the next begins.
 - Success state
 - Partial/incomplete state
 - Error state
-- Edge cases (permissions, offline, etc.)
+- **Not permitted** — the viewer may not see this data
+- **Filtered to empty** — the query succeeded and returned nothing for this viewer
+- Edge cases (offline, etc.)
+
+**"Empty" is not one state.** A collection that arrives empty can mean at least four different
+things, and a component that renders one message for all of them states a fact it does not have:
+
+| The array is empty because                          | The honest message                  |
+| --------------------------------------------------- | ----------------------------------- |
+| there genuinely are none                            | "No dogs registered yet"            |
+| RLS filtered them out for this viewer               | "You can't see this" — never "none" |
+| the query is disabled, paused, or still placeholder | a loading state, not a count        |
+| the request failed and was swallowed                | an error with a retry               |
+
+Ask of every empty rendering: _could this be shown to someone who simply is not allowed to see the
+data?_ If yes, the copy must not assert absence. A person page once told a secretary a judge held
+no roles, showed a fallback badge, and hid the judge-qualifications card — three symptoms of one
+RLS-filtered empty array being read as "none".
 
 **Required output:**
 
@@ -232,13 +249,15 @@ Execute IN ORDER. Each pass produces findings before the next begins.
 
 ### [Component/Screen]
 
-| State   | Implemented? | Quality           | Issue            |
-| ------- | ------------ | ----------------- | ---------------- |
-| Empty   | Yes/No       | Good/Poor/Missing | [Problem if any] |
-| Loading | Yes/No       | Good/Poor/Missing | [Problem if any] |
-| Success | Yes/No       | Good/Poor/Missing | [Problem if any] |
-| Partial | Yes/No       | Good/Poor/Missing | [Problem if any] |
-| Error   | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| State          | Implemented? | Quality           | Issue            |
+| -------------- | ------------ | ----------------- | ---------------- |
+| Empty          | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Loading        | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Success        | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Partial        | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Error          | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Not permitted  | Yes/No       | Good/Poor/Missing | [Problem if any] |
+| Filtered empty | Yes/No       | Good/Poor/Missing | [Problem if any] |
 
 **Dead ends found:** [States where user is stuck with no guidance]
 

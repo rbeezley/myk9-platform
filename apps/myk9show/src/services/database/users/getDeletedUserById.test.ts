@@ -3,7 +3,7 @@ import { createDatabaseError } from '@/services/database/databaseError';
  * MYK9-153: the removed-person read must return a COMPLETE record.
  *
  * `get_deleted_people()` returns `SETOF public.people` — the row and nothing
- * else — while `getUserById` embeds user_roles. Mapping the bare row yields an
+ * else — while live reads hydrate role labels separately. Mapping the bare row yields an
  * empty role list, which reads as "this person had no roles" rather than "we
  * didn't ask": a removed judge would silently lose their badge and their
  * judge-only sections. That failure is invisible without this test.
@@ -30,15 +30,17 @@ vi.mock('@/utils/duplicateIdentityErrors', () => ({
 
 import { getDeletedUserById } from './reads';
 
-const rolesQuery = (result: { data?: unknown[]; error?: unknown }) => {
-  const chain: Record<string, unknown> = {};
-  chain.select = vi.fn(() => chain);
-  // The single .eq(user_id) resolves. There is deliberately no is_active filter
-  // — see the note in getDeletedUserById.
-  chain.eq = vi.fn(() =>
-    Promise.resolve({ data: result.data ?? null, error: result.error ?? null })
-  );
-  return chain;
+const mockDeletedRead = (
+  people: unknown[],
+  roles: { data?: unknown[]; error?: unknown } = { data: [] }
+) => {
+  rpc.mockImplementation((name: string) => {
+    if (name === 'get_deleted_people') return Promise.resolve({ data: people, error: null });
+    if (name === 'get_deleted_person_role_history') {
+      return Promise.resolve({ data: roles.data ?? null, error: roles.error ?? null });
+    }
+    throw new Error(`Unexpected RPC: ${name}`);
+  });
 };
 
 describe('getDeletedUserById', () => {
@@ -53,16 +55,19 @@ describe('getDeletedUserById', () => {
 
     expect(data).toBeNull();
     // No point asking for the roles of a person we did not find.
-    expect(from).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledTimes(1);
   });
 
   it('attaches the roles the RPC does not return', async () => {
-    rpc.mockResolvedValue({ data: [{ id: 'gone-1', first_name: 'Ada' }], error: null });
-    from.mockReturnValue(rolesQuery({ data: [{ role: { name: 'judge' } }] }));
+    mockDeletedRead([{ id: 'gone-1', first_name: 'Ada' }], {
+      data: [{ role_name: 'judge' }],
+    });
 
     const { data } = await getDeletedUserById('gone-1');
 
-    expect(from).toHaveBeenCalledWith('user_roles');
+    expect(rpc).toHaveBeenCalledWith('get_deleted_person_role_history', {
+      p_person_id: 'gone-1',
+    });
     // The shape extractRoles expects — not a flat array, not a bare name.
     expect(data).toMatchObject({
       id: 'gone-1',
@@ -71,47 +76,36 @@ describe('getDeletedUserById', () => {
   });
 
   it('still returns the person when they genuinely hold no roles', async () => {
-    rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
-    from.mockReturnValue(rolesQuery({ data: [] }));
+    mockDeletedRead([{ id: 'gone-1' }]);
 
     const { data } = await getDeletedUserById('gone-1');
 
     expect(data).toMatchObject({ id: 'gone-1', user_roles: [] });
   });
 
-  it('asks for roles WITHOUT an is_active filter', async () => {
+  it('asks the history RPC for roles without applying a client-side active filter', async () => {
     // soft_delete_person deactivates every role on the way out and
     // restore_person does not put them back, so filtering on is_active would
     // return nothing for exactly the people this function reads. The record
     // would render role-less and look correct.
-    rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
-    const chain = rolesQuery({ data: [{ role: { name: 'judge' } }] });
-    from.mockReturnValue(chain);
+    mockDeletedRead([{ id: 'gone-1' }], { data: [{ role_name: 'judge' }] });
 
     const { data } = await getDeletedUserById('gone-1');
 
-    const eq = chain.eq as ReturnType<typeof vi.fn>;
-    expect(eq).toHaveBeenCalledTimes(1);
-    expect(eq).toHaveBeenCalledWith('user_id', 'gone-1');
+    expect(from).not.toHaveBeenCalled();
     expect(data).toMatchObject({ user_roles: [{ role: { name: 'judge' } }] });
   });
 
   it('drops a grant that expired before the removal', async () => {
     // Legacy user_roles rows have no deactivation timestamp, so a grant revoked
     // without an expiry is indistinguishable and is kept.
-    rpc.mockResolvedValue({
-      data: [{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }],
-      error: null,
+    mockDeletedRead([{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }], {
+      data: [
+        { expires_at: '2026-01-01T00:00:00Z', role_name: 'steward' },
+        { expires_at: '2027-01-01T00:00:00Z', role_name: 'judge' },
+        { expires_at: null, role_name: 'exhibitor' },
+      ],
     });
-    from.mockReturnValue(
-      rolesQuery({
-        data: [
-          { expires_at: '2026-01-01T00:00:00Z', role: { name: 'steward' } },
-          { expires_at: '2027-01-01T00:00:00Z', role: { name: 'judge' } },
-          { expires_at: null, role: { name: 'exhibitor' } },
-        ],
-      })
-    );
 
     const { data } = await getDeletedUserById('gone-1');
 
@@ -122,27 +116,21 @@ describe('getDeletedUserById', () => {
   });
 
   it('keeps only grants deactivated by this removal plus active grants', async () => {
-    rpc.mockResolvedValue({
-      data: [{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }],
-      error: null,
+    mockDeletedRead([{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }], {
+      data: [
+        {
+          is_active: false,
+          deactivated_at: '2026-07-30T00:00:00Z',
+          role_name: 'judge',
+        },
+        {
+          is_active: false,
+          deactivated_at: '2026-07-01T00:00:00Z',
+          role_name: 'steward',
+        },
+        { is_active: true, deactivated_at: null, role_name: 'admin' },
+      ],
     });
-    from.mockReturnValue(
-      rolesQuery({
-        data: [
-          {
-            is_active: false,
-            deactivated_at: '2026-07-30T00:00:00Z',
-            role: { name: 'judge' },
-          },
-          {
-            is_active: false,
-            deactivated_at: '2026-07-01T00:00:00Z',
-            role: { name: 'steward' },
-          },
-          { is_active: true, deactivated_at: null, role: { name: 'admin' } },
-        ],
-      })
-    );
 
     const { data } = await getDeletedUserById('gone-1');
 
@@ -153,10 +141,9 @@ describe('getDeletedUserById', () => {
   });
 
   it('keeps every grant when the removal has no timestamp', async () => {
-    rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
-    from.mockReturnValue(
-      rolesQuery({ data: [{ expires_at: '2020-01-01T00:00:00Z', role: { name: 'judge' } }] })
-    );
+    mockDeletedRead([{ id: 'gone-1' }], {
+      data: [{ expires_at: '2020-01-01T00:00:00Z', role_name: 'judge' }],
+    });
 
     const { data } = await getDeletedUserById('gone-1');
 
@@ -166,13 +153,38 @@ describe('getDeletedUserById', () => {
   it('fails the read when the roles query fails', async () => {
     // A record that renders with no roles because the roles query broke is the
     // same silent lie as not asking for them.
-    rpc.mockResolvedValue({ data: [{ id: 'gone-1' }], error: null });
-    from.mockReturnValue(rolesQuery({ error: new Error('permission denied') }));
+    mockDeletedRead([{ id: 'gone-1' }], { error: new Error('permission denied') });
 
     const { data, error } = await getDeletedUserById('gone-1');
 
     expect(data).toBeNull();
     expect(error).toBeTruthy();
+  });
+
+  it('falls back to the site-admin raw history read before the history RPC is deployed', async () => {
+    mockDeletedRead([{ id: 'gone-1', deleted_at: '2026-07-30T00:00:00Z' }], {
+      error: { code: 'PGRST202', message: 'Function not found' },
+    });
+    const eq = vi.fn().mockResolvedValue({
+      data: [
+        {
+          expires_at: null,
+          is_active: false,
+          deactivated_at: '2026-07-30T00:00:00Z',
+          role: { name: 'judge' },
+        },
+      ],
+      error: null,
+    });
+    const select = vi.fn().mockReturnValue({ eq });
+    from.mockReturnValue({ select });
+
+    const { data, error } = await getDeletedUserById('gone-1');
+
+    expect(from).toHaveBeenCalledWith('user_roles');
+    expect(eq).toHaveBeenCalledWith('user_id', 'gone-1');
+    expect(data).toMatchObject({ user_roles: [{ role: { name: 'judge' } }] });
+    expect(error).toBeNull();
   });
 
   it('surfaces an RPC failure instead of reporting "not found"', async () => {

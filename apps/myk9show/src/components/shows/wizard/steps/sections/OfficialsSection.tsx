@@ -12,6 +12,7 @@ interface OfficialsSectionProps {
   /** Show the "You" badge on the secretary picker when it's the logged-in user. */
   secretaryIsSelf: boolean;
   selectedJudges: React.ComponentProps<typeof JudgesPicker>['selectedJudges'];
+  onOpenOfficialPicker: () => void;
   onSelectChairman: (id: string) => void;
   onSelectSecretary: (id: string) => void;
   onCreatePerson: React.ComponentProps<typeof OfficialPicker>['onCreatePerson'];
@@ -34,6 +35,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
   selectedSecretaryId,
   secretaryIsSelf,
   selectedJudges,
+  onOpenOfficialPicker,
   onSelectChairman,
   onSelectSecretary,
   onCreatePerson,
@@ -54,6 +56,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
           suggestedRoles={[UserRole.CHAIRMAN, UserRole.CLUB_ADMIN]}
           loading={peopleLoading}
           excludePersonIds={selectedSecretaryId ? [selectedSecretaryId] : []}
+          onOpen={onOpenOfficialPicker}
           onSelect={onSelectChairman}
           onCreatePerson={onCreatePerson}
         />
@@ -66,6 +69,7 @@ export const OfficialsSection: React.FC<OfficialsSectionProps> = ({
           loading={peopleLoading}
           excludePersonIds={selectedChairmanId ? [selectedChairmanId] : []}
           {...(secretaryIsSelf ? { autoFillBadge: 'You' } : {})}
+          onOpen={onOpenOfficialPicker}
           onSelect={onSelectSecretary}
           onCreatePerson={onCreatePerson}
         />

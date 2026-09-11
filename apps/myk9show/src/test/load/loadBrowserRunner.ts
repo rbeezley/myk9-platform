@@ -42,6 +42,22 @@ import type { ResolvedLoadTarget } from './loadTarget';
 const ENTRY_RESULT_REPLICA_VERSION_KEY = 'myk9:entry-result-replica-version';
 const ENTRY_RESULT_REPLICA_VERSION = '20260620-authenticated-entry-results-view-v2';
 const SESSION_PREPARATION_CONCURRENCY = 10;
+/**
+ * Budget for the one UI sign-in each role does per shard, in `createAuthState`.
+ *
+ * MYK9-463: all 16 shards reach this at job start with no stagger, so ~32 UI
+ * sign-ins land at once. The E2E suite's 15s default lost shards 1 and 8 of run
+ * 34394781017 outright — in a preparation phase where the surrounding waits
+ * already allow 45s (`page.goto`) and 90s (replica version), and where the
+ * surviving shards took between 5.5s and 54.6s to prepare contexts on runners
+ * that were only ~45% busy. This matches the phase's declared navigation budget
+ * instead of inheriting a spec default that nobody chose for load.
+ *
+ * This is NOT a verdict that slow sign-in is acceptable: the failure now carries
+ * a diagnosis (see `describeSignInFailure`) so the next rehearsal records
+ * whether authentication returned at all.
+ */
+export const AUTH_STATE_SIGN_IN_TIMEOUT_MS = 45_000;
 const BROWSER_CONTEXT_CLOSE_TIMEOUT_MS = 2_000;
 /** Kinds that score. They finish when their dogs are scored rather than holding open. */
 const SCORING_WORKLOAD_KINDS: readonly string[] = ['ringside-scoring', 'scoring-correction'];
@@ -405,8 +421,9 @@ async function createAuthState(browser: Browser, baseURL: string, role: 'secreta
   try {
     const warmFixture = loadEntryFixture(1);
     const warmPath = `/at-show/${LOAD_SHOW_ID}/class/${warmFixture.classId}`;
-    if (role === 'secretary') await signInAsSecretary(page, '/shows');
-    else await signInAsExhibitor(page, '/shows');
+    const signInOptions = { navigationTimeoutMs: AUTH_STATE_SIGN_IN_TIMEOUT_MS };
+    if (role === 'secretary') await signInAsSecretary(page, '/shows', signInOptions);
+    else await signInAsExhibitor(page, '/shows', signInOptions);
     await page.waitForFunction(
       ({ key, value }) => localStorage.getItem(key) === value,
       { key: ENTRY_RESULT_REPLICA_VERSION_KEY, value: ENTRY_RESULT_REPLICA_VERSION },

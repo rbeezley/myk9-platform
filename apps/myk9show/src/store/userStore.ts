@@ -50,7 +50,7 @@ interface UserStore {
 
   // Data Management
   setUsers: (users: User[]) => void;
-  loadUsers: () => Promise<void>;
+  loadUsers: (options?: { includeRoleLabels?: boolean }) => Promise<void>;
 
   // Sync Status
   getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
@@ -362,7 +362,7 @@ export const useUserStore = create<UserStore>()(
       // Data Management
       setUsers: users => set({ users, people: users }),
 
-      loadUsers: async (): Promise<void> => {
+      loadUsers: async (options = {}): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
 
@@ -370,7 +370,7 @@ export const useUserStore = create<UserStore>()(
           const { getAllUsers } = await import('@/services/database/users');
           const { mapDatabaseToUser } = await import('@/services/mappers/userMappers');
 
-          const { data, error } = await getAllUsers();
+          const { data, error } = await getAllUsers(options);
 
           if (error) {
             throw error;
@@ -438,8 +438,10 @@ export const useUserStore = create<UserStore>()(
       },
       setPeople: people => set({ users: people, people: people }),
       loadPeople: async (): Promise<void> => {
-        // Delegate to loadUsers for backward compatibility
-        return get().loadUsers();
+        // Legacy people pickers need names and judge qualifications, not role
+        // labels. Keep their broad preload independent of migration-backed role
+        // RPCs; role-aware directory/admin queries call loadUsers directly.
+        return get().loadUsers({ includeRoleLabels: false });
       },
 
       // Dialog and selection state using new terminology

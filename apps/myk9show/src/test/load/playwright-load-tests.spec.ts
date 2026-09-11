@@ -4,14 +4,72 @@ import { buildLoadEvidence, renderLoadEvidenceMarkdown, writeLoadEvidence } from
 import { evaluateLoadResult } from './loadEvaluation';
 import { G9_NORMAL_SCENARIO } from './loadScenario';
 import { loadShardFromEnv } from './loadShard';
-import { buildLoadShardArtifact, writeLoadShardArtifact } from './loadShardAggregation';
+import {
+  buildLoadShardArtifact,
+  writeLoadShardArtifact,
+  writeLoadShardFailureArtifact,
+} from './loadShardAggregation';
+import {
+  failureArtifactMetadata,
+  sanitizeFailureMessage,
+  writeFailureArtifactFromTestInfo,
+} from './loadShardFailure';
 import { loadTargetFromEnv } from './loadTarget';
+
+// Playwright requires an object pattern here; keeping it empty avoids resolving
+// browser fixtures during teardown, including when browser startup failed.
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo) => {
+  await writeFailureArtifactFromTestInfo(testInfo);
+});
 
 test('G9 Normal show-day load', async ({ browser }, testInfo) => {
   test.skip(process.env.LOAD_TEST_MODE === 'discovery', 'Discovery lists this test without load.');
-  const target = loadTargetFromEnv(process.env);
-  const shard = loadShardFromEnv(process.env);
-  const result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
+  let target!: ReturnType<typeof loadTargetFromEnv>;
+  let shard!: ReturnType<typeof loadShardFromEnv>;
+  let result: Awaited<ReturnType<typeof runBrowserLoad>>;
+  try {
+    target = loadTargetFromEnv(process.env);
+    shard = loadShardFromEnv(process.env);
+    result = await runBrowserLoad(browser, G9_NORMAL_SCENARIO, target, { shard });
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    const fallback = failureArtifactMetadata(process.env);
+    const failureArtifact = {
+      schemaVersion: 1 as const,
+      runId: shard?.runId ?? process.env.LOAD_TEST_RUN_ID ?? 'unknown',
+      startAtMs: shard?.startAtMs ?? Number(process.env.LOAD_TEST_START_AT ?? 0),
+      shard: shard ? { count: shard.count, index: shard.index } : fallback.shard,
+      target,
+      scenarioId: G9_NORMAL_SCENARIO.id,
+      error: {
+        name: failure.name,
+        message: sanitizeFailureMessage(failure.message),
+      },
+    };
+    try {
+      if (process.env.LOAD_TEST_SHARD_INDEX !== undefined) {
+        const artifactPath = writeLoadShardFailureArtifact(
+          failureArtifact,
+          undefined,
+          fallback.fileName
+        );
+        await testInfo.attach('load-shard-failure.json', {
+          body: JSON.stringify(failureArtifact, null, 2),
+          contentType: 'text/plain',
+        });
+        testInfo.annotations.push({ type: 'shard-failure-evidence', description: artifactPath });
+      }
+    } catch (diagnosticError) {
+      testInfo.annotations.push({
+        type: 'shard-failure-diagnostics-error',
+        description:
+          diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError),
+      });
+      console.error('Load shard failure diagnostics could not be written:', diagnosticError);
+    }
+    throw failure;
+  }
   if (shard) {
     const artifact = buildLoadShardArtifact({
       shard,

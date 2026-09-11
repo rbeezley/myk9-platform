@@ -80,6 +80,8 @@ console.log(
       peakConnections: platform.peakConnections,
       connectionCap: platform.connectionCap,
       statementDeltas: platform.statementDeltas.length,
+      scheduledWriteCapture: platform.scheduledWriteCapture,
+      scheduledWriteDeltas: platform.scheduledWriteDeltas,
       resourceSampling: platform.resourceSampling,
     },
     null,

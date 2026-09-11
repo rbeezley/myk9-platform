@@ -159,6 +159,7 @@ export function renderLoadEvidenceMarkdown(evidence: LoadRunEvidence): string {
 - Database connections peak/cap: ${platform?.peakConnections ?? 'missing'} / ${platform?.connectionCap ?? 'missing'}
 - Sampling coverage resource/connection: ${samplingCoverage(platform?.resourceSampling)} / ${samplingCoverage(platform?.connectionSampling)}
 - pg_stat_statements deltas: ${platform?.statementDeltas.length ?? 0}
+- Scheduled/health-snapshot write deltas: ${platform?.scheduledWriteCapture ? (platform.scheduledWriteCapture.enabled ? ((platform.scheduledWriteDeltas?.map(delta => `${delta.source}=${delta.writes} ${delta.unit}`).join(', ') || '0') ?? 'missing') : 'disabled') : 'missing'}
 - Backend-latency attribution from browser timings: ${evidence.evaluation.derived.generatorAttributionValid ? 'VALID' : 'INVALID — generator evidence was incomplete or saturated'}
 
 ## Generator evidence

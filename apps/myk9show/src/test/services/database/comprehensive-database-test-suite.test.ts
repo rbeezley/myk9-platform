@@ -191,7 +191,7 @@ describe('Comprehensive Database Test Suite', () => {
       const allUsersResult = await getAllUsers();
       const getAllDuration = Date.now() - startTime;
 
-      expect(allUsersResult.data).toEqual(mockUserData);
+      expect(allUsersResult.data).toEqual(mockUserData.map(user => ({ ...user, roles: [] })));
       expect(allUsersResult.error).toBeNull();
       expect(getAllDuration).toBeLessThan(200);
 

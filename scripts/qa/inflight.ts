@@ -51,7 +51,7 @@ export interface Overlap {
 }
 
 /** Old local refs are useful inventory, but should not drown out live work. */
-export const STALE_BRANCH_DAYS = 30;
+export const STALE_BRANCH_DAYS = 3;
 export const STALE_BRANCH_SECONDS = STALE_BRANCH_DAYS * 24 * 60 * 60;
 
 export function normalizePath(p: string): string {
@@ -137,8 +137,11 @@ export function renderOverlaps(
     const key = `${o.source.kind} ${o.source.id}`;
     bySource.set(key, [...(bySource.get(key) ?? []), o]);
   }
+  const actionable = overlaps.some(isActionableOverlap);
   const lines = [
-    `inflight: ${overlaps.length} overlap(s) with work already in flight — coordinate before continuing:`,
+    actionable
+      ? `inflight: ${overlaps.length} overlap(s) with work already in flight — coordinate before continuing:`
+      : `inflight: ${overlaps.length} overlap(s) found, all from stale local branches; gate can continue:`,
   ];
   const ordered = [...bySource].sort(([, listA], [, listB]) => {
     const priority = (list: Overlap[]) => {
@@ -159,7 +162,7 @@ export function renderOverlaps(
   const displayed = opts.verbose ? ordered : ordered.filter(([, list]) => !isStaleBranch(list));
   for (const [key, list] of displayed) {
     const s = list[0].source;
-    const meta = [s.branch && `branch ${s.branch}`, s.owner && `by ${s.owner}`, s.url]
+    const meta = [s.kind !== 'branch' && s.branch && `branch ${s.branch}`, s.owner && `by ${s.owner}`, s.url]
       .filter(Boolean)
       .join(', ');
     lines.push(`  ${key}${meta ? ` (${meta})` : ''}`);

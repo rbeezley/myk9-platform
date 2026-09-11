@@ -278,9 +278,11 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(3);
     for (const entry of entries) {
       const heading = screen.getByRole('heading', { name: entry.dog, level: 3 });
-      const card = heading.closest('.bg-card')!;
-      expect(within(card as HTMLElement).getByText(entry.className)).toBeInTheDocument();
-      expect(within(card as HTMLElement).getByText('$30.00')).toBeInTheDocument();
+      const card = heading.closest<HTMLElement>('.bg-card');
+      expect(card).not.toBeNull();
+      if (!card) return;
+      expect(within(card).getByText(entry.className)).toBeInTheDocument();
+      expect(within(card).getByText('$30.00')).toBeInTheDocument();
     }
     expect(screen.queryByText('Unrelated')).not.toBeInTheDocument();
     expect(screen.getByText('Entry Fees (3 entries)').parentElement).toHaveTextContent('$90.00');

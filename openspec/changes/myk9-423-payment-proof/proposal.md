@@ -24,4 +24,4 @@ No behavior or capability changes. `skip_specs: true`: this change strengthens v
 
 ## Impact
 
-Tests and proof artifacts only. Existing `CompactStatsRow`, payment target builder, `CartPage`, cart recovery and money surfaces are reused. No surface is duplicated; existing navigation is exercised. Non-goals: payment replay, production data writes, checkout changes, new UI, migrations and unrelated findings.
+Tests and proof artifacts only. Existing `CompactStatsRow`, payment target builder, `CartPage`, cart recovery and money surfaces are reused. No surface is duplicated; existing navigation is exercised. Non-goals: production-code changes, checkout changes, new UI, migrations and unrelated findings. The approved hosted Stripe replay is verification evidence against the existing staging fixture, not a production-code change.

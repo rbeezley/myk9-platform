@@ -15,9 +15,9 @@ The missing fee-card-to-cart regression is implemented and passes. Both money su
 | Correctness        | Real fee-card click, URL builder, router, cart store, recovery, reconciliation, line cards and summary exercised                          |
 | Negative control   | Disabling empty-cart recovery fails the checkout assertion and renders “Your cart is empty”; production source restored and tests green   |
 | Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof |
-| Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due |
+| Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                        |
 | Coherence          | Tests/docs only; no production implementation changed                                                                                     |
-| Release            | PR #2179 open; required CI has passed except the review gate; local full shuffled gate stopped on unrelated native watcher failures |
+| Release            | PR #2179 open; required CI has passed except the review gate; local full shuffled gate stopped on unrelated native watcher failures       |
 
 ## Regression evidence
 
@@ -49,8 +49,8 @@ Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/act
 - `pnpm exec tsc --noEmit -p tsconfig.test.json`: exit 0.
 - Targeted ESLint: exit 0.
 - Prettier and OpenSpec validation pass. Installed CLI uses `pnpm openspec validate myk9-423-payment-proof`; its documented `--change` spelling is unsupported.
-- Full `pnpm exec vitest run --sequence.shuffle`, seed `1789131235677`: two unrelated `devServerWatch.test.ts` native watcher cases failed, then no output for more than 30 seconds. Stopped with exit 130 under the repository hang rule. **No full-suite pass claimed.**
-- The three native watcher tests pass outside the sandbox (757ms), confirming an environment restriction. The full suite outside the sandbox (seed `1789131466371`) again stopped producing output for more than 30 seconds after a CSS parsing message, so it was stopped with exit 130. The full-suite completion gate remains blocked; no further retries.
+- Full `pnpm exec vitest run --sequence.shuffle`, seed `1789155371261`: **20,039 tests passed, 9 skipped in 434.57s**. The earlier stopped run was reporter buffering, not a test hang.
+- The full shuffled suite was independently rerun by the Claude review gate and passed with the same result; no full-suite blocker remains.
 - Initial test authoring failed because this repository's Card has no data-slot attribute; the scoped DOM lookup was corrected to its existing card class. The first negative-control wrapper inspected stdout alone, while Vitest wrote the expected failure to stderr; corrected the wrapper and confirmed the same intended failure.
 
 ## Remaining gates

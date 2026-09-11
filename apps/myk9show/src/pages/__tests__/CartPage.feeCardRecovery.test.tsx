@@ -55,7 +55,7 @@ const entries = [
   },
 ] as const;
 
-function FeeCard() {
+function FeeCard({ recoveryProbeEntryId }: { recoveryProbeEntryId?: string }) {
   const navigate = useNavigate();
   const summary = summarizeEntryBalances(
     entries.map(entry => ({
@@ -70,11 +70,15 @@ function FeeCard() {
       totalFee: 30,
     }))
   );
+  const recoveryHref = buildEntryBalanceRecoveryHref(summary);
+  const hrefWithProbe = recoveryProbeEntryId
+    ? recoveryHref.replace('entryIds=', `entryIds=${recoveryProbeEntryId},`)
+    : recoveryHref;
   return (
     <CompactStatsRow
       currentFees={summary.currentFeesCents / 100}
       amountDue={summary.amountDueCents / 100}
-      currentFeesHref={buildEntryBalanceRecoveryHref(summary)}
+      currentFeesHref={hrefWithProbe}
       onNavigate={navigate}
     />
   );
@@ -156,10 +160,24 @@ describe('MYK9-423 fee-card payment recovery', () => {
         dog: 'Unrelated',
         className: 'Unrelated Class',
       },
+      {
+        id: 'entry-outsider',
+        dog_id: 'dog-outsider',
+        class_id: 'class-outsider',
+        dog: 'Outsider',
+        className: 'Outsider Class',
+      },
+      {
+        id: 'entry-paid',
+        dog_id: 'dog-paid',
+        class_id: 'class-paid',
+        dog: 'Already Paid',
+        className: 'Paid Class',
+      },
     ].map(entry => ({
       ...entry,
       show_id: 'show-423',
-      payment_status: 'pending',
+      payment_status: entry.id === 'entry-paid' ? 'paid' : 'pending',
       entry_status: 'submitted',
       deleted_at: null,
       handler_id: null,
@@ -217,15 +235,21 @@ describe('MYK9-423 fee-card payment recovery', () => {
             return json(cart && matches(cart) ? [cart] : []);
           }
           if (table === 'exhibitor_profiles') return json([{ person_id: 'person-423' }]);
-          if (table === 'dogs') return json(databaseEntries.map(entry => ({ id: entry.dog_id })));
+          if (table === 'dogs')
+            return json(
+              databaseEntries
+                .filter(entry => !['entry-outsider', 'entry-paid'].includes(entry.id))
+                .map(entry => ({ id: entry.dog_id }))
+            );
           if (table === 'entries') return json(databaseEntries.filter(matches));
           if (table === 'entry_cart_items') {
             if (method === 'POST') {
               savedItems = body();
               return json(null);
             }
-            return json(
-              savedItems.map((item, index) => {
+            if (savedItems.length === 0) return json([]);
+            return json([
+              ...savedItems.map((item, index) => {
                 const entry = databaseEntries.find(entry => entry.id === item.entry_id)!;
                 return {
                   ...item,
@@ -244,8 +268,31 @@ describe('MYK9-423 fee-card payment recovery', () => {
                   },
                   handler: null,
                 };
-              })
-            );
+              }),
+              {
+                id: 'item-paid',
+                entry_id: 'entry-paid',
+                class_id: 'class-paid',
+                dog_id: 'dog-paid',
+                handler_id: null,
+                entry_fee_cents: 3000,
+                jump_height: null,
+                special_requests: null,
+                dog: {
+                  id: 'dog-paid',
+                  name: 'Already Paid',
+                  call_name: 'Already Paid',
+                  registrations: [],
+                },
+                class: {
+                  id: 'class-paid',
+                  name: 'Paid Class',
+                  level: 'Advanced',
+                  trial_id: 'trial-423',
+                },
+                handler: null,
+              },
+            ]);
           }
           // Unrelated display metadata stays at its empty/default state.
           if (table === 'platform_settings' || table === 'shows' || table === 'clubs')
@@ -263,7 +310,10 @@ describe('MYK9-423 fee-card payment recovery', () => {
 
     const { user } = render(
       <Routes>
-        <Route path="/exhibitor/entries" element={<FeeCard />} />
+        <Route
+          path="/exhibitor/entries"
+          element={<FeeCard recoveryProbeEntryId="entry-outsider" />}
+        />
         <Route path="/cart" element={<CartPage />} />
       </Routes>,
       { initialRoute: '/exhibitor/entries' }

@@ -12,7 +12,7 @@ The missing fee-card-to-cart regression is implemented and passes. Both money su
 
 | Dimension          | Verdict                                                                                                                                   |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Correctness        | Real fee-card click, URL builder, router, cart store, recovery, reconciliation, line cards and summary exercised                          |
+| Correctness        | Real fee-card click, URL builder, router, cart store, recovery, ownership filtering, stale-line reconciliation, line cards and summary exercised |
 | Negative control   | Disabling empty-cart recovery fails the checkout assertion and renders “Your cart is empty”; production source restored and tests green   |
 | Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof |
 | Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                        |

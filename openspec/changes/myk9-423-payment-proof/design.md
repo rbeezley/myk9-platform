@@ -13,7 +13,7 @@ Exercise `CompactStatsRow` with the production payment-target builder, real rout
 ## Decisions
 
 - Stub only database transport and unrelated identity/capacity inputs. Return cart lines from captured recovery writes, so removing hydration cannot leave a hardcoded full cart in the test.
-- Begin with no cart shell and submitted unpaid entries; include an unrelated entry to detect scope widening. Derive the fee-card target through existing payment logic.
+- Begin with no cart shell and submitted unpaid entries; include an unrelated entry, an outsider entry ID in the URL, and a stale paid cart line to prove ownership filtering and reconciliation removal. Derive the fee-card target through existing payment logic.
 - Use real timers and per-test fixtures. Reset the real store and transport between cases; add no module-scope mutable fixture state.
 - Run the same rendered assertions against a temporary empty-hydration negative control and restore production source immediately.
 - Sign in to the hosted exhibitor account in a unique owned browser session. Run one approved Stripe test checkout, then read entries and payments. Capture sanitized visible balance evidence and compare the original entry/payment identities where available. The checkout mutates only the shared staging demo fixture and is not repeated.

@@ -20,7 +20,7 @@ This file is shared by Claude Code and Codex (`.agents/skills/commit` is a symli
 ### Step 0: In-flight check — is someone already doing this?
 
 ```bash
-pnpm qa:inflight            # exit 1 if an open PR, another worktree (even uncommitted), or a recent unmerged local branch touches the paths; stale refs are counted and --verbose expands them
+pnpm qa:inflight            # exit 1 if an open PR, another worktree (even uncommitted), or a recent unmerged local branch touches the paths; refs older than 3 days are counted as inventory and --verbose expands them
 # Before ANY work exists, name the paths you intend to touch — with nothing to check it exits 2, not 0:
 # pnpm qa:inflight apps/myk9show/src/features/entries .claude/skills/ship-pr
 ```

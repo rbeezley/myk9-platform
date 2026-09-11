@@ -15,11 +15,13 @@ import {
   baseLocalBranch,
   committedPaths,
   findOverlaps,
+  isStaleCommit,
   pathsOverlap,
   renderOverlaps,
   run,
   statusPaths,
   type ChangeSource,
+  STALE_BRANCH_SECONDS,
 } from './inflight';
 
 const SCRIPT = resolve(import.meta.dirname, 'inflight.ts');
@@ -47,6 +49,15 @@ describe('pathsOverlap', () => {
     ['', '', false],
   ])('%j vs %j -> %s', (a, b, want) => {
     expect(pathsOverlap(a, b)).toBe(want);
+  });
+});
+
+describe('isStaleCommit', () => {
+  const now = Date.parse('2026-09-11T00:00:00Z');
+
+  it('pins the stale threshold', () => {
+    expect(isStaleCommit(now / 1000 - STALE_BRANCH_SECONDS - 1, now)).toBe(true);
+    expect(isStaleCommit(now / 1000 - STALE_BRANCH_SECONDS + 1, now)).toBe(false);
   });
 });
 

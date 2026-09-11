@@ -54,6 +54,10 @@ export interface Overlap {
 export const STALE_BRANCH_DAYS = 3;
 export const STALE_BRANCH_SECONDS = STALE_BRANCH_DAYS * 24 * 60 * 60;
 
+export function isStaleCommit(committedAt: number, now = Date.now()): boolean {
+  return Number.isFinite(committedAt) && now / 1000 - committedAt > STALE_BRANCH_SECONDS;
+}
+
 export function normalizePath(p: string): string {
   return p.replace(/^\.\//, '').replace(/\/+$/, '');
 }
@@ -162,7 +166,12 @@ export function renderOverlaps(
   const displayed = opts.verbose ? ordered : ordered.filter(([, list]) => !isStaleBranch(list));
   for (const [key, list] of displayed) {
     const s = list[0].source;
-    const meta = [s.kind !== 'branch' && s.branch && `branch ${s.branch}`, s.owner && `by ${s.owner}`, s.url]
+    const meta = [
+      s.kind !== 'branch' && s.branch && `branch ${s.branch}`,
+      s.stale && 'stale local branch',
+      s.owner && `by ${s.owner}`,
+      s.url,
+    ]
       .filter(Boolean)
       .join(', ');
     lines.push(`  ${key}${meta ? ` (${meta})` : ''}`);
@@ -541,11 +550,9 @@ export function unmergedLocalBranches(
   // No allowFail: an inventory that could not be read is unknown, not empty,
   // and must reach the exit-2 handler (Codex, #2073 round 12).
   const refs = lines(
-    run(
-      'git',
-      ['for-each-ref', '--format=%(refname:short)\t%(committerdate:unix)', 'refs/heads'],
-      { cwd }
-    )
+    run('git', ['for-each-ref', '--format=%(refname:short)\t%(committerdate:unix)', 'refs/heads'], {
+      cwd,
+    })
   ).map(line => {
     const [name, committedAt] = line.split('\t');
     return { name, committedAt: Number(committedAt) };
@@ -581,7 +588,7 @@ export function unmergedLocalBranches(
         kind: 'branch',
         id: name,
         branch: name,
-        stale: Date.now() / 1000 - committedAt > STALE_BRANCH_SECONDS,
+        stale: isStaleCommit(committedAt),
         files,
       });
   }

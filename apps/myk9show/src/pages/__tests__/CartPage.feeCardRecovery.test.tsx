@@ -174,6 +174,16 @@ const entries = [
   },
 ] as const;
 
+type RecoveryFixtureEntry = {
+  id: string;
+  dog_id: string;
+  class_id: string;
+  dog: string;
+  className: string;
+  fixtureEntryStatus?: string;
+  fixtureDeletedAt?: string;
+};
+
 describe('MYK9-423 fee-card payment recovery', () => {
   it('clears both money surfaces when the same recovered entries return paid', () => {
     function MoneySurfaces({ paid }: { paid: boolean }) {
@@ -246,8 +256,8 @@ describe('MYK9-423 fee-card payment recovery', () => {
       params: URLSearchParams;
       body?: unknown;
     }> = [];
-    const databaseEntries = [
-      ...entries,
+    const databaseEntries: RecoveryFixtureEntry[] = [
+      ...(entries as readonly RecoveryFixtureEntry[]),
       {
         id: 'entry-unrelated',
         dog_id: 'dog-unrelated',

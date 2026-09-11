@@ -252,7 +252,7 @@ begin
       left join private.class_result_visibility v on v.class_id = c.id
       cross join lateral public.resolve_class_result_visibility(c.id) as f
       where c.trial_id = '00000000-0000-0000-0000-000000126203'
-        and (v.class_id is not null or v.class_id is null)
+        and v.class_id is not null
         and f.placement_visible is not null;
       total_compared := total_compared + compared;
 

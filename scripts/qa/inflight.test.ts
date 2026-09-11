@@ -103,6 +103,25 @@ describe('findOverlaps', () => {
     expect(text).toContain('.agents/skills  ~  .agents/skills/qa/SKILL.md');
     expect(renderOverlaps([])).toMatch(/no open PR/);
   });
+
+  it('puts live sources first and counts stale local branches without hiding them', () => {
+    const stale: ChangeSource = {
+      kind: 'branch',
+      id: 'old-local-ref',
+      branch: 'old-local-ref',
+      stale: true,
+      files: ['.agents/skills/old.ts'],
+    };
+    const text = renderOverlaps(
+      findOverlaps(['.agents/skills', 'apps/myk9show/src/x.ts'], [stale, wt, pr])
+    );
+    expect(text.indexOf('pr #2062')).toBeLessThan(text.indexOf('worktree /wt/other'));
+    expect(text).toContain('1 overlap(s) from 1 stale local branch(es)');
+    expect(text).not.toContain('branch old-local-ref');
+    expect(renderOverlaps(findOverlaps(['.agents/skills'], [stale]), { verbose: true })).toContain(
+      'branch old-local-ref'
+    );
+  });
 });
 
 /** CLI against a real temp repo (two worktrees) and a stub `gh` on PATH. */
@@ -420,7 +439,7 @@ describe('inflight CLI', () => {
     expect(runCli(main, bin, 'docs/show day café.md').code).toBe(1);
   });
 
-  it('enumerates every local branch — the 45th, oldest branch is still found', () => {
+  it('enumerates every local branch — the 45th, oldest branch is still counted', () => {
     const { main, bin } = repo();
     git(main, 'checkout', '-q', '-b', 'oldest', 'origin/main');
     writeFileSync(join(main, 'src', 'b.ts'), 'old work');
@@ -448,8 +467,22 @@ describe('inflight CLI', () => {
     stubGh(bin, []);
     const r = runCli(main, bin, 'src/b.ts');
     expect(r.code).toBe(1);
-    expect(r.out).toContain('branch oldest');
+    expect(r.out).toContain('1 overlap(s) from 1 stale local branch(es)');
+    expect(runCli(main, bin, '--verbose', 'src/b.ts').out).toContain('branch oldest');
   }, 60_000);
+
+  it('names a recent unmerged local branch individually', () => {
+    const { main, bin } = repo();
+    git(main, 'checkout', '-q', '-b', 'active-local-ref', 'origin/main');
+    writeFileSync(join(main, 'src', 'b.ts'), 'recent work');
+    git(main, 'add', 'src/b.ts');
+    git(main, 'commit', '-q', '-m', 'recent local work');
+    git(main, 'checkout', '-q', 'mine');
+    stubGh(bin, []);
+    const r = runCli(main, bin, 'src/b.ts');
+    expect(r.code).toBe(1);
+    expect(r.out).toContain('branch active-local-ref');
+  });
 
   it('reports local `main` as in flight when --base names another branch, and not on the default base', () => {
     const { main, bin } = repo();

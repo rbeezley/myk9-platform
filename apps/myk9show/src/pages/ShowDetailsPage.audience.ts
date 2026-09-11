@@ -17,10 +17,9 @@ export interface ShowAudienceInput {
   isManagementSection: boolean;
   /** Staff-only escape hatch for checking the public/exhibitor landing without staff chrome. */
   forcePublicPreview?: boolean;
-  isSecretary: boolean;
-  isAdmin: boolean;
-  isClubAdmin: boolean;
   canManageShow: boolean;
+  isManagementStaff: boolean;
+  isClubAdmin: boolean;
   /** Whether a user is signed in at all. */
   isAuthenticated: boolean;
   /** The my-entries query is still resolving — can't yet tell public from exhibitor. */
@@ -34,6 +33,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
     forcePublicPreview,
     canManageShow,
     isClubAdmin,
+    isManagementStaff,
     isAuthenticated,
     userEntriesLoading,
     hasUserEntries,
@@ -52,7 +52,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
     if (!hasUserEntries) return 'public';
   }
 
-  // Reached the tabbed UI. Secretary/admin get the management shell; everyone
-  // else who lands here (entered exhibitors, club admins) gets the exhibitor view.
-  return canManageShow ? 'management' : 'exhibitor';
+  // Reached the tabbed UI. Secretary/admin staff get the management shell;
+  // entered exhibitors and club admins get the exhibitor view.
+  return isManagementStaff ? 'management' : 'exhibitor';
 }

@@ -27,9 +27,7 @@ import { join, relative, resolve } from 'node:path';
  * This is an INVENTORY, not a blessing. Each entry below records a decision
  * someone made. Adding a new `isSecretary || isAdmin` anywhere under src/ fails
  * this test until it is either routed through the scoped helper or added here
- * with a reason. Entries marked UNREVIEWED are pre-existing and suspected —
- * they are listed so the debt is visible rather than silently inherited, and tracked in
- * MYK9-464.
+ * with a reason.
  */
 
 const APP_SRC = resolve(import.meta.dirname, '../..');

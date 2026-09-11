@@ -84,13 +84,7 @@ const ClassDetailsPage: React.FC = () => {
   // released — the replication store is cold/stale for post-show or anonymous
   // sessions (mirrors the TV display #753 fix). Secretary/at-show scoring keeps
   // using the live replication store below.
-  const isStaff = canManageShowSurface({
-    isSecretary,
-    isAdmin,
-    hasRole,
-    userWithRoles,
-    clubId: parentShow?.clubId,
-  });
+  const isStaff = [isSecretary, isAdmin].some(Boolean);
 
   // Operational gate for this page's class-lifecycle controls (Edit Class,
   // Delete Class). This route is PUBLIC — exhibitors land here from a show
@@ -100,7 +94,13 @@ const ClassDetailsPage: React.FC = () => {
   // Details, and no more. `isStaff` above stays secretary/admin-only because it
   // switches which VIEW renders (run sheet vs exhibitor results), not whether a
   // mutation is offered.
-  const canManageClass = isStaff;
+  const canManageClass = canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole,
+    userWithRoles,
+    clubId: parentShow?.clubId,
+  });
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;

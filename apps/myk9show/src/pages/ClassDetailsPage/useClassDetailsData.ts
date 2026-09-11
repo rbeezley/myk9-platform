@@ -113,6 +113,7 @@ export function useClassDetailsData() {
   }>();
   const location = useLocation();
   const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const isStaffViewer = [isSecretary, isAdmin].some(Boolean);
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -169,7 +170,7 @@ export function useClassDetailsData() {
     : parentTrial
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
-  const isStaff = canManageShowSurface({
+  const canManageShow = canManageShowSurface({
     isSecretary,
     isAdmin,
     hasRole,
@@ -180,7 +181,7 @@ export function useClassDetailsData() {
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
     resolvedShowId,
-    isStaff && Boolean(classId && resolvedShowId)
+    canManageShow && Boolean(classId && resolvedShowId)
   );
 
   // --- Entry sources ---
@@ -189,7 +190,7 @@ export function useClassDetailsData() {
     entries: dbEntries,
     isLoading: dbEntriesLoading,
     error: dbEntriesError,
-  } = useClassEntriesWithQuery(classId || '', !!classId && !isStaff);
+  } = useClassEntriesWithQuery(classId || '', !!classId && !isStaffViewer);
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
   const localEntries = useEntriesByClass(classId || '');
@@ -204,7 +205,7 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(classId || undefined, !isStaff);
+  } = useClassEntriesRaw(classId || undefined, !isStaffViewer);
 
   const staffClassEntries = useMemo(
     () =>
@@ -213,7 +214,7 @@ export function useClassDetailsData() {
         .map(secretaryEntryToRawRow),
     [classId, staffShowEntries.data]
   );
-  const effectiveRawEntries = isStaff ? staffClassEntries : dbRawEntries;
+  const effectiveRawEntries = canManageShow ? staffClassEntries : dbRawEntries;
   const staffEntriesError = staffShowEntries.isError
     ? staffShowEntries.error instanceof Error
       ? staffShowEntries.error.message
@@ -303,8 +304,12 @@ export function useClassDetailsData() {
     localRawEntries,
     dbRawEntries: effectiveRawEntries,
     classEntries,
-    entriesLoading: isStaff ? staffShowEntries.isLoading : dbEntriesLoading || dbRawEntriesLoading,
-    entriesError: isStaff ? staffEntriesError : (dbRawEntriesError?.message ?? dbEntriesError),
+    entriesLoading: canManageShow
+      ? staffShowEntries.isLoading
+      : dbEntriesLoading || dbRawEntriesLoading,
+    entriesError: canManageShow
+      ? staffEntriesError
+      : (dbRawEntriesError?.message ?? dbEntriesError),
 
     // Parent context
     parentTrial,

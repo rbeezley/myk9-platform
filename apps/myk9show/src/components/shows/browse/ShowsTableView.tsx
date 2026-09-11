@@ -189,7 +189,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   onToggleAll,
 }) => {
   const navigate = useNavigate();
-  const hasSelection = Boolean(onToggleSelect);
+  const hasSelection = Boolean(onToggleSelect && shows.some(show => canManageShow?.(show)));
 
   const columns = useMemo<ColumnDef<EnhancedShow, unknown>[]>(() => {
     if (!hasSelection) return DATA_COLUMNS;

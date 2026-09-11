@@ -11,6 +11,8 @@ import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageGate } from './ShowDetailsPage.viewer';
+import { hasScopedClubRole } from '@/utils/roleScopes';
+import { UserRole } from '@/types/auth-types';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
 import type { SyncableTrialClass } from '@/store/trial-store-types';
@@ -52,7 +54,7 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
-  const { user, userWithRoles, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const { user, userWithRoles, hasRole } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -187,10 +189,13 @@ const ShowDetailsPage: React.FC = () => {
   const audience = resolveShowAudience({
     isManagementSection,
     forcePublicPreview: searchParams.get('preview') === 'public',
-    isSecretary,
-    isAdmin,
-    isClubAdmin: hasRole('club_admin'),
     canManageShow,
+    isManagementStaff:
+      canManageShow &&
+      !hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, actualCurrentShow?.clubId),
+    isClubAdmin:
+      hasRole('club_admin') &&
+      hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, actualCurrentShow?.clubId),
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,

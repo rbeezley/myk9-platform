@@ -9,7 +9,6 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import type { Show } from '@/types/show-types';
-import { ScopeType, UserRole } from '@/types/auth-types';
 import {
   Search,
   Calendar,
@@ -31,7 +30,7 @@ import {
   ShowCalendarSkeleton,
 } from '@/components/common/SkeletonLoaders';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
-import { canManageShowSurface } from '@/utils/roleScopes';
+import { canManageShowSurface, managedClubIds } from '@/utils/roleScopes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -58,12 +57,8 @@ import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers'
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { userWithRoles: authUser, isSecretary, isAdmin, hasRole } = useAuthContext();
-  const hasSecretaryScope = Boolean(
-    authUser?.scopes.some(
-      scope => scope.scopeType === ScopeType.CLUB && scope.roleId === UserRole.SECRETARY
-    )
-  );
-  const canManageShows = isAdmin || hasSecretaryScope;
+  const managedClubs = managedClubIds({ isAdmin, userWithRoles: authUser });
+  const canManageShows = managedClubs === null || managedClubs.size > 0;
   const canManageShow = useCallback(
     (show: Pick<Show, 'clubId'>) =>
       canManageShowSurface({

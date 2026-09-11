@@ -6,10 +6,9 @@ import { resolveShowAudience, type ShowAudienceInput } from '../ShowDetailsPage.
 function input(overrides: Partial<ShowAudienceInput> = {}): ShowAudienceInput {
   return {
     isManagementSection: false,
-    isSecretary: false,
-    isAdmin: false,
     isClubAdmin: false,
     canManageShow: false,
+    isManagementStaff: false,
     isAuthenticated: false,
     userEntriesLoading: false,
     hasUserEntries: false,
@@ -23,23 +22,23 @@ describe('resolveShowAudience', () => {
   });
 
   it('a secretary sees the management shell', () => {
-    expect(resolveShowAudience(input({ isSecretary: true, canManageShow: true }))).toBe(
+    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
       'management'
     );
   });
 
   it('public preview forces the public landing on the canonical route', () => {
-    expect(resolveShowAudience(input({ isSecretary: true, forcePublicPreview: true }))).toBe(
-      'public'
-    );
+    expect(resolveShowAudience(input({ forcePublicPreview: true }))).toBe('public');
   });
 
   it('an admin sees the management shell', () => {
-    expect(resolveShowAudience(input({ isAdmin: true, canManageShow: true }))).toBe('management');
+    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
+      'management'
+    );
   });
 
   it('does not expose management shell to a secretary outside their club', () => {
-    expect(resolveShowAudience(input({ isSecretary: true }))).toBe('public');
+    expect(resolveShowAudience(input())).toBe('public');
   });
 
   it('a club admin sees the exhibitor view, not management or public', () => {
@@ -70,8 +69,8 @@ describe('resolveShowAudience', () => {
     expect(
       resolveShowAudience(
         input({
-          isSecretary: true,
           canManageShow: true,
+          isManagementStaff: true,
           isAuthenticated: true,
           userEntriesLoading: true,
         })
@@ -88,7 +87,7 @@ describe('resolveShowAudience', () => {
   it('a management-section URL for a secretary resolves to management', () => {
     expect(
       resolveShowAudience(
-        input({ isManagementSection: true, isSecretary: true, canManageShow: true })
+        input({ isManagementSection: true, canManageShow: true, isManagementStaff: true })
       )
     ).toBe('management');
   });

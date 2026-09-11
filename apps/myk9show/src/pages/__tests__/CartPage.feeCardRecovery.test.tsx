@@ -13,6 +13,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { useCartStore } from '@/store/cartStore';
 import type { EntryCartItemInsert } from '@/store/cartStore.types';
 import CartPage from '@/pages/CartPage';
+import MyEntriesPage from '@/pages/MyEntriesPage';
 import { AmountDueSection } from '@/pages/exhibitor/AmountDueSection';
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -30,6 +31,116 @@ vi.mock('@/hooks/queries/useJudgeDayCapacity', () => ({
     error: null,
   }),
 }));
+vi.mock('@/hooks/useRoleBasedData', () => ({ useCurrentUserPersonId: () => 'person-423' }));
+vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
+  useCheckInMutation: () => ({ mutateAsync: vi.fn() }),
+}));
+vi.mock('@/hooks/useReplicationSync', () => ({ useReplicationSync: () => ({ status: {} }) }));
+vi.mock('@/hooks/queries/useDogsDatabase', () => ({
+  useDogsByOwnerQuery: () => ({ data: [], isLoading: false }),
+}));
+vi.mock('@/components/panels/edit', () => ({ AddDogPanel: () => null }));
+vi.mock('@/hooks/queries/useMyWaitlistEntries', () => ({
+  useMyWaitlistEntries: () => ({
+    entries: [],
+    activePositionCount: 0,
+    isLoading: false,
+    withdraw: vi.fn(),
+    startPayment: vi.fn(),
+    decline: vi.fn(),
+    refetchWaitlistOffers: vi.fn(),
+  }),
+}));
+vi.mock('@/hooks/queries/useSelfCheckinEnabled', () => ({ useSelfCheckinMap: () => ({}) }));
+vi.mock('@/pages/MyEntriesPage/modules', async () => {
+  const actual = await vi.importActual<typeof import('@/pages/MyEntriesPage/modules')>(
+    '@/pages/MyEntriesPage/modules'
+  );
+  return {
+    ...actual,
+    useMyEntriesData: () => ({
+      entries: [
+        {
+          id: 'entry-53',
+          registrationId: null,
+          showId: 'show-423',
+          showName: 'Recovery Trial',
+          showDate: new Date('2099-12-01'),
+          location: { venue: '', city: '', state: '' },
+          dogName: 'Ranger',
+          dogId: 'dog-53',
+          classes: [],
+          dogs: [],
+          totalFee: 30,
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+          submittedAt: new Date('2099-01-01'),
+          lastUpdated: new Date('2099-01-01'),
+        },
+      ],
+      balanceSummary: {
+        currentFeesCents: 9000,
+        amountDueCents: 9000,
+        onlineDueCents: 9000,
+        payAtShowDueCents: 0,
+        onlineShowBalances: [
+          {
+            showId: 'show-423',
+            showName: 'Recovery Trial',
+            entryCloseDay: '2099-11-20',
+            showTimezone: 'America/Chicago',
+            amountDueCents: 9000,
+            onlineDueCents: 9000,
+            payAtShowDueCents: 0,
+            entryIds: ['entry-outsider', 'entry-53', 'entry-54', 'entry-57'],
+            paymentHref: '/cart?showId=show-423&entryIds=entry-outsider,entry-53,entry-54,entry-57',
+          },
+        ],
+      },
+      identityState: 'resolved',
+      isLoading: false,
+      isError: false,
+      refreshing: false,
+      refreshEntries: vi.fn(),
+      updateEntryCheckIn: vi.fn(),
+    }),
+    useMyEntriesFilters: () => ({
+      filteredEntries: [],
+      selectedTab: 'all',
+      selectedStatus: 'all',
+      setSelectedStatus: vi.fn(),
+      statusCounts: {},
+      setSelectedTab: vi.fn(),
+      entryStats: { currentFees: 90, currentAmountDue: 90 },
+      tabCounts: {},
+      scopeMatch: null,
+      clearScope: vi.fn(),
+      waitlistSurface: { hasPositions: false },
+    }),
+    useMyEntriesDialogs: () => ({
+      checkInDialog: { open: false, entry: null, classEntry: null },
+      editDialog: { open: false, entry: null },
+      receiptDialog: { open: false, entry: null },
+      addDogOpen: false,
+      openCheckIn: vi.fn(),
+      openEdit: vi.fn(),
+      openReceipt: vi.fn(),
+      openAddDog: vi.fn(),
+      closeCheckIn: vi.fn(),
+      closeEdit: vi.fn(),
+      closeReceipt: vi.fn(),
+      closeAddDog: vi.fn(),
+      submitCheckInStatus: vi.fn(),
+      entryUpdated: vi.fn(),
+    }),
+    useResultReveal: () => ({}),
+    EntryFilterStrip: () => null,
+    EntryScopeBanner: () => null,
+    ScopedPaymentSummary: () => null,
+    MyEntryCard: () => null,
+    EntriesEmptyState: () => null,
+  };
+});
 
 const entries = [
   {
@@ -54,35 +165,6 @@ const entries = [
     className: 'Interior Novice B',
   },
 ] as const;
-
-function FeeCard({ recoveryProbeEntryId }: { recoveryProbeEntryId?: string }) {
-  const navigate = useNavigate();
-  const summary = summarizeEntryBalances(
-    entries.map(entry => ({
-      id: entry.id,
-      showId: 'show-423',
-      showName: 'Recovery Trial',
-      showDate: new Date('2099-12-01'),
-      entryCloseDay: '2099-11-20',
-      entryStatus: EntryStatus.PENDING,
-      paymentStatus: PaymentStatus.PENDING,
-      paymentMethod: 'credit_card',
-      totalFee: 30,
-    }))
-  );
-  const recoveryHref = buildEntryBalanceRecoveryHref(summary);
-  const hrefWithProbe = recoveryProbeEntryId
-    ? recoveryHref.replace('entryIds=', `entryIds=${recoveryProbeEntryId},`)
-    : recoveryHref;
-  return (
-    <CompactStatsRow
-      currentFees={summary.currentFeesCents / 100}
-      amountDue={summary.amountDueCents / 100}
-      currentFeesHref={hrefWithProbe}
-      onNavigate={navigate}
-    />
-  );
-}
 
 describe('MYK9-423 fee-card payment recovery', () => {
   it('clears both money surfaces when the same recovered entries return paid', () => {
@@ -286,10 +368,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
 
     const { user } = render(
       <Routes>
-        <Route
-          path="/exhibitor/entries"
-          element={<FeeCard recoveryProbeEntryId="entry-outsider" />}
-        />
+        <Route path="/exhibitor/entries" element={<MyEntriesPage />} />
         <Route path="/cart" element={<CartPage />} />
       </Routes>,
       { initialRoute: '/exhibitor/entries' }
@@ -297,7 +376,6 @@ describe('MYK9-423 fee-card payment recovery', () => {
     await user.click(
       screen.getByRole('button', { name: /Entry fees: \$90.00 due.*Finish payment/i })
     );
-
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });
     expect(checkout).toBeEnabled();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();

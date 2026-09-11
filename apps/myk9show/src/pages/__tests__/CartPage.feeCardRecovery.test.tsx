@@ -92,8 +92,16 @@ vi.mock('@/pages/MyEntriesPage/modules', async () => {
             amountDueCents: 9000,
             onlineDueCents: 9000,
             payAtShowDueCents: 0,
-            entryIds: ['entry-outsider', 'entry-53', 'entry-54', 'entry-57'],
-            paymentHref: '/cart?showId=show-423&entryIds=entry-outsider,entry-53,entry-54,entry-57',
+            entryIds: [
+              'entry-outsider',
+              'entry-withdrawn',
+              'entry-deleted',
+              'entry-53',
+              'entry-54',
+              'entry-57',
+            ],
+            paymentHref:
+              '/cart?showId=show-423&entryIds=entry-outsider,entry-withdrawn,entry-deleted,entry-53,entry-54,entry-57',
           },
         ],
       },
@@ -254,12 +262,28 @@ describe('MYK9-423 fee-card payment recovery', () => {
         dog: 'Outsider',
         className: 'Outsider Class',
       },
+      {
+        id: 'entry-withdrawn',
+        dog_id: 'dog-withdrawn',
+        class_id: 'class-withdrawn',
+        dog: 'Withdrawn',
+        className: 'Withdrawn Class',
+        fixtureEntryStatus: 'withdrawn',
+      },
+      {
+        id: 'entry-deleted',
+        dog_id: 'dog-deleted',
+        class_id: 'class-deleted',
+        dog: 'Deleted',
+        className: 'Deleted Class',
+        fixtureDeletedAt: '2099-01-01T00:00:00.000Z',
+      },
     ].map(entry => ({
       ...entry,
       show_id: 'show-423',
       payment_status: 'pending',
-      entry_status: 'submitted',
-      deleted_at: null,
+      entry_status: entry.fixtureEntryStatus ?? 'submitted',
+      deleted_at: entry.fixtureDeletedAt ?? null,
       handler_id: null,
       entry_fee: 30,
       jump_height: null,
@@ -286,12 +310,22 @@ describe('MYK9-423 fee-card payment recovery', () => {
           const body = () => JSON.parse(String(init?.body));
           const matches = (row: Record<string, unknown>) =>
             [...params].every(([column, filter]) => {
+              if (column === 'select' || column === 'order' || column === 'limit') return true;
               if (filter.startsWith('eq.')) return String(row[column]) === filter.slice(3);
               if (filter.startsWith('in.(')) {
                 return filter.slice(4, -1).split(',').includes(String(row[column]));
               }
               if (filter === 'is.null') return row[column] === null;
-              return true;
+              if (column === 'or' && filter.startsWith('(') && filter.endsWith(')')) {
+                return filter
+                  .slice(1, -1)
+                  .split(',')
+                  .some(clause => {
+                    const [field, operator, value] = clause.split('.');
+                    return operator === 'eq' && String(row[field]) === value;
+                  });
+              }
+              throw new Error('Unsupported fixture filter: ' + column + '=' + filter);
             });
 
           if (table === 'entry_carts') {
@@ -319,10 +353,17 @@ describe('MYK9-423 fee-card payment recovery', () => {
           if (table === 'dogs')
             return json(
               databaseEntries
-                .filter(entry => entry.id !== 'entry-outsider')
-                .map(entry => ({ id: entry.dog_id }))
+                .map(entry => ({
+                  id: entry.dog_id,
+                  owner_id: entry.id === 'entry-outsider' ? 'person-other' : 'person-423',
+                  co_owner_id: null,
+                }))
+                .filter(matches)
             );
-          if (table === 'entries') return json(databaseEntries.filter(matches));
+          if (table === 'entries') {
+            const matchingEntries = databaseEntries.filter(matches);
+            return json(matchingEntries);
+          }
           if (table === 'entry_cart_items') {
             if (method === 'POST') {
               savedItems = body();
@@ -400,5 +441,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(recoveryRead.params.get('show_id')).toBe('eq.show-423');
     expect(recoveryRead.params.get('payment_status')).toBe('eq.pending');
     expect(recoveryRead.params.get('id')).toContain('entry-outsider');
+    expect(recoveryRead.params.get('id')).toContain('entry-withdrawn');
+    expect(recoveryRead.params.get('id')).toContain('entry-deleted');
   });
 });

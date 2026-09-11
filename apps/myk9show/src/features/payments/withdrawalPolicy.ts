@@ -277,7 +277,7 @@ export function resolveWithdrawalRefundCents(
   return {
     refundCents: entryFeeCents - retainedCents,
     retainedCents,
-    requiresManual: false,
-    reason: 'after_cutoff',
+    requiresManual: entryFeeCents - retainedCents <= 0,
+    reason: entryFeeCents - retainedCents <= 0 ? 'manual_review' : 'after_cutoff',
   };
 }

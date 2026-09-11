@@ -47,11 +47,27 @@ export type RefundableEntry = Pick<EntryManagementEntry, 'id' | 'totalFee' | 'do
 
 function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
+  const validCutoff =
+    policy.cutoffDate === null ||
+    (typeof policy.cutoffDate === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate) &&
+      (() => {
+        const date = new Date(`${policy.cutoffDate}T00:00:00Z`);
+        return (
+          !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === policy.cutoffDate
+        );
+      })());
   if (
-    (policy.cutoffDate !== null &&
-      (typeof policy.cutoffDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate))) ||
+    !validCutoff ||
     (policy.retentionType !== 'flat' && policy.retentionType !== 'percent') ||
-    (policy.retentionValue !== null && typeof policy.retentionValue !== 'number') ||
+    (policy.retentionValue !== null &&
+      (typeof policy.retentionValue !== 'number' ||
+        !Number.isFinite(policy.retentionValue) ||
+        policy.retentionValue < 0 ||
+        (policy.retentionType === 'flat'
+          ? !Number.isInteger(policy.retentionValue)
+          : !Number.isInteger(policy.retentionValue) || policy.retentionValue > 100))) ||
+    (policy.retentionDeclared !== undefined && typeof policy.retentionDeclared !== 'boolean') ||
     (policy.notes !== null && typeof policy.notes !== 'string')
   ) {
     return 'Recorded policy details are malformed; verify the refund manually.';

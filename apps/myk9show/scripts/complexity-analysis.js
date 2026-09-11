@@ -5,9 +5,10 @@
  * Analyzes code complexity metrics for the MyK9Show project
  */
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 class ComplexityAnalyzer {
   constructor() {
@@ -421,9 +422,10 @@ ${this.results.summary.highComplexityFiles
 }
 
 // Run analysis if called directly
-if (require.main === module) {
+const invokedPath = process.argv[1] ? fs.realpathSync(process.argv[1]) : '';
+if (invokedPath === fileURLToPath(import.meta.url)) {
   const analyzer = new ComplexityAnalyzer();
   analyzer.analyzeProject().catch(console.error);
 }
 
-module.exports = ComplexityAnalyzer;
+export default ComplexityAnalyzer;

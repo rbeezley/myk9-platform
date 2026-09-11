@@ -21,8 +21,8 @@ Most gates also run in CI on every PR (marked **[CI]**). Re-running them togethe
 ## 2. Test suites (Phase 5 — suite health)
 
 - [ ] `pnpm test:packages` — green **[CI]**
-- [ ] `cd apps/myk9show && pnpm test` — full app suite green **[CI, sharded 1–3]**
-- [ ] _Optional isolation probe:_ `cd apps/myk9show && npx vitest run --sequence.shuffle` — any new failures beyond the tracked cross-file test-isolation debt are real regressions. Do **not** enable shuffle in CI until that debt is fixed.
+- [ ] `cd apps/myk9show && pnpm test` — full app suite green **[CI, sharded 1–6 with `--sequence.shuffle`]**
+- [ ] _Local isolation probe:_ `cd apps/myk9show && pnpm vitest run --sequence.shuffle` — run once normally, or six or more times when a change adds or touches module-scope mutable state.
 
 ## 3. Static code quality
 

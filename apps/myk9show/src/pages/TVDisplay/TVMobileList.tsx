@@ -1,19 +1,25 @@
 import { TVMobileClassCard } from './TVMobileClassCard';
 import { TVMobileResults } from './TVMobileResults';
+import { TVEmptyState } from './TVEmptyState';
 import type { TVClass, TVCompletedClass } from './types';
 
 interface TVMobileListProps {
   classes: TVClass[];
   completedClasses: TVCompletedClass[];
+  showName?: string;
+  showId?: string;
+  error?: Error | null;
 }
 
-export function TVMobileList({ classes, completedClasses }: TVMobileListProps) {
+export function TVMobileList({
+  classes,
+  completedClasses,
+  showName,
+  showId,
+  error,
+}: TVMobileListProps) {
   if (classes.length === 0 && completedClasses.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[40vh] text-zinc-500 text-sm">
-        No classes currently in progress
-      </div>
-    );
+    return <TVEmptyState showName={showName} showId={showId} error={error} />;
   }
 
   return (

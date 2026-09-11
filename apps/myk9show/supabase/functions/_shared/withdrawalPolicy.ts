@@ -63,7 +63,12 @@ function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
     policy.cutoffDate === null ||
     (typeof policy.cutoffDate === 'string' &&
       /^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate) &&
-      !Number.isNaN(new Date(`${policy.cutoffDate}T00:00:00Z`).getTime()));
+      (() => {
+        const date = new Date(`${policy.cutoffDate}T00:00:00Z`);
+        return (
+          !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === policy.cutoffDate
+        );
+      })());
   return (
     validCutoff &&
     (policy.retentionType === 'flat' || policy.retentionType === 'percent') &&
@@ -71,7 +76,9 @@ function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
       (typeof policy.retentionValue === 'number' &&
         Number.isFinite(policy.retentionValue) &&
         policy.retentionValue >= 0 &&
-        (policy.retentionType === 'flat' || policy.retentionValue <= 100))) &&
+        (policy.retentionType === 'flat'
+          ? Number.isInteger(policy.retentionValue)
+          : Number.isInteger(policy.retentionValue) && policy.retentionValue <= 100))) &&
     (policy.retentionDeclared === undefined || typeof policy.retentionDeclared === 'boolean') &&
     (policy.notes === null || typeof policy.notes === 'string')
   );

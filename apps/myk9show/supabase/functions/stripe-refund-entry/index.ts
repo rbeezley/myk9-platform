@@ -199,6 +199,9 @@ Deno.serve(async req => {
         return corsResponse(corsHeaders, { error: 'policy_snapshot_manual_review' }, 422);
       }
       const withdrawnAt = new Date(entry.withdrawn_at as string);
+      if (Number.isNaN(withdrawnAt.getTime())) {
+        return corsResponse(corsHeaders, { error: 'policy_snapshot_manual_review' }, 422);
+      }
       const suggestion = resolveWithdrawalRefundCents(
         snapshot,
         entryFeeCents,

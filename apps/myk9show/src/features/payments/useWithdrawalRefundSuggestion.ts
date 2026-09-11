@@ -71,6 +71,16 @@ export function useWithdrawalRefundSuggestion(
         };
       }
       const asOf = new Date(withdrawnAt);
+      if (Number.isNaN(asOf.getTime())) {
+        return {
+          hasPolicy: snapshot !== null,
+          refundCents: entryFeeCents,
+          retainedCents: 0,
+          requiresManual: true,
+          reason: 'manual_review',
+          policy: snapshot,
+        };
+      }
 
       const result = resolveWithdrawalRefundCents(snapshot, entryFeeCents, asOf, timeZone);
       return {

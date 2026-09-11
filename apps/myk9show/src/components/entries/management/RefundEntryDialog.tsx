@@ -47,6 +47,15 @@ export type RefundableEntry = Pick<EntryManagementEntry, 'id' | 'totalFee' | 'do
 
 function describeManualPolicy(policy: WithdrawalPolicy | null): string {
   if (!policy) return '';
+  if (
+    (policy.cutoffDate !== null &&
+      (typeof policy.cutoffDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(policy.cutoffDate))) ||
+    (policy.retentionType !== 'flat' && policy.retentionType !== 'percent') ||
+    (policy.retentionValue !== null && typeof policy.retentionValue !== 'number') ||
+    (policy.notes !== null && typeof policy.notes !== 'string')
+  ) {
+    return 'Recorded policy details are malformed; verify the refund manually.';
+  }
 
   const notes = policy.notes?.trim() ?? '';
   const notesNeedReview = notesDescribeRefundTerms(notes);
@@ -127,7 +136,7 @@ export function RefundEntryDialog({
   const policyMessage = suggestionLoading
     ? 'Checking the withdrawal policy…'
     : !suggestion
-      ? 'Withdrawal policy could not be verified. Enter the refund amount manually.'
+      ? 'Withdrawal policy could not be verified. Enter a partial refund amount manually.'
       : suggestion.requiresManual
         ? `Withdrawal policy: this policy needs your judgment. Set the refund amount below before issuing it.${
             describeManualPolicy(suggestion.policy)
@@ -142,11 +151,21 @@ export function RefundEntryDialog({
     suggestion?.hasPolicy && !suggestion.requiresManual && suggestion.refundCents < feeCents
       ? (suggestion.refundCents / 100).toFixed(2)
       : null;
+  const requiresManualAmount = !suggestion || suggestion.requiresManual;
   const manualAmountValid =
-    mode === 'full' ||
-    (Number.isFinite(Number(partialAmount)) &&
-      Number(partialAmount) > 0 &&
-      Number(partialAmount) <= fee);
+    !requiresManualAmount ||
+    (mode === 'full' &&
+      suggestion?.requiresManual === true &&
+      suggestion.hasPolicy &&
+      suggestion.policy !== null) ||
+    (mode === 'partial' &&
+      ((suggestion?.requiresManual === true &&
+        suggestion.hasPolicy &&
+        suggestion.policy !== null &&
+        partialAmount === '') ||
+        (Number.isFinite(Number(partialAmount)) &&
+          Number(partialAmount) > 0 &&
+          Number(partialAmount) <= fee)));
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -164,9 +183,15 @@ export function RefundEntryDialog({
     const usePolicySnapshot =
       mode === 'partial' &&
       ((snapshotSuggestedAmount !== null && partialAmount === snapshotSuggestedAmount) ||
-        (suggestion?.requiresManual === true && suggestion.hasPolicy && partialAmount === ''));
+        (suggestion?.requiresManual === true &&
+          suggestion.hasPolicy &&
+          suggestion.policy !== null &&
+          partialAmount === ''));
 
     let amountCents: number | undefined;
+    if (mode === 'full' && suggestion?.requiresManual && suggestion.policy !== null) {
+      amountCents = feeCents;
+    }
     if (mode === 'partial') {
       if (!usePolicySnapshot) {
         const dollars = Number(partialAmount);
@@ -295,11 +320,7 @@ export function RefundEntryDialog({
           </Button>
           <Button
             onClick={handleRefund}
-            disabled={
-              submitting ||
-              suggestionLoading ||
-              (suggestion?.requiresManual === true && !manualAmountValid)
-            }
+            disabled={submitting || suggestionLoading || !manualAmountValid}
           >
             {submitting ? 'Refunding…' : 'Issue refund'}
           </Button>

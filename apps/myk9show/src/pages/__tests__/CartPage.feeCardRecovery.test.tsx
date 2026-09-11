@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
+import { createSupabaseNetworkGuard } from '@/test/supabaseNetworkGuard';
 import { CompactStatsRow } from '@/components/exhibitor/CompactStatsRow';
 import {
   buildEntryBalanceRecoveryHref,
@@ -56,6 +58,28 @@ vi.mock('@/pages/MyEntriesPage/modules', async () => {
   const actual = await vi.importActual<typeof import('@/pages/MyEntriesPage/modules')>(
     '@/pages/MyEntriesPage/modules'
   );
+  const { mapEntryRowToBalanceSource, summarizeEntryBalances } = await vi.importActual<
+    typeof import('@/features/payments/entryBalanceSummary')
+  >('@/features/payments/entryBalanceSummary');
+  const balanceSummary = summarizeEntryBalances(
+    ['entry-53', 'entry-54', 'entry-57'].map(id =>
+      mapEntryRowToBalanceSource({
+        id,
+        show_id: 'show-423',
+        entry_status: 'confirmed',
+        payment_status: 'pending',
+        payment_method: 'credit_card',
+        entry_fee: 30,
+        show: {
+          id: 'show-423',
+          name: 'Recovery Trial',
+          start_date: '2099-12-01',
+          end_date: '2099-12-02',
+          entry_close_date: '2099-11-20',
+        },
+      })
+    )
+  );
   return {
     ...actual,
     useMyEntriesData: () => ({
@@ -77,8 +101,46 @@ vi.mock('@/pages/MyEntriesPage/modules', async () => {
           submittedAt: new Date('2099-01-01'),
           lastUpdated: new Date('2099-01-01'),
         },
+        {
+          id: 'entry-54',
+          registrationId: null,
+          showId: 'show-423',
+          showName: 'Recovery Trial',
+          showDate: new Date('2099-12-01'),
+          location: { venue: '', city: '', state: '' },
+          dogName: 'Juni',
+          dogId: 'dog-54',
+          classes: [],
+          dogs: [],
+          totalFee: 30,
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'credit_card',
+          entryCloseDay: '2099-11-20',
+          submittedAt: new Date('2099-01-01'),
+          lastUpdated: new Date('2099-01-01'),
+        },
+        {
+          id: 'entry-57',
+          registrationId: null,
+          showId: 'show-423',
+          showName: 'Recovery Trial',
+          showDate: new Date('2099-12-01'),
+          location: { venue: '', city: '', state: '' },
+          dogName: 'Maple',
+          dogId: 'dog-57',
+          classes: [],
+          dogs: [],
+          totalFee: 30,
+          entryStatus: EntryStatus.ACCEPTED,
+          paymentStatus: PaymentStatus.PENDING,
+          paymentMethod: 'credit_card',
+          entryCloseDay: '2099-11-20',
+          submittedAt: new Date('2099-01-01'),
+          lastUpdated: new Date('2099-01-01'),
+        },
       ],
-      balanceSummary: {
+      legacyBalanceSummary: {
         currentFeesCents: 9000,
         amountDueCents: 9000,
         onlineDueCents: 9000,
@@ -105,6 +167,7 @@ vi.mock('@/pages/MyEntriesPage/modules', async () => {
           },
         ],
       },
+      balanceSummary,
       identityState: 'resolved',
       isLoading: false,
       isError: false,
@@ -183,6 +246,22 @@ type RecoveryFixtureEntry = {
   fixtureEntryStatus?: string;
   fixtureDeletedAt?: string;
 };
+
+function RecoveryCartRoute() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const entryIds = params.get('entryIds');
+    if (entryIds && !entryIds.includes('entry-outsider')) {
+      params.set('entryIds', entryIds + ',entry-outsider,entry-withdrawn,entry-deleted');
+      navigate(location.pathname + '?' + params.toString(), { replace: true });
+    }
+  }, [location.pathname, location.search, navigate]);
+
+  return <CartPage />;
+}
 
 describe('MYK9-423 fee-card payment recovery', () => {
   it('clears both money surfaces when the same recovered entries return paid', () => {
@@ -302,10 +381,11 @@ describe('MYK9-423 fee-card payment recovery', () => {
       show: { pre_entry_fee: 30, day_of_show_fee: 35, start_date: '2099-12-01' },
     }));
 
+    let unsupportedFilter: string | null = null;
     const client = createClient('http://localhost:42300', 'synthetic-test-key', {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       global: {
-        fetch: async (input, init) => {
+        fetch: createSupabaseNetworkGuard(async (input, init) => {
           const url = new URL(String(input));
           const table = url.pathname.split('/').at(-1)!;
           const method = init?.method ?? 'GET';
@@ -335,7 +415,8 @@ describe('MYK9-423 fee-card payment recovery', () => {
                     return operator === 'eq' && String(row[field]) === value;
                   });
               }
-              throw new Error('Unsupported fixture filter: ' + column + '=' + filter);
+              unsupportedFilter = column + '=' + filter;
+              return false;
             });
 
           if (table === 'entry_carts') {
@@ -376,12 +457,26 @@ describe('MYK9-423 fee-card payment recovery', () => {
           }
           if (table === 'entry_cart_items') {
             if (method === 'POST') {
-              savedItems = body();
+              savedItems = [...savedItems, ...body()].filter(
+                (item, index, all) =>
+                  all.findIndex(
+                    candidate =>
+                      candidate.cart_id === item.cart_id &&
+                      candidate.dog_id === item.dog_id &&
+                      candidate.class_id === item.class_id
+                  ) === index
+              );
               return json(null);
             }
-            if (savedItems.length === 0) return json([]);
+            if (method === 'DELETE') {
+              const deletedIds = (params.get('id') ?? '').replace(/^in\.\(|\)$/g, '').split(',');
+              savedItems = savedItems.filter(item => !deletedIds.includes(item.entry_id));
+              return json(null);
+            }
+            const matchingItems = savedItems.filter(matches);
+            if (matchingItems.length === 0) return json([]);
             return json(
-              savedItems.map((item, index) => {
+              matchingItems.map((item, index) => {
                 const entry = databaseEntries.find(entry => entry.id === item.entry_id)!;
                 return {
                   ...item,
@@ -407,7 +502,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
           if (table === 'platform_settings' || table === 'shows' || table === 'clubs')
             return json([]);
           throw new Error('Unexpected fixture request: ' + method + ' ' + table);
-        },
+        }),
       },
     });
     // The shared setup mock has a generic proxy return type; replace only its
@@ -420,13 +515,14 @@ describe('MYK9-423 fee-card payment recovery', () => {
     const { user } = render(
       <Routes>
         <Route path="/exhibitor/entries" element={<MyEntriesPage />} />
-        <Route path="/cart" element={<CartPage />} />
+        <Route path="/cart" element={<RecoveryCartRoute />} />
       </Routes>,
       { initialRoute: '/exhibitor/entries' }
     );
     await user.click(
       screen.getByRole('button', { name: /Entry fees: \$90.00 due.*Finish payment/i })
     );
+    expect(unsupportedFilter).toBeNull();
     const checkout = await screen.findByRole('button', { name: 'Pay $96.30 and confirm entries' });
     expect(checkout).toBeEnabled();
     expect(screen.queryByText('Your cart is empty')).not.toBeInTheDocument();
@@ -446,8 +542,10 @@ describe('MYK9-423 fee-card payment recovery', () => {
       entries.map(entry => entry.id).sort()
     );
     const recoveryRead = requests.find(
-      request => request.table === 'entries' && request.params.has('id')
-    )!;
+      request => request.table === 'entries' && request.params.get('id')?.includes('entry-outsider')
+    );
+    expect(recoveryRead).toBeDefined();
+    if (!recoveryRead) throw new Error('Expected an exact-entry recovery read');
     expect(recoveryRead.params.get('show_id')).toBe('eq.show-423');
     expect(recoveryRead.params.get('payment_status')).toBe('eq.pending');
     expect(recoveryRead.params.get('id')).toContain('entry-outsider');

@@ -17,7 +17,7 @@ The missing fee-card-to-cart regression is implemented and passes. Both money su
 | Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof                                        |
 | Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                                                               |
 | Coherence          | Tests/docs only; no production implementation changed                                                                                                                            |
-| Release            | PR #2179 open; current-head CI and independent review are pending after the final fixture hardening; the prior full shuffled suite passed 20,039 tests |
+| Release            | PR #2179 open; current-head CI and independent review are pending after the final fixture hardening; the prior full shuffled suite passed 20,039 tests                           |
 
 ## Regression evidence
 

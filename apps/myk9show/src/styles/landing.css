@@ -97,9 +97,14 @@
 }
 
 /* ─── Sticky header ───────────────────────────────────────────────── */
+  /* Pinned below the app's fixed header, not at the viewport top. The header is
+     `position: fixed`, so a sticky sub-nav at `top: 0` slides underneath it and
+     loses its top 48px — which on this landing clipped the "Enter this show"
+     button in half. `--app-top-inset` is the shared banner + header height and
+     exists for exactly this (see index.css "App top-chrome offsets"). */
 .landing-v2 .l-hdr {
   position: sticky;
-  top: 0;
+  top: var(--app-top-inset, 3rem);
   z-index: 30;
   background: rgba(250, 247, 242, 0.88);
   backdrop-filter: saturate(140%) blur(14px);

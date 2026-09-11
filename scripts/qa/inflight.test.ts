@@ -127,10 +127,13 @@ describe('findOverlaps', () => {
       findOverlaps(['.agents/skills', 'apps/myk9show/src/x.ts'], [stale, wt, pr])
     );
     expect(text.indexOf('pr #2062')).toBeLessThan(text.indexOf('worktree /wt/other'));
-    expect(text).toContain('1 overlap(s) from 1 stale local branch(es)');
+    expect(text).toContain('1 stale local branch(es) covering 1 matched path(s)');
     expect(text).not.toContain('branch old-local-ref');
     expect(renderOverlaps(findOverlaps(['.agents/skills'], [stale]), { verbose: true })).toContain(
       'branch old-local-ref'
+    );
+    expect(renderOverlaps(findOverlaps(['.agents/skills'], [stale]), { verbose: true })).toContain(
+      'stale local branch'
     );
   });
 });
@@ -478,7 +481,7 @@ describe('inflight CLI', () => {
     stubGh(bin, []);
     const r = runCli(main, bin, 'src/b.ts');
     expect(r.code).toBe(0);
-    expect(r.out).toContain('1 overlap(s) from 1 stale local branch(es)');
+    expect(r.out).toContain('1 stale local branch(es) covering 1 matched path(s)');
     expect(runCli(main, bin, '--verbose', 'src/b.ts').out).toContain('branch oldest');
   }, 60_000);
 

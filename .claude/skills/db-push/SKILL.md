@@ -33,7 +33,7 @@ supabase migration list   # what the linked DB has actually applied
 # Ask GitHub for the files, not git: a PR head may not be fetched locally, and a
 # fork PR has no origin/<branch> ref at all — `git ls-tree origin/<head>` would
 # fail silently and the sweep would report a clean miss.
-pnpm qa:inflight supabase/migrations
+pnpm qa:inflight --verbose supabase/migrations
 gh pr list --state open --limit 200 --json number --jq '.[].number' \
   | xargs -I{} gh pr view {} --json files --jq '.files[].path' \
   | grep '^supabase/migrations/' | sort -u

@@ -141,11 +141,12 @@ export function renderOverlaps(
     const key = `${o.source.kind} ${o.source.id}`;
     bySource.set(key, [...(bySource.get(key) ?? []), o]);
   }
-  const actionable = overlaps.some(isActionableOverlap);
+  const actionableOverlaps = overlaps.filter(isActionableOverlap);
+  const actionable = actionableOverlaps.length > 0;
   const lines = [
     actionable
-      ? `inflight: ${overlaps.length} overlap(s) with work already in flight — coordinate before continuing:`
-      : `inflight: ${overlaps.length} overlap(s) found, all from stale local branches; gate can continue:`,
+      ? `inflight: ${actionableOverlaps.length} actionable overlap(s) with work already in flight (${overlaps.length} total including stale inventory) — coordinate before continuing:`
+      : `inflight: no actionable overlaps; ${overlaps.length} stale inventory match(es) found, gate can continue:`,
   ];
   const ordered = [...bySource].sort(([, listA], [, listB]) => {
     const priority = (list: Overlap[]) => {
@@ -179,9 +180,9 @@ export function renderOverlaps(
     if (list.length > 8) lines.push(`    … and ${list.length - 8} more`);
   }
   if (!opts.verbose && stale.length) {
-    const staleOverlaps = stale.reduce((total, [, list]) => total + list.length, 0);
+    const staleFiles = new Set(stale.flatMap(([, list]) => list.map(o => o.matched)));
     lines.push(
-      `  and ${staleOverlaps} overlap(s) from ${stale.length} stale local branch(es) (older than ${STALE_BRANCH_DAYS} days; run with --verbose)`
+      `  and ${stale.length} stale local branch(es) covering ${staleFiles.size} matched path(s) (older than ${STALE_BRANCH_DAYS} days; run with --verbose)`
     );
   }
   return lines.join('\n');
@@ -672,10 +673,11 @@ function runCliInner(argv: string[], cwd: string): number {
     `inflight: checking ${paths.length} path(s) on ${branch} against ${sources.length} in-flight source(s)`
   );
   console.log(renderOverlaps(overlaps, { verbose }));
-  if (overlaps.length === 0 || !overlaps.some(isActionableOverlap)) return 0;
+  if (overlaps.length === 0) return 0;
   console.log(
     'Also check by hand: Linear issues In Progress that name these paths, and other running sessions (list_sessions).'
   );
+  if (!overlaps.some(isActionableOverlap)) return 0;
   return warn ? 0 : 1;
 }
 

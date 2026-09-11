@@ -175,9 +175,13 @@ export function RefundEntryDialog({
       suggestion.hasPolicy &&
       suggestion.policy !== null) ||
     (mode === 'partial' &&
-      Number.isFinite(Number(partialAmount)) &&
-      Number(partialAmount) > 0 &&
-      Number(partialAmount) <= fee);
+      ((suggestion?.requiresManual === true &&
+        suggestion.hasPolicy &&
+        suggestion.policy !== null &&
+        partialAmount === '') ||
+        (Number.isFinite(Number(partialAmount)) &&
+          Number(partialAmount) > 0 &&
+          Number(partialAmount) <= fee)));
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -194,8 +198,11 @@ export function RefundEntryDialog({
 
     const usePolicySnapshot =
       mode === 'partial' &&
-      snapshotSuggestedAmount !== null &&
-      partialAmount === snapshotSuggestedAmount;
+      ((snapshotSuggestedAmount !== null && partialAmount === snapshotSuggestedAmount) ||
+        (suggestion?.requiresManual === true &&
+          suggestion.hasPolicy &&
+          suggestion.policy !== null &&
+          partialAmount === ''));
 
     let amountCents: number | undefined;
     if (mode === 'full' && suggestion?.requiresManual && suggestion.policy !== null) {

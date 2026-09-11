@@ -1,6 +1,6 @@
--- Behavioral contract for 20260910014500: a show manager can read the roles of
--- the people they can already read, and a plain exhibitor still cannot read
--- anyone else's.
+-- Behavioral contract for 20260910181537: a show manager can read the roles of
+-- people in managed club/show scopes through the visibility RPC, and a plain
+-- exhibitor still cannot read anyone else's.
 --
 -- The bug this guards: `user_roles_select` allowed only your OWN rows plus site
 -- admins, so the `people -> user_roles(role:roles(name))` embed came back EMPTY
@@ -83,8 +83,9 @@ SELECT '00000000-0000-0000-0000-000000456011', r.id,
        '00000000-0000-0000-0000-000000456101'
 FROM public.roles r WHERE r.name = 'secretary';
 
-INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
-SELECT '00000000-0000-0000-0000-000000456012', r.id, true,
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000456012', r.id,
+       '00000000-0000-0000-0000-000000456001', true,
        '00000000-0000-0000-0000-000000456102'
 FROM public.roles r WHERE r.name = 'judge';
 
@@ -103,8 +104,11 @@ BEGIN
     jsonb_build_object('sub', secretary_uid, 'role', 'authenticated')::text, true);
 
   SELECT count(*) INTO visible
-  FROM public.user_roles ur
-  WHERE ur.auth_user_id = judge_uid;
+  FROM public.get_visible_person_roles(
+    ARRAY['00000000-0000-0000-0000-000000456012']::uuid[]
+  )
+  WHERE person_id = '00000000-0000-0000-0000-000000456012'
+    AND role_name = 'judge';
   IF visible = 0 THEN
     RAISE EXCEPTION 'FAIL secretary cannot read the judge roles — the person page would say "Member"';
   END IF;
@@ -124,8 +128,10 @@ BEGIN
     jsonb_build_object('sub', exhibitor_uid, 'role', 'authenticated')::text, true);
 
   SELECT count(*) INTO visible
-  FROM public.user_roles ur
-  WHERE ur.auth_user_id = judge_uid;
+  FROM public.get_visible_person_roles(
+    ARRAY['00000000-0000-0000-0000-000000456012']::uuid[]
+  )
+  WHERE person_id = '00000000-0000-0000-0000-000000456012';
   IF visible <> 0 THEN
     RAISE EXCEPTION 'FAIL exhibitor read another person''s roles (visible=%)', visible;
   END IF;

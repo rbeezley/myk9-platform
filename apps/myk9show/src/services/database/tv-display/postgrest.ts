@@ -97,7 +97,7 @@ export async function getPostgrestTVDisplayData(
     .maybeSingle();
 
   if (showError) throw new Error(`Unable to load TV show: ${showError.message}`);
-  if (!showData) throw new Error('Unable to load TV show: show was not found');
+  if (!showData) return { show: null, classes: [] };
 
   let classQuery = supabase
     .from('classes')

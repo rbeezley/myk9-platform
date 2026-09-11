@@ -242,9 +242,7 @@ describe('tv-display database reads', () => {
       return createChainableQuery();
     });
 
-    await expect(getTVDisplayData('missing-show')).rejects.toThrow(
-      'Unable to load TV show: show was not found'
-    );
+    await expect(getTVDisplayData('missing-show')).resolves.toEqual({ show: null, classes: [] });
     expect(showQuery.maybeSingle).toHaveBeenCalled();
   });
 

@@ -284,7 +284,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     });
   });
 
-  it('requires an explicit amount for a structured manual-review policy', () => {
+  it('allows a structured manual-review snapshot to reach server-side review', () => {
     suggestionMock.mockReturnValue({
       data: {
         hasPolicy: true,
@@ -298,7 +298,7 @@ describe('RefundEntryDialog — withdrawal policy pre-fill', () => {
     renderDialog();
 
     expect(screen.getByRole('radio', { name: /partial amount/i })).toBeChecked();
-    expect(screen.getByRole('button', { name: /issue refund/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /issue refund/i })).toBeEnabled();
   });
 
   it('shows no policy message when the entry has no snapshot', () => {

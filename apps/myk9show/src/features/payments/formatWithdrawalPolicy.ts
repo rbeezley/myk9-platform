@@ -6,7 +6,7 @@
  * See docs/plan-refund-policy-withdrawal.md (Phase 3, D4, D8).
  */
 
-import type { WithdrawalPolicy } from './withdrawalPolicy';
+import { isValidWithdrawalPolicy, type WithdrawalPolicy } from './withdrawalPolicy';
 import { notesDescribeRefundTerms } from './withdrawalPolicyTerms';
 
 export interface WithdrawalPolicyDescription {
@@ -42,6 +42,13 @@ export function describeWithdrawalPolicy(
 ): WithdrawalPolicyDescription {
   // Unset (D8): never blank — a neutral, honest default.
   if (!policy) {
+    return {
+      refundLine: `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`,
+      notes: null,
+    };
+  }
+
+  if (!isValidWithdrawalPolicy(policy)) {
     return {
       refundLine: `Refund policy: contact the club. ${SERVICE_FEE_SENTENCE}`,
       notes: null,

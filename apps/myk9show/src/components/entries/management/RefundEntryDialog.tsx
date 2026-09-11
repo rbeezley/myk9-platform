@@ -175,9 +175,13 @@ export function RefundEntryDialog({
       suggestion.hasPolicy &&
       suggestion.policy !== null) ||
     (mode === 'partial' &&
-      Number.isFinite(Number(partialAmount)) &&
-      Number(partialAmount) > 0 &&
-      Number(partialAmount) <= fee));
+      ((suggestion?.requiresManual === true &&
+        suggestion.hasPolicy &&
+        suggestion.policy !== null &&
+        partialAmount === '') ||
+        (Number.isFinite(Number(partialAmount)) &&
+          Number(partialAmount) > 0 &&
+          Number(partialAmount) <= fee)));
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {

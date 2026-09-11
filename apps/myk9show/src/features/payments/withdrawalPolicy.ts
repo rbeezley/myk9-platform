@@ -70,7 +70,7 @@ export interface WithdrawalRefundSuggestion {
   reason: WithdrawalRefundReason;
 }
 
-function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
+export function isValidWithdrawalPolicy(value: unknown): value is WithdrawalPolicy {
   if (!value || typeof value !== 'object') return false;
   const policy = value as Record<string, unknown>;
   const validCutoff =

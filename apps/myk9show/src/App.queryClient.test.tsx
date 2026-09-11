@@ -32,6 +32,11 @@ vi.mock('@/hooks/useAnnouncementSubscription', () => ({
 vi.mock('@/hooks/useMessageSubscription', () => ({ useMessageSubscription: vi.fn() }));
 vi.mock('@/hooks/useNotificationMonitor', () => ({ useNotificationMonitor: vi.fn() }));
 
+// App starts these development-only side-effect imports during module evaluation.
+// They are unrelated to query-client ownership and must not outlive this test worker.
+vi.mock('./utils/debugUtils', () => ({}));
+vi.mock('./utils/clearAllStorage', () => ({}));
+
 vi.mock('./components/common/NetworkStatusProvider', () => ({
   NetworkStatusProvider: ({ children }: { children: ReactNode }) => children,
 }));

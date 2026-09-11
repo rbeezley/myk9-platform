@@ -53,8 +53,10 @@ Package manager: **pnpm** (never `npm` or `npx`). Root scripts (`dev:show`, `bui
 cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest); runs qa:dist-fresh first
 cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
 
-# Run a single test file (at most two positional filters — vitest 4 finds NO files with three or more)
+# Run one targeted test file
 cd apps/myk9show && pnpm vitest run src/path/to/file.test.ts
+# Run multiple targeted test files
+cd apps/myk9show && pnpm vitest run src/path/to/first.test.ts src/path/to/second.test.ts
 # Run tests matching a name pattern
 cd apps/myk9show && pnpm vitest run -t "pattern"
 ```
@@ -291,7 +293,7 @@ One to three lines per lesson: the rule, the mechanism, and a pointer to the inc
 - **Done issues auto-archive and vanish from every default Linear query**, so a dedupe or "did we already fix this?" search without `includeArchived: true` reads _shipped_ as _never seen_ and re-files it. Prefer `get_issue` by id, which resolves archived issues. The workspace left the free tier on 2026-09-01 but auto-archive is a setting and still runs. (docs/lessons/README.md#linear-include-archived)
 - **`codex review` exits 0 when it never reviewed anything, and `--commit` reviews one commit.** Both traps are closed by `pnpm qa:codex-review` (`scripts/qa/codex-review.sh`); never call `codex review` directly from a skill. (docs/lessons/README.md#codex-review-exit-code)
 - **Never move a Linear issue to Done from a `list_issues` result** — it truncates descriptions, hiding acceptance criteria below the fold. `get_issue` the full description and check every AC first. (docs/lessons/README.md#linear-done-from-list)
-- **CI shuffles vitest (`--sequence.shuffle`); local runs do not**, so a test that leaks state passes every local run and fails randomly in CI. Run the whole suite shuffled (`pnpm vitest run --sequence.shuffle`, never `pnpm test --sequence.shuffle`, which pnpm swallows; and never 3+ positional path filters, which find no files) — once when the change adds no module-scope mutable state, 6+ when it does, and fix leaks with an O(1) `beforeEach` reset. CI's deterministic shards can never surface a leak between files in different shards. (docs/lessons/README.md#vitest-shuffle)
+- **CI shuffles vitest (`--sequence.shuffle`); local runs do not**, so a test that leaks state passes every local run and fails randomly in CI. Run the whole suite shuffled (`pnpm vitest run --sequence.shuffle`, never `pnpm test --sequence.shuffle`, which pnpm swallows) — once when the change adds no module-scope mutable state, 6+ when it does, and fix leaks with an O(1) `beforeEach` reset. CI's deterministic shards can never surface a leak between files in different shards. (docs/lessons/README.md#vitest-shuffle)
 - **A timeout-class flake needs shuffle order AND a slow environment**: replay with `taskpolicy -b pnpm vitest run <file> --coverage --sequence.shuffle`, and keep the `beforeEach` reset O(1) in the leaked state's size (`store.clear()`, not per-row deletes). (docs/lessons/README.md#timeout-class-flake)
 - **`git branch -D`/`-d` and `git checkout -- <path>` are denied here**; in an unattended run that is a silent stall. Discard with `git restore`, merge with `gh pr merge --squash` without `--delete-branch`, leave local branches for `branch-janitor`. (docs/lessons/README.md#git-branch-delete-denied)
 - **`supabase functions deploy --workdir apps/myk9show` follows that dir's tracked `.temp/project-ref`.** Do not untrack the `.temp/*` files (gitignore does not apply to tracked files), always pass `--project-ref sojmvhhwsjxmfistvzbe`, and confirm the "Deployed Functions on project …" line names it. (docs/lessons/README.md#functions-deploy-workdir)

@@ -99,7 +99,7 @@ function notesDescribeRefundTerms(notes: string | null): boolean {
     /\b(?:payments?|funds?)\b[\s\S]{0,80}\b(?:final|returned)\b[\s\S]{0,40}\b(?:after|before|until|deadline|closing)\b/i;
   if (naturalScheduleTerms.test(policyText)) return true;
   if (
-    /\bwithdrawals?\b[\s\S]{0,100}\b(?:non[- ]?refundable|forfeit(?:s|ed|ing)?|no\s+refunds?)\b/i.test(
+    /\bwithdrawals?\b[\s\S]{0,100}\b(?:non[- ]?refundable|not\s+refundable|forfeit(?:s|ed|ing)?|no\s+refunds?)\b|\b(?:non[- ]?refundable|not\s+refundable)\b[\s\S]{0,100}\bwithdrawals?\b/i.test(
       policyText
     )
   ) {

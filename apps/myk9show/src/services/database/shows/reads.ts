@@ -146,19 +146,45 @@ export const getAllShows = async () => {
   }
 };
 
+/** The classes a trial row carries. PostgREST returns the embed under `class`
+ *  (the alias in the select) and the replicated mapper writes the same key, so
+ *  one reader serves both shapes. */
+function trialClasses(trial: unknown): unknown[] {
+  const classes = (trial as Record<string, unknown> | null)?.class;
+  return Array.isArray(classes) ? classes : [];
+}
+
 /**
- * How many classes a show-row's trials carry between them.
+ * Fill in classes, per trial, from a server row.
  *
- * PostgREST returns the embed under `class` (the alias in the select), and the
- * replicated mapper writes the same key, so one reader serves both shapes.
- * Returns 0 for anything that is not a trial array.
+ * Per-trial and not all-or-nothing, because `classes` replicate scoped BY TRIAL:
+ * opening one trial syncs its classes and leaves its siblings empty, so partial
+ * coverage is the normal state rather than the exception. A whole-show check
+ * would see the one populated trial, decide the show was fine, and leave every
+ * other trial silently showing nothing.
+ *
+ * Only EMPTY trials are filled. A trial that already has local classes keeps
+ * them, so a warm store is never overwritten by the network, and a trial the
+ * server also reports as empty stays empty rather than flip-flopping.
  */
-function countTrialClasses(trials: unknown): number {
-  if (!Array.isArray(trials)) return 0;
-  return trials.reduce<number>((total, trial) => {
-    const classes = (trial as Record<string, unknown> | null)?.class;
-    return total + (Array.isArray(classes) ? classes.length : 0);
-  }, 0);
+function fillMissingTrialClasses(localTrials: unknown, remoteTrials: unknown): unknown {
+  if (!Array.isArray(localTrials) || !Array.isArray(remoteTrials)) return localTrials;
+
+  const remoteById = new Map<string, unknown[]>();
+  for (const trial of remoteTrials) {
+    const id = (trial as Record<string, unknown> | null)?.id;
+    if (typeof id === 'string') remoteById.set(id, trialClasses(trial));
+  }
+
+  return localTrials.map(trial => {
+    if (trialClasses(trial).length > 0) return trial;
+
+    const id = (trial as Record<string, unknown> | null)?.id;
+    const remoteClasses = typeof id === 'string' ? remoteById.get(id) : undefined;
+    if (!remoteClasses || remoteClasses.length === 0) return trial;
+
+    return { ...(trial as Record<string, unknown>), class: remoteClasses };
+  });
 }
 
 // Get show by ID with complete details (excluding soft-deleted)
@@ -198,20 +224,17 @@ export const getShowById = async (id: string) => {
           // Classes replicate scoped BY TRIAL, and only for authenticated
           // sessions, while shows and trials arrive earlier. So a signed-in
           // visitor can hold this show and its trials with none of their
-          // classes — and every consumer reading classes off the show then
-          // sees a show that legitimately offers nothing. The premium's
-          // offered-classes section and its "See classes" link both disappear.
+          // classes, or with one trial's classes and not its siblings' — and
+          // every consumer reading classes off the show then sees a show that
+          // legitimately offers nothing, or offers only part of its schedule.
+          // The premium's offered-classes section and its "See classes" link
+          // both disappear in the first case and under-report in the second.
           //
-          // The remote row is already in hand for judge assignments, and it
-          // embeds the classes, so prefer its trials when ours carry none.
-          // Guarded on the remote actually having some: a show that genuinely
-          // has no classes yet must stay empty rather than flip-flop.
-          if (countTrialClasses(data.trials) === 0) {
-            const remoteTrials = (remote.data as Record<string, unknown> | null)?.trials;
-            if (countTrialClasses(remoteTrials) > 0) {
-              data.trials = remoteTrials;
-            }
-          }
+          // The remote row is already in hand for judge assignments and embeds
+          // the classes, so fill the gaps from it — per trial, since partial
+          // coverage is the normal shape of a per-trial sync.
+          const remoteTrials = (remote.data as Record<string, unknown> | null)?.trials;
+          data.trials = fillMissingTrialClasses(data.trials, remoteTrials);
         } catch {
           // Offline/failed network: keep the replicated detail row.
         }

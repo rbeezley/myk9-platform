@@ -318,6 +318,11 @@
        and page primitives all read these values instead of carrying local
        header-clearing offsets. */
     --app-header-height: 3rem;
+    /* The app header is `position: fixed`, so an in-page anchor (and any
+       scrollIntoView) otherwise parks its target at y=0 — behind the header.
+       Reserving the header height here fixes every hash link at once instead
+       of each target carrying its own scroll-margin-top. */
+    scroll-padding-top: calc(var(--pwa-banner-height, 0px) + 3rem);
     --app-shell-page-gap: 1.5rem;
     --app-shell-page-bottom: 2rem;
     --app-shell-page-padding: 1rem;

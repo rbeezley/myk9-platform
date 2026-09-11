@@ -31,7 +31,7 @@ test.describe('Shows UI — Browse (secretary)', () => {
     await page.goto('/shows');
     await expect(page.getByRole('heading', { name: 'Find Shows', level: 1 })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New Show' })).toBeVisible();
-    await expect(page.getByPlaceholder('Search shows by name, location, or club...')).toBeVisible();
+    await expect(page.getByPlaceholder('Search shows or locations')).toBeVisible();
 
     // Filter chips — scope to the FilterChips region so a chip label (e.g.
     // "Club") doesn't collide with a table column-header button ("Host Club").

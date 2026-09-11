@@ -190,6 +190,7 @@ const ShowDetailsPage: React.FC = () => {
     isSecretary,
     isAdmin,
     isClubAdmin: hasRole('club_admin'),
+    canManageShow,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,

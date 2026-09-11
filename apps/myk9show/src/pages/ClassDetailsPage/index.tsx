@@ -84,7 +84,13 @@ const ClassDetailsPage: React.FC = () => {
   // released — the replication store is cold/stale for post-show or anonymous
   // sessions (mirrors the TV display #753 fix). Secretary/at-show scoring keeps
   // using the live replication store below.
-  const isStaff = isSecretary || isAdmin;
+  const isStaff = canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole,
+    userWithRoles,
+    clubId: parentShow?.clubId,
+  });
 
   // Operational gate for this page's class-lifecycle controls (Edit Class,
   // Delete Class). This route is PUBLIC — exhibitors land here from a show
@@ -94,13 +100,7 @@ const ClassDetailsPage: React.FC = () => {
   // Details, and no more. `isStaff` above stays secretary/admin-only because it
   // switches which VIEW renders (run sheet vs exhibitor results), not whether a
   // mutation is offered.
-  const canManageClass = canManageShowSurface({
-    isSecretary,
-    isAdmin,
-    hasRole,
-    userWithRoles,
-    clubId: parentShow?.clubId,
-  });
+  const canManageClass = isStaff;
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;
@@ -234,7 +234,7 @@ const ClassDetailsPage: React.FC = () => {
   const headerActions = useMemo(() => {
     return (
       <div className="flex items-center gap-2">
-        {(isSecretary || isAdmin) && parentShow?.id && (
+        {isStaff && parentShow?.id && (
           <Button
             variant="outline"
             size="sm"
@@ -265,7 +265,7 @@ const ClassDetailsPage: React.FC = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {(isSecretary || isAdmin) && parentShow?.id && (
+            {isStaff && parentShow?.id && (
               <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}/show-desk`)}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Open in Workbench
@@ -290,8 +290,7 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
     canManageClass,
-    isSecretary,
-    isAdmin,
+    isStaff,
     parentShow,
     trialId,
     currentClass?.trialId,

@@ -82,15 +82,6 @@ export function countGates(source: string): number {
 type Allowance = { reason: string; count: number };
 
 const ALLOWED: Record<string, Allowance> = {
-  'pages/BrowseShowsPage.tsx': {
-    reason:
-      'UNREVIEWED (pre-existing, suspected — MYK9-464). Was allowed here as "a list of every ' +
-      'show, no single club to scope to"; Codex review of #2168 showed that reasoning is wrong. ' +
-      'The flag gates row-selection checkboxes on EVERY row and the ShowBulkActionsBar, so a ' +
-      'Club A secretary can select Club B shows and be offered bulk status/delete. Each row ' +
-      'carries its own clubId — the gate belongs per row, not per page.',
-    count: 1,
-  },
   'components/notifications/MessageCenterPanel.tsx': {
     reason:
       'Genuinely global, verified: `staffShows` is built from `currentShowIds`, so the compose ' +
@@ -106,27 +97,6 @@ const ALLOWED: Record<string, Allowance> = {
       'mutation. Worst case a cross-club staff viewer is told where to add trials instead of to ' +
       'contact the organizer.',
     count: 2,
-  },
-  'pages/ShowDetailsPage.audience.ts': {
-    reason:
-      'UNREVIEWED (pre-existing, suspected — MYK9-464). Chooses the management vs exhibitor audience for a ' +
-      'SPECIFIC show, so it should almost certainly scope on that show\u2019s club the way ' +
-      'ShowDetailsPage.viewer.ts now does. Left as-is by MYK9-458, which fixed the manage gate ' +
-      'but not the audience split.',
-    count: 2,
-  },
-  'pages/ClassDetailsPage/index.tsx': {
-    reason:
-      'UNREVIEWED (pre-existing, suspected — MYK9-464). This file already imports canManageShowSurface for ' +
-      'its lifecycle controls, then uses the bare global check for three further affordances on ' +
-      'the same club-owned record. The two gates disagreeing on one page is the smell.',
-    count: 3,
-  },
-  'pages/ClassDetailsPage/useClassDetailsData.ts': {
-    reason:
-      'UNREVIEWED (pre-existing, suspected — MYK9-464). Selects which entry query to run for a club-owned ' +
-      'class; a cross-club staff viewer issues a secretary-scoped read the server will refuse.',
-    count: 1,
   },
 };
 

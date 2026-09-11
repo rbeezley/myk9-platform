@@ -29,6 +29,7 @@ import type { ClassEntryDisplay } from './types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import type { SecretaryEntry } from '@/services/database/entries';
+import { canManageShowSurface } from '@/utils/roleScopes';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
@@ -111,8 +112,7 @@ export function useClassDetailsData() {
     trialId?: string;
   }>();
   const location = useLocation();
-  const { isSecretary, isAdmin } = useAuthContext();
-  const isStaff = isSecretary || isAdmin;
+  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -169,6 +169,13 @@ export function useClassDetailsData() {
     : parentTrial
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
+  const isStaff = canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole,
+    userWithRoles,
+    clubId: parentShow?.clubId,
+  });
   const resolvedShowId = showId ?? parentShow?.id ?? parentTrial?.showId ?? '';
 
   const staffShowEntries = useSecretaryShowEntriesQuery(

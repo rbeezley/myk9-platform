@@ -9,6 +9,7 @@ import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
 import type { Show } from '@/types/show-types';
+import { ScopeType, UserRole } from '@/types/auth-types';
 import {
   Search,
   Calendar,
@@ -30,6 +31,7 @@ import {
   ShowCalendarSkeleton,
 } from '@/components/common/SkeletonLoaders';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
+import { canManageShowSurface } from '@/utils/roleScopes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -55,8 +57,24 @@ import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers'
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { userWithRoles: authUser, isSecretary, isAdmin } = useAuthContext();
-  const canManageShows = isSecretary || isAdmin;
+  const { userWithRoles: authUser, isSecretary, isAdmin, hasRole } = useAuthContext();
+  const hasSecretaryScope = Boolean(
+    authUser?.scopes.some(
+      scope => scope.scopeType === ScopeType.CLUB && scope.roleId === UserRole.SECRETARY
+    )
+  );
+  const canManageShows = isAdmin || hasSecretaryScope;
+  const canManageShow = useCallback(
+    (show: Pick<Show, 'clubId'>) =>
+      canManageShowSurface({
+        isSecretary,
+        isAdmin,
+        hasRole,
+        userWithRoles: authUser,
+        clubId: show.clubId ?? undefined,
+      }),
+    [authUser, hasRole, isAdmin, isSecretary]
+  );
 
   // Where the visitor is, for the Near field, the miles label and the Distance
   // chip. Resolved from a device choice, the profile, or the connection; never
@@ -152,8 +170,12 @@ const BrowseShowsPage: React.FC = () => {
 
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
+  const manageableShows = useMemo(
+    () => enhancedShows.filter(canManageShow),
+    [canManageShow, enhancedShows]
+  );
   const bulkSelection = useBulkSelection({
-    items: enhancedShows,
+    items: manageableShows,
     getItemId: getShowId,
   });
 
@@ -371,6 +393,7 @@ const BrowseShowsPage: React.FC = () => {
         return (
           <ShowsTableView
             shows={enhancedShows}
+            canManageShow={canManageShow}
             {...(canManageShows && {
               isSelected: bulkSelection.isSelected,
               onToggleSelect: bulkSelection.toggleItem,
@@ -385,6 +408,7 @@ const BrowseShowsPage: React.FC = () => {
         return (
           <ShowCardGrid
             shows={enhancedShows}
+            canManageShow={canManageShow}
             entries={entries}
             selectedTab={selectedTab}
             user={user}

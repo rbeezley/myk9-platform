@@ -9,6 +9,7 @@ function input(overrides: Partial<ShowAudienceInput> = {}): ShowAudienceInput {
     isSecretary: false,
     isAdmin: false,
     isClubAdmin: false,
+    canManageShow: false,
     isAuthenticated: false,
     userEntriesLoading: false,
     hasUserEntries: false,
@@ -22,7 +23,9 @@ describe('resolveShowAudience', () => {
   });
 
   it('a secretary sees the management shell', () => {
-    expect(resolveShowAudience(input({ isSecretary: true }))).toBe('management');
+    expect(resolveShowAudience(input({ isSecretary: true, canManageShow: true }))).toBe(
+      'management'
+    );
   });
 
   it('public preview forces the public landing on the canonical route', () => {
@@ -32,7 +35,11 @@ describe('resolveShowAudience', () => {
   });
 
   it('an admin sees the management shell', () => {
-    expect(resolveShowAudience(input({ isAdmin: true }))).toBe('management');
+    expect(resolveShowAudience(input({ isAdmin: true, canManageShow: true }))).toBe('management');
+  });
+
+  it('does not expose management shell to a secretary outside their club', () => {
+    expect(resolveShowAudience(input({ isSecretary: true }))).toBe('public');
   });
 
   it('a club admin sees the exhibitor view, not management or public', () => {
@@ -62,7 +69,12 @@ describe('resolveShowAudience', () => {
   it('a staff user is never held pending (skips the landing gate entirely)', () => {
     expect(
       resolveShowAudience(
-        input({ isSecretary: true, isAuthenticated: true, userEntriesLoading: true })
+        input({
+          isSecretary: true,
+          canManageShow: true,
+          isAuthenticated: true,
+          userEntriesLoading: true,
+        })
       )
     ).toBe('management');
   });
@@ -74,9 +86,11 @@ describe('resolveShowAudience', () => {
   });
 
   it('a management-section URL for a secretary resolves to management', () => {
-    expect(resolveShowAudience(input({ isManagementSection: true, isSecretary: true }))).toBe(
-      'management'
-    );
+    expect(
+      resolveShowAudience(
+        input({ isManagementSection: true, isSecretary: true, canManageShow: true })
+      )
+    ).toBe('management');
   });
 
   it('pending takes precedence over the public landing while entries load', () => {

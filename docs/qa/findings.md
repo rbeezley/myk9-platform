@@ -83,6 +83,13 @@ Copy this block for each new finding.
 
 ## Closed Findings
 
+### MYK9-452 / NCR-2026-09-09-01
+
+- **Status:** fixed; lifecycle resolved on 2026-09-11. Source codex; P1 / High.
+- **Scope/owner:** exhibitor self-check-in SQL; Richard Beezley. First seen 2026-09-09, last reconciled 2026-09-11; three daily observations.
+- **Proof:** canonical issue records applied forward migration `20260909174329`, verified function/grants, 69 passing SQL assertions, and authenticated persisted check-in plus restoration through the same RPC (both 204, versions incremented). Current-range commit `402c896b0` records applied evidence. This satisfies the original closure contract; the earlier pending claims below are historical.
+- **Reference:** [MYK9-452](https://linear.app/myk9-platform/issue/MYK9-452); [September 11 review](codex-daily-commit-review-2026-09-11.md). Linear was already Done; no issue closed by this audit.
+
 ### MYK9-294
 
 - **Current closure — 2026-09-05:** fixed / resolved after PR #2036 (`696235319`) and the deployed sandbox replay at 12:56 UTC. The original September 2 closure below was superseded by recurrence: the actual root cause was `URLSearchParams` encoding the Stripe session token. The deployed request now preserves literal `{CHECKOUT_SESSION_ID}`; Stripe returned a real `cs_test_…` matching the succeeded order, and the page reached **Entry Submitted Successfully!** automatically at 10.0 seconds. Confirmation `pi_3UCJ9NAIej2Q9UtX0OeaKcQW`, total $32.10. Claude recorded the browser/network/order evidence in Linear comment `95cb1983-9966-409d-b129-6cca4caec523` and cleaned its test dog/entry. Codex independently verified 35 focused checkout tests on `c159da719`, reproduced encoded-token assertion failures with the pre-fix builder, then restored current source and passed all five token tests. Linear is Done. No further application change was needed.
@@ -391,6 +398,18 @@ Copy this block for each new finding.
 - **Notes:** This test is the regression guard for **NCR-2026-09-04-04** (the tracker `pending`-set leak, fixed 2026-09-05). The product fix is sound; it is the guard that is timing-fragile. Distinct finding, not a recurrence — that one was a stale-state leak in the E2E sweep, this is a real-timer budget in the unit test that pins its fix. A flaky guard on a defect that already recurred once is worth more than its severity suggests.
 
 ## Open Findings
+
+### Codex commit-review reconciliation — 2026-09-11
+
+`source: codex`; baseline `c660131f5d091fe5f7e5972edf5493b2af44bc6d`.
+[Full report, mutation proof and closure evidence](codex-daily-commit-review-2026-09-11.md).
+This dated reconciliation supersedes earlier claims for the same IDs; Linear remains the work queue.
+
+- **P2 new/open:** [MYK9-126](https://linear.app/myk9-platform/issue/MYK9-126) / NCR-2026-09-11-01. Result-visibility SQL parity fixtures always override show defaults. On disposable PostgreSQL, all 108 comparisons still pass after deliberately changing the qualification default; an independent no-override control returns false versus the unchanged oracle's true. Confirmed test-coverage defect, no current product/security regression asserted. Owner Richard; first/last seen September 11, one run. Add no/partial overrides and opposing precedence cases, known expected values, and failing negative mutations. Preserve parent priority and remaining G9 criteria.
+- **P2 blocked coverage, report-only:** [MYK9-423](https://linear.app/myk9-platform/issue/MYK9-423). Successful same-entry payment and payments-page zero balance are now recorded. Real fee-card CTA through hydrated cart regression proof and explicit second entries-page fee-card balance evidence remain incomplete. The current test mocks the loader. No current financial defect asserted; existing Done workflow state preserved. Exact remaining proof and fifth detailed observation recorded in the canonical description and report.
+- **P1 resolved:** MYK9-452 moved to Closed Findings above with applied SQL and persisted-entry proof.
+
+Counts: new 1, unchanged 0, resolved 1, blocked 1, duplicate 0, rejected 0. Outstanding observations P0 0 / P1 0 / P2 2 / P3 0. Two existing Linear descriptions updated; no issue created or closed. All 15 commits reviewed; 581 focused tests / 33 files, app typecheck and 12 package builds pass. No application code changed.
 
 ### Codex commit-review reconciliation — 2026-09-09
 

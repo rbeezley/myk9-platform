@@ -6,10 +6,8 @@ setupLocalStorageMock();
 setupMatchMediaMock();
 setupIndexedDBMock();
 
-// Polyfill globalThis.navigator for Node 20. Node 21+ exposes it natively;
-// CI runs on Node 20 (per .github/workflows/ci.yml), where any code that
-// reads `navigator.*` directly (without a typeof guard) throws
-// ReferenceError. Tests that stub navigator fields need this shim.
+// Node 22 exposes navigator natively, but keep this guard for isolated test
+// environments that omit it. Tests that stub navigator fields need the shim.
 //
 // Shape covers the fields read by packages/core/deviceDetection (userAgent,
 // maxTouchPoints, hardwareConcurrency) and the offline-behavior tests in

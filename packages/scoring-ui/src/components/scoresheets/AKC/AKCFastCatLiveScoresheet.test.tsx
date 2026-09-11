@@ -1,4 +1,3 @@
-import '@myk9/test-utils/src/setup/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AKCFastCatLiveScoresheet } from './AKCFastCatLiveScoresheet';

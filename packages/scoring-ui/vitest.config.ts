@@ -5,7 +5,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
-    setupFiles: ['@myk9/test-utils/src/setup/vitest.setup.ts'],
+    setupFiles: [
+      '@myk9/test-utils/src/setup/jest-dom.ts',
+      '@myk9/test-utils/src/setup/vitest.setup.ts',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

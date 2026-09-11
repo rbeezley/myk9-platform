@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
     "fake-indexeddb": "^6.2.5"
   },
   "devDependencies": {

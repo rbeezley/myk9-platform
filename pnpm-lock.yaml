@@ -281,6 +281,9 @@ importers:
       '@faker-js/faker':
         specifier: ^10.6.0
         version: 10.6.0
+      '@myk9/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@playwright/test':
         specifier: ^1.63.0
         version: 1.63.0
@@ -773,6 +776,9 @@ importers:
 
   packages/test-utils:
     dependencies:
+      '@testing-library/jest-dom':
+        specifier: ^6.9.1
+        version: 6.9.1
       fake-indexeddb:
         specifier: ^6.2.5
         version: 6.2.5

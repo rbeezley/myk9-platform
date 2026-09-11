@@ -53,8 +53,8 @@ Package manager: **pnpm** (never `npm` or `npx`). Root scripts (`dev:show`, `bui
 cd apps/myk9show && pnpm test     # myK9Show unit tests (vitest); runs qa:dist-fresh first
 cd apps/myk9show && pnpm test:e2e # myK9Show E2E tests (playwright)
 
-# Run a single test file (at most two positional filters — vitest 4 finds NO files with three or more)
-cd apps/myk9show && pnpm vitest run src/path/to/file.test.ts
+# Run one or more targeted test files
+cd apps/myk9show && pnpm vitest run src/path/to/file.test.ts [src/path/to/another.test.ts]
 # Run tests matching a name pattern
 cd apps/myk9show && pnpm vitest run -t "pattern"
 ```

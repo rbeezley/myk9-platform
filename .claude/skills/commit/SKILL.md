@@ -123,7 +123,7 @@ grep -E '^ (Test Files|Tests) ' "$LOGS/suite.log"
 - For `src/services/Bar.ts` → look for `Bar.test.ts`
 - For `src/hooks/useBaz.ts` → look for `useBaz.test.ts`
 
-If related test files exist, run them (at most two positional path filters per invocation — vitest 4 finds **no files** with three or more):
+If related test files exist, run them together in one targeted Vitest invocation:
 
 ```bash
 cd apps/myk9show && pnpm vitest run <test-file> --reporter=verbose

@@ -144,7 +144,10 @@ export function GazetteLandingPage({
           volumeRoman={data.volumeRoman}
         />
 
-        <OfferedClassesSection show={show} className="mx-auto max-w-[1100px] border-b px-6 py-12 md:px-12 md:py-14" />
+        <OfferedClassesSection
+          show={show}
+          className="mx-auto max-w-[1100px] border-b px-6 py-12 md:px-12 md:py-14"
+        />
 
         <FinalCtaSection
           entryWizardUrl={data.entryWizardUrl}

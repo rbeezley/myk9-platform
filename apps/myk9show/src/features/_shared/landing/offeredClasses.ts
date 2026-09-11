@@ -8,18 +8,20 @@ import type { Show, ShowTrial } from '@/types/show-types';
  * is "does this show offer the thing my dog is entered for" — if a show runs no
  * Interior and Interior is what they want, they should learn that here.
  *
- * Grouping is by TRIAL first because a show can span registries: an AKC Scent
- * Work trial, a UKC Nosework trial and an ASCA Scent Detection trial offer
- * different elements on different days, and "this show has Interior" is the
- * wrong answer when only Saturday does.
+ * Grouping is by TRIAL first because a show runs several, often more than one
+ * on the same day, and each offers its own elements. "This show has Interior"
+ * is the wrong answer when only Saturday's trial does — the exhibitor needs to
+ * know WHICH trial to enter, not merely that the element exists somewhere in
+ * the weekend. Trial identity therefore includes the date: two trials on one
+ * day are common and their names do not always distinguish them.
  *
  * Ordering is FIRST-SEEN, never alphabetical and never a hardcoded element
  * list. The repo carries several AKC element orders
- * (`Interior, Exterior, Container, Buried`), but they are AKC's, and a UKC
- * trial offers Vehicle while ASCA uses Open where AKC uses Excellent. Imposing
- * one registry's vocabulary on another's trial would reorder it wrongly and
- * silently. First-seen preserves whatever order the classes already carry,
- * which is the secretary's own.
+ * (`Interior, Exterior, Container, Buried`), but they are AKC's, and
+ * `trials.registry_id` is per-trial, so a non-AKC trial can use a vocabulary
+ * those lists do not cover. Sorting by one registry's order would reorder
+ * another's wrongly and silently. First-seen preserves whatever order the
+ * classes already carry, which is the secretary's own.
  */
 
 export interface OfferedLevel {

@@ -56,6 +56,75 @@ describe('OfferedClassesSection', () => {
     expect(blocks[1]).not.toHaveTextContent('Interior');
   });
 
+  /**
+   * A show routinely runs more than one trial on the same day, and their names
+   * do not always distinguish them. Without the date on each heading an
+   * exhibitor cannot tell which trial to enter.
+   */
+  it("shows each trial's date so two trials on one day stay distinguishable", () => {
+    render(
+      <OfferedClassesSection
+        show={show([
+          {
+            id: 't1',
+            name: 'Trial 1',
+            date: '2026-10-25',
+            classes: [{ id: 'c1', element: 'Interior', level: 'Novice' }],
+          },
+          {
+            id: 't2',
+            name: 'Trial 2',
+            date: '2026-10-25',
+            classes: [{ id: 'c2', element: 'Exterior', level: 'Novice' }],
+          },
+        ])}
+      />
+    );
+
+    const blocks = screen.getAllByTestId('offered-classes-trial');
+    expect(blocks).toHaveLength(2);
+    for (const block of blocks) {
+      expect(block).toHaveTextContent('Oct 25');
+    }
+  });
+
+  /**
+   * These date columns are `timestamptz` holding midnight UTC for what is really
+   * a calendar day. Formatting that instant naively renders the PREVIOUS day in
+   * every zone behind UTC — a bug all eight landings shipped once already.
+   */
+  it('renders the stated calendar day, not the day before, for a midnight-UTC value', () => {
+    render(
+      <OfferedClassesSection
+        show={show([
+          {
+            id: 't1',
+            name: 'Trial 1',
+            date: '2026-10-25T00:00:00+00:00',
+            classes: [{ id: 'c1', element: 'Interior' }],
+          },
+        ])}
+      />
+    );
+
+    const block = screen.getByTestId('offered-classes-trial');
+    expect(block).toHaveTextContent('Oct 25');
+    expect(block).not.toHaveTextContent('Oct 24');
+  });
+
+  it('renders the trial heading without a date when the trial has none', () => {
+    render(
+      <OfferedClassesSection
+        show={show([
+          { id: 't1', name: 'Undated Trial', classes: [{ id: 'c1', element: 'Interior' }] },
+        ])}
+      />
+    );
+
+    expect(screen.getByText('Undated Trial')).toBeInTheDocument();
+    expect(screen.getByTestId('offered-classes-trial')).not.toHaveTextContent('·');
+  });
+
   it('renders nothing when the show has no published classes', () => {
     const { container } = render(
       <OfferedClassesSection show={show([{ id: 't1', name: 'T', classes: [] }])} />

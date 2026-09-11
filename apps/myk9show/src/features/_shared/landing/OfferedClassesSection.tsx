@@ -1,6 +1,31 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import type { Show } from '@/types/show-types';
 import { buildOfferedClasses, OFFERED_CLASSES_ANCHOR } from './offeredClasses';
+import { resolveDisplayDate } from './calendarDate';
+
+/**
+ * Weekday + short date, e.g. "Sun, Oct 25".
+ *
+ * Routed through `resolveDisplayDate` rather than `new Date(iso)` on purpose:
+ * these columns are `timestamptz` holding midnight UTC for what is really a
+ * calendar day, so naive formatting renders the previous day everywhere behind
+ * UTC. All eight landings shipped that bug once already; the rule lives in
+ * `calendarDate.ts` and this reuses it instead of adding a ninth copy.
+ */
+function formatTrialDay(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    const { date } = resolveDisplayDate(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return null;
+  }
+}
 
 interface OfferedClassesSectionProps {
   show: Show | null | undefined;
@@ -12,10 +37,12 @@ interface OfferedClassesSectionProps {
 }
 
 // INTENT: answer "is this show worth entering?" for a signed-out exhibitor, in the
-// premium itself, before they commit to the Enter CTA. Grouped by trial because a
-// show can span registries and an element offered on Saturday may not run on Sunday
-// (UX-P2-04-EXP). This is the surface `SeeClassesLink` points at; before it existed
-// that link sent cold visitors out to the trial details page.
+// premium itself, before they commit to the Enter CTA (UX-P2-04-EXP). Grouped by
+// trial, with its date, because a show runs several trials and often more than one
+// on the same day — the exhibitor has to know which trial to enter, not just that
+// the element runs somewhere that weekend. This is the surface `SeeClassesLink`
+// points at; before it existed that link sent cold visitors out to the trial
+// details page, and only ever to the FIRST trial.
 //
 // Eight bespoke-themed landings host this one component rather than each
 // implementing its own — MYK9-259 is what the alternative costs, where four of
@@ -70,7 +97,19 @@ export function OfferedClassesSection({
           // of imposing one style's spacing on the other seven.
           style={{ marginTop: '1.75em' }}
         >
-          <h3 style={{ fontSize: '1.15em', marginBottom: '0.5em' }}>{trial.trialName}</h3>
+          <h3 style={{ fontSize: '1.15em', marginBottom: '0.5em' }}>
+            {trial.trialName}
+            {/* A show routinely runs more than one trial on the same day — the
+                seeded Heartland show runs three on the Sunday, across three
+                registries. The name alone does not always separate them, so the
+                date is part of the identity here, not decoration. */}
+            {formatTrialDay(trial.date) && (
+              <span style={{ fontWeight: 'normal', opacity: 0.75 }}>
+                {' · '}
+                {formatTrialDay(trial.date)}
+              </span>
+            )}
+          </h3>
 
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {trial.elements.map(element => (

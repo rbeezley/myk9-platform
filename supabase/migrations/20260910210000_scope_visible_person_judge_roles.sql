@@ -1,4 +1,4 @@
--- MYK9-457 / SA-006 regression repair.
+-- MYK9-455 follow-up: scope visible role helpers to managed clubs and shows.
 --
 -- 20260910014500 exposed every user_roles row to anyone who manages any club.
 -- Besides crossing club boundaries, that made grant metadata and site-admin
@@ -46,7 +46,7 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.get_deleted_person_role_history(uuid) IS
-  'MYK9-457: site-admin-only history for the removed-person detail surface. Keeps deleted grants out of the general user_roles SELECT policy.';
+  'MYK9-455 follow-up: site-admin-only history for the removed-person detail surface. Keeps deleted grants out of the general user_roles SELECT policy.';
 
 REVOKE ALL ON FUNCTION public.get_deleted_person_role_history(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_deleted_person_role_history(uuid) TO authenticated;
@@ -86,13 +86,10 @@ AS $$
       OR (
         c.is_show_manager
         AND (
-          r.name = 'judge'
-          OR (
-            ur.club_id IS NOT NULL
-            AND (
-              public.is_trial_secretary(ur.club_id)
-              OR public.is_club_admin(ur.club_id)
-            )
+          ur.club_id IS NOT NULL
+          AND (
+            public.is_trial_secretary(ur.club_id)
+            OR public.is_club_admin(ur.club_id)
           )
           OR (
             ur.show_id IS NOT NULL
@@ -107,7 +104,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.get_visible_person_roles(uuid[], integer, integer) IS
-  'MYK9-457: returns deduplicated current role labels for explicit live people. Plain users are self-only; show managers may resolve judges plus officials in shows/clubs they manage; site admins retain full inspection. Never returns grant metadata.';
+  'MYK9-455 follow-up: returns deduplicated current role labels for explicit live people. Plain users are self-only; show managers may resolve judges plus officials in shows/clubs they manage; site admins retain full inspection. Never returns grant metadata.';
 
 REVOKE ALL ON FUNCTION public.get_visible_person_roles(uuid[], integer, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_visible_person_roles(uuid[], integer, integer) TO authenticated;
@@ -144,13 +141,10 @@ AS $$
       OR (
         c.is_show_manager
         AND (
-          r.name = 'judge'
-          OR (
-            ur.club_id IS NOT NULL
-            AND (
-              public.is_trial_secretary(ur.club_id)
-              OR public.is_club_admin(ur.club_id)
-            )
+          ur.club_id IS NOT NULL
+          AND (
+            public.is_trial_secretary(ur.club_id)
+            OR public.is_club_admin(ur.club_id)
           )
           OR (
             ur.show_id IS NOT NULL
@@ -165,7 +159,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.get_visible_person_ids_by_role(text, integer, integer) IS
-  'MYK9-457: returns current matching person IDs without loading the entire people directory. Show managers may discover judges plus officials in shows/clubs they manage; site admins retain role-directory access; plain users are self-only.';
+  'MYK9-455 follow-up: returns current matching person IDs without loading the entire people directory. Show managers may discover judges plus officials in shows/clubs they manage; site admins retain role-directory access; plain users are self-only.';
 
 REVOKE ALL ON FUNCTION public.get_visible_person_ids_by_role(text, integer, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_visible_person_ids_by_role(text, integer, integer) TO authenticated;

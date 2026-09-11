@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureMonogramFontsLoaded } from '../fonts';
 import { useMonogramLandingData } from './useMonogramLandingData';
@@ -48,7 +49,7 @@ export function MonogramLandingPage({
   }, []);
 
   const data = useMonogramLandingData(show, trial, allTrials);
-  const classesHref = publicClassesHref(show?.id, allTrials);
+  const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
   // months from now must not advertise an entry CTA that dead-ends.
@@ -133,6 +134,8 @@ export function MonogramLandingPage({
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
         />
+
+        <OfferedClassesSection show={show} className="mg-section" />
 
         <FinalCtaBand
           monogramLetters={data.monogramLetters}

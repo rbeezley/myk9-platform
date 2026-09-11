@@ -146,6 +146,47 @@ export const getAllShows = async () => {
   }
 };
 
+/** The classes a trial row carries. PostgREST returns the embed under `class`
+ *  (the alias in the select) and the replicated mapper writes the same key, so
+ *  one reader serves both shapes. */
+function trialClasses(trial: unknown): unknown[] {
+  const classes = (trial as Record<string, unknown> | null)?.class;
+  return Array.isArray(classes) ? classes : [];
+}
+
+/**
+ * Fill in classes, per trial, from a server row.
+ *
+ * Per-trial and not all-or-nothing, because `classes` replicate scoped BY TRIAL:
+ * opening one trial syncs its classes and leaves its siblings empty, so partial
+ * coverage is the normal state rather than the exception. A whole-show check
+ * would see the one populated trial, decide the show was fine, and leave every
+ * other trial silently showing nothing.
+ *
+ * Only EMPTY trials are filled. A trial that already has local classes keeps
+ * them, so a warm store is never overwritten by the network, and a trial the
+ * server also reports as empty stays empty rather than flip-flopping.
+ */
+function fillMissingTrialClasses(localTrials: unknown, remoteTrials: unknown): unknown {
+  if (!Array.isArray(localTrials) || !Array.isArray(remoteTrials)) return localTrials;
+
+  const remoteById = new Map<string, unknown[]>();
+  for (const trial of remoteTrials) {
+    const id = (trial as Record<string, unknown> | null)?.id;
+    if (typeof id === 'string') remoteById.set(id, trialClasses(trial));
+  }
+
+  return localTrials.map(trial => {
+    if (trialClasses(trial).length > 0) return trial;
+
+    const id = (trial as Record<string, unknown> | null)?.id;
+    const remoteClasses = typeof id === 'string' ? remoteById.get(id) : undefined;
+    if (!remoteClasses || remoteClasses.length === 0) return trial;
+
+    return { ...(trial as Record<string, unknown>), class: remoteClasses };
+  });
+}
+
 // Get show by ID with complete details (excluding soft-deleted)
 export const getShowById = async (id: string) => {
   try {
@@ -179,6 +220,21 @@ export const getShowById = async (id: string) => {
           const remote = await postgrestGetShowById(id);
           const remoteJudgeAssignments = getJoinedJudgeAssignments(remote.data);
           data.judge_assignments = remoteJudgeAssignments;
+
+          // Classes replicate scoped BY TRIAL, and only for authenticated
+          // sessions, while shows and trials arrive earlier. So a signed-in
+          // visitor can hold this show and its trials with none of their
+          // classes, or with one trial's classes and not its siblings' — and
+          // every consumer reading classes off the show then sees a show that
+          // legitimately offers nothing, or offers only part of its schedule.
+          // The premium's offered-classes section and its "See classes" link
+          // both disappear in the first case and under-report in the second.
+          //
+          // The remote row is already in hand for judge assignments and embeds
+          // the classes, so fill the gaps from it — per trial, since partial
+          // coverage is the normal shape of a per-trial sync.
+          const remoteTrials = (remote.data as Record<string, unknown> | null)?.trials;
+          data.trials = fillMissingTrialClasses(data.trials, remoteTrials);
         } catch {
           // Offline/failed network: keep the replicated detail row.
         }

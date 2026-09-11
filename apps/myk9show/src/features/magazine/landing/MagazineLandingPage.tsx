@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { publicClassesHref } from '@/features/_shared/publicClassesHref';
+import { OfferedClassesSection } from '@/features/_shared/landing/OfferedClassesSection';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { ensureMagazineFontsLoaded } from '../fonts';
 import { useMagazineLandingData } from './useMagazineLandingData';
@@ -51,7 +52,7 @@ export function MagazineLandingPage({
   }, []);
 
   const data = useMagazineLandingData(show, trial, allTrials);
-  const classesHref = publicClassesHref(show?.id, allTrials);
+  const classesHref = publicClassesHref(show);
   const entryCountdown = useCountdown(data.entryCloseDate, data.timezone);
   const entryClosed = entryCountdown.closed;
   // `entryNotYetOpen` matters as much as closed: a show whose entries open
@@ -162,6 +163,8 @@ export function MagazineLandingPage({
           secretaryName={data.secretaryName}
           secretaryEmail={data.secretaryEmail}
         />
+
+        <OfferedClassesSection show={show} className="mz-section" />
 
         <FinalEditorialBand
           entryWizardUrl={data.entryWizardUrl}

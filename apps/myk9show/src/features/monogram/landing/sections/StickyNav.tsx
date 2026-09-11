@@ -32,7 +32,10 @@ export function StickyNav({
       className="mg-nav"
       style={{
         position: 'sticky',
-        top: 0,
+        // Below the fixed app header, not the viewport top: at 0 this slid
+        // under it and lost its top 48px. --app-top-inset is the shared
+        // banner + header height (index.css, "App top-chrome offsets").
+        top: 'var(--app-top-inset, 3rem)',
         zIndex: 30,
         background: 'rgba(243, 238, 228, 0.92)',
         backdropFilter: 'blur(8px)',

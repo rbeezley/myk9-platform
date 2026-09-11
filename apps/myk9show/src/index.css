@@ -318,15 +318,28 @@
        and page primitives all read these values instead of carrying local
        header-clearing offsets. */
     --app-header-height: 3rem;
-    /* The app header is `position: fixed`, so an in-page anchor (and any
-       scrollIntoView) otherwise parks its target at y=0 — behind the header.
-       Reserving the header height here fixes every hash link at once instead
-       of each target carrying its own scroll-margin-top. */
-    scroll-padding-top: calc(var(--pwa-banner-height, 0px) + 3rem);
     --app-shell-page-gap: 1.5rem;
     --app-shell-page-bottom: 2rem;
     --app-shell-page-padding: 1rem;
     --app-shell-safe-bottom: env(safe-area-inset-bottom, 0px);
+    /* The app header is `position: fixed`, so an in-page anchor (and any
+       scrollIntoView) otherwise parks its target at y=0 — behind the header.
+       Reserving the header height here fixes every hash link at once instead
+       of each target carrying its own scroll-margin-top. This rule covers the
+       documents that scroll themselves: the signed-out marketing and show
+       pages, which render outside the app shell. */
+    scroll-padding-top: calc(var(--pwa-banner-height, 0px) + 3rem);
+  }
+
+  /* `scroll-padding-top` is NOT inherited, and the element that performs the
+     scroll is the one that must carry it. The app shell's main is its own
+     scroll container (`overflow-auto`), so on every page inside the shell the
+     `:root` rule above never applies and an anchor would still land under the
+     fixed header. The PWA banner is excluded on purpose: an in-flow spacer
+     above this subtree already offsets it, so counting it here would
+     double-count (see SidebarLayout's `pt-` comment). */
+  [data-layout='app-shell-main'] {
+    scroll-padding-top: var(--app-header-height, 3rem);
   }
 
   /* Semantic status tokens registered in tailwind.config.js as success/warning/info/destructive */

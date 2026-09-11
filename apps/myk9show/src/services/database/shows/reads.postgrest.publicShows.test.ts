@@ -1,3 +1,4 @@
+import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const { mockSelect, mockFrom } = vi.hoisted(() => {
@@ -6,9 +7,12 @@ const { mockSelect, mockFrom } = vi.hoisted(() => {
   return { mockSelect, mockFrom };
 });
 
+// The real helper, not a local copy: a file-local factory beats the global
+// mock, and a hand-written stand-in drifts from production (MYK9-181, guarded
+// by services/database/__tests__/noLocalDatabaseErrorMocks.test.ts).
 vi.mock('../supabaseClient', () => ({
   supabase: { from: mockFrom },
-  createDatabaseError: (e: unknown) => e,
+  createDatabaseError,
 }));
 
 import { postgrestGetPublicShows } from './reads.postgrest';

@@ -26,10 +26,9 @@ import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import type { ShowEntry } from '@/types/entry-lifecycle';
 import type { CompetitionData } from '@/store/entryStore';
 import type { ClassEntryDisplay } from './types';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import type { SecretaryEntry } from '@/services/database/entries';
-import { canManageShowSurface } from '@/utils/roleScopes';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
@@ -106,6 +105,14 @@ function localEntryToDisplay(
   };
 }
 
+/**
+ * Shown when a viewer who holds a club-staff role somewhere reaches a class
+ * whose owning show cannot be resolved. Without this they would silently drop
+ * to the exhibitor surface and believe the class had no entries.
+ */
+export const SHOW_SCOPE_UNAVAILABLE_MESSAGE =
+  'We could not verify this show\u2019s ownership. Please retry.';
+
 export function useClassDetailsData() {
   const { classId, showId, trialId } = useParams<{
     classId: string;
@@ -113,7 +120,6 @@ export function useClassDetailsData() {
     trialId?: string;
   }>();
   const location = useLocation();
-  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -170,42 +176,30 @@ export function useClassDetailsData() {
     : parentTrial
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
-  const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? '';
-  const {
-    data: queriedShow,
-    isLoading: queriedShowLoading,
-    isPlaceholderData,
-  } = useShowQuery(storedParentShow ? '' : resolvedShowId);
+  const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? undefined;
+
+  // Parent show for DISPLAY (section links, headers). Separate concern from the
+  // authorization gate below, which owns its own resolution states. Both read
+  // `showQueryKeys.detail(id)`, so React Query dedupes them into one request.
+  const { data: queriedShow, isPlaceholderData } = useShowQuery(
+    storedParentShow ? '' : (resolvedShowId ?? '')
+  );
   const parentShow = storedParentShow ?? (isPlaceholderData ? undefined : queriedShow);
-  const canManageShow = canManageShowSurface({
-    isSecretary,
-    isAdmin,
-    hasRole,
-    userWithRoles,
-    clubId: parentShow?.clubId,
-  });
-  const hasGlobalStaffRole = isSecretary || isAdmin;
-  const isStaffScopeResolving =
-    hasGlobalStaffRole &&
-    Boolean(resolvedShowId) &&
-    (queriedShowLoading || isPlaceholderData) &&
-    !parentShow;
-  const isStaffScopeUnavailable =
-    hasGlobalStaffRole &&
-    !isAdmin &&
-    Boolean(resolvedShowId) &&
-    !parentShow &&
-    !queriedShowLoading &&
-    !isPlaceholderData;
-  const staffScopeError = isStaffScopeUnavailable
-    ? 'We could not verify this show’s ownership. Please retry.'
-    : null;
+
+  // ONE ownership gate for the whole page (MYK9-464). The hook owns the
+  // resolving / resolved / unavailable transitions so this file never
+  // hand-rolls them again; see useShowManageScope for why each state exists.
+  const manageScope = useShowManageScope(resolvedShowId);
+  const canManageShow = manageScope.canManage;
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
-    resolvedShowId,
-    hasGlobalStaffRole && canManageShow && Boolean(classId && resolvedShowId)
+    resolvedShowId ?? '',
+    canManageShow && Boolean(classId && resolvedShowId)
   );
-  const useStaffEntrySource = hasGlobalStaffRole && canManageShow;
+  // The staff entry source is exactly "may manage" — no second predicate. A
+  // viewer who may manage reads the show-scoped secretary cache; everyone else
+  // reads the public class query. There is no third case.
+  const useStaffEntrySource = canManageShow;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)
@@ -327,22 +321,27 @@ export function useClassDetailsData() {
     localRawEntries,
     dbRawEntries: effectiveRawEntries,
     classEntries,
-    entriesLoading: isStaffScopeResolving
-      ? true
-      : useStaffEntrySource
-        ? staffShowEntries.isLoading
-        : dbEntriesLoading || dbRawEntriesLoading,
-    entriesError: isStaffScopeResolving
-      ? null
-      : useStaffEntrySource
-        ? (staffScopeError ?? staffEntriesError)
-        : (staffScopeError ?? dbRawEntriesError?.message ?? dbEntriesError),
+    // One switch over the ownership state machine, so every arm is reachable
+    // and each state has exactly one loading/error meaning.
+    entriesLoading:
+      manageScope.status === 'resolving'
+        ? true
+        : useStaffEntrySource
+          ? staffShowEntries.isLoading
+          : dbEntriesLoading || dbRawEntriesLoading,
+    entriesError:
+      manageScope.status === 'resolving'
+        ? null
+        : manageScope.status === 'unavailable'
+          ? SHOW_SCOPE_UNAVAILABLE_MESSAGE
+          : useStaffEntrySource
+            ? staffEntriesError
+            : (dbRawEntriesError?.message ?? dbEntriesError),
 
     // Parent context
     parentTrial,
     parentShow,
-    staffScopeResolving: isStaffScopeResolving,
-    staffScopeUnavailable: isStaffScopeUnavailable,
+    manageScope,
 
     // Dogs for entry lookups
     dogs,

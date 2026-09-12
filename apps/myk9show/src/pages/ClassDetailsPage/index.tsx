@@ -16,7 +16,6 @@ import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { canManageShowSurface } from '@/utils/roleScopes';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { ClassCompactHeader } from '@/components/classes/ClassCompactHeader';
@@ -53,7 +52,7 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const { user } = useAuthContext();
 
   // Data hook
   const {
@@ -69,8 +68,7 @@ const ClassDetailsPage: React.FC = () => {
     entriesError,
     parentTrial,
     parentShow,
-    staffScopeResolving,
-    staffScopeUnavailable,
+    manageScope,
     dogs,
     updateClass,
     deleteClass,
@@ -89,17 +87,14 @@ const ClassDetailsPage: React.FC = () => {
   // keeps the same class controls they already have one level up on Trial
   // Details, and no more. The separate `isStaff` view flag below uses this same
   // scoped result so cross-club staff receive the public results view.
-  const canManageClass = canManageShowSurface({
-    isSecretary,
-    isAdmin,
-    hasRole,
-    userWithRoles,
-    clubId: parentShow?.clubId,
-  });
-  // Cross-club staff must receive the released-results view rather than an
-  // empty RLS-limited run sheet.
-  const isStaff =
-    (isSecretary || isAdmin) && (canManageClass || staffScopeResolving || staffScopeUnavailable);
+  // Reuse the page's single ownership gate rather than recomputing it — the two
+  // copies drifted apart repeatedly while this was two independent calls.
+  const canManageClass = manageScope.canManage;
+  // The staff surface is shown while the answer is still settling, and while it
+  // is unavailable, so a legitimate secretary never flashes (or sticks on) the
+  // exhibitor view. Cross-club staff resolve to `false` and correctly receive
+  // the released-results view rather than an empty RLS-limited run sheet.
+  const isStaff = canManageClass || manageScope.status !== 'resolved';
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;

@@ -120,6 +120,21 @@ function renderClassDetailsPage() {
   );
 }
 
+/**
+ * Restate the ownership gate for one scenario, leaving the rest of the page's
+ * data fixture intact.
+ */
+function mockManageScope(scope: {
+  status: 'resolved' | 'resolving' | 'unavailable';
+  canManage: boolean;
+  clubId?: string;
+}) {
+  mockUseClassDetailsData.mockReturnValue({
+    ...mockUseClassDetailsData(),
+    manageScope: { clubId: undefined, ...scope },
+  });
+}
+
 describe('ClassDetailsPage header actions', () => {
   beforeEach(() => {
     // A club-scoped secretary grant for THIS show's club (club-1). A secretary
@@ -175,6 +190,11 @@ describe('ClassDetailsPage header actions', () => {
       classEntries: [],
       entriesLoading: false,
       entriesError: null,
+      // The page reads ONE gate result (MYK9-464) instead of re-deriving RBAC.
+      // Which viewer maps to which result is covered by the gate's own tests in
+      // hooks/__tests__/useShowManageScope.test.tsx; here we assert what the
+      // page renders GIVEN a result, so each scenario states its result.
+      manageScope: { status: 'resolved', canManage: true, clubId: 'club-1' },
       parentTrial: { id: 'trial-1', showId: 'show-1', trialNumber: 'Saturday Trial 1' },
       parentShow: {
         id: 'show-1',
@@ -239,6 +259,7 @@ describe('ClassDetailsPage header actions', () => {
         hasRole: () => false,
         userWithRoles: { id: 'exhibitor-1', scopes: [] },
       });
+      mockManageScope({ status: 'resolved', canManage: false });
     });
 
     it('hides Edit Class and Delete Class, and mounts neither panel', () => {
@@ -285,6 +306,7 @@ describe('ClassDetailsPage header actions', () => {
 
     it('keeps class controls for an admin of this show’s club', () => {
       mockClubAdmin('club-1');
+      mockManageScope({ status: 'resolved', canManage: true, clubId: 'club-1' });
 
       renderClassDetailsPage();
 
@@ -294,6 +316,7 @@ describe('ClassDetailsPage header actions', () => {
 
     it('denies an admin of a different club', () => {
       mockClubAdmin('club-2');
+      mockManageScope({ status: 'resolved', canManage: false, clubId: 'club-1' });
 
       renderClassDetailsPage();
 

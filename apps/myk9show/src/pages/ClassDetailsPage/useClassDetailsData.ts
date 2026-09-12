@@ -29,7 +29,7 @@ import type { ClassEntryDisplay } from './types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import type { SecretaryEntry } from '@/services/database/entries';
-import { canManageShowSurface, isSecretaryOrAdminViewer } from '@/utils/roleScopes';
+import { canManageShowSurface } from '@/utils/roleScopes';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
@@ -113,7 +113,7 @@ export function useClassDetailsData() {
   }>();
   const location = useLocation();
   const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
-  const isStaffViewer = isSecretaryOrAdminViewer(isSecretary, isAdmin);
+  const isStaffViewer = isSecretary || isAdmin;
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -183,6 +183,7 @@ export function useClassDetailsData() {
     resolvedShowId,
     canManageShow && isStaffViewer && Boolean(classId && resolvedShowId)
   );
+  const useStaffEntrySource = canManageShow && isStaffViewer;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)
@@ -190,7 +191,7 @@ export function useClassDetailsData() {
     entries: dbEntries,
     isLoading: dbEntriesLoading,
     error: dbEntriesError,
-  } = useClassEntriesWithQuery(classId || '', !!classId && !isStaffViewer);
+  } = useClassEntriesWithQuery(classId || '', !!classId && !useStaffEntrySource);
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
   const localEntries = useEntriesByClass(classId || '');
@@ -205,7 +206,7 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(classId || undefined, !isStaffViewer);
+  } = useClassEntriesRaw(classId || undefined, !useStaffEntrySource);
 
   const staffClassEntries = useMemo(
     () =>
@@ -214,7 +215,7 @@ export function useClassDetailsData() {
         .map(secretaryEntryToRawRow),
     [classId, staffShowEntries.data]
   );
-  const effectiveRawEntries = isStaffViewer ? staffClassEntries : dbRawEntries;
+  const effectiveRawEntries = useStaffEntrySource ? staffClassEntries : dbRawEntries;
   const staffEntriesError = staffShowEntries.isError
     ? staffShowEntries.error instanceof Error
       ? staffShowEntries.error.message
@@ -304,10 +305,10 @@ export function useClassDetailsData() {
     localRawEntries,
     dbRawEntries: effectiveRawEntries,
     classEntries,
-    entriesLoading: isStaffViewer
+    entriesLoading: useStaffEntrySource
       ? staffShowEntries.isLoading
       : dbEntriesLoading || dbRawEntriesLoading,
-    entriesError: isStaffViewer
+    entriesError: useStaffEntrySource
       ? staffEntriesError
       : (dbRawEntriesError?.message ?? dbEntriesError),
 

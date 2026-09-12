@@ -41,13 +41,23 @@ describe('resolveShowAudience', () => {
   });
 
   it('does not expose management shell to a secretary outside their club', () => {
-    expect(resolveShowAudience(input({ canManageShow: true }))).toBe('exhibitor');
+    expect(resolveShowAudience(input({ isAuthenticated: true, hasUserEntries: true }))).toBe(
+      'exhibitor'
+    );
   });
 
   it('a club admin sees the exhibitor view, not management or public', () => {
-    // club_admin is staff enough to skip the public landing, but is NOT
-    // canManageShow — so it lands on the exhibitor view.
-    expect(resolveShowAudience(input({ canManageShow: true }))).toBe('exhibitor');
+    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: false }))).toBe(
+      'exhibitor'
+    );
+  });
+
+  it('holds a signed-in staff viewer while the show scope resolves', () => {
+    expect(
+      resolveShowAudience(
+        input({ isAuthenticated: true, showResolving: true, hasUserEntries: false })
+      )
+    ).toBe('pending');
   });
 
   it('an entered exhibitor (authenticated, has entries) sees the exhibitor view', () => {

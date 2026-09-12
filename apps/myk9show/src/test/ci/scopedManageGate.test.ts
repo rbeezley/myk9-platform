@@ -87,6 +87,12 @@ const ALLOWED: Record<string, Allowance> = {
       'separate club-scoped canManageShowSurface predicate.',
     count: 1,
   },
+  'pages/ClassDetailsPage/useClassDetailsData.ts': {
+    reason:
+      'Intentional global viewer classification selects the fallback public entry query for ' +
+      'secretaries/admins; the staff query remains gated by the separate club-scoped predicate.',
+    count: 1,
+  },
   'components/notifications/MessageCenterPanel.tsx': {
     reason:
       'Genuinely global, verified: `staffShows` is built from `currentShowIds`, so the compose ' +

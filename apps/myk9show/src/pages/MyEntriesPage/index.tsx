@@ -22,6 +22,7 @@ import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import '@/styles/myk9-show-details.css';
+import '@/styles/myk9-my-shows.css';
 import { DashboardGreeting } from '@/components/ui/DashboardGreeting';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { useMyWaitlistEntries } from '@/hooks/queries/useMyWaitlistEntries';
@@ -31,7 +32,7 @@ import {
   useMyEntriesFilters,
   useMyEntriesDialogs,
   useResultReveal,
-  MyEntryCard,
+  MyShowsList,
   EntriesEmptyState,
   EntriesLoadErrorCard,
   EntriesIdentityPendingCard,
@@ -369,25 +370,21 @@ const MyEntriesPage: React.FC = () => {
                         onSwitchTab={setSelectedTab}
                       />
                     ) : (
-                      // A real list, so assistive tech announces "list, N
-                      // items" and offers list navigation. This was a bare
-                      // stack of divs. `space-y-4` stays on the wrapper,
-                      // so spacing is unchanged.
-                      <ul className="space-y-4">
-                        {filteredEntries.map(entry => (
-                          <li key={entry.id}>
-                            <MyEntryCard
-                              entry={entry}
-                              selfCheckinByClassId={selfCheckinByClassId}
-                              onCheckInClick={dialogs.openCheckIn}
-                              onEditClick={dialogs.openEdit}
-                              onReceiptClick={dialogs.openReceipt}
-                              onResultRevealClick={reveal.openResultReveal}
-                              seenResultReleaseKeys={reveal.seenResultReleaseKeys}
-                            />
-                          </li>
-                        ))}
-                      </ul>
+                      // One show group per show, dog cards beneath. The list
+                      // lives in modules/ because this file is at the
+                      // 500-line cap (MYK9-482, design D10).
+                      <MyShowsList
+                        filteredEntries={filteredEntries}
+                        selfCheckinByClassId={selfCheckinByClassId}
+                        seenResultReleaseKeys={reveal.seenResultReleaseKeys}
+                        onCheckInDay={dialogs.checkInClassesForDay}
+                        onOpenCheckIn={dialogs.openCheckIn}
+                        onOpenEdit={dialogs.openEdit}
+                        // Batch 4 extends the receipt dialog to a list stage
+                        // when a show has several orders (design D9).
+                        onOpenReceipts={group => dialogs.openReceipt(group.orders[0])}
+                        onResultRevealClick={reveal.openResultReveal}
+                      />
                     )}
                   </div>
                 </div>

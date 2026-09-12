@@ -54,7 +54,14 @@ interface StatusBadgeOptions {
   partiallyScored?: boolean | undefined;
 }
 
-function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind): string {
+/**
+ * The key into `ENTRY_STATUS_DESCRIPTORS` for an entry's status.
+ *
+ * Exported so the My Shows dog chip resolves its icon and colour through the
+ * SAME mapping the badges do (MYK9-482). Owning a second copy is how an
+ * "Accepted" chip ended up wearing pending's warning colour.
+ */
+export function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind): string {
   switch (statusKind) {
     case 'in_ring':
       return 'in_ring';

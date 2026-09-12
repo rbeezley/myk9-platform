@@ -42,6 +42,7 @@ export type { ScopedPaymentFacts, ScopedPaymentFactRow } from './scopedPaymentFa
 
 // Components
 export { MyEntryCard } from './MyEntryCard';
+export { MyShowsList, useMyShowGroups } from './MyShowsList';
 export { EntriesEmptyState } from './EntriesEmptyState';
 export { EntryScopeBanner } from './EntryScopeBanner';
 export { ScopedPaymentSummary } from './ScopedPaymentSummary';

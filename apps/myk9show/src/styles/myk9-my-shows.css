@@ -1,0 +1,564 @@
+/**
+ * My Shows (`/exhibitor/entries`) — the `.myk9-entries-*` rules.
+ *
+ * Extracted out of `myk9-show-details.css` (2,288 lines, and imported by six
+ * other surfaces) so the dog-first show groups could gain rules without
+ * growing it. Imported beside it from `pages/MyEntriesPage/index.tsx`;
+ * nothing else should import this file.
+ *
+ * Every colour is a token (`var(--card)`, `var(--border)`, `var(--foreground)`,
+ * `var(--muted-foreground)`, `var(--success)`, `var(--warning)`), so light and
+ * dark render from one source. No hex values live here.
+ */
+/* My Shows page - myK9 Style Cards */
+/* Flat by default. Three things were wrong here.
+   `backdrop-filter: blur(20px)` sat on every entry card at rest, over a fully
+   opaque `--card` surface — no visual effect whatsoever, but it forces a
+   backdrop compositing layer per card, and this list runs to dozens of cards.
+   The border was 0.5px, a sub-pixel value the design system does not use (1px
+   Border Sand is the standard). And the hover shadow was cool black, where
+   every shadow in this system is warm brown-black. */
+.myk9-entries-card {
+  @apply relative overflow-hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  /* No margin-bottom: the entries list is a <ul class="space-y-4">, which owns
+     the gap between cards. Both owners together left a stray 16px tail below
+     the last card. */
+  transition:
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+}
+
+.myk9-entries-card:hover {
+  box-shadow: rgba(61, 37, 22, 0.06) 0 8px 28px;
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+/* A decorative gradient hairline used to be masked over every card here.
+   DESIGN.md's Flat-by-Default rule: a resting surface is carried by its border
+   and tone, not by ornament. The 1px border above does that job. */
+
+.myk9-entries-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+  position: relative;
+  z-index: 10;
+}
+
+.myk9-entries-card-title {
+  /* rem, not px: --font-scale rescales the html rem baseline, so a px size
+     here ignores the user's font-size preference entirely — the whole card
+     stayed put while the rest of the app grew (DESIGN.md, The Font Scale
+     Rule). 600 not 650: Montserrat ships 400/500/600/700 and 650 rounds
+     unpredictably. */
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.myk9-entries-badges {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.myk9-entries-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 14px;
+  margin: 14px 0;
+  padding: 12px;
+  /* Was color-mix(var(--muted) 20%, transparent). In dark mode --muted and
+     --card are the SAME hex (#1e1c19), so that composite was byte-identical
+     to the card beneath it: measured delta 0.00, and with no border the
+     container had zero visual presence. A flat token plus a border paints in
+     both themes. */
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.myk9-entries-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-detail-item svg {
+  flex-shrink: 0;
+}
+
+.myk9-entries-classes-section {
+  margin: 14px 0;
+}
+
+.myk9-entries-classes-list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Rows are separated by a rule, not boxed. A bordered row inside a tinted
+   panel inside the card was three containers deep — DESIGN.md §5: "Never
+   nested. A card inside a card means the structure is wrong." The old tint
+   was also a 0.00 delta in dark mode (see .myk9-entries-details-grid). */
+.myk9-entries-classes-list > .myk9-entries-class-row + .myk9-entries-class-row {
+  border-top: 1px solid var(--border);
+}
+
+.myk9-entries-class-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  /* Wraps. It used to be nowrap + ellipsis, so a long name like "Novice
+     Container A #12 (16in)" truncated and its full text was reachable only
+     through a `title=` tooltip — unavailable on the phone this audience uses
+     at a venue (PRODUCT.md bans hover-only affordances). */
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+/* Wrapping is UNCONDITIONAL, not breakpoint-gated (MYK9-124). Browser zoom
+   shrinks the CSS-pixel viewport continuously — 1440px at 125% is 1152 CSS px —
+   so any `@media (max-width: …)` rescue leaves a band above the breakpoint
+   where the row overflows. Since .myk9-entries-card is `overflow: hidden`, that
+   overflow is CLIPPED rather than scrolled: the control simply vanishes with no
+   scrollbar or ellipsis to reveal it. Same treatment .myk9-entries-badges got
+   in #1162. Guarded by src/test/architecture/entryActionsWrapUnconditionally.test.ts. */
+.myk9-entries-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  margin-top: 14px;
+}
+
+.myk9-entries-last-updated {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.myk9-entries-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---- Classes that were used in JSX but had NO rule anywhere in the repo.
+   The expanded panel in particular opened flush against the bottom of its
+   toggle with no padding, separation or containment; the Tailwind utilities
+   on its children were carrying the whole thing. ---- */
+
+.myk9-entries-details-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.myk9-entries-pending-reassurance {
+  margin: 12px 0 0;
+}
+
+.myk9-entries-dog-group-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+/* Facts every class row agrees on, stated once above the list. */
+.myk9-entries-shared-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+/* ---- Per-dog band on the always-visible summary: which classes each dog is
+   entered in, with check-in state before the run and results after it. ---- */
+
+.myk9-entries-dog-face {
+  display: flex;
+  flex-direction: column;
+  margin: 14px 0;
+  padding: 12px 14px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.myk9-entries-dog-face-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.myk9-entries-dog-face-row--divided {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 6px;
+}
+
+.myk9-entries-dog-face-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.myk9-entries-dog-face-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.myk9-entries-dog-face-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.myk9-entries-dog-face-trial {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.myk9-entries-dog-face-trial + .myk9-entries-dog-face-trial {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Distinguished by weight, tracking and colour rather than size — the 14px
+   floor makes a smaller step impossible (DESIGN.md, The 14px Floor Rule). */
+.myk9-entries-dog-face-trial-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-dog-face-classes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.myk9-entries-dog-face-class {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.myk9-entries-dog-face-checked {
+  display: inline-flex;
+  align-items: center;
+  color: var(--success);
+}
+
+.myk9-entries-dog-face-time,
+.myk9-entries-dog-face-faults {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.myk9-entries-dog-face-time {
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-dog-face-faults {
+  color: var(--warning);
+  font-weight: 500;
+}
+
+/*
+ * "Preliminary" — the result is scored but the class has not released results,
+ * so the placement is withheld and this result can still change.
+ *
+ * Sized and coloured deliberately rather than inherited: it sits immediately
+ * beside the result badge, and an unstyled label there reads as part of the
+ * result rather than as a caveat about it. Muted, not warning-coloured — per
+ * docs/INTENT.md the exhibitor surface stays calm, and a preliminary Q is good
+ * news that is simply not final yet, not a problem to alarm anyone about.
+ */
+.myk9-entries-dog-face-preliminary {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+.myk9-entries-dog-face-pulled,
+.myk9-entries-dog-face-conflict {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.myk9-entries-dog-face-pulled {
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-dog-face-conflict {
+  color: var(--warning);
+}
+
+.myk9-entries-dog-face-tally {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 768px) {
+  .myk9-entries-dog-face-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+/* My Entries cards: tighten and stack for phone widths so the action bar never
+   overflows and the title/badge row doesn't compete for space.
+   IMPORTANT: this block MUST stay after the base .myk9-entries-* rules above.
+   Media queries add no specificity, so at equal specificity source order
+   decides — placing these overrides before the base rules (as an earlier pass
+   did) let the desktop rules win on phones and silently killed the mobile
+   polish. Keep mobile overrides last. */
+@media (max-width: 768px) {
+  .myk9-entries-card {
+    padding: 14px;
+  }
+
+  .myk9-entries-card:hover {
+    transform: none;
+  }
+
+  .myk9-entries-card-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .myk9-entries-badges {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .myk9-entries-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  /* .myk9-entries-action-buttons wraps unconditionally in its base rule
+     (MYK9-124) — no breakpoint override needed. */
+}/* ------------------------------------------------------------------------
+   Dog-first show groups (MYK9-482). A show header, optional money strips,
+   then one card per dog with one row per class.
+
+   Cards are never nested (DESIGN.md §5): the show header is a bare block, the
+   strips are single rows, and the dog card is the only bordered surface.
+   ------------------------------------------------------------------------ */
+
+.myk9-entries-show-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 8px 0 4px;
+}
+
+.myk9-entries-show-title {
+  /* rem, not px — --font-scale rescales the rem baseline, so a px size here
+     would ignore the reader's font-size preference (DESIGN.md, Font Scale). */
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--foreground);
+  margin: 0 0 4px;
+}
+
+/* Date range · directions · money word · entries close. Wraps rather than
+   truncating: on a phone this line is four facts, not one. */
+.myk9-entries-show-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+/* Wrapping is UNCONDITIONAL here for the same reason as the legacy action
+   rows (MYK9-124): browser zoom shrinks the CSS-pixel viewport continuously,
+   so any breakpoint-gated wrap leaves a band where the row overflows with no
+   affordance. Guarded by
+   src/test/architecture/entryActionsWrapUnconditionally.test.ts. */
+.myk9-entries-show-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+/* One rounded row. The tint (warning for a balance, success for a paid
+   confirmation) is applied by the component's token classes; only layout
+   lives here, so the two strips cannot drift apart geometrically. */
+.myk9-entries-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.myk9-entries-strip-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.myk9-entries-strip-body {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-dog-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.myk9-entries-dog-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.myk9-entries-dog-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.myk9-entries-dog-card-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+/* Same unconditional-wrap contract as .myk9-entries-show-actions. */
+.myk9-entries-dog-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.myk9-entries-dog-classes {
+  display: flex;
+  flex-direction: column;
+}
+
+.myk9-entries-dog-classes > .myk9-entries-class-row + .myk9-entries-class-row {
+  border-top: 1px solid var(--border);
+}
+
+/* Class name · when · state. `minmax(0, 1fr)` on the name and `auto` on the
+   other two, so a long class name gives way before the trial date or the
+   check-in control does. */
+.myk9-entries-class-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 0;
+}
+
+.myk9-entries-class-when {
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.myk9-entries-class-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.myk9-entries-dog-note {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 768px) {
+  /* One column. Three columns on a phone leave the trial date and the
+     check-in control about 60px each. */
+  .myk9-entries-class-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding: 10px 0;
+  }
+
+  .myk9-entries-class-state {
+    justify-content: flex-start;
+  }
+
+  .myk9-entries-dog-card {
+    padding: 14px;
+  }
+}

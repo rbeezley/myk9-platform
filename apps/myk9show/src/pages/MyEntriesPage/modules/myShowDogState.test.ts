@@ -3,7 +3,8 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { groupEntriesByOrder } from './groupEntriesByOrder';
 import { groupEntriesByShow, indexOrdersById } from './groupEntriesByShow';
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
-import { deriveClassRowState, deriveDogChip } from './myShowDogState';
+import { ENTRY_STATUS_DESCRIPTORS, getStatusDescriptor } from '@/components/status/statusIconGrammar';
+import { deriveClassRowState, deriveDogChip, type DogChipState } from './myShowDogState';
 import type { DayCheckInContext } from './dayCheckIn';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -181,6 +182,7 @@ describe('deriveDogChip', () => {
     expect(chipFor([makeClass({ checkInStatus: 'in-ring' })], { isShowCancelled: true })).toEqual({
       kind: 'cancelled',
       label: 'Cancelled',
+      status: 'not_accepted',
     });
   });
 
@@ -190,7 +192,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', checkInStatus: 'pulled' }),
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'conflict' }),
       ])
-    ).toEqual({ kind: 'pulled', label: 'Pulled' });
+    ).toEqual({ kind: 'pulled', label: 'Pulled', status: 'pulled' });
   });
 
   it('reports conflict above in-ring', () => {
@@ -199,7 +201,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', checkInStatus: 'conflict' }),
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'in-ring' }),
       ])
-    ).toEqual({ kind: 'conflict', label: 'Conflict' });
+    ).toEqual({ kind: 'conflict', label: 'Conflict', status: 'conflict' });
   });
 
   it('reports in-ring above at-gate', () => {
@@ -208,7 +210,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', checkInStatus: 'in-ring' }),
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'at-gate' }),
       ])
-    ).toEqual({ kind: 'in_ring', label: 'In ring' });
+    ).toEqual({ kind: 'in_ring', label: 'In ring', status: 'in_ring' });
   });
 
   it('reports at-gate above checked-in', () => {
@@ -217,7 +219,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', checkInStatus: 'at-gate' }),
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'checked-in' }),
       ])
-    ).toEqual({ kind: 'at_gate', label: 'At gate' });
+    ).toEqual({ kind: 'at_gate', label: 'At gate', status: 'at_gate' });
   });
 
   it('reports checked-in only when every class carrying a state is in', () => {
@@ -226,7 +228,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', checkInStatus: 'checked-in' }),
         makeClass({ id: 'c2', classId: 'class-2', checkInStatus: 'checked-in' }),
       ])
-    ).toEqual({ kind: 'checked_in', label: 'Checked in' });
+    ).toEqual({ kind: 'checked_in', label: 'Checked in', status: 'checked_in' });
   });
 
   it('does not report checked-in while a sibling class has no state', () => {
@@ -243,7 +245,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', isScored: true, resultStatus: 'qualified' }),
         makeClass({ id: 'c2', classId: 'class-2' }),
       ])
-    ).toEqual({ kind: 'partially_scored', label: 'Partially scored' });
+    ).toEqual({ kind: 'partially_scored', label: 'Partially scored', status: 'in-progress' });
   });
 
   it('reports scored when every class is settled and at least one scored', () => {
@@ -252,7 +254,7 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', isScored: true, resultStatus: 'qualified' }),
         makeClass({ id: 'c2', classId: 'class-2', isScored: true, resultStatus: 'nq' }),
       ])
-    ).toEqual({ kind: 'scored', label: 'Scored' });
+    ).toEqual({ kind: 'scored', label: 'Scored', status: 'completed' });
   });
 
   it('reports absent when every run was settled without a score', () => {
@@ -261,13 +263,71 @@ describe('deriveDogChip', () => {
         makeClass({ id: 'c1', resultStatus: 'absent' }),
         makeClass({ id: 'c2', classId: 'class-2', resultStatus: 'absent' }),
       ])
-    ).toEqual({ kind: 'absent', label: 'Absent' });
+    ).toEqual({ kind: 'absent', label: 'Absent', status: 'absent' });
   });
 
   it('falls back to the entry status for an accepted dog with nothing recorded', () => {
     const chip = chipFor([makeClass()]);
     expect(chip.kind).toBe('status');
     expect(chip.label).toBeTruthy();
+  });
+
+  /**
+   * The chip's COLOUR, not just its word. `kind: 'status'` covers every
+   * lifecycle status, and a single hard-coded descriptor key for the whole
+   * arm painted an accepted dog in pending's warning colour under an
+   * "Accepted" label — the badge and the word disagreeing on the same chip.
+   */
+  it.each([
+    [EntryStatus.ACCEPTED, 'accepted'],
+    [EntryStatus.PENDING, 'pending'],
+    [EntryStatus.WAITLIST, 'waitlist'],
+    [EntryStatus.REJECTED, 'not_accepted'],
+    [EntryStatus.MOVE_UP_REQUESTED, 'move-up-requested'],
+    [EntryStatus.MISSING_INFO, 'missing_info'],
+  ])('carries %s through as the descriptor key %s', (entryStatus, expected) => {
+    const chip = chipFor([makeClass({ entryStatus })], { entryStatus });
+
+    expect(chip.kind).toBe('status');
+    expect(chip.status).toBe(expected);
+    expect(getStatusDescriptor('entry', chip.status).colorClass).toBe(
+      getStatusDescriptor('entry', expected).colorClass
+    );
+  });
+
+  it('reports an unresolved status as no-status rather than pending', () => {
+    const chip = chipFor([makeClass({ entryStatusKind: 'unknown' })], {
+      entryStatusKind: 'unknown',
+    });
+
+    expect(chip.status).toBe('no-status');
+  });
+
+  it('gives every chip kind a key the shared status vocabulary knows', () => {
+    // A key the descriptors do not carry falls back to the "no status" grey,
+    // which is exactly the failure this whole field exists to prevent — and it
+    // would render silently.
+    const kinds: DogChipState[] = [
+      chipFor([makeClass({ checkInStatus: 'pulled' })]),
+      chipFor([makeClass({ checkInStatus: 'conflict' })]),
+      chipFor([makeClass({ checkInStatus: 'in-ring' })]),
+      chipFor([makeClass({ checkInStatus: 'at-gate' })]),
+      chipFor([makeClass({ checkInStatus: 'checked-in' })]),
+      chipFor([
+        makeClass({ id: 'c1', isScored: true, resultStatus: 'qualified' }),
+        makeClass({ id: 'c2', classId: 'class-2' }),
+      ]),
+      chipFor([makeClass({ isScored: true, resultStatus: 'qualified' })]),
+      chipFor([makeClass({ resultStatus: 'absent' })]),
+      chipFor([makeClass()], { isShowCancelled: true }),
+    ];
+
+    for (const chip of kinds) {
+      expect(
+        Object.prototype.hasOwnProperty.call(ENTRY_STATUS_DESCRIPTORS, chip.status),
+        `${chip.kind} maps to an unknown descriptor key "${chip.status}"`
+      ).toBe(true);
+    }
   });
 
   it('names the pending-review status for a pending dog', () => {
@@ -282,7 +342,7 @@ describe('deriveDogChip', () => {
     const chip = chipFor([makeClass({ entryStatus: EntryStatus.WAITLIST })], {
       entryStatus: EntryStatus.WAITLIST,
     });
-    expect(chip).toEqual({ kind: 'status', label: 'Waitlist' });
+    expect(chip).toEqual({ kind: 'status', label: 'Waitlist', status: 'waitlist' });
   });
 
   it('rolls the chip up across two orders for one dog', () => {
@@ -297,6 +357,7 @@ describe('deriveDogChip', () => {
     expect(deriveDogChip(group.dogs[0] as MyShowDog, ctx)).toEqual({
       kind: 'in_ring',
       label: 'In ring',
+      status: 'in_ring',
     });
   });
 });

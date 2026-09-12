@@ -10,9 +10,11 @@
  */
 
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 
 import type { CheckInStatus } from '@/types/check-in-types';
 
+import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import type {
   CheckInDialogState,
   EditDialogState,
@@ -43,6 +45,11 @@ export interface UseMyEntriesDialogsResult {
   /** Card handlers — stable identities, so the memoized card list does not
    *  re-render every card when an unrelated dialog opens. */
   openCheckIn: (entry: MyEntry, classEntry: EntryClass) => void;
+  /**
+   * The dog card's day-gated batch check-in: one `updateEntryCheckIn` per
+   * target class, sequentially, stopping at the first failure.
+   */
+  checkInClassesForDay: (dog: MyShowDog, classes: MyShowClass[]) => Promise<void>;
   openEdit: (entry: MyEntry) => void;
   openReceipt: (entry: MyEntry) => void;
   openAddDog: () => void;
@@ -93,6 +100,28 @@ export function useMyEntriesDialogs({
     [checkInDialog.entry, checkInDialog.classEntry, updateEntryCheckIn]
   );
 
+  // INTENT: single write path. This is a LOOP over the same
+  // `updateEntryCheckIn` the per-class dialog calls — never a bulk RPC and
+  // never a second optimistic-update implementation. Sequential, not
+  // `Promise.all`, so each class's optimistic update and its revert behave
+  // exactly as the single-class path does. A failure STOPS the loop: the
+  // classes already written stay checked in and show their own real state, so
+  // the exhibitor can simply tap again and the re-derived targets skip them.
+  // `updateEntryCheckIn` logs and reverts but does not tell anyone, and the
+  // batch has no dialog to surface the rejection in, so the toast lives here.
+  const checkInClassesForDay = useCallback(
+    async (dog: MyShowDog, classes: MyShowClass[]) => {
+      try {
+        for (const cls of classes) {
+          await updateEntryCheckIn(cls.orderId, cls.id, 'checked-in');
+        }
+      } catch {
+        toast.error(`We could not check ${dog.dogName} in. Please try again.`);
+      }
+    },
+    [updateEntryCheckIn]
+  );
+
   const entryUpdated = useCallback(async () => {
     await refreshEntries();
     setEditDialog(CLOSED_EDIT);
@@ -104,6 +133,7 @@ export function useMyEntriesDialogs({
     receiptDialog,
     addDogOpen,
     openCheckIn,
+    checkInClassesForDay,
     openEdit,
     openReceipt,
     openAddDog,

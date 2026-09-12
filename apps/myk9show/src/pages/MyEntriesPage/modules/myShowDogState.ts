@@ -22,7 +22,7 @@ import {
   type DayCheckInContext,
 } from './dayCheckIn';
 import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
-import { getEntryStatusBadgeLabel } from './myEntriesUtils';
+import { getEntryStatusBadgeLabel, getStatusBadgeValue } from './myEntriesUtils';
 import { getPartiallyScoredState, isSettledWithoutScore } from './myEntriesStats.helpers';
 
 /* ------------------------------------------------------------------ rows -- */
@@ -113,6 +113,15 @@ export interface DogChipState {
   kind: DogChipKind;
   /** Exhibitor-facing text for the chip. */
   label: string;
+  /**
+   * Key into `ENTRY_STATUS_DESCRIPTORS` — the chip's icon and colour.
+   *
+   * Returned here rather than mapped in the component so there is ONE table:
+   * a component-side map has to guess what `kind: 'status'` means and had
+   * every accepted, waitlisted and rejected dog wearing pending's warning
+   * colour under its own correct label.
+   */
+  status: string;
 }
 
 export interface DogChipContext {
@@ -135,34 +144,34 @@ function checkInBearingClasses(dog: MyShowDog): MyShowClass[] {
  * already has a result.
  */
 export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState {
-  if (ctx.isShowCancelled) return { kind: 'cancelled', label: 'Cancelled' };
+  if (ctx.isShowCancelled) return { kind: 'cancelled', label: 'Cancelled', status: 'not_accepted' };
 
   const classes = dog.classes;
   if (classes.some(cls => cls.checkInStatus === 'pulled')) {
-    return { kind: 'pulled', label: 'Pulled' };
+    return { kind: 'pulled', label: 'Pulled', status: 'pulled' };
   }
   if (classes.some(cls => cls.checkInStatus === 'conflict')) {
-    return { kind: 'conflict', label: 'Conflict' };
+    return { kind: 'conflict', label: 'Conflict', status: 'conflict' };
   }
   if (classes.some(cls => cls.checkInStatus === 'in-ring' || cls.entryStatusKind === 'in_ring')) {
-    return { kind: 'in_ring', label: 'In ring' };
+    return { kind: 'in_ring', label: 'In ring', status: 'in_ring' };
   }
   if (classes.some(cls => cls.checkInStatus === 'at-gate')) {
-    return { kind: 'at_gate', label: 'At gate' };
+    return { kind: 'at_gate', label: 'At gate', status: 'at_gate' };
   }
 
   const bearing = checkInBearingClasses(dog);
   if (bearing.length > 0 && bearing.every(cls => cls.checkInStatus === 'checked-in')) {
-    return { kind: 'checked_in', label: 'Checked in' };
+    return { kind: 'checked_in', label: 'Checked in', status: 'checked_in' };
   }
 
   if (getPartiallyScoredState(dog)) {
-    return { kind: 'partially_scored', label: 'Partially scored' };
+    return { kind: 'partially_scored', label: 'Partially scored', status: 'in-progress' };
   }
 
   // Settled without a score (every run absent/excused) is NOT "Scored" — there
   // is no result to show — so it gets its own chip before the scored check.
-  if (isSettledWithoutScore(dog)) return { kind: 'absent', label: 'Absent' };
+  if (isSettledWithoutScore(dog)) return { kind: 'absent', label: 'Absent', status: 'absent' };
 
   // Every run settled AND at least one genuinely scored. Requiring `isScored`
   // on every row would drop a dog whose day finished with one result and one
@@ -170,10 +179,14 @@ export function deriveDogChip(dog: MyShowDog, ctx: DogChipContext): DogChipState
   // the dog is done.
   const expected = classes.filter(isExpectedEntry);
   if (expected.length > 0 && expected.every(isAccountedFor) && expected.some(cls => cls.isScored)) {
-    return { kind: 'scored', label: 'Scored' };
+    return { kind: 'scored', label: 'Scored', status: 'completed' };
   }
 
-  return { kind: 'status', label: entryStatusLabel(dog, ctx) };
+  return {
+    kind: 'status',
+    label: entryStatusLabel(dog, ctx),
+    status: getStatusBadgeValue(dog.entryStatus ?? EntryStatus.PENDING, dog.entryStatusKind),
+  };
 }
 
 /**

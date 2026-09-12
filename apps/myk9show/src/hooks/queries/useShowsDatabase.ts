@@ -92,9 +92,18 @@ export const useShowQuery = (id: string) => {
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
     enabled: !!id && isValidUUID(id),
-    // Show ownership is also read from replication, so management deep links
-    // can resolve while offline.
-    networkMode: 'always',
+    // NO `networkMode` override: this query inherits 'online' and PAUSES when
+    // the device is offline, which every consumer depends on. Forcing 'always'
+    // here to help management deep links resolve offline bought nothing — the
+    // offline-durable source is the replicated show store, and a forced fetch
+    // just fails — while costing `useShowWithQuery`, useTrialDetailData,
+    // ClassManagementPage, SmartSignInPage and ClassDetailsPage their offline
+    // pause, surfacing query errors during show-day flows (CLAUDE.md § Key
+    // Patterns / Offline-first data).
+    //
+    // The ownership resolver (useShowManageScope) reads the store first and
+    // treats a paused read as `unavailable`, which is the correct fail-closed
+    // answer when ownership genuinely cannot be verified offline.
     ...cacheStrategies.fast,
   });
 };

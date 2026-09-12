@@ -11553,6 +11553,18 @@ export type Database = {
           status_updated_at: string | null
         }[]
       }
+      get_show_judges: {
+        Args: { p_show_id: string }
+        Returns: {
+          assignment_id: string
+          class_id: string
+          first_name: string
+          last_name: string
+          person_id: string
+          status: string
+          trial_id: string
+        }[]
+      }
       get_show_officials: {
         Args: { p_show_id: string }
         Returns: {

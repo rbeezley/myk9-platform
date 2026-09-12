@@ -21,7 +21,8 @@ const activeClassRows = [
     scored_count: 3,
     start_time: '09:00',
     trials: { trial_date: '2026-04-01', trial_number: '1' },
-    judge_assignments: [{ people: { first_name: 'John', last_name: 'Smith' } }],
+    // MYK9-474: no judge_assignments embed any more. The board got `"people": null` from it on
+    // every row for an anonymous viewer, so judge names now come from the get_show_judges RPC.
   },
 ];
 
@@ -62,7 +63,6 @@ const completedClassRows = [
     element: 'Interior',
     level: 'Advanced',
     total_entries_count: 20,
-    judge_assignments: [{ people: { first_name: 'Alice', last_name: 'Smith' } }],
   },
 ];
 
@@ -141,6 +141,16 @@ function mockBoardRpcs(options: {
         error: null,
       });
     }
+    if (name === 'get_show_judges') {
+      // One row per ASSIGNMENT, as the RPC returns them — the class_id is what the board maps by.
+      return Promise.resolve({
+        data: [
+          { person_id: 'p1', first_name: 'John', last_name: 'Smith', class_id: 'class-active' },
+          { person_id: 'p2', first_name: 'Alice', last_name: 'Smith', class_id: 'class-done' },
+        ],
+        error: null,
+      });
+    }
     return Promise.resolve({ data: null, error: null });
   });
 }
@@ -192,6 +202,9 @@ describe('tv-display database reads', () => {
     expect(mockSupabase.rpc.mock.calls).toEqual([
       ['tv_board_entries', { p_show_id: 'show-1', p_class_ids: ['class-active'] }],
       ['tv_class_entry_counts', { p_show_id: 'show-1', p_class_ids: ['class-active'] }],
+      // MYK9-474: judge names come from a definer RPC rather than a people embed anon cannot
+      // see through. Keyed by show, not by class, so it stays one call however many classes.
+      ['get_show_judges', { p_show_id: 'show-1' }],
     ]);
     expect(result.show).toEqual({
       id: 'show-1',

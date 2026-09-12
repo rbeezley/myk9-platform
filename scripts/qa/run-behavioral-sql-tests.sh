@@ -60,6 +60,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_469_public_select_row_scope_test.sql"
   "$TEST_DIR/myk9_470_scoped_role_predicates_test.sql"
   "$TEST_DIR/myk9_472_view_write_grants_test.sql"
+  "$TEST_DIR/myk9_474_public_judge_names_test.sql"
   "$TEST_DIR/notification_preferences_sms_rls_test.sql"
   "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/placement_soft_delete_ranking_test.sql"

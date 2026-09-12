@@ -11,6 +11,9 @@ import { supabase } from '../supabaseClient';
  *
  * This is the ONLY judge-name source a class has: `classes.judge_name` was dropped
  * (MYK9-479), so a class with no confirmed assignment has no name and is absent from the map.
+ * The RPC returns every assignment row regardless of status; only `confirmed` rows name the
+ * judge, matching `emergency_packet_input`, `judge_day_summary` and the rebuilt stats views.
+ * An invited, declined or cancelled assignment must not put a name on a running order.
  *
  * Degrades to an empty Map on failure: a judge-name error must not take a running order off the
  * board or block an exhibitor's check-in.
@@ -23,6 +26,7 @@ export async function fetchJudgeNamesByClass(showId: string): Promise<Map<string
   // No cast: the get_show_judges row type comes from the generated Database types, so a change
   // to the function's RETURNS TABLE surfaces here as a type error rather than at runtime.
   for (const row of data) {
+    if (row.status !== 'confirmed') continue;
     if (!row.class_id || byClass.has(row.class_id)) continue;
     const name = `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim();
     if (name) byClass.set(row.class_id, name);

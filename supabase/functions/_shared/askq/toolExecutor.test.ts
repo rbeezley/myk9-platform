@@ -297,6 +297,16 @@ describe('AskQ class and trial tools query current base-table columns', () => {
       // MYK9-479: classes.judge_name is gone; the judge is the confirmed
       // assignment, read through get_show_judges.
       'rpc:get_show_judges': [
+        // A declined assignment on the same class must not name the judge.
+        {
+          assignment_id: 'ja-0',
+          person_id: 'judge-0',
+          first_name: 'Declined',
+          last_name: 'Judge',
+          trial_id: 'trial-1',
+          class_id: 'class-1',
+          status: 'declined',
+        },
         {
           assignment_id: 'ja-1',
           person_id: 'judge-1',

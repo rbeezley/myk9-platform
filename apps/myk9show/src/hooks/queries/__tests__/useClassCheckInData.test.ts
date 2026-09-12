@@ -168,6 +168,16 @@ describe('useClassCheckInData', () => {
     mockFrom.mockReturnValue(mockChain);
     mockRpc.mockResolvedValue({
       data: [
+        // Invited, not confirmed: not the judge, even though it sorts first.
+        {
+          assignment_id: 'ja-0',
+          person_id: 'judge-0',
+          first_name: 'Invited',
+          last_name: 'Only',
+          trial_id: 'trial-1',
+          class_id: 'class-1',
+          status: 'invited',
+        },
         {
           assignment_id: 'ja-1',
           person_id: 'judge-1',
@@ -211,7 +221,21 @@ describe('useClassCheckInData', () => {
 
   it('leaves the judge blank when the class has no confirmed assignment', async () => {
     mockChain.maybeSingle = vi.fn().mockResolvedValue({ data: baseRow, error: null });
-    mockRpc.mockResolvedValue({ data: [], error: null });
+    // An invited row alone is not an assignment.
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          assignment_id: 'ja-0',
+          person_id: 'judge-0',
+          first_name: 'Invited',
+          last_name: 'Only',
+          trial_id: 'trial-1',
+          class_id: 'class-1',
+          status: 'invited',
+        },
+      ],
+      error: null,
+    });
 
     const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });
     await waitFor(() => expect(result.current.isLoading).toBe(false));

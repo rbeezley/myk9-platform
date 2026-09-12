@@ -27,6 +27,7 @@ interface ShowJudgeRow {
   class_id: string | null;
   first_name: string | null;
   last_name: string | null;
+  status: string | null;
 }
 
 /** The one RPC this module calls; the untyped client's `rpc` cannot carry arguments. */
@@ -68,7 +69,8 @@ function applyTrialScope<Q extends { eq(column: string, value: unknown): Q }>(
  * get_show_officials, no email column) is used instead of a `people` embed because the
  * caller client runs under the asker's own JWT and `people_select` admits only show
  * managers, so an embed resolves to null for every other premium user. A failure here
- * degrades to no names rather than failing the summary.
+ * degrades to no names rather than failing the summary. Only `confirmed` assignments name
+ * the judge — the RPC returns invited/declined/cancelled rows too, and those are not the judge.
  */
 async function fetchJudgeNamesByClass(
   supabase: SupabaseClient,
@@ -85,6 +87,7 @@ async function fetchJudgeNamesByClass(
       continue;
     }
     for (const row of data ?? []) {
+      if (row.status !== 'confirmed') continue;
       if (!row.class_id || byClass.has(row.class_id)) continue;
       const name = `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim();
       if (name) byClass.set(row.class_id, name);

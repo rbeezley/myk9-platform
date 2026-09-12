@@ -67,31 +67,31 @@ Redirect-only (confirm target loads): `/login`→`/sign-in`, `/browse-shows`→`
 
 ## 2. Exhibitor (exhibitor@myk9t.com)
 
-| #   | Route                                        | Mark | Note                              |
-| --- | -------------------------------------------- | ---- | --------------------------------- |
-| 1   | `/onboarding`                                | F-11 | may redirect if already onboarded |
-| 2   | `/exhibitor/entries`                         |      |                                   |
-| 3   | `/my-entries`                                |      |                                   |
-| 4   | `/exhibitor/show-day`                        |      |                                   |
-| 5   | `/exhibitor/check-in/:entryId`               |      |                                   |
-| 6   | `/exhibitor/payments`                        |      |                                   |
-| 7   | `/exhibitor/analytics`                       |      |                                   |
-| 8   | `/account`                                   |      | all tabs                          |
-| 9   | `/dogs`                                      |      |                                   |
-| 10  | `/dogs/:id`                                  |      |                                   |
-| 11  | `/calendar`                                  |      |                                   |
-| 12  | `/notifications`                             |      |                                   |
-| 13  | `/messages/:showId`                          |      |                                   |
-| 14  | `/shows/:showId/register`                    |      | walk to cart, do not pay          |
-| 15  | `/cart`                                      |      |                                   |
-| 16  | `/checkout/success`                          |      | direct hit, no session            |
-| 17  | `/checkout/cancel`                           |      |                                   |
-| 18  | `/subscription`                              |      |                                   |
-| 19  | `/classes/:classId`                          |      |                                   |
-| 20  | `/trials/:trialId`                           |      |                                   |
-| 21  | `/people/:id` (own person)                   |      |                                   |
-| 22  | `/at-show/:showId`                           |      | as exhibitor                      |
-| 23  | `/secretary/dashboard` (wrong role → denied) |      | denied is correct; blank is a bug |
+| #   | Route                                        | Mark  | Note                                                                            |
+| --- | -------------------------------------------- | ----- | ------------------------------------------------------------------------------- |
+| 1   | `/onboarding`                                | F-11  | may redirect if already onboarded                                               |
+| 2   | `/exhibitor/entries`                         | defer | redesign in flight on `claude/exhibitor-entries-redesign-6b9089`; not walked    |
+| 3   | `/my-entries`                                | F-12  |                                                                                 |
+| 4   | `/exhibitor/show-day`                        | F-12  | redirect itself is correct; the Page Directory calls it a working critical path |
+| 5   | `/exhibitor/check-in/:entryId`               | F-12  | redirect correct, `:entryId` discarded; no reachable caller                     |
+| 6   | `/exhibitor/payments`                        |       |                                                                                 |
+| 7   | `/exhibitor/analytics`                       |       |                                                                                 |
+| 8   | `/account`                                   |       | all tabs                                                                        |
+| 9   | `/dogs`                                      |       |                                                                                 |
+| 10  | `/dogs/:id`                                  |       |                                                                                 |
+| 11  | `/calendar`                                  |       |                                                                                 |
+| 12  | `/notifications`                             |       |                                                                                 |
+| 13  | `/messages/:showId`                          |       |                                                                                 |
+| 14  | `/shows/:showId/register`                    |       | walk to cart, do not pay                                                        |
+| 15  | `/cart`                                      |       |                                                                                 |
+| 16  | `/checkout/success`                          |       | direct hit, no session                                                          |
+| 17  | `/checkout/cancel`                           |       |                                                                                 |
+| 18  | `/subscription`                              |       |                                                                                 |
+| 19  | `/classes/:classId`                          |       |                                                                                 |
+| 20  | `/trials/:trialId`                           |       |                                                                                 |
+| 21  | `/people/:id` (own person)                   |       |                                                                                 |
+| 22  | `/at-show/:showId`                           |       | as exhibitor                                                                    |
+| 23  | `/secretary/dashboard` (wrong role → denied) |       | denied is correct; blank is a bug                                               |
 
 Redirect-only: `/exhibitor/dashboard`→`/exhibitor/entries`; `/exhibitor/profile`, `/exhibitor/account`, `/profile`, `/settings`, `/preferences`→`/account`.
 
@@ -197,15 +197,17 @@ Redirect-only: `/admin`→`/admin/dashboard`. Parked: `/prototype/show` (skip un
 
 Format: `F-nn | role | route | P# | symptom | disposition | proof`
 
-| ID   | Role      | Route                                  | P#  | Symptom                                                                                                 | Disposition     | Closure proof                                                   |
-| ---- | --------- | -------------------------------------- | --- | ------------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------- |
-| F-01 | public    | `/shows`                               | P3  | Search placeholder clipped: needs 329px, has 128px, at every viewport (input is fixed-width)            | inline          | Rendered-width assertion, placeholder fits at 1440 and 375px    |
-| F-02 | all       | `/shows?discipline=*`                  | P1  | Every discipline filter returns 0 shows. Mapper reads `trial_type`; replicated trials carry `trialType` | inline          | Assertion-first unit test on the mapper, then browser replay    |
-| F-04 | all       | any anchor link (seen on `/shows/:id`) | P2  | Anchor scroll lands the target under the 48px fixed header; `scroll-padding-top` is `auto`              | inline          | Geometry assertion: target top >= header bottom after hash nav  |
-| F-05 | public    | trials, classes, results, clubs        | P1  | Anonymous visitors read entry lists (handler names, dog names, armbands) and club pages                 | linear          | Product decision + anon replay per route                        |
-| F-09 | public    | `/tv/:showId`                          | P2  | Podium rendered, then emptied to "No classes currently in progress" with no navigation                  | linear MYK9-467 | Reproduce the transition; show-day surface                      |
-| F-10 | public    | 404 page                               | P3  | "404" heading clipped 32.5px behind the fixed header; wrapper has `padding-top: 0`                      | inline          | Geometry assertion on the 404 wrapper                           |
-| F-11 | exhibitor | `/onboarding`                          | P3  | "Welcome to myK9Show" clipped behind the fixed header; all 3 page shells set their own top padding      | inline          | Class resolves to 88px / 64px vs 0px control; shell-parity test |
+| ID   | Role      | Route                                                                | P#  | Symptom                                                                                                                                                                                       | Disposition     | Closure proof                                                            |
+| ---- | --------- | -------------------------------------------------------------------- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| F-01 | public    | `/shows`                                                             | P3  | Search placeholder clipped: needs 329px, has 128px, at every viewport (input is fixed-width)                                                                                                  | inline          | Rendered-width assertion, placeholder fits at 1440 and 375px             |
+| F-02 | all       | `/shows?discipline=*`                                                | P1  | Every discipline filter returns 0 shows. Mapper reads `trial_type`; replicated trials carry `trialType`                                                                                       | inline          | Assertion-first unit test on the mapper, then browser replay             |
+| F-04 | all       | any anchor link (seen on `/shows/:id`)                               | P2  | Anchor scroll lands the target under the 48px fixed header; `scroll-padding-top` is `auto`                                                                                                    | inline          | Geometry assertion: target top >= header bottom after hash nav           |
+| F-05 | public    | trials, classes, results, clubs                                      | P1  | Anonymous visitors read entry lists (handler names, dog names, armbands) and club pages                                                                                                       | linear          | Product decision + anon replay per route                                 |
+| F-09 | public    | `/tv/:showId`                                                        | P2  | Podium rendered, then emptied to "No classes currently in progress" with no navigation                                                                                                        | linear MYK9-467 | Reproduce the transition; show-day surface                               |
+| F-10 | public    | 404 page                                                             | P3  | "404" heading clipped 32.5px behind the fixed header; wrapper has `padding-top: 0`                                                                                                            | inline          | Geometry assertion on the 404 wrapper                                    |
+| F-11 | exhibitor | `/onboarding`                                                        | P3  | "Welcome to myK9Show" clipped behind the fixed header; all 3 page shells set their own top padding                                                                                            | inline          | Class resolves to 88px / 64px vs 0px control; shell-parity test          |
+| F-12 | exhibitor | `/my-entries`, `/exhibitor/show-day`, `/exhibitor/check-in/:entryId` | P2  | Unfinished route retirement: Page Directory advertises two retired redirects as working critical-path show-day features; `/my-entries` is a duplicate route; 359-line dead `MultiDogSchedule` | linear MYK9-476 | No working+critical-path entry renders only a redirect, pinned by a test |
+| F-13 | n/a       | `routeRegistry.ts`                                                   | P4  | Preloading subsystem has no caller; tests describe preloading that never happens. Zero bundle cost                                                                                            | linear MYK9-477 | Exports have a caller, or preloader wired and config corrected           |
 
 Withdrawn: **F-03** — the walk used the literal URL `/shows/:id`. "Show Not Found" is correct for a
 show whose id is the string `:id`. The real ID loads fine. Not a defect.

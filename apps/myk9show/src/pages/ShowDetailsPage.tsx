@@ -190,11 +190,13 @@ const ShowDetailsPage: React.FC = () => {
     isManagementSection,
     forcePublicPreview: searchParams.get('preview') === 'public',
     canManageShow,
-    isManagementStaff: isAdmin
-      ? canManageShow
-      : isSecretary &&
-        canManageShow &&
-        hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId),
+    isManagementStaff: isManagementSection
+      ? isAdmin || isSecretary
+      : isAdmin
+        ? canManageShow
+        : isSecretary &&
+          canManageShow &&
+          hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId),
     rbacLoading,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',

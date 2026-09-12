@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import { ShowsTableView } from './ShowsTableView';
 import { formatShowsTableDateRange, splitShowLocation } from './ShowsTableView.helpers';
@@ -66,6 +66,26 @@ function makeEnhancedShow(overrides: Partial<EnhancedShow> = {}): EnhancedShow {
 }
 
 describe('ShowsTableView columns (MYK9-427)', () => {
+  it('only offers selection for shows the viewer can manage', () => {
+    render(
+      <MemoryRouter>
+        <ShowsTableView
+          shows={[makeEnhancedShow(), makeEnhancedShow({ id: 'show-2', name: 'Other Show' })]}
+          canManageShow={show => show.id === 'show-1'}
+          onToggleSelect={() => undefined}
+          onToggleAll={() => undefined}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('checkbox', { name: 'Select all you manage' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Select Heartland Scent Work Classic' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Select Other Show' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all you manage' }));
+  });
+
   it('shows five columns by default — Organization and Status stay in the Columns menu', () => {
     localStorage.removeItem('datatable-cols-showsBrowse');
     render(

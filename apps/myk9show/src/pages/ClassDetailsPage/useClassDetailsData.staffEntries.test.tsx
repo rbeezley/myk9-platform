@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   useEntriesByClass: vi.fn(),
   useAuthContext: vi.fn(),
   useSecretaryShowEntriesQuery: vi.fn(),
+  useShowQuery: vi.fn(),
 }));
 
 vi.mock('@/hooks/useClassStoreCompat', () => ({
@@ -34,6 +35,7 @@ vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: mocks.useAuthContext 
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useSecretaryShowEntriesQuery: mocks.useSecretaryShowEntriesQuery,
 }));
+vi.mock('@/hooks/queries/useShowsDatabase', () => ({ useShowQuery: mocks.useShowQuery }));
 
 import { useClassDetailsData } from './useClassDetailsData';
 
@@ -81,6 +83,7 @@ describe('useClassDetailsData staff entry source', () => {
     mocks.useShowStore.mockReturnValue({
       shows: [{ id: 'show-1', name: 'Heartland', clubId: 'club-1' }],
     });
+    mocks.useShowQuery.mockReturnValue({ data: null });
     mocks.useDogStoreCompat.mockReturnValue({ dogs: [] });
     mocks.useEntriesByClass.mockReturnValue([]);
     mocks.useSecretaryShowEntriesQuery.mockReturnValue({

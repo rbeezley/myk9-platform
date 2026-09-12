@@ -30,7 +30,7 @@ import {
   ShowCalendarSkeleton,
 } from '@/components/common/SkeletonLoaders';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
-import { canManageShowSurface, filterManagedShows, managedClubIds } from '@/utils/roleScopes';
+import { canManageShowSurface } from '@/utils/roleScopes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -164,8 +164,8 @@ const BrowseShowsPage: React.FC = () => {
   // Bulk selection for shows
   const getShowId = useCallback((show: { id: string }) => show.id, []);
   const manageableShows = useMemo(
-    () => filterManagedShows(enhancedShows, managedClubIds({ isAdmin, userWithRoles: authUser })),
-    [authUser, enhancedShows, isAdmin]
+    () => enhancedShows.filter(canManageShow),
+    [canManageShow, enhancedShows]
   );
   const bulkSelection = useBulkSelection({
     items: manageableShows,

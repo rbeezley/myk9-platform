@@ -110,7 +110,7 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'dog-level `deleted_at IS NULL` gate that the owner arm was missing, by restructuring the ' +
     'predicate into one correlated EXISTS over dogs.id so soft-delete AND-s over every ' +
     'dog-derived arm — the same shape achievements_select took in MYK9-469, and matching ' +
-    'dogs_select. Narrowing only: it removes access to a soft-deleted dog\'s records and adds ' +
+    "dogs_select. Narrowing only: it removes access to a soft-deleted dog's records and adds " +
     'none. Same policy name, same SELECT command, same TO authenticated role — predicate only, ' +
     'like the MYK9-147 / MYK9-469 / MYK9-470 entries above. The MYK9-470 secretary arm and its ' +
     'UNCORRELATED trial_secretary_show_ids() are preserved, and vaccinations ' +

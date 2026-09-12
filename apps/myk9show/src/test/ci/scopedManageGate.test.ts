@@ -93,6 +93,12 @@ const ALLOWED: Record<string, Allowance> = {
       'secretaries/admins; the staff query remains gated by the separate club-scoped predicate.',
     count: 1,
   },
+  'pages/ShowDetailsPage.tsx': {
+    reason:
+      'Scoped viewer classification is guarded by the explicit secretary scope predicate; the ' +
+      'global admin branch is limited to site-admin management access.',
+    count: 1,
+  },
   'components/notifications/MessageCenterPanel.tsx': {
     reason:
       'Genuinely global, verified: `staffShows` is built from `currentShowIds`, so the compose ' +

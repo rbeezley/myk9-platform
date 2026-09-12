@@ -33,6 +33,13 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => mockShows,
 }));
 
+vi.mock('@/hooks/useFastShowDetails', () => ({
+  useFastShowDetails: () => ({
+    show: mockShows.data[0] ?? null,
+    isLoading: mockShows.isLoading,
+  }),
+}));
+
 vi.mock('@/context/AuthContext', () => ({
   ProtectedRoute: ({ children, fallback }: { children: ReactNode; fallback?: ReactNode }) => (
     // ProtectedRoute is no longer used in ShowManagementSectionRoute, but is
@@ -244,8 +251,10 @@ describe('canonical show management routes', () => {
     'secretary renders %s through the production PublicRoutes tree',
     async (path, sectionTestId) => {
       mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
-      mockAuth.userWithRoles = null;
-      mockShows.data = [];
+      mockAuth.userWithRoles = {
+        scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }],
+      };
+      mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
       mockShows.isLoading = false;
 
       render(

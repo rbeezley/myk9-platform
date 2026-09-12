@@ -82,8 +82,9 @@ type Allowance = { reason: string; count: number };
 const ALLOWED: Record<string, Allowance> = {
   'pages/ClassDetailsPage/useClassDetailsData.ts': {
     reason:
-      'Intentional global viewer classification selects the fallback public entry query for ' +
-      'secretaries/admins; the staff query remains gated by the separate club-scoped predicate.',
+      'Intentional global staff classification is used only to keep the class surface in a ' +
+      'loading state while its show ownership resolves; entry sources and manage controls remain ' +
+      'gated by canManageShowSurface.',
     count: 1,
   },
   'components/notifications/MessageCenterPanel.tsx': {

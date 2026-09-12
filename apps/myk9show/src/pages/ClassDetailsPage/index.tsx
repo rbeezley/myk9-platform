@@ -69,6 +69,7 @@ const ClassDetailsPage: React.FC = () => {
     entriesError,
     parentTrial,
     parentShow,
+    staffScopeResolving,
     dogs,
     updateClass,
     deleteClass,
@@ -80,7 +81,6 @@ const ClassDetailsPage: React.FC = () => {
   const { myEntries } = useMyEntriesInClass(classId);
   const myEntryIds = useMemo(() => new Set(myEntries.map(entry => entry.entryId)), [myEntries]);
 
-  // Exhibitor/guest results read directly from PostgREST once results are
   // Operational gate for this page's class-lifecycle controls (Edit Class,
   // Delete Class). This route is PUBLIC — exhibitors land here from a show
   // page — so the controls were previously rendered to everyone, contradicting
@@ -97,7 +97,7 @@ const ClassDetailsPage: React.FC = () => {
   });
   // Cross-club staff must receive the released-results view rather than an
   // empty RLS-limited run sheet.
-  const isStaff = canManageClass;
+  const isStaff = canManageClass || staffScopeResolving;
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;

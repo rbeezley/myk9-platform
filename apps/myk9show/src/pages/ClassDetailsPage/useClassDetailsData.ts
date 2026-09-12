@@ -114,7 +114,6 @@ export function useClassDetailsData() {
   }>();
   const location = useLocation();
   const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
-  const isStaffViewer = isSecretary || isAdmin;
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -183,14 +182,15 @@ export function useClassDetailsData() {
     userWithRoles,
     clubId: parentShow?.clubId,
   });
+  const isStaffScopeResolving =
+    (isSecretary || isAdmin) && Boolean(resolvedShowId) && queriedShowLoading && !parentShow;
+  const isStaffViewer = canManageShow || isStaffScopeResolving;
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
     resolvedShowId,
     canManageShow && isStaffViewer && Boolean(classId && resolvedShowId)
   );
   const useStaffEntrySource = canManageShow && isStaffViewer;
-  const isStaffScopeResolving =
-    isStaffViewer && Boolean(resolvedShowId) && queriedShowLoading && !parentShow;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)
@@ -326,6 +326,7 @@ export function useClassDetailsData() {
     // Parent context
     parentTrial,
     parentShow,
+    staffScopeResolving: isStaffScopeResolving,
 
     // Dogs for entry lookups
     dogs,

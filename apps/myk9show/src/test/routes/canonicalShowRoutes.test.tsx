@@ -34,8 +34,8 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
 }));
 
 vi.mock('@/hooks/useFastShowDetails', () => ({
-  useFastShowDetails: () => ({
-    show: mockShows.data[0] ?? null,
+  useFastShowDetails: (id?: string) => ({
+    show: mockShows.data.find(show => show.id === id) ?? null,
     isLoading: mockShows.isLoading,
   }),
 }));
@@ -333,6 +333,26 @@ describe('canonical show management routes', () => {
 
     expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
     expect(screen.getByTestId('production-setup')).toBeInTheDocument();
+  });
+
+  it('redirects a secretary scoped to a different club', async () => {
+    mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
+    mockAuth.userWithRoles = {
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-b', roleId: UserRole.SECRETARY }],
+    };
+    mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
+    mockShows.isLoading = false;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
+      '/shows/show-1'
+    );
+    expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
   });
 
   it('redirects a club admin scoped to a different club', async () => {

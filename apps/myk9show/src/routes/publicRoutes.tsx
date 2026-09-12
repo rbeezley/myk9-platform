@@ -120,11 +120,6 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   }
 
   if (showLoading) return null;
-  // Preserve the secretary route fallback when the show cannot be resolved
-  // offline. Child pages still enforce their own server-backed authorization.
-  if (!show && hasRole(UserRole.SECRETARY)) {
-    return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
-  }
   const isAuthorized =
     (hasRole(UserRole.SECRETARY) &&
       hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)) ||

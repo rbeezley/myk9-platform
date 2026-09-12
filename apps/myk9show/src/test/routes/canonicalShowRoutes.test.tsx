@@ -355,6 +355,23 @@ describe('canonical show management routes', () => {
     expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
   });
 
+  it('waits for the show query before deciding scoped secretary access', () => {
+    mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
+    mockAuth.userWithRoles = {
+      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }],
+    };
+    mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
+    mockShows.isLoading = true;
+
+    render(
+      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+        <Routes>{PublicRoutes()}</Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
+  });
+
   it('redirects a club admin scoped to a different club', async () => {
     mockAuth.hasRole = (role: string) => role === UserRole.CLUB_ADMIN;
     mockAuth.userWithRoles = {

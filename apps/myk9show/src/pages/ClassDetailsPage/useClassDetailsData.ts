@@ -171,10 +171,12 @@ export function useClassDetailsData() {
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
   const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? '';
-  const { data: queriedShow, isLoading: queriedShowLoading } = useShowQuery(
-    storedParentShow ? '' : resolvedShowId
-  );
-  const parentShow = storedParentShow ?? queriedShow;
+  const {
+    data: queriedShow,
+    isLoading: queriedShowLoading,
+    isPlaceholderData,
+  } = useShowQuery(storedParentShow ? '' : resolvedShowId);
+  const parentShow = storedParentShow ?? (isPlaceholderData ? undefined : queriedShow);
   const canManageShow = canManageShowSurface({
     isSecretary,
     isAdmin,
@@ -184,7 +186,10 @@ export function useClassDetailsData() {
   });
   const hasGlobalStaffRole = isSecretary || isAdmin;
   const isStaffScopeResolving =
-    hasGlobalStaffRole && Boolean(resolvedShowId) && queriedShowLoading && !parentShow;
+    hasGlobalStaffRole &&
+    Boolean(resolvedShowId) &&
+    (queriedShowLoading || isPlaceholderData) &&
+    !parentShow;
   const isStaffViewer = hasGlobalStaffRole && (canManageShow || isStaffScopeResolving);
 
   const staffShowEntries = useSecretaryShowEntriesQuery(

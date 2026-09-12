@@ -21,12 +21,10 @@ import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 import { LegacyCheckInRedirect, LegacyShowDayRedirect } from './LegacyExhibitorRedirects';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
-import { UserRole } from '@/types/auth-types';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
-import { hasScopedClubRole } from '@/utils/roleScopes';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
   return enabled ? (
@@ -108,30 +106,23 @@ const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactN
 function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
-  const { user, loading: authLoading, rbacLoading, hasRole, userWithRoles } = useAuthContext();
-  const { data: shows = [], isLoading: showsLoading } = useShowsQuery();
+  const { user, loading: authLoading, rbacLoading } = useAuthContext();
+  // Same gate the page bodies use, so the route and the surface it admits can
+  // never disagree about who manages this show.
+  const manageScope = useShowManageScope(id);
 
   if (authLoading || rbacLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
-  const isSecretary = hasRole(UserRole.SECRETARY);
-  const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
+  // Hold — never redirect — while ownership is still resolving. Redirecting on a
+  // transient state bounces a legitimate secretary off their own show on every
+  // cold deep link.
+  if (manageScope.status === 'resolving') return null;
 
-  // Secretary and site admin are authorized without needing show data.
-  if (isSecretary || isSiteAdmin) {
-    return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
-  }
-
-  // Club admin check requires the show's clubId to enforce club-scoping.
-  // Wait for shows to load before deciding — avoids a spurious redirect.
-  if (showsLoading) return null;
-
-  const show = shows.find(s => s.id === id);
-  const isClubAdmin =
-    hasRole(UserRole.CLUB_ADMIN) &&
-    hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, show?.clubId);
-
-  if (!isClubAdmin) return <Navigate to={canonicalShowPath} replace />;
+  // Fail closed: both `resolved && !canManage` and `unavailable` (show missing,
+  // soft-deleted, or unreadable) land on the canonical show page rather than a
+  // blank screen.
+  if (!manageScope.canManage) return <Navigate to={canonicalShowPath} replace />;
 
   // Show-management URLs live in the public show route tree, but once authorized
   // this surface is secretary work and should report with secretary context.

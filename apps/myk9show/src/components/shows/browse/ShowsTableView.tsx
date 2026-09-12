@@ -11,6 +11,7 @@ import { formatShowsTableDateRange, splitShowLocation } from './ShowsTableView.h
 
 interface ShowsTableViewProps {
   shows: EnhancedShow[];
+  canManageShow: (show: EnhancedShow) => boolean;
   isSelected?: (item: EnhancedShow) => boolean;
   onToggleSelect?: (item: EnhancedShow) => void;
   isAllSelected?: boolean;
@@ -181,13 +182,14 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
 
 export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   shows,
+  canManageShow,
   isSelected,
   onToggleSelect,
   isAllSelected,
   onToggleAll,
 }) => {
   const navigate = useNavigate();
-  const hasSelection = Boolean(onToggleSelect);
+  const hasSelection = Boolean(onToggleSelect && shows.some(canManageShow));
 
   const columns = useMemo<ColumnDef<EnhancedShow, unknown>[]>(() => {
     if (!hasSelection) return DATA_COLUMNS;
@@ -195,27 +197,28 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
       id: '_select',
       header: () => null,
       enableSorting: false,
-      cell: ({ row }) => (
-        <Checkbox
-          checked={isSelected?.(row.original) ?? false}
-          onCheckedChange={() => onToggleSelect?.(row.original)}
-          aria-label={`Select ${row.original.name}`}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        />
-      ),
+      cell: ({ row }) =>
+        canManageShow(row.original) ? (
+          <Checkbox
+            checked={isSelected?.(row.original) ?? false}
+            onCheckedChange={() => onToggleSelect?.(row.original)}
+            aria-label={`Select ${row.original.name}`}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          />
+        ) : null,
       meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
     };
     return [selectCol, ...DATA_COLUMNS];
-  }, [hasSelection, isSelected, onToggleSelect]);
+  }, [canManageShow, hasSelection, isSelected, onToggleSelect]);
 
   const selectAllHeader = hasSelection ? (
     <div className="px-4 py-2 border-b border-border/30 bg-muted/20 flex items-center gap-2">
       <Checkbox
         checked={isAllSelected ?? false}
         onCheckedChange={() => onToggleAll?.()}
-        aria-label="Select all shows"
+        aria-label="Select all you manage"
       />
-      <span className="text-xs text-muted-foreground">Select all</span>
+      <span className="text-xs text-muted-foreground">Select all you manage</span>
     </div>
   ) : null;
 

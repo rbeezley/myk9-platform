@@ -66,11 +66,30 @@ function makeEnhancedShow(overrides: Partial<EnhancedShow> = {}): EnhancedShow {
 }
 
 describe('ShowsTableView columns (MYK9-427)', () => {
+  it('only offers selection for shows the viewer can manage', () => {
+    render(
+      <MemoryRouter>
+        <ShowsTableView
+          shows={[makeEnhancedShow(), makeEnhancedShow({ id: 'show-2', name: 'Other Show' })]}
+          canManageShow={show => show.id === 'show-1'}
+          onToggleSelect={() => undefined}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('checkbox', { name: 'Select all you manage' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Select Heartland Scent Work Classic' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Select Other Show' })).not.toBeInTheDocument();
+    expect(screen.getByText('Select all you manage')).toBeInTheDocument();
+  });
+
   it('shows five columns by default — Organization and Status stay in the Columns menu', () => {
     localStorage.removeItem('datatable-cols-showsBrowse');
     render(
       <MemoryRouter>
-        <ShowsTableView shows={[makeEnhancedShow()]} />
+        <ShowsTableView shows={[makeEnhancedShow()]} canManageShow={() => false} />
       </MemoryRouter>
     );
 
@@ -84,7 +103,7 @@ describe('ShowsTableView columns (MYK9-427)', () => {
     localStorage.removeItem('datatable-cols-showsBrowse');
     render(
       <MemoryRouter>
-        <ShowsTableView shows={[makeEnhancedShow()]} />
+        <ShowsTableView shows={[makeEnhancedShow()]} canManageShow={() => false} />
       </MemoryRouter>
     );
 

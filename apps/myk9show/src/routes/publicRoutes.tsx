@@ -25,7 +25,7 @@ import { UserRole } from '@/types/auth-types';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
-import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
+import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { hasScopedClubRole } from '@/utils/roleScopes';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
@@ -109,14 +109,23 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
   const { user, loading: authLoading, rbacLoading, hasRole, userWithRoles } = useAuthContext();
-  const { data: show, isLoading: showLoading } = useShowQuery(id ?? '');
+  const { show, isLoading: showLoading } = useFastShowDetails(id);
 
   if (authLoading || rbacLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
+  const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
+  if (isSiteAdmin) {
+    return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
+  }
+
   if (showLoading) return null;
+  // Preserve the secretary route fallback when the show cannot be resolved
+  // offline. Child pages still enforce their own server-backed authorization.
+  if (!show && hasRole(UserRole.SECRETARY)) {
+    return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
+  }
   const isAuthorized =
-    hasRole(UserRole.SITE_ADMIN) ||
     (hasRole(UserRole.SECRETARY) &&
       hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)) ||
     (hasRole(UserRole.CLUB_ADMIN) &&

@@ -172,7 +172,9 @@ export function useClassDetailsData() {
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
   const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? '';
-  const { data: queriedShow, isLoading: queriedShowLoading } = useShowQuery(resolvedShowId);
+  const { data: queriedShow, isLoading: queriedShowLoading } = useShowQuery(
+    storedParentShow ? '' : resolvedShowId
+  );
   const parentShow = storedParentShow ?? queriedShow;
   const canManageShow = canManageShowSurface({
     isSecretary,

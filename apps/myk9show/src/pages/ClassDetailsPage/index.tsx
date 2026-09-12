@@ -81,19 +81,13 @@ const ClassDetailsPage: React.FC = () => {
   const myEntryIds = useMemo(() => new Set(myEntries.map(entry => entry.entryId)), [myEntries]);
 
   // Exhibitor/guest results read directly from PostgREST once results are
-  // released — the replication store is cold/stale for post-show or anonymous
-  // sessions (mirrors the TV display #753 fix). Secretary/at-show scoring keeps
-  // using the live replication store below.
-  const isStaff = isSecretary || isAdmin;
-
   // Operational gate for this page's class-lifecycle controls (Edit Class,
   // Delete Class). This route is PUBLIC — exhibitors land here from a show
   // page — so the controls were previously rendered to everyone, contradicting
   // the read-only copy beside them (MYK9-123). Club-scoped so a club admin
   // keeps the same class controls they already have one level up on Trial
-  // Details, and no more. `isStaff` above stays secretary/admin-only because it
-  // switches which VIEW renders (run sheet vs exhibitor results), not whether a
-  // mutation is offered.
+  // Details, and no more. The separate `isStaff` view flag below uses this same
+  // scoped result so cross-club staff receive the public results view.
   const canManageClass = canManageShowSurface({
     isSecretary,
     isAdmin,
@@ -101,6 +95,9 @@ const ClassDetailsPage: React.FC = () => {
     userWithRoles,
     clubId: parentShow?.clubId,
   });
+  // Cross-club staff must receive the released-results view rather than an
+  // empty RLS-limited run sheet.
+  const isStaff = canManageClass;
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;

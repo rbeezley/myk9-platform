@@ -80,23 +80,10 @@ export function countGates(source: string): number {
 type Allowance = { reason: string; count: number };
 
 const ALLOWED: Record<string, Allowance> = {
-  'pages/ClassDetailsPage/index.tsx': {
-    reason:
-      'Intentional global viewer classification: this boolean selects the secretary run-sheet ' +
-      'view versus the exhibitor results view; lifecycle controls and data queries use the ' +
-      'separate club-scoped canManageShowSurface predicate.',
-    count: 1,
-  },
   'pages/ClassDetailsPage/useClassDetailsData.ts': {
     reason:
       'Intentional global viewer classification selects the fallback public entry query for ' +
       'secretaries/admins; the staff query remains gated by the separate club-scoped predicate.',
-    count: 1,
-  },
-  'pages/ShowDetailsPage.tsx': {
-    reason:
-      'Scoped viewer classification is guarded by the explicit secretary scope predicate; the ' +
-      'global admin branch is limited to site-admin management access.',
     count: 1,
   },
   'components/notifications/MessageCenterPanel.tsx': {

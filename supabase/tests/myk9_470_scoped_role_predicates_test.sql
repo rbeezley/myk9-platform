@@ -91,7 +91,11 @@ VALUES
 INSERT INTO public.dogs (id, call_name, breed, owner_id)
 VALUES
   ('00000000-0000-0000-0000-000000470051', 'MYK9-470 Dog A', 'Labrador Retriever', '00000000-0000-0000-0000-000000470013'),
-  ('00000000-0000-0000-0000-000000470052', 'MYK9-470 Dog B', 'Labrador Retriever', '00000000-0000-0000-0000-000000470013');
+  ('00000000-0000-0000-0000-000000470052', 'MYK9-470 Dog B', 'Labrador Retriever', '00000000-0000-0000-0000-000000470013'),
+  -- MYK9-475: a SOFT-DELETED dog, same owner, entered in club A's show. It is reachable by both
+  -- the owner arm and the secretary arm, so it tests the deleted_at gate on each of them.
+  ('00000000-0000-0000-0000-000000470053', 'MYK9-470 Dog Gone', 'Labrador Retriever', '00000000-0000-0000-0000-000000470013');
+UPDATE public.dogs SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000470053';
 
 -- trg_entries_require_dog_registration (20260828210000) refuses an entry whose dog holds no
 -- registration for the trial's registry. Both shows here are AKC, and this test is about policy
@@ -102,7 +106,8 @@ SELECT d.id, 'AKC (American Kennel Club)', 'SR' || upper(substr(md5(d.id::text),
 FROM public.dogs d
 WHERE d.id IN (
   '00000000-0000-0000-0000-000000470051',
-  '00000000-0000-0000-0000-000000470052'
+  '00000000-0000-0000-0000-000000470052',
+  '00000000-0000-0000-0000-000000470053'
 )
 AND NOT EXISTS (
   SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
@@ -111,12 +116,14 @@ AND NOT EXISTS (
 INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, entry_status)
 VALUES
   ('00000000-0000-0000-0000-000000470061', '00000000-0000-0000-0000-000000470051', '00000000-0000-0000-0000-000000470041', '00000000-0000-0000-0000-000000470021', '00000000-0000-0000-0000-000000470031', 'confirmed'),
-  ('00000000-0000-0000-0000-000000470062', '00000000-0000-0000-0000-000000470052', '00000000-0000-0000-0000-000000470042', '00000000-0000-0000-0000-000000470022', '00000000-0000-0000-0000-000000470032', 'confirmed');
+  ('00000000-0000-0000-0000-000000470062', '00000000-0000-0000-0000-000000470052', '00000000-0000-0000-0000-000000470042', '00000000-0000-0000-0000-000000470022', '00000000-0000-0000-0000-000000470032', 'confirmed'),
+  ('00000000-0000-0000-0000-000000470063', '00000000-0000-0000-0000-000000470053', '00000000-0000-0000-0000-000000470041', '00000000-0000-0000-0000-000000470021', '00000000-0000-0000-0000-000000470031', 'confirmed');
 
 INSERT INTO public.vaccinations (id, dog_id, vaccine_name, date_administered)
 VALUES
   ('00000000-0000-0000-0000-000000470071', '00000000-0000-0000-0000-000000470051', 'Rabies', current_date),
-  ('00000000-0000-0000-0000-000000470072', '00000000-0000-0000-0000-000000470052', 'Rabies', current_date);
+  ('00000000-0000-0000-0000-000000470072', '00000000-0000-0000-0000-000000470052', 'Rabies', current_date),
+  ('00000000-0000-0000-0000-000000470073', '00000000-0000-0000-0000-000000470053', 'Rabies', current_date);
 
 INSERT INTO public.result_submissions (id, show_id, organization, sport_type, submitted_at, status)
 VALUES
@@ -141,6 +148,7 @@ DECLARE
   owner uuid := '00000000-0000-0000-0000-000000470103';
   dog_a uuid := '00000000-0000-0000-0000-000000470051';
   dog_b uuid := '00000000-0000-0000-0000-000000470052';
+  dog_gone uuid := '00000000-0000-0000-0000-000000470053';
   show_a uuid := '00000000-0000-0000-0000-000000470021';
   show_b uuid := '00000000-0000-0000-0000-000000470022';
   entry_b uuid := '00000000-0000-0000-0000-000000470062';
@@ -210,6 +218,16 @@ BEGIN
   SELECT count(*) INTO n FROM public.vaccinations WHERE dog_id = dog_b;
   IF n <> 0 THEN
     RAISE EXCEPTION 'FAIL club A secretary read % vaccination row(s) for a dog entered only in club B''s show', n;
+  END IF;
+
+  -- MYK9-475: dog_gone IS entered in club A's show, so the secretary arm reaches it on show
+  -- scope alone. The dog is soft-deleted, and dogs_select hides a soft-deleted dog from every
+  -- caller, so its vaccinations must be hidden too. The assertion directly above is the
+  -- positive control for this arm.
+  SELECT count(*) INTO n FROM public.vaccinations WHERE dog_id = dog_gone;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL club A secretary read % vaccination row(s) for a SOFT-DELETED dog '
+      'entered in their own show — the deleted_at gate must cover the secretary arm too', n;
   END IF;
 
   -- result_submissions
@@ -300,9 +318,17 @@ BEGIN
     RAISE EXCEPTION 'FAIL owner lost their own dogs'' vaccinations (got %, want 2)', n;
   END IF;
 
+  -- MYK9-475: and the owner arm is gated the same way. dogs_select denies a soft-deleted dog to
+  -- EVERY caller including its owner, so the owner arm must not be the one exception. The
+  -- 2-row assertion directly above is the positive control.
+  SELECT count(*) INTO n FROM public.vaccinations WHERE dog_id = dog_gone;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL owner read % vaccination row(s) for their own SOFT-DELETED dog', n;
+  END IF;
+
   RESET ROLE;
 
-  RAISE NOTICE 'PASS MYK9-470 scoped role predicates: a club secretary reaches only their own club''s vaccinations, result submissions, nationals scores and offline scoring, while the dog owner keeps both of theirs';
+  RAISE NOTICE 'PASS MYK9-470/475 scoped role predicates: a club secretary reaches only their own club''s vaccinations, result submissions, nationals scores and offline scoring; a soft-deleted dog''s vaccinations are hidden from BOTH the secretary and the owner arm; and the dog owner keeps both of their live dogs';
 END;
 $$;
 

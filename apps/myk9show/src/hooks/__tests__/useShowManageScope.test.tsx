@@ -166,10 +166,38 @@ describe('useShowManageScope', () => {
       // the wrong club for a frame.
       const result = setup({
         auth: viewer('secretary'),
-        read: showRead({ data: { id: 'other-show', clubId: OWNING_CLUB }, isPlaceholderData: true }),
+        read: showRead({
+          data: { id: 'other-show', clubId: OWNING_CLUB },
+          isPlaceholderData: true,
+        }),
       });
 
       expect(result.current).toMatchObject({ status: 'resolving', canManage: false });
+    });
+
+    it('treats an OFFLINE-PAUSED read as unavailable, not as a spinner', () => {
+      // react-query pauses rather than errors when offline: status 'pending',
+      // fetchStatus 'paused', so `isLoading` is FALSE and no error is set. The
+      // resolver must not read that as "still loading" and hold forever — the
+      // honest answer is that ownership cannot be verified.
+      const result = setup({
+        auth: viewer('secretary'),
+        read: showRead({ data: undefined, isLoading: false }),
+      });
+
+      expect(result.current).toMatchObject({ status: 'unavailable', canManage: false });
+    });
+
+    it('still resolves offline from the replicated store when the show is cached', () => {
+      // The offline-durable path: a paused network read is irrelevant because
+      // the replicated store already answers.
+      const result = setup({
+        auth: viewer('secretary'),
+        storedShows: [{ id: SHOW_ID, clubId: OWNING_CLUB }],
+        read: showRead({ data: undefined, isLoading: false }),
+      });
+
+      expect(result.current).toMatchObject({ status: 'resolved', canManage: true });
     });
 
     it('reports UNAVAILABLE when the read settles with no show', () => {

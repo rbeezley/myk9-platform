@@ -51,20 +51,28 @@ describe('shared webhook authentication contracts', () => {
    * swept, so a new `secret === x` anywhere under supabase/functions fails here rather than
    * waiting for someone to notice it.
    *
-   * Deliberately narrow on the right-hand side: the match requires an identifier whose NAME
-   * says secret/token/key, which is what makes a false positive unlikely and a real one
-   * unmissable. Comparing such a value to a literal, to undefined/null, or to a `.length` is
-   * not the defect, so those are excluded.
+   * The signal is an identifier whose NAME says secret/token/key on EITHER side, which is what
+   * makes a false positive unlikely and a real one unmissable. Comparing such a value to a
+   * literal, to undefined/null, or to a `.length` is not the defect, so those are excluded.
+   *
+   * This guard has been wrong twice, both times by matching less than it claimed, so treat any
+   * edit to the pattern as requiring a fresh mutation check in BOTH operand orders:
+   *
+   *  1. The first draft required a character BEFORE the suffix
+   *     (`[A-Za-z_$][\w$]*(?:[Ss]ecret|…)`), so it could not match a bare identifier named
+   *     exactly `token` — the very line it was written to catch. Found only by reintroducing
+   *     `token !== supabaseServiceKey` and watching the test still pass.
+   *  2. The second draft matched the secret-like name on the LEFT only, so `candidate !==
+   *     serviceRoleKey` would have slipped through. Found by Codex review of 6921f74f1.
    */
   it('never compares a secret, token or key with === or !== anywhere under functions/', () => {
     const offenders: string[] = [];
-    // `[\w$]*` before the suffix must be ZERO-or-more, not one-or-more. A first draft used
-    // `[A-Za-z_$][\w$]*(?:…)`, which requires a character BEFORE the suffix and so could not
-    // match a bare identifier named exactly `token`, `secret` or `key` — i.e. it missed the very
-    // line it was written to catch. Confirmed by re-introducing `token !== supabaseServiceKey`
-    // and watching this test still pass, which is the only reason the bug was found.
-    const pattern =
-      /\b([\w$]*(?:[Ss]ecret|[Tt]oken|[Kk]ey))\b\s*(?:===|!==)\s*([A-Za-z_$][\w$.]*)/g;
+    // Match ANY identifier comparison, then decide from the operands. Deciding afterwards is
+    // what makes operand order irrelevant — a single regex with the name-shape baked into one
+    // side is how draft 2 went wrong.
+    const comparison = /\b([A-Za-z_$][\w$.]*)\s*(===|!==)\s*([A-Za-z_$][\w$.]*)/g;
+    const secretLike = /(?:[Ss]ecret|[Tt]oken|[Kk]ey)$/;
+    const notASecret = /^(undefined|null|true|false)$/;
 
     for (const [path, source] of edgeFunctionSources()) {
       // Strip comments so the explanatory notes that quote the old expression — including the
@@ -72,9 +80,10 @@ describe('shared webhook authentication contracts', () => {
       // register as code. That confusion is exactly how a deployed-bundle grep reported the
       // MYK9-404 fix as absent when it was present.
       const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-      for (const [match, left, right] of code.matchAll(pattern)) {
-        if (/^(undefined|null|true|false)$/.test(right)) continue;
-        if (/\.length$/.test(right)) continue;
+      for (const [match, left, , right] of code.matchAll(comparison)) {
+        const sides = [left, right];
+        if (!sides.some(side => secretLike.test(side.split('.').pop() ?? side))) continue;
+        if (sides.some(side => notASecret.test(side) || /\.length$/.test(side))) continue;
         offenders.push(`${path}: ${match.trim()}`);
       }
     }

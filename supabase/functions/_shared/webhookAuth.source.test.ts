@@ -7,21 +7,39 @@ const pushAuth = readFileSync(resolve(__dirname, 'pushWebhookAuth.ts'), 'utf8');
 const functionSecret = readFileSync(resolve(__dirname, 'functionSecret.ts'), 'utf8');
 const resendWebhook = readFileSync(resolve(__dirname, '../resend-webhook/index.ts'), 'utf8');
 
-/** Every non-test .ts under supabase/functions, as [repo-relative path, source]. */
+/**
+ * This repo has TWO edge-function trees, and a sweep over one of them is a sweep that misses
+ * every Stripe and cron function:
+ *
+ *   supabase/functions/                 — admin, email, push, askq, passcode, packets
+ *   apps/myk9show/supabase/functions/   — stripe-*, cron-*, decline-waitlist-offer
+ *
+ * The first version of the sweep below walked only the root tree. Caught by Codex review of
+ * 608504d41. Both roots are declared here and their contents are counted in a known-answer
+ * check, so a wrong or renamed path fails loudly instead of quietly scanning nothing.
+ */
+const EDGE_FUNCTION_ROOTS: readonly string[] = [
+  resolve(__dirname, '..'),
+  resolve(__dirname, '../../../apps/myk9show/supabase/functions'),
+];
+
+/** Every non-test .ts under either edge-function tree, as [display path, source]. */
 function edgeFunctionSources(): [string, string][] {
-  const root = resolve(__dirname, '..');
   const out: [string, string][] = [];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir)) {
-      const full = resolve(dir, entry);
-      if (statSync(full).isDirectory()) {
-        walk(full);
-      } else if (entry.endsWith('.ts') && !/\.(test|source\.test)\.ts$/.test(entry)) {
-        out.push([full.slice(root.length + 1), readFileSync(full, 'utf8')]);
+  for (const root of EDGE_FUNCTION_ROOTS) {
+    const label = root.includes('apps/myk9show') ? 'apps/myk9show' : 'root';
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = resolve(dir, entry);
+        if (statSync(full).isDirectory()) {
+          walk(full);
+        } else if (entry.endsWith('.ts') && !/\.(test|source\.test)\.ts$/.test(entry)) {
+          out.push([`${label}:${full.slice(root.length + 1)}`, readFileSync(full, 'utf8')]);
+        }
       }
-    }
-  };
-  walk(root);
+    };
+    walk(root);
+  }
   return out;
 }
 
@@ -65,12 +83,31 @@ describe('shared webhook authentication contracts', () => {
    *  2. The second draft matched the secret-like name on the LEFT only, so `candidate !==
    *     serviceRoleKey` would have slipped through. Found by Codex review of 6921f74f1.
    */
+  it('sees both edge-function trees', () => {
+    // Known-answer check for the sweep itself. Without it, a renamed directory or a bad
+    // relative path makes every assertion below pass by scanning nothing — an unverified
+    // harness reports its own bugs as findings about the code.
+    const sources = edgeFunctionSources();
+    const roots = new Set(sources.map(([path]) => path.split(':')[0]));
+    expect([...roots].sort(), 'both edge-function trees must be scanned').toEqual([
+      'apps/myk9show',
+      'root',
+    ]);
+    // Sanity floors, not exact counts: this must not become a file-count treadmill.
+    expect(sources.filter(([p]) => p.startsWith('root:')).length).toBeGreaterThan(50);
+    expect(sources.filter(([p]) => p.startsWith('apps/myk9show:')).length).toBeGreaterThan(10);
+    // And the tree Codex found missing must actually contain the Stripe functions.
+    expect(sources.some(([p]) => p.startsWith('apps/myk9show:stripe-webhook/'))).toBe(true);
+  });
+
   it('never compares a secret, token or key with === or !== anywhere under functions/', () => {
     const offenders: string[] = [];
     // Match ANY identifier comparison, then decide from the operands. Deciding afterwards is
     // what makes operand order irrelevant — a single regex with the name-shape baked into one
-    // side is how draft 2 went wrong.
-    const comparison = /\b([A-Za-z_$][\w$.]*)\s*(===|!==)\s*([A-Za-z_$][\w$.]*)/g;
+    // side is how draft 2 went wrong. Optional parens so `(token) !== serviceRoleKey` is not a
+    // way past it (draft 3, also Codex).
+    const comparison =
+      /\(?\s*\b([A-Za-z_$][\w$.]*)\s*\)?\s*(===|!==)\s*\(?\s*([A-Za-z_$][\w$.]*)\b\s*\)?/g;
     const secretLike = /(?:[Ss]ecret|[Tt]oken|[Kk]ey)$/;
     const notASecret = /^(undefined|null|true|false)$/;
 

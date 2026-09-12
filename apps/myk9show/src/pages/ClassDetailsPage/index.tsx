@@ -100,6 +100,7 @@ const ClassDetailsPage: React.FC = () => {
     hasRole,
     userWithRoles,
     clubId: parentShow?.clubId,
+    showId: parentShow?.id,
   });
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;

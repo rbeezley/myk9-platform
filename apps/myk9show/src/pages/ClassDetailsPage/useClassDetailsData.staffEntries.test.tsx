@@ -60,7 +60,12 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('useClassDetailsData staff entry source', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.useAuthContext.mockReturnValue({ isSecretary: true, isAdmin: false });
+    mocks.useAuthContext.mockReturnValue({
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+      userWithRoles: { scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }] },
+    });
     mocks.useClassStoreCompat.mockReturnValue({
       classes: [currentClass],
       updateClass: vi.fn(),
@@ -73,7 +78,9 @@ describe('useClassDetailsData staff entry source', () => {
       trials: [{ id: 'trial-1', showId: 'show-1' }],
       trialClasses: { 'trial-1': [currentClass] },
     });
-    mocks.useShowStore.mockReturnValue({ shows: [{ id: 'show-1', name: 'Heartland' }] });
+    mocks.useShowStore.mockReturnValue({
+      shows: [{ id: 'show-1', name: 'Heartland', clubId: 'club-1' }],
+    });
     mocks.useDogStoreCompat.mockReturnValue({ dogs: [] });
     mocks.useEntriesByClass.mockReturnValue([]);
     mocks.useSecretaryShowEntriesQuery.mockReturnValue({

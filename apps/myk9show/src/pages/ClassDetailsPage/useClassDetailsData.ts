@@ -169,14 +169,15 @@ export function useClassDetailsData() {
     : parentTrial
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
+  const resolvedShowId = showId ?? parentShow?.id ?? parentTrial?.showId ?? '';
   const canManageShow = canManageShowSurface({
     isSecretary,
     isAdmin,
     hasRole,
     userWithRoles,
     clubId: parentShow?.clubId,
+    showId: resolvedShowId || undefined,
   });
-  const resolvedShowId = showId ?? parentShow?.id ?? parentTrial?.showId ?? '';
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
     resolvedShowId,

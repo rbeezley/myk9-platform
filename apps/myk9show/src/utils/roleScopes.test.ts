@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   canManageShowSurface,
+  canManageShowAsSecretaryOrAdmin,
   filterManagedShows,
   hasScopedClubRole,
   hasScopedShowRole,
@@ -114,6 +115,32 @@ describe('hasScopedShowRole', () => {
   });
 });
 
+describe('canManageShowAsSecretaryOrAdmin', () => {
+  it('accepts a secretary assigned directly to this show', () => {
+    expect(
+      canManageShowAsSecretaryOrAdmin({
+        isSecretary: true,
+        isAdmin: false,
+        userWithRoles: buildUser([showScope]),
+        clubId: 'club-1',
+        showId: 'show-1',
+      })
+    ).toBe(true);
+  });
+
+  it('does not accept a secretary assigned to another show', () => {
+    expect(
+      canManageShowAsSecretaryOrAdmin({
+        isSecretary: true,
+        isAdmin: false,
+        userWithRoles: buildUser([showScope]),
+        clubId: 'club-1',
+        showId: 'show-2',
+      })
+    ).toBe(false);
+  });
+});
+
 const secretaryClubScope: RoleScope = {
   userId: 'user-1',
   roleId: UserRole.SECRETARY,
@@ -167,9 +194,7 @@ describe('canManageShowSurface', () => {
     ).toBe(false);
   });
 
-  // A SHOW-scoped secretary grant does not satisfy is_trial_secretary either:
-  // that predicate requires `ur.show_id IS NULL`.
-  it('denies a show-scoped secretary grant on the club check', () => {
+  it('grants a secretary assigned directly to this show', () => {
     expect(
       canManageShowSurface({
         isSecretary: true,
@@ -177,8 +202,9 @@ describe('canManageShowSurface', () => {
         hasRole: holdsNothing,
         userWithRoles: buildUser([showScope]),
         clubId: 'club-1',
+        showId: 'show-1',
       })
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('grants a site admin regardless of club', () => {

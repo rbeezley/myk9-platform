@@ -30,7 +30,7 @@ import {
   ShowCalendarSkeleton,
 } from '@/components/common/SkeletonLoaders';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
-import { canManageShowSurface, managedClubIds } from '@/utils/roleScopes';
+import { canManageShowSurface } from '@/utils/roleScopes';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -57,16 +57,18 @@ import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers'
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { userWithRoles: authUser, isSecretary, isAdmin, hasRole } = useAuthContext();
-  const managedClubs = managedClubIds({ isAdmin, userWithRoles: authUser });
-  const canManageShows = managedClubs === null || managedClubs.size > 0;
+  const canManageShows = Boolean(
+    authUser && [isAdmin, isSecretary, hasRole('club_admin')].some(Boolean)
+  );
   const canManageShow = useCallback(
-    (show: Pick<Show, 'clubId'>) =>
+    (show: Pick<Show, 'id' | 'clubId'>) =>
       canManageShowSurface({
         isSecretary,
         isAdmin,
         hasRole,
         userWithRoles: authUser,
         clubId: show.clubId ?? undefined,
+        showId: show.id,
       }),
     [authUser, hasRole, isAdmin, isSecretary]
   );

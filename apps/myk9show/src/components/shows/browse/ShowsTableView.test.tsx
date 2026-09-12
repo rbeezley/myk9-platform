@@ -70,7 +70,7 @@ describe('ShowsTableView columns (MYK9-427)', () => {
     localStorage.removeItem('datatable-cols-showsBrowse');
     render(
       <MemoryRouter>
-        <ShowsTableView shows={[makeEnhancedShow()]} />
+        <ShowsTableView shows={[makeEnhancedShow()]} canManageShow={() => false} />
       </MemoryRouter>
     );
 
@@ -84,7 +84,7 @@ describe('ShowsTableView columns (MYK9-427)', () => {
     localStorage.removeItem('datatable-cols-showsBrowse');
     render(
       <MemoryRouter>
-        <ShowsTableView shows={[makeEnhancedShow()]} />
+        <ShowsTableView shows={[makeEnhancedShow()]} canManageShow={() => false} />
       </MemoryRouter>
     );
 

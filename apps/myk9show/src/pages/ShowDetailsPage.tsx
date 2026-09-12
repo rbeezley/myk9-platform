@@ -195,6 +195,7 @@ const ShowDetailsPage: React.FC = () => {
       isAdmin,
       userWithRoles,
       clubId: actualCurrentShow?.clubId,
+      showId: actualCurrentShow?.id,
     }),
     isClubAdmin:
       hasRole('club_admin') &&

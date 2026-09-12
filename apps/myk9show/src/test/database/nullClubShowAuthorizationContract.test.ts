@@ -116,6 +116,12 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   'get_visible_person_roles -> is_trial_secretary',
   'get_visible_person_ids_by_role -> is_club_admin',
   'get_visible_person_ids_by_role -> is_trial_secretary',
+  // Guarded by s.club_id IS NOT NULL in 20260912171500 (MYK9-470). The helper is the
+  // secretary-only counterpart of manageable_show_ids(), and carries the same idiom:
+  //   WHERE (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
+  //      OR (SELECT public.is_site_admin())
+  // so a club-less show reaches nobody but a site admin.
+  'trial_secretary_show_ids -> is_trial_secretary',
 ];
 
 describe('club-scoped authorization helpers are never handed a bare club_id column', () => {

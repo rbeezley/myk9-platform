@@ -6,7 +6,6 @@ import { resolveShowAudience, type ShowAudienceInput } from '../ShowDetailsPage.
 function input(overrides: Partial<ShowAudienceInput> = {}): ShowAudienceInput {
   return {
     isManagementSection: false,
-    isClubAdmin: false,
     canManageShow: false,
     isManagementStaff: false,
     isAuthenticated: false,
@@ -48,7 +47,7 @@ describe('resolveShowAudience', () => {
   it('a club admin sees the exhibitor view, not management or public', () => {
     // club_admin is staff enough to skip the public landing, but is NOT
     // canManageShow — so it lands on the exhibitor view.
-    expect(resolveShowAudience(input({ isClubAdmin: true }))).toBe('exhibitor');
+    expect(resolveShowAudience(input({ canManageShow: true }))).toBe('exhibitor');
   });
 
   it('an entered exhibitor (authenticated, has entries) sees the exhibitor view', () => {

@@ -29,7 +29,7 @@ import type { ClassEntryDisplay } from './types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import type { SecretaryEntry } from '@/services/database/entries';
-import { canManageShowSurface } from '@/utils/roleScopes';
+import { canManageShowSurface, isSecretaryOrAdminViewer } from '@/utils/roleScopes';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
@@ -113,6 +113,7 @@ export function useClassDetailsData() {
   }>();
   const location = useLocation();
   const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const isStaffViewer = isSecretaryOrAdminViewer(isSecretary, isAdmin);
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -180,7 +181,7 @@ export function useClassDetailsData() {
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
     resolvedShowId,
-    canManageShow && Boolean(classId && resolvedShowId)
+    canManageShow && isStaffViewer && Boolean(classId && resolvedShowId)
   );
 
   // --- Entry sources ---
@@ -189,7 +190,7 @@ export function useClassDetailsData() {
     entries: dbEntries,
     isLoading: dbEntriesLoading,
     error: dbEntriesError,
-  } = useClassEntriesWithQuery(classId || '', !!classId && !canManageShow);
+  } = useClassEntriesWithQuery(classId || '', !!classId && !isStaffViewer);
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
   const localEntries = useEntriesByClass(classId || '');
@@ -204,7 +205,7 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(classId || undefined, !canManageShow);
+  } = useClassEntriesRaw(classId || undefined, !isStaffViewer);
 
   const staffClassEntries = useMemo(
     () =>
@@ -213,7 +214,7 @@ export function useClassDetailsData() {
         .map(secretaryEntryToRawRow),
     [classId, staffShowEntries.data]
   );
-  const effectiveRawEntries = canManageShow ? staffClassEntries : dbRawEntries;
+  const effectiveRawEntries = isStaffViewer ? staffClassEntries : dbRawEntries;
   const staffEntriesError = staffShowEntries.isError
     ? staffShowEntries.error instanceof Error
       ? staffShowEntries.error.message
@@ -303,10 +304,10 @@ export function useClassDetailsData() {
     localRawEntries,
     dbRawEntries: effectiveRawEntries,
     classEntries,
-    entriesLoading: canManageShow
+    entriesLoading: isStaffViewer
       ? staffShowEntries.isLoading
       : dbEntriesLoading || dbRawEntriesLoading,
-    entriesError: canManageShow
+    entriesError: isStaffViewer
       ? staffEntriesError
       : (dbRawEntriesError?.message ?? dbEntriesError),
 

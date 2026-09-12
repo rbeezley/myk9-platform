@@ -11,7 +11,7 @@ import { useShowLandingData } from '@/hooks/useShowLandingData';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageGate } from './ShowDetailsPage.viewer';
-import { canManageShowAsSecretaryOrAdmin, hasScopedClubRole } from '@/utils/roleScopes';
+import { hasScopedClubRole } from '@/utils/roleScopes';
 import { UserRole } from '@/types/auth-types';
 import { useTrialStore } from '@/store/trialStore';
 import { resolveEntryClassInventory } from './ShowDetailsPage.entryInventory';
@@ -190,15 +190,11 @@ const ShowDetailsPage: React.FC = () => {
     isManagementSection,
     forcePublicPreview: searchParams.get('preview') === 'public',
     canManageShow,
-    isManagementStaff: canManageShowAsSecretaryOrAdmin({
-      isSecretary,
-      isAdmin,
-      userWithRoles,
-      clubId: actualCurrentShow?.clubId,
-    }),
-    isClubAdmin:
-      hasRole('club_admin') &&
-      hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, actualCurrentShow?.clubId),
+    isManagementStaff: isAdmin
+      ? canManageShow
+      : isSecretary &&
+        canManageShow &&
+        hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId),
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,

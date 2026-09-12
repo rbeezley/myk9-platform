@@ -83,22 +83,6 @@ export function canManageShowSurface({
   );
 }
 
-/** Secretary/admin management shell access for a specific show's owning club. */
-export function canManageShowAsSecretaryOrAdmin({
-  isSecretary,
-  isAdmin,
-  userWithRoles,
-  clubId,
-}: Pick<ShowSurfaceViewer, 'isSecretary' | 'isAdmin' | 'userWithRoles' | 'clubId'>): boolean {
-  return canManageShowSurface({
-    isSecretary,
-    isAdmin,
-    hasRole: () => false,
-    userWithRoles,
-    clubId,
-  });
-}
-
 /** Global viewer classification used only to choose staff vs exhibitor views. */
 export function isSecretaryOrAdminViewer(isSecretary: boolean, isAdmin: boolean): boolean {
   return [isSecretary, isAdmin].some(Boolean);

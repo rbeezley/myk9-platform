@@ -19,7 +19,6 @@ export interface ShowAudienceInput {
   forcePublicPreview?: boolean;
   canManageShow: boolean;
   isManagementStaff: boolean;
-  isClubAdmin: boolean;
   /** Whether a user is signed in at all. */
   isAuthenticated: boolean;
   /** The my-entries query is still resolving — can't yet tell public from exhibitor. */
@@ -32,7 +31,6 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
     isManagementSection,
     forcePublicPreview,
     canManageShow,
-    isClubAdmin,
     isManagementStaff,
     isAuthenticated,
     userEntriesLoading,
@@ -43,7 +41,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
 
   // Staff (secretary / admin / club_admin) and management-section URLs always
   // reach the non-public UI — they never see the marketing landing.
-  const isStaff = canManageShow || isClubAdmin;
+  const isStaff = canManageShow;
   if (!isManagementSection && !isStaff) {
     // Defer while an authenticated visitor's entries resolve, so we don't flash
     // the public landing before discovering they're an entered exhibitor.

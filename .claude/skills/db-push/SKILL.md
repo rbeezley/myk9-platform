@@ -200,8 +200,9 @@ warnings.
 the **applied** database, so it can only be refreshed after the push lands. Do it
 in the same PR or the very next one, whether or not client code needs the new
 object yet — skipping it "because nothing calls it" is exactly how the file fell
-28 objects behind the schema (MYK9-484). Nothing in CI detects the drift; the
-report-only check is MYK9-488.
+28 objects behind the schema (MYK9-484). CI's `Supabase types drift
+(report-only)` job (`pnpm qa:types-drift`, MYK9-488) catches a missed regen and
+names the objects in its step summary, but it never blocks.
 
 ```bash
 cd packages/supabase && SUPABASE_PROJECT_ID=sojmvhhwsjxmfistvzbe pnpm generate-types

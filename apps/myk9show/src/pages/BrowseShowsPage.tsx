@@ -57,9 +57,6 @@ import { buildChipFilters, getDefaultViewMode } from './browseShowsPage.helpers'
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { userWithRoles: authUser, isSecretary, isAdmin, hasRole } = useAuthContext();
-  const canManageShows = Boolean(
-    authUser && [isAdmin, isSecretary, hasRole('club_admin')].some(Boolean)
-  );
   const canManageShow = useCallback(
     (show: Pick<Show, 'id' | 'clubId'>) =>
       canManageShowSurface({
@@ -68,7 +65,6 @@ const BrowseShowsPage: React.FC = () => {
         hasRole,
         userWithRoles: authUser,
         clubId: show.clubId ?? undefined,
-        showId: show.id,
       }),
     [authUser, hasRole, isAdmin, isSecretary]
   );
@@ -391,12 +387,10 @@ const BrowseShowsPage: React.FC = () => {
           <ShowsTableView
             shows={enhancedShows}
             canManageShow={canManageShow}
-            {...(canManageShows && {
-              isSelected: bulkSelection.isSelected,
-              onToggleSelect: bulkSelection.toggleItem,
-              isAllSelected: bulkSelection.isAllSelected,
-              onToggleAll: bulkSelection.toggleAll,
-            })}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
+            isAllSelected={bulkSelection.isAllSelected}
+            onToggleAll={bulkSelection.toggleAll}
           />
         );
 
@@ -410,10 +404,8 @@ const BrowseShowsPage: React.FC = () => {
             selectedTab={selectedTab}
             user={user}
             origin={origin}
-            {...(canManageShows && {
-              isSelected: bulkSelection.isSelected,
-              onToggleSelect: bulkSelection.toggleItem,
-            })}
+            isSelected={bulkSelection.isSelected}
+            onToggleSelect={bulkSelection.toggleItem}
           />
         );
     }
@@ -469,13 +461,11 @@ const BrowseShowsPage: React.FC = () => {
           />
 
           {/* Bulk Actions Bar — secretary/admin only */}
-          {canManageShows && (
-            <ShowBulkActionsBar
-              selectedShows={bulkSelection.selectedItems}
-              onClearSelection={bulkSelection.clearSelection}
-              onBulkComplete={handleBulkComplete}
-            />
-          )}
+          <ShowBulkActionsBar
+            selectedShows={bulkSelection.selectedItems}
+            onClearSelection={bulkSelection.clearSelection}
+            onBulkComplete={handleBulkComplete}
+          />
 
           {/* Month scrubber — counts reflect every filter except the month, so
               the tiles answer "when?" for the list the visitor is looking at. */}

@@ -176,7 +176,6 @@ export function useClassDetailsData() {
     hasRole,
     userWithRoles,
     clubId: parentShow?.clubId,
-    showId: resolvedShowId || undefined,
   });
 
   const staffShowEntries = useSecretaryShowEntriesQuery(

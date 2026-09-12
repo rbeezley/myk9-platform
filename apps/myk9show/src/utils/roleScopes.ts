@@ -42,8 +42,6 @@ export interface ShowSurfaceViewer {
   userWithRoles: UserWithRoles | null | undefined;
   /** Club that owns the show this surface belongs to. */
   clubId: string | undefined;
-  /** Show identity, when a role may be assigned to one show only. */
-  showId?: string;
 }
 
 /**
@@ -73,19 +71,13 @@ export function canManageShowSurface({
   hasRole,
   userWithRoles,
   clubId,
-  showId,
 }: ShowSurfaceViewer): boolean {
   if (isAdmin) return true;
   // The club id is unknown while the show is still resolving. Deny by default:
   // a control that flashes in and then disappears is the same mistake-anxiety
   // bug as never gating it at all.
-  if (
-    isSecretary &&
-    (hasScopedShowRole(userWithRoles, UserRole.SECRETARY, showId) ||
-      (!!clubId && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, clubId)))
-  )
-    return true;
   if (!clubId) return false;
+  if (isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, clubId)) return true;
   return (
     hasRole(UserRole.CLUB_ADMIN) && hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, clubId)
   );
@@ -97,17 +89,19 @@ export function canManageShowAsSecretaryOrAdmin({
   isAdmin,
   userWithRoles,
   clubId,
-  showId,
-}: Pick<
-  ShowSurfaceViewer,
-  'isSecretary' | 'isAdmin' | 'userWithRoles' | 'clubId' | 'showId'
->): boolean {
-  if (isAdmin) return true;
-  return (
-    isSecretary &&
-    (hasScopedShowRole(userWithRoles, UserRole.SECRETARY, showId) ||
-      (!!clubId && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, clubId)))
-  );
+}: Pick<ShowSurfaceViewer, 'isSecretary' | 'isAdmin' | 'userWithRoles' | 'clubId'>): boolean {
+  return canManageShowSurface({
+    isSecretary,
+    isAdmin,
+    hasRole: () => false,
+    userWithRoles,
+    clubId,
+  });
+}
+
+/** Global viewer classification used only to choose staff vs exhibitor views. */
+export function isSecretaryOrAdminViewer(isSecretary: boolean, isAdmin: boolean): boolean {
+  return [isSecretary, isAdmin].some(Boolean);
 }
 
 /** The staff roles that carry show-management rights over their club's shows. */

@@ -16,7 +16,7 @@ import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { canManageShowSurface } from '@/utils/roleScopes';
+import { canManageShowSurface, isSecretaryOrAdminViewer } from '@/utils/roleScopes';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { ClassCompactHeader } from '@/components/classes/ClassCompactHeader';
@@ -84,7 +84,7 @@ const ClassDetailsPage: React.FC = () => {
   // released — the replication store is cold/stale for post-show or anonymous
   // sessions (mirrors the TV display #753 fix). Secretary/at-show scoring keeps
   // using the live replication store below.
-  const isStaff = [isSecretary, isAdmin].some(Boolean);
+  const isStaff = isSecretaryOrAdminViewer(isSecretary, isAdmin);
 
   // Operational gate for this page's class-lifecycle controls (Edit Class,
   // Delete Class). This route is PUBLIC — exhibitors land here from a show
@@ -100,7 +100,6 @@ const ClassDetailsPage: React.FC = () => {
     hasRole,
     userWithRoles,
     clubId: parentShow?.clubId,
-    showId: parentShow?.id,
   });
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;

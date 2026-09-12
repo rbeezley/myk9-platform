@@ -114,24 +114,17 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   if (authLoading || rbacLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
-  const isSecretary = hasRole(UserRole.SECRETARY);
-  const isSiteAdmin = hasRole(UserRole.SITE_ADMIN);
-
-  // Secretary and site admin are authorized without needing show data.
-  if (isSecretary || isSiteAdmin) {
-    return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
-  }
-
-  // Club admin check requires the show's clubId to enforce club-scoping.
-  // Wait for shows to load before deciding — avoids a spurious redirect.
   if (showsLoading) return null;
 
   const show = shows.find(s => s.id === id);
-  const isClubAdmin =
-    hasRole(UserRole.CLUB_ADMIN) &&
-    hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, show?.clubId);
+  const isAuthorized =
+    hasRole(UserRole.SITE_ADMIN) ||
+    (hasRole(UserRole.SECRETARY) &&
+      hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)) ||
+    (hasRole(UserRole.CLUB_ADMIN) &&
+      hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, show?.clubId));
 
-  if (!isClubAdmin) return <Navigate to={canonicalShowPath} replace />;
+  if (!isAuthorized) return <Navigate to={canonicalShowPath} replace />;
 
   // Show-management URLs live in the public show route tree, but once authorized
   // this surface is secretary work and should report with secretary context.

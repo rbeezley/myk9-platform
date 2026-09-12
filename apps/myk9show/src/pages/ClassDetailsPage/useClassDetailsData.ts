@@ -187,6 +187,7 @@ export function useClassDetailsData() {
     canManageShow && isStaffViewer && Boolean(classId && resolvedShowId)
   );
   const useStaffEntrySource = canManageShow && isStaffViewer;
+  const isStaffScopeResolving = isStaffViewer && !parentShow;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)
@@ -308,12 +309,16 @@ export function useClassDetailsData() {
     localRawEntries,
     dbRawEntries: effectiveRawEntries,
     classEntries,
-    entriesLoading: useStaffEntrySource
-      ? staffShowEntries.isLoading
-      : dbEntriesLoading || dbRawEntriesLoading,
-    entriesError: useStaffEntrySource
-      ? staffEntriesError
-      : (dbRawEntriesError?.message ?? dbEntriesError),
+    entriesLoading: isStaffScopeResolving
+      ? true
+      : useStaffEntrySource
+        ? staffShowEntries.isLoading
+        : dbEntriesLoading || dbRawEntriesLoading,
+    entriesError: isStaffScopeResolving
+      ? null
+      : useStaffEntrySource
+        ? staffEntriesError
+        : (dbRawEntriesError?.message ?? dbEntriesError),
 
     // Parent context
     parentTrial,

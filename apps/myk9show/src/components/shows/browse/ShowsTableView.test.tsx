@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import type { EnhancedShow } from '@/hooks/useBrowseShowsData';
 import { ShowsTableView } from './ShowsTableView';
 import { formatShowsTableDateRange, splitShowLocation } from './ShowsTableView.helpers';
@@ -73,7 +73,6 @@ describe('ShowsTableView columns (MYK9-427)', () => {
           shows={[makeEnhancedShow(), makeEnhancedShow({ id: 'show-2', name: 'Other Show' })]}
           canManageShow={show => show.id === 'show-1'}
           onToggleSelect={() => undefined}
-          onToggleAll={() => undefined}
         />
       </MemoryRouter>
     );
@@ -83,7 +82,7 @@ describe('ShowsTableView columns (MYK9-427)', () => {
       screen.getByRole('checkbox', { name: 'Select Heartland Scent Work Classic' })
     ).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Select Other Show' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all you manage' }));
+    expect(screen.getByText('Select all you manage')).toBeInTheDocument();
   });
 
   it('shows five columns by default — Organization and Status stay in the Columns menu', () => {

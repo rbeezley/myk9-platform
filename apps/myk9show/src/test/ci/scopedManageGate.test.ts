@@ -93,12 +93,6 @@ const ALLOWED: Record<string, Allowance> = {
       'secretaries/admins; the staff query remains gated by the separate club-scoped predicate.',
     count: 1,
   },
-  'pages/ShowDetailsPage.tsx': {
-    reason:
-      'Intentional global classification only for an already route-guarded management-section ' +
-      'URL; the canonical show surface still requires the scoped canManageShow predicate.',
-    count: 1,
-  },
   'components/notifications/MessageCenterPanel.tsx': {
     reason:
       'Genuinely global, verified: `staffShows` is built from `currentShowIds`, so the compose ' +

@@ -54,7 +54,7 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
-  const { user, userWithRoles, isSecretary, isAdmin, rbacLoading } = useAuthContext();
+  const { user, userWithRoles, isAdmin, rbacLoading } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -190,13 +190,8 @@ const ShowDetailsPage: React.FC = () => {
     isManagementSection,
     forcePublicPreview: searchParams.get('preview') === 'public',
     canManageShow,
-    isManagementStaff: isManagementSection
-      ? isAdmin || isSecretary
-      : isAdmin
-        ? canManageShow
-        : isSecretary &&
-          canManageShow &&
-          hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId),
+    isManagementStaff:
+      isAdmin || hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId),
     rbacLoading,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',

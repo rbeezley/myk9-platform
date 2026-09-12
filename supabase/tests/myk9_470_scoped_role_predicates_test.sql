@@ -79,6 +79,21 @@ VALUES
   ('00000000-0000-0000-0000-000000470051', 'MYK9-470 Dog A', 'Labrador Retriever', '00000000-0000-0000-0000-000000470013'),
   ('00000000-0000-0000-0000-000000470052', 'MYK9-470 Dog B', 'Labrador Retriever', '00000000-0000-0000-0000-000000470013');
 
+-- trg_entries_require_dog_registration (20260828210000) refuses an entry whose dog holds no
+-- registration for the trial's registry. Both shows here are AKC, and this test is about policy
+-- scope rather than registration rules, so give each dog an AKC number — the same idiom
+-- anon_tv_entry_soft_delete_test.sql uses.
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+SELECT d.id, 'AKC (American Kennel Club)', 'SR' || upper(substr(md5(d.id::text), 1, 8)), true
+FROM public.dogs d
+WHERE d.id IN (
+  '00000000-0000-0000-0000-000000470051',
+  '00000000-0000-0000-0000-000000470052'
+)
+AND NOT EXISTS (
+  SELECT 1 FROM public.dog_registrations r WHERE r.dog_id = d.id
+);
+
 INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, entry_status)
 VALUES
   ('00000000-0000-0000-0000-000000470061', '00000000-0000-0000-0000-000000470051', '00000000-0000-0000-0000-000000470041', '00000000-0000-0000-0000-000000470021', '00000000-0000-0000-0000-000000470031', 'confirmed'),

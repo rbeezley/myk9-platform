@@ -187,7 +187,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       for (const cls of sorted) {
         const level = cls.level || cls.className || 'Class';
         const element = cls.element || cls.className || 'Class';
-        const displayLabel = buildDisplayLabel(level, cls.section);
+        const displayLabel = buildDisplayLabel(level, cls.section, {
+          name: cls.className,
+          element: cls.element,
+        });
         const entry = {
           classId: cls.id,
           className: cls.className || '',

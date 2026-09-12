@@ -34,4 +34,43 @@ describe('buildDisplayLabel', () => {
     expect(buildDisplayLabel('Elite', 'A')).toBe('Elite A');
     expect(buildDisplayLabel('Elite', 'B')).toBe('Elite B');
   });
+  /**
+   * MYK9-489. The Heartland Saturday trial runs two Interior/Advanced classes,
+   * neither with a section: "Interior Advanced" and "Interior Advanced
+   * Preliminary". Built from level + section alone they render as two adjacent
+   * chips both reading "Advanced", so the exhibitor picking "the Advanced one"
+   * has even odds of entering the wrong class at $30 a go.
+   */
+  it('distinguishes two classes that share a level and have no section', () => {
+    const a = buildDisplayLabel('Advanced', undefined, {
+      name: 'Interior Advanced',
+      element: 'Interior',
+    });
+    const b = buildDisplayLabel('Advanced', undefined, {
+      name: 'Interior Advanced Preliminary',
+      element: 'Interior',
+    });
+
+    expect(a).toBe('Advanced');
+    expect(b).toBe('Advanced Preliminary');
+    expect(a).not.toBe(b);
+  });
+
+  it('adds nothing when the name only restates element, level and section', () => {
+    // The common case, and the reason the extra words must be derived rather
+    // than the name simply rendered: "Interior Novice B" would otherwise read
+    // back its own element and double its level and section.
+    expect(
+      buildDisplayLabel('Novice', 'B', { name: 'Interior Novice B', element: 'Interior' })
+    ).toBe('Novice B');
+  });
+
+  it('still returns undefined for a level-less class even when a name is given', () => {
+    expect(
+      buildDisplayLabel('Unknown', undefined, {
+        name: 'Detective Element Search',
+        element: 'Detective',
+      })
+    ).toBeUndefined();
+  });
 });

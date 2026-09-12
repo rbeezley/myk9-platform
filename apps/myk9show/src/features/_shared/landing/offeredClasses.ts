@@ -1,4 +1,5 @@
 import type { Show, ShowTrial } from '@/types/show-types';
+import { classNameExtra } from '../classLabel';
 
 /**
  * The offered-classes view of a show, grouped trial -> element -> level.
@@ -73,10 +74,6 @@ function elementLabel(cls: ClassLike): string | null {
   return clean(cls.element) ?? clean(cls.name);
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /**
  * The exhibitor-facing label for a class within its element group.
  *
@@ -93,18 +90,13 @@ function escapeRegExp(value: string): string {
  * nothing and is discarded, which is what keeps "Interior Novice A" and
  * "Interior Novice B" merged into one level with two sections rather than
  * splitting into two.
+ *
+ * The rule itself lives in `classLabel.ts` because the registration wizard's
+ * class chips need the same answer (MYK9-489) — those two screens are read
+ * minutes apart by the same exhibitor, so two rules would drift.
  */
 function levelLabel(cls: ClassLike, element: string, level: string): string {
-  const name = clean(cls.name);
-  if (!name) return level;
-
-  let rest = name;
-  for (const token of [element, level, clean(cls.section)]) {
-    if (!token) continue;
-    rest = rest.replace(new RegExp(`\\b${escapeRegExp(token)}\\b`, 'i'), ' ');
-  }
-
-  const extra = rest.replace(/\s+/g, ' ').trim();
+  const extra = classNameExtra(cls.name, element, level, cls.section);
   if (!extra) return level;
   return level ? `${level} ${extra}` : extra;
 }

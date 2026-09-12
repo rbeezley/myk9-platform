@@ -6,13 +6,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
     from: vi.fn(),
+    rpc: vi.fn(),
   },
 }));
 
 import { supabase } from '@/services/database/supabaseClient';
 import { useShowJudges } from '@/hooks/queries/useShowJudges';
 
-const mockFrom = vi.mocked(supabase.from);
+const mockRpc = vi.mocked(supabase.rpc);
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -37,27 +38,16 @@ describe('useShowJudges', () => {
   });
 
   it('deduplicates judges and sorts by name', async () => {
-    const mockData = [
-      {
-        person_id: 'p1',
-        people: { id: 'p1', first_name: 'Bob', last_name: 'Jones' },
-        classes: { trial_id: 't1', trials: { show_id: 'show-1' } },
-      },
-      {
-        person_id: 'p2',
-        people: { id: 'p2', first_name: 'Alice', last_name: 'Smith' },
-        classes: { trial_id: 't1', trials: { show_id: 'show-1' } },
-      },
-      {
-        person_id: 'p1',
-        people: { id: 'p1', first_name: 'Bob', last_name: 'Jones' },
-        classes: { trial_id: 't2', trials: { show_id: 'show-1' } },
-      },
-    ];
-
-    const mockEq = vi.fn().mockResolvedValue({ data: mockData, error: null });
-    const mockSelect = vi.fn().mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ select: mockSelect } as never);
+    // MYK9-474: rows now arrive from the get_show_judges RPC, flat, one per ASSIGNMENT — so the
+    // same judge repeats across classes and the hook must still collapse them.
+    mockRpc.mockResolvedValue({
+      data: [
+        { person_id: 'p1', first_name: 'Bob', last_name: 'Jones', class_id: 'c1' },
+        { person_id: 'p2', first_name: 'Alice', last_name: 'Smith', class_id: 'c1' },
+        { person_id: 'p1', first_name: 'Bob', last_name: 'Jones', class_id: 'c2' },
+      ],
+      error: null,
+    } as never);
 
     const { result } = renderHook(() => useShowJudges('show-1'), {
       wrapper: createWrapper(),
@@ -68,5 +58,22 @@ describe('useShowJudges', () => {
     expect(result.current.data).toHaveLength(2);
     expect(result.current.data![0].name).toBe('Alice Smith');
     expect(result.current.data![1].name).toBe('Bob Jones');
+  });
+
+  it('calls the get_show_judges RPC, not a people embed', async () => {
+    // The defect MYK9-474 fixed was an embed that resolved to null for every anonymous visitor
+    // (people!inner + no anon-visible people policy = the row dropped entirely). Pin the
+    // mechanism: a future "simplification" back to an embed silently re-breaks the public
+    // /shows/:id roster, and a row-shape assertion alone would not notice.
+    mockRpc.mockResolvedValue({ data: [], error: null } as never);
+
+    const { result } = renderHook(() => useShowJudges('show-1'), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(mockRpc).toHaveBeenCalledWith('get_show_judges', { p_show_id: 'show-1' });
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 });

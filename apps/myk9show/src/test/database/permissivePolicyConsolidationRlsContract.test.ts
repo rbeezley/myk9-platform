@@ -75,6 +75,16 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'is_show_office_manager(). enrollments SELECT, and every other reviewed table, are ' +
     'untouched. No grant, RLS-mode, or existing-helper change, so the consolidation counts and ' +
     'overlap groups this test pins are unaffected.',
+  '20260912154500_scope_public_select_policies_to_published_shows.sql':
+    'MYK9-469 / SA-2026-09-12-01. Replaces the unconditional USING (TRUE) on four PUBLIC SELECT ' +
+    'policies that let anon read rows belonging to unpublished shows: from this inventory it ' +
+    'touches judge_assignments (judge_assignments_select) only — armbands, achievements and ' +
+    'show_templates are not reviewed tables. The new predicate admits the row when its show is ' +
+    'non-deleted and in published/upcoming/in_progress/completed, or the caller is the assigned ' +
+    'judge, a show office manager, a show official, or site admin. Same policy name, same SELECT ' +
+    'command, same public role — predicate only, exactly like the MYK9-147 entry above. No ' +
+    'INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper change, so the consolidation counts ' +
+    'and overlap groups this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

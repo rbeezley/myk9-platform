@@ -90,6 +90,21 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'form no multiple-permissive-policies overlap and add nothing to the MYK9-112 debt. SELECT ' +
     'only — no INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper change, so the ' +
     'consolidation counts this test pins are unaffected.',
+  '20260912171500_scope_unscoped_role_predicates.sql':
+    'MYK9-470 / SA-2026-09-12-02. Replaces the ARGUMENT-LESS is_club_admin()/is_trial_secretary() ' +
+    '("any club") with show-scoped predicates. From this inventory it touches vaccinations ' +
+    '(vaccinations_select) and offline_scoring (offline_scoring_insert/update/delete); the other ' +
+    'tables in the migration — nationals_scores/rankings/advancement and result_submissions — are ' +
+    'not reviewed tables. volunteer_roles IS a reviewed table and is deliberately NOT changed: it ' +
+    'has no show_id or club_id to scope by, so its unscoped write is recorded as an intentional ' +
+    'boundary in a COMMENT ON TABLE instead. Policy names, commands and roles are all unchanged ' +
+    '(same SELECT on vaccinations, same INSERT/UPDATE/DELETE on offline_scoring, all TO ' +
+    'authenticated) — predicates only, like the MYK9-147 and MYK9-469 entries above. Scoping uses ' +
+    'the UNCORRELATED manageable_show_ids() and a new secretary-only trial_secretary_show_ids(), ' +
+    'never a per-row can_manage_show(), so it does not reintroduce the 20260611120000 ' +
+    'statement-timeout shape. offline_scoring_select (is_real_account, MYK9-117) and ' +
+    'volunteer_roles_select are untouched, so the consolidation counts and overlap groups this ' +
+    'test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

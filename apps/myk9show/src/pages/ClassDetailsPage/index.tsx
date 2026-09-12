@@ -100,6 +100,13 @@ const ClassDetailsPage: React.FC = () => {
   const isStaff =
     manageScope.canOperate ||
     (manageScope.hasOperationalStaffRole && manageScope.status !== 'resolved');
+  // A SCOPE failure is not an entry-load failure. The row-count escape below
+  // exists so a transient entry error does not blank a run sheet that still
+  // has usable rows — but when ownership was never verified, `useStaffEntrySource`
+  // is false, so any rows present came from the PUBLIC query. Rendering the
+  // staff surface over them shows non-staff data as a run sheet. Suppress it on
+  // the state, independently of how many rows arrived.
+  const scopeUnverified = manageScope.status === 'unavailable';
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;
@@ -346,11 +353,11 @@ const ClassDetailsPage: React.FC = () => {
           trialId={trialId || currentClass.trialId}
           classId={classId}
           isLoading={entriesLoading}
-          error={dbRawEntries.length > 0 ? null : entriesError}
+          error={!scopeUnverified && dbRawEntries.length > 0 ? null : entriesError}
         />
 
         {isStaff && !entriesLoading ? (
-          entriesError && dbRawEntries.length === 0 ? (
+          entriesError && (scopeUnverified || dbRawEntries.length === 0) ? (
             <div role="alert" className="rounded-md border border-destructive/30 p-4 text-sm">
               {entriesError}
             </div>

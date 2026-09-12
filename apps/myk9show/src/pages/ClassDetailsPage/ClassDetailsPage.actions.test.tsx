@@ -362,6 +362,44 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.getByTestId('secretary-run-sheet')).toBeInTheDocument();
   });
 
+  // The case the row-count escape was letting through: ownership could not be
+  // verified, so the rows on hand came from the PUBLIC query. Rendering them as
+  // a run sheet shows non-staff data on the staff surface.
+  it('does not render the run sheet over public rows when show scope is unavailable', () => {
+    mockUseClassDetailsData.mockReturnValue({
+      ...mockUseClassDetailsData(),
+      manageScope: {
+        status: 'unavailable',
+        canManage: false,
+        canOperate: false,
+        hasOperationalStaffRole: true,
+        clubId: undefined,
+      },
+      // Rows ARE present — this is what defeated the `length === 0` guard.
+      dbRawEntries: [{ id: 'entry-1', armband: '101', is_scored: false }],
+      entriesLoading: false,
+      entriesError: 'We could not verify this show’s ownership. Please retry.',
+    });
+
+    renderClassDetailsPage();
+
+    expect(screen.queryByTestId('secretary-run-sheet')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not verify/i);
+  });
+
+  it('still renders the run sheet when scope is fine and rows are present', () => {
+    mockUseClassDetailsData.mockReturnValue({
+      ...mockUseClassDetailsData(),
+      dbRawEntries: [{ id: 'entry-1', armband: '101', is_scored: false }],
+      entriesLoading: false,
+      entriesError: null,
+    });
+
+    renderClassDetailsPage();
+
+    expect(screen.getByTestId('secretary-run-sheet')).toBeInTheDocument();
+  });
+
   it('does not render a confident empty run sheet when staff entries are unavailable', () => {
     mockUseClassDetailsData.mockReturnValue({
       ...mockUseClassDetailsData(),

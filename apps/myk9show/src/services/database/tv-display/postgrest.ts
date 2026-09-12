@@ -198,9 +198,7 @@ export async function getPostgrestTVDisplayResults(
 ): Promise<TVCompletedClass[]> {
   let classQuery = supabase
     .from('classes')
-    .select(
-      'id, name, element, level, trials!inner(show_id)'
-    )
+    .select('id, name, element, level, trials!inner(show_id)')
     .eq('trials.show_id', showId)
     .eq('is_scoring_finalized', true);
 

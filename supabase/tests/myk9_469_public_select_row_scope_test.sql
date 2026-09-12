@@ -114,6 +114,24 @@ BEGIN
   ------------------------------------------------------------------
   SET LOCAL ROLE anon;
 
+  -- REGRESSION GUARD (Codex review of the first draft of migration 20260912154500).
+  -- That draft put the public predicate and the staff predicate in ONE PUBLIC policy, so
+  -- evaluating a row made anon call is_show_office_manager() / can_manage_show() — functions
+  -- anon has no EXECUTE on. The result is 42501 for the ENTIRE request, not a filtered row,
+  -- and Postgres does not guarantee OR short-circuit order so even a public row could trip it.
+  -- An unqualified scan is the shape PostgREST actually issues, and it touches every row, so
+  -- it is the strictest form of this check. A row COUNT alone is not the point here: the point
+  -- is that it does not raise.
+  BEGIN
+    PERFORM count(*) FROM public.judge_assignments;
+    PERFORM count(*) FROM public.armbands;
+    PERFORM count(*) FROM public.show_templates;
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE EXCEPTION 'FAIL anon hit 42501 evaluating a SELECT policy — a policy reachable by anon '
+      'calls a helper anon cannot EXECUTE (is_show_office_manager / can_manage_show / '
+      'is_show_manager / get_my_handled_dog_ids). Keep the anon arm free of role helpers.';
+  END;
+
   -- judge_assignments: positive control FIRST, so a deny-everything policy fails here.
   SELECT count(*) INTO n FROM public.judge_assignments WHERE show_id = pub_show;
   IF n <> 1 THEN

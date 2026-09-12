@@ -5,9 +5,9 @@
 -- Replayed cold against the applied database before this migration (publishable key only, no
 -- bearer token) on a show whose status = 'draft':
 --
---   GET /rest/v1/shows?id=eq.<draft>                 -> 200 []
---   GET /rest/v1/trials?show_id=eq.<draft>           -> 200 []
---   GET /rest/v1/classes?trial_id=eq.<draft-trial>   -> 200 []
+--   GET /rest/v1/shows?id=eq.<draft>                  -> 200 []
+--   GET /rest/v1/trials?show_id=eq.<draft>            -> 200 []
+--   GET /rest/v1/classes?trial_id=eq.<draft-trial>    -> 200 []
 --   GET /rest/v1/judge_assignments?show_id=eq.<draft> -> 200 [ 4 rows ]
 --
 -- RLS hid the show, its trials and its classes; judge_assignments handed back that same show's
@@ -17,14 +17,29 @@
 -- MYK9-146 already revoked judge_assignments.fee and .notes at the COLUMN level. This migration
 -- closes the ROW scope, which that fix did not touch.
 --
+-- SHAPE — one policy per role, NOT one PUBLIC policy with mixed arms.
+-- A first draft of this migration put the public predicate and the staff predicate in a single
+-- PUBLIC policy. Codex review caught that this breaks anon outright: `is_show_office_manager()`
+-- and `can_manage_show()` have no EXECUTE for anon (verified on the applied database via
+-- has_function_privilege), so an anon request that evaluates such a row raises 42501 and fails
+-- the WHOLE request instead of filtering the row. Postgres also does not guarantee OR
+-- short-circuit order, so even a row that satisfies the public arm could have tripped it.
+--
+-- Splitting by role removes the hazard structurally rather than relying on evaluation order,
+-- and matches the shape `entries` already uses (entries_anon_select_for_tv TO anon,
+-- entries_select TO authenticated). Because the two policies target DIFFERENT roles they do not
+-- form a multiple-permissive-policies overlap, so this does not add to the MYK9-112 debt.
+--
 -- Report: docs/security-audit-2026-09-12.md
 
 -- ---------------------------------------------------------------------------
 -- judge_assignments
 -- ---------------------------------------------------------------------------
--- Public arm matches the predicate every other anon-reachable table already uses
--- (compare entries_anon_select_for_tv and classes_select). The extra arms keep the
--- surfaces that read this table working for shows that are NOT yet public:
+-- The public predicate matches what every other anon-reachable table already uses
+-- (compare entries_anon_select_for_tv and classes_select).
+--
+-- The authenticated policy repeats that predicate and adds the arms that keep the surfaces
+-- reading this table working for shows that are NOT yet public:
 --   * the assigned judge themselves — they must see an assignment to accept or decline it,
 --     which by definition happens before the show publishes (useJudgeShowStats reads by
 --     person_id + show_id);
@@ -34,9 +49,24 @@
 -- useShowJudges, judge_day_summary), so no cross-show aggregate loses rows to this narrowing.
 DROP POLICY IF EXISTS "judge_assignments_select" ON public.judge_assignments;
 
+CREATE POLICY "judge_assignments_anon_select"
+  ON public.judge_assignments
+  FOR SELECT
+  TO anon
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.shows s
+      WHERE s.id = judge_assignments.show_id
+        AND s.deleted_at IS NULL
+        AND s.status = ANY (ARRAY['published', 'upcoming', 'in_progress', 'completed'])
+    )
+  );
+
 CREATE POLICY "judge_assignments_select"
   ON public.judge_assignments
   FOR SELECT
+  TO authenticated
   USING (
     EXISTS (
       SELECT 1
@@ -54,16 +84,31 @@ CREATE POLICY "judge_assignments_select"
 -- ---------------------------------------------------------------------------
 -- armbands
 -- ---------------------------------------------------------------------------
--- Same public arm. 260 rows today, 0 of them in a non-public show — so this is latent rather
--- than live, but armbands are normally assigned while the show is still being built, which is
+-- Same split. 260 rows today, 0 of them in a non-public show — so this is latent rather than
+-- live, but armbands are normally assigned while the show is still being built, which is
 -- exactly when the old policy published the armband -> dog mapping to anon.
 -- Write policies on this table gate on can_manage_show(show_id); the read arms mirror that plus
 -- the show officials who need the mapping at ringside.
 DROP POLICY IF EXISTS "armbands_select" ON public.armbands;
 
+CREATE POLICY "armbands_anon_select"
+  ON public.armbands
+  FOR SELECT
+  TO anon
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.shows s
+      WHERE s.id = armbands.show_id
+        AND s.deleted_at IS NULL
+        AND s.status = ANY (ARRAY['published', 'upcoming', 'in_progress', 'completed'])
+    )
+  );
+
 CREATE POLICY "armbands_select"
   ON public.armbands
   FOR SELECT
+  TO authenticated
   USING (
     EXISTS (
       SELECT 1
@@ -83,15 +128,20 @@ CREATE POLICY "armbands_select"
 -- A dog's titles, certificate numbers and free-text notes were world-readable while the dog
 -- itself is not: dogs_select is TO authenticated and scoped to owner / co-owner / show manager /
 -- handler. There is no public dog surface, so "anyone may read every dog's achievements" was
--- never a deliberate boundary — it is the USING (true) default.
+-- never a deliberate boundary — it is the USING (true) default. No anon arm at all, which also
+-- means none of the authenticated-only helpers below is ever reached by anon.
 --
 -- Deliberately expressed with the SAME arms as dogs_select rather than a new predicate, so the
 -- two stay coupled: if you can see the dog, you can see its achievements.
 --
 -- NOTE: the is_show_manager() arm is inherited from dogs_select, and is_show_manager() is itself
--- the argument-less "any club" helper tracked by MYK9-469's sibling MYK9-470. It is carried over
--- here unchanged on purpose — importing it keeps parity with dogs_select, so when MYK9-470
--- scopes that helper this policy tightens with it. Do NOT widen it independently.
+-- the argument-less "any club" helper. Carried over unchanged ON PURPOSE — importing it keeps
+-- parity with dogs_select, whose platform-wide staff read is a DOCUMENTED, intentional deferral
+-- (20260611120000_tighten_dogs_people_select_rls.sql, "Residual / post-launch hardening":
+-- show-scoping needs a per-row helper that caused O(N) statement timeouts, deferred until a
+-- denormalized show-visibility index exists). Do NOT scope it here in isolation — that would
+-- reintroduce the timeout this repo already paid for once, and would desynchronise the two
+-- policies. See MYK9-470.
 DROP POLICY IF EXISTS "achievements_select" ON public.achievements;
 
 CREATE POLICY "achievements_select"
@@ -118,11 +168,24 @@ CREATE POLICY "achievements_select"
 -- This table carries its own visibility flag (is_public boolean) and a club_id, and the policy
 -- ignored both — a club's private template was readable by anon. Writes are already site-admin
 -- only. is_public IS TRUE rather than = true so a NULL flag fails closed.
+--
+-- Split by role for the same reason as above. Every helper used here happens to be
+-- anon-executable today (is_club_admin, is_trial_secretary, is_site_admin all have EXECUTE for
+-- anon on the applied database), so a single PUBLIC policy would work right now — but that is a
+-- grant that could be revoked later, and a uniform shape means the next person to copy one of
+-- these policies copies the safe one.
 DROP POLICY IF EXISTS "show_templates_select" ON public.show_templates;
+
+CREATE POLICY "show_templates_anon_select"
+  ON public.show_templates
+  FOR SELECT
+  TO anon
+  USING (is_public IS TRUE);
 
 CREATE POLICY "show_templates_select"
   ON public.show_templates
   FOR SELECT
+  TO authenticated
   USING (
     is_public IS TRUE
     OR (SELECT public.is_site_admin())
@@ -135,17 +198,28 @@ CREATE POLICY "show_templates_select"
     )
   );
 
+COMMENT ON POLICY "judge_assignments_anon_select" ON public.judge_assignments IS
+  'MYK9-469: anon reads only non-deleted shows in published/upcoming/in_progress/completed. '
+  'Kept free of role helpers — anon has no EXECUTE on is_show_office_manager/can_manage_show, '
+  'and calling one raises 42501 for the whole request rather than filtering the row.';
+
 COMMENT ON POLICY "judge_assignments_select" ON public.judge_assignments IS
-  'MYK9-469: public only for non-deleted shows in published/upcoming/in_progress/completed; '
-  'otherwise the assigned judge, show office managers, show officials, or site admin.';
+  'MYK9-469: the public predicate, plus the assigned judge, show office managers, show '
+  'officials, and site admin.';
+
+COMMENT ON POLICY "armbands_anon_select" ON public.armbands IS
+  'MYK9-469: anon reads only non-deleted shows in published/upcoming/in_progress/completed.';
 
 COMMENT ON POLICY "armbands_select" ON public.armbands IS
-  'MYK9-469: public only for non-deleted shows in published/upcoming/in_progress/completed; '
-  'otherwise show managers, show officials, or site admin.';
+  'MYK9-469: the public predicate, plus show managers, show officials, and site admin.';
 
 COMMENT ON POLICY "achievements_select" ON public.achievements IS
   'MYK9-469: mirrors dogs_select — if you can see the dog you can see its achievements. '
-  'The is_show_manager() arm is inherited from dogs_select and tightens with MYK9-470.';
+  'The is_show_manager() arm is inherited from dogs_select, whose platform-wide staff read is a '
+  'documented deferral (20260611120000); it tightens with that one, not independently.';
+
+COMMENT ON POLICY "show_templates_anon_select" ON public.show_templates IS
+  'MYK9-469: anon reads only templates the table itself marks is_public (NULL fails closed).';
 
 COMMENT ON POLICY "show_templates_select" ON public.show_templates IS
-  'MYK9-469: honours the table''s own is_public flag (NULL fails closed) plus club scope and site admin.';
+  'MYK9-469: is_public templates plus the owning club''s admin/secretary and site admin.';

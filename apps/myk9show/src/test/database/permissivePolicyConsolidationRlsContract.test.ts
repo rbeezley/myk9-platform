@@ -79,12 +79,17 @@ const reviewedLaterPolicyDdl: Readonly<Record<string, string>> = {
     'MYK9-469 / SA-2026-09-12-01. Replaces the unconditional USING (TRUE) on four PUBLIC SELECT ' +
     'policies that let anon read rows belonging to unpublished shows: from this inventory it ' +
     'touches judge_assignments (judge_assignments_select) only — armbands, achievements and ' +
-    'show_templates are not reviewed tables. The new predicate admits the row when its show is ' +
-    'non-deleted and in published/upcoming/in_progress/completed, or the caller is the assigned ' +
-    'judge, a show office manager, a show official, or site admin. Same policy name, same SELECT ' +
-    'command, same public role — predicate only, exactly like the MYK9-147 entry above. No ' +
-    'INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper change, so the consolidation counts ' +
-    'and overlap groups this test pins are unaffected.',
+    'show_templates are not reviewed tables. The public predicate admits the row when its show ' +
+    'is non-deleted and in published/upcoming/in_progress/completed; the authenticated policy ' +
+    'repeats it and adds the assigned judge, show office managers, show officials and site ' +
+    'admin. SPLITS the single PUBLIC judge_assignments_select into judge_assignments_anon_select ' +
+    '(TO anon, public predicate only) plus judge_assignments_select (TO authenticated), because ' +
+    'anon has no EXECUTE on is_show_office_manager/can_manage_show and evaluating them raises ' +
+    '42501 for the whole request — the shape entries already uses (entries_anon_select_for_tv TO ' +
+    'anon, entries_select TO authenticated). The two policies target DIFFERENT roles, so they ' +
+    'form no multiple-permissive-policies overlap and add nothing to the MYK9-112 debt. SELECT ' +
+    'only — no INSERT/UPDATE/DELETE policy, grant, RLS-mode or helper change, so the ' +
+    'consolidation counts this test pins are unaffected.',
 };
 
 const tableCases: TableCase[] = [

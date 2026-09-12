@@ -42,8 +42,9 @@ function showRead({
   data = undefined as { id: string; clubId: string } | undefined,
   isLoading = false,
   isPlaceholderData = false,
+  isError = false,
 } = {}) {
-  return { data, isLoading, isPlaceholderData };
+  return { data, isLoading, isPlaceholderData, isError };
 }
 
 function setup(args: {
@@ -198,6 +199,39 @@ describe('useShowManageScope', () => {
       });
 
       expect(result.current).toMatchObject({ status: 'resolved', canManage: true });
+    });
+
+    it('does NOT hold forever when a placeholder read FAILS', () => {
+      // Show-to-show navigation: react-query keeps presenting the previous show
+      // as placeholder even after the new read errors. The placeholder is
+      // discarded (wrong club), so without an error term this is `resolving`
+      // with no terminating branch and the management route renders null
+      // forever. A failed read has settled.
+      const result = setup({
+        auth: viewer('secretary'),
+        read: showRead({
+          data: { id: 'previous-show', clubId: OWNING_CLUB },
+          isPlaceholderData: true,
+          isError: true,
+        }),
+      });
+
+      expect(result.current).toMatchObject({ status: 'unavailable', canManage: false });
+    });
+
+    it('still holds while a placeholder read is in flight and has NOT failed', () => {
+      // The complement, so the fix above cannot be satisfied by treating every
+      // placeholder as settled — that would scope the viewer to the wrong club.
+      const result = setup({
+        auth: viewer('secretary'),
+        read: showRead({
+          data: { id: 'previous-show', clubId: OWNING_CLUB },
+          isPlaceholderData: true,
+          isError: false,
+        }),
+      });
+
+      expect(result.current).toMatchObject({ status: 'resolving', canManage: false });
     });
 
     it('reports UNAVAILABLE when the read settles with no show', () => {

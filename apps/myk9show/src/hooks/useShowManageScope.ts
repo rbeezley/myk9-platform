@@ -98,6 +98,7 @@ export function useShowManageScope(showId: string | undefined): ShowManageScope 
     data: queriedShow,
     isLoading: queriedShowLoading,
     isPlaceholderData,
+    isError: queriedShowFailed,
   } = useShowQuery(needsShowRead ? showId : '');
 
   return useMemo(() => {
@@ -149,7 +150,15 @@ export function useShowManageScope(showId: string | undefined): ShowManageScope 
       };
     }
 
-    if (!showId || queriedShowLoading || isPlaceholderData) {
+    // `isPlaceholderData` alone is NOT a "still loading" signal. On a show-to-show
+    // navigation react-query keeps presenting the PREVIOUS show as placeholder
+    // even after the new read fails — and because that placeholder is discarded
+    // above (scoping to the wrong club is worse than holding), `clubId` stays
+    // undefined. Without the error term this state is `resolving` with no
+    // terminating branch, and ShowManagementSectionRoute renders null forever:
+    // a permanently blank management route. A failed read has SETTLED; the
+    // honest answer is `unavailable`.
+    if (!showId || queriedShowLoading || (isPlaceholderData && !queriedShowFailed)) {
       return {
         status: 'resolving',
         canManage: false,
@@ -176,6 +185,7 @@ export function useShowManageScope(showId: string | undefined): ShowManageScope 
     queriedShow,
     queriedShowLoading,
     isPlaceholderData,
+    queriedShowFailed,
     showId,
   ]);
 }

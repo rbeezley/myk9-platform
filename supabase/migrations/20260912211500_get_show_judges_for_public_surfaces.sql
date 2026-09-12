@@ -96,3 +96,19 @@ COMMENT ON FUNCTION public.get_show_judges(uuid) IS
   'only safe because RLS admits no anon rows") is preserved. Do not "simplify" this into an '
   'anon-visible people policy — that would make the column allowlist the only guard on '
   'people.email.';
+
+-- Make PostgREST aware of the new function's SIGNATURE.
+--
+-- Raised by Codex review of 6b5afc463. Supabase installs a `pgrst_ddl_watch` event trigger on
+-- ddl_command_end (verified enabled on the applied database), so this is belt-and-braces rather
+-- than strictly required — but it is also the house convention: 139 migrations in this repo issue
+-- it, including tv_board_entries, the other RPC the public TV board calls.
+--
+-- It matters MORE here than for the helper MYK9-470 added the same day. trial_secretary_show_ids
+-- is only ever called from inside an RLS policy, server-side, so PostgREST never needs its
+-- signature. get_show_judges is invoked as a REST RPC from the browser, so an unreloaded schema
+-- cache is the difference between a working public TV board and a 404 — precisely the symptom
+-- this migration exists to fix. Note a body-only CREATE OR REPLACE needs no reload (the cached
+-- signature is unchanged), which is why 20260905145500's get_show_officials rewrite omits it;
+-- a NEW function does.
+NOTIFY pgrst, 'reload schema';

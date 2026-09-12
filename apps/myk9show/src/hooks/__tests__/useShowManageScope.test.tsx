@@ -72,7 +72,11 @@ describe('useShowManageScope', () => {
         read: showRead({ isLoading: true }),
       });
 
-      expect(result.current).toMatchObject({ status: 'resolved', canManage: true });
+      expect(result.current).toMatchObject({
+        status: 'resolved',
+        canManage: true,
+        canOperate: true,
+      });
     });
 
     it('still grants when the show cannot be read at all', () => {
@@ -124,7 +128,27 @@ describe('useShowManageScope', () => {
         read: showRead({ data: { id: SHOW_ID, clubId: OWNING_CLUB } }),
       });
 
-      expect(result.current).toMatchObject({ status: 'resolved', canManage: true });
+      expect(result.current).toMatchObject({
+        status: 'resolved',
+        canManage: true,
+        canOperate: true,
+      });
+    });
+
+    it('is operational staff, so it stays on the staff surface while resolving', () => {
+      const result = setup({ auth: viewer('secretary'), read: showRead({ isLoading: true }) });
+
+      expect(result.current.hasOperationalStaffRole).toBe(true);
+      expect(result.current.canOperate).toBe(false);
+    });
+
+    it('does NOT become operational staff for another club’s show', () => {
+      const result = setup({
+        auth: viewer('secretary', 'club-2'),
+        read: showRead({ data: { id: SHOW_ID, clubId: OWNING_CLUB } }),
+      });
+
+      expect(result.current.canOperate).toBe(false);
     });
 
     it('denies a secretary of a different club', () => {
@@ -164,14 +188,33 @@ describe('useShowManageScope', () => {
     });
   });
 
-  describe('club admin', () => {
-    it('is granted on their own club’s show', () => {
+  describe('club admin — manages the class, but is NOT show-day staff', () => {
+    // The boundary this pair pins: `canManage` and `canOperate` are different
+    // questions. Collapsing them into one handed a club admin the secretary run
+    // sheet and a show-wide entry read they never had.
+    it('is granted lifecycle rights on their own club’s show', () => {
       const result = setup({
         auth: viewer('club_admin'),
         read: showRead({ data: { id: SHOW_ID, clubId: OWNING_CLUB } }),
       });
 
       expect(result.current).toMatchObject({ status: 'resolved', canManage: true });
+    });
+
+    it('is NOT operational staff, so it keeps the public entry source', () => {
+      const result = setup({
+        auth: viewer('club_admin'),
+        read: showRead({ data: { id: SHOW_ID, clubId: OWNING_CLUB } }),
+      });
+
+      expect(result.current.canOperate).toBe(false);
+      expect(result.current.hasOperationalStaffRole).toBe(false);
+    });
+
+    it('is not held on the staff surface while the scope is still resolving', () => {
+      const result = setup({ auth: viewer('club_admin'), read: showRead({ isLoading: true }) });
+
+      expect(result.current.hasOperationalStaffRole).toBe(false);
     });
 
     it('is denied on another club’s show', () => {

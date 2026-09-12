@@ -190,16 +190,17 @@ export function useClassDetailsData() {
   // resolving / resolved / unavailable transitions so this file never
   // hand-rolls them again; see useShowManageScope for why each state exists.
   const manageScope = useShowManageScope(resolvedShowId);
-  const canManageShow = manageScope.canManage;
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
     resolvedShowId ?? '',
-    canManageShow && Boolean(classId && resolvedShowId)
+    manageScope.canOperate && Boolean(classId && resolvedShowId)
   );
-  // The staff entry source is exactly "may manage" — no second predicate. A
-  // viewer who may manage reads the show-scoped secretary cache; everyone else
-  // reads the public class query. There is no third case.
-  const useStaffEntrySource = canManageShow;
+  // The show-wide secretary cache follows `canOperate`, NOT `canManage`: a club
+  // admin of this club may edit the class but is not show-day staff, so they
+  // read the public class query like every other non-operational viewer. One
+  // predicate drives the staff query and the disabling of the public ones, so
+  // the two can never disagree and strand a viewer with no entry source at all.
+  const useStaffEntrySource = manageScope.canOperate;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)

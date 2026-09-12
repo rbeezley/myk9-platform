@@ -22,8 +22,32 @@ export type ShowManageScopeStatus = 'resolved' | 'resolving' | 'unavailable';
 
 export interface ShowManageScope {
   status: ShowManageScopeStatus;
-  /** True ONLY when the viewer is confirmed to manage this show. Fail-closed otherwise. */
+  /**
+   * May operate this show's CLASS LIFECYCLE controls (Edit Class, Delete Class).
+   * Scoped, and includes a club admin of the owning club — matching the server
+   * predicate `is_site_admin() OR is_club_admin(club) OR is_trial_secretary(club)`.
+   * Fail-closed in every non-`resolved` state.
+   */
   canManage: boolean;
+  /**
+   * May use the show-day OPERATIONAL surface: the secretary run sheet and the
+   * show-wide entry read.
+   *
+   * STRICTLY NARROWER than {@link canManage}. It additionally requires a global
+   * staff role, because a club admin manages their club's classes WITHOUT being
+   * show-day operational staff — they keep lifecycle controls and read the
+   * public class entries, not the secretary cache. Collapsing the two grants a
+   * club admin the run sheet and a show-wide entry query they never had
+   * (caught by the Codex gate on #2183).
+   */
+  canOperate: boolean;
+  /**
+   * Holds a global secretary / site-admin role ANYWHERE — unscoped, so never a
+   * grant on its own. Exposed only so a caller can keep showing the staff
+   * surface to operational staff while {@link status} is still settling, which
+   * is the one decision that needs the role before the scope is known.
+   */
+  hasOperationalStaffRole: boolean;
   /** The owning club, once known. */
   clubId: string | undefined;
 }
@@ -79,12 +103,24 @@ export function useShowManageScope(showId: string | undefined): ShowManageScope 
   return useMemo(() => {
     // (1) Site admin: global, so ownership never enters into it.
     if (isAdmin) {
-      return { status: 'resolved', canManage: true, clubId: storedShow?.clubId };
+      return {
+        status: 'resolved',
+        canManage: true,
+        canOperate: true,
+        hasOperationalStaffRole: true,
+        clubId: storedShow?.clubId,
+      };
     }
 
     // (2) No club-staff role anywhere: a permanent, immediate no.
     if (!couldManageSomeShow) {
-      return { status: 'resolved', canManage: false, clubId: storedShow?.clubId };
+      return {
+        status: 'resolved',
+        canManage: false,
+        canOperate: false,
+        hasOperationalStaffRole: false,
+        clubId: storedShow?.clubId,
+      };
     }
 
     // `placeholderData: previousData` is set app-wide (lib/queryClient.ts), so a
@@ -95,24 +131,41 @@ export function useShowManageScope(showId: string | undefined): ShowManageScope 
     const clubId = resolvedShow?.clubId || undefined;
 
     if (clubId) {
+      const canManage = canManageShowSurface({
+        isSecretary,
+        isAdmin,
+        hasRole,
+        userWithRoles,
+        clubId,
+      });
       return {
         status: 'resolved',
-        canManage: canManageShowSurface({
-          isSecretary,
-          isAdmin,
-          hasRole,
-          userWithRoles,
-          clubId,
-        }),
+        canManage,
+        // The narrowing conjunct: a club admin reaches `canManage` here but is
+        // not operational staff, so they keep the public entry source.
+        canOperate: isSecretary && canManage,
+        hasOperationalStaffRole: isSecretary,
         clubId,
       };
     }
 
     if (!showId || queriedShowLoading || isPlaceholderData) {
-      return { status: 'resolving', canManage: false, clubId: undefined };
+      return {
+        status: 'resolving',
+        canManage: false,
+        canOperate: false,
+        hasOperationalStaffRole: isSecretary,
+        clubId: undefined,
+      };
     }
 
-    return { status: 'unavailable', canManage: false, clubId: undefined };
+    return {
+      status: 'unavailable',
+      canManage: false,
+      canOperate: false,
+      hasOperationalStaffRole: isSecretary,
+      clubId: undefined,
+    };
   }, [
     isAdmin,
     isSecretary,

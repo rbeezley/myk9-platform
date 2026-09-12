@@ -127,6 +127,10 @@ function renderClassDetailsPage() {
 function mockManageScope(scope: {
   status: 'resolved' | 'resolving' | 'unavailable';
   canManage: boolean;
+  /** Show-day staff. Strictly narrower than canManage — a club admin has the
+   *  first without the second, so every scenario states it explicitly. */
+  canOperate: boolean;
+  hasOperationalStaffRole: boolean;
   clubId?: string;
 }) {
   mockUseClassDetailsData.mockReturnValue({
@@ -194,7 +198,13 @@ describe('ClassDetailsPage header actions', () => {
       // Which viewer maps to which result is covered by the gate's own tests in
       // hooks/__tests__/useShowManageScope.test.tsx; here we assert what the
       // page renders GIVEN a result, so each scenario states its result.
-      manageScope: { status: 'resolved', canManage: true, clubId: 'club-1' },
+      manageScope: {
+        status: 'resolved',
+        canManage: true,
+        canOperate: true,
+        hasOperationalStaffRole: true,
+        clubId: 'club-1',
+      },
       parentTrial: { id: 'trial-1', showId: 'show-1', trialNumber: 'Saturday Trial 1' },
       parentShow: {
         id: 'show-1',
@@ -259,7 +269,12 @@ describe('ClassDetailsPage header actions', () => {
         hasRole: () => false,
         userWithRoles: { id: 'exhibitor-1', scopes: [] },
       });
-      mockManageScope({ status: 'resolved', canManage: false });
+      mockManageScope({
+        status: 'resolved',
+        canManage: false,
+        canOperate: false,
+        hasOperationalStaffRole: false,
+      });
     });
 
     it('hides Edit Class and Delete Class, and mounts neither panel', () => {
@@ -306,7 +321,14 @@ describe('ClassDetailsPage header actions', () => {
 
     it('keeps class controls for an admin of this show’s club', () => {
       mockClubAdmin('club-1');
-      mockManageScope({ status: 'resolved', canManage: true, clubId: 'club-1' });
+      // A club admin of THIS club: lifecycle rights, but not show-day staff.
+      mockManageScope({
+        status: 'resolved',
+        canManage: true,
+        canOperate: false,
+        hasOperationalStaffRole: false,
+        clubId: 'club-1',
+      });
 
       renderClassDetailsPage();
 
@@ -316,13 +338,28 @@ describe('ClassDetailsPage header actions', () => {
 
     it('denies an admin of a different club', () => {
       mockClubAdmin('club-2');
-      mockManageScope({ status: 'resolved', canManage: false, clubId: 'club-1' });
+      mockManageScope({
+        status: 'resolved',
+        canManage: false,
+        canOperate: false,
+        hasOperationalStaffRole: false,
+        clubId: 'club-1',
+      });
 
       renderClassDetailsPage();
 
       expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('menuitem', { name: /delete class/i })).not.toBeInTheDocument();
     });
+  });
+
+  // Positive control for the assertion below: without this, a fixture that
+  // simply left the viewer off the staff surface would satisfy the absence
+  // check for the wrong reason.
+  it('renders the run sheet for operational staff when entries load', () => {
+    renderClassDetailsPage();
+
+    expect(screen.getByTestId('secretary-run-sheet')).toBeInTheDocument();
   });
 
   it('does not render a confident empty run sheet when staff entries are unavailable', () => {

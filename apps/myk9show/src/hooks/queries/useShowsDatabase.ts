@@ -1,6 +1,7 @@
 // React Query hooks for Show database operations
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Show, ShowInput } from '@/types/show-types';
+import { isValidUUID } from '@/utils/validation';
 import {
   getAllShows,
   getShowById,
@@ -90,10 +91,7 @@ export const useShowQuery = (id: string) => {
       if (error) throw error;
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
-    enabled: !!id,
-    // getShowById reads the replication layer first, so allow it to resolve
-    // cached show ownership while offline on staff deep links.
-    networkMode: 'always',
+    enabled: !!id && isValidUUID(id),
     ...cacheStrategies.fast,
   });
 };

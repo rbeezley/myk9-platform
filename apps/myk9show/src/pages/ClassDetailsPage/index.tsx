@@ -349,17 +349,23 @@ const ClassDetailsPage: React.FC = () => {
           error={dbRawEntries.length > 0 ? null : entriesError}
         />
 
-        {isStaff && !entriesLoading && (!entriesError || dbRawEntries.length > 0) ? (
-          <SecretaryRunSheet
-            currentClass={currentClass}
-            dbRawEntries={dbRawEntries}
-            userId={user?.id ?? ''}
-            myEntryIds={myEntryIds}
-            dogs={dogs}
-            organization={parentShow?.organization ?? null}
-            parentShowId={parentShow?.id ?? null}
-            classDay={parentTrial?.trialDate ?? null}
-          />
+        {isStaff && !entriesLoading ? (
+          entriesError && dbRawEntries.length === 0 ? (
+            <div role="alert" className="rounded-md border border-destructive/30 p-4 text-sm">
+              {entriesError}
+            </div>
+          ) : (
+            <SecretaryRunSheet
+              currentClass={currentClass}
+              dbRawEntries={dbRawEntries}
+              userId={user?.id ?? ''}
+              myEntryIds={myEntryIds}
+              dogs={dogs}
+              organization={parentShow?.organization ?? null}
+              parentShowId={parentShow?.id ?? null}
+              classDay={parentTrial?.trialDate ?? null}
+            />
+          )
         ) : !isStaff ? (
           <ClassDetailsMain
             classData={currentClass}

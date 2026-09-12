@@ -109,7 +109,12 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
   const { user, loading: authLoading, rbacLoading, hasRole, userWithRoles } = useAuthContext();
-  const { data: show, isLoading: showLoading, isPlaceholderData } = useShowQuery(id ?? '');
+  const {
+    data: show,
+    isLoading: showLoading,
+    isError: showError,
+    isPlaceholderData,
+  } = useShowQuery(id ?? '');
 
   if (authLoading || rbacLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
@@ -118,7 +123,7 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   if (isSiteAdmin) {
     return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
   }
-  if (showLoading || isPlaceholderData) return null;
+  if (showLoading || showError || isPlaceholderData) return null;
 
   const isAuthorized =
     (hasRole(UserRole.SECRETARY) &&

@@ -11,7 +11,7 @@ import { formatShowsTableDateRange, splitShowLocation } from './ShowsTableView.h
 
 interface ShowsTableViewProps {
   shows: EnhancedShow[];
-  canManageShow?: (show: EnhancedShow) => boolean;
+  canManageShow: (show: EnhancedShow) => boolean;
   isSelected?: (item: EnhancedShow) => boolean;
   onToggleSelect?: (item: EnhancedShow) => void;
   isAllSelected?: boolean;
@@ -189,7 +189,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
   onToggleAll,
 }) => {
   const navigate = useNavigate();
-  const hasSelection = Boolean(onToggleSelect && shows.some(show => canManageShow?.(show)));
+  const hasSelection = Boolean(onToggleSelect && shows.some(canManageShow));
 
   const columns = useMemo<ColumnDef<EnhancedShow, unknown>[]>(() => {
     if (!hasSelection) return DATA_COLUMNS;
@@ -198,7 +198,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
       header: () => null,
       enableSorting: false,
       cell: ({ row }) =>
-        canManageShow?.(row.original) ? (
+        canManageShow(row.original) ? (
           <Checkbox
             checked={isSelected?.(row.original) ?? false}
             onCheckedChange={() => onToggleSelect?.(row.original)}

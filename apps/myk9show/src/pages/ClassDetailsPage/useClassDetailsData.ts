@@ -113,7 +113,6 @@ export function useClassDetailsData() {
   }>();
   const location = useLocation();
   const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
-  const isStaffViewer = [isSecretary, isAdmin].some(Boolean);
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -190,7 +189,7 @@ export function useClassDetailsData() {
     entries: dbEntries,
     isLoading: dbEntriesLoading,
     error: dbEntriesError,
-  } = useClassEntriesWithQuery(classId || '', !!classId && !isStaffViewer);
+  } = useClassEntriesWithQuery(classId || '', !!classId && !canManageShow);
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
   const localEntries = useEntriesByClass(classId || '');
@@ -205,7 +204,7 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(classId || undefined, !isStaffViewer);
+  } = useClassEntriesRaw(classId || undefined, !canManageShow);
 
   const staffClassEntries = useMemo(
     () =>

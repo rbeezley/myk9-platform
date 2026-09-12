@@ -234,7 +234,7 @@ const ClassDetailsPage: React.FC = () => {
   const headerActions = useMemo(() => {
     return (
       <div className="flex items-center gap-2">
-        {isStaff && parentShow?.id && (
+        {canManageClass && parentShow?.id && (
           <Button
             variant="outline"
             size="sm"
@@ -265,7 +265,7 @@ const ClassDetailsPage: React.FC = () => {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {isStaff && parentShow?.id && (
+            {canManageClass && parentShow?.id && (
               <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}/show-desk`)}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Open in Workbench
@@ -290,7 +290,6 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
     canManageClass,
-    isStaff,
     parentShow,
     trialId,
     currentClass?.trialId,

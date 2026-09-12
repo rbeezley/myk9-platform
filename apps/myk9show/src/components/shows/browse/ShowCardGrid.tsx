@@ -8,7 +8,7 @@ import { showDistanceMiles, type LatLng } from '@/features/location/distance';
 
 interface ShowCardGridProps {
   shows: EnhancedShow[];
-  canManageShow?: (show: EnhancedShow) => boolean;
+  canManageShow: (show: EnhancedShow) => boolean;
   entries: SyncableShowEntry[];
   selectedTab: string;
   user: UserWithRoles | null;
@@ -28,9 +28,7 @@ export const ShowCardGrid: React.FC<ShowCardGridProps> = ({
   <StaggeredGrid className="grid grid-cols-1 md:grid-cols-2 gap-3">
     {shows.map(show => {
       const toggleProps =
-        onToggleSelect && canManageShow?.(show)
-          ? { onToggleSelect: () => onToggleSelect(show) }
-          : {};
+        onToggleSelect && canManageShow(show) ? { onToggleSelect: () => onToggleSelect(show) } : {};
 
       return (
         <ShowCardHorizontal

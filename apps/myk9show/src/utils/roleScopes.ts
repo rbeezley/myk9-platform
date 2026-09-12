@@ -83,6 +83,17 @@ export function canManageShowSurface({
   );
 }
 
+/** Secretary/admin management shell access for a specific show's owning club. */
+export function canManageShowAsSecretaryOrAdmin({
+  isSecretary,
+  isAdmin,
+  userWithRoles,
+  clubId,
+}: Pick<ShowSurfaceViewer, 'isSecretary' | 'isAdmin' | 'userWithRoles' | 'clubId'>): boolean {
+  if (isAdmin) return true;
+  return isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, clubId);
+}
+
 /** The staff roles that carry show-management rights over their club's shows. */
 const CLUB_STAFF_ROLES: readonly UserRole[] = [UserRole.SECRETARY, UserRole.CLUB_ADMIN];
 

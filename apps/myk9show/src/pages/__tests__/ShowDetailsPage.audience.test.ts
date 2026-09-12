@@ -28,7 +28,11 @@ describe('resolveShowAudience', () => {
   });
 
   it('public preview forces the public landing on the canonical route', () => {
-    expect(resolveShowAudience(input({ forcePublicPreview: true }))).toBe('public');
+    expect(
+      resolveShowAudience(
+        input({ forcePublicPreview: true, canManageShow: true, isManagementStaff: true })
+      )
+    ).toBe('public');
   });
 
   it('an admin sees the management shell', () => {
@@ -38,7 +42,7 @@ describe('resolveShowAudience', () => {
   });
 
   it('does not expose management shell to a secretary outside their club', () => {
-    expect(resolveShowAudience(input())).toBe('public');
+    expect(resolveShowAudience(input({ canManageShow: true }))).toBe('exhibitor');
   });
 
   it('a club admin sees the exhibitor view, not management or public', () => {

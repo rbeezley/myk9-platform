@@ -53,7 +53,11 @@ const entryRow = () => ({
     state: 'OR',
   },
   class: { id: 'class-1', name: 'Novice A', class_number: '101' },
-  trial: { id: 'trial-1', trial_type: 'Scent Work' },
+  trial: { id: 'trial-1', trial_type: 'Scent Work' } as {
+    id: string;
+    trial_type: string;
+    timezone?: string;
+  },
   registration: { id: 'reg-1', confirmation_number: 'ABC123' },
 });
 
@@ -123,6 +127,47 @@ describe('useMyEntriesData — entry_close_date is a calendar date, not an insta
       expect(closeDate!.getDate()).toBe(2);
     }
   );
+});
+
+// The show-day check-in gate compares calendar days in the TRIAL's timezone, so
+// the resolved zone has to survive the row -> EntryClass mapping. Without it the
+// gate silently falls back to the device clock (dayCheckIn.isTrialDayToday).
+describe('useMyEntriesData — trial timezone lands on the class row', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+      user: { id: 'user-1', email: 'exhibitor@test.com' },
+      userWithRoles: { databaseUserId: 'person-1' },
+      isAuthenticated: true,
+    });
+    (useCurrentUserPersonId as ReturnType<typeof vi.fn>).mockReturnValue('person-1');
+  });
+
+  it("carries the trial's own zone onto every class row", async () => {
+    const row = entryRow();
+    row.trial.timezone = 'America/Los_Angeles';
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [row],
+      error: null,
+    });
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    expect(result.current.entries[0]?.classes[0]?.trialTimezone).toBe('America/Los_Angeles');
+  });
+
+  it('falls back to the migration default when the trial carries no zone', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: [entryRow()],
+      error: null,
+    });
+
+    const { result } = renderData();
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    expect(result.current.entries[0]?.classes[0]?.trialTimezone).toBe('America/New_York');
+  });
 });
 
 describe('useMyEntriesData — a failed reload must not discard loaded entries', () => {

@@ -93,8 +93,29 @@ interface OrderAccum {
   entryCloseDate?: Date | undefined;
   submittedAt: Date;
   lastUpdated: Date;
+  /** Sum of the rows' refunds, or null while no row carries one. */
+  refundAmount: number | null;
+  /** Latest refund date across the rows. */
+  refundedAt?: Date | undefined;
   dogsByDogId: Map<string, MyEntryDogGroup>;
   dogOrder: string[];
+}
+
+/**
+ * Fold one row's refund facts into the order.
+ *
+ * Refunds arrive on the RAW per-class rows, so an order's refund is the SUM of
+ * its rows' amounts (a null amount is not a refund of zero — it is no refund at
+ * all, and an order with no refunded row must report null, not 0, or every card
+ * would claim a $0 refund was issued). The date is the LATEST across the rows,
+ * which is the day the exhibitor last saw money come back.
+ */
+function mergeRefund(order: OrderAccum, row: MyEntry): void {
+  const amount = row.refundAmount ?? 0;
+  if (amount > 0) order.refundAmount = (order.refundAmount ?? 0) + amount;
+  if (row.refundedAt && (!order.refundedAt || row.refundedAt > order.refundedAt)) {
+    order.refundedAt = row.refundedAt;
+  }
 }
 
 /** Order-level grouping key: real registrations group by id; null-registration
@@ -135,6 +156,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
         entryCloseDate: row.entryCloseDate,
         submittedAt: row.submittedAt,
         lastUpdated: row.lastUpdated,
+        refundAmount: null,
         dogsByDogId: new Map(),
         dogOrder: [],
       };
@@ -146,6 +168,7 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       order.confirmationNumber = order.confirmationNumber ?? row.confirmationNumber;
       order.isShowCancelled ||= Boolean(row.isShowCancelled);
     }
+    mergeRefund(order, row);
 
     let dog = order.dogsByDogId.get(row.dogId);
     if (!dog) {
@@ -230,6 +253,8 @@ export function groupEntriesByOrder(rawEntries: MyEntry[], now: Date = new Date(
       paymentStatus: balance?.paymentStatus ?? order.paymentStatus,
       paymentMethod: balance?.paymentMethod ?? order.paymentMethod,
       ...(balance ? { balance } : {}),
+      refundAmount: order.refundAmount,
+      ...(order.refundedAt ? { refundedAt: order.refundedAt } : {}),
       confirmationNumber: order.confirmationNumber,
       entryCloseDate: order.entryCloseDate,
       submittedAt: order.submittedAt,

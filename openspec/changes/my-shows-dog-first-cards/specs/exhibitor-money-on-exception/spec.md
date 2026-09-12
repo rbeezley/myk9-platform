@@ -49,7 +49,7 @@ When an order carries a refund, the dog card(s) for that order SHALL show a mute
 
 ### Requirement: Paid confirmation shows once, then retires
 
-After an order becomes paid online, the show group SHALL render one green strip above the dog cards naming the dog(s), the amount, the payment date, and that a receipt was sent to the exhibitor's email, with a Dismiss control. The strip SHALL be keyed per order and SHALL NOT render again once dismissed, and SHALL never render once the show's last date has passed. The seen marker SHALL be stored device-locally through the same mechanism as `resultRevealSeen` (`localStorage`, guarded against unavailable storage), so a payment recorded while the exhibitor was elsewhere still confirms on their next visit from any device until dismissed there. Pay-at-show and waived orders SHALL NOT produce the strip.
+After an order becomes paid online, the show group SHALL render one green strip above the dog cards naming the dog(s), the amount, the payment date, and that a receipt was sent to the exhibitor's email, with a Dismiss control. The strip SHALL be keyed per order and SHALL NOT render again once dismissed, SHALL never render once the show's last date has passed, and SHALL NOT render when the payment is older than 14 days (so a new device does not greet the exhibitor with one strip per show they paid for long ago). The seen marker SHALL be stored device-locally through the same mechanism as `resultRevealSeen` (`localStorage`, guarded against unavailable storage), so a payment recorded while the exhibitor was elsewhere still confirms on their next visit from any device until dismissed there. Pay-at-show and waived orders SHALL NOT produce the strip.
 
 #### Scenario: First visit after paying
 
@@ -65,6 +65,11 @@ After an order becomes paid online, the show group SHALL render one green strip 
 
 - **WHEN** an order was paid but the show's last date is before today
 - **THEN** no green strip renders even if it was never dismissed
+
+#### Scenario: Old payment on a new device
+
+- **WHEN** an order was paid online 30 days ago for a show still ahead and this device has never dismissed it
+- **THEN** no green strip renders
 
 #### Scenario: Storage unavailable
 

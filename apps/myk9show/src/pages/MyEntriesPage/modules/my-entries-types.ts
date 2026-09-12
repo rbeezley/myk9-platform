@@ -36,6 +36,13 @@ export interface EntryClass {
   trialDate?: Date | undefined;
   /** Trial number assigned by the show secretary/registry. */
   trialNumber?: string | undefined;
+  /**
+   * IANA timezone of the trial this class belongs to, already resolved through
+   * `getTrialTimezone` (so it is always a valid zone, never a raw column
+   * value). "Today" for the show-day check-in gate is the TRIAL's calendar
+   * day in this zone, never the device's — see `dayCheckIn.isTrialDayToday`.
+   */
+  trialTimezone?: string | undefined;
   jumpHeight?: string | undefined;
   /** Trial discipline (e.g. "Scent Work", "Agility"); gates the jump-height field. */
   trialType?: string | undefined;

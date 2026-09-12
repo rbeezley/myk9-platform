@@ -22,10 +22,7 @@ import { resolve } from 'node:path';
  * mocked onlineManager, i.e. against the mock. This pins the one line whose
  * presence IS the regression.
  */
-const SOURCE = readFileSync(
-  resolve(import.meta.dirname, '../useShowsDatabase.ts'),
-  'utf8'
-);
+const SOURCE = readFileSync(resolve(import.meta.dirname, '../useShowsDatabase.ts'), 'utf8');
 
 /** The `useShowQuery` factory body, so a sibling query's config cannot mask a regression here. */
 function useShowQueryBody(): string {

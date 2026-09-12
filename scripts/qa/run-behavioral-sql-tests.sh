@@ -57,6 +57,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_114_entry_access_context_test.sql"
   "$TEST_DIR/myk9_126_class_result_visibility_parity_test.sql"
   "$TEST_DIR/myk9_169_role_boundaries_test.sql"
+  "$TEST_DIR/myk9_469_public_select_row_scope_test.sql"
   "$TEST_DIR/notification_preferences_sms_rls_test.sql"
   "$TEST_DIR/paperwork_prints_rls_test.sql"
   "$TEST_DIR/placement_soft_delete_ranking_test.sql"

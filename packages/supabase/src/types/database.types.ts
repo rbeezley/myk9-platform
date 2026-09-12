@@ -13349,7 +13349,6 @@ export type Database = {
       test_as_anon: { Args: never; Returns: undefined }
       test_as_user: { Args: { user_id: string }; Returns: undefined }
       test_reset: { Args: never; Returns: undefined }
-      trial_secretary_show_ids: { Args: never; Returns: string[] }
       tv_board_entries: {
         Args: { p_class_ids: string[]; p_show_id: string }
         Returns: {

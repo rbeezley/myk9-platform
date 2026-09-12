@@ -133,6 +133,42 @@ DECLARE
   n integer;
 BEGIN
   ------------------------------------------------------------------
+  -- Policy inventory: a scoped policy is worthless beside a permissive sibling
+  ------------------------------------------------------------------
+  -- Postgres ORs permissive policies, so one leftover `USING (true)` SELECT policy would make
+  -- every scoped predicate in migration 20260912171500 decorative. Codex review of that
+  -- migration raised exactly this against vaccinations_secretary_select (mig 187) and
+  -- nationals_*_select (migs 006/023). Both were already dropped by later migrations
+  -- (20260728130000 and 20260725150000 respectively) and neither exists on the applied
+  -- database — but "it is not there today" is not a guard, so pin the counts.
+  SELECT count(*) INTO n
+  FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
+  JOIN pg_namespace ns ON ns.oid = c.relnamespace AND ns.nspname = 'public'
+  WHERE c.relname = 'vaccinations' AND p.polcmd = 'r';
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL vaccinations has % SELECT policies, want exactly 1 — a second '
+      'permissive policy ORs with vaccinations_select and undoes its scoping', n;
+  END IF;
+
+  SELECT count(*) INTO n
+  FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
+  JOIN pg_namespace ns ON ns.oid = c.relnamespace AND ns.nspname = 'public'
+  WHERE c.relname IN ('nationals_scores', 'nationals_rankings', 'nationals_advancement')
+    AND p.polcmd IN ('r', '*');
+  IF n <> 3 THEN
+    RAISE EXCEPTION 'FAIL the three nationals_* tables expose % read-capable policies, want 3 '
+      '(one FOR ALL each) — a leftover USING (true) SELECT policy would negate the scoping', n;
+  END IF;
+
+  SELECT count(*) INTO n
+  FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid
+  JOIN pg_namespace ns ON ns.oid = c.relnamespace AND ns.nspname = 'public'
+  WHERE c.relname = 'result_submissions' AND p.polcmd = 'r';
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL result_submissions has % SELECT policies, want exactly 1', n;
+  END IF;
+
+  ------------------------------------------------------------------
   -- Club A's secretary: own club yes, the other club no
   ------------------------------------------------------------------
   SET LOCAL ROLE authenticated;

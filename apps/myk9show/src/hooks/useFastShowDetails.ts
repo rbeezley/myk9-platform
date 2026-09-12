@@ -66,9 +66,6 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     // Route params are user-controlled. Do not turn a path such as /shows/new
     // into a database request for a show whose id can never be valid.
     enabled: !!showId && isValidUUID(showId),
-    // getShowById reads the replicated show table first, so cached ownership
-    // can resolve on show-day deep links without network connectivity.
-    networkMode: 'always',
     // placeholderData provides instant display from pre-existing caches while
     // the real query runs in the background — preserves fast navigation feel.
     placeholderData: (): Show | undefined => {

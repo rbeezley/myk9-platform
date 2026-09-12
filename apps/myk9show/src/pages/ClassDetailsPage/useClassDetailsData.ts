@@ -192,6 +192,7 @@ export function useClassDetailsData() {
     !parentShow;
   const isStaffScopeUnavailable =
     hasGlobalStaffRole &&
+    !isAdmin &&
     Boolean(resolvedShowId) &&
     !parentShow &&
     !queriedShowLoading &&

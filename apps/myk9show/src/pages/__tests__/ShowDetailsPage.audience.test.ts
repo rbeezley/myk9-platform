@@ -35,11 +35,9 @@ describe('resolveShowAudience', () => {
   });
 
   it('an admin sees the management shell', () => {
-    expect(
-      resolveShowAudience(
-        input({ isManagementSection: true, isManagementStaff: true, canManageShow: false })
-      )
-    ).toBe('management');
+    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
+      'management'
+    );
   });
 
   it('does not expose management shell to a secretary outside their club', () => {

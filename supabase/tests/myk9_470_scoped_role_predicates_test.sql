@@ -26,7 +26,9 @@ INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
 VALUES
   ('00000000-0000-0000-0000-000000470011', 'MYK9-470', 'Secretary A', 'myk9-470-sec-a@example.test', NULL),
   ('00000000-0000-0000-0000-000000470012', 'MYK9-470', 'Secretary B', 'myk9-470-sec-b@example.test', NULL),
-  ('00000000-0000-0000-0000-000000470013', 'MYK9-470', 'Owner',       'myk9-470-owner@example.test', NULL);
+  ('00000000-0000-0000-0000-000000470013', 'MYK9-470', 'Owner',       'myk9-470-owner@example.test', NULL),
+  -- SHOW-scoped secretary of club B's show, as opposed to the club-scoped secretaries above.
+  ('00000000-0000-0000-0000-000000470014', 'MYK9-470', 'ShowScoped',  'myk9-470-showscoped@example.test', NULL);
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -36,14 +38,16 @@ INSERT INTO auth.users (
 VALUES
   ('00000000-0000-0000-0000-000000470101', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-470-sec-a@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
   ('00000000-0000-0000-0000-000000470102', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-470-sec-b@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
-  ('00000000-0000-0000-0000-000000470103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-470-owner@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
+  ('00000000-0000-0000-0000-000000470103', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-470-owner@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  ('00000000-0000-0000-0000-000000470104', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'myk9-470-showscoped@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
 
 UPDATE public.people AS person
 SET auth_user_id = fixture.auth_id
 FROM (VALUES
   ('00000000-0000-0000-0000-000000470011'::uuid, '00000000-0000-0000-0000-000000470101'::uuid),
   ('00000000-0000-0000-0000-000000470012'::uuid, '00000000-0000-0000-0000-000000470102'::uuid),
-  ('00000000-0000-0000-0000-000000470013'::uuid, '00000000-0000-0000-0000-000000470103'::uuid)
+  ('00000000-0000-0000-0000-000000470013'::uuid, '00000000-0000-0000-0000-000000470103'::uuid),
+  ('00000000-0000-0000-0000-000000470014'::uuid, '00000000-0000-0000-0000-000000470104'::uuid)
 ) AS fixture(person_id, auth_id)
 WHERE person.id = fixture.person_id;
 
@@ -59,6 +63,16 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
 VALUES
   ('00000000-0000-0000-0000-000000470021', 'MYK9-470 Show A', 'AKC', current_date, current_date, '00000000-0000-0000-0000-000000470001', 'published'),
   ('00000000-0000-0000-0000-000000470022', 'MYK9-470 Show B', 'AKC', current_date, current_date, '00000000-0000-0000-0000-000000470002', 'published');
+
+-- A SHOW-scoped secretary row for club B's show. Codex review of 7736accbb claimed
+-- manageable_show_ids() admits this caller, widening offline_scoring/nationals beyond the
+-- original role set. It does not: is_trial_secretary() carries `AND ur.show_id IS NULL`, so a
+-- show-scoped row satisfies neither the old bare is_trial_secretary() nor the new
+-- is_trial_secretary(s.club_id). Asserted below rather than argued.
+INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
+SELECT '00000000-0000-0000-0000-000000470014', roles.id, '00000000-0000-0000-0000-000000470002',
+       '00000000-0000-0000-0000-000000470022', true, '00000000-0000-0000-0000-000000470104'
+FROM public.roles WHERE roles.name = 'secretary';
 
 SET LOCAL ROLE service_role;
 
@@ -130,6 +144,7 @@ DECLARE
   show_a uuid := '00000000-0000-0000-0000-000000470021';
   show_b uuid := '00000000-0000-0000-0000-000000470022';
   entry_b uuid := '00000000-0000-0000-0000-000000470062';
+  show_scoped uuid := '00000000-0000-0000-0000-000000470104';
   n integer;
 BEGIN
   ------------------------------------------------------------------
@@ -235,6 +250,44 @@ BEGIN
     RAISE EXCEPTION 'FAIL club A secretary INSERTed offline_scoring against club B''s entry';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
+
+  ------------------------------------------------------------------
+  -- The SHOW-scoped secretary: must reach nothing
+  ------------------------------------------------------------------
+  -- Codex review of 7736accbb argued manageable_show_ids() admits a show-scoped secretary and
+  -- therefore WIDENS offline_scoring/nationals past the original role set. It does not:
+  -- is_trial_secretary() carries `AND ur.show_id IS NULL`, so a show-scoped row satisfied
+  -- neither the old bare is_trial_secretary() nor the new is_trial_secretary(s.club_id). This
+  -- caller holds ONLY a show-scoped secretary row on club B's show, so if the review were right
+  -- it would reach club B's rows here. Settled by execution rather than by reading SQL.
+  PERFORM set_config('request.jwt.claim.sub', show_scoped::text, true);
+  PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', show_scoped, 'role', 'authenticated')::text, true);
+
+  SELECT count(*) INTO n FROM public.manageable_show_ids();
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL manageable_show_ids() returned % shows for a SHOW-scoped secretary — '
+      'the migration would then widen offline_scoring/nationals past their original role set', n;
+  END IF;
+  SELECT count(*) INTO n FROM public.trial_secretary_show_ids();
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL trial_secretary_show_ids() returned % shows for a SHOW-scoped secretary', n;
+  END IF;
+  SELECT count(*) INTO n FROM public.nationals_scores WHERE entry_id = entry_b;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL show-scoped secretary read % nationals_scores row(s)', n;
+  END IF;
+  SELECT count(*) INTO n FROM public.result_submissions WHERE show_id = show_b;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL show-scoped secretary read % result_submissions row(s)', n;
+  END IF;
+  SELECT count(*) INTO n FROM public.vaccinations WHERE dog_id = dog_b;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL show-scoped secretary read % vaccination row(s)', n;
+  END IF;
+  UPDATE public.offline_scoring SET resolution = 'myk9-470-showscoped' WHERE entry_id = entry_b;
+  IF FOUND THEN
+    RAISE EXCEPTION 'FAIL show-scoped secretary UPDATEd offline_scoring';
+  END IF;
 
   ------------------------------------------------------------------
   -- The dog owner: unchanged by this migration

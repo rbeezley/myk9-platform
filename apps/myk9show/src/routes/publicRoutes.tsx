@@ -25,7 +25,7 @@ import { UserRole } from '@/types/auth-types';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { hasScopedClubRole } from '@/utils/roleScopes';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
@@ -109,14 +109,12 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
   const { user, loading: authLoading, rbacLoading, hasRole, userWithRoles } = useAuthContext();
-  const { data: shows = [], isLoading: showsLoading } = useShowsQuery();
+  const { data: show, isLoading: showLoading } = useShowQuery(id ?? '');
 
   if (authLoading || rbacLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
 
-  if (showsLoading) return null;
-
-  const show = shows.find(s => s.id === id);
+  if (showLoading) return null;
   const isAuthorized =
     hasRole(UserRole.SITE_ADMIN) ||
     (hasRole(UserRole.SECRETARY) &&

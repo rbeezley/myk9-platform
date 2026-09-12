@@ -192,7 +192,7 @@ const ShowDetailsPage: React.FC = () => {
     canManageShow,
     isManagementStaff:
       isAdmin || hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId),
-    rbacLoading,
+    rbacLoading: rbacLoading && !userWithRoles,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,

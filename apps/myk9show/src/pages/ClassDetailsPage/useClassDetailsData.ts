@@ -172,7 +172,7 @@ export function useClassDetailsData() {
       ? shows.find(show => show.id === parentTrial.showId)
       : undefined;
   const resolvedShowId = showId ?? storedParentShow?.id ?? parentTrial?.showId ?? '';
-  const { data: queriedShow } = useShowQuery(resolvedShowId);
+  const { data: queriedShow, isLoading: queriedShowLoading } = useShowQuery(resolvedShowId);
   const parentShow = storedParentShow ?? queriedShow;
   const canManageShow = canManageShowSurface({
     isSecretary,
@@ -187,7 +187,8 @@ export function useClassDetailsData() {
     canManageShow && isStaffViewer && Boolean(classId && resolvedShowId)
   );
   const useStaffEntrySource = canManageShow && isStaffViewer;
-  const isStaffScopeResolving = isStaffViewer && !parentShow;
+  const isStaffScopeResolving =
+    isStaffViewer && Boolean(resolvedShowId) && queriedShowLoading && !parentShow;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)

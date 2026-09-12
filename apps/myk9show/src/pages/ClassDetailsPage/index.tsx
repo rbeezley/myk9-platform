@@ -16,7 +16,6 @@ import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { canManageShowSurface } from '@/utils/roleScopes';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { ClassCompactHeader } from '@/components/classes/ClassCompactHeader';
@@ -53,7 +52,7 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const { user } = useAuthContext();
 
   // Data hook
   const {
@@ -69,8 +68,7 @@ const ClassDetailsPage: React.FC = () => {
     entriesError,
     parentTrial,
     parentShow,
-    staffScopeResolving,
-    staffScopeUnavailable,
+    manageScope,
     dogs,
     updateClass,
     deleteClass,
@@ -89,17 +87,26 @@ const ClassDetailsPage: React.FC = () => {
   // keeps the same class controls they already have one level up on Trial
   // Details, and no more. The separate `isStaff` view flag below uses this same
   // scoped result so cross-club staff receive the public results view.
-  const canManageClass = canManageShowSurface({
-    isSecretary,
-    isAdmin,
-    hasRole,
-    userWithRoles,
-    clubId: parentShow?.clubId,
-  });
-  // Cross-club staff must receive the released-results view rather than an
-  // empty RLS-limited run sheet.
+  // Reuse the page's single ownership gate rather than recomputing it — the two
+  // copies drifted apart repeatedly while this was two independent calls.
+  const canManageClass = manageScope.canManage;
+  // The OPERATIONAL surface (run sheet) is a narrower question than the
+  // lifecycle gate above: a club admin of this club keeps Edit/Delete but is
+  // not show-day staff, so they read the public class entries. Operational
+  // staff are held on the staff surface while the scope is still settling (and
+  // when it is unavailable) so a legitimate secretary never flashes the
+  // exhibitor view; cross-club staff resolve to `false` and correctly receive
+  // the released-results view rather than an empty RLS-limited run sheet.
   const isStaff =
-    (isSecretary || isAdmin) && (canManageClass || staffScopeResolving || staffScopeUnavailable);
+    manageScope.canOperate ||
+    (manageScope.hasOperationalStaffRole && manageScope.status !== 'resolved');
+  // A SCOPE failure is not an entry-load failure. The row-count escape below
+  // exists so a transient entry error does not blank a run sheet that still
+  // has usable rows — but when ownership was never verified, `useStaffEntrySource`
+  // is false, so any rows present came from the PUBLIC query. Rendering the
+  // staff surface over them shows non-staff data as a run sheet. Suppress it on
+  // the state, independently of how many rows arrived.
+  const scopeUnverified = manageScope.status === 'unavailable';
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;
@@ -346,11 +353,11 @@ const ClassDetailsPage: React.FC = () => {
           trialId={trialId || currentClass.trialId}
           classId={classId}
           isLoading={entriesLoading}
-          error={dbRawEntries.length > 0 ? null : entriesError}
+          error={!scopeUnverified && dbRawEntries.length > 0 ? null : entriesError}
         />
 
         {isStaff && !entriesLoading ? (
-          entriesError && dbRawEntries.length === 0 ? (
+          entriesError && (scopeUnverified || dbRawEntries.length === 0) ? (
             <div role="alert" className="rounded-md border border-destructive/30 p-4 text-sm">
               {entriesError}
             </div>

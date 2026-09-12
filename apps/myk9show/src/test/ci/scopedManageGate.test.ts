@@ -80,17 +80,14 @@ export function countGates(source: string): number {
 type Allowance = { reason: string; count: number };
 
 const ALLOWED: Record<string, Allowance> = {
-  'pages/ClassDetailsPage/index.tsx': {
+  'hooks/useShowManageScope.ts': {
     reason:
-      'Intentional global staff classification is combined with the scoped class gate: it keeps ' +
-      'secretaries/admins on the run sheet while club_admins retain lifecycle controls only.',
-    count: 1,
-  },
-  'pages/ClassDetailsPage/useClassDetailsData.ts': {
-    reason:
-      'Intentional global staff classification selects the staff entry/view path only after the ' +
-      'show ownership is verified; the operational query and manage controls remain gated by ' +
-      'canManageShowSurface.',
+      'The ONE canonical show-ownership gate (MYK9-464). This occurrence is not a manage gate: ' +
+      'it is a short-circuit deciding whether the show ownership read is needed AT ALL, so a ' +
+      'viewer holding no club-staff role anywhere pays for no query and is never held on a ' +
+      'resolving state. The grant itself is canManageShowSurface({ ..., clubId }) further down, ' +
+      'and every consumer (ClassDetailsPage, its data hook, ShowManagementSectionRoute) now ' +
+      'reads that single result instead of re-deriving one.',
     count: 1,
   },
   'components/notifications/MessageCenterPanel.tsx': {

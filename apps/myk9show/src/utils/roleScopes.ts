@@ -83,11 +83,6 @@ export function canManageShowSurface({
   );
 }
 
-/** Global viewer classification used only to choose staff vs exhibitor views. */
-export function isSecretaryOrAdminViewer(isSecretary: boolean, isAdmin: boolean): boolean {
-  return [isSecretary, isAdmin].some(Boolean);
-}
-
 /** The staff roles that carry show-management rights over their club's shows. */
 const CLUB_STAFF_ROLES: readonly UserRole[] = [UserRole.SECRETARY, UserRole.CLUB_ADMIN];
 

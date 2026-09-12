@@ -216,7 +216,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
       <Checkbox
         checked={isAllSelected ?? false}
         onCheckedChange={() => onToggleAll?.()}
-        aria-label="Select all shows"
+        aria-label="Select all you manage"
       />
       <span className="text-xs text-muted-foreground">Select all you manage</span>
     </div>

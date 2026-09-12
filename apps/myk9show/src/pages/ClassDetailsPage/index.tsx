@@ -234,7 +234,7 @@ const ClassDetailsPage: React.FC = () => {
   const headerActions = useMemo(() => {
     return (
       <div className="flex items-center gap-2">
-        {canManageClass && parentShow?.id && (
+        {isStaff && canManageClass && parentShow?.id && (
           <Button
             variant="outline"
             size="sm"
@@ -252,7 +252,7 @@ const ClassDetailsPage: React.FC = () => {
             Manage Entries
           </Button>
         )}
-        {canManageClass && (
+        {isStaff && canManageClass && (
           <Button variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Edit
@@ -289,6 +289,7 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openEditClassPanel,
     dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
+    isStaff,
     canManageClass,
     parentShow,
     trialId,

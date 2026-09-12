@@ -52,10 +52,10 @@ describe('resolveShowAudience', () => {
     );
   });
 
-  it('holds a signed-in staff viewer while the show scope resolves', () => {
+  it('holds a signed-in staff viewer while RBAC resolves', () => {
     expect(
       resolveShowAudience(
-        input({ isAuthenticated: true, showResolving: true, hasUserEntries: false })
+        input({ isAuthenticated: true, rbacLoading: true, hasUserEntries: false })
       )
     ).toBe('pending');
   });

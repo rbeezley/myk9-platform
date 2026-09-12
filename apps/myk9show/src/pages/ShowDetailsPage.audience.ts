@@ -19,8 +19,8 @@ export interface ShowAudienceInput {
   forcePublicPreview?: boolean;
   canManageShow: boolean;
   isManagementStaff: boolean;
-  /** The show identity is still resolving, so scoped staff access is unknown. */
-  showResolving?: boolean;
+  /** RBAC is still resolving, so staff access is unknown. */
+  rbacLoading?: boolean;
   /** Whether a user is signed in at all. */
   isAuthenticated: boolean;
   /** The my-entries query is still resolving — can't yet tell public from exhibitor. */
@@ -34,7 +34,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
     forcePublicPreview,
     canManageShow,
     isManagementStaff,
-    showResolving = false,
+    rbacLoading = false,
     isAuthenticated,
     userEntriesLoading,
     hasUserEntries,
@@ -48,7 +48,7 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
   if (!isManagementSection && !isStaff) {
     // Defer while an authenticated visitor's entries resolve, so we don't flash
     // the public landing before discovering they're an entered exhibitor.
-    if (isAuthenticated && (userEntriesLoading || showResolving)) return 'pending';
+    if (isAuthenticated && (userEntriesLoading || rbacLoading)) return 'pending';
     // A non-staff visitor with no entries gets the public marketing landing.
     if (!hasUserEntries) return 'public';
   }

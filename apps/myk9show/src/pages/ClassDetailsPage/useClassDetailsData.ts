@@ -30,6 +30,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import type { SecretaryEntry } from '@/services/database/entries';
 import { canManageShowSurface } from '@/utils/roleScopes';
+import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
@@ -124,6 +125,7 @@ export function useClassDetailsData() {
   const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { trials, trialClasses: replicatedTrialClasses } = useTrialStore();
   const { shows } = useShowStore();
+  const { data: queriedShows = [] } = useShowsQuery();
 
   // Get current class from URL parameter.
   // Fall back to the replication layer (trialStore.trialClasses) when the React
@@ -166,9 +168,10 @@ export function useClassDetailsData() {
       : undefined;
 
   const parentShow = showId
-    ? shows.find(show => show.id === showId)
+    ? shows.find(show => show.id === showId) ?? queriedShows.find(show => show.id === showId)
     : parentTrial
-      ? shows.find(show => show.id === parentTrial.showId)
+      ? shows.find(show => show.id === parentTrial.showId) ??
+        queriedShows.find(show => show.id === parentTrial.showId)
       : undefined;
   const resolvedShowId = showId ?? parentShow?.id ?? parentTrial?.showId ?? '';
   const canManageShow = canManageShowSurface({

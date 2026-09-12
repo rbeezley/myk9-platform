@@ -54,7 +54,7 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
-  const { user, userWithRoles, isSecretary, isAdmin } = useAuthContext();
+  const { user, userWithRoles, isSecretary, isAdmin, rbacLoading } = useAuthContext();
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -195,7 +195,7 @@ const ShowDetailsPage: React.FC = () => {
       : isSecretary &&
         canManageShow &&
         hasScopedClubRole(userWithRoles, UserRole.SECRETARY, actualCurrentShow?.clubId),
-    showResolving: fastLoading || !actualCurrentShow,
+    rbacLoading,
     isAuthenticated,
     userEntriesLoading: exhibitorEntryDataState === 'loading',
     hasUserEntries: hasOwnedEntryHistory,

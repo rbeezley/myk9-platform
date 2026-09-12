@@ -15,6 +15,13 @@ export function getDisplayableJudges(
     .filter(judge => hasDisplayableJudgeName(judge.judgeName));
 }
 
+/**
+ * Fallback judge list for the show overview, grouped by each class's `judgeName`.
+ *
+ * `judgeName` on a class is derived from its confirmed judge_assignments row
+ * (rowToClass / mapDatabaseToClass); `classes.judge_name` was dropped (MYK9-479),
+ * so this can no longer name a judge who is not actually assigned to the class.
+ */
 export function buildJudgesFromClasses(
   classes: readonly { id: string; judgeName?: string | null }[]
 ): ShowJudgeAssignment[] {

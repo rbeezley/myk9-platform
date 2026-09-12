@@ -32,7 +32,9 @@ const classes = [
     element: 'Buried',
     level: 'Novice',
     section: '',
-    judge_name: 'Judge One',
+    judge_assignments: [
+      { person_id: 'judge-one', people: { first_name: 'Judge', last_name: 'One' } },
+    ],
   },
   {
     id: 'class-2',
@@ -40,9 +42,11 @@ const classes = [
     element: 'Interior',
     level: 'Advanced',
     section: '',
-    judge_name: 'Judge Two',
+    judge_assignments: [
+      { person_id: 'judge-two', people: { first_name: 'Judge', last_name: 'Two' } },
+    ],
   },
-] as DbClass[];
+] as unknown as DbClass[];
 
 const entries = [
   {
@@ -92,7 +96,6 @@ describe('ReportPreview', () => {
     const assignmentClasses = [
       {
         ...classes[0],
-        judge_name: null,
         judge_assignments: [
           {
             person_id: 'judge-1',

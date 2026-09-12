@@ -42,6 +42,19 @@ describe('classDataToReplicatedClass', () => {
     expect(classDataToReplicatedClass(baseClassData).hideCount).toBeUndefined();
   });
 
+  // MYK9-479: classes.judge_name is gone, so the judge id is what makes the
+  // wizard's pick survive — both for the class-level assignment row and for the
+  // local read shim, which needs id AND name to synthesise judge_assignments.
+  it('carries the judge id alongside the judge name', () => {
+    const result = classDataToReplicatedClass({ ...baseClassData, judgeId: 'person-9' });
+    expect(result.judgeId).toBe('person-9');
+    expect(result.judgeName).toBe('Jane Smith');
+  });
+
+  it('leaves judgeId undefined when the wizard picked no judge', () => {
+    expect(classDataToReplicatedClass(baseClassData).judgeId).toBeUndefined();
+  });
+
   it('still carries the other rule-derived scoring fields', () => {
     const result = classDataToReplicatedClass(
       baseClassData,

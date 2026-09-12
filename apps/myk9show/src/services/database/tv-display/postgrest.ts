@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { fetchPublicEntryCountsByShow, type PublicClassCounts } from '../_shared/entryCounts';
+import { fetchJudgeNamesByClass } from '../_shared/judgeNamesByClass';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import {
   groupEntriesByClass,
@@ -61,33 +62,6 @@ async function fetchTVBoardEntries(showId: string, classIds: string[]) {
 
   if (error) return [];
   return data ?? [];
-}
-
-/**
- * Judge name per class, via the get_show_judges RPC (MYK9-474).
- *
- * NOT an embed. `judge_assignments(people(...))` resolved to `"people": null` on every row for
- * this surface, because /tv/:showId is public and runs as `anon`, and no `people` policy admits
- * anon — the column grants only let the embed parse. The RPC is SECURITY DEFINER with the same
- * show-status gate as get_show_officials and returns no email column, so it publishes names
- * without admitting anon rows on `people`.
- *
- * Degrades to an empty Map like the other RPC helpers here: a judge-name failure must not take
- * the running order off the board.
- */
-async function fetchJudgeNamesByClass(showId: string): Promise<Map<string, string>> {
-  const byClass = new Map<string, string>();
-  const { data, error } = await supabase.rpc('get_show_judges', { p_show_id: showId });
-  if (error || !data) return byClass;
-
-  // No cast: the get_show_judges row type comes from the generated Database types, so a change
-  // to the function's RETURNS TABLE surfaces here as a type error rather than at runtime.
-  for (const row of data) {
-    if (!row.class_id || byClass.has(row.class_id)) continue;
-    const name = `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim();
-    if (name) byClass.set(row.class_id, name);
-  }
-  return byClass;
 }
 
 type TVBoardEntryRow = Awaited<ReturnType<typeof fetchTVBoardEntries>>[number];

@@ -19,9 +19,23 @@ interface ClassRow {
   element: string | null;
   level: string | null;
   section: string | null;
-  judge_name: string | null;
   status: string | null;
   start_time: string | null;
+}
+
+interface ShowJudgeRow {
+  class_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  status: string | null;
+}
+
+/** The one RPC this module calls; the untyped client's `rpc` cannot carry arguments. */
+interface ShowJudgesRpcClient {
+  rpc(
+    name: 'get_show_judges',
+    args: { p_show_id: string }
+  ): PromiseLike<{ data: ShowJudgeRow[] | null; error: { message: string } | null }>;
 }
 
 interface ClassEntryRow {
@@ -45,6 +59,41 @@ function applyTrialScope<Q extends { eq(column: string, value: unknown): Q }>(
     return query.eq('shows.license_key', scope.licenseKey);
   }
   return query.eq('show_id', IMPOSSIBLE_SHOW_ID);
+}
+
+/**
+ * Judge name per class, resolved through the get_show_judges RPC.
+ *
+ * A class's judge is its judge_assignments row and nothing else — `classes.judge_name`
+ * was dropped (MYK9-479). The RPC (SECURITY DEFINER, same show-status gate as
+ * get_show_officials, no email column) is used instead of a `people` embed because the
+ * caller client runs under the asker's own JWT and `people_select` admits only show
+ * managers, so an embed resolves to null for every other premium user. A failure here
+ * degrades to no names rather than failing the summary. Only `confirmed` assignments name
+ * the judge — the RPC returns invited/declined/cancelled rows too, and those are not the judge.
+ */
+async function fetchJudgeNamesByClass(
+  supabase: SupabaseClient,
+  showIds: string[]
+): Promise<Map<string, string>> {
+  const byClass = new Map<string, string>();
+  for (const showId of showIds) {
+    const { data, error } = await (supabase as unknown as ShowJudgesRpcClient).rpc(
+      'get_show_judges',
+      { p_show_id: showId }
+    );
+    if (error) {
+      console.error('Class summary judge lookup error:', error);
+      continue;
+    }
+    for (const row of data ?? []) {
+      if (row.status !== 'confirmed') continue;
+      if (!row.class_id || byClass.has(row.class_id)) continue;
+      const name = `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim();
+      if (name) byClass.set(row.class_id, name);
+    }
+  }
+  return byClass;
 }
 
 function showNameFromTrial(trial: TrialRow): string {
@@ -104,7 +153,7 @@ export async function executeGetClassSummary(
     const trialById = new Map(trials.map(trial => [trial.id, trial]));
     let classQuery = supabase
       .from('classes')
-      .select('id, trial_id, element, level, section, judge_name, status, start_time, deleted_at')
+      .select('id, trial_id, element, level, section, status, start_time, deleted_at')
       .in(
         'trial_id',
         trials.map(trial => trial.id)
@@ -135,6 +184,9 @@ export async function executeGetClassSummary(
     }
 
     const classIds = classes.map(cls => cls.id);
+    const judgeNamesByClass = await fetchJudgeNamesByClass(supabase, [
+      ...new Set(trials.map(trial => trial.show_id)),
+    ]);
     const entryQuery = supabase
       .from('entries')
       .select('class_id, entry_status, is_scored, check_in_status, result_status, show_id')
@@ -167,7 +219,7 @@ export async function executeGetClassSummary(
           element: cls.element,
           level: cls.level,
           section: cls.section,
-          judge_name: cls.judge_name,
+          judge_name: judgeNamesByClass.get(cls.id) ?? null,
           class_status: cls.status,
           total_entries: entries.length,
           scored_entries: entries.filter(entry => entry.is_scored).length,

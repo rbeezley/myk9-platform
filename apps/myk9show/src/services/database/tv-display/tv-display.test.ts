@@ -145,8 +145,28 @@ function mockBoardRpcs(options: {
       // One row per ASSIGNMENT, as the RPC returns them — the class_id is what the board maps by.
       return Promise.resolve({
         data: [
-          { person_id: 'p1', first_name: 'John', last_name: 'Smith', class_id: 'class-active' },
-          { person_id: 'p2', first_name: 'Alice', last_name: 'Smith', class_id: 'class-done' },
+          // An invited (not confirmed) row for the same class sorts first and must be ignored.
+          {
+            person_id: 'p9',
+            first_name: 'Declined',
+            last_name: 'Judge',
+            class_id: 'class-active',
+            status: 'invited',
+          },
+          {
+            person_id: 'p1',
+            first_name: 'John',
+            last_name: 'Smith',
+            class_id: 'class-active',
+            status: 'confirmed',
+          },
+          {
+            person_id: 'p2',
+            first_name: 'Alice',
+            last_name: 'Smith',
+            class_id: 'class-done',
+            status: 'confirmed',
+          },
         ],
         error: null,
       });

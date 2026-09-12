@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -21,17 +21,34 @@ import { CLASS_COLUMNS, CLASS_HIDE_SECRET_COLUMNS } from './reads';
  * `anonEntriesGrantContract.test.ts` guards the other direction — that no LATER migration
  * re-grants anon a table-wide SELECT, which is how this exact bug class shipped twice before.
  */
-const MIGRATION = resolve(
-  __dirname,
-  '../../../../../../supabase/migrations/20260730140000_anon_classes_hide_column_allowlist.sql'
-);
+const MIGRATIONS_DIR = resolve(__dirname, '../../../../../../supabase/migrations');
+const ANON_CLASS_GRANT = /GRANT\s+SELECT\s*\(([^)]*)\)\s*ON\s+public\.classes\s+TO\s+anon/i;
 
-/** The column list from the migration's `GRANT SELECT (...) ON public.classes TO anon`. */
+/**
+ * The column list from the LATEST migration's `GRANT SELECT (...) ON public.classes TO anon`.
+ *
+ * Latest, not a pinned file: the allowlist was first written by 20260730140000 and has been
+ * restated since (20260731170000 widened authenticated; 20260912234500 dropped judge_name),
+ * and each restatement is the one the database now holds.
+ */
 function grantedAnonColumns(): string[] {
-  const sql = readFileSync(MIGRATION, 'utf8').replace(/--[^\n]*/g, '');
-  const match = sql.match(/GRANT\s+SELECT\s*\(([^)]*)\)\s*ON\s+public\.classes\s+TO\s+anon/i);
-  if (!match) throw new Error('migration no longer contains an anon column grant on classes');
-  return match[1]
+  const defining = readdirSync(MIGRATIONS_DIR)
+    .filter(name => name.endsWith('.sql'))
+    .sort()
+    .filter(name =>
+      ANON_CLASS_GRANT.test(
+        readFileSync(resolve(MIGRATIONS_DIR, name), 'utf8').replace(/--[^\n]*/g, '')
+      )
+    );
+  if (defining.length === 0) {
+    throw new Error('no migration contains an anon column grant on classes');
+  }
+  const sql = readFileSync(resolve(MIGRATIONS_DIR, defining[defining.length - 1]!), 'utf8').replace(
+    /--[^\n]*/g,
+    ''
+  );
+  const match = sql.match(ANON_CLASS_GRANT);
+  return match![1]!
     .split(',')
     .map(column => column.trim())
     .filter(Boolean);

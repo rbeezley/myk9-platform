@@ -26,7 +26,6 @@ const baseRow = {
     level: 'Novice',
     max_entries: 30,
     start_time: '2026-05-03T09:00:00Z',
-    judge_name: 'Ellen Heavner',
     trial: {
       id: 'trial-1',
       name: 'Scent Work Day 1',
@@ -43,7 +42,7 @@ const baseRow = {
 
 describe('mapRowToClassInfo', () => {
   it('maps class fields correctly', () => {
-    const result = mapRowToClassInfo(baseRow);
+    const result = mapRowToClassInfo(baseRow, 'Ellen Heavner');
     expect(result.class.id).toBe('class-1');
     expect(result.class.name).toBe('Container Novice A');
     expect(result.class.element).toBe('Container');
@@ -57,7 +56,7 @@ describe('mapRowToClassInfo', () => {
   });
 
   it('maps trial fields correctly', () => {
-    const result = mapRowToClassInfo(baseRow);
+    const result = mapRowToClassInfo(baseRow, 'Ellen Heavner');
     expect(result.trial.id).toBe('trial-1');
     expect(result.trial.name).toBe('Scent Work Day 1');
     expect(result.trial.date).toBe('2026-05-03');
@@ -67,7 +66,7 @@ describe('mapRowToClassInfo', () => {
   });
 
   it('maps entry fields correctly', () => {
-    const result = mapRowToClassInfo(baseRow);
+    const result = mapRowToClassInfo(baseRow, 'Ellen Heavner');
     expect(result.entry.id).toBe('entry-1');
     expect(result.entry.armband).toBe('42');
     expect(result.entry.runningOrder).toBe(7);
@@ -80,7 +79,7 @@ describe('mapRowToClassInfo', () => {
   });
 
   it('maps dog fields correctly', () => {
-    const result = mapRowToClassInfo(baseRow);
+    const result = mapRowToClassInfo(baseRow, 'Ellen Heavner');
     expect(result.entry.dog?.id).toBe('dog-1');
     expect(result.entry.dog?.breed).toBe('Border Collie');
     expect(result.entry.dog?.sex).toBe('male');
@@ -88,7 +87,7 @@ describe('mapRowToClassInfo', () => {
   });
 
   it('builds minimal ringStatus stub', () => {
-    const result = mapRowToClassInfo(baseRow);
+    const result = mapRowToClassInfo(baseRow, 'Ellen Heavner');
     expect(result.ringStatus.classId).toBe('class-1');
     expect(result.ringStatus.ringNumber).toBeNull();
     expect(result.ringStatus.judgeName).toBe('Ellen Heavner');
@@ -108,10 +107,9 @@ describe('mapRowToClassInfo', () => {
         level: null,
         max_entries: null,
         start_time: null,
-        judge_name: null,
       },
     };
-    const result = mapRowToClassInfo(sparse);
+    const result = mapRowToClassInfo(sparse, undefined);
     expect(result.entry.armband).toBe('');
     expect(result.entry.checkInStatus).toBe('no-status');
     expect(result.entry.dogCallName).toBe('');
@@ -127,7 +125,7 @@ describe('mapRowToClassInfo', () => {
 // Hook tests
 // ---------------------------------------------------------------------------
 
-const { mockChain, mockFrom } = vi.hoisted(() => {
+const { mockChain, mockFrom, mockRpc } = vi.hoisted(() => {
   const chain: {
     select: ReturnType<typeof vi.fn>;
     eq: ReturnType<typeof vi.fn>;
@@ -140,11 +138,15 @@ const { mockChain, mockFrom } = vi.hoisted(() => {
   chain.select = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
   const from = vi.fn().mockReturnValue(chain);
-  return { mockChain: chain, mockFrom: from };
+  const rpc = vi.fn();
+  return { mockChain: chain, mockFrom: from, mockRpc: rpc };
 });
 
 vi.mock('@/services/database/supabaseClient', () => ({
-  supabase: { from: (...args: unknown[]) => mockFrom(...args) },
+  supabase: {
+    from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
+  },
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
@@ -164,6 +166,20 @@ describe('useClassCheckInData', () => {
     mockChain.eq = vi.fn().mockReturnValue(mockChain);
     mockChain.maybeSingle = vi.fn();
     mockFrom.mockReturnValue(mockChain);
+    mockRpc.mockResolvedValue({
+      data: [
+        {
+          assignment_id: 'ja-1',
+          person_id: 'judge-1',
+          first_name: 'Ellen',
+          last_name: 'Heavner',
+          trial_id: 'trial-1',
+          class_id: 'class-1',
+          status: 'confirmed',
+        },
+      ],
+      error: null,
+    });
   });
 
   it('returns mapped ExhibitorClassInfo on success', async () => {
@@ -175,6 +191,44 @@ describe('useClassCheckInData', () => {
     expect(result.current.data).not.toBeNull();
     expect(result.current.data?.class.name).toBe('Container Novice A');
     expect(result.current.data?.entry.armband).toBe('42');
+    expect(result.current.error).toBeNull();
+  });
+
+  // MYK9-479: classes.judge_name was dropped. The judge comes from the
+  // get_show_judges RPC (an exhibitor cannot embed `people`), keyed by class.
+  it('resolves the judge through get_show_judges for the entry show, not a classes column', async () => {
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({ data: baseRow, error: null });
+
+    const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(mockRpc).toHaveBeenCalledWith('get_show_judges', { p_show_id: 'show-1' });
+    expect(String(mockChain.select.mock.calls[0]?.[0] ?? '')).not.toContain('judge_name');
+    expect(result.current.data?.class.judgeName).toBe('Ellen Heavner');
+    expect(result.current.data?.entry.judgeName).toBe('Ellen Heavner');
+    expect(result.current.data?.ringStatus.judgeName).toBe('Ellen Heavner');
+  });
+
+  it('leaves the judge blank when the class has no confirmed assignment', async () => {
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({ data: baseRow, error: null });
+    mockRpc.mockResolvedValue({ data: [], error: null });
+
+    const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data?.class.judgeName).toBe('');
+    expect(result.current.error).toBeNull();
+  });
+
+  it('still returns the entry when the judge lookup fails', async () => {
+    mockChain.maybeSingle = vi.fn().mockResolvedValue({ data: baseRow, error: null });
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'rpc down' } });
+
+    const { result } = renderHook(() => useClassCheckInData('entry-1'), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data?.entry.armband).toBe('42');
+    expect(result.current.data?.class.judgeName).toBe('');
     expect(result.current.error).toBeNull();
   });
 

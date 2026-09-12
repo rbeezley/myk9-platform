@@ -120,7 +120,13 @@ function fakeSupabase(rowsByTable: Record<string, unknown[]>) {
     return builder;
   };
 
-  return { client: { from } as never, queries };
+  /** RPC rows are supplied under the key `rpc:<function name>`. */
+  const rpc = (name: string, args: Record<string, unknown>) => {
+    queries.push({ table: `rpc:${name}`, selected: '', columns: Object.keys(args) });
+    return Promise.resolve({ data: rowsByTable[`rpc:${name}`] ?? [], error: null });
+  };
+
+  return { client: { from, rpc } as never, queries };
 }
 
 /** Column names in a select string, ignoring embedded-resource clauses. */
@@ -284,9 +290,21 @@ describe('AskQ class and trial tools query current base-table columns', () => {
           element: 'Container',
           level: 'Novice',
           section: 'A',
-          judge_name: 'Ann Judge',
           status: 'upcoming',
           start_time: '09:30:00',
+        },
+      ],
+      // MYK9-479: classes.judge_name is gone; the judge is the confirmed
+      // assignment, read through get_show_judges.
+      'rpc:get_show_judges': [
+        {
+          assignment_id: 'ja-1',
+          person_id: 'judge-1',
+          first_name: 'Ann',
+          last_name: 'Judge',
+          trial_id: 'trial-1',
+          class_id: 'class-1',
+          status: 'confirmed',
         },
       ],
       entries: [
@@ -358,7 +376,16 @@ describe('AskQ class and trial tools query current base-table columns', () => {
       },
     ]);
 
-    expect(queries.map(query => query.table)).toEqual(['trials', 'classes', 'entries']);
+    expect(queries.map(query => query.table)).toEqual([
+      'trials',
+      'classes',
+      'rpc:get_show_judges',
+      'entries',
+    ]);
+    expect(queries.find(query => query.table === 'classes')!.selected).not.toContain('judge_name');
+    expect(queries.find(query => query.table === 'rpc:get_show_judges')!.columns).toEqual([
+      'p_show_id',
+    ]);
     expect(queries.find(query => query.table === 'trials')!.columns).toContain('show_id');
     expect(queries.find(query => query.table === 'trials')!.columns).toContain('deleted_at');
     expect(queries.find(query => query.table === 'classes')!.columns).toEqual([
@@ -397,7 +424,6 @@ describe('AskQ class and trial tools query current base-table columns', () => {
           element: 'Container',
           level: 'Novice',
           section: null,
-          judge_name: null,
           status: 'upcoming',
           start_time: '09:00:00',
         },
@@ -407,7 +433,6 @@ describe('AskQ class and trial tools query current base-table columns', () => {
           element: 'Container',
           level: 'Novice',
           section: null,
-          judge_name: null,
           status: 'upcoming',
           start_time: '09:00:00',
         },

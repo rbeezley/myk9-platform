@@ -35,15 +35,24 @@ describe('resolveShowAudience', () => {
   });
 
   it('an admin sees the management shell', () => {
-    expect(resolveShowAudience(input({ canManageShow: true, isManagementStaff: true }))).toBe(
-      'management'
-    );
+    expect(
+      resolveShowAudience(
+        input({ isManagementSection: true, isManagementStaff: true, canManageShow: false })
+      )
+    ).toBe('management');
   });
 
   it('does not expose management shell to a secretary outside their club', () => {
-    expect(resolveShowAudience(input({ isAuthenticated: true, hasUserEntries: true }))).toBe(
-      'exhibitor'
-    );
+    expect(
+      resolveShowAudience(
+        input({
+          isAuthenticated: true,
+          hasUserEntries: true,
+          canManageShow: false,
+          isManagementStaff: false,
+        })
+      )
+    ).toBe('exhibitor');
   });
 
   it('a club admin sees the exhibitor view, not management or public', () => {

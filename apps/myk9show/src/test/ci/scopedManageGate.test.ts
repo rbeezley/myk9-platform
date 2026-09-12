@@ -80,6 +80,12 @@ export function countGates(source: string): number {
 type Allowance = { reason: string; count: number };
 
 const ALLOWED: Record<string, Allowance> = {
+  'pages/ClassDetailsPage/index.tsx': {
+    reason:
+      'Intentional global staff classification is combined with the scoped class gate: it keeps ' +
+      'secretaries/admins on the run sheet while club_admins retain lifecycle controls only.',
+    count: 1,
+  },
   'pages/ClassDetailsPage/useClassDetailsData.ts': {
     reason:
       'Intentional global staff classification is used only to keep the class surface in a ' +

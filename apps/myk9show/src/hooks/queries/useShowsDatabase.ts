@@ -91,6 +91,9 @@ export const useShowQuery = (id: string) => {
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
     enabled: !!id,
+    // getShowById reads the replication layer first, so allow it to resolve
+    // cached show ownership while offline on staff deep links.
+    networkMode: 'always',
     ...cacheStrategies.fast,
   });
 };

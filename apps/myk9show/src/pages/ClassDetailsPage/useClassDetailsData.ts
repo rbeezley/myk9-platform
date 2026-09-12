@@ -182,15 +182,16 @@ export function useClassDetailsData() {
     userWithRoles,
     clubId: parentShow?.clubId,
   });
+  const hasGlobalStaffRole = isSecretary || isAdmin;
   const isStaffScopeResolving =
-    (isSecretary || isAdmin) && Boolean(resolvedShowId) && queriedShowLoading && !parentShow;
-  const isStaffViewer = canManageShow || isStaffScopeResolving;
+    hasGlobalStaffRole && Boolean(resolvedShowId) && queriedShowLoading && !parentShow;
+  const isStaffViewer = hasGlobalStaffRole && (canManageShow || isStaffScopeResolving);
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
     resolvedShowId,
     canManageShow && isStaffViewer && Boolean(classId && resolvedShowId)
   );
-  const useStaffEntrySource = canManageShow && isStaffViewer;
+  const useStaffEntrySource = hasGlobalStaffRole && canManageShow;
 
   // --- Entry sources ---
   // 1. Database entries via React Query (primary source)

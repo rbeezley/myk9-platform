@@ -97,7 +97,7 @@ const ClassDetailsPage: React.FC = () => {
   });
   // Cross-club staff must receive the released-results view rather than an
   // empty RLS-limited run sheet.
-  const isStaff = canManageClass || staffScopeResolving;
+  const isStaff = (isSecretary || isAdmin) && (canManageClass || staffScopeResolving);
   const releasedResults = useClassReleasedResults(classId, currentClass?.results_released_at);
   const showReleasedResults = !isStaff && releasedResults.isReleased;
   const exhibitorClassEntries = showReleasedResults ? releasedResults.entryData : classEntries;

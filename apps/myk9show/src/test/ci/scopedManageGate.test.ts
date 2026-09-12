@@ -88,9 +88,9 @@ const ALLOWED: Record<string, Allowance> = {
   },
   'pages/ClassDetailsPage/useClassDetailsData.ts': {
     reason:
-      'Intentional global staff classification is used only to keep the class surface in a ' +
-      'loading state while its show ownership resolves; entry sources and manage controls remain ' +
-      'gated by canManageShowSurface.',
+      'Intentional global staff classification selects the staff entry/view path only after the ' +
+      'show ownership is verified; the operational query and manage controls remain gated by ' +
+      'canManageShowSurface.',
     count: 1,
   },
   'components/notifications/MessageCenterPanel.tsx': {

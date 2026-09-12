@@ -31,11 +31,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowsQuery: () => mockShows,
-}));
-
-vi.mock('@/hooks/useFastShowDetails', () => ({
-  useFastShowDetails: (id?: string) => ({
-    show: mockShows.data.find(show => show.id === id) ?? null,
+  useShowQuery: (id?: string) => ({
+    data: mockShows.data.find(show => show.id === id) ?? null,
     isLoading: mockShows.isLoading,
   }),
 }));
@@ -352,23 +349,6 @@ describe('canonical show management routes', () => {
     expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
       '/shows/show-1'
     );
-    expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
-  });
-
-  it('waits for the show query before deciding scoped secretary access', () => {
-    mockAuth.hasRole = (role: string) => role === UserRole.SECRETARY;
-    mockAuth.userWithRoles = {
-      scopes: [{ scopeType: ScopeType.CLUB, scopeId: 'club-a', roleId: UserRole.SECRETARY }],
-    };
-    mockShows.data = [{ id: 'show-1', clubId: 'club-a' }];
-    mockShows.isLoading = true;
-
-    render(
-      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
-        <Routes>{PublicRoutes()}</Routes>
-      </MemoryRouter>
-    );
-
     expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
   });
 

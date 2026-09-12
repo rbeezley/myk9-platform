@@ -112,12 +112,9 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
      * renders a full, confident show page from a possibly-stale row -- dates and
      * fee included -- with nothing telling the viewer it could not be refreshed.
      *
-     * `fetchStatus === 'paused'` is not optional here. This query declares no
-     * `networkMode`, so it inherits 'online' and PAUSES rather than errors when
-     * the device is offline -- meaning the single most common way to "not reach
-     * the server" never sets `isError` at all. Checking only the error would
-     * have shipped a stale-data notice that stays silent in exactly the case its
-     * own copy describes.
+     * `fetchStatus === 'paused'` is not optional here. This query inherits the
+     * default online network mode and pauses rather than errors when the device
+     * is offline, so the most common way to miss a refresh never sets `isError`.
      */
     refreshFailed: (isNetworkError || fetchStatus === 'paused') && !!show,
     refetch,

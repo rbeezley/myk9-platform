@@ -25,7 +25,7 @@ import { UserRole } from '@/types/auth-types';
 import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import { SHOW_MANAGEMENT_SECTIONS, type ShowManagementSectionPath } from './showManagementSections';
-import { useFastShowDetails } from '@/hooks/useFastShowDetails';
+import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { hasScopedClubRole } from '@/utils/roleScopes';
 
 function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPageProps): ReactNode {
@@ -109,7 +109,7 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   const { id } = useParams<{ id?: string }>();
   const canonicalShowPath = id ? `/shows/${id}` : '/shows';
   const { user, loading: authLoading, rbacLoading, hasRole, userWithRoles } = useAuthContext();
-  const { show, isLoading: showLoading } = useFastShowDetails(id);
+  const { data: show } = useShowQuery(id ?? '');
 
   if (authLoading || rbacLoading) return null;
   if (!user) return <Navigate to={canonicalShowPath} replace />;
@@ -119,7 +119,6 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
     return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
   }
 
-  if (showLoading) return null;
   const isAuthorized =
     (hasRole(UserRole.SECRETARY) &&
       hasScopedClubRole(userWithRoles, UserRole.SECRETARY, show?.clubId)) ||

@@ -190,11 +190,19 @@ export function useClassDetailsData() {
     Boolean(resolvedShowId) &&
     (queriedShowLoading || isPlaceholderData) &&
     !parentShow;
-  const isStaffViewer = hasGlobalStaffRole && (canManageShow || isStaffScopeResolving);
+  const isStaffScopeUnavailable =
+    hasGlobalStaffRole &&
+    Boolean(resolvedShowId) &&
+    !parentShow &&
+    !queriedShowLoading &&
+    !isPlaceholderData;
+  const staffScopeError = isStaffScopeUnavailable
+    ? 'We could not verify this show’s ownership. Please retry.'
+    : null;
 
   const staffShowEntries = useSecretaryShowEntriesQuery(
     resolvedShowId,
-    canManageShow && isStaffViewer && Boolean(classId && resolvedShowId)
+    hasGlobalStaffRole && canManageShow && Boolean(classId && resolvedShowId)
   );
   const useStaffEntrySource = hasGlobalStaffRole && canManageShow;
 
@@ -326,13 +334,14 @@ export function useClassDetailsData() {
     entriesError: isStaffScopeResolving
       ? null
       : useStaffEntrySource
-        ? staffEntriesError
-        : (dbRawEntriesError?.message ?? dbEntriesError),
+        ? (staffScopeError ?? staffEntriesError)
+        : (staffScopeError ?? dbRawEntriesError?.message ?? dbEntriesError),
 
     // Parent context
     parentTrial,
     parentShow,
     staffScopeResolving: isStaffScopeResolving,
+    staffScopeUnavailable: isStaffScopeUnavailable,
 
     // Dogs for entry lookups
     dogs,

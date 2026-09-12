@@ -380,9 +380,7 @@ const MyEntriesPage: React.FC = () => {
                         onCheckInDay={dialogs.checkInClassesForDay}
                         onOpenCheckIn={dialogs.openCheckIn}
                         onOpenEdit={dialogs.openEdit}
-                        // Batch 4 extends the receipt dialog to a list stage
-                        // when a show has several orders (design D9).
-                        onOpenReceipts={group => dialogs.openReceipt(group.orders[0])}
+                        onOpenReceipts={group => dialogs.openReceipt(group.orders)}
                         onResultRevealClick={reveal.openResultReveal}
                       />
                     )}

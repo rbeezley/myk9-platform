@@ -43,7 +43,8 @@ export interface MyShowGroupProps {
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
-  onOpenEdit: (order: MyEntry) => void;
+  /** One editable order opens directly; several open the picker (design D9). */
+  onOpenEdit: (orders: MyEntry[]) => void;
   onOpenReceipts: (group: MyShowGroupModel) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
 }
@@ -79,7 +80,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     order,
     state: deriveMyEntryCardState(order, now, selfCheckinByClassId ?? {}),
   }));
-  const editable = orderStates.find(({ state }) => state.canEdit);
+  const editableOrders = orderStates.filter(({ state }) => state.canEdit).map(({ order }) => order);
   const canShowReceipts = orderStates.some(({ state }) => state.canShowReceipt);
 
   const checkInContext: DayCheckInContext = {
@@ -147,7 +148,7 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
                 <span>Pay at show</span>
               </>
             )}
-            {editable && group.entryCloseDate && (
+            {editableOrders.length > 0 && group.entryCloseDate && (
               <>
                 <span aria-hidden="true">·</span>
                 <span>Entries close {formatShortCalendarDate(group.entryCloseDate)}</span>
@@ -166,10 +167,10 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
               Orders &amp; receipts
             </button>
           )}
-          {editable && (
+          {editableOrders.length > 0 && (
             <button
               type="button"
-              onClick={() => onOpenEdit(editable.order)}
+              onClick={() => onOpenEdit(editableOrders)}
               className={HEADER_LINK_CLASS}
             >
               Edit entry

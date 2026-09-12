@@ -35,7 +35,7 @@ export interface MyShowsListProps {
   seenResultReleaseKeys: Set<string>;
   onCheckInDay: (dog: MyShowDog, classes: MyShowClass[]) => void;
   onOpenCheckIn: (order: MyEntry, cls: MyShowClass) => void;
-  onOpenEdit: (order: MyEntry) => void;
+  onOpenEdit: (orders: MyEntry[]) => void;
   onOpenReceipts: (group: MyShowGroup) => void;
   onResultRevealClick?: ((model: ResultCardModel) => void) | undefined;
   /**

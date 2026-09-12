@@ -6,11 +6,13 @@
  * class-name assertion passes on a card nobody can use.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
-import { heartlandRows, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
-import { MyShowsList, type MyShowsListProps } from './MyShowsList';
+import { heartlandRows, makeClass, makeRow, NOW, toOrders } from '@/test/fixtures/myShowsFixtures';
+import { applyEntryScope } from './entryScopeFilter';
+import { buildScopeMessage } from './entryScopeMessage';
+import { MyShowsList, useMyShowGroups, type MyShowsListProps } from './MyShowsList';
 
 function renderList(overrides: Partial<MyShowsListProps> = {}) {
   const props: MyShowsListProps = {
@@ -172,5 +174,134 @@ describe('MyShowsList — check-in controls', () => {
     const [order, cls] = onOpenCheckIn.mock.calls[0];
     expect(order.id).toBe(cls.orderId);
     expect(cls.id).toBe('c-willow-1');
+  });
+});
+
+describe('MyShowsList — the self-check-in cascade and settled classes (task 3.3)', () => {
+  beforeEach(() => localStorage.clear());
+
+  /** One dog, two classes on the fixture's Saturday, distinct class ids. */
+  function twoClassesTodayRows() {
+    return [
+      makeRow({
+        id: 'e-pilot',
+        registrationId: 'r-pilot',
+        dogId: 'dog-pilot',
+        dogName: 'Pilot',
+        armband: '110',
+        classes: [
+          makeClass({ id: 'c-pilot-1', classId: 'class-open', name: 'Interior Novice A' }),
+          makeClass({ id: 'c-pilot-2', classId: 'class-closed', name: 'Buried Novice A' }),
+        ],
+      }),
+    ];
+  }
+
+  it('drops the closed class from the day button and hides only its row link', async () => {
+    const user = userEvent.setup();
+    // The secretary turned self check-in off for one class. The sibling class
+    // is untouched, so the dog keeps its button — it just writes one class.
+    const onCheckInDay = vi.fn();
+    renderList({
+      filteredEntries: toOrders(twoClassesTodayRows()),
+      selfCheckinByClassId: { 'class-open': true, 'class-closed': false },
+      onCheckInDay,
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Check in Pilot for Interior Novice A' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Check in Pilot for Buried Novice A' })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Check in for Saturday' }));
+    expect(onCheckInDay.mock.calls[0][1].map((cls: { id: string }) => cls.id)).toEqual([
+      'c-pilot-1',
+    ]);
+  });
+
+  it('offers nothing at all when every class of the day is closed', () => {
+    renderList({
+      filteredEntries: toOrders(twoClassesTodayRows()),
+      selfCheckinByClassId: { 'class-open': false, 'class-closed': false },
+    });
+
+    expect(
+      screen.queryByRole('button', { name: /^Check in for/ })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Check in Pilot/ })).not.toBeInTheDocument();
+  });
+
+  // MYK9-209: a class the secretary already settled absent or excused is
+  // accounted for. Offering check-in on it invites a write the RPC will refuse
+  // and tells the exhibitor their dog might still run.
+  it.each(['absent', 'excused'] as const)(
+    'offers no check-in control on a class already settled %s',
+    resultStatus => {
+      renderList({
+        filteredEntries: toOrders([
+          makeRow({
+            id: 'e-settled',
+            registrationId: 'r-settled',
+            dogId: 'dog-settled',
+            dogName: 'Maple',
+            armband: '111',
+            classes: [
+              makeClass({
+                id: 'c-settled-1',
+                classId: 'class-settled',
+                name: 'Interior Novice A',
+                checkInStatus: 'no-status',
+                isScored: false,
+                resultStatus,
+              }),
+            ],
+          }),
+        ]),
+      });
+
+      expect(screen.queryByRole('button', { name: /^Check in for/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Check in Maple/ })).not.toBeInTheDocument();
+      // The row still says what happened, so the absence of a control reads as
+      // settled rather than broken.
+      expect(screen.getByText(resultStatus === 'absent' ? 'ABS' : 'EX')).toBeInTheDocument();
+    }
+  );
+});
+
+describe('MyShowsList — a scoped ?entryIds= link narrows the group (task 4.3)', () => {
+  beforeEach(() => localStorage.clear());
+
+  const orders = toOrders(heartlandRows());
+  /** The scope My Payments' Receipt link builds for Scout's order. */
+  const scope = { showId: 'show-heartland', entryIds: ['c-scout-1', 'c-scout-2'] };
+
+  it('renders only the named order’s dogs and rows', () => {
+    const match = applyEntryScope(orders, scope);
+    expect(match.kind).toBe('entries');
+
+    renderList({ filteredEntries: match.entries });
+
+    expect(dogCards()).toHaveLength(1);
+    expect(within(dogCard('Scout')).getByText('Container Novice A')).toBeInTheDocument();
+    expect(within(dogCard('Scout')).getByText('Interior Novice B')).toBeInTheDocument();
+    for (const absent of ['Juni', 'Willow', 'Ranger']) {
+      expect(screen.queryByText(absent)).not.toBeInTheDocument();
+    }
+  });
+
+  it('groups the scoped orders without touching the banner copy', () => {
+    const match = applyEntryScope(orders, scope);
+    const { result } = renderHook(() => useMyShowGroups(match.entries));
+
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0].dogs.map(dog => dog.dogName)).toEqual(['Scout']);
+    expect(result.current[0].orders.map(order => order.id)).toEqual(['e-scout']);
+    // The same sentence entryScopeMessage.test.ts already pins for this kind —
+    // grouping is a render-time view and must not change what the banner says.
+    expect(buildScopeMessage(match, orders.length)).toBe(
+      'Showing 1 of 3 entries — the ones your payment for Heartland Scent Work Classic covered.'
+    );
   });
 });

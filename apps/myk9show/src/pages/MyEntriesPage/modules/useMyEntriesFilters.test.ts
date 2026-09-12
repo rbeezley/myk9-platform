@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
+import { groupEntriesByShow } from './groupEntriesByShow';
 import { useMyEntriesFilters } from './useMyEntriesFilters';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -735,5 +736,97 @@ describe('useMyEntriesFilters wait-list positions', () => {
 
     expect(result.current.scopeMatch.kind).toBe('unmatched');
     expect(result.current.statusCounts.waitlist).toBe(1);
+  });
+});
+
+/**
+ * The status filter narrows DOGS inside a show, because the filter runs on
+ * orders and the show group is a render-time view over what survives (D2).
+ *
+ * The counts are the other half of that promise: they are computed from the
+ * scoped orders, not from the filtered ones, so picking a status must not move
+ * the number on the chip that offered it.
+ */
+describe('status filter over a multi-order show', () => {
+  const showDate = new Date(2026, 5, 20);
+
+  /** One order for one dog, shaped as `groupEntriesByOrder` leaves it. */
+  function orderFor(
+    id: string,
+    showId: string,
+    showName: string,
+    dogId: string,
+    dogName: string,
+    entryStatus: EntryStatus
+  ): MyEntry {
+    const classes: EntryClass[] = [
+      { id: `${id}-c1`, name: 'Container Novice A', number: '', fee: 25, status: 'entered' },
+    ];
+    return makeEntry({
+      id,
+      showId,
+      showName,
+      showDate,
+      dogId,
+      dogName,
+      entryStatus,
+      classes,
+      dogs: [{ id: `${id}-c1`, dogId, dogName, classes, entryStatus }],
+    });
+  }
+
+  const pendingOrder = orderFor(
+    'multi-pending',
+    'show-multi',
+    'Heartland Classic',
+    'dog-ari',
+    'Ari',
+    EntryStatus.PENDING
+  );
+  const acceptedOrder = orderFor(
+    'multi-accepted',
+    'show-multi',
+    'Heartland Classic',
+    'dog-bo',
+    'Bo',
+    EntryStatus.ACCEPTED
+  );
+  const soloAcceptedShow = orderFor(
+    'solo-accepted',
+    'show-solo',
+    'Flint Hills Fall Classic',
+    'dog-cy',
+    'Cy',
+    EntryStatus.ACCEPTED
+  );
+  const entries = [pendingOrder, acceptedOrder, soloAcceptedShow];
+
+  it('keeps only the pending order, so only its dogs can render', () => {
+    const { result } = renderFilters({ entries }, '/exhibitor/entries?status=pending');
+
+    expect(result.current.selectedStatus).toBe('pending');
+    expect(result.current.filteredEntries.map(entry => entry.id)).toEqual(['multi-pending']);
+
+    const groups = groupEntriesByShow(result.current.filteredEntries);
+    expect(groups.map(group => group.showId)).toEqual(['show-multi']);
+    expect(groups[0].dogs.map(dog => dog.dogName)).toEqual(['Ari']);
+  });
+
+  it('hides a show with no pending order rather than rendering an empty group', () => {
+    const { result } = renderFilters({ entries }, '/exhibitor/entries?status=pending');
+
+    const groups = groupEntriesByShow(result.current.filteredEntries);
+    expect(groups.some(group => group.showId === 'show-solo')).toBe(false);
+    // A group is never produced empty: every group that exists has dogs in it.
+    expect(groups.every(group => group.dogs.length > 0)).toBe(true);
+  });
+
+  it('leaves the chip counts exactly where they were before the filter', () => {
+    const unfiltered = renderFilters({ entries });
+    const before = unfiltered.result.current.statusCounts;
+    const filtered = renderFilters({ entries }, '/exhibitor/entries?status=pending');
+
+    expect(before).toEqual({ any: 3, pending: 1, accepted: 2, waitlist: 0 });
+    expect(filtered.result.current.statusCounts).toEqual(before);
   });
 });

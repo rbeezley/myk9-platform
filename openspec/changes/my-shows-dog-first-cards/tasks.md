@@ -19,16 +19,16 @@
 ## 3. Check-in wiring
 
 - [x] 3.1 Add `checkInClassesForDay(dog, classes)` to `useMyEntriesDialogs.ts`: sequential `await updateEntryCheckIn(entryId, classId, 'checked-in')` per target, stop on first failure, existing toast. Keep `openCheckIn` for "change". Preserve the single-write-path `// INTENT:` comment on the new component.
-- [ ] 3.2 Tests (assertion-first): two Saturday classes → exactly two `updateEntryCheckIn` calls with `'checked-in'` in class order; mixed days → Saturday only; already at-gate class skipped; row "Check in" → one call; "change" opens `CheckInStatusDialog` with the current status preselected; first failure stops the loop and leaves earlier calls made.
-- [ ] 3.3 Confirm the button and row links honor `selfCheckinByClassId` and `isClassCheckInEligible` (MYK9-209 absent/excused case) with a test each.
+- [x] 3.2 Tests (assertion-first): two Saturday classes → exactly two `updateEntryCheckIn` calls with `'checked-in'` in class order; mixed days → Saturday only; already at-gate class skipped; row "Check in" → one call; "change" opens `CheckInStatusDialog` with the current status preselected; first failure stops the loop and leaves earlier calls made.
+- [x] 3.3 Confirm the button and row links honor `selfCheckinByClassId` and `isClassCheckInEligible` (MYK9-209 absent/excused case) with a test each.
 
 ## 4. Receipts, edit entry, scope
 
-- [ ] 4.1 Extend `ReceiptEntryDialog` with an optional `orders: MyEntry[]` list stage (date · confirmation · dogs · amount/state · refund rows; row opens that order's receipt; back control). `openReceipt` accepts `MyEntry | MyEntry[]`. Test: one order opens directly; three orders show a list; the `?orderId=` deep link still opens the named order.
-- [ ] 4.2 Edit entry on a multi-order show: open the single editable order directly, else reuse the list stage to pick one (design D9 / open question). Test the two branches.
-- [ ] 4.3 Verify `entryScopeFilter` + grouping: a scoped `?entryIds=` link renders only the named dogs and rows and the banner copy is unchanged. Add a test on `useMyShowGroups` over scoped input.
-- [ ] 4.4 Status filter narrows dogs: test that Pending renders only the pending order's dogs within a show and hides a show with none; tab counts unchanged (extend `useMyEntriesFilters.test.ts`).
-- [ ] 4.5 Resolve the paid-date source (design open question) and pin it with a test.
+- [x] 4.1 Extend `ReceiptEntryDialog` with an optional `orders: MyEntry[]` list stage (date · confirmation · dogs · amount/state · refund rows; row opens that order's receipt; back control). `openReceipt` accepts `MyEntry | MyEntry[]`. Test: one order opens directly; three orders show a list; the `?orderId=` deep link still opens the named order.
+- [x] 4.2 Edit entry on a multi-order show: open the single editable order directly, else reuse the list stage to pick one (design D9 / open question). Test the two branches.
+- [x] 4.3 Verify `entryScopeFilter` + grouping: a scoped `?entryIds=` link renders only the named dogs and rows and the banner copy is unchanged. Add a test on `useMyShowGroups` over scoped input.
+- [x] 4.4 Status filter narrows dogs: test that Pending renders only the pending order's dogs within a show and hides a show with none; tab counts unchanged (extend `useMyEntriesFilters.test.ts`).
+- [x] 4.5 Resolve the paid-date source (design open question) and pin it with a test.
 
 ## 5. Delete the old card and reconcile tests
 

@@ -226,19 +226,26 @@ export interface CheckInDialogState {
 }
 
 /**
- * Dialog state for entry edit
+ * Dialog state for entry edit.
+ *
+ * A show can carry several editable orders. When it does, `entry` starts null
+ * and `orders` holds the candidates so the dialog can open on a picker first
+ * (design D9); with one order `entry` is set directly and `orders` is absent.
  */
 export interface EditDialogState {
   open: boolean;
   entry: MyEntry | null;
+  orders?: MyEntry[] | undefined;
 }
 
 /**
- * Dialog state for receipt
+ * Dialog state for receipt. Same two shapes as `EditDialogState`: one order
+ * opens its receipt directly, several open the orders list stage first.
  */
 export interface ReceiptDialogState {
   open: boolean;
   entry: MyEntry | null;
+  orders?: MyEntry[] | undefined;
 }
 
 /**

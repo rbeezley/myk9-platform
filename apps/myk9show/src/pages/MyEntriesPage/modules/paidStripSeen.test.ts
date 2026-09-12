@@ -124,6 +124,23 @@ describe('derivePaidStrips', () => {
     ]);
   });
 
+  // Resolved open question (design.md): `MyEntry` carries no `paidAt`, so the
+  // strip's date is the order's `lastUpdated` — the timestamp the payment write
+  // itself moved. `submittedAt` is deliberately NOT it: an order submitted in
+  // September and paid in October would date the confirmation to September and
+  // the recency window would retire the strip before the exhibitor ever saw it.
+  it("dates the strip by the payment's lastUpdated, never by submittedAt", () => {
+    const submittedAt = new Date('2026-09-01T09:00:00Z');
+    const lastUpdated = new Date('2026-09-29T16:30:00Z');
+    const [order] = groupEntriesByOrder([makeRow({ submittedAt, lastUpdated })], NOW);
+
+    const [strip] = derivePaidStrips([order], NOW, neverSeen);
+
+    expect(strip.date).toEqual(order.lastUpdated);
+    expect(strip.date).toEqual(lastUpdated);
+    expect(strip.date).not.toEqual(submittedAt);
+  });
+
   it('hides the strip once dismissed on this device', () => {
     const orders = groupEntriesByOrder([makeRow()], NOW);
     markPaidStripSeen('e1');

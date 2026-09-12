@@ -72,5 +72,5 @@ Single PR, clean cut, no flag: there are no real users, and the old and new list
 
 ## Open Questions
 
-- Whether `paidAt` is available on the order for the green strip's date, or whether the strip should use the payment's `lastUpdated`. Resolved during task 4 by reading `MyEntryBalance` / the stripe order mapping; the spec allows either as long as it is the payment's date.
-- Whether "Edit entry" on a multi-order show should list orders before opening the edit dialog, or open the first editable order. Default: reuse the receipts list stage pattern; if it is more than an hour of work, open the first editable order and list the rest inside the dialog's existing entry picker.
+- ~~Whether `paidAt` is available on the order for the green strip's date, or whether the strip should use the payment's `lastUpdated`.~~ **Resolved (task 4.5): `lastUpdated`.** `MyEntry` carries no `paidAt` — neither `groupEntriesByOrder` nor the replicated entry rows expose one — so the payment's date is the order's `lastUpdated`, the timestamp the payment write itself moved. Pinned by `paidStripSeen.test.ts` ("dates the strip by the payment's lastUpdated, never by submittedAt").
+- Resolved (task 4.2): "Edit entry" on a show with several editable orders opens the shared `OrdersPickerDialog` in edit mode first; a single editable order opens the edit dialog directly.

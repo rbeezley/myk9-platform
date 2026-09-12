@@ -42,13 +42,15 @@ export function resolveShowAudience(input: ShowAudienceInput): ShowAudience {
 
   if (forcePublicPreview && !isManagementSection) return 'public';
 
+  if (isAuthenticated && rbacLoading) return 'pending';
+
   // Staff (secretary / admin / club_admin) and management-section URLs always
   // reach the non-public UI — they never see the marketing landing.
   const isStaff = canManageShow;
   if (!isManagementSection && !isStaff) {
     // Defer while an authenticated visitor's entries resolve, so we don't flash
     // the public landing before discovering they're an entered exhibitor.
-    if (isAuthenticated && (userEntriesLoading || rbacLoading)) return 'pending';
+    if (isAuthenticated && userEntriesLoading) return 'pending';
     // A non-staff visitor with no entries gets the public marketing landing.
     if (!hasUserEntries) return 'public';
   }

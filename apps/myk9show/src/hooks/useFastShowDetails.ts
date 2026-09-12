@@ -12,7 +12,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { useShowStore } from '@/store/showStore';
 import { getShowById } from '@/services/database/shows';
@@ -113,7 +113,8 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
      * default online network mode and pauses rather than errors when the device
      * is offline, so the most common way to miss a refresh never sets `isError`.
      */
-    refreshFailed: (isNetworkError || fetchStatus === 'paused') && !!show,
+    refreshFailed:
+      (isNetworkError || fetchStatus === 'paused' || !onlineManager.isOnline()) && !!show,
     refetch,
     isFromCache,
     loadTime,

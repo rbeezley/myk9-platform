@@ -92,6 +92,9 @@ export const useShowQuery = (id: string) => {
       return mapDatabaseToShow(data as Parameters<typeof mapDatabaseToShow>[0]);
     },
     enabled: !!id && isValidUUID(id),
+    // Show ownership is also read from replication, so management deep links
+    // can resolve while offline.
+    networkMode: 'always',
     ...cacheStrategies.fast,
   });
 };

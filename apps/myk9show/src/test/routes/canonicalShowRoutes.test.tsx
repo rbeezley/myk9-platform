@@ -34,6 +34,8 @@ vi.mock('@/hooks/queries/useShowsDatabase', () => ({
   useShowQuery: (id?: string) => ({
     data: mockShows.data.find(show => show.id === id) ?? null,
     isLoading: mockShows.isLoading,
+    isError: false,
+    isPlaceholderData: false,
   }),
 }));
 

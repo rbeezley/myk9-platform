@@ -79,8 +79,13 @@ VALUES
   ('00000000-0000-0000-0000-000000469041', '00000000-0000-0000-0000-000000469012', '00000000-0000-0000-0000-000000469002', '00000000-0000-0000-0000-000000469021', '00000000-0000-0000-0000-000000469031', 'confirmed'),
   ('00000000-0000-0000-0000-000000469042', '00000000-0000-0000-0000-000000469012', '00000000-0000-0000-0000-000000469003', '00000000-0000-0000-0000-000000469022', '00000000-0000-0000-0000-000000469032', 'confirmed');
 
-INSERT INTO public.dogs (id, call_name, breed, owner_id)
-VALUES ('00000000-0000-0000-0000-000000469051', 'MYK9-469 Dog', 'Labrador Retriever', '00000000-0000-0000-0000-000000469013');
+-- Two dogs owned by the same person: one live, one SOFT-DELETED. The deleted one exists so the
+-- manager arm is tested against it — dogs_select gates soft-delete over every arm, and a draft
+-- of this migration let a show manager read a deleted dog's achievements.
+INSERT INTO public.dogs (id, call_name, breed, owner_id, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000469051', 'MYK9-469 Dog',         'Labrador Retriever', '00000000-0000-0000-0000-000000469013', NULL),
+  ('00000000-0000-0000-0000-000000469052', 'MYK9-469 Deleted Dog', 'Labrador Retriever', '00000000-0000-0000-0000-000000469013', now());
 
 INSERT INTO public.armbands (id, show_id, armband_number, dog_id)
 VALUES
@@ -88,7 +93,9 @@ VALUES
   ('00000000-0000-0000-0000-000000469062', '00000000-0000-0000-0000-000000469003', '469-DRAFT', '00000000-0000-0000-0000-000000469051');
 
 INSERT INTO public.achievements (id, dog_id, title, organization, sport)
-VALUES ('00000000-0000-0000-0000-000000469071', '00000000-0000-0000-0000-000000469051', 'MYK9-469 Title', 'AKC', 'Scent Work');
+VALUES
+  ('00000000-0000-0000-0000-000000469071', '00000000-0000-0000-0000-000000469051', 'MYK9-469 Title',         'AKC', 'Scent Work'),
+  ('00000000-0000-0000-0000-000000469072', '00000000-0000-0000-0000-000000469052', 'MYK9-469 Deleted Title', 'AKC', 'Scent Work');
 
 INSERT INTO public.show_templates (id, name, show_type, club_id, is_public)
 VALUES
@@ -106,7 +113,8 @@ DECLARE
   stranger  uuid := '00000000-0000-0000-0000-000000469104';
   pub_show   uuid := '00000000-0000-0000-0000-000000469002';
   draft_show uuid := '00000000-0000-0000-0000-000000469003';
-  dog        uuid := '00000000-0000-0000-0000-000000469051';
+  dog         uuid := '00000000-0000-0000-0000-000000469051';
+  deleted_dog uuid := '00000000-0000-0000-0000-000000469052';
   n integer;
 BEGIN
   ------------------------------------------------------------------
@@ -204,6 +212,19 @@ BEGIN
     RAISE EXCEPTION 'FAIL club secretary lost their own private show_template (got %, want 1)', n;
   END IF;
 
+  -- The secretary satisfies is_show_manager(), so this caller exercises the MANAGER arm of
+  -- achievements_select. dogs_select gates soft-delete over every arm; so must this one.
+  -- Positive control first: the live dog's achievement must still be readable via that arm.
+  SELECT count(*) INTO n FROM public.achievements WHERE dog_id = dog;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL show manager cannot read a live dog''s achievements (got %, want 1)', n;
+  END IF;
+  SELECT count(*) INTO n FROM public.achievements WHERE dog_id = deleted_dog;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL show manager read % achievement row(s) for a SOFT-DELETED dog — '
+      'the deleted_at guard must AND over every arm, as dogs_select does', n;
+  END IF;
+
   ------------------------------------------------------------------
   -- the dog's owner: achievements positive control
   ------------------------------------------------------------------
@@ -213,6 +234,11 @@ BEGIN
   SELECT count(*) INTO n FROM public.achievements WHERE dog_id = dog;
   IF n <> 1 THEN
     RAISE EXCEPTION 'FAIL dog owner cannot read their own dog''s achievements (got %, want 1)', n;
+  END IF;
+  -- dogs_select denies a soft-deleted dog to EVERY caller, its owner included.
+  SELECT count(*) INTO n FROM public.achievements WHERE dog_id = deleted_dog;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'FAIL dog owner read % achievement row(s) for their own SOFT-DELETED dog', n;
   END IF;
 
   ------------------------------------------------------------------

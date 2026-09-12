@@ -144,22 +144,37 @@ CREATE POLICY "armbands_select"
 -- policies. See MYK9-470.
 DROP POLICY IF EXISTS "achievements_select" ON public.achievements;
 
+-- SHAPE — one EXISTS over the dog row, with deleted_at AND-ed over EVERY arm.
+-- A first draft had the owner/co-owner arm inside a `deleted_at IS NULL` subquery but left the
+-- is_show_manager() and handler arms outside it. Codex review caught that this breaks the very
+-- parity the policy claims: dogs_select is
+--   deleted_at IS NULL AND (owner OR co_owner OR is_show_manager() OR handled)
+-- so soft-delete is a gate over ALL arms, and a show manager or handler could still have read a
+-- soft-deleted dog's titles, certificate numbers and notes. Written as a single correlated
+-- EXISTS on dogs.id, this IS dogs_select evaluated for the achievement's dog — parity by
+-- construction rather than by restating it.
+--
+-- Performance: the EXISTS correlates only on dogs.id (the primary key), and both role arms stay
+-- UNCORRELATED scalar/set subqueries, so Postgres still hoists them into a once-per-statement
+-- InitPlan. This is not the per-row can_manage_show_dog(dogs.id) shape that caused the
+-- 20260611120000 statement-timeout storm.
 CREATE POLICY "achievements_select"
   ON public.achievements
   FOR SELECT
   TO authenticated
   USING (
-    dog_id IN (
-      SELECT d.id
+    EXISTS (
+      SELECT 1
       FROM public.dogs d
-      WHERE d.deleted_at IS NULL
+      WHERE d.id = achievements.dog_id
+        AND d.deleted_at IS NULL
         AND (
           d.owner_id = (SELECT public.get_my_person_id())
           OR d.co_owner_id = (SELECT public.get_my_person_id())
+          OR (SELECT public.is_show_manager())
+          OR d.id IN (SELECT public.get_my_handled_dog_ids())
         )
     )
-    OR (SELECT public.is_show_manager())
-    OR dog_id IN (SELECT public.get_my_handled_dog_ids())
   );
 
 -- ---------------------------------------------------------------------------

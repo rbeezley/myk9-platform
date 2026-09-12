@@ -194,6 +194,25 @@ to the querying role and returns empty over the MCP connection, so it cannot
 prove absence. Then run `get_advisors` (Supabase MCP) to catch new RLS/security
 warnings.
 
+### Step 4: Regenerate the committed types
+
+`packages/supabase/src/types/database.types.ts` is committed and generated from
+the **applied** database, so it can only be refreshed after the push lands. Do it
+in the same PR or the very next one, whether or not client code needs the new
+object yet — skipping it "because nothing calls it" is exactly how the file fell
+28 objects behind the schema (MYK9-484). Nothing in CI detects the drift; the
+report-only check is MYK9-488.
+
+```bash
+cd packages/supabase && SUPABASE_PROJECT_ID=sojmvhhwsjxmfistvzbe pnpm generate-types
+cd ../.. && pnpm --filter @myk9/supabase build && pnpm typecheck --force
+```
+
+The file is in `.prettierignore` — commit the generator's formatting as-is. A
+`PostgrestVersion` change alone is platform churn, not drift. Any error the
+regenerated types surface in app code is a real one that was previously hidden
+behind `any`; fix it, never suppress it.
+
 ## Common Errors
 
 | Error                                | Fix                                                                                                                                                 |

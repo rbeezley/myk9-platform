@@ -384,7 +384,10 @@ export function useRegistrationWizardState() {
   // Paused offline, or failed. Not "still arriving".
   const agreementUnavailable = agreementGateApplies && !agreementAnswered && !agreementLoadingNow;
 
-  const liveTotalFees = useMemo(
+  // The FULL result, not just the total: the entries panel itemises exactly
+  // what this totalled, so the panel, the Next gate and the payment step's
+  // amount due all read one calculation (design.md decision 3).
+  const liveFeeCalculation = useMemo(
     () =>
       calculateTotalFees(
         registrationData.selectedDogs,
@@ -399,7 +402,7 @@ export function useRegistrationWizardState() {
             }
           : undefined,
         capacityReady ? registrationCapacity.waitlistClassIds : new Set()
-      ).total,
+      ),
     [
       registrationData.selectedDogs,
       classSelections,
@@ -410,6 +413,13 @@ export function useRegistrationWizardState() {
       registrationCapacity.waitlistClassIds,
     ]
   );
+  const liveTotalFees = liveFeeCalculation.total;
+
+  // Secretary fee waiver / manual override. Page state rather than PaymentStep
+  // state because the entries panel renders the amount due outside the step's
+  // own subtree and must apply the same two flags the step does.
+  const [waiveFees, setWaiveFees] = useState(false);
+  const [feeOverride, setFeeOverride] = useState<number | null>(null);
 
   const entryCloseAvailability = useMemo(
     () =>
@@ -571,6 +581,11 @@ export function useRegistrationWizardState() {
     optimisticState,
     completedSteps,
     liveTotalFees,
+    liveFeeCalculation,
+    waiveFees,
+    setWaiveFees,
+    feeOverride,
+    setFeeOverride,
     capacityReady,
     capacityError,
     capacityUnavailable,

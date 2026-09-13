@@ -78,6 +78,7 @@ vi.mock('@/store/entryStore', () => ({
 }));
 
 vi.mock('@/store/cartStore', () => ({
+  useCartItems: () => [],
   useCartStore: (selector: (state: typeof cartActionsMock) => unknown) => selector(cartActionsMock),
 }));
 

@@ -6,17 +6,12 @@ import { PaymentStatus, EntryStatus, type PaymentMethod } from '@/types/show-reg
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useShowStore } from '@/store/showStore';
-import { useCartItems, useCartStore } from '@/store/cartStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
-import { toast } from 'sonner';
 import { calculateTotalFees } from './utils';
-import { RegistrationSummary } from './RegistrationSummary';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { SecretaryPaymentManagement } from './SecretaryPaymentManagement';
-import { PaymentSummaryCard } from './PaymentSummaryCard';
 import { EntryAgreementSection } from './EntryAgreementSection';
 import type { PaymentStepProps } from './types';
-import { removeClassFromSelections } from '../ClassSelectionStep.helpers';
 import { useClubStripePaymentReadiness } from '@/features/payments/useClubStripeAccount';
 
 /**
@@ -37,13 +32,16 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onAgreementChange,
   agreedToEntryAgreement = false,
   showId,
-  onClassSelectionChange,
   capacityReady = true,
   capacityError,
   capacityUnavailable,
   onRetryAvailability,
   waitlistClassIds = new Set(),
   blockedClassIds = new Set(),
+  waiveFees = false,
+  feeOverride = null,
+  onWaiveFeesChange,
+  onFeeOverrideChange,
 }) => {
   const { dogs } = useDogStoreCompat();
   const { classes = [] } = useClassStoreCompat();
@@ -58,10 +56,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const clubStripeAccountQuery = useClubStripePaymentReadiness(show?.clubId);
   const cardCheckoutAvailable =
     !isOnBehalf && clubStripeAccountQuery.isSuccess && clubStripeAccountQuery.data === true;
-  const cartItems = useCartItems();
-  const removeItem = useCartStore(state => state.removeItem);
-  const [removingLineKey, setRemovingLineKey] = useState<string | null>(null);
-
   const acceptedMethods = {
     check: show?.acceptCheckPayments ?? true,
     cash: show?.acceptCashPayments ?? true,
@@ -120,10 +114,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         ? 'Checking online payment availability for this club.'
         : "Online card payment isn't available for this club. Choose check or cash instead.";
 
-  // Shared state: fee override and waiver (used by both SecretaryPaymentManagement and PaymentSummaryCard)
-  const [feeOverride, setFeeOverride] = useState<number | null>(null);
-  const [waiveFees, setWaiveFees] = useState(false);
-
   // Agreement state: controlled when onAgreementChange is provided, local otherwise
   const [localAgreed, setLocalAgreed] = useState(false);
   const agreed = onAgreementChange ? agreedToEntryAgreement : localAgreed;
@@ -138,26 +128,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     waitlistClassIds
   );
 
-  const handleRemoveSummaryLine = async (dogId: string, classId: string) => {
-    if (!onClassSelectionChange) return;
-
-    const lineKey = `${dogId}:${classId}`;
-    setRemovingLineKey(lineKey);
-    try {
-      const cartItem = cartItems.find(item => item.dog_id === dogId && item.class_id === classId);
-      if (cartItem) {
-        const success = await removeItem(cartItem.id);
-        if (!success) {
-          toast.error('Failed to remove from cart');
-          return;
-        }
-      }
-      await onClassSelectionChange(removeClassFromSelections(classSelections, dogId, classId));
-    } finally {
-      setRemovingLineKey(null);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div className="mb-4">
@@ -166,15 +136,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           Review your fees and select a payment method.
         </p>
       </div>
-
-      {/* Fee Summary */}
-      <RegistrationSummary
-        feeCalculation={feeCalculation}
-        capacityReady={capacityReady}
-        capacityUnavailable={capacityUnavailable}
-        onRemoveLine={onClassSelectionChange ? handleRemoveSummaryLine : undefined}
-        removingLineKey={removingLineKey}
-      />
 
       {!capacityReady && (
         <Alert role={capacityError || capacityUnavailable ? 'alert' : 'status'}>
@@ -245,21 +206,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         selectedDogs={selectedDogs}
         waiveFees={waiveFees}
         feeOverride={feeOverride}
-        onWaiveFeesChange={setWaiveFees}
-        onFeeOverrideChange={setFeeOverride}
+        onWaiveFeesChange={onWaiveFeesChange ?? (() => {})}
+        onFeeOverrideChange={onFeeOverrideChange ?? (() => {})}
         onPaymentMethodChange={onPaymentMethodChange}
         onPaymentStatusChange={onPaymentStatusChange}
         onEntryStatusChange={onEntryStatusChange}
-      />
-
-      {/* Payment Summary */}
-      <PaymentSummaryCard
-        paymentMethod={effectivePaymentMethod}
-        feeCalculation={feeCalculation}
-        capacityReady={capacityReady}
-        capacityUnavailable={capacityUnavailable}
-        waiveFees={waiveFees}
-        feeOverride={feeOverride}
       />
 
       {/* Entry Agreement */}

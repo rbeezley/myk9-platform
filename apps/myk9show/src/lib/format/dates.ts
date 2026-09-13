@@ -128,6 +128,20 @@ export function formatWeekdayMonthDay(value?: string | Date | null): string {
 }
 
 /**
+ * Just the weekday, abbreviated: "Sat".
+ *
+ * For a dense list where the day of the show weekend is the only thing that
+ * separates two otherwise identical rows (the registration wizard's entries
+ * panel: `Sat · Container Advanced`). Calendar-safe like the rest of this
+ * module — a bare `YYYY-MM-DD` trial_date parses as LOCAL midnight, so the
+ * weekday is the trial's own day rather than the previous one west of UTC.
+ */
+export function formatWeekdayShort(value?: string | Date | null): string {
+  if (!value || !isRenderableCalendarDate(value)) return '';
+  return resolveCalendarDate(value).toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+/**
  * A CALENDAR month and year: "Aug 2026".
  *
  * Calendar-safe by construction, for DATE-typed columns whose day is not

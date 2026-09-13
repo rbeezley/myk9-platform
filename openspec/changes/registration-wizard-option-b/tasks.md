@@ -13,12 +13,12 @@
 
 ## 3. Entries panel
 
-- [ ] 3.1 Write `EntriesPanel.helpers.ts` with `groupCartByDogAndDay` and its unit test using the real cart-item id shape (dogId:classId, trial day from the class's trial) — assertion-first, red then green
-- [ ] 3.2 Build `EntriesPanel.tsx` (desktop aside: per-dog, per-day rows, entry-fee total, "no classes yet", pre-payment service-fee note; payment variant adds subtotal / service fee / total due via `calculatePlatformFeeCents`) and a unit test that the payment-variant total equals `PaymentSummaryCard`'s for the same inputs
-- [ ] 3.3 Add the `aside` slot to `RegistrationWizardShell` and mount the panel from `RegistrationWizardPage` on every step except `confirmation`; verify `RegistrationWizardShell.test.tsx` passes and both files stay under 500 lines
-- [ ] 3.4 Remove `DogCartSummary` and `OverallCartSummary` from `ClassSelectionStep` and their tests; re-point any `data-testid` used by `wizardVisualQA.spec.ts`; verify the class-step tests pass and the total appears once (spec scenario "Only one place shows the total")
-- [ ] 3.5 Retire `PaymentSummaryCard` in favour of the panel on the payment step, moving the fee-line list (with remove) into the panel; verify the `PaymentStep/__tests__` totals tests pass unchanged
-- [ ] 3.6 Phone bottom bar: below `md` the panel renders fixed at the bottom with count/total, Details disclosure, and the `WizardNavigation` buttons; content gets bottom padding from a CSS variable; verify at 390 in `wizardVisualQA.spec.ts` that the last chip is not overlapped and that Details expands the list
+- [x] 3.1 Write `EntriesPanel.helpers.ts` with `groupCartByDogAndDay` and its unit test using the real cart-item id shape (dogId:classId, trial day from the class's trial) — assertion-first, red then green
+- [x] 3.2 Build `EntriesPanel.tsx` (desktop aside: per-dog, per-day rows, entry-fee total, "no classes yet", pre-payment service-fee note; payment variant adds subtotal / service fee / total due via `calculatePlatformFeeCents`) and a unit test that the payment-variant total equals `PaymentSummaryCard`'s for the same inputs
+- [x] 3.3 Add the `aside` slot to `RegistrationWizardShell` and mount the panel from `RegistrationWizardPage` on every step except `confirmation`; verify `RegistrationWizardShell.test.tsx` passes and both files stay under 500 lines
+- [x] 3.4 Remove `DogCartSummary` and `OverallCartSummary` from `ClassSelectionStep` and their tests; re-point any `data-testid` used by `wizardVisualQA.spec.ts`; verify the class-step tests pass and the total appears once (spec scenario "Only one place shows the total")
+- [x] 3.5 Retire `PaymentSummaryCard` in favour of the panel on the payment step, moving the fee-line list (with remove) into the panel; verify the `PaymentStep/__tests__` totals tests pass unchanged
+- [x] 3.6 Phone bottom bar: below `md` the panel renders fixed at the bottom with count/total, Details disclosure, and the `WizardNavigation` buttons; content gets bottom padding from a CSS variable; verify at 390 in `wizardVisualQA.spec.ts` that the last chip is not overlapped and that Details expands the list
 
 ## 4. Payment fixes and cart expiry
 

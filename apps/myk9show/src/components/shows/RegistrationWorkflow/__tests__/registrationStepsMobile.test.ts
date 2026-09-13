@@ -17,7 +17,7 @@ const classComponents = read('ClassSelectionStep.components.tsx');
 const classStep = read('ClassSelectionStep.tsx');
 const inlineHandler = read('InlineHandlerSection.tsx');
 const confirmation = read('ConfirmationStep.tsx');
-const summary = read('PaymentStep/RegistrationSummary.tsx');
+const summary = read('EntriesPanel/EntriesPanel.totals.tsx');
 const css = readFileSync(
   path.join(__dirname, '../../../../styles/myk9-registration-workflow.css'),
   'utf8'
@@ -40,7 +40,7 @@ describe('registration steps — dark-mode theming guards', () => {
     expect(classComponents).not.toContain('bg-gray-50');
   });
 
-  it('RegistrationSummary drops raw gray and dark-adapts the discount color', () => {
+  it('the entries panel totals drop raw gray and dark-adapt the discount color', () => {
     expect(summary).not.toContain('text-gray-600');
     expect(summary).toContain('text-success');
   });

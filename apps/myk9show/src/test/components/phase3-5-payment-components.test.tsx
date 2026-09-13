@@ -102,13 +102,10 @@ describe('Phase 3.5: Payment Component Tests', () => {
       render(<PaymentStep {...defaultProps} />);
 
       expect(screen.getByText('Payment Information')).toBeInTheDocument();
-      expect(screen.getByText('Registration Summary')).toBeInTheDocument();
-      expect(screen.getByText('Buddy')).toBeInTheDocument();
-      expect(screen.getByText('Novice Standard')).toBeInTheDocument();
-      // Use getAllByText for price that appears multiple times (class fee + subtotal)
-      const priceElements = screen.getAllByText('$35.00');
-      expect(priceElements.length).toBeGreaterThan(0);
-      expect(priceElements[0]).toBeInTheDocument();
+      // The fee itemisation and the amount due moved OUT of this step into the
+      // wizard's entries panel (MYK9-483), which owns the only running total —
+      // see EntriesPanel.test.tsx. What stays here is the step's own chrome.
+      expect(screen.getByText('Payment Method')).toBeInTheDocument();
     });
 
     it('should calculate fees correctly for multiple dogs', () => {
@@ -131,12 +128,10 @@ describe('Phase 3.5: Payment Component Tests', () => {
 
       render(<PaymentStep {...propsWithMultipleDogs} />);
 
-      // Should show subtotal ($35 + $40 = $75)
-      const subtotalElements = screen.getAllByText('$75.00');
-      expect(subtotalElements.length).toBeGreaterThan(0);
-
-      // Should show total due
-      expect(screen.getByText('Entry fee total')).toBeInTheDocument();
+      // The $75 subtotal is asserted where it now renders — the entries panel
+      // (EntriesPanel.test.tsx pins the arithmetic against the fee helper).
+      // Here the step must simply survive a multi-dog selection.
+      expect(screen.getByText('Payment Information')).toBeInTheDocument();
     });
 
     it('should show secure checkout notice for credit card selection instead of card form', () => {
@@ -251,16 +246,19 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const overrideInput = screen.getByLabelText('Override Total Amount');
       expect(overrideInput).toBeInTheDocument();
 
-      // Test fee override
+      // The override is now controlled by the wizard page (the entries panel
+      // renders the amount due outside this subtree and must apply the same
+      // value), so the step reports it rather than holding it.
       await user.type(overrideInput, '25.00');
-      expect(overrideInput).toHaveValue(25);
     });
 
     it('should show payment summary correctly', () => {
       render(<PaymentStep {...defaultProps} paymentMethod="credit_card" />);
 
-      expect(screen.getByText('Payment Summary')).toBeInTheDocument();
-      expect(screen.getByText('Credit/Debit Card')).toBeInTheDocument();
+      // "Payment Summary" was the retired PaymentSummaryCard; the selected
+      // method and the amount due are now the entries panel's. The step keeps
+      // the method selector and its single checkout notice.
+      expect(screen.getByText('Credit/Debit Card (Online Payment)')).toBeInTheDocument();
       const notices = screen.getAllByText(/secure checkout to complete payment/);
       expect(notices).toHaveLength(1);
     });
@@ -314,9 +312,8 @@ describe('Phase 3.5: Payment Component Tests', () => {
         />
       );
 
-      // Should show subtotal ($35 + $40 = $75)
-      expect(screen.getAllByText('$75.00').length).toBeGreaterThan(0);
-      expect(screen.getByText('Entry fee total')).toBeInTheDocument();
+      // Subtotal assertions live with the entries panel now (MYK9-483).
+      expect(screen.getByText('Payment Information')).toBeInTheDocument();
     });
 
     it('should handle payment status integration with entry status', () => {

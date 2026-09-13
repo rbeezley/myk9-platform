@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import type { PaymentMethod, PaymentDetails } from '@/types/show-registration-types';
 import type { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useShowStore } from '@/store/showStore';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from '@/components/shows/RegistrationWorkflow/DraftManager';
 import { RegistrationProvider } from '@/context/RegistrationContext';
@@ -27,6 +28,11 @@ import WizardNavigation from '@/components/shows/wizard/components/WizardNavigat
 import { ReceiptExits } from '@/components/shows/wizard/components/ReceiptExits';
 import { WorkflowStepContent } from '@/components/shows/RegistrationWorkflow/WorkflowStepContent';
 import { RegistrationWizardShell } from '@/components/shows/RegistrationWorkflow/RegistrationWizardShell';
+import { EntriesPanel } from '@/components/shows/RegistrationWorkflow/EntriesPanel';
+import {
+  useEntriesPanelGroups,
+  useRemoveEntryLine,
+} from '@/components/shows/RegistrationWorkflow/EntriesPanel/useEntriesPanelData';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
 
@@ -66,6 +72,12 @@ function RegistrationWizardContent() {
     registrationId,
     registrationNumber,
     liveTotalFees,
+    liveFeeCalculation,
+    waiveFees,
+    setWaiveFees,
+    feeOverride,
+    setFeeOverride,
+    classSelections,
     capacityReady,
     capacityError,
     capacityUnavailable,
@@ -98,6 +110,68 @@ function RegistrationWizardContent() {
 
   const showBlockedReason = !!proceedBlocked && !isSubmitting;
 
+  // "Your entries" — the wizard's single running total. Mounted on every step
+  // except the Receipt, which has nothing left to total and keeps its own
+  // ReceiptExits footer at every width.
+  const isPaymentStep = currentStepId === 'payment';
+  const panelGroups = useEntriesPanelGroups({
+    selectedDogIds: registrationData.selectedDogs,
+    feeCalculation: liveFeeCalculation,
+  });
+  const { removeLine, removingLineKey } = useRemoveEntryLine(
+    classSelections,
+    handleClassSelectionChange
+  );
+
+  // ONE WizardNavigation, repositioned — not a desktop copy and a phone copy.
+  // Below `lg` it belongs to the entries bar (design.md decision 4); from `lg`
+  // up it stays in the card footer. Two rendered copies would double the tab
+  // stops and the blocked-reason `aria-describedby` target.
+  const isDesktopLayout = useMediaQuery('(min-width: 1024px)', true);
+
+  const wizardNavigation = (className?: string) => (
+    <WizardNavigation
+      currentStep={currentStep}
+      totalSteps={steps.length}
+      canGoBack={true}
+      canGoNext={canProceed()}
+      onBack={handleBack}
+      onNext={handleNext}
+      nextLabel={
+        currentStepId === 'payment' ? getPaymentSubmitLabel(registrationData.paymentMethod) : 'Next'
+      }
+      backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
+      isLoading={isSubmitting}
+      {...(className ? { className } : {})}
+      {...(showBlockedReason ? { blockedReasonId: PROCEED_BLOCKED_ID } : {})}
+    />
+  );
+
+  // Below `lg` the panel is a fixed bottom bar that OWNS Back/Next, so the
+  // in-card footer hides there — two Next buttons on one screen is both a
+  // usability and a locator hazard.
+  const entriesPanel =
+    entryCloseAvailability.canEnter && !isLastStep ? (
+      <EntriesPanel
+        groups={panelGroups}
+        variant={isPaymentStep ? 'payment' : 'default'}
+        {...(isDesktopLayout ? {} : { navigation: wizardNavigation('mt-0 border-t-0 pt-0') })}
+        capacityReady={capacityReady}
+        capacityUnavailable={capacityUnavailable}
+        waitlistClassIds={waitlistClassIds}
+        {...(isPaymentStep
+          ? {
+              paymentMethod: registrationData.paymentMethod || '',
+              feeCalculation: liveFeeCalculation,
+              waiveFees,
+              feeOverride,
+              onRemoveLine: removeLine,
+              removingLineKey,
+            }
+          : {})}
+      />
+    ) : null;
+
   // Move focus to the step heading whenever the step changes. Without this the
   // wizard scrolls but focus stays put — and on the payment -> receipt swap the
   // focused Next button is unmounted entirely, dropping focus to <body> so a
@@ -119,6 +193,7 @@ function RegistrationWizardContent() {
       <RegistrationWizardShell
         rootRef={scrollTopRef}
         isInsideSidebar={isInsideSidebar}
+        {...(entriesPanel ? { aside: entriesPanel } : {})}
         header={
           <div className="container mx-auto px-4 py-3 max-w-7xl sm:px-6">
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -210,22 +285,7 @@ function RegistrationWizardContent() {
                   isLoading={isSubmitting}
                 />
               ) : (
-                <WizardNavigation
-                  currentStep={currentStep}
-                  totalSteps={steps.length}
-                  canGoBack={true}
-                  canGoNext={canProceed()}
-                  onBack={handleBack}
-                  onNext={handleNext}
-                  nextLabel={
-                    currentStepId === 'payment'
-                      ? getPaymentSubmitLabel(registrationData.paymentMethod)
-                      : 'Next'
-                  }
-                  backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
-                  isLoading={isSubmitting}
-                  {...(showBlockedReason ? { blockedReasonId: PROCEED_BLOCKED_ID } : {})}
-                />
+                isDesktopLayout && wizardNavigation()
               )}
             </>
           ) : null
@@ -342,6 +402,10 @@ function RegistrationWizardContent() {
               offlineFirstCreate={isLateEntryMode && currentWorkflowMode !== 'exhibitor'}
               agreedToEntryAgreement={agreedToEntryAgreement}
               onAgreementChange={setAgreedToEntryAgreement}
+              waiveFees={waiveFees}
+              feeOverride={feeOverride}
+              onWaiveFeesChange={setWaiveFees}
+              onFeeOverrideChange={setFeeOverride}
             />
           </>
         )}

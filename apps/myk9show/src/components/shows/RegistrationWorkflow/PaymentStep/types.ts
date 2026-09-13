@@ -26,8 +26,15 @@ export interface PaymentStepProps {
   onAgreementChange?: ((agreed: boolean) => void) | undefined;
   /** Current state of the entry agreement checkbox. */
   agreedToEntryAgreement?: boolean | undefined;
-  /** Updates class selections when a payment-summary line is removed. */
-  onClassSelectionChange?: ((selections: ClassSelectionData[]) => void | Promise<void>) | undefined;
+  /**
+   * Secretary fee waiver and manual override. Owned by the wizard page, not by
+   * this step: the entries panel renders the amount due outside this subtree
+   * and has to apply the same two flags.
+   */
+  waiveFees?: boolean | undefined;
+  feeOverride?: number | null | undefined;
+  onWaiveFeesChange?: ((waived: boolean) => void) | undefined;
+  onFeeOverrideChange?: ((override: number | null) => void) | undefined;
   /** False while the selected classes' capacity is loading or failed. */
   capacityReady?: boolean | undefined;
   /** Availability query error, when capacityReady is false because of a failure. */
@@ -75,17 +82,6 @@ export interface FeeCalculationResult {
   breakdown: FeeBreakdownItem[];
 }
 
-/** Props for the RegistrationSummary sub-component. */
-export interface RegistrationSummaryProps {
-  feeCalculation: FeeCalculationResult;
-  /** False while the availability query is loading or failed. */
-  capacityReady?: boolean | undefined;
-  /** Availability could not be read at all, as opposed to still loading. */
-  capacityUnavailable?: boolean | undefined;
-  onRemoveLine?: ((dogId: string, classId: string) => void | Promise<void>) | undefined;
-  removingLineKey?: string | null | undefined;
-}
-
 /** Props for the PaymentMethodSelector sub-component. */
 export interface PaymentMethodSelectorProps {
   paymentMethod: PaymentMethod | '';
@@ -126,18 +122,6 @@ export const PAYMENT_MESSAGES = {
   CARD_CHECKOUT_REDIRECT:
     "You'll be taken to our secure checkout to complete payment. Your entries will be confirmed once payment is processed.",
 } as const;
-
-/** Props for the PaymentSummaryCard sub-component. */
-export interface PaymentSummaryCardProps {
-  paymentMethod: PaymentMethod | '';
-  feeCalculation: FeeCalculationResult;
-  /** False while the availability query is loading or failed. */
-  capacityReady?: boolean | undefined;
-  /** Availability could not be read at all, as opposed to still loading. */
-  capacityUnavailable?: boolean | undefined;
-  waiveFees: boolean;
-  feeOverride: number | null;
-}
 
 /** Props for the EntryAgreementSection sub-component. */
 export interface EntryAgreementSectionProps {

@@ -26,7 +26,6 @@ import {
   getDogById,
   isClassSelected,
   getClassFee,
-  getTotalFeesForDog,
   getCartCountForDog,
   buildDisplayLabel,
   reconcileCartToSelections,
@@ -39,8 +38,6 @@ import {
   NoClassesAlert,
   AvailabilityUnreadableNotice,
   ElementCard,
-  DogCartSummary,
-  OverallCartSummary,
 } from './ClassSelectionStep.components';
 import { AlreadyEnteredNotice } from './AlreadyEnteredNotice';
 import { resolveConfiguredRegistryId } from '@/features/registries';
@@ -382,7 +379,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         </TabsList>
 
         {selectedDogs.map(dogId => {
-          const dogCartCount = getCartCountForDog(cartItems, dogId);
           const existingEntryCount = getEntriesForDog(dogId).length;
           const dog = getDogById(dogs, dogId);
           const dogName = dog?.callName || dog?.name || 'This dog';
@@ -487,10 +483,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       })}
                     </div>
                   )}
-                  <DogCartSummary
-                    cartCount={dogCartCount}
-                    totalFees={getTotalFeesForDog(cartItems, dogId)}
-                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -506,14 +498,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           onHandlerAssignmentChange={onHandlerAssignmentChange}
         />
       )}
-
-      <OverallCartSummary
-        totalItems={cartItems.length}
-        totalFees={selectedDogs.reduce(
-          (total, dogId) => total + getTotalFeesForDog(cartItems, dogId),
-          0
-        )}
-      />
 
       <div className="relative z-[60]">
         <AddEditRegistrationDialog

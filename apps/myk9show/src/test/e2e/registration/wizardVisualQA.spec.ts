@@ -64,13 +64,63 @@ async function selectFirstDog(page: Page) {
   await page.getByRole('button', { name: /^Next$/ }).click();
 }
 
+// `.first()` is a coin flip on shared staging: the first chip in the fixture
+// may be already entered, registration-blocked, or full-without-waitlist, all
+// of which render the checkbox disabled and swallow the click — and the failure
+// then reads as "Next never enabled" rather than "that chip was never
+// clickable". Intersect the role query with the not-disabled selector so the
+// walk always picks a chip that can actually be toggled.
+function enabledClassChips(page: Page) {
+  return page.getByRole('checkbox', { name: /^Select / }).and(
+    page.locator(
+      // Base UI renders the chip as a <span role="checkbox">, so a disabled
+      // one carries `data-disabled` rather than the `disabled` attribute —
+      // filtering on `disabled` alone still selects chips that swallow the
+      // click.
+      ':not([disabled]):not([aria-disabled="true"]):not([data-disabled]):not([data-checked])'
+    )
+  );
+}
+
+/** Chips already in this exhibitor's cart on the shared staging show. */
+function selectedClassChips(page: Page) {
+  return page.getByRole('checkbox', { name: /^Select / }).and(page.locator('[data-checked]'));
+}
+
+/**
+ * Availability arrives after the chips render, so a chip that is enabled on the
+ * first frame can become disabled once its class comes back full — clicking it
+ * then times out and reads as "Next never enabled". Wait until the enabled,
+ * not-yet-selected set has held still across two polls before picking one.
+ *
+ * Returns false when this dog has nothing left to add, which the shared
+ * staging cart reaches after enough walks; the caller then proceeds on what is
+ * already in the cart rather than un-selecting it.
+ */
+async function waitForSelectableClass(page: Page): Promise<boolean> {
+  let previous = -1;
+  let settled = 0;
+  await expect
+    .poll(
+      async () => {
+        settled = await enabledClassChips(page).count();
+        const stable = settled === previous;
+        previous = settled;
+        return stable && (settled > 0 || (await selectedClassChips(page).count()) > 0);
+      },
+      { timeout: 30000, intervals: [500] }
+    )
+    .toBe(true);
+  return settled > 0;
+}
+
 async function selectFirstClass(page: Page) {
   await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
     timeout: 15000,
   });
-  const classes = page.getByRole('checkbox', { name: /^Select / });
-  await expect(classes.first()).toBeVisible({ timeout: 15000 });
-  await classes.first().click();
+  if (await waitForSelectableClass(page)) {
+    await enabledClassChips(page).first().click();
+  }
   await expect(page.getByRole('button', { name: /^Next$/ })).toBeEnabled();
   await page.getByRole('button', { name: /^Next$/ }).click();
 }
@@ -522,4 +572,114 @@ test.describe('wizard step titles never break mid-word', () => {
       await assertStepTitlesFitOneLine(page, width, 5);
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// Entries panel (MYK9-483, spec entry-wizard-running-total)
+//
+// Below `lg` the panel is a bar fixed to the bottom of the viewport that owns
+// Back/Next. Two things can only be checked in a browser: that the bar covers
+// none of the step's own controls (the shell reserves its MEASURED height, so
+// a hard-coded padding would pass a class-name check and still overlap), and
+// that Details reveals the itemised list.
+// ---------------------------------------------------------------------------
+
+test('the phone entries bar totals the cart without covering the class list', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+  await selectFirstDog(page);
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+
+  const added = await waitForSelectableClass(page);
+  if (added) await enabledClassChips(page).first().click();
+
+  const bar = page.getByTestId('entries-panel-bar');
+  await expect(bar).toBeVisible();
+  // The desktop aside must NOT also be on screen at this width — one total.
+  await expect(page.getByTestId('entries-panel')).toBeHidden();
+  await expect(page.getByTestId('entries-panel-total')).toHaveText(/\d+ class(es)? · \$\d+\.\d{2}/);
+
+  // Known answer before the geometry is trusted: the bar must actually have a
+  // measured height, and the shell must have been told about it.
+  const reserved = await page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue('--registration-bottom-bar-height')
+      .trim()
+  );
+  expect(reserved, 'shell must reserve the bar height').toMatch(/^\d+(\.\d+)?px$/);
+  expect(parseFloat(reserved)).toBeGreaterThan(44);
+
+  // Scroll to the very bottom of the step: the last chip must still be fully
+  // above the bar, not underneath it.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(300);
+  const lastChip = page.getByRole('checkbox', { name: /^Select / }).last();
+  await lastChip.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  const chipBox = await lastChip.boundingBox();
+  const barBox = await bar.boundingBox();
+  expect(chipBox).not.toBeNull();
+  expect(barBox).not.toBeNull();
+  expect(
+    chipBox!.y + chipBox!.height,
+    `last class chip bottom ${chipBox!.y + chipBox!.height} must clear the bar top ${barBox!.y}`
+  ).toBeLessThanOrEqual(barBox!.y + 1);
+
+  // Details expands the itemised list in place.
+  const details = page.getByTestId('entries-panel-details');
+  await expect(details).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByTestId('entries-panel-details-list')).toHaveCount(0);
+  await details.click();
+  await expect(details).toHaveAttribute('aria-expanded', 'true');
+  const list = page.getByTestId('entries-panel-details-list');
+  await expect(list).toBeVisible();
+  await expect(list.getByTestId('entries-panel-line').first()).toBeVisible();
+
+  // Back/Next live in the bar at this width, and only there.
+  await expect(page.getByRole('button', { name: /^Next$/ })).toHaveCount(1);
+  await expect(bar.getByRole('button', { name: /^Next$/ })).toBeVisible();
+
+  // Leave the staging cart as it was found.
+  await details.click();
+  if (added) await selectedClassChips(page).last().click();
+});
+
+test('the desktop entries panel is the only place the total appears', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signInAsExhibitor(page, `/shows/${SHOW_ID}/register`);
+  await selectFirstDog(page);
+  await expect(page.getByRole('heading', { name: 'Select Classes', exact: true })).toBeVisible({
+    timeout: 15000,
+  });
+
+  const added = await waitForSelectableClass(page);
+  if (added) await enabledClassChips(page).first().click();
+
+  const panel = page.getByTestId('entries-panel');
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId('entries-panel-bar')).toBeHidden();
+  await expect(panel.getByText('Entry fees')).toBeVisible();
+  // Spec scenario "Only one place shows the total": the bottom-of-page
+  // DogCartSummary / OverallCartSummary are gone, not merely hidden.
+  await expect(page.getByText(/Cart Total \(/)).toHaveCount(0);
+  await expect(page.getByText(/classes? in cart/)).toHaveCount(0);
+
+  // The panel's card is a sticky box in a STRETCHED column, so it can travel
+  // the full height of the content card beside it.
+  //
+  // NOT asserted here: that it is still on screen after a scroll. The wizard
+  // renders inside the app shell's `MAIN.flex-1.overflow-auto`, which is the
+  // nearest scrolling ancestor but never scrolls itself — the DOCUMENT does —
+  // so every sticky box inside the wizard, its own `sticky top-0` header
+  // included, is carried off screen. That is an app-shell condition that
+  // predates this panel; fixing it is not this change.
+  const card = panel.locator('> div');
+  expect(await card.evaluate(el => getComputedStyle(el).position)).toBe('sticky');
+  expect(await panel.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(
+    await card.evaluate(el => el.getBoundingClientRect().height)
+  );
+
+  if (added) await selectedClassChips(page).last().click();
 });

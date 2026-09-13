@@ -39,7 +39,7 @@ Before the payment step the summary SHALL show entry fees only and SHALL state t
 
 ### Requirement: At phone width the summary becomes a bottom bar
 
-At widths below the tablet breakpoint the summary SHALL collapse to a bar fixed to the bottom of the viewport showing the class count and entry-fee total, with a control that expands the itemised list in place and the step's Back and Next controls in the same bar. The bar SHALL NOT overlap the last interactive element of the step content.
+At widths below the desktop breakpoint (1024px) the summary SHALL collapse to a bar fixed to the bottom of the viewport showing the class count and entry-fee total, with a control that expands the itemised list in place and the step's Back and Next controls in the same bar. The bar SHALL NOT overlap the last interactive element of the step content.
 
 #### Scenario: Phone class selection
 

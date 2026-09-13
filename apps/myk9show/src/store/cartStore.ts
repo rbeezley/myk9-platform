@@ -288,26 +288,79 @@ export const useCartStore = create<CartState>()(
             return null;
           }
 
-          // Exact-entry recovery rebuilds only the explicit unpaid entries. It
-          // never sweeps unrelated pending entries into checkout or backfills a
-          // partially emptied cart.
+          // A Finish Payment link defines the checkout scope. Remove rows from
+          // the persisted cart too: Stripe reads entry_cart_items, not this
+          // in-memory list. An unlinked row for the same dog/class must also
+          // go before recovery's ignore-duplicates upsert can link the entry.
           if (options.recoveryEntryIds?.length) {
-            const requestedEntryIds = new Set(options.recoveryEntryIds);
-            items = items.filter(item => requestedEntryIds.has(item.entry_id));
+            const recoverableEntries =
+              recoverableEntriesForCart ??
+              (await findRecoverableEntries({
+                showId: cartData.show_id,
+                exhibitorId,
+                entryIds: options.recoveryEntryIds,
+              }));
+            // A failed identity/entry read also returns no rows. Never clear a
+            // persisted cart when eligibility could not be established.
+            if (recoverableEntries.length === 0) {
+              set({ cart: null, isLoading: false });
+              return null;
+            }
+            const recoverableEntryIds = new Set(
+              recoverableEntries
+                .filter(entry => entry.class_id && entry.dog_id)
+                .map(entry => entry.id)
+            );
+            if (recoverableEntryIds.size === 0) {
+              set({ cart: null, isLoading: false });
+              return null;
+            }
+            const excludedItemIds = items
+              .filter(item => !item.entry_id || !recoverableEntryIds.has(item.entry_id))
+              .map(item => item.id);
+            if (excludedItemIds.length > 0) {
+              const { error: deleteError } = await supabase
+                .from('entry_cart_items')
+                .delete()
+                .eq('cart_id', cartData.id)
+                .in('id', excludedItemIds);
+              if (deleteError) {
+                logger.error(
+                  'Error clearing out-of-scope recovery cart items',
+                  'cartStore',
+                  { cartId: cartData.id },
+                  deleteError
+                );
+                set({ cart: null, isLoading: false });
+                return null;
+              }
+            }
+            items = items.filter(item => item.entry_id && recoverableEntryIds.has(item.entry_id));
             const recoveredItems = await recoverCartItemsFromEntryIds({
               cartId: cartData.id,
               showId: cartData.show_id,
               exhibitorId,
               entryIds: options.recoveryEntryIds,
-              ...(recoverableEntriesForCart
-                ? { recoverableEntries: recoverableEntriesForCart }
-                : {}),
+              recoverableEntries,
             });
-            if (recoveredItems.length > 0) {
-              items = recoveredItems.filter(
-                item => !item.entry_id || requestedEntryIds.has(item.entry_id)
+            const recoveredEntryIds = new Set(recoveredItems.map(item => item.entry_id));
+            if (
+              recoveredItems.some(
+                item => !item.entry_id || !recoverableEntryIds.has(item.entry_id)
+              ) ||
+              recoveredEntryIds.size !== recoverableEntryIds.size
+            ) {
+              logger.error(
+                'Exact recovery cart items did not match eligible entries',
+                'cartStore',
+                {
+                  cartId: cartData.id,
+                }
               );
+              set({ cart: null, isLoading: false });
+              return null;
             }
+            items = recoveredItems;
           }
 
           items = await reconcileCartItemsAgainstExistingEntries({

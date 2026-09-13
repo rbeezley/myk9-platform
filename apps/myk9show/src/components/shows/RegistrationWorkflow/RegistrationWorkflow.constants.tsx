@@ -26,22 +26,6 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       delayRegistrationCreation: false,
     },
   },
-  secretary_existing: {
-    steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
-    features: {
-      bulkSelection: true,
-      createNew: false,
-      advancedSearch: true,
-      handlerAssignment: true,
-      paymentOverride: true,
-      statusManagement: true,
-    },
-    smartDefaults: {
-      autoAssignHandler: true,
-      autoCalculateFees: true,
-      delayRegistrationCreation: true,
-    },
-  },
   secretary_new: {
     steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
     features: {

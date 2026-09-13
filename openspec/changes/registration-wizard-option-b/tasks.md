@@ -1,8 +1,8 @@
 ## 1. Deletions (separate commit)
 
-- [ ] 1.1 Delete `PaymentReconciliation.tsx` and `src/test/components/phase3-5-payment-components.test.tsx`; verify `grep -rn PaymentReconciliation apps/myk9show/src` is empty and `pnpm typecheck` passes
-- [ ] 1.2 Delete `OfflineClassSelectionStep.tsx`, `hooks/useOfflineEntryCreation.ts`, and lines 30-38 of `services/entries/index.ts` (the hook and component re-exports); verify no importer remains and `pnpm typecheck` passes
-- [ ] 1.3 Remove `secretary_existing` from `WORKFLOW_CONFIGS` and the `WorkflowMode` union; verify `pnpm typecheck` passes and `registrationSecretaryMobile.test.ts` / `registrationStepsMobile.test.ts` no longer reference deleted files (remove those assertions)
+- [x] 1.1 Delete `PaymentReconciliation.tsx` and `src/test/components/phase3-5-payment-components.test.tsx`; verify `grep -rn PaymentReconciliation apps/myk9show/src` is empty and `pnpm typecheck` passes
+- [x] 1.2 Delete `OfflineClassSelectionStep.tsx`, `hooks/useOfflineEntryCreation.ts`, and lines 30-38 of `services/entries/index.ts` (the hook and component re-exports); verify no importer remains and `pnpm typecheck` passes
+- [x] 1.3 Remove `secretary_existing` from `WORKFLOW_CONFIGS` and the `WorkflowMode` union; verify `pnpm typecheck` passes and `registrationSecretaryMobile.test.ts` / `registrationStepsMobile.test.ts` no longer reference deleted files (remove those assertions)
 
 ## 2. Stepper
 

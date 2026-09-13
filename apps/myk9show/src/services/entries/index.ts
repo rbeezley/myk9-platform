@@ -26,17 +26,6 @@ export type {
   BatchEntryCreationResult,
 } from './OfflineEntryCreator';
 
-// Re-export hook for easy access
-export { useOfflineEntryCreation } from '@/hooks/useOfflineEntryCreation';
-export type {
-  OfflineEntryCreationState,
-  OfflineEntryCreationActions,
-  UseOfflineEntryCreationResult,
-} from '@/hooks/useOfflineEntryCreation';
-
-// Re-export enhanced component
-export { OfflineClassSelectionStep } from '@/components/shows/RegistrationWorkflow/OfflineClassSelectionStep';
-
 /**
  * Quick Start Guide:
  *
@@ -56,21 +45,7 @@ export { OfflineClassSelectionStep } from '@/components/shows/RegistrationWorkfl
  * }
  * ```
  *
- * 2. Using the React Hook:
- * ```typescript
- * import { useOfflineEntryCreation } from '@/services/entries';
- *
- * function MyComponent() {
- *   const { createEntry, isCreating, lastValidation } = useOfflineEntryCreation();
- *
- *   const handleSubmit = async () => {
- *     const result = await createEntry(entryData);
- *     // Handle result...
- *   };
- * }
- * ```
- *
- * 3. Batch Entry Creation:
+ * 2. Batch Entry Creation:
  * ```typescript
  * const batchResult = await OfflineEntryCreator.createBatchEntries(entriesArray, {
  *   ignoreWarnings: false,
@@ -78,14 +53,14 @@ export { OfflineClassSelectionStep } from '@/components/shows/RegistrationWorkfl
  * });
  * ```
  *
- * 4. Validation Only:
+ * 3. Validation Only:
  * ```typescript
  * import { EntryValidator } from '@/services/entries';
  *
  * const validationResult = await EntryValidator.validateEntry(entryData, context);
  * ```
  *
- * 5. Limit Checking:
+ * 4. Limit Checking:
  * ```typescript
  * import { EntryLimitChecker } from '@/services/entries';
  *

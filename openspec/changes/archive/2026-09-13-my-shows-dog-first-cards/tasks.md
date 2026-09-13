@@ -46,7 +46,7 @@
 
 - [x] 7.1 `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet` (from the worktree), `pnpm format:check:changed`; fix anything red.
 - [x] 7.2 Commit via `/commit`, push, open the PR against `main` with the template (what/why, MYK9-482, checked ACs, screenshots, risk, how to test, non-goals, agent involvement, follow-ups).
-- [ ] 7.3 Independent review gate: `pnpm qa:codex-review --base origin/main`; address findings; record the `Review gate:` comment. `bash scripts/qa/watch-pr-checks.sh <pr>` until green.
-- [ ] 7.4 Merge with `gh pr merge --squash` from the main repo directory, no `--delete-branch`. Confirm a green production build on `main`.
-- [ ] 7.5 Post the implementation comment on MYK9-482 (what changed, checks run, PR link, risks, ACs) and move it to Done only after reading its full description.
-- [ ] 7.6 Archive: apply the `exhibitor-my-shows-legibility` delta and add the two new specs (`pnpm openspec archive`), and archive `improve-exhibitor-entries-scan` with a summary stating it is superseded by this change and its three open tasks were evidence/merge items.
+- [x] 7.3 Independent review gate: `pnpm qa:codex-review --base origin/main`; address findings; record the `Review gate:` comment. `bash scripts/qa/watch-pr-checks.sh <pr>` until green.
+- [x] 7.4 Merge with `gh pr merge --squash` from the main repo directory, no `--delete-branch`. Confirm a green production build on `main`.
+- [x] 7.5 Post the implementation comment on MYK9-482 (what changed, checks run, PR link, risks, ACs) and move it to Done only after reading its full description.
+- [x] 7.6 Archive: apply the `exhibitor-my-shows-legibility` delta and add the two new specs (`pnpm openspec archive`), and archive `improve-exhibitor-entries-scan` with a summary stating it is superseded by this change and its three open tasks were evidence/merge items.

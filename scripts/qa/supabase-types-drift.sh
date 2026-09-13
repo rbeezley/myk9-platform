@@ -52,8 +52,18 @@ if [[ -z "$GENERATED" ]]; then
     encoded="$(jq -rn --arg p "$PGPASSWORD" '$p | @uri')"
     url="${url/@/:${encoded}@}"
   fi
+  # `--db-url` emits every schema (public, graphql_public, storage, …) while the
+  # committed file was generated with `--project-id`, which defaults to public.
+  # Compare the schemas the committed file declares, or every storage helper
+  # reads as "live but not committed" (first run of #2193).
+  schemas="$(awk '
+    /^export type Database = \{$/ { inside = 1; next }
+    inside && /^\}$/               { exit }
+    inside && /^  [A-Za-z0-9_]+: \{$/ && $1 != "__InternalSupabase:" { s = $1; sub(/:$/, "", s); print s }
+  ' "$COMMITTED" | paste -sd, -)"
+  [[ -n "$schemas" ]] || not_a_verdict "no schema headers found in $COMMITTED"
   GENERATED="$tmp/generated.ts"
-  if ! supabase gen types typescript --db-url "$url" > "$GENERATED" 2> "$tmp/gen.err"; then
+  if ! supabase gen types typescript --db-url "$url" --schema "$schemas" > "$GENERATED" 2> "$tmp/gen.err"; then
     sed 's#://[^@]*@#://<redacted>@#g' "$tmp/gen.err" >&2 || true
     not_a_verdict "supabase gen types failed (see the step log)"
   fi

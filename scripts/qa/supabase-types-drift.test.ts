@@ -149,6 +149,38 @@ describe('supabase-types-drift.sh', () => {
     expect(result.summary).toContain('No object was added or removed');
   });
 
+  it('generates with the committed schemas only, and the password injected into the URL', () => {
+    // `--db-url` emits every schema (storage, graphql_public, …); the committed
+    // file was generated with `--project-id`, which is public only. The first
+    // run of #2193 reported 22 storage objects as "live but not committed".
+    const dir = mkdtempSync(join(tmpdir(), 'types-drift-gen-'));
+    dirs.push(dir);
+    const committedPath = join(dir, 'committed.ts');
+    const calls = join(dir, 'calls.txt');
+    writeFileSync(committedPath, types({ tables: { entries } }));
+    // Stub `supabase`: record argv, then emit the committed file (no drift).
+    writeFileSync(
+      join(dir, 'supabase'),
+      `#!/usr/bin/env bash\nprintf '%s\\n' "$@" > '${calls}'\ncat '${committedPath}'\n`,
+      { mode: 0o755 }
+    );
+    const stdout = execFileSync('bash', [SCRIPT, '--committed', committedPath], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+      env: {
+        ...process.env,
+        PATH: `${dir}:${process.env.PATH ?? ''}`,
+        MYK9_MIGRATION_DATABASE_URL: 'postgresql://postgres.ref@pooler.example:5432/postgres',
+        PGPASSWORD: 'p@ss word',
+      },
+    });
+    expect(stdout).toContain('**No drift.**');
+    const argv = readFileSync(calls, 'utf8').split('\n');
+    expect(argv.slice(0, 3)).toEqual(['gen', 'types', 'typescript']);
+    expect(argv).toContain('postgresql://postgres.ref:p%40ss%20word@pooler.example:5432/postgres');
+    expect(argv[argv.indexOf('--schema') + 1]).toBe('public');
+  });
+
   it('exits 2, not 1, when it has nothing to compare', () => {
     let status = 0;
     let stdout = '';

@@ -61,6 +61,13 @@ const ROUTE_SOURCE_PATHS = [
   'apps/myk9show/src/features/admin-help/data/pageDirectory.ts',
 ];
 
+// The Admin Help registry inventories lazy imports; it does not declare or
+// navigate routes. Its tests likewise contain fixture paths, not route changes.
+const NON_ROUTE_SOURCE_PATHS = new Set([
+  'apps/myk9show/src/routes/routeRegistry.ts',
+  'apps/myk9show/src/routes/routeRegistry.test.ts',
+]);
+
 // Files whose changes imply a possible *label* change (button/tab/menu text),
 // which the QA re-verification trigger table treats as its own staleness cause.
 const LABEL_SOURCE_PATHS = [
@@ -158,6 +165,7 @@ function parseDiffForRoutes(diffText) {
     }
     if (line.startsWith('---')) continue; // old-file header, not content
     if (!/^[+-]/.test(line)) continue; // context / hunk meta
+    if (NON_ROUTE_SOURCE_PATHS.has(currentFile)) continue;
     const target = line.startsWith('+') ? added : removed;
     const content = line.slice(1);
     for (const r of extractRoutesFromSource(content)) record(target, r);

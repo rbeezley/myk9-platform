@@ -29,6 +29,26 @@ const registration: Registration = {
 };
 
 describe('AddEditRegistrationDialog save recovery', () => {
+  it('explains that title abbreviations belong to this organization’s registered name', () => {
+    render(
+      <AddEditRegistrationDialog
+        open
+        onOpenChange={vi.fn()}
+        onSave={vi.fn()}
+        initialData={registration}
+      />
+    );
+
+    const name = screen.getByRole('textbox', { name: /Registered Name/ });
+    expect(name).toHaveAttribute('aria-describedby', 'registeredName-hint');
+    expect(document.getElementById('registeredName-hint')).toHaveTextContent(
+      'title abbreviations you want shown for this organization'
+    );
+    expect(document.getElementById('registeredName-hint')).toHaveTextContent(
+      'Other registrations, the Call Name, and Title Progress stay separate.'
+    );
+  });
+
   it('keeps the editor open when the async save reports failure', async () => {
     const onSave = vi.fn().mockResolvedValue(false);
     const onOpenChange = vi.fn();

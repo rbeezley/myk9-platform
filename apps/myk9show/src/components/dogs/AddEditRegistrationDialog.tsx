@@ -18,6 +18,7 @@ import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breed
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { registrationNameHint } from './registrationNameHint';
 
 interface AddEditRegistrationDialogProps {
   open: boolean;
@@ -271,6 +272,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
           fieldId="registeredName"
           required
           error={form.getError('registeredName')}
+          hint={registrationNameHint}
+          hintClassName="text-base"
         >
           <Input
             id="registeredName"
@@ -278,6 +281,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
             onChange={e => handleFieldChange('registeredName', e.target.value)}
             placeholder="Full registered name"
             {...form.getFieldProps('registeredName')}
+            aria-describedby={`registeredName-hint${form.getError('registeredName') ? ' registeredName-error' : ''}`}
           />
         </FormField>
 

@@ -12,12 +12,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // ---------------------------------------------------------------------------
 
 const getTrialsByShowMock = vi.hoisted(() => vi.fn());
+const getPublicTrialsByShowMock = vi.hoisted(() => vi.fn());
 const getClassesByTrialIdMock = vi.hoisted(() => vi.fn());
 const pickLandingTrialsMock = vi.hoisted(() => vi.fn());
 const buildPublicShowClassesMock = vi.hoisted(() => vi.fn());
 const buildPublicTrialStatsMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/database/trials', () => ({ getTrialsByShow: getTrialsByShowMock }));
+vi.mock('@/services/database/trials', () => ({
+  getTrialsByShow: getTrialsByShowMock,
+  getPublicTrialsByShow: getPublicTrialsByShowMock,
+}));
 vi.mock('@/services/database/classes', () => ({ getClassesByTrialId: getClassesByTrialIdMock }));
 vi.mock('@/pages/ShowDetailsPage.landingTrials', () => ({
   pickLandingTrials: pickLandingTrialsMock,
@@ -49,10 +53,11 @@ describe('useShowLandingData', () => {
     buildPublicShowClassesMock.mockReturnValue([]);
     buildPublicTrialStatsMock.mockReturnValue({});
     getTrialsByShowMock.mockResolvedValue({ data: [], error: null });
+    getPublicTrialsByShowMock.mockResolvedValue({ data: [], error: null });
     getClassesByTrialIdMock.mockResolvedValue({ data: [], error: null });
   });
 
-  it('does not fetch public trials/classes when the store is warm (associated trials present)', () => {
+  it('does not fetch public trials/classes when the authenticated store is warm', () => {
     const associated = [makeTrial('t1')];
     pickLandingTrialsMock.mockReturnValue(associated);
     const { wrapper } = createWrapper();
@@ -65,6 +70,24 @@ describe('useShowLandingData', () => {
     // pickLandingTrials runs with the store rows and an undefined public result.
     expect(pickLandingTrialsMock).toHaveBeenCalledWith(associated, undefined);
     expect(result.current.landingTrials).toBe(associated);
+  });
+
+  it('fetches the complete public trial catalog for signed-out previews even when the store is partial', async () => {
+    const cached = [makeTrial('cached')];
+    const complete = [makeTrial('cached'), makeTrial('uncached')];
+    pickLandingTrialsMock.mockReturnValue(complete);
+    getPublicTrialsByShowMock.mockResolvedValue({
+      data: [{ id: 'cached' }, { id: 'uncached' }],
+      error: null,
+    });
+    getClassesByTrialIdMock.mockResolvedValue({ data: [], error: null });
+    const { wrapper } = createWrapper();
+
+    renderHook(() => useShowLandingData('show-1', cached, null, true), { wrapper });
+
+    await waitFor(() => expect(getPublicTrialsByShowMock).toHaveBeenCalledWith('show-1'));
+    expect(getTrialsByShowMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(getClassesByTrialIdMock).toHaveBeenCalledWith('uncached'));
   });
 
   it('does not fetch when showId is missing, even with a cold store', () => {

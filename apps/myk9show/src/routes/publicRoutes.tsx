@@ -205,33 +205,39 @@ export const PublicRoutes = () => (
     <Route
       path="/shows/:showId/trials/:trialId"
       element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <TrialDetailsPage />
-          </PageTransition>
-        </SuspenseWrapper>
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <TrialDetailsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 
     <Route
       path="/trials/:trialId"
       element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <TrialDetailsPage />
-          </PageTransition>
-        </SuspenseWrapper>
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <TrialDetailsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 
     <Route
       path="/shows/:showId/trials/:trialId/classes/:classId"
       element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <ClassDetailsPage />
-          </PageTransition>
-        </SuspenseWrapper>
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ClassDetailsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 
@@ -246,7 +252,14 @@ export const PublicRoutes = () => (
       }
     />
 
-    <Route path="/classes/:classId" element={<ClassDetailsRedirect />} />
+    <Route
+      path="/classes/:classId"
+      element={
+        <ProtectedRoute>
+          <ClassDetailsRedirect />
+        </ProtectedRoute>
+      }
+    />
 
     {/* Backwards-compat redirects for old URLs */}
     <Route path="/browse-shows" element={<Navigate to="/shows" replace />} />

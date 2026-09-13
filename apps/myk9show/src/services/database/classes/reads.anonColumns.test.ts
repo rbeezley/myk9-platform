@@ -84,7 +84,7 @@ describe('anon column allowlist on public.classes', () => {
     );
 
     expect(selects.length, 'expected the PostgREST class reads to still be template selects').toBe(
-      4
+      5
     );
     for (const select of selects) {
       expect(select, 'anon-reachable class select must not use `*`').not.toMatch(/^\s*\*/m);

@@ -15,7 +15,6 @@ import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { deriveRegistryId } from '@/features/registries';
-import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useReplicationSync } from '@/hooks/useReplicationSync';
@@ -33,7 +32,7 @@ import { grantShowOfficials, officialsDeferredOfflineMessage } from './grantShow
 import { completePartialShowSave, isOfficialsNotAssignedError } from './showSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
-import { classDataToReplicatedClass } from './classDataToReplicatedClass';
+import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
 
 interface UseShowCreationWizardActionsOptions {
@@ -179,16 +178,8 @@ export function useShowCreationWizardActions({
 
       const ruleMap = await buildRuleMap(classesToCreate.map(c => c.templateId ?? ''));
 
-      await Promise.all(
-        classesToCreate.map(classData => {
-          const rule = classData.templateId
-            ? ruleMap.get(
-                `${classData.templateId}|${classData.element ?? ''}|${classData.level ?? ''}`
-              )
-            : undefined;
-          return replicatedClassesTable.createClass(classDataToReplicatedClass(classData, rule));
-        })
-      );
+      // Each class plus its class-level judge assignment (MYK9-479).
+      await createWizardClasses(showId, classesToCreate, ruleMap);
 
       logger.debug(`Created ${classesToCreate.length} classes`, 'wizard');
     },

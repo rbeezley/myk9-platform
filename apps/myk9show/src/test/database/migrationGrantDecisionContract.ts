@@ -25,6 +25,8 @@ const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
     'Anon-readable RLS policies resolve the current person through this helper.',
   'get_show_officials(uuid)':
     "SA-006's follow-up (20260704152531) granted anon deliberately so the officials card renders on the public show overview; 20260830240000 preserves it. The function's own gate limits unauthenticated callers to published/upcoming/in-progress/completed shows, and its return shape is unchanged, so the exposure is the one SA-006 chose.",
+  'get_show_judges(uuid)':
+    "MYK9-474 (20260912211500) granted anon deliberately so the public TV board (/tv/:showId) and the public show-detail roster (/shows/:id) can render judge names at all — both previously got null from a people embed anon cannot see through. The function's own gate is the same as get_show_officials', limiting unauthenticated callers to published/upcoming/in-progress/completed shows, which is also the set MYK9-469 made anon-visible on judge_assignments. Its RETURNS TABLE has no email column, so unlike an anon-visible people policy it cannot expose an address no matter how the column allowlist drifts.",
   'has_role(text, uuid)': 'Anon-readable RLS policies use this role predicate.',
   'is_club_admin(uuid)': 'Anon-readable RLS policies use this club authorization predicate.',
   'is_platform_admin()': 'Anon-readable RLS policies use this platform authorization predicate.',

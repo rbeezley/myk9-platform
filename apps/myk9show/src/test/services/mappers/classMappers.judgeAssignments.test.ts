@@ -128,13 +128,17 @@ describe('mapReplicatedClassToDbRow — judge data round-trip', () => {
     expect(classData.judgeId).toBe('judge-uuid-1');
   });
 
-  it('uses the denormalized class judge when no assignment relation exists', () => {
+  it('reports TBD when no assignment relation exists, even if a stale judge_name rides along', () => {
+    // MYK9-479: classes.judge_name was dropped. The assignment graph is the only
+    // judge source, so a row that still carries the retired key (an old fixture,
+    // a cached row) must not name a judge that is not assigned.
     const classData = mapDatabaseToClass({
       ...makeReplicatedClass(),
       judge_name: 'Test Judge',
       judge_assignments: [],
     } as never);
 
-    expect(classData.judge).toBe('Test Judge');
+    expect(classData.judge).toBe('TBD');
+    expect(classData.judgeId).toBe('');
   });
 });

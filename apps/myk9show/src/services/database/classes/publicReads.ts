@@ -20,7 +20,7 @@
  *      for a guest). Entry data for the page comes separately through the cascade-gated
  *      `view_public_entry_results`.
  *   2. No `*` — unlike the sibling reads, this names columns so internal audit fields
- *      (`deleted_by`, `results_released_by`, `judge_name`, counts) never travel to anon.
+ *      (`deleted_by`, `results_released_by`, counts) never travel to anon.
  * The `classes_select` RLS policy admits anon for a published show (migration 016/108), so
  * the lean class read succeeds; an unpublished show's class returns null (no leak).
  */

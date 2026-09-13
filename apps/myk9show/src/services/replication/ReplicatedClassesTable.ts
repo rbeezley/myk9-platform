@@ -198,10 +198,10 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
           person_id: string;
           people: { first_name: string; last_name: string };
         }>) || [];
+      // MYK9-479: the assignment is the only source. classes.judge_name was
+      // dropped; a class with no confirmed assignment has no judge name.
       const first = ja[0];
-      return first
-        ? `${first.people.first_name} ${first.people.last_name}`.trim()
-        : ((dbRow.judge_name as string | undefined) ?? undefined);
+      return first ? `${first.people.first_name} ${first.people.last_name}`.trim() : undefined;
     })(),
     judgeId: (() => {
       const ja = (dbRow.judge_assignments as Array<{ person_id: string }>) || [];

@@ -27,6 +27,7 @@ import { useReplicationSync } from '@/hooks/useReplicationSync';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useCartStore } from '@/store/cartStore';
+import { useCartExpiredGate } from './useCartExpiredGate';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { calculateTotalFees } from '@/components/shows/RegistrationWorkflow/PaymentStep/utils';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
@@ -478,6 +479,13 @@ export function useRegistrationWizardState() {
   const allEntryKeys = classSelections.flatMap(s =>
     s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId))
   );
+  // Expired-cart gate: see useCartExpiredGate for why it is owned + ticked.
+  const cartExpired = useCartExpiredGate({
+    enabled: currentWorkflowMode === 'exhibitor',
+    showId,
+    exhibitorId: exhibitorProfile?.id,
+  });
+
   const proceedBlocked = proceedBlockedReason({
     stepId: currentStepId,
     selectedDogsCount: registrationData.selectedDogs.length,
@@ -497,6 +505,7 @@ export function useRegistrationWizardState() {
     capacityReady,
     blockedClassCount: registrationCapacity.blockedClassIds.size,
     capacityUnavailable,
+    cartExpired,
   });
   const canProceed = () => proceedBlocked === null;
   const isLastStep = currentStep === steps.length - 1;

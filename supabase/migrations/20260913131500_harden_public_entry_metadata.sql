@@ -128,4 +128,7 @@ AS $$
   GROUP BY requested.class_id;
 $$;
 
+REVOKE ALL ON FUNCTION public.tv_class_entry_counts(uuid, uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.tv_class_entry_counts(uuid, uuid[]) TO anon, authenticated;
+
 COMMIT;

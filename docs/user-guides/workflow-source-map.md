@@ -87,7 +87,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 7. View results
 
 **Outcome:** Exhibitor sees their dog's placement, Q/NQ, and time after the class is complete.
-**Canonical routes:** `/exhibitor/entries` (result badge) → `/shows/:showId/trials/:trialId/classes/:classId/results`
+**Canonical routes:** `/exhibitor/entries` (result badge) → `/shows/:showId/trials/:trialId/classes/:classId/results` _(source-map re-verified 2026-09-13)_
 **Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing results flow is unchanged.
 **Docs target:** Exhibitor Guide § Results, KB: `view-results.md`
 
@@ -232,7 +232,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 24. Review and update the club profile
 
 **Outcome:** Club admin reviews and updates club name, AKC/UKC numbers, address, and contacts.
-**Canonical route:** `/clubs/:id`
+**Canonical route:** `/clubs/:id` _(source-map re-verified 2026-09-13)_
 **Note:** Cataloged in `pageDirectory.ts` as Club Detail; reachable from the sidebar as **Club Profile**.
 **Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing club-profile flow is unchanged.
 **Docs target:** Club Admin Guide § Club Profile Setup

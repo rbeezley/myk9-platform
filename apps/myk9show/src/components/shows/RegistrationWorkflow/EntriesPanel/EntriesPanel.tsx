@@ -39,11 +39,22 @@ export interface EntriesPanelProps {
   removingLineKey?: string | null | undefined;
   /** Injectable for tests; defaults to the live platform-fee rates. */
   rates?: PlatformFeeRates | undefined;
-  /** Sends the exhibitor back to Select classes when the cart has expired. */
-  onStartOver?: (() => void) | undefined;
-  /** Identifies whose cart the expiry notice may speak for (singleton store). */
-  showId?: string | null | undefined;
-  exhibitorId?: string | null | undefined;
+  /**
+   * Cart-expiry wiring, present ONLY for the exhibitor self-service flow.
+   *
+   * Staff flows never create a cart (`useCartFlow` in `ClassSelectionStep` is
+   * false for secretary/admin), and their `exhibitorProfile` is the signed-in
+   * ORGANIZER rather than the exhibitor being entered — so an ownership check
+   * there would compare the wrong id against a cart that should not exist.
+   * Absent = no notice and no start-over, structurally rather than by guard.
+   */
+  cartExpiry?:
+    | {
+        showId: string | null | undefined;
+        exhibitorId: string | null | undefined;
+        onStartOver?: (() => void) | undefined;
+      }
+    | undefined;
 }
 
 /**
@@ -71,9 +82,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   onRemoveLine,
   removingLineKey,
   rates,
-  onStartOver,
-  showId,
-  exhibitorId,
+  cartExpiry,
 }) => {
   const liveRates = usePlatformFeeRates();
   const resolvedRates = rates ?? liveRates;
@@ -95,7 +104,13 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
   const classCount = countPanelLines(groups);
   const entryFeeCents = totals ? totals.entryFeeCents : sumPanelFeeCents(groups);
   // The SAME string the totals block shows — one derivation, two widths.
-  const headline = formatAmountDue({ capacityReady, capacityUnavailable, totals, entryFeeCents });
+  const headline = formatAmountDue({
+    capacityReady,
+    capacityUnavailable,
+    totals,
+    entryFeeCents,
+    classCount,
+  });
 
   // The bar is fixed, so the content behind it has to reserve its height or the
   // last control of the step sits underneath it (spec: "Phone class selection").
@@ -166,7 +181,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Your entries</h2>
           </div>
-          <CartExpiryNotice showId={showId} exhibitorId={exhibitorId} onStartOver={onStartOver} />
+          {cartExpiry && <CartExpiryNotice {...cartExpiry} />}
           <div className="max-h-[50vh] overflow-y-auto">{lines}</div>
           {totalsBlock}
         </div>
@@ -192,7 +207,7 @@ export const EntriesPanel: React.FC<EntriesPanelProps> = ({
             without opening anything. It renders nothing at all when the cart is
             neither expiring nor expired, so the bar keeps its usual height. */}
         <div className="px-4 pt-2 empty:hidden">
-          <CartExpiryNotice showId={showId} exhibitorId={exhibitorId} onStartOver={onStartOver} />
+          {cartExpiry && <CartExpiryNotice {...cartExpiry} />}
         </div>
         <div className="flex min-h-11 items-center gap-2 px-4 py-1.5">
           <ShoppingCart className="h-4 w-4 shrink-0 text-muted-foreground" />

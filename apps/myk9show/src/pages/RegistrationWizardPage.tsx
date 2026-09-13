@@ -124,8 +124,20 @@ function RegistrationWizardContent() {
     classSelections,
     handleClassSelectionChange
   );
-  // No class step in this workflow means no way back, so no start-over control.
+  // Cart expiry is an exhibitor-flow concern only. Staff flows never create a
+  // cart (`useCartFlow` in ClassSelectionStep excludes secretary/admin) and
+  // their `exhibitorProfile` is the signed-in organizer, not the exhibitor being
+  // entered — so there is nothing to expire and nothing to own. The mode is the
+  // gate; no ownership check is asked to stand in for it.
   const hasClassStep = currentWorkflowConfig.steps.includes('class-selection');
+  const cartExpiry =
+    currentWorkflowMode === 'exhibitor'
+      ? {
+          showId,
+          exhibitorId: exhibitorProfile?.id,
+          ...(hasClassStep ? { onStartOver: () => void handleStartOver() } : {}),
+        }
+      : undefined;
 
   // ONE WizardNavigation, repositioned — not a desktop copy and a phone copy.
   // Below `lg` it belongs to the entries bar (design.md decision 4); from `lg`
@@ -133,22 +145,37 @@ function RegistrationWizardContent() {
   // stops and the blocked-reason `aria-describedby` target.
   const isDesktopLayout = useMediaQuery('(min-width: 1024px)', true);
 
+  // The reason travels WITH the navigation. Below `lg` the buttons move into the
+  // fixed bottom bar, and a blocked Next whose explanation stayed behind in the
+  // card footer is an explanation off-screen. Rendered once, wherever the
+  // navigation is, so `aria-describedby` always resolves to a visible node.
   const wizardNavigation = (className?: string) => (
-    <WizardNavigation
-      currentStep={currentStep}
-      totalSteps={steps.length}
-      canGoBack={true}
-      canGoNext={canProceed()}
-      onBack={handleBack}
-      onNext={handleNext}
-      nextLabel={
-        currentStepId === 'payment' ? getPaymentSubmitLabel(registrationData.paymentMethod) : 'Next'
-      }
-      backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
-      isLoading={isSubmitting}
-      {...(className ? { className } : {})}
-      {...(showBlockedReason ? { blockedReasonId: PROCEED_BLOCKED_ID } : {})}
-    />
+    <>
+      <p
+        id={PROCEED_BLOCKED_ID}
+        role="status"
+        className={cn('mb-3 text-sm text-muted-foreground', !showBlockedReason && 'sr-only')}
+      >
+        {showBlockedReason ? proceedBlocked : ''}
+      </p>
+      <WizardNavigation
+        currentStep={currentStep}
+        totalSteps={steps.length}
+        canGoBack={true}
+        canGoNext={canProceed()}
+        onBack={handleBack}
+        onNext={handleNext}
+        nextLabel={
+          currentStepId === 'payment'
+            ? getPaymentSubmitLabel(registrationData.paymentMethod)
+            : 'Next'
+        }
+        backLabel={currentStep === 0 ? 'Cancel' : 'Back'}
+        isLoading={isSubmitting}
+        {...(className ? { className } : {})}
+        {...(showBlockedReason ? { blockedReasonId: PROCEED_BLOCKED_ID } : {})}
+      />
+    </>
   );
 
   // Below `lg` the panel is a fixed bottom bar that OWNS Back/Next, so the
@@ -163,9 +190,7 @@ function RegistrationWizardContent() {
         capacityReady={capacityReady}
         capacityUnavailable={capacityUnavailable}
         waitlistClassIds={waitlistClassIds}
-        showId={showId}
-        exhibitorId={exhibitorProfile?.id}
-        {...(hasClassStep ? { onStartOver: () => void handleStartOver() } : {})}
+        {...(cartExpiry ? { cartExpiry } : {})}
         {...(isPaymentStep
           ? {
               paymentMethod: registrationData.paymentMethod || '',
@@ -267,16 +292,6 @@ function RegistrationWizardContent() {
         footer={
           entryCloseAvailability.canEnter ? (
             <>
-              <p
-                id={PROCEED_BLOCKED_ID}
-                role="status"
-                className={cn(
-                  'mb-3 text-sm text-muted-foreground',
-                  !showBlockedReason && 'sr-only'
-                )}
-              >
-                {showBlockedReason ? proceedBlocked : ''}
-              </p>
               {isLastStep ? (
                 <ReceiptExits
                   isExhibitor={currentWorkflowMode === 'exhibitor'}

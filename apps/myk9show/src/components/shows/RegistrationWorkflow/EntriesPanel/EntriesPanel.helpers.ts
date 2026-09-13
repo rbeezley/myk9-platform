@@ -280,6 +280,8 @@ export interface AmountDueInput {
   totals?: PaymentTotals | undefined;
   /** Used when `totals` is absent (every step before payment). */
   entryFeeCents: number;
+  /** How many fee lines the entry has. Zero costs $0.00 whatever capacity says. */
+  classCount: number;
 }
 
 /**
@@ -296,8 +298,13 @@ export function formatAmountDue({
   capacityUnavailable,
   totals,
   entryFeeCents,
+  classCount,
 }: AmountDueInput): string {
-  // Capacity first: until it is read, no figure on this screen is trustworthy.
+  // An empty entry costs $0.00 however availability resolves, so the placeholder
+  // would be withholding a number that is already known — and the dog-selection
+  // step, where nothing is chosen yet, is exactly where capacity is unread.
+  if (classCount === 0) return formatCartCurrency(0);
+  // Capacity next: with lines on the entry, no figure is trustworthy until read.
   if (!capacityReady) return availabilityPlaceholder(capacityUnavailable);
   if (totals?.isWaived) return '$0.00 (Waived)';
   return formatCartCurrency(totals ? totals.amountDueCents : entryFeeCents);

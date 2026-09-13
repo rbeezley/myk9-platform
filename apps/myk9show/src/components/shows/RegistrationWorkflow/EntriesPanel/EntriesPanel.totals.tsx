@@ -59,6 +59,7 @@ export const EntriesPanelTotals: React.FC<EntriesPanelTotalsProps> = ({
     capacityUnavailable,
     totals,
     entryFeeCents: totals?.amountDueCents ?? 0,
+    classCount,
   });
 
   return (

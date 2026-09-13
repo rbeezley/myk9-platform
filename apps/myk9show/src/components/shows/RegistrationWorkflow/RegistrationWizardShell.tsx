@@ -19,10 +19,27 @@ interface RegistrationWizardShellProps {
 /**
  * Structural contract for the registration wizard.
  *
- * The header is sticky inside the page's own scroll context. The stepper is
- * part of that header, so the content card follows the fully rendered header
- * in normal flow and only uses the shared app-shell gap below it. Step content
- * owns content layout; it must not add margins to compensate for the header.
+ * The header is sticky inside the page's own scroll context — and the wizard
+ * OWNS that context. The app shell's `main` (`SidebarLayout`) is
+ * `flex-1 overflow-auto` inside a `flex min-h-screen` row, which makes it a
+ * scroll container that never actually scrolls: the document scrolls instead,
+ * so a `position: sticky` descendant has no scrollport to stick against and is
+ * inert. Rather than change the shell for every page, the full-page wizard
+ * bounds itself to the viewport and scrolls itself, which gives the sticky
+ * header AND the sticky entries panel a real scrollport.
+ *
+ * The height subtracts `--app-top-inset` (header, plus the PWA banner when one
+ * is showing) because that is the full fixed chrome above this subtree — not
+ * `--app-header-height`, which is only what `main` pads by and would leave the
+ * wizard a banner's height too tall.
+ *
+ * Embedded under /secretary the wizard is not the scroller: it sits inside the
+ * sidebar's own scrolling pane, which already provides a scrollport.
+ *
+ * The stepper is part of that header, so the content card follows the fully
+ * rendered header in normal flow and only uses the shared app-shell gap below
+ * it. Step content owns content layout; it must not add margins to compensate
+ * for the header.
  *
  * Two CSS variables carry measured chrome heights to the things that must
  * clear them, because both heights depend on content (a wrapped breadcrumb, a
@@ -62,7 +79,14 @@ export function RegistrationWizardShell({
       ref={rootRef}
       data-layout="registration-wizard-shell"
       data-testid="registration-wizard-shell"
-      className={isInsideSidebar ? 'bg-background' : 'min-h-screen bg-background'}
+      className={cn(
+        'bg-background',
+        isInsideSidebar
+          ? undefined
+          : // min-h-0 so the height is the height, not a floor a tall step can
+            // grow past — a grown root would scroll the document again.
+            'h-[calc(100dvh-var(--app-top-inset,3rem))] min-h-0 overflow-y-auto'
+      )}
     >
       <header
         ref={headerRef}

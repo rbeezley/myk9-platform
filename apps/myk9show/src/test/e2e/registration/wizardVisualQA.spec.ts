@@ -613,7 +613,11 @@ test('the phone entries bar totals the cart without covering the class list', as
 
   // Scroll to the very bottom of the step: the last chip must still be fully
   // above the bar, not underneath it.
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  // The wizard owns its scroll context, so scrolling the DOCUMENT moves nothing.
+  await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="registration-wizard-shell"]');
+    if (root) root.scrollTop = root.scrollHeight;
+  });
   await page.waitForTimeout(300);
   const lastChip = page.getByRole('checkbox', { name: /^Select / }).last();
   await lastChip.scrollIntoViewIfNeeded();
@@ -626,6 +630,19 @@ test('the phone entries bar totals the cart without covering the class list', as
     chipBox!.y + chipBox!.height,
     `last class chip bottom ${chipBox!.y + chipBox!.height} must clear the bar top ${barBox!.y}`
   ).toBeLessThanOrEqual(barBox!.y + 1);
+
+  // The sticky header is pinned to the wizard's own scrollport, so it is still
+  // at the top of that scrollport after the scroll above.
+  const phoneShellTop = await page
+    .getByTestId('registration-wizard-shell')
+    .evaluate(el => el.getBoundingClientRect().top);
+  const phoneHeaderTop = await page
+    .getByTestId('registration-wizard-header')
+    .evaluate(el => el.getBoundingClientRect().top);
+  expect(
+    Math.abs(phoneHeaderTop - phoneShellTop),
+    `header top ${phoneHeaderTop} must stay at the scrollport top ${phoneShellTop}`
+  ).toBeLessThanOrEqual(1);
 
   // Details expands the itemised list in place.
   const details = page.getByTestId('entries-panel-details');
@@ -668,18 +685,52 @@ test('the desktop entries panel is the only place the total appears', async ({ p
 
   // The panel's card is a sticky box in a STRETCHED column, so it can travel
   // the full height of the content card beside it.
-  //
-  // NOT asserted here: that it is still on screen after a scroll. The wizard
-  // renders inside the app shell's `MAIN.flex-1.overflow-auto`, which is the
-  // nearest scrolling ancestor but never scrolls itself — the DOCUMENT does —
-  // so every sticky box inside the wizard, its own `sticky top-0` header
-  // included, is carried off screen. That is an app-shell condition that
-  // predates this panel; fixing it is not this change.
   const card = panel.locator('> div');
   expect(await card.evaluate(el => getComputedStyle(el).position)).toBe('sticky');
   expect(await panel.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(
     await card.evaluate(el => el.getBoundingClientRect().height)
   );
+
+  // ...and it actually STICKS. The wizard bounds itself to the viewport and
+  // scrolls itself, so the sticky card and the sticky header have a real
+  // scrollport. Previously the app shell's MAIN.flex-1.overflow-auto was the
+  // nearest scrolling ancestor but never scrolled — the document did — and
+  // every sticky box in the wizard was carried off screen.
+  const shell = page.getByTestId('registration-wizard-shell');
+  const header = page.getByTestId('registration-wizard-header');
+
+  // Known answer first: a scrollport that cannot scroll would make the
+  // assertions below pass for the wrong reason.
+  const scrollable = await shell.evaluate(el => el.scrollHeight - el.clientHeight);
+  expect(
+    scrollable,
+    'the wizard root must be scrollable for this to mean anything'
+  ).toBeGreaterThan(200);
+
+  const cardTopBefore = await card.evaluate(el => el.getBoundingClientRect().top);
+  await shell.evaluate(el => el.scrollBy(0, 800));
+  await page.waitForTimeout(300);
+
+  expect(
+    await shell.evaluate(el => el.scrollTop),
+    'the root must be what scrolled'
+  ).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollY), 'the document must NOT be what scrolled').toBe(
+    0
+  );
+
+  const cardTopAfter = await card.evaluate(el => el.getBoundingClientRect().top);
+  expect(
+    Math.abs(cardTopAfter - cardTopBefore),
+    `panel card top moved from ${cardTopBefore} to ${cardTopAfter}`
+  ).toBeLessThanOrEqual(1);
+
+  const shellTop = await shell.evaluate(el => el.getBoundingClientRect().top);
+  const headerTop = await header.evaluate(el => el.getBoundingClientRect().top);
+  expect(
+    Math.abs(headerTop - shellTop),
+    `header top ${headerTop} must stay at the scrollport top ${shellTop}`
+  ).toBeLessThanOrEqual(1);
 
   if (added) await selectedClassChips(page).last().click();
 });

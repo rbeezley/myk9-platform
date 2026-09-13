@@ -380,4 +380,22 @@ describe('EntriesPanel bar headline agrees with the totals block', () => {
     render(<EntriesPanel groups={groupsFor(1)} capacityReady={false} />);
     expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('Checking availability');
   });
+  it('reads $0.00, not a placeholder, when nothing is selected yet', () => {
+    // Dog-selection step: availability is genuinely unread, but an empty cart
+    // costs $0.00 no matter how it resolves. "Checking availability" against no
+    // classes reads as though a number were being withheld (Codex #2210 P2).
+    render(<EntriesPanel groups={groupsFor(0)} capacityReady={false} />);
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00');
+    expect(bar().getByTestId('entries-panel-total')).not.toHaveTextContent('Checking availability');
+  });
+
+  it('reads $0.00 on the payment step too when the entry is empty', () => {
+    render(paymentPanel({ groups: groupsFor(0), feeCalculation: fees(0), capacityReady: false }));
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('$0.00');
+  });
+
+  it('still placeholders once there IS a class whose availability is unread', () => {
+    render(<EntriesPanel groups={groupsFor(1)} capacityReady={false} />);
+    expect(bar().getByTestId('entries-panel-total')).toHaveTextContent('Checking availability');
+  });
 });

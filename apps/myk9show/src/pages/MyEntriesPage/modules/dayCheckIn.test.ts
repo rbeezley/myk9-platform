@@ -291,10 +291,20 @@ describe('isEntryCloseDayPast with an unknown zone (Codex, PR #2201 round five)'
     ).toBe(false);
   });
 
-  it('is past once every zone on earth agrees', () => {
+  it('is past the moment the LAST zone on earth agrees, not a day later', () => {
+    // 2026-09-02 15:00Z: UTC-12, the westernmost zone, has just reached the
+    // 2nd, so a 1 Sep deadline is now past everywhere. Waiting a further UTC
+    // day here offered an edit the server would refuse (Codex round six).
     expect(
-      isEntryCloseDayPast(closeDay('2026-09-01'), undefined, new Date('2026-09-03T01:00:00Z'))
+      isEntryCloseDayPast(closeDay('2026-09-01'), undefined, new Date('2026-09-02T15:00:00Z'))
     ).toBe(true);
+  });
+
+  it('is still open one hour earlier, while UTC-12 is on the close day', () => {
+    // 2026-09-02 11:00Z is 23:00 on 1 Sep in UTC-12 — the final hour anywhere.
+    expect(
+      isEntryCloseDayPast(closeDay('2026-09-01'), undefined, new Date('2026-09-02T11:00:00Z'))
+    ).toBe(false);
   });
 
   it('still calls a months-old deadline past', () => {

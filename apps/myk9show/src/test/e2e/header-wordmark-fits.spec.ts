@@ -105,6 +105,20 @@ test.describe('header wordmark fits', () => {
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
   });
 
+  test('guest theme choice remains after account sign-in', async ({ page }) => {
+    await page.goto('/sign-in');
+    await page.getByTestId('credential-input').waitFor();
+
+    const lightButton = page.getByRole('button', { name: 'Switch to light mode' });
+    if (await lightButton.isVisible()) await lightButton.click();
+    await page.getByRole('button', { name: 'Switch to dark mode' }).click();
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+
+    await signInAsExhibitor(page, '/exhibitor/entries');
+
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  });
+
   for (const cartCount of [0, 3]) {
     test(`signed in — ${cartCount} cart items`, async ({ page }) => {
       // Fix the read-only badge response, not the shared account's real cart.

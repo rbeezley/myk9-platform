@@ -193,6 +193,14 @@ const pendingEntryCartItem = {
   class: { id: 'class-pending', name: 'Novice Exterior', level: 'Novice', trial_id: 'trial-1' },
 };
 
+const withdrawnEntryCartItem = {
+  ...hydratedItem,
+  id: 'item-withdrawn',
+  dog_id: 'dog-withdrawn',
+  class_id: 'class-withdrawn',
+  entry_fee_cents: 1200,
+};
+
 describe('cartStore payment recovery', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -481,7 +489,10 @@ describe('cartStore payment recovery', () => {
           }
 
           if (call.table === 'entry_cart_items') {
-            return { data: [paidEntryCartItem, pendingEntryCartItem], error: null };
+            return {
+              data: [paidEntryCartItem, pendingEntryCartItem, withdrawnEntryCartItem],
+              error: null,
+            };
           }
 
           if (call.table === 'entries') {
@@ -491,6 +502,22 @@ describe('cartStore payment recovery', () => {
                   dog_id: 'dog-paid',
                   class_id: 'class-paid',
                   payment_status: 'paid_by_check',
+                  entry_status: 'paid',
+                  deleted_at: null,
+                },
+                {
+                  dog_id: 'dog-pending',
+                  class_id: 'class-pending',
+                  payment_status: 'pending',
+                  entry_status: 'submitted',
+                  deleted_at: null,
+                },
+                {
+                  dog_id: 'dog-withdrawn',
+                  class_id: 'class-withdrawn',
+                  payment_status: 'pending',
+                  entry_status: 'withdrawn',
+                  deleted_at: null,
                 },
               ],
               error: null,
@@ -510,20 +537,15 @@ describe('cartStore payment recovery', () => {
 
     const entriesCall = queryCalls.find(call => call.table === 'entries');
     expect(entriesCall?.eqs).toEqual([{ column: 'show_id', value: 'show-1' }]);
-    expect(entriesCall?.ises).toEqual([{ column: 'deleted_at', value: null }]);
     expect(entriesCall?.ins).toEqual([
-      {
-        column: 'entry_status',
-        values: ['pending', 'submitted', 'pending-payment', 'confirmed'],
-      },
-      { column: 'dog_id', values: ['dog-paid', 'dog-pending'] },
-      { column: 'class_id', values: ['class-paid', 'class-pending'] },
+      { column: 'dog_id', values: ['dog-paid', 'dog-pending', 'dog-withdrawn'] },
+      { column: 'class_id', values: ['class-paid', 'class-pending', 'class-withdrawn'] },
     ]);
 
     const deleteCall = queryCalls.find(
       call => call.table === 'entry_cart_items' && call.deleteCalled
     );
-    expect(deleteCall?.ins).toEqual([{ column: 'id', values: ['item-paid'] }]);
+    expect(deleteCall?.ins).toEqual([{ column: 'id', values: ['item-paid', 'item-withdrawn'] }]);
 
     const totalsUpdate = queryCalls.find(
       call => call.table === 'entry_carts' && call.updatePayload?.subtotal_cents === 1800

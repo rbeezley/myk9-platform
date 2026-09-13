@@ -1,6 +1,6 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Entry card leads with summary and single next action
+### Requirement: Show group leads with dog cards and a single next action
 
 The My Shows list SHALL render one **show group** per show. A show group SHALL consist of a show header followed by one **dog card** per dog entered at that show, in armband order (unassigned armbands last, by dog name).
 
@@ -40,7 +40,7 @@ The dog chip SHALL be derived from the dog's class rows in this precedence: canc
 - **WHEN** a show's editing window has closed
 - **THEN** the show header shows neither "Entries close" nor "Edit entry"
 
-### Requirement: One card per online order
+### Requirement: One show group per show
 
 The My Shows page SHALL group entry rows by show (`showId`) into one show group, and within a show by dog (`dogId`) into one dog card, regardless of how many registrations (`registrationId`) the exhibitor holds for that show. Rows with a null `registrationId` SHALL join the show group of their `showId`. Regrouping SHALL conserve the total set of classes: every class row visible before the change remains visible after it. Order identity SHALL be retained on each class row (`registrationId`, confirmation number) so receipts, edit-entry and entry-scope deep links still resolve to the order they name.
 
@@ -65,6 +65,16 @@ The My Shows page SHALL group entry rows by show (`showId`) into one show group,
 - **THEN** the show group renders with only the pending dog card, and a show with no pending dog is not rendered
 
 ## REMOVED Requirements
+
+### Requirement: Entry card leads with summary and single next action
+
+**Reason**: The per-order entry card no longer exists. Its summary, collapsed details panel, details toggle and per-card next action are replaced by the show header and dog cards in "Show group leads with dog cards and a single next action"; the pending reassurance and close-date scenarios carry over there.
+**Migration**: Nothing to migrate. `MyEntryCard` and its details panel were deleted in PR #2198.
+
+### Requirement: One card per online order
+
+**Reason**: Grouping moved from the order to the show. "One show group per show" restates the class-conservation and unregistered-entry guarantees at the new grain and adds order identity on each class row.
+**Migration**: Nothing to migrate; receipts, edit and `?entryIds=` links resolve through the order identity kept on every class row.
 
 ### Requirement: Dog items wrap at five per row
 

@@ -33,3 +33,7 @@
 - No database migration expected.
 - No new routes, dialogs, or duplicated entry/show-day surfaces.
 - No new online-only reads in the core entry list; retain the existing data path and current payment/show/run-order deep links.
+
+## Superseded
+
+Superseded on 2026-09-13 by the OpenSpec change `my-shows-dog-first-cards` (MYK9-482, PR #2198, merged as `5bd40c2c1`), which replaced the per-order card this change refined with one group per show and dog-first cards. The three tasks still open here (6.4 visual inspection, 6.5 screenshots, 7.3 merge/archive) were evidence and merge items for the old card; the new change carried its own browser evidence walk and review gate. The `exhibitor-entry-scanability` delta spec was not promoted: its requirements describe the superseded per-order card and are covered by the promoted `exhibitor-my-shows-legibility`, `exhibitor-money-on-exception` and `exhibitor-show-day-check-in` specs.

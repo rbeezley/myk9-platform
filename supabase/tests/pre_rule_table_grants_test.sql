@@ -309,7 +309,7 @@ BEGIN
       -- 52/54 became 51/53 when classes.judge_name was dropped (20260912234500, MYK9-479).
       ('classes','anon',51),
       ('classes','authenticated',53),
-      ('entries','anon',15),
+      ('entries','anon',2),
       ('entries','authenticated',54),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),

@@ -6,8 +6,8 @@ BEGIN;
 
 CREATE OR REPLACE VIEW public.view_public_entry_results
 WITH (security_invoker = false) AS
- SELECT e.id,
-    e.class_id,
+ SELECT CASE WHEN c.results_released_at IS NOT NULL THEN e.id END AS id,
+    CASE WHEN c.results_released_at IS NOT NULL THEN e.class_id END AS class_id,
     c.trial_id,
     e.show_id,
     CASE WHEN c.results_released_at IS NOT NULL THEN e.dog_id END AS dog_id,

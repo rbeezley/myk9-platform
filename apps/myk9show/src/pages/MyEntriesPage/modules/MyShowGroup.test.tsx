@@ -284,6 +284,22 @@ describe('post-deadline help (MYK9-502)', () => {
     expect(screen.queryByRole('button', { name: 'Edit entry' })).not.toBeInTheDocument();
   });
 
+  // Codex, PR #2201: the close date is inclusive. NOW is midday Central on
+  // 24 Oct 2026, so a show closing THAT day is still open — reading the
+  // instant instead of the calendar day retired the controls a day early.
+  it('stays silent through the whole of the close date itself', () => {
+    renderRows([closedRow({ entryCloseDate: day('2026-10-24') })]);
+
+    expect(screen.queryByText('Entries closed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Message the show team/ })).not.toBeInTheDocument();
+  });
+
+  it('speaks the day AFTER the close date', () => {
+    renderRows([closedRow({ entryCloseDate: day('2026-10-23') })]);
+
+    expect(screen.getByText('Entries closed')).toBeInTheDocument();
+  });
+
   it('stays silent while any order can still be edited', () => {
     renderRows([
       closedRow(),

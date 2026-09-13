@@ -53,6 +53,24 @@ export function isTrialDayToday(
   return calendarDayOf(trialDate) === calendarDayInZone(now, trialTimezone || DEFAULT_TIMEZONE);
 }
 
+/**
+ * Is the entry-close DAY already behind us, reckoned in the trial's timezone?
+ *
+ * The close date is INCLUSIVE: entries stay open through the end of the day
+ * written on the show, which is how the server guard (`entryCloseGuard`) and
+ * `isEntryCloseDayPast` in the entries service both read it. Comparing the
+ * instants instead would call the window shut at 00:00 on the close date and
+ * retire the exhibitor's controls a full day early (Codex, PR #2201).
+ */
+export function isEntryCloseDayPast(
+  entryCloseDate: Date | undefined,
+  trialTimezone: string | undefined,
+  now: Date
+): boolean {
+  if (!entryCloseDate || Number.isNaN(entryCloseDate.getTime())) return false;
+  return calendarDayInZone(now, trialTimezone || DEFAULT_TIMEZONE) > calendarDayOf(entryCloseDate);
+}
+
 /** Is the trial's calendar day still ahead of `now` in the trial's timezone? */
 export function isTrialDayAhead(
   trialDate: Date | undefined,

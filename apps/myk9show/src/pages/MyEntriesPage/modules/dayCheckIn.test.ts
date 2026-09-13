@@ -7,6 +7,7 @@ import {
   isClassCheckInAvailableToday,
   isTrialDayToday,
   weekdayLabel,
+  isEntryCloseDayPast,
 } from './dayCheckIn';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -237,5 +238,41 @@ describe('isClassCheckInAvailableToday', () => {
     expect(
       isClassCheckInAvailableToday(dog.classes[0], { now, ordersById: {}, isPastShow: false })
     ).toBe(false);
+  });
+});
+
+describe('isEntryCloseDayPast (Codex, PR #2201)', () => {
+  const CHICAGO = 'America/Chicago';
+  /** Midday Central on 24 Oct 2026. */
+  const now = new Date('2026-10-24T17:00:00Z');
+  /** Local midnight, the shape `parseShowDate` hands the page. */
+  const closeDay = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  it('is false on the close date itself — the day is inclusive', () => {
+    expect(isEntryCloseDayPast(closeDay('2026-10-24'), CHICAGO, now)).toBe(false);
+  });
+
+  it('is false one minute after local midnight on the close date', () => {
+    expect(
+      isEntryCloseDayPast(closeDay('2026-10-24'), CHICAGO, new Date('2026-10-24T05:01:00Z'))
+    ).toBe(false);
+  });
+
+  it('is true the next calendar day', () => {
+    expect(isEntryCloseDayPast(closeDay('2026-10-23'), CHICAGO, now)).toBe(true);
+  });
+
+  it('reckons the day in the TRIAL zone, not the device zone', () => {
+    // 03:00 UTC on the 25th is still the 24th in Chicago, so a show closing
+    // on the 24th has not closed for a device sitting in UTC.
+    const justAfterUtcMidnight = new Date('2026-10-25T03:00:00Z');
+    expect(isEntryCloseDayPast(closeDay('2026-10-24'), CHICAGO, justAfterUtcMidnight)).toBe(false);
+  });
+
+  it('is false when the show never set a close date', () => {
+    expect(isEntryCloseDayPast(undefined, CHICAGO, now)).toBe(false);
   });
 });

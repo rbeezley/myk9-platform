@@ -20,7 +20,7 @@ import { formatShortCalendarDate } from '@/lib/format/dates';
 import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { ResultCardModel } from '@/features/result-card';
 import { EntryStatus } from '@/types/show-registration-types';
-import type { DayCheckInContext } from './dayCheckIn';
+import { isEntryCloseDayPast, type DayCheckInContext } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
 import { MyShowDogCard } from './MyShowDogCard';
@@ -85,10 +85,19 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
   // silent card. Once no order is still editable, a show that holds an order
   // past its close date offers the show team instead of nothing — the same
   // destination the pre-MYK9-482 card used, never a second messaging surface.
+  // The close date is inclusive, so the day itself is still open: ask the
+  // calendar-day question in the trial's zone, never the instant question.
+  const trialTimezone = group.dogs
+    .flatMap(dog => dog.classes)
+    .find(cls => cls.trialTimezone)?.trialTimezone;
   const needsPostDeadlineHelp =
     !isPastShow &&
     editableOrders.length === 0 &&
-    orderStates.some(({ state }) => state.canRequestPostDeadlineHelp);
+    orderStates.some(
+      ({ order, state }) =>
+        state.canRequestPostDeadlineHelp &&
+        isEntryCloseDayPast(order.entryCloseDate, trialTimezone, now)
+    );
 
   const checkInContext: DayCheckInContext = {
     now,

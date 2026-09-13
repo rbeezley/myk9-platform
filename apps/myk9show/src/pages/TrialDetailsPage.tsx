@@ -49,7 +49,7 @@ import { StatusIcon, getStatusDescriptor } from '@/components/status';
 const PUBLIC_TAB_IDS = ['overview'] as const;
 const AUTHENTICATED_TAB_IDS = ['overview', 'entries'] as const;
 const MANAGEMENT_TAB_IDS = ['financials'] as const;
-const TAB_IDS = [...PUBLIC_TAB_IDS, ...MANAGEMENT_TAB_IDS] as const;
+const TAB_IDS = [...AUTHENTICATED_TAB_IDS, ...MANAGEMENT_TAB_IDS] as const;
 
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
@@ -85,11 +85,7 @@ const TrialDetailsPage: React.FC = () => {
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a
   // hidden management tab in `?tab=` falls back to 'overview' instead of
   // rendering its panel (PromoCodes/Financials) to a non-staff visitor.
-  const allowedTabIds = canManageTrial
-    ? TAB_IDS
-    : user
-      ? AUTHENTICATED_TAB_IDS
-      : PUBLIC_TAB_IDS;
+  const allowedTabIds = canManageTrial ? TAB_IDS : user ? AUTHENTICATED_TAB_IDS : PUBLIC_TAB_IDS;
   const [activeTab, setActiveTab] = useUrlTab(allowedTabIds, 'overview');
 
   // Get classes store (page only needs the list for trialWithClasses below; the

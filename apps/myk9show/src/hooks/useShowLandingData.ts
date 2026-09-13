@@ -61,7 +61,7 @@ export function useShowLandingData(
   // replicated store, so it works for anon. We only enable it when the store is empty, then
   // map the rows to the Trial[] the landing expects.
   const { data: publicTrialsResult } = useQuery({
-    queryKey: ['public-show-trials', showId],
+    queryKey: ['public-show-trials', showId, isSignedOut ? 'anon' : 'authenticated'],
     queryFn: () =>
       isSignedOut ? getPublicTrialsByShow(showId as string) : getTrialsByShow(showId as string),
     enabled: !!showId && !storeTrialsAreAuthoritative,

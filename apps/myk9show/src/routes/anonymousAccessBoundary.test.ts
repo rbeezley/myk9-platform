@@ -3,16 +3,18 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ANONYMOUS_PUBLIC_ROUTE_POLICY } from './anonymousAccessBoundary';
 
-const publicRoutesSource = readFileSync(
-  resolve(__dirname, 'publicRoutes.tsx'),
-  'utf8'
-);
+const routeSource = [
+  readFileSync(resolve(__dirname, 'publicRoutes.tsx'), 'utf8'),
+  readFileSync(resolve(__dirname, '../router.tsx'), 'utf8'),
+].join('\n');
 
 function routeBlock(path: string): string {
   const escapedPath = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return publicRoutesSource.match(
-    new RegExp(`path="${escapedPath}"[\\s\\S]*?(?=\\n    <Route|\\n  </>)`)
-  )?.[0] ?? '';
+  return (
+    routeSource.match(
+      new RegExp(`path="${escapedPath}"[\\s\\S]*?(?=\\n\\s*<Route|\\n\\s*</>)`)
+    )?.[0] ?? ''
+  );
 }
 
 describe('anonymous access boundary', () => {
@@ -45,5 +47,11 @@ describe('anonymous access boundary', () => {
     expect(routeBlock('/shows/:showId/trials/:trialId/classes/:classId/results')).not.toContain(
       '<ProtectedRoute>'
     );
+  });
+
+  it('keeps every documented anonymous route represented in the route tree', () => {
+    for (const { path } of ANONYMOUS_PUBLIC_ROUTE_POLICY) {
+      expect(routeBlock(path), `missing route block for ${path}`).not.toBe('');
+    }
   });
 });

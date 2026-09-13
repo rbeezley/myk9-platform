@@ -22,28 +22,11 @@ import { describe, expect, it } from 'vitest';
 const MIGRATIONS_DIR = resolve(__dirname, '../../../../../supabase/migrations');
 
 /**
- * The exact 15-column security boundary established by the release gate
- * (20260616120000) and restored by 20260725170000 plus the public timeline
- * tombstone filter grant. Asserted as an exact set: a
- * denylist can only catch the sensitive columns someone remembered to enumerate.
+ * The only direct entry column available to anon is `id`, which is required by
+ * the public class query's safe `entries ( id )` embed. Public results and TV
+ * use their dedicated view/RPC paths instead of direct entry rows.
  */
-const ANON_ENTRY_COLUMN_ALLOWLIST = [
-  'id',
-  'class_id',
-  'trial_id',
-  'show_id',
-  'dog_id',
-  'armband',
-  'handler',
-  'run_order',
-  'is_in_ring',
-  'is_scored',
-  'check_in_status',
-  'entry_status',
-  'jump_height',
-  'created_at',
-  'deleted_at',
-];
+const ANON_ENTRY_COLUMN_ALLOWLIST = ['id'];
 
 /**
  * The scent-work hide secrets anon must never reach on `classes` (MYK9-116).

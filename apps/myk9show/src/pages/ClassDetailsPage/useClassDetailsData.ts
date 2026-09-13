@@ -30,6 +30,7 @@ import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase
 import type { SecretaryEntry } from '@/services/database/entries';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
@@ -120,6 +121,7 @@ export function useClassDetailsData() {
     trialId?: string;
   }>();
   const location = useLocation();
+  const { user } = useAuthContext();
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -210,7 +212,7 @@ export function useClassDetailsData() {
     error: dbEntriesError,
   } = useClassEntriesWithQuery(
     classId || '',
-    !!classId && !useStaffEntrySource && !isResultsView
+    !!classId && !useStaffEntrySource && (!isResultsView || !!user)
   );
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
@@ -226,10 +228,7 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(
-    classId || undefined,
-    !useStaffEntrySource && !isResultsView
-  );
+  } = useClassEntriesRaw(classId || undefined, !useStaffEntrySource && (!isResultsView || !!user));
 
   const staffClassEntries = useMemo(
     () =>

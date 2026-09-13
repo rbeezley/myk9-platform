@@ -4,7 +4,6 @@ import { StaleShowNotice } from './StaleShowNotice';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
-import { OfferedClassesSection } from '@/features/_shared/OfferedClassesSection';
 
 export interface ShowPublicLandingProps {
   /** The resolved show (already narrowed non-null by the page). */
@@ -52,6 +51,32 @@ export function ShowPublicLanding({
       ? { ...show, style: show.experiencePublishedStyle }
       : show;
 
+  const offeredClassesByTrial = new Map<string, ClassInfo[]>();
+  for (const classInfo of offeredClasses) {
+    const classes = offeredClassesByTrial.get(classInfo.trialId) ?? [];
+    classes.push(classInfo);
+    offeredClassesByTrial.set(classInfo.trialId, classes);
+  }
+  const previewShow = offeredClasses.length
+    ? {
+        ...publicLandingShow,
+        trials: landingTrials.map(trial => ({
+          id: trial.id,
+          name: trial.name || trial.trialNumber || 'Trial',
+          date: trial.trialDate || '',
+          trialNumber: trial.trialNumber || '',
+          status: trial.status || '',
+          classes: (offeredClassesByTrial.get(trial.id) ?? []).map(classInfo => ({
+            id: classInfo.id,
+            name: classInfo.name,
+            element: classInfo.element,
+            level: classInfo.level,
+            section: classInfo.section,
+          })),
+        })),
+      }
+    : publicLandingShow;
+
   // INTENT: null/default style uses the product's committed Monogram default
   // for public visitors. That keeps the shareable show URL on a brand landing
   // without adding another default surface; management users still get the
@@ -66,13 +91,12 @@ export function ShowPublicLanding({
     <>
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
       <StyledLanding
-        show={publicLandingShow}
+        show={previewShow}
         trial={landingTrials[0] ?? null}
         allTrials={landingTrials}
         hasEntryClassInventory={hasEntryClassInventory}
         entryNotYetOpen={entryNotYetOpen}
       />
-      <OfferedClassesSection classes={offeredClasses} />
     </>
   );
 }

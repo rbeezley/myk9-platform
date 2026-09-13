@@ -97,6 +97,23 @@ describe('deriveDogActivity', () => {
     expect(activity.upcoming).toEqual([]);
     expect(activity.recentResults).toEqual([]);
   });
+
+  it('keeps a promotion-expired entry out of Upcoming', () => {
+    const activity = deriveDogActivity([entry({ entry_status: 'promotion-expired' })], TODAY);
+
+    expect(activity.upcoming).toEqual([]);
+  });
+
+  it('cannot close an unscored run from a completed check-in when the result is hidden', () => {
+    // An unreleased excused outcome and a score-reset run can expose the same
+    // safe fields. Treat both as outstanding until a safe projection exists.
+    const activity = deriveDogActivity(
+      [entry({ check_in_status: 'completed', is_scored: false, result_status: null })],
+      TODAY
+    );
+
+    expect(activity.upcoming.map(row => row.id)).toEqual(['entry-1']);
+  });
 });
 
 describe('formatActivityDate', () => {

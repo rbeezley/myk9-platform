@@ -11,7 +11,7 @@
 
 import { lazy, type ReactNode } from 'react';
 import { Route, Navigate, useParams } from 'react-router-dom';
-import { BarChart3, Calendar, ClipboardList } from 'lucide-react';
+import { BarChart3, ClipboardList } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
@@ -63,7 +63,6 @@ const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPa
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
-const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
@@ -474,20 +473,6 @@ export const PublicRoutes = () => (
     <Route path="/preferences" element={<Navigate to="/account" replace />} />
 
     <Route
-      path="/calendar"
-      element={
-        <ProtectedRoute>
-          {featurePage(features.calendar, <CalendarPage />, {
-            title: 'Calendar',
-            description:
-              'The show calendar is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
-            icon: Calendar,
-          })}
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
       path="/subscription"
       element={
         <ProtectedRoute>
@@ -504,11 +489,7 @@ export const PublicRoutes = () => (
       path="/registration"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <CalendarPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <Navigate to="/shows" replace />
         </ProtectedRoute>
       }
     />

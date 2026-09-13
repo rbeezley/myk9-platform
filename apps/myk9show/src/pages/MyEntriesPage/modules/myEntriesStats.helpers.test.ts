@@ -7,6 +7,7 @@ import {
   parseShowDate,
   getPartiallyScoredState,
   isScoredEntry,
+  countUpcomingClassesByDog,
 } from './myEntriesStats.helpers';
 import type { EntryClass, MyEntry } from './my-entries-types';
 
@@ -184,6 +185,56 @@ describe('computeMyEntriesShowProgressStats', () => {
       upcomingShows: 0,
       upcomingEntries: 0,
     });
+  });
+});
+
+describe('countUpcomingClassesByDog', () => {
+  it('counts only unscored classes for each dog in a mixed order', () => {
+    const scored: EntryClass = {
+      id: 'scored',
+      name: 'Container Novice A',
+      number: '1',
+      fee: 0,
+      status: 'entered',
+      entryStatus: EntryStatus.COMPLETED,
+      isScored: true,
+      resultStatus: 'qualified',
+    };
+    const unscored: EntryClass = {
+      id: 'unscored',
+      name: 'Interior Advanced',
+      number: '2',
+      fee: 0,
+      status: 'entered',
+      entryStatus: EntryStatus.ACCEPTED,
+      isScored: false,
+    };
+    const willowClasses = [scored, { ...scored, id: 'scored-2' }, unscored];
+    const rangerClasses = [
+      { ...scored, id: 'ranger-scored' },
+      { ...unscored, id: 'ranger-unscored' },
+    ];
+    const mixedOrder = makeEntry({
+      classes: [...willowClasses, ...rangerClasses],
+      dogs: [
+        {
+          id: 'willow-row',
+          dogId: 'willow',
+          dogName: 'Willow',
+          classes: willowClasses,
+          entryStatus: EntryStatus.COMPLETED,
+        },
+        {
+          id: 'ranger-row',
+          dogId: 'ranger',
+          dogName: 'Ranger',
+          classes: rangerClasses,
+          entryStatus: EntryStatus.COMPLETED,
+        },
+      ],
+    });
+
+    expect(countUpcomingClassesByDog([mixedOrder], NOW)).toEqual({ willow: 1, ranger: 1 });
   });
 });
 

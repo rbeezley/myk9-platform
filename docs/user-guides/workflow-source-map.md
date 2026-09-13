@@ -25,7 +25,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 | `/admin/deleted-items` | Internal admin recovery tool                   |
 | `/browse-shows`        | Backwards-compat redirect                      |
 | `/my-entries`          | Backwards-compat redirect                      |
-| `/registration`        | Legacy alias / stub                            |
+| `/registration`        | Legacy redirect to `/shows`                    |
 | `/trials/:trialId`     | Legacy path — document the nested path instead |
 | `/classes/:classId`    | Legacy path                                    |
 | `/judge/dashboard`     | `classification: park`, parked for fall        |
@@ -62,6 +62,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 **Outcome:** Exhibitor submits an entry and pays via Stripe.
 **Canonical routes:** `/shows/:showId/register` → `/cart` → `/checkout/success`
+**Source-map note:** Re-verified `/shows/:showId/register` on 2026-09-13 after the unused CalendarPage wrapper was removed; the show-specific wizard and guide-facing entry flow are unchanged.
 **Docs target:** Exhibitor Guide § Entry & Payment, KB: `enter-a-show.md`
 
 ### 4. Track entry status before the show
@@ -263,7 +264,7 @@ Workflows where the same user outcome appears at more than one route. Document o
 
 | Outcome                | Canonical route                                   | Alternative                             | Note                                                                          |
 | ---------------------- | ------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
-| Browse shows           | `/shows`                                          | `/browse-shows`, `/calendar`            | `/browse-shows` is a redirect; `/calendar` is parked — document `/shows` only |
+| Browse shows           | `/shows`                                          | `/browse-shows`                         | `/browse-shows` is a redirect; the calendar view is on `/shows`               |
 | Show detail            | `/shows/:id`                                      | `/trials/:trialId`, `/classes/:classId` | Legacy paths are redirects — document `/shows/:id` nested paths only          |
 | Trial details          | `/shows/:showId/trials/:trialId`                  | `/trials/:trialId`                      | Document the nested path only                                                 |
 | Class details          | `/shows/:showId/trials/:trialId/classes/:classId` | `/classes/:classId`                     | Document the nested path only                                                 |

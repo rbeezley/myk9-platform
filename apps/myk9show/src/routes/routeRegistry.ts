@@ -1,32 +1,18 @@
 /**
  * Route Component Registry
  *
- * Central registry of all lazy loaded components for intelligent preloading
- * Maps route paths to their corresponding components
+ * Route paths and their lazy-loaded components for the Admin Help route diff.
  */
 
 import type { ComponentType } from 'react';
 
-// Import lazy components from different route files
-// Note: These are import functions, not the components themselves
-
-// Type for import functions - uses unknown props for generic component handling
+// Import functions use unknown props for generic component handling.
 type ImportFunction = () => Promise<
   { default: ComponentType<Record<string, unknown>> } | ComponentType<Record<string, unknown>>
 >;
 
-function routePatternToRegex(routePattern: string): RegExp {
-  const escapedSegments = routePattern.split('/').map(segment => {
-    if (segment === '*') return '.*';
-    if (segment.startsWith(':')) return '[^/]+';
-    return segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  });
-
-  return new RegExp(`^${escapedSegments.join('/')}$`);
-}
-
 // Admin route components
-export const adminRouteComponents: Record<string, ImportFunction> = {
+const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/dashboard': () => import('@/pages/admin/AdminDashboard'),
   '/admin/templates': () => import('@/pages/admin/TemplateManagementPage'),
   '/admin/health': () => import('@/pages/admin/SystemHealthPage'),
@@ -60,7 +46,7 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
 } as const;
 
 // Public/exhibitor route components
-export const publicRouteComponents: Record<string, ImportFunction> = {
+const publicRouteComponents: Record<string, ImportFunction> = {
   // Show management
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/shows/:id': () => import('@/pages/ShowDetailsPage'),
@@ -83,7 +69,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
     import('@/pages/ClassDetailsPage'),
   '/classes/:classId': () => import('@/pages/ClassDetailsPage'),
 
-  // Backwards-compat redirects (handled in publicRoutes, kept for preloading)
+  // Backwards-compat redirects (handled in publicRoutes)
   '/browse-shows': () => import('@/pages/BrowseShowsPage'),
   '/my-entries': () => import('@/pages/MyEntriesPage'),
 
@@ -102,9 +88,9 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/clubs/:id': () => import('@/pages/ClubDetailPage'),
 
   // Feature pages
-  '/calendar': () => import('@/pages/CalendarPage'),
   '/subscription': () => import('@/pages/SubscriptionPage'),
-  '/registration': () => import('@/pages/CalendarPage'),
+  // Legacy /registration redirects to /shows in publicRoutes.
+  '/registration': () => import('@/pages/BrowseShowsPage'),
   '/shows/:showId/register': () => import('@/pages/RegistrationWizardPage'),
 
   // Cart and checkout
@@ -117,7 +103,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
 } as const;
 
 // Secretary route components (these would be defined in secretaryRoutes.tsx)
-export const secretaryRouteComponents: Record<string, ImportFunction> = {
+const secretaryRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for secretary routes - would be populated by actual secretary routes
   '/secretary/dashboard': () =>
     import('@/pages/secretary/SecretaryDashboardPage').then(m => ({
@@ -138,20 +124,20 @@ export const secretaryRouteComponents: Record<string, ImportFunction> = {
 } as const;
 
 // Club admin route components (mounted via clubAdminRoutes.tsx)
-export const clubAdminRouteComponents: Record<string, ImportFunction> = {
+const clubAdminRouteComponents: Record<string, ImportFunction> = {
   '/club-admin/members': () => import('@/pages/club-admin/ClubMembersPage'),
   '/club-admin/payments': () => import('@/pages/club-admin/ClubPaymentsPage'),
 } as const;
 
 // Judge route components (these would be defined in judgeRoutes.tsx)
-export const judgeRouteComponents: Record<string, ImportFunction> = {
+const judgeRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for judge routes - would be populated by actual judge routes
   '/judge/dashboard': () => import('@/pages/JudgeDashboard'),
   '/results/dashboard': () => import('@/routes/ResultsDashboardRedirect'),
   // Add more judge routes as they're defined
 } as const;
 
-// Combined route registry for intelligent preloading
+// Combined route registry used by the Admin Help route diff.
 export const fullRouteRegistry: Record<string, ImportFunction> = {
   ...adminRouteComponents,
   ...publicRouteComponents,
@@ -159,102 +145,3 @@ export const fullRouteRegistry: Record<string, ImportFunction> = {
   ...clubAdminRouteComponents,
   ...judgeRouteComponents,
 };
-
-// Route categories for prioritized preloading
-export const routeCategories = {
-  critical: [
-    '/admin/dashboard',
-    '/admin/permissions',
-    '/exhibitor/entries',
-    '/exhibitor/show-day',
-    '/shows',
-  ],
-
-  high: ['/admin/templates', '/shows', '/dogs', '/calendar'],
-
-  medium: ['/admin/deleted-items', '/exhibitor/analytics', '/clubs', '/subscription'],
-
-  low: ['/admin/load-testing', '/tv/:showId'],
-};
-
-// Common navigation patterns for intelligent preloading
-export const navigationPatterns = {
-  // Admin workflow patterns
-  adminDashboard: ['/admin/health', '/admin/support', '/admin/permissions'],
-  templateManagement: ['/admin/dashboard'],
-  permissionManagement: ['/admin/permissions/roles'],
-
-  // Exhibitor workflow patterns
-  exhibitorDashboard: ['/shows', '/exhibitor/entries', '/dogs', '/exhibitor/show-day'],
-  exhibitorShowDay: ['/exhibitor/entries', '/shows'],
-  browseShows: ['/shows/:id', '/exhibitor/entries', '/calendar'],
-  showDetails: ['/shows/:showId/trials/:trialId', '/shows'],
-
-  // Secretary workflow patterns
-  secretaryDashboard: ['/shows', '/secretary/create-show/wizard'],
-
-  // Judge workflow patterns
-  judgeDashboard: ['/judge/dashboard'],
-};
-
-// Utility function to get import function for a route path
-export function getRouteImportFunction(path: string): ImportFunction | null {
-  // First try exact match
-  if (fullRouteRegistry[path]) {
-    return fullRouteRegistry[path];
-  }
-
-  // Then try pattern matching for parameterized routes
-  for (const [routePattern, importFn] of Object.entries(fullRouteRegistry)) {
-    if (routePattern.includes(':') || routePattern.includes('*')) {
-      if (routePatternToRegex(routePattern).test(path)) {
-        return importFn;
-      }
-    }
-  }
-
-  return null;
-}
-
-// Utility function to get route priority
-export function getRoutePriority(path: string): 'critical' | 'high' | 'medium' | 'low' {
-  for (const [priority, routes] of Object.entries(routeCategories)) {
-    if (
-      routes.some(route => {
-        if (route.includes(':') || route.includes('*')) {
-          return routePatternToRegex(route).test(path);
-        }
-        return route === path;
-      })
-    ) {
-      return priority as 'critical' | 'high' | 'medium' | 'low';
-    }
-  }
-
-  return 'low';
-}
-
-// Development helper - extend window for dev tools
-declare global {
-  interface Window {
-    __routeRegistry?: {
-      fullRouteRegistry: typeof fullRouteRegistry;
-      routeCategories: typeof routeCategories;
-      navigationPatterns: typeof navigationPatterns;
-      getRouteImportFunction: typeof getRouteImportFunction;
-      getRoutePriority: typeof getRoutePriority;
-      totalRoutes: number;
-    };
-  }
-}
-
-if (process.env.NODE_ENV === 'development') {
-  window.__routeRegistry = {
-    fullRouteRegistry,
-    routeCategories,
-    navigationPatterns,
-    getRouteImportFunction,
-    getRoutePriority,
-    totalRoutes: Object.keys(fullRouteRegistry).length,
-  };
-}

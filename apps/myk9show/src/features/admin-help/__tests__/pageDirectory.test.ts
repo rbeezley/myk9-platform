@@ -23,6 +23,14 @@ describe('pageDirectory (invariant)', () => {
     expect(paths).not.toContain('/secretary/classes');
   });
 
+  it('catalogs show discovery without the retired duplicate calendar route', () => {
+    const paths = pageDirectory.map(e => e.path);
+    expect(paths).toContain('/shows');
+    expect(paths).not.toContain('/calendar');
+    expect(Object.keys(fullRouteRegistry)).not.toContain('/calendar');
+    expect(pageDirectory.find(e => e.path === '/shows')?.linksTo).not.toContain('/calendar');
+  });
+
   it('catalogs canonical show management paths instead of legacy secretary show pages', () => {
     const paths = pageDirectory.map(e => e.path);
     expect(paths).toContain('/shows/:showId/setup');

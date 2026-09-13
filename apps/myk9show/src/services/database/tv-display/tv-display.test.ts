@@ -13,6 +13,7 @@ const showRow = {
 const activeClassRows = [
   {
     id: 'class-active',
+    version: 4,
     name: 'Novice A',
     element: 'Container',
     level: 'Novice',
@@ -59,6 +60,7 @@ const activeEntryRows = [
 const completedClassRows = [
   {
     id: 'class-done',
+    version: 5,
     name: 'Advanced',
     element: 'Interior',
     level: 'Advanced',
@@ -235,6 +237,7 @@ describe('tv-display database reads', () => {
     expect(result.classes).toHaveLength(1);
     expect(result.classes[0]).toMatchObject({
       id: 'class-active',
+      version: 4,
       name: 'Novice A',
       judgeName: 'John Smith',
       // Counted entry rows (4), NOT the class row's stale total_entries_count (10).
@@ -310,6 +313,7 @@ describe('tv-display database reads', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       id: 'class-done',
+      version: 5,
       name: 'Advanced',
       judgeName: 'Alice Smith',
       totalEntries: 20,
@@ -320,6 +324,35 @@ describe('tv-display database reads', () => {
     expect(result[0].placements[0].totalScore).toBe(87.5);
     expect(result[0].placements[0].dog?.name).toBe('Luna Star');
   });
+
+  it.each(['placements', 'qualified'] as const)(
+    'rejects a failed %s result read instead of publishing partial results',
+    async failedRead => {
+      mockBoardRpcs({ entryCount: 20 });
+      let resultsCall = 0;
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'classes')
+          return createChainableQuery({ data: completedClassRows, error: null });
+        if (table === 'view_public_entry_results') {
+          resultsCall += 1;
+          const isPlacementRead = resultsCall === 1;
+          return createChainableQuery({
+            data: null,
+            error:
+              (isPlacementRead && failedRead === 'placements') ||
+              (!isPlacementRead && failedRead === 'qualified')
+                ? { message: 'temporary database outage' }
+                : null,
+          });
+        }
+        return createChainableQuery();
+      });
+
+      await expect(getTVDisplayResults('show-1')).rejects.toThrow(
+        `Unable to refresh TV ${failedRead}: temporary database outage`
+      );
+    }
+  );
 
   // MYK9-65. classes.total_entries_count has no maintaining trigger and is 0 for
   // every class in the database, while scored_count IS advanced by scoring — so

@@ -15,10 +15,10 @@ interface TVMobileResultsProps {
 
 export function TVMobileResults({ completedClass }: TVMobileResultsProps) {
   return (
-    <div className="bg-zinc-900 rounded-lg border border-amber-900/50 mx-2 mb-2">
+    <div className="bg-zinc-900 rounded-lg border border-amber-900/50 mx-2 mb-2 md:mx-0 md:mb-0">
       <div className="px-3 py-2 flex items-center justify-between border-b border-zinc-800">
         <span className="font-semibold text-zinc-100 text-sm">{completedClass.name}</span>
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-zinc-700 text-zinc-300 font-semibold">
+        <span className="text-[9px] md:text-sm px-1.5 py-0.5 rounded-full bg-zinc-700 text-zinc-300 font-semibold">
           COMPLETED
         </span>
       </div>
@@ -30,7 +30,7 @@ export function TVMobileResults({ completedClass }: TVMobileResultsProps) {
             <div
               key={p.placement}
               className={cn(
-                'bg-zinc-950 border rounded px-2 py-1.5 text-[11px]',
+                'bg-zinc-950 border rounded px-2 py-1.5 text-[11px] md:text-sm',
                 MEDAL_BORDER[p.placement] ?? 'border-zinc-700'
               )}
             >

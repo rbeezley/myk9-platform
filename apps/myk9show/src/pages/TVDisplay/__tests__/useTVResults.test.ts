@@ -18,6 +18,7 @@ function makeWrapper() {
 const mockCompletedClasses = [
   {
     id: 'class-done',
+    version: 5,
     name: 'Advanced',
     element: 'Interior',
     level: 'Advanced',

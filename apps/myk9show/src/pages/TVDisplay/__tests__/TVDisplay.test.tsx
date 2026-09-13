@@ -57,18 +57,20 @@ function setupMocks({
   isLoading = false,
   completedClasses = [],
   isConnected = false,
+  dataError = null,
 }: {
   show?: typeof mockShow | null;
   classes?: unknown[];
   isLoading?: boolean;
   completedClasses?: unknown[];
   isConnected?: boolean;
+  dataError?: Error | null;
 } = {}) {
   vi.mocked(useTVDataModule.useTVData).mockReturnValue({
     show,
     classes: classes as ReturnType<typeof useTVDataModule.useTVData>['classes'],
     isLoading,
-    error: null,
+    error: dataError,
   });
   vi.mocked(useTVResultsModule.useTVResults).mockReturnValue({
     completedClasses: completedClasses as ReturnType<
@@ -103,5 +105,16 @@ describe('TVDisplay', () => {
     setupMocks({ isConnected: true });
     render(<TVDisplay />);
     expect(screen.getByText(/Live/)).toBeInTheDocument();
+  });
+
+  it('keeps reconnecting visible when a disconnected board also fails to refresh', () => {
+    setupMocks({
+      classes: [{ id: 'class-1', name: 'Novice A' }],
+      isConnected: false,
+      dataError: new Error('injected 503'),
+    });
+    render(<TVDisplay />);
+    expect(screen.getByText(/Reconnecting.*Updates delayed/)).toBeInTheDocument();
+    expect(screen.queryByText(/Live/)).not.toBeInTheDocument();
   });
 });

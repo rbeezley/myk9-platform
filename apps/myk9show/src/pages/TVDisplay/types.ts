@@ -41,6 +41,7 @@ export interface TVEntry {
 
 export interface TVClass {
   id: string;
+  version: number;
   name: string;
   element: string | null;
   level: string | null;
@@ -65,6 +66,7 @@ export interface TVPlacement {
 
 export interface TVCompletedClass {
   id: string;
+  version: number;
   name: string;
   element: string | null;
   level: string | null;

@@ -9,6 +9,7 @@ import { TVPodiumOverlay } from './TVPodiumOverlay';
 import { TVMobileList } from './TVMobileList';
 import { TVSoundToggle } from './TVSoundToggle';
 import { TVEmptyState } from './TVEmptyState';
+import { TVRefreshNotice } from './TVRefreshNotice';
 
 // INTENT: TVDisplay is a fixed-dark venue screen, not an app-themed page. The
 // literal zinc/green/red colors are tuned for projected or wall-mounted displays
@@ -63,14 +64,36 @@ export default function TVDisplay() {
     };
   }, []);
 
-  // Derive podium queue from completedClasses minus already-shown ones
+  const { displayClasses, displayableCompletedClasses } = useMemo(() => {
+    const released = completedClasses.filter(c => c.placements.length > 0);
+    const activeVersions = new Map(classes.map(c => [c.id, c.version]));
+    // Compare the class row's server version, not query completion time: either
+    // request can finish last with an older snapshot during finalization/reopen.
+    const displayableCompletedClasses = released.filter(
+      c => (activeVersions.get(c.id) ?? 0) <= c.version
+    );
+    const completedIds = new Set(displayableCompletedClasses.map(c => c.id));
+    return {
+      displayClasses: classes.filter(c => !completedIds.has(c.id)),
+      displayableCompletedClasses,
+    };
+  }, [classes, completedClasses]);
+
+  // Derive podium queue from displayable results minus already-shown ones
   const podiumQueue = useMemo(
-    () => completedClasses.filter(c => !shownPodiums.has(c.id)),
-    [completedClasses, shownPodiums]
+    () => displayableCompletedClasses.filter(c => !shownPodiums.has(c.id)),
+    [displayableCompletedClasses, shownPodiums]
   );
+  const hasRefreshError = Boolean(dataError || resultsError);
+  const podiumVisible = isDesktop && podiumQueue.length > 0;
+  const showRefreshNotice =
+    hasRefreshError && (displayClasses.length > 0 || displayableCompletedClasses.length > 0);
 
   // Detect class card updates for highlight animation
-  const classKey = useMemo(() => classes.map(c => `${c.id}:${c.scoredCount}`).join(','), [classes]);
+  const classKey = useMemo(
+    () => displayClasses.map(c => `${c.id}:${c.scoredCount}`).join(','),
+    [displayClasses]
+  );
   useEffect(() => {
     if (!prevClassesRef.current || prevClassesRef.current === classKey || !classKey) {
       prevClassesRef.current = classKey;
@@ -84,7 +107,7 @@ export default function TVDisplay() {
     );
     prevClassesRef.current = classKey;
     let changedId: string | null = null;
-    for (const c of classes) {
+    for (const c of displayClasses) {
       if (prevMap.get(c.id) !== String(c.scoredCount)) {
         changedId = c.id;
         break;
@@ -98,7 +121,7 @@ export default function TVDisplay() {
       highlightTimerRef.current = setTimeout(() => setHighlightedClassId(null), 1200);
     });
     return () => cancelAnimationFrame(rafId);
-  }, [classKey, classes]);
+  }, [classKey, displayClasses]);
 
   const handlePodiumComplete = useCallback(
     (classId: string) => {
@@ -145,11 +168,12 @@ export default function TVDisplay() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {isDesktop && podiumQueue.length > 0 && (
+      {podiumVisible && (
         <TVPodiumOverlay
           queue={podiumQueue}
           onComplete={handlePodiumComplete}
           soundEnabled={soundEnabled}
+          refreshFailed={showRefreshNotice}
         />
       )}
 
@@ -160,12 +184,18 @@ export default function TVDisplay() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-sm">
             <span
-              className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+              className={`h-2 w-2 rounded-full ${!isConnected ? 'bg-red-500' : hasRefreshError ? 'bg-amber-500' : 'bg-green-500'}`}
             />
             <span className="text-zinc-500">
-              {isConnected ? 'Live' : 'Reconnecting...'}
-              {classes.length > 0 &&
-                ` • ${classes.length} class${classes.length !== 1 ? 'es' : ''} active`}
+              {!isConnected
+                ? hasRefreshError
+                  ? 'Reconnecting... • Updates delayed'
+                  : 'Reconnecting...'
+                : hasRefreshError
+                  ? 'Updates delayed'
+                  : 'Live'}
+              {displayClasses.length > 0 &&
+                ` • ${displayClasses.length} class${displayClasses.length !== 1 ? 'es' : ''} active`}
             </span>
           </div>
           <TVSoundToggle enabled={soundEnabled} onToggle={() => setSoundEnabled(s => !s)} />
@@ -182,9 +212,16 @@ export default function TVDisplay() {
         </div>
       </header>
 
+      {showRefreshNotice && !podiumVisible && (
+        <div className="px-4 pt-3">
+          <TVRefreshNotice />
+        </div>
+      )}
+
       {isDesktop ? (
         <TVGrid
-          classes={classes}
+          classes={displayClasses}
+          completedClasses={displayableCompletedClasses}
           highlightedClassId={highlightedClassId}
           showName={show.name}
           showId={show.id}
@@ -192,8 +229,8 @@ export default function TVDisplay() {
         />
       ) : (
         <TVMobileList
-          classes={classes}
-          completedClasses={completedClasses}
+          classes={displayClasses}
+          completedClasses={displayableCompletedClasses}
           showName={show.name}
           showId={show.id}
           error={dataError ?? resultsError}

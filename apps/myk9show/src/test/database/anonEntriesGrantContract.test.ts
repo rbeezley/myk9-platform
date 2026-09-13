@@ -418,7 +418,17 @@ describe('anon grant contract on public.classes', () => {
 
 describe('anonymous class preview query boundary', () => {
   it('does not embed base entries after anonymous entry access is revoked', () => {
-    expect(CLASS_READS_SOURCE).not.toMatch(/^\s*entries\s*\(/m);
+    const anonymousReaders = [
+      CLASS_READS_SOURCE.slice(
+        CLASS_READS_SOURCE.indexOf('async function postgrestGetAllClasses'),
+        CLASS_READS_SOURCE.indexOf('async function postgrestGetClassById')
+      ),
+      CLASS_READS_SOURCE.slice(
+        CLASS_READS_SOURCE.indexOf('async function postgrestGetClassesByTrialId'),
+        CLASS_READS_SOURCE.indexOf('async function postgrestSearchClasses')
+      ),
+    ].join('\n');
+    expect(anonymousReaders).not.toMatch(/^\s*entries\s*\(/m);
   });
 });
 

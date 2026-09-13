@@ -235,6 +235,30 @@ async function postgrestGetAllClasses() {
 }
 
 async function postgrestGetClassById(id: string) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const authenticatedEntrySelect = session
+    ? `,
+      entries (
+        id,
+        entry_status,
+        points_earned,
+        search_time_seconds,
+        final_placement,
+        dog:dogs (
+          id,
+          name,
+          breed,
+          owner:people (
+            id,
+            first_name,
+            last_name
+          )
+        )
+      )`
+    : '';
+
   const { data, error } = await supabase
     .from('classes')
     .select(
@@ -248,8 +272,8 @@ async function postgrestGetClassById(id: string) {
         status,
         max_entries_per_dog,
         max_entries_per_handler
-      )
-    `
+      )${authenticatedEntrySelect}
+      `
     )
     .eq('id', id)
     .is('deleted_at', null)

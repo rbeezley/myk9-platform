@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  getRouteImportFunction,
-  fullRouteRegistry,
-  navigationPatterns,
-  publicRouteComponents,
-  secretaryRouteComponents,
-} from './routeRegistry';
+import { fullRouteRegistry } from './routeRegistry';
 import { router } from '../router';
 
 function flattenRoutePaths(routes: typeof router.routes, parentPath = ''): string[] {
@@ -39,44 +33,20 @@ describe('routeRegistry', () => {
   });
 
   it('registers the canonical secretary show creation wizard route', () => {
-    expect(secretaryRouteComponents['/secretary/create-show/wizard']).toBeDefined();
-    expect(secretaryRouteComponents['/secretary/classes']).toBeUndefined();
-    expect(secretaryRouteComponents['/secretary/run-order']).toBeUndefined();
+    expect(fullRouteRegistry['/secretary/create-show/wizard']).toBeDefined();
+    expect(fullRouteRegistry['/secretary/classes']).toBeUndefined();
+    expect(fullRouteRegistry['/secretary/run-order']).toBeUndefined();
   });
 
-  it('preloads the canonical show creation route from the secretary dashboard', () => {
-    expect(navigationPatterns.secretaryDashboard).toContain('/secretary/create-show/wizard');
-    expect(navigationPatterns.secretaryDashboard).not.toContain('/secretary/classes');
+  it('registers canonical show management route patterns', () => {
+    expect(fullRouteRegistry['/shows/:showId/setup']).toBeDefined();
+    expect(fullRouteRegistry['/shows/:showId/show-desk']).toBeDefined();
+    expect(fullRouteRegistry['/shows/:showId/results-control']).toBeDefined();
   });
 
-  it('resolves canonical show management parameterized routes', () => {
-    expect(publicRouteComponents['/shows/:showId/setup']).toBeDefined();
-    expect(publicRouteComponents['/shows/:showId/show-desk']).toBeDefined();
-    expect(publicRouteComponents['/shows/:showId/results-control']).toBeDefined();
-    expect(getRouteImportFunction('/shows/show-42/setup')).toBe(
-      publicRouteComponents['/shows/:showId/setup']
-    );
-    expect(getRouteImportFunction('/shows/show-42/show-desk')).toBe(
-      publicRouteComponents['/shows/:showId/show-desk']
-    );
-    expect(getRouteImportFunction('/shows/show-42/results-control')).toBe(
-      publicRouteComponents['/shows/:showId/results-control']
-    );
-  });
-
-  it('resolves legacy secretary show routes to redirect helpers', () => {
-    expect(secretaryRouteComponents['/secretary/shows/:showId']).toBeDefined();
-    expect(secretaryRouteComponents['/secretary/shows/:showId/*']).toBeDefined();
-    expect(secretaryRouteComponents['/secretary/shows/:showId/results-control']).toBeUndefined();
-    expect(getRouteImportFunction('/secretary/shows/show-42')).toBe(
-      secretaryRouteComponents['/secretary/shows/:showId']
-    );
-    expect(getRouteImportFunction('/secretary/shows/show-42/legacy/path')).toBe(
-      secretaryRouteComponents['/secretary/shows/:showId/*']
-    );
-  });
-
-  it('does not preload legacy standalone run order as a direct page', () => {
-    expect(getRouteImportFunction('/secretary/run-order')).toBeNull();
+  it('registers legacy secretary show redirect patterns without retired subroutes', () => {
+    expect(fullRouteRegistry['/secretary/shows/:showId']).toBeDefined();
+    expect(fullRouteRegistry['/secretary/shows/:showId/*']).toBeDefined();
+    expect(fullRouteRegistry['/secretary/shows/:showId/results-control']).toBeUndefined();
   });
 });

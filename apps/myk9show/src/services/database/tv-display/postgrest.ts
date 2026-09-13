@@ -103,7 +103,7 @@ export async function getPostgrestTVDisplayData(
   let classQuery = supabase
     .from('classes')
     .select(
-      'id, name, element, level, status, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number)'
+      'id, version, name, element, level, status, scored_count, start_time, trials!inner(show_id, trial_date:date, trial_number)'
     )
     .eq('trials.show_id', showId)
     .in('status', [...TV_ACTIVE_STATUSES]);
@@ -146,6 +146,7 @@ export async function getPostgrestTVDisplayData(
       } | null;
       return {
         id: c.id,
+        version: c.version,
         name: c.name,
         element: c.element,
         level: c.level,
@@ -172,7 +173,7 @@ export async function getPostgrestTVDisplayResults(
 ): Promise<TVCompletedClass[]> {
   let classQuery = supabase
     .from('classes')
-    .select('id, name, element, level, trials!inner(show_id)')
+    .select('id, version, name, element, level, trials!inner(show_id)')
     .eq('trials.show_id', showId)
     .eq('is_scoring_finalized', true);
 
@@ -193,7 +194,7 @@ export async function getPostgrestTVDisplayResults(
   // view_public_entry_results so the result-visibility cascade is enforced by
   // the database — placements/times/quals for classes whose results have not
   // been released arrive NULL and are naturally filtered out below.
-  const { data: placementRows } = await supabase
+  const { data: placementRows, error: placementError } = await supabase
     .from('view_public_entry_results')
     .select(
       'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, entry_status, check_in_status, dog_name, dog_call_name, dog_image_url'
@@ -202,12 +203,18 @@ export async function getPostgrestTVDisplayResults(
     .gte('final_placement', 1)
     .lte('final_placement', 4)
     .order('final_placement', { ascending: true });
+  if (placementError) {
+    throw new Error(`Unable to refresh TV placements: ${placementError.message}`);
+  }
 
-  const { data: qualifiedRows } = await supabase
+  const { data: qualifiedRows, error: qualifiedError } = await supabase
     .from('view_public_entry_results')
     .select('class_id, search_time_seconds, entry_status, check_in_status')
     .in('class_id', classIds)
     .eq('result_status', 'qualified');
+  if (qualifiedError) {
+    throw new Error(`Unable to refresh TV qualified: ${qualifiedError.message}`);
+  }
 
   // An entry that was scored and only later withdrawn, scratched or pulled is
   // excluded from `entry_count` by tv_class_entry_counts, so it must drop out of
@@ -271,6 +278,7 @@ export async function getPostgrestTVDisplayResults(
     const stats = qualifiedByClass.get(c.id);
     return {
       id: c.id,
+      version: c.version,
       name: c.name,
       element: c.element,
       level: c.level,

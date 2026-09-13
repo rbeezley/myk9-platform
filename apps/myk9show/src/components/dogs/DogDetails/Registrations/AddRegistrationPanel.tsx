@@ -16,6 +16,7 @@ import { FileText } from 'lucide-react';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 import { registrationFormFields } from '@/lib/validation';
 import { getOrgCode } from './registrationUtils';
+import { registrationNameHint } from '@/components/dogs/registrationNameHint';
 
 const addRegistrationFormSchema = z.object(registrationFormFields);
 
@@ -124,6 +125,8 @@ function RegistrationFormFields() {
             fieldId="registeredName"
             required
             error={form.getError('registeredName')}
+            hint={registrationNameHint}
+            hintClassName="text-base"
           >
             <Input
               id="registeredName"
@@ -132,6 +135,7 @@ function RegistrationFormFields() {
               onBlur={() => form.touchField('registeredName')}
               placeholder="Full registered name"
               {...form.getFieldProps('registeredName')}
+              aria-describedby={`registeredName-hint${form.getError('registeredName') ? ' registeredName-error' : ''}`}
             />
           </FormField>
 

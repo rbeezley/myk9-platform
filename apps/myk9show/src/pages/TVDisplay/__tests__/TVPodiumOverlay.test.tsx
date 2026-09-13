@@ -5,6 +5,7 @@ import type { TVCompletedClass } from '../types';
 
 const mockCompleted: TVCompletedClass = {
   id: 'class-1',
+  version: 2,
   name: 'Novice A',
   element: 'Container',
   level: 'Novice',

@@ -98,6 +98,9 @@ async function postgrestGetTrialsByShow(showId: string) {
   return { data: data || [], error: null };
 }
 
+/** Complete public trial catalog for signed-out show previews. */
+export const getPublicTrialsByShow = async (showId: string) => postgrestGetTrialsByShow(showId);
+
 // ---------------------------------------------------------------------------
 // SELECT functions — read from replication store, fallback to PostgREST
 // ---------------------------------------------------------------------------

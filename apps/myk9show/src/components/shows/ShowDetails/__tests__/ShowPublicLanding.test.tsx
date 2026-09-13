@@ -29,7 +29,7 @@ vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
     hasEntryClassInventory,
     entryNotYetOpen,
   }: {
-    show: { style?: string | null };
+    show: { style?: string | null; trials?: { id: string; classes?: { element?: string }[] }[] };
     trial: { id?: string } | null;
     allTrials: { id: string }[];
     hasEntryClassInventory?: boolean | null;
@@ -40,6 +40,7 @@ vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
       data-style={show?.style ?? 'null'}
       data-trial={trial?.id ?? 'none'}
       data-all={allTrials.length}
+      data-preview={show?.trials?.map(trial => trial.classes?.[0]?.element).join(',') ?? ''}
       data-inventory={String(hasEntryClassInventory)}
       data-not-yet-open={String(entryNotYetOpen)}
     >
@@ -67,6 +68,26 @@ describe('ShowPublicLanding', () => {
       />
     );
     expect(screen.getByTestId('heritage-landing')).toBeInTheDocument();
+  });
+
+  it('uses the complete offered-class preview catalog when the landing store is partial', () => {
+    render(
+      <ShowPublicLanding
+        show={makeShow({ style: 'monogram' })}
+        landingTrials={[makeTrial('cached'), makeTrial('uncached')]}
+        offeredClasses={[
+          {
+            id: 'class-1',
+            trialId: 'uncached',
+            name: 'Exterior Novice',
+            element: 'Exterior',
+          } as never,
+        ]}
+        hasEntryClassInventory={true}
+        entryNotYetOpen={false}
+      />
+    );
+    expect(screen.getByTestId('monogram-landing')).toHaveAttribute('data-preview', ',Exterior');
   });
 
   it('renders a different styled landing for a different style', () => {

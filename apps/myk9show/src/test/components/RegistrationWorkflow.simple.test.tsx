@@ -76,18 +76,6 @@ describe('RegistrationWorkflow Error Detection Tests', () => {
       expect(hasProviderWrapper).toBe(true);
     });
 
-    it('should verify CalendarPage navigates to registration page instead of using dialog', () => {
-      const calendarPagePath = path.join(__dirname, '../../pages/CalendarPage.tsx');
-      const calendarPageContent = fs.readFileSync(calendarPagePath, 'utf8');
-
-      // CalendarPage should NOT contain RegistrationWorkflow dialog anymore
-      expect(calendarPageContent.includes('<RegistrationWorkflow')).toBe(false);
-      expect(calendarPageContent.includes('<RegistrationProvider>')).toBe(false);
-
-      // It should navigate to the registration wizard page
-      expect(calendarPageContent.includes('/register')).toBe(true);
-    });
-
     it('should verify route exists for registration wizard', () => {
       const routesPath = path.join(__dirname, '../../routes/publicRoutes.tsx');
       const routesContent = fs.readFileSync(routesPath, 'utf8');

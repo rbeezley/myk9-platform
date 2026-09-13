@@ -2,9 +2,40 @@ import { useCallback, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   buildCalendarFeedUrls,
+  EVENT_COUNT_HEADER,
   getCalendarFeedBaseUrl,
   type CalendarFeedUrls,
 } from './calendarFeedUrls';
+
+/**
+ * The inspection is a HEAD, so it never counts as a fetch of the feed —
+ * `last_fetched_at` is how the platform measures whether anyone actually
+ * subscribes, and opening a dialog is not subscribing.
+ *
+ * Bounded because the dialog waits for it: the exhibitor must not see the Add
+ * and Save buttons before the "nothing to add yet" warning that belongs above
+ * them. A probe that stalls resolves as unknown and the buttons appear
+ * unwarned, which is the same place we were before — never a hung dialog.
+ */
+const INSPECT_TIMEOUT_MS = 4000;
+
+async function inspectFeed(url: string): Promise<number | null> {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), INSPECT_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { method: 'HEAD', signal: abort.signal });
+    if (!response.ok) return null;
+    const raw = response.headers.get(EVENT_COUNT_HEADER);
+    if (raw === null) return null; // Older deploy: unknown, so do not warn.
+    const count = Number(raw);
+    return Number.isInteger(count) && count >= 0 ? count : null;
+  } catch {
+    // Offline, blocked, aborted or CORS — no warning rather than a wrong one.
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /**
  * useCalendarFeed — issue, rotate and revoke an exhibitor's webcal token for
@@ -23,6 +54,12 @@ export interface UseCalendarFeedResult {
   issue: (showId: string) => Promise<CalendarFeedUrls | null>;
   /** Disable the current URL. Clears local state on success. */
   revoke: (showId: string) => Promise<boolean>;
+  /**
+   * Events in the issued feed, or null when it could not be read. 0 means the
+   * link works but has nothing in it yet, which the dialog must say out loud —
+   * otherwise the exhibitor adds a calendar and sees silence (MYK9-506).
+   */
+  eventCount: number | null;
   /** False when no feed base URL is configured — callers should hide the UI. */
   configured: boolean;
 }
@@ -52,12 +89,14 @@ export function useCalendarFeed(): UseCalendarFeedResult {
   const [urls, setUrls] = useState<CalendarFeedUrls | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [eventCount, setEventCount] = useState<number | null>(null);
   const baseUrl = getCalendarFeedBaseUrl();
 
   const issue = useCallback(
     async (showId: string): Promise<CalendarFeedUrls | null> => {
       setLoading(true);
       setError(null);
+      setEventCount(null);
       try {
         const { data, error: rpcError } = await calendarFeedRpc('issue_calendar_feed_token', {
           p_show_id: showId,
@@ -66,7 +105,14 @@ export function useCalendarFeed(): UseCalendarFeedResult {
 
         const next = buildCalendarFeedUrls(String(data ?? ''), baseUrl);
         if (!next) throw new Error('Calendar feed is not configured');
+
+        // Inspect BEFORE publishing the URLs. The dialog shows its actions the
+        // moment `urls` is set, so setting it first would open a window in
+        // which an exhibitor can add an empty calendar without ever seeing the
+        // warning meant to precede the buttons.
+        setEventCount(await inspectFeed(next.displayUrl));
         setUrls(next);
+
         return next;
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not create the calendar link');
@@ -87,6 +133,7 @@ export function useCalendarFeed(): UseCalendarFeedResult {
       });
       if (rpcError) throw new Error(rpcError.message);
       setUrls(null);
+      setEventCount(null);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not turn off the calendar link');
@@ -96,5 +143,5 @@ export function useCalendarFeed(): UseCalendarFeedResult {
     }
   }, []);
 
-  return { urls, loading, error, issue, revoke, configured: baseUrl.length > 0 };
+  return { urls, loading, error, issue, revoke, eventCount, configured: baseUrl.length > 0 };
 }

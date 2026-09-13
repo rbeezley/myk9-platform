@@ -1,6 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { MemoryRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  createRoutesFromChildren,
+  matchRoutes,
+  MemoryRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
 import { PublicRoutes } from '@/routes/publicRoutes';
@@ -225,6 +234,12 @@ describe('canonical account route redirects', () => {
       expect(await screen.findByTestId('production-account-page')).toBeInTheDocument();
     }
   );
+});
+
+describe('notification routes', () => {
+  it('does not mount a second notifications page behind the Message Center bell', () => {
+    expect(matchRoutes(createRoutesFromChildren(PublicRoutes()), '/notifications')).toBeNull();
+  });
 });
 
 describe('canonical show management routes', () => {

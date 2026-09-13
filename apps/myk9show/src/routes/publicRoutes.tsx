@@ -11,7 +11,7 @@
 
 import { lazy, type ReactNode } from 'react';
 import { Route, Navigate, useParams } from 'react-router-dom';
-import { BarChart3, Calendar, ClipboardList } from 'lucide-react';
+import { BarChart3, ClipboardList } from 'lucide-react';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
@@ -63,7 +63,6 @@ const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPa
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
-const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const LegalPage = lazy(() => import('@/pages/LegalPage'));
@@ -87,7 +86,6 @@ const TVDisplay = lazy(() => import('@/pages/TVDisplay'));
 const ChatPage = lazy(() => import('@/features/messages/pages/ChatPage'));
 
 // Notifications history
-const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
 
 // Cart and checkout pages
 const CartPage = lazy(() => import('@/pages/CartPage'));
@@ -205,33 +203,39 @@ export const PublicRoutes = () => (
     <Route
       path="/shows/:showId/trials/:trialId"
       element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <TrialDetailsPage />
-          </PageTransition>
-        </SuspenseWrapper>
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <TrialDetailsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 
     <Route
       path="/trials/:trialId"
       element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <TrialDetailsPage />
-          </PageTransition>
-        </SuspenseWrapper>
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <TrialDetailsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 
     <Route
       path="/shows/:showId/trials/:trialId/classes/:classId"
       element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <ClassDetailsPage />
-          </PageTransition>
-        </SuspenseWrapper>
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <ClassDetailsPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 
@@ -246,7 +250,14 @@ export const PublicRoutes = () => (
       }
     />
 
-    <Route path="/classes/:classId" element={<ClassDetailsRedirect />} />
+    <Route
+      path="/classes/:classId"
+      element={
+        <ProtectedRoute>
+          <ClassDetailsRedirect />
+        </ProtectedRoute>
+      }
+    />
 
     {/* Backwards-compat redirects for old URLs */}
     <Route path="/browse-shows" element={<Navigate to="/shows" replace />} />
@@ -335,20 +346,6 @@ export const PublicRoutes = () => (
     />
 
     <Route path="/profile" element={<Navigate to="/account" replace />} />
-
-    {/* Notifications history */}
-    <Route
-      path="/notifications"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <NotificationsPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
 
     {/* Account (unified profile + preferences + settings) */}
     <Route
@@ -461,20 +458,6 @@ export const PublicRoutes = () => (
     <Route path="/preferences" element={<Navigate to="/account" replace />} />
 
     <Route
-      path="/calendar"
-      element={
-        <ProtectedRoute>
-          {featurePage(features.calendar, <CalendarPage />, {
-            title: 'Calendar',
-            description:
-              'The show calendar is coming soon. Your dogs and training data will be ready and waiting when it arrives.',
-            icon: Calendar,
-          })}
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
       path="/subscription"
       element={
         <ProtectedRoute>
@@ -491,11 +474,7 @@ export const PublicRoutes = () => (
       path="/registration"
       element={
         <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <CalendarPage />
-            </PageTransition>
-          </SuspenseWrapper>
+          <Navigate to="/shows" replace />
         </ProtectedRoute>
       }
     />

@@ -5,6 +5,7 @@ import type { TVClass } from '../types';
 
 const mockClass: TVClass = {
   id: 'class-1',
+  version: 1,
   name: 'Novice A',
   element: 'Container',
   level: 'Novice',

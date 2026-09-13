@@ -334,7 +334,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
-    linksTo: ['/shows/:id', '/calendar'],
+    linksTo: ['/shows/:id'],
   },
   {
     path: '/shows/:id',
@@ -516,16 +516,6 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/clubs'],
   },
   {
-    path: '/calendar',
-    title: 'Calendar',
-    description: 'Calendar view of upcoming shows (parked from primary nav).',
-    roles: [UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
-    classification: 'park',
-    category: 'Public',
-    status: 'working',
-    linksTo: ['/shows/:showId/register'],
-  },
-  {
     path: '/subscription',
     title: 'Subscription',
     description: 'Plan and billing view for the logged-in user.',
@@ -538,12 +528,12 @@ export const pageDirectory: readonly PageEntry[] = [
   {
     path: '/registration',
     title: 'Registration (alias)',
-    description: 'Legacy alias that currently renders the Calendar page.',
+    description: 'Legacy route that redirects to Browse Shows to choose a show before entering.',
     roles: [UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'park',
     category: 'Public',
     status: 'stub',
-    linksTo: ['/shows/:showId/register'],
+    linksTo: ['/shows'],
   },
   {
     path: '/shows/:showId/register',

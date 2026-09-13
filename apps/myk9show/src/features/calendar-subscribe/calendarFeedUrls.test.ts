@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCalendarFeedUrls,
   buildIcsFilename,
+  EVENT_COUNT_HEADER,
   getCalendarFeedBaseUrl,
 } from './calendarFeedUrls';
 
@@ -86,5 +87,14 @@ describe('buildIcsFilename', () => {
 
   it('bounds the length so the filename stays sane', () => {
     expect(buildIcsFilename('x'.repeat(200)).length).toBeLessThanOrEqual(70);
+  });
+});
+
+describe('EVENT_COUNT_HEADER', () => {
+  it('matches the header the edge function sends', () => {
+    // The function is a separate Deno module graph, so this constant is a copy.
+    // Pinned here because a silent rename turns the empty-feed warning off
+    // rather than breaking anything visible (MYK9-506).
+    expect(EVENT_COUNT_HEADER).toBe('X-MyK9-Event-Count');
   });
 });

@@ -1,4 +1,6 @@
+import React, { type ReactNode } from 'react';
 import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -7,6 +9,18 @@ import { useMonogramLandingData } from '../useMonogramLandingData';
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
 }));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: null, loading: false }),
+}));
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
+function wrapper({ children }: { children: ReactNode }) {
+  return React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 function makeShow(overrides: Partial<Show> = {}): Show {
   return {
@@ -38,7 +52,7 @@ function makeTrial(overrides: TrialOverrides = {}): Trial {
 describe('useMonogramLandingData', () => {
   it('derives monogramLetters from the club name', () => {
     const show = makeShow({ organization: 'Bexar County Kennel Club' });
-    const { result } = renderHook(() => useMonogramLandingData(show, null, []));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, []), { wrapper });
     expect(result.current.monogramLetters).toBe('BCK');
   });
 
@@ -47,7 +61,7 @@ describe('useMonogramLandingData', () => {
       organization: undefined as unknown as string,
       name: 'Lone Pine Trial',
     });
-    const { result } = renderHook(() => useMonogramLandingData(show, null, []));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, []), { wrapper });
     expect(result.current.monogramLetters).toBe('LPT');
   });
 
@@ -56,7 +70,7 @@ describe('useMonogramLandingData', () => {
       organization: undefined as unknown as string,
       name: undefined as unknown as string,
     });
-    const { result } = renderHook(() => useMonogramLandingData(show, null, []));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, []), { wrapper });
     expect(result.current.monogramLetters).toBe('?');
   });
 
@@ -67,7 +81,7 @@ describe('useMonogramLandingData', () => {
       makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
       makeTrial({ id: 't2', trialNumber: 2, judge: 'Catherine Beagles' }),
     ];
-    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
 
     expect(result.current.trials.map(t => t.id)).toEqual(['t1', 't2', 't3']);
     expect(result.current.judges.map(j => j.name)).toEqual([
@@ -86,7 +100,7 @@ describe('useMonogramLandingData', () => {
       makeTrial({ id: 't3', trialNumber: 3, judge: 'Catherine Beagles' }),
       makeTrial({ id: 't4', trialNumber: 4, judge: 'Catherine Beagles' }),
     ];
-    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
 
     const beagles = result.current.judges.find(j => j.name === 'Catherine Beagles');
     const whitfield = result.current.judges.find(j => j.name === 'Marcus Whitfield');
@@ -101,7 +115,7 @@ describe('useMonogramLandingData', () => {
       makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
       makeTrial({ id: 't1-dup', trialNumber: 1, judge: 'Catherine Beagles' }),
     ];
-    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
     expect(result.current.judges[0]?.trials).toEqual(['I']);
   });
 
@@ -111,7 +125,7 @@ describe('useMonogramLandingData', () => {
       makeTrial({ trialNumber: 1, judge: 'Catherine Beagles' }),
       makeTrial({ id: 't2', trialNumber: 2 }), // no judge
     ];
-    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
     expect(result.current.judges.length).toBe(1);
     expect(result.current.trials.length).toBe(2);
   });
@@ -123,20 +137,20 @@ describe('useMonogramLandingData', () => {
       makeTrial({ id: 't2', trialNumber: 2, maxTotalEntries: 360 }),
       makeTrial({ id: 't3', trialNumber: 3, maxTotalEntries: 200 }),
     ];
-    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
     expect(result.current.entryLimit).toBe(360);
   });
 
   it('returns null entryLimit when no trial has a max', () => {
     const show = makeShow();
     const trials: Trial[] = [makeTrial({ trialNumber: 1 })];
-    const { result } = renderHook(() => useMonogramLandingData(show, null, trials));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, trials), { wrapper });
     expect(result.current.entryLimit).toBeNull();
   });
 
   it('formats fees into label + amount pairs', () => {
     const show = makeShow({ preEntryFee: '25', dayOfShowFee: '22' });
-    const { result } = renderHook(() => useMonogramLandingData(show, null, []));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, []), { wrapper });
     expect(result.current.fees).toEqual([
       { label: 'First entry', amount: expect.stringContaining('25') },
       { label: 'Day-of entry', amount: expect.stringContaining('22') },
@@ -145,12 +159,12 @@ describe('useMonogramLandingData', () => {
 
   it('builds the entry wizard URL from the show id', () => {
     const show = makeShow({ id: 'show-abc' });
-    const { result } = renderHook(() => useMonogramLandingData(show, null, []));
+    const { result } = renderHook(() => useMonogramLandingData(show, null, []), { wrapper });
     expect(result.current.entryWizardUrl).toBe('/shows/show-abc/register');
   });
 
   it('falls back to /shows when no show is supplied', () => {
-    const { result } = renderHook(() => useMonogramLandingData(null, null, []));
+    const { result } = renderHook(() => useMonogramLandingData(null, null, []), { wrapper });
     expect(result.current.entryWizardUrl).toBe('/shows');
     expect(result.current.monogramLetters).toBe('?');
   });
@@ -158,7 +172,7 @@ describe('useMonogramLandingData', () => {
   it('prefers the current trial entryCloseDate over the show-level fallback', () => {
     const show = makeShow({ entryCloseDate: '2026-06-03' });
     const trial = makeTrial({ entryCloseDate: '2026-05-30' }) as Trial;
-    const { result } = renderHook(() => useMonogramLandingData(show, trial, []));
+    const { result } = renderHook(() => useMonogramLandingData(show, trial, []), { wrapper });
     expect(result.current.entryCloseDate).toBe('2026-05-30');
   });
 });

@@ -30,6 +30,7 @@ import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase
 import type { SecretaryEntry } from '@/services/database/entries';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 function secretaryEntryToRawRow(entry: SecretaryEntry): RawEntryRow {
   return {
@@ -120,6 +121,8 @@ export function useClassDetailsData() {
     trialId?: string;
   }>();
   const location = useLocation();
+  const { user } = useAuthContext();
+  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
 
   // Detect if we're in "results view mode" based on URL path
   const isResultsView = location.pathname.endsWith('/results');
@@ -208,10 +211,15 @@ export function useClassDetailsData() {
     entries: dbEntries,
     isLoading: dbEntriesLoading,
     error: dbEntriesError,
-  } = useClassEntriesWithQuery(classId || '', !!classId && !useStaffEntrySource);
+  } = useClassEntriesWithQuery(
+    classId || '',
+    !!classId && !useStaffEntrySource && canReadEntryRows
+  );
 
   // 2. Local-only entries from the Zustand entry store (may include entries not yet synced)
-  const localEntries = useEntriesByClass(classId || '');
+  const localEntries = useEntriesByClass(
+    useStaffEntrySource || canReadEntryRows ? classId || '' : ''
+  );
 
   // Merge: use DB entries as the base, then add any local-only entries that
   // aren't already present (e.g., entries created via the wizard that haven't
@@ -223,7 +231,7 @@ export function useClassDetailsData() {
     data: dbRawEntries = [],
     isLoading: dbRawEntriesLoading,
     error: dbRawEntriesError,
-  } = useClassEntriesRaw(classId || undefined, !useStaffEntrySource);
+  } = useClassEntriesRaw(classId || undefined, !useStaffEntrySource && canReadEntryRows);
 
   const staffClassEntries = useMemo(
     () =>

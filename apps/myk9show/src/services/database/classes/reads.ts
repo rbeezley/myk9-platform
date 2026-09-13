@@ -9,6 +9,7 @@ import {
   readWithReplicationFallback,
   sortedCopy,
 } from '../_shared/read-shape';
+import type { ReadResult } from '../_shared/read-shape';
 import type { DbClassInsert, DbClassUpdate } from '@/types/database-mappings';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
@@ -42,6 +43,13 @@ async function loadEntryCountsByClassMap(): Promise<Map<string, number>> {
     }
   }
   return map;
+}
+
+async function hasAuthenticatedSession(): Promise<boolean> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return Boolean(session?.user && !session.user.is_anonymous);
 }
 
 /**
@@ -218,9 +226,6 @@ async function postgrestGetAllClasses() {
         trial_number,
         status
       ),
-      entries (
-        id
-      ),
       judge_assignments!judge_assignments_class_id_fkey (
         person_id,
         people!inner (
@@ -237,46 +242,60 @@ async function postgrestGetAllClasses() {
   return { data: data || [], error: null };
 }
 
-async function postgrestGetClassById(id: string) {
-  const { data, error } = await supabase
-    .from('classes')
-    .select(
-      `
-      ${CLASS_COLUMN_SELECT},
-      trial:trials (
-        id,
-        name,
-        date,
-        trial_number,
-        status,
-        max_entries_per_dog,
-        max_entries_per_handler
-      ),
-      entries (
-        id,
-        entry_status,
-        points_earned,
-        search_time_seconds,
-        final_placement,
-        dog:dogs (
-          id,
-          name,
-          breed,
-          owner:people (
+async function postgrestGetClassById(
+  id: string
+): Promise<ReadResult<Record<string, unknown> | null>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const { data, error } =
+    session?.user && !session.user.is_anonymous
+      ? await supabase
+          .from('classes')
+          .select(
+            `
+          ${CLASS_COLUMN_SELECT},
+          trial:trials (
             id,
-            first_name,
-            last_name
+            name,
+            date,
+            trial_number,
+            status,
+            max_entries_per_dog,
+            max_entries_per_handler
+          ),
+          entries (
+            id,
+            class_id
           )
-        )
-      )
-    `
-    )
-    .eq('id', id)
-    .is('deleted_at', null)
-    .maybeSingle();
+          `
+          )
+          .eq('id', id)
+          .is('deleted_at', null)
+          .maybeSingle()
+      : await supabase
+          .from('classes')
+          .select(
+            `
+          ${CLASS_COLUMN_SELECT},
+          trial:trials (
+            id,
+            name,
+            date,
+            trial_number,
+            status,
+            max_entries_per_dog,
+            max_entries_per_handler
+          )
+          `
+          )
+          .eq('id', id)
+          .is('deleted_at', null)
+          .maybeSingle();
 
   if (error) throw createDatabaseError(error, 'class', 'select_by_id');
-  return { data, error: null };
+  return { data: (data as Record<string, unknown> | null) ?? null, error: null };
 }
 
 async function postgrestGetClassesByTrialId(trialId: string) {
@@ -285,9 +304,6 @@ async function postgrestGetClassesByTrialId(trialId: string) {
     .select(
       `
       ${CLASS_COLUMN_SELECT},
-      entries (
-        id
-      ),
       judge_assignments!judge_assignments_class_id_fkey (
         person_id,
         people!inner (
@@ -351,6 +367,10 @@ async function postgrestGetClassStatistics() {
 export const getAllClasses = async () => {
   return readWithReplicationFallback({
     replication: async () => {
+      // A warm IndexedDB store can survive sign-out. Never let an anonymous
+      // caller receive replicated entry-derived fields from that stale store.
+      if (!(await hasAuthenticatedSession())) return await postgrestGetAllClasses();
+
       const [classes, trialsMap, entryCountsMap] = await Promise.all([
         replicatedClassesTable.getAll(),
         loadTrialsMap(),
@@ -385,11 +405,18 @@ export const getAllClasses = async () => {
 };
 
 /**
- * Get a class by ID with full details including entries (excluding soft-deleted)
+ * Get a class by ID with class/trial details. Entry details come from the
+ * replication path or the dedicated public results surface; anonymous callers
+ * must never embed the base entries table.
  */
 export const getClassById = async (id: string) => {
   return readWithReplicationFallback({
     replication: async () => {
+      // A warm IndexedDB store can survive sign-out. Anonymous class details
+      // must use the entry-free PostgREST projection even when replication is
+      // populated from a prior authenticated session.
+      if (!(await hasAuthenticatedSession())) return await postgrestGetClassById(id);
+
       const cls = await replicatedClassesTable.getClassById(id);
       // A cold replication store (logged-out guest never syncs) returns null
       // WITHOUT throwing, so withReplicationFallback's catch never fires and the
@@ -436,6 +463,10 @@ export const getClassById = async (id: string) => {
 export const getClassesByTrialId = async (trialId: string) => {
   return readWithReplicationFallback({
     replication: async () => {
+      // A warm IndexedDB store can survive sign-out. Keep anonymous trial
+      // previews on the entry-free PostgREST projection.
+      if (!(await hasAuthenticatedSession())) return await postgrestGetClassesByTrialId(trialId);
+
       const [classes, entryCountsMap] = await Promise.all([
         replicatedClassesTable.getClassesByTrial(trialId),
         loadEntryCountsByClassMap(),

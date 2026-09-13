@@ -46,7 +46,8 @@ verify implementation → PR → archive → cleanup). The split:
 ## Dispatch protocol
 
 Group `tasks.md` items into coherent batches (one file-cluster or one requirement per
-batch; independent batches may run as parallel agents). For each batch, dispatch an Agent
+batch). Dispatch **one batch at a time**: implementers share the worktree, so parallel
+batches would land in each other's PR and make one-PR-per-batch impossible. For each batch, dispatch an Agent
 with a self-contained prompt containing:
 
 1. Worktree absolute path and the exact task text from `tasks.md` (verbatim).
@@ -90,14 +91,21 @@ Do not trust the report — verify. For each returned batch:
    a cheap model past the point where doing it yourself is cheaper.
 4. Only the orchestrator updates `tasks.md` checkboxes — a checkbox means _reviewed and
    accepted_, not _implementer says done_.
-5. Commit a checkpoint after each accepted batch.
+5. Commit a checkpoint after each accepted batch, then **ship that batch before dispatching
+   the next**: open its PR, run the OTHER harness's review with the flag that posts the gate
+   (`pnpm qa:codex-review --post` from Claude Code), record the gate, merge, and start the next batch from the merged `main`.
+   Before the LAST batch's PR is opened, run `opsx:verify` against the integrated tree and
+   fix CRITICAL findings in that PR — never after merge. One PR per batch (shared rules, Gates § 3): the reviewer
+   reads the whole net diff, so one end-of-change PR of N batches costs roughly N times the
+   review rounds and hides cross-batch interactions until the end (#2210: 63 files, 8 rounds).
+   Batches that cannot compile or pass CI on their own ship together, and the PR says so.
 
 ## Finishing
 
-Resume `opsx:ship` phases 4+ as the orchestrator: run `opsx:verify`, fix CRITICAL findings
-(small fixes yourself; substantial ones re-dispatched), then PR / review / merge / archive /
-cleanup per the pipeline. All Auto Mode shared-system gates (db push, deploys, merges)
-remain yours and still require the usual confirmation.
+Each batch already went through PR / review / merge (review gate step 5), and `opsx:verify`
+ran before the last batch's PR (small fixes yourself; substantial ones re-dispatched). After
+the last merge: archive / cleanup per the pipeline. All Auto Mode shared-system gates (db push, deploys, merges) remain yours and
+still require the usual confirmation.
 
 ### Second-opinion fallback
 

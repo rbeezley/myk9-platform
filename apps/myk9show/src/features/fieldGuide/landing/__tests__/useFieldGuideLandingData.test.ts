@@ -1,4 +1,6 @@
+import React, { type ReactNode } from 'react';
 import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -7,6 +9,18 @@ import { useFieldGuideLandingData } from '../useFieldGuideLandingData';
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
 }));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: null, loading: false }),
+}));
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
+function wrapper({ children }: { children: ReactNode }) {
+  return React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 function makeShow(overrides: Partial<Show> = {}): Show {
   return {
@@ -38,20 +52,20 @@ function makeTrial(overrides: TrialOverrides = {}): Trial {
 describe('useFieldGuideLandingData', () => {
   it('derives a compact showCode capped at 2 show-initial chars (matches mock)', () => {
     const show = makeShow();
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     // BCKC + 2026 + first-two show-initials "SS" (from "Spring Scent ...").
     expect(result.current.showCode).toBe('BCKC.2026.SS');
   });
 
   it('renders showSubtitle in the FIELD GUIDE · CODE · REV NN format', () => {
     const show = makeShow();
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     expect(result.current.showSubtitle).toBe('FIELD GUIDE · BCKC.2026.SS · REV 01');
   });
 
   it('builds the 5-cell quick-ref hero with CLOSES marked emphasis (no DRAW until draw_date column exists)', () => {
     const show = makeShow();
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     const cells = result.current.quickRefCells;
     expect(cells).toHaveLength(5);
     expect(cells.map(c => c.label)).toEqual(['DATES', 'OPENS', 'CLOSES', 'CONFIRM', 'CAP']);
@@ -73,7 +87,7 @@ describe('useFieldGuideLandingData', () => {
       startDate: undefined as unknown as string,
       endDate: undefined as unknown as string,
     });
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     const cells = result.current.quickRefCells;
     expect(cells.find(c => c.label === 'OPENS')?.value).toBe('TBA');
     expect(cells.find(c => c.label === 'CLOSES')?.value).toBe('TBA');
@@ -87,7 +101,7 @@ describe('useFieldGuideLandingData', () => {
       makeTrial({ id: 't1', trialNumber: 1, judge: 'Catherine Beagles' }),
       makeTrial({ id: 't2', trialNumber: 2, judge: 'Catherine Beagles' }),
     ];
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials), { wrapper });
 
     expect(result.current.trials.map(t => t.id)).toEqual(['t1', 't2', 't3']);
     expect(result.current.judges.map(j => j.name)).toEqual([
@@ -104,7 +118,7 @@ describe('useFieldGuideLandingData', () => {
       makeTrial({ id: 't5', trialNumber: 5, judge: 'Catherine Beagles' }),
       makeTrial({ id: 't2', trialNumber: 2, judge: 'Marcus Whitfield' }),
     ];
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials), { wrapper });
     expect(result.current.judges[0]?.trialsLabel).toBe('TRIALS 01·03·05');
     expect(result.current.judges[1]?.trialsLabel).toBe('TRIALS 02');
   });
@@ -114,7 +128,7 @@ describe('useFieldGuideLandingData', () => {
     const trials: Trial[] = [
       makeTrial({ id: 't1', trialNumber: 'x' as unknown as number, judge: 'Anon Judge' }),
     ];
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, trials), { wrapper });
     // pad2 returns the raw value when not parseable; trialsLabel will be 'TRIALS x'.
     // Either way, the test pin-points that the hook never crashes on bad numbers.
     expect(result.current.judges[0]?.name).toBe('Anon Judge');
@@ -122,7 +136,7 @@ describe('useFieldGuideLandingData', () => {
 
   it('builds the fee stat-grid entries from show fee fields', () => {
     const show = makeShow();
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     expect(result.current.fees).toHaveLength(2);
     expect(result.current.fees[0]?.label).toBe('FIRST ENTRY');
     expect(result.current.fees[0]?.sub).toBe('PER DOG / PER TRIAL');
@@ -135,13 +149,13 @@ describe('useFieldGuideLandingData', () => {
       preEntryFee: undefined as unknown as string,
       dayOfShowFee: undefined as unknown as string,
     });
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     expect(result.current.fees).toHaveLength(0);
   });
 
   it('points the entry-wizard URL at /shows/:id/register', () => {
     const show = makeShow();
-    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []));
+    const { result } = renderHook(() => useFieldGuideLandingData(show, null, []), { wrapper });
     expect(result.current.entryWizardUrl).toBe('/shows/show-1/register');
   });
 });

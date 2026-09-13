@@ -25,7 +25,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 | `/admin/deleted-items` | Internal admin recovery tool                   |
 | `/browse-shows`        | Backwards-compat redirect                      |
 | `/my-entries`          | Backwards-compat redirect                      |
-| `/registration`        | Legacy alias / stub                            |
+| `/registration`        | Legacy redirect to `/shows`                    |
 | `/trials/:trialId`     | Legacy path — document the nested path instead |
 | `/classes/:classId`    | Legacy path                                    |
 | `/judge/dashboard`     | `classification: park`, parked for fall        |
@@ -39,15 +39,17 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 1. Discover and browse shows
 
 **Outcome:** Exhibitor finds an upcoming show with an open entry window.
-**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-09-02)_
+**Canonical routes:** `/shows` → `/shows/:id` → `/shows/:showId/trials/:trialId` _(source-map re-verified 2026-09-13)_
 **Source-map note:** Re-verified 2026-09-02 after a legacy results bookmark was consolidated to the canonical show list; the guide-facing discovery flow is unchanged.
+**Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing discovery flow is unchanged.
 **Docs target:** Exhibitor Guide § Discovery
 
 ### 2. Create an account and add a dog
 
 **Outcome:** First-time exhibitor creates an account and registers their dog before entering.
-**Canonical routes:** `/sign-up` → `/dogs` → `/dogs/:id` _(source-map re-verified 2026-08-04)_
+**Canonical routes:** `/sign-up` → `/dogs` → `/dogs/:id` _(source-map re-verified 2026-09-13)_
 **Note:** Source-map entry re-verified 2026-08-04 after route definitions moved into the centralized router; the guide-facing account flow is unchanged.
+**Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing account flow is unchanged.
 **Docs target:** Exhibitor Guide § Account Setup, KB: `create-account.md`
 
 ### 2a. Manage profile, preferences, and account settings
@@ -60,6 +62,7 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 
 **Outcome:** Exhibitor submits an entry and pays via Stripe.
 **Canonical routes:** `/shows/:showId/register` → `/cart` → `/checkout/success`
+**Source-map note:** Re-verified `/shows/:showId/register` on 2026-09-13 after the unused CalendarPage wrapper was removed; the show-specific wizard and guide-facing entry flow are unchanged.
 **Docs target:** Exhibitor Guide § Entry & Payment, KB: `enter-a-show.md`
 
 ### 4. Track entry status before the show
@@ -85,7 +88,8 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 7. View results
 
 **Outcome:** Exhibitor sees their dog's placement, Q/NQ, and time after the class is complete.
-**Canonical routes:** `/exhibitor/entries` (result badge) → `/shows/:showId/trials/:trialId/classes/:classId/results`
+**Canonical routes:** `/exhibitor/entries` (result badge) → `/shows/:showId/trials/:trialId/classes/:classId/results` _(source-map re-verified 2026-09-13)_
+**Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing results flow is unchanged.
 **Docs target:** Exhibitor Guide § Results, KB: `view-results.md`
 
 ### 8. Message the show team
@@ -229,8 +233,9 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 ### 24. Review and update the club profile
 
 **Outcome:** Club admin reviews and updates club name, AKC/UKC numbers, address, and contacts.
-**Canonical route:** `/clubs/:id`
+**Canonical route:** `/clubs/:id` _(source-map re-verified 2026-09-13)_
 **Note:** Cataloged in `pageDirectory.ts` as Club Detail; reachable from the sidebar as **Club Profile**.
+**Source-map note:** Re-verified 2026-09-13 after public class previews changed their anonymous data boundary; the guide-facing club-profile flow is unchanged.
 **Docs target:** Club Admin Guide § Club Profile Setup
 
 ---
@@ -259,7 +264,7 @@ Workflows where the same user outcome appears at more than one route. Document o
 
 | Outcome                | Canonical route                                   | Alternative                             | Note                                                                          |
 | ---------------------- | ------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
-| Browse shows           | `/shows`                                          | `/browse-shows`, `/calendar`            | `/browse-shows` is a redirect; `/calendar` is parked — document `/shows` only |
+| Browse shows           | `/shows`                                          | `/browse-shows`                         | `/browse-shows` is a redirect; the calendar view is on `/shows`               |
 | Show detail            | `/shows/:id`                                      | `/trials/:trialId`, `/classes/:classId` | Legacy paths are redirects — document `/shows/:id` nested paths only          |
 | Trial details          | `/shows/:showId/trials/:trialId`                  | `/trials/:trialId`                      | Document the nested path only                                                 |
 | Class details          | `/shows/:showId/trials/:trialId/classes/:classId` | `/classes/:classId`                     | Document the nested path only                                                 |

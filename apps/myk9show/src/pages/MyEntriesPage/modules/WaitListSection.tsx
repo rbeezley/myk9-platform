@@ -25,6 +25,7 @@ interface WaitListSectionProps {
   declineError: string | null;
   declineErrorOfferId: string | null;
   focusedOfferId: string | null;
+  autoFocusHandled?: boolean;
   onOfferDeadlineElapsed: () => void;
 }
 
@@ -68,6 +69,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
   declineError,
   declineErrorOfferId,
   focusedOfferId,
+  autoFocusHandled = false,
   onOfferDeadlineElapsed,
 }) => {
   const [now, setNow] = React.useState(() => new Date());
@@ -79,13 +81,14 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
   }, []);
 
   React.useEffect(() => {
-    if (!focusedOfferId || focusedOfferIdScrolledRef.current === focusedOfferId) return;
+    if (autoFocusHandled || !focusedOfferId || focusedOfferIdScrolledRef.current === focusedOfferId)
+      return;
     const target = document.getElementById(`waitlist-offer-${focusedOfferId}`);
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     target.focus({ preventScroll: true });
     focusedOfferIdScrolledRef.current = focusedOfferId;
-  }, [entries, focusedOfferId]);
+  }, [entries, focusedOfferId, autoFocusHandled]);
 
   React.useEffect(() => {
     if (!entries.some(entry => getOfferDisplayState(entry, now) === 'checking')) return;

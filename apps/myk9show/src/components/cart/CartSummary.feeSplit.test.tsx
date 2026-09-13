@@ -80,7 +80,35 @@ describe('CartSummary — service fee split', () => {
     expect(charged).toBe(250); // 175 + 30 lifted to the $2.50 floor
     expect(screen.getByText('Service fee (7% + $0.30, $2.50 minimum)')).toBeInTheDocument();
     expect(screen.getByText(money(charged))).toBeInTheDocument();
-    expect(screen.getByText(/approximate/i)).toBeInTheDocument();
+    expect(screen.getByText('about $1.10')).toBeInTheDocument();
+    expect(screen.getByText('about $1.40')).toBeInTheDocument();
+  });
+
+  it('keeps a $30 one-entry cart concise while labelling both estimates approximate', () => {
+    h.subtotalCents = 3000;
+    h.rates = { percent: 7, flatCents: 0, minCents: 0 };
+    render(<CartSummary onCheckout={() => {}} />);
+
+    expect(screen.getByText('Entry Fees (1 entry)')).toBeInTheDocument();
+    expect(screen.getByText('$2.10')).toBeInTheDocument();
+    expect(screen.getByText('about $1.23')).toBeInTheDocument();
+    expect(screen.getByText('about $0.87')).toBeInTheDocument();
+    expect(screen.queryByText(/These two amounts are approximate/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/receives 100% of the entry fees/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /how our fees work/i })).toHaveAttribute(
+      'href',
+      '/fees'
+    );
+  });
+
+  it('keeps the conditional note when card processing covers the whole fee', () => {
+    h.subtotalCents = 100;
+    h.rates = { percent: 7, flatCents: 0, minCents: 0 };
+    render(<CartSummary onCheckout={() => {}} />);
+
+    expect(screen.getByText('about $0.00')).toBeInTheDocument();
+    expect(screen.getByText(/entire service fee/i)).toBeInTheDocument();
+    expect(screen.queryByText(/These two amounts are approximate/i)).not.toBeInTheDocument();
   });
 
   it('links to the fees page from the cart', () => {

@@ -45,6 +45,16 @@ export function buildCalendarFeedUrls(token: string, baseUrl: string): CalendarF
   };
 }
 
+/**
+ * Response header the calendar-feed function puts the event count in.
+ *
+ * Duplicated from `supabase/functions/calendar-feed/index.ts` on purpose: the
+ * edge function is a separate Deno module graph and the app cannot import from
+ * it. Change one, change the other — `calendarFeedUrls.test.ts` pins the
+ * spelling so a rename cannot drift silently.
+ */
+export const EVENT_COUNT_HEADER = 'X-MyK9-Event-Count';
+
 /** Filename an exhibitor will recognise months later in their downloads folder. */
 export function buildIcsFilename(showName: string | null | undefined): string {
   const slug = (showName ?? '')

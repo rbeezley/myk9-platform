@@ -279,6 +279,18 @@ export default function RegistrationsSection({
                     <div className="font-semibold break-words">
                       {reg.registeredName || reg.registered_name}
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 min-h-11"
+                      aria-label={`Edit ${reg.organization} registered name for ${reg.registeredName || reg.registered_name}`}
+                      onClick={() => {
+                        setSelectedRegistration(reg as Registration);
+                        setIsEditRegistrationDialogOpen(true);
+                      }}
+                    >
+                      Edit registered name
+                    </Button>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Registration Number</div>

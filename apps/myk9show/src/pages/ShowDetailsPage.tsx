@@ -54,7 +54,15 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const managementSectionMatch = useMatch('/shows/:id/:section/*');
   const { endNavigation } = useNavigationPerformance();
-  const { user, userWithRoles, isSecretary, isAdmin, rbacLoading } = useAuthContext();
+  const {
+    user,
+    loading: authLoading,
+    userWithRoles,
+    isSecretary,
+    isAdmin,
+    rbacLoading,
+  } = useAuthContext();
+  const canReadEntryRows = Boolean(user && user.is_anonymous !== true);
   const trials = useTrialStore(s => s.trials);
   const trialClasses = useTrialStore(s => s.trialClasses);
   const trialClassesReadStatus = useTrialStore(s => s.trialClassesReadStatus);
@@ -64,7 +72,7 @@ const ShowDetailsPage: React.FC = () => {
     data: showEntries = [],
     isLoading: showEntriesLoading,
     isError: showEntriesIsError,
-  } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id)));
+  } = useEntriesByShowQuery(id || '', Boolean(id && isValidUUID(id) && canReadEntryRows));
   const { dogs } = useDogStoreCompat();
 
   // Use fast show details loading with cache optimization
@@ -159,7 +167,12 @@ const ShowDetailsPage: React.FC = () => {
   // classes, and per-trial stats fetched via anon-safe PostgREST when the
   // replicated store is cold (guest session). See useShowLandingData.
   const { landingTrials, publicShowClasses, publicTrialStats, publicClassInventoryResolved } =
-    useShowLandingData(showId_, associatedTrials, showEntriesIsError ? null : showEntries);
+    useShowLandingData(
+      showId_,
+      associatedTrials,
+      canReadEntryRows && !showEntriesIsError ? showEntries : null,
+      !canReadEntryRows && !authLoading
+    );
   // For tabs/counts/derivations, treat landingTrials as the effective trial
   // list: it IS associatedTrials when the store is warm, and the anon-safe
   // public rows when the store is cold. (Lane 3.7)
@@ -427,6 +440,7 @@ const ShowDetailsPage: React.FC = () => {
       <ShowPublicLanding
         show={actualCurrentShow}
         landingTrials={landingTrials}
+        offeredClasses={publicShowClasses}
         hasEntryClassInventory={hasEntryClassInventory}
         entryNotYetOpen={entryStatus.status === 'not_yet_open'}
         refreshFailed={refreshFailed}

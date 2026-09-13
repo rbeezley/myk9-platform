@@ -33,9 +33,9 @@ vi.mock('../data/pageDirectory', async () => {
         status: 'working',
       },
       {
-        path: '/calendar',
-        title: 'Calendar',
-        description: 'Parked calendar view.',
+        path: '/subscription',
+        title: 'Subscription',
+        description: 'Parked subscription view.',
         roles: [UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
         classification: 'park',
         category: 'Public',
@@ -65,14 +65,14 @@ describe('AdminHelpPage', () => {
     render(<AdminHelpPage />);
     expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
     expect(screen.getByText('My Shows')).toBeInTheDocument();
-    expect(screen.queryByText('Calendar')).not.toBeInTheDocument();
+    expect(screen.queryByText('Subscription')).not.toBeInTheDocument();
   });
 
   it('shows parked entries when the toggle is enabled', async () => {
     const user = userEvent.setup();
     render(<AdminHelpPage />);
     await user.click(screen.getByRole('checkbox', { name: /show parked/i }));
-    expect(screen.getAllByText('Calendar').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Subscription').length).toBeGreaterThan(0);
   });
 
   it('filters by search term across title and description', async () => {

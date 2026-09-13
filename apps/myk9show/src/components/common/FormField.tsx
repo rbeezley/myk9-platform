@@ -8,6 +8,7 @@ interface FormFieldProps {
   required?: boolean;
   error?: string | undefined;
   hint?: string | undefined;
+  hintClassName?: string | undefined;
   children: React.ReactNode;
   className?: string;
 }
@@ -18,6 +19,7 @@ export function FormField({
   required = false,
   error,
   hint,
+  hintClassName,
   children,
   className,
 }: FormFieldProps) {
@@ -38,7 +40,11 @@ export function FormField({
         )}
       </Label>
 
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && (
+        <p id={`${fieldId}-hint`} className={cn('text-xs text-muted-foreground', hintClassName)}>
+          {hint}
+        </p>
+      )}
 
       {children}
 

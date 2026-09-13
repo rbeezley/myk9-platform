@@ -129,21 +129,34 @@ export function groupCartByDogAndDay(
   const order: string[] = [...selectedDogIds];
   const linesByDog = new Map<string, Array<PanelClassLine & { sortKey: string }>>();
 
-  // Scoped to the classes actually in the cart: a label only has to be unique
-  // among the lines shown side by side here.
-  const disambiguate = buildClassDisambiguator(
-    cartItems
-      .map(item => (item.class_id ? classesById.get(item.class_id) : undefined))
-      .filter((klass): klass is PanelClass => !!klass)
-      .map(classIdentity)
+  // One disambiguator per trial, over the classes of that trial actually in
+  // the cart. `buildClassDisambiguator` is a single-trial contract: a Saturday
+  // and a Sunday "Interior Advanced" are already told apart by their day label,
+  // and a cart-wide collision test would publish one of their stored names.
+  const identitiesByTrial = new Map<string, ClassIdentity[]>();
+  for (const item of cartItems) {
+    const klass = item.class_id ? classesById.get(item.class_id) : undefined;
+    if (!klass) continue;
+    const trialId = resolveTrialId(item, klass);
+    const identities = identitiesByTrial.get(trialId);
+    if (identities) identities.push(classIdentity(klass));
+    else identitiesByTrial.set(trialId, [classIdentity(klass)]);
+  }
+  const disambiguatorsByTrial = new Map(
+    [...identitiesByTrial].map(([trialId, identities]) => [
+      trialId,
+      buildClassDisambiguator(identities),
+    ])
   );
+  const disambiguate = (item: CartItemWithDetails, klass: PanelClass | undefined) =>
+    disambiguatorsByTrial.get(resolveTrialId(item, klass)) ?? (() => '');
 
   for (const item of cartItems) {
     if (!item.dog_id || !item.class_id) continue;
     if (!order.includes(item.dog_id)) order.push(item.dog_id);
     const klass = classesById.get(item.class_id);
     const trial = trialsById.get(resolveTrialId(item, klass));
-    const label = classLabel(item, klass, disambiguate);
+    const label = classLabel(item, klass, disambiguate(item, klass));
     const line = {
       lineKey: `${item.dog_id}:${item.class_id}`,
       classId: item.class_id,

@@ -393,4 +393,47 @@ describe('groupCartByDogAndDay class labels', () => {
     expect(new Set(labels).size).toBe(2);
     expect(labels).toContain('Interior Advanced Preliminary');
   });
+
+  it('does not treat same-identity classes on different trials as a collision', () => {
+    // Saturday's and Sunday's Interior Advanced already sit under different day
+    // labels; a cart-wide collision test would publish Sunday's stored fixture
+    // name to the exhibitor (Codex #2210 round 9 P2).
+    const acrossDays = new Map<string, PanelClass>([
+      [
+        'class-sat',
+        {
+          id: 'class-sat',
+          trialId: 'trial-sat',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced',
+        },
+      ],
+      [
+        'class-sun',
+        {
+          id: 'class-sun',
+          trialId: 'trial-sun',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced Load 2 Class 1',
+        },
+      ],
+    ]);
+    const groups = groupCartByDogAndDay(
+      [
+        cartItem({ dog_id: 'dog-1', class_id: 'class-sat' }),
+        cartItem({ dog_id: 'dog-1', class_id: 'class-sun' }),
+      ],
+      dogs,
+      acrossDays,
+      trials,
+      ['dog-1']
+    );
+
+    expect(groups[0]!.lines.map(line => line.label)).toEqual([
+      'Interior Advanced',
+      'Interior Advanced',
+    ]);
+  });
 });

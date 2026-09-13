@@ -87,6 +87,11 @@ interface EntryReceiptProps {
   notice?: string;
   /** Offered beside a notice so the reader can try for the exact figures. */
   onRetry?: () => void;
+  /**
+   * Returns to the list the reader chose this receipt from. Omitted when the
+   * receipt was opened directly, so no dead "Back" appears with nowhere to go.
+   */
+  onBack?: () => void;
 }
 
 export function EntryReceipt({
@@ -95,6 +100,7 @@ export function EntryReceipt({
   entry,
   notice,
   onRetry,
+  onBack,
   exhibitorName,
   exhibitorEmail,
 }: EntryReceiptProps) {
@@ -561,6 +567,11 @@ export function EntryReceipt({
         <Separator />
 
         <DialogFooter className="gap-2 sm:gap-0">
+          {onBack && (
+            <Button variant="outline" className="min-h-11" onClick={onBack}>
+              Back to orders
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             <X className="h-4 w-4 mr-2" />
             Close

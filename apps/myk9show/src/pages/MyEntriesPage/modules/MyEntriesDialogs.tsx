@@ -16,10 +16,7 @@ import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { AddDogPanel } from '@/components/panels/edit';
 import { ResultRevealDialog, type ResultCardModel } from '@/features/result-card';
-import {
-  useEntryReceiptOrders,
-  type EntryReceiptOrder,
-} from '@/features/payments/entryReceiptOrder';
+import { useEntryReceiptOrders } from '@/features/payments/entryReceiptOrder';
 import { orderRefundStatusLabel } from '@/features/payments/orderRefundReconciliation';
 import { ENTRY_SCOPE_ORDER_PARAM } from '@/features/payments/entryScopeParams';
 import {
@@ -29,16 +26,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { PaymentStatus } from '@/types/show-registration-types';
-import type {
-  CheckInDialogState,
-  EditDialogState,
-  MyEntry,
-  ReceiptDialogState,
-} from './my-entries-types';
+import type { CheckInDialogState, EditDialogState, ReceiptDialogState } from './my-entries-types';
+import { CardDerivedReceipt } from './CardDerivedReceipt';
 import { buildOrderScopedReceipt } from './orderScopedReceipt';
+import { OrdersPickerDialog, StripeOrderChooserDialog } from './OrdersReceiptsList';
 
 interface CheckInDialogProps {
   dialog: CheckInDialogState;
@@ -86,10 +78,37 @@ interface EditEntryDialogProps {
 }
 
 export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUpdate }) => {
-  if (!dialog.entry) return null;
+  // Which of a multi-order show's editable orders the exhibitor picked. Held
+  // here rather than in the hook so the hook's `openEdit` stays per order and
+  // the picker is purely a stage of this dialog (design D9).
+  const [pickedId, setPickedId] = React.useState<string | null>(null);
+  const candidates = dialog.orders ?? [];
+  // A list of one is just that one — the hook already unwraps it, and honouring
+  // it here too means neither caller can produce an empty-looking dialog.
+  const entry =
+    dialog.entry ??
+    candidates.find(order => order.id === pickedId) ??
+    (candidates.length === 1 ? candidates[0] : null);
+  const close = () => {
+    setPickedId(null);
+    onClose();
+  };
+
+  if (!entry) {
+    if (candidates.length < 2) return null;
+    return (
+      <OrdersPickerDialog
+        open={dialog.open}
+        mode="edit"
+        orders={candidates}
+        onSelect={order => setPickedId(order.id)}
+        onClose={close}
+      />
+    );
+  }
 
   // Map classes to match EntryEditDialog's expected type
-  const mappedClasses = dialog.entry.classes.map(c => ({
+  const mappedClasses = entry.classes.map(c => ({
     id: c.id,
     name: c.name,
     number: c.number,
@@ -107,15 +126,15 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
   // exhibitor a presence producer for the relevant show while editing, so the
   // Phase 3 edit-awareness hook/badge inside the dialog have a roster to ride.
   return (
-    <ShowPresenceProvider showId={dialog.entry.showId}>
+    <ShowPresenceProvider showId={entry.showId}>
       <EntryEditDialog
         open={dialog.open}
-        onOpenChange={open => !open && onClose()}
+        onOpenChange={open => !open && close()}
         entry={{
-          id: dialog.entry.id,
-          showId: dialog.entry.showId,
-          showName: dialog.entry.showName,
-          dogName: dialog.entry.dogName,
+          id: entry.id,
+          showId: entry.showId,
+          showName: entry.showName,
+          dogName: entry.dogName,
           classes: mappedClasses,
         }}
         onUpdate={onUpdate}
@@ -123,72 +142,6 @@ export const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClos
     </ShowPresenceProvider>
   );
 };
-
-/**
- * A receipt built from the replicated card alone. This is the document that
- * cash, check and secretary-recorded registrations have always printed, and
- * the one that still works with no signal on an offline-first surface. It
- * states entry fees and makes no claim about what Stripe charged.
- */
-const CardDerivedReceipt: React.FC<{
-  dialog: ReceiptDialogState;
-  entry: MyEntry;
-  user: { email?: string; user_metadata?: Record<string, string> } | null;
-  onClose: () => void;
-  notice?: string;
-  onRetry?: () => void;
-}> = ({ dialog, entry, user, onClose, notice, onRetry }) => {
-  const isPaid =
-    entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-    entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
-  const exhibitorName = user?.user_metadata?.full_name || user?.email?.split('@')[0];
-  const exhibitorEmail = user?.email;
-
-  return (
-    <EntryReceipt
-      open={dialog.open}
-      onOpenChange={open => !open && onClose()}
-      entry={{
-        id: entry.id,
-        confirmationNumber: entry.confirmationNumber ?? entry.id.slice(0, 8).toUpperCase(),
-        showName: entry.showName,
-        showDate: entry.showDate,
-        location: entry.location,
-        dogName: entry.dogName,
-        classes: entry.classes.map(c => ({
-          id: c.id,
-          name: c.name,
-          number: c.number,
-          fee: c.fee,
-          status: c.status,
-          ...(c.jumpHeight !== undefined && { jumpHeight: c.jumpHeight }),
-          ...(c.runOrder !== undefined && { runOrder: c.runOrder }),
-        })),
-        totalFee: entry.totalFee,
-        submittedAt: entry.submittedAt,
-        paymentStatus: isPaid ? 'Paid' : 'Pending',
-      }}
-      {...(notice && { notice })}
-      {...(onRetry && { onRetry })}
-      {...(exhibitorName && { exhibitorName })}
-      {...(exhibitorEmail && { exhibitorEmail })}
-    />
-  );
-};
-
-function formatOrderAmount(order: EntryReceiptOrder): string {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: order.currency.toUpperCase(),
-    }).format(order.amountCents / 100);
-  } catch {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
-      order.amountCents / 100
-    );
-  }
-}
 
 interface ReceiptEntryDialogProps {
   dialog: ReceiptDialogState;
@@ -209,17 +162,32 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   const [searchParams] = useSearchParams();
   const receiptOrderId = searchParams.get(ENTRY_SCOPE_ORDER_PARAM)?.trim() || null;
   const [selectedOrderId, setSelectedOrderId] = React.useState<string | null>(null);
+  // Which ORDER CARD the exhibitor picked out of a multi-order show's list
+  // stage (design D9). Distinct from `selectedOrderId`, which picks a Stripe
+  // payment inside one card.
+  const [pickedCardId, setPickedCardId] = React.useState<string | null>(null);
+  const candidates = dialog.orders ?? (dialog.entry ? [dialog.entry] : []);
+  const pickedCard = candidates.find(order => order.id === pickedCardId) ?? null;
+  const chosen = dialog.entry ?? pickedCard ?? (candidates.length === 1 ? candidates[0] : null);
+  // With a card in hand the query is scoped to that card's rows, exactly as
+  // before. With none — the list stage — it runs only for a deep-linked
+  // `?orderId=`, over every candidate's rows, so the named order can be traced
+  // back to the card that paid for it and opened directly (spec: the deep link
+  // is unchanged). Without that param the query stays disabled and the list
+  // renders immediately.
   const receiptOrders = useEntryReceiptOrders({
     requestedOrderId: receiptOrderId,
     viewerId: (user as { id?: string } | null)?.id ?? null,
-    entryIds: dialog.entry?.classes.map(classEntry => classEntry.id) ?? [],
-    enabled: dialog.open && Boolean(dialog.entry),
+    entryIds: (chosen ? [chosen] : candidates).flatMap(order =>
+      order.classes.map(classEntry => classEntry.id)
+    ),
+    enabled: dialog.open && candidates.length > 0 && (Boolean(chosen) || Boolean(receiptOrderId)),
   });
   const closeReceipt = () => {
     setSelectedOrderId(null);
+    setPickedCardId(null);
     onClose();
   };
-  if (!dialog.entry) return null;
 
   // `isPending` alone is true forever for a DISABLED query, which would park
   // the dialog on a spinner with nothing loading. Require an in-flight fetch.
@@ -243,7 +211,39 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
   }
 
   const allOrders = receiptOrders.data ?? [];
-  const cardEntryIds = new Set(dialog.entry.classes.map(classEntry => classEntry.id));
+  // The deep link wins over the list stage: a `?orderId=` that resolves to one
+  // of these cards opens that card's receipt directly, however many were passed.
+  const deepLinked = receiptOrderId
+    ? (candidates.find(order => {
+        const rows = new Set(order.classes.map(classEntry => classEntry.id));
+        return allOrders.some(
+          paid => paid.id === receiptOrderId && paid.entryIds.some(id => rows.has(id))
+        );
+      }) ?? null)
+    : null;
+  const cardEntry = chosen ?? deepLinked;
+
+  if (!cardEntry) {
+    if (candidates.length < 2) return null;
+    return (
+      <OrdersPickerDialog
+        open={dialog.open}
+        mode="receipt"
+        orders={candidates}
+        onSelect={order => setPickedCardId(order.id)}
+        onClose={closeReceipt}
+      />
+    );
+  }
+  // Back to the list, but only for an exhibitor who came through it.
+  const onBack = pickedCard
+    ? () => {
+        setSelectedOrderId(null);
+        setPickedCardId(null);
+      }
+    : undefined;
+
+  const cardEntryIds = new Set(cardEntry.classes.map(classEntry => classEntry.id));
   // A deep-linked ?orderId= sticks in the URL after the dialog closes. If the
   // named entry rows had not replicated, the list fell back to SHOW scope and
   // several cards are on screen — so the next Receipt click would resolve a
@@ -260,9 +260,10 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
     return (
       <CardDerivedReceipt
         dialog={dialog}
-        entry={dialog.entry}
+        entry={cardEntry}
         user={user}
         onClose={closeReceipt}
+        onBack={onBack}
         notice="We could not reach the payment record, so this shows your entry fees rather than the exact amount charged."
         onRetry={() => void receiptOrders.refetch()}
       />
@@ -275,63 +276,30 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
     // not readable by the exhibitor. The card receipt is the correct document
     // here, not an error with a Try again that could never succeed.
     return (
-      <CardDerivedReceipt dialog={dialog} entry={dialog.entry} user={user} onClose={closeReceipt} />
+      <CardDerivedReceipt
+        dialog={dialog}
+        entry={cardEntry}
+        user={user}
+        onClose={closeReceipt}
+        onBack={onBack}
+      />
     );
   }
 
   if (orders.length > 1 && !selectedOrderId) {
     return (
-      <Dialog open={dialog.open} onOpenChange={open => !open && closeReceipt()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Choose a receipt</DialogTitle>
-            <DialogDescription>
-              This registration was paid in more than one order. Choose the payment receipt you
-              need.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {orders.map(order => {
-              // Date and amount, because a raw UUID tells the exhibitor nothing
-              // about which of their two payments this is.
-              // `paidOn`, not `createdAt`: capture can lag creation, and this
-              // chooser sits one click from the My Payments row that shows
-              // `paid_at ?? created_at`.
-              const paidOn = order.paidOn
-                ? new Date(order.paidOn).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : 'Date unavailable';
-              const amount = formatOrderAmount(order);
-              return (
-                <Button
-                  key={order.id}
-                  variant="outline"
-                  className="min-h-11 w-full justify-between gap-3"
-                  aria-label={`Receipt for the ${amount} payment on ${paidOn}`}
-                  onClick={() => setSelectedOrderId(order.id)}
-                >
-                  <span className="truncate">{paidOn}</span>
-                  <span className="shrink-0 font-mono text-sm">{amount}</span>
-                </Button>
-              );
-            })}
-          </div>
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={closeReceipt}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <StripeOrderChooserDialog
+        open={dialog.open}
+        orders={orders}
+        onSelect={setSelectedOrderId}
+        onClose={closeReceipt}
+      />
     );
   }
 
   const selectedOrder =
     orders.find(order => order.id === selectedOrderId) ?? (orders.length === 1 ? orders[0] : null);
-  const entry = buildOrderScopedReceipt(dialog.entry, selectedOrder);
+  const entry = buildOrderScopedReceipt(cardEntry, selectedOrder);
   if (!entry || !selectedOrder) {
     // The order is real but its rows have not all replicated (or one is still
     // an unresolved placeholder). Fall back rather than dead-end: the card
@@ -339,9 +307,10 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
     return (
       <CardDerivedReceipt
         dialog={dialog}
-        entry={dialog.entry}
+        entry={cardEntry}
         user={user}
         onClose={closeReceipt}
+        onBack={onBack}
         notice="Some class details for this payment are still syncing, so this shows your entry fees rather than the exact amount charged."
         onRetry={() => void receiptOrders.refetch()}
       />
@@ -389,6 +358,7 @@ export const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({
         submittedAt: entry.submittedAt,
         paymentStatus: orderRefundStatusLabel(selectedOrder),
       }}
+      {...(onBack && { onBack })}
       {...(exhibitorName && { exhibitorName })}
       {...(exhibitorEmail && { exhibitorEmail })}
     />

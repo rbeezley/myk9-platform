@@ -10,9 +10,11 @@
  */
 
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 
 import type { CheckInStatus } from '@/types/check-in-types';
 
+import type { MyShowClass, MyShowDog } from './groupEntriesByShow';
 import type {
   CheckInDialogState,
   EditDialogState,
@@ -43,8 +45,19 @@ export interface UseMyEntriesDialogsResult {
   /** Card handlers — stable identities, so the memoized card list does not
    *  re-render every card when an unrelated dialog opens. */
   openCheckIn: (entry: MyEntry, classEntry: EntryClass) => void;
-  openEdit: (entry: MyEntry) => void;
-  openReceipt: (entry: MyEntry) => void;
+  /**
+   * The dog card's day-gated batch check-in: one `updateEntryCheckIn` per
+   * target class, sequentially, stopping at the first failure.
+   */
+  checkInClassesForDay: (dog: MyShowDog, classes: MyShowClass[]) => Promise<void>;
+  /**
+   * Edit one order. A show with several editable orders passes them all and
+   * the dialog opens on a picker first (design D9); an array of one behaves
+   * exactly like the single order it holds.
+   */
+  openEdit: (target: MyEntry | MyEntry[]) => void;
+  /** Same two shapes as `openEdit`: one order opens its receipt directly. */
+  openReceipt: (target: MyEntry | MyEntry[]) => void;
   openAddDog: () => void;
   closeCheckIn: () => void;
   closeEdit: () => void;
@@ -52,6 +65,28 @@ export interface UseMyEntriesDialogsResult {
   closeAddDog: () => void;
   submitCheckInStatus: (status: CheckInStatus, notes?: string) => Promise<void>;
   entryUpdated: () => Promise<void>;
+}
+
+/**
+ * One resolution rule for both order-scoped dialogs, so "a list of one is just
+ * that one" can never be true of receipts and false of edit. An empty list
+ * opens nothing: there is no order to act on, and an empty picker would be a
+ * dead end.
+ */
+function applyOpen<T extends { open: boolean; entry: MyEntry | null; orders?: MyEntry[] }>(
+  target: MyEntry | MyEntry[],
+  setState: (next: T) => void
+): void {
+  if (!Array.isArray(target)) {
+    setState({ open: true, entry: target } as T);
+    return;
+  }
+  if (target.length === 0) return;
+  if (target.length === 1) {
+    setState({ open: true, entry: target[0] } as T);
+    return;
+  }
+  setState({ open: true, entry: null, orders: target } as T);
 }
 
 export function useMyEntriesDialogs({
@@ -66,8 +101,14 @@ export function useMyEntriesDialogs({
   const openCheckIn = useCallback((entry: MyEntry, classEntry: EntryClass) => {
     setCheckInDialog({ open: true, entry, classEntry });
   }, []);
-  const openEdit = useCallback((entry: MyEntry) => setEditDialog({ open: true, entry }), []);
-  const openReceipt = useCallback((entry: MyEntry) => setReceiptDialog({ open: true, entry }), []);
+  const openEdit = useCallback(
+    (target: MyEntry | MyEntry[]) => applyOpen(target, setEditDialog),
+    []
+  );
+  const openReceipt = useCallback(
+    (target: MyEntry | MyEntry[]) => applyOpen(target, setReceiptDialog),
+    []
+  );
   const openAddDog = useCallback(() => setAddDogOpen(true), []);
 
   const closeCheckIn = useCallback(() => setCheckInDialog(CLOSED_CHECK_IN), []);
@@ -93,6 +134,28 @@ export function useMyEntriesDialogs({
     [checkInDialog.entry, checkInDialog.classEntry, updateEntryCheckIn]
   );
 
+  // INTENT: single write path. This is a LOOP over the same
+  // `updateEntryCheckIn` the per-class dialog calls — never a bulk RPC and
+  // never a second optimistic-update implementation. Sequential, not
+  // `Promise.all`, so each class's optimistic update and its revert behave
+  // exactly as the single-class path does. A failure STOPS the loop: the
+  // classes already written stay checked in and show their own real state, so
+  // the exhibitor can simply tap again and the re-derived targets skip them.
+  // `updateEntryCheckIn` logs and reverts but does not tell anyone, and the
+  // batch has no dialog to surface the rejection in, so the toast lives here.
+  const checkInClassesForDay = useCallback(
+    async (dog: MyShowDog, classes: MyShowClass[]) => {
+      try {
+        for (const cls of classes) {
+          await updateEntryCheckIn(cls.orderId, cls.id, 'checked-in');
+        }
+      } catch {
+        toast.error(`We could not check ${dog.dogName} in. Please try again.`);
+      }
+    },
+    [updateEntryCheckIn]
+  );
+
   const entryUpdated = useCallback(async () => {
     await refreshEntries();
     setEditDialog(CLOSED_EDIT);
@@ -104,6 +167,7 @@ export function useMyEntriesDialogs({
     receiptDialog,
     addDogOpen,
     openCheckIn,
+    checkInClassesForDay,
     openEdit,
     openReceipt,
     openAddDog,

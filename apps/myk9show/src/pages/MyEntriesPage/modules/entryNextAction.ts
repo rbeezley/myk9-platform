@@ -3,7 +3,7 @@
  * summary band (exhibitor-my-shows-legibility progressive disclosure).
  *
  * Precedence: finish payment > check-in (first check-in-eligible class) >
- * view show. Reuses the exact predicates `MyEntryCard` already uses to decide
+ * view show. Reuses the exact predicates the My Shows cards already use to decide
  * payment-button visibility (`getEntryPaymentPrompt` via the same
  * `canPayStatus` gate) and check-in control rendering (the canonical entry-
  * accounting rules gated by the self-check-in cascade) so the summary-band
@@ -25,7 +25,7 @@ export type EntryNextAction =
 export interface DeriveEntryNextActionOptions {
   /** Current time, injectable for tests; defaults to `new Date()`. */
   now?: Date;
-  /** Resolved self-check-in cascade by class id, same shape `MyEntryCard` receives. */
+  /** Resolved self-check-in cascade by class id, same shape `MyShowsList` receives. */
   selfCheckinByClassId?: Record<string, boolean>;
 }
 
@@ -49,7 +49,7 @@ function isPaymentEligibleStatus(status: EntryStatus): boolean {
  * and its display status may be COMPLETED because one sibling has a result
  * while another accepted or pending row still owes an online or pay-at-show
  * balance, so payment eligibility must be derived below the order summary.
- * Shared by `deriveEntryNextAction` and `MyEntryCard` so the summary-band
+ * Shared by `deriveEntryNextAction` and `myEntryCardState` so the derived
  * action and the card's payment prompts never disagree about eligibility.
  */
 export function hasPaymentEligibleClass(entry: MyEntry): boolean {
@@ -115,7 +115,7 @@ export function deriveEntryNextAction(
     const eligibleClass = entry.classes.find(cls => {
       if (!isClassCheckInEligible(entry, cls)) return false;
 
-      // Same cascade MyEntryCard reads: class-scoped toggle, defaulting open
+      // Same cascade `dayCheckIn` reads: class-scoped toggle, defaulting open
       // when the class id or map entry is missing.
       if (!cls.classId) return true;
       return selfCheckinByClassId[cls.classId] ?? true;

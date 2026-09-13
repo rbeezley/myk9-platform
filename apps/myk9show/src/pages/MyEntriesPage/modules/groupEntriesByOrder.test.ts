@@ -582,3 +582,94 @@ describe('groupEntriesByOrder — row combinations Codex found on PR #1456', () 
     expect(order.balance?.dueEntryIds.sort()).toEqual(['entry-resolved', 'entry-unresolved']);
   });
 });
+
+// Refunds arrive on the RAW per-class rows. Dropping them at the grouping made
+// the My Shows refund note unreachable on real data: `refundNotesByDog` reads
+// them off the grouped order, so a card could never say a refund was issued.
+describe('groupEntriesByOrder — refunds survive the grouping', () => {
+  it('sums the rows’ refunds and keeps the latest refund date', () => {
+    const first = makeRow({
+      id: 'e1',
+      refundAmount: 10,
+      refundedAt: new Date('2026-10-08T00:00:00'),
+      classes: [makeClass({ id: 'c1' })],
+    });
+    const second = makeRow({
+      id: 'e2',
+      refundAmount: 5,
+      refundedAt: new Date('2026-10-11T00:00:00'),
+      classes: [makeClass({ id: 'c2' })],
+    });
+
+    const [order] = groupEntriesByOrder([first, second]);
+
+    expect(order.refundAmount).toBe(15);
+    expect(order.refundedAt).toEqual(new Date('2026-10-11T00:00:00'));
+  });
+
+  it('keeps the later date when the rows arrive newest-first', () => {
+    const [order] = groupEntriesByOrder([
+      makeRow({
+        id: 'e1',
+        refundAmount: 5,
+        refundedAt: new Date('2026-10-11T00:00:00'),
+        classes: [makeClass({ id: 'c1' })],
+      }),
+      makeRow({
+        id: 'e2',
+        refundAmount: 10,
+        refundedAt: new Date('2026-10-08T00:00:00'),
+        classes: [makeClass({ id: 'c2' })],
+      }),
+    ]);
+
+    expect(order.refundedAt).toEqual(new Date('2026-10-11T00:00:00'));
+  });
+
+  it('reports null and no date when no row carries a refund', () => {
+    const [order] = groupEntriesByOrder([makeRow({ classes: [makeClass()] })]);
+
+    expect(order.refundAmount).toBeNull();
+    expect(order.refundedAt).toBeUndefined();
+  });
+
+  it('treats a null refund amount on a sibling row as zero', () => {
+    const [order] = groupEntriesByOrder([
+      makeRow({
+        id: 'e1',
+        refundAmount: null,
+        classes: [makeClass({ id: 'c1' })],
+      }),
+      makeRow({
+        id: 'e2',
+        refundAmount: 12,
+        refundedAt: new Date('2026-10-09T00:00:00'),
+        classes: [makeClass({ id: 'c2' })],
+      }),
+    ]);
+
+    expect(order.refundAmount).toBe(12);
+  });
+
+  it('keeps one order’s refund off another order at the same show', () => {
+    const [refunded, untouched] = groupEntriesByOrder([
+      makeRow({
+        id: 'e1',
+        registrationId: 'r1',
+        refundAmount: 15,
+        refundedAt: new Date('2026-10-08T00:00:00'),
+        classes: [makeClass({ id: 'c1' })],
+      }),
+      makeRow({
+        id: 'e2',
+        registrationId: 'r2',
+        dogId: 'd2',
+        dogName: 'Scout',
+        classes: [makeClass({ id: 'c2' })],
+      }),
+    ]);
+
+    expect(refunded.refundAmount).toBe(15);
+    expect(untouched.refundAmount).toBeNull();
+  });
+});

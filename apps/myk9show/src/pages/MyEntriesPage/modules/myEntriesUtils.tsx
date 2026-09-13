@@ -54,7 +54,14 @@ interface StatusBadgeOptions {
   partiallyScored?: boolean | undefined;
 }
 
-function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind): string {
+/**
+ * The key into `ENTRY_STATUS_DESCRIPTORS` for an entry's status.
+ *
+ * Exported so the My Shows dog chip resolves its icon and colour through the
+ * SAME mapping the badges do (MYK9-482). Owning a second copy is how an
+ * "Accepted" chip ended up wearing pending's warning colour.
+ */
+export function getStatusBadgeValue(status: EntryStatus, statusKind?: EntryStatusKind): string {
   switch (statusKind) {
     case 'in_ring':
       return 'in_ring';
@@ -113,23 +120,6 @@ export function getEntryStatusBadgeLabel(
   // were outstanding, just inverted.
   if (options.partiallyScored && !options.isShowCancelled) contextualLabel = 'Partially scored';
   return contextualLabel;
-}
-
-/**
- * Whether the card's status sentence would only repeat the badge beside it.
- *
- * Compares the two rendered strings rather than re-deriving the cases from
- * status kinds: the sentence for a terminal status can still add a fact
- * ("Withdrawn - refunded"), and only a literal match is safe to drop.
- */
-export function isStatusMessageRedundant(
-  message: string,
-  status: EntryStatus,
-  options: StatusBadgeOptions = {}
-): boolean {
-  const label = getEntryStatusBadgeLabel(status, options);
-  if (!label) return false;
-  return label.trim().toLowerCase() === message.trim().toLowerCase();
 }
 
 /**

@@ -17,7 +17,7 @@ The missing fee-card-to-cart regression is implemented and passes. Both money su
 | Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof                                        |
 | Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                                                               |
 | Coherence          | Tests/docs only; no production implementation changed                                                                                                                            |
-| Release            | PR #2179 open; current-head CI and independent review are pending after the final fixture hardening; the prior full shuffled suite passed 20,039 tests                           |
+| Release            | PR #2179 open; fallback review is complete with findings pending resolution; current-head CI and merge remain pending                                                            |
 
 ## Regression evidence
 
@@ -46,15 +46,15 @@ Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/act
 ## Checks
 
 - Focused real-cart integration plus existing cart-store suite: **9/9 pass**, twice on restored production source.
-- `pnpm exec tsc --noEmit -p tsconfig.test.json`: pending rerun after the final fixture typing fix.
+- `pnpm exec tsc --noEmit -p tsconfig.test.json`: pass before the fallback-review assertion fix; rerun in CI on the final head.
 - Targeted ESLint: exit 0.
 - Prettier and OpenSpec validation pass. Installed CLI uses `pnpm openspec validate myk9-423-payment-proof`; its documented `--change` spelling is unsupported.
 - Full `pnpm exec vitest run --sequence.shuffle`, seed `1789155371261`: **20,039 tests passed, 9 skipped in 434.57s**. The earlier stopped run was reporter buffering, not a test hang.
-- The full shuffled suite passed on the pre-final-hardening tree; rerun it against the current head before merge.
+- The full shuffled suite passed on the pre-fallback-review-fix tree; current-head CI rerun is required before merge.
 - Initial test authoring failed because this repository's Card has no data-slot attribute; the scoped DOM lookup was corrected to its existing card class. The first negative-control wrapper inspected stdout alone, while Vitest wrote the expected failure to stderr; corrected the wrapper and confirmed the same intended failure.
 
 ## Remaining gates
 
 - **Live proof:** complete. One controlled Stripe test-mode checkout ($96.30) was approved, succeeded, and was followed immediately by both live balance readbacks. No duplicate submission was made.
-- **Before merge:** rerun typecheck and the required shuffled suite after the final fixture typing fix; then pass independent review and required CI.
+- **Before merge:** pass the two fallback-review findings, current-head required CI, and the human-fallback attestation.
 - **Before archive/closure:** PR, independent review, required CI and merge evidence. MYK9-423 remains In Progress.

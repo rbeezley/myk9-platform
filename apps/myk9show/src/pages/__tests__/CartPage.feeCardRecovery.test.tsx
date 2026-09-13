@@ -546,5 +546,14 @@ describe('MYK9-423 fee-card payment recovery', () => {
     expect(recoveryRead.params.get('id')).toContain('entry-deleted');
     expect(recoveryRead.params.get('id')).toContain('entry-paid');
     expect(savedItems.some(item => item.entry_id === 'entry-paid')).toBe(false);
+    const cartCreate = requests.find(
+      request => request.table === 'entry_carts' && request.method === 'POST'
+    );
+    expect(cartCreate).toBeDefined();
+    if (!cartCreate) throw new Error('Expected the recovery cart create request');
+    expect(cartCreate.body).toMatchObject({
+      show_id: 'show-423',
+      exhibitor_id: 'profile-423',
+    });
   });
 });

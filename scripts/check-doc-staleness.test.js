@@ -103,6 +103,20 @@ test('parseDiffForRoutes ignores label-only edits where the route is unchanged',
   assert.deepEqual(parseDiffForRoutes(diff), []);
 });
 
+test('parseDiffForRoutes ignores Admin Help route metadata and its tests', () => {
+  const diff = [
+    '+++ b/apps/myk9show/src/routes/routeRegistry.ts',
+    "-  critical: ['/exhibitor/entries', '/shows'],",
+    '+++ b/apps/myk9show/src/routes/routeRegistry.test.ts',
+    "-  expect(getRouteImportFunction('/shows/show-42/setup')).toBeDefined();",
+    '+++ b/apps/myk9show/src/routes/publicRoutes.tsx',
+    '-  <Route path="/shows/:showId/register" />',
+    '+  <Route path="/shows/:showId/entry" />',
+  ].join('\n');
+
+  assert.deepEqual(parseDiffForRoutes(diff), ['/shows/:showId/register', '/shows/:showId/entry']);
+});
+
 test('parseDiffForRoutes does NOT compose slugs from unrelated files', () => {
   const diff = [
     '+++ b/apps/myk9show/src/components/Foo.tsx',

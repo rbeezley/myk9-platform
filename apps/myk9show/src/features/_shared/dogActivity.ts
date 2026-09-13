@@ -13,10 +13,13 @@
 // from "not synced yet", so that judgement has to live in the read, not here.
 import { getEntryStatusKind, isRemovedStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { toLocalDate } from '@/utils/date-format';
+import { isAccountedFor, isExpectedEntry } from '@/features/_shared/entryAccounting';
 
 export interface DogActivityEntry {
   id: string;
   entry_status?: string | null;
+  check_in_status?: string | null;
+  deleted_at?: string | null;
   result_status?: string | null;
   is_scored?: boolean | null;
   search_time_seconds?: number | null;
@@ -59,13 +62,23 @@ function isTodayOrPast(entry: DogActivityEntry, today: Date): boolean {
 }
 
 function isLiveUpcomingEntry(entry: DogActivityEntry, today: Date): boolean {
+  // Preserve display aliases such as promotion-expired, which the accounting
+  // rule does not list because they are not canonical scoring statuses.
   const kind = getEntryStatusKind(entry.entry_status);
+  // Direct authenticated reads cannot select result_status. Do not use a raw
+  // replica result here either: an unscored excused row is indistinguishable
+  // from a pending run without a release-safe own-entry projection.
+  const accountingEntry = {
+    entry_status: entry.entry_status ?? undefined,
+    check_in_status: entry.check_in_status ?? undefined,
+    deleted_at: entry.deleted_at ?? undefined,
+    is_scored: entry.is_scored ?? undefined,
+  };
   return (
     isTodayOrFuture(entry, today) &&
     !isRemovedStatus(kind) &&
-    kind !== 'completed' &&
-    kind !== 'absent' &&
-    kind !== 'moved'
+    isExpectedEntry(accountingEntry) &&
+    !isAccountedFor(accountingEntry)
   );
 }
 

@@ -114,15 +114,24 @@ const allOrders: MyEntry[] = [orderA, orderB];
 describe('cross-surface count fixture — MyEntriesPage/My Shows (order-level)', () => {
   it('keeps a day-two unscored run upcoming on both the dog strip and dog Activity', () => {
     const dog = makeDogGroup('rex', 'Rex', ['scored', 'still-to-run']);
-    dog.classes[0] = { ...dog.classes[0]!, entryStatus: EntryStatus.COMPLETED, isScored: true };
+    // Paper scoring leaves entry_status='confirmed' while setting is_scored.
+    dog.classes[0] = {
+      ...dog.classes[0]!,
+      entryStatus: EntryStatus.ACCEPTED,
+      checkInStatus: 'completed',
+      isScored: true,
+      resultStatus: 'qualified',
+    };
     const order = makeOrder({
       showDate: new Date(2026, 5, 1),
       showEndDate: new Date(2026, 5, 2),
       dogs: [dog],
     });
+    // Match the ordinary authenticated dog read: result_status is withheld.
     const activityRows = dog.classes.map(cls => ({
       id: cls.id,
       entry_status: cls.entryStatus === EntryStatus.COMPLETED ? 'completed' : 'confirmed',
+      check_in_status: cls.checkInStatus ?? null,
       is_scored: cls.isScored ?? false,
       show: { id: 'show-1', start_date: '2026-06-01', end_date: '2026-06-02' },
     }));
@@ -132,6 +141,30 @@ describe('cross-surface count fixture — MyEntriesPage/My Shows (order-level)',
       'still-to-run',
     ]);
     expect(deriveDogActivity(activityRows, new Date(2026, 5, 3)).upcoming).toEqual([]);
+  });
+
+  it('keeps a score-reset run upcoming despite its stale completed status', () => {
+    const dog = makeDogGroup('rex', 'Rex', ['run']);
+    dog.classes[0] = {
+      ...dog.classes[0]!,
+      entryStatus: EntryStatus.COMPLETED,
+      checkInStatus: 'completed',
+      isScored: false,
+    };
+    const order = makeOrder({ dogs: [dog] });
+    const activityRows = [
+      {
+        id: 'run',
+        entry_status: 'completed',
+        check_in_status: 'completed',
+        is_scored: false,
+        result_status: null,
+        show: { start_date: '2026-06-02', end_date: '2026-06-02' },
+      },
+    ];
+
+    expect(countUpcomingClassesByDog([order], NOW).rex).toBe(1);
+    expect(deriveDogActivity(activityRows, NOW).upcoming).toHaveLength(1);
   });
 
   it('orders: distinct registrationId count is 2, not 5 (class entries) or 2 (dogs, coincidentally equal here)', () => {

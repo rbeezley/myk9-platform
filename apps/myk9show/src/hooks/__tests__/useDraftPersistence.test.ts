@@ -203,23 +203,6 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.availableDrafts[0]?.completed).toBe(true);
   });
 
-  it('discards only the submitted draft and keeps another saved entry', () => {
-    seedDraftData({ selectedDogs: ['dog-1'] });
-    const { result, unmount } = renderHook(() => useDraftPersistence(SHOW_ID, USER_A, 'payment'));
-    let otherId: string | null = null;
-    act(() => {
-      otherId = result.current.saveDraft('Other entry');
-      result.current.saveDraft('Filed entry');
-    });
-
-    act(() => result.current.discardActiveDraftWithoutFinalSave());
-    expect(result.current.availableDrafts.map(draft => draft.id)).toEqual([otherId]);
-    unmount();
-    expect(localStorage.getItem(`registration-draft-metadata-${SHOW_ID}-${USER_A}`)).toContain(
-      otherId
-    );
-  });
-
   it('refreshes its memoized draft list when another tab changes metadata', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const { result: reader } = renderHook(() =>
@@ -261,20 +244,29 @@ describe('useDraftPersistence — cross-user scoping', () => {
     expect(result.current.availableDrafts).toHaveLength(0);
   });
 
-  it('discardDraftsWithoutFinalSave clears drafts and skips the unmount auto-save', () => {
+  it('discardDraftsWithoutFinalSave clears every draft and blocks later autosaves', () => {
     seedDraftData({ selectedDogs: ['dog-1'] });
     const metadataKey = `registration-draft-metadata-${SHOW_ID}-${USER_A}`;
-    const { result, unmount } = renderHook(() =>
+    const { result, unmount, rerender } = renderHook(() =>
       useDraftPersistence(SHOW_ID, USER_A, 'dog-selection')
     );
 
     act(() => {
-      result.current.saveDraft('Draft to discard');
+      result.current.saveDraft('First draft');
+      result.current.saveDraft('Second draft');
     });
-    expect(JSON.parse(localStorage.getItem(metadataKey) ?? '[]')).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(metadataKey) ?? '[]')).toHaveLength(2);
 
     act(() => {
       result.current.discardDraftsWithoutFinalSave();
+    });
+    expect(localStorage.getItem(metadataKey)).toBeNull();
+
+    seedDraftData({ selectedDogs: ['dog-2'] });
+    rerender();
+    act(() => {
+      result.current.autoSave();
+      window.dispatchEvent(new Event('pagehide'));
     });
     expect(localStorage.getItem(metadataKey)).toBeNull();
 

@@ -258,6 +258,7 @@ export function useDraftPersistence(
 
   // Auto-save current draft data
   const autoSave = useCallback(() => {
+    if (skipFinalSaveRef.current) return;
     if (!draftData || Object.keys(draftData).length === 0) {
       return;
     }
@@ -315,12 +316,6 @@ export function useDraftPersistence(
     skipFinalSaveRef.current = true;
     clearAllDrafts();
   }, [clearAllDrafts]);
-
-  const discardActiveDraftWithoutFinalSave = useCallback(() => {
-    skipFinalSaveRef.current = true;
-    const activeId = activeDraftMetadataRef.current?.id;
-    if (activeId) deleteDraft(activeId);
-  }, [deleteDraft]);
 
   // Keep a ref to the latest autoSave so the timer effect can call it without
   // having `autoSave` as a dependency — otherwise the timer gets cleared and
@@ -420,7 +415,6 @@ export function useDraftPersistence(
     availableDrafts,
     clearAllDrafts,
     discardDraftsWithoutFinalSave,
-    discardActiveDraftWithoutFinalSave,
 
     // State
     hasUnsavedChanges: draftData && Object.keys(draftData).length > 0,

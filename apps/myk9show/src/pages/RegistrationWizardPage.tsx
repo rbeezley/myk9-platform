@@ -273,7 +273,7 @@ function RegistrationWizardContent() {
                   steps={steps}
                   currentStep={currentStep}
                   completedSteps={completedSteps}
-                  onStepClick={handleStepClick}
+                  {...(isLastStep ? {} : { onStepClick: handleStepClick })}
                 />
               </div>
             </div>
@@ -363,6 +363,7 @@ function RegistrationWizardContent() {
                 <DraftResumePrompt
                   drafts={availableDrafts ?? []}
                   loadDraft={draftLoad}
+                  deleteDraft={draftDelete}
                   onDraftLoaded={handleDraftLoaded}
                 />
               )}

@@ -77,7 +77,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
     submittingRef,
     mountedRef,
     discardDraftsWithoutFinalSave,
-    discardActiveDraftWithoutFinalSave,
     clearDraftData,
     currentStepId,
     completedSteps,
@@ -173,7 +172,6 @@ export function createWizardHandlers(state: RegistrationWizardState) {
           triggerSync,
           navigate: path => navigate(path),
           discardDraftsWithoutFinalSave,
-          discardActiveDraftWithoutFinalSave,
           clearDraftData,
         });
       } finally {
@@ -285,6 +283,7 @@ export function createWizardHandlers(state: RegistrationWizardState) {
 
   // Step indicator click: jump to a completed step or the next step in sequence.
   const handleStepClick = (step: number) => {
+    if (isLastStep) return;
     if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
       if (currentStepId === 'payment') {
         setAgreedToEntryAgreement(false);

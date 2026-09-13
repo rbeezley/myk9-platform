@@ -25,6 +25,7 @@ describe('DraftResumePrompt', () => {
       <DraftResumePrompt
         drafts={[draft('empty', 0, 3), draft('new', 1, 2), draft('old', 1, 1)]}
         loadDraft={loadDraft}
+        deleteDraft={vi.fn()}
         onDraftLoaded={onDraftLoaded}
       />
     );
@@ -39,6 +40,7 @@ describe('DraftResumePrompt', () => {
       <DraftResumePrompt
         drafts={[draft('empty', 0, 1)]}
         loadDraft={vi.fn()}
+        deleteDraft={vi.fn()}
         onDraftLoaded={vi.fn()}
       />
     );
@@ -50,9 +52,24 @@ describe('DraftResumePrompt', () => {
       <DraftResumePrompt
         drafts={[{ ...draft('filed', 1, 2), completed: true }]}
         loadDraft={vi.fn()}
+        deleteDraft={vi.fn()}
         onDraftLoaded={vi.fn()}
       />
     );
     expect(screen.queryByRole('button', { name: 'Resume entry' })).not.toBeInTheDocument();
+  });
+
+  it('removes an unreadable draft so the resume prompt does not recur', () => {
+    const deleteDraft = vi.fn();
+    render(
+      <DraftResumePrompt
+        drafts={[draft('missing', 1, 1)]}
+        loadDraft={vi.fn(() => null)}
+        deleteDraft={deleteDraft}
+        onDraftLoaded={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Resume entry' }));
+    expect(deleteDraft).toHaveBeenCalledWith('missing');
   });
 });

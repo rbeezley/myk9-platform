@@ -76,7 +76,6 @@ function makeContextAndOrder(overrides: Partial<SubmitPaymentStepContext> = {}):
     }),
     navigate: vi.fn(),
     discardDraftsWithoutFinalSave: vi.fn(),
-    discardActiveDraftWithoutFinalSave: vi.fn(),
     clearDraftData: vi.fn(),
   };
 
@@ -132,8 +131,7 @@ describe('submitPaymentStep', () => {
     expect(submitShowRegistrationMock).toHaveBeenCalledTimes(1);
     expect(ctx.cart.clearCart).toHaveBeenCalledTimes(1);
     expect(order).toEqual(['clearCart', 'triggerSync']);
-    expect(ctx.discardActiveDraftWithoutFinalSave).toHaveBeenCalledTimes(1);
-    expect(ctx.discardDraftsWithoutFinalSave).not.toHaveBeenCalled();
+    expect(ctx.discardDraftsWithoutFinalSave).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the cart and the payment step when submission fails', async () => {
@@ -148,7 +146,6 @@ describe('submitPaymentStep', () => {
 
     expect(ctx.cart.clearCart).not.toHaveBeenCalled();
     expect(ctx.discardDraftsWithoutFinalSave).not.toHaveBeenCalled();
-    expect(ctx.discardActiveDraftWithoutFinalSave).not.toHaveBeenCalled();
     expect(ctx.markStepComplete).not.toHaveBeenCalled();
     expect(ctx.setCurrentStep).not.toHaveBeenCalled();
     expect(order).toEqual([]);

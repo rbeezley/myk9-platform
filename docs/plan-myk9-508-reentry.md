@@ -33,10 +33,11 @@ owns the wizard structure and this only exposes its existing draft loader.
 
 ## Verification recorded
 
-- Focused hook, prompt, submission, and existing draft-load tests: 25 passed,
+- Focused hook, prompt, submission, and existing draft-load tests: 26 passed,
   including a shuffled run. Review coverage also checks that completed entries
   cannot be resumed, empty exits cannot evict a useful draft, and successful
-  non-card submission removes only its active draft.
+  non-card submission clears same-show drafts. The receipt rail is no longer a
+  route back into a filed entry.
 - Chromium browser Back → reopen → Resume entry: passed. The initial run failed
   before the pagehide save was added, confirming the immediate-exit gap.
 - App typecheck, touched-file ESLint, and code-quality ratchet: passed.

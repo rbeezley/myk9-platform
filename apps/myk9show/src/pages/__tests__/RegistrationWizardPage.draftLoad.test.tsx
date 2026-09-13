@@ -109,8 +109,12 @@ vi.mock('@/components/shows/RegistrationWorkflow/WorkflowStepContent', () => ({
   },
 }));
 
+let progressOnStepClick: ((step: number) => void) | undefined;
 vi.mock('@/components/shows/wizard/components/HorizontalProgressIndicator', () => ({
-  default: () => <div data-testid="progress" />,
+  default: (props: { onStepClick?: (step: number) => void }) => {
+    progressOnStepClick = props.onStepClick;
+    return <div data-testid="progress" />;
+  },
 }));
 
 vi.mock('@/components/shows/wizard/components/WizardNavigation', () => ({
@@ -138,14 +142,14 @@ vi.mock('@/services/database/armbands', () => ({
 import RegistrationWizardPage from '../RegistrationWizardPage';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
-function buildDraft(selectedDogs: string[]): SavedDraft {
+function buildDraft(selectedDogs: string[], step = 'class-selection'): SavedDraft {
   return {
     metadata: {
       id: 'draft-1',
       showId: 'show-1',
       userId: 'user-1',
       timestamp: Date.now(),
-      stepCompleted: 'class-selection',
+      stepCompleted: step,
       title: 'Draft registration',
       preview: 'Draft registration',
     },
@@ -156,7 +160,7 @@ function buildDraft(selectedDogs: string[]): SavedDraft {
       paymentMethod: undefined,
       specialRequests: undefined,
       _workflowState: {
-        currentStep: 'class-selection',
+        currentStep: step,
         stepCompletionState: {},
         classSelections: [],
         handlerAssignments: {},
@@ -172,6 +176,7 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     capturedOnDraftLoaded = null;
     capturedSelectedDogs = [];
     capturedOnDogSelectionChange = null;
+    progressOnStepClick = undefined;
     mockCreateRegistration.mockClear();
     mockCreateRegistration.mockReturnValue({ id: 'reg-1' });
     // Default: one dog available (auto-select will fire for exhibitor mode)
@@ -215,5 +220,14 @@ describe('RegistrationWizardPage — handleDraftLoaded', () => {
     await waitFor(() => expect(screen.getByTestId('step-content')).toBeInTheDocument());
 
     expect(mockCreateRegistration).not.toHaveBeenCalled();
+  });
+
+  it('disables the progress rail on a completed entry receipt', async () => {
+    render(<RegistrationWizardPage />, { initialRoute: '/shows/show-1/register' });
+    await waitFor(() => expect(capturedOnDraftLoaded).not.toBeNull());
+    expect(progressOnStepClick).toBeTypeOf('function');
+
+    act(() => capturedOnDraftLoaded!(buildDraft(['dog-1'], 'confirmation')));
+    await waitFor(() => expect(progressOnStepClick).toBeUndefined());
   });
 });

@@ -5,16 +5,23 @@ import { notifications } from '@/lib/notifications';
 interface DraftResumePromptProps {
   drafts: DraftMetadata[];
   loadDraft: (id: string) => SavedDraft | null;
+  deleteDraft: (id: string) => void;
   onDraftLoaded: (draft: SavedDraft) => void;
 }
 
-export function DraftResumePrompt({ drafts, loadDraft, onDraftLoaded }: DraftResumePromptProps) {
+export function DraftResumePrompt({
+  drafts,
+  loadDraft,
+  deleteDraft,
+  onDraftLoaded,
+}: DraftResumePromptProps) {
   const latest = drafts.find(draft => (draft.selectedDogsCount ?? 0) > 0 && !draft.completed);
   if (!latest) return null;
 
   const resume = () => {
     const saved = loadDraft(latest.id);
     if (!saved) {
+      deleteDraft(latest.id);
       notifications.error(
         'We could not open that draft on this device. You can select a dog to start again.'
       );

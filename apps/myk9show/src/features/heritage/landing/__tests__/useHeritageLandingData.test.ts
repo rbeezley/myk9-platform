@@ -1,4 +1,6 @@
+import React, { type ReactNode } from 'react';
 import { renderHook } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -9,6 +11,18 @@ import { akcRegistry } from '@/features/registries/akc';
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => ({ data: [] }),
 }));
+
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: null, loading: false }),
+}));
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
+function wrapper({ children }: { children: ReactNode }) {
+  return React.createElement(QueryClientProvider, { client: queryClient }, children);
+}
 
 const SHOW = {
   id: 'show-1',
@@ -57,7 +71,7 @@ describe('useHeritageLandingData', () => {
       },
     } as Show;
 
-    const { result } = renderHook(() => useHeritageLandingData(show, null, []));
+    const { result } = renderHook(() => useHeritageLandingData(show, null, []), { wrapper });
 
     expect(result.current.hospitalityNotes).toBe('Coffee in the morning.');
     expect(result.current.awardsDescription).toBe('Rosettes for placements.');
@@ -69,14 +83,18 @@ describe('useHeritageLandingData', () => {
   // Phase 5a — the landing reads the trial's registry (camelCase registryId on the mapped
   // domain Trial), not a hardcoded AKC. A UKC trial must show UKC license/member-club copy.
   it('renders the trial registry license + member-club copy (UKC)', () => {
-    const { result } = renderHook(() => useHeritageLandingData(SHOW, trial('UKC'), [trial('UKC')]));
+    const { result } = renderHook(() => useHeritageLandingData(SHOW, trial('UKC'), [trial('UKC')]), {
+      wrapper,
+    });
     expect(result.current.licenseLanguage).toBe(ukcRegistry.licenseLanguage);
     expect(result.current.memberClubLanguage).toBe(ukcRegistry.memberClubLanguage);
     expect(result.current.showSubtitle).toContain(ukcRegistry.licenseLanguage);
   });
 
   it('falls back to AKC copy when the trial has no registry', () => {
-    const { result } = renderHook(() => useHeritageLandingData(SHOW, trial(null), [trial(null)]));
+    const { result } = renderHook(() => useHeritageLandingData(SHOW, trial(null), [trial(null)]), {
+      wrapper,
+    });
     expect(result.current.licenseLanguage).toBe(akcRegistry.licenseLanguage);
   });
 });

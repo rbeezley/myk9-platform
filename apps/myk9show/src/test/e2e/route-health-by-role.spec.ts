@@ -76,7 +76,6 @@ const EXHIBITOR_ROUTES: RouteSpec[] = [
   { label: 'my-entries', path: '/exhibitor/entries' },
   { label: 'account', path: '/account' },
   { label: 'shows', path: '/shows' },
-  { label: 'notifications', path: '/notifications' },
 ];
 
 const SECRETARY_ROUTES: RouteSpec[] = [

@@ -92,8 +92,8 @@ Do not trust the report — verify. For each returned batch:
 4. Only the orchestrator updates `tasks.md` checkboxes — a checkbox means _reviewed and
    accepted_, not _implementer says done_.
 5. Commit a checkpoint after each accepted batch, then **ship that batch before dispatching
-   the next**: open its PR, run the OTHER harness's review (`pnpm qa:codex-review` from
-   Claude Code), record the gate, merge, and start the next batch from the merged `main`.
+   the next**: open its PR, run the OTHER harness's review with the flag that posts the gate
+   (`pnpm qa:codex-review --post` from Claude Code), record the gate, merge, and start the next batch from the merged `main`.
    Before the LAST batch's PR is opened, run `opsx:verify` against the integrated tree and
    fix CRITICAL findings in that PR — never after merge. One PR per batch (shared rules, Gates § 3): the reviewer
    reads the whole net diff, so one end-of-change PR of N batches costs roughly N times the

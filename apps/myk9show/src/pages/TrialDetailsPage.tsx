@@ -54,7 +54,7 @@ const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
   const { trials, selectedTrialId, selectTrial } = useTrialStore();
-  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
 
   // Current trial + its parent show, with the anon/cold-store by-id fallback the

@@ -1,9 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import {
-  getEntriesByTrial,
-  type PublicEntryRow,
-} from '@/services/database/entries';
+import { getEntriesByTrial, type PublicEntryRow } from '@/services/database/entries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 /** Row shape returned by getEntriesByTrial (snake_case DB columns). */

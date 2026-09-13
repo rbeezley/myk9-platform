@@ -10,6 +10,9 @@ const queryState = vi.hoisted(() => ({
 vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
   useEntriesByShowQuery: () => queryState.current,
 }));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { id: 'test-user' }, loading: false }),
+}));
 
 const show = {
   id: 'show-1',

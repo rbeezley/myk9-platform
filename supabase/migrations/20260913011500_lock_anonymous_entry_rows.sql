@@ -6,6 +6,7 @@
 
 REVOKE ALL ON public.entries FROM anon;
 REVOKE ALL ON public.entries FROM PUBLIC;
+REVOKE ALL ON public.entries FROM authenticated;
 GRANT SELECT (id, class_id) ON public.entries TO anon;
 
 COMMENT ON TABLE public.entries IS

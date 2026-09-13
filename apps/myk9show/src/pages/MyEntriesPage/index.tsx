@@ -73,6 +73,7 @@ const MyEntriesPage: React.FC = () => {
   // (MYK9-417). `waitlistSurface` reconciles them.
   const { profile: exhibitorProfile } = useExhibitorProfile();
   const focusedWaitlistOfferId = searchParams.get('waitlistOffer');
+  const [focusedOfferHandledId, setFocusedOfferHandledId] = React.useState<string | null>(null);
   const {
     entries: waitlistEntries,
     activePositionCount: activeWaitlistPositionCount,
@@ -85,6 +86,7 @@ const MyEntriesPage: React.FC = () => {
 
   const {
     filteredEntries,
+    filteredResultAnnouncement,
     selectedTab,
     selectedStatus,
     setSelectedStatus,
@@ -172,6 +174,45 @@ const MyEntriesPage: React.FC = () => {
   const handleWaitlistOfferDeadlineElapsed = useCallback(() => {
     void refetchWaitlistOffers();
   }, [refetchWaitlistOffers]);
+  // Reuse the position card in both filter placements; do not invent an entry card.
+  const waitlistSection = waitlistSurface.showPositions ? (
+    <div
+      onFocusCapture={event => {
+        if (event.target.id === `waitlist-offer-${focusedWaitlistOfferId}`)
+          setFocusedOfferHandledId(focusedWaitlistOfferId);
+      }}
+    >
+      <WaitListSection
+        entries={waitlistEntries}
+        isLoading={waitlistLoading}
+        onWithdraw={id => withdraw.mutate(id)}
+        isWithdrawing={withdraw.isPending}
+        onStartPayment={(entryId, waitlistEntryId) => {
+          const next = new URLSearchParams(searchParams);
+          next.set('waitlistOffer', waitlistEntryId);
+          setSearchParams(next, { replace: true });
+          startPayment.mutate({ entryId, waitlistEntryId });
+        }}
+        onDecline={id => {
+          const next = new URLSearchParams(searchParams);
+          next.set('waitlistOffer', id);
+          setSearchParams(next, { replace: true });
+          decline.mutate(id);
+        }}
+        payingEntryId={startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null}
+        decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
+        paymentError={startPayment.error?.message ?? null}
+        paymentErrorOfferId={
+          startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
+        }
+        declineError={decline.error?.message ?? null}
+        declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
+        focusedOfferId={focusedWaitlistOfferId}
+        autoFocusHandled={focusedOfferHandledId === focusedWaitlistOfferId}
+        onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
+      />
+    </div>
+  ) : null;
 
   // INTENT: the dialogs below are siblings of the page body, never children of
   // it. `isInitialEntriesSyncing` flips on replication sync ticks the exhibitor
@@ -359,9 +400,7 @@ const MyEntriesPage: React.FC = () => {
                       that was just left. Announce what the new filter
                       produced. */}
                     <p className="sr-only" role="status" aria-live="polite">
-                      {filteredEntries.length === 1
-                        ? '1 entry'
-                        : `${filteredEntries.length} entries`}
+                      {filteredResultAnnouncement}
                     </p>
                     {filteredEntries.length === 0 && waitlistSurface.allowEmptyState ? (
                       <EntriesEmptyState
@@ -369,7 +408,7 @@ const MyEntriesPage: React.FC = () => {
                         selectedStatus={selectedStatus}
                         onSwitchTab={setSelectedTab}
                       />
-                    ) : (
+                    ) : filteredEntries.length > 0 ? (
                       // One show group per show, dog cards beneath. The list
                       // lives in modules/ because this file is at the
                       // 500-line cap (MYK9-482, design D10).
@@ -384,7 +423,8 @@ const MyEntriesPage: React.FC = () => {
                         onOpenReceipts={group => dialogs.openReceipt(group.orders)}
                         onResultRevealClick={reveal.openResultReveal}
                       />
-                    )}
+                    ) : null}
+                    {selectedStatus === 'waitlist' && waitlistSection}
                   </div>
                 </div>
               </>
@@ -397,43 +437,12 @@ const MyEntriesPage: React.FC = () => {
               the entries branch on purpose — `add_to_waitlist` can queue a
               dog with no entry row at all, so an exhibitor whose only
               standing on this page is a wait-list position still sees it. */}
-            {waitlistSurface.showPositions && (
+            {selectedStatus !== 'waitlist' && waitlistSection && (
               /* order-4 keeps the phone stack as it was when this section hung
                  off the bottom of the page: entries (1), balance (2), dogs (3),
                  wait list (4). Its siblings carry explicit orders, so an
                  unordered flex child would default to 0 and jump to the top. */
-              <div className="max-[720px]:order-4">
-                <WaitListSection
-                  entries={waitlistEntries}
-                  isLoading={waitlistLoading}
-                  onWithdraw={id => withdraw.mutate(id)}
-                  isWithdrawing={withdraw.isPending}
-                  onStartPayment={(entryId, waitlistEntryId) => {
-                    const next = new URLSearchParams(searchParams);
-                    next.set('waitlistOffer', waitlistEntryId);
-                    setSearchParams(next, { replace: true });
-                    startPayment.mutate({ entryId, waitlistEntryId });
-                  }}
-                  onDecline={id => {
-                    const next = new URLSearchParams(searchParams);
-                    next.set('waitlistOffer', id);
-                    setSearchParams(next, { replace: true });
-                    decline.mutate(id);
-                  }}
-                  payingEntryId={
-                    startPayment.isPending ? (startPayment.variables?.entryId ?? null) : null
-                  }
-                  decliningOfferId={decline.isPending ? (decline.variables ?? null) : null}
-                  paymentError={startPayment.error?.message ?? null}
-                  paymentErrorOfferId={
-                    startPayment.isError ? (startPayment.variables?.waitlistEntryId ?? null) : null
-                  }
-                  declineError={decline.error?.message ?? null}
-                  declineErrorOfferId={decline.isError ? (decline.variables ?? null) : null}
-                  focusedOfferId={focusedWaitlistOfferId}
-                  onOfferDeadlineElapsed={handleWaitlistOfferDeadlineElapsed}
-                />
-              </div>
+              <div className="max-[720px]:order-4">{waitlistSection}</div>
             )}
           </div>
         </div>

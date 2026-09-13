@@ -1213,6 +1213,12 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
 
     expect(await screen.findByText('My Wait List Positions')).toBeInTheDocument();
     expect(screen.getByText('Juni')).toBeInTheDocument();
+    const filteredSection = screen.getByTestId('entries-filter-section');
+    const timeAxis = within(filteredSection).getByRole('radiogroup', { name: /filter by time/i });
+    expect(within(timeAxis).getByRole('radio', { name: /^all\s*1$/i })).toBeInTheDocument();
+    expect(within(filteredSection).getByText('My Wait List Positions')).toBeInTheDocument();
+    expect(within(filteredSection).getByRole('status')).toHaveTextContent('1 wait list position');
+    expect(screen.getAllByText('My Wait List Positions')).toHaveLength(1);
     // The sentence the page had no business saying.
     expect(screen.queryByText('No waitlisted entries')).not.toBeInTheDocument();
     expect(screen.queryByText(/Nothing to do here right now/)).not.toBeInTheDocument();
@@ -1249,6 +1255,14 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     await screen.findByRole('radiogroup', { name: /filter by entry status/i });
     expect(waitlistChip()).toHaveTextContent(/^Waitlist\s*0$/);
     expect(screen.getByText('My Wait List Positions')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('entries-filter-section')).getByRole('status')
+    ).toHaveTextContent('1 wait list offer update');
+    const user = userEvent.setup();
+    await user.click(waitlistChip());
+    expect(
+      within(screen.getByTestId('entries-filter-section')).getByRole('status')
+    ).toHaveTextContent(/^1 wait list offer update$/);
   });
 
   it('does not greet an exhibitor who holds a position as brand new', async () => {
@@ -1262,6 +1276,40 @@ describe('Wait list positions with no waitlisted entry row (MYK9-417)', () => {
     expect(screen.getByText('Juni')).toBeInTheDocument();
     expect(screen.queryByText(/Welcome! Let’s get you set up/)).not.toBeInTheDocument();
     expect(screen.queryByText(/You haven’t entered any shows yet/)).not.toBeInTheDocument();
+  });
+
+  it('announces the held position in All and Upcoming, even with no entry row', async () => {
+    (getUserEntries as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [], error: null });
+    const user = userEvent.setup();
+    renderWithProviders(<MyEntriesPage />);
+
+    const section = await screen.findByTestId('entries-filter-section');
+    const timeAxis = within(section).getByRole('radiogroup', { name: /filter by time/i });
+    expect(within(timeAxis).getByRole('radio', { name: /^all\s*1$/i })).toBeInTheDocument();
+    expect(within(section).getByRole('status')).toHaveTextContent('1 wait list position');
+    await user.click(within(timeAxis).getByRole('radio', { name: /upcoming/i }));
+    expect(within(section).getByRole('status')).toHaveTextContent('1 wait list position');
+  });
+
+  it('keeps focus on status chips after the deep-linked offer has received focus', async () => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    seedPosition([{ ...junisPosition, status: 'expired' }], 0);
+    const user = userEvent.setup();
+    renderWithProviders(<MyEntriesPage />, '/exhibitor/entries?waitlistOffer=waitlist-1');
+
+    const focusedOffer = await screen.findByRole('region', { name: /waitlist offer for Juni/i });
+    expect(focusedOffer).toHaveFocus();
+    expect(focusedOffer).toHaveClass('ring-2');
+    await user.click(waitlistChip());
+    expect(waitlistChip()).toHaveFocus();
+    const anyChip = within(
+      screen.getByRole('radiogroup', { name: /filter by entry status/i })
+    ).getByRole('radio', { name: /any status/i });
+    await user.click(anyChip);
+    expect(anyChip).toHaveFocus();
   });
 
   it('still greets a genuinely brand-new exhibitor as brand new', async () => {

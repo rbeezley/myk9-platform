@@ -692,6 +692,19 @@ describe('useMyEntriesFilters wait-list positions', () => {
 
     // No entry here is waitlisted; the position is the whole count.
     expect(result.current.statusCounts.waitlist).toBe(1);
+    expect(result.current.statusCounts.any).toBe(2);
+    expect(result.current.waitlistSurface.showPositions).toBe(true);
+  });
+
+  it('counts the position in the All and Upcoming time filters when Waitlist is selected', () => {
+    const { result } = renderFilters(
+      { entries: oneEntry, activeWaitlistPositionCount: 1 },
+      '/exhibitor/entries?status=waitlist'
+    );
+
+    expect(result.current.filteredEntries).toHaveLength(0);
+    expect(result.current.statusCounts.waitlist).toBe(1);
+    expect(result.current.tabCounts).toEqual({ all: 1, upcoming: 1, completed: 0 });
     expect(result.current.waitlistSurface.showPositions).toBe(true);
   });
 

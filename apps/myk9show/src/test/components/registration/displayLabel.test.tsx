@@ -1,4 +1,5 @@
 import { buildDisplayLabel } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep.helpers';
+import { buildClassDisambiguator } from '@/features/_shared/classLabel';
 
 describe('buildDisplayLabel', () => {
   it('returns "level section" when both are present', () => {
@@ -42,14 +43,29 @@ describe('buildDisplayLabel', () => {
    * has even odds of entering the wrong class at $30 a go.
    */
   it('distinguishes two classes that share a level and have no section', () => {
-    const a = buildDisplayLabel('Advanced', undefined, {
-      name: 'Interior Advanced',
-      element: 'Interior',
-    });
-    const b = buildDisplayLabel('Advanced', undefined, {
-      name: 'Interior Advanced Preliminary',
-      element: 'Interior',
-    });
+    const disambiguate = buildClassDisambiguator([
+      { name: 'Interior Advanced', element: 'Interior', level: 'Advanced', section: null },
+      {
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+        section: null,
+      },
+    ]);
+    const a = buildDisplayLabel(
+      'Advanced',
+      undefined,
+      disambiguate({ name: 'Interior Advanced', element: 'Interior', level: 'Advanced' })
+    );
+    const b = buildDisplayLabel(
+      'Advanced',
+      undefined,
+      disambiguate({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+      })
+    );
 
     expect(a).toBe('Advanced');
     expect(b).toBe('Advanced Preliminary');
@@ -60,17 +76,28 @@ describe('buildDisplayLabel', () => {
     // The common case, and the reason the extra words must be derived rather
     // than the name simply rendered: "Interior Novice B" would otherwise read
     // back its own element and double its level and section.
+    const disambiguate = buildClassDisambiguator([
+      { name: 'Interior Novice A', element: 'Interior', level: 'Novice', section: 'A' },
+      { name: 'Interior Novice B', element: 'Interior', level: 'Novice', section: 'B' },
+    ]);
     expect(
-      buildDisplayLabel('Novice', 'B', { name: 'Interior Novice B', element: 'Interior' })
+      buildDisplayLabel(
+        'Novice',
+        'B',
+        disambiguate({
+          name: 'Interior Novice B',
+          element: 'Interior',
+          level: 'Novice',
+          section: 'B',
+        })
+      )
     ).toBe('Novice B');
   });
 
-  it('still returns undefined for a level-less class even when a name is given', () => {
-    expect(
-      buildDisplayLabel('Unknown', undefined, {
-        name: 'Detective Element Search',
-        element: 'Detective',
-      })
-    ).toBeUndefined();
+  it('still returns undefined for a level-less class even when extra words exist', () => {
+    // Detective-style classes have no real level; nothing the disambiguator
+    // produces should resurrect a label for them.
+    expect(buildDisplayLabel('Unknown', undefined, 'Element Search')).toBeUndefined();
+    expect(buildDisplayLabel('', 'A', 'Element Search')).toBeUndefined();
   });
 });

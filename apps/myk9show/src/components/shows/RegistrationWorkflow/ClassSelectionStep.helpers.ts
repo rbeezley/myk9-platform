@@ -2,7 +2,6 @@ import type { ClassSelectionData } from '@/types/show-registration-types';
 import type { Dog } from '@/types/dog-types';
 import type { CartItemWithDetails, NewCartItem } from '@/store/cartStore';
 import { getShowEntryFee, type ShowFeeInfo } from './PaymentStep/utils';
-import { classNameExtra } from '@/features/_shared/classLabel';
 
 /**
  * Find a dog by ID from the dogs array.
@@ -225,21 +224,25 @@ export function updateJumpHeightInSelections(
  * UKC Nose Work: every level has A/B).
  * Returns undefined for level-less elements (e.g., Detective).
  *
- * `identity` disambiguates two classes that share an element and a level with
- * no section between them — the Heartland Saturday trial runs both "Interior
+ * `extra` distinguishes two classes that share an element and a level with no
+ * section between them — the Heartland Saturday trial runs both "Interior
  * Advanced" and "Interior Advanced Preliminary". Without it both chips read
  * "Advanced" and choosing between them is a coin flip at $30 a class
- * (MYK9-489). The extra words come from `classNameExtra`, the same rule the
- * public premium uses, so the two surfaces cannot drift.
+ * (MYK9-489).
+ *
+ * The caller computes it with `buildClassDisambiguator`, the same rule the
+ * public premium uses, so the two surfaces cannot drift — and so it stays ''
+ * for every class that has no twin. Passing raw name text here unconditionally
+ * publishes this project's fixture names ("Advanced Load 2 Class 1") to
+ * exhibitors; the collision gate is what prevents that.
  */
 export function buildDisplayLabel(
   level: string,
   section: string | undefined,
-  identity?: { name?: string | null | undefined; element?: string | null | undefined }
+  extra?: string
 ): string | undefined {
   // "Unknown" is used for Detective-style classes that have no real level
   if (!level || level === 'Unknown') return undefined;
-  const extra = identity ? classNameExtra(identity.name, identity.element, level, section) : '';
   return [level, section, extra].filter(Boolean).join(' ');
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classNameExtra } from '../classLabel';
+import { buildClassDisambiguator, classNameExtra } from '../classLabel';
 
 /**
  * The rule both the show premium and the registration wizard build their class
@@ -55,5 +55,90 @@ describe('classNameExtra', () => {
     expect(classNameExtra('Handler Discrimination', 'Vehicle', 'Elite', null)).toBe(
       'Handler Discrimination'
     );
+  });
+});
+
+/**
+ * The collision gate. Applying `classNameExtra` unconditionally rewrote 14 of
+ * 24 class labels in the live database and 13 were harmful — this project's
+ * class names carry load-test and issue-ticket naming. These pin that the gate
+ * stays shut for everything except a genuine twin.
+ */
+describe('buildClassDisambiguator', () => {
+  it('returns nothing for a class with no twin, however odd its name', () => {
+    const disambiguate = buildClassDisambiguator([
+      { name: 'Load 2 Class 1', element: 'Container', level: 'Advanced', section: null },
+      { name: 'Container Novice', element: 'Container', level: 'Novice', section: null },
+    ]);
+
+    // The exact regression the gate exists to prevent: a load-test fixture
+    // name published to an exhibitor as "Advanced Load 2 Class 1".
+    expect(
+      disambiguate({
+        name: 'Load 2 Class 1',
+        element: 'Container',
+        level: 'Advanced',
+        section: null,
+      })
+    ).toBe('');
+  });
+
+  it('returns the distinguishing words when two classes would render alike', () => {
+    const disambiguate = buildClassDisambiguator([
+      { name: 'Interior Advanced', element: 'Interior', level: 'Advanced', section: null },
+      {
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+        section: null,
+      },
+    ]);
+
+    expect(
+      disambiguate({
+        name: 'Interior Advanced',
+        element: 'Interior',
+        level: 'Advanced',
+        section: null,
+      })
+    ).toBe('');
+    expect(
+      disambiguate({
+        name: 'Interior Advanced Preliminary',
+        element: 'Interior',
+        level: 'Advanced',
+        section: null,
+      })
+    ).toBe('Preliminary');
+  });
+
+  it('does not treat classes sharing a key AND a name as a collision', () => {
+    // Four seeded "Interior Novice A" rows share everything. They are the
+    // ordinary split-level case, not an ambiguity to resolve.
+    const rows = Array.from({ length: 4 }, () => ({
+      name: 'Interior Novice A',
+      element: 'Interior',
+      level: 'Novice',
+      section: 'A',
+    }));
+    const disambiguate = buildClassDisambiguator(rows);
+
+    expect(disambiguate(rows[0]!)).toBe('');
+  });
+
+  it('separates classes by section, so Novice A and Novice B are not twins', () => {
+    const disambiguate = buildClassDisambiguator([
+      { name: 'Interior Novice A', element: 'Interior', level: 'Novice', section: 'A' },
+      { name: 'Interior Novice B', element: 'Interior', level: 'Novice', section: 'B' },
+    ]);
+
+    expect(
+      disambiguate({
+        name: 'Interior Novice B',
+        element: 'Interior',
+        level: 'Novice',
+        section: 'B',
+      })
+    ).toBe('');
   });
 });

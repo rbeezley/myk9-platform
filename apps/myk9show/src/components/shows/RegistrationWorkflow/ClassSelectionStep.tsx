@@ -3,6 +3,7 @@ import { Info } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { buildClassDisambiguator } from '@/features/_shared/classLabel';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
@@ -184,13 +185,28 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         return (a.section || '').localeCompare(b.section || '');
       });
 
+      // Scoped to this trial's classes: two chips only compete for one label
+      // within the trial the exhibitor is choosing from. Returns '' unless a
+      // class would otherwise be indistinguishable from a different one, so
+      // ordinary chips keep reading "Novice B" rather than repeating the
+      // class's stored name back at the reader.
+      const disambiguate = buildClassDisambiguator(
+        sorted.map(cls => ({
+          name: cls.className,
+          element: cls.element || cls.className || 'Class',
+          level: cls.level || cls.className || 'Class',
+          section: cls.section,
+        }))
+      );
+
       for (const cls of sorted) {
         const level = cls.level || cls.className || 'Class';
         const element = cls.element || cls.className || 'Class';
-        const displayLabel = buildDisplayLabel(level, cls.section, {
-          name: cls.className,
-          element: cls.element,
-        });
+        const displayLabel = buildDisplayLabel(
+          level,
+          cls.section,
+          disambiguate({ name: cls.className, element, level, section: cls.section })
+        );
         const entry = {
           classId: cls.id,
           className: cls.className || '',

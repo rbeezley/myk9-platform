@@ -1,5 +1,5 @@
 import type { Show, ShowTrial } from '@/types/show-types';
-import { classNameExtra } from '../classLabel';
+import { buildClassDisambiguator, type ClassIdentity } from '../classLabel';
 
 /**
  * The offered-classes view of a show, grouped trial -> element -> level.
@@ -95,14 +95,31 @@ function elementLabel(cls: ClassLike): string | null {
  * class chips need the same answer (MYK9-489) — those two screens are read
  * minutes apart by the same exhibitor, so two rules would drift.
  */
-function levelLabel(cls: ClassLike, element: string, level: string): string {
-  const extra = classNameExtra(cls.name, element, level, cls.section);
+function levelLabel(
+  cls: ClassLike,
+  element: string,
+  level: string,
+  disambiguate: (cls: ClassIdentity) => string
+): string {
+  const extra = disambiguate({ name: cls.name, element, level, section: cls.section });
   if (!extra) return level;
   return level ? `${level} ${extra}` : extra;
 }
 
 function groupTrial(trial: ShowTrial): OfferedClassesTrial | null {
   const classes = (trial.classes ?? []) as ClassLike[];
+
+  // Scoped to this trial: two classes only compete for one label within the
+  // trial an exhibitor is reading. A Saturday and a Sunday "Interior Advanced"
+  // are already separated by their trial headings.
+  const disambiguate = buildClassDisambiguator(
+    classes.map(cls => ({
+      name: cls.name,
+      element: elementLabel(cls) ?? '',
+      level: clean(cls.level) ?? '',
+      section: cls.section,
+    }))
+  );
 
   const byElement = new Map<string, Map<string, Set<string>>>();
 
@@ -115,7 +132,7 @@ function groupTrial(trial: ShowTrial): OfferedClassesTrial | null {
 
     // A class with an element but no level still belongs under that element.
     // '' is the "no level stated" bucket and renders as the element alone.
-    const level = levelLabel(cls, element, clean(cls.level) ?? '');
+    const level = levelLabel(cls, element, clean(cls.level) ?? '', disambiguate);
     const sections = levels.get(level) ?? new Set<string>();
     levels.set(level, sections);
 

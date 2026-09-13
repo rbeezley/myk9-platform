@@ -319,12 +319,12 @@ export function computeMyEntriesShowProgressStats(
 }
 
 /**
- * Upcoming (non-past) class count per dog, keyed by `dogId`.
+ * Outstanding class count at non-past shows per dog, keyed by `dogId`.
  *
  * An order can span several dogs, so each dog's own classes are attributed to
  * its own `dogId` rather than lumped onto the order's lead dog — this is the
  * count `DogStrip` renders, and `exhibitor-count-integrity` requires it to
- * match the dog's own activity view.
+ * match the dog's own activity view after some classes are scored.
  */
 export function countUpcomingClassesByDog(
   entries: MyEntry[],
@@ -333,7 +333,7 @@ export function countUpcomingClassesByDog(
   return entries.reduce<Record<string, number>>((counts, entry) => {
     if (isPastShowEntry(entry, now)) return counts;
     for (const dog of entry.dogs) {
-      counts[dog.dogId] = (counts[dog.dogId] ?? 0) + dog.classes.length;
+      counts[dog.dogId] = (counts[dog.dogId] ?? 0) + outstandingClasses(dog.classes).length;
     }
     return counts;
   }, {});

@@ -302,14 +302,38 @@ describe('MYK9-423 fee-card payment recovery', () => {
     // Assert presentation through the real router/store/recovery, not a loader spy.
     // Only PostgREST transport is replaced; returned cart items depend on real
     // recovery upserts, so an empty-hydration regression cannot get canned lines.
-    let cart: Record<string, unknown> | null = {
-      id: 'cart-other-scope',
-      show_id: 'show-other',
-      exhibitor_id: 'profile-other',
-      status: 'active',
-    };
+    let cart: Record<string, unknown> | null = null;
+    let carts: Record<string, unknown>[] = [
+      {
+        id: 'cart-other-exhibitor',
+        show_id: 'show-423',
+        exhibitor_id: 'profile-other',
+        status: 'active',
+        expires_at: '2099-11-30T00:00:00.000Z',
+      },
+      {
+        id: 'cart-other-show',
+        show_id: 'show-other',
+        exhibitor_id: 'profile-423',
+        status: 'active',
+        expires_at: '2099-11-30T00:00:00.000Z',
+      },
+    ];
     type FixtureCartItem = EntryCartItemInsert & { id: string };
-    let savedItems: FixtureCartItem[] = [];
+    let savedItems: FixtureCartItem[] = [
+      {
+        id: 'item-stale',
+        cart_id: 'cart-423',
+        entry_id: 'entry-paid',
+        dog_id: 'dog-paid',
+        class_id: 'class-paid',
+        handler_id: null,
+        entry_fee_cents: 3000,
+        jump_height: null,
+        special_requests: null,
+      } as FixtureCartItem,
+    ];
+    let cartItemsReadCount = 0;
     const requests: Array<{
       table: string;
       method: string;
@@ -391,6 +415,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
             [...params].every(([column, filter]) => {
               if (column === 'select' || column === 'order' || column === 'limit') return true;
               if (filter.startsWith('eq.')) return String(row[column]) === filter.slice(3);
+              if (filter.startsWith('gt.')) return String(row[column]) > filter.slice(3);
               if (filter.startsWith('in.(')) {
                 return filter.slice(4, -1).split(',').includes(String(row[column]));
               }
@@ -410,7 +435,8 @@ describe('MYK9-423 fee-card payment recovery', () => {
 
           if (table === 'entry_carts') {
             if (method === 'POST') {
-              cart = {
+              await new Promise(resolve => setTimeout(resolve, 25));
+              const createdCart = {
                 ...body(),
                 id: 'cart-423',
                 show: {
@@ -420,14 +446,16 @@ describe('MYK9-423 fee-card payment recovery', () => {
                   entry_close_date: '2099-11-20',
                 },
               };
-              return json(cart);
+              cart = createdCart;
+              carts = [...carts, createdCart];
+              return json(createdCart);
             }
             if (method === 'PATCH') {
               Object.assign(cart!, body());
               return json(null);
             }
             // maybeSingle GET uses an array response and unwraps it in supabase-js.
-            return json(cart && matches(cart) ? [cart] : []);
+            return json(carts.filter(matches));
           }
           if (table === 'exhibitor_profiles') return json([{ person_id: 'person-423' }]);
           if (table === 'dogs')
@@ -472,6 +500,7 @@ describe('MYK9-423 fee-card payment recovery', () => {
               return json(null);
             }
             const matchingItems = savedItems.filter(matches);
+            if (cartItemsReadCount++ === 0) return json([]);
             if (matchingItems.length === 0) return json([]);
             return json(
               matchingItems.map((item, index) => {
@@ -568,11 +597,20 @@ describe('MYK9-423 fee-card payment recovery', () => {
     await waitFor(() => {
       expect(savedItems).toHaveLength(2);
     });
-    const deleteRequest = requests.find(
+    const deleteRequests = requests.filter(
       request => request.table === 'entry_cart_items' && request.method === 'DELETE'
     );
-    expect(deleteRequest).toBeDefined();
-    if (!deleteRequest) throw new Error('Expected the cart-item delete request');
-    expect(deleteRequest.params.get('id')).toMatch(/^eq\.item-/);
+    expect(deleteRequests).toHaveLength(2);
+    expect(deleteRequests.map(request => request.params.get('id'))).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^in\.\(item-stale\)$/),
+        expect.stringMatching(/^eq\.item-/),
+      ])
+    );
+    const concurrentLoad = useCartStore.getState().loadActiveCart;
+    await Promise.all([concurrentLoad('profile-423'), concurrentLoad('profile-423')]);
+    expect(
+      requests.filter(request => request.table === 'entry_carts' && request.method === 'POST')
+    ).toHaveLength(1);
   });
 });

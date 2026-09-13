@@ -17,7 +17,7 @@ The missing fee-card-to-cart regression is implemented and passes. Both money su
 | Paid-state display | Both actual balance components clear when the original three raw rows return payment_status=paid; this is fixture-based integration proof                                        |
 | Hosted proof       | Fee-card → exact cart → approved test payment succeeded; My Shows says Paid in full and My Payments says $0.00 due                                                               |
 | Coherence          | Tests/docs only; no production implementation changed                                                                                                                            |
-| Release            | PR #2179 open; fallback review is complete with findings pending resolution; current-head CI and merge remain pending                                                            |
+| Release            | PR #2179 open; fallback review fixes are implemented; final current-head re-review, CI and merge remain pending                                                                  |
 
 ## Regression evidence
 
@@ -56,5 +56,5 @@ Later [load rehearsal 34394781017](https://github.com/rbeezley/myk9-platform/act
 ## Remaining gates
 
 - **Live proof:** complete. One controlled Stripe test-mode checkout ($96.30) was approved, succeeded, and was followed immediately by both live balance readbacks. No duplicate submission was made.
-- **Before merge:** pass the two fallback-review findings, current-head required CI, and the human-fallback attestation.
+- **Before merge:** pass the final fallback re-review, current-head required CI, and the human-fallback attestation.
 - **Before archive/closure:** PR, independent review, required CI and merge evidence. MYK9-423 remains In Progress.

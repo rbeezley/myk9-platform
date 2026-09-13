@@ -72,7 +72,6 @@ const ROUTE_METADATA = {
   '/dogs/:id': { title: 'Dog Details' },
   '/clubs': { title: 'Clubs' },
   '/clubs/:id': { title: 'Club Details' },
-  '/calendar': { title: 'Calendar' },
   '/admin/templates': { title: 'Sport Rules', roles: ['site_admin'] },
 };
 

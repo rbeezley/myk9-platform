@@ -408,7 +408,7 @@ test.describe('Stress Tests', () => {
       `${BASE_URL}/my-entries`,
       `${BASE_URL}/judge/dashboard`,
       `${BASE_URL}/secretary/dashboard`,
-      `${BASE_URL}/calendar`,
+      `${BASE_URL}/shows?view=calendar`,
     ];
 
     const startTime = Date.now();
